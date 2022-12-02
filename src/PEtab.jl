@@ -6,6 +6,7 @@ using DataFrames
 using CSV
 using SciMLBase
 using OrdinaryDiffEq
+using DiffEqCallbacks
 using ForwardDiff
 using ReverseDiff
 using StatsBase
