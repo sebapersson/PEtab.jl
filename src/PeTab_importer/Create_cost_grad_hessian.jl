@@ -1,11 +1,3 @@
-include(joinpath(pwd(), "src", "PeTab_importer", "Common.jl"))
-include(joinpath(pwd(), "src", "PeTab_importer", "Map_parameters.jl"))
-include(joinpath(pwd(), "src", "PeTab_importer", "Create_obs_u0_sd_functions.jl"))
-include(joinpath(pwd(), "src", "PeTab_importer", "Process_PeTab_files.jl"))
-include(joinpath(pwd(), "src", "Common.jl"))
-
-
-using Zygote
 
 
 """
