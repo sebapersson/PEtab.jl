@@ -117,7 +117,7 @@ function solveOdeModelAllExperimentalCond!(solArray::Vector{<:SciMLBase.Abstract
                                          absTolSS=simulationInfo.absTolSS,
                                          relTolSS=simulationInfo.relTolSS)
 
-                if solArray[k].retcode != :Success
+                if !(solArray[k].retcode === SciMLBase.ReturnCode.Success)
                     sucess = false
                     break
                 end
@@ -157,7 +157,7 @@ function solveOdeModelAllExperimentalCond!(solArray::Vector{<:SciMLBase.Abstract
                                        absTolSS=simulationInfo.absTolSS,
                                        relTolSS=simulationInfo.relTolSS)
 
-            if !(solArray[i].retcode == :Success || solArray[i].retcode == :Terminated)
+            if !(solArray[i].retcode === SciMLBase.ReturnCode.Success || solArray[i].retcode === SciMLBase.ReturnCode.Terminated)
                 sucess = false
                 break
             end
@@ -284,7 +284,7 @@ function solveOdeModelAtExperimentalCondZygote(prob::ODEProblem,
         solSS = solve(ssProb, DynamicSS(solver, abstol=simulationInfo.absTolSS, reltol=simulationInfo.relTolSS), abstol=absTol, reltol=relTol)
 
         # Terminate if a steady state was not reached in preequilibration simulations
-        if solSS.retcode != :Success
+        if !(solSS.retcode === SciMLBase.ReturnCode.Success)
             return sol_pre, false
         end
 
@@ -300,8 +300,8 @@ function solveOdeModelAtExperimentalCondZygote(prob::ODEProblem,
         probUsePost = remake(prob, tspan=(0.0, t_max), u0 = convert.(eltype(dynParamEst), u0UsePost), p = convert.(eltype(dynParamEst), pUsePost))
         sol = solveCallPost(probUsePost)
 
-        if sol.retcode != :Success
-            sucess = false
+        if !(sol.retcode === SciMLBase.ReturnCode.Success)
+            success = false
         end
 
     # In case the model is not first simulated to a steady state
@@ -343,8 +343,8 @@ function solveOdeModelAtExperimentalCondZygote(prob::ODEProblem,
 
         Zygote.@ignore simulationInfo.solArray[whichCondID] = sol
 
-        if typeof(sol) <: ODESolution && !(sol.retcode == :Success || sol.retcode == :Terminated)
-            sucess = false
+        if typeof(sol) <: SciMLBase.AbstractODESolution && !(sol.retcode === SciMLBase.ReturnCode.Success || sol.retcode === SciMLBase.ReturnCode.Terminated)
+            success = false
         end
     end
 
@@ -399,7 +399,7 @@ function solveOdeSS(prob::ODEProblem,
 
     # Terminate if a steady state was not reached in preequilibration simulations
     sol_pre = solveCallPre(prob)
-    if sol_pre.retcode != :Terminated
+    if !(sol_pre.retcode === SciMLBase.ReturnCode.Terminated)
         return sol_pre
     end
 

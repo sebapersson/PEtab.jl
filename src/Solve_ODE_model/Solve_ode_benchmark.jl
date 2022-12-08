@@ -44,7 +44,7 @@ function solveOdeModelAllExperimentalCondBench(prob::ODEProblem,
                 simulationInfo.solArray[i] = sol
                 runTime += minimum(b).time
 
-                if sol_pre.retcode != :Terminated
+                if !(sol_pre.retcode === SciMLBase.ReturnCode.Terminated)
                     return false, NaN
                 end
 
@@ -64,7 +64,7 @@ function solveOdeModelAllExperimentalCondBench(prob::ODEProblem,
                 runTime += b
                 simulationInfo.solArray[k] = sol
 
-                if simulationInfo.solArray[k].retcode != :Success
+                if !(simulationInfo.solArray[k].retcode === SciMLBase.ReturnCode.Success)
                     sucess = false
                     runTime = NaN
                     break
@@ -102,7 +102,7 @@ function solveOdeModelAllExperimentalCondBench(prob::ODEProblem,
             simulationInfo.solArray[i] = sol
             runTime += b
 
-            if !(simulationInfo.solArray[i].retcode == :Success || simulationInfo.solArray[i].retcode == :Terminated)
+            if !(simulationInfo.solArray[i].retcode === SciMLBase.ReturnCode.Success || simulationInfo.solArray[i].retcode === SciMLBase.ReturnCode.Terminated)
                 sucess = false
                 runTime = NaN
                 break

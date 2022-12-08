@@ -103,7 +103,7 @@ function calcAccuracyOdeSolver(prob::ODEProblem,
                 solCompare = solveOdeSS(prob, changeToExperimentalCondUse!, firstExpId, shiftExpId, absTol, relTol, t_max_ss, solver, tSave=solArrayHighAccuracy[k].t)
 
                 # Only compute comparison upon Success retcode, and if solCompare made it to the end-point.
-                if solCompare.retcode != :Success && solCompare.t[end] != solArrayHighAccuracy[k].t[end]
+                if !(solCompare.retcode === SciMLBase.ReturnCode.Success) && solCompare.t[end] != solArrayHighAccuracy[k].t[end]
                     couldSolve = false
                     break
                 end
@@ -123,12 +123,12 @@ function calcAccuracyOdeSolver(prob::ODEProblem,
             solCompare = solveOdeNoSS(prob, changeToExperimentalCondUse!, firstExpId, absTol, relTol, solver, t_max, tSave=solArrayHighAccuracy[i].t)
 
             # In case t_max = Inf only calculate sqErr if the model could reach a steady state
-            if isinf(t_max) && solCompare.retcode != :Terminated
+            if isinf(t_max) && !(solCompare.retcode === SciMLBase.ReturnCode.Terminated)
                 couldSolve = false
                 break
             end
             # In case t_max != Inf compute sqErr if Success retcode, and if solCompare made it to the end-point.
-            if !isinf(t_max) && !(solCompare.retcode == :Success && solCompare.t[end] == solArrayHighAccuracy[i].t[end])
+            if !isinf(t_max) && !(solCompare.retcode === SciMLBase.ReturnCode.Success && solCompare.t[end] == solArrayHighAccuracy[i].t[end])
                 couldSolve = false
                 break
             end

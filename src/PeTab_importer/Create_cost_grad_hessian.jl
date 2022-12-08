@@ -64,7 +64,7 @@ function setUpCostGradHess(peTabModel::PeTabModel,
     # statement
     _evalHess = (paramVecEst) -> calcCost(paramVecEst, odeProb, peTabModel, simulationInfo, paramEstIndices, measurementData, parameterData, changeModelParamUse!, solveOdeModelAllCondUse!, priorInfo, calcHessian=true)
     evalHess = (hessianMat, paramVec) -> begin
-        if all([simulationInfo.solArray[i].retcode == :Success for i in eachindex(simulationInfo.solArray)])
+        if all([simulationInfo.solArray[i].retcode === SciMLBase.ReturnCode.Success for i in eachindex(simulationInfo.solArray)])
             try
                 hessianMat .= Symmetric(ForwardDiff.hessian(_evalHess, paramVec))
             catch
@@ -217,7 +217,7 @@ function calcGradCost!(grad::T1,
         return
     end
 
-    if !all([simulationInfo.solArrayGrad[i].retcode == :Success for i in eachindex(simulationInfo.solArrayGrad)])
+    if !all([simulationInfo.solArrayGrad[i].retcode === SciMLBase.ReturnCode.Success for i in eachindex(simulationInfo.solArrayGrad)])
         grad .= 1e8
         return
     end
@@ -271,7 +271,7 @@ function calcHessianApprox!(hessian::T1,
     # Avoid incorrect non-zero values
     hessian .= 0.0
 
-    if !all([simulationInfo.solArray[i].retcode == :Success for i in eachindex(simulationInfo.solArray)])
+    if !all([simulationInfo.solArray[i].retcode === SciMLBase.ReturnCode.Success for i in eachindex(simulationInfo.solArray)])
         return
     end
 
