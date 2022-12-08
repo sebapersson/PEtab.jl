@@ -3,9 +3,6 @@
 # TODO: Pre-compute better with indices and when extracting the t-max value.
 
 
-using DiffEqCallbacks
-
-
 """
     solveOdeModelAtFileValues(peTabModel::PeTabModel)
 
@@ -42,9 +39,9 @@ end
 
 
 """
-    solveOdeModelAllExperimentalCond!(solArray::Array{Union{OrdinaryDiffEq.ODECompositeSolution, ODESolution}, 1},
-                                      prob::ODEProblem, 
-                                      changeToExperimentalCondUse!::Function, 
+    solveOdeModelAllExperimentalCond!(solArray::Vector{<:SciMLBase.AbstractODESolution},
+                                      prob::ODEProblem,
+                                      changeToExperimentalCondUse!::Function,
                                       measurementData::DataFrame,
                                       simulationInfo::SimulationInfo,
                                       solver,
@@ -74,9 +71,9 @@ end
     
     See also: [`setUpCostFunc`, `SimulationInfo`, `changeToExperimentalCond!`]
 """
-function solveOdeModelAllExperimentalCond!(solArray::Array{Union{OrdinaryDiffEq.ODECompositeSolution, ODESolution}, 1},
-                                           prob::ODEProblem, 
-                                           changeToExperimentalCondUse!::Function, 
+function solveOdeModelAllExperimentalCond!(solArray::Vector{<:SciMLBase.AbstractODESolution},
+                                           prob::ODEProblem,
+                                           changeToExperimentalCondUse!::Function,
                                            measurementData::DataFrame,
                                            simulationInfo::SimulationInfo,
                                            solver,

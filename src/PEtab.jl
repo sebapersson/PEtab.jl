@@ -9,6 +9,7 @@ using OrdinaryDiffEq
 using DiffEqCallbacks
 using ForwardDiff
 using ReverseDiff
+using Zygote
 using StatsBase
 using Random
 using LinearAlgebra
