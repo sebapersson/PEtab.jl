@@ -4,11 +4,11 @@
 """
     XmlToModellingToolkit(pathXml::String, modelName::String, dirModel::String)
 
-    Convert a SBML file in pathXml to a Julia ModelingToolkit file and store 
-    the resulting file in dirModel with name modelName.jl. 
+    Convert a SBML file in pathXml to a Julia ModelingToolkit file and store
+    the resulting file in dirModel with name modelName.jl.
 
-    The SBML importer goes via libsbml in Python and currently likelly only 
-    works with SBML level 3. 
+    The SBML importer goes via libsbml in Python and currently likelly only
+    works with SBML level 3.
 """
 function XmlToModellingToolkit(pathXml::String, modelName::String, dirModel::String; writeToFile=true::Bool)
 
@@ -72,13 +72,13 @@ function processInitialAssignment(libsbml, model, modelDict::Dict, baseFunctions
     initallyAssignedVariable = Dict{String, String}()
     initallyAssignedParameter = Dict{String, String}()
     for initAssign in model[:getListOfInitialAssignments]()
-        
+
         assignName = initAssign[:getId]()
         assignMath = initAssign[:getMath]()
         assignFormula = libsbml[:formulaToString](assignMath)
         assignFormula = rewriteDerivatives(assignFormula, modelDict, baseFunctions)
-        
-        # Figure out wheter parameters or state is affected by the initial assignment  
+
+        # Figure out wheter parameters or state is affected by the initial assignment
         if assignName in keys(modelDict["states"])
             modelDict["states"][assignName] = assignFormula
             initallyAssignedVariable[assignName] = "states"
@@ -96,7 +96,7 @@ function processInitialAssignment(libsbml, model, modelDict::Dict, baseFunctions
 
     end
 
-    # If the initial assignment for a state is the value of another state apply recursion until continue looping 
+    # If the initial assignment for a state is the value of another state apply recursion until continue looping
     # until we have the initial assignment expressed as non state variables
     while true
         nestedVariables = false
@@ -116,7 +116,7 @@ function processInitialAssignment(libsbml, model, modelDict::Dict, baseFunctions
         nestedVariables || break
     end
 
-    # If the initial assignment for a parameters is the value of another parameters apply recursion 
+    # If the initial assignment for a parameters is the value of another parameters apply recursion
     # until we have the initial assignment expressed as non parameters
     while true
         nestedParameter = false
@@ -142,11 +142,11 @@ function buildODEModelDictionary(libsbml, model)
     # Nested dictionaries to store relevant model data:
     # i) Model parameters (constant during for a simulation)
     # ii) Model parameters that are nonConstant (e.g due to events) during a simulation
-    # iii) Model states 
+    # iii) Model states
     # iv) Model function (functions in the SBML file we rewrite to Julia syntax)
     # v) Model rules (rules defined in the SBML model we rewrite to Julia syntax)
     # vi) Model derivatives (derivatives defined by the SBML model)
-    modelDict = Dict()    
+    modelDict = Dict()
     modelDict["states"] = Dict()
     modelDict["parameters"] = Dict()
     modelDict["nonConstantParameters"] = Dict()
@@ -190,16 +190,16 @@ function buildODEModelDictionary(libsbml, model)
         modelDict["parameters"][parameter[:getId]()] = string(parameter[:getValue]())
     end
 
-    # Extract model compartments and store their volumes along with the model parameters 
+    # Extract model compartments and store their volumes along with the model parameters
     for compartment in model[:getListOfCompartments]()
         modelDict["parameters"][compartment[:getId]()] = string(compartment[:getSize]())
     end
 
-    # Rewrite SBML functions into Julia syntax functions and store in dictionary to allow them to 
+    # Rewrite SBML functions into Julia syntax functions and store in dictionary to allow them to
     # be inserted into equation formulas downstream.
     for functionDefinition in model[:getListOfFunctionDefinitions]()
         math = functionDefinition[:getMath]()
-        functionName = functionDefinition[:getId]()    
+        functionName = functionDefinition[:getId]()
         args = getSBMLFuncArg(math)
         functionFormula = getSBMLFuncFormula(math, libsbml)
         modelDict["modelFunctions"][functionName] = [args[2:end-1], functionFormula] # (args, formula)
@@ -227,7 +227,7 @@ function buildODEModelDictionary(libsbml, model)
             eventMath = eventAssignment[:getMath]()
             eventMathAsString = libsbml[:formulaToString](eventMath)
 
-            # Add the event 
+            # Add the event
             if eaIndex == 1
                 eventAsString = "[" * variableName * " ~ " * eventMathAsString
             else
@@ -246,10 +246,10 @@ function buildODEModelDictionary(libsbml, model)
     # Extract model rules. Each rule-type is processed differently.
     for rule in model[:getListOfRules]()
         println("RuleType = ", rule[:getElementName]())
-        ruleType = rule[:getElementName]() 
-        
+        ruleType = rule[:getElementName]()
+
         if ruleType == "assignmentRule"
-            ruleVariable = rule[:getVariable]() 
+            ruleVariable = rule[:getVariable]()
             ruleFormula = getRuleFormula(rule)
             processAssignmentRule!(modelDict, ruleFormula, ruleVariable, baseFunctions)
 
@@ -257,7 +257,7 @@ function buildODEModelDictionary(libsbml, model)
             # TODO
             println("Currently we do not support algebraic rules :(")
 
-        elseif ruleType == "rateRule"  
+        elseif ruleType == "rateRule"
             ruleVariable = rule[:getVariable]() # variable
             ruleFormula = getRuleFormula(rule)
             processRateRule!(modelDict, ruleFormula, ruleVariable, baseFunctions)
@@ -283,7 +283,7 @@ function buildODEModelDictionary(libsbml, model)
         end
     end
 
-    # Check which parameters are a part derivatives or input function. If a parameter is not a part, e.g is an initial 
+    # Check which parameters are a part derivatives or input function. If a parameter is not a part, e.g is an initial
     # assignment parameters, add to dummy variable to keep it from being simplified away.
     isInODESys = falses(length(modelDict["parameters"]))
     for du in values(modelDict["derivatives"])
@@ -305,7 +305,7 @@ function buildODEModelDictionary(libsbml, model)
     modelDict["discreteEventString"] = discreteEventString
     modelDict["numOfParameters"] =   string(length(model[:getListOfParameters]()))
     modelDict["numOfSpecies"] =   string(length(model[:getListOfSpecies]()))
-    
+
     return modelDict
 end
 
@@ -313,12 +313,12 @@ end
     writeODEModelToFile(modelDict, modelName, dirModel)
 
     Takes a modelDict as defined by buildODEModelDictionary
-    and creates a Julia ModelingToolkit file and stores 
-    the resulting file in dirModel with name modelName.jl. 
+    and creates a Julia ModelingToolkit file and stores
+    the resulting file in dirModel with name modelName.jl.
 
 """
 function writeODEModelToFile(modelDict, modelName, dirModel)
-    ### Writing to file 
+    ### Writing to file
     modelFile = open(dirModel * "/" * modelName * ".jl", "w")
 
     println(modelFile, "# Model name: " * modelName)
@@ -366,7 +366,7 @@ function writeODEModelToFile(modelDict, modelName, dirModel)
         end
         println(modelFile, defineVariableParameters)
     end
-    
+
     println(modelFile, "")
     println(modelFile, "    ### Define parameters")
     defineParameters = "    ModelingToolkit.@parameters"
@@ -408,7 +408,7 @@ function writeODEModelToFile(modelDict, modelName, dirModel)
         println(modelFile, "    " * discreteEventString)
         println(modelFile, "    ]")
     end
-    
+
     println(modelFile, "")
     println(modelFile, "    ### Derivatives ###")
     println(modelFile, "    eqs = [")
@@ -481,7 +481,7 @@ function writeODEModelToFile(modelDict, modelName, dirModel)
     println(modelFile, "    return sys, initialSpeciesValues, trueParameterValues")
     println(modelFile, "")
     println(modelFile, "end")
-        
+
     close(modelFile)
 
 end

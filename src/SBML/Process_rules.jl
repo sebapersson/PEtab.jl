@@ -1,7 +1,7 @@
 function getRuleFormula(rule)
-    
+
     ruleFormula = rule[:getFormula]()
-    ruleFormula = replaceWholeWord(ruleFormula, "time", "t") 
+    ruleFormula = replaceWholeWord(ruleFormula, "time", "t")
     ruleFormula = removePowFunctions(ruleFormula)
     
     return ruleFormula
@@ -10,15 +10,15 @@ end
 
 function processAssignmentRule!(modelDict::Dict, ruleFormula::String, ruleVariable::String, baseFunctions)
 
-    # If piecewise occurs in the rule we are looking at a time-based event which is encoded as an 
+    # If piecewise occurs in the rule we are looking at a time-based event which is encoded as an
     # event into the model to ensure proper evaluation of the gradient.
     if occursin("piecewise(", ruleFormula)
         rewritePiecewiseToIfElse(ruleFormula, ruleVariable, modelDict, baseFunctions)
-           
-    # If the rule does not involve a piecewise expression simply encode it as a function which downsteram 
-    # is integrated into the equations. 
+
+    # If the rule does not involve a piecewise expression simply encode it as a function which downsteram
+    # is integrated into the equations.
     else
-        # Extract the parameters and states which make out the rule, further check if rule consists of an 
+        # Extract the parameters and states which make out the rule, further check if rule consists of an
         # existing function (nesting).
         arguments, includesFunction = getArguments(ruleFormula, modelDict["modelRuleFunctions"], baseFunctions)
         if isempty(arguments)
@@ -37,7 +37,7 @@ function processAssignmentRule!(modelDict::Dict, ruleFormula::String, ruleVariab
             if ruleVariable in keys(modelDict["parameters"])
                 modelDict["parameters"] = delete!(modelDict["parameters"], ruleVariable)
             end
-        end        
+        end
     end
 
 end
@@ -48,23 +48,23 @@ function processRateRule!(modelDict::Dict, ruleFormula::String, ruleVariable::St
     # Rewrite rule to function if there are not any piecewise, eles rewrite to formula with ifelse
     if occursin("piecewise(", ruleFormula)
         ruleFormula = rewritePiecewiseToIfElse(ruleFormula, ruleVariable, modelDict, baseFunctions, retFormula=true)
-    else                
+    else
         arguments, includesFunction = getArguments(ruleFormula, modelDict["modelRuleFunctions"], baseFunctions)
         if arguments != "" && includesFunction == true
             ruleFormula = replaceWholeWordDict(ruleFormula, modelDict["modelRuleFunctions"])
         end
     end
 
-    # Add rate rule as part of model derivatives and remove from parameters dict if rate rule variable 
-    # is a parameter  
+    # Add rate rule as part of model derivatives and remove from parameters dict if rate rule variable
+    # is a parameter
     if ruleVariable in keys(modelDict["states"])
         modelDict["derivatives"][ruleVariable] = "D(" * ruleVariable * ") ~ " * ruleFormula
-    
+
     elseif ruleVariable in keys(modelDict["nonConstantParameters"])
         modelDict["states"][ruleVariable] = modelDict["nonConstantParameters"][ruleVariable]
         delete!(modelDict["nonConstantParameters"], ruleVariable)
         modelDict["derivatives"][ruleVariable] = "D(" * ruleVariable * ") ~ " * ruleFormula
-    
+
     elseif ruleVariable in keys(parameterDict)
         modelDict["states"][ruleVariable] = parameterDict[ruleVariable]
         delete!(parameterDict, ruleVariable)
