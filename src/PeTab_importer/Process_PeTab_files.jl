@@ -1,22 +1,22 @@
 """
     setUpPeTabModel(modelName::String, dirModel::String)::PeTabModel
 
-    Given a model directory (dirModel) containing the PeTab files and a 
-    xml-file on format modelName.xml will return a PeTabModel struct holding 
-    paths to PeTab files, ode-system in ModellingToolkit format, functions for 
-    evaluating yMod, u0 and standard deviations, and a parameter and state maps 
+    Given a model directory (dirModel) containing the PeTab files and a
+    xml-file on format modelName.xml will return a PeTabModel struct holding
+    paths to PeTab files, ode-system in ModellingToolkit format, functions for
+    evaluating yMod, u0 and standard deviations, and a parameter and state maps
     for how parameters and states are mapped in the ModellingToolkit ODE system
     along with state and parameter names.
 
-    dirModel must contain a SBML file named modelName.xml, and files starting with 
+    dirModel must contain a SBML file named modelName.xml, and files starting with
     measurementData, experimentalCondition, parameter, and observables (tsv-files).
     The latter files must be unique (e.g only one file starting with measurementData)
 
-    TODO : Example  
+    TODO : Example
 """
 function setUpPeTabModel(modelName::String, dirModel::String; forceBuildJlFile::Bool=false, verbose::Bool=true)::PeTabModel
 
-    # Sanity check user input 
+    # Sanity check user input
     modelFileXml = dirModel * modelName * ".xml"
     modelFileJl = dirModel * modelName * ".jl"
     if !isdir(dirModel)
@@ -29,7 +29,7 @@ function setUpPeTabModel(modelName::String, dirModel::String; forceBuildJlFile::
             @printf("Model directory does not contain xml-file with name %s\n", modelName * "xml")
         end
     end
-    # If Julia model file does exists build it 
+    # If Julia model file does exists build it
     if !isfile(modelFileJl) && forceBuildJlFile == false
         if verbose
             @printf("Julia model file does not exist - will build it\n")
@@ -49,17 +49,17 @@ function setUpPeTabModel(modelName::String, dirModel::String; forceBuildJlFile::
         modelDict = XmlToModellingToolkit(modelFileXml, modelName, dirModel)
     end
 
-    # Extract ODE-system and mapping of maps of how to map parameters to states and model parmaeters 
+    # Extract ODE-system and mapping of maps of how to map parameters to states and model parmaeters
     include(modelFileJl)
     expr = Expr(:call, Symbol("getODEModel_" * modelName))
     odeSys, stateMap, paramMap = eval(expr)
     #odeSysUse = ode_order_lowering(odeSys)
     odeSysUse = structural_simplify(odeSys)
-    # Parameter and state names for ODE-system 
+    # Parameter and state names for ODE-system
     parameterNames = parameters(odeSysUse)
     stateNames = states(odeSysUse)
 
-    # Sanity check for presence of all PeTab-files 
+    # Sanity check for presence of all PeTab-files
     pathMeasurementData = checkForPeTabFile("measurementData", dirModel)
     pathExperimentalCond = checkForPeTabFile("experimentalCondition", dirModel)
     pathParameters = checkForPeTabFile("parameters", dirModel)
@@ -93,12 +93,12 @@ function setUpPeTabModel(modelName::String, dirModel::String; forceBuildJlFile::
                             odeSysUse,
                             paramMap,
                             stateMap,
-                            parameterNames, 
+                            parameterNames,
                             stateNames,
                             dirModel,
                             pathMeasurementData,
                             pathExperimentalCond,
-                            pathObservables, 
+                            pathObservables,
                             pathParameters)
 
     return peTabModel
@@ -108,12 +108,12 @@ end
 """
     readDataFiles(dirModel::String; readObs::Bool=false)
 
-    Given a directory for a model, e.g ./Beer_MolBioSystems2014, read the associated PeTab files 
+    Given a directory for a model, e.g ./Beer_MolBioSystems2014, read the associated PeTab files
     for the measurements, parameters, experimental conditions and (if true) the observables.
 """
 function readDataFiles(dirModel::String; readObs::Bool=false)
 
-    # Check if PeTab files exist and get their path 
+    # Check if PeTab files exist and get their path
     pathMeasurementData = checkForPeTabFile("measurementData", dirModel)
     pathExperimentalCond = checkForPeTabFile("experimentalCondition", dirModel)
     pathParameters = checkForPeTabFile("parameters", dirModel)
@@ -140,8 +140,8 @@ function processParameterData(parameterData::DataFrame)::ParamData
 
     nParam = length(parameterData[!, "estimate"])
 
-    # Pre-allocate arrays to hold data 
-    lb::Array{Float64, 1} = zeros(Float64, nParam) 
+    # Pre-allocate arrays to hold data
+    lb::Array{Float64, 1} = zeros(Float64, nParam)
     ub::Array{Float64, 1} = zeros(Float64, nParam)
     paramVal::Array{Float64, 1} = zeros(Float64, nParam) # Vector with Nominal value in PeTab-file
     logScale::Array{Bool, 1} = Array{Bool, 1}(undef, nParam)
@@ -164,7 +164,7 @@ function processParameterData(parameterData::DataFrame)::ParamData
 
         paramVal[i] = parameterData[i, "nominalValue"]
         paramId[i] = parameterData[i, "parameterId"]
-        # Currently only supports parameters on log10-scale -> TODO: Change this 
+        # Currently only supports parameters on log10-scale -> TODO: Change this
         logScale[i] = parameterData[i, "parameterScale"] == "log10" ? true : false
         shouldEst[i] = parameterData[i, "estimate"] == 1 ? true : false
     end
@@ -186,8 +186,8 @@ function processMeasurementData(measurementData::DataFrame, observableData::Data
     tObs::Array{Float64, 1} = convert(Array{Float64, 1}, measurementData[!, "time"])
     nObs = length(yObs)
 
-    # Get the experimental condition ID describing the experimental conditions for each observed time-point. 
-    # In case of preequilibration simulation the condition ID is stored in a single-string as the 
+    # Get the experimental condition ID describing the experimental conditions for each observed time-point.
+    # In case of preequilibration simulation the condition ID is stored in a single-string as the
     # concatenation of the pre and post equlibration ID:s.
     conditionId::Array{String, 1} = Array{String, 1}(undef, nObs)
     if !("preequilibrationConditionId" in names(measurementData))
@@ -209,12 +209,12 @@ function processMeasurementData(measurementData::DataFrame, observableData::Data
         preEq = String.(preEq)
     end
 
-    # PeTab observable ID for each measurment 
+    # PeTab observable ID for each measurment
     obsID::Array{String, 1} = string.(measurementData[!, "observableId"])
 
-    # Noise parameters in the PeTab file either have a parameter ID, or they have 
-    # a value (fixed). Here regardless the values are mapped to the sdParams vector 
-    # as string. If sdObs[i] is numeric is the parsed before computing the cost. 
+    # Noise parameters in the PeTab file either have a parameter ID, or they have
+    # a value (fixed). Here regardless the values are mapped to the sdParams vector
+    # as string. If sdObs[i] is numeric is the parsed before computing the cost.
     if !("noiseParameters" in names(measurementData))
         sdObs = [missing for i in 1:nObs]
     else
@@ -222,7 +222,7 @@ function processMeasurementData(measurementData::DataFrame, observableData::Data
     end
     sdParams::Array{Union{String, Float64}, 1} = Array{Union{String, Float64}, 1}(undef, nObs)
     for i in eachindex(sdObs)
-        if ismissing(sdObs[i]) 
+        if ismissing(sdObs[i])
             sdParams[i] = ""
         elseif typeof(sdObs[i]) <:AbstractString && isNumber(sdObs[i])
             sdParams[i] = parse(Float64, sdObs[i])
@@ -234,7 +234,7 @@ function processMeasurementData(measurementData::DataFrame, observableData::Data
     end
 
     # obsParamFile[i] can store more than one parameter. This is parsed
-    # when computing the likelihood. 
+    # when computing the likelihood.
     if !("observableParameters" in names(measurementData))
         obsParamFile = [missing for i in 1:nObs]
     else
@@ -242,7 +242,7 @@ function processMeasurementData(measurementData::DataFrame, observableData::Data
     end
     obsParam = Array{String, 1}(undef, nObs)
     for i in 1:nObs
-        if ismissing(obsParamFile[i]) 
+        if ismissing(obsParamFile[i])
             obsParam[i] = ""
         else
             obsParam[i] = string(obsParamFile[i])
@@ -256,27 +256,27 @@ function processMeasurementData(measurementData::DataFrame, observableData::Data
     else
         for i in 1:nObs
             iRow = findfirst(x -> x == obsID[i], observableData[!, "observableId"])
-            transformArr[i] = Symbol(observableData[iRow, "observableTransformation"]) 
+            transformArr[i] = Symbol(observableData[iRow, "observableTransformation"])
         end
     end
 
-    # Save for each observation its pre-equlibrium and simulation condition id. 
+    # Save for each observation its pre-equlibrium and simulation condition id.
 
 
-    # To avoid repeating calculations yObs is stored in a transformed and untransformed format 
+    # To avoid repeating calculations yObs is stored in a transformed and untransformed format
     yObsTransformed::Array{Float64, 1} = deepcopy(yObs)
     transformYobsOrYmodArr!(yObsTransformed, transformArr)
 
-    # For each experimental condition we want to know the vector of time-points to save the ODE solution at 
-    # for each experimental condition. For each t-obs we also want to know which index in t-save vector 
+    # For each experimental condition we want to know the vector of time-points to save the ODE solution at
+    # for each experimental condition. For each t-obs we also want to know which index in t-save vector
     # it corresponds to.
     iTimePoint = Array{Int64, 1}(undef, nObs)
-    iPerConditionId = Dict() # Index in measurment data corresponding to specific condition id 
+    iPerConditionId = Dict() # Index in measurment data corresponding to specific condition id
     uniqueConditionID = unique(conditionId)
     tVecSave = Dict()
     for i in eachindex(uniqueConditionID)
         iConditionId = findall(x -> x == uniqueConditionID[i], conditionId)
-        # Sorting is needed so that when extracting time-points when computing the cost 
+        # Sorting is needed so that when extracting time-points when computing the cost
         # we extract the correct index.
         tVecSave[uniqueConditionID[i]] = sort(unique(tObs[iConditionId]))
         iPerConditionId[uniqueConditionID[i]] = iConditionId
@@ -292,8 +292,8 @@ end
 """
     getTimeMax(measurementData::DataFrame, expId::String)::Float64
 
-    Small helper function to get the time-max value for a specific simulationConditionId when simulating 
-    the PeTab ODE-model 
+    Small helper function to get the time-max value for a specific simulationConditionId when simulating
+    the PeTab ODE-model
 """
 function getTimeMax(measurementData::DataFrame, expId::String)::Float64
     return Float64(maximum(measurementData[findall(x -> x == expId, measurementData[!, "simulationConditionId"]), "time"]))
@@ -307,8 +307,8 @@ end
 
     Specifcially extract the experimental ID:s from the experimentalCondition - PeTab file;
     firstExpIds (preequilibration ID:s), the shiftExpIds (postequilibration), and
-    simulateSS (whether or not to simulate ODE-model to steady state). Further 
-    stores a solArray with the ODE solution where conditionIdSol of the ID for 
+    simulateSS (whether or not to simulate ODE-model to steady state). Further
+    stores a solArray with the ODE solution where conditionIdSol of the ID for
     each forward solution
 
     TODO: Compute t-vec save at from measurementDataFile (instead of providing another struct)
@@ -318,8 +318,8 @@ function getSimulationInfo(measurementDataFile::DataFrame,
                            absTolSS::Float64=1e-8,
                            relTolSS::Float64=1e-6)::SimulationInfo
 
-    # If preequilibrationConditionId column is not empty the model should 
-    # first be simulated to a stady state 
+    # If preequilibrationConditionId column is not empty the model should
+    # first be simulated to a stady state
     colNames = names(measurementDataFile)
     if !("preequilibrationConditionId" in colNames)
         preEqIDs = Array{String, 1}(undef, 0)
@@ -328,7 +328,7 @@ function getSimulationInfo(measurementDataFile::DataFrame,
     end
     simulateSS = length(preEqIDs) > 0
 
-    # In case the the model is simulated to steday state get pre and post equlibration experimental conditions 
+    # In case the the model is simulated to steday state get pre and post equlibration experimental conditions
     if simulateSS == true
         firstExpIds = preEqIDs
         shiftExpIds = Any[]
@@ -352,14 +352,14 @@ function getSimulationInfo(measurementDataFile::DataFrame,
     else
         nForwardSol = Int64(length(firstExpIds))
     end
-    # When computing the gradient and hessian the ODE-system needs to be resolved to compute the gradient 
-    # of the dynamic parameters, while for the observable/sd parameters the system should not be resolved. 
-    # Rather, an ODE solution without dual numbers is required and this solution can be the same which is 
+    # When computing the gradient and hessian the ODE-system needs to be resolved to compute the gradient
+    # of the dynamic parameters, while for the observable/sd parameters the system should not be resolved.
+    # Rather, an ODE solution without dual numbers is required and this solution can be the same which is
     # used when computing the cost.
-    solArray = Array{Union{OrdinaryDiffEq.ODECompositeSolution, ODESolution}, 1}(undef, nForwardSol)
-    solArrayGrad = Array{Union{OrdinaryDiffEq.ODECompositeSolution, ODESolution}, 1}(undef, nForwardSol)
+    solArray = Vector{ODESolution}(undef, nForwardSol)
+    solArrayGrad = Vector{ODESolution}(undef, nForwardSol)
 
-    # Array with conition-ID for each foward simulations. As we always solve the ODE in the same order this can 
+    # Array with conition-ID for each foward simulations. As we always solve the ODE in the same order this can
     # be pre-computed.
     conditionIdSol = Array{String, 1}(undef, nForwardSol)
     tMaxForwardSim = Array{Float64, 1}(undef, nForwardSol)
@@ -375,7 +375,7 @@ function getSimulationInfo(measurementDataFile::DataFrame,
             end
         end
     else
-        for i in eachindex(firstExpIds)    
+        for i in eachindex(firstExpIds)
             firstExpId = firstExpIds[i]
             conditionIdSol[i] = firstExpId
             tMaxForwardSim[i] = getTimeMax(measurementDataFile, firstExpId)
@@ -383,15 +383,15 @@ function getSimulationInfo(measurementDataFile::DataFrame,
 
     end
 
-    simulationInfo = SimulationInfo(firstExpIds, 
-                                    shiftExpIds, 
-                                    conditionIdSol, 
+    simulationInfo = SimulationInfo(firstExpIds,
+                                    shiftExpIds,
+                                    conditionIdSol,
                                     tMaxForwardSim,
                                     simulateSS,
-                                    solArray, 
-                                    solArrayGrad, 
-                                    absTolSS, 
-                                    relTolSS, 
+                                    solArray,
+                                    solArrayGrad,
+                                    absTolSS,
+                                    relTolSS,
                                     deepcopy(measurementData.tVecSave))
     return simulationInfo
 end
@@ -400,14 +400,14 @@ end
 """
     checkForPeTabFile(fileSearchFor::String, dirModel::String)::String
 
-    Helper function to check in dirModel if a file starting with fileSearchFor exists. 
+    Helper function to check in dirModel if a file starting with fileSearchFor exists.
     If true return file path.
 """
 function checkForPeTabFile(fileSearchFor::String, dirModel::String)::String
 
     filesDirModel = readdir(dirModel)
     iUse = findall(x -> occursin(fileSearchFor, x), filesDirModel)
-    if length(iUse) > 1 
+    if length(iUse) > 1
         @printf("Error : More than 1 file starting with %s in %s\n", fileSearchFor, filesDirModel)
     end
     if length(iUse) == 0
@@ -445,19 +445,19 @@ function getPriorInfo(paramEstIndices::ParameterIndices, parameterDataFile::Data
 
         if priorF == "parameterScaleNormal"
             contPrior += logpdf(Normal(priorVal[1], priorVal[2]), log10(parameterDataFile[iUse, "nominalValue"]))
-            priorLogPdf[i] = (p) -> logpdf(Normal(priorVal[1], priorVal[2]), p) 
+            priorLogPdf[i] = (p) -> logpdf(Normal(priorVal[1], priorVal[2]), p)
             priorOnParamScale[i] = true
         elseif priorF == "parameterScaleLaplace"
-            priorLogPdf[i] = (p) -> logpdf(Laplace(priorVal[1], priorVal[2]), p) 
+            priorLogPdf[i] = (p) -> logpdf(Laplace(priorVal[1], priorVal[2]), p)
             priorOnParamScale[i] = true
         elseif priorF == "normal"
-            priorLogPdf[i] = (p) -> logpdf(Normal(priorVal[1], priorVal[2]), p) 
+            priorLogPdf[i] = (p) -> logpdf(Normal(priorVal[1], priorVal[2]), p)
             priorOnParamScale[i] = false
         elseif priorF == "laplace"
-            priorLogPdf[i] = (p) -> logpdf(Laplace(priorVal[1], priorVal[2]), p) 
+            priorLogPdf[i] = (p) -> logpdf(Laplace(priorVal[1], priorVal[2]), p)
             priorOnParamScale[i] = false
         elseif priorF == "logNormal"
-            priorLogPdf[i] = (p) -> logpdf(LogNormal(priorVal[1], priorVal[2]), p) 
+            priorLogPdf[i] = (p) -> logpdf(LogNormal(priorVal[1], priorVal[2]), p)
             priorOnParamScale[i] = false
         elseif priorF == "logLaplace"
             println("Error : Julia does not yet have support for log-laplace")
@@ -469,8 +469,7 @@ function getPriorInfo(paramEstIndices::ParameterIndices, parameterDataFile::Data
 
     return PriorInfo(priorLogPdf, priorOnParamScale, true)
 end
-# Helper function in case there is not any parameter priors 
+# Helper function in case there is not any parameter priors
 function noPrior(p::Real)::Real
     return 0.0
 end
-
