@@ -3,13 +3,13 @@
 """
     setUpCostGradHess(peTabModel::PeTabModel, solver, tol::Float64)
 
-    For a PeTab-model set up functions for computing i) the likelihood, ii) likelhood gradient,
-    and iii) likelhood Hessian block approximation. The functions are stored in PeTabOpt-struct
-    that can be used as input to the optimizers.
+For a PeTab-model set up functions for computing i) the likelihood, ii) likelhood gradient,
+and iii) likelhood Hessian block approximation. The functions are stored in PeTabOpt-struct
+that can be used as input to the optimizers.
 
-    Currently the gradient for dynamic parameters (part of ODE-system) is computed via ForwardDiff,
-    and ReverseDiff is used for observable and sd parameters. The hessian approximation assumes the
-    interaction betweeen dynamic and (observable, sd) parameters is zero.
+Currently the gradient for dynamic parameters (part of ODE-system) is computed via ForwardDiff,
+and ReverseDiff is used for observable and sd parameters. The hessian approximation assumes the
+interaction betweeen dynamic and (observable, sd) parameters is zero.
 """
 function setUpCostGradHess(peTabModel::PeTabModel,
                            solver,
@@ -59,8 +59,21 @@ function setUpCostGradHess(peTabModel::PeTabModel,
     # This is subtle. When computing the hessian via autodiff it is important that the ODE-solution arrary with dual
     # numbers is used, else dual numbers will be present when computing the cost which will crash the code when taking
     # the gradient of non-dynamic parameters in optim.
+    # Moreover, sometimes even though the cost can be computed the ODE solver with Dual number can fail (as the error is
+    # monitored slightly differently). When this happens we error out and the code crash, hence the need of a catch
+    # statement
     _evalHess = (paramVecEst) -> calcCost(paramVecEst, odeProb, peTabModel, simulationInfo, paramEstIndices, measurementData, parameterData, changeModelParamUse!, solveOdeModelAllCondUse!, priorInfo, calcHessian=true)
-    evalHess = (hessianMat, paramVec) -> begin hessianMat .= Symmetric(ForwardDiff.hessian(_evalHess, paramVec)) end
+    evalHess = (hessianMat, paramVec) -> begin
+        if all([simulationInfo.solArray[i].retcode == :Success for i in eachindex(simulationInfo.solArray)])
+            try
+                hessianMat .= Symmetric(ForwardDiff.hessian(_evalHess, paramVec))
+            catch
+                hessianMat .= 0.0
+            end
+        else
+            hessianMat .= 0.0
+        end
+    end
 
     # Lower and upper bounds for parameters to estimate
     namesParamEst = paramEstIndices.namesParamEst
@@ -104,17 +117,17 @@ end
              solveOdeModelAllCondUse!::Function;
              calcHessian::Bool=false)
 
-    For a PeTab model compute the cost (likelhood) for a parameter vector
-    paramVecEst. With respect to paramVecEst (all other inputs fixed)
-    the function is compatible with ForwardDiff.
+For a PeTab model compute the cost (likelhood) for a parameter vector
+paramVecEst. With respect to paramVecEst (all other inputs fixed)
+the function is compatible with ForwardDiff.
 
-    To compute the cost an ODE-problem, peTabModel, ODE simulation info,
-    indices to map parameter from paramVecEst, measurement data, parameter
-    data (e.g constant parameters), function to map parameters correctly to
-    ODE-model, and a function to solve the ODE model are required. These
-    are all set up correctly by the `setUpCostGradHess` function.
+To compute the cost an ODE-problem, peTabModel, ODE simulation info,
+indices to map parameter from paramVecEst, measurement data, parameter
+data (e.g constant parameters), function to map parameters correctly to
+ODE-model, and a function to solve the ODE model are required. These
+are all set up correctly by the `setUpCostGradHess` function.
 
-    See also: [`setUpCostGradHess`]
+See also: [`setUpCostGradHess`]
 """
 function calcCost(paramVecEst,
                   odeProb::ODEProblem,
@@ -159,14 +172,14 @@ end
                   changeModelParamUse!::Function,
                   solveOdeModelAllCondUse!::Function) where T1<:Array{<:AbstractFloat, 1}
 
-    For a PeTab model compute inplace the gradient  of the cost (likelhood) for
-    a parameter vector paramVecEst.
+For a PeTab model compute inplace the gradient  of the cost (likelhood) for
+a parameter vector paramVecEst.
 
-    Currently the gradient for dynamic parameters (part of ODE-system) is computed via ForwardDiff,
-    and ReverseDiff is used for observable and sd parameters. The input arguements are the same
-    as for `calcCost`, and everything is setup by `setUpCostGradHess` function.
+Currently the gradient for dynamic parameters (part of ODE-system) is computed via ForwardDiff,
+and ReverseDiff is used for observable and sd parameters. The input arguements are the same
+as for `calcCost`, and everything is setup by `setUpCostGradHess` function.
 
-    See also: [`setUpCostGradHess`]
+See also: [`setUpCostGradHess`]
 """
 function calcGradCost!(grad::T1,
                        paramVecEst::T2,
@@ -197,7 +210,17 @@ function calcGradCost!(grad::T1,
     # worth to look into a parellisation over the chunks (as for larger models each call takes relatively long time).
     # Also parellisation of the chunks should be faster than paralellisation over experimental condtions.
     calcCostDyn = (x) -> calcLogLikSolveODE(x, sdParamEst, obsParEst, noneDynParamEst, odeProb, peTabModel, simulationInfo, paramIndices, measurementData, parameterData, changeModelParamUse!, solveOdeModelAllCondUse!, priorInfo, calcGradDynParam=true)
-    grad[paramIndices.iDynParam] .= ForwardDiff.gradient(calcCostDyn, dynamicParamEst)::Vector{Float64}
+    try
+        grad[paramIndices.iDynParam] .= ForwardDiff.gradient(calcCostDyn, dynamicParamEst)::Vector{Float64}
+    catch
+        grad = 1e8
+        return
+    end
+
+    if !all([simulationInfo.solArrayGrad[i].retcode == :Success for i in eachindex(simulationInfo.solArrayGrad)])
+        grad .= 1e8
+        return
+    end
 
     # Here it is crucial to account for that obs- and sd parameter can be overlapping. Thus, a name-map
     # of both Sd and Obs param is used to account for this. This is not a worry for non-dynamic parameters.
@@ -224,13 +247,13 @@ end
                        changeModelParamUse!::Function,
                        solveOdeModelAllCondUse!::Function) where T1<:Array{<:AbstractFloat, 2}
 
-    For a PeTab model compute inplace hessian approximation of the cost (likelhood) for
-    a parameter vector paramVecEst.
+For a PeTab model compute inplace hessian approximation of the cost (likelhood) for
+a parameter vector paramVecEst.
 
-    The hessian approximation assumes the interaction betweeen dynamic and (observable, sd) parameters is zero.
-    The input arguements are the same as for `calcCost`, and everything is setup by `setUpCostGradHess` function.
+The hessian approximation assumes the interaction betweeen dynamic and (observable, sd) parameters is zero.
+The input arguements are the same as for `calcCost`, and everything is setup by `setUpCostGradHess` function.
 
-    See also: [`setUpCostGradHess`]
+See also: [`setUpCostGradHess`]
 """
 function calcHessianApprox!(hessian::T1,
                             paramVecEst::T2,
@@ -248,6 +271,10 @@ function calcHessianApprox!(hessian::T1,
     # Avoid incorrect non-zero values
     hessian .= 0.0
 
+    if !all([simulationInfo.solArray[i].retcode == :Success for i in eachindex(simulationInfo.solArray)])
+        return
+    end
+
     # Split input into observeble and dynamic parameters
     dynamicParamEst = paramVecEst[paramIndices.iDynParam]
     obsParEst = paramVecEst[paramIndices.iObsParam]
@@ -260,7 +287,12 @@ function calcHessianApprox!(hessian::T1,
 
     # Calculate gradient seperately for dynamic and non dynamic parameter.
     calcCostDyn = (x) -> calcLogLikSolveODE(x, sdParamEst, obsParEst, noneDynParamEst, odeProb, peTabModel, simulationInfo, paramIndices, measurementData, parameterData, changeModelParamUse!, solveOdeModelAllCondUse!, priorInfo, calcHessDynParam=true)
-    hessian[paramIndices.iDynParam, paramIndices.iDynParam] .= ForwardDiff.hessian(calcCostDyn, dynamicParamEst)::Matrix{Float64}
+    try
+        hessian[paramIndices.iDynParam, paramIndices.iDynParam] .= ForwardDiff.hessian(calcCostDyn, dynamicParamEst)::Matrix{Float64}
+    catch
+        hessian .= 0.0
+        return
+    end
 
     # Here it is crucial to account for that obs- and sd parameter can be overlapping. Thus, a name-map
     # of both Sd and Obs param is used to account for this
@@ -271,7 +303,7 @@ function calcHessianApprox!(hessian::T1,
 
     # Compute hessian for none dynamic parameters
     calcCostNonDyn = (x) -> calcLogLikNotSolveODE(dynamicParamEst, x[iSdUse], x[iObsUse], x[iNonDynUse], peTabModel, simulationInfo, paramIndices, measurementData, parameterData, priorInfo)
-    @views ReverseDiff.hessian!(hessian[paramIndices.iSdObsNonDynPar, paramIndices.iSdObsNonDynPar], calcCostNonDyn, paramNotOdeSys)
+    @views ForwardDiff.hessian!(hessian[paramIndices.iSdObsNonDynPar, paramIndices.iSdObsNonDynPar], calcCostNonDyn, paramNotOdeSys)
 
 end
 
@@ -290,16 +322,16 @@ end
                        solveOdeModelAllCondUse!::Function,
                        computeGradOrHess::Bool=false)
 
-    Helper function computing the likelhood by solving the ODE system for all
-    PeTab-specifed experimental conditions using the dynamic-parameters,
-    sd-parameters and observable parameters.
+Helper function computing the likelhood by solving the ODE system for all
+PeTab-specifed experimental conditions using the dynamic-parameters,
+sd-parameters and observable parameters.
 
-    When computing the cost and gradient/hessian for dynamic parameters the ODE
-    system must be solved before getting the likelhood. Besides the different
-    parameter vector the input arguements are the same as for `calcCost`, and
-    everything is setup by `setUpCostGradHess` function.
+When computing the cost and gradient/hessian for dynamic parameters the ODE
+system must be solved before getting the likelhood. Besides the different
+parameter vector the input arguements are the same as for `calcCost`, and
+everything is setup by `setUpCostGradHess` function.
 
-    See also: [`calcCost`, `setUpCostGradHess`]
+See also: [`calcCost`, `setUpCostGradHess`]
 """
 function calcLogLikSolveODE(dynamicParamEst,
                             sdParamEst,
@@ -334,6 +366,7 @@ function calcLogLikSolveODE(dynamicParamEst,
     end
     if success != true
         println("Failed to solve ODE model")
+        return Inf
     end
 
     logLik = calcLogLik(dynamicParamEstUse, sdParamEstUse, obsParEstUse, nonDynParamEstUse, peTabModel, simulationInfo, paramIndices, measurementData, parameterData, calcHessDynParam=calcHessDynParam, calcGradDynParam=calcGradDynParam)
@@ -356,16 +389,16 @@ end
                           measurementData::MeasurementData,
                           parameterData::ParamData)
 
-    Helper function computing the likelhood by given  an already existing ODE-solution stored
-    in simulationInfo using the dynamic-parameters, sd-parameters and observable parameters.
+Helper function computing the likelhood by given  an already existing ODE-solution stored
+in simulationInfo using the dynamic-parameters, sd-parameters and observable parameters.
 
-    When computing the cost and gradient/hessian for the sd- and observable-parameters
-    only a solved ODE-system is needed (no need to resolve). This greatly reduces run-time
-    since a lot of dual numbers do not have to be propegated through the ODE solver.
-    Besides the different parameter vector the input arguements are the same as for `calcCost`,
-    and everything is setup by `setUpCostGradHess` function.
+When computing the cost and gradient/hessian for the sd- and observable-parameters
+only a solved ODE-system is needed (no need to resolve). This greatly reduces run-time
+since a lot of dual numbers do not have to be propegated through the ODE solver.
+Besides the different parameter vector the input arguements are the same as for `calcCost`,
+and everything is setup by `setUpCostGradHess` function.
 
-    See also: [`calcCost`, `setUpCostGradHess`]
+See also: [`calcCost`, `setUpCostGradHess`]
 """
 function calcLogLikNotSolveODE(dynamicParamEst::T1,
                                sdParamEst,
@@ -409,12 +442,12 @@ end
                     parameterData::ParamData;
                     gradHessDynParam::Bool=false)::Real where T1<:Vector{<:Real}
 
-    Helper function computing the likelhood by given after solving the ODE-system using
-    using the dynamic-parameters, sd-parameters and observable parameters.
+Helper function computing the likelhood by given after solving the ODE-system using
+using the dynamic-parameters, sd-parameters and observable parameters.
 
-    Currently for Gaussian data log10 and non-transformed data is accepted.
+Currently for Gaussian data log10 and non-transformed data is accepted.
 
-    See also: [`calcCost`, `setUpCostGradHess`]
+See also: [`calcCost`, `setUpCostGradHess`]
 """
 function calcLogLik(dynamicParamEst,
                     sdParamEst,
@@ -540,7 +573,7 @@ function calcGradZygote!(grad::T1,
     # This is subtle. By using Zygote-ignore when solving the ODE the ODE solution is stored in simulationInfo.solArray
     # which can be used to compute the gradient for the non-dynamic parameters without having to resolve the ODE system.
     calcCostNonDyn = (x) -> calcLogLikNotSolveODE(dynamicParamEst, x[iSdUse], x[iObsUse], x[iNonDynUse], peTabModel, simulationInfo, paramIndices, measurementData, parameterData, priorInfo, calcGradObsSdParam=false)
-    @views ReverseDiff.gradient!(grad[paramIndices.iSdObsNonDynPar], calcCostNonDyn, paramNotOdeSys)
+    @views ForwardDiff.gradient!(grad[paramIndices.iSdObsNonDynPar], calcCostNonDyn, paramNotOdeSys)
 end
 
 
@@ -558,7 +591,7 @@ function calcLogLikZygote(dynamicParamEst,
                           changeModelParamUse::Function,
                           solveOdeModelAllCondZygoteUse::Function,
                           priorInfo::PriorInfo;
-                          evalGradDyn::Bool=false)::Real
+                          evalGradDyn::Bool=false)
 
     # Correctly transform parameter if, for example, they are on the log-scale.
     dynamicParamEstUse = transformParamVec(dynamicParamEst, paramIndices.namesDynParam, parameterData)
@@ -593,7 +626,7 @@ function calcLogLikZygote(dynamicParamEst,
     end
 
     if priorInfo.hasPriors == true && evalGradDyn == true
-        logLik += evalPriors(dynamicParamEstUse, dynamicParamEst, paramEstIndices.namesDynParam, paramIndices, priorInfo)
+        logLik += evalPriors(dynamicParamEstUse, dynamicParamEst, paramIndices.namesDynParam, paramIndices, priorInfo)
     end
 
     return logLik
@@ -610,7 +643,11 @@ function calcLogLikExpCond(odeSol::ODESolution,
                            paramIndices::ParameterIndices,
                            measurementData::MeasurementData,
                            parameterData::ParamData,
-                           calcGradObsSdParam::Bool)::Real
+                           calcGradObsSdParam::Bool)
+
+    if !(odeSol.retcode === SciMLBase.ReturnCode.Success || odeSol.retcode === SciMLBase.ReturnCode.Terminated)
+        return Inf
+    end
 
     # Compute yMod and sd for all observations having id conditionID
     logLik = 0.0
@@ -698,15 +735,15 @@ end
                       paramIndices::ParameterIndices,
                       peTabModel::PeTabModel)
 
-    Change the ODE parameter vector (paramVecOdeModel) and initial value vector (stateVecOdeModel)
-    values to the values in parameter vector used for parameter estimation paramVecEst.
-    Basically, map the parameter-estiamtion vector to the ODE model.
+Change the ODE parameter vector (paramVecOdeModel) and initial value vector (stateVecOdeModel)
+values to the values in parameter vector used for parameter estimation paramVecEst.
+Basically, map the parameter-estiamtion vector to the ODE model.
 
-    The function can handle that paramVecEst is a Float64 vector or a vector of Duals for the
-    gradient calculations. This function is used when computing the cost, and everything
-    is set up by `setUpCostGradHess`.
+The function can handle that paramVecEst is a Float64 vector or a vector of Duals for the
+gradient calculations. This function is used when computing the cost, and everything
+is set up by `setUpCostGradHess`.
 
-    See also: [`setUpCostGradHess`]
+See also: [`setUpCostGradHess`]
 """
 function changeModelParam!(pOdeSys,
                            u0,
@@ -744,9 +781,9 @@ end
 """
     transformParamVec!(paramVec, namesParam::Array{String, 1}, paramData::ParamData; revTransform::Bool=false)
 
-    Helper function which transforms in-place a parameter vector with parameters specied in namesParam according to the
-    transformation for said parameter specifid in paramData.shouldTransform. In case revTransform is true
-    performs the inverse parameter transformation (e.g exp10 instead of log10)
+Helper function which transforms in-place a parameter vector with parameters specied in namesParam according to the
+transformation for said parameter specifid in paramData.shouldTransform. In case revTransform is true
+performs the inverse parameter transformation (e.g exp10 instead of log10)
 """
 function transformParamVec!(paramVec,
                             namesParam::Array{String, 1},
@@ -770,11 +807,11 @@ end
 """
     transformParamVec!(paramVec, namesParam::Array{String, 1}, paramData::ParamData; revTransform::Bool=false)
 
-    Helper function which returns a transformed parameter vector with parameters specied in namesParam according to the
-    transformation for said parameter specifid in paramData.shouldTransform. In case revTransform is true
-    performs the inverse parameter transformation (e.g exp10 instead of log10).
+Helper function which returns a transformed parameter vector with parameters specied in namesParam according to the
+transformation for said parameter specifid in paramData.shouldTransform. In case revTransform is true
+performs the inverse parameter transformation (e.g exp10 instead of log10).
 
-    The function is fully compatible with Zygote.
+The function is fully compatible with Zygote.
 """
 function transformParamVec(paramVec,
                            namesParam::Array{String, 1},
