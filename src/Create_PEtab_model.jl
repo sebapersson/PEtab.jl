@@ -1,43 +1,43 @@
 # PEtab structs 
-include(joinpath(pwd(), "src", "PeTab_structs.jl"))
+include("PeTab_structs.jl")
 
-include(joinpath(pwd(), "src", "Common.jl"))
+include("Common.jl")
 
 # Files related to computing the cost (likelihood)
-include(joinpath(pwd(), "src", "Compute_cost", "Compute_priors.jl"))
-include(joinpath(pwd(), "src", "Compute_cost", "Compute_cost.jl"))
-include(joinpath(pwd(), "src", "Compute_cost", "Compute_cost_zygote.jl"))
+include(joinpath("Compute_cost", "Compute_priors.jl"))
+include(joinpath("Compute_cost", "Compute_cost.jl"))
+include(joinpath("Compute_cost", "Compute_cost_zygote.jl"))
 
-# Files related to computing derivatives 
-include(joinpath(pwd(), "src", "Derivatives", "Hessian.jl"))
-include(joinpath(pwd(), "src", "Derivatives", "Gradient.jl"))
-include(joinpath(pwd(), "src", "Derivatives", "Adjoint_sensitivity_analysis.jl"))
-include(joinpath(pwd(), "src", "Derivatives", "Forward_sensitivity_equations.jl"))
-include(joinpath(pwd(), "src", "Derivatives", "Gauss_newton.jl"))
-include(joinpath(pwd(), "src", "Derivatives", "Common.jl"))
+# Files related to computing derivatives
+include(joinpath("Derivatives", "Hessian.jl"))
+include(joinpath("Derivatives", "Gradient.jl"))
+include(joinpath("Derivatives", "Adjoint_sensitivity_analysis.jl"))
+include(joinpath("Derivatives", "Forward_sensitivity_equations.jl"))
+include(joinpath("Derivatives", "Gauss_newton.jl"))
+include(joinpath("Derivatives", "Common.jl"))
 
-# Files related to solving the ODE-system 
-include(joinpath(pwd(), "src", "Solve_ODE", "Change_experimental_condition.jl"))
-include(joinpath(pwd(), "src", "Solve_ODE", "Solve_ode_Zygote.jl"))
-include(joinpath(pwd(), "src", "Solve_ODE", "Solve_ode_model.jl"))
+# Files related to solving the ODE-system
+include(joinpath("Solve_ODE", "Change_experimental_condition.jl"))
+include(joinpath("Solve_ODE", "Solve_ode_Zygote.jl"))
+include(joinpath("Solve_ODE", "Solve_ode_model.jl"))
 
-# Files related to distributed computing 
-include(joinpath(pwd(), "src", "Distributed", "Distributed.jl"))
+# Files related to distributed computing
+include(joinpath("Distributed", "Distributed.jl"))
 
-# Files related to processing PEtab files 
-include(joinpath(pwd(), "src", "Process_PEtab_files", "Common.jl"))
-include(joinpath(pwd(), "src", "Process_PEtab_files", "Get_simulation_info.jl"))
-include(joinpath(pwd(), "src", "Process_PEtab_files", "Get_parameter_indices.jl"))
-include(joinpath(pwd(), "src", "Process_PEtab_files", "Process_measurements.jl"))
-include(joinpath(pwd(), "src", "Process_PEtab_files", "Process_parameters.jl"))
-include(joinpath(pwd(), "src", "Process_PEtab_files", "Process_callbacks.jl"))
-include(joinpath(pwd(), "src", "Process_PEtab_files", "Observables", "Common.jl"))
-include(joinpath(pwd(), "src", "Process_PEtab_files", "Observables", "Create_h_sigma_derivatives.jl"))
-include(joinpath(pwd(), "src", "Process_PEtab_files", "Observables", "Create_u0_h_sigma.jl"))
-include(joinpath(pwd(), "src", "Process_PEtab_files", "Read_PEtab_files.jl"))
+# Files related to processing PEtab files
+include(joinpath("Process_PEtab_files", "Common.jl"))
+include(joinpath("Process_PEtab_files", "Get_simulation_info.jl"))
+include(joinpath("Process_PEtab_files", "Get_parameter_indices.jl"))
+include(joinpath("Process_PEtab_files", "Process_measurements.jl"))
+include(joinpath("Process_PEtab_files", "Process_parameters.jl"))
+include(joinpath("Process_PEtab_files", "Process_callbacks.jl"))
+include(joinpath("Process_PEtab_files", "Observables", "Common.jl"))
+include(joinpath("Process_PEtab_files", "Observables", "Create_h_sigma_derivatives.jl"))
+include(joinpath("Process_PEtab_files", "Observables", "Create_u0_h_sigma.jl"))
+include(joinpath("Process_PEtab_files", "Read_PEtab_files.jl"))
 
-# For creating a PEtab ODE problem 
-include(joinpath(pwd(), "src", "Create_PEtab_ODEProblem.jl"))
+# For creating a PEtab ODE problem
+include(joinpath("Create_PEtab_ODEProblem.jl"))
 
 
 """

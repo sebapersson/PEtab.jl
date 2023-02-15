@@ -150,8 +150,8 @@ function loadFunctionsAndStructs()
     @eval @everywhere begin 
                         macro LoadFuncStruct()
                             quote
-                                include(joinpath(pwd(), "src", "Create_PEtab_model.jl"))
-                                include(joinpath(pwd(), "src", "Distributed", "Distributed_run.jl"))
+                                include("Create_PEtab_model.jl")
+                                include(joinpath("Distributed", "Distributed_run.jl"))
                             end
                         end
                     end
