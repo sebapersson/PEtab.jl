@@ -1,5 +1,5 @@
-# PEtab structs 
-include("PeTab_structs.jl")
+# PEtab structs
+include("PEtab_structs.jl")
 
 include("Common.jl")
 
