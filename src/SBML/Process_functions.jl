@@ -1,5 +1,5 @@
 # Extracts the argument from a function.
-# If a dictionary (with functions) is supplied, will also check if there are nested functions and will 
+# If a dictionary (with functions) is supplied, will also check if there are nested functions and will
 # include the arguments of these nested functions as arguments of the first function.
 # The returned string will only contain unique arguments.
 function getArguments(functionAsString, baseFunctions::Array{String, 1})
@@ -60,11 +60,11 @@ function getArguments(functionAsString, dictionary::Dict, baseFunctions::Vector{
     return [argumentString, includesFunction]
 end
 
-# Replaces a word, "replaceFrom" in functions with another word, "replaceTo". 
+# Replaces a word, "replaceFrom" in functions with another word, "replaceTo".
 # Often used to change "time" to "t"
 # Makes sure not to change for example "time1" or "shift_time"
 function replaceWholeWord(oldString, replaceFrom, replaceTo)
-    
+
     replaceFromRegex = Regex("(\\b" * replaceFrom * "\\b)")
     newString = replace(oldString, replaceFromRegex => replaceTo)
     return newString
@@ -94,10 +94,10 @@ end
 
 # Substitutes the function with the formula given by the model, but replaces
 # the names of the variables in the formula with the input variable names.
-# e.g. If fun(a) = a^2 then "constant * fun(b)" will be rewritten as 
+# e.g. If fun(a) = a^2 then "constant * fun(b)" will be rewritten as
 # "constant * b^2"
 # Main goal, insert model formulas when producing the model equations.
-# Example "fun1(fun2(a,b),fun3(c,d))" and Dict 
+# Example "fun1(fun2(a,b),fun3(c,d))" and Dict
 # test["fun1"] = ["a,b","a^b"]
 # test["fun2"] = ["a,b","a*b"]
 # test["fun3"] = ["a,b","a+b"]
@@ -105,7 +105,7 @@ end
 function replaceFunctionWithFormula(functionAsString, funcNameArgFormula)
 
     newFunctionsAsString = functionAsString
-    
+
     for (key,value) in funcNameArgFormula
         # Find commas not surrounded by parentheses.
         # Used to split function arguments
@@ -121,7 +121,7 @@ function replaceFunctionWithFormula(functionAsString, funcNameArgFormula)
         # Matches parentheses pairs to grab the arguments of the "funName(" function
         matchParenthesesRegex = Regex("\\((?:[^)(]*(?R)?)*+\\)")
         while !isnothing(match(numberOfFuns, newFunctionsAsString))
-            # The string we wish to insert when the correct 
+            # The string we wish to insert when the correct
             # replacement has been made.
             # Must be resetted after each pass.
             replaceStr = value[2]
@@ -131,8 +131,8 @@ function replaceFunctionWithFormula(functionAsString, funcNameArgFormula)
             insideOfFun = match(matchParenthesesRegex, newFunctionsAsString[funStartPos-1:end]).match
             insideOfFun = insideOfFun[2:end-1]
             replaceTo = split(replace(insideOfFun,", "=>","),findOutsideCommaRegex)
-            
-            # Replace each variable used in the formula with the 
+
+            # Replace each variable used in the formula with the
             # variable name used as input for the function.
             replaceDict = Dict()
             for ind in eachindex(replaceTo)
@@ -144,7 +144,7 @@ function replaceFunctionWithFormula(functionAsString, funcNameArgFormula)
             if key != "pow"
                 # Replace function(input) with formula where each variable in formula has the correct name.
                 newFunctionsAsString = replace(newFunctionsAsString, key * "(" * insideOfFun * ")" => "(" * replaceStr * ")")
-            else 
+            else
                 # Same as above, but skips extra parentheses around the entire power.
                 newFunctionsAsString = replace(newFunctionsAsString, key * "(" * insideOfFun * ")" => replaceStr)
             end
@@ -165,7 +165,7 @@ function removePowFunctions(oldStr)
 end
 
 
-# For a SBML function extract the function arguments 
+# For a SBML function extract the function arguments
 function getSBMLFuncArg(mathSBML)::String
     args = "("
     if mathSBML[:getNumChildren]() > 1
@@ -186,13 +186,13 @@ end
 function getSBMLFuncFormula(mathSBML, libsbml)
 
     mathAsString = libsbml[:formulaToString](mathSBML)
-        
-    # Remove any lambda and only keep the arguments and actual function formulation 
+
+    # Remove any lambda and only keep the arguments and actual function formulation
     expressionStart = findfirst('(', mathAsString)+1
     expressionStop = findlast(')', mathAsString)-1
     StrippedMathAsString = mathAsString[expressionStart:expressionStop]
-        
-    # The actual math formula is given between the last , and end paranthesis 
+
+    # The actual math formula is given between the last , and end paranthesis
     functionFormula = lstrip(split(StrippedMathAsString, ',')[end])
 
     functionFormula = removePowFunctions(functionFormula)

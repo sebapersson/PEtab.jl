@@ -1,24 +1,24 @@
 function getRuleFormula(rule)
-    
+
     ruleFormula = rule[:getFormula]()
-    ruleFormula = replaceWholeWord(ruleFormula, "time", "t") 
+    ruleFormula = replaceWholeWord(ruleFormula, "time", "t")
     ruleFormula = removePowFunctions(ruleFormula)
-    
+
     return ruleFormula
 end
 
 
 function processAssignmentRule!(modelDict::Dict, ruleFormula::String, ruleVariable::String, baseFunctions)
 
-    # If piecewise occurs in the rule we are looking at a time-based event which is encoded as an 
+    # If piecewise occurs in the rule we are looking at a time-based event which is encoded as an
     # event into the model to ensure proper evaluation of the gradient.
     if occursin("piecewise(", ruleFormula)
         rewritePiecewiseToIfElse(ruleFormula, ruleVariable, modelDict, baseFunctions)
-           
-    # If the rule does not involve a piecewise expression simply encode it as a function which downsteram 
-    # is integrated into the equations. 
+
+    # If the rule does not involve a piecewise expression simply encode it as a function which downsteram
+    # is integrated into the equations.
     else
-        # Extract the parameters and states which make out the rule, further check if rule consists of an 
+        # Extract the parameters and states which make out the rule, further check if rule consists of an
         # existing function (nesting).
         arguments, includesFunction = getArguments(ruleFormula, modelDict["modelRuleFunctions"], baseFunctions)
         if isempty(arguments)
@@ -37,7 +37,7 @@ function processAssignmentRule!(modelDict::Dict, ruleFormula::String, ruleVariab
             if ruleVariable in keys(modelDict["parameters"])
                 modelDict["parameters"] = delete!(modelDict["parameters"], ruleVariable)
             end
-        end        
+        end
     end
 
 end
@@ -48,23 +48,23 @@ function processRateRule!(modelDict::Dict, ruleFormula::String, ruleVariable::St
     # Rewrite rule to function if there are not any piecewise, eles rewrite to formula with ifelse
     if occursin("piecewise(", ruleFormula)
         ruleFormula = rewritePiecewiseToIfElse(ruleFormula, ruleVariable, modelDict, baseFunctions, retFormula=true)
-    else                
+    else
         arguments, includesFunction = getArguments(ruleFormula, modelDict["modelRuleFunctions"], baseFunctions)
         if arguments != "" && includesFunction == true
             ruleFormula = replaceWholeWordDict(ruleFormula, modelDict["modelRuleFunctions"])
         end
     end
 
-    # Add rate rule as part of model derivatives and remove from parameters dict if rate rule variable 
-    # is a parameter  
+    # Add rate rule as part of model derivatives and remove from parameters dict if rate rule variable
+    # is a parameter
     if ruleVariable in keys(modelDict["states"])
         modelDict["derivatives"][ruleVariable] = "D(" * ruleVariable * ") ~ " * ruleFormula
-    
+
     elseif ruleVariable in keys(modelDict["nonConstantParameters"])
         modelDict["states"][ruleVariable] = modelDict["nonConstantParameters"][ruleVariable]
         delete!(modelDict["nonConstantParameters"], ruleVariable)
         modelDict["derivatives"][ruleVariable] = "D(" * ruleVariable * ") ~ " * ruleFormula
-    
+
     elseif ruleVariable in keys(parameterDict)
         modelDict["states"][ruleVariable] = parameterDict[ruleVariable]
         delete!(parameterDict, ruleVariable)
@@ -75,12 +75,12 @@ function processRateRule!(modelDict::Dict, ruleFormula::String, ruleVariable::St
 end
 
 
-# Rewrites time-dependent ifElse-statements to depend on a boolean variable. This makes it possible to treat piecewise 
-# as events, allowing us to properly handle discontinious. Does not rewrite ifElse if the activation criteria depends 
-# on a state.                                   
-function timeDependentIfElseToBool!(modelDict::Dict)                                  
-                                  
-    # Rewrite piecewise using Boolean variables. Due to the abillity of piecewiese statements to be nested 
+# Rewrites time-dependent ifElse-statements to depend on a boolean variable. This makes it possible to treat piecewise
+# as events, allowing us to properly handle discontinious. Does not rewrite ifElse if the activation criteria depends
+# on a state.
+function timeDependentIfElseToBool!(modelDict::Dict)
+
+    # Rewrite piecewise using Boolean variables. Due to the abillity of piecewiese statements to be nested
     # recursion is needed.
     for key in keys(modelDict["inputFunctions"])
         formulaWithIfelse = modelDict["inputFunctions"][key]
@@ -103,9 +103,9 @@ function reWriteStringWithIfelseToBool(formulaWithIfelse::String, modelDict::Dic
         ifelseFormula = formulaWithIfelse[indexIfElse[i]][8:end-1]
         activationRule, leftSide, rightSide = splitIfElse(ifelseFormula)
 
-        # Find inequality 
-        iLt = findfirst(x -> x == '<', activationRule) 
-        iGt = findfirst(x -> x == '>', activationRule) 
+        # Find inequality
+        iLt = findfirst(x -> x == '<', activationRule)
+        iGt = findfirst(x -> x == '>', activationRule)
         if isnothing(iGt) && !isnothing(iLt)
             signUsed = "lt"
             if activationRule[iLt:(iLt+1)] == "<="
@@ -125,7 +125,7 @@ function reWriteStringWithIfelseToBool(formulaWithIfelse::String, modelDict::Dic
         end
         lhsRule, rhsRule = split(activationRule, string(splitBy))
 
-        # Identify which side of ifelse expression is activated with time 
+        # Identify which side of ifelse expression is activated with time
         timeRight = checkForTime(string(rhsRule))
         timeLeft = checkForTime(string(lhsRule))
         rewriteIfElse = true
@@ -149,15 +149,15 @@ function reWriteStringWithIfelseToBool(formulaWithIfelse::String, modelDict::Dic
             end
         end
 
-        # In case of nested ifelse rewrite left-hand and right-hand side 
+        # In case of nested ifelse rewrite left-hand and right-hand side
         leftSide = reWriteStringWithIfelseToBool(string(leftSide), modelDict, key)
         rightSide = reWriteStringWithIfelseToBool(string(rightSide), modelDict, key)
 
         if rewriteIfElse == true
             j = 1
             local varName = ""
-            while true   
-                varName = string(key) * "_bool" * string(j)     
+            while true
+                varName = string(key) * "_bool" * string(j)
                 if varName ∉ keys(modelDict["boolVariables"])
                     break
                 end
@@ -176,7 +176,7 @@ function reWriteStringWithIfelseToBool(formulaWithIfelse::String, modelDict::Dic
 end
 
 
-# Here we assume we receive the arguments to ifelse(a ≤ 1 , b, c) on the form 
+# Here we assume we receive the arguments to ifelse(a ≤ 1 , b, c) on the form
 # a ≤ 1, b, c and our goal is to return tuple(a ≤ 1, b, c)
 function splitIfElse(str::String)
     paranthesisLevel = 0
@@ -186,7 +186,7 @@ function splitIfElse(str::String)
 
         if str[i] == '('
             paranthesisLevel += 1
-        elseif str[i] == ')' 
+        elseif str[i] == ')'
             paranthesisLevel -= 1
         end
 
@@ -200,14 +200,14 @@ function splitIfElse(str::String)
                 break
             end
         end
-        i += 1        
+        i += 1
     end
     return str[firstSet], str[secondSet], str[thirdSet]
 end
 
 
 function getIndexPiecewise(str::String)
-    
+
     ret = Array{Any, 1}(undef, 0)
 
     iStart, iEnd = 0, 0
@@ -241,4 +241,3 @@ function getIndexPiecewise(str::String)
 
     return ret
 end
-

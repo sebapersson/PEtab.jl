@@ -1,10 +1,10 @@
 # Solve the ODE models for all experimental condiditions and return the run-time for all solve-calls.
-function solveODEModelAllConditionsBenchmark(odeProblem::ODEProblem, 
-                                             changeExperimentalCondition!::Function, 
+function solveODEModelAllConditionsBenchmark(odeProblem::ODEProblem,
+                                             changeExperimentalCondition!::Function,
                                              simulationInfo::SimulationInfo,
                                              solver,
-                                             absTol::Float64, 
-                                             relTol::Float64, 
+                                             absTol::Float64,
+                                             relTol::Float64,
                                              computeTStops::Function;
                                              onlySaveAtObservedTimes::Bool=false,
                                              savePreEqTime::Bool=true)
@@ -13,9 +13,9 @@ function solveODEModelAllConditionsBenchmark(odeProblem::ODEProblem,
     bSim = 0.0
     success = true
 
-    # We only compute accuracy for post-equlibrium models 
+    # We only compute accuracy for post-equlibrium models
     if simulationInfo.haspreEquilibrationConditionId == true
-    
+
         # Arrays to store steady state (pre-eq) values.
         preEquilibrationId = unique(simulationInfo.preEquilibrationConditionId)
         uAtSS = Matrix{eltype(odeProblem.p)}(undef, (length(odeProblem.u0), length(preEquilibrationId)))
@@ -23,18 +23,18 @@ function solveODEModelAllConditionsBenchmark(odeProblem::ODEProblem,
 
         for i in eachindex(preEquilibrationId)
             _odeSolutions = simulationInfo.odePreEqulibriumSolutions
-            bPreEq += @elapsed _odeSolutions[preEquilibrationId[i]] = solveODEPreEqulibrium!((@view uAtSS[:, i]), 
-                                                                                             (@view u0AtT0[:, i]), 
-                                                                                             odeProblem, 
-                                                                                             changeExperimentalCondition!, 
-                                                                                             preEquilibrationId[i], 
-                                                                                             absTol, 
-                                                                                             relTol, 
-                                                                                             solver, 
-                                                                                             simulationInfo.callbackSS, 
+            bPreEq += @elapsed _odeSolutions[preEquilibrationId[i]] = solveODEPreEqulibrium!((@view uAtSS[:, i]),
+                                                                                             (@view u0AtT0[:, i]),
+                                                                                             odeProblem,
+                                                                                             changeExperimentalCondition!,
+                                                                                             preEquilibrationId[i],
+                                                                                             absTol,
+                                                                                             relTol,
+                                                                                             solver,
+                                                                                             simulationInfo.callbackSS,
                                                                                              false)
 
-            if _odeSolutions[preEquilibrationId[i]].retcode != :Terminated                                                                                             
+            if _odeSolutions[preEquilibrationId[i]].retcode != :Terminated
                 success = false
                 break
             end
@@ -47,7 +47,7 @@ function solveODEModelAllConditionsBenchmark(odeProblem::ODEProblem,
 
     for i in eachindex(simulationInfo.experimentalConditionId)
         experimentalId = simulationInfo.experimentalConditionId[i]
-        
+
         if onlySaveAtObservedTimes == true
             nTimePointsSave = 0
             tSave = simulationInfo.timeObserved[experimentalId]
@@ -59,11 +59,11 @@ function solveODEModelAllConditionsBenchmark(odeProblem::ODEProblem,
         # In case we have a simulation with PreEqulibrium
         if simulationInfo.preEquilibrationConditionId[i] != :None
             whichIndex = findfirst(x -> x == simulationInfo.preEquilibrationConditionId[i], preEquilibrationId)
-            bSim += @elapsed odeSolution = solveODEPostEqulibrium(odeProblem, 
+            bSim += @elapsed odeSolution = solveODEPostEqulibrium(odeProblem,
                                                                  (@view uAtSS[:, whichIndex]),
-                                                                 (@view u0AtT0[:, whichIndex]), 
+                                                                 (@view u0AtT0[:, whichIndex]),
                                                                  changeExperimentalCondition!,
-                                                                 simulationInfo, 
+                                                                 simulationInfo,
                                                                  simulationInfo.simulationConditionId[i],
                                                                  experimentalId,
                                                                  absTol,
@@ -71,23 +71,23 @@ function solveODEModelAllConditionsBenchmark(odeProblem::ODEProblem,
                                                                  tMax,
                                                                  solver,
                                                                  computeTStops,
-                                                                 tSave=tSave, 
+                                                                 tSave=tSave,
                                                                  denseSolution=false)
 
         # In case we have an ODE solution without Pre-equlibrium
         else
-            bSim += @elapsed odeSolution = solveODENoPreEqulibrium!(odeProblem, 
-                                                                    changeExperimentalCondition!, 
+            bSim += @elapsed odeSolution = solveODENoPreEqulibrium!(odeProblem,
+                                                                    changeExperimentalCondition!,
                                                                     simulationInfo,
-                                                                    simulationInfo.simulationConditionId[i], 
+                                                                    simulationInfo.simulationConditionId[i],
                                                                     absTol,
-                                                                    relTol, 
-                                                                    solver, 
-                                                                    tMax, 
+                                                                    relTol,
+                                                                    solver,
+                                                                    tMax,
                                                                     computeTStops,
-                                                                    tSave=tSave, 
+                                                                    tSave=tSave,
                                                                     denseSolution=false)
-                                                  
+
         end
 
         if !(odeSolution.retcode == :Success || odeSolution.retcode == :Terminated)
@@ -102,6 +102,6 @@ function solveODEModelAllConditionsBenchmark(odeProblem::ODEProblem,
     if savePreEqTime == true
         return success, bSim + bPreEq
     else
-        return success, bSim 
+        return success, bSim
     end
 end

@@ -5,7 +5,7 @@
 
     # Args
     `modelName`: PeTab model name (must match the xml-file name)
-    `evalYmod`: Function to evaluate yMod for the log-likelhood. 
+    `evalYmod`: Function to evaluate yMod for the log-likelhood.
     `evalU0!`: Function that computes the initial u0 value for the ODE-system.
     `evalSd!`: Function that computes the standard deviation value for the log-likelhood.
     `odeSystem`: ModellingToolkit ODE-system for the PeTab model.
@@ -21,8 +21,8 @@
 
     See also: [`setUpCostFunc`]
 """
-struct PEtabModel{F1<:Function, 
-                  F2<:Function, 
+struct PEtabModel{F1<:Function,
+                  F2<:Function,
                   F3<:Function,
                   F4<:Function,
                   F5<:Function,
@@ -31,9 +31,9 @@ struct PEtabModel{F1<:Function,
                   F8<:Function,
                   F9<:Function,
                   S<:ODESystem,
-                  T1<:Vector{<:Pair{Num, <:Union{AbstractFloat, Num}}}, 
-                  T2<:Vector{<:Pair{Num, <:Union{AbstractFloat, Num}}}, 
-                  T3<:Vector{<:Any}, 
+                  T1<:Vector{<:Pair{Num, <:Union{AbstractFloat, Num}}},
+                  T2<:Vector{<:Pair{Num, <:Union{AbstractFloat, Num}}},
+                  T3<:Vector{<:Any},
                   T4<:Vector{<:Any}, 
                   C<:SciMLBase.DECallback,
                   FA<:Vector{<:Function}}
@@ -66,15 +66,15 @@ struct PEtabModel{F1<:Function,
 end
 
 
-struct PEtabODEProblem{F1<:Function, 
-                       F2<:Function, 
+struct PEtabODEProblem{F1<:Function,
+                       F2<:Function,
                        F3<:Function,
-                       F4<:Function, 
-                       F5<:Function, 
-                       F6<:Function, 
-                       F7<:Function, 
-                       F8<:Function, 
-                       F9<:Function, 
+                       F4<:Function,
+                       F5<:Function,
+                       F6<:Function,
+                       F7<:Function,
+                       F8<:Function,
+                       F9<:Function,
                        T1<:PEtabModel}
 
     computeCost::F1
@@ -102,7 +102,7 @@ end
 
     Struct storing the data in the PeTab parameter-file in type-stable manner.
 
-    Currently logScale notices whether or not parameters are estimated on the 
+    Currently logScale notices whether or not parameters are estimated on the
     log10 scale or not.
 
     See also: [`processParameterData`]
@@ -122,16 +122,16 @@ end
     MeasurementData
 
     Struct storing the data in the PeTab measurementData-file in type-stable manner.
-    
+
     See also: [`processMeasurementData`]
 """
 struct MeasurementsInfo{T<:Vector{<:Union{<:String, <:AbstractFloat}}}
-                    
+
     measurement::Vector{Float64}
     measurementT::Vector{Float64}
     measurementTransformation::Vector{Symbol}
     time::Vector{Float64}
-    observableId::Vector{Symbol} 
+    observableId::Vector{Symbol}
     preEquilibrationConditionId::Vector{Symbol}
     simulationConditionId::Vector{Symbol}
     noiseParameters::T
@@ -145,9 +145,9 @@ struct SimulationInfo{T1<:NamedTuple,
                       T4<:NamedTuple,
                       T5<:NamedTuple,
                       T6<:Dict{<:Symbol, <:SciMLBase.DECallback},
-                      T7<:Union{<:SciMLSensitivity.AbstractForwardSensitivityAlgorithm, <:SciMLSensitivity.AbstractAdjointSensitivityAlgorithm}, 
+                      T7<:Union{<:SciMLSensitivity.AbstractForwardSensitivityAlgorithm, <:SciMLSensitivity.AbstractAdjointSensitivityAlgorithm},
                       T8<:SciMLBase.DECallback}
-    
+
     preEquilibrationConditionId::Vector{Symbol}
     simulationConditionId::Vector{Symbol}
     experimentalConditionId::Vector{Symbol}
@@ -165,7 +165,7 @@ struct SimulationInfo{T1<:NamedTuple,
     absTolSS::Float64
     relTolSS::Float64
     callbacks::T6
-    sensealg::T7 # sensealg for potential callbacks 
+    sensealg::T7 # sensealg for potential callbacks
     callbackSS::T8
 end
 
@@ -198,27 +198,27 @@ end
 """
     ParameterIndices
 
-    Struct storing names and mapping indices for mapping the parameter provided 
-    to the optimizers correctly. 
-    
-    Optimizers require a single vector input of parameters (pVecEst). However, the PeTab 
-    model has three kind of parameters, Dynmaic (part of the ODE-system), 
-    Observable (only part of the observation model) and Standard-deviation 
-    (only part of the standard deviation expression in the log-likelhood). This 
-    struct stores mapping indices (starting with i) to map pVecEst 
+    Struct storing names and mapping indices for mapping the parameter provided
+    to the optimizers correctly.
+
+    Optimizers require a single vector input of parameters (pVecEst). However, the PeTab
+    model has three kind of parameters, Dynmaic (part of the ODE-system),
+    Observable (only part of the observation model) and Standard-deviation
+    (only part of the standard deviation expression in the log-likelhood). This
+    struct stores mapping indices (starting with i) to map pVecEst
     correctly when computing the likelihood (e.g map the SD-parameters in pVecEst
     correctly to a vector of SD-vals). Also stores the name of each parameter.
 
-    Furthermore, when computing yMod or SD the correct observable and sd parameters 
-    has to be used for each observation. The mapArrays effectively contains precomputed  
-    maps allowing said parameter to be effectively be extracted by the getObsOrSdParam 
-    function. 
+    Furthermore, when computing yMod or SD the correct observable and sd parameters
+    has to be used for each observation. The mapArrays effectively contains precomputed
+    maps allowing said parameter to be effectively be extracted by the getObsOrSdParam
+    function.
 
     See also: [`getIndicesParam`, `ParamMap`]
 """
-struct ParameterIndices{T4<:Vector{<:θObsOrSdParameterMap}, 
-                        T5<:MapODEProblem, 
-                        T6<:NamedTuple, 
+struct ParameterIndices{T4<:Vector{<:θObsOrSdParameterMap},
+                        T5<:MapODEProblem,
+                        T6<:NamedTuple,
                         T7<:NamedTuple}
 
     iθ_dynamic::Vector{Int64}
@@ -240,7 +240,7 @@ struct ParameterIndices{T4<:Vector{<:θObsOrSdParameterMap},
 end
 
 
-struct PriorInfo{T1 <: NamedTuple, 
+struct PriorInfo{T1 <: NamedTuple,
                  T2 <: NamedTuple}
     logpdf::T1
     priorOnParameterScale::T2

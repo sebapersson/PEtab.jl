@@ -7,13 +7,13 @@ function processParameters(parametersFile::DataFrame)::ParametersInfo
 
     nParameters = length(parametersFile[!, "estimate"])
 
-    # Pre-allocate arrays to hold data 
-    lowerBound::Vector{Float64} = zeros(Float64, nParameters) 
+    # Pre-allocate arrays to hold data
+    lowerBound::Vector{Float64} = zeros(Float64, nParameters)
     upperBound::Vector{Float64} = zeros(Float64, nParameters)
     nominalValue::Vector{Float64} = zeros(Float64, nParameters) # Vector with Nominal value in PeTab-file
     parameterScale::Vector{Symbol} = Vector{Symbol}(undef, nParameters)
     parameterId::Vector{Symbol} = Vector{Symbol}(undef, nParameters) # Faster to do comparisons with Symbols than Strings
-    estimate::Vector{Bool} = Vector{Bool}(undef, nParameters) # 
+    estimate::Vector{Bool} = Vector{Bool}(undef, nParameters) #
 
     for i in eachindex(estimate)
 
@@ -31,18 +31,18 @@ function processParameters(parametersFile::DataFrame)::ParametersInfo
 
         nominalValue[i] = parametersFile[i, "nominalValue"]
         parameterId[i] = Symbol(string(parametersFile[i, "parameterId"]))
-        # Currently only supports parameters on log10-scale -> TODO: Change this 
+        # Currently only supports parameters on log10-scale -> TODO: Change this
         if parametersFile[i, "parameterScale"] == "log10"
             parameterScale[i] = :log10
         elseif parametersFile[i, "parameterScale"] == "log"
             parameterScale[i] = :log
-        elseif parametersFile[i, "parameterScale"] == "lin"            
+        elseif parametersFile[i, "parameterScale"] == "lin"
             parameterScale[i] = :lin
         else
             errorStr = "Parameter scale " * parametersFile[i, "parameterScale"] * "not supported. Only log10, log and lin are supported in the Parameters PEtab file under the parameterScale column."
-            throw(PEtabFileError(errorStr)) 
+            throw(PEtabFileError(errorStr))
         end
-         
+
         estimate[i] = parametersFile[i, "estimate"] == 1 ? true : false
     end
     nParametersToEstimate::Int64 = Int64(sum(estimate))
@@ -53,7 +53,7 @@ end
 
 function processPriors(θ_indices::ParameterIndices, parametersFile::DataFrame)::PriorInfo
 
-    # In case there are no model priors 
+    # In case there are no model priors
     if "objectivePriorType" ∉ names(parametersFile)
         return PriorInfo(NamedTuple(), NamedTuple(), false)
     end
@@ -67,7 +67,7 @@ function processPriors(θ_indices::ParameterIndices, parametersFile::DataFrame):
 
         whichParameter = findfirst(x -> x == θ_estNames[i], string.(parametersFile[!, "parameterId"]))
         prior = parametersFile[whichParameter, "objectivePriorType"]
-        
+
         # In case the parameter lacks prior
         if ismissing(prior)
             priorLogpdf[i] = noPrior
@@ -75,28 +75,28 @@ function processPriors(θ_indices::ParameterIndices, parametersFile::DataFrame):
             continue
         end
 
-        # In case there is a prior is has associated parameters 
+        # In case there is a prior is has associated parameters
         priorParameters = parse.(Float64, split(parametersFile[whichParameter, "objectivePriorParameters"], ";"))
         if prior == "parameterScaleNormal"
-            priorLogpdf[i] = (x) -> logpdf(Normal(priorParameters[1], priorParameters[2]), x) 
+            priorLogpdf[i] = (x) -> logpdf(Normal(priorParameters[1], priorParameters[2]), x)
             priorOnParameterScale[i] = true
-        
+
         elseif prior == "parameterScaleLaplace"
-            priorLogpdf[i] = (x) -> logpdf(Laplace(priorParameters[1], priorParameters[2]), x) 
+            priorLogpdf[i] = (x) -> logpdf(Laplace(priorParameters[1], priorParameters[2]), x)
             priorOnParameterScale[i] = true
-        
+
         elseif prior == "normal"
-            priorLogpdf[i] = (x) -> logpdf(Normal(priorParameters[1], priorParameters[2]), x) 
+            priorLogpdf[i] = (x) -> logpdf(Normal(priorParameters[1], priorParameters[2]), x)
             priorOnParameterScale[i] = false
-        
+
         elseif prior == "laplace"
-            priorLogpdf[i] = (x) -> logpdf(Laplace(priorParameters[1], priorParameters[2]), x) 
+            priorLogpdf[i] = (x) -> logpdf(Laplace(priorParameters[1], priorParameters[2]), x)
             priorOnParameterScale[i] = false
-        
+
         elseif prior == "logNormal"
-            priorLogpdf[i] = (x) -> logpdf(LogNormal(priorParameters[1], priorParameters[2]), x) 
+            priorLogpdf[i] = (x) -> logpdf(LogNormal(priorParameters[1], priorParameters[2]), x)
             priorOnParameterScale[i] = false
-        
+
         elseif prior == "logLaplace"
             println("Error : Julia does not yet have support for log-laplace")
         else
@@ -109,7 +109,7 @@ function processPriors(θ_indices::ParameterIndices, parametersFile::DataFrame):
 
     return PriorInfo(_priorLogpdf, _priorOnParameterScale, true)
 end
-# Helper function in case there is not any parameter priors 
+# Helper function in case there is not any parameter priors
 function noPrior(p::Real)::Real
     return 0.0
 end
