@@ -1,13 +1,6 @@
 # TODO: Refactor code and document functions. Check SBMLToolkit if can be used. 
 
 
-using PyCall, DataFrames, CSV
-
-
-include(pwd() * "/src/SBML/Common.jl")
-include(pwd() * "/src/SBML/Process_functions.jl")
-include(pwd() * "/src/SBML/Process_rules.jl")
-
 
 """
     XmlToModellingToolkit(pathXml::String, modelName::String, dirModel::String)
