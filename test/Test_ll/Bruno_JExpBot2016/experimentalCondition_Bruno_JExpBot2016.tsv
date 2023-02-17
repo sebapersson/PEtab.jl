@@ -1,0 +1,7 @@
+conditionId	conditionName	init_b10	init_bcar	init_bcry	init_ohb10	init_zea	k5_multiplier	kb1_multiplier	kb2_multiplier	kc1_multiplier	kc2_multiplier	kc4_multiplier
+model1_data1	condition1	init_b10_1	0	0	0	0	0	0	1	1	0	1
+model1_data2	condition2	0	init_bcar1	0	0	0	1	1	1	0	0	0
+model1_data3	condition3	0	init_bcar2	0	0	0	szea	szea	szea	szea	szea	szea
+model1_data4	condition4	0	0	init_bcry_1	0	0	1	0	1	1	1	1
+model1_data5	condition5	0	0	0	init_ohb10_1	0	0	0	1	0	0	1
+model1_data6	condition6	0	0	0	0	init_zea_1	szea	0	0	0	0	szea

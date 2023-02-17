@@ -1,0 +1,10 @@
+conditionId	conditionName	IP3	Ca
+Ca_dose_response__1	10 μM IP_3,  0.1 μM Ca^{2+}	10.000	0.100
+Ca_dose_response__2	10 μM IP_3,  0.2 μM Ca^{2+}	10.000	0.200
+Ca_dose_response__3	10 μM IP_3,  0.4 μM Ca^{2+}	10.000	0.400
+Ca_dose_response__4	10 μM IP_3,  1 μM Ca^{2+}	10.000	1.000
+Ca_dose_response__5	10 μM IP_3,  3 μM Ca^{2+}	10.000	3.000
+Ca_dose_response__6	10 μM IP_3,  10 μM Ca^{2+}	10.000	10.000
+IP3_dose_response__1	3 μM IP_3,  0.4 μM Ca^{2+}	3.000	0.400
+IP3_dose_response__2	5 μM IP_3,  0.4 μM Ca^{2+}	5.000	0.400
+IP3_dose_response__3	10 μM IP_3,  0.4 μM Ca^{2+}	10.000	0.400

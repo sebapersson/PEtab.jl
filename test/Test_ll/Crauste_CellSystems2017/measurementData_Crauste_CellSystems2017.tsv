@@ -1,0 +1,22 @@
+observableId	preequilibrationConditionId	simulationConditionId	measurement	time	observableParameters	noiseParameters
+observable_Naive		model1_data1	459	4		290
+observable_Naive		model1_data1	74	6		64
+observable_EarlyEffector		model1_data1	386	4		266
+observable_EarlyEffector		model1_data1	1172	6		526
+observable_EarlyEffector		model1_data1	47470	7		23855
+observable_EarlyEffector		model1_data1	175825	8		19722
+observable_EarlyEffector		model1_data1	4911	13		3048
+observable_EarlyEffector		model1_data1	7417	15		2924
+observable_EarlyEffector		model1_data1	3359	22		1540
+observable_LateEffector		model1_data1	888	6		182
+observable_LateEffector		model1_data1	4577	7		1976
+observable_LateEffector		model1_data1	32860	8		4105
+observable_LateEffector		model1_data1	46727	13		23601
+observable_LateEffector		model1_data1	27586	15		6841
+observable_LateEffector		model1_data1	13650	22		7266
+observable_LateEffector		model1_data1	3936	28		2705
+observable_Memory		model1_data1	289	8		80
+observable_Memory		model1_data1	9564	13		4206
+observable_Memory		model1_data1	15631	15		5745
+observable_Memory		model1_data1	41744	22		15987
+observable_Memory		model1_data1	32705	28		7909

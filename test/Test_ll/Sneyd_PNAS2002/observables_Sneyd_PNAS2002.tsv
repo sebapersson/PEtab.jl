@@ -1,0 +1,2 @@
+observableId	observableFormula	observableName	noiseDistribution	noiseFormula	observableTransformation
+open_probability	(0.9 * IPR_A + 0.1 * IPR_O)^4		normal	noiseParameter1_open_probability	lin

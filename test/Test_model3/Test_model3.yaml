@@ -1,0 +1,11 @@
+format_version: 1
+parameter_file: parameters_Test_model3.tsv
+problems:
+- condition_files:
+  - experimentalCondition_Test_model3.tsv
+  measurement_files:
+  - measurementData_Test_model3.tsv
+  observable_files:
+  - observables_Test_model3.tsv
+  sbml_files:
+  - Test_model3.xml

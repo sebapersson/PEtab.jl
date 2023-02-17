@@ -1,0 +1,3 @@
+observableId	observableName	observableFormula	noiseFormula	observableTransformation	noiseDistribution
+x1		x	noiseParameter1_x1	lin	normal
+x2		y	noiseParameter1_x2	lin	normal

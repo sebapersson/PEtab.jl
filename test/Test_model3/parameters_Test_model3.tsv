@@ -1,0 +1,6 @@
+parameterId	parameterName	parameterScale	lowerBound	upperBound	nominalValue	estimate
+a	a	lin	0	20	1.0	1
+b	b	lin	0	20	2.0	1
+c	c	lin	0	20	3.0	1
+d	d	lin	0	20	4.0	1
+a_scale	scale	lin	0	5	1.0	0

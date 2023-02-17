@@ -23,9 +23,5 @@ docs/site/
 # environment.
 Manifest.toml
 
-# Only keep runtests.jl file
-test/*
-!test/runtests.jl
-
 
 src/Optimizers/*

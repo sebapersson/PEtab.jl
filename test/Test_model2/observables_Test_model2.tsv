@@ -1,0 +1,3 @@
+observableId	observableName	observableFormula	noiseFormula	observableTransformation	noiseDistribution
+sebastian_measurement		sebastian	noiseParameter1_sebastian_measurement	lin	normal
+damiano_measurement		damiano	noiseParameter1_damiano_measurement	lin	normal

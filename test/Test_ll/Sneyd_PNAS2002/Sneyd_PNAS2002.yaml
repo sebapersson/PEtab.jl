@@ -1,0 +1,11 @@
+format_version: 1
+parameter_file: parameters_Sneyd_PNAS2002.tsv
+problems:
+- condition_files:
+  - experimentalCondition_Sneyd_PNAS2002.tsv
+  measurement_files:
+  - measurementData_Sneyd_PNAS2002.tsv
+  observable_files:
+  - observables_Sneyd_PNAS2002.tsv
+  sbml_files:
+  - model_Sneyd_PNAS2002.xml

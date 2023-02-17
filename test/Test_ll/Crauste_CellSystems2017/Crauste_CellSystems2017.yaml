@@ -1,0 +1,11 @@
+format_version: 1
+parameter_file: parameters_Crauste_CellSystems2017.tsv
+problems:
+- condition_files:
+  - experimentalCondition_Crauste_CellSystems2017.tsv
+  measurement_files:
+  - measurementData_Crauste_CellSystems2017.tsv
+  observable_files:
+  - observables_Crauste_CellSystems2017.tsv
+  sbml_files:
+  - model_Crauste_CellSystems2017.xml

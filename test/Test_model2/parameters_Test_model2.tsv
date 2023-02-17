@@ -1,0 +1,5 @@
+parameterId	parameterName	parameterScale	lowerBound	upperBound	nominalValue	estimate
+alpha	alpha	lin	-5	15	5.0	1
+beta	beta	lin	-5	15	3.0	1
+sd_sebastian_new	sigma_sebastian_new	lin	0.1	2	0.7	1
+sd_damiano_new	sigma_damiano_new	lin	0.1	2	0.6	1
