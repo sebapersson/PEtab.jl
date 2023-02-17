@@ -40,7 +40,11 @@ function createCallbacksForTimeDepedentPiecewise(odeSystem::ODESystem,
         stringWriteTstops *= "\t return " * createFuncionForTstops(SBMLDict, modelStateNames, pODEProblemNames, θ_indices) * "\nend"
     end
 
-    stringWriteCallbacks *= "\treturn CallbackSet(" * callbackNames * "), [" * checkIfActivatedT0Names * "]\nend"
+    # Check whether or not the trigger for a discrete callback depends on a parameter or not. If true then the time-span 
+    # must be converted to dual when computing the gradient using ForwardDiff.
+    convertTspan = shouldConvertTspan(pathYAML, SBMLDict, odeSystem, jlFile)::Bool
+
+    stringWriteCallbacks *= "\treturn CallbackSet(" * callbackNames * "), [" * checkIfActivatedT0Names * "], " * string(convertTspan) * "\nend"
     fileWrite = dirJulia * "/" * modelName * "_callbacks.jl"
     if isfile(fileWrite)
         rm(fileWrite)

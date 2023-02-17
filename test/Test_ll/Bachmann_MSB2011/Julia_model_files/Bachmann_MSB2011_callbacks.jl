@@ -1,5 +1,5 @@
 function getCallbacks_Bachmann_MSB2011()
-	return CallbackSet(), []
+	return CallbackSet(), [], false
 end
 
 function computeTstops(u::AbstractVector, p::AbstractVector)

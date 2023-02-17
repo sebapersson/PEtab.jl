@@ -1,5 +1,5 @@
 function getCallbacks_Sneyd_PNAS2002()
-	return CallbackSet(), []
+	return CallbackSet(), [], false
 end
 
 function computeTstops(u::AbstractVector, p::AbstractVector)

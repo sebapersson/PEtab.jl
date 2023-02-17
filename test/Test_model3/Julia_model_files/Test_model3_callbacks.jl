@@ -1,5 +1,5 @@
 function getCallbacks_Test_model3()
-	return CallbackSet(), []
+	return CallbackSet(), [], false
 end
 
 function computeTstops(u::AbstractVector, p::AbstractVector)

@@ -122,14 +122,7 @@ function readPEtabModel(pathYAML::String;
     end
     include(pathCallback)
     exprCallback = Expr(:call, Symbol("getCallbacks_" * modelName))
-    cbSet::CallbackSet, checkCbActive::Vector{Function} = eval(exprCallback)
-
-    # Check if callbacks are triggered at a time-point defined by a model parameter. If true then to accurately compute
-    # the gradient tsops must be a vector of floats, and the timespan of the ODE-problem must be converted to Duals.
-    if !@isdefined(modelDict)
-        modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, writeToFile=false, ifElseToEvent=ifElseToEvent)
-    end
-    convertTspan = shouldConvertTspan(pathYAML, modelDict, odeSystem, jlFile)
+    cbSet::CallbackSet, checkCbActive::Vector{Function}, convertTspan::Bool = eval(exprCallback)
 
     petabModel = PEtabModel(modelName,
                             compute_h,

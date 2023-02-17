@@ -1,7 +1,7 @@
 function getCallbacks_Fujita_SciSignal2010()
 	cb_EGF_bool1 = DiscreteCallback(condition_EGF_bool1, affect_EGF_bool1!, save_positions=(false, false))
 
-	return CallbackSet(cb_EGF_bool1), [isActiveAtTime0_EGF_bool1!]
+	return CallbackSet(cb_EGF_bool1), [isActiveAtTime0_EGF_bool1!], false
 end
 
 

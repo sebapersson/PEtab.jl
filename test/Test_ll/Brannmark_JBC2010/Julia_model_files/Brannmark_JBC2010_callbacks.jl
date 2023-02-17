@@ -3,7 +3,7 @@ function getCallbacks_Brannmark_JBC2010()
 
 	cb_insulin_bool2 = DiscreteCallback(condition_insulin_bool2, affect_insulin_bool2!, save_positions=(false, false))
 
-	return CallbackSet(cb_insulin_bool1, cb_insulin_bool2), [isActiveAtTime0_insulin_bool1!, isActiveAtTime0_insulin_bool2!]
+	return CallbackSet(cb_insulin_bool1, cb_insulin_bool2), [isActiveAtTime0_insulin_bool1!, isActiveAtTime0_insulin_bool2!], false
 end
 
 

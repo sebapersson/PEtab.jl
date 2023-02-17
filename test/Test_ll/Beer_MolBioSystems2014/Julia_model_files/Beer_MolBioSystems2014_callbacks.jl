@@ -1,7 +1,7 @@
 function getCallbacks_Beer_MolBioSystems2014()
 	cb_lag_bool1 = DiscreteCallback(condition_lag_bool1, affect_lag_bool1!, save_positions=(false, false))
 
-	return CallbackSet(cb_lag_bool1), [isActiveAtTime0_lag_bool1!]
+	return CallbackSet(cb_lag_bool1), [isActiveAtTime0_lag_bool1!], true
 end
 
 
