@@ -8,6 +8,7 @@ using SciMLBase
 using SciMLSensitivity
 using OrdinaryDiffEq
 using DiffEqCallbacks
+using SteadyStateDiffEq
 using ForwardDiff
 using ReverseDiff
 using Zygote
@@ -24,13 +25,13 @@ using YAML
 
 include("Create_PEtab_model.jl")
 
-include("SBML/SBML_to_ModellingToolkit.jl")
-include("SBML/Common.jl")
-include("SBML/Process_functions.jl")
-include("SBML/Process_rules.jl")
+include(joinpath("SBML", "SBML_to_ModellingToolkit.jl"))
+include(joinpath("SBML", "Common.jl"))
+include(joinpath("SBML", "Process_functions.jl"))
+include(joinpath("SBML", "Process_rules.jl"))
 
 
-export PEtabModel, PEtabODEProblem, readPEtabModel
+export PEtabModel, PEtabODEProblem, readPEtabModel, setUpPEtabODEProblem
 
 
 end

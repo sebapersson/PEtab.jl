@@ -52,7 +52,7 @@ function solveODEAllExperimentalConditions!(odeSolutions::Dict{Symbol, Union{Not
                                                                                solver,
                                                                                simulationInfo.callbackSS,
                                                                                convertTspan)
-                if _odeSolutions[preEquilibrationId[i]].retcode != :Terminated
+                if _odeSolutions[preEquilibrationId[i]].retcode != ReturnCode.Terminated
                     return false
                 end
             catch e
@@ -110,7 +110,7 @@ function solveODEAllExperimentalConditions!(odeSolutions::Dict{Symbol, Union{Not
                                                                       trackCallback=trackCallback,
                                                                       convertTspan=convertTspan)
 
-                if odeSolutions[experimentalId].retcode != :Success
+                if odeSolutions[experimentalId].retcode != ReturnCode.Success
                     sucess = false
                 end
             catch e
@@ -138,7 +138,7 @@ function solveODEAllExperimentalConditions!(odeSolutions::Dict{Symbol, Union{Not
                                                                         trackCallback=trackCallback,
                                                                         convertTspan=convertTspan)
                 retcode = odeSolutions[experimentalId].retcode
-                if !(retcode == :Success || retcode == :Terminated)
+                if !(retcode == ReturnCode.Success || retcode == ReturnCode.Terminated)
                     sucess = false
                 end
             catch e
@@ -289,7 +289,7 @@ function solveODEAllExperimentalConditions!(odeSolutions::Dict{Symbol, Union{Not
             continue
         end
         retcode = odeSolutions[experimentalId].retcode
-        if !(retcode == :Success || retcode == :Terminated)
+        if !(retcode == ReturnCode.Success || retcode == ReturnCode.Terminated)
             sucess = false
         end
     end
@@ -350,7 +350,7 @@ function solveODEPreEqulibrium!(uAtSS::AbstractVector,
 
     # Terminate if a steady state was not reached in preequilibration simulations
     odeSolution = computeODEPreEqulibriumSolution(_odeProblem, solver, absTol, relTol, callbackSS)
-    if odeSolution.retcode == :Terminated
+    if odeSolution.retcode == ReturnCode.Terminated
         uAtSS .= odeSolution.u[end]
     end
     return odeSolution

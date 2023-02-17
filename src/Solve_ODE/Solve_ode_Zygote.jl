@@ -33,7 +33,7 @@ function solveOdeModelAtExperimentalCondZygote(odeProblem::ODEProblem,
         solSS = solve(ssProb, DynamicSS(solver, abstol=simulationInfo.absTolSS, reltol=simulationInfo.relTolSS), abstol=absTol, reltol=relTol)
 
         # Terminate if a steady state was not reached in preequilibration simulations
-        if solSS.retcode != :Success
+        if solSS.retcode != ReturnCode.Success
             return sol_pre, false
         end
 
@@ -63,7 +63,7 @@ function solveOdeModelAtExperimentalCondZygote(odeProblem::ODEProblem,
 
         sol = solveCallPost(probUsePost)
 
-        if sol.retcode != :Success
+        if sol.retcode != ReturnCode.Success
             sucess = false
         end
 
@@ -109,7 +109,7 @@ function solveOdeModelAtExperimentalCondZygote(odeProblem::ODEProblem,
 
         Zygote.@ignore simulationInfo.odeSolutions[experimentalId] = sol
 
-        if typeof(sol) <: ODESolution && !(sol.retcode == :Success || sol.retcode == :Terminated)
+        if typeof(sol) <: ODESolution && !(sol.retcode == ReturnCode.Success || sol.retcode == ReturnCode.Terminated)
             sucess = false
         end
     end

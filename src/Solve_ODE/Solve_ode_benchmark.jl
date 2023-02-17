@@ -34,7 +34,7 @@ function solveODEModelAllConditionsBenchmark(odeProblem::ODEProblem,
                                                                                              simulationInfo.callbackSS,
                                                                                              false)
 
-            if _odeSolutions[preEquilibrationId[i]].retcode != :Terminated
+            if _odeSolutions[preEquilibrationId[i]].retcode != ReturnCode.Terminated
                 success = false
                 break
             end
@@ -90,7 +90,7 @@ function solveODEModelAllConditionsBenchmark(odeProblem::ODEProblem,
 
         end
 
-        if !(odeSolution.retcode == :Success || odeSolution.retcode == :Terminated)
+        if !(odeSolution.retcode == ReturnCode.Success || odeSolution.retcode == ReturnCode.Terminated)
             success = false
             break
         end

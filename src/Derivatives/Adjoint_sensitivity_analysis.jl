@@ -261,7 +261,7 @@ function __adjoint_sensitivities!(_du::AbstractVector,
     adj_sol = solve(adjProb, odeSolver;
                     save_everystep = false, save_start = false, saveat = eltype(sol[1])[],
                     abstol=absTol, reltol=relTol, tstops=tstops)
-    if adj_sol.retcode != :Success
+    if adj_sol.retcode != ReturnCode.Success
         _du .= 0.0
         _dp .= 0.0
         return false
@@ -315,7 +315,7 @@ function __adjoint_sensitivities!(_du::AbstractVector,
     adj_sol = solve(adj_prob, odeSolver; abstol = absTol, reltol = relTol,
                     save_everystep = true, save_start = true)
 
-    if adj_sol.retcode != :Success
+    if adj_sol.retcode != ReturnCode.Success
         _du .= 0.0
         _dp .= 0.0
         return false
@@ -342,12 +342,12 @@ function __adjoint_sensitivities!(_du::AbstractVector,
             end
 
             # correction for end interval.
-            if t[end] != sol.prob.tspan[2] && sol.retcode !== :Terminated
+            if t[end] != sol.prob.tspan[2] && sol.retcode !== ReturnCode.Terminated
                 res .+= SciMLSensitivity.quadgk(integrand, t[end], sol.prob.tspan[end],
                                atol = absTol, rtol = relTol)[1]
             end
 
-            if sol.retcode === :Terminated
+            if sol.retcode === ReturnCode.Terminated
                 integrand = update_integrand_and_dgrad(res, sensealg, callback, integrand,
                                                        adj_prob, sol, compute_∂G∂u,
                                                        nothing, dλ, dgrad, t[end],
