@@ -1,21 +1,21 @@
-#= 
-    Functions for processing the PEtab observables and measurements file into a Julia 
-    SimulationInfo struct, which contains information required to carry out forward ODE simulations 
-    (condition-id), and indices for mapping simulations to measurement data. 
+#=
+    Functions for processing the PEtab observables and measurements file into a Julia
+    SimulationInfo struct, which contains information required to carry out forward ODE simulations
+    (condition-id), and indices for mapping simulations to measurement data.
 =#
 
 
 function processSimulationInfo(petabModel::PEtabModel,
-                               measurementInfo::MeasurementsInfo, 
+                               measurementInfo::MeasurementsInfo,
                                parameterInfo::ParametersInfo;
                                absTolSS::Float64=1e-8,
                                relTolSS::Float64=1e-6,
                                sensealg::Union{SciMLSensitivity.AbstractForwardSensitivityAlgorithm, SciMLSensitivity.AbstractAdjointSensitivityAlgorithm}=InterpolatingAdjoint(),
-                               terminateSSMethod::Symbol=:Norm, 
-                               sensealgForwardEquations::Union{Symbol, SciMLSensitivity.AbstractForwardSensitivityAlgorithm}=ForwardSensitivity())::SimulationInfo 
+                               terminateSSMethod::Symbol=:Norm,
+                               sensealgForwardEquations::Union{Symbol, SciMLSensitivity.AbstractForwardSensitivityAlgorithm}=ForwardSensitivity())::SimulationInfo
 
-    # An experimental Id is uniqely defined by a Pre-equlibrium- and Simulation-Id, where the former can be 
-    # empty. For each experimental ID we store three indices, i) preEqulibriumId, ii) simulationId and iii) 
+    # An experimental Id is uniqely defined by a Pre-equlibrium- and Simulation-Id, where the former can be
+    # empty. For each experimental ID we store three indices, i) preEqulibriumId, ii) simulationId and iii)
     # experimentalId (concatenation of two).
     preEquilibrationConditionId::Vector{Symbol} = Vector{Symbol}(undef, 0)
     simulationConditionId::Vector{Symbol} = Vector{Symbol}(undef, 0)
@@ -36,13 +36,13 @@ function processSimulationInfo(petabModel::PEtabModel,
             end
         end
     end
-    
+
     haspreEquilibrationConditionId::Bool = all(preEquilibrationConditionId.== :None) ? false : true
     nExperimentalConditionId = length(experimentalConditionId)
-    
-    # When computing the gradient and hessian the ODE-system needs to be resolved to compute the gradient 
-    # of the dynamic parameters, while for the observable/sd parameters the system should not be resolved. 
-    # Hence we need a specific dictionary with ODE solutions when compuating derivatives. 
+
+    # When computing the gradient and hessian the ODE-system needs to be resolved to compute the gradient
+    # of the dynamic parameters, while for the observable/sd parameters the system should not be resolved.
+    # Hence we need a specific dictionary with ODE solutions when compuating derivatives.
     odeSolutions::Dict{Symbol, Union{Nothing, ODESolution}} = Dict{Symbol, ODESolution}()
     odePreEqulibriumSolutions::Dict{Symbol, Union{Nothing, ODESolution}} = Dict{Symbol, ODESolution}()
     odeSolutionsDerivatives::Dict{Symbol, Union{Nothing, ODESolution}} = Dict{Symbol, ODESolution}()
@@ -66,41 +66,41 @@ function processSimulationInfo(petabModel::PEtabModel,
     _iMeasurementsObserved = Tuple(_computeTimeIndices(preEquilibrationConditionId[i], simulationConditionId[i], measurementInfo) for i in eachindex(preEquilibrationConditionId))
     iMeasurementsObserved::NamedTuple = NamedTuple{Tuple(name for name in experimentalConditionId)}(_iMeasurementsObserved)
 
-    # Precompute for each measurement (entry in iMeasurement) a vector which holds the corresponding index in odeSolution.t 
-    # accounting for experimentalConditionId 
+    # Precompute for each measurement (entry in iMeasurement) a vector which holds the corresponding index in odeSolution.t
+    # accounting for experimentalConditionId
     iTimeODESolution = computeIndexTimeODESolution(preEquilibrationConditionId, simulationConditionId, measurementInfo)
 
-    # Precompute a vector of vector where vec[i] gives the indices for time-point ti in measurementInfo for an 
-    # experimentalConditionId. Needed for the lower level adjoint interface where we must track the number of 
+    # Precompute a vector of vector where vec[i] gives the indices for time-point ti in measurementInfo for an
+    # experimentalConditionId. Needed for the lower level adjoint interface where we must track the number of
     # repats per time-point (when using dgdu_discrete and dgdp_discrete)
     _iPerTimePoint = Tuple(computeTimeIndices(preEquilibrationConditionId[i], simulationConditionId[i], measurementInfo) for i in eachindex(preEquilibrationConditionId))
     iPerTimePoint::NamedTuple = NamedTuple{Tuple(name for name in experimentalConditionId)}(_iPerTimePoint)
 
-    # When computing the gradients via forward sensitivity equations we need to track where, in the concatanated 
-    # odeSolution.t (accross all condition) the time-points for an experimental conditions start as we can only 
+    # When computing the gradients via forward sensitivity equations we need to track where, in the concatanated
+    # odeSolution.t (accross all condition) the time-points for an experimental conditions start as we can only
     # compute the sensitivity matrix accross all conditions.
     timePositionInODESolutions::NamedTuple = getTimePositionInODESolutions(experimentalConditionId, timeObserved)
 
-    # Some models, e.g those with time dependent piecewise statements, have callbacks encoded. When doing adjoint 
+    # Some models, e.g those with time dependent piecewise statements, have callbacks encoded. When doing adjoint
     # sensitivity analysis we need to track these callbacks, hence they must be stored in simulationInfo.
     callbacks = Dict{Symbol, SciMLBase.DECallback}()
     for name in experimentalConditionId
         callbacks[name] = deepcopy(petabModel.modelCallbackSet)
     end
 
-    # Ger terminate SS callbacks 
+    # Ger terminate SS callbacks
     if terminateSSMethod == :Norm
         callbackSS = TerminateSteadyState(absTolSS, relTolSS)
     elseif terminateSSMethod == :NewtonNorm
         callbackSS = createSSTerminateSteadyState(petabModel.odeSystem, absTolSS, relTolSS, checkNewton=false)
     end
 
-    # In case the sensitivites are computed via automatic differentitation we need to pre-allocate an 
-    # sensitivity matrix all experimental conditions (to efficiently levarage autodiff and handle scenarios are 
+    # In case the sensitivites are computed via automatic differentitation we need to pre-allocate an
+    # sensitivity matrix all experimental conditions (to efficiently levarage autodiff and handle scenarios are
     # pre-equlibrita model). Here we pre-allocate said matrix, or leave it empty.
     if sensealgForwardEquations == :AutoDiffForward
         experimentalConditionsFile = CSV.read(petabModel.pathConditions, DataFrame)
-        tmp1, tmp2, tmp3, θ_dynamicNames = computeθNames(parameterInfo, measurementInfo, 
+        tmp1, tmp2, tmp3, θ_dynamicNames = computeθNames(parameterInfo, measurementInfo,
                                                          petabModel.odeSystem, experimentalConditionsFile)
         nModelStates = length(states(petabModel.odeSystem))
         nTimePointsSaveAt = sum(length(timeObserved[experimentalConditionId]) for experimentalConditionId in experimentalConditionId)
@@ -109,24 +109,24 @@ function processSimulationInfo(petabModel::PEtabModel,
         S = zeros(Float64, (0, 0))
     end
 
-    simulationInfo = SimulationInfo(preEquilibrationConditionId, 
-                                    simulationConditionId, 
+    simulationInfo = SimulationInfo(preEquilibrationConditionId,
+                                    simulationConditionId,
                                     experimentalConditionId,
                                     haspreEquilibrationConditionId,
                                     odeSolutions,
-                                    odeSolutionsDerivatives, 
+                                    odeSolutionsDerivatives,
                                     odePreEqulibriumSolutions,
                                     S,
                                     timeMax,
-                                    timeObserved, 
+                                    timeObserved,
                                     iMeasurementsObserved,
                                     iTimeODESolution,
-                                    iPerTimePoint, 
+                                    iPerTimePoint,
                                     timePositionInODESolutions,
-                                    absTolSS, 
-                                    relTolSS, 
-                                    callbacks, 
-                                    sensealg, 
+                                    absTolSS,
+                                    relTolSS,
+                                    callbacks,
+                                    sensealg,
                                     callbackSS)
     return simulationInfo
 end
@@ -163,10 +163,10 @@ function computeTimeObserved(preEquilibrationConditionId::Symbol, simulationCond
 end
 
 
-# For each experimental condition (forward ODE-solution) compute index in odeSolution.t for any index 
+# For each experimental condition (forward ODE-solution) compute index in odeSolution.t for any index
 # iMeasurement in measurementInfo.time[iMeasurement]
-function computeIndexTimeODESolution(preEquilibrationConditionId::Vector{Symbol}, 
-                                     simulationConditionId::Vector{Symbol}, 
+function computeIndexTimeODESolution(preEquilibrationConditionId::Vector{Symbol},
+                                     simulationConditionId::Vector{Symbol},
                                      measurementInfo::MeasurementsInfo)::Vector{Int64}
 
     iTimeODESolution::Vector{Int64} = Vector{Int64}(undef, length(measurementInfo.time))
@@ -180,18 +180,18 @@ function computeIndexTimeODESolution(preEquilibrationConditionId::Vector{Symbol}
         end
     end
     return iTimeODESolution
-end                                     
+end
 
 
-# For each time-point in the concatanated odeSolution.t (accross all conditions) get which index it corresponds  
-# to in the concatanted timeObserved (accross all conditions). This is needed when computing forward sensitivites 
-# via forward mode automatic differentiation because here we get a big sensitivity matrix accross all experimental 
-# conditions, where S[i:(i+nStates)] row corresponds to the sensitivites at a specific time-point. 
+# For each time-point in the concatanated odeSolution.t (accross all conditions) get which index it corresponds
+# to in the concatanted timeObserved (accross all conditions). This is needed when computing forward sensitivites
+# via forward mode automatic differentiation because here we get a big sensitivity matrix accross all experimental
+# conditions, where S[i:(i+nStates)] row corresponds to the sensitivites at a specific time-point.
 # An assumption made here is that we solve the ODE:s in the order of experimentalConditionId (which is true)
-function getTimePositionInODESolutions(experimentalConditionId::Vector{Symbol}, 
+function getTimePositionInODESolutions(experimentalConditionId::Vector{Symbol},
                                        timeObserved::NamedTuple)::NamedTuple
 
-    _timePositionInODESolutions = Vector{UnitRange{Int64}}(undef, length(experimentalConditionId))                                         
+    _timePositionInODESolutions = Vector{UnitRange{Int64}}(undef, length(experimentalConditionId))
     iStart = 1
     for i in eachindex(experimentalConditionId)
         timeObservedCondition = timeObserved[experimentalConditionId[i]]
@@ -204,22 +204,22 @@ function getTimePositionInODESolutions(experimentalConditionId::Vector{Symbol},
 end
 
 
-# For creating terminateSS steady state where we do a Newton step to check if the model is in a steady state 
-function conditionTerminateSS(u, t, integrator, computeJacobian::Function, 
+# For creating terminateSS steady state where we do a Newton step to check if the model is in a steady state
+function conditionTerminateSS(u, t, integrator, computeJacobian::Function,
                               absTolSS::Float64, relTolSS::Float64, checkNewton::Bool)
 
     testval = first(get_tmp_cache(integrator))
     DiffEqBase.get_du!(testval, integrator)
 
     wrms = sqrt(sum((testval ./ (relTolSS * integrator.u .+ absTolSS)).^2) / length(u))
-    if wrms ≤ 1 
+    if wrms ≤ 1
         checkNewton == false && return true
 
         J = computeJacobian(dualToFloat.(u), dualToFloat.(integrator.p), t)
         local Δu
-        try 
+        try
             Δu = J \ DualToFloat.(testval)
-        catch 
+        catch
             Δu = pinv(J) * dualToFloat.(testval)
         end
         wrmsΔu = sqrt(sum((Δu / (relTolSS * integrator.u .+ absTolSS)).^2) / length(u))
@@ -228,7 +228,7 @@ function conditionTerminateSS(u, t, integrator, computeJacobian::Function,
 
     return false
 end
-function affectTerminateSS!(integrator) 
+function affectTerminateSS!(integrator)
     terminate!(integrator)
 end
 function createSSTerminateSteadyState(odeSystem::ODESystem, absTolSS::Float64, relTolSS::Float64; checkNewton::Bool=false)

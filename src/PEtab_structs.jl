@@ -34,7 +34,7 @@ struct PEtabModel{F1<:Function,
                   T1<:Vector{<:Pair{Num, <:Union{AbstractFloat, Num}}},
                   T2<:Vector{<:Pair{Num, <:Union{AbstractFloat, Num}}},
                   T3<:Vector{<:Any},
-                  T4<:Vector{<:Any}, 
+                  T4<:Vector{<:Any},
                   C<:SciMLBase.DECallback,
                   FA<:Vector{<:Function}}
     modelName::String
