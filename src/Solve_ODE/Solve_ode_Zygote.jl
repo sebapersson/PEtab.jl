@@ -107,7 +107,7 @@ function solveOdeModelAtExperimentalCondZygote(odeProblem::ODEProblem,
 
         sol = solveCall(probUse)
 
-        Zygote.@ignore simulationInfo.odeSolutions[experimentalId] = sol
+        ChainRulesCore.@ignore_derivatives simulationInfo.odeSolutions[experimentalId] = sol
 
         if typeof(sol) <: ODESolution && !(sol.retcode == ReturnCode.Success || sol.retcode == ReturnCode.Terminated)
             sucess = false

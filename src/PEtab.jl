@@ -11,6 +11,7 @@ using DiffEqCallbacks
 using SteadyStateDiffEq
 using ForwardDiff
 using ReverseDiff
+import ChainRulesCore 
 using Zygote
 using StatsBase
 using Sundials
