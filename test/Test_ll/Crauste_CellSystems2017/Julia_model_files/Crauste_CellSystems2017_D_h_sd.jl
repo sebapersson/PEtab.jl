@@ -3,22 +3,22 @@
 #
 function compute_∂h∂u!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                        θ_nonDynamic::AbstractVector, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :observable_EarlyEffector 
+	if observableId === :observable_EarlyEffector 
 		out[4] = 1
 		return nothing
 	end
 
-	if observableId == :observable_LateEffector 
+	if observableId === :observable_LateEffector 
 		out[3] = 1
 		return nothing
 	end
 
-	if observableId == :observable_Memory 
+	if observableId === :observable_Memory 
 		out[5] = 1
 		return nothing
 	end
 
-	if observableId == :observable_Naive 
+	if observableId === :observable_Naive 
 		out[1] = 1
 		return nothing
 	end
@@ -27,19 +27,19 @@ end
 
 function compute_∂h∂p!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                        θ_nonDynamic::AbstractVector, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :observable_EarlyEffector 
+	if observableId === :observable_EarlyEffector 
 		return nothing
 	end
 
-	if observableId == :observable_LateEffector 
+	if observableId === :observable_LateEffector 
 		return nothing
 	end
 
-	if observableId == :observable_Memory 
+	if observableId === :observable_Memory 
 		return nothing
 	end
 
-	if observableId == :observable_Naive 
+	if observableId === :observable_Naive 
 		return nothing
 	end
 
@@ -47,19 +47,19 @@ end
 
 function compute_∂σ∂σu!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                         parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :observable_EarlyEffector 
+	if observableId === :observable_EarlyEffector 
 		return nothing
 	end
 
-	if observableId == :observable_LateEffector 
+	if observableId === :observable_LateEffector 
 		return nothing
 	end
 
-	if observableId == :observable_Memory 
+	if observableId === :observable_Memory 
 		return nothing
 	end
 
-	if observableId == :observable_Naive 
+	if observableId === :observable_Naive 
 		return nothing
 	end
 
@@ -67,19 +67,19 @@ end
 
 function compute_∂σ∂σp!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                         parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :observable_EarlyEffector 
+	if observableId === :observable_EarlyEffector 
 		return nothing
 	end
 
-	if observableId == :observable_LateEffector 
+	if observableId === :observable_LateEffector 
 		return nothing
 	end
 
-	if observableId == :observable_Memory 
+	if observableId === :observable_Memory 
 		return nothing
 	end
 
-	if observableId == :observable_Naive 
+	if observableId === :observable_Naive 
 		return nothing
 	end
 

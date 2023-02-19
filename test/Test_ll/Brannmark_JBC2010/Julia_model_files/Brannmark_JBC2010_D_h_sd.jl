@@ -3,20 +3,20 @@
 #
 function compute_∂h∂u!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                        θ_nonDynamic::AbstractVector, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :IR1_P 
+	if observableId === :IR1_P 
 		observableParameter1_IR1_P = getObsOrSdParam(θ_observable, parameterMap)
 		out[1] = observableParameter1_IR1_P
 		out[4] = observableParameter1_IR1_P
 		return nothing
 	end
 
-	if observableId == :IRS1_P 
+	if observableId === :IRS1_P 
 		observableParameter1_IRS1_P = getObsOrSdParam(θ_observable, parameterMap)
 		out[8] = observableParameter1_IRS1_P
 		return nothing
 	end
 
-	if observableId == :IRS1_P_DosR 
+	if observableId === :IRS1_P_DosR 
 		observableParameter1_IRS1_P_DosR = getObsOrSdParam(θ_observable, parameterMap)
 		out[8] = observableParameter1_IRS1_P_DosR
 		return nothing
@@ -26,15 +26,15 @@ end
 
 function compute_∂h∂p!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                        θ_nonDynamic::AbstractVector, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :IR1_P 
+	if observableId === :IR1_P 
 		return nothing
 	end
 
-	if observableId == :IRS1_P 
+	if observableId === :IRS1_P 
 		return nothing
 	end
 
-	if observableId == :IRS1_P_DosR 
+	if observableId === :IRS1_P_DosR 
 		return nothing
 	end
 
@@ -42,15 +42,15 @@ end
 
 function compute_∂σ∂σu!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                         parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :IR1_P 
+	if observableId === :IR1_P 
 		return nothing
 	end
 
-	if observableId == :IRS1_P 
+	if observableId === :IRS1_P 
 		return nothing
 	end
 
-	if observableId == :IRS1_P_DosR 
+	if observableId === :IRS1_P_DosR 
 		return nothing
 	end
 
@@ -58,15 +58,15 @@ end
 
 function compute_∂σ∂σp!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                         parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :IR1_P 
+	if observableId === :IR1_P 
 		return nothing
 	end
 
-	if observableId == :IRS1_P 
+	if observableId === :IRS1_P 
 		return nothing
 	end
 
-	if observableId == :IRS1_P_DosR 
+	if observableId === :IRS1_P_DosR 
 		return nothing
 	end
 

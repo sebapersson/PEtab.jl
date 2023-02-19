@@ -5,19 +5,19 @@
 function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                    θ_nonDynamic::AbstractVector, parameterInfo::ParametersInfo, observableId::Symbol,
                       parameterMap::θObsOrSdParameterMap)::Real 
-	if observableId == :observable_EarlyEffector 
+	if observableId === :observable_EarlyEffector 
 		return u[4] 
 	end
 
-	if observableId == :observable_LateEffector 
+	if observableId === :observable_LateEffector 
 		return u[3] 
 	end
 
-	if observableId == :observable_Memory 
+	if observableId === :observable_Memory 
 		return u[5] 
 	end
 
-	if observableId == :observable_Naive 
+	if observableId === :observable_Naive 
 		return u[1] 
 	end
 
@@ -51,22 +51,22 @@ end
 
 function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                    parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap)::Real 
-	if observableId == :observable_EarlyEffector 
+	if observableId === :observable_EarlyEffector 
 		noiseParameter1_observable_EarlyEffector = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_EarlyEffector 
 	end
 
-	if observableId == :observable_LateEffector 
+	if observableId === :observable_LateEffector 
 		noiseParameter1_observable_LateEffector = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_LateEffector 
 	end
 
-	if observableId == :observable_Memory 
+	if observableId === :observable_Memory 
 		noiseParameter1_observable_Memory = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_Memory 
 	end
 
-	if observableId == :observable_Naive 
+	if observableId === :observable_Naive 
 		noiseParameter1_observable_Naive = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_Naive 
 	end

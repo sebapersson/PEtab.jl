@@ -85,7 +85,7 @@ function create_h_Function(modelName::String,
 
         _formula = filter(x -> !isspace(x), string(observablesData[i, "observableFormula"]))
         observableParameters = getObservableParametersStr(_formula)
-        observableStr *= "\tif observableId == " * ":" * observableIds[i] * " \n"
+        observableStr *= "\tif observableId === " * ":" * observableIds[i] * " \n"
         if !isempty(observableParameters)
             observableStr *= "\t\t" * observableParameters * " = getObsOrSdParam(θ_observable, parameterMap)\n"
         end
@@ -269,7 +269,7 @@ function create_σ_Function(modelName::String,
 
         _formula = filter(x -> !isspace(x), string(observablesData[i, "noiseFormula"]))
         noiseParameters = getNoiseParametersStr(_formula)
-        observableStr *= "\tif observableId == " * ":" * observableIds[i] * " \n"
+        observableStr *= "\tif observableId === " * ":" * observableIds[i] * " \n"
         if !isempty(noiseParameters)
             observableStr *= "\t\t" * noiseParameters * " = getObsOrSdParam(θ_sd, parameterMap)\n"
         end

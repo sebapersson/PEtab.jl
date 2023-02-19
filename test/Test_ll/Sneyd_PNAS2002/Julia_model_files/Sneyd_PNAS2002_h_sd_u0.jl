@@ -5,7 +5,7 @@
 function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                    θ_nonDynamic::AbstractVector, parameterInfo::ParametersInfo, observableId::Symbol,
                       parameterMap::θObsOrSdParameterMap)::Real 
-	if observableId == :open_probability 
+	if observableId === :open_probability 
 		return ( 0.9 * u[6] + 0.1 * u[4] ) ^ 4 
 	end
 
@@ -41,7 +41,7 @@ end
 
 function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                    parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap)::Real 
-	if observableId == :open_probability 
+	if observableId === :open_probability 
 		noiseParameter1_open_probability = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_open_probability 
 	end

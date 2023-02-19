@@ -5,11 +5,11 @@
 function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                    θ_nonDynamic::AbstractVector, parameterInfo::ParametersInfo, observableId::Symbol,
                       parameterMap::θObsOrSdParameterMap)::Real 
-	if observableId == :Bacnorm 
+	if observableId === :Bacnorm 
 		return u[4] 
 	end
 
-	if observableId == :IndconcNormRange 
+	if observableId === :IndconcNormRange 
 		return u[3] 
 	end
 
@@ -41,12 +41,12 @@ end
 
 function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                    parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap)::Real 
-	if observableId == :Bacnorm 
+	if observableId === :Bacnorm 
 		noiseParameter1_Bacnorm = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_Bacnorm 
 	end
 
-	if observableId == :IndconcNormRange 
+	if observableId === :IndconcNormRange 
 		noiseParameter1_IndconcNormRange = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_IndconcNormRange 
 	end

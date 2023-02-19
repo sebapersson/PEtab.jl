@@ -3,21 +3,21 @@
 #
 function compute_∂h∂u!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                        θ_nonDynamic::AbstractVector, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :observable_IR1 
+	if observableId === :observable_IR1 
 		observableParameter1_observable_IR1, observableParameter2_observable_IR1 = getObsOrSdParam(θ_observable, parameterMap)
 		out[4] = observableParameter2_observable_IR1
 		out[8] = observableParameter2_observable_IR1
 		return nothing
 	end
 
-	if observableId == :observable_IR2 
+	if observableId === :observable_IR2 
 		observableParameter1_observable_IR2, observableParameter2_observable_IR2 = getObsOrSdParam(θ_observable, parameterMap)
 		out[1] = observableParameter2_observable_IR2
 		out[2] = observableParameter2_observable_IR2
 		return nothing
 	end
 
-	if observableId == :observable_IRsum 
+	if observableId === :observable_IRsum 
 		observableParameter1_observable_IRsum, observableParameter2_observable_IRsum = getObsOrSdParam(θ_observable, parameterMap)
 		out[1] = 0.395observableParameter2_observable_IRsum
 		out[2] = 0.395observableParameter2_observable_IRsum
@@ -26,7 +26,7 @@ function compute_∂h∂u!(u, t::Real, pODEProblem::AbstractVector, θ_observabl
 		return nothing
 	end
 
-	if observableId == :observable_Insulin 
+	if observableId === :observable_Insulin 
 		observableParameter1_observable_Insulin, observableParameter2_observable_Insulin, observableParameter3_observable_Insulin, observableParameter4_observable_Insulin = getObsOrSdParam(θ_observable, parameterMap)
 		out[7] = (observableParameter2_observable_Insulin*observableParameter3_observable_Insulin*(observableParameter4_observable_Insulin^2)) / ((u[10] + observableParameter4_observable_Insulin + u[7]*observableParameter3_observable_Insulin)^2)
 		out[10] = (observableParameter2_observable_Insulin*(observableParameter4_observable_Insulin^2)) / ((u[10] + observableParameter4_observable_Insulin + u[7]*observableParameter3_observable_Insulin)^2)
@@ -37,19 +37,19 @@ end
 
 function compute_∂h∂p!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                        θ_nonDynamic::AbstractVector, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :observable_IR1 
+	if observableId === :observable_IR1 
 		return nothing
 	end
 
-	if observableId == :observable_IR2 
+	if observableId === :observable_IR2 
 		return nothing
 	end
 
-	if observableId == :observable_IRsum 
+	if observableId === :observable_IRsum 
 		return nothing
 	end
 
-	if observableId == :observable_Insulin 
+	if observableId === :observable_Insulin 
 		return nothing
 	end
 
@@ -57,19 +57,19 @@ end
 
 function compute_∂σ∂σu!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                         parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :observable_IR1 
+	if observableId === :observable_IR1 
 		return nothing
 	end
 
-	if observableId == :observable_IR2 
+	if observableId === :observable_IR2 
 		return nothing
 	end
 
-	if observableId == :observable_IRsum 
+	if observableId === :observable_IRsum 
 		return nothing
 	end
 
-	if observableId == :observable_Insulin 
+	if observableId === :observable_Insulin 
 		return nothing
 	end
 
@@ -77,19 +77,19 @@ end
 
 function compute_∂σ∂σp!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                         parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :observable_IR1 
+	if observableId === :observable_IR1 
 		return nothing
 	end
 
-	if observableId == :observable_IR2 
+	if observableId === :observable_IR2 
 		return nothing
 	end
 
-	if observableId == :observable_IRsum 
+	if observableId === :observable_IRsum 
 		return nothing
 	end
 
-	if observableId == :observable_Insulin 
+	if observableId === :observable_Insulin 
 		return nothing
 	end
 

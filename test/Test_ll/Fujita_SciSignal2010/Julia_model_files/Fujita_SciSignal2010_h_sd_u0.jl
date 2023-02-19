@@ -5,17 +5,17 @@
 function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                    θ_nonDynamic::AbstractVector, parameterInfo::ParametersInfo, observableId::Symbol,
                       parameterMap::θObsOrSdParameterMap)::Real 
-	if observableId == :pAkt_tot 
+	if observableId === :pAkt_tot 
 		observableParameter1_pAkt_tot = getObsOrSdParam(θ_observable, parameterMap)
 		return observableParameter1_pAkt_tot * ( u[2] + u[1] ) 
 	end
 
-	if observableId == :pEGFR_tot 
+	if observableId === :pEGFR_tot 
 		observableParameter1_pEGFR_tot = getObsOrSdParam(θ_observable, parameterMap)
 		return observableParameter1_pEGFR_tot * ( u[6] + u[5] ) 
 	end
 
-	if observableId == :pS6_tot 
+	if observableId === :pS6_tot 
 		observableParameter1_pS6_tot = getObsOrSdParam(θ_observable, parameterMap)
 		return u[3] * observableParameter1_pS6_tot 
 	end
@@ -58,17 +58,17 @@ end
 
 function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                    parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap)::Real 
-	if observableId == :pAkt_tot 
+	if observableId === :pAkt_tot 
 		noiseParameter1_pAkt_tot = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_pAkt_tot 
 	end
 
-	if observableId == :pEGFR_tot 
+	if observableId === :pEGFR_tot 
 		noiseParameter1_pEGFR_tot = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_pEGFR_tot 
 	end
 
-	if observableId == :pS6_tot 
+	if observableId === :pS6_tot 
 		noiseParameter1_pS6_tot = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_pS6_tot 
 	end

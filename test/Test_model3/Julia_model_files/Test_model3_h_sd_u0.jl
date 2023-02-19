@@ -6,11 +6,11 @@
 function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                    θ_nonDynamic::AbstractVector, parameterInfo::ParametersInfo, observableId::Symbol,
                       parameterMap::θObsOrSdParameterMap)::Real 
-	if observableId == :x1 
+	if observableId === :x1 
 		return u[1] 
 	end
 
-	if observableId == :x2 
+	if observableId === :x2 
 		return u[2] 
 	end
 
@@ -38,12 +38,12 @@ end
 
 function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                    parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap)::Real 
-	if observableId == :x1 
+	if observableId === :x1 
 		noiseParameter1_x1 = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_x1 
 	end
 
-	if observableId == :x2 
+	if observableId === :x2 
 		noiseParameter1_x2 = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_x2 
 	end

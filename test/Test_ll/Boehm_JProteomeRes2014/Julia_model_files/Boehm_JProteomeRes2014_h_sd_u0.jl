@@ -7,15 +7,15 @@
 function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                    θ_nonDynamic::AbstractVector, parameterInfo::ParametersInfo, observableId::Symbol,
                       parameterMap::θObsOrSdParameterMap)::Real 
-	if observableId == :pSTAT5A_rel 
+	if observableId === :pSTAT5A_rel 
 		return ( 100 * u[6] + 200 * u[2] * pODEProblem[6] ) / ( u[6] + u[1] * pODEProblem[6] + 2 * u[2] * pODEProblem[6] ) 
 	end
 
-	if observableId == :pSTAT5B_rel 
+	if observableId === :pSTAT5B_rel 
 		return - ( 100 * u[6] - 200 * u[8] * ( pODEProblem[6] - 1 ) ) / ( ( u[5] * ( pODEProblem[6] - 1 ) - u[6] ) + 2 * u[8] * ( pODEProblem[6] - 1 ) ) 
 	end
 
-	if observableId == :rSTAT5A_rel 
+	if observableId === :rSTAT5A_rel 
 		return ( 100 * u[6] + 100 * u[1] * pODEProblem[6] + 200 * u[2] * pODEProblem[6] ) / ( 2 * u[6] + u[1] * pODEProblem[6] + 2 * u[2] * pODEProblem[6] - u[5] * ( pODEProblem[6] - 1 ) - 2 * u[8] * ( pODEProblem[6] - 1 ) ) 
 	end
 
@@ -55,17 +55,17 @@ end
 
 function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                    parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap)::Real 
-	if observableId == :pSTAT5A_rel 
+	if observableId === :pSTAT5A_rel 
 		noiseParameter1_pSTAT5A_rel = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_pSTAT5A_rel 
 	end
 
-	if observableId == :pSTAT5B_rel 
+	if observableId === :pSTAT5B_rel 
 		noiseParameter1_pSTAT5B_rel = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_pSTAT5B_rel 
 	end
 
-	if observableId == :rSTAT5A_rel 
+	if observableId === :rSTAT5A_rel 
 		noiseParameter1_rSTAT5A_rel = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_rSTAT5A_rel 
 	end

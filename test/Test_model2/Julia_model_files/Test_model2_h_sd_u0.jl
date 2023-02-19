@@ -5,11 +5,11 @@
 function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                    θ_nonDynamic::AbstractVector, parameterInfo::ParametersInfo, observableId::Symbol,
                       parameterMap::θObsOrSdParameterMap)::Real 
-	if observableId == :sebastian_measurement 
+	if observableId === :sebastian_measurement 
 		return u[1] 
 	end
 
-	if observableId == :damiano_measurement 
+	if observableId === :damiano_measurement 
 		return u[2] 
 	end
 
@@ -37,12 +37,12 @@ end
 
 function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                    parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap)::Real 
-	if observableId == :sebastian_measurement 
+	if observableId === :sebastian_measurement 
 		noiseParameter1_sebastian_measurement = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_sebastian_measurement 
 	end
 
-	if observableId == :damiano_measurement 
+	if observableId === :damiano_measurement 
 		noiseParameter1_damiano_measurement = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_damiano_measurement 
 	end

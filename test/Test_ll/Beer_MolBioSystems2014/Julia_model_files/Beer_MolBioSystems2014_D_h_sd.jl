@@ -3,12 +3,12 @@
 #
 function compute_∂h∂u!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                        θ_nonDynamic::AbstractVector, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :Bacnorm 
+	if observableId === :Bacnorm 
 		out[4] = 1
 		return nothing
 	end
 
-	if observableId == :IndconcNormRange 
+	if observableId === :IndconcNormRange 
 		out[3] = 1
 		return nothing
 	end
@@ -17,11 +17,11 @@ end
 
 function compute_∂h∂p!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                        θ_nonDynamic::AbstractVector, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :Bacnorm 
+	if observableId === :Bacnorm 
 		return nothing
 	end
 
-	if observableId == :IndconcNormRange 
+	if observableId === :IndconcNormRange 
 		return nothing
 	end
 
@@ -29,11 +29,11 @@ end
 
 function compute_∂σ∂σu!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                         parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :Bacnorm 
+	if observableId === :Bacnorm 
 		return nothing
 	end
 
-	if observableId == :IndconcNormRange 
+	if observableId === :IndconcNormRange 
 		return nothing
 	end
 
@@ -41,11 +41,11 @@ end
 
 function compute_∂σ∂σp!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                         parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :Bacnorm 
+	if observableId === :Bacnorm 
 		return nothing
 	end
 
-	if observableId == :IndconcNormRange 
+	if observableId === :IndconcNormRange 
 		return nothing
 	end
 

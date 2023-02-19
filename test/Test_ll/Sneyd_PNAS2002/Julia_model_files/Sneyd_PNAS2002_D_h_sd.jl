@@ -3,7 +3,7 @@
 #
 function compute_∂h∂u!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                        θ_nonDynamic::AbstractVector, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :open_probability 
+	if observableId === :open_probability 
 		out[4] = 0.4((0.1u[4] + 0.9u[6])^3)
 		out[6] = 3.6((0.1u[4] + 0.9u[6])^3)
 		return nothing
@@ -13,7 +13,7 @@ end
 
 function compute_∂h∂p!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                        θ_nonDynamic::AbstractVector, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :open_probability 
+	if observableId === :open_probability 
 		return nothing
 	end
 
@@ -21,7 +21,7 @@ end
 
 function compute_∂σ∂σu!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                         parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :open_probability 
+	if observableId === :open_probability 
 		return nothing
 	end
 
@@ -29,7 +29,7 @@ end
 
 function compute_∂σ∂σp!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                         parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :open_probability 
+	if observableId === :open_probability 
 		return nothing
 	end
 

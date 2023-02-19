@@ -3,21 +3,21 @@
 #
 function compute_∂h∂u!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                        θ_nonDynamic::AbstractVector, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :pAkt_tot 
+	if observableId === :pAkt_tot 
 		observableParameter1_pAkt_tot = getObsOrSdParam(θ_observable, parameterMap)
 		out[1] = observableParameter1_pAkt_tot
 		out[2] = observableParameter1_pAkt_tot
 		return nothing
 	end
 
-	if observableId == :pEGFR_tot 
+	if observableId === :pEGFR_tot 
 		observableParameter1_pEGFR_tot = getObsOrSdParam(θ_observable, parameterMap)
 		out[5] = observableParameter1_pEGFR_tot
 		out[6] = observableParameter1_pEGFR_tot
 		return nothing
 	end
 
-	if observableId == :pS6_tot 
+	if observableId === :pS6_tot 
 		observableParameter1_pS6_tot = getObsOrSdParam(θ_observable, parameterMap)
 		out[3] = observableParameter1_pS6_tot
 		return nothing
@@ -27,15 +27,15 @@ end
 
 function compute_∂h∂p!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                        θ_nonDynamic::AbstractVector, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :pAkt_tot 
+	if observableId === :pAkt_tot 
 		return nothing
 	end
 
-	if observableId == :pEGFR_tot 
+	if observableId === :pEGFR_tot 
 		return nothing
 	end
 
-	if observableId == :pS6_tot 
+	if observableId === :pS6_tot 
 		return nothing
 	end
 
@@ -43,15 +43,15 @@ end
 
 function compute_∂σ∂σu!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                         parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :pAkt_tot 
+	if observableId === :pAkt_tot 
 		return nothing
 	end
 
-	if observableId == :pEGFR_tot 
+	if observableId === :pEGFR_tot 
 		return nothing
 	end
 
-	if observableId == :pS6_tot 
+	if observableId === :pS6_tot 
 		return nothing
 	end
 
@@ -59,15 +59,15 @@ end
 
 function compute_∂σ∂σp!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                         parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
-	if observableId == :pAkt_tot 
+	if observableId === :pAkt_tot 
 		return nothing
 	end
 
-	if observableId == :pEGFR_tot 
+	if observableId === :pEGFR_tot 
 		return nothing
 	end
 
-	if observableId == :pS6_tot 
+	if observableId === :pS6_tot 
 		return nothing
 	end
 

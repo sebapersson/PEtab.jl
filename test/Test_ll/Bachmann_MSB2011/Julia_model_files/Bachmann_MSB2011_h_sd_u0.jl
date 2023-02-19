@@ -7,98 +7,98 @@
 function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                    θ_nonDynamic::AbstractVector, parameterInfo::ParametersInfo, observableId::Symbol,
                       parameterMap::θObsOrSdParameterMap)::Real 
-	if observableId == :observable_CISRNA_foldA 
+	if observableId === :observable_CISRNA_foldA 
 		observableParameter1_observable_CISRNA_foldA = getObsOrSdParam(θ_observable, parameterMap)
 		return u[25] * observableParameter1_observable_CISRNA_foldA / pODEProblem[15] + 1 
 	end
 
-	if observableId == :observable_CISRNA_foldB 
+	if observableId === :observable_CISRNA_foldB 
 		observableParameter1_observable_CISRNA_foldB = getObsOrSdParam(θ_observable, parameterMap)
 		return u[25] * observableParameter1_observable_CISRNA_foldB / pODEProblem[15] + 1 
 	end
 
-	if observableId == :observable_CISRNA_foldC 
+	if observableId === :observable_CISRNA_foldC 
 		observableParameter1_observable_CISRNA_foldC = getObsOrSdParam(θ_observable, parameterMap)
 		return u[25] * observableParameter1_observable_CISRNA_foldC / pODEProblem[15] + 1 
 	end
 
-	if observableId == :observable_CIS_abs 
+	if observableId === :observable_CIS_abs 
 		return u[22] 
 	end
 
-	if observableId == :observable_CIS_au 
+	if observableId === :observable_CIS_au 
 		observableParameter1_observable_CIS_au, observableParameter2_observable_CIS_au = getObsOrSdParam(θ_observable, parameterMap)
 		return observableParameter1_observable_CIS_au + u[22] * observableParameter2_observable_CIS_au / pODEProblem[27] 
 	end
 
-	if observableId == :observable_CIS_au1 
+	if observableId === :observable_CIS_au1 
 		observableParameter1_observable_CIS_au1 = getObsOrSdParam(θ_observable, parameterMap)
 		return u[22] * observableParameter1_observable_CIS_au1 / pODEProblem[27] 
 	end
 
-	if observableId == :observable_CIS_au2 
+	if observableId === :observable_CIS_au2 
 		observableParameter1_observable_CIS_au2 = getObsOrSdParam(θ_observable, parameterMap)
 		return u[22] * observableParameter1_observable_CIS_au2 / pODEProblem[27] 
 	end
 
-	if observableId == :observable_SHP1_abs 
+	if observableId === :observable_SHP1_abs 
 		return u[6] + u[18] 
 	end
 
-	if observableId == :observable_SOCS3RNA_foldA 
+	if observableId === :observable_SOCS3RNA_foldA 
 		observableParameter1_observable_SOCS3RNA_foldA = getObsOrSdParam(θ_observable, parameterMap)
 		return u[5] * observableParameter1_observable_SOCS3RNA_foldA / pODEProblem[26] + 1 
 	end
 
-	if observableId == :observable_SOCS3RNA_foldB 
+	if observableId === :observable_SOCS3RNA_foldB 
 		observableParameter1_observable_SOCS3RNA_foldB = getObsOrSdParam(θ_observable, parameterMap)
 		return u[5] * observableParameter1_observable_SOCS3RNA_foldB / pODEProblem[26] + 1 
 	end
 
-	if observableId == :observable_SOCS3RNA_foldC 
+	if observableId === :observable_SOCS3RNA_foldC 
 		observableParameter1_observable_SOCS3RNA_foldC = getObsOrSdParam(θ_observable, parameterMap)
 		return u[5] * observableParameter1_observable_SOCS3RNA_foldC / pODEProblem[26] + 1 
 	end
 
-	if observableId == :observable_SOCS3_abs 
+	if observableId === :observable_SOCS3_abs 
 		return u[14] 
 	end
 
-	if observableId == :observable_SOCS3_au 
+	if observableId === :observable_SOCS3_au 
 		observableParameter1_observable_SOCS3_au, observableParameter2_observable_SOCS3_au = getObsOrSdParam(θ_observable, parameterMap)
 		return observableParameter1_observable_SOCS3_au + u[14] * observableParameter2_observable_SOCS3_au / pODEProblem[39] 
 	end
 
-	if observableId == :observable_STAT5_abs 
+	if observableId === :observable_STAT5_abs 
 		return u[7] 
 	end
 
-	if observableId == :observable_pEpoR_au 
+	if observableId === :observable_pEpoR_au 
 		observableParameter1_observable_pEpoR_au, observableParameter2_observable_pEpoR_au = getObsOrSdParam(θ_observable, parameterMap)
 		return observableParameter1_observable_pEpoR_au + observableParameter2_observable_pEpoR_au * ( 16 * u[20] + 16 * u[1] + 16 * u[21] ) / pODEProblem[34] 
 	end
 
-	if observableId == :observable_pJAK2_au 
+	if observableId === :observable_pJAK2_au 
 		observableParameter1_observable_pJAK2_au, observableParameter2_observable_pJAK2_au = getObsOrSdParam(θ_observable, parameterMap)
 		return observableParameter1_observable_pJAK2_au + observableParameter2_observable_pJAK2_au * ( 2 * u[23] + 2 * u[20] + 2 * u[1] + 2 * u[21] ) / pODEProblem[34] 
 	end
 
-	if observableId == :observable_pSTAT5B_rel 
+	if observableId === :observable_pSTAT5B_rel 
 		observableParameter1_observable_pSTAT5B_rel = getObsOrSdParam(θ_observable, parameterMap)
 		return observableParameter1_observable_pSTAT5B_rel + 100 * u[2] / ( u[7] + u[2] ) 
 	end
 
-	if observableId == :observable_pSTAT5_au 
+	if observableId === :observable_pSTAT5_au 
 		observableParameter1_observable_pSTAT5_au, observableParameter2_observable_pSTAT5_au = getObsOrSdParam(θ_observable, parameterMap)
 		return observableParameter1_observable_pSTAT5_au + u[2] * observableParameter2_observable_pSTAT5_au / pODEProblem[30] 
 	end
 
-	if observableId == :observable_tSHP1_au 
+	if observableId === :observable_tSHP1_au 
 		observableParameter1_observable_tSHP1_au = getObsOrSdParam(θ_observable, parameterMap)
 		return observableParameter1_observable_tSHP1_au * ( u[6] + u[18] ) / pODEProblem[23] 
 	end
 
-	if observableId == :observable_tSTAT5_au 
+	if observableId === :observable_tSTAT5_au 
 		observableParameter1_observable_tSTAT5_au = getObsOrSdParam(θ_observable, parameterMap)
 		return observableParameter1_observable_tSTAT5_au * ( u[7] + u[2] ) / pODEProblem[30] 
 	end
@@ -173,102 +173,102 @@ end
 
 function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                    parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap)::Real 
-	if observableId == :observable_CISRNA_foldA 
+	if observableId === :observable_CISRNA_foldA 
 		noiseParameter1_observable_CISRNA_foldA = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_CISRNA_foldA 
 	end
 
-	if observableId == :observable_CISRNA_foldB 
+	if observableId === :observable_CISRNA_foldB 
 		noiseParameter1_observable_CISRNA_foldB = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_CISRNA_foldB 
 	end
 
-	if observableId == :observable_CISRNA_foldC 
+	if observableId === :observable_CISRNA_foldC 
 		noiseParameter1_observable_CISRNA_foldC = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_CISRNA_foldC 
 	end
 
-	if observableId == :observable_CIS_abs 
+	if observableId === :observable_CIS_abs 
 		noiseParameter1_observable_CIS_abs = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_CIS_abs 
 	end
 
-	if observableId == :observable_CIS_au 
+	if observableId === :observable_CIS_au 
 		noiseParameter1_observable_CIS_au = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_CIS_au 
 	end
 
-	if observableId == :observable_CIS_au1 
+	if observableId === :observable_CIS_au1 
 		noiseParameter1_observable_CIS_au1 = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_CIS_au1 
 	end
 
-	if observableId == :observable_CIS_au2 
+	if observableId === :observable_CIS_au2 
 		noiseParameter1_observable_CIS_au2 = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_CIS_au2 
 	end
 
-	if observableId == :observable_SHP1_abs 
+	if observableId === :observable_SHP1_abs 
 		noiseParameter1_observable_SHP1_abs = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_SHP1_abs 
 	end
 
-	if observableId == :observable_SOCS3RNA_foldA 
+	if observableId === :observable_SOCS3RNA_foldA 
 		noiseParameter1_observable_SOCS3RNA_foldA = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_SOCS3RNA_foldA 
 	end
 
-	if observableId == :observable_SOCS3RNA_foldB 
+	if observableId === :observable_SOCS3RNA_foldB 
 		noiseParameter1_observable_SOCS3RNA_foldB = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_SOCS3RNA_foldB 
 	end
 
-	if observableId == :observable_SOCS3RNA_foldC 
+	if observableId === :observable_SOCS3RNA_foldC 
 		noiseParameter1_observable_SOCS3RNA_foldC = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_SOCS3RNA_foldC 
 	end
 
-	if observableId == :observable_SOCS3_abs 
+	if observableId === :observable_SOCS3_abs 
 		noiseParameter1_observable_SOCS3_abs = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_SOCS3_abs 
 	end
 
-	if observableId == :observable_SOCS3_au 
+	if observableId === :observable_SOCS3_au 
 		noiseParameter1_observable_SOCS3_au = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_SOCS3_au 
 	end
 
-	if observableId == :observable_STAT5_abs 
+	if observableId === :observable_STAT5_abs 
 		noiseParameter1_observable_STAT5_abs = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_STAT5_abs 
 	end
 
-	if observableId == :observable_pEpoR_au 
+	if observableId === :observable_pEpoR_au 
 		noiseParameter1_observable_pEpoR_au = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_pEpoR_au 
 	end
 
-	if observableId == :observable_pJAK2_au 
+	if observableId === :observable_pJAK2_au 
 		noiseParameter1_observable_pJAK2_au = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_pJAK2_au 
 	end
 
-	if observableId == :observable_pSTAT5B_rel 
+	if observableId === :observable_pSTAT5B_rel 
 		noiseParameter1_observable_pSTAT5B_rel = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_pSTAT5B_rel 
 	end
 
-	if observableId == :observable_pSTAT5_au 
+	if observableId === :observable_pSTAT5_au 
 		noiseParameter1_observable_pSTAT5_au, noiseParameter2_observable_pSTAT5_au = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_pSTAT5_au + noiseParameter2_observable_pSTAT5_au 
 	end
 
-	if observableId == :observable_tSHP1_au 
+	if observableId === :observable_tSHP1_au 
 		noiseParameter1_observable_tSHP1_au = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_tSHP1_au 
 	end
 
-	if observableId == :observable_tSTAT5_au 
+	if observableId === :observable_tSTAT5_au 
 		noiseParameter1_observable_tSTAT5_au = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_tSTAT5_au 
 	end

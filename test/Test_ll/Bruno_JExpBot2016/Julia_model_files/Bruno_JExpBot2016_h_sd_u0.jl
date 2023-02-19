@@ -5,27 +5,27 @@
 function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                    θ_nonDynamic::AbstractVector, parameterInfo::ParametersInfo, observableId::Symbol,
                       parameterMap::θObsOrSdParameterMap)::Real 
-	if observableId == :ob10 
+	if observableId === :ob10 
 		return u[1] 
 	end
 
-	if observableId == :obcar 
+	if observableId === :obcar 
 		return u[7] 
 	end
 
-	if observableId == :obcry 
+	if observableId === :obcry 
 		return u[5] 
 	end
 
-	if observableId == :obio 
+	if observableId === :obio 
 		return u[2] 
 	end
 
-	if observableId == :oohb10 
+	if observableId === :oohb10 
 		return u[6] 
 	end
 
-	if observableId == :ozea 
+	if observableId === :ozea 
 		return u[4] 
 	end
 
@@ -63,32 +63,32 @@ end
 
 function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                    parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap)::Real 
-	if observableId == :ob10 
+	if observableId === :ob10 
 		noiseParameter1_ob10 = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_ob10 
 	end
 
-	if observableId == :obcar 
+	if observableId === :obcar 
 		noiseParameter1_obcar = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_obcar 
 	end
 
-	if observableId == :obcry 
+	if observableId === :obcry 
 		noiseParameter1_obcry = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_obcry 
 	end
 
-	if observableId == :obio 
+	if observableId === :obio 
 		noiseParameter1_obio = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_obio 
 	end
 
-	if observableId == :oohb10 
+	if observableId === :oohb10 
 		noiseParameter1_oohb10 = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_oohb10 
 	end
 
-	if observableId == :ozea 
+	if observableId === :ozea 
 		noiseParameter1_ozea = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_ozea 
 	end

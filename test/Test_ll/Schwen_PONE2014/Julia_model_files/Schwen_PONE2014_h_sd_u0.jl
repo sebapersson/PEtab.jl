@@ -5,22 +5,22 @@
 function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                    θ_nonDynamic::AbstractVector, parameterInfo::ParametersInfo, observableId::Symbol,
                       parameterMap::θObsOrSdParameterMap)::Real 
-	if observableId == :observable_IR1 
+	if observableId === :observable_IR1 
 		observableParameter1_observable_IR1, observableParameter2_observable_IR1 = getObsOrSdParam(θ_observable, parameterMap)
 		return observableParameter2_observable_IR1 * ( u[8] + u[4] + observableParameter1_observable_IR1 ) 
 	end
 
-	if observableId == :observable_IR2 
+	if observableId === :observable_IR2 
 		observableParameter1_observable_IR2, observableParameter2_observable_IR2 = getObsOrSdParam(θ_observable, parameterMap)
 		return observableParameter2_observable_IR2 * ( u[1] + u[2] + observableParameter1_observable_IR2 ) 
 	end
 
-	if observableId == :observable_IRsum 
+	if observableId === :observable_IRsum 
 		observableParameter1_observable_IRsum, observableParameter2_observable_IRsum = getObsOrSdParam(θ_observable, parameterMap)
 		return observableParameter2_observable_IRsum * ( 0.605 * u[8] + 0.395 * u[1] + 0.605 * u[4] + 0.395 * u[2] + observableParameter1_observable_IRsum ) 
 	end
 
-	if observableId == :observable_Insulin 
+	if observableId === :observable_Insulin 
 		observableParameter1_observable_Insulin, observableParameter2_observable_Insulin, observableParameter3_observable_Insulin, observableParameter4_observable_Insulin = getObsOrSdParam(θ_observable, parameterMap)
 		return observableParameter1_observable_Insulin + observableParameter2_observable_Insulin * ( u[10] + u[7] * observableParameter3_observable_Insulin ) / ( ( u[10] + u[7] * observableParameter3_observable_Insulin ) / observableParameter4_observable_Insulin + 1 ) 
 	end
@@ -67,22 +67,22 @@ end
 
 function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                    parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap)::Real 
-	if observableId == :observable_IR1 
+	if observableId === :observable_IR1 
 		noiseParameter1_observable_IR1 = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_IR1 
 	end
 
-	if observableId == :observable_IR2 
+	if observableId === :observable_IR2 
 		noiseParameter1_observable_IR2 = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_IR2 
 	end
 
-	if observableId == :observable_IRsum 
+	if observableId === :observable_IRsum 
 		noiseParameter1_observable_IRsum = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_IRsum 
 	end
 
-	if observableId == :observable_Insulin 
+	if observableId === :observable_Insulin 
 		noiseParameter1_observable_Insulin = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_observable_Insulin 
 	end

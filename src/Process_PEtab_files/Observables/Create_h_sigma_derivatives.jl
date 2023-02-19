@@ -73,8 +73,8 @@ function create∂h∂_Function(modelName::String,
     for i in eachindex(observableIds)
 
         # Each observebleID falls below its own if-statement
-        pObservebleStr *= "\tif observableId == " * ":" * observableIds[i] * "" * " \n"
-        uObservebleStr *= "\tif observableId == " * ":" * observableIds[i] * "" * " \n"
+        pObservebleStr *= "\tif observableId === " * ":" * observableIds[i] * "" * " \n"
+        uObservebleStr *= "\tif observableId === " * ":" * observableIds[i] * "" * " \n"
 
         _formula = filter(x -> !isspace(x), String(observablesData[i, "observableFormula"]))
         formula = replaceExplicitVariableWithRule(_formula, SBMLDict)
@@ -240,8 +240,8 @@ function create∂σ∂_Function(modelName::String,
     for i in eachindex(observableIds)
 
         # Each observebleID falls below its own if-statement
-        pObservebleStr *= "\tif observableId == " * ":" * observableIds[i] * "" * " \n"
-        uObservebleStr *= "\tif observableId == " * ":" * observableIds[i] * "" * " \n"
+        pObservebleStr *= "\tif observableId === " * ":" * observableIds[i] * "" * " \n"
+        uObservebleStr *= "\tif observableId === " * ":" * observableIds[i] * "" * " \n"
 
         _formula = filter(x -> !isspace(x), String(observablesData[i, "noiseFormula"]))
         formula = replaceExplicitVariableWithRule(_formula, SBMLDict)

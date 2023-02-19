@@ -5,17 +5,17 @@
 function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                    θ_nonDynamic::AbstractVector, parameterInfo::ParametersInfo, observableId::Symbol,
                       parameterMap::θObsOrSdParameterMap)::Real 
-	if observableId == :IR1_P 
+	if observableId === :IR1_P 
 		observableParameter1_IR1_P = getObsOrSdParam(θ_observable, parameterMap)
 		return observableParameter1_IR1_P * ( u[1] + u[4] ) 
 	end
 
-	if observableId == :IRS1_P 
+	if observableId === :IRS1_P 
 		observableParameter1_IRS1_P = getObsOrSdParam(θ_observable, parameterMap)
 		return observableParameter1_IRS1_P * u[8] 
 	end
 
-	if observableId == :IRS1_P_DosR 
+	if observableId === :IRS1_P_DosR 
 		observableParameter1_IRS1_P_DosR = getObsOrSdParam(θ_observable, parameterMap)
 		return observableParameter1_IRS1_P_DosR * u[8] 
 	end
@@ -58,17 +58,17 @@ end
 
 function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                    parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap)::Real 
-	if observableId == :IR1_P 
+	if observableId === :IR1_P 
 		noiseParameter1_IR1_P = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_IR1_P 
 	end
 
-	if observableId == :IRS1_P 
+	if observableId === :IRS1_P 
 		noiseParameter1_IRS1_P = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_IRS1_P 
 	end
 
-	if observableId == :IRS1_P_DosR 
+	if observableId === :IRS1_P_DosR 
 		noiseParameter1_IRS1_P_DosR = getObsOrSdParam(θ_sd, parameterMap)
 		return noiseParameter1_IRS1_P_DosR 
 	end
