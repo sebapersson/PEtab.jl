@@ -81,48 +81,48 @@ end
 
 # Bachman model
 pathYML = joinpath(@__DIR__, "Test_ll", "Bachmann_MSB2011", "Bachmann_MSB2011.yaml")
-petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
+petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=true)
 testLogLikelihoodValue(petabModel, -418.40573341425295, Rodas4P())
 testGradientFiniteDifferences(petabModel, Rodas5(), 1e-8)
 
 # Beer model - Numerically challenging gradient as we have callback rootfinding
 pathYML = joinpath(@__DIR__, "Test_ll", "Beer_MolBioSystems2014", "Beer_MolBioSystems2014.yaml")
-petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
+petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=true)
 testLogLikelihoodValue(petabModel, -58622.9145631413, Rodas4P())
 testGradientFiniteDifferences(petabModel, Rodas4P(), 1e-8, testTol=1e-1, onlyCheckAutoDiff=true, checkForwardEquations=true, splitOverConditions=true)
 
 # Boehm model
 pathYML = joinpath(@__DIR__, "Test_ll", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
-petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
+petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=true)
 testLogLikelihoodValue(petabModel, 138.22199693517703, Rodas4P())
 
 # Brännmark model. Model has pre-equlibration criteria so here we test all gradients. Challenging to compute gradients.
 pathYML = joinpath(@__DIR__, "Test_ll", "Brannmark_JBC2010", "Brannmark_JBC2010.yaml")
-petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
+petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=true)
 testLogLikelihoodValue(petabModel, 141.889113770537, Rodas4P())
 testGradientFiniteDifferences(petabModel, Rodas5(), 1e-8, onlyCheckAutoDiff=true, checkForwardEquations=true, testTol=2e-3)
 
 # Bruno model
 pathYML = joinpath(@__DIR__, "Test_ll", "Bruno_JExpBot2016", "Bruno_JExpBot2016.yaml")
-petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
+petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=true)
 testLogLikelihoodValue(petabModel, -46.688176988431806, Rodas4P())
 
 # Crauste model. The model is numerically challanging and computing a gradient via Finite-differences is not possible
 pathYML = joinpath(@__DIR__, "Test_ll", "Crauste_CellSystems2017", "Crauste_CellSystems2017.yaml")
-petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
+petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=true)
 testLogLikelihoodValue(petabModel, 190.96521897435176, Rodas4P(), atol=1e-2)
 
 # Fujita model. Challangeing to compute accurate gradients
 pathYML = joinpath(@__DIR__, "Test_ll", "Fujita_SciSignal2010", "Fujita_SciSignal2010.yaml")
-petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
+petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=true)
 testLogLikelihoodValue(petabModel, -53.08377736998929, Rodas4P())
 
 # Schwen model. Model has priors so here we want to test all gradients
 pathYML = joinpath(@__DIR__, "Test_ll", "Schwen_PONE2014", "Schwen_PONE2014.yaml")
-petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
+petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=true)
 testLogLikelihoodValue(petabModel, 943.9992988598723-12.519137073132825, Rodas4P())
 
 # Sneyd model
 pathYML = joinpath(@__DIR__, "Test_ll", "Sneyd_PNAS2002", "Sneyd_PNAS2002.yaml")
-petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
+petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=true)
 testLogLikelihoodValue(petabModel, -319.79177818768756, Rodas4P())

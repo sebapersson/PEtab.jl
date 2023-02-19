@@ -3,7 +3,7 @@
 #
 
 function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
-                   θ_nonDynamic::AbstractVector, parameterInfo::ParametersInfo, observableId::Symbol, 
+                   θ_nonDynamic::AbstractVector, parameterInfo::ParametersInfo, observableId::Symbol,
                       parameterMap::θObsOrSdParameterMap)::Real 
 	if observableId == :observable_EarlyEffector 
 		return u[4] 
@@ -49,7 +49,7 @@ function compute_u0(pODEProblem::AbstractVector)::AbstractVector
 	 return [Naive, Pathogen, LateEffector, EarlyEffector, Memory]
 end
 
-function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector, 
+function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                    parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap)::Real 
 	if observableId == :observable_EarlyEffector 
 		noiseParameter1_observable_EarlyEffector = getObsOrSdParam(θ_sd, parameterMap)

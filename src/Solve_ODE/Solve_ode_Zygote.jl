@@ -80,6 +80,7 @@ function solveOdeModelAtExperimentalCondZygote(odeProblem::ODEProblem,
         # Different funcion calls to solve are required if a solver or a Alg-hint are provided.
         # If t_max = inf the model is simulated to steady state using the TerminateSteadyState callback.
         tStops = calcTStops(probUse.u0, probUse.p)
+        #tStops = Float64[]
         if !(typeof(solver) <: Vector{Symbol}) && isinf(t_max)
             solveCall = (probArg) -> solve(probArg,
                                            solver,

@@ -3,7 +3,7 @@
 #
 
 function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
-                   θ_nonDynamic::AbstractVector, parameterInfo::ParametersInfo, observableId::Symbol, 
+                   θ_nonDynamic::AbstractVector, parameterInfo::ParametersInfo, observableId::Symbol,
                       parameterMap::θObsOrSdParameterMap)::Real 
 	if observableId == :pAkt_tot 
 		observableParameter1_pAkt_tot = getObsOrSdParam(θ_observable, parameterMap)
@@ -56,7 +56,7 @@ function compute_u0(pODEProblem::AbstractVector)::AbstractVector
 	 return [pAkt_S6, pAkt, pS6, EGFR, pEGFR_Akt, pEGFR, Akt, S6, EGF_EGFR]
 end
 
-function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector, 
+function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                    parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap)::Real 
 	if observableId == :pAkt_tot 
 		noiseParameter1_pAkt_tot = getObsOrSdParam(θ_sd, parameterMap)

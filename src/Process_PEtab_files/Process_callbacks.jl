@@ -21,38 +21,36 @@ function createCallbacksForTimeDepedentPiecewise(odeSystem::ODESystem,
     # which compute tstops (callback-times)
     stringWriteCallbacks = "function getCallbacks_" * modelName * "()\n"
     stringWriteFunctions = ""
-    stringWriteTstops = "function computeTstops(u::AbstractVector, p::AbstractVector)\n"
+    stringWriteTstops = "\nfunction computeTstops(u::AbstractVector, p::AbstractVector)\n"
 
     # In case we do not have any events
     if isempty(SBMLDict["boolVariables"])
         callbackNames = ""
         checkIfActivatedT0Names = ""
-        stringWriteTstops *= "\t return Float64[]\nend"
+        stringWriteTstops *= "\t return Float64[]\nend\n"
     else
         for key in keys(SBMLDict["boolVariables"])
             functionsStr, callbackStr =  createCallback(key, SBMLDict, pODEProblemNames, modelStateNames)
+            stringWriteCallbacks *= functionsStr * "\n"
             stringWriteCallbacks *= callbackStr * "\n"
-            stringWriteFunctions *= functionsStr * "\n"
         end
         callbackNames = prod(["cb_" * key * ", " for key in keys(SBMLDict["boolVariables"])])[1:end-2]
         checkIfActivatedT0Names = prod(["isActiveAtTime0_" * key * "!, " for key in keys(SBMLDict["boolVariables"])])[1:end-2]
 
-        stringWriteTstops *= "\t return " * createFuncionForTstops(SBMLDict, modelStateNames, pODEProblemNames, θ_indices) * "\nend"
+        stringWriteTstops *= "\treturn" * createFuncionForTstops(SBMLDict, modelStateNames, pODEProblemNames, θ_indices) * "\n" * "end" * "\n"
     end
 
     # Check whether or not the trigger for a discrete callback depends on a parameter or not. If true then the time-span 
     # must be converted to dual when computing the gradient using ForwardDiff.
     convertTspan = shouldConvertTspan(pathYAML, SBMLDict, odeSystem, jlFile)::Bool
 
-    stringWriteCallbacks *= "\treturn CallbackSet(" * callbackNames * "), [" * checkIfActivatedT0Names * "], " * string(convertTspan) * "\nend"
+    stringWriteCallbacks *= "\treturn CallbackSet(" * callbackNames * "), Function[" * checkIfActivatedT0Names * "], " * string(convertTspan)  * "\nend"
     fileWrite = dirJulia * "/" * modelName * "_callbacks.jl"
     if isfile(fileWrite)
         rm(fileWrite)
     end
     io = open(fileWrite, "w")
-
     write(io, stringWriteCallbacks * "\n\n")
-    write(io, stringWriteFunctions)
     write(io, stringWriteTstops)
 
     close(io)
@@ -89,13 +87,13 @@ function createCallback(callbackName::String,
     conditionFormula = replace(conditionFormula, "<" => replaceWith)
 
     # Build the condition statement used in the jl function
-    conditionStr = "\nfunction condition_" * callbackName * "(u, t, integrator)\n"
-    conditionStr *= "\t" * conditionFormula * "\nend\n"
+    conditionStr = "\n\tfunction condition_" * callbackName * "(u, t, integrator)\n"
+    conditionStr *= "\t\t" * conditionFormula * "\n\tend\n"
 
     # Build the affect function
     whichParameter = findfirst(x -> x == callbackName, pODEProblemNames)
-    affectStr = "function affect_" * callbackName * "!(integrator)\n"
-    affectStr *= "\tintegrator.p[" * string(whichParameter) * "] = 1.0\nend\n"
+    affectStr = "\tfunction affect_" * callbackName * "!(integrator)\n"
+    affectStr *= "\t\tintegrator.p[" * string(whichParameter) * "] = 1.0\n\tend\n"
 
     # Build the callback
     if discreteEvent == false
@@ -108,12 +106,12 @@ function createCallback(callbackName::String,
     # Building a function which check if a callback is activated at time zero (as this is not something Julia will
     # check for us)
     sideInequality = SBMLDict["boolVariables"][callbackName][2] == "right" ? "!" : "" # Check if true or false evaluates expression to true
-    activeAtT0Str = "function isActiveAtTime0_" * callbackName * "!(u, p)\n"
-    activeAtT0Str *= "\tt = 0.0 # Used to check conditions activated at t0=0\n" * "\tp[" * string(whichParameter) * "] = 0.0 # Default to being off\n"
+    activeAtT0Str = "\tfunction isActiveAtTime0_" * callbackName * "!(u, p)\n"
+    activeAtT0Str *= "\t\tt = 0.0 # Used to check conditions activated at t0=0\n" * "\t\tp[" * string(whichParameter) * "] = 0.0 # Default to being off\n"
     conditionFormula = replace(_conditionFormula, "integrator." => "")
     conditionFormula = replace(conditionFormula, "<=" => "≤")
     conditionFormula = replace(conditionFormula, ">=" => "≥")
-    activeAtT0Str *= "\tif " * sideInequality *"(" * conditionFormula * ")\n" * "\t\tp[" * string(whichParameter) * "] = 1.0\n\tend\nend\n"
+    activeAtT0Str *= "\t\tif " * sideInequality *"(" * conditionFormula * ")\n" * "\t\t\tp[" * string(whichParameter) * "] = 1.0\n\t\tend\n\tend\n"
 
     functionsStr = conditionStr * '\n' * affectStr * '\n' * activeAtT0Str * '\n'
 
@@ -180,7 +178,7 @@ function createFuncionForTstops(SBMLDict::Dict,
     if convertTspan == true
         return"[" * prod([isempty(tstopsStrAlt[i]) ? "" : tstopsStrAlt[i] * ", " for i in eachindex(tstopsStrAlt)])[1:end-2] * "]"
     else
-        return "Float64[" * prod([isempty(tstopsStr[i]) ? "" : tstopsStr[i] * ", " for i in eachindex(tstopsStr)])[1:end-2] * "]"
+        return " Float64[" * prod([isempty(tstopsStr[i]) ? "" : tstopsStr[i] * ", " for i in eachindex(tstopsStr)])[1:end-2] * "]"
     end
 end
 

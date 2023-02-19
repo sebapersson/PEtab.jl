@@ -84,9 +84,9 @@ function readPEtabModel(pathYAML::String;
     end
 
     # Load model ODE-system
-    include(pathModelJlFile)
-    expr = Expr(:call, Symbol("getODEModel_" * modelName))
-    _odeSystem, stateMap, parameterMap = eval(expr)
+    @assert isfile(pathModelJlFile)
+    _getODESystem = @RuntimeGeneratedFunction(Meta.parse(getFunctionsAsString(pathModelJlFile, 1)[1]))
+    _odeSystem, stateMap, parameterMap = _getODESystem("https://xkcd.com/303/") # Argument needed by @RuntimeGeneratedFunction
     odeSystem = structural_simplify(_odeSystem)
     # TODO : Make these to strings here to save conversions
     parameterNames = parameters(odeSystem)
@@ -107,9 +107,19 @@ function readPEtabModel(pathYAML::String;
     else
         verbose == true && @printf("File for h, u0 and σ exists will not rebuild it\n")
     end
-    include(path_u0_h_sigma)
-    include(path_D_h_sd)
-
+    @assert isfile(path_u0_h_sigma)
+    h_u0_σ_Functions = getFunctionsAsString(path_u0_h_sigma, 4)
+    compute_h = @RuntimeGeneratedFunction(Meta.parse(h_u0_σ_Functions[1]))
+    compute_u0! = @RuntimeGeneratedFunction(Meta.parse(h_u0_σ_Functions[2]))
+    compute_u0 = @RuntimeGeneratedFunction(Meta.parse(h_u0_σ_Functions[3]))
+    compute_σ = @RuntimeGeneratedFunction(Meta.parse(h_u0_σ_Functions[4]))
+    @assert isfile(path_D_h_sd)
+    ∂_h_σ_Functions = getFunctionsAsString(path_D_h_sd, 4)
+    compute_∂h∂u! = @RuntimeGeneratedFunction(Meta.parse(∂_h_σ_Functions[1]))
+    compute_∂h∂p! = @RuntimeGeneratedFunction(Meta.parse(∂_h_σ_Functions[2]))
+    compute_∂σ∂σu! = @RuntimeGeneratedFunction(Meta.parse(∂_h_σ_Functions[3]))
+    compute_∂σ∂σp! = @RuntimeGeneratedFunction(Meta.parse(∂_h_σ_Functions[4]))
+    
     pathCallback = joinpath(dirJulia, modelName * "_callbacks.jl")
     if !isfile(pathCallback) || forceBuildJuliaFiles == true
         verbose && forceBuildJuliaFiles == false && @printf("File for callback does not exist will build it\n")
@@ -120,9 +130,11 @@ function readPEtabModel(pathYAML::String;
         end
         createCallbacksForTimeDepedentPiecewise(odeSystem, modelDict, modelName, pathYAML, dirJulia, jlFile = jlFile)
     end
-    include(pathCallback)
-    exprCallback = Expr(:call, Symbol("getCallbacks_" * modelName))
-    cbSet::CallbackSet, checkCbActive::Vector{Function}, convertTspan::Bool = eval(exprCallback)
+    @assert isfile(pathCallback)
+    strGetCallbacks = getFunctionsAsString(pathCallback, 2)
+    getCallbackFunction = @RuntimeGeneratedFunction(Meta.parse(strGetCallbacks[1]))
+    cbSet, checkCbActive, convertTspan = getCallbackFunction("https://xkcd.com/2694/") # Argument needed by @RuntimeGeneratedFunction
+    computeTstops = @RuntimeGeneratedFunction(Meta.parse(strGetCallbacks[2]))
 
     petabModel = PEtabModel(modelName,
                             compute_h,
@@ -152,4 +164,47 @@ function readPEtabModel(pathYAML::String;
                             checkCbActive)
 
     return petabModel
+end
+
+
+# For reading the run-time generated PEtab-related functions which via Meta.parse are passed 
+# on to @RuntimeGeneratedFunction to build the PEtab related functions without world-problems.
+function getFunctionsAsString(filePath::AbstractString, nFunctions::Int64)::Vector{String}
+
+    fStart, fEnd = zeros(Int64, nFunctions), zeros(Int64, nFunctions)
+    iFunction = 1
+    inFunction::Bool = false
+    nLines = open(filePath, "r") do f countlines(f) end
+    bodyStr = Vector{String}(undef, nLines)
+
+    f = open(filePath, "r")
+    for (iLine, line) in pairs(readlines(f))
+
+        if length(line) ≥ 8 && line[1:8] == "function"
+            fStart[iFunction] = iLine
+            inFunction = true
+        end
+
+        if length(line) ≥ 3 && line[1:3] == "end"
+            fEnd[iFunction] = iLine
+            inFunction = false
+            iFunction += 1
+        end
+
+        bodyStr[iLine] = string(line)
+    end
+    close(f)
+
+    out = Vector{String}(undef, nFunctions)
+    for i in eachindex(out)
+
+        # Runtime generated functions requrie at least on function argument input, hence if missing we 
+        # add a foo argument 
+        if bodyStr[fStart[i]][end-1:end] == "()"
+            bodyStr[fStart[i]] = bodyStr[fStart[i]][1:end-2] * "(foo)"
+        end
+
+        out[i] = prod([bodyStr[j] * '\n' for j in fStart[i]:fEnd[i]])
+    end
+    return out
 end

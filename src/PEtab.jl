@@ -21,8 +21,9 @@ using Distributions
 using Printf
 using Requires
 using YAML
+using RuntimeGeneratedFunctions
 
-
+RuntimeGeneratedFunctions.init(@__MODULE__)
 
 include("Create_PEtab_model.jl")
 

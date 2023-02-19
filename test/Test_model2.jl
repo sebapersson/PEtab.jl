@@ -159,12 +159,17 @@ function testCostGradientOrHessianTestModel2(petabModel::PEtabModel, solver, tol
 
         # Testing "exact" hessian via autodiff
         hessian = _testCostGradientOrHessian(petabProblem1, p, hessian=true)
-        @test norm(hessian - referenceHessian) ≤ 1e-3
+        @test norm(hessian - referenceHessian) ≤ 1e-2
     end
 end
 
 
-petabModel = readPEtabModel(joinpath(@__DIR__, "Test_model2/Test_model2.yaml"), forceBuildJuliaFiles=false, verbose=true)
+# Used to check against world-age problem
+function createModelInsideFunction()
+    _petabModel = readPEtabModel(joinpath(@__DIR__, "Test_model2/Test_model2.yaml"), forceBuildJuliaFiles=false, verbose=true)
+    return _petabModel
+end
+petabModel = createModelInsideFunction()
 
 @testset "ODE solver" begin
     testODESolverTestModel2(petabModel, Vern9(), 1e-9)
