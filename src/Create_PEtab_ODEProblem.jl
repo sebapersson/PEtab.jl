@@ -17,7 +17,8 @@ function setUpPEtabODEProblem(petabModel::PEtabModel,
                               chunkSize::Union{Nothing, Int64}=nothing,
                               terminateSSMethod::Symbol=:Norm,
                               splitOverConditions::Bool=false,
-                              reuseS::Bool=false)::PEtabODEProblem
+                              reuseS::Bool=false, 
+                              specializeLevel=SciMLBase.FullSpecialize)::PEtabODEProblem
 
     if !(typeof(sensealgAdjointSS) <: SteadyStateAdjoint)
         println("If you are using adjoint sensitivity analysis for a model with PreEq-criteria the most the most efficient adjSensealgSS is usually SteadyStateAdjoint. The algorithm you have provided, ", sensealgAdjointSS, "might not work (as there are some bugs here). In case it does not work, and SteadyStateAdjoint fails (because a dependancy on time or a singular Jacobian) a good choice might be QuadratureAdjoint(autodiff=false, autojacvec=false)")
@@ -37,7 +38,7 @@ function setUpPEtabODEProblem(petabModel::PEtabModel,
 
     # The time-span 5e3 is overwritten when performing forward simulations. As we solve an expanded system with the forward
     # equations, we need a seperate problem for it 
-    _odeProblem = ODEProblem(petabModel.odeSystem, petabModel.stateMap, [0.0, 5e3], petabModel.parameterMap, jac=true, sparse=sparseJacobian)
+    _odeProblem = ODEProblem{true, specializeLevel}(petabModel.odeSystem, petabModel.stateMap, [0.0, 5e3], petabModel.parameterMap, jac=true, sparse=sparseJacobian)
     odeProblem = remake(_odeProblem, p = convert.(Float64, _odeProblem.p), u0 = convert.(Float64, _odeProblem.u0))
     odeProblemForwardEquations = getODEProblemForwardEquations(odeProblem, sensealgForwardEquations)
 
