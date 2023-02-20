@@ -62,6 +62,7 @@ function solveOdeModelAtExperimentalCondZygote(odeProblem::ODEProblem,
 
 
         sol = solveCallPost(probUsePost)
+        ChainRulesCore.@ignore_derivatives simulationInfo.odeSolutions[experimentalId] = sol
 
         if sol.retcode != ReturnCode.Success
             sucess = false
@@ -107,7 +108,6 @@ function solveOdeModelAtExperimentalCondZygote(odeProblem::ODEProblem,
         end
 
         sol = solveCall(probUse)
-
         ChainRulesCore.@ignore_derivatives simulationInfo.odeSolutions[experimentalId] = sol
 
         if typeof(sol) <: ODESolution && !(sol.retcode == ReturnCode.Success || sol.retcode == ReturnCode.Terminated)

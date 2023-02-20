@@ -98,7 +98,7 @@ function processSimulationInfo(petabModel::PEtabModel,
     # In case the sensitivites are computed via automatic differentitation we need to pre-allocate an
     # sensitivity matrix all experimental conditions (to efficiently levarage autodiff and handle scenarios are
     # pre-equlibrita model). Here we pre-allocate said matrix, or leave it empty.
-    if sensealgForwardEquations == :AutoDiffForward
+    if sensealgForwardEquations == :ForwardDiff
         experimentalConditionsFile = CSV.read(petabModel.pathConditions, DataFrame)
         tmp1, tmp2, tmp3, θ_dynamicNames = computeθNames(parameterInfo, measurementInfo,
                                                          petabModel.odeSystem, experimentalConditionsFile)

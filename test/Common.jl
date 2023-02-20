@@ -3,59 +3,57 @@
 import PEtab: processPriors, changeODEProblemParameters!, PriorInfo, transformθ, solveODEAllExperimentalConditions!, computeGaussNewtonHessianApproximation!
 
 
-function _testCostGradientOrHessian(petabProblem::PEtabODEProblem,
+function _testCostGradientOrHessian(petabModel::PEtabModel,
+                                    solver, 
+                                    tol::Float64,
                                     p::Vector{Float64};
-                                    cost::Bool=false,
-                                    costZygote::Bool=false,
-                                    gradientAutoDiff::Bool=false,
-                                    gradientForwardEquations::Bool=false,
-                                    gradientAdjoint::Bool=false,
-                                    gradientZygote::Bool=false,
-                                    hessian::Bool=false,
-                                    hessianGN::Bool=false)
+                                    computeCost::Bool=false,
+                                    computeGradient::Bool=false,
+                                    computeHessian::Bool=false,
+                                    costMethod::Symbol=:Standard,
+                                    gradientMethod::Symbol=:ForwardDiff,
+                                    hessianMethod::Symbol=:ForwardDiff,
+                                    solverSSRelTol::Float64=1e-6,
+                                    solverSSAbsTol::Float64=1e-8, 
+                                    sensealgForwardEquations::Union{Symbol, SciMLSensitivity.AbstractForwardSensitivityAlgorithm}=ForwardSensitivity(),
+                                    sensealgZygote=ForwardDiffSensitivity(),
+                                    sensealgAdjoint::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm=InterpolatingAdjoint(autojacvec=ReverseDiffVJP(false)),
+                                    sensealgAdjointSS::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm=SteadyStateAdjoint(),)
 
-    if cost == true
+    petabProblem = setUpPEtabODEProblem(petabModel,
+                                        solver;
+                                        costMethod=costMethod,
+                                        gradientMethod=gradientMethod,
+                                        hessianMethod=hessianMethod,
+                                        solverAbsTol=tol,
+                                        solverRelTol=tol,
+                                        solverSSRelTol=solverSSRelTol,
+                                        solverSSAbsTol=solverSSAbsTol,
+                                        odeSolverForwardEquations=solver,
+                                        sensealgForwardEquations=sensealgForwardEquations,
+                                        sensealgZygote=sensealgZygote,
+                                        odeSolverAdjoint=solver,
+                                        solverAdjointAbsTol=tol,
+                                        solverAdjointRelTol=tol,
+                                        sensealgAdjoint=sensealgAdjoint,
+                                        sensealgAdjointSS=sensealgAdjointSS, 
+                                        specializeLevel=SciMLBase.NoSpecialize)        
+
+    if computeCost == true
         return petabProblem.computeCost(p)
     end
 
-    if costZygote == true
-        return petabProblem.computeCostZygote(p)
+    if computeGradient == true
+        _gradient = zeros(length(p))
+        petabProblem.computeGradient!(_gradient, p)
+        return _gradient
     end
 
-    if gradientAutoDiff == true
-        _gradientAutoDiff = zeros(length(p))
-        petabProblem.computeGradientAutoDiff(_gradientAutoDiff, p)
-        return _gradientAutoDiff
-    end
-
-    if gradientForwardEquations == true
-        _gradientForwardEquations = zeros(length(p))
-        petabProblem.computeGradientForwardEquations(_gradientForwardEquations, p)
-        return _gradientForwardEquations
-    end
-
-    if gradientAdjoint == true
-        _gradientAdjoint = zeros(length(p))
-        petabProblem.computeGradientAdjoint(_gradientAdjoint, p)
-        return _gradientAdjoint
-    end
-
-    if gradientZygote == true
-        _gradientZygote = zeros(length(p))
-        petabProblem.computeGradientZygote(_gradientZygote, p)
-        return _gradientZygote
-    end
-
-    if hessian == true
+    if computeHessian == true
         _hessian = zeros(length(p), length(p))
-        petabProblem.computeHessian(_hessian, p)
+        petabProblem.computeCost(p)
+        petabProblem.computeHessian!(_hessian, p)
         return _hessian
-    end
-
-    if hessianGN == true
-        _hessianGN = zeros(length(p), length(p))
-        petabProblem.computeHessianGN(_hessianGN, p)
-        return _hessianGN
     end
 end
 

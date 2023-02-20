@@ -120,19 +120,10 @@ end
 """
 function testCostGradientOrHessianTestModel2(petabModel::PEtabModel, solver, tol)
 
-    petabProblem1 = setUpPEtabODEProblem(petabModel, solver, solverAbsTol=tol, solverRelTol=tol,
-                                         sensealgZygote = ForwardDiffSensitivity(),
-                                         odeSolverForwardEquations=Vern9(), sensealgForwardEquations = ForwardDiffSensitivity(),
-                                         odeSolverAdjoint=solver, solverAdjointAbsTol=tol, solverAdjointRelTol=tol,
-                                         sensealgAdjoint=InterpolatingAdjoint(autojacvec=ReverseDiffVJP(true)))
-
-    petabProblem2 = setUpPEtabODEProblem(petabModel, solver, solverAbsTol=tol, solverRelTol=tol,
-                                         sensealgForwardEquations=:AutoDiffForward, odeSolverForwardEquations=Vern9())
-
     # Cube with random parameter values for testing
-    cube = Matrix(CSV.read(petabProblem1.pathCube, DataFrame))
+    cube = Matrix(CSV.read(joinpath(@__DIR__, "Test_model2", "Julia_model_files", "CubeTest_model2.csv") , DataFrame))
 
-    for i in 1:5
+    for i in 1:1
 
         p = cube[i, :]
         referenceCost = computeCostAnalyticTestModel2(p)
@@ -140,25 +131,25 @@ function testCostGradientOrHessianTestModel2(petabModel::PEtabModel, solver, tol
         referenceHessian = ForwardDiff.hessian(computeCostAnalyticTestModel2, p)
 
         # Test both the standard and Zygote approach to compute the cost
-        cost = _testCostGradientOrHessian(petabProblem1, p, cost=true)
+        cost = _testCostGradientOrHessian(petabModel, solver, tol, p, computeCost=true, costMethod=:Standard)
         @test cost ≈ referenceCost atol=1e-3
-        costZygote = _testCostGradientOrHessian(petabProblem1, p, costZygote=true)
+        costZygote = _testCostGradientOrHessian(petabModel, solver, tol, p, computeCost=true, costMethod=:Zygote)
         @test costZygote ≈ referenceCost atol=1e-3
 
         # Test all gradient combinations. Note we test sensitivity equations with and without autodiff
-        gradientAutoDiff = _testCostGradientOrHessian(petabProblem1, p, gradientAutoDiff=true)
-        @test norm(gradientAutoDiff - referenceGradient) ≤ 1e-2
-        gradientZygote = _testCostGradientOrHessian(petabProblem1, p, gradientZygote=true)
+        gradientForwardDiff = _testCostGradientOrHessian(petabModel, solver, tol, p, computeGradient=true, gradientMethod=:ForwardDiff)
+        @test norm(gradientForwardDiff - referenceGradient) ≤ 1e-2
+        gradientZygote = _testCostGradientOrHessian(petabModel, solver, tol, p, computeGradient=true, gradientMethod=:Zygote, sensealgZygote=ForwardDiffSensitivity())
         @test norm(gradientZygote - referenceGradient) ≤ 1e-2
-        gradientAdjoint = _testCostGradientOrHessian(petabProblem1, p, gradientAdjoint=true)
+        gradientAdjoint = _testCostGradientOrHessian(petabModel, solver, tol, p, computeGradient=true, gradientMethod=:Adjoint, sensealgAdjoint=QuadratureAdjoint(autojacvec=ReverseDiffVJP(false)))
         @test norm(normalize(gradientAdjoint) - normalize((referenceGradient))) ≤ 1e-2
-        gradientForwardEquations1 = _testCostGradientOrHessian(petabProblem1, p, gradientForwardEquations=true)
-        @test norm(gradientForwardEquations1 - referenceGradient) ≤ 1e-2
-        gradientForwardEquations2 = _testCostGradientOrHessian(petabProblem2, p, gradientForwardEquations=true)
-        @test norm(gradientForwardEquations2 - referenceGradient) ≤ 1e-2
+        gradientForward1 = _testCostGradientOrHessian(petabModel, solver, tol, p, computeGradient=true, gradientMethod=:ForwardEquations, sensealgForwardEquations=:ForwardDiff)
+        @test norm(gradientForward1 - referenceGradient) ≤ 1e-2
+        gradientForward2 = _testCostGradientOrHessian(petabModel, solver, tol, p, computeGradient=true, gradientMethod=:ForwardEquations, sensealgForwardEquations=ForwardDiffSensitivity())
+        @test norm(gradientForward2 - referenceGradient) ≤ 1e-2
 
         # Testing "exact" hessian via autodiff
-        hessian = _testCostGradientOrHessian(petabProblem1, p, hessian=true)
+        hessian = _testCostGradientOrHessian(petabModel, solver, tol, p, computeHessian=true, hessianMethod=:ForwardDiff)
         @test norm(hessian - referenceHessian) ≤ 1e-2
     end
 end

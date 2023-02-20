@@ -21,9 +21,10 @@ function testLogLikelihoodValue(petabModel::PEtabModel,
                                 referenceValue::Float64,
                                 solver; absTol=1e-12, relTol=1e-12, atol=1e-3)
 
-    petabProblem = setUpPEtabODEProblem(petabModel, solver, solverAbsTol=absTol, solverRelTol=relTol)
-    cost = petabProblem.computeCost(petabProblem.θ_nominalT)
-    costZygote = petabProblem.computeCostZygote(petabProblem.θ_nominalT)
+    petabProblem1 = setUpPEtabODEProblem(petabModel, solver, solverAbsTol=absTol, solverRelTol=relTol, costMethod=:Standard)
+    petabProblem2 = setUpPEtabODEProblem(petabModel, solver, solverAbsTol=absTol, solverRelTol=relTol, costMethod=:Zygote)
+    cost = petabProblem1.computeCost(petabProblem1.θ_nominalT)
+    costZygote = petabProblem2.computeCost(petabProblem1.θ_nominalT)
     println("Model : ", petabModel.modelName)
     @test cost ≈ referenceValue atol=atol
     @test costZygote ≈ referenceValue atol=atol
@@ -31,9 +32,9 @@ end
 
 
 function testGradientFiniteDifferences(petabModel::PEtabModel, solver, tol::Float64;
-                                       checkAdjoint::Bool=false,
                                        solverForwardEq=CVODE_BDF(),
                                        checkForwardEquations::Bool=false,
+                                       checkAdjoint::Bool=false,
                                        testTol::Float64=1e-3,
                                        sensealgSS=SteadyStateAdjoint(),
                                        sensealgAdjoint=InterpolatingAdjoint(autojacvec=ReverseDiffVJP(true)),
@@ -43,35 +44,42 @@ function testGradientFiniteDifferences(petabModel::PEtabModel, solver, tol::Floa
 
     # Testing the gradient via finite differences
     petabProblem1 = setUpPEtabODEProblem(petabModel, solver, solverAbsTol=tol, solverRelTol=tol,
-                                         sensealgForwardEquations=:AutoDiffForward, odeSolverForwardEquations=solver,
-                                         odeSolverAdjoint=solver, solverAdjointAbsTol=tol, solverAdjointRelTol=tol,
-                                         sensealgAdjoint=sensealgAdjoint,
-                                         solverSSRelTol=solverSSRelTol, solverSSAbsTol=solverSSAbsTol,
-                                         sensealgAdjointSS=sensealgSS, splitOverConditions=splitOverConditions)
-    petabProblem2 = setUpPEtabODEProblem(petabModel, solver, solverAbsTol=tol, solverRelTol=tol,
-                                         solverSSRelTol=solverSSRelTol, solverSSAbsTol=solverSSAbsTol,
-                                         sensealgForwardEquations=ForwardSensitivity(), odeSolverForwardEquations=solverForwardEq)
+                                         splitOverConditions=splitOverConditions, 
+                                         solverSSRelTol=solverSSRelTol, solverSSAbsTol=solverSSAbsTol)
     θ_use = petabProblem1.θ_nominalT
-
     gradientFinite = FiniteDifferences.grad(central_fdm(5, 1), petabProblem1.computeCost, θ_use)[1]
     gradientForward = zeros(length(θ_use))
-    petabProblem1.computeGradientAutoDiff(gradientForward, θ_use)
+    petabProblem1.computeGradient!(gradientForward, θ_use)
     @test norm(gradientFinite - gradientForward) ≤ testTol
-
+    
     if checkForwardEquations == true
+        petabProblem1 = setUpPEtabODEProblem(petabModel, solver, solverAbsTol=tol, solverRelTol=tol,
+                                             gradientMethod=:ForwardEquations, sensealgForwardEquations=:ForwardDiff,
+                                             odeSolverForwardEquations=solver, splitOverConditions=splitOverConditions, 
+                                             solverSSRelTol=solverSSRelTol, solverSSAbsTol=solverSSAbsTol)
         gradientForwardEquations1 = zeros(length(θ_use))
-        gradientForwardEquations2 = zeros(length(θ_use))
-        petabProblem1.computeGradientForwardEquations(gradientForwardEquations1, θ_use)
+        petabProblem1.computeGradient!(gradientForwardEquations1, θ_use)
         @test norm(gradientFinite - gradientForwardEquations1) ≤ testTol
+        
         if onlyCheckAutoDiff == false
-            petabProblem2.computeGradientForwardEquations(gradientForwardEquations2, θ_use)
+            petabProblem2 = setUpPEtabODEProblem(petabModel, solver, solverAbsTol=tol, solverRelTol=tol,
+                                                 gradientMethod=:ForwardEquations, sensealgForwardEquations=ForwardSensitivity(),
+                                                 odeSolverForwardEquations=solverForwardEq, splitOverConditions=splitOverConditions, 
+                                                 solverSSRelTol=solverSSRelTol, solverSSAbsTol=solverSSAbsTol)
+            gradientForwardEquations2 = zeros(length(θ_use))
+            petabProblem2.computeGradient!(gradientForwardEquations2, θ_use)
             @test norm(gradientFinite - gradientForwardEquations2) ≤ testTol
         end
     end
 
     if checkAdjoint == true
+        petabProblem1 = setUpPEtabODEProblem(petabModel, solver, solverAbsTol=tol, solverRelTol=tol,
+                                             gradientMethod=:Adjoint, sensealgAdjoint=sensealgAdjoint, sensealgAdjointSS=sensealgSS,
+                                             solverAdjointAbsTol=tol, solverAdjointRelTol=tol, odeSolverAdjoint=solver,
+                                             splitOverConditions=splitOverConditions, 
+                                             solverSSRelTol=solverSSRelTol, solverSSAbsTol=solverSSAbsTol)
         gradientAdjoint = zeros(length(θ_use))
-        petabProblem1.computeGradientAdjoint(gradientAdjoint, θ_use)
+        petabProblem1.computeGradient!(gradientAdjoint, θ_use)
         @test norm(gradientFinite - gradientAdjoint) ≤ testTol
     end
 end
@@ -81,7 +89,7 @@ end
 pathYML = joinpath(@__DIR__, "Test_ll", "Bachmann_MSB2011", "Bachmann_MSB2011.yaml")
 petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
 testLogLikelihoodValue(petabModel, -418.40573341425295, Rodas4P())
-testGradientFiniteDifferences(petabModel, Rodas5(), 1e-8)
+testGradientFiniteDifferences(petabModel, Rodas5(), 1e-8, checkForwardEquations=true)
 
 # Beer model - Numerically challenging gradient as we have callback rootfinding
 pathYML = joinpath(@__DIR__, "Test_ll", "Beer_MolBioSystems2014", "Beer_MolBioSystems2014.yaml")

@@ -69,23 +69,14 @@ end
 struct PEtabODEProblem{F1<:Function,
                        F2<:Function,
                        F3<:Function,
-                       F4<:Function,
-                       F5<:Function,
-                       F6<:Function,
-                       F7<:Function,
-                       F8<:Function,
-                       F9<:Function,
                        T1<:PEtabModel}
 
     computeCost::F1
-    computeCostZygote::F2
-    computeGradientAutoDiff::F3
-    computeGradientZygote::F4
-    computeGradientAdjoint::F5
-    computeGradientForwardEquations::F6
-    computeHessian::F7
-    computeHessianBlock::F8
-    computeHessianGN::F9
+    computeGradient!::F2
+    computeHessian!::F3
+    costMethod::Symbol
+    gradientMethod::Symbol
+    hessianMethod::Symbol
     nParametersToEstimate::Int64
     θ_estNames::Vector{Symbol}
     θ_nominal::Vector{Float64}
