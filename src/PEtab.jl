@@ -22,6 +22,7 @@ using Printf
 using Requires
 using YAML
 using RuntimeGeneratedFunctions
+using PreallocationTools
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 

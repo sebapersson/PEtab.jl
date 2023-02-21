@@ -88,6 +88,21 @@ struct PEtabODEProblem{F1<:Function,
 end
 
 
+struct PEtabODEProblemCache{T1 <: AbstractVector, 
+                            T2 <: DiffCache}
+    θ_dynamic::T1
+    θ_sd::T1
+    θ_observable::T1
+    θ_nonDynamic::T1
+    θ_dynamicT::T2 # T = transformed vector
+    θ_sdT::T2
+    θ_observableT::T2
+    θ_nonDynamicT::T2
+    gradientDyanmicθ::T1
+    gradientNotODESystemθ::T1
+end
+
+
 """
     ParameterInfo
 

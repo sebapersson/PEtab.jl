@@ -33,15 +33,26 @@ function setParamToFileValues!(paramMap, stateMap, paramData::ParametersInfo)
 end
 
 
-function splitParameterVector(θ_est::AbstractVector,
-                              θ_indices::ParameterIndices)::Tuple{AbstractVector, AbstractVector, AbstractVector, AbstractVector}
+function splitParameterVector(θ_est::AbstractVector{T},
+                              θ_indices::ParameterIndices)::Tuple{AbstractVector{T}, AbstractVector{T}, AbstractVector{T}, AbstractVector{T}} where T
 
-    θ_dynamic = θ_est[θ_indices.iθ_dynamic]
-    θ_observable = θ_est[θ_indices.iθ_observable]
-    θ_sd = θ_est[θ_indices.iθ_sd]
-    θ_nonDynamic = θ_est[θ_indices.iθ_nonDynamic]
+    θ_dynamic = @view θ_est[θ_indices.iθ_dynamic]
+    θ_observable = @view θ_est[θ_indices.iθ_observable]
+    θ_sd = @view θ_est[θ_indices.iθ_sd]
+    θ_nonDynamic = @view θ_est[θ_indices.iθ_nonDynamic]
 
     return θ_dynamic, θ_observable, θ_sd, θ_nonDynamic
+end
+
+
+function splitParameterVector!(θ_est::AbstractVector, 
+                               θ_indices::ParameterIndices, 
+                               petabODECache::PEtabODEProblemCache)
+
+    @views petabODECache.θ_dynamic .= θ_est[θ_indices.iθ_dynamic]
+    @views petabODECache.θ_observable .= θ_est[θ_indices.iθ_observable]
+    @views petabODECache.θ_sd .= θ_est[θ_indices.iθ_sd]
+    @views petabODECache.θ_nonDynamic .= θ_est[θ_indices.iθ_nonDynamic]                               
 end
 
 
@@ -164,7 +175,6 @@ function transformθ!(θ::AbstractVector,
     end
 end
 
-
 # Transform parameter from log10 scale to normal scale, or reverse transform
 function transformθ(θ::AbstractVector,
                     θ_names::Vector{Symbol},
@@ -174,17 +184,40 @@ function transformθ(θ::AbstractVector,
     out = [transformθElement(θ[i], θ_indices.θ_scale[θ_name], reverseTransform=reverseTransform) for (i, θ_name) in pairs(θ_names)]
     return out
 end
+function transformθ(θ::AbstractVector{T},
+                    θ_names::Vector{Symbol},
+                    θ_indices::ParameterIndices,
+                    whichθ::Symbol, 
+                    petabODECache::PEtabODEProblemCache;
+                    reverseTransform::Bool=false)::AbstractVector{T} where T
+
+    if whichθ === :θ_dynamic
+        θ_out = get_tmp(petabODECache.θ_dynamicT, θ)
+    elseif whichθ === :θ_sd
+        θ_out = get_tmp(petabODECache.θ_sdT, θ)
+    elseif whichθ === :θ_nonDynamic
+        θ_out = get_tmp(petabODECache.θ_nonDynamicT, θ)
+    elseif whichθ === :θ_observable
+        θ_out = get_tmp(petabODECache.θ_observableT, θ)
+    end
+
+    @inbounds for (i, θ_name) in pairs(θ_names)
+        θ_out[i] = transformθElement(θ[i], θ_indices.θ_scale[θ_name], reverseTransform=reverseTransform)
+    end
+
+    return θ_out
+end
 
 
 function transformθElement(θ_element,
                            scale::Symbol;
                            reverseTransform::Bool=false)::Real
 
-    if scale == :lin
+    if scale === :lin
         return θ_element
-    elseif scale == :log10
+    elseif scale === :log10
         return reverseTransform == true ? log10(θ_element) : exp10(θ_element)
-    elseif scale == :log
+    elseif scale === :log
         return reverseTransform == true ? log(θ_element) : exp(θ_element)
     end
 end

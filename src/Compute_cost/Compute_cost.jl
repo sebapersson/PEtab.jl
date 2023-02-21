@@ -7,7 +7,8 @@ function computeCost(θ_est::AbstractVector,
                      parameterInfo::ParametersInfo,
                      changeODEProblemParameters!::Function,
                      solveOdeModelAllConditions!::Function,
-                     priorInfo::PriorInfo;
+                     priorInfo::PriorInfo, 
+                     petabODECache::PEtabODEProblemCache;
                      expIDSolve::Vector{Symbol} = [:all],
                      computeHessian::Bool=false,
                      computeResiduals::Bool=false)::Real
@@ -15,7 +16,8 @@ function computeCost(θ_est::AbstractVector,
     θ_dynamic, θ_observable, θ_sd, θ_nonDynamic = splitParameterVector(θ_est, θ_indices)
 
     cost = computeCostSolveODE(θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, odeProblem, petabModel, simulationInfo,
-                               θ_indices, measurementInfo, parameterInfo, changeODEProblemParameters!, solveOdeModelAllConditions!,
+                               θ_indices, measurementInfo, parameterInfo, changeODEProblemParameters!, 
+                               solveOdeModelAllConditions!, petabODECache,
                                computeHessian=computeHessian, computeResiduals=computeResiduals, expIDSolve=expIDSolve)
 
     if priorInfo.hasPriors == true && computeHessian == false
@@ -38,16 +40,17 @@ function computeCostSolveODE(θ_dynamic::AbstractVector,
                              measurementInfo::MeasurementsInfo,
                              parameterInfo::ParametersInfo,
                              changeODEProblemParameters!::Function,
-                             solveOdeModelAllConditions!::Function;
+                             solveOdeModelAllConditions!::Function, 
+                             petabODECache::PEtabODEProblemCache;
                              computeHessian::Bool=false,
                              computeGradientDynamicθ::Bool=false,
                              computeResiduals::Bool=false,
                              expIDSolve::Vector{Symbol} = [:all])::Real
 
-    θ_dynamicT = transformθ(θ_dynamic, θ_indices.θ_dynamicNames, θ_indices)
-    θ_sdT = transformθ(θ_sd, θ_indices.θ_sdNames, θ_indices)
-    θ_observableT = transformθ(θ_observable, θ_indices.θ_observableNames, θ_indices)
-    θ_nonDynamicT = transformθ(θ_nonDynamic, θ_indices.θ_nonDynamicNames, θ_indices)
+    θ_dynamicT = transformθ(θ_dynamic, θ_indices.θ_dynamicNames, θ_indices, :θ_dynamic, petabODECache)
+    θ_sdT = transformθ(θ_sd, θ_indices.θ_sdNames, θ_indices, :θ_sd, petabODECache)
+    θ_observableT = transformθ(θ_observable, θ_indices.θ_observableNames, θ_indices, :θ_observable, petabODECache)
+    θ_nonDynamicT = transformθ(θ_nonDynamic, θ_indices.θ_nonDynamicNames, θ_indices, :θ_nonDynamic, petabODECache)
 
     if petabModel.convertTspan == false
         _odeProblem = remake(odeProblem, p = convert.(eltype(θ_dynamicT), odeProblem.p), u0 = convert.(eltype(θ_dynamicT), odeProblem.u0))
@@ -85,7 +88,8 @@ function computeCostNotSolveODE(θ_sd::AbstractVector,
                                 simulationInfo::SimulationInfo,
                                 θ_indices::ParameterIndices,
                                 measurementInfo::MeasurementsInfo,
-                                parameterInfo::ParametersInfo;
+                                parameterInfo::ParametersInfo, 
+                                petabODECache::PEtabODEProblemCache;
                                 computeGradientNotSolveAutoDiff::Bool=false,
                                 computeGradientNotSolveAdjoint::Bool=false,
                                 computeGradientNotSolveForward::Bool=false,
@@ -93,9 +97,9 @@ function computeCostNotSolveODE(θ_sd::AbstractVector,
 
     # To be able to use ReverseDiff sdParamEstUse and obsParamEstUse cannot be overwritten.
     # Hence new vectors have to be created. Minimal overhead.
-    θ_sdT = transformθ(θ_sd, θ_indices.θ_sdNames, θ_indices)
-    θ_observableT = transformθ(θ_observable, θ_indices.θ_observableNames, θ_indices)
-    θ_nonDynamicT = transformθ(θ_nonDynamic, θ_indices.θ_nonDynamicNames, θ_indices)
+    θ_sdT = transformθ(θ_sd, θ_indices.θ_sdNames, θ_indices, :θ_sd, petabODECache)
+    θ_observableT = transformθ(θ_observable, θ_indices.θ_observableNames, θ_indices, :θ_observable, petabODECache)
+    θ_nonDynamicT = transformθ(θ_nonDynamic, θ_indices.θ_nonDynamicNames, θ_indices, :θ_nonDynamic, petabODECache)
 
     cost = _computeCost(θ_sdT, θ_observableT, θ_nonDynamicT, petabModel, simulationInfo, θ_indices,
                         measurementInfo, parameterInfo, expIDSolve,

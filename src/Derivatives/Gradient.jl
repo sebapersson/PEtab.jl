@@ -9,66 +9,23 @@
 # Compute the gradient via forward mode automatic differentitation
 function computeGradientAutoDiff!(gradient::Vector{Float64},
                                   θ_est::Vector{Float64},
-                                  odeProblem::ODEProblem,
-                                  petabModel::PEtabModel,
+                                  computeCostNotODESystemθ::Function,
+                                  computeCostDynamicθ::Function,
+                                  petabODECache::PEtabODEProblemCache,
+                                  cfg::ForwardDiff.GradientConfig,
                                   simulationInfo::SimulationInfo,
                                   θ_indices::ParameterIndices,
-                                  measurementInfo::MeasurementsInfo,
-                                  parameterInfo::ParametersInfo,
-                                  changeODEProblemParameters!::Function,
-                                  solveOdeModelAllConditions!::Function,
                                   priorInfo::PriorInfo,
-                                  chunkSize::Union{Nothing, Int64};
-                                  splitOverConditions::Bool=false,
                                   expIDSolve::Vector{Symbol} = [:all])
 
-    θ_dynamic, θ_observable, θ_sd, θ_nonDynamic = splitParameterVector(θ_est, θ_indices)
+    splitParameterVector!(θ_est, θ_indices, petabODECache)
 
-    if splitOverConditions == false
-
-        # Compute gradient for parameters which are a part of the ODE-system (dynamic parameters)
-        computeCostDynamicθ = (x) -> computeCostSolveODE(x, θ_sd, θ_observable, θ_nonDynamic, odeProblem, petabModel,
-                                                         simulationInfo, θ_indices, measurementInfo, parameterInfo,
-                                                         changeODEProblemParameters!, solveOdeModelAllConditions!,
-                                                         computeGradientDynamicθ=true, expIDSolve=expIDSolve)
-
-        if !isnothing(chunkSize)
-            cfg = ForwardDiff.GradientConfig(computeCostDynamicθ, θ_dynamic, ForwardDiff.Chunk(chunkSize))
-        else
-            cfg = ForwardDiff.GradientConfig(computeCostDynamicθ, θ_dynamic, ForwardDiff.Chunk(θ_dynamic))
-        end
-
-        try
-            @views ForwardDiff.gradient!(gradient[θ_indices.iθ_dynamic], computeCostDynamicθ, θ_dynamic, cfg)
-        catch
-            gradient .= 1e8
-            return
-        end
-
-    elseif splitOverConditions == true && simulationInfo.haspreEquilibrationConditionId == false
-        gradient .= 0.0
-        for conditionId in simulationInfo.experimentalConditionId
-            mapConditionId = θ_indices.mapsConiditionId[conditionId]
-            iθ_experimentalCondition = unique(vcat(θ_indices.mapODEProblem.iθDynamic, mapConditionId.iθDynamic))
-            θ_input = θ_dynamic[iθ_experimentalCondition]
-            computeCostDynamicθExpCond = (θ_arg) -> begin
-                                                        _θ_dynamic = convert.(eltype(θ_arg), θ_dynamic)
-                                                        _θ_dynamic[iθ_experimentalCondition] .= θ_arg
-                                                        return computeCostSolveODE(_θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, odeProblem, petabModel,
-                                                                                   simulationInfo, θ_indices, measurementInfo, parameterInfo,
-                                                                                   changeODEProblemParameters!, solveOdeModelAllConditions!,
-                                                                                   computeGradientDynamicθ=true, expIDSolve=[conditionId])
-                                                    end
-            try
-                gradient[iθ_experimentalCondition] .+= ForwardDiff.gradient(computeCostDynamicθExpCond, θ_input)::Vector{Float64}
-            catch
-                gradient .= 1e8
-                return
-            end
-        end
-
-    else splitOverConditions == true && simulationInfo.haspreEquilibrationConditionId == true
-        println("Compatabillity error : Currently we only support to split gradient compuations accross experimentalConditionId:s for models without preequilibration")
+    try
+        ForwardDiff.gradient!(petabODECache.gradientDyanmicθ, computeCostDynamicθ, petabODECache.θ_dynamic, cfg)
+        @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ
+    catch
+        gradient .= 1e8
+        return
     end
 
     # Check if we could solve the ODE (first), and if Inf was returned (second)
@@ -76,19 +33,14 @@ function computeGradientAutoDiff!(gradient::Vector{Float64},
         gradient .= 0.0
         return
     end
-    if all(gradient[θ_indices.iθ_dynamic] .== 0.0)
+    if all(petabODECache.gradientDyanmicθ .== 0.0)
         gradient .= 1e8
         return
     end
-
-    # Compute hessian for parameters which are not in ODE-system. Important to keep in mind that Sd- and observable
-    # parameters can overlap in θ_est.
-    iθ_sd, iθ_observable, iθ_nonDynamic, iθ_notOdeSystem = getIndicesParametersNotInODESystem(θ_indices)
-    computeCostNotODESystemθ = (x) -> computeCostNotSolveODE(x[iθ_sd], x[iθ_observable], x[iθ_nonDynamic],
-                                                             petabModel, simulationInfo, θ_indices, measurementInfo,
-                                                             parameterInfo, expIDSolve=expIDSolve,
-                                                             computeGradientNotSolveAutoDiff=true)
-    @views ReverseDiff.gradient!(gradient[iθ_notOdeSystem], computeCostNotODESystemθ, θ_est[iθ_notOdeSystem])
+    
+    θ_notOdeSystem = @view θ_est[θ_indices.iθ_notOdeSystem]
+    ReverseDiff.gradient!(petabODECache.gradientNotODESystemθ, computeCostNotODESystemθ, θ_notOdeSystem)
+    @views gradient[θ_indices.iθ_notOdeSystem] .= petabODECache.gradientNotODESystemθ
 
     # If we have prior contribution its gradient is computed via autodiff for all parameters
     if priorInfo.hasPriors == true
