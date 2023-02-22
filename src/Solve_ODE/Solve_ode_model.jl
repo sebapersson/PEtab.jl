@@ -186,115 +186,65 @@ function solveODEAllExperimentalConditions!(odeSolutions::Dict{Symbol, Union{Not
                                                 convertTspan=convertTspan)
     return sucess
 end
-function solveODEAllExperimentalConditions!(odeSolutions::Dict{Symbol, Union{Nothing, ODESolution}},
-                                            S::Matrix{Float64},
+function solveODEAllExperimentalConditions!(odeSolutionValues::AbstractMatrix,
+                                            θ::AbstractVector,
+                                            odeSolutions::Dict{Symbol, Union{Nothing, ODESolution}},
                                             odeProblem::ODEProblem,
-                                            θ_dynamic::AbstractVector,
                                             __changeExperimentalCondition!::Function,
                                             changeODEProblemParameters::Function,
                                             simulationInfo::SimulationInfo,
-                                            θ_indices::ParameterIndices,
                                             solver::Union{SciMLAlgorithm, Vector{Symbol}},
                                             absTol::Float64,
                                             relTol::Float64,
-                                            computeTStops::Function,
-                                            odeSolutionValues::Matrix{Float64};
+                                            computeTStops::Function;
                                             expIDSolve::Vector{Symbol} = [:all],
                                             nTimePointsSave::Int64=0,
                                             onlySaveAtObservedTimes::Bool=false,
                                             denseSolution::Bool=true,
                                             trackCallback::Bool=false,
-                                            convertTspan::Bool=false,
-                                            splitOverConditions::Bool=false,
-                                            chunkSize::Union{Nothing, Int64}=nothing)::Bool
+                                            convertTspan::Bool=false)
 
-    function computeSensitivityMatrix!(odeSolutionValues::AbstractMatrix, θ::AbstractVector; _expIDSolve=expIDSolve)
-
-        if convertTspan == false
-            _odeProblem = remake(odeProblem, p = convert.(eltype(θ), odeProblem.p), u0 = convert.(eltype(θ), odeProblem.u0))
-        else
-            _odeProblem = remake(odeProblem, p = convert.(eltype(θ), odeProblem.p), u0 = convert.(eltype(θ), odeProblem.u0), tspan=convert.(eltype(θ), odeProblem.tspan))
-        end
-
-        changeODEProblemParameters(_odeProblem.p, _odeProblem.u0, θ)
-        _changeExperimentalCondition! = (pOdeProblem, u0, conditionId) -> __changeExperimentalCondition!(pOdeProblem, u0, conditionId, θ)
-
-        sucess = solveODEAllExperimentalConditions!(odeSolutions,
-                                                    _odeProblem,
-                                                    _changeExperimentalCondition!,
-                                                    simulationInfo,
-                                                    solver,
-                                                    absTol,
-                                                    relTol,
-                                                    computeTStops,
-                                                    expIDSolve=_expIDSolve,
-                                                    nTimePointsSave=nTimePointsSave,
-                                                    onlySaveAtObservedTimes=onlySaveAtObservedTimes,
-                                                    denseSolution=denseSolution,
-                                                    trackCallback=trackCallback,
-                                                    convertTspan=convertTspan)
-
-        # Effectively we return a big-array with the ODE-solutions accross all experimental conditions, where
-        # each column is a time-point.
-        if sucess != true
-            odeSolutionValues .= 0.0
-            return
-        end
-
-        # iStart and iEnd tracks which entries in odeSolutionValues we store a specific experimental condition
-        iStart, iEnd = 1, 0
-        for i in eachindex(simulationInfo.experimentalConditionId)
-            experimentalId = simulationInfo.experimentalConditionId[i]
-            iEnd += length(simulationInfo.timeObserved[experimentalId])
-            if _expIDSolve[1] == :all || simulationInfo.experimentalConditionId[i] ∈ _expIDSolve
-                @views odeSolutionValues[:, iStart:iEnd] .= Array(odeSolutions[experimentalId])
-            end
-            iStart = iEnd + 1
-        end
+    if convertTspan == false
+        _odeProblem = remake(odeProblem, p = convert.(eltype(θ), odeProblem.p), u0 = convert.(eltype(θ), odeProblem.u0))
+    else
+        _odeProblem = remake(odeProblem, p = convert.(eltype(θ), odeProblem.p), u0 = convert.(eltype(θ), odeProblem.u0), tspan=convert.(eltype(θ), odeProblem.tspan))
     end
 
-    if splitOverConditions == false
-        # Compute sensitivity matrix via forward mode automatic differentation
-        if !isnothing(chunkSize)
-            cfg = ForwardDiff.JacobianConfig(computeSensitivityMatrix!, odeSolutionValues, θ_dynamic, ForwardDiff.Chunk(chunkSize))
-        else
-            cfg = ForwardDiff.JacobianConfig(computeSensitivityMatrix!, odeSolutionValues, θ_dynamic, ForwardDiff.Chunk(θ_dynamic))
-        end
-        ForwardDiff.jacobian!(S, computeSensitivityMatrix!, odeSolutionValues, θ_dynamic, cfg)
+    changeODEProblemParameters(_odeProblem.p, _odeProblem.u0, θ)
+    _changeExperimentalCondition! = (pOdeProblem, u0, conditionId) -> __changeExperimentalCondition!(pOdeProblem, u0, conditionId, θ)
 
-    elseif splitOverConditions == true && simulationInfo.haspreEquilibrationConditionId == false
-        S .= 0.0
-        Stmp = similar(S)
-        for conditionId in simulationInfo.experimentalConditionId
-            mapConditionId = θ_indices.mapsConiditionId[conditionId]
-            iθ_experimentalCondition = unique(vcat(θ_indices.mapODEProblem.iθDynamic, mapConditionId.iθDynamic))
-            θ_input = θ_dynamic[iθ_experimentalCondition]
-            computeSensitivityMatrixExpCond! = (odeSolutionValues, θ_arg) ->    begin
-                                                                                    _θ_dynamic = convert.(eltype(θ_arg), θ_dynamic)
-                                                                                    _θ_dynamic[iθ_experimentalCondition] .= θ_arg
-                                                                                    computeSensitivityMatrix!(odeSolutionValues, _θ_dynamic, _expIDSolve=[conditionId])
-                                                                                end
-            @views ForwardDiff.jacobian!(Stmp[:, iθ_experimentalCondition], computeSensitivityMatrixExpCond!, odeSolutionValues, θ_input)
-            @views S[:, iθ_experimentalCondition] .+= Stmp[:, iθ_experimentalCondition]
-        end
+    sucess = solveODEAllExperimentalConditions!(odeSolutions,
+                                                _odeProblem,
+                                                _changeExperimentalCondition!,
+                                                simulationInfo,
+                                                solver,
+                                                absTol,
+                                                relTol,
+                                                computeTStops,
+                                                expIDSolve=expIDSolve,
+                                                nTimePointsSave=nTimePointsSave,
+                                                onlySaveAtObservedTimes=onlySaveAtObservedTimes,
+                                                denseSolution=denseSolution,
+                                                trackCallback=trackCallback,
+                                                convertTspan=convertTspan)
 
-    else splitOverConditions == true && simulationInfo.haspreEquilibrationConditionId == true
-        println("Compatabillity error : Currently we only support to split gradient compuations accross experimentalConditionId:s for models without preequilibration")
+    # Effectively we return a big-array with the ODE-solutions accross all experimental conditions, where
+    # each column is a time-point.
+    if sucess != true
+        odeSolutionValues .= 0.0
+        return
     end
 
-    # Check retcode of sensitivity matrix ODE solutions
-    sucess = true
-    for experimentalId in simulationInfo.experimentalConditionId
-        if expIDSolve[1] != :all && experimentalId ∉ expIDSolve
-            continue
+    # iStart and iEnd tracks which entries in odeSolutionValues we store a specific experimental condition
+    iStart, iEnd = 1, 0
+    for i in eachindex(simulationInfo.experimentalConditionId)
+        experimentalId = simulationInfo.experimentalConditionId[i]
+        iEnd += length(simulationInfo.timeObserved[experimentalId])
+        if expIDSolve[1] == :all || simulationInfo.experimentalConditionId[i] ∈ expIDSolve
+            @views odeSolutionValues[:, iStart:iEnd] .= Array(odeSolutions[experimentalId])
         end
-        retcode = odeSolutions[experimentalId].retcode
-        if !(retcode == ReturnCode.Success || retcode == ReturnCode.Terminated)
-            sucess = false
-        end
+        iStart = iEnd + 1
     end
-
-    return sucess
 end
 
 

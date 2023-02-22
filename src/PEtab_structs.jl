@@ -89,7 +89,9 @@ end
 
 
 struct PEtabODEProblemCache{T1 <: AbstractVector, 
-                            T2 <: DiffCache}
+                            T2 <: DiffCache, 
+                            T3 <: AbstractVector, 
+                            T4 <: AbstractMatrix}
     θ_dynamic::T1
     θ_sd::T1
     θ_observable::T1
@@ -100,6 +102,19 @@ struct PEtabODEProblemCache{T1 <: AbstractVector,
     θ_nonDynamicT::T2
     gradientDyanmicθ::T1
     gradientNotODESystemθ::T1
+    jacobianGN::T4
+    residualsGN::T1
+    ∂h∂u::T3
+    ∂σ∂u::T3
+    ∂h∂p::T3
+    ∂σ∂p::T3
+    ∂G∂p::T3
+    ∂G∂p_::T3
+    ∂G∂u::T3
+    p::T3 
+    u::T3
+    S::T4
+    odeSolutionValues::T4
 end
 
 
@@ -161,7 +176,6 @@ struct SimulationInfo{T1<:NamedTuple,
     odeSolutions::Dict{Symbol, Union{Nothing, ODESolution}}
     odeSolutionsDerivatives::Dict{Symbol, Union{Nothing, ODESolution}}
     odePreEqulibriumSolutions::Dict{Symbol, Union{Nothing, ODESolution}}
-    S::Matrix{Float64} # Sensitivity matrix from forward equations
     timeMax::T1
     timeObserved::T2
     iMeasurements::T3

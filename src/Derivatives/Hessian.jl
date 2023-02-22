@@ -13,9 +13,7 @@ function computeHessian!(hessian::Matrix{Float64},
                          priorInfo::PriorInfo)
 
     ForwardDiff.hessian!(hessian, _evalHessian, θ_est, cfg)
-    @views hessian .= Symmetric(hessian)                         
     # Only try to compute hessian if we could compute the cost
-    #=
     if all([simulationInfo.odeSolutions[id].retcode == ReturnCode.Success for id in simulationInfo.experimentalConditionId])
         try
             ForwardDiff.hessian!(hessian, _evalHessian, θ_est, cfg)
@@ -26,7 +24,6 @@ function computeHessian!(hessian::Matrix{Float64},
     else
         hessian .= 0.0
     end
-    =#
 
     if priorInfo.hasPriors == true
         computeHessianPrior!(hessian, θ_est, θ_indices, priorInfo)
@@ -135,6 +132,7 @@ end
 function computeGaussNewtonHessianApproximation!(out::Matrix{Float64},
                                                  θ_est::Vector{Float64},
                                                  odeProblem::ODEProblem,
+                                                 computeResidualsNotSolveODE!::Function,
                                                  petabModel::PEtabModel,
                                                  simulationInfo::SimulationInfo,
                                                  θ_indices::ParameterIndices,
@@ -142,7 +140,10 @@ function computeGaussNewtonHessianApproximation!(out::Matrix{Float64},
                                                  parameterInfo::ParametersInfo,
                                                  changeODEProblemParameters!::Function,
                                                  solveOdeModelAllConditions!::Function,
-                                                 priorInfo::PriorInfo;
+                                                 priorInfo::PriorInfo, 
+                                                 cfg::ForwardDiff.JacobianConfig, 
+                                                 cfgNotSolveODE::ForwardDiff.JacobianConfig,
+                                                 petabODECache::PEtabODEProblemCache;
                                                  reuseS::Bool=false,
                                                  returnJacobian::Bool=false,
                                                  expIDSolve::Vector{Symbol} = [:all])
@@ -150,45 +151,28 @@ function computeGaussNewtonHessianApproximation!(out::Matrix{Float64},
     # Avoid incorrect non-zero values
     out .= 0.0
 
-    θ_dynamic, θ_observable, θ_sd, θ_nonDynamic = splitParameterVector(θ_est, θ_indices)
-
-    # In case the sensitivites are computed (as here) via automatic differentitation we need to pre-allocate an
-    # sensitivity matrix all experimental conditions (to efficiently levarage autodiff and handle scenarios are
-    # pre-equlibrita model). Here we pre-allocate said matrix.
-    nModelStates = length(odeProblem.u0)
-    nTimePointsSaveAt = sum(length(simulationInfo.timeObserved[experimentalConditionId]) for experimentalConditionId in simulationInfo.experimentalConditionId)
-    # If the ForwardSensitivity equation approach used is autodiff the sensitivity needed by GN is already pre-allocated
-    if isempty(simulationInfo.S)
-        @assert reuseS == false
-        S::Matrix{Float64} = zeros(Float64, (nTimePointsSaveAt*nModelStates, length(θ_dynamic)))
-    else
-        S = simulationInfo.S
-    end
-
-    # For Guass-Newton we compute the gradient via J*J' where J is the Jacobian of the residuals, here we pre-allocate
-    # the entire matrix.
-    jacobian::Matrix{Float64} = zeros(length(θ_est), length(measurementInfo.time))
+    splitParameterVector!(θ_est, θ_indices, petabODECache)
+    θ_dynamic = petabODECache.θ_dynamic 
+    θ_observable = petabODECache.θ_observable
+    θ_sd = petabODECache.θ_sd
+    θ_nonDynamic = petabODECache.θ_nonDynamic
+    jacobianGN = petabODECache.jacobianGN
 
     # Calculate gradient seperately for dynamic and non dynamic parameter.
-    computeJacobianResidualsDynamicθ!((@view jacobian[θ_indices.iθ_dynamic, :]), θ_dynamic, θ_sd,
-                                      θ_observable, θ_nonDynamic, S, petabModel, odeProblem,
+    computeJacobianResidualsDynamicθ!((@view jacobianGN[θ_indices.iθ_dynamic, :]), θ_dynamic, θ_sd,
+                                      θ_observable, θ_nonDynamic, petabModel, odeProblem,
                                       simulationInfo, θ_indices, measurementInfo, parameterInfo,
-                                      changeODEProblemParameters!, solveOdeModelAllConditions!;
+                                      changeODEProblemParameters!, solveOdeModelAllConditions!, 
+                                      cfg, petabODECache;
                                       expIDSolve=expIDSolve, reuseS=reuseS)
 
     # Happens when at least one forward pass fails
-    if all(jacobian[θ_indices.iθ_dynamic, :] .== 1e8)
+    if all(jacobianGN[θ_indices.iθ_dynamic, :] .== 1e8)
         out .= 0.0
         return
     end
 
-    # Compute hessian for parameters which are not in ODE-system. Important to keep in mind that Sd- and observable
-    # parameters can overlap in θ_est.
-    iθ_sd, iθ_observable, iθ_nonDynamic, iθ_notOdeSystem = getIndicesParametersNotInODESystem(θ_indices)
-    computeResidualsNotODESystemθ = (x) -> computeResidualsNotSolveODE(x[iθ_sd], x[iθ_observable],
-                                                                       x[iθ_nonDynamic], petabModel, simulationInfo, θ_indices,
-                                                                       measurementInfo, parameterInfo, expIDSolve=expIDSolve)
-    @views ForwardDiff.jacobian!(jacobian[iθ_notOdeSystem, :]', computeResidualsNotODESystemθ, θ_est[iθ_notOdeSystem])
+    @views ForwardDiff.jacobian!(jacobianGN[θ_indices.iθ_notOdeSystem, :]', computeResidualsNotSolveODE!, petabODECache.residualsGN, θ_est[θ_indices.iθ_notOdeSystem], cfgNotSolveODE)
 
     if priorInfo.hasPriors == true
         println("Warning : With Gauss Newton we do not support priors")
@@ -196,9 +180,9 @@ function computeGaussNewtonHessianApproximation!(out::Matrix{Float64},
 
     # In case of testing we might want to return the jacobian, else we are interested in the Guass-Newton approximaiton.
     if returnJacobian == false
-        out .= jacobian * jacobian'
+        out .= jacobianGN * transpose(jacobianGN)
     else
-        out .= jacobian
+        out .= jacobianGN
     end
 end
 

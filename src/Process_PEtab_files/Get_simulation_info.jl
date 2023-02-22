@@ -95,20 +95,6 @@ function processSimulationInfo(petabModel::PEtabModel,
         callbackSS = createSSTerminateSteadyState(petabModel.odeSystem, absTolSS, relTolSS, checkNewton=false)
     end
 
-    # In case the sensitivites are computed via automatic differentitation we need to pre-allocate an
-    # sensitivity matrix all experimental conditions (to efficiently levarage autodiff and handle scenarios are
-    # pre-equlibrita model). Here we pre-allocate said matrix, or leave it empty.
-    if sensealgForwardEquations == :ForwardDiff
-        experimentalConditionsFile = CSV.read(petabModel.pathConditions, DataFrame)
-        tmp1, tmp2, tmp3, θ_dynamicNames = computeθNames(parameterInfo, measurementInfo,
-                                                         petabModel.odeSystem, experimentalConditionsFile)
-        nModelStates = length(states(petabModel.odeSystem))
-        nTimePointsSaveAt = sum(length(timeObserved[experimentalConditionId]) for experimentalConditionId in experimentalConditionId)
-        S = zeros(Float64, (nTimePointsSaveAt*nModelStates, length(θ_dynamicNames)))
-    else
-        S = zeros(Float64, (0, 0))
-    end
-
     simulationInfo = SimulationInfo(preEquilibrationConditionId,
                                     simulationConditionId,
                                     experimentalConditionId,
@@ -116,7 +102,6 @@ function processSimulationInfo(petabModel::PEtabModel,
                                     odeSolutions,
                                     odeSolutionsDerivatives,
                                     odePreEqulibriumSolutions,
-                                    S,
                                     timeMax,
                                     timeObserved,
                                     iMeasurementsObserved,

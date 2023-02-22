@@ -14,7 +14,6 @@ function computeGradientForwardEqDynamicθ!(gradient::Vector{Float64},
                                            θ_sd::Vector{Float64},
                                            θ_observable::Vector{Float64},
                                            θ_nonDynamic::Vector{Float64},
-                                           S::Matrix{Float64},
                                            petabModel::PEtabModel,
                                            sensealg::Union{Symbol, SciMLSensitivity.AbstractForwardSensitivityAlgorithm},
                                            odeProblem::ODEProblem,
@@ -23,17 +22,20 @@ function computeGradientForwardEqDynamicθ!(gradient::Vector{Float64},
                                            measurementInfo ::MeasurementsInfo,
                                            parameterInfo::ParametersInfo,
                                            changeODEProblemParameters!::Function,
-                                           solveOdeModelAllConditions!::Function;
+                                           solveOdeModelAllConditions!::Function, 
+                                           cfg::Union{ForwardDiff.JacobianConfig, Nothing}, 
+                                           petabODECache::PEtabODEProblemCache;
                                            expIDSolve::Vector{Symbol} = [:all])
 
-    θ_dynamicT = transformθ(θ_dynamic, θ_indices.θ_dynamicNames, θ_indices)
-    θ_sdT = transformθ(θ_sd, θ_indices.θ_sdNames, θ_indices)
-    θ_observableT = transformθ(θ_observable, θ_indices.θ_observableNames, θ_indices)
-    θ_nonDynamicT = transformθ(θ_nonDynamic, θ_indices.θ_nonDynamicNames, θ_indices)
+    θ_dynamicT = transformθ(θ_dynamic, θ_indices.θ_dynamicNames, θ_indices, :θ_dynamic, petabODECache)
+    θ_sdT = transformθ(θ_sd, θ_indices.θ_sdNames, θ_indices, :θ_sd, petabODECache)
+    θ_observableT = transformθ(θ_observable, θ_indices.θ_observableNames, θ_indices, :θ_observable, petabODECache)
+    θ_nonDynamicT = transformθ(θ_nonDynamic, θ_indices.θ_nonDynamicNames, θ_indices, :θ_nonDynamic, petabODECache)
 
     # Solve the expanded ODE system for the sensitivites
-    success = solveForSensitivites(S, odeProblem, simulationInfo, petabModel, sensealg, θ_dynamicT,
-                                   solveOdeModelAllConditions!, changeODEProblemParameters!, expIDSolve)
+    success = solveForSensitivites(odeProblem, simulationInfo, petabModel, sensealg, θ_dynamicT,
+                                   solveOdeModelAllConditions!, changeODEProblemParameters!,
+                                   cfg, petabODECache, expIDSolve)
     if success != true
         println("Failed to solve sensitivity equations")
         gradient .= 1e8
@@ -52,21 +54,22 @@ function computeGradientForwardEqDynamicθ!(gradient::Vector{Float64},
         sol = simulationInfo.odeSolutionsDerivatives[experimentalConditionId]
 
         # If we have a callback it needs to be properly handled
-        computeGradientForwardExpCond!(gradient, sol, S, sensealg, θ_dynamicT, θ_sdT, θ_observableT, θ_nonDynamicT,
+        computeGradientForwardExpCond!(gradient, sol, petabODECache, sensealg, θ_dynamicT, θ_sdT, θ_observableT, θ_nonDynamicT,
                                        experimentalConditionId, simulationConditionId, simulationInfo, petabModel,
                                        θ_indices, measurementInfo, parameterInfo)
     end
 end
 
 
-function solveForSensitivites(S::Matrix{Float64},
-                              odeProblem::ODEProblem,
+function solveForSensitivites(odeProblem::ODEProblem,
                               simulationInfo::SimulationInfo,
                               petabModel::PEtabModel,
                               sensealg::SciMLSensitivity.AbstractForwardSensitivityAlgorithm,
                               θ_dynamic::AbstractVector,
                               solveOdeModelAllConditions!::Function,
                               changeODEProblemParameters!::Function,
+                              cfg::Nothing, 
+                              petabODECache::PEtabODEProblemCache,
                               expIDSolve::Vector{Symbol})
 
     nModelStates = length(petabModel.stateNames)
@@ -75,18 +78,31 @@ function solveForSensitivites(S::Matrix{Float64},
     success = solveOdeModelAllConditions!(simulationInfo.odeSolutionsDerivatives, _odeProblem, θ_dynamic, expIDSolve)
     return success
 end
-function solveForSensitivites(S::Matrix{Float64},
-                              odeProblem::ODEProblem,
+function solveForSensitivites(odeProblem::ODEProblem,
                               simulationInfo::SimulationInfo,
                               petabModel::PEtabModel,
                               sensealg::Symbol,
                               θ_dynamic::AbstractVector,
                               solveOdeModelAllConditions!::Function,
                               changeODEProblemParameters!::Function,
+                              cfg::ForwardDiff.JacobianConfig, 
+                              petabODECache::PEtabODEProblemCache,
                               expIDSolve::Vector{Symbol})
 
-    _odeProblem = remake(odeProblem, p = convert.(eltype(θ_dynamic), odeProblem.p), u0 = convert.(eltype(θ_dynamic), odeProblem.u0))
-    success = solveOdeModelAllConditions!(simulationInfo.odeSolutionsDerivatives, S, _odeProblem, θ_dynamic, expIDSolve)
+    ForwardDiff.jacobian!(petabODECache.S, solveOdeModelAllConditions!, petabODECache.odeSolutionValues, θ_dynamic, cfg)
+
+    # Check retcode of sensitivity matrix ODE solutions
+    success = true
+    for experimentalId in simulationInfo.experimentalConditionId
+        if expIDSolve[1] != :all && experimentalId ∉ expIDSolve
+            continue
+        end
+        retcode = simulationInfo.odeSolutionsDerivatives[experimentalId].retcode
+        if !(retcode == ReturnCode.Success || retcode == ReturnCode.Terminated)
+            success = false
+            break
+        end
+    end
 
     return success
 end
@@ -94,7 +110,7 @@ end
 
 function computeGradientForwardExpCond!(gradient::Vector{Float64},
                                         sol::ODESolution,
-                                        S::Matrix{Float64},
+                                        petabODECache::PEtabODEProblemCache,
                                         sensealg::SciMLSensitivity.AbstractForwardSensitivityAlgorithm,
                                         θ_dynamic::Vector{Float64},
                                         θ_sd::Vector{Float64},
@@ -111,21 +127,18 @@ function computeGradientForwardExpCond!(gradient::Vector{Float64},
     iPerTimePoint = simulationInfo.iPerTimePoint[experimentalConditionId]
     timeObserved = simulationInfo.timeObserved[experimentalConditionId]
 
-    # Pre allcoate vectors needed for computations
-    ∂h∂u, ∂σ∂u, ∂h∂p, ∂σ∂p = allocateObservableFunctionDerivatives(sol, petabModel)
-
     # To compute
     compute∂G∂u = (out, u, p, t, i) -> begin compute∂G∂_(out, u, p, t, i, iPerTimePoint,
                                                          measurementInfo, parameterInfo,
                                                          θ_indices, petabModel,
                                                          θ_dynamic, θ_sd, θ_observable, θ_nonDynamic,
-                                                         ∂h∂u, ∂σ∂u, compute∂G∂U=true)
+                                                         petabODECache.∂h∂u, petabODECache.∂σ∂u, compute∂G∂U=true)
                                             end
     compute∂G∂p = (out, u, p, t, i) -> begin compute∂G∂_(out, u, p, t, i, iPerTimePoint,
                                                          measurementInfo, parameterInfo,
                                                          θ_indices, petabModel,
                                                          θ_dynamic, θ_sd, θ_observable, θ_nonDynamic,
-                                                         ∂h∂p, ∂σ∂p, compute∂G∂U=false)
+                                                         petabODECache.∂h∂p, petabODECache.∂σ∂p, compute∂G∂U=false)
                                         end
 
     # Loop through solution and extract sensitivites
@@ -137,7 +150,7 @@ function computeGradientForwardExpCond!(gradient::Vector{Float64},
         u, _S = extract_local_sensitivities(sol, i, true)
         compute∂G∂u(∂G∂u, u, p, timeObserved[i], i)
         compute∂G∂p(∂G∂p_, u, p, timeObserved[i], i)
-        _gradient .+= _S'*∂G∂u
+        _gradient .+= transpose(_S)*∂G∂u
         ∂G∂p .+= ∂G∂p_
     end
 
@@ -148,7 +161,7 @@ function computeGradientForwardExpCond!(gradient::Vector{Float64},
 end
 function computeGradientForwardExpCond!(gradient::Vector{Float64},
                                         sol::ODESolution,
-                                        S::Matrix{Float64},
+                                        petabODECache::PEtabODEProblemCache,
                                         sensealg::Symbol,
                                         θ_dynamic::Vector{Float64},
                                         θ_sd::Vector{Float64},
@@ -166,21 +179,18 @@ function computeGradientForwardExpCond!(gradient::Vector{Float64},
     timeObserved = simulationInfo.timeObserved[experimentalConditionId]
     timePositionInODESolutions = simulationInfo.timePositionInODESolutions[experimentalConditionId]
 
-    # Pre allcoate vectors needed for computations
-    ∂h∂u, ∂σ∂u, ∂h∂p, ∂σ∂p = allocateObservableFunctionDerivatives(sol, petabModel)
-
     # To compute
     compute∂G∂u = (out, u, p, t, i) -> begin compute∂G∂_(out, u, p, t, i, iPerTimePoint,
                                                          measurementInfo, parameterInfo,
                                                          θ_indices, petabModel,
                                                          θ_dynamic, θ_sd, θ_observable, θ_nonDynamic,
-                                                         ∂h∂u, ∂σ∂u, compute∂G∂U=true)
+                                                         petabODECache.∂h∂u, petabODECache.∂σ∂u, compute∂G∂U=true)
                                             end
     compute∂G∂p = (out, u, p, t, i) -> begin compute∂G∂_(out, u, p, t, i, iPerTimePoint,
                                                          measurementInfo, parameterInfo,
                                                          θ_indices, petabModel,
                                                          θ_dynamic, θ_sd, θ_observable, θ_nonDynamic,
-                                                         ∂h∂p, ∂σ∂p, compute∂G∂U=false)
+                                                         petabODECache.∂h∂p, petabODECache.∂σ∂p, compute∂G∂U=false)
                                         end
 
     # Extract which parameters we compute gradient for in this specific experimental condition
@@ -190,20 +200,22 @@ function computeGradientForwardExpCond!(gradient::Vector{Float64},
     iθ_experimentalCondition = unique(vcat(θ_indices.mapODEProblem.iθDynamic, mapConditionId.iθDynamic))
 
     # Loop through solution and extract sensitivites
-    p = dualToFloat.(sol.prob.p)
     nModelStates = length(petabModel.stateNames)
-    ∂G∂p, ∂G∂p_ = zeros(Float64, length(p)), zeros(Float64, length(p))
-    ∂G∂u = zeros(Float64, nModelStates)
-    _gradient = zeros(Float64, length(θ_indices.iθ_dynamic))
+    p = petabODECache.p
+    p .= dualToFloat.(sol.prob.p)
+    u = petabODECache.u
+    ∂G∂p, ∂G∂p_ = petabODECache.∂G∂p, petabODECache.∂G∂p_
+    ∂G∂u = petabODECache.∂G∂u
+    _gradient = zeros(Float64, length(θ_indices.iθ_dynamic)) # Figure out how to preallocate
     for i in eachindex(timeObserved)
-        u = dualToFloat.(sol[:, i])
+        u .= dualToFloat.((@view sol[:, i]))
         compute∂G∂u(∂G∂u, u, p, timeObserved[i], i)
         compute∂G∂p(∂G∂p_, u, p, timeObserved[i], i)
         # We need to extract the correct indices from the big sensitivity matrix (row is observation at specific time
         # point). Overall, positions are precomputed in timePositionInODESolutions
         iStart, iEnd = (timePositionInODESolutions[i]-1)*nModelStates+1, (timePositionInODESolutions[i]-1)*nModelStates + nModelStates
-        _S = @view S[iStart:iEnd, iθ_experimentalCondition]
-        @views _gradient[iθ_experimentalCondition] .+= _S'*∂G∂u
+        _S = petabODECache.S[iStart:iEnd, iθ_experimentalCondition]
+        @views _gradient[iθ_experimentalCondition] .+= transpose(_S)*∂G∂u
         ∂G∂p .+= ∂G∂p_
     end
 

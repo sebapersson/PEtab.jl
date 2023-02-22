@@ -87,18 +87,6 @@ function compute∂G∂_(∂G∂_,
 end
 
 
-# Allocate derivates needed when computing ∂G∂u and ∂G∂p
-function allocateObservableFunctionDerivatives(sol::ODESolution, petabModel::PEtabModel)
-
-    nModelStates = length(petabModel.stateNames)
-    ∂h∂u = zeros(Float64, nModelStates)
-    ∂σ∂u = zeros(Float64, nModelStates)
-    ∂h∂p = zeros(Float64, length(sol.prob.p))
-    ∂σ∂p = zeros(Float64, length(sol.prob.p))
-    return ∂h∂u, ∂σ∂u, ∂h∂p, ∂σ∂p
-end
-
-
 function adjustGradientTransformedParameters!(gradient::Union{AbstractVector, SubArray},
                                               _gradient::AbstractVector,
                                               ∂G∂p::Union{AbstractVector, Nothing},
