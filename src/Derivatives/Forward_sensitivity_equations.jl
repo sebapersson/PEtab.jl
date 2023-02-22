@@ -206,7 +206,7 @@ function computeGradientForwardExpCond!(gradient::Vector{Float64},
     u = petabODECache.u
     ∂G∂p, ∂G∂p_ = petabODECache.∂G∂p, petabODECache.∂G∂p_
     ∂G∂u = petabODECache.∂G∂u
-    _gradient = zeros(Float64, length(θ_indices.iθ_dynamic)) # Figure out how to preallocate
+    _gradient = petabODECache._gradient
     for i in eachindex(timeObserved)
         u .= dualToFloat.((@view sol[:, i]))
         compute∂G∂u(∂G∂u, u, p, timeObserved[i], i)

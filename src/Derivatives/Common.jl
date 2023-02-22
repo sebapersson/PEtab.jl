@@ -65,10 +65,10 @@ function compute∂G∂_(∂G∂_,
             petabModel.compute_∂σ∂p!(u, t, θ_sd, p, θ_nonDynamic, parameterInfo, measurementInfo.observableId[iMeasurementData], mapθ_sd, ∂σ∂_)
         end
 
-        if measurementInfo.measurementTransformation[iMeasurementData] == :log10
+        if measurementInfo.measurementTransformation[iMeasurementData] === :log10
             yObs = measurementInfo.measurementT[iMeasurementData]
             ∂h∂_ .*= 1 / (log(10) * exp10(hTransformed))
-        elseif measurementInfo.measurementTransformation[iMeasurementData] == :lin
+        elseif measurementInfo.measurementTransformation[iMeasurementData] === :lin
             yObs = measurementInfo.measurement[iMeasurementData]
         end
 
@@ -81,7 +81,7 @@ function compute∂G∂_(∂G∂_,
             ∂G∂σ = -(hTransformed - yObs) / σ^2
         end
 
-        ∂G∂_ .+= (∂G∂h*∂h∂_ .+ ∂G∂σ*∂σ∂_)[:]
+        @views ∂G∂_ .+= (∂G∂h*∂h∂_ .+ ∂G∂σ*∂σ∂_)[:]
     end
     return
 end
@@ -104,19 +104,19 @@ function adjustGradientTransformedParameters!(gradient::Union{AbstractVector, Su
     # same order as they appear in θ_est. In case we do not compute sensitivtes via autodiff, or do adjoint sensitity analysis,
     # the parameters in _gradient=S'∂G∂u appear in the same order as in odeProblem.p.
     if autoDiffSensitivites == true && adjoint == false
-        _gradient1 = _gradient[θ_indices.mapODEProblem.iθDynamic] .+ ∂G∂p[θ_indices.mapODEProblem.iODEProblemθDynamic]
-        _gradient2 = _gradient[unique(mapConditionId.iθDynamic)]
+        @views _gradient1 = _gradient[θ_indices.mapODEProblem.iθDynamic] .+ ∂G∂p[θ_indices.mapODEProblem.iODEProblemθDynamic]
+        @views _gradient2 = _gradient[unique(mapConditionId.iθDynamic)]
 
     elseif adjoint == false
-        _gradient1 = _gradient[θ_indices.mapODEProblem.iODEProblemθDynamic] .+ ∂G∂p[θ_indices.mapODEProblem.iODEProblemθDynamic]
-        _gradient2 = _gradient[mapConditionId.iODEProblemθDynamic] .+ ∂G∂p[mapConditionId.iODEProblemθDynamic]
+        @views _gradient1 = _gradient[θ_indices.mapODEProblem.iODEProblemθDynamic] .+ ∂G∂p[θ_indices.mapODEProblem.iODEProblemθDynamic]
+        @views _gradient2 = _gradient[mapConditionId.iODEProblemθDynamic] .+ ∂G∂p[mapConditionId.iODEProblemθDynamic]
     end
 
     # For adjoint sensitivity analysis ∂G∂p is already incorperated into the gradient, and the parameters appear in the
     # same order as in ODEProblem
     if adjoint == true
-        _gradient1 = _gradient[θ_indices.mapODEProblem.iODEProblemθDynamic]
-        _gradient2 = _gradient[mapConditionId.iODEProblemθDynamic]
+        @views _gradient1 = _gradient[θ_indices.mapODEProblem.iODEProblemθDynamic]
+        @views _gradient2 = _gradient[mapConditionId.iODEProblemθDynamic]
     end
 
     # Transform gradient parameter that for each experimental condition appear in the ODE system
@@ -167,11 +167,11 @@ function _adjustGradientTransformedParameters(_gradient::AbstractVector,
     out = similar(_gradient)
     @inbounds for (i, θ_name) in pairs(θ_names)
         θ_scale = θ_indices.θ_scale[θ_name]
-        if θ_scale == :log10
+        if θ_scale === :log10
             out[i] = log(10) * _gradient[i] * θ[i]
-        elseif θ_scale == :log
+        elseif θ_scale === :log
             out[i] = _gradient[i] * θ[i]
-        elseif θ_scale == :lin
+        elseif θ_scale === :lin
             out[i] = _gradient[i]
         end
     end

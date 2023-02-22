@@ -15,14 +15,15 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
                                         measurementInfo ::MeasurementsInfo,
                                         parameterInfo::ParametersInfo,
                                         changeODEProblemParameters!::Function,
-                                        solveOdeModelAllConditions!::Function;
+                                        solveOdeModelAllConditions!::Function, 
+                                        petabODECache::PEtabODEProblemCache;
                                         sensealgSS=SteadyStateAdjoint(),
                                         expIDSolve::Vector{Symbol} = [:all])
 
-    θ_dynamicT = transformθ(θ_dynamic, θ_indices.θ_dynamicNames, θ_indices)
-    θ_sdT = transformθ(θ_sd, θ_indices.θ_sdNames, θ_indices)
-    θ_observableT = transformθ(θ_observable, θ_indices.θ_observableNames, θ_indices)
-    θ_nonDynamicT = transformθ(θ_nonDynamic, θ_indices.θ_nonDynamicNames, θ_indices)
+    θ_dynamicT = transformθ(θ_dynamic, θ_indices.θ_dynamicNames, θ_indices, :θ_dynamic, petabODECache)
+    θ_sdT = transformθ(θ_sd, θ_indices.θ_sdNames, θ_indices, :θ_sd, petabODECache)
+    θ_observableT = transformθ(θ_observable, θ_indices.θ_observableNames, θ_indices, :θ_observable, petabODECache)
+    θ_nonDynamicT = transformθ(θ_nonDynamic, θ_indices.θ_nonDynamicNames, θ_indices, :θ_nonDynamic, petabODECache)
 
     _odeProblem = remake(odeProblem, p = convert.(eltype(θ_dynamicT), odeProblem.p), u0 = convert.(eltype(θ_dynamicT), odeProblem.u0))
     changeODEProblemParameters!(_odeProblem.p, _odeProblem.u0, θ_dynamicT)
@@ -57,7 +58,7 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
         # In case the model is simulated first to a steady state we need to keep track of the post-equlibrium experimental
         # condition Id to identify parameters specific to an experimental condition.
         sol = simulationInfo.odeSolutionsDerivatives[experimentalConditionId]
-        success = computeGradientAdjointExpCond!(gradient, sol, sensealg, solverAbsTol, solverRelTol, odeSolver,
+        success = computeGradientAdjointExpCond!(gradient, sol, petabODECache, sensealg, solverAbsTol, solverRelTol, odeSolver,
                                                  θ_dynamicT, θ_sdT, θ_observableT, θ_nonDynamicT, experimentalConditionId,
                                                  simulationConditionId, simulationInfo,
                                                  petabModel, θ_indices, measurementInfo, parameterInfo, evalVJPSS)
@@ -146,6 +147,7 @@ end
 # TODO : Important function - improve documentation.
 function computeGradientAdjointExpCond!(gradient::Vector{Float64},
                                         sol::ODESolution,
+                                        petabODECache::PEtabODEProblemCache,
                                         sensealg::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
                                         solverAbsTol::Float64,
                                         solverRelTol::Float64,
@@ -169,20 +171,17 @@ function computeGradientAdjointExpCond!(gradient::Vector{Float64},
     timeObserved = simulationInfo.timeObserved[experimentalConditionId]
     callback = simulationInfo.callbacks[experimentalConditionId]
 
-    # Pre allcoate vectors needed for computations
-    ∂h∂u, ∂σ∂u, ∂h∂p, ∂σ∂p = allocateObservableFunctionDerivatives(sol, petabModel)
-
     compute∂G∂u = (out, u, p, t, i) -> begin compute∂G∂_(out, u, p, t, i, iPerTimePoint,
                                                          measurementInfo, parameterInfo,
                                                          θ_indices, petabModel,
                                                          θ_dynamic, θ_sd, θ_observable, θ_nonDynamic,
-                                                         ∂h∂u, ∂σ∂u, compute∂G∂U=true)
+                                                         petabODECache.∂h∂u, petabODECache.∂σ∂u, compute∂G∂U=true)
                                             end
     compute∂G∂p = (out, u, p, t, i) -> begin compute∂G∂_(out, u, p, t, i, iPerTimePoint,
                                                          measurementInfo, parameterInfo,
                                                          θ_indices, petabModel,
                                                          θ_dynamic, θ_sd, θ_observable, θ_nonDynamic,
-                                                         ∂h∂p, ∂σ∂p, compute∂G∂U=false)
+                                                         petabODECache.∂h∂p, petabODECache.∂σ∂p, compute∂G∂U=false)
                                         end
 
     # The standard allow cases where we only observe data at t0, that is we do not solve the ODE. Here adjoint_sensitivities fails (naturally). In this case we compute the gradient
@@ -191,8 +190,8 @@ function computeGradientAdjointExpCond!(gradient::Vector{Float64},
     # zero. Overall, the only workflow that changes below is that we compute du outside of the adjoint interface
     # and use sol[:] as we no longer can interpolate from the forward solution.
     onlyObsAtZero::Bool = false
-    du = zeros(Float64, length(sol.prob.u0))
-    dp = zeros(Float64, length(sol.prob.p))'
+    du = petabODECache.du 
+    dp = petabODECache.dp 
     if !(length(timeObserved) == 1 && timeObserved[1] == 0.0)
 
         status = __adjoint_sensitivities!(du, dp, sol, sensealg, timeObserved, odeSolver,
@@ -207,33 +206,34 @@ function computeGradientAdjointExpCond!(gradient::Vector{Float64},
     # the gradient for these evaluate to NaN (as they where never thought to be estimated) which
     # results in the entire gradient evaluating to NaN. Hence, we perform this calculation outside
     # of the lower level interface.
-    ∂G∂p_ = zeros(Float64, length(sol.prob.p))
+    ∂G∂p_ = petabODECache.∂G∂p_
     for i in eachindex(timeObserved)
         if onlyObsAtZero == false
             compute∂G∂p(∂G∂p_, sol(timeObserved[i]), sol.prob.p, timeObserved[i], i)
         else
             compute∂G∂p(∂G∂p_, sol[1], sol.prob.p, timeObserved[i], i)
         end
-        dp .+= ∂G∂p_'
+        dp .+= ∂G∂p_
     end
 
+    _gradient = petabODECache._gradientAdjoint
     if simulationInfo.haspreEquilibrationConditionId == false
         # In case we do not simulate the ODE for a steady state first we can compute
         # the initial sensitivites easily via automatic differantitatiom
-        St0::Matrix{Float64} = Matrix{Float64}(undef, (length(sol.prob.u0), length(sol.prob.p)))
-        ForwardDiff.jacobian!(St0, petabModel.compute_u0, sol.prob.p)
-        _gradient = dp .+ du'*St0
+        St0 = petabODECache.St0
+        ForwardDiff.jacobian!(St0, petabModel.compute_u0!, sol.prob.u0, sol.prob.p)
+        _gradient .= dp .+ transpose(St0) * du
 
     else
         # In case we simulate to a stady state we need to compute a VJP. We use
         # Zygote pullback to avoid having to having build the Jacobian, rather
         # we create the yBar function required for the vector Jacobian product.
-        _gradient = (dp .+ (evalVJPSS(du)[1])')[:]
+        @views _gradient .= (dp .+ (evalVJPSS(du)[1])')[:]
     end
 
     # Thus far have have computed dY/dθ, but for parameters on the log-scale we want dY/dθ_log. We can adjust via;
     # dY/dθ_log = log(10) * θ * dY/dθ
-    adjustGradientTransformedParameters!(gradient, _gradient[:], nothing, θ_dynamic, θ_indices,
+    adjustGradientTransformedParameters!(gradient, _gradient, nothing, θ_dynamic, θ_indices,
                                          simulationConditionId, adjoint=true)
     return true
 end
@@ -242,7 +242,7 @@ end
 # In order to obtain the ret-codes when solving the adjoint ODE system we must, as here copy to 99% from SciMLSensitivity
 # GitHub repo to access the actual solve-call to the ODEAdjointProblem
 function __adjoint_sensitivities!(_du::AbstractVector,
-                                  _dp::Adjoint,
+                                  _dp::AbstractVector,
                                   sol::ODESolution,
                                   sensealg::InterpolatingAdjoint,
                                   t::Vector{Float64},
@@ -295,11 +295,11 @@ function __adjoint_sensitivities!(_du::AbstractVector,
     end
 
     _du .= du0
-    _dp .= dp
+    _dp .= dp'
     return true
 end
 function __adjoint_sensitivities!(_du::AbstractVector,
-                                  _dp::Adjoint,
+                                  _dp::AbstractVector,
                                   sol::ODESolution,
                                   sensealg::QuadratureAdjoint,
                                   t::Vector{Float64},
@@ -395,6 +395,6 @@ function __adjoint_sensitivities!(_du::AbstractVector,
     end
 
     _du .= adj_sol[end]
-    _dp .= res
+    _dp .= res'
     return true
 end

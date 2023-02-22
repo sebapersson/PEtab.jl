@@ -104,6 +104,9 @@ struct PEtabODEProblemCache{T1 <: AbstractVector,
     gradientNotODESystemθ::T1
     jacobianGN::T4
     residualsGN::T1
+    _gradient::T1
+    _gradientAdjoint::T1
+    St0::T4
     ∂h∂u::T3
     ∂σ∂u::T3
     ∂h∂p::T3
@@ -111,6 +114,8 @@ struct PEtabODEProblemCache{T1 <: AbstractVector,
     ∂G∂p::T3
     ∂G∂p_::T3
     ∂G∂u::T3
+    dp::T1 
+    du::T1
     p::T3 
     u::T3
     S::T4

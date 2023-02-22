@@ -99,7 +99,7 @@ function computeJacobianResidualsExpCond!(jacobian::AbstractMatrix,
     u = petabODECache.u
     ∂G∂p = petabODECache.∂G∂p
     ∂G∂u = petabODECache.∂G∂u
-    _gradient = zeros(Float64, length(θ_indices.iθ_dynamic))
+    _gradient = petabODECache._gradient
     for i in eachindex(timeObserved)
         u .= dualToFloat.((@view sol[:, i]))
         t = timeObserved[i]
