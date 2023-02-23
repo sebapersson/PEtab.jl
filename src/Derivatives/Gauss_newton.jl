@@ -11,10 +11,11 @@ function computeJacobianResidualsDynamicθ!(jacobian::Union{Matrix{Float64}, Sub
                                            parameterInfo::ParametersInfo,
                                            changeODEProblemParameters!::Function,
                                            solveOdeModelAllConditions!::Function, 
-                                           cfg::Union{ForwardDiff.JacobianConfig, Nothing}, 
+                                           cfg::ForwardDiff.JacobianConfig, 
                                            petabODECache::PEtabODEProblemCache;
                                            expIDSolve::Vector{Symbol} = [:all], 
-                                           reuseS::Bool=false)
+                                           reuseS::Bool=false, 
+                                           splitOverConditions::Bool=false)
 
     θ_dynamicT = transformθ(θ_dynamic, θ_indices.θ_dynamicNames, θ_indices, :θ_dynamic, petabODECache)
     θ_sdT = transformθ(θ_sd, θ_indices.θ_sdNames, θ_indices, :θ_sd, petabODECache)
@@ -23,9 +24,9 @@ function computeJacobianResidualsDynamicθ!(jacobian::Union{Matrix{Float64}, Sub
 
     if reuseS == false
         # Solve the expanded ODE system for the sensitivites
-        success = solveForSensitivites(odeProblem, simulationInfo, petabModel, :ForwardDiff, θ_dynamicT,
+        success = solveForSensitivites(odeProblem, simulationInfo, θ_indices, petabModel, :ForwardDiff, θ_dynamicT,
                                        solveOdeModelAllConditions!, changeODEProblemParameters!,
-                                       cfg, petabODECache, expIDSolve)
+                                       cfg, petabODECache, expIDSolve, splitOverConditions)
 
         if success != true
             println("Failed to solve sensitivity equations")
