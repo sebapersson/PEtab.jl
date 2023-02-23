@@ -136,35 +136,3 @@ function testSneyd()
     testLogLikelihoodValue(petabModel, -319.79177818768756, Rodas4P())
 end
 testSneyd()
-
-
-#=
-function testNewPreAlloc()
-
-    pathYML = joinpath(@__DIR__, "Test_ll", "Bachmann_MSB2011", "Bachmann_MSB2011.yaml")
-    petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
-
-    solver, tol = QNDF(), 1e-8
-    petabProblem1 = setUpPEtabODEProblem(petabModel, solver, solverAbsTol=tol, solverRelTol=tol)
-    θ_use = petabProblem1.θ_nominalT
-    gradientForward = zeros(length(θ_use))
-
-    cost = petabProblem1.computeCost(θ_use)
-    petabProblem1.computeGradient!(gradientForward, θ_use)
-
-    bCost, bGrad, allocCost, allocGrad = 0, 0, 0, 0
-
-    for i in 1:10
-        bCost += @elapsed cost = petabProblem1.computeCost(θ_use)
-    end
-    for i in 1:10
-        bGrad += @elapsed petabProblem1.computeGradient!(gradientForward, θ_use)
-    end
-
-    allocCost = @allocated cost = petabProblem1.computeCost(θ_use)
-    allocGrad = @allocated petabProblem1.computeGradient!(gradientForward, θ_use)
-
-    return bCost / 10, bGrad / 10, allocCost, allocGrad
-end
-bCost, bGrad, allocCost, allocGrad = testNewPreAlloc()
-=#
