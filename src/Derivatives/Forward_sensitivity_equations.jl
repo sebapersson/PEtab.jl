@@ -206,7 +206,9 @@ function computeGradientForwardExpCond!(gradient::Vector{Float64},
     u = petabODECache.u
     ∂G∂p, ∂G∂p_ = petabODECache.∂G∂p, petabODECache.∂G∂p_
     ∂G∂u = petabODECache.∂G∂u
-    _gradient = petabODECache._gradient
+    _gradient = petabODECache._gradient 
+    _gradient .= 0
+    ∂G∂p .= 0.0
     for i in eachindex(timeObserved)
         u .= dualToFloat.((@view sol[:, i]))
         compute∂G∂u(∂G∂u, u, p, timeObserved[i], i)
@@ -214,11 +216,11 @@ function computeGradientForwardExpCond!(gradient::Vector{Float64},
         # We need to extract the correct indices from the big sensitivity matrix (row is observation at specific time
         # point). Overall, positions are precomputed in timePositionInODESolutions
         iStart, iEnd = (timePositionInODESolutions[i]-1)*nModelStates+1, (timePositionInODESolutions[i]-1)*nModelStates + nModelStates
-        _S = petabODECache.S[iStart:iEnd, iθ_experimentalCondition]
+        _S = @view petabODECache.S[iStart:iEnd, iθ_experimentalCondition]
         @views _gradient[iθ_experimentalCondition] .+= transpose(_S)*∂G∂u
         ∂G∂p .+= ∂G∂p_
     end
-
+    
     # Thus far have have computed dY/dθ, but for parameters on the log-scale we want dY/dθ_log. We can adjust via;
     # dY/dθ_log = log(10) * θ * dY/dθ
     adjustGradientTransformedParameters!(gradient, _gradient, ∂G∂p, θ_dynamic, θ_indices,

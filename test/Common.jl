@@ -1,6 +1,6 @@
 
 
-import PEtab: processPriors, changeODEProblemParameters!, PriorInfo, transformθ, solveODEAllExperimentalConditions!, computeGaussNewtonHessianApproximation!
+import PEtab: processPriors, changeODEProblemParameters!, PriorInfo, transformθ, solveODEAllExperimentalConditions!, computeGaussNewtonHessianApproximation!, PEtabODESolverCache, createPEtabODESolverCache, createPEtabODEProblemCache
 
 
 function _testCostGradientOrHessian(petabModel::PEtabModel,
@@ -73,19 +73,20 @@ function checkGradientResiduals(petabModel::PEtabModel, solver, tol; verbose::Bo
     setParamToFileValues!(petabModel.parameterMap, petabModel.stateMap, parameterData)
     priorInfo::PriorInfo = processPriors(paramEstIndices, parameterDataFile)
 
+    petabODECache = createPEtabODEProblemCache(:ForwardEquations, :GaussNewton, petabModel, :ForwardDiff, measurementData, simulationInfo, paramEstIndices, nothing)
+    petabODESolverCache = createPEtabODESolverCache(:ForwardEquations, :GaussNewton, petabModel, simulationInfo, paramEstIndices, nothing)
+
     # The time-span 5e3 is overwritten when performing actual forward simulations
     odeProb = ODEProblem(petabModel.odeSystem, petabModel.stateMap, (0.0, 5e3), petabModel.parameterMap, jac=true, sparse=false)
     odeProb = remake(odeProb, p = convert.(Float64, odeProb.p), u0 = convert.(Float64, odeProb.u0))
     # Functions to map experimental conditions and parameters correctly to the ODE model
-    changeToExperimentalCondUse! = (pVec, u0Vec, expID, dynParamEst) -> _changeExperimentalCondition!(pVec, u0Vec, expID, dynParamEst, petabModel, paramEstIndices)
-    changeModelParamUse! = (pVec, u0Vec, paramEst) -> changeODEProblemParameters!(pVec, u0Vec, paramEst, paramEstIndices, petabModel)
-    solveOdeModelAllCondUse! = (solArrayArg, odeProbArg, dynParamEst, expIDSolveArg) -> solveODEAllExperimentalConditions!(solArrayArg, odeProbArg, dynParamEst, changeToExperimentalCondUse!, simulationInfo, solver, tol, tol, petabModel.computeTStops, onlySaveAtObservedTimes=true, expIDSolve=expIDSolveArg, convertTspan=petabModel.convertTspan)
-    nTimePointsSaveAt = sum(length(simulationInfo.timeObserved[experimentalConditionId]) for experimentalConditionId in simulationInfo.experimentalConditionId)
-    nModelStates = length(odeProb.u0)
-    odeSolutionValues = zeros(Float64, nModelStates, nTimePointsSaveAt)
-    solveOdeModelAllCondGuassNewtonForwardEq! = (solArrayArg, SMat, odeProbArg, dynParamEst, expIDSolveArg) -> solveODEAllExperimentalConditions!(solArrayArg, SMat, odeProbArg, dynParamEst, changeToExperimentalCondUse!, changeModelParamUse!, simulationInfo, paramEstIndices, solver, tol, tol, petabModel.computeTStops, odeSolutionValues, onlySaveAtObservedTimes=true, expIDSolve=expIDSolveArg, convertTspan=petabModel.convertTspan, splitOverConditions=false)
-    evalResiduals = (paramVecEst) -> PEtab.computeCost(paramVecEst, odeProb, petabModel, simulationInfo, paramEstIndices, measurementData, parameterData, changeModelParamUse!, solveOdeModelAllCondUse!, priorInfo, computeResiduals=true)
-    evalJacResiduals = (out, paramVecEst) -> computeGaussNewtonHessianApproximation!(out, paramVecEst, odeProb, petabModel, simulationInfo, paramEstIndices, measurementData, parameterData, changeModelParamUse!, solveOdeModelAllCondGuassNewtonForwardEq!, priorInfo, returnJacobian=true)
+    
+    computeJacobian = PEtab.setUpHessian(:GaussNewton, odeProb, solver, petabODECache, petabODESolverCache,
+                                         tol, tol, petabModel, simulationInfo, paramEstIndices, measurementData, 
+                                         parameterData, priorInfo, nothing, returnJacobian=true)
+    computeSumResiduals = PEtab.setUpCost(:Standard, odeProb, solver, petabODECache, petabODESolverCache,
+                                         tol, tol, petabModel, simulationInfo, paramEstIndices, measurementData, 
+                                         parameterData, priorInfo, computeResiduals=true)
 
     # Extract parameter vector
     namesParamEst = paramEstIndices.θ_estNames
@@ -93,8 +94,8 @@ function checkGradientResiduals(petabModel::PEtabModel, solver, tol; verbose::Bo
     paramVec = transformθ(paramVecNominal, namesParamEst, paramEstIndices, reverseTransform=true)
 
     jacOut = zeros(length(paramVec), length(measurementData.time))
-    residualGrad = ForwardDiff.gradient(evalResiduals, paramVec)
-    evalJacResiduals(jacOut, paramVec)
+    residualGrad = ForwardDiff.gradient(computeSumResiduals, paramVec)
+    computeJacobian(jacOut, paramVec)
     sqDiffResidual = sum((sum(jacOut, dims=2) - residualGrad).^2)
     @test sqDiffResidual ≤ 1e-5
 end

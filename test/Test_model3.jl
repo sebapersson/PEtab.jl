@@ -110,11 +110,12 @@ function testODESolverTestModel3(petabModel::PEtabModel, solver, tol)
 
         prob = ODEProblem(petabModel.odeSystem, petabModel.stateMap, (0.0, 9.7), petabModel.parameterMap, jac=true)
         prob = remake(prob, p = convert.(Float64, prob.p), u0 = convert.(Float64, prob.u0))
-        θ_est = getFileODEvalues(petabModel)
-        changeExperimentalCondition! = (pVec, u0Vec, expID) -> _changeExperimentalCondition!(pVec, u0Vec, expID, θ_est, petabModel, θ_indices)
+        θ_dynamic = getFileODEvalues(petabModel)[1:4]
+        changeExperimentalCondition! = (pVec, u0Vec, expID, θ_dynamic) -> _changeExperimentalCondition!(pVec, u0Vec, expID, θ_dynamic, petabModel, θ_indices)
+        petabODESolverCache = createPEtabODESolverCache(:nothing, :nothing, petabModel, simulationInfo, θ_indices, nothing)
 
         # Solve ODE system
-        odeSolutions, success = solveODEAllExperimentalConditions(prob, changeExperimentalCondition!, simulationInfo, solver, tol, tol, petabModel.computeTStops)
+        odeSolutions, success = solveODEAllExperimentalConditions(prob, θ_dynamic, petabODESolverCache, changeExperimentalCondition!, simulationInfo, solver, tol, tol, petabModel.computeTStops)
         # Solve ODE system with algebraic intial values
         algebraicODESolutions = getSolAlgebraicSS(petabModel, solver, tol, a, b, c, d)
 

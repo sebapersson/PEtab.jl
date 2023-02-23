@@ -104,19 +104,19 @@ function adjustGradientTransformedParameters!(gradient::Union{AbstractVector, Su
     # same order as they appear in θ_est. In case we do not compute sensitivtes via autodiff, or do adjoint sensitity analysis,
     # the parameters in _gradient=S'∂G∂u appear in the same order as in odeProblem.p.
     if autoDiffSensitivites == true && adjoint == false
-        @views _gradient1 = _gradient[θ_indices.mapODEProblem.iθDynamic] .+ ∂G∂p[θ_indices.mapODEProblem.iODEProblemθDynamic]
-        @views _gradient2 = _gradient[unique(mapConditionId.iθDynamic)]
+        _gradient1 = _gradient[θ_indices.mapODEProblem.iθDynamic] .+ ∂G∂p[θ_indices.mapODEProblem.iODEProblemθDynamic]
+        _gradient2 = _gradient[unique(mapConditionId.iθDynamic)]
 
     elseif adjoint == false
-        @views _gradient1 = _gradient[θ_indices.mapODEProblem.iODEProblemθDynamic] .+ ∂G∂p[θ_indices.mapODEProblem.iODEProblemθDynamic]
-        @views _gradient2 = _gradient[mapConditionId.iODEProblemθDynamic] .+ ∂G∂p[mapConditionId.iODEProblemθDynamic]
+        _gradient1 = _gradient[θ_indices.mapODEProblem.iODEProblemθDynamic] .+ ∂G∂p[θ_indices.mapODEProblem.iODEProblemθDynamic]
+        _gradient2 = _gradient[mapConditionId.iODEProblemθDynamic] .+ ∂G∂p[mapConditionId.iODEProblemθDynamic]
     end
 
     # For adjoint sensitivity analysis ∂G∂p is already incorperated into the gradient, and the parameters appear in the
     # same order as in ODEProblem
     if adjoint == true
-        @views _gradient1 = _gradient[θ_indices.mapODEProblem.iODEProblemθDynamic]
-        @views _gradient2 = _gradient[mapConditionId.iODEProblemθDynamic]
+        _gradient1 = _gradient[θ_indices.mapODEProblem.iODEProblemθDynamic]
+        _gradient2 = _gradient[mapConditionId.iODEProblemθDynamic]
     end
 
     # Transform gradient parameter that for each experimental condition appear in the ODE system

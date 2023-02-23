@@ -123,6 +123,13 @@ struct PEtabODEProblemCache{T1 <: AbstractVector,
 end
 
 
+struct PEtabODESolverCache{T1 <: NamedTuple, 
+                           T2 <: NamedTuple}
+    pODEProblemCache::T1
+    u0Cache::T2
+end
+
+
 """
     ParameterInfo
 

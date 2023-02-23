@@ -89,7 +89,7 @@ end
 pathYML = joinpath(@__DIR__, "Test_ll", "Bachmann_MSB2011", "Bachmann_MSB2011.yaml")
 petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
 testLogLikelihoodValue(petabModel, -418.40573341425295, Rodas4P())
-testGradientFiniteDifferences(petabModel, Rodas5(), 1e-8, checkForwardEquations=true)
+testGradientFiniteDifferences(petabModel, Rodas5(), 1e-8, checkForwardEquations=true, checkAdjoint=true)
 
 # Beer model - Numerically challenging gradient as we have callback rootfinding
 pathYML = joinpath(@__DIR__, "Test_ll", "Beer_MolBioSystems2014", "Beer_MolBioSystems2014.yaml")

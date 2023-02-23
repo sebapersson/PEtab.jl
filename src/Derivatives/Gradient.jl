@@ -123,7 +123,6 @@ function computeGradientAdjointEquations!(gradient::Vector{Float64},
     θ_nonDynamic = petabODECache.θ_nonDynamic
 
     # Calculate gradient seperately for dynamic and non dynamic parameter.
-    gradientDyanmicθ::Vector{Float64} = zeros(Float64, length(θ_dynamic))
     computeGradientAdjointDynamicθ(petabODECache.gradientDyanmicθ, θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, odeProblem, adjointODESolver,
                                    solverAbsTol, solverRelTol, sensealg, petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo,
                                    changeODEProblemParameters!, solveOdeModelAllConditions!, petabODECache; expIDSolve=expIDSolve,
@@ -157,7 +156,8 @@ function computeGradientZygote(gradient::Vector{Float64},
                                parameterInfo::ParametersInfo,
                                changeODEProblemParameters::Function,
                                solveOdeModelAllConditions::Function,
-                               priorInfo::PriorInfo)
+                               priorInfo::PriorInfo, 
+                               petabODECache::PEtabODEProblemCache)
 
     # Split input into observeble and dynamic parameters
     θ_dynamic, θ_observable, θ_sd, θ_nonDynamic = splitParameterVector(θ_est, θ_indices)
@@ -174,7 +174,7 @@ function computeGradientZygote(gradient::Vector{Float64},
     iθ_sd, iθ_observable, iθ_nonDynamic, iθ_notOdeSystem = getIndicesParametersNotInODESystem(θ_indices)
     computeCostNotODESystemθ = (x) -> computeCostNotSolveODE(x[iθ_sd], x[iθ_observable], x[iθ_nonDynamic],
                                                              petabModel, simulationInfo, θ_indices, measurementInfo,
-                                                             parameterInfo)
+                                                             parameterInfo, petabODECache)
     @views ReverseDiff.gradient!(gradient[iθ_notOdeSystem], computeCostNotODESystemθ, θ_est[iθ_notOdeSystem])
 end
 
@@ -184,7 +184,6 @@ function computeGradientPrior!(gradient::AbstractVector,
                                θ::AbstractVector,
                                θ_indices::ParameterIndices,
                                priorInfo::PriorInfo)
-
 
     _evalPriors = (θ_est) -> begin
                                 θ_estT = transformθ(θ_est, θ_indices.θ_estNames, θ_indices)

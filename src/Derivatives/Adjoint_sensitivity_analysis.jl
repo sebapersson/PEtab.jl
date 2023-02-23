@@ -228,7 +228,7 @@ function computeGradientAdjointExpCond!(gradient::Vector{Float64},
         # In case we simulate to a stady state we need to compute a VJP. We use
         # Zygote pullback to avoid having to having build the Jacobian, rather
         # we create the yBar function required for the vector Jacobian product.
-        @views _gradient .= (dp .+ (evalVJPSS(du)[1])')[:]
+        @views _gradient .= dp .+ (evalVJPSS(du)[1])
     end
 
     # Thus far have have computed dY/dθ, but for parameters on the log-scale we want dY/dθ_log. We can adjust via;
