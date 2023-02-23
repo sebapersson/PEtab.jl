@@ -91,7 +91,8 @@ petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
 testLogLikelihoodValue(petabModel, -418.40573341425295, Rodas4P())
 testGradientFiniteDifferences(petabModel, Rodas5(), 1e-8, checkForwardEquations=true, checkAdjoint=true)
 
-# Beer model - Numerically challenging gradient as we have callback rootfinding
+# Beer model - Numerically challenging gradient as we have callback time triggering parameters to 
+# estimate. Splitting over conditions spped up hessian computations with factor 48
 pathYML = joinpath(@__DIR__, "Test_ll", "Beer_MolBioSystems2014", "Beer_MolBioSystems2014.yaml")
 petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
 testLogLikelihoodValue(petabModel, -58622.9145631413, Rodas4P())
@@ -128,10 +129,42 @@ pathYML = joinpath(@__DIR__, "Test_ll", "Schwen_PONE2014", "Schwen_PONE2014.yaml
 petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
 testLogLikelihoodValue(petabModel, 943.9992988598723-12.519137073132825, Rodas4P())
 
-# Sneyd model - Test against World problem
+# Sneyd model - Test against World problem by wrapping inside function
 function testSneyd()
     pathYML = joinpath(@__DIR__, "Test_ll", "Sneyd_PNAS2002", "Sneyd_PNAS2002.yaml")
     petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
     testLogLikelihoodValue(petabModel, -319.79177818768756, Rodas4P())
 end
 testSneyd()
+
+
+#=
+function testNewPreAlloc()
+
+    pathYML = joinpath(@__DIR__, "Test_ll", "Bachmann_MSB2011", "Bachmann_MSB2011.yaml")
+    petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
+
+    solver, tol = QNDF(), 1e-8
+    petabProblem1 = setUpPEtabODEProblem(petabModel, solver, solverAbsTol=tol, solverRelTol=tol)
+    θ_use = petabProblem1.θ_nominalT
+    gradientForward = zeros(length(θ_use))
+
+    cost = petabProblem1.computeCost(θ_use)
+    petabProblem1.computeGradient!(gradientForward, θ_use)
+
+    bCost, bGrad, allocCost, allocGrad = 0, 0, 0, 0
+
+    for i in 1:10
+        bCost += @elapsed cost = petabProblem1.computeCost(θ_use)
+    end
+    for i in 1:10
+        bGrad += @elapsed petabProblem1.computeGradient!(gradientForward, θ_use)
+    end
+
+    allocCost = @allocated cost = petabProblem1.computeCost(θ_use)
+    allocGrad = @allocated petabProblem1.computeGradient!(gradientForward, θ_use)
+
+    return bCost / 10, bGrad / 10, allocCost, allocGrad
+end
+bCost, bGrad, allocCost, allocGrad = testNewPreAlloc()
+=#

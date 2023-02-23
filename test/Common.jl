@@ -15,10 +15,15 @@ function _testCostGradientOrHessian(petabModel::PEtabModel,
                                     hessianMethod::Symbol=:ForwardDiff,
                                     solverSSRelTol::Float64=1e-6,
                                     solverSSAbsTol::Float64=1e-8, 
+                                    odeSolverForwardEquations=nothing,
                                     sensealgForwardEquations::Union{Symbol, SciMLSensitivity.AbstractForwardSensitivityAlgorithm}=ForwardSensitivity(),
                                     sensealgZygote=ForwardDiffSensitivity(),
                                     sensealgAdjoint::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm=InterpolatingAdjoint(autojacvec=ReverseDiffVJP(false)),
                                     sensealgAdjointSS::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm=SteadyStateAdjoint(),)
+
+    if isnothing(odeSolverForwardEquations)
+        odeSolverForwardEquations = solver
+    end
 
     petabProblem = setUpPEtabODEProblem(petabModel,
                                         solver;
@@ -29,7 +34,7 @@ function _testCostGradientOrHessian(petabModel::PEtabModel,
                                         solverRelTol=tol,
                                         solverSSRelTol=solverSSRelTol,
                                         solverSSAbsTol=solverSSAbsTol,
-                                        odeSolverForwardEquations=solver,
+                                        odeSolverForwardEquations=odeSolverForwardEquations,
                                         sensealgForwardEquations=sensealgForwardEquations,
                                         sensealgZygote=sensealgZygote,
                                         odeSolverAdjoint=solver,

@@ -5,7 +5,7 @@
     This ODE is solved analytically, and using the analytical solution the accuracy of
     the ODE solver, cost function, gradient and hessian of the PeTab importer is checked.
     The accuracy of the optimizers is further checked.
-    The measurment data is avaible in tests/Test_model2/
+    The measurment data is avaible in test/Test_model2/
  =#
 
 using PEtab
