@@ -84,6 +84,7 @@ function processSimulationInfo(petabModel::PEtabModel,
     # Some models, e.g those with time dependent piecewise statements, have callbacks encoded. When doing adjoint
     # sensitivity analysis we need to track these callbacks, hence they must be stored in simulationInfo.
     callbacks = Dict{Symbol, SciMLBase.DECallback}()
+    trackedCallbacks = Dict{Symbol, SciMLBase.DECallback}()
     for name in experimentalConditionId
         callbacks[name] = deepcopy(petabModel.modelCallbackSet)
     end
@@ -111,6 +112,7 @@ function processSimulationInfo(petabModel::PEtabModel,
                                     absTolSS,
                                     relTolSS,
                                     callbacks,
+                                    trackedCallbacks,
                                     sensealg,
                                     callbackSS)
     return simulationInfo

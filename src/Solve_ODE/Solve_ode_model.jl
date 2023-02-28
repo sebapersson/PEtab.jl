@@ -419,9 +419,10 @@ function getCallbackSet(odeProblem::ODEProblem,
                         trackCallback::Bool)::SciMLBase.DECallback
 
     if trackCallback == true
-        cbSet = SciMLSensitivity.track_callbacks(simulationInfo.callbacks[simulationConditionId], odeProblem.tspan[1],
-                                                 odeProblem.u0, odeProblem.p, simulationInfo.sensealg)
-        simulationInfo.callbacks[simulationConditionId] = cbSet
+        cbSet = SciMLSensitivity.track_callbacks(simulationInfo.callbacks[simulationConditionId], odeProblem.tspan[1], 
+                                                 odeProblem.u0, odeProblem.p, simulationInfo.sensealg) 
+        simulationInfo.trackedCallbacks[simulationConditionId] = cbSet
+        return cbSet
     end
     return simulationInfo.callbacks[simulationConditionId]
 end

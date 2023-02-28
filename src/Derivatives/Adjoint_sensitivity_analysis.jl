@@ -72,15 +72,15 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
 end
 
 
-function generateVJPSSFunction(simulationInfo::SimulationInfo,
-                               sensealgSS::SteadyStateAdjoint,
+function generateVJPSSFunction(simulationInfo::SimulationInfo, 
+                               sensealgSS::SteadyStateAdjoint, 
                                odeSolver::SciMLAlgorithm,
-                               solverAbsTol::Float64,
+                               solverAbsTol::Float64, 
                                solverRelTol::Float64,
                                expIDSolve::Vector{Symbol})::NamedTuple
 
-    # Extract all unique Pre-equlibrium conditions. If the code is run in parallell
-    # (expIDSolve != [["all]]) the number of preEq cond. might be smaller than the
+    # Extract all unique Pre-equlibrium conditions. If the code is run in parallell 
+    # (expIDSolve != [["all]]) the number of preEq cond. might be smaller than the 
     # total number of preEq cond.
     if expIDSolve[1] == :all
         preEquilibrationConditionId = unique(simulationInfo.preEquilibrationConditionId)
@@ -91,54 +91,101 @@ function generateVJPSSFunction(simulationInfo::SimulationInfo,
 
     _evalVJPSS = Vector{Function}(undef, length(preEquilibrationConditionId))
     for i in eachindex(preEquilibrationConditionId)
-
+        
         odeProblem = simulationInfo.odePreEqulibriumSolutions[preEquilibrationConditionId[i]].prob
         ssOdeProblem = SteadyStateProblem(odeProblem)
         ySS, _evalVJPSSi = Zygote.pullback((p) ->    (
-                                                      solve(ssOdeProblem,
-                                                            DynamicSS(odeSolver, abstol=simulationInfo.absTolSS, reltol=simulationInfo.relTolSS),
-                                                            abstol=solverAbsTol,
-                                                            reltol=solverRelTol,
-                                                            p=p,
+                                                      solve(ssOdeProblem, 
+                                                            DynamicSS(odeSolver, abstol=simulationInfo.absTolSS, reltol=simulationInfo.relTolSS), 
+                                                            abstol=solverAbsTol, 
+                                                            reltol=solverRelTol, 
+                                                            p=p, 
                                                             sensealg=sensealgSS)[:]), odeProblem.p)
+                                                
+        _evalVJPSS[i] = (du) -> begin return _evalVJPSSi(du)[1] end
+    end
 
+    evalVJPSS = Tuple(f for f in _evalVJPSS)
+    return NamedTuple{Tuple(name for name in preEquilibrationConditionId)}(evalVJPSS)
+end
+function generateVJPSSFunction(simulationInfo::SimulationInfo, 
+                               sensealgSS::Union{QuadratureAdjoint, InterpolatingAdjoint}, 
+                               odeSolver::SciMLAlgorithm,
+                               solverAbsTol::Float64, 
+                               solverRelTol::Float64,
+                               expIDSolve::Vector{Symbol})::NamedTuple
+
+    # Extract all unique Pre-equlibrium conditions. If the code is run in parallell 
+    # (expIDSolve != [["all]]) the number of preEq cond. might be smaller than the 
+    # total number of preEq cond.
+    if expIDSolve[1] == :all
+        preEquilibrationConditionId = unique(simulationInfo.preEquilibrationConditionId)
+    else
+        whichIds  = findall(x -> x ∈ simulationInfo.experimentalConditionId, expIDSolve)
+        preEquilibrationConditionId = unique(simulationInfo.preEquilibrationConditionId[whichIds])
+    end
+
+    _evalVJPSS = Vector{Function}(undef, length(preEquilibrationConditionId))
+    for i in eachindex(preEquilibrationConditionId)
+        
+        # Sets up a function which takes du and solves the Adjoint ODE system with du 
+        # as starting point. This is a temporary ugly solution as there are some problems
+        # with retcode Terminated and using CVODE_BDF
+        _sol = simulationInfo.odePreEqulibriumSolutions[preEquilibrationConditionId[i]]
+        _prob = remake(_sol.prob, tspan=(0.0, _sol.t[end]))
+        sol = solve(_prob, odeSolver, abstol=solverAbsTol, reltol=solverRelTol)
+
+        _evalVJPSSi = (du) -> computeVJPSS(du, sol, odeSolver, sensealgSS, solverRelTol, solverAbsTol)
         _evalVJPSS[i] = _evalVJPSSi
     end
 
     evalVJPSS = Tuple(f for f in _evalVJPSS)
     return NamedTuple{Tuple(name for name in preEquilibrationConditionId)}(evalVJPSS)
 end
-function generateVJPSSFunction(simulationInfo::SimulationInfo,
-                               sensealgSS::Union{QuadratureAdjoint, InterpolatingAdjoint},
-                               odeSolver::SciMLAlgorithm,
-                               solverAbsTol::Float64,
-                               solverRelTol::Float64,
-                               expIDSolve::Vector{Symbol})::NamedTuple
 
-    # Extract all unique Pre-equlibrium conditions. If the code is run in parallell
-    # (expIDSolve != [["all]]) the number of preEq cond. might be smaller than the
-    # total number of preEq cond.
-    if expIDSolve[1] == :all
-        preEquilibrationConditionId = unique(simulationInfo.preEquilibrationConditionId)
-    else
-        whichIds  = findall(x -> x ∈ simulationInfo.experimentalConditionId, expIDSolve)
-        preEquilibrationConditionId = unique(simulationInfo.preEquilibrationConditionId[whichIds])
-    end
 
-    _evalVJPSS = Vector{Function}(undef, length(preEquilibrationConditionId))
-    for i in eachindex(preEquilibrationConditionId)
+# Compute the adjoint VJP for steady state simulated models via QuadratureAdjoint and InterpolatingAdjoint
+# by, given du as initial values, solve the adjoint integral. 
+# TODO : Add interface for SteadyStateAdjoint
+function computeVJPSS(du::AbstractVector,
+                      _sol::ODESolution, 
+                      odeSolver::SciMLAlgorithm,
+                      sensealg::QuadratureAdjoint, 
+                      relTol::Float64, 
+                      absTol::Float64)
 
-        # As we already have solved for steady state once and know the steady state time we here
-        # build a problem where we simulate exactly to said steady state.
-        preEqulibriumOdeSolution = simulationInfo.odePreEqulibriumSolutions[preEquilibrationConditionId[i]]
-        odeProblemPullback = remake(preEqulibriumOdeSolution.prob, tspan=(0.0, preEqulibriumOdeSolution.t[end]))
-        ySS, _evalVJPSSi = Zygote.pullback((p) -> solve(odeProblemPullback, odeSolver, p=p, abstol=solverAbsTol, reltol=solverRelTol, sensealg=sensealgSS)[:, end], preEqulibriumOdeSolution.prob.p)
+    adj_prob, rcb = ODEAdjointProblem(_sol, sensealg, odeSolver, [_sol.t[end]], compute∂g∂uEmpty, nothing,
+                                      nothing, nothing, nothing, Val(true))
+    adj_prob.u0 .= du    
+    adj_sol = solve(adj_prob, odeSolver; abstol = absTol, reltol = relTol,
+                    save_everystep = true, save_start = true)                                  
+    integrand = AdjointSensitivityIntegrand(_sol, adj_sol, sensealg, nothing)
+    res, err = SciMLSensitivity.quadgk(integrand, _sol.prob.tspan[1], _sol.t[end],
+                                       atol = absTol, rtol = relTol)
+    return res'                                                                             
+end
+function computeVJPSS(du::AbstractVector,
+                      _sol::ODESolution, 
+                      odeSolver::SciMLAlgorithm, 
+                      sensealg::InterpolatingAdjoint, 
+                      relTol::Float64, 
+                      absTol::Float64)
 
-        _evalVJPSS[i] = _evalVJPSSi
-    end
+    nModelStates = length(_sol.prob.u0)                      
+    adj_prob, rcb = ODEAdjointProblem(_sol, sensealg, odeSolver, [_sol.t[end]], compute∂g∂uEmpty, nothing,
+                                      nothing, nothing, nothing, Val(true))
+    
+    adj_prob.u0[1:nModelStates] .= du[1:nModelStates]
 
-    evalVJPSS = Tuple(f for f in _evalVJPSS)
-    return NamedTuple{Tuple(name for name in preEquilibrationConditionId)}(evalVJPSS)
+    adj_sol = solve(adj_prob, odeSolver; abstol = absTol, reltol = relTol,
+                    save_everystep = true, save_start = true)
+    out = adj_sol[end][(nModelStates+1):end]
+    return out
+end
+
+
+function compute∂g∂uEmpty(out, u, p, t, i)
+    out .= 0.0
 end
 
 
@@ -169,7 +216,7 @@ function computeGradientAdjointExpCond!(gradient::Vector{Float64},
     # adjoitn ODE
     iPerTimePoint = simulationInfo.iPerTimePoint[experimentalConditionId]
     timeObserved = simulationInfo.timeObserved[experimentalConditionId]
-    callback = simulationInfo.callbacks[experimentalConditionId]
+    callback = simulationInfo.trackedCallbacks[experimentalConditionId]
 
     compute∂G∂u = (out, u, p, t, i) -> begin compute∂G∂_(out, u, p, t, i, iPerTimePoint,
                                                          measurementInfo, parameterInfo,
@@ -228,7 +275,7 @@ function computeGradientAdjointExpCond!(gradient::Vector{Float64},
         # In case we simulate to a stady state we need to compute a VJP. We use
         # Zygote pullback to avoid having to having build the Jacobian, rather
         # we create the yBar function required for the vector Jacobian product.
-        @views _gradient .= dp .+ (evalVJPSS(du)[1])
+        @views _gradient .= dp .+ evalVJPSS(du)
     end
 
     # Thus far have have computed dY/dθ, but for parameters on the log-scale we want dY/dθ_log. We can adjust via;

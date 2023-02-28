@@ -179,7 +179,8 @@ struct SimulationInfo{T1<:NamedTuple,
                       T5<:NamedTuple,
                       T6<:Dict{<:Symbol, <:SciMLBase.DECallback},
                       T7<:Union{<:SciMLSensitivity.AbstractForwardSensitivityAlgorithm, <:SciMLSensitivity.AbstractAdjointSensitivityAlgorithm},
-                      T8<:SciMLBase.DECallback}
+                      T8<:SciMLBase.DECallback, 
+                      T9<:Dict{<:Symbol, <:SciMLBase.DECallback}}
 
     preEquilibrationConditionId::Vector{Symbol}
     simulationConditionId::Vector{Symbol}
@@ -197,6 +198,7 @@ struct SimulationInfo{T1<:NamedTuple,
     absTolSS::Float64
     relTolSS::Float64
     callbacks::T6
+    trackedCallbacks::T9
     sensealg::T7 # sensealg for potential callbacks
     callbackSS::T8
 end
