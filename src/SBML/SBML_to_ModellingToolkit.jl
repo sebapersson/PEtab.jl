@@ -4,12 +4,10 @@
 
 """
     XmlToModellingToolkit(pathXml::String, modelName::String, dirModel::String)
-
-    Convert a SBML file in pathXml to a Julia ModelingToolkit file and store
-    the resulting file in dirModel with name modelName.jl.
-
-    The SBML importer goes via libsbml in Python and currently likelly only
-    works with SBML level 3.
+    Convert a SBML file in pathXml to a Julia ModelingToolkit file and store 
+    the resulting file in dirModel with name modelName.jl. 
+    The SBML importer goes via libsbml in Python and currently likelly only 
+    works with SBML level 3. 
 """
 function XmlToModellingToolkit(pathXml::String, pathJlFile::AbstractString, modelName::AbstractString; writeToFile::Bool=true, ifElseToEvent::Bool=true)
 
@@ -21,7 +19,7 @@ function XmlToModellingToolkit(pathXml::String, pathJlFile::AbstractString, mode
     modelDict = buildODEModelDictionary(libsbml, model, ifElseToEvent)
 
     if writeToFile
-        writeODEModelToFile(modelDict, pathJlFile, modelName)
+        writeODEModelToFile(modelDict, model, pathJlFile, modelName)
     end
 
     return modelDict
@@ -29,13 +27,10 @@ function XmlToModellingToolkit(pathXml::String, pathJlFile::AbstractString, mode
 end
 
 
-
 """
     JLToModellingToolkit(modelName::String, dirModel::String)
-
-    Checks and fixes a Julia ModelingToolkit file and store
-    the fixed file in dirModel with name modelName_fix.jl.
-
+    Checks and fixes a Julia ModelingToolkit file and store 
+    the fixed file in dirModel with name modelName_fix.jl. 
 """
 function JLToModellingToolkit(modelName::String, dirModel::String; ifElseToEvent::Bool=true)
 
@@ -70,7 +65,7 @@ function JLToModellingToolkit(modelName::String, dirModel::String; ifElseToEvent
         modelDict["states"][string(stat.first)] = string(stat.second)
     end
 
-    # Rewrite any time-dependent ifelse to boolean statements such that we can express these as events.
+    # Rewrite any time-dependent ifelse to boolean statements such that we can express these as events. 
     # This is recomended, as it often increases the stabillity when solving the ODE, and decreases run-time
     if ifElseToEvent == true
         timeDependentIfElseToBool!(modelDict)
@@ -116,7 +111,7 @@ function JLToModellingToolkit(modelName::String, dirModel::String; ifElseToEvent
                     end
                 end
             end
-
+            
             # Adds boolVariables to the start of trueParameterValues
             searchStr = Regex("(trueParameterValues\\s*=\\s*\\[)")
             if occursin(searchStr, line)
@@ -182,13 +177,13 @@ function processInitialAssignment(libsbml, model, modelDict::Dict, baseFunctions
     initallyAssignedVariable = Dict{String, String}()
     initallyAssignedParameter = Dict{String, String}()
     for initAssign in model[:getListOfInitialAssignments]()
-
+        
         assignName = initAssign[:getId]()
         assignMath = initAssign[:getMath]()
         assignFormula = libsbml[:formulaToString](assignMath)
         assignFormula = rewriteDerivatives(assignFormula, modelDict, baseFunctions)
-
-        # Figure out wheter parameters or state is affected by the initial assignment
+        
+        # Figure out wheter parameters or state is affected by the initial assignment  
         if assignName in keys(modelDict["states"])
             modelDict["states"][assignName] = assignFormula
             initallyAssignedVariable[assignName] = "states"
@@ -206,7 +201,7 @@ function processInitialAssignment(libsbml, model, modelDict::Dict, baseFunctions
 
     end
 
-    # If the initial assignment for a state is the value of another state apply recursion until continue looping
+    # If the initial assignment for a state is the value of another state apply recursion until continue looping 
     # until we have the initial assignment expressed as non state variables
     while true
         nestedVariables = false
@@ -226,7 +221,7 @@ function processInitialAssignment(libsbml, model, modelDict::Dict, baseFunctions
         nestedVariables || break
     end
 
-    # If the initial assignment for a parameters is the value of another parameters apply recursion
+    # If the initial assignment for a parameters is the value of another parameters apply recursion 
     # until we have the initial assignment expressed as non parameters
     while true
         nestedParameter = false
@@ -252,11 +247,11 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
     # Nested dictionaries to store relevant model data:
     # i) Model parameters (constant during for a simulation)
     # ii) Model parameters that are nonConstant (e.g due to events) during a simulation
-    # iii) Model states
+    # iii) Model states 
     # iv) Model function (functions in the SBML file we rewrite to Julia syntax)
     # v) Model rules (rules defined in the SBML model we rewrite to Julia syntax)
     # vi) Model derivatives (derivatives defined by the SBML model)
-    modelDict = Dict()
+    modelDict = Dict()    
     modelDict["states"] = Dict()
     modelDict["parameters"] = Dict()
     modelDict["nonConstantParameters"] = Dict()
@@ -301,16 +296,16 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
         modelDict["parameters"][parameter[:getId]()] = string(parameter[:getValue]())
     end
 
-    # Extract model compartments and store their volumes along with the model parameters
+    # Extract model compartments and store their volumes along with the model parameters 
     for compartment in model[:getListOfCompartments]()
         modelDict["parameters"][compartment[:getId]()] = string(compartment[:getSize]())
     end
 
-    # Rewrite SBML functions into Julia syntax functions and store in dictionary to allow them to
+    # Rewrite SBML functions into Julia syntax functions and store in dictionary to allow them to 
     # be inserted into equation formulas downstream.
     for functionDefinition in model[:getListOfFunctionDefinitions]()
         math = functionDefinition[:getMath]()
-        functionName = functionDefinition[:getId]()
+        functionName = functionDefinition[:getId]()    
         args = getSBMLFuncArg(math)
         functionFormula = getSBMLFuncFormula(math, libsbml)
         modelDict["modelFunctions"][functionName] = [args[2:end-1], functionFormula] # (args, formula)
@@ -338,7 +333,7 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
             eventMath = eventAssignment[:getMath]()
             eventMathAsString = libsbml[:formulaToString](eventMath)
 
-            # Add the event
+            # Add the event 
             if eaIndex == 1
                 eventAsString = "[" * variableName * " ~ " * eventMathAsString
             else
@@ -356,10 +351,10 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
 
     # Extract model rules. Each rule-type is processed differently.
     for rule in model[:getListOfRules]()
-        ruleType = rule[:getElementName]()
-
+        ruleType = rule[:getElementName]() 
+        
         if ruleType == "assignmentRule"
-            ruleVariable = rule[:getVariable]()
+            ruleVariable = rule[:getVariable]() 
             ruleFormula = getRuleFormula(rule)
             processAssignmentRule!(modelDict, ruleFormula, ruleVariable, baseFunctions)
 
@@ -367,7 +362,7 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
             # TODO
             println("Currently we do not support algebraic rules :(")
 
-        elseif ruleType == "rateRule"
+        elseif ruleType == "rateRule"  
             ruleVariable = rule[:getVariable]() # variable
             ruleFormula = getRuleFormula(rule)
             processRateRule!(modelDict, ruleFormula, ruleVariable, baseFunctions)
@@ -382,6 +377,17 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
     for (reac, formula) in reactions
         products = [(p[:species], p[:getStoichiometry]()) for p in reac[:getListOfProducts]()]
         reactants = [(r[:species], r[:getStoichiometry]()) for r in reac[:getListOfReactants]()]
+
+        ## Replaces kinetic law parameters with their values (where-statements).
+        klparameters = reac[:getKineticLaw]()[:getListOfParameters]()
+        if length(klparameters) > 0
+            for klpar in klparameters
+                parameterName = klpar[:getId]()
+                parameterValue = klpar[:getValue]()
+                formula = replaceWholeWord(formula, parameterName, parameterValue)
+            end
+        end
+
         formula = rewriteDerivatives(formula, modelDict, baseFunctions)
         for (rName, rStoich) in reactants
             rComp = model[:getSpecies](rName)[:getCompartment]()
@@ -393,7 +399,7 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
         end
     end
 
-    # Check which parameters are a part derivatives or input function. If a parameter is not a part, e.g is an initial
+    # Check which parameters are a part derivatives or input function. If a parameter is not a part, e.g is an initial 
     # assignment parameters, add to dummy variable to keep it from being simplified away.
     isInODESys = falses(length(modelDict["parameters"]))
     for du in values(modelDict["derivatives"])
@@ -411,7 +417,7 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
         end
     end
 
-    # Rewrite any time-dependent ifelse to boolean statements such that we can express these as events.
+    # Rewrite any time-dependent ifelse to boolean statements such that we can express these as events. 
     # This is recomended, as it often increases the stabillity when solving the ODE, and decreases run-time
     if ifElseToEvent == true
         timeDependentIfElseToBool!(modelDict)
@@ -421,20 +427,18 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
     modelDict["discreteEventString"] = discreteEventString
     modelDict["numOfParameters"] =   string(length(model[:getListOfParameters]()))
     modelDict["numOfSpecies"] =   string(length(model[:getListOfSpecies]()))
-
+    
     return modelDict
 end
 
 """
     writeODEModelToFile(modelDict, modelName, dirModel)
-
     Takes a modelDict as defined by buildODEModelDictionary
-    and creates a Julia ModelingToolkit file and stores
-    the resulting file in dirModel with name modelName.jl.
-
+    and creates a Julia ModelingToolkit file and stores 
+    the resulting file in dirModel with name modelName.jl. 
 """
-function writeODEModelToFile(modelDict, pathJlFile, modelName)
-    ### Writing to file
+function writeODEModelToFile(modelDict, model, pathJlFile, modelName)
+    ### Writing to file 
     modelFile = open(pathJlFile, "w")
 
     println(modelFile, "# Model name: " * modelName)
@@ -482,7 +486,7 @@ function writeODEModelToFile(modelDict, pathJlFile, modelName)
         end
         println(modelFile, defineVariableParameters)
     end
-
+    
     println(modelFile, "")
     println(modelFile, "    ### Define parameters")
     defineParameters = "    ModelingToolkit.@parameters"
@@ -524,11 +528,15 @@ function writeODEModelToFile(modelDict, pathJlFile, modelName)
         println(modelFile, "    " * discreteEventString)
         println(modelFile, "    ]")
     end
-
+    
     println(modelFile, "")
     println(modelFile, "    ### Derivatives ###")
     println(modelFile, "    eqs = [")
     for (sIndex, key) in enumerate(keys(modelDict["states"]))
+        # If the state is not part of any reaction we set its value to zero.
+        if occursin(Regex("~\\s*\$"),modelDict["derivatives"][key])
+            modelDict["derivatives"][key] *= "0.0"
+        end
         if sIndex == 1
             print(modelFile, "    " * modelDict["derivatives"][key])
         else
@@ -597,7 +605,6 @@ function writeODEModelToFile(modelDict, pathJlFile, modelName)
     println(modelFile, "    return sys, initialSpeciesValues, trueParameterValues")
     println(modelFile, "")
     println(modelFile, "end")
-
+        
     close(modelFile)
-
 end

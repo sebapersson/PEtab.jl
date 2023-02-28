@@ -357,14 +357,6 @@ function __adjoint_sensitivities!(_du::AbstractVector,
             for i in (length(t) - 1):-1:1
                 res .+= SciMLSensitivity.quadgk(integrand, t[i], t[i + 1],
                                    atol = absTol, rtol = relTol)[1]
-                #=
-                if SciMLSensitivity.ArrayInterface.ismutable(res)
-                    
-                else
-                    res += SciMLSensitivity.quadgk(integrand, t[i], t[i + 1],
-                                  atol = absTol, rtol = relTol)[1]
-                end
-                =#
                 if t[i] == t[i + 1]
                     integrand = SciMLSensitivity.update_integrand_and_dgrad(res, sensealg, callback,
                                                                             integrand,
