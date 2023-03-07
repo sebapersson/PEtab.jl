@@ -156,12 +156,10 @@ end
 # Compute gradient via adjoint sensitivity analysis
 function computeGradientAdjointEquations!(gradient::Vector{Float64},
                                           θ_est::Vector{Float64},
-                                          adjointODESolver::SciMLAlgorithm,
+                                          solverOptions::ODESolverOptions,
                                           computeCostNotODESystemθ::Function,
                                           sensealg::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
-                                          sensealgSS::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
-                                          solverAbsTol::Float64,
-                                          solverRelTol::Float64,
+                                          sensealgSS::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,                                          
                                           odeProblem::ODEProblem,
                                           petabModel::PEtabModel,
                                           simulationInfo::SimulationInfo,
@@ -181,8 +179,8 @@ function computeGradientAdjointEquations!(gradient::Vector{Float64},
     θ_nonDynamic = petabODECache.θ_nonDynamic
 
     # Calculate gradient seperately for dynamic and non dynamic parameter.
-    computeGradientAdjointDynamicθ(petabODECache.gradientDyanmicθ, θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, odeProblem, adjointODESolver,
-                                   solverAbsTol, solverRelTol, sensealg, petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo,
+    computeGradientAdjointDynamicθ(petabODECache.gradientDyanmicθ, θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, odeProblem, solverOptions,
+                                   sensealg, petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo,
                                    changeODEProblemParameters!, solveOdeModelAllConditions!, petabODECache; expIDSolve=expIDSolve,
                                    sensealgSS=sensealgSS)
     @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ

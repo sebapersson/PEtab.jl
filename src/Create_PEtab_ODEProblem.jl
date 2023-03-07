@@ -1,30 +1,27 @@
 function setUpPEtabODEProblem(petabModel::PEtabModel,
-                              odeSolver::SciMLAlgorithm;
+                              odeSolverOptions::ODESolverOptions;
+                              odeSolverGradientOptions::Union{Nothing, ODESolverOptions}=nothing,
                               costMethod::Symbol=:Standard,
                               gradientMethod::Symbol=:ForwardDiff,
                               hessianMethod::Symbol=:ForwardDiff,
-                              solverAbsTol::Float64=1e-8,
-                              solverRelTol::Float64=1e-8,
                               solverSSRelTol::Float64=1e-6,
                               solverSSAbsTol::Float64=1e-8,
                               sparseJacobian::Bool=false,
                               specializeLevel=SciMLBase.FullSpecialize,
-                              sensealgZygote=ForwardDiffSensitivity(),
-                              odeSolverForwardEquations::SciMLAlgorithm=Rodas5(autodiff=false),
-                              sensealgForwardEquations::Union{Symbol, SciMLSensitivity.AbstractForwardSensitivityAlgorithm}=:ForwardDiff,
-                              odeSolverAdjoint::SciMLAlgorithm=KenCarp4(),
-                              solverAdjointAbsTol::Float64=1e-8,
-                              solverAdjointRelTol::Float64=1e-8,
-                              sensealgAdjoint::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm=InterpolatingAdjoint(autojacvec=ReverseDiffVJP(false)),
-                              sensealgAdjointSS::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm=SteadyStateAdjoint(),
+                              sensealg::Union{Symbol, SciMLBase.AbstractSensitivityAlgorithm}=InterpolatingAdjoint(autojacvec=ReverseDiffVJP(false)),
+                              sensealgSS::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm=SteadyStateAdjoint(),
                               chunkSize::Union{Nothing, Int64}=nothing,
                               terminateSSMethod::Symbol=:Norm,
                               splitOverConditions::Bool=false,
                               numberOfprocesses::Signed=1,
                               reuseS::Bool=false)::PEtabODEProblem
 
-    if !(typeof(sensealgAdjointSS) <: SteadyStateAdjoint)
-        println("If you are using adjoint sensitivity analysis for a model with PreEq-criteria the most the most efficient adjSensealgSS is usually SteadyStateAdjoint. The algorithm you have provided, ", sensealgAdjointSS, "might not work (as there are some bugs here). In case it does not work, and SteadyStateAdjoint fails (because a dependancy on time or a singular Jacobian) a good choice might be QuadratureAdjoint(autodiff=false, autojacvec=false)")
+    if !(typeof(sensealgSS) <: SteadyStateAdjoint)
+        println("If you are using adjoint sensitivity analysis for a model with PreEq-criteria the most the most efficient adjSensealgSS is usually SteadyStateAdjoint. The algorithm you have provided, ", sensealgSS, ", might not work (as there are some bugs here). In case it does not work, and SteadyStateAdjoint fails (because it required a non-singular Jacobian) a good choice might be QuadratureAdjoint(autodiff=false, autojacvec=false)")
+    end
+
+    if isnothing(odeSolverGradientOptions)
+        odeSolverGradientOptions = deepcopy(odeSolverOptions)
     end
 
     # Make sure proper gradient and hessian methods are used 
@@ -38,7 +35,7 @@ function setUpPEtabODEProblem(petabModel::PEtabModel,
     experimentalConditions, measurementsData, parametersData, observablesData = readPEtabFiles(petabModel)
     parameterInfo = processParameters(parametersData)
     measurementInfo = processMeasurements(measurementsData, observablesData)
-    simulationInfo = processSimulationInfo(petabModel, measurementInfo, parameterInfo, sensealg=sensealgAdjoint, absTolSS=solverSSAbsTol, relTolSS=solverSSRelTol, terminateSSMethod=terminateSSMethod, sensealgForwardEquations=sensealgForwardEquations)
+    simulationInfo = processSimulationInfo(petabModel, measurementInfo, sensealg=sensealg, absTolSS=solverSSAbsTol, relTolSS=solverSSRelTol, terminateSSMethod=terminateSSMethod)
     θ_indices = computeIndicesθ(parameterInfo, measurementInfo, petabModel.odeSystem, experimentalConditions)
 
     # Set up potential prior for the parameters to estimate
@@ -55,56 +52,44 @@ function setUpPEtabODEProblem(petabModel::PEtabModel,
     # If we are computing the cost, gradient and hessians accross several processes we need to send ODEProblem, and
     # PEtab structs to each process
     if numberOfprocesses > 1
-        jobs, results = setUpProcesses(petabModel, odeSolver, solverAbsTol, solverRelTol, odeSolverAdjoint, sensealgAdjoint,
-                                       sensealgAdjointSS, solverAdjointAbsTol, solverAdjointRelTol, odeSolverForwardEquations,
+        jobs, results = setUpProcesses(petabModel, odeSolverOptions, solverAbsTol, solverRelTol, odeSolverAdjoint, sensealgAdjoint,
+                                       sensealgSS, solverAdjointAbsTol, solverAdjointRelTol, odeSolverForwardEquations,
                                        sensealgForwardEquations, parameterInfo, measurementInfo, simulationInfo, θ_indices,
                                        priorInfo, odeProblem, chunkSize)
     else
         jobs, results = nothing, nothing
     end
 
-    petabODECache = createPEtabODEProblemCache(gradientMethod, hessianMethod, petabModel, sensealgForwardEquations, measurementInfo, simulationInfo, θ_indices, chunkSize)
+    petabODECache = createPEtabODEProblemCache(gradientMethod, hessianMethod, petabModel, sensealg, measurementInfo, simulationInfo, θ_indices, chunkSize)
     petabODESolverCache = createPEtabODESolverCache(gradientMethod, hessianMethod, petabModel, simulationInfo, θ_indices, chunkSize)
 
     # The cost (likelihood) can either be computed in the standard way or the Zygote way. The second consumes more
     # memory as in-place mutations are not compatible with Zygote
-    computeCost = setUpCost(costMethod, odeProblem, odeSolver, petabODECache, petabODESolverCache, solverAbsTol, solverRelTol, petabModel,
+    computeCost = setUpCost(costMethod, odeProblem, odeSolverOptions, petabODECache, petabODESolverCache, petabModel,
                             simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo,
                             numberOfprocesses=numberOfprocesses, jobs=jobs, results=results)
 
     # The gradient can either be computed via autodiff, forward sensitivity equations, adjoint sensitivity equations
     # and Zygote
     if gradientMethod === :ForwardEquations
-        sensealgArg = sensealgForwardEquations
-        odeSolverGradient = odeSolverForwardEquations
-    elseif gradientMethod === :ForwardDiff
-        sensealgArg = nothing
-        odeSolverGradient = odeSolver
+        @assert (typeof(sensealg) <: SciMLSensitivity.AbstractForwardSensitivityAlgorithm || typeof(sensealg) <: Symbol) "For forward equations allowed sensealg are ForwardDiffSensitivity(), ForwardSensitivity(), or :ForwardDiff"
     elseif gradientMethod === :Adjoint
-        sensealgArg = sensealgAdjoint
-        odeSolverGradient = odeSolverAdjoint
+        @assert (typeof(sensealg) <: SciMLSensitivity.AbstractAdjointSensitivityAlgorithm) "For adjoint sensitivity analysis allowed sensealg are InterpolatingAdjoint() or QuadratureAdjoint()"
     elseif gradientMethod === :Zygote
-        sensealgArg = sensealgZygote
-        odeSolverGradient = odeSolver
+        @assert (typeof(sensealg) <: SciMLSensitivity.AbstractSensitivityAlgorithm) "For Zygote an abstract sensitivity algorithm from SciMLSensitivity must be used"
     end
-    odeProblemGradient = gradientMethod === :ForwardEquations ? getODEProblemForwardEquations(odeProblem, sensealgArg) : getODEProblemForwardEquations(odeProblem, :NoSpecialProblem)
-    solverAbsGradientTol, solverRelGradientTol = gradientMethod === :Adjoint ? (solverAdjointAbsTol, solverAdjointRelTol) : (solverAbsTol, solverRelTol)
+    odeProblemGradient = gradientMethod === :ForwardEquations ? getODEProblemForwardEquations(odeProblem, sensealg) : getODEProblemForwardEquations(odeProblem, :NoSpecialProblem)
 
-    computeGradient! = setUpGradient(gradientMethod, odeProblemGradient, odeSolverGradient, petabODECache, petabODESolverCache, solverAbsGradientTol, solverRelGradientTol, petabModel,
+    computeGradient! = setUpGradient(gradientMethod, odeProblemGradient, odeSolverGradientOptions, petabODECache, petabODESolverCache, petabModel,
                                      simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo,
                                      chunkSize=chunkSize, numberOfprocesses=numberOfprocesses, jobs=jobs, results=results,
-                                     splitOverConditions=splitOverConditions, sensealg=sensealgArg, 
-                                     sensealgSS=sensealgAdjointSS)
+                                     splitOverConditions=splitOverConditions, sensealg=sensealg, 
+                                     sensealgSS=sensealgSS)
 
 
     # The Hessian can either be computed via automatic differentation, or approximated via a block approximation or the
     # Gauss Newton method
-    if hessianMethod === :GaussNewton
-        odeSolverHessian = odeSolverForwardEquations
-    else
-        odeSolverHessian = odeSolver
-    end
-    computeHessian! = setUpHessian(hessianMethod, odeProblem, odeSolverHessian, petabODECache, petabODESolverCache, solverAbsTol, solverRelTol, 
+    computeHessian! = setUpHessian(hessianMethod, odeProblem, odeSolverOptions, petabODECache, petabODESolverCache,
                                    petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo, chunkSize,
                                    numberOfprocesses=numberOfprocesses, jobs=jobs, results=results, splitOverConditions=splitOverConditions, 
                                    reuseS=reuseS)
@@ -138,18 +123,16 @@ end
 
 function setUpCost(whichMethod::Symbol,
                    odeProblem::ODEProblem,
-                   odeSolver::SciMLAlgorithm,
+                   odeSolverOptions::ODESolverOptions,
                    petabODECache::PEtabODEProblemCache,
                    petabODESolverCache::PEtabODESolverCache,
-                   solverAbsTol::Float64,
-                   solverRelTol::Float64,
                    petabModel::PEtabModel,
                    simulationInfo::SimulationInfo,
                    θ_indices::ParameterIndices,
                    measurementInfo::MeasurementsInfo,
                    parameterInfo::ParametersInfo,
                    priorInfo::PriorInfo;
-                   sensealgZygote=ForwardDiffSensitivity(),
+                   sensealg=ForwardDiffSensitivity(),
                    numberOfprocesses::Int64=1,
                    jobs=nothing,
                    results=nothing, 
@@ -160,7 +143,7 @@ function setUpCost(whichMethod::Symbol,
 
         _changeODEProblemParameters! = (pODEProblem, u0, θ_est) -> changeODEProblemParameters!(pODEProblem, u0, θ_est, θ_indices, petabModel)
         changeExperimentalCondition! = (pODEProblem, u0, conditionId, θ_dynamic) -> _changeExperimentalCondition!(pODEProblem, u0, conditionId, θ_dynamic, petabModel, θ_indices)
-        _solveODEAllExperimentalConditions! = (odeSolutions, odeProblem, θ_dynamic, _expIDSolve) -> solveODEAllExperimentalConditions!(odeSolutions, odeProblem, θ_dynamic, petabODESolverCache, changeExperimentalCondition!, simulationInfo, odeSolver, solverAbsTol, solverRelTol, petabModel.computeTStops, onlySaveAtObservedTimes=true, expIDSolve=_expIDSolve, convertTspan=petabModel.convertTspan)
+        _solveODEAllExperimentalConditions! = (odeSolutions, odeProblem, θ_dynamic, _expIDSolve) -> solveODEAllExperimentalConditions!(odeSolutions, odeProblem, θ_dynamic, petabODESolverCache, changeExperimentalCondition!, simulationInfo, odeSolverOptions, petabModel.computeTStops, onlySaveAtObservedTimes=true, expIDSolve=_expIDSolve, convertTspan=petabModel.convertTspan)
         __computeCost = (θ_est) -> computeCost(θ_est,
                                                 odeProblem,
                                                 petabModel,
@@ -178,17 +161,17 @@ function setUpCost(whichMethod::Symbol,
     elseif whichMethod == :Zygote
         changeExperimentalCondition = (pODEProblem, u0, conditionId, θ_dynamic) -> _changeExperimentalCondition(pODEProblem, u0, conditionId, θ_dynamic, petabModel, θ_indices)
         _changeODEProblemParameters = (pODEProblem, θ_est) -> changeODEProblemParameters(pODEProblem, θ_est, θ_indices, petabModel)
-        solveODEExperimentalCondition = (odeProblem, conditionId, θ_dynamic, tMax) -> solveOdeModelAtExperimentalCondZygote(odeProblem, conditionId, θ_dynamic, tMax, changeExperimentalCondition, measurementInfo, simulationInfo, odeSolver, solverAbsTol, solverRelTol, sensealgZygote, petabModel.computeTStops)
+        solveODEExperimentalCondition = (odeProblem, conditionId, θ_dynamic, tMax) -> solveOdeModelAtExperimentalCondZygote(odeProblem, conditionId, θ_dynamic, tMax, changeExperimentalCondition, measurementInfo, simulationInfo, odeSolverOptions.solver, odeSolverOptions.abstol, odeSolverOptions.reltol, sensealg, petabModel.computeTStops)
         __computeCost = (θ_est) -> computeCostZygote(θ_est,
-                                                   odeProblem,
-                                                   petabModel,
-                                                   simulationInfo,
-                                                   θ_indices,
-                                                   measurementInfo,
-                                                   parameterInfo,
-                                                   _changeODEProblemParameters,
-                                                   solveODEExperimentalCondition,
-                                                   priorInfo)
+                                                     odeProblem,
+                                                     petabModel,
+                                                     simulationInfo,
+                                                     θ_indices,
+                                                     measurementInfo,
+                                                     parameterInfo,
+                                                     _changeODEProblemParameters,
+                                                     solveODEExperimentalCondition,
+                                                     priorInfo)
 
     else
         __computeCost = (θ_est) ->  begin
@@ -214,11 +197,9 @@ end
 
 function setUpGradient(whichMethod::Symbol,
                        odeProblem::ODEProblem,
-                       odeSolver::SciMLAlgorithm,
+                       odeSolverOptions::ODESolverOptions,
                        petabODECache::PEtabODEProblemCache,
                        petabODESolverCache::PEtabODESolverCache,
-                       solverAbsTol::Float64,
-                       solverRelTol::Float64,
                        petabModel::PEtabModel,
                        simulationInfo::SimulationInfo,
                        θ_indices::ParameterIndices,
@@ -242,7 +223,7 @@ function setUpGradient(whichMethod::Symbol,
 
         _changeODEProblemParameters! = (pODEProblem, u0, θ_est) -> changeODEProblemParameters!(pODEProblem, u0, θ_est, θ_indices, petabModel)
         changeExperimentalCondition! = (pODEProblem, u0, conditionId, θ_dynamic) -> _changeExperimentalCondition!(pODEProblem, u0, conditionId, θ_dynamic, petabModel, θ_indices)
-        _solveODEAllExperimentalConditions! = (odeSolutions, odeProblem, θ_dynamic, _expIDSolve) -> solveODEAllExperimentalConditions!(odeSolutions, odeProblem, θ_dynamic, petabODESolverCache, changeExperimentalCondition!, simulationInfo, odeSolver, solverAbsTol, solverRelTol, petabModel.computeTStops, onlySaveAtObservedTimes=true, expIDSolve=_expIDSolve, convertTspan=petabModel.convertTspan)
+        _solveODEAllExperimentalConditions! = (odeSolutions, odeProblem, θ_dynamic, _expIDSolve) -> solveODEAllExperimentalConditions!(odeSolutions, odeProblem, θ_dynamic, petabODESolverCache, changeExperimentalCondition!, simulationInfo, odeSolverOptions, petabModel.computeTStops, onlySaveAtObservedTimes=true, expIDSolve=_expIDSolve, convertTspan=petabModel.convertTspan)
 
         iθ_sd, iθ_observable, iθ_nonDynamic, iθ_notOdeSystem = getIndicesParametersNotInODESystem(θ_indices)
         computeCostNotODESystemθ = (x) -> computeCostNotSolveODE(x[iθ_sd], x[iθ_observable], x[iθ_nonDynamic],
@@ -296,9 +277,9 @@ function setUpGradient(whichMethod::Symbol,
             changeExperimentalCondition! = (pODEProblem, u0, conditionId, θ_dynamic) -> _changeExperimentalCondition!(pODEProblem, u0, conditionId, θ_dynamic, petabModel, θ_indices)
 
             if splitOverConditions == false            
-                _solveODEAllExperimentalConditions! = (odeSolutionValues, θ) -> solveODEAllExperimentalConditions!(odeSolutionValues, θ, petabODESolverCache, simulationInfo.odeSolutionsDerivatives, odeProblem, changeExperimentalCondition!, _changeODEProblemParameters!, simulationInfo, odeSolver, solverAbsTol, solverRelTol, petabModel.computeTStops, onlySaveAtObservedTimes=true, expIDSolve=[:all], convertTspan=petabModel.convertTspan)
+                _solveODEAllExperimentalConditions! = (odeSolutionValues, θ) -> solveODEAllExperimentalConditions!(odeSolutionValues, θ, petabODESolverCache, simulationInfo.odeSolutionsDerivatives, odeProblem, changeExperimentalCondition!, _changeODEProblemParameters!, simulationInfo, odeSolverOptions, petabModel.computeTStops, onlySaveAtObservedTimes=true, expIDSolve=[:all], convertTspan=petabModel.convertTspan)
             else
-                _solveODEAllExperimentalConditions! = (odeSolutionValues, θ, _expIdSolve) -> solveODEAllExperimentalConditions!(odeSolutionValues, θ, petabODESolverCache, simulationInfo.odeSolutionsDerivatives, odeProblem, changeExperimentalCondition!, _changeODEProblemParameters!, simulationInfo, odeSolver, solverAbsTol, solverRelTol, petabModel.computeTStops, onlySaveAtObservedTimes=true, expIDSolve=_expIdSolve, convertTspan=petabModel.convertTspan)
+                _solveODEAllExperimentalConditions! = (odeSolutionValues, θ, _expIdSolve) -> solveODEAllExperimentalConditions!(odeSolutionValues, θ, petabODESolverCache, simulationInfo.odeSolutionsDerivatives, odeProblem, changeExperimentalCondition!, _changeODEProblemParameters!, simulationInfo, odeSolverOptions, petabModel.computeTStops, onlySaveAtObservedTimes=true, expIDSolve=_expIdSolve, convertTspan=petabModel.convertTspan)
             end
             
             if !isnothing(chunkSize)
@@ -309,7 +290,7 @@ function setUpGradient(whichMethod::Symbol,
 
         else
             changeExperimentalCondition! = (pODEProblem, u0, conditionId, θ_dynamic) -> _changeExperimentalCondition!(pODEProblem, u0, conditionId, θ_dynamic, petabModel, θ_indices, computeForwardSensitivites=true)
-            _solveODEAllExperimentalConditions! = (odeSolutions, odeProblem, θ_dynamic, _expIDSolve) -> solveODEAllExperimentalConditions!(odeSolutions, odeProblem, θ_dynamic, petabODESolverCache, changeExperimentalCondition!, simulationInfo, odeSolver, solverAbsTol, solverRelTol, petabModel.computeTStops, onlySaveAtObservedTimes=true, expIDSolve=_expIDSolve, convertTspan=petabModel.convertTspan)
+            _solveODEAllExperimentalConditions! = (odeSolutions, odeProblem, θ_dynamic, _expIDSolve) -> solveODEAllExperimentalConditions!(odeSolutions, odeProblem, θ_dynamic, petabODESolverCache, changeExperimentalCondition!, simulationInfo, odeSolverOptions, petabModel.computeTStops, onlySaveAtObservedTimes=true, expIDSolve=_expIDSolve, convertTspan=petabModel.convertTspan)
             cfg = nothing
         end
 
@@ -347,15 +328,13 @@ function setUpGradient(whichMethod::Symbol,
 
         _changeODEProblemParameters! = (pODEProblem, u0, θ_est) -> changeODEProblemParameters!(pODEProblem, u0, θ_est, θ_indices, petabModel)
         changeExperimentalCondition! = (pODEProblem, u0, conditionId, θ_dynamic) -> _changeExperimentalCondition!(pODEProblem, u0, conditionId, θ_dynamic, petabModel, θ_indices)
-        _solveODEAllExperimentalConditions! = (odeSolutions, odeProblem, θ_dynamic, _expIDSolve) -> solveODEAllExperimentalConditions!(odeSolutions, odeProblem, θ_dynamic, petabODESolverCache, changeExperimentalCondition!, simulationInfo, odeSolver, solverAbsTol, solverRelTol, petabModel.computeTStops, denseSolution=true, expIDSolve=_expIDSolve, trackCallback=true)
+        _solveODEAllExperimentalConditions! = (odeSolutions, odeProblem, θ_dynamic, _expIDSolve) -> solveODEAllExperimentalConditions!(odeSolutions, odeProblem, θ_dynamic, petabODESolverCache, changeExperimentalCondition!, simulationInfo, odeSolverOptions, petabModel.computeTStops, denseSolution=true, expIDSolve=_expIDSolve, trackCallback=true)
         _computeGradient! = (gradient, θ_est) -> computeGradientAdjointEquations!(gradient,
                                                                                  θ_est,
-                                                                                 odeSolver,
+                                                                                 odeSolverOptions,
                                                                                  computeCostNotODESystemθ,
                                                                                  sensealg,
                                                                                  sensealgSS,
-                                                                                 solverAbsTol,
-                                                                                 solverRelTol,
                                                                                  odeProblem,
                                                                                  petabModel,
                                                                                  simulationInfo,
@@ -372,7 +351,7 @@ function setUpGradient(whichMethod::Symbol,
 
         changeExperimentalCondition = (pODEProblem, u0, conditionId, θ_dynamic) -> _changeExperimentalCondition(pODEProblem, u0, conditionId, θ_dynamic, petabModel, θ_indices)
         _changeODEProblemParameters = (pODEProblem, θ_est) -> changeODEProblemParameters(pODEProblem, θ_est, θ_indices, petabModel)
-        solveODEExperimentalCondition = (odeProblem, conditionId, θ_dynamic, tMax) -> solveOdeModelAtExperimentalCondZygote(odeProblem, conditionId, θ_dynamic, tMax, changeExperimentalCondition, measurementInfo, simulationInfo, odeSolver, solverAbsTol, solverRelTol, sensealg, petabModel.computeTStops)
+        solveODEExperimentalCondition = (odeProblem, conditionId, θ_dynamic, tMax) -> solveOdeModelAtExperimentalCondZygote(odeProblem, conditionId, θ_dynamic, tMax, changeExperimentalCondition, measurementInfo, simulationInfo, odeSolverOptions.solver, odeSolverOptions.abstol, odeSolverOptions.reltol, sensealg, petabModel.computeTStops)
         _computeGradient! = (gradient, θ_est) -> computeGradientZygote(gradient,
                                                                       θ_est,
                                                                       odeProblem,
@@ -411,11 +390,9 @@ end
 
 function setUpHessian(whichMethod::Symbol,
                       odeProblem::ODEProblem,
-                      odeSolver::SciMLAlgorithm,
+                      odeSolverOptions::ODESolverOptions,
                       petabODECache::PEtabODEProblemCache,
                       petabODESolverCache::PEtabODESolverCache,
-                      solverAbsTol::Float64,
-                      solverRelTol::Float64,
                       petabModel::PEtabModel,
                       simulationInfo::SimulationInfo,
                       θ_indices::ParameterIndices,
@@ -439,7 +416,7 @@ function setUpHessian(whichMethod::Symbol,
     if (whichMethod === :ForwardDiff || whichMethod === :BlockForwardDiff) && numberOfprocesses == 1
         _changeODEProblemParameters! = (pODEProblem, u0, θ_est) -> changeODEProblemParameters!(pODEProblem, u0, θ_est, θ_indices, petabModel)
         changeExperimentalCondition! = (pODEProblem, u0, conditionId, θ_dynamic) -> _changeExperimentalCondition!(pODEProblem, u0, conditionId, θ_dynamic, petabModel, θ_indices)
-        _solveODEAllExperimentalConditions! = (odeSolutions, odeProblem, θ_dynamic, _expIDSolve) -> solveODEAllExperimentalConditions!(odeSolutions, odeProblem, θ_dynamic, petabODESolverCache, changeExperimentalCondition!, simulationInfo, odeSolver, solverAbsTol, solverRelTol, petabModel.computeTStops, onlySaveAtObservedTimes=true, expIDSolve=_expIDSolve, convertTspan=petabModel.convertTspan)
+        _solveODEAllExperimentalConditions! = (odeSolutions, odeProblem, θ_dynamic, _expIDSolve) -> solveODEAllExperimentalConditions!(odeSolutions, odeProblem, θ_dynamic, petabODESolverCache, changeExperimentalCondition!, simulationInfo, odeSolverOptions, petabModel.computeTStops, onlySaveAtObservedTimes=true, expIDSolve=_expIDSolve, convertTspan=petabModel.convertTspan)
 
         if whichMethod === :ForwardDiff
 
@@ -533,9 +510,9 @@ function setUpHessian(whichMethod::Symbol,
         changeExperimentalCondition! = (pODEProblem, u0, conditionId, θ_dynamic) -> _changeExperimentalCondition!(pODEProblem, u0, conditionId, θ_dynamic, petabModel, θ_indices)
 
         if splitOverConditions == false        
-            _solveODEAllExperimentalConditions! = (odeSolutionValues, θ) -> solveODEAllExperimentalConditions!(odeSolutionValues, θ, petabODESolverCache, simulationInfo.odeSolutionsDerivatives, odeProblem, changeExperimentalCondition!, _changeODEProblemParameters!, simulationInfo, odeSolver, solverAbsTol, solverRelTol, petabModel.computeTStops, onlySaveAtObservedTimes=true, expIDSolve=[:all], convertTspan=petabModel.convertTspan)
+            _solveODEAllExperimentalConditions! = (odeSolutionValues, θ) -> solveODEAllExperimentalConditions!(odeSolutionValues, θ, petabODESolverCache, simulationInfo.odeSolutionsDerivatives, odeProblem, changeExperimentalCondition!, _changeODEProblemParameters!, simulationInfo, odeSolverOptions, petabModel.computeTStops, onlySaveAtObservedTimes=true, expIDSolve=[:all], convertTspan=petabModel.convertTspan)
         else
-            _solveODEAllExperimentalConditions! = (odeSolutionValues, θ, _expIdSolve) -> solveODEAllExperimentalConditions!(odeSolutionValues, θ, petabODESolverCache, simulationInfo.odeSolutionsDerivatives, odeProblem, changeExperimentalCondition!, _changeODEProblemParameters!, simulationInfo, odeSolver, solverAbsTol, solverRelTol, petabModel.computeTStops, onlySaveAtObservedTimes=true, expIDSolve=_expIdSolve, convertTspan=petabModel.convertTspan)
+            _solveODEAllExperimentalConditions! = (odeSolutionValues, θ, _expIdSolve) -> solveODEAllExperimentalConditions!(odeSolutionValues, θ, petabODESolverCache, simulationInfo.odeSolutionsDerivatives, odeProblem, changeExperimentalCondition!, _changeODEProblemParameters!, simulationInfo, odeSolverOptions, petabModel.computeTStops, onlySaveAtObservedTimes=true, expIDSolve=_expIdSolve, convertTspan=petabModel.convertTspan)
         end
         
         if !isnothing(chunkSize)
@@ -611,7 +588,7 @@ end
 function createPEtabODEProblemCache(gradientMethod::Symbol, 
                                     hessianMethod::Symbol, 
                                     petabModel::PEtabModel,
-                                    sensealgForwardEquations,
+                                    sensealg,
                                     measurementInfo::MeasurementsInfo,
                                     simulationInfo::SimulationInfo,
                                     θ_indices::ParameterIndices, 
@@ -679,7 +656,7 @@ function createPEtabODEProblemCache(gradientMethod::Symbol,
     # sensitivity matrix all experimental conditions (to efficiently levarage autodiff and handle scenarios are
     # pre-equlibrita model). Here we pre-allocate said matrix and the output matrix from the forward senstivity 
     # code
-    if (gradientMethod === :ForwardEquations && sensealgForwardEquations === :ForwardDiff) || hessianMethod === :GaussNewton
+    if (gradientMethod === :ForwardEquations && sensealg === :ForwardDiff) || hessianMethod === :GaussNewton
         nModelStates = length(states(petabModel.odeSystem))
         nTimePointsSaveAt = sum(length(simulationInfo.timeObserved[experimentalConditionId]) for experimentalConditionId in simulationInfo.experimentalConditionId)
         S = zeros(Float64, (nTimePointsSaveAt*nModelStates, length(θ_indices.θ_dynamicNames)))
@@ -786,4 +763,16 @@ function createPEtabODESolverCache(gradientMethod::Symbol,
 
     return PEtabODESolverCache(pODEProblemCache, u0Cache)
 
+end
+
+
+function getODESolverOptions(solver::T1; 
+                             solverAbstol::Float64=1e-8, 
+                             solverReltol::Float64=1e-8, 
+                             force_dtmin::Bool=false, 
+                             dtmin::Union{Float64, Nothing}=nothing, 
+                             maxiters::Int64=100000)::ODESolverOptions where T1 <: SciMLAlgorithm 
+
+    solverOptions = ODESolverOptions(solver, solverAbstol, solverReltol, force_dtmin, dtmin, maxiters)
+    return solverOptions
 end

@@ -69,75 +69,6 @@ function readPEtabFiles(petabModel::PEtabModel)
 end
 
 
-"""
-checkForPeTabFile(fileSearchFor::String, dirModel::String)::String
-
-Helper function to check in dirModel if a file starting with fileSearchFor exists.
-If true return file path.
-"""
-function checkForPeTabFile(fileSearchFor::String, dirModel::String)::String
-
-filesDirModel = readdir(dirModel)
-iUse = findall(x -> occursin(fileSearchFor, x), filesDirModel)
-if length(iUse) > 1
-    printf("Error : More than 1 file starting with %s in %s\n", fileSearchFor, filesDirModel)
-end
-if length(iUse) == 0
-    printf("Error : No file starting with %s in %s\n", fileSearchFor, filesDirModel)
-end
-
-return dirModel * filesDirModel[iUse[1]]
-end
-
-
-
-"""
-checkDataFrameColumns(dataFrame, dataFrameName, colsToCheck, allowedTypesVec, requiredCols)
-        Goes through each column from colsToCheck in dataFrame and checks
-        if each column is of any of the DataTypes specified in allowedTypesVec[colIndex].
-        Returns true if all columns are ok and false otherwise.
-        requiredCols is an array of mandatory columns. If a mandatory column is missing
-        an error is thrown, and if a mandatory column contains missing rows a warning is
-        thrown.
-"""
-function checkDataFrameColumns(dataFrame, dataFrameName, colsToCheck, allowedTypesVec, requiredCols)
-
-    check = true
-
-    for colIndex in eachindex(colsToCheck)
-
-        colName = colsToCheck[colIndex]
-        allowedTypes = allowedTypesVec[colIndex]
-
-        # If column is required and not present an error is thrown.
-        if (colName in requiredCols) && !(colName in names(dataFrame))
-            throw(PEtabFileError("Required column '" * colName * "' missing in file '" * dataFrameName * "'"))
-        # If column is required and there are missing values in that column a warning is thrown.
-        elseif (colName in requiredCols) && (Missing <: eltype(dataFrame[!, colName]))
-            println("Warning : Required column " * colName * " contains rows with missing values.")
-        # If column is not required and present the check is skipped.
-        elseif !(colName in requiredCols) && !(colName in names(dataFrame))
-            continue
-        end
-
-        # Extract column excluding missing values
-        colToCheck = dropmissing(dataFrame, colName)[!, colName]
-        dType = eltype(colToCheck)
-
-        if (allowedTypes isa Array{DataType, 1})
-            check &= dType <: Union{allowedTypes...}
-        elseif (allowedTypes isa Array{String, 1}) || (allowedTypes isa Array{Int64, 1})
-            check &= all(x->x in allowedTypes, colToCheck)
-        end
-
-        if !check
-            throw(PEtabFileError("Wrong DataType or value in file '" * dataFrameName * "' column '" * colName * "'. Must be: " * "[" * join(allowedTypes, ", ") * "]" * "."))
-        end
-
-    end
-
-end
-
 function checkFilesForCorrectDataType(experimentalConditions, measurementsData, parametersData, observablesData)
 
     # Allowed DataTypes for the different columns in the files
@@ -185,4 +116,50 @@ function checkFilesForCorrectDataType(experimentalConditions, measurementsData, 
     requiredCols = ["observableId", "observableFormula", "noiseFormula"]
     checkDataFrameColumns(observablesData, "observablesData", colsToCheck, allowedTypesVec, requiredCols)
 
+end
+
+
+"""
+checkDataFrameColumns(dataFrame, dataFrameName, colsToCheck, allowedTypesVec, requiredCols)
+        
+    Goes through each column from colsToCheck in dataFrame and checks
+    if each column is of any of the DataTypes specified in allowedTypesVec[colIndex].
+    Returns true if all columns are ok and false otherwise.
+    requiredCols is an array of mandatory columns. If a mandatory column is missing
+    an error is thrown, and if a mandatory column contains missing rows a warning is thrown.
+"""
+function checkDataFrameColumns(dataFrame, dataFrameName, colsToCheck, allowedTypesVec, requiredCols)
+
+    check = true
+
+    for colIndex in eachindex(colsToCheck)
+
+        colName = colsToCheck[colIndex]
+        allowedTypes = allowedTypesVec[colIndex]
+
+        # If column is required and not present an error is thrown.
+        if (colName in requiredCols) && !(colName in names(dataFrame))
+            throw(PEtabFileError("Required column '" * colName * "' missing in file '" * dataFrameName * "'"))
+        # If column is required and there are missing values in that column a warning is thrown.
+        elseif (colName in requiredCols) && (Missing <: eltype(dataFrame[!, colName]))
+            println("Warning : Required column " * colName * " contains rows with missing values.")
+        # If column is not required and present the check is skipped.
+        elseif !(colName in requiredCols) && !(colName in names(dataFrame))
+            continue
+        end
+
+        # Extract column excluding missing values
+        colToCheck = dropmissing(dataFrame, colName)[!, colName]
+        dType = eltype(colToCheck)
+
+        if (allowedTypes isa Array{DataType, 1})
+            check &= dType <: Union{allowedTypes...}
+        elseif (allowedTypes isa Array{String, 1}) || (allowedTypes isa Array{Int64, 1})
+            check &= all(x->x in allowedTypes, colToCheck)
+        end
+
+        if !check
+            throw(PEtabFileError("Wrong DataType or value in file '" * dataFrameName * "' column '" * colName * "'. Must be: " * "[" * join(allowedTypes, ", ") * "]" * "."))
+        end
+    end
 end

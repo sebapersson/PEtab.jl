@@ -75,6 +75,6 @@ include(joinpath("SBML", "Common.jl"))
 include(joinpath("SBML", "Process_functions.jl"))
 include(joinpath("SBML", "Process_rules.jl"))
 
-export PEtabModel, PEtabODEProblem, readPEtabModel, setUpPEtabODEProblem
+export PEtabModel, PEtabODEProblem, ODESolverOptions, readPEtabModel, setUpPEtabODEProblem, getODESolverOptions
 
 end

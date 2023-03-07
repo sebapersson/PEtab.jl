@@ -6,13 +6,11 @@
 
 
 function processSimulationInfo(petabModel::PEtabModel,
-                               measurementInfo::MeasurementsInfo,
-                               parameterInfo::ParametersInfo;
+                               measurementInfo::MeasurementsInfo;
                                absTolSS::Float64=1e-8,
                                relTolSS::Float64=1e-6,
-                               sensealg::Union{SciMLSensitivity.AbstractForwardSensitivityAlgorithm, SciMLSensitivity.AbstractAdjointSensitivityAlgorithm}=InterpolatingAdjoint(),
-                               terminateSSMethod::Symbol=:Norm,
-                               sensealgForwardEquations::Union{Symbol, SciMLSensitivity.AbstractForwardSensitivityAlgorithm}=ForwardSensitivity())::SimulationInfo
+                               sensealg::Union{Symbol, SciMLSensitivity.AbstractForwardSensitivityAlgorithm, SciMLSensitivity.AbstractAdjointSensitivityAlgorithm}=InterpolatingAdjoint(),
+                               terminateSSMethod::Symbol=:Norm)::SimulationInfo
 
     # An experimental Id is uniqely defined by a Pre-equlibrium- and Simulation-Id, where the former can be
     # empty. For each experimental ID we store three indices, i) preEqulibriumId, ii) simulationId and iii)
@@ -38,7 +36,6 @@ function processSimulationInfo(petabModel::PEtabModel,
     end
 
     haspreEquilibrationConditionId::Bool = all(preEquilibrationConditionId.== :None) ? false : true
-    nExperimentalConditionId = length(experimentalConditionId)
 
     # When computing the gradient and hessian the ODE-system needs to be resolved to compute the gradient
     # of the dynamic parameters, while for the observable/sd parameters the system should not be resolved.
@@ -94,6 +91,10 @@ function processSimulationInfo(petabModel::PEtabModel,
         callbackSS = TerminateSteadyState(absTolSS, relTolSS)
     elseif terminateSSMethod == :NewtonNorm
         callbackSS = createSSTerminateSteadyState(petabModel.odeSystem, absTolSS, relTolSS, checkNewton=false)
+    end
+
+    if typeof(sensealg) <: Symbol
+        sensealg = InterpolatingAdjoint()
     end
 
     simulationInfo = SimulationInfo(preEquilibrationConditionId,

@@ -5,9 +5,7 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
                                         θ_observable::Vector{Float64},
                                         θ_nonDynamic::Vector{Float64},
                                         odeProblem::ODEProblem,
-                                        odeSolver::SciMLAlgorithm,
-                                        solverAbsTol::Float64,
-                                        solverRelTol::Float64,
+                                        solverOptions::ODESolverOptions,
                                         sensealg::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
                                         petabModel::PEtabModel,
                                         simulationInfo::SimulationInfo,
@@ -36,7 +34,7 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
     # In case of PreEq-critera we need to compute the pullback function at tSS to compute the VJP between
     # λ_t0 and the sensitivites at steady state time
     if simulationInfo.haspreEquilibrationConditionId == true
-        evalVJPSSVec = generateVJPSSFunction(simulationInfo, sensealgSS, odeSolver, solverAbsTol, solverRelTol, expIDSolve)
+        evalVJPSSVec = generateVJPSSFunction(simulationInfo, sensealgSS, solverOptions, expIDSolve)
     end
 
     gradient .= 0.0
@@ -58,7 +56,7 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
         # In case the model is simulated first to a steady state we need to keep track of the post-equlibrium experimental
         # condition Id to identify parameters specific to an experimental condition.
         sol = simulationInfo.odeSolutionsDerivatives[experimentalConditionId]
-        success = computeGradientAdjointExpCond!(gradient, sol, petabODECache, sensealg, solverAbsTol, solverRelTol, odeSolver,
+        success = computeGradientAdjointExpCond!(gradient, sol, petabODECache, sensealg, solverOptions,
                                                  θ_dynamicT, θ_sdT, θ_observableT, θ_nonDynamicT, experimentalConditionId,
                                                  simulationConditionId, simulationInfo,
                                                  petabModel, θ_indices, measurementInfo, parameterInfo, evalVJPSS)
@@ -74,9 +72,7 @@ end
 
 function generateVJPSSFunction(simulationInfo::SimulationInfo, 
                                sensealgSS::SteadyStateAdjoint, 
-                               odeSolver::SciMLAlgorithm,
-                               solverAbsTol::Float64, 
-                               solverRelTol::Float64,
+                               odeSolverOptions::ODESolverOptions,
                                expIDSolve::Vector{Symbol})::NamedTuple
 
     # Extract all unique Pre-equlibrium conditions. If the code is run in parallell 
@@ -90,15 +86,18 @@ function generateVJPSSFunction(simulationInfo::SimulationInfo,
     end
 
     _evalVJPSS = Vector{Function}(undef, length(preEquilibrationConditionId))
+    solver, abstol, reltol, force_dtmin, dtmin, maxiters = odeSolverOptions.solver, odeSolverOptions.abstol, odeSolverOptions.reltol, odeSolverOptions.force_dtmin, odeSolverOptions.dtmin, odeSolverOptions.maxiters
     for i in eachindex(preEquilibrationConditionId)
         
         odeProblem = simulationInfo.odePreEqulibriumSolutions[preEquilibrationConditionId[i]].prob
         ssOdeProblem = SteadyStateProblem(odeProblem)
         ySS, _evalVJPSSi = Zygote.pullback((p) ->    (
                                                       solve(ssOdeProblem, 
-                                                            DynamicSS(odeSolver, abstol=simulationInfo.absTolSS, reltol=simulationInfo.relTolSS), 
-                                                            abstol=solverAbsTol, 
-                                                            reltol=solverRelTol, 
+                                                            DynamicSS(solver, abstol=simulationInfo.absTolSS, reltol=simulationInfo.relTolSS), 
+                                                            abstol=abstol, 
+                                                            reltol=reltol, 
+                                                            maxiters=maxiters,
+                                                            force_dtmin=force_dtmin,
                                                             p=p, 
                                                             sensealg=sensealgSS)[:]), odeProblem.p)
                                                 
@@ -110,9 +109,7 @@ function generateVJPSSFunction(simulationInfo::SimulationInfo,
 end
 function generateVJPSSFunction(simulationInfo::SimulationInfo, 
                                sensealgSS::Union{QuadratureAdjoint, InterpolatingAdjoint}, 
-                               odeSolver::SciMLAlgorithm,
-                               solverAbsTol::Float64, 
-                               solverRelTol::Float64,
+                               odeSolverOptions::ODESolverOptions,
                                expIDSolve::Vector{Symbol})::NamedTuple
 
     # Extract all unique Pre-equlibrium conditions. If the code is run in parallell 
@@ -126,6 +123,7 @@ function generateVJPSSFunction(simulationInfo::SimulationInfo,
     end
 
     _evalVJPSS = Vector{Function}(undef, length(preEquilibrationConditionId))
+    solver, abstol, reltol, force_dtmin, dtmin, maxiters = odeSolverOptions.solver, odeSolverOptions.abstol, odeSolverOptions.reltol, odeSolverOptions.force_dtmin, odeSolverOptions.dtmin, odeSolverOptions.maxiters
     for i in eachindex(preEquilibrationConditionId)
         
         # Sets up a function which takes du and solves the Adjoint ODE system with du 
@@ -133,9 +131,9 @@ function generateVJPSSFunction(simulationInfo::SimulationInfo,
         # with retcode Terminated and using CVODE_BDF
         _sol = simulationInfo.odePreEqulibriumSolutions[preEquilibrationConditionId[i]]
         _prob = remake(_sol.prob, tspan=(0.0, _sol.t[end]))
-        sol = solve(_prob, odeSolver, abstol=solverAbsTol, reltol=solverRelTol)
+        sol = solve(_prob, solver, abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, sensealgSS, maxiters=maxiters)
 
-        _evalVJPSSi = (du) -> computeVJPSS(du, sol, odeSolver, sensealgSS, solverRelTol, solverAbsTol)
+        _evalVJPSSi = (du) -> computeVJPSS(du, sol, solver, sensealgSS, reltol, abstol, dtmin, force_dtmin, maxiters)
         _evalVJPSS[i] = _evalVJPSSi
     end
 
@@ -151,25 +149,31 @@ function computeVJPSS(du::AbstractVector,
                       _sol::ODESolution, 
                       odeSolver::SciMLAlgorithm,
                       sensealg::QuadratureAdjoint, 
-                      relTol::Float64, 
-                      absTol::Float64)
+                      reltol::Float64, 
+                      abstol::Float64, 
+                      dtmin::Union{Float64, Nothing},
+                      force_dtmin::Bool, 
+                      maxiters::Int64)
 
     adj_prob, rcb = ODEAdjointProblem(_sol, sensealg, odeSolver, [_sol.t[end]], compute∂g∂uEmpty, nothing,
                                       nothing, nothing, nothing, Val(true))
     adj_prob.u0 .= du    
-    adj_sol = solve(adj_prob, odeSolver; abstol = absTol, reltol = relTol,
+    adj_sol = solve(adj_prob, odeSolver; abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters,
                     save_everystep = true, save_start = true)                                  
     integrand = AdjointSensitivityIntegrand(_sol, adj_sol, sensealg, nothing)
     res, err = SciMLSensitivity.quadgk(integrand, _sol.prob.tspan[1], _sol.t[end],
-                                       atol = absTol, rtol = relTol)
+                                       atol = abstol, rtol = reltol)
     return res'                                                                             
 end
 function computeVJPSS(du::AbstractVector,
                       _sol::ODESolution, 
                       odeSolver::SciMLAlgorithm, 
                       sensealg::InterpolatingAdjoint, 
-                      relTol::Float64, 
-                      absTol::Float64)
+                      reltol::Float64, 
+                      abstol::Float64, 
+                      dtmin::Union{Float64, Nothing},
+                      force_dtmin::Bool, 
+                      maxiters::Int64)
 
     nModelStates = length(_sol.prob.u0)                      
     adj_prob, rcb = ODEAdjointProblem(_sol, sensealg, odeSolver, [_sol.t[end]], compute∂g∂uEmpty, nothing,
@@ -177,7 +181,7 @@ function computeVJPSS(du::AbstractVector,
     
     adj_prob.u0[1:nModelStates] .= du[1:nModelStates]
 
-    adj_sol = solve(adj_prob, odeSolver; abstol = absTol, reltol = relTol,
+    adj_sol = solve(adj_prob, odeSolver; abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters,
                     save_everystep = true, save_start = true)
     out = adj_sol[end][(nModelStates+1):end]
     return out
@@ -196,9 +200,7 @@ function computeGradientAdjointExpCond!(gradient::Vector{Float64},
                                         sol::ODESolution,
                                         petabODECache::PEtabODEProblemCache,
                                         sensealg::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
-                                        solverAbsTol::Float64,
-                                        solverRelTol::Float64,
-                                        odeSolver::SciMLAlgorithm,
+                                        odeSolverOptions::ODESolverOptions,
                                         θ_dynamic::Vector{Float64},
                                         θ_sd::Vector{Float64},
                                         θ_observable::Vector{Float64},
@@ -231,6 +233,8 @@ function computeGradientAdjointExpCond!(gradient::Vector{Float64},
                                                          petabODECache.∂h∂p, petabODECache.∂σ∂p, compute∂G∂U=false)
                                         end
 
+    solver, abstol, reltol, force_dtmin, dtmin, maxiters = odeSolverOptions.solver, odeSolverOptions.abstol, odeSolverOptions.reltol, odeSolverOptions.force_dtmin, odeSolverOptions.dtmin, odeSolverOptions.maxiters
+    
     # The standard allow cases where we only observe data at t0, that is we do not solve the ODE. Here adjoint_sensitivities fails (naturally). In this case we compute the gradient
     # via ∇G_p = dp + du*J(u(t_0)) where du is the cost function differentiated with respect to the states at time zero,
     # dp is the cost function  with respect to the parameters at time zero and J is sensititvites at time
@@ -241,8 +245,8 @@ function computeGradientAdjointExpCond!(gradient::Vector{Float64},
     dp = petabODECache.dp 
     if !(length(timeObserved) == 1 && timeObserved[1] == 0.0)
 
-        status = __adjoint_sensitivities!(du, dp, sol, sensealg, timeObserved, odeSolver,
-                                          solverAbsTol, solverRelTol, callback, compute∂G∂u)
+        status = __adjoint_sensitivities!(du, dp, sol, sensealg, timeObserved, solver, abstol, reltol,
+                                          force_dtmin, dtmin, maxiters, callback, compute∂G∂u)
         status == false && return false
     else
         compute∂G∂u(du, sol[1], sol.prob.p, 0.0, 1)
@@ -294,20 +298,23 @@ function __adjoint_sensitivities!(_du::AbstractVector,
                                   sensealg::InterpolatingAdjoint,
                                   t::Vector{Float64},
                                   odeSolver::SciMLAlgorithm,
-                                  absTol::Float64,
-                                  relTol::Float64,
+                                  abstol::Float64, 
+                                  reltol::Float64, 
+                                  force_dtmin::Bool, 
+                                  dtmin::Union{Float64, Nothing},
+                                  maxiters::Int64,
                                   callback::SciMLBase.DECallback,
-                                  compute_∂G∂u)::Bool
+                                  compute_∂G∂u::F)::Bool where F
 
     rcb = nothing
     adjProb, rcb = ODEAdjointProblem(sol, sensealg, odeSolver, t,
                                      compute_∂G∂u, nothing, nothing, nothing, nothing, Val(true);
-                                     abstol=absTol, reltol=relTol, callback=callback)
+                                     abstol=abstol, reltol=reltol, callback=callback)
 
     tstops = SciMLSensitivity.ischeckpointing(sensealg, sol) ? checkpoints : similar(sol.t, 0)
-    adj_sol = solve(adjProb, odeSolver;
+    adj_sol = solve(adjProb, odeSolver; abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters,
                     save_everystep = false, save_start = false, saveat = eltype(sol[1])[],
-                    abstol=absTol, reltol=relTol, tstops=tstops)
+                    tstops=tstops)
     if adj_sol.retcode != ReturnCode.Success
         _du .= 0.0
         _dp .= 0.0
@@ -351,15 +358,18 @@ function __adjoint_sensitivities!(_du::AbstractVector,
                                   sensealg::QuadratureAdjoint,
                                   t::Vector{Float64},
                                   odeSolver::SciMLAlgorithm,
-                                  absTol::Float64,
-                                  relTol::Float64,
+                                  abstol::Float64, 
+                                  reltol::Float64, 
+                                  force_dtmin::Bool, 
+                                  dtmin::Union{Float64, Nothing},
+                                  maxiters::Int64,
                                   callback::SciMLBase.DECallback,
-                                  compute_∂G∂u)::Bool
+                                  compute_∂G∂u::F)::Bool where F
 
     adj_prob, rcb = ODEAdjointProblem(sol, sensealg, odeSolver, t, compute_∂G∂u, nothing,
                                       nothing, nothing, nothing, Val(true);
                                       callback)
-    adj_sol = solve(adj_prob, odeSolver; abstol = absTol, reltol = relTol,
+    adj_sol = solve(adj_prob, odeSolver; abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters,
                     save_everystep = true, save_start = true)
 
     if adj_sol.retcode != ReturnCode.Success
@@ -376,7 +386,7 @@ function __adjoint_sensitivities!(_du::AbstractVector,
         integrand = AdjointSensitivityIntegrand(sol, adj_sol, sensealg, nothing)
         if t === nothing
             res, err = SciMLSensitivity.quadgk(integrand, sol.prob.tspan[1], sol.prob.tspan[2],
-                              atol = absTol, rtol = relTol)
+                              atol = abstol, rtol = reltol)
         else
             res = zero(integrand.p)'
 
@@ -391,7 +401,7 @@ function __adjoint_sensitivities!(_du::AbstractVector,
             # correction for end interval.
             if t[end] != sol.prob.tspan[2] && sol.retcode !== ReturnCode.Terminated
                 res .+= SciMLSensitivity.quadgk(integrand, t[end], sol.prob.tspan[end],
-                               atol = absTol, rtol = relTol)[1]
+                               atol = abstol, rtol = reltol)[1]
             end
 
             if sol.retcode === ReturnCode.Terminated
@@ -403,7 +413,7 @@ function __adjoint_sensitivities!(_du::AbstractVector,
 
             for i in (length(t) - 1):-1:1
                 res .+= SciMLSensitivity.quadgk(integrand, t[i], t[i + 1],
-                                   atol = absTol, rtol = relTol)[1]
+                                   atol = abstol, rtol = reltol)[1]
                 if t[i] == t[i + 1]
                     integrand = SciMLSensitivity.update_integrand_and_dgrad(res, sensealg, callback,
                                                                             integrand,
@@ -417,7 +427,7 @@ function __adjoint_sensitivities!(_du::AbstractVector,
             # correction for start interval
             if t[1] != sol.prob.tspan[1]
                 res .+= SciMLSensitivity.quadgk(integrand, sol.prob.tspan[1], t[1],
-                               atol = absTol, rtol = relTol)[1]
+                               atol = abstol, rtol = reltol)[1]
             end
         end
     end

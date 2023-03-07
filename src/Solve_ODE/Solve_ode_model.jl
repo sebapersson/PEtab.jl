@@ -10,9 +10,7 @@ function solveODEAllExperimentalConditions!(odeSolutions::Dict{Symbol, Union{Not
                                             petabODESolverCache::PEtabODESolverCache,
                                             __changeExperimentalCondition!::Function,
                                             simulationInfo::SimulationInfo,
-                                            solver::Union{SciMLAlgorithm, Vector{Symbol}},
-                                            absTol::Float64,
-                                            relTol::Float64,
+                                            odeSolverOptions::ODESolverOptions,
                                             computeTStops::Function; # For callbacks
                                             expIDSolve::Vector{Symbol} = [:all],
                                             nTimePointsSave::Int64=0,
@@ -53,9 +51,7 @@ function solveODEAllExperimentalConditions!(odeSolutions::Dict{Symbol, Union{Not
                                                                                odeProblem,
                                                                                changeExperimentalCondition!,
                                                                                preEquilibrationId[i],
-                                                                               absTol,
-                                                                               relTol,
-                                                                               solver,
+                                                                               odeSolverOptions,
                                                                                simulationInfo.callbackSS,
                                                                                convertTspan)
                 if _odeSolutions[preEquilibrationId[i]].retcode != ReturnCode.Terminated
@@ -108,10 +104,8 @@ function solveODEAllExperimentalConditions!(odeSolutions::Dict{Symbol, Union{Not
                                                                       simulationInfo,
                                                                       simulationInfo.simulationConditionId[i],
                                                                       experimentalId,
-                                                                      absTol,
-                                                                      relTol,
                                                                       tMax,
-                                                                      solver,
+                                                                      odeSolverOptions,
                                                                       computeTStops,
                                                                       tSave=tSave,
                                                                       denseSolution=denseSolution,
@@ -136,9 +130,7 @@ function solveODEAllExperimentalConditions!(odeSolutions::Dict{Symbol, Union{Not
                                                                         changeExperimentalCondition!,
                                                                         simulationInfo,
                                                                         simulationInfo.simulationConditionId[i],
-                                                                        absTol,
-                                                                        relTol,
-                                                                        solver,
+                                                                        odeSolverOptions,
                                                                         tMax,
                                                                         computeTStops,
                                                                         tSave=tSave,
@@ -169,9 +161,7 @@ function solveODEAllExperimentalConditions!(odeSolutionValues::AbstractMatrix,
                                             __changeExperimentalCondition!::Function,
                                             changeODEProblemParameters::Function,
                                             simulationInfo::SimulationInfo,
-                                            solver::Union{SciMLAlgorithm, Vector{Symbol}},
-                                            absTol::Float64,
-                                            relTol::Float64,
+                                            odeSolverOptions::ODESolverOptions,
                                             computeTStops::Function;
                                             expIDSolve::Vector{Symbol} = [:all],
                                             nTimePointsSave::Int64=0,
@@ -189,9 +179,7 @@ function solveODEAllExperimentalConditions!(odeSolutionValues::AbstractMatrix,
                                                 petabODESolverCache,
                                                 __changeExperimentalCondition!,
                                                 simulationInfo,
-                                                solver,
-                                                absTol,
-                                                relTol,
+                                                odeSolverOptions,
                                                 computeTStops,
                                                 expIDSolve=expIDSolve,
                                                 nTimePointsSave=nTimePointsSave,
@@ -225,9 +213,7 @@ function solveODEAllExperimentalConditions(_odeProblem::ODEProblem,
                                            petabODESolverCache::PEtabODESolverCache,
                                            changeExperimentalCondition!::Function,
                                            simulationInfo::SimulationInfo,
-                                           solver::Union{SciMLAlgorithm, Vector{Symbol}},
-                                           absTol::Float64,
-                                           relTol::Float64,
+                                           odeSolverOptions::ODESolverOptions,
                                            computeTStops::Function; # For callbacks
                                            expIDSolve::Vector{Symbol} = [:all],
                                            nTimePointsSave::Int64=0,
@@ -243,9 +229,7 @@ function solveODEAllExperimentalConditions(_odeProblem::ODEProblem,
                                                  petabODESolverCache,
                                                  changeExperimentalCondition!,
                                                  simulationInfo,
-                                                 solver,
-                                                 absTol,
-                                                 relTol,
+                                                 odeSolverOptions,
                                                  computeTStops,
                                                  expIDSolve=expIDSolve,
                                                  nTimePointsSave=nTimePointsSave,
@@ -263,19 +247,17 @@ function solveODEPreEqulibrium!(uAtSS::AbstractVector,
                                 odeProblem::ODEProblem,
                                 changeExperimentalCondition!::Function,
                                 preEquilibrationId::Symbol,
-                                absTol::Float64,
-                                relTol::Float64,
-                                solver::Union{SciMLAlgorithm, Vector{Symbol}},
+                                odeSolverOptions::ODESolverOptions,
                                 callbackSS::SciMLBase.DECallback,
                                 convertTspan::Bool)::ODESolution
 
     # Change to parameters for the preequilibration simulations
     changeExperimentalCondition!(odeProblem.p, odeProblem.u0, preEquilibrationId)
-    _odeProblem = remakeODEProblemPreSolve(odeProblem, Inf, solver, convertTspan)
+    _odeProblem = remakeODEProblemPreSolve(odeProblem, Inf, odeSolverOptions.solver, convertTspan)
     uAtT0 .= _odeProblem.u0
 
     # Terminate if a steady state was not reached in preequilibration simulations
-    odeSolution = computeODEPreEqulibriumSolution(_odeProblem, solver, absTol, relTol, callbackSS)
+    odeSolution = computeODEPreEqulibriumSolution(_odeProblem, odeSolverOptions, callbackSS)
     if odeSolution.retcode == ReturnCode.Terminated
         uAtSS .= odeSolution.u[end]
     end
@@ -284,20 +266,12 @@ end
 
 
 function computeODEPreEqulibriumSolution(odeProblem::ODEProblem,
-                                         solver::Vector{Symbol},
-                                         absTol::Float64,
-                                         relTol::Float64,
+                                         odeSolverOptions::ODESolverOptions,
                                          callbackSS::SciMLBase.DECallback)::ODESolution
 
-    return solve(odeProblem, alg_hints=solver, abstol=absTol, reltol=relTol, dense=false, callback=callbackSS)
-end
-function computeODEPreEqulibriumSolution(odeProblem::ODEProblem,
-                                         solver::SciMLAlgorithm,
-                                         absTol::Float64,
-                                         relTol::Float64,
-                                         callbackSS::SciMLBase.DECallback)::ODESolution
 
-    return solve(odeProblem, solver, abstol=absTol, reltol=relTol, dense=false, callback=callbackSS)
+    solver, abstol, reltol, force_dtmin, dtmin, maxiters = odeSolverOptions.solver, odeSolverOptions.abstol, odeSolverOptions.reltol, odeSolverOptions.force_dtmin, odeSolverOptions.dtmin, odeSolverOptions.maxiters
+    return solve(odeProblem, solver, abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters, dense=false, callback=callbackSS)
 end
 
 
@@ -308,10 +282,8 @@ function solveODEPostEqulibrium(odeProblem::ODEProblem,
                                 simulationInfo::SimulationInfo,
                                 simulationConditionId::Symbol,
                                 experimentalId::Symbol,
-                                absTol::Float64,
-                                relTol::Float64,
                                 tMax::Float64,
-                                solver::Union{SciMLAlgorithm, Vector{Symbol}},
+                                odeSolverOptions::ODESolverOptions,
                                 computeTStops::Function;
                                 tSave::Vector{Float64}=Float64[],
                                 denseSolution::Bool=true,
@@ -329,13 +301,13 @@ function solveODEPostEqulibrium(odeProblem::ODEProblem,
     # Here it is IMPORTANT that we copy odeProblem.p[:] else different experimental conditions will
     # share the same parameter vector p. This will, for example, cause the lower level adjoint
     # sensitivity interface to fail.
-    _odeProblem = remakeODEProblemPreSolve(odeProblem, tMax, solver, convertTspan)
+    _odeProblem = remakeODEProblemPreSolve(odeProblem, tMax, odeSolverOptions.solver, convertTspan)
     @views _odeProblem.u0 .= odeProblem.u0[:] # This is needed due as remake does not work correctly for forward sensitivity equations
 
     # If case of adjoint sensitivity analysis we need to track the callback to get correct gradients
     tStops = computeTStops(_odeProblem.u0, _odeProblem.p)
     callbackSet = getCallbackSet(_odeProblem, simulationInfo, experimentalId, trackCallback)
-    sol = computeODESolution(_odeProblem, solver, absTol, relTol, simulationInfo.absTolSS, simulationInfo.relTolSS,
+    sol = computeODESolution(_odeProblem, odeSolverOptions, simulationInfo.absTolSS, simulationInfo.relTolSS,
                              tSave, denseSolution, callbackSet, tStops)
 
     return sol
@@ -346,9 +318,7 @@ function solveODENoPreEqulibrium!(odeProblem::ODEProblem,
                                  changeExperimentalCondition!::Function,
                                  simulationInfo::SimulationInfo,
                                  simulationConditionId::Symbol,
-                                 absTol::Float64,
-                                 relTol::Float64,
-                                 solver::Union{SciMLAlgorithm, Vector{Symbol}},
+                                 odeSolverOptions::ODESolverOptions,
                                  _tMax::Float64,
                                  computeTStops::Function;
                                  tSave=Float64[],
@@ -359,12 +329,12 @@ function solveODENoPreEqulibrium!(odeProblem::ODEProblem,
     # Change experimental condition
     tMax = isinf(_tMax) ? 1e8 : _tMax
     changeExperimentalCondition!(odeProblem.p, odeProblem.u0, simulationConditionId)
-    _odeProblem = remakeODEProblemPreSolve(odeProblem, tMax, solver, convertTspan)
+    _odeProblem = remakeODEProblemPreSolve(odeProblem, tMax, odeSolverOptions.solver, convertTspan)
     @views _odeProblem.u0 .= odeProblem.u0[:] # Required remake does not handle Senstivity-problems correctly
 
     tStops = computeTStops(_odeProblem.u0, _odeProblem.p)
     callbackSet = getCallbackSet(_odeProblem, simulationInfo, simulationConditionId, trackCallback)
-    sol = computeODESolution(_odeProblem, solver, absTol, relTol, simulationInfo.absTolSS, simulationInfo.relTolSS,
+    sol = computeODESolution(_odeProblem, odeSolverOptions, simulationInfo.absTolSS, simulationInfo.relTolSS,
                              tSave, denseSolution, callbackSet, tStops)
 
     return sol
@@ -372,9 +342,7 @@ end
 
 
 function computeODESolution(odeProblem::ODEProblem,
-                            solver::Vector{Symbol},
-                            absTol::Float64,
-                            relTol::Float64,
+                            odeSolverOptions::ODESolverOptions,
                             absTolSS::Float64,
                             relTolSS::Float64,
                             tSave::Vector{Float64},
@@ -382,32 +350,14 @@ function computeODESolution(odeProblem::ODEProblem,
                             callbackSet::SciMLBase.DECallback,
                             tStops::AbstractVector)::ODESolution
 
-    # Different funcion calls to solve are required if a solver or a Alg-hint are provided.
-    # If t_max = inf the model is simulated to steady state using the TerminateSteadyState callback.
-    if isinf(odeProblem.tspan[2]) || odeProblem.tspan[2] == 1e8
-        sol = solve(odeProblem, alg_hints=solver, abstol=absTol, reltol=relTol, save_on=false, save_end=true, dense=denseSolution, callback=TerminateSteadyState(absTolSS, relTolSS))
-    else
-        sol = solve(odeProblem, alg_hints=solver, abstol=absTol, reltol=relTol, saveat=tSave, dense=denseSolution, tstops=tStops, callback=callbackSet)
-    end
-    return sol
-end
-function computeODESolution(odeProblem::ODEProblem,
-                            solver::SciMLAlgorithm,
-                            absTol::Float64,
-                            relTol::Float64,
-                            absTolSS::Float64,
-                            relTolSS::Float64,
-                            tSave::Vector{Float64},
-                            denseSolution::Bool,
-                            callbackSet::SciMLBase.DECallback,
-                            tStops::AbstractVector)::ODESolution
+    solver, abstol, reltol, force_dtmin, dtmin, maxiters = odeSolverOptions.solver, odeSolverOptions.abstol, odeSolverOptions.reltol, odeSolverOptions.force_dtmin, odeSolverOptions.dtmin, odeSolverOptions.maxiters                            
 
     # Different funcion calls to solve are required if a solver or a Alg-hint are provided.
     # If t_max = inf the model is simulated to steady state using the TerminateSteadyState callback.
     if isinf(odeProblem.tspan[2]) || odeProblem.tspan[2] == 1e8
-        sol = solve(odeProblem, solver, abstol=absTol, reltol=relTol, save_on=false, save_end=true, dense=denseSolution, callback=TerminateSteadyState(absTolSS, relTolSS))
+        sol = solve(odeProblem, solver, abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters, save_on=false, save_end=true, dense=denseSolution, callback=TerminateSteadyState(absTolSS, relTolSS))
     else
-        sol = solve(odeProblem, solver, abstol=absTol, reltol=relTol, saveat=tSave, dense=denseSolution, tstops=tStops, callback=callbackSet)
+        sol = solve(odeProblem, solver, abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters, saveat=tSave, dense=denseSolution, tstops=tStops, callback=callbackSet)
     end
     return sol
 end
@@ -443,7 +393,7 @@ end
 
 function remakeODEProblemPreSolve(odeProblem::ODEProblem,
                                   tmax::Float64,
-                                  odeSolver::Union{Vector{Symbol}, SciMLAlgorithm},
+                                  odeSolver::SciMLAlgorithm,
                                   convertTspan::Bool)::ODEProblem
 
     # When tmax=Inf and a multistep BDF Julia method, e.g. QNDF, is used tmax must be inf, else if it is a large

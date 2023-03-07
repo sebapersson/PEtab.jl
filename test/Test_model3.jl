@@ -80,7 +80,7 @@ function computeCostAlgebraic(paramVec, petabModel, solver, tol)
 end
 
 
-function testODESolverTestModel3(petabModel::PEtabModel, solver, tol)
+function testODESolverTestModel3(petabModel::PEtabModel, solverOptions::ODESolverOptions)
 
     # Set values to PeTab file values
     experimentalConditionsFile, measurementDataFile, parameterDataFile, observablesDataFile = readPEtabFiles(petabModel)
@@ -90,7 +90,7 @@ function testODESolverTestModel3(petabModel::PEtabModel, solver, tol)
     θ_indices = computeIndicesθ(paramData, measurementData, petabModel.odeSystem, experimentalConditionsFile)
 
     # Extract experimental conditions for simulations
-    simulationInfo = processSimulationInfo(petabModel, measurementData, paramData, absTolSS=1e-12, relTolSS=1e-10)
+    simulationInfo = processSimulationInfo(petabModel, measurementData, absTolSS=1e-12, relTolSS=1e-10)
 
     # Parameter values where to teast accuracy. Each column is a alpha, beta, gamma and delta
     # a, b, c, d
@@ -115,9 +115,9 @@ function testODESolverTestModel3(petabModel::PEtabModel, solver, tol)
         petabODESolverCache = createPEtabODESolverCache(:nothing, :nothing, petabModel, simulationInfo, θ_indices, nothing)
 
         # Solve ODE system
-        odeSolutions, success = solveODEAllExperimentalConditions(prob, θ_dynamic, petabODESolverCache, changeExperimentalCondition!, simulationInfo, solver, tol, tol, petabModel.computeTStops)
+        odeSolutions, success = solveODEAllExperimentalConditions(prob, θ_dynamic, petabODESolverCache, changeExperimentalCondition!, simulationInfo, solverOptions, petabModel.computeTStops)
         # Solve ODE system with algebraic intial values
-        algebraicODESolutions = getSolAlgebraicSS(petabModel, solver, tol, a, b, c, d)
+        algebraicODESolutions = getSolAlgebraicSS(petabModel, solverOptions.solver, solverOptions.abstol, a, b, c, d)
 
         # Compare against analytical solution
         sqDiff = 0.0
@@ -132,9 +132,9 @@ function testODESolverTestModel3(petabModel::PEtabModel, solver, tol)
 end
 
 
-function testCostGradientOrHessianTestModel3(petabModel::PEtabModel, solver, tol)
+function testCostGradientOrHessianTestModel3(petabModel::PEtabModel, solverOptions)
 
-    _computeCostAlgebraic = (pArg) -> computeCostAlgebraic(pArg, petabModel, solver, tol)
+    _computeCostAlgebraic = (pArg) -> computeCostAlgebraic(pArg, petabModel, solverOptions.solver, solverOptions.abstol)
 
     cube = Matrix(CSV.read(joinpath(@__DIR__, "Test_model3", "Julia_model_files", "CubeTest_model3.csv") , DataFrame))
 
@@ -147,25 +147,25 @@ function testCostGradientOrHessianTestModel3(petabModel::PEtabModel, solver, tol
         referenceHessian = ForwardDiff.hessian(_computeCostAlgebraic, p)
 
         # Test both the standard and Zygote approach to compute the cost
-        cost = _testCostGradientOrHessian(petabModel, solver, tol, p, computeCost=true, costMethod=:Standard, solverSSAbsTol=1e-12, solverSSRelTol=1e-10)
+        cost = _testCostGradientOrHessian(petabModel, solverOptions, p, computeCost=true, costMethod=:Standard, solverSSAbsTol=1e-12, solverSSRelTol=1e-10)
         @test cost ≈ referenceCost atol=1e-3
-        costZygote = _testCostGradientOrHessian(petabModel, solver, tol, p, computeCost=true, costMethod=:Zygote, solverSSAbsTol=1e-12, solverSSRelTol=1e-10)
+        costZygote = _testCostGradientOrHessian(petabModel, solverOptions, p, computeCost=true, costMethod=:Zygote, solverSSAbsTol=1e-12, solverSSRelTol=1e-10)
         @test costZygote ≈ referenceCost atol=1e-3
 
         # Test all gradient combinations. Note we test sensitivity equations with and without autodiff
-        gradientForwardDiff = _testCostGradientOrHessian(petabModel, solver, tol, p, computeGradient=true, gradientMethod=:ForwardDiff, solverSSAbsTol=1e-12, solverSSRelTol=1e-10)
+        gradientForwardDiff = _testCostGradientOrHessian(petabModel, solverOptions, p, computeGradient=true, gradientMethod=:ForwardDiff, solverSSAbsTol=1e-12, solverSSRelTol=1e-10)
         @test norm(gradientForwardDiff - referenceGradient) ≤ 1e-2
-        gradientZygote = _testCostGradientOrHessian(petabModel, solver, tol, p, computeGradient=true, gradientMethod=:Zygote, sensealgZygote=ForwardDiffSensitivity(), solverSSAbsTol=1e-12, solverSSRelTol=1e-10)
+        gradientZygote = _testCostGradientOrHessian(petabModel, solverOptions, p, computeGradient=true, gradientMethod=:Zygote, sensealg=ForwardDiffSensitivity(), solverSSAbsTol=1e-12, solverSSRelTol=1e-10)
         @test norm(gradientZygote - referenceGradient) ≤ 1e-2
-        gradientAdjoint = _testCostGradientOrHessian(petabModel, solver, tol, p, computeGradient=true, gradientMethod=:Adjoint, sensealgAdjoint=QuadratureAdjoint(autojacvec=ReverseDiffVJP(false)), solverSSAbsTol=1e-12, solverSSRelTol=1e-10)
+        gradientAdjoint = _testCostGradientOrHessian(petabModel, solverOptions, p, computeGradient=true, gradientMethod=:Adjoint, sensealg=QuadratureAdjoint(autojacvec=ReverseDiffVJP(false)), solverSSAbsTol=1e-12, solverSSRelTol=1e-10)
         @test norm(normalize(gradientAdjoint) - normalize((referenceGradient))) ≤ 1e-2
-        gradientForward1 = _testCostGradientOrHessian(petabModel, solver, tol, p, computeGradient=true, gradientMethod=:ForwardEquations, sensealgForwardEquations=:ForwardDiff, solverSSAbsTol=1e-12, solverSSRelTol=1e-10)
+        gradientForward1 = _testCostGradientOrHessian(petabModel, solverOptions, p, computeGradient=true, gradientMethod=:ForwardEquations, sensealg=:ForwardDiff, solverSSAbsTol=1e-12, solverSSRelTol=1e-10)
         @test norm(gradientForward1 - referenceGradient) ≤ 1e-2
-        gradientForward2 = _testCostGradientOrHessian(petabModel, CVODE_BDF(), tol, p, computeGradient=true, gradientMethod=:ForwardEquations, sensealgForwardEquations=ForwardSensitivity(), solverSSAbsTol=1e-12, solverSSRelTol=1e-10)
+        gradientForward2 = _testCostGradientOrHessian(petabModel, getODESolverOptions(CVODE_BDF(), solverAbstol=1e-12, solverReltol=1e-12), p, computeGradient=true, gradientMethod=:ForwardEquations, sensealg=ForwardSensitivity(), solverSSAbsTol=1e-12, solverSSRelTol=1e-10)
         @test norm(gradientForward2 - referenceGradient) ≤ 1e-2
 
         # Testing "exact" hessian via autodiff
-        hessian = _testCostGradientOrHessian(petabModel, solver, tol, p, computeHessian=true, hessianMethod=:ForwardDiff, solverSSAbsTol=1e-12, solverSSRelTol=1e-10)
+        hessian = _testCostGradientOrHessian(petabModel, solverOptions, p, computeHessian=true, hessianMethod=:ForwardDiff, solverSSAbsTol=1e-12, solverSSRelTol=1e-10)
         @test norm(hessian - referenceHessian) ≤ 1e-2
     end
 
@@ -176,13 +176,14 @@ end
 petabModel = readPEtabModel(joinpath(@__DIR__, "Test_model3/Test_model3.yaml"), forceBuildJuliaFiles=false)
 
 @testset "ODE solver" begin
-    testODESolverTestModel3(petabModel, Rodas4P(), 1e-12)
+    testODESolverTestModel3(petabModel, getODESolverOptions(Rodas4P(), solverAbstol=1e-12, solverReltol=1e-12))
 end
 
 @testset "Cost gradient and hessian" begin
-    testCostGradientOrHessianTestModel3(petabModel, Rodas4P(autodiff=false), 1e-12)
+    testCostGradientOrHessianTestModel3(petabModel, getODESolverOptions(Rodas4P(), solverAbstol=1e-12, solverReltol=1e-12))
 end
 
+checkGradientResiduals(petabModel, getODESolverOptions(Rodas4P(), solverAbstol=1e-9, solverReltol=1e-9))
 @testset "Gradient of residuals" begin
-    checkGradientResiduals(petabModel, Rodas5(), 1e-9)
+    checkGradientResiduals(petabModel, getODESolverOptions(Rodas4P(), solverAbstol=1e-9, solverReltol=1e-9))
 end

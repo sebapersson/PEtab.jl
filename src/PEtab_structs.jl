@@ -88,6 +88,17 @@ struct PEtabODEProblem{F1<:Function,
 end
 
 
+struct ODESolverOptions{T1 <: SciMLAlgorithm, 
+                        T2 <: Union{Float64, Nothing}}
+    solver::T1
+    abstol::Float64
+    reltol::Float64
+    force_dtmin::Bool
+    dtmin::T2
+    maxiters::Int64    
+end
+
+
 struct PEtabODEProblemCache{T1 <: AbstractVector, 
                             T2 <: DiffCache, 
                             T3 <: AbstractVector, 
