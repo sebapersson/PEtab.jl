@@ -21,7 +21,6 @@ function computeGradientForwardEqDynamicθ!(gradient::Vector{Float64},
                                            θ_indices::ParameterIndices,
                                            measurementInfo ::MeasurementsInfo,
                                            parameterInfo::ParametersInfo,
-                                           changeODEProblemParameters!::Function,
                                            solveOdeModelAllConditions!::Function, 
                                            cfg::Union{ForwardDiff.JacobianConfig, Nothing}, 
                                            petabODECache::PEtabODEProblemCache;
@@ -35,8 +34,7 @@ function computeGradientForwardEqDynamicθ!(gradient::Vector{Float64},
 
     # Solve the expanded ODE system for the sensitivites
     success = solveForSensitivites(odeProblem, simulationInfo, θ_indices, petabModel, sensealg, θ_dynamicT,
-                                   solveOdeModelAllConditions!, changeODEProblemParameters!,
-                                   cfg, petabODECache, expIDSolve, splitOverConditions)
+                                   solveOdeModelAllConditions!, cfg, petabODECache, expIDSolve, splitOverConditions)
     if success != true
         println("Failed to solve sensitivity equations")
         gradient .= 1e8
@@ -69,7 +67,6 @@ function solveForSensitivites(odeProblem::ODEProblem,
                               sensealg::SciMLSensitivity.AbstractForwardSensitivityAlgorithm,
                               θ_dynamic::AbstractVector,
                               solveOdeModelAllConditions!::Function,
-                              changeODEProblemParameters!::Function,
                               cfg::Nothing, 
                               petabODECache::PEtabODEProblemCache,
                               expIDSolve::Vector{Symbol}, 
@@ -77,7 +74,7 @@ function solveForSensitivites(odeProblem::ODEProblem,
 
     nModelStates = length(petabModel.stateNames)
     _odeProblem = remake(odeProblem, p = convert.(eltype(θ_dynamic), odeProblem.p), u0 = convert.(eltype(θ_dynamic), odeProblem.u0))
-    changeODEProblemParameters!(_odeProblem.p, (@view _odeProblem.u0[1:nModelStates]), θ_dynamic)
+    changeODEProblemParameters!(_odeProblem.p, (@view _odeProblem.u0[1:nModelStates]), θ_dynamic, θ_indices, petabModel)
     success = solveOdeModelAllConditions!(simulationInfo.odeSolutionsDerivatives, _odeProblem, θ_dynamic, expIDSolve)
     return success
 end
@@ -88,7 +85,6 @@ function solveForSensitivites(odeProblem::ODEProblem,
                               sensealg::Symbol,
                               θ_dynamic::AbstractVector,
                               solveOdeModelAllConditions!::Function,
-                              changeODEProblemParameters!::Function,
                               cfg::ForwardDiff.JacobianConfig, 
                               petabODECache::PEtabODEProblemCache,
                               expIDSolve::Vector{Symbol}, 

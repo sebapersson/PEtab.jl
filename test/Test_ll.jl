@@ -90,9 +90,9 @@ end
 pathYML = joinpath(@__DIR__, "Test_ll", "Bachmann_MSB2011", "Bachmann_MSB2011.yaml")
 petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
 testLogLikelihoodValue(petabModel, -418.40573341425295, getODESolverOptions(Rodas4P(), solverAbstol=1e-12, solverReltol=1e-12))
-testGradientFiniteDifferences(petabModel, getODESolverOptions(Rodas5(), solverAbstol=1e-8, solverReltol=1e-8),
-                              solverGradientOptions=getODESolverOptions(CVODE_BDF(), solverAbstol=1e-8, solverReltol=1e-8), 
-                              checkForwardEquations=true, checkAdjoint=true)
+testGradientFiniteDifferences(petabModel, getODESolverOptions(Rodas5(), solverAbstol=1e-9, solverReltol=1e-9),
+                              solverGradientOptions=getODESolverOptions(CVODE_BDF(), solverAbstol=1e-9, solverReltol=1e-9), 
+                              checkForwardEquations=true, checkAdjoint=true, testTol=1e-2)
 
 # Beer model - Numerically challenging gradient as we have callback time triggering parameters to 
 # estimate. Splitting over conditions spped up hessian computations with factor 48
@@ -104,7 +104,7 @@ testGradientFiniteDifferences(petabModel, getODESolverOptions(Rodas4P(), solverA
 # Boehm model
 pathYML = joinpath(@__DIR__, "Test_ll", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
 petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
-testLogLikelihoodValue(petabModel, 138.22199693517703, Rodas4P())
+testLogLikelihoodValue(petabModel, 138.22199693517703, getODESolverOptions(Rodas4P(), solverAbstol=1e-12, solverReltol=1e-12))
 
 # Brännmark model. Model has pre-equlibration criteria so here we test all gradients. Challenging to compute gradients.
 pathYML = joinpath(@__DIR__, "Test_ll", "Brannmark_JBC2010", "Brannmark_JBC2010.yaml")

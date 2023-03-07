@@ -12,7 +12,6 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
                                         θ_indices::ParameterIndices,
                                         measurementInfo ::MeasurementsInfo,
                                         parameterInfo::ParametersInfo,
-                                        changeODEProblemParameters!::Function,
                                         solveOdeModelAllConditions!::Function, 
                                         petabODECache::PEtabODEProblemCache;
                                         sensealgSS=SteadyStateAdjoint(),
@@ -24,7 +23,7 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
     θ_nonDynamicT = transformθ(θ_nonDynamic, θ_indices.θ_nonDynamicNames, θ_indices, :θ_nonDynamic, petabODECache)
 
     _odeProblem = remake(odeProblem, p = convert.(eltype(θ_dynamicT), odeProblem.p), u0 = convert.(eltype(θ_dynamicT), odeProblem.u0))
-    changeODEProblemParameters!(_odeProblem.p, _odeProblem.u0, θ_dynamicT)
+    changeODEProblemParameters!(_odeProblem.p, _odeProblem.u0, θ_dynamicT, θ_indices, petabModel)
     success = solveOdeModelAllConditions!(simulationInfo.odeSolutionsDerivatives, _odeProblem, θ_dynamicT, expIDSolve)
     if success != true
         gradient .= 1e8

@@ -94,3 +94,18 @@ function checkGradientResiduals(petabModel::PEtabModel, solverOptions::ODESolver
     sqDiffResidual = sum((sum(jacOut, dims=2) - residualGrad).^2)
     @test sqDiffResidual ≤ 1e-5
 end
+
+
+function getFileODEvalues(petabModel::PEtabModel)
+
+    # Change model parameters
+    experimentalConditionsFile, measurementDataFile, parameterDataFile, observablesDataFile = readPEtabFiles(petabModel)
+    parameterInfo = processParameters(parameterDataFile)
+    measurementInfo = processMeasurements(measurementDataFile, observablesDataFile)
+    θ_indices = computeIndicesθ(parameterInfo, measurementInfo, petabModel.odeSystem, experimentalConditionsFile)
+
+    θ_estNames = θ_indices.θ_estNames
+    θ_est = parameterInfo.nominalValue[findall(x -> x ∈ θ_estNames, parameterInfo.parameterId)]
+
+    return θ_est[θ_indices.iθ_dynamic]
+end

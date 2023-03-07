@@ -183,7 +183,6 @@ function computeGaussNewtonHessianApproximation!(out::Matrix{Float64},
                                                  θ_indices::ParameterIndices,
                                                  measurementInfo::MeasurementsInfo,
                                                  parameterInfo::ParametersInfo,
-                                                 changeODEProblemParameters!::Function,
                                                  solveOdeModelAllConditions!::Function,
                                                  priorInfo::PriorInfo, 
                                                  cfg::ForwardDiff.JacobianConfig, 
@@ -208,8 +207,7 @@ function computeGaussNewtonHessianApproximation!(out::Matrix{Float64},
     computeJacobianResidualsDynamicθ!((@view jacobianGN[θ_indices.iθ_dynamic, :]), θ_dynamic, θ_sd,
                                       θ_observable, θ_nonDynamic, petabModel, odeProblem,
                                       simulationInfo, θ_indices, measurementInfo, parameterInfo,
-                                      changeODEProblemParameters!, solveOdeModelAllConditions!, 
-                                      cfg, petabODECache;
+                                      solveOdeModelAllConditions!, cfg, petabODECache;
                                       expIDSolve=expIDSolve, reuseS=reuseS, splitOverConditions=splitOverConditions)
 
     # Happens when at least one forward pass fails

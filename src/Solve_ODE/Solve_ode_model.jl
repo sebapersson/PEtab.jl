@@ -159,10 +159,11 @@ function solveODEAllExperimentalConditions!(odeSolutionValues::AbstractMatrix,
                                             odeSolutions::Dict{Symbol, Union{Nothing, ODESolution}},
                                             __odeProblem::ODEProblem,
                                             __changeExperimentalCondition!::Function,
-                                            changeODEProblemParameters::Function,
                                             simulationInfo::SimulationInfo,
                                             odeSolverOptions::ODESolverOptions,
-                                            computeTStops::Function;
+                                            computeTStops::Function, 
+                                            petabModel::PEtabModel, 
+                                            θ_indices::ParameterIndices;
                                             expIDSolve::Vector{Symbol} = [:all],
                                             nTimePointsSave::Int64=0,
                                             onlySaveAtObservedTimes::Bool=false,
@@ -171,7 +172,7 @@ function solveODEAllExperimentalConditions!(odeSolutionValues::AbstractMatrix,
                                             convertTspan::Bool=false)
 
     _odeProblem = remake(__odeProblem, p = convert.(eltype(θ_dynamic), __odeProblem.p), u0 = convert.(eltype(θ_dynamic), __odeProblem.u0))
-    changeODEProblemParameters(_odeProblem.p, _odeProblem.u0, θ_dynamic)
+    changeODEProblemParameters!(_odeProblem.p, _odeProblem.u0, θ_dynamic, θ_indices, petabModel)
 
     sucess = solveODEAllExperimentalConditions!(odeSolutions,
                                                 _odeProblem,
