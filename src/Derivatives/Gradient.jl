@@ -165,9 +165,9 @@ function computeGradientAdjointEquations!(gradient::Vector{Float64},
                                           θ_indices::ParameterIndices,
                                           measurementInfo::MeasurementsInfo,
                                           parameterInfo::ParametersInfo,
-                                          solveOdeModelAllConditions!::Function,
                                           priorInfo::PriorInfo, 
-                                          petabODECache::PEtabODEProblemCache;
+                                          petabODECache::PEtabODEProblemCache, 
+                                          petabODESolverCache::PEtabODESolverCache;
                                           expIDSolve::Vector{Symbol} = [:all])
 
     splitParameterVector!(θ_est, θ_indices, petabODECache)
@@ -179,7 +179,7 @@ function computeGradientAdjointEquations!(gradient::Vector{Float64},
     # Calculate gradient seperately for dynamic and non dynamic parameter.
     computeGradientAdjointDynamicθ(petabODECache.gradientDyanmicθ, θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, odeProblem, solverOptions,
                                    sensealg, petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo,
-                                   solveOdeModelAllConditions!, petabODECache; expIDSolve=expIDSolve,
+                                   petabODECache, petabODESolverCache; expIDSolve=expIDSolve,
                                    sensealgSS=sensealgSS)
     @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ
 

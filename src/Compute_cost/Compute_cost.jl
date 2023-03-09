@@ -1,22 +1,27 @@
 function computeCost(θ_est::AbstractVector,
                      odeProblem::ODEProblem,
+                     odeSolverOptions::ODESolverOptions,
                      petabModel::PEtabModel,
                      simulationInfo::SimulationInfo,
                      θ_indices::ParameterIndices,
                      measurementInfo::MeasurementsInfo,
                      parameterInfo::ParametersInfo,
-                     solveOdeModelAllConditions!::Function,
                      priorInfo::PriorInfo, 
-                     petabODECache::PEtabODEProblemCache;
+                     petabODECache::PEtabODEProblemCache, 
+                     petabODESolverCache::PEtabODESolverCache;
                      expIDSolve::Vector{Symbol} = [:all],
+                     computeCost::Bool=false,
                      computeHessian::Bool=false,
                      computeResiduals::Bool=false)::Real
 
     θ_dynamic, θ_observable, θ_sd, θ_nonDynamic = splitParameterVector(θ_est, θ_indices)
 
-    cost = computeCostSolveODE(θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, odeProblem, petabModel, simulationInfo,
-                               θ_indices, measurementInfo, parameterInfo, solveOdeModelAllConditions!, petabODECache,
-                               computeHessian=computeHessian, computeResiduals=computeResiduals, expIDSolve=expIDSolve)
+    cost = computeCostSolveODE(θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, odeProblem, odeSolverOptions, petabModel, 
+                               simulationInfo, θ_indices, measurementInfo, parameterInfo, petabODECache, petabODESolverCache,
+                               computeCost=computeCost,
+                               computeHessian=computeHessian, 
+                               computeResiduals=computeResiduals, 
+                               expIDSolve=expIDSolve)
 
     if priorInfo.hasPriors == true && computeHessian == false
         θ_estT = transformθ(θ_est, θ_indices.θ_estNames, θ_indices)
@@ -32,13 +37,15 @@ function computeCostSolveODE(θ_dynamic::AbstractVector,
                              θ_observable::AbstractVector,
                              θ_nonDynamic::AbstractVector,
                              odeProblem::ODEProblem,
+                             odeSolverOptions::ODESolverOptions,
                              petabModel::PEtabModel,
                              simulationInfo::SimulationInfo,
                              θ_indices::ParameterIndices,
                              measurementInfo::MeasurementsInfo,
                              parameterInfo::ParametersInfo,
-                             solveOdeModelAllConditions!::Function, 
-                             petabODECache::PEtabODEProblemCache;
+                             petabODECache::PEtabODEProblemCache, 
+                             petabODESolverCache::PEtabODESolverCache;
+                             computeCost::Bool=false,
                              computeHessian::Bool=false,
                              computeGradientDynamicθ::Bool=false,
                              computeResiduals::Bool=false,
@@ -49,19 +56,15 @@ function computeCostSolveODE(θ_dynamic::AbstractVector,
     θ_observableT = transformθ(θ_observable, θ_indices.θ_observableNames, θ_indices, :θ_observable, petabODECache)
     θ_nonDynamicT = transformθ(θ_nonDynamic, θ_indices.θ_nonDynamicNames, θ_indices, :θ_nonDynamic, petabODECache)
 
-    if petabModel.convertTspan == false
-        _odeProblem = remake(odeProblem, p = convert.(eltype(θ_dynamicT), odeProblem.p), u0 = convert.(eltype(θ_dynamicT), odeProblem.u0))
-    else
-        _odeProblem = remake(odeProblem, p = convert.(eltype(θ_dynamicT), odeProblem.p), u0 = convert.(eltype(θ_dynamicT), odeProblem.u0), tspan=convert.(eltype(θ_dynamicT), odeProblem.tspan))
-    end
+    _odeProblem = remake(odeProblem, p = convert.(eltype(θ_dynamicT), odeProblem.p), u0 = convert.(eltype(θ_dynamicT), odeProblem.u0))
     changeODEProblemParameters!(_odeProblem.p, _odeProblem.u0, θ_dynamicT, θ_indices, petabModel)
 
     # If computing hessian or gradient store ODE solution in arrary with dual numbers, else use
     # solution array with floats
     if computeHessian == true || computeGradientDynamicθ == true
-        success = solveOdeModelAllConditions!(simulationInfo.odeSolutionsDerivatives, _odeProblem, θ_dynamicT, expIDSolve)
-    else
-        success = solveOdeModelAllConditions!(simulationInfo.odeSolutions, _odeProblem, θ_dynamicT, expIDSolve)
+        success = solveODEAllExperimentalConditions!(simulationInfo.odeSolutionsDerivatives, _odeProblem, petabModel, θ_dynamicT, petabODESolverCache, simulationInfo, θ_indices, odeSolverOptions, expIDSolve=expIDSolve, denseSolution=false, onlySaveAtObservedTimes=true)
+    elseif computeCost == true
+        success = solveODEAllExperimentalConditions!(simulationInfo.odeSolutions, _odeProblem, petabModel, θ_dynamicT, petabODESolverCache, simulationInfo, θ_indices, odeSolverOptions, expIDSolve=expIDSolve, denseSolution=false, onlySaveAtObservedTimes=true)
     end
     if success != true
         println("Failed to solve ODE model")

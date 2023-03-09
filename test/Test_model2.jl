@@ -57,12 +57,11 @@ function testODESolverTestModel2(petabModel::PEtabModel, solverOptions)
         prob = ODEProblem(petabModel.odeSystem, petabModel.stateMap, (0.0, 5e3), petabModel.parameterMap, jac=true)
         prob = remake(prob, p = convert.(Float64, prob.p), u0 = convert.(Float64, prob.u0))
         θ_dynamic = getFileODEvalues(petabModel)[1:2]
-        changeExperimentalCondition! = (pVec, u0Vec, expID, θ_dynamic) -> _changeExperimentalCondition!(pVec, u0Vec, expID, θ_dynamic, petabModel, θ_indices)
 
         # Solve ODE system
         petabODESolverCache = createPEtabODESolverCache(:nothing, :nothing, petabModel, simulationInfo, θ_indices, nothing)
         θ_dynamic = [alpha, beta]
-        odeSolutions, success = solveODEAllExperimentalConditions(prob, θ_dynamic, petabODESolverCache, changeExperimentalCondition!, simulationInfo, solverOptions, petabModel.computeTStops)
+        odeSolutions, success = solveODEAllExperimentalConditions(prob, petabModel, θ_dynamic, petabODESolverCache, simulationInfo, θ_indices, solverOptions)
         odeSolution = odeSolutions[simulationInfo.experimentalConditionId[1]]
 
         # Compare against analytical solution
@@ -172,6 +171,7 @@ end
     testCostGradientOrHessianTestModel2(petabModel, getODESolverOptions(Vern9(), solverAbstol=1e-15, solverReltol=1e-15))
 end
 
+checkGradientResiduals(petabModel, getODESolverOptions(Rodas5P(), solverAbstol=1e-9, solverReltol=1e-9))
 @testset "Gradient of residuals" begin
     checkGradientResiduals(petabModel, getODESolverOptions(Rodas5P(), solverAbstol=1e-9, solverReltol=1e-9))
 end

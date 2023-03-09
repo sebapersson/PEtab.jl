@@ -5,15 +5,15 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
                                         θ_observable::Vector{Float64},
                                         θ_nonDynamic::Vector{Float64},
                                         odeProblem::ODEProblem,
-                                        solverOptions::ODESolverOptions,
+                                        odeSolverOptions::ODESolverOptions,
                                         sensealg::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
                                         petabModel::PEtabModel,
                                         simulationInfo::SimulationInfo,
                                         θ_indices::ParameterIndices,
                                         measurementInfo ::MeasurementsInfo,
                                         parameterInfo::ParametersInfo,
-                                        solveOdeModelAllConditions!::Function, 
-                                        petabODECache::PEtabODEProblemCache;
+                                        petabODECache::PEtabODEProblemCache, 
+                                        petabODESolverCache::PEtabODESolverCache;
                                         sensealgSS=SteadyStateAdjoint(),
                                         expIDSolve::Vector{Symbol} = [:all])
 
@@ -24,7 +24,7 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
 
     _odeProblem = remake(odeProblem, p = convert.(eltype(θ_dynamicT), odeProblem.p), u0 = convert.(eltype(θ_dynamicT), odeProblem.u0))
     changeODEProblemParameters!(_odeProblem.p, _odeProblem.u0, θ_dynamicT, θ_indices, petabModel)
-    success = solveOdeModelAllConditions!(simulationInfo.odeSolutionsDerivatives, _odeProblem, θ_dynamicT, expIDSolve)
+    success = solveODEAllExperimentalConditions!(simulationInfo.odeSolutionsDerivatives, _odeProblem, petabModel, θ_dynamicT, petabODESolverCache, simulationInfo, θ_indices, odeSolverOptions, expIDSolve=expIDSolve, denseSolution=true, onlySaveAtObservedTimes=false, trackCallback=true)
     if success != true
         gradient .= 1e8
         return
@@ -33,7 +33,7 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
     # In case of PreEq-critera we need to compute the pullback function at tSS to compute the VJP between
     # λ_t0 and the sensitivites at steady state time
     if simulationInfo.haspreEquilibrationConditionId == true
-        evalVJPSSVec = generateVJPSSFunction(simulationInfo, sensealgSS, solverOptions, expIDSolve)
+        evalVJPSSVec = generateVJPSSFunction(simulationInfo, sensealgSS, odeSolverOptions, expIDSolve)
     end
 
     gradient .= 0.0
@@ -55,7 +55,7 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
         # In case the model is simulated first to a steady state we need to keep track of the post-equlibrium experimental
         # condition Id to identify parameters specific to an experimental condition.
         sol = simulationInfo.odeSolutionsDerivatives[experimentalConditionId]
-        success = computeGradientAdjointExpCond!(gradient, sol, petabODECache, sensealg, solverOptions,
+        success = computeGradientAdjointExpCond!(gradient, sol, petabODECache, sensealg, odeSolverOptions,
                                                  θ_dynamicT, θ_sdT, θ_observableT, θ_nonDynamicT, experimentalConditionId,
                                                  simulationConditionId, simulationInfo,
                                                  petabModel, θ_indices, measurementInfo, parameterInfo, evalVJPSS)

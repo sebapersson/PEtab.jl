@@ -111,11 +111,10 @@ function testODESolverTestModel3(petabModel::PEtabModel, solverOptions::ODESolve
         prob = ODEProblem(petabModel.odeSystem, petabModel.stateMap, (0.0, 9.7), petabModel.parameterMap, jac=true)
         prob = remake(prob, p = convert.(Float64, prob.p), u0 = convert.(Float64, prob.u0))
         θ_dynamic = getFileODEvalues(petabModel)[1:4]
-        changeExperimentalCondition! = (pVec, u0Vec, expID, θ_dynamic) -> _changeExperimentalCondition!(pVec, u0Vec, expID, θ_dynamic, petabModel, θ_indices)
         petabODESolverCache = createPEtabODESolverCache(:nothing, :nothing, petabModel, simulationInfo, θ_indices, nothing)
 
         # Solve ODE system
-        odeSolutions, success = solveODEAllExperimentalConditions(prob, θ_dynamic, petabODESolverCache, changeExperimentalCondition!, simulationInfo, solverOptions, petabModel.computeTStops)
+        odeSolutions, success = solveODEAllExperimentalConditions(prob, petabModel, θ_dynamic, petabODESolverCache, simulationInfo, θ_indices, solverOptions)
         # Solve ODE system with algebraic intial values
         algebraicODESolutions = getSolAlgebraicSS(petabModel, solverOptions.solver, solverOptions.abstol, a, b, c, d)
 
@@ -183,7 +182,6 @@ end
     testCostGradientOrHessianTestModel3(petabModel, getODESolverOptions(Rodas4P(), solverAbstol=1e-12, solverReltol=1e-12))
 end
 
-checkGradientResiduals(petabModel, getODESolverOptions(Rodas4P(), solverAbstol=1e-9, solverReltol=1e-9))
 @testset "Gradient of residuals" begin
     checkGradientResiduals(petabModel, getODESolverOptions(Rodas4P(), solverAbstol=1e-9, solverReltol=1e-9))
 end
