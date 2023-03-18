@@ -240,7 +240,7 @@ function computeHessianPrior!(hessian::AbstractVector,
 
     _evalPriors = (θ_est) -> begin
                                 θ_estT =  transformθ(θ_est, θ_indices.θ_estNames, θ_indices)
-                                return computePriors(θ_est, θ_estT, θ_indices.θ_estNames, priorInfo)
+                                return -1.0 * computePriors(θ_est, θ_estT, θ_indices.θ_estNames, priorInfo) # We work with -loglik
                             end
     hessian .+= ForwardDiff.hessian(_evalPriors, θ)
 end
