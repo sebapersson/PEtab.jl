@@ -130,7 +130,7 @@ testLogLikelihoodValue(petabModel, -53.08377736998929, getODESolverOptions(Rodas
 # Schwen model. Model has priors so here we want to test all gradients
 pathYML = joinpath(@__DIR__, "Test_ll", "Schwen_PONE2014", "Schwen_PONE2014.yaml")
 petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
-testLogLikelihoodValue(petabModel, 943.9992988598723-12.519137073132825, getODESolverOptions(Rodas4P(), solverAbstol=1e-12, solverReltol=1e-12))
+testLogLikelihoodValue(petabModel, 943.9992988598723+12.519137073132825, getODESolverOptions(Rodas4P(), solverAbstol=1e-12, solverReltol=1e-12))
 
 # Sneyd model - Test against World problem by wrapping inside function
 function testSneyd()

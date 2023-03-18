@@ -116,7 +116,9 @@ function setUpPEtabODEProblem(petabModel::PEtabModel,
                                    lowerBounds,
                                    upperBounds,
                                    joinpath(petabModel.dirJulia, "Cube" * petabModel.modelName * ".csv"),
-                                   petabModel)
+                                   petabModel, 
+                                   odeSolverOptions, 
+                                   odeSolverGradientOptions)
     return petabProblem
 end
 
@@ -750,4 +752,40 @@ function getODESolverOptions(solver::T1;
 
     solverOptions = ODESolverOptions(solver, solverAbstol, solverReltol, force_dtmin, dtmin, maxiters)
     return solverOptions
+end
+
+
+# For better printing of the PEtab ODEProblem 
+import Base.show
+function show(io::IO, a::ODESolverOptions)
+    # Extract ODE solver as a readable string (without everything between)
+    strWrite = getStringSolverOptions(a)
+    print(strWrite)
+end
+function show(io::IO, a::PEtabODEProblem)
+
+    modelName = a.petabModel.modelName
+    numberOfODEStates = length(a.petabModel.stateNames)
+    numberOfParametersToEstimate = length(a.θ_estNames)
+    θ_indices = a.computeCost.θ_indices
+    numberOfDynamicParameters = length(θ_indices.iθ_dynamic)
+
+    odeSolverOptions = getStringSolverOptions(a.odeSolverOptions)
+    odeSolverGradientOptions = getStringSolverOptions(a.odeSolverGradientOptions)
+
+    gradientMethod = string(a.gradientMethod)
+    hessianMethod = string(a.hessianMethod)
+    
+    @printf("PEtabODEProblem for model %s with %d states and %d parameters to estimate where %d parameters are a part of the ODE-system\n----- Problem settings -----\nGradient method : %s\nHessian method : %s\nODE-solver options cost : %s\nODE-solver options gradient : %s",
+            modelName, numberOfODEStates, numberOfParametersToEstimate, numberOfDynamicParameters, gradientMethod, 
+            hessianMethod, odeSolverOptions, odeSolverGradientOptions)
+end
+
+
+function getStringSolverOptions(a::ODESolverOptions)
+    solverStr = string(a.solver)
+    iEnd = findfirst(x -> x == '{', solverStr)
+    solverStrWrite = solverStr[1:iEnd-1] * "()"
+    strWrite = @sprintf("ODESolverOptions with ODE-solver %s and options (abstol, reltol, maxiters) = (%.1e, %.1e, %.1e)", solverStrWrite, a.abstol, a.reltol, a.maxiters)
+    return strWrite
 end

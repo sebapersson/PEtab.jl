@@ -66,10 +66,23 @@ struct PEtabModel{F1<:Function,
 end
 
 
+struct ODESolverOptions{T1 <: SciMLAlgorithm, 
+                        T2 <: Union{Float64, Nothing}}
+    solver::T1
+    abstol::Float64
+    reltol::Float64
+    force_dtmin::Bool
+    dtmin::T2
+    maxiters::Int64    
+end
+
+
 struct PEtabODEProblem{F1<:Function,
                        F2<:Function,
                        F3<:Function,
-                       T1<:PEtabModel}
+                       T1<:PEtabModel, 
+                       T2<:ODESolverOptions, 
+                       T3<:ODESolverOptions}
 
     computeCost::F1
     computeGradient!::F2
@@ -85,17 +98,8 @@ struct PEtabODEProblem{F1<:Function,
     upperBounds::Vector{Float64}
     pathCube::String
     petabModel::T1
-end
-
-
-struct ODESolverOptions{T1 <: SciMLAlgorithm, 
-                        T2 <: Union{Float64, Nothing}}
-    solver::T1
-    abstol::Float64
-    reltol::Float64
-    force_dtmin::Bool
-    dtmin::T2
-    maxiters::Int64    
+    odeSolverOptions::T2
+    odeSolverGradientOptions::T3
 end
 
 

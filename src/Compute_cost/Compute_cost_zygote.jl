@@ -20,7 +20,7 @@ function computeCostZygote(θ_est,
 
     if priorInfo.hasPriors == true
         θ_estT = transformθZygote(θ_est, θ_indices.θ_estNames, parameterInfo)
-        cost += computePriors(θ_est, θ_estT, θ_indices.θ_estNames, priorInfo)
+        cost -= computePriors(θ_est, θ_estT, θ_indices.θ_estNames, priorInfo)
     end
 
     return cost
