@@ -1,15 +1,24 @@
 """
-    setUpPeTabModel(modelName::String, dirModel::String)::PEtabModel
-    Given a model directory (dirModel) containing the PeTab files and a
-    xml-file on format modelName.xml will return a PEtabModel struct holding
-    paths to PeTab files, ode-system in ModellingToolkit format, functions for
-    evaluating yMod, u0 and standard deviations, and a parameter and state maps
-    for how parameters and states are mapped in the ModellingToolkit ODE system
-    along with state and parameter names.
-    dirModel must contain a SBML file named modelName.xml, and files starting with
-    measurementData, experimentalCondition, parameter, and observables (tsv-files).
-    The latter files must be unique (e.g only one file starting with measurementData)
-    TODO : Example
+    readPEtabModel(pathYAML::String;
+                   forceBuildJuliaFiles::Bool=false,
+                   verbose::Bool=true,
+                   ifElseToEvent::Bool=true)::PEtabModel
+
+    Parses a PEtab specified problem with yaml-file at `pathYAML` into a Julia accessible format. 
+
+    When parsing a PEtab problem several things happens under the hood;
+    1) The SBML file is translated into ModelingToolkit.jl format (e.g allow symbolic computations of the ODE-model 
+       Jacobian). Piecewise and model events are written into DifferentialEquations.jl callbacks.
+    2) The observable PEtab-table is translated into Julia-file with functions for computing the observable (h), 
+       noise parameter (σ) and initial values (u0). 
+    3) To be able to compute gradients via adjoint sensitivity analysis and/or forward sensitivity equations gradients
+       of h and σ are computed symbolically with respect to the ODE-models states (u) and parameters (odeProblem.p).
+    All these functions are created automatically and stored files under petabModel.dirJulia. To save time 
+    `forceBuildJlFiles=false` by default such that the Julia files are not rebuilt in case they already exist.
+
+    In the future we plan to allow the user to provide a Julia file directly instead of a SBML file.
+
+    See also: [`PEtabModel`]
 """
 function readPEtabModel(pathYAML::String;
                         forceBuildJuliaFiles::Bool=false,
@@ -165,4 +174,15 @@ function getFunctionsAsString(filePath::AbstractString, nFunctions::Int64)::Vect
         out[i] = prod([bodyStr[j] * '\n' for j in fStart[i]:fEnd[i]])
     end
     return out
+end
+
+import Base.show
+function show(io::IO, a::PEtabModel)
+
+    modelName = a.modelName
+    numberOfODEStates = length(a.stateNames)
+    numberOfODEParameters = length(a.parameterNames)
+    
+    @printf("PEtabModel for model %s where the ODE-system has %d states and %d parameters.\nJulia-model files can be found at %s",            
+            modelName, numberOfODEStates, numberOfODEParameters, a.dirJulia)
 end
