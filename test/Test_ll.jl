@@ -21,8 +21,8 @@ function testLogLikelihoodValue(petabModel::PEtabModel,
                                 referenceValue::Float64,
                                 solverOptions; atol=1e-3)
 
-    petabProblem1 = setUpPEtabODEProblem(petabModel, solverOptions, costMethod=:Standard)
-    petabProblem2 = setUpPEtabODEProblem(petabModel, solverOptions, costMethod=:Zygote)
+    petabProblem1 = setupPEtabODEProblem(petabModel, solverOptions, costMethod=:Standard)
+    petabProblem2 = setupPEtabODEProblem(petabModel, solverOptions, costMethod=:Zygote)
     cost = petabProblem1.computeCost(petabProblem1.θ_nominalT)
     costZygote = petabProblem2.computeCost(petabProblem1.θ_nominalT)
     println("Model : ", petabModel.modelName)
@@ -47,7 +47,7 @@ function testGradientFiniteDifferences(petabModel::PEtabModel, solverOptions;
     end
 
     # Testing the gradient via finite differences
-    petabProblem1 = setUpPEtabODEProblem(petabModel, solverOptions,
+    petabProblem1 = setupPEtabODEProblem(petabModel, solverOptions,
                                          splitOverConditions=splitOverConditions, 
                                          solverSSRelTol=solverSSRelTol, solverSSAbsTol=solverSSAbsTol)
     θ_use = petabProblem1.θ_nominalT
@@ -57,7 +57,7 @@ function testGradientFiniteDifferences(petabModel::PEtabModel, solverOptions;
     @test norm(gradientFinite - gradientForward) ≤ testTol
     
     if checkForwardEquations == true
-        petabProblem1 = setUpPEtabODEProblem(petabModel, solverOptions,
+        petabProblem1 = setupPEtabODEProblem(petabModel, solverOptions,
                                              gradientMethod=:ForwardEquations, sensealg=:ForwardDiff, 
                                              solverSSRelTol=solverSSRelTol, solverSSAbsTol=solverSSAbsTol)
         gradientForwardEquations1 = zeros(length(θ_use))
@@ -65,7 +65,7 @@ function testGradientFiniteDifferences(petabModel::PEtabModel, solverOptions;
         @test norm(gradientFinite - gradientForwardEquations1) ≤ testTol
         
         if onlyCheckAutoDiff == false
-            petabProblem2 = setUpPEtabODEProblem(petabModel, solverOptions, odeSolverGradientOptions=solverGradientOptions,
+            petabProblem2 = setupPEtabODEProblem(petabModel, solverOptions, odeSolverGradientOptions=solverGradientOptions,
                                                  gradientMethod=:ForwardEquations, sensealg=ForwardSensitivity(),
                                                  solverSSRelTol=solverSSRelTol, solverSSAbsTol=solverSSAbsTol)
             gradientForwardEquations2 = zeros(length(θ_use))
@@ -75,7 +75,7 @@ function testGradientFiniteDifferences(petabModel::PEtabModel, solverOptions;
     end
 
     if checkAdjoint == true
-        petabProblem1 = setUpPEtabODEProblem(petabModel, solverOptions, odeSolverGradientOptions=solverGradientOptions,
+        petabProblem1 = setupPEtabODEProblem(petabModel, solverOptions, odeSolverGradientOptions=solverGradientOptions,
                                              gradientMethod=:Adjoint, sensealg=sensealgAdjoint, sensealgSS=sensealgSS,
                                              splitOverConditions=splitOverConditions, 
                                              solverSSRelTol=solverSSRelTol, solverSSAbsTol=solverSSAbsTol)

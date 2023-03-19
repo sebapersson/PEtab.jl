@@ -22,7 +22,7 @@ function _testCostGradientOrHessian(petabModel::PEtabModel,
         solverGradientOptions = deepcopy(solverOptions)
     end
 
-    petabProblem = setUpPEtabODEProblem(petabModel,
+    petabProblem = setupPEtabODEProblem(petabModel,
                                         solverOptions;
                                         odeSolverGradientOptions=solverGradientOptions,
                                         costMethod=costMethod,
