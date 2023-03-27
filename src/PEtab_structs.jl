@@ -3,13 +3,13 @@
 
     A PEtab specified problem translated into a Julia compatible format.
 
-    Created from `readPEtabModel` contains helper functions needed to set up cost, gradient, hessian computations, and 
+    Created from `readPEtabModel` contains helper functions needed to set up cost-, gradient-, hessian-computations, and 
     for handling potential model events (callbacks). 
 
-    Note1 - Several of the functions in the PEtabModel are not meant to be directly accessible for the user. For 
-    example compute_h (and similar functions) require indices which are built in the background to efficiently map 
-    parameter between experimental (simulation) conditions. Rather, `PEtabModel` holds all information needed to create a 
-    PEtabODEProblem (e.g facilitate gradient compuations), and in the future PEtabSDEProblem etc ...
+    Note1 - Several of the functions in the PEtabModel are not meant to be accessible for the user. For example 
+    compute_h (and similar functions) require indices which are built in the background to efficiently map parameter 
+    between experimental (simulation) conditions. Rather, `PEtabModel` holds all information needed to create a 
+    PEtabODEProblem, and in the future PEtabSDEProblem etc ...
     Note2 - ODEProblem.p refers to the parameters for underlying DifferentialEquations.jl ODEProblem.
 
     # Fields
@@ -25,7 +25,7 @@
     `compute_∂σ∂p!`: As above for σ but with respect to ODEProblem.p
     `computeTStops`: In case the model has DiscreteCallbacks (events) this function computes the event times. 
     `convertTspan::Bool`: In case the model has DiscreteCallbacks (events) and the trigger-time is a parameter set to 
-     estimate this Bool tracks that for ForwardDiff.jl gradients the time-span should be converted to Dual-numbers. 
+     be estimated this Bool tracks that for ForwardDiff.jl gradients the time-span should be converted to Dual-numbers. 
     `dirModel`: Directory where the model.xml and PEtab files are stored.
     `dirJulia`: Directory where the Julia-model files created by parsing the PEtab files (e.g SBML-file) are stored. 
     `odeSystem`: A ModellingToolkit.jl ODE-system obtained from parsing the model SBML-file.  
@@ -96,10 +96,11 @@ end
 """
     ODESolverOptions
 
-    ODE-solver options (solver, tolerances, etc...)  when computing gradient/cost for a PEtabODEProblem. 
+    Stores ODE-solver options (solver, tolerances, etc...) to use when computing gradient/cost for a PEtabODEProblem. 
 
-    Constructed via `getODESolverOptions`. More info on the options and available solvers can be found in the 
-    documentation for DifferentialEquations.jl (https://docs.sciml.ai/DiffEqDocs/stable/solvers/ode_solve/)
+    Constructed via `getODESolverOptions`. More info regarding the options and available solvers can be found in the 
+    documentation for DifferentialEquations.jl (https://docs.sciml.ai/DiffEqDocs/stable/solvers/ode_solve/), and 
+    in the documentation for `getODESolverOptions`.
 
     # Fields
     `solver`: Any of the ODE-solvers in DifferentialEquations.jl
@@ -131,7 +132,7 @@ end
     via `setupPEtabODEProblem`, more info on tuneable options can be found in the documentation [add]. 
     
     **Note** - the parameter vector θ is **always** assumed to be on parameter scale specified in the PEtab parameters 
-    file, e.g. such as log-scale. If needed θ is transformed inside of the function call. 
+    file. If needed θ is transformed to linear scale inside of the function call. 
 
     # Fields
     `computeCost`: For θ computes the objective value cost = computeCost(θ)
@@ -145,7 +146,7 @@ end
     `θ_nominal`: Nominal θ values as specified in the PEtab parameters-file. 
     `θ_nominalT`: Nominal θ values on parameter-scale (e.g log) as specified in the PEtab parameters-file.
     `lowerBounds`: Lower parameter bounds on parameter-scale for θ as specified in the PEtab parameters-file.
-    `upperBounds`: Upper parameter bounds on parameter-scale for θ as specified in the PEtab parameters-file.a
+    `upperBounds`: Upper parameter bounds on parameter-scale for θ as specified in the PEtab parameters-file.
     `petabModel`: PEtabModel used to construct the PEtabODEProblem
     `odeSolverOptions`: ODE-solver options specified when creating the PEtabODEProblem 
     `odeSolverGradientOptions`: ODE-solver gradient options specified when creating the PEtabODEProblem 

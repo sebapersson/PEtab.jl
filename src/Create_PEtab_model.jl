@@ -8,15 +8,15 @@
 
     When parsing a PEtab problem several things happens under the hood;
     1) The SBML file is translated into ModelingToolkit.jl format (e.g allow symbolic computations of the ODE-model 
-       Jacobian). Piecewise and model events are written into DifferentialEquations.jl callbacks.
+       Jacobian). Piecewise and model events are further written into DifferentialEquations.jl callbacks.
     2) The observable PEtab-table is translated into Julia-file with functions for computing the observable (h), 
        noise parameter (σ) and initial values (u0). 
-    3) To be able to compute gradients via adjoint sensitivity analysis and/or forward sensitivity equations gradients
-       of h and σ are computed symbolically with respect to the ODE-models states (u) and parameters (odeProblem.p).
-    All these functions are created automatically and stored files under petabModel.dirJulia. To save time 
-    `forceBuildJlFiles=false` by default such that the Julia files are not rebuilt in case they already exist.
+    3) To allow gradients via adjoint sensitivity analysis and/or forward sensitivity equations the gradients of 
+       h and σ are computed symbolically with respect to the ODE-models states (u) and parameters (odeProblem.p).
+    All this happens automatically, and resulting files are stored under petabModel.dirJulia. To save time 
+    `forceBuildJlFiles=false` meaning that Julia files are not rebuilt in case the already exist.
 
-    In the future we plan to allow the user to provide a Julia file directly instead of a SBML file.
+    In the future we plan to allow the user to also provide a Julia file instead of a SBML file.
 
     See also: [`PEtabModel`]
 """
@@ -179,10 +179,16 @@ end
 import Base.show
 function show(io::IO, a::PEtabModel)
 
-    modelName = a.modelName
-    numberOfODEStates = length(a.stateNames)
-    numberOfODEParameters = length(a.parameterNames)
+    modelName = @sprintf("%s", a.modelName)
+    numberOfODEStates = @sprintf("%d", length(a.stateNames))
+    numberOfODEParameters = @sprintf("%d",  length(a.parameterNames))
     
-    @printf("PEtabModel for model %s where the ODE-system has %d states and %d parameters.\nJulia-model files can be found at %s",            
-            modelName, numberOfODEStates, numberOfODEParameters, a.dirJulia)
+    printstyled("PEtabModel", color=123)
+    print(" for model ")
+    printstyled(modelName, color=123)
+    print(". The model ODE-system has ")
+    printstyled(numberOfODEStates * " states", color=123)
+    print(" and ")
+    printstyled(numberOfODEParameters * " parameters", color=123)
+    @printf("\nGenerated Julia files can be found at %s", a.dirJulia)
 end

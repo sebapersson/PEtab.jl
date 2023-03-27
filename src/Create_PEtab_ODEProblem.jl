@@ -5,10 +5,10 @@
 
     For a PEtabModel and ODE-solver options (e.g. solver and tolerances) returns a PEtabODEProblem.
 
-    The PEtabODEproblem allows for efficient cost, gradient and hessian computations for a PEtab specified problem. Via 
-    keyword arguments (see below) the user can select cost method, gradient method, hessian method, ODE solver options, 
-    and select between a few tuneable options that potentially can make computations more efficient for a subset of 
-    "edge-case" models. A discussion about the most efficient options for different model types can be found in the 
+    The PEtabODEproblem allows for efficient cost, gradient and hessian computations for a PEtab specified problem.  
+    Using the keyword arguments (see below) the user can select cost method, gradient method, hessian method, ODE 
+    solver options, and a few tuneable options that potentially can make computations more efficient for a subset of 
+    "edge-case" models. A discussion about the most efficient option for different model types can be found in the 
     documentation [add]. 
 
     # Arguments
@@ -22,16 +22,16 @@
         * :ForwardDiff - Compute the gradient via forward-mode automatic differentiation using ForwardDiff.jl. Most 
           efficient for models with ≤50 parameters. Optionally the number of chunks can be set by `chunkSize`.
         * :ForwardEquations - Compute the gradient via the model sensitivities, where `sensealg` species how to solve 
-          for the sensitivities. Most efficient if the hessian is approximated via the Gauss-Newton method, and in the 
+          for the sensitivities. Most efficient if the hessian is approximated via the Gauss-Newton method, and if in the 
           optimizer we can reuse the sensitives (see `reuseS`) from the gradient computations in the hessian computations 
           (e.g when the optimizer always computes the gradient before the hessian). 
         * :Adjoint - Compute the gradient via adjoint sensitivity analysis, where `sensealg` specifies which algorithm 
           to use. Most efficient for large models (≥75 parameters). 
         * :Zygote - Compute the gradient via the Zygote package, where `sensealg` specifies which sensitivity algorithm 
           to use when solving the ODE-model. Most inefficient option and not recommended to use at all. 
-    - `hessianMethod::Symbol=:ForwardDiff` : method for computing the hessian of the (objective). Three available options:
+    - `hessianMethod::Symbol=:ForwardDiff` : method for computing the hessian of the cost. Three available options:
         * :ForwardDiff - Compute the hessian via forward-mode automatic differentiation using ForwardDiff.jl. Often only 
-          computationally feasible for models with ≤20 parameters where it often greatly improves optimizer convergence. 
+          computationally feasible for models with ≤20 parameters, but often greatly improves optimizer convergence. 
         * :BlockForwardDiff - Compute hessian block approximation via forward-mode automatic differentiation using 
           ForwardDiff.jl. Approximation consists of two block matrices, the first is the hessian for only the dynamic 
           parameters (parameter part of the ODE system), and the second for the non-dynamic parameters (e.g noise 
@@ -40,8 +40,8 @@
         * :GaussNewton - Approximate the hessian via the Gauss-Newton method. Often performs better than the BFGS method.
           If in the optimizer we can reuse the sensitives from the gradient (see `reuseS`) this method is best paired with 
           `gradientMethod=:ForwardEquations`. 
-    - `sparseJacobian::Bool=false` : when solving the ODE du/dt=f(u, p, t) whether or not for implicit solvers to use a 
-       sparse-jacobian for f. Sparse jacobian often performs best for large models (≥100 states). 
+    - `sparseJacobian::Bool=false` : when solving the ODE du/dt=f(u, p, t) whether or not for implicit solvers use a 
+       sparse-jacobian. Sparse jacobian often performs best for large models (≥100 states). 
     - `specializeLevel=SciMLBase.FullSpecialize` : specialization level when building the ODE-problem. Not recommended 
        to change (see https://docs.sciml.ai/SciMLBase/stable/interfaces/Problems/)
     - `solverSSRelTol::Float64=1e-6` : For models with pre-eq. Will refactor this part of the code. 
@@ -62,12 +62,12 @@
        automatic different. If nothing default value is used. Tuning chunkSize is non-trivial and we plan to add 
        automatic functionality for this.
     - `splitOverConditions::Bool=false` : For gradient and hessian via ForwardDiff.jl whether or not to split calls to 
-      to ForwardDiff across experimental (simulation) conditions. Should only be set to true in case the model has a 
-      majority of parameters which are specific to an experimental condition as else the overhead from the calls will 
-      increase run time. See the Beer-example for a concrete case.
+      to ForwardDiff across experimental (simulation) conditions. Should only be set to true in case the model has many 
+      parameters tgat are specific to an experimental condition, else the overhead from the calls will increase run time. 
+      See the Beer-example for an example where this is needed.
     - `reuseS::Bool=false` : Reuse the sensitives from the gradient computations for the Gauss-Newton hessian approximation.
       Only applicable when `hessianMethod=:GaussNewton` and `gradientMethod=:ForwardEquations` and should **only** be used 
-      when the optimizes **always** computes the gradient before the hessian.
+      when the optimizer **always** computes the gradient before the hessian.
 
     See also [`PEtabODEProblem`](@ref), [`PEtabModel`](@ref), [`getODESolverOptions`](@ref).
 """
@@ -819,11 +819,11 @@ end
 """
     getODESolverOptions(solver, <keyword arguments>)
 
-    Setup ODE-solver options (solver, tolerances, etc...) used for computing gradient/cost for a PEtabODEProblem. 
+    Setup ODE-solver options (solver, tolerances, etc...) to use when computing gradient/cost for a PEtabODEProblem. 
 
-    More info of the options and available solvers can be found in the documentation for DifferentialEquations.jl 
-    (https://docs.sciml.ai/DiffEqDocs/stable/solvers/ode_solve/), and a recommendation for which solver to use for 
-    which problem can be found below and in the documentation.
+    More info of about the options and available solvers can be found in the documentation for DifferentialEquations.jl 
+    (https://docs.sciml.ai/DiffEqDocs/stable/solvers/ode_solve/). Recommendeded settings for which solver and options 
+    to use for different problems can be found below and in the documentation.
 
     # Arguments
     `solver`: Any of the ODE-solvers in DifferentialEquations.jl. For small (≤20 states) mildly stiff models 
@@ -831,15 +831,14 @@ end
      well. For medium sized models (≤75states) `QNDF()`, `FBDF()` and `CVODE_BDF()` perform well. `CVODE_BDF()` is 
      not compatible with automatic differentiation and thus cannot be used if the gradient is computed via automatic 
      differentiation, or if the Gauss-Newton hessian approximation is used. If the gradient is computed via adjoint 
-     sensitivity analysis `CVODE_BDF()` is often the best choices as it typically fails less often `QNDF()` and `FBDF()`.
-    `abstol=1e-8`: Absolute tolerance when solving the ODE-system. Not recommended to increase above 1e-6 for gradient 
-     computations.
-    `reltol=1e-8`: Relative tolerance when solving the ODE-system. Not recommended to increase above 1e-6 for gradient 
-     computations.
+     sensitivity analysis `CVODE_BDF()` is often the best choices as it typically is more relaible than `QNDF()` and 
+     `FBDF()` (fails less often).
+    `abstol=1e-8`: Absolute tolerance when solving the ODE-system. Not recommended to increase above 1e-6 for gradients. 
+    `reltol=1e-8`: Relative tolerance when solving the ODE-system. Not recommended to increase above 1e-6 for gradients. 
     `force_dtmin=false`: Whether or not to force dtmin when solving the ODE-system.
     `dtmin=nothing`: Minimal acceptable step-size when solving the ODE-system.
-    `maxiters=100000`: Maximum number of iterations when solving the ODE-system. Not recommended to change unless really 
-     needed.
+    `maxiters=10000`: Maximum number of iterations when solving the ODE-system. Increasing above the default value can 
+     cause the optimization to take substantial time.
 
     See also [`ODESolverOptions`](@ref).
 """
@@ -848,7 +847,7 @@ function getODESolverOptions(solver::T1;
                              solverReltol::Float64=1e-8, 
                              force_dtmin::Bool=false, 
                              dtmin::Union{Float64, Nothing}=nothing, 
-                             maxiters::Int64=100000)::ODESolverOptions where T1 <: SciMLAlgorithm 
+                             maxiters::Int64=10000)::ODESolverOptions where T1 <: SciMLAlgorithm 
 
     solverOptions = ODESolverOptions(solver, solverAbstol, solverReltol, force_dtmin, dtmin, maxiters)
     return solverOptions
@@ -859,8 +858,11 @@ end
 import Base.show
 function show(io::IO, a::ODESolverOptions)
     # Extract ODE solver as a readable string (without everything between)
-    strWrite = getStringSolverOptions(a)
-    print(strWrite)
+    solverStrWrite, optionsStr = getStringSolverOptions(a)
+    printstyled("ODESolverOptions", color=123)
+    print(" with ODE solver ")
+    printstyled(solverStrWrite, color=123)
+    @printf(" and solver options %s", optionsStr)
 end
 function show(io::IO, a::PEtabODEProblem)
 
@@ -870,15 +872,26 @@ function show(io::IO, a::PEtabODEProblem)
     θ_indices = a.computeCost.θ_indices
     numberOfDynamicParameters = length(θ_indices.iθ_dynamic)
 
-    odeSolverOptions = getStringSolverOptions(a.odeSolverOptions)
-    odeSolverGradientOptions = getStringSolverOptions(a.odeSolverGradientOptions)
+    solverStrWrite, optionsStr = getStringSolverOptions(a.odeSolverOptions)
+    solverGradStrWrite, optionsGradStr = getStringSolverOptions(a.odeSolverGradientOptions)
 
     gradientMethod = string(a.gradientMethod)
     hessianMethod = string(a.hessianMethod)
     
-    @printf("PEtabODEProblem for model %s with %d states and %d parameters to estimate where %d parameters are a part of the ODE-system\n----- Problem settings -----\nGradient method : %s\nHessian method : %s\nODE-solver options cost : %s\nODE-solver options gradient : %s",
-            modelName, numberOfODEStates, numberOfParametersToEstimate, numberOfDynamicParameters, gradientMethod, 
-            hessianMethod, odeSolverOptions, odeSolverGradientOptions)
+    printstyled("PEtabODEProblem", color=123)
+    print(" for model ")
+    printstyled(modelName, color=123)
+    @printf(" with %d states and %d parameters to estimate of which %d are dynamic parameters.\n-------- Problem settings --------\nGradient method : ",
+            numberOfODEStates, numberOfParametersToEstimate, numberOfDynamicParameters)
+    printstyled(gradientMethod, color=123)
+    print("\nHessian method : ")
+    printstyled(hessianMethod, color=123)
+    printstyled("\nCost ODE-solver is ")
+    printstyled(solverStrWrite, color=123)
+    @printf(" with options %s", optionsStr)
+    printstyled("\nGradient ODE solver is ")
+    printstyled(solverGradStrWrite, color=123)
+    @printf(" with options %s", optionsGradStr)
 end
 
 
@@ -886,6 +899,6 @@ function getStringSolverOptions(a::ODESolverOptions)
     solverStr = string(a.solver)
     iEnd = findfirst(x -> x == '{', solverStr)
     solverStrWrite = solverStr[1:iEnd-1] * "()"
-    strWrite = @sprintf("ODESolverOptions with ODE-solver %s and options (abstol, reltol, maxiters) = (%.1e, %.1e, %.1e)", solverStrWrite, a.abstol, a.reltol, a.maxiters)
-    return strWrite
+    optionsStr = @sprintf("(abstol, reltol, maxiters) = (%.1e, %.1e, %.1e)", a.abstol, a.reltol, a.maxiters)
+    return solverStrWrite, optionsStr
 end
