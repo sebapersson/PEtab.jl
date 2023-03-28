@@ -124,6 +124,43 @@ end
 
 
 """
+    SteadyStateSolverOptions
+
+    Stores options (algorithm, tolerances, etc...) to use when computing steady state for models with pre-equlibration.
+
+    Constructed via `getSteadyStateSolverOptions` with several potential user options.
+
+    # Fields
+    `method`: Approach to find steady-state u*; du = f(u*, p, t) ≈ 0. Either :Rootfinding to directly solve the problem 
+     via optimisation, or :Simulate to via ODE solver simulate model to steady state.
+    `rootfindingAlgorithm`: In case of :Rootfinding which algorithm to use. Supports any of the NonlinearSolve algorithms 
+     (https://docs.sciml.ai/NonlinearSolve/stable/tutorials/nonlinear/).
+    `howCheckSimulationReachedSteadyState`: For :Simulate which method to check steady state been reached, options;
+        wrms : Weighted root-mean square : √(∑((du ./ (reltol * u .+ abstol)).^2) / length(u)) < 1
+        Newton : If Newton-step Δu is sufficiently small : √(∑((Δu ./ (reltol * u .+ abstol)).^2) / length(u)) < 1
+    `abstol`: Absolute tolerance when checking if steady state has been found. Defaults to 1e-8 for :Rootfinding and
+     ODE-solver tolerance divided by 100 for :Simulate
+    `reltol`: Relative tolerance when checking if steady state has been found. As for abstol.
+    `maxiters`: Maximum number of root-finding or ODE-solver steps when solving for steady state. Defaults to 1e4
+     for :Rootfinding and ODE-solver options for :Simulate.
+
+    See also [`getSteadyStateSolverOptions`](@ref).
+"""
+struct SteadyStateSolverOptions{T1 <: Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}, 
+                                T2 <: Union{Nothing, AbstractFloat},
+                                T3 <: Union{Nothing, NonlinearProblem}, 
+                                T4 <: Union{Nothing, Integer}}
+    method::Symbol
+    rootfindingAlgorithm::T1
+    howCheckSimulationReachedSteadyState::Symbol
+    abstol::T2
+    reltol::T2
+    maxiters::T4
+    nonlinearSolveProblem::T3
+end
+
+
+"""
     PEtabODEProblem
 
     All needed to setup an optimization problem (compute cost, gradient, hessian and parameter bounds) for a PEtab model.

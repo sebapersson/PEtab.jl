@@ -859,10 +859,10 @@ import Base.show
 function show(io::IO, a::ODESolverOptions)
     # Extract ODE solver as a readable string (without everything between)
     solverStrWrite, optionsStr = getStringSolverOptions(a)
-    printstyled("ODESolverOptions", color=123)
+    printstyled("ODESolverOptions", color=116)
     print(" with ODE solver ")
-    printstyled(solverStrWrite, color=123)
-    @printf(" and solver options %s", optionsStr)
+    printstyled(solverStrWrite, color=116)
+    @printf(". Options %s", optionsStr)
 end
 function show(io::IO, a::PEtabODEProblem)
 
@@ -878,20 +878,20 @@ function show(io::IO, a::PEtabODEProblem)
     gradientMethod = string(a.gradientMethod)
     hessianMethod = string(a.hessianMethod)
     
-    printstyled("PEtabODEProblem", color=123)
-    print(" for model ")
-    printstyled(modelName, color=123)
-    @printf(" with %d states and %d parameters to estimate of which %d are dynamic parameters.\n-------- Problem settings --------\nGradient method : ",
+    printstyled("PEtabODEProblem", color=116)
+    print(" for ")
+    printstyled(modelName, color=116)
+    @printf(". ODE-states: %d. Parameters to estimate: %d where %d are dynamic.\n-------- Problem settings --------\nGradient method : ",
             numberOfODEStates, numberOfParametersToEstimate, numberOfDynamicParameters)
-    printstyled(gradientMethod, color=123)
+    printstyled(gradientMethod, color=116)
     print("\nHessian method : ")
-    printstyled(hessianMethod, color=123)
-    printstyled("\nCost ODE-solver is ")
-    printstyled(solverStrWrite, color=123)
-    @printf(" with options %s", optionsStr)
-    printstyled("\nGradient ODE solver is ")
-    printstyled(solverGradStrWrite, color=123)
-    @printf(" with options %s", optionsGradStr)
+    printstyled(hessianMethod, color=116)
+    printstyled("\nCost ODE-solver ")
+    printstyled(solverStrWrite, color=116)
+    @printf(". Options %s", optionsStr)
+    printstyled("\nGradient ODE solver ")
+    printstyled(solverGradStrWrite, color=116)
+    @printf(". Options %s", optionsGradStr)
 end
 
 

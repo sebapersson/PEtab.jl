@@ -23,6 +23,7 @@ using Requires
 using YAML
 using RuntimeGeneratedFunctions
 using PreallocationTools
+using NonlinearSolve
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
@@ -47,6 +48,7 @@ include(joinpath("Derivatives", "Common.jl"))
 include(joinpath("Solve_ODE", "Change_experimental_condition.jl"))
 include(joinpath("Solve_ODE", "Solve_ode_Zygote.jl"))
 include(joinpath("Solve_ODE", "Solve_ode_model.jl"))
+include(joinpath("Solve_ODE", "Solve_for_steady_state.jl"))
 
 # Files related to distributed computing
 include(joinpath("Distributed", "Distributed.jl"))
@@ -75,6 +77,6 @@ include(joinpath("SBML", "Common.jl"))
 include(joinpath("SBML", "Process_functions.jl"))
 include(joinpath("SBML", "Process_rules.jl"))
 
-export PEtabModel, PEtabODEProblem, ODESolverOptions, readPEtabModel, setupPEtabODEProblem, getODESolverOptions
+export PEtabModel, PEtabODEProblem, ODESolverOptions, readPEtabModel, setupPEtabODEProblem, getODESolverOptions, getSteadyStateSolverOptions
 
 end
