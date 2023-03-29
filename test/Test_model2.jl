@@ -18,7 +18,7 @@ using ForwardDiff
 using LinearAlgebra
 
 import PEtab: readPEtabFiles, processMeasurements, processParameters, computeIndicesθ, processSimulationInfo, setParamToFileValues!
-import PEtab: _changeExperimentalCondition!, solveODEAllExperimentalConditions, PEtabODESolverCache, createPEtabODESolverCache
+import PEtab: _changeExperimentalCondition!, solveODEAllExperimentalConditions, PEtabODESolverCache, createPEtabODESolverCache, _getSteadyStateSolverOptions
 
 
 include(joinpath(@__DIR__, "Common.jl"))
@@ -58,10 +58,14 @@ function testODESolverTestModel2(petabModel::PEtabModel, solverOptions)
         prob = remake(prob, p = convert.(Float64, prob.p), u0 = convert.(Float64, prob.u0))
         θ_dynamic = getFileODEvalues(petabModel)[1:2]
 
+        ssOptions = getSteadyStateSolverOptions(:Simulate)
+        _ssSolverOptions = _getSteadyStateSolverOptions(ssOptions, prob, solverOptions.abstol / 100.0, 
+                                                        solverOptions.reltol / 100.0, solverOptions.maxiters)
+
         # Solve ODE system
         petabODESolverCache = createPEtabODESolverCache(:nothing, :nothing, petabModel, simulationInfo, θ_indices, nothing)
         θ_dynamic = [alpha, beta]
-        odeSolutions, success = solveODEAllExperimentalConditions(prob, petabModel, θ_dynamic, petabODESolverCache, simulationInfo, θ_indices, solverOptions)
+        odeSolutions, success = solveODEAllExperimentalConditions(prob, petabModel, θ_dynamic, petabODESolverCache, simulationInfo, θ_indices, solverOptions, _ssSolverOptions)
         odeSolution = odeSolutions[simulationInfo.experimentalConditionId[1]]
 
         # Compare against analytical solution

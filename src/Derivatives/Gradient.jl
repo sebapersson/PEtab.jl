@@ -156,6 +156,7 @@ end
 function computeGradientAdjointEquations!(gradient::Vector{Float64},
                                           θ_est::Vector{Float64},
                                           solverOptions::ODESolverOptions,
+                                          ssSolverOptions::SteadyStateSolverOptions,
                                           computeCostNotODESystemθ::Function,
                                           sensealg::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
                                           sensealgSS::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,                                          
@@ -178,7 +179,7 @@ function computeGradientAdjointEquations!(gradient::Vector{Float64},
 
     # Calculate gradient seperately for dynamic and non dynamic parameter.
     computeGradientAdjointDynamicθ(petabODECache.gradientDyanmicθ, θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, odeProblem, solverOptions,
-                                   sensealg, petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo,
+                                   ssSolverOptions, sensealg, petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo,
                                    petabODECache, petabODESolverCache; expIDSolve=expIDSolve,
                                    sensealgSS=sensealgSS)
     @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ

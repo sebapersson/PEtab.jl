@@ -10,6 +10,8 @@ function solveOdeModelAtExperimentalCondZygote(odeProblem::ODEProblem,
                                                solver::Union{SciMLAlgorithm, Vector{Symbol}},
                                                absTol::Float64,
                                                relTol::Float64,
+                                               absTolSS::Float64, 
+                                               relTolSS,
                                                sensealg,
                                                calcTStops::Function)
 
@@ -30,7 +32,7 @@ function solveOdeModelAtExperimentalCondZygote(odeProblem::ODEProblem,
         pUsePre, u0UsePre = changeToExperimentalCondUse(odeProblem.p, odeProblem.u0, firstExpId)
         probUsePre = remake(odeProblem, tspan=(0.0, 1e8), u0 = convert.(eltype(dynParamEst), u0UsePre), p = convert.(eltype(dynParamEst), pUsePre))
         ssProb = SteadyStateProblem(probUsePre)
-        solSS = solve(ssProb, DynamicSS(solver, abstol=simulationInfo.absTolSS, reltol=simulationInfo.relTolSS), abstol=absTol, reltol=relTol)
+        solSS = solve(ssProb, DynamicSS(solver, abstol=absTolSS, reltol=relTolSS), abstol=absTol, reltol=relTol)
 
         # Terminate if a steady state was not reached in preequilibration simulations
         if solSS.retcode != ReturnCode.Success

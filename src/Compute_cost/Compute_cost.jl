@@ -1,6 +1,7 @@
 function computeCost(θ_est::AbstractVector,
                      odeProblem::ODEProblem,
                      odeSolverOptions::ODESolverOptions,
+                     ssSolverOptions::SteadyStateSolverOptions,
                      petabModel::PEtabModel,
                      simulationInfo::SimulationInfo,
                      θ_indices::ParameterIndices,
@@ -16,7 +17,7 @@ function computeCost(θ_est::AbstractVector,
 
     θ_dynamic, θ_observable, θ_sd, θ_nonDynamic = splitParameterVector(θ_est, θ_indices)
 
-    cost = computeCostSolveODE(θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, odeProblem, odeSolverOptions, petabModel, 
+    cost = computeCostSolveODE(θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, odeProblem, odeSolverOptions, ssSolverOptions, petabModel, 
                                simulationInfo, θ_indices, measurementInfo, parameterInfo, petabODECache, petabODESolverCache,
                                computeCost=computeCost,
                                computeHessian=computeHessian, 
@@ -38,6 +39,7 @@ function computeCostSolveODE(θ_dynamic::AbstractVector,
                              θ_nonDynamic::AbstractVector,
                              odeProblem::ODEProblem,
                              odeSolverOptions::ODESolverOptions,
+                             ssSolverOptions::SteadyStateSolverOptions,
                              petabModel::PEtabModel,
                              simulationInfo::SimulationInfo,
                              θ_indices::ParameterIndices,
@@ -62,9 +64,9 @@ function computeCostSolveODE(θ_dynamic::AbstractVector,
     # If computing hessian or gradient store ODE solution in arrary with dual numbers, else use
     # solution array with floats
     if computeHessian == true || computeGradientDynamicθ == true
-        success = solveODEAllExperimentalConditions!(simulationInfo.odeSolutionsDerivatives, _odeProblem, petabModel, θ_dynamicT, petabODESolverCache, simulationInfo, θ_indices, odeSolverOptions, expIDSolve=expIDSolve, denseSolution=false, onlySaveAtObservedTimes=true)
+        success = solveODEAllExperimentalConditions!(simulationInfo.odeSolutionsDerivatives, _odeProblem, petabModel, θ_dynamicT, petabODESolverCache, simulationInfo, θ_indices, odeSolverOptions, ssSolverOptions, expIDSolve=expIDSolve, denseSolution=false, onlySaveAtObservedTimes=true)
     elseif computeCost == true
-        success = solveODEAllExperimentalConditions!(simulationInfo.odeSolutions, _odeProblem, petabModel, θ_dynamicT, petabODESolverCache, simulationInfo, θ_indices, odeSolverOptions, expIDSolve=expIDSolve, denseSolution=false, onlySaveAtObservedTimes=true)
+        success = solveODEAllExperimentalConditions!(simulationInfo.odeSolutions, _odeProblem, petabModel, θ_dynamicT, petabODESolverCache, simulationInfo, θ_indices, odeSolverOptions, ssSolverOptions, expIDSolve=expIDSolve, denseSolution=false, onlySaveAtObservedTimes=true)
     end
     if success != true
         println("Failed to solve ODE model")

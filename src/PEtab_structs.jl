@@ -149,6 +149,7 @@ end
 struct SteadyStateSolverOptions{T1 <: Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}, 
                                 T2 <: Union{Nothing, AbstractFloat},
                                 T3 <: Union{Nothing, NonlinearProblem}, 
+                                CA <: Union{Nothing, SciMLBase.DECallback},
                                 T4 <: Union{Nothing, Integer}}
     method::Symbol
     rootfindingAlgorithm::T1
@@ -156,6 +157,7 @@ struct SteadyStateSolverOptions{T1 <: Union{Nothing, NonlinearSolve.AbstractNonl
     abstol::T2
     reltol::T2
     maxiters::T4
+    callbackSS::CA
     nonlinearSolveProblem::T3
 end
 
@@ -195,7 +197,9 @@ struct PEtabODEProblem{F1<:Function,
                        F3<:Function,
                        T1<:PEtabModel, 
                        T2<:ODESolverOptions, 
-                       T3<:ODESolverOptions}
+                       T3<:ODESolverOptions, 
+                       T4<:SteadyStateSolverOptions, 
+                       T5<:SteadyStateSolverOptions}
 
     computeCost::F1
     computeGradient!::F2
@@ -213,6 +217,8 @@ struct PEtabODEProblem{F1<:Function,
     petabModel::T1
     odeSolverOptions::T2
     odeSolverGradientOptions::T3
+    ssSolverOptions::T4
+    ssSolverGradientOptions::T5
 end
 
 
@@ -290,7 +296,6 @@ struct SimulationInfo{T1<:NamedTuple,
                       T5<:NamedTuple,
                       T6<:Dict{<:Symbol, <:SciMLBase.DECallback},
                       T7<:Union{<:SciMLSensitivity.AbstractForwardSensitivityAlgorithm, <:SciMLSensitivity.AbstractAdjointSensitivityAlgorithm},
-                      T8<:SciMLBase.DECallback, 
                       T9<:Dict{<:Symbol, <:SciMLBase.DECallback}}
 
     preEquilibrationConditionId::Vector{Symbol}
@@ -299,19 +304,16 @@ struct SimulationInfo{T1<:NamedTuple,
     haspreEquilibrationConditionId::Bool
     odeSolutions::Dict{Symbol, Union{Nothing, ODESolution}}
     odeSolutionsDerivatives::Dict{Symbol, Union{Nothing, ODESolution}}
-    odePreEqulibriumSolutions::Dict{Symbol, Union{Nothing, ODESolution}}
+    odePreEqulibriumSolutions::Dict{Symbol, Union{Nothing, ODESolution, SciMLBase.NonlinearSolution}}
     timeMax::T1
     timeObserved::T2
     iMeasurements::T3
     iTimeODESolution::Vector{Int64}
     iPerTimePoint::T4
     timePositionInODESolutions::T5
-    absTolSS::Float64
-    relTolSS::Float64
     callbacks::T6
     trackedCallbacks::T9
     sensealg::T7 # sensealg for potential callbacks
-    callbackSS::T8
 end
 
 

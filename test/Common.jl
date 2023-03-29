@@ -13,8 +13,7 @@ function _testCostGradientOrHessian(petabModel::PEtabModel,
                                     costMethod::Symbol=:Standard,
                                     gradientMethod::Symbol=:ForwardDiff,
                                     hessianMethod::Symbol=:ForwardDiff,
-                                    solverSSRelTol::Float64=1e-6,
-                                    solverSSAbsTol::Float64=1e-8, 
+                                    ssOptions=nothing, 
                                     sensealg=InterpolatingAdjoint(autojacvec=ReverseDiffVJP(false)),
                                     sensealgSS=SteadyStateAdjoint())
 
@@ -28,8 +27,7 @@ function _testCostGradientOrHessian(petabModel::PEtabModel,
                                         costMethod=costMethod,
                                         gradientMethod=gradientMethod,
                                         hessianMethod=hessianMethod,
-                                        solverSSRelTol=solverSSRelTol,
-                                        solverSSAbsTol=solverSSAbsTol,
+                                        ssSolverOptions=ssOptions,
                                         sensealg=sensealg, 
                                         sensealgSS=sensealgSS,
                                         specializeLevel=SciMLBase.NoSpecialize)        
@@ -74,12 +72,13 @@ function checkGradientResiduals(petabModel::PEtabModel, solverOptions::ODESolver
     # The time-span 5e3 is overwritten when performing actual forward simulations
     odeProb = ODEProblem(petabModel.odeSystem, petabModel.stateMap, (0.0, 5e3), petabModel.parameterMap, jac=true, sparse=false)
     odeProb = remake(odeProb, p = convert.(Float64, odeProb.p), u0 = convert.(Float64, odeProb.u0))
-    # Functions to map experimental conditions and parameters correctly to the ODE model
-    
-    computeJacobian = PEtab.setUpHessian(:GaussNewton, odeProb, solverOptions, petabODECache, petabODESolverCache,
+    ssSolverOptions = getSteadyStateSolverOptions(:Simulate)
+    _ssSolverOptions = _getSteadyStateSolverOptions(ssSolverOptions, odeProb, solverOptions.abstol / 100.0, 
+                                                    solverOptions.reltol / 100.0, solverOptions.maxiters)
+    computeJacobian = PEtab.setUpHessian(:GaussNewton, odeProb, solverOptions, _ssSolverOptions, petabODECache, petabODESolverCache,
                                          petabModel, simulationInfo, paramEstIndices, measurementData, 
                                          parameterData, priorInfo, nothing, returnJacobian=true)
-    computeSumResiduals = PEtab.setUpCost(:Standard, odeProb, solverOptions, petabODECache, petabODESolverCache,
+    computeSumResiduals = PEtab.setUpCost(:Standard, odeProb, solverOptions, _ssSolverOptions, petabODECache, petabODESolverCache,
                                          petabModel, simulationInfo, paramEstIndices, measurementData, 
                                          parameterData, priorInfo, computeResiduals=true)
 

@@ -6,6 +6,7 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
                                         θ_nonDynamic::Vector{Float64},
                                         odeProblem::ODEProblem,
                                         odeSolverOptions::ODESolverOptions,
+                                        ssSolverOptions::SteadyStateSolverOptions,
                                         sensealg::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
                                         petabModel::PEtabModel,
                                         simulationInfo::SimulationInfo,
@@ -24,7 +25,7 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
 
     _odeProblem = remake(odeProblem, p = convert.(eltype(θ_dynamicT), odeProblem.p), u0 = convert.(eltype(θ_dynamicT), odeProblem.u0))
     changeODEProblemParameters!(_odeProblem.p, _odeProblem.u0, θ_dynamicT, θ_indices, petabModel)
-    success = solveODEAllExperimentalConditions!(simulationInfo.odeSolutionsDerivatives, _odeProblem, petabModel, θ_dynamicT, petabODESolverCache, simulationInfo, θ_indices, odeSolverOptions, expIDSolve=expIDSolve, denseSolution=true, onlySaveAtObservedTimes=false, trackCallback=true)
+    success = solveODEAllExperimentalConditions!(simulationInfo.odeSolutionsDerivatives, _odeProblem, petabModel, θ_dynamicT, petabODESolverCache, simulationInfo, θ_indices, odeSolverOptions, ssSolverOptions, expIDSolve=expIDSolve, denseSolution=true, onlySaveAtObservedTimes=false, trackCallback=true)
     if success != true
         gradient .= 1e8
         return
@@ -33,7 +34,7 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
     # In case of PreEq-critera we need to compute the pullback function at tSS to compute the VJP between
     # λ_t0 and the sensitivites at steady state time
     if simulationInfo.haspreEquilibrationConditionId == true
-        evalVJPSSVec = generateVJPSSFunction(simulationInfo, sensealgSS, odeSolverOptions, expIDSolve)
+        evalVJPSSVec = generateVJPSSFunction(simulationInfo, sensealgSS, odeSolverOptions, ssSolverOptions, expIDSolve)
     end
 
     gradient .= 0.0
@@ -72,6 +73,7 @@ end
 function generateVJPSSFunction(simulationInfo::SimulationInfo, 
                                sensealgSS::SteadyStateAdjoint, 
                                odeSolverOptions::ODESolverOptions,
+                               ssSolverOptions::SteadyStateSolverOptions,
                                expIDSolve::Vector{Symbol})::NamedTuple
 
     # Extract all unique Pre-equlibrium conditions. If the code is run in parallell 
@@ -92,7 +94,7 @@ function generateVJPSSFunction(simulationInfo::SimulationInfo,
         ssOdeProblem = SteadyStateProblem(odeProblem)
         ySS, _evalVJPSSi = Zygote.pullback((p) ->    (
                                                       solve(ssOdeProblem, 
-                                                            DynamicSS(solver, abstol=simulationInfo.absTolSS, reltol=simulationInfo.relTolSS), 
+                                                            DynamicSS(solver, abstol=ssSolverOptions.abstol, reltol=ssSolverOptions.reltol), 
                                                             abstol=abstol, 
                                                             reltol=reltol, 
                                                             maxiters=maxiters,
@@ -109,6 +111,7 @@ end
 function generateVJPSSFunction(simulationInfo::SimulationInfo, 
                                sensealgSS::Union{QuadratureAdjoint, InterpolatingAdjoint}, 
                                odeSolverOptions::ODESolverOptions,
+                               ssSolverOptions::SteadyStateSolverOptions,
                                expIDSolve::Vector{Symbol})::NamedTuple
 
     # Extract all unique Pre-equlibrium conditions. If the code is run in parallell 
