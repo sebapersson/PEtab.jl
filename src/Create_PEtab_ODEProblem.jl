@@ -50,9 +50,6 @@
        sparse-jacobian. Sparse jacobian often performs best for large models (≥100 states). 
     - `specializeLevel=SciMLBase.FullSpecialize` : specialization level when building the ODE-problem. Not recommended 
        to change (see https://docs.sciml.ai/SciMLBase/stable/interfaces/Problems/)
-    - `solverSSRelTol::Float64=1e-6` : For models with pre-eq. Will refactor this part of the code. 
-    - `solverSSAbsTol::Float64=1e-6` : For models with pre-eq. Will refactor this part of the code. 
-    - `terminateSSMethod::Symbol=:Norm` : For models with pre-eq. Will refactor this part of the code. 
     - `sensealg=InterpolatingAdjoint()` : Sensitivity algorithm for gradient computations. Available options for each 
        gradient method are:
         * :ForwardDiff : None (as ForwardDiff takes care of all computation steps)
@@ -60,7 +57,7 @@
           from SciMLSensitivity.jl (https://github.com/SciML/SciMLSensitivity.jl). 
         * :Adjoint : InterpolatingAdjoint() and QuadratureAdjoint() from SciMLSensitivity.jl
         * :Zygote : all sensealg in SciMLSensitivity.jl 
-    - `sensealgSS=SteadyStateAdjoint()` : Sensitivity algorithm for adjoint gradient compuations for steady state 
+    - `sensealgSS=InterpolatingAdjoint()` : Sensitivity algorithm for adjoint gradient compuations for steady state 
        simulations. Availble options are SteadyStateAdjoint() InterpolatingAdjoint() and QuadratureAdjoint() from 
        SciMLSensitivity.jl. SteadyStateAdjoint() is most efficient but requires a non-singular jacobian, and in case
        of non-singular jacobian the code automatically switches to InterpolatingAdjoint(). 
@@ -74,6 +71,7 @@
     - `reuseS::Bool=false` : Reuse the sensitives from the gradient computations for the Gauss-Newton hessian approximation.
       Only applicable when `hessianMethod=:GaussNewton` and `gradientMethod=:ForwardEquations` and should **only** be used 
       when the optimizer **always** computes the gradient before the hessian.
+    - `verbose::Bool=true` : Print progress when setting up PEtab ODEProblem
 
     See also [`PEtabODEProblem`](@ref), [`PEtabModel`](@ref), [`getODESolverOptions`](@ref).
 """
@@ -88,15 +86,15 @@ function setupPEtabODEProblem(petabModel::PEtabModel,
                               sparseJacobian::Bool=false,
                               specializeLevel=SciMLBase.FullSpecialize,
                               sensealg::Union{Symbol, SciMLBase.AbstractSensitivityAlgorithm}=InterpolatingAdjoint(),
-                              sensealgSS::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm=SteadyStateAdjoint(),
+                              sensealgSS::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm=InterpolatingAdjoint(),
                               chunkSize::Union{Nothing, Int64}=nothing,
                               splitOverConditions::Bool=false,
                               numberOfprocesses::Signed=1,
-                              reuseS::Bool=false)::PEtabODEProblem
+                              reuseS::Bool=false, 
+                              verbose::Bool=true)::PEtabODEProblem
 
-    if !(typeof(sensealgSS) <: SteadyStateAdjoint)
-        println("If you are using adjoint sensitivity analysis for a model with PreEq-criteria the most the most efficient adjSensealgSS is usually SteadyStateAdjoint. The algorithm you have provided, ", sensealgSS, ", might not work (as there are some bugs here). In case it does not work, and SteadyStateAdjoint fails (because it required a non-singular Jacobian) a good choice might be QuadratureAdjoint(autodiff=false, autojacvec=false)")
-    end
+    verbose == true && printstyled("[ Info:", color=123, bold=true)
+    verbose == true && @printf(" Building PEtabODEProblem for %s\n", petabModel.modelName) 
 
     if isnothing(odeSolverGradientOptions)
         odeSolverGradientOptions = deepcopy(odeSolverOptions)
@@ -122,10 +120,20 @@ function setupPEtabODEProblem(petabModel::PEtabModel,
     # Set model parameter values to those in the PeTab parameter to ensure correct value for constant parameters
     setParamToFileValues!(petabModel.parameterMap, petabModel.stateMap, parameterInfo)
 
+    # Fast but numerically unstable method - warn the user 
+    if simulationInfo.haspreEquilibrationConditionId == true && typeof(sensealgSS) <: SteadyStateAdjoint
+        @warn "If you are using adjoint sensitivity analysis for a model with PreEq-criteria the most the most efficient sensealgSS is as provided SteadyStateAdjoint. However, SteadyStateAdjoint fails if the Jacobian is singular hence we recomend you check that the Jacobian is non-singular."
+    end
+
     # The time-span 5e3 is overwritten when performing forward simulations. As we solve an expanded system with the forward
     # equations, we need a seperate problem for it 
+    verbose == true && printstyled("[ Info:", color=123, bold=true)
+    verbose == true && @printf(" Building ODEProblem from ODESystem ...")
+    bBuild = @elapsed begin
     _odeProblem = ODEProblem{true, specializeLevel}(petabModel.odeSystem, petabModel.stateMap, [0.0, 5e3], petabModel.parameterMap, jac=true, sparse=sparseJacobian)
     odeProblem = remake(_odeProblem, p = convert.(Float64, _odeProblem.p), u0 = convert.(Float64, _odeProblem.u0))
+    end
+    verbose == true && @printf(" done. Time = %.1e\n", bBuild)
 
     # If we are computing the cost, gradient and hessians accross several processes we need to send ODEProblem, and
     # PEtab structs to each process
@@ -151,9 +159,12 @@ function setupPEtabODEProblem(petabModel::PEtabModel,
     
     # The cost (likelihood) can either be computed in the standard way or the Zygote way. The second consumes more
     # memory as in-place mutations are not compatible with Zygote
-    computeCost = setUpCost(costMethod, odeProblem, odeSolverOptions, _ssSolverOptions, petabODECache, petabODESolverCache, 
+    verbose == true && printstyled("[ Info:", color=123, bold=true)
+    verbose == true && print(" Building cost function for method ", string(costMethod), " ...")
+    bBuild = @elapsed computeCost = setUpCost(costMethod, odeProblem, odeSolverOptions, _ssSolverOptions, petabODECache, petabODESolverCache, 
                             petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo,
                             numberOfprocesses=numberOfprocesses, jobs=jobs, results=results)
+    verbose == true && @printf(" done. Time = %.1e\n", bBuild)
 
     # The gradient can either be computed via autodiff, forward sensitivity equations, adjoint sensitivity equations
     # and Zygote
@@ -174,19 +185,23 @@ function setupPEtabODEProblem(petabModel::PEtabModel,
                                                                 odeSolverGradientOptions.reltol / 100.0, odeSolverGradientOptions.maxiters)
     end
 
-    computeGradient! = setUpGradient(gradientMethod, odeProblemGradient, odeSolverGradientOptions, _ssSolverGradientOptions, petabODECache, 
+    verbose == true && printstyled("[ Info:", color=123, bold=true)
+    verbose == true && print(" Building gradient function for method ", string(gradientMethod), " ...")
+    bBuild = @elapsed computeGradient! = setUpGradient(gradientMethod, odeProblemGradient, odeSolverGradientOptions, _ssSolverGradientOptions, petabODECache, 
                                      petabODESolverCache, petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo,
                                      chunkSize=chunkSize, numberOfprocesses=numberOfprocesses, jobs=jobs, results=results,
-                                     splitOverConditions=splitOverConditions, sensealg=sensealg, 
-                                     sensealgSS=sensealgSS)
-
+                                     splitOverConditions=splitOverConditions, sensealg=sensealg, sensealgSS=sensealgSS)
+    verbose == true && @printf(" done. Time = %.1e\n", bBuild)
 
     # The Hessian can either be computed via automatic differentation, or approximated via a block approximation or the
     # Gauss Newton method
-    computeHessian! = setUpHessian(hessianMethod, odeProblem, odeSolverOptions, _ssSolverOptions, petabODECache, petabODESolverCache,
+    verbose == true && printstyled("[ Info:", color=123, bold=true)
+    verbose == true && print(" Building hessian function for method ", string(hessianMethod), " ...")
+    bBuild = @elapsed computeHessian! = setUpHessian(hessianMethod, odeProblem, odeSolverOptions, _ssSolverOptions, petabODECache, petabODESolverCache,
                                    petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo, chunkSize,
                                    numberOfprocesses=numberOfprocesses, jobs=jobs, results=results, splitOverConditions=splitOverConditions, 
                                    reuseS=reuseS)
+    verbose == true && @printf(" done. Time = %.1e\n", bBuild)                                   
     
     # Extract nominal parameter vector and parameter bounds. If needed transform parameters
     θ_estNames = θ_indices.θ_estNames
@@ -235,7 +250,7 @@ function setUpCost(whichMethod::Symbol,
                    numberOfprocesses::Int64=1,
                    jobs=nothing,
                    results=nothing, 
-                   computeResiduals::Bool=false)
+                   computeResiduals::Bool=false,)
 
     # Functions needed for mapping θ_est to the ODE problem, and then for solving said ODE-system
     if whichMethod == :Standard && numberOfprocesses == 1
@@ -871,13 +886,13 @@ end
     See also [`ODESolverOptions`](@ref).
 """
 function getODESolverOptions(solver::T1; 
-                             solverAbstol::Float64=1e-8, 
-                             solverReltol::Float64=1e-8, 
+                             abstol::Float64=1e-8, 
+                             reltol::Float64=1e-8, 
                              force_dtmin::Bool=false, 
                              dtmin::Union{Float64, Nothing}=nothing, 
                              maxiters::Int64=10000)::ODESolverOptions where T1 <: SciMLAlgorithm 
 
-    solverOptions = ODESolverOptions(solver, solverAbstol, solverReltol, force_dtmin, dtmin, maxiters)
+    solverOptions = ODESolverOptions(solver, abstol, reltol, force_dtmin, dtmin, maxiters)
     return solverOptions
 end
 

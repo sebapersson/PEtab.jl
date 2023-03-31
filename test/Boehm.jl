@@ -49,7 +49,7 @@ function compareAgainstPyPestoBoehm(petabModel::PEtabModel, solverOptions)
         @test norm(normalize(gradientAdjoint) - normalize((referenceGradient))) ≤ 1e-2
         gradientForward1 = _testCostGradientOrHessian(petabModel, solverOptions, p, computeGradient=true, gradientMethod=:ForwardEquations, sensealg=:ForwardDiff)
         @test norm(gradientForward1 - referenceGradient) ≤ 1e-2
-        gradientForward2 = _testCostGradientOrHessian(petabModel, getODESolverOptions(CVODE_BDF(), solverAbstol=1e-9, solverReltol=1e-9), p, computeGradient=true, gradientMethod=:ForwardEquations, sensealg=ForwardSensitivity())
+        gradientForward2 = _testCostGradientOrHessian(petabModel, getODESolverOptions(CVODE_BDF(), abstol=1e-9, reltol=1e-9), p, computeGradient=true, gradientMethod=:ForwardEquations, sensealg=ForwardSensitivity())
         @test norm(gradientForward2 - referenceGradient) ≤ 1e-2
 
         # Testing "exact" hessian via autodiff 
@@ -62,5 +62,5 @@ end
 
 petabModel = readPEtabModel(joinpath(@__DIR__, "Test_ll", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml"), forceBuildJuliaFiles=false)
 @testset "Against PyPesto : Boehm" begin 
-    compareAgainstPyPestoBoehm(petabModel, getODESolverOptions(Rodas4P(), solverAbstol=1e-9, solverReltol=1e-9))
+    compareAgainstPyPestoBoehm(petabModel, getODESolverOptions(Rodas4P(), abstol=1e-9, reltol=1e-9))
 end

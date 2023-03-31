@@ -28,21 +28,33 @@ function readPEtabModel(pathYAML::String;
 
     pathSBML, pathParameters, pathConditions, pathObservables, pathMeasurements, dirJulia, dirModel, modelName = readPEtabYamlFile(pathYAML, jlFile=jlFile)
 
+    verbose == true && printstyled("[ Info:", color=123, bold=true)
+    verbose == true && @printf(" Building PEtabModel for %s\n", modelName)
+
     if jlFile == false
 
         pathModelJlFile = joinpath(dirJulia, modelName * ".jl")
 
-        if !isfile(pathModelJlFile) && forceBuildJuliaFiles == false
-            verbose == true && @printf("Julia model file does not exist, will build it\n")
-            modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, ifElseToEvent=ifElseToEvent)
+        if !isfile(pathModelJlFile) 
+            if verbose == true 
+                printstyled("[ Info:", color=123, bold=true)
+                print(" Building Julia model file as it does not exist ...")
+            end
+            bBuild = @elapsed modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, ifElseToEvent=ifElseToEvent)
+            @printf(" done. Time = %.1es\n", bBuild)
 
-        elseif isfile(pathModelJlFile) && forceBuildJuliaFiles == false
-            verbose == true && @printf("Julia model file exists at %s - will not rebuild\n", pathModelJlFile)
+        elseif isfile(pathModelJlFile) && forceBuildJuliaFiles == false && verbose == true
+            printstyled("[ Info:", color=123, bold=true)
+            print(" Julia model file exists and will not be rebuilt\n")
 
         elseif forceBuildJuliaFiles == true
-            verbose == true && @printf("By user option will rebuild Julia model file\n")
+            if verbose == true 
+                printstyled("[ Info:", color=123, bold=true)
+                print(" By user option rebuilds Julia model file ...")
+            end
             isfile(pathModelJlFile) == true && rm(pathModelJlFile)
-            modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, ifElseToEvent=ifElseToEvent)
+            bBuild = @elapsed modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, ifElseToEvent=ifElseToEvent)
+            @printf(" done. Time = %.1es\n", bBuild)
         end
 
     else
@@ -52,28 +64,57 @@ function readPEtabModel(pathYAML::String;
 
     # Load model ODE-system
     @assert isfile(pathModelJlFile)
-    _getODESystem = @RuntimeGeneratedFunction(Meta.parse(getFunctionsAsString(pathModelJlFile, 1)[1]))
-    _odeSystem, stateMap, parameterMap = _getODESystem("https://xkcd.com/303/") # Argument needed by @RuntimeGeneratedFunction
-    odeSystem = structural_simplify(_odeSystem)
-    # TODO : Make these to strings here to save conversions
-    parameterNames = parameters(odeSystem)
-    stateNames = states(odeSystem)
+    verbose == true && printstyled("[ Info:", color=123, bold=true)
+    verbose == true && print(" Symbolically processes ODE-system ...")
+    bTake = @elapsed begin
+        _getODESystem = @RuntimeGeneratedFunction(Meta.parse(getFunctionsAsString(pathModelJlFile, 1)[1]))
+        _odeSystem, stateMap, parameterMap = _getODESystem("https://xkcd.com/303/") # Argument needed by @RuntimeGeneratedFunction
+        odeSystem = structural_simplify(_odeSystem)
+        # TODO : Make these to strings here to save conversions
+        parameterNames = parameters(odeSystem)
+        stateNames = states(odeSystem)
+    end
+    verbose == true && @printf(" done. Time = %.1es\n", bTake)
 
     # Build functions for observables, sd and u0 if does not exist and include
     path_u0_h_sigma = joinpath(dirJulia, modelName * "_h_sd_u0.jl")
     path_D_h_sd = joinpath(dirJulia, modelName * "_D_h_sd.jl")
-    if !isfile(path_u0_h_sigma) || !isfile(path_D_h_sd) || forceBuildJuliaFiles == true
-        verbose && forceBuildJuliaFiles == false && @printf("File for h, u0 and σ does not exist will build it\n")
-        verbose && forceBuildJuliaFiles == true && @printf("By user option will rebuild h, σ and u0\n")
-
+    if !isfile(path_u0_h_sigma) || forceBuildJuliaFiles == true
+        if verbose == true && !isfile(path_u0_h_sigma)
+            printstyled("[ Info:", color=123, bold=true)
+            print(" Building u0, h σ file as it does not exist ...")
+        elseif verbose == true
+            printstyled("[ Info:", color=123, bold=true)
+            print(" By user option rebuilds u0, h σ file ...")
+        end
         if !@isdefined(modelDict)
             modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, writeToFile=false, ifElseToEvent=ifElseToEvent)
         end
-        create_σ_h_u0_File(modelName, pathYAML, dirJulia, odeSystem, stateMap, modelDict, verbose=verbose, jlFile=jlFile)
-        createDerivative_σ_h_File(modelName, pathYAML, dirJulia, odeSystem, modelDict, verbose=verbose, jlFile=jlFile)
-    else
-        verbose == true && @printf("File for h, u0 and σ exists will not rebuild it\n")
+        bBuild = @elapsed create_σ_h_u0_File(modelName, pathYAML, dirJulia, odeSystem, stateMap, modelDict, jlFile=jlFile)
+        verbose == true && @printf(" done. Time = %.1es\n", bBuild)
+    elseif verbose == true
+        printstyled("[ Info:", color=123, bold=true)
+        print(" u0, h and σ file exists and will not be rebuilt\n")
     end
+    
+    if !isfile(path_D_h_sd) || forceBuildJuliaFiles == true
+        if verbose == true && !isfile(path_D_h_sd)
+            printstyled("[ Info:", color=123, bold=true)
+            print(" Building ∂h∂p, ∂h∂u, ∂σ∂p and ∂σ∂u file as it does not exist ...")
+        elseif verbose == true
+            printstyled("[ Info:", color=123, bold=true)
+            print(" By user option rebuilds ∂h∂p, ∂h∂u, ∂σ∂p and ∂σ∂u file ...")
+        end
+        if !@isdefined(modelDict)
+            modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, writeToFile=false, ifElseToEvent=ifElseToEvent)
+        end
+        bBuild = @elapsed createDerivative_σ_h_File(modelName, pathYAML, dirJulia, odeSystem, modelDict, jlFile=jlFile)
+        verbose == true && @printf(" done. Time = %.1es\n", bBuild)
+    elseif verbose == true
+        printstyled("[ Info:", color=123, bold=true)
+        print(" ∂h∂p, ∂h∂u, ∂σ∂p and ∂σ∂u file exists and will not be rebuilt\n")
+    end
+
     @assert isfile(path_u0_h_sigma)
     h_u0_σ_Functions = getFunctionsAsString(path_u0_h_sigma, 4)
     compute_h = @RuntimeGeneratedFunction(Meta.parse(h_u0_σ_Functions[1]))
@@ -89,13 +130,22 @@ function readPEtabModel(pathYAML::String;
     
     pathCallback = joinpath(dirJulia, modelName * "_callbacks.jl")
     if !isfile(pathCallback) || forceBuildJuliaFiles == true
-        verbose && forceBuildJuliaFiles == false && @printf("File for callback does not exist will build it\n")
-        verbose && forceBuildJuliaFiles == true && @printf("By user option will rebuild callback file\n")
-
+        if verbose == true && !isfile(pathCallback)
+            printstyled("[ Info:", color=123, bold=true)
+            print(" Building callback file as it does not exist ...")
+        elseif verbose == true
+            printstyled("[ Info:", color=123, bold=true)
+            print(" By user option rebuilds callback file ...")
+        end
         if !@isdefined(modelDict)
             modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, writeToFile=false, ifElseToEvent=ifElseToEvent)
         end
-        createCallbacksForTimeDepedentPiecewise(odeSystem, modelDict, modelName, pathYAML, dirJulia, jlFile = jlFile)
+        bBuild = @elapsed createCallbacksForTimeDepedentPiecewise(odeSystem, modelDict, modelName, pathYAML, dirJulia, jlFile = jlFile)
+        verbose == true && @printf(" done. Time = %.1es\n", bBuild)
+
+    elseif verbose == true
+        printstyled("[ Info:", color=123, bold=true)
+        print(" Callback file exists and will not be rebuilt\n")
     end
     @assert isfile(pathCallback)
     strGetCallbacks = getFunctionsAsString(pathCallback, 2)
@@ -152,7 +202,7 @@ function getFunctionsAsString(filePath::AbstractString, nFunctions::Int64)::Vect
             inFunction = true
         end
 
-        if length(line) ≥ 3 && line[1:3] == "end"
+        if length(line) ≥ 3 && line[1] != '#' && line[1:3] == "end"
             fEnd[iFunction] = iLine
             inFunction = false
             iFunction += 1

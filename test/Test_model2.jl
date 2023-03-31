@@ -168,14 +168,14 @@ end
 petabModel = createModelInsideFunction()
 
 @testset "ODE solver" begin
-    testODESolverTestModel2(petabModel, getODESolverOptions(Vern9(), solverAbstol=1e-9, solverReltol=1e-9))
+    testODESolverTestModel2(petabModel, getODESolverOptions(Vern9(), abstol=1e-9, reltol=1e-9))
 end
 
 @testset "Cost gradient and hessian" begin
-    testCostGradientOrHessianTestModel2(petabModel, getODESolverOptions(Vern9(), solverAbstol=1e-15, solverReltol=1e-15))
+    testCostGradientOrHessianTestModel2(petabModel, getODESolverOptions(Vern9(), abstol=1e-15, reltol=1e-15))
 end
 
-checkGradientResiduals(petabModel, getODESolverOptions(Rodas5P(), solverAbstol=1e-9, solverReltol=1e-9))
+checkGradientResiduals(petabModel, getODESolverOptions(Rodas5P(), abstol=1e-9, reltol=1e-9))
 @testset "Gradient of residuals" begin
-    checkGradientResiduals(petabModel, getODESolverOptions(Rodas5P(), solverAbstol=1e-9, solverReltol=1e-9))
+    checkGradientResiduals(petabModel, getODESolverOptions(Rodas5P(), abstol=1e-9, reltol=1e-9))
 end

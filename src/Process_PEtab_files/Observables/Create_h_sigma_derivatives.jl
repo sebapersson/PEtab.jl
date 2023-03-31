@@ -18,7 +18,6 @@ function createDerivative_σ_h_File(modelName::String,
                                    dirJulia::String, 
                                    odeSystem::ODESystem, 
                                    SBMLDict::Dict;
-                                   verbose::Bool=true,
                                    jlFile::Bool=false)
                             
     pODEProblemNames = string.(parameters(odeSystem))
@@ -32,10 +31,8 @@ function createDerivative_σ_h_File(modelName::String,
     θ_indices = computeIndicesθ(parameterInfo, measurementInfo, odeSystem, experimentalConditions)
     
     create∂h∂_Function(modelName, dirJulia, modelStateNames, parameterInfo, pODEProblemNames, string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict)
-    verbose == true && @printf("Done with ∂h∂u and ∂h∂p functions\n")
     
     create∂σ∂_Function(modelName, dirJulia, parameterInfo, modelStateNames, pODEProblemNames, string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict)
-    verbose == true && @printf("Done with ∂σ∂u and ∂σ∂p functions\n")
 end
 
 

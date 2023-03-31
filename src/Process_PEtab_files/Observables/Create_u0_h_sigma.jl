@@ -24,7 +24,6 @@ function create_σ_h_u0_File(modelName::String,
                             odeSystem::ODESystem,
                             stateMap,
                             SBMLDict::Dict;
-                            verbose::Bool=true,
                             jlFile::Bool=false)
 
     pODEProblemNames = string.(parameters(odeSystem))
@@ -39,16 +38,12 @@ function create_σ_h_u0_File(modelName::String,
 
     create_h_Function(modelName, dirJulia, modelStateNames, parameterInfo, pODEProblemNames,
                       string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict)
-    verbose == true && @printf("Done with h function\n")
 
     create_u0_Function(modelName, dirJulia, parameterInfo, pODEProblemNames, stateMap, inPlace=true)
-    verbose == true && @printf("Done with u0 in-place function\n")
 
     create_u0_Function(modelName, dirJulia, parameterInfo, pODEProblemNames, stateMap, inPlace=false)
-    verbose == true && @printf("Done with u0 not in-place function\n")
 
     create_σ_Function(modelName, dirJulia, parameterInfo, modelStateNames, pODEProblemNames, string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict)
-    verbose == true && @printf("Done with σ function\n")
 end
 
 

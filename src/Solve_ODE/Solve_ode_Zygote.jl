@@ -36,7 +36,7 @@ function solveOdeModelAtExperimentalCondZygote(odeProblem::ODEProblem,
 
         # Terminate if a steady state was not reached in preequilibration simulations
         if solSS.retcode != ReturnCode.Success
-            return sol_pre, false
+            return solSS, false
         end
 
         # Change to parameters for the post steady state parameters
