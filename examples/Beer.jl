@@ -8,10 +8,11 @@
     
     Besides this in the example folder we also have:
     Boehm.jl - here we show how to best handle small models (states ≤ 20, parameters ≤ 20). We further cover more details 
-        about the important readPEtabModel and setupPEtabODEProblem functions. Recomended to checkout before looking at
-        Bachmann.jl and Beer.jl.
+        about the important readPEtabModel and setupPEtabODEProblem functions. Recommended to checkout before looking at
+        Bachmann.jl, Beer.jl and Brannmark.jl.
     Bachmann.jl - here we show how to set the best options for a medium sized model (20 ≤ states ≤ 50, 20 ≤ parameters ≤ 75), 
         and how to compute gradients via adjoint sensitivity analysis.
+    Brannmark.jl - here we show how to handle models with preequilibration (model must be simulated to steady-state)
 =#
 
 using PEtab
@@ -42,7 +43,7 @@ petabModel = readPEtabModel(pathYaml, verbose=true)
     Note - For :ForwardDiff the user can set the Chunk-size (see https://juliadiff.org/ForwardDiff.jl/stable/). This can improve performance, 
     and we plan to add automatic tuning of it.
 =#
-odeSolverOptions = getODESolverOptions(Rodas5P(), solverAbstol=1e-8, solverReltol=1e-8)
+odeSolverOptions = getODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8)
 petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
                                     gradientMethod=:ForwardDiff, 
                                     hessianMethod=:ForwardDiff, 

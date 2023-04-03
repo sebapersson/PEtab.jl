@@ -351,11 +351,11 @@ end
 
 function checkError(e)
     if e isa BoundsError
-        println("Bounds error ODE solve")
+        @warn "Bounds error ODE solve"
     elseif e isa DomainError
-        println("Domain error on ODE solve")
+        @warn "Domain error on ODE solve"
     elseif e isa SingularException
-        println("Singular exception on ODE solve")
+        @warn "Singular exception on ODE solve"
     else
         rethrow(e)
     end

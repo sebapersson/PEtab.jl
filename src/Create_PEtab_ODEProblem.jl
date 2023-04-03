@@ -890,7 +890,7 @@ function getODESolverOptions(solver::T1;
                              reltol::Float64=1e-8, 
                              force_dtmin::Bool=false, 
                              dtmin::Union{Float64, Nothing}=nothing, 
-                             maxiters::Int64=10000)::ODESolverOptions where T1 <: SciMLAlgorithm 
+                             maxiters::Int64=Int64(1e4))::ODESolverOptions where T1 <: SciMLAlgorithm 
 
     solverOptions = ODESolverOptions(solver, abstol, reltol, force_dtmin, dtmin, maxiters)
     return solverOptions
