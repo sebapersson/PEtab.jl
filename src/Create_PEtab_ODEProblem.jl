@@ -3,75 +3,38 @@
                          odeSolverOptions::ODESolverOptions; 
                          <keyword arguments>)
 
-    For a PEtabModel and ODE-solver options (e.g. solver and tolerances) returns a PEtabODEProblem.
+For a PEtabModel and ODE-solver options (e.g. solver and tolerances) returns a PEtabODEProblem.
 
-    The PEtabODEproblem allows for efficient cost, gradient and hessian computations for a PEtab specified problem.  
-    Using the keyword arguments (see below) the user can select cost method, gradient method, hessian method, ODE 
-    solver options, and a few tuneable options that potentially can make computations more efficient for a subset of 
-    "edge-case" models. A discussion about the most efficient option for different model types can be found in the 
-    documentation [add]. 
+The PEtabODEproblem allows for efficient cost, gradient and hessian computations for a PEtab specified problem.  Using the keyword arguments (see below) the user can select cost method, gradient method, hessian method, ODE solver options, and a few tuneable options that potentially can make computations more efficient for a subset of "edge-case" models. A discussion about the most efficient option for different model types can be found in the documentation. 
 
-    # Arguments
-    - `petabModel::PEtabModel`: a PEtab-specified problem processed into Julia syntax by `readPEtabModel`
-    - `odeSolverOptions::ODESolverOptions`: ODE-solver options when computing the cost (e.g solver and tolerances)
-    - `odeSolverGradientOptions=nothing` : ODE-solver options when computing the gradient, e.g. the ODE solver options 
-       used when doing adjoint sensitivity analysis. If nothing defaults to `odeSolverOptions`. 
-    - `ssSolverOptions=nothing` : Options used when solving for steady-state for models with pre-equlibrium. Steady-state
-       can be found either via simulation or rootfinding and can be set via `getSteadyStateSolverOptions` (see 
-       documentation), if nothing defaults to simulation with wrms < 1 termination.
-       used when doing adjoint sensitivity analysis. If nothing defaults to `odeSolverOptions`. 
-    - `ssSolverGradientOptions=nothing` : Options used when solving for steady-state for models with pre-equlibrium when
-       doing gradient computations. If nothing defaults to `ssSolverOptions` value.
-    - `costMethod::Symbol=:Standard` : method for computing the cost (objective). Two options are available, :Standard is 
-       most efficient, while :Zygote is less efficient but compatible with the Zygote automatic differentiation library.
-    - `gradientMethod::Symbol=:ForwardDiff` : method for computing the gradient of the (objective). Four availble options:
-        * :ForwardDiff - Compute the gradient via forward-mode automatic differentiation using ForwardDiff.jl. Most 
-          efficient for models with ≤50 parameters. Optionally the number of chunks can be set by `chunkSize`.
-        * :ForwardEquations - Compute the gradient via the model sensitivities, where `sensealg` species how to solve 
-          for the sensitivities. Most efficient if the hessian is approximated via the Gauss-Newton method, and if in the 
-          optimizer we can reuse the sensitives (see `reuseS`) from the gradient computations in the hessian computations 
-          (e.g when the optimizer always computes the gradient before the hessian). 
-        * :Adjoint - Compute the gradient via adjoint sensitivity analysis, where `sensealg` specifies which algorithm 
-          to use. Most efficient for large models (≥75 parameters). 
-        * :Zygote - Compute the gradient via the Zygote package, where `sensealg` specifies which sensitivity algorithm 
-          to use when solving the ODE-model. Most inefficient option and not recommended to use at all. 
-    - `hessianMethod::Symbol=:ForwardDiff` : method for computing the hessian of the cost. Three available options:
-        * :ForwardDiff - Compute the hessian via forward-mode automatic differentiation using ForwardDiff.jl. Often only 
-          computationally feasible for models with ≤20 parameters, but often greatly improves optimizer convergence. 
-        * :BlockForwardDiff - Compute hessian block approximation via forward-mode automatic differentiation using 
-          ForwardDiff.jl. Approximation consists of two block matrices, the first is the hessian for only the dynamic 
-          parameters (parameter part of the ODE system), and the second for the non-dynamic parameters (e.g noise 
-          parameters). Computationally feasible for models with ≤ 20 dynamic parameters and often performs better than 
-          BFGS-methods. 
-        * :GaussNewton - Approximate the hessian via the Gauss-Newton method. Often performs better than the BFGS method.
-          If in the optimizer we can reuse the sensitives from the gradient (see `reuseS`) this method is best paired with 
-          `gradientMethod=:ForwardEquations`. 
-    - `sparseJacobian::Bool=false` : when solving the ODE du/dt=f(u, p, t) whether or not for implicit solvers use a 
-       sparse-jacobian. Sparse jacobian often performs best for large models (≥100 states). 
-    - `specializeLevel=SciMLBase.FullSpecialize` : specialization level when building the ODE-problem. Not recommended 
-       to change (see https://docs.sciml.ai/SciMLBase/stable/interfaces/Problems/)
-    - `sensealg=InterpolatingAdjoint()` : Sensitivity algorithm for gradient computations. Available options for each 
-       gradient method are:
-        * :ForwardDiff : None (as ForwardDiff takes care of all computation steps)
-        * :ForwardEquations : :ForwardDiff (uses ForwardDiff.jl) or ForwardDiffSensitivity() and ForwardSensitivity() 
-          from SciMLSensitivity.jl (https://github.com/SciML/SciMLSensitivity.jl). 
-        * :Adjoint : InterpolatingAdjoint() and QuadratureAdjoint() from SciMLSensitivity.jl
-        * :Zygote : all sensealg in SciMLSensitivity.jl 
-    - `sensealgSS=InterpolatingAdjoint()` : Sensitivity algorithm for adjoint gradient compuations for steady state 
-       simulations. Availble options are SteadyStateAdjoint() InterpolatingAdjoint() and QuadratureAdjoint() from 
-       SciMLSensitivity.jl. SteadyStateAdjoint() is most efficient but requires a non-singular jacobian, and in case
-       of non-singular jacobian the code automatically switches to InterpolatingAdjoint(). 
-    - `chunkSize=nothing` : Chunk-size for ForwardDiff.jl when computing the gradient and hessian via forward mode 
-       automatic different. If nothing default value is used. Tuning chunkSize is non-trivial and we plan to add 
-       automatic functionality for this.
-    - `splitOverConditions::Bool=false` : For gradient and hessian via ForwardDiff.jl whether or not to split calls to 
-      to ForwardDiff across experimental (simulation) conditions. Should only be set to true in case the model has many 
-      parameters tgat are specific to an experimental condition, else the overhead from the calls will increase run time. 
-      See the Beer-example for an example where this is needed.
-    - `reuseS::Bool=false` : Reuse the sensitives from the gradient computations for the Gauss-Newton hessian approximation.
-      Only applicable when `hessianMethod=:GaussNewton` and `gradientMethod=:ForwardEquations` and should **only** be used 
-      when the optimizer **always** computes the gradient before the hessian.
-    - `verbose::Bool=true` : Print progress when setting up PEtab ODEProblem
+# Arguments
+- `petabModel::PEtabModel`: a PEtab-specified problem processed into Julia syntax by `readPEtabModel`
+- `odeSolverOptions::ODESolverOptions`: ODE-solver options when computing the cost (e.g solver and tolerances)
+- `odeSolverGradientOptions=nothing` : ODE-solver options when computing the gradient, e.g. the ODE solver options used when doing adjoint sensitivity analysis. If nothing defaults to `odeSolverOptions`. 
+- `ssSolverOptions=nothing` : Options used when solving for steady-state for models with pre-equlibrium. Steady-state can be found either via simulation or rootfinding and can be set via `getSteadyStateSolverOptions` (see documentation), if nothing defaults to simulation with wrms < 1 termination. used when doing adjoint sensitivity analysis. If nothing defaults to `odeSolverOptions`. 
+- `ssSolverGradientOptions=nothing` : Options used when solving for steady-state for models with pre-equlibrium when doing gradient computations. If nothing defaults to `ssSolverOptions` value.
+- `costMethod::Symbol=:Standard` : method for computing the cost (objective). Two options are available, :Standard is most efficient, while :Zygote is less efficient but compatible with the Zygote automatic differentiation library.
+- `gradientMethod::Symbol=:ForwardDiff` : method for computing the gradient of the (objective). Four availble options:
+    * `:ForwardDiff` - Compute the gradient via forward-mode automatic differentiation using ForwardDiff.jl. Most efficient for models with ≤50 parameters. Optionally the number of chunks can be set by `chunkSize`.
+    * `:ForwardEquations` - Compute the gradient via the model sensitivities, where `sensealg` species how to solve for the sensitivities. Most efficient if the hessian is approximated via the Gauss-Newton method, and if in the optimizer we can reuse the sensitives (see `reuseS`) from the gradient computations in the hessian computations (e.g when the optimizer always computes the gradient before the hessian). 
+    * `:Adjoint` - Compute the gradient via adjoint sensitivity analysis, where `sensealg` specifies which algorithm to use. Most efficient for large models (≥75 parameters). 
+    * `:Zygote` - Compute the gradient via the Zygote package, where `sensealg` specifies which sensitivity algorithm to use when solving the ODE-model. Most inefficient option and not recommended to use at all. 
+- `hessianMethod::Symbol=:ForwardDiff` : method for computing the hessian of the cost. Three available options:
+    * `:ForwardDiff` - Compute the hessian via forward-mode automatic differentiation using ForwardDiff.jl. Often only computationally feasible for models with ≤20 parameters, but often greatly improves optimizer convergence. 
+    * `:BlockForwardDiff` - Compute hessian block approximation via forward-mode automatic differentiation using ForwardDiff.jl. Approximation consists of two block matrices, the first is the hessian for only the dynamic parameters (parameter part of the ODE system), and the second for the non-dynamic parameters (e.g noise parameters). Computationally feasible for models with ≤ 20 dynamic parameters and often performs better than BFGS-methods. 
+    * `:GaussNewton` - Approximate the hessian via the Gauss-Newton method. Often performs better than the BFGS method. If in the optimizer we can reuse the sensitives from the gradient (see `reuseS`) this method is best paired with `gradientMethod=:ForwardEquations`. 
+- `sparseJacobian::Bool=false` : when solving the ODE du/dt=f(u, p, t) whether or not for implicit solvers use a sparse-jacobian. Sparse jacobian often performs best for large models (≥100 states). 
+- `specializeLevel=SciMLBase.FullSpecialize` : specialization level when building the ODE-problem. Not recommended to change (see https://docs.sciml.ai/SciMLBase/stable/interfaces/Problems/)
+- `sensealg=InterpolatingAdjoint()` : Sensitivity algorithm for gradient computations. Available options for each gradient method are:
+    * `:ForwardDiff` : None (as ForwardDiff takes care of all computation steps)
+    * `:ForwardEquations` : `:ForwardDiff` (uses ForwardDiff.jl) or `ForwardDiffSensitivity()` and `ForwardSensitivity()` from SciMLSensitivity.jl (https://github.com/SciML/SciMLSensitivity.jl). 
+    * `:Adjoint` : `InterpolatingAdjoint()` and `QuadratureAdjoint()` from SciMLSensitivity.jl
+    * `:Zygote` : all sensealg in SciMLSensitivity.jl 
+- `sensealgSS=InterpolatingAdjoint()` : Sensitivity algorithm for adjoint gradient compuations for steady state simulations. Availble options are `SteadyStateAdjoint()`, `InterpolatingAdjoint()` and `QuadratureAdjoint()` from SciMLSensitivity.jl. `SteadyStateAdjoint()` is most efficient but requires a non-singular jacobian, and in case of non-singular jacobian the code automatically switches to `InterpolatingAdjoint()`. 
+- `chunkSize=nothing` : Chunk-size for ForwardDiff.jl when computing the gradient and hessian via forward mode automatic different. If nothing default value is used. Tuning chunkSize is non-trivial and we plan to add automatic functionality for this.
+- `splitOverConditions::Bool=false` : For gradient and hessian via ForwardDiff.jl whether or not to split calls to to ForwardDiff across experimental (simulation) conditions. Should only be set to true in case the model has many parameters tgat are specific to an experimental condition, else the overhead from the calls will increase run time.        See the Beer-example for an example where this is needed.
+- `reuseS::Bool=false` : Reuse the sensitives from the gradient computations for the Gauss-Newton hessian approximation. Only applicable when `hessianMethod=:GaussNewton` and `gradientMethod=:ForwardEquations` and should **only** be used when the optimizer **always** computes the gradient before the hessian.
+- `verbose::Bool=true` : Print progress when setting up PEtab ODEProblem
 """
 function setupPEtabODEProblem(petabModel::PEtabModel,
                               odeSolverOptions::ODESolverOptions;
@@ -860,26 +823,17 @@ end
 """
     getODESolverOptions(solver, <keyword arguments>)
 
-    Setup ODE-solver options (solver, tolerances, etc...) to use when computing gradient/cost for a PEtabODEProblem. 
+Setup ODE-solver options (solver, tolerances, etc...) to use when computing gradient/cost for a PEtabODEProblem. 
 
-    More info of about the options and available solvers can be found in the documentation for DifferentialEquations.jl 
-    (https://docs.sciml.ai/DiffEqDocs/stable/solvers/ode_solve/). Recommendeded settings for which solver and options 
-    to use for different problems can be found below and in the documentation.
+More info of about the options and available solvers can be found in the documentation for DifferentialEquations.jl (https://docs.sciml.ai/DiffEqDocs/stable/solvers/ode_solve/). Recommendeded settings for which solver and options to use for different problems can be found below and in the documentation.
 
-    # Arguments
-    `solver`: Any of the ODE-solvers in DifferentialEquations.jl. For small (≤20 states) mildly stiff models 
-     composite solvers such as `AutoVern7(Rodas5P())` perform well. For stiff small models `Rodas5P()` performs 
-     well. For medium sized models (≤75states) `QNDF()`, `FBDF()` and `CVODE_BDF()` perform well. `CVODE_BDF()` is 
-     not compatible with automatic differentiation and thus cannot be used if the gradient is computed via automatic 
-     differentiation, or if the Gauss-Newton hessian approximation is used. If the gradient is computed via adjoint 
-     sensitivity analysis `CVODE_BDF()` is often the best choices as it typically is more relaible than `QNDF()` and 
-     `FBDF()` (fails less often).
-    `abstol=1e-8`: Absolute tolerance when solving the ODE-system. Not recommended to increase above 1e-6 for gradients. 
-    `reltol=1e-8`: Relative tolerance when solving the ODE-system. Not recommended to increase above 1e-6 for gradients. 
-    `force_dtmin=false`: Whether or not to force dtmin when solving the ODE-system.
-    `dtmin=nothing`: Minimal acceptable step-size when solving the ODE-system.
-    `maxiters=10000`: Maximum number of iterations when solving the ODE-system. Increasing above the default value can 
-     cause the optimization to take substantial time.
+# Arguments
+- `solver`: Any of the ODE-solvers in DifferentialEquations.jl. For small (≤20 states) mildly stiff models composite solvers such as `AutoVern7(Rodas5P())` perform well. For stiff small models `Rodas5P()` performs well. For medium sized models (≤75states) `QNDF()`, `FBDF()` and `CVODE_BDF()` perform well. `CVODE_BDF()` is not compatible with automatic differentiation and thus cannot be used if the gradient is computed via automatic differentiation, or if the Gauss-Newton hessian approximation is used. If the gradient is computed via adjoint sensitivity analysis `CVODE_BDF()` is often the best choices as it typically is more relaible than `QNDF()` and `FBDF()` (fails less often).
+- `abstol=1e-8`: Absolute tolerance when solving the ODE-system. Not recommended to increase above 1e-6 for gradients. 
+- `reltol=1e-8`: Relative tolerance when solving the ODE-system. Not recommended to increase above 1e-6 for gradients. 
+- `force_dtmin=false`: Whether or not to force dtmin when solving the ODE-system.
+- `dtmin=nothing`: Minimal acceptable step-size when solving the ODE-system.
+- `maxiters=10000`: Maximum number of iterations when solving the ODE-system. Increasing above the default value can cause the optimization to take substantial time.
 """
 function getODESolverOptions(solver::T1; 
                              abstol::Float64=1e-8, 

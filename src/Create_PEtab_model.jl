@@ -4,19 +4,15 @@
                    verbose::Bool=true,
                    ifElseToEvent::Bool=true)::PEtabModel
 
-    Parses a PEtab specified problem with yaml-file at `pathYAML` into a Julia accessible format. 
+Parses a PEtab specified problem with yaml-file at `pathYAML` into a Julia accessible format. 
 
-    When parsing a PEtab problem several things happens under the hood;
-    1) The SBML file is translated into ModelingToolkit.jl format (e.g allow symbolic computations of the ODE-model 
-       Jacobian). Piecewise and model events are further written into DifferentialEquations.jl callbacks.
-    2) The observable PEtab-table is translated into Julia-file with functions for computing the observable (h), 
-       noise parameter (σ) and initial values (u0). 
-    3) To allow gradients via adjoint sensitivity analysis and/or forward sensitivity equations the gradients of 
-       h and σ are computed symbolically with respect to the ODE-models states (u) and parameters (odeProblem.p).
-    All this happens automatically, and resulting files are stored under petabModel.dirJulia. To save time 
-    `forceBuildJlFiles=false` meaning that Julia files are not rebuilt in case the already exist.
+When parsing a PEtab problem several things happens under the hood;
+1) The SBML file is translated into ModelingToolkit.jl format (e.g allow symbolic computations of the ODE-model Jacobian). Piecewise and model events are further written into DifferentialEquations.jl callbacks.
+2) The observable PEtab-table is translated into Julia-file with functions for computing the observable (h), noise parameter (σ) and initial values (u0). 
+3) To allow gradients via adjoint sensitivity analysis and/or forward sensitivity equations the gradients of h and σ are computed symbolically with respect to the ODE-models states (u) and parameters (odeProblem.p).
+All this happens automatically, and resulting files are stored under petabModel.dirJulia. To save time `forceBuildJlFiles=false` meaning that Julia files are not rebuilt in case the already exist.
 
-    In the future we plan to allow the user to also provide a Julia file instead of a SBML file.
+In the future we plan to allow the user to also provide a Julia file instead of a SBML file.
 """
 function readPEtabModel(pathYAML::String;
                         forceBuildJuliaFiles::Bool=false,
