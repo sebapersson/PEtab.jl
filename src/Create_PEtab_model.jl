@@ -17,8 +17,6 @@
     `forceBuildJlFiles=false` meaning that Julia files are not rebuilt in case the already exist.
 
     In the future we plan to allow the user to also provide a Julia file instead of a SBML file.
-
-    See also: [`PEtabModel`]
 """
 function readPEtabModel(pathYAML::String;
                         forceBuildJuliaFiles::Bool=false,

@@ -45,8 +45,6 @@
     specific time-point. The piecewise callback has a defult value at t0 which is only triggered upon reaching t_activation.
     In case t_activation ≤ 0 (never reached when solvig the model) this function checks whether or not the callback 
     should be triggered before solving the model. 
-
-    See also: [`readPEtabModel`]
 """
 struct PEtabModel{F1<:Function,
                   F2<:Function,
@@ -109,8 +107,6 @@ end
     `force_dtmin`: Whether or not to force dtmin when solving the ODE-system.
     `dtmin`: Minimal acceptable step-size when solving the ODE-system.
     `maxiters`: Maximum number of iterations when solving the ODE-system.
-
-    See also [`getODESolverOptions`](@ref).
 """
 struct ODESolverOptions{T1 <: SciMLAlgorithm, 
                         T2 <: Union{Float64, Nothing}}
@@ -143,8 +139,6 @@ end
     `reltol`: Relative tolerance when checking if steady state has been found. As for abstol.
     `maxiters`: Maximum number of root-finding or ODE-solver steps when solving for steady state. Defaults to 1e4
      for :Rootfinding and ODE-solver options for :Simulate.
-
-    See also [`getSteadyStateSolverOptions`](@ref).
 """
 struct SteadyStateSolverOptions{T1 <: Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}, 
                                 T2 <: Union{Nothing, AbstractFloat},
@@ -189,8 +183,6 @@ end
     `petabModel`: PEtabModel used to construct the PEtabODEProblem
     `odeSolverOptions`: ODE-solver options specified when creating the PEtabODEProblem 
     `odeSolverGradientOptions`: ODE-solver gradient options specified when creating the PEtabODEProblem 
-
-    See also [`setupPEtabODEProblem`](@ref), [`PEtabModel`](@ref).
 """
 struct PEtabODEProblem{F1<:Function,
                        F2<:Function,

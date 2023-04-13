@@ -1,7 +1,7 @@
 """
     getSteadyStateSolverOptions(method::Symbol;
                                 howCheckSimulationReachedSteadyState::Symbol=:wrms,
-                                rootfindingAlgorithm::Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}=nothing,
+                                rootfindingAlgorithm=nothing,
                                 abstol=nothing, 
                                 reltol=nothing, 
                                 maxiters=nothing)::SteadyStateSolverOptions

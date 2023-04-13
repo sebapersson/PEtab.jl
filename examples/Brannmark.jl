@@ -56,5 +56,5 @@ p = petabProblem.θ_nominalT # Parameter values in the PEtab file on log-scale
 gradient = zeros(length(p)) # In-place gradients 
 cost = petabProblem.computeCost(p)
 petabProblem.computeGradient!(gradient, p)
-@printf("Cost for Bachmann = %.2f\n", cost)
-@printf("First element in the gradient for Bachmann adjoint sensitivity analysis = %.2e\n", gradient[1])
+@printf("Cost for Brannmark = %.2f\n", cost)
+@printf("First element in the gradient for Brannmark = %.2e\n", gradient[1])

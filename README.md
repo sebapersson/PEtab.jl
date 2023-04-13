@@ -59,18 +59,18 @@ With this functionality it is straightforward to perform parameter estimation us
 
 ## Features
 
-* Symbolic model pre-processing via [ModelingToolkit](https://github.com/SciML/ModelingToolkit.jl)
-* Supports all ODE solvers in [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl)
+* Symbolic model preprocessing via [ModelingToolkit](https://github.com/SciML/ModelingToolkit.jl)
+* Support for all ODE solvers in [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl)
 * Gradient via:
     * Forward-mode automatic differentiation using [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl)
-    * Forward sensitivity equations either via ForwardDiff.jl or [SciMLSensitivity.jl](https://github.com/SciML/SciMLSensitivity.jl)
-    * Adjoint sensitivity using any of the algorithms in SciMLSensitivity.jl
+    * Forward sensitivity analysis either via ForwardDiff.jl or [SciMLSensitivity.jl](https://github.com/SciML/SciMLSensitivity.jl)
+    * Adjoint sensitivity via any of the algorithms in SciMLSensitivity.jl
     * Automatic differentiation via [Zygote.jl](https://github.com/FluxML/Zygote.jl)
-* Hessians computed:
+* Hessians computed
     * “exactly" via forward-mode automatic differentiation using ForwardDiff.jl
     * approximately via a block approach using ForwardDiff.jl
-    * approximately via the Gauss-Newton method (often outperform (L)BFGS).
-* Pre-equilibration and pre-simulation conditions
+    * approximately via the Gauss-Newton method (often outperform (L)-BFGS)
+* Preequilibration and pre-simulation conditions
 * Support for models with discrete events and logical operations
 
 

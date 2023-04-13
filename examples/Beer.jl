@@ -1,7 +1,4 @@
 #= 
-    Example for how to set a PEtab ODE problem for the small Beer model and how given a parameter vector 
-    performed Hessian based optmization using;
-
     In this example we setup the PEtab problem with the best options for a small ODE-model (≤20 states, ≤20 parameters) but with 
     many parameters to estimate (≈70) because several parameter are specific to experimental condition. For example, in 
     cond1 we have τ_cond1 and in cond2 we have τ_cond2, and both map to the ODE-system parameter τ. 

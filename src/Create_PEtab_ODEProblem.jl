@@ -72,8 +72,6 @@
       Only applicable when `hessianMethod=:GaussNewton` and `gradientMethod=:ForwardEquations` and should **only** be used 
       when the optimizer **always** computes the gradient before the hessian.
     - `verbose::Bool=true` : Print progress when setting up PEtab ODEProblem
-
-    See also [`PEtabODEProblem`](@ref), [`PEtabModel`](@ref), [`getODESolverOptions`](@ref).
 """
 function setupPEtabODEProblem(petabModel::PEtabModel,
                               odeSolverOptions::ODESolverOptions;
@@ -882,8 +880,6 @@ end
     `dtmin=nothing`: Minimal acceptable step-size when solving the ODE-system.
     `maxiters=10000`: Maximum number of iterations when solving the ODE-system. Increasing above the default value can 
      cause the optimization to take substantial time.
-
-    See also [`ODESolverOptions`](@ref).
 """
 function getODESolverOptions(solver::T1; 
                              abstol::Float64=1e-8, 
