@@ -17,7 +17,7 @@ end
 function couldSolveODEModel(simulationInfo::SimulationInfo, expIDSolve::Vector{Symbol})::Bool
     for experimentalId in simulationInfo.experimentalConditionId
         if expIDSolve[1] == :all || experimentalId ∈ expIDSolve
-            if simulationInfo.odeSolutionsDerivatives[experimentalId].retcode != ReturnCode.Success
+            if !(simulationInfo.odeSolutionsDerivatives[experimentalId].retcode == ReturnCode.Success || simulationInfo.odeSolutionsDerivatives[experimentalId].retcode == ReturnCode.Terminated)
                 return false
             end
         end
@@ -68,6 +68,9 @@ function compute∂G∂_(∂G∂_,
         if measurementInfo.measurementTransformation[iMeasurementData] === :log10
             yObs = measurementInfo.measurementT[iMeasurementData]
             ∂h∂_ .*= 1 / (log(10) * exp10(hTransformed))
+        elseif measurementInfo.measurementTransformation[iMeasurementData] === :log
+            yObs = measurementInfo.measurementT[iMeasurementData]
+            ∂h∂_ .*= 1 / exp(hTransformed)
         elseif measurementInfo.measurementTransformation[iMeasurementData] === :lin
             yObs = measurementInfo.measurement[iMeasurementData]
         end

@@ -276,7 +276,7 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
     for spec in model[:getListOfSpecies]()
         stateId = spec[:getId]()
         # If initial amount is zero (default) check if intial value is given in getInitialConcentration
-        if spec[:getInitialAmount]() == 0
+        if spec[:getInitialAmount]() == 0 || isnan(spec[:getInitialAmount]())
             if spec[:getInitialConcentration]() === NaN # Default SBML value
                 modelDict["states"][stateId] = string(spec[:getInitialAmount]())
             else
@@ -290,6 +290,7 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
 
         modelDict["derivatives"][stateId] = "D(" * stateId * ") ~ " # ModellingToolkitSyntax
     end
+    println("modelDict[states] = ", modelDict["states"])
 
     # Extract model parameters and their default values
     for parameter in model[:getListOfParameters]()
@@ -391,10 +392,12 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
         formula = rewriteDerivatives(formula, modelDict, baseFunctions)
         for (rName, rStoich) in reactants
             rComp = model[:getSpecies](rName)[:getCompartment]()
+            rStoich = isnan(rStoich) ? 1.0 : rStoich
             modelDict["derivatives"][rName] = modelDict["derivatives"][rName] * "-" * string(rStoich) * " * ( 1 /" * rComp * " ) * (" * formula * ")"
         end
         for (pName, pStoich) in products
             pComp = model[:getSpecies](pName)[:getCompartment]()
+            pStoich = isnan(pStoich) ? 1.0 : pStoich
             modelDict["derivatives"][pName] = modelDict["derivatives"][pName] * "+" * string(pStoich) * " * ( 1 /" * pComp * " ) * (" * formula * ")"
         end
     end

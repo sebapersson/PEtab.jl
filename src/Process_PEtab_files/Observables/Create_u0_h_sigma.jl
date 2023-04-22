@@ -24,13 +24,14 @@ function create_σ_h_u0_File(modelName::String,
                             odeSystem::ODESystem,
                             stateMap,
                             SBMLDict::Dict;
-                            jlFile::Bool=false)
+                            jlFile::Bool=false, 
+                            customParameterValues::Union{Nothing, Dict}=nothing)
 
     pODEProblemNames = string.(parameters(odeSystem))
     modelStateNames = replace.(string.(states(odeSystem)), "(t)" => "")
 
     experimentalConditions, measurementsData, parametersData, observablesData = readPEtabFiles(pathYAMl, jlFile=jlFile)
-    parameterInfo = processParameters(parametersData)
+    parameterInfo = processParameters(parametersData, customParameterValues=customParameterValues)
     measurementInfo = processMeasurements(measurementsData, observablesData)
 
     # Indices for keeping track of parameters in θ

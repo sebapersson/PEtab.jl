@@ -18,7 +18,8 @@ function readPEtabModel(pathYAML::String;
                         forceBuildJuliaFiles::Bool=false,
                         verbose::Bool=true,
                         ifElseToEvent::Bool=true,
-                        jlFile=false)::PEtabModel
+                        jlFile=false, 
+                        customParameterValues::Union{Nothing, Dict}=nothing)::PEtabModel
 
     pathSBML, pathParameters, pathConditions, pathObservables, pathMeasurements, dirJulia, dirModel, modelName = readPEtabYamlFile(pathYAML, jlFile=jlFile)
 
@@ -35,7 +36,7 @@ function readPEtabModel(pathYAML::String;
                 print(" Building Julia model file as it does not exist ...")
             end
             bBuild = @elapsed modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, ifElseToEvent=ifElseToEvent)
-            @printf(" done. Time = %.1es\n", bBuild)
+            verbose == true && @printf(" done. Time = %.1es\n", bBuild)
 
         elseif isfile(pathModelJlFile) && forceBuildJuliaFiles == false && verbose == true
             printstyled("[ Info:", color=123, bold=true)
@@ -48,7 +49,7 @@ function readPEtabModel(pathYAML::String;
             end
             isfile(pathModelJlFile) == true && rm(pathModelJlFile)
             bBuild = @elapsed modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, ifElseToEvent=ifElseToEvent)
-            @printf(" done. Time = %.1es\n", bBuild)
+            verbose == true && @printf(" done. Time = %.1es\n", bBuild)
         end
 
     else
@@ -84,7 +85,7 @@ function readPEtabModel(pathYAML::String;
         if !@isdefined(modelDict)
             modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, writeToFile=false, ifElseToEvent=ifElseToEvent)
         end
-        bBuild = @elapsed create_σ_h_u0_File(modelName, pathYAML, dirJulia, odeSystem, stateMap, modelDict, jlFile=jlFile)
+        bBuild = @elapsed create_σ_h_u0_File(modelName, pathYAML, dirJulia, odeSystem, stateMap, modelDict, jlFile=jlFile, customParameterValues=customParameterValues)
         verbose == true && @printf(" done. Time = %.1es\n", bBuild)
     elseif verbose == true
         printstyled("[ Info:", color=123, bold=true)
@@ -102,7 +103,7 @@ function readPEtabModel(pathYAML::String;
         if !@isdefined(modelDict)
             modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, writeToFile=false, ifElseToEvent=ifElseToEvent)
         end
-        bBuild = @elapsed createDerivative_σ_h_File(modelName, pathYAML, dirJulia, odeSystem, modelDict, jlFile=jlFile)
+        bBuild = @elapsed createDerivative_σ_h_File(modelName, pathYAML, dirJulia, odeSystem, modelDict, jlFile=jlFile, customParameterValues=customParameterValues)
         verbose == true && @printf(" done. Time = %.1es\n", bBuild)
     elseif verbose == true
         printstyled("[ Info:", color=123, bold=true)
@@ -134,7 +135,7 @@ function readPEtabModel(pathYAML::String;
         if !@isdefined(modelDict)
             modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, writeToFile=false, ifElseToEvent=ifElseToEvent)
         end
-        bBuild = @elapsed createCallbacksForTimeDepedentPiecewise(odeSystem, modelDict, modelName, pathYAML, dirJulia, jlFile = jlFile)
+        bBuild = @elapsed createCallbacksForTimeDepedentPiecewise(odeSystem, modelDict, modelName, pathYAML, dirJulia, jlFile = jlFile, customParameterValues=customParameterValues)
         verbose == true && @printf(" done. Time = %.1es\n", bBuild)
 
     elseif verbose == true

@@ -326,7 +326,7 @@ function computeODESolution(odeProblem::ODEProblem,
     # Different funcion calls to solve are required if a solver or a Alg-hint are provided.
     # If t_max = inf the model is simulated to steady state using the TerminateSteadyState callback.
     if isinf(odeProblem.tspan[2]) || odeProblem.tspan[2] == 1e8
-        sol = solve(odeProblem, solver, abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters, save_on=false, save_end=true, dense=denseSolution, callback=TerminateSteadyState(absTolSS, relTolSS))
+        sol = solve(odeProblem, solver, abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters, save_on=false, save_start=false, save_end=true, dense=denseSolution, callback=TerminateSteadyState(absTolSS, relTolSS))
     else
         sol = solve(odeProblem, solver, abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters, saveat=tSave, dense=denseSolution, tstops=tStops, callback=callbackSet)
     end

@@ -148,6 +148,7 @@ function identifyCondSpecificDynanmicθ(odeSystem::ODESystem,
     # and the rows are the corresponding names of the parameter value to estimate)
     conditionsSpecificθDynamic = Vector{Symbol}(undef, 0)
     colNames = names(experimentalConditionsFile)
+    length(colNames) == 1 && return conditionsSpecificθDynamic # Case empty condition table
     iStart = colNames[2] == "conditionName" ? 3 : 2 # Sometimes PEtab file does not include column conditionName
     for i in iStart:ncol(experimentalConditionsFile)
 

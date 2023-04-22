@@ -52,7 +52,8 @@ function setupPEtabODEProblem(petabModel::PEtabModel,
                               splitOverConditions::Bool=false,
                               numberOfprocesses::Signed=1,
                               reuseS::Bool=false, 
-                              verbose::Bool=true)::PEtabODEProblem
+                              verbose::Bool=true, 
+                              customParameterValues::Union{Nothing, Dict}=nothing)::PEtabODEProblem
 
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && @printf(" Building PEtabODEProblem for %s\n", petabModel.modelName) 
@@ -70,7 +71,7 @@ function setupPEtabODEProblem(petabModel::PEtabModel,
     @assert hessianMethod ∈ allowedHessianMethods "Allowed hessian methods are " * string(allowedHessianMethods) * " not " * string(hessianMethod)
 
     experimentalConditions, measurementsData, parametersData, observablesData = readPEtabFiles(petabModel)
-    parameterInfo = processParameters(parametersData)
+    parameterInfo = processParameters(parametersData, customParameterValues=customParameterValues)
     measurementInfo = processMeasurements(measurementsData, observablesData)
     simulationInfo = processSimulationInfo(petabModel, measurementInfo, sensealg=sensealg)
     θ_indices = computeIndicesθ(parameterInfo, measurementInfo, petabModel.odeSystem, experimentalConditions)

@@ -1,9 +1,9 @@
 """
     processParameters(parametersFile::DataFrame)::ParameterInfo
 
-    Process the PeTab parametersFile file into a type-stable Julia struct.
+Process the PeTab parametersFile file into a type-stable Julia struct.
 """
-function processParameters(parametersFile::DataFrame)::ParametersInfo
+function processParameters(parametersFile::DataFrame; customParameterValues::Union{Nothing, Dict}=nothing)::ParametersInfo
 
     nParameters = length(parametersFile[!, "estimate"])
 
@@ -44,9 +44,29 @@ function processParameters(parametersFile::DataFrame)::ParametersInfo
         end
 
         estimate[i] = parametersFile[i, "estimate"] == 1 ? true : false
+
+        # In some case when working with the model the user might want to change model parameters but not go the entire 
+        # way to the PEtab-files. This ensure ParametersInfo ends up with correct strucutre in this case. 
+        if !isnothing(customParameterValues)
+            keysDict = collect(keys(customParameterValues))
+            iKey = findfirst(x -> x == parameterId[i], keysDict)
+            isnothing(iKey) && continue
+            valueChangeTo = customParameterValues[keysDict[iKey]]
+            if typeof(valueChangeTo) <: Real
+                estimate[i] = false
+                nominalValue[i] = valueChangeTo
+            elseif isNumber(valueChangeTo)
+                estimate[i] = false
+                nominalValue[i] = parse(Float64, valueChangeTo)
+            elseif valueChangeTo == "estimate"
+                estimate[i] = true
+            else
+                PEtabFileError("For PEtab select a parameter must be set to either a estimate or a number not $valueChangeTo")
+            end
+        end
+
     end
     nParametersToEstimate::Int64 = Int64(sum(estimate))
-
     return ParametersInfo(nominalValue, lowerBound, upperBound, parameterId, parameterScale, estimate, nParametersToEstimate)
 end
 

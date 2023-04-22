@@ -21,8 +21,14 @@ function computeGradientAutoDiff!(gradient::Vector{Float64},
     splitParameterVector!(θ_est, θ_indices, petabODECache)
 
     try
-        ForwardDiff.gradient!(petabODECache.gradientDyanmicθ, computeCostDynamicθ, petabODECache.θ_dynamic, cfg)
-        @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ
+        # In case of no dynamic parameters we still need to solve the ODE in order to obtain the gradient for 
+        # non-dynamic parameters 
+        if length(petabODECache.gradientDyanmicθ) ≥ 1
+            ForwardDiff.gradient!(petabODECache.gradientDyanmicθ, computeCostDynamicθ, petabODECache.θ_dynamic, cfg)
+            @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ
+        else
+            computeCostDynamicθ(petabODECache.θ_dynamic)
+        end
     catch
         gradient .= 0.0
         return
@@ -33,12 +39,13 @@ function computeGradientAutoDiff!(gradient::Vector{Float64},
         gradient .= 0.0
         return
     end
-    if all(petabODECache.gradientDyanmicθ .== 0.0)
+    if !isempty(petabODECache.gradientDyanmicθ) && all(petabODECache.gradientDyanmicθ .== 0.0)
         gradient .= 0.0
         return
     end
     
     θ_notOdeSystem = @view θ_est[θ_indices.iθ_notOdeSystem]
+
     ReverseDiff.gradient!(petabODECache.gradientNotODESystemθ, computeCostNotODESystemθ, θ_notOdeSystem)
     @views gradient[θ_indices.iθ_notOdeSystem] .= petabODECache.gradientNotODESystemθ
 
@@ -76,7 +83,11 @@ function computeGradientAutoDiffSplitOverConditions!(gradient::Vector{Float64},
                                                     return _computeCostDynamicθ(_θ_dynamic, [conditionId])
                                             end
         try
-            @views petabODECache.gradientDyanmicθ[iθ_experimentalCondition] .+= ForwardDiff.gradient(computeCostDynamicθ, θ_input)::Vector{Float64}
+            if length(θ_input) ≥ 1
+                @views petabODECache.gradientDyanmicθ[iθ_experimentalCondition] .+= ForwardDiff.gradient(computeCostDynamicθ, θ_input)::Vector{Float64}
+            else
+                computeCostDynamicθ(θ_input)
+            end
         catch
             gradient .= 1e8
             return

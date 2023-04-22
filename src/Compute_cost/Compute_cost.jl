@@ -215,6 +215,7 @@ function computeCostExpCond(odeSolution::ODESolution,
         # In case with transformations on the data the code can crash, hence Inf is returned in case the
         # model data transformation can not be perfomred.
         if isinf(hTransformed)
+            @warn "Transformed observable is non-finite for measurement $iMeasurement"
             return Inf
         end
 
@@ -225,8 +226,10 @@ function computeCostExpCond(odeSolution::ODESolution,
                 cost += log(σ) + 0.5*log(2*pi) + 0.5*((hTransformed - measurementInfo.measurement[iMeasurement]) / σ)^2
             elseif measurementInfo.measurementTransformation[iMeasurement] == :log10
                 cost += log(σ) + 0.5*log(2*pi) + log(log(10)) + log(10)*measurementInfo.measurementT[iMeasurement] + 0.5*((hTransformed - measurementInfo.measurementT[iMeasurement]) / σ)^2
+            elseif measurementInfo.measurementTransformation[iMeasurement] == :log
+                cost += log(σ) + 0.5*log(2*pi) + log(measurementInfo.measurement[iMeasurement]) + 0.5*((hTransformed - measurementInfo.measurementT[iMeasurement]) / σ)^2                
             else
-                println("Transformation ", measurementInfo.measurementTransformation[iMeasurement], "not yet supported.")
+                println("Transformation ", measurementInfo.measurementTransformation[iMeasurement], " not yet supported.")
                 return Inf
             end
         elseif computeResiduals == true
@@ -234,12 +237,13 @@ function computeCostExpCond(odeSolution::ODESolution,
                 cost += ((hTransformed - measurementInfo.measurement[iMeasurement]) / σ)
             elseif measurementInfo.measurementTransformation[iMeasurement] == :log10
                 cost += ((hTransformed - measurementInfo.measurementT[iMeasurement]) / σ)
+            elseif measurementInfo.measurementTransformation[iMeasurement] == :log
+                cost += ((hTransformed - measurementInfo.measurementT[iMeasurement]) / σ)
             else
-                println("Transformation ", measurementInfo.transformData[i], "not yet supported.")
+                println("Transformation ", measurementInfo.transformData[i], " not yet supported.")
                 return Inf
             end
         end
     end
-
     return cost
 end
