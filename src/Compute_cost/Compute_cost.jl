@@ -215,7 +215,7 @@ function computeCostExpCond(odeSolution::ODESolution,
         # In case with transformations on the data the code can crash, hence Inf is returned in case the
         # model data transformation can not be perfomred.
         if isinf(hTransformed)
-            @warn "Transformed observable is non-finite for measurement $iMeasurement"
+            println("Warning - transformed observable is non-finite for measurement $iMeasurement")
             return Inf
         end
 

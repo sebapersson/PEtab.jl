@@ -290,7 +290,6 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
 
         modelDict["derivatives"][stateId] = "D(" * stateId * ") ~ " # ModellingToolkitSyntax
     end
-    println("modelDict[states] = ", modelDict["states"])
 
     # Extract model parameters and their default values
     for parameter in model[:getListOfParameters]()

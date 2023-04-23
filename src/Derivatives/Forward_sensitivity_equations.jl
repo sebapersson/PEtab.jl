@@ -36,9 +36,12 @@ function computeGradientForwardEqDynamicθ!(gradient::Vector{Float64},
     success = solveForSensitivites(odeProblem, simulationInfo, θ_indices, petabModel, sensealg, θ_dynamicT,
                                    solveOdeModelAllConditions!, cfg, petabODECache, expIDSolve, splitOverConditions)
     if success != true
-        println("Failed to solve sensitivity equations")
+        @warn "Failed to solve sensitivity equations"
         gradient .= 1e8
         return
+    end
+    if isempty(θ_dynamic)
+        return 
     end
 
     gradient .= 0.0
@@ -90,8 +93,13 @@ function solveForSensitivites(odeProblem::ODEProblem,
                               expIDSolve::Vector{Symbol}, 
                               splitOverConditions::Bool)
 
-    if splitOverConditions == false                                
-        ForwardDiff.jacobian!(petabODECache.S, solveOdeModelAllConditions!, petabODECache.odeSolutionValues, θ_dynamic, cfg)
+    if splitOverConditions == false       
+        if !isempty(θ_dynamic)                         
+            ForwardDiff.jacobian!(petabODECache.S, solveOdeModelAllConditions!, petabODECache.odeSolutionValues, θ_dynamic, cfg)
+        else
+            solveOdeModelAllConditions!(petabODECache.odeSolutionValues, θ_dynamic)
+            petabODECache.S .= 0.0
+        end
 
     # Slower option, but more efficient if there are several parameters unique to an experimental condition         
     else

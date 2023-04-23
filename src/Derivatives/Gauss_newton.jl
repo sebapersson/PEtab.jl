@@ -27,10 +27,14 @@ function computeJacobianResidualsDynamicθ!(jacobian::Union{Matrix{Float64}, Sub
                                        solveOdeModelAllConditions!, cfg, petabODECache, expIDSolve, splitOverConditions)
 
         if success != true
-            println("Failed to solve sensitivity equations")
+            @warn "Failed to solve sensitivity equations"
             jacobian .= 1e8
             return
         end                                    
+    end
+    if isempty(θ_dynamic)
+        jacobian .= 0.0
+        return 
     end
 
     # Compute the gradient by looping through all experimental conditions.
@@ -199,6 +203,8 @@ function computeResidualsExpCond!(residuals::AbstractVector,
         if measurementInfo.measurementTransformation[iMeasurement] == :lin
             residuals[iMeasurement] = (hTransformed - measurementInfo.measurement[iMeasurement]) / σ
         elseif measurementInfo.measurementTransformation[iMeasurement] == :log10
+            residuals[iMeasurement] = (hTransformed - measurementInfo.measurementT[iMeasurement]) / σ
+        elseif measurementInfo.measurementTransformation[iMeasurement] == :log
             residuals[iMeasurement] = (hTransformed - measurementInfo.measurementT[iMeasurement]) / σ
         else
             println("Transformation ", measurementInfo.measurementTransformation[iMeasurement], "not yet supported.")

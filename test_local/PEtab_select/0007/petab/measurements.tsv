@@ -1,0 +1,7 @@
+observableId	simulationConditionId	measurement	time
+obs_x2	model1_data1	0	0
+obs_x2	model1_data1	0.19421762	1
+obs_x2	model1_data1	0.0484032	5
+obs_x2	model1_data1	0.61288016	10
+obs_x2	model1_data1	4.07930835	30
+obs_x2	model1_data1	10.12008893	60

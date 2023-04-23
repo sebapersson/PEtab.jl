@@ -1,0 +1,18 @@
+criteria:
+  BIC: -6.3836437902516785
+  NLLH: -4.0877016297398665
+estimated_parameters:
+  sigma_x2: 0.12248209784705692
+model_hash: 02ffe0fc7e389f56b5db2f20fbc158d2e2b1cc7783209f80506b3a6383ec59fbb2021bd50ea91c463e6bf1a2a8d26120f15a2c08de3000ddee15db08f6bf8834
+model_id: 02ffe0fc7e389f56b5db2f20fbc158d2e2b1cc7783209f80506b3a6383ec59fbb2021bd50ea91c463e6bf1a2a8d26120f15a2c08de3000ddee15db08f6bf8834
+model_subspace_id: M1
+model_subspace_indices:
+- 1
+- 1
+- 0
+parameters:
+  k1: 0.2
+  k2: 0.1
+  k3: 0
+petab_yaml: /home/sebpe/.julia/dev/PEtab/tests/PEtab_select/0001/petab/petab_problem.yaml
+predecessor_model_hash: None

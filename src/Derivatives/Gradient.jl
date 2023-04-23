@@ -148,7 +148,7 @@ function computeGradientForwardEquations!(gradient::Vector{Float64},
     @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ
 
     # Happens when at least one forward pass fails and I set the gradient to 1e8
-    if all(petabODECache.gradientDyanmicθ .== 1e8)
+    if !isempty(petabODECache.gradientDyanmicθ) && all(petabODECache.gradientDyanmicθ .== 1e8)
         gradient .= 1e8
         return
     end

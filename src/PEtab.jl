@@ -24,6 +24,7 @@ using YAML
 using RuntimeGeneratedFunctions
 using PreallocationTools
 using NonlinearSolve
+using Optim
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
@@ -77,6 +78,11 @@ include(joinpath("SBML", "Common.jl"))
 include(joinpath("SBML", "Process_functions.jl"))
 include(joinpath("SBML", "Process_rules.jl"))
 
-export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, setupPEtabODEProblem, getODESolverOptions, getSteadyStateSolverOptions
+# For Optimization - to be outsourced down the line 
+include(joinpath("Optimization", "Setup_optim.jl"))
+include(joinpath("Optimization", "Setup_fides.jl"))
+include(joinpath("Optimization", "Callibration.jl"))
+
+export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, Fides, readPEtabModel, setupPEtabODEProblem, getODESolverOptions, getSteadyStateSolverOptions, createOptimProblem, createFidesProblem, callibrateModel
 
 end

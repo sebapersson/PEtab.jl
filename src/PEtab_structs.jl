@@ -349,6 +349,16 @@ struct PriorInfo{T1 <: NamedTuple,
 end
 
 
+struct Fides
+    hessianApproximation
+    verbose
+end
+function Fides(; verbose::Bool=false)
+    verboseArg = verbose == true ? 1 : 0
+    return Fides(nothing, verboseArg)
+end
+
+
 struct PEtabFileError <: Exception
     var::String
 end
