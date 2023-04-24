@@ -142,7 +142,15 @@ function checkDataFrameColumns(dataFrame, dataFrameName, colsToCheck, allowedTyp
             throw(PEtabFileError("Required column '" * colName * "' missing in file '" * dataFrameName * "'"))
         # If column is required and there are missing values in that column a warning is thrown.
         elseif (colName in requiredCols) && (Missing <: eltype(dataFrame[!, colName]))
-            println("Warning : Required column " * colName * " contains rows with missing values.")
+            if colName == "upperBound" || colName == "lowerBound"
+                for row in eachindex(dataFrame[!,colName])
+                    if dataFrame[row,colName] === missing && dataFrame[row,"estimate"] == 1
+                        println("Warning : Required column " * colName * " contains rows with missing values on row " * string(row) * ".")
+                    end
+                end
+            else
+                println("Warning : Required column " * colName * " contains rows with missing values.")
+            end
         # If column is not required and present the check is skipped.
         elseif !(colName in requiredCols) && !(colName in names(dataFrame))
             continue
