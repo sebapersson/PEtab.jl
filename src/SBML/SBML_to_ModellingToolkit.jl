@@ -71,63 +71,121 @@ function JLToModellingToolkit(modelName::String, dirModel::String; ifElseToEvent
         timeDependentIfElseToBool!(modelDict)
     end
 
-    listOfBoolVariables = collect(keys(modelDict["boolVariables"]))
+    # Create a new "fixed" julia file
+    io = open(modelFileJl, "w")
+    println(io, "# Model name: " * modelName)
+    println(io, "# Number of parameters: " * string(length(paramMap)))
+    println(io, "# Number of species: " * string(length(stateMap)))
+    println(io, "function getODEModel_" * modelName * "()")
+    println(io, "")
 
-    # Make changes in a temporary file
-    (tmpPath, tmpIO) = mktemp()
-    open(modelFileJlSrc) do io
-        for line in eachline(io, keep=true)
+    tmpLine = "    ModelingToolkit.@variables t "
+    tmpLineArray = "    stateArray = [" 
+    for key in keys(modelDict["states"])
+        tmpLine *= key * " "
+        tmpLineArray *= replace(key,"(t)"=>"") * ", "
+    end
+    tmpLineArray = tmpLineArray[1:end-2] * "]"
+    
+    println(io, "    ### Define independent and dependent variables")
+    println(io, tmpLine)
+    println(io, "")
+    println(io, "    ### Store dependent variables in array for ODESystem command")
+    println(io, tmpLineArray)
+    println(io, "")
+    println(io, "    ### Define variable parameters")
+    println(io, "")
+    println(io, "    ### Define potential algebraic variables")
 
-            # Adds boolVariables to the start of ModelingToolkit.@parameters
-            searchStr = Regex("(ModelingToolkit.@parameters\\s*)")
-            if occursin(searchStr, line)
-                tmpLine = ""
-                for key in listOfBoolVariables
-                    tmpLine *= key * " "
-                end
-                line = replace(line, searchStr => SubstitutionString("\\1" * tmpLine ))
-            end
+    if length(modelDict["inputFunctions"]) > 0
+        tmpLine = "    ModelingToolkit.@variables "
+        for key in keys(modelDict["inputFunctions"])
+            tmpLine *= key * "(t) "
+        end
+        println(io, tmpLine)
+    end
 
-            # Adds boolVariables to the start of parameterArray
-            searchStr = Regex("(parameterArray\\s*=\\s*\\[)")
-            if occursin(searchStr, line)
-                tmpLine = ""
-                for key in listOfBoolVariables
-                    tmpLine *= key * ", "
-                end
-                line = replace(line, searchStr => SubstitutionString("\\1" * tmpLine ))
-            end
+    tmpLine = "    ModelingToolkit.@parameters "
+    tmpLineArray = "    parameterArray = [" 
+    for key in keys(modelDict["parameters"])
+        tmpLine *= key * " "
+        tmpLineArray *= replace(key,"(t)"=>"") * ", "
+    end
+    tmpLineArray = tmpLineArray[1:end-2] * "]"
+        
+    println(io, "")
+    println(io, "    ### Define parameters")
+    println(io, tmpLine)
+    println(io, "")
+    println(io, "    ### Store parameters in array for ODESystem command")
+    println(io, tmpLineArray)
+    println(io, "")
+    println(io, "    ### Define an operator for the differentiation w.r.t. time")
+    println(io, "    D = Differential(t)")
+    println(io, "")
+    println(io, "    ### Continious events ###")
+    println(io, "")
+    println(io, "    ### Discrete events ###")
+    
+    equationList = string.(equations(odeSys))
+    equationList = replace.(equationList, "Differential" => "D")
+    equationList = replace.(equationList, "(t)" => "")
 
-            # Fixes equations containing ifelse
-            if occursin("ifelse", line)
-                for key in keys(modelDict["inputFunctions"])
-                    if occursin(Regex(key * "\\s*~"), line)
-                        tmpLine = "    " * modelDict["inputFunctions"][key] * ",\n"
-                        # Removes comma if the last line in the list doesn't end with one. Looks nicer.
-                        if !occursin(Regex(",\\s*\n"), line)
-                            tmpLine = tmpLine[1:end-2] * "\n"
-                        end
-                    line = tmpLine
-                    end
-                end
-            end
-            
-            # Adds boolVariables to the start of trueParameterValues
-            searchStr = Regex("(trueParameterValues\\s*=\\s*\\[)")
-            if occursin(searchStr, line)
-                tmpLine = ""
-                for key in listOfBoolVariables
-                    tmpLine *= key * " => 0.0, "
-                end
-                line = replace(line, searchStr => SubstitutionString("\\1" * tmpLine ))
-            end
-            write(tmpIO, line)
+    tmpLine = "    eqs = [\n"
+
+    for eq in equationList
+        # Fixes equations containing ifelse
+        if occursin("ifelse", eq)
+            # The equation starts either with "D(key) ~" or just "key ~"
+            tildePos = findfirst("~",eq)[1]
+            key = eq[1:tildePos-1]
+            key = replace(key,"D(" => "")
+            key = replace(key,")" => "")
+            key = replace(key," " => "")
+            tmpLine *= "    " * modelDict["inputFunctions"][key] * ",\n"
+        else
+            tmpLine *= "    " * eq * ",\n"
         end
     end
-    close(tmpIO)
-    # Store the temporary file as in dirModel with the suffix _fix
-    mv(tmpPath, modelFileJl, force=true)
-
+    tmpLine = tmpLine[1:end-2] * "\n    ]"
+    
+    println(io, "")
+    println(io, "    ### Derivatives ###")
+    println(io, tmpLine)
+    println(io, "    @named sys = ODESystem(eqs, t, stateArray, parameterArray)")
+    println(io, "")
+    println(io, "    ### Initial species concentrations ###")
+    tmpLineArray = "    initialSpeciesValues = [\n"
+    for stat in stateMap
+        statN = replace(string(stat.first),"(t)"=>"")
+        statV = string(stat.second)
+        tmpLineArray *= "        " * statN * " => " * statV * ", \n"
+    end
+    tmpLineArray = tmpLineArray[1:end-3] * "\n    ]"
+    println(io, tmpLineArray)
+    
+    println(io, "")
+    println(io, "    ### SBML file parameter values ###")
+    parameterList = string.(paramMap)
+    tmpLineArray = "    trueParameterValues = [\n"
+    for par in parameterList
+        tmpLineArray *= "        " * par * ", \n"
+    end
+   
+    # Adds boolVariables to trueParameterValues
+    for par in keys(modelDict["boolVariables"])
+        tmpLineArray *= "        " * par * " => 0.0, \n"
+    end
+    tmpLineArray = tmpLineArray[1:end-3] * "\n    ]"
+    println(io, tmpLineArray)
+    
+    println(io, "")
+    println(io, "    return sys, initialSpeciesValues, trueParameterValues")
+    
+    println(io, "")
+    println(io, "end")
+    close(io)
+    
     return modelDict, modelFileJl
 
 end
