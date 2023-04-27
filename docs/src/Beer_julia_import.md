@@ -1,3 +1,11 @@
+# [Import julia file instead of SBML-file](@id Beer_julia_import)
+
+In this tutorial we will setup the `PEtabODEproblem` problem using just a Julia file instead of an SBML-file.
+
+## Create the model file
+First we create a `.jl` file that uses `ModelingToolkit` to specify a system:
+
+```julia
 function BeerOdeModel()
 
     ModelingToolkit.@variables t Glu(t) cGlu(t) Ind(t) Bac(t) lag(t)
@@ -42,3 +50,22 @@ function BeerOdeModel()
     return OdeSystem, InitialSpeciesValues, paramValues
 
 end
+```
+
+Please note that the file must return the system, the initial species concentrations, and the parameter values, in that exact order. The names of the variables do not matter.
+
+## Import it model file
+To import the julia model we need to specify that the `readPEtabModel` should skip looking for an SBML-file and just import the julia model. We do this by setting the flag `jlFile` to `true` and by specifying the path to the julia file using the variable `jlFilePath`
+
+```julia
+using PEtab
+using OrdinaryDiffEq
+using Printf
+
+pathYaml = joinpath(@__DIR__, "examples", "Beer", "Beer_MolBioSystems2014.yaml") # @__DIR__ = file directory
+pathJuliaFile = joinpath(@__DIR__, "examples", "Beer", "Julia_import_files", "Beer_Julia_Import.jl")
+petabModel = readPEtabModel(pathYaml, verbose=true, jlFile=true, jlFilePath=pathJuliaFile)
+```
+
+From now on the model can be used in the same manner as any model imported from an SBML-file. Please see the other tutorials to see how `petabModel` can be used to calculate the cost, gradient or hessian of the problem.
+
