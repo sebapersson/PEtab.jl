@@ -122,7 +122,7 @@ end
     # Isensee model. Accurate gradients are computed (but the code takes ages to run with low tolerances)
     pathYML = joinpath(@__DIR__, "JuliaImport", "Isensee", "Isensee_JCB2018.yaml")
     petabModel = readPEtabModel(pathYML, verbose=false, jlFile=true)
-    testLogLikelihoodValue(petabModel, 3949.375966548649-4.45299970460275, atol=1e-2)
+    testLogLikelihoodValue(petabModel, 3949.375966548649+4.45299970460275, atol=1e-2)
     
     # Weber model. Challanging as it sensitivity to steady state tolerances 
     pathYML = joinpath(@__DIR__, "JuliaImport", "Weber", "Weber_BMC2015.yaml")
