@@ -1,7 +1,7 @@
 # Model name: Beer
 # Number of parameters: 8
 # Number of species: 4
-function getODEModel_Beer_Julia_Import()
+function BeerOdeModel()
 
     ### Define independent and dependent variables
     ModelingToolkit.@variables t Glu(t) cGlu(t) Ind(t) Bac(t)

@@ -48,7 +48,7 @@ function JLToModellingToolkit(modelName::String, jlFilePath::String; ifElseToEve
 
     # Read modelFile to work with it
     odefun = include(modelFileJlSrc)
-    odeSys, stateMap, paramMap = odefun()
+    odeSys, stateMap, paramMap = Base.invokelatest(odefun())
 
     for eq in odeSys.eqs
         key = replace(string(eq.lhs),"(t)" => "")
