@@ -28,11 +28,11 @@ end
 
 
 """
-    JLToModellingToolkit(modelName::String, dirModel::String)
-    Checks and fixes a Julia ModelingToolkit file and store 
-    the fixed file in dirModel with name modelName_fix.jl. 
+    JLToModellingToolkit(modelName::String, jlFilePath::String)
+    Checks and fixes a Julia ModelingToolkit file located in jlFilePath 
+    and stores the fixed file in the same folder but with the suffix _fix. 
 """
-function JLToModellingToolkit(modelName::String, dirModel::String; ifElseToEvent::Bool=true)
+function JLToModellingToolkit(modelName::String, jlFilePath::String; ifElseToEvent::Bool=true)
 
     # Some parts of the modelDict are needed to create the other julia files for the model.
     modelDict = Dict()
@@ -42,13 +42,13 @@ function JLToModellingToolkit(modelName::String, dirModel::String; ifElseToEvent
     modelDict["parameters"] = Dict()
     modelDict["states"] = Dict()
 
-    modelFileJlSrc = dirModel * "/" * modelName * ".jl"
-    modelFileJl = dirModel * "/" * modelName * "_fix.jl"
+    modelFileJlSrc = jlFilePath
+    # changes final .jl in path to _fix.jl
+    modelFileJl = replace(jlFilePath, Regex(".jl\$") => "_fix.jl")
 
     # Read modelFile to work with it
-    include(modelFileJlSrc)
-    expr = Expr(:call, Symbol("getODEModel_" * modelName))
-    odeSys, stateMap, paramMap = eval(expr)
+    odefun = include(modelFileJlSrc)
+    odeSys, stateMap, paramMap = odefun()
 
     for eq in odeSys.eqs
         key = replace(string(eq.lhs),"(t)" => "")

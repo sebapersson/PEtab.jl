@@ -2,13 +2,13 @@
     In this example we setup the PEtab problem using just a Julia file instead of an SBML-file.
 
     The flag jlFile=true will tell the importer to not use any SBML-files, even if they are specified in the yaml-file.
-    The julia file must:
-        - Be located inside a folder called Julia_model_files
-        - Have a function named getODEModel_M where M is the model name
-        - The file must be named M.jl where M is the model name (the same as in getODEModel_M)
-        - Return the OdeSystem, InitialSpeciesValues, TrueParameterValues, in that order (the names of the variables do not matter though).
+    One must though specify the path to the julia file by using the variable jlFilePath="/path/to/jl/file"
 
-    A file named M_fix.jl, where M is the model name, is created in the folder Julia_model_files. It will have the format needed to work with the 
+    The julia file must:
+        - Contain a function specifying the model and that function must be the last function in the file.
+        - Return the OdeSystem, InitialSpeciesValues, TrueParameterValues, in that specific order (the names of the variables do not matter though).
+
+    A copy with the suffix "_fix" will be created. It will have the format needed to work with the 
     PEtab toolbox, among other things, all ifelse-statments are automatically translated into expressions 
     using boolean variables.
     
@@ -26,8 +26,9 @@ using PEtab
 using OrdinaryDiffEq
 using Printf
 
-pathYaml = joinpath(@__DIR__, "Beer_Julia_Import", "Beer_MolBioSystems2014.yaml") # @__DIR__ = file directory
-petabModel = readPEtabModel(pathYaml, verbose=true, jlFile=true)
+pathYaml = joinpath(@__DIR__, "examples", "Beer", "Beer_MolBioSystems2014.yaml") # @__DIR__ = file directory
+pathJuliaFile = joinpath(@__DIR__, "examples", "Beer", "Julia_import_files", "Beer_Julia_Import.jl")
+petabModel = readPEtabModel(pathYaml, verbose=true, jlFile=true, jlFilePath=pathJuliaFile)
 
 #=
     The cost of the imported model is calculated. 

@@ -18,7 +18,8 @@ function readPEtabModel(pathYAML::String;
                         forceBuildJuliaFiles::Bool=false,
                         verbose::Bool=true,
                         ifElseToEvent::Bool=true,
-                        jlFile=false)::PEtabModel
+                        jlFile::Bool=false,
+                        jlFilePath::String)::PEtabModel
 
     pathSBML, pathParameters, pathConditions, pathObservables, pathMeasurements, dirJulia, dirModel, modelName = readPEtabYamlFile(pathYAML, jlFile=jlFile)
 
@@ -52,8 +53,13 @@ function readPEtabModel(pathYAML::String;
         end
 
     else
-        jlDir = joinpath(dirModel, "Julia_model_files")
-        modelDict, pathModelJlFile = JLToModellingToolkit(modelName, jlDir, ifElseToEvent=ifElseToEvent)
+        if jlFilePath == ""
+            throw("If jlFile=true you must specify jlFilePath")
+        elseif !isfile(jlFilePath)
+            throw("File" * jlFilePath * "does not exist")
+        else
+            modelDict, pathModelJlFile = JLToModellingToolkit(modelName, jlFilePath, ifElseToEvent=ifElseToEvent)
+        end
     end
 
     addParameterForConditionSpecificInitialValues(pathModelJlFile, pathConditions, pathParameters)
