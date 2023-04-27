@@ -53,7 +53,13 @@ function computeCostSolveODE(θ_dynamic::AbstractVector,
                              computeResiduals::Bool=false,
                              expIDSolve::Vector{Symbol} = [:all])::Real
 
-    θ_dynamicT = transformθ(θ_dynamic, θ_indices.θ_dynamicNames, θ_indices, :θ_dynamic, petabODECache)
+    if computeGradientDynamicθ == true && petabODECache.nθ_dynamicEst[1] != length(θ_dynamic)
+        _θ_dynamic = θ_dynamic[petabODECache.θ_dynamicOutputOrder]
+        θ_dynamicT = transformθ(_θ_dynamic, θ_indices.θ_dynamicNames, θ_indices, :θ_dynamic, petabODECache)
+    else
+        θ_dynamicT = transformθ(θ_dynamic, θ_indices.θ_dynamicNames, θ_indices, :θ_dynamic, petabODECache)
+    end
+
     θ_sdT = transformθ(θ_sd, θ_indices.θ_sdNames, θ_indices, :θ_sd, petabODECache)
     θ_observableT = transformθ(θ_observable, θ_indices.θ_observableNames, θ_indices, :θ_observable, petabODECache)
     θ_nonDynamicT = transformθ(θ_nonDynamic, θ_indices.θ_nonDynamicNames, θ_indices, :θ_nonDynamic, petabODECache)

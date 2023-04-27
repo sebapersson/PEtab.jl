@@ -195,7 +195,8 @@ function computeGaussNewtonHessianApproximation!(out::Matrix{Float64},
                                                  reuseS::Bool=false,
                                                  splitOverConditions::Bool=false,
                                                  returnJacobian::Bool=false,
-                                                 expIDSolve::Vector{Symbol} = [:all])
+                                                 expIDSolve::Vector{Symbol} = [:all], 
+                                                 isRemade::Bool=false)
 
     # Avoid incorrect non-zero values
     out .= 0.0
@@ -213,7 +214,8 @@ function computeGaussNewtonHessianApproximation!(out::Matrix{Float64},
                                       θ_observable, θ_nonDynamic, petabModel, odeProblem,
                                       simulationInfo, θ_indices, measurementInfo, parameterInfo,
                                       solveOdeModelAllConditions!, cfg, petabODECache;
-                                      expIDSolve=expIDSolve, reuseS=reuseS, splitOverConditions=splitOverConditions)
+                                      expIDSolve=expIDSolve, reuseS=reuseS, splitOverConditions=splitOverConditions, 
+                                      isRemade=isRemade)
 
     # Happens when at least one forward pass fails
     if !isempty(θ_dynamic) && all(jacobianGN[θ_indices.iθ_dynamic, :] .== 1e8)

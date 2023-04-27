@@ -155,7 +155,7 @@ function solveODEAllExperimentalConditions!(odeSolutions::Dict{Symbol, Union{Not
     return sucess
 end
 function solveODEAllExperimentalConditions!(odeSolutionValues::AbstractMatrix,
-                                            θ_dynamic::AbstractVector,
+                                            _θ_dynamic::AbstractVector,
                                             petabODESolverCache::PEtabODESolverCache,
                                             odeSolutions::Dict{Symbol, Union{Nothing, ODESolution}},                                        
                                             __odeProblem::ODEProblem,
@@ -163,13 +163,21 @@ function solveODEAllExperimentalConditions!(odeSolutionValues::AbstractMatrix,
                                             simulationInfo::SimulationInfo,
                                             odeSolverOptions::ODESolverOptions,
                                             ssSolverOptions::SteadyStateSolverOptions,
-                                            θ_indices::ParameterIndices;
+                                            θ_indices::ParameterIndices, 
+                                            petabODECache::PEtabODEProblemCache;
                                             expIDSolve::Vector{Symbol} = [:all],
                                             nTimePointsSave::Int64=0,
                                             onlySaveAtObservedTimes::Bool=false,
                                             denseSolution::Bool=true,
                                             trackCallback::Bool=false, 
-                                            computeForwardSensitivites::Bool=false)
+                                            computeForwardSensitivites::Bool=false, 
+                                            computeForwardSensitivitesAD::Bool=false)
+
+    if computeForwardSensitivitesAD == true && petabODECache.nθ_dynamicEst[1] != length(_θ_dynamic)
+        θ_dynamic = _θ_dynamic[petabODECache.θ_dynamicOutputOrder]
+    else
+        θ_dynamic = _θ_dynamic
+    end                  
 
     _odeProblem = remake(__odeProblem, p = convert.(eltype(θ_dynamic), __odeProblem.p), u0 = convert.(eltype(θ_dynamic), __odeProblem.u0))
     changeODEProblemParameters!(_odeProblem.p, _odeProblem.u0, θ_dynamic, θ_indices, petabModel)
@@ -278,7 +286,7 @@ function solveODEPostEqulibrium(odeProblem::ODEProblem,
     # If case of adjoint sensitivity analysis we need to track the callback to get correct gradients
     tStops = computeTStops(_odeProblem.u0, _odeProblem.p)
     callbackSet = getCallbackSet(_odeProblem, simulationInfo, experimentalId, trackCallback)
-    sol = computeODESolution(_odeProblem, odeSolverOptions, odeSolverOptions.abstol/100.0, odeSolverOptions.reltol/100.0,
+    sol = computeODESolution(_odeProblem, odeSolverOptions.solver, odeSolverOptions, odeSolverOptions.abstol/100.0, odeSolverOptions.reltol/100.0,
                              tSave, denseSolution, callbackSet, tStops)
 
     return sol
@@ -305,7 +313,7 @@ function solveODENoPreEqulibrium!(odeProblem::ODEProblem,
 
     tStops = computeTStops(_odeProblem.u0, _odeProblem.p)
     callbackSet = getCallbackSet(_odeProblem, simulationInfo, simulationConditionId, trackCallback)
-    sol = computeODESolution(_odeProblem, odeSolverOptions, odeSolverOptions.abstol/100.0, odeSolverOptions.reltol/100.0,
+    sol = computeODESolution(_odeProblem, odeSolverOptions.solver, odeSolverOptions, odeSolverOptions.abstol/100.0, odeSolverOptions.reltol/100.0,
                              tSave, denseSolution, callbackSet, tStops)
 
     return sol
@@ -313,15 +321,16 @@ end
 
 
 function computeODESolution(odeProblem::ODEProblem,
+                            solver::S,
                             odeSolverOptions::ODESolverOptions,
                             absTolSS::Float64,
                             relTolSS::Float64,
                             tSave::Vector{Float64},
                             denseSolution::Bool,
                             callbackSet::SciMLBase.DECallback,
-                            tStops::AbstractVector)::ODESolution
+                            tStops::AbstractVector)::ODESolution where S<:SciMLAlgorithm
 
-    solver, abstol, reltol, force_dtmin, dtmin, maxiters = odeSolverOptions.solver, odeSolverOptions.abstol, odeSolverOptions.reltol, odeSolverOptions.force_dtmin, odeSolverOptions.dtmin, odeSolverOptions.maxiters                            
+    abstol, reltol, force_dtmin, dtmin, maxiters = odeSolverOptions.abstol, odeSolverOptions.reltol, odeSolverOptions.force_dtmin, odeSolverOptions.dtmin, odeSolverOptions.maxiters                            
 
     # Different funcion calls to solve are required if a solver or a Alg-hint are provided.
     # If t_max = inf the model is simulated to steady state using the TerminateSteadyState callback.

@@ -16,22 +16,47 @@ function computeGradientAutoDiff!(gradient::Vector{Float64},
                                   simulationInfo::SimulationInfo,
                                   θ_indices::ParameterIndices,
                                   priorInfo::PriorInfo,
-                                  expIDSolve::Vector{Symbol} = [:all])
+                                  expIDSolve::Vector{Symbol} = [:all];
+                                  isRemade::Bool=false)
 
     splitParameterVector!(θ_est, θ_indices, petabODECache)
 
-    try
-        # In case of no dynamic parameters we still need to solve the ODE in order to obtain the gradient for 
-        # non-dynamic parameters 
-        if length(petabODECache.gradientDyanmicθ) ≥ 1
-            ForwardDiff.gradient!(petabODECache.gradientDyanmicθ, computeCostDynamicθ, petabODECache.θ_dynamic, cfg)
-            @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ
-        else
-            computeCostDynamicθ(petabODECache.θ_dynamic)
+    # Case where based on the original PEtab file read into Julia we do not have any parameter vectors fixated. 
+    if isRemade == false || length(petabODECache.gradientDyanmicθ) == petabODECache.nθ_dynamicEst[1]
+        tmp = petabODECache.nθ_dynamicEst[1]
+        petabODECache.nθ_dynamicEst[1] = length(petabODECache.θ_dynamic)
+        try
+            # In case of no dynamic parameters we still need to solve the ODE in order to obtain the gradient for 
+            # non-dynamic parameters 
+            if length(petabODECache.gradientDyanmicθ) ≥ 1
+                ForwardDiff.gradient!(petabODECache.gradientDyanmicθ, computeCostDynamicθ, petabODECache.θ_dynamic, cfg)
+                @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ
+            else
+                computeCostDynamicθ(petabODECache.θ_dynamic)
+            end
+        catch
+            gradient .= 0.0
+            return
         end
-    catch
-        gradient .= 0.0
-        return
+        petabODECache.nθ_dynamicEst[1] = tmp
+    
+    # Case when we have dynamic parameters fixed. Here it is not always worth to move accross all chunks
+    else
+        try
+            if petabODECache.nθ_dynamicEst[1] != 0
+                C = length(cfg.seeds)
+                nForwardPasses = Int64(ceil(petabODECache.nθ_dynamicEst[1] / C))
+                __θ_dynamic = petabODECache.θ_dynamic[petabODECache.θ_dynamicInputOrder]
+                forwardDiffGradientChunks(computeCostDynamicθ, petabODECache.gradientDyanmicθ, __θ_dynamic, ForwardDiff.Chunk(C); nForwardPasses=nForwardPasses) 
+                @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ[petabODECache.θ_dynamicOutputOrder]
+            else
+                computeCostDynamicθ(petabODECache.θ_dynamic)
+            end
+            
+        catch 
+            gradient .= 0.0
+            return 
+        end
     end
 
     # Check if we could solve the ODE (first), and if Inf was returned (second)
@@ -132,7 +157,8 @@ function computeGradientForwardEquations!(gradient::Vector{Float64},
                                           cfg::Union{ForwardDiff.JacobianConfig, Nothing}, 
                                           petabODECache::PEtabODEProblemCache;
                                           splitOverConditions::Bool=false,
-                                          expIDSolve::Vector{Symbol} = [:all])
+                                          expIDSolve::Vector{Symbol} = [:all],
+                                          isRemade::Bool=false)
 
     splitParameterVector!(θ_est, θ_indices, petabODECache)
     θ_dynamic = petabODECache.θ_dynamic 
@@ -144,7 +170,7 @@ function computeGradientForwardEquations!(gradient::Vector{Float64},
     computeGradientForwardEqDynamicθ!(petabODECache.gradientDyanmicθ, θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, petabModel,
                                       sensealg, odeProblem, simulationInfo, θ_indices, measurementInfo, parameterInfo,
                                       solveOdeModelAllConditions!, cfg, petabODECache, expIDSolve=expIDSolve, 
-                                      splitOverConditions=splitOverConditions)
+                                      splitOverConditions=splitOverConditions, isRemade=isRemade)
     @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ
 
     # Happens when at least one forward pass fails and I set the gradient to 1e8

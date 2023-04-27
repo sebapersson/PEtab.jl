@@ -96,9 +96,8 @@ Constructed via `getODESolverOptions`. More info regarding the options and avail
 - `dtmin`: Minimal acceptable step-size when solving the ODE-system.
 - `maxiters`: Maximum number of iterations when solving the ODE-system.
 """
-struct ODESolverOptions{T1 <: SciMLAlgorithm, 
-                        T2 <: Union{Float64, Nothing}}
-    solver::T1
+mutable struct ODESolverOptions{T2 <: Union{Float64, Nothing}}
+    solver
     abstol::Float64
     reltol::Float64
     force_dtmin::Bool
@@ -137,130 +136,6 @@ struct SteadyStateSolverOptions{T1 <: Union{Nothing, NonlinearSolve.AbstractNonl
     maxiters::T4
     callbackSS::CA
     nonlinearSolveProblem::T3
-end
-
-
-"""
-    PEtabODEProblem
-
-All needed to setup an optimization problem (compute cost, gradient, hessian and parameter bounds) for a PEtab model.
-
-The PEtabODEproblem for a PEtab problem allows for efficient cost, gradient and hessian computations. Constructed
-via `setupPEtabODEProblem`, more info on tuneable options can be found in the documentation [add]. 
-    
-**Note** - the parameter vector θ is **always** assumed to be on parameter scale specified in the PEtab parameters file. If needed θ is transformed to linear scale inside of the function call. 
-
-# Fields
-- `computeCost`: For θ computes the objective value cost = computeCost(θ)
-- `computeGradient!`: For θ computes in-place gradient computeGradient!(gradient, θ)
-- `computeHessian!`: For θ computes in-place hessian-(approximation) computeHessian!(hessian, θ)
-- `costMethod`: Method for computing the cost (:Standard, :Zygote)
-- `gradientMethod`: Method for computing the gradient (:ForwardDiff, :ForwardEquations :Adjoint, :Zygote)
-- `hessianMethod`:  Method for computing/approximating the hessian (:ForwardDiff, :BlocForwardDiff :GaussNewton)
-- `nParametersToEstimate`: Number of parameter to estimate.
-- `θ_estNames`: Names of the parameter in θ
-- `θ_nominal`: Nominal θ values as specified in the PEtab parameters-file. 
-- `θ_nominalT`: Nominal θ values on parameter-scale (e.g log) as specified in the PEtab parameters-file.
-- `lowerBounds`: Lower parameter bounds on parameter-scale for θ as specified in the PEtab parameters-file.
-- `upperBounds`: Upper parameter bounds on parameter-scale for θ as specified in the PEtab parameters-file.
-- `petabModel`: PEtabModel used to construct the PEtabODEProblem
-- `odeSolverOptions`: ODE-solver options specified when creating the PEtabODEProblem 
-- `odeSolverGradientOptions`: ODE-solver gradient options specified when creating the PEtabODEProblem 
-"""
-struct PEtabODEProblem{F1<:Function,
-                       F2<:Function,
-                       F3<:Function,
-                       T1<:PEtabModel, 
-                       T2<:ODESolverOptions, 
-                       T3<:ODESolverOptions, 
-                       T4<:SteadyStateSolverOptions, 
-                       T5<:SteadyStateSolverOptions}
-
-    computeCost::F1
-    computeGradient!::F2
-    computeHessian!::F3
-    costMethod::Symbol
-    gradientMethod::Symbol
-    hessianMethod::Symbol
-    nParametersToEstimate::Int64
-    θ_estNames::Vector{Symbol}
-    θ_nominal::Vector{Float64}
-    θ_nominalT::Vector{Float64}
-    lowerBounds::Vector{Float64}
-    upperBounds::Vector{Float64}
-    pathCube::String
-    petabModel::T1
-    odeSolverOptions::T2
-    odeSolverGradientOptions::T3
-    ssSolverOptions::T4
-    ssSolverGradientOptions::T5
-end
-
-
-struct PEtabODEProblemCache{T1 <: AbstractVector, 
-                            T2 <: DiffCache, 
-                            T3 <: AbstractVector, 
-                            T4 <: AbstractMatrix}
-    θ_dynamic::T1
-    θ_sd::T1
-    θ_observable::T1
-    θ_nonDynamic::T1
-    θ_dynamicT::T2 # T = transformed vector
-    θ_sdT::T2
-    θ_observableT::T2
-    θ_nonDynamicT::T2
-    gradientDyanmicθ::T1
-    gradientNotODESystemθ::T1
-    jacobianGN::T4
-    residualsGN::T1
-    _gradient::T1
-    _gradientAdjoint::T1
-    St0::T4
-    ∂h∂u::T3
-    ∂σ∂u::T3
-    ∂h∂p::T3
-    ∂σ∂p::T3
-    ∂G∂p::T3
-    ∂G∂p_::T3
-    ∂G∂u::T3
-    dp::T1 
-    du::T1
-    p::T3 
-    u::T3
-    S::T4
-    odeSolutionValues::T4
-end
-
-
-struct PEtabODESolverCache{T1 <: NamedTuple, 
-                           T2 <: NamedTuple}
-    pODEProblemCache::T1
-    u0Cache::T2
-end
-
-
-struct ParametersInfo
-    nominalValue::Vector{Float64}
-    lowerBound::Vector{Float64}
-    upperBound::Vector{Float64}
-    parameterId::Vector{Symbol}
-    parameterScale::Vector{Symbol}
-    estimate::Vector{Bool}
-    nParametersToEstimate::Int64
-end
-
-
-struct MeasurementsInfo{T<:Vector{<:Union{<:String, <:AbstractFloat}}}
-
-    measurement::Vector{Float64}
-    measurementT::Vector{Float64}
-    measurementTransformation::Vector{Symbol}
-    time::Vector{Float64}
-    observableId::Vector{Symbol}
-    preEquilibrationConditionId::Vector{Symbol}
-    simulationConditionId::Vector{Symbol}
-    noiseParameters::T
-    observableParameters::Vector{String}
 end
 
 
@@ -338,6 +213,138 @@ struct ParameterIndices{T4<:Vector{<:θObsOrSdParameterMap},
     mapθ_sd::T4
     mapODEProblem::T5
     mapsConiditionId::T6
+end
+
+
+"""
+    PEtabODEProblem
+
+All needed to setup an optimization problem (compute cost, gradient, hessian and parameter bounds) for a PEtab model.
+
+The PEtabODEproblem for a PEtab problem allows for efficient cost, gradient and hessian computations. Constructed
+via `setupPEtabODEProblem`, more info on tuneable options can be found in the documentation [add]. 
+    
+**Note** - the parameter vector θ is **always** assumed to be on parameter scale specified in the PEtab parameters file. If needed θ is transformed to linear scale inside of the function call. 
+
+# Fields
+- `computeCost`: For θ computes the objective value cost = computeCost(θ)
+- `computeGradient!`: For θ computes in-place gradient computeGradient!(gradient, θ)
+- `computeHessian!`: For θ computes in-place hessian-(approximation) computeHessian!(hessian, θ)
+- `costMethod`: Method for computing the cost (:Standard, :Zygote)
+- `gradientMethod`: Method for computing the gradient (:ForwardDiff, :ForwardEquations :Adjoint, :Zygote)
+- `hessianMethod`:  Method for computing/approximating the hessian (:ForwardDiff, :BlocForwardDiff :GaussNewton)
+- `nParametersToEstimate`: Number of parameter to estimate.
+- `θ_estNames`: Names of the parameter in θ
+- `θ_nominal`: Nominal θ values as specified in the PEtab parameters-file. 
+- `θ_nominalT`: Nominal θ values on parameter-scale (e.g log) as specified in the PEtab parameters-file.
+- `lowerBounds`: Lower parameter bounds on parameter-scale for θ as specified in the PEtab parameters-file.
+- `upperBounds`: Upper parameter bounds on parameter-scale for θ as specified in the PEtab parameters-file.
+- `petabModel`: PEtabModel used to construct the PEtabODEProblem
+- `odeSolverOptions`: ODE-solver options specified when creating the PEtabODEProblem 
+- `odeSolverGradientOptions`: ODE-solver gradient options specified when creating the PEtabODEProblem 
+"""
+struct PEtabODEProblem{F1<:Function,
+                       F2<:Function,
+                       F3<:Function,
+                       T1<:PEtabModel, 
+                       T2<:ODESolverOptions, 
+                       T3<:ODESolverOptions, 
+                       T4<:SteadyStateSolverOptions, 
+                       T5<:SteadyStateSolverOptions, 
+                       T6<:ParameterIndices, 
+                       T7<:SimulationInfo}
+
+    computeCost::F1
+    computeGradient!::F2
+    computeHessian!::F3
+    costMethod::Symbol
+    gradientMethod::Symbol
+    hessianMethod::Symbol
+    nParametersToEstimate::Int64
+    θ_estNames::Vector{Symbol}
+    θ_nominal::Vector{Float64}
+    θ_nominalT::Vector{Float64}
+    lowerBounds::Vector{Float64}
+    upperBounds::Vector{Float64}
+    pathCube::String
+    petabModel::T1
+    odeSolverOptions::T2
+    odeSolverGradientOptions::T3
+    ssSolverOptions::T4
+    ssSolverGradientOptions::T5
+    θ_indices::T6
+    simulationInfo::T7
+    splitOverConditions::Bool
+end
+
+
+struct PEtabODEProblemCache{T1 <: AbstractVector, 
+                            T2 <: DiffCache, 
+                            T3 <: AbstractVector, 
+                            T4 <: AbstractMatrix}
+    θ_dynamic::T1
+    θ_sd::T1
+    θ_observable::T1
+    θ_nonDynamic::T1
+    θ_dynamicT::T2 # T = transformed vector
+    θ_sdT::T2
+    θ_observableT::T2
+    θ_nonDynamicT::T2
+    gradientDyanmicθ::T1
+    gradientNotODESystemθ::T1
+    jacobianGN::T4
+    residualsGN::T1
+    _gradient::T1
+    _gradientAdjoint::T1
+    St0::T4
+    ∂h∂u::T3
+    ∂σ∂u::T3
+    ∂h∂p::T3
+    ∂σ∂p::T3
+    ∂G∂p::T3
+    ∂G∂p_::T3
+    ∂G∂u::T3
+    dp::T1 
+    du::T1
+    p::T3 
+    u::T3
+    S::T4
+    odeSolutionValues::T4
+    θ_dynamicInputOrder::Vector{Int64}
+    θ_dynamicOutputOrder::Vector{Int64}
+    nθ_dynamicEst::Vector{Int64}
+end
+
+
+struct PEtabODESolverCache{T1 <: NamedTuple, 
+                           T2 <: NamedTuple}
+    pODEProblemCache::T1
+    u0Cache::T2
+end
+
+
+struct ParametersInfo
+    nominalValue::Vector{Float64}
+    lowerBound::Vector{Float64}
+    upperBound::Vector{Float64}
+    parameterId::Vector{Symbol}
+    parameterScale::Vector{Symbol}
+    estimate::Vector{Bool}
+    nParametersToEstimate::Int64
+end
+
+
+struct MeasurementsInfo{T<:Vector{<:Union{<:String, <:AbstractFloat}}}
+
+    measurement::Vector{Float64}
+    measurementT::Vector{Float64}
+    measurementTransformation::Vector{Symbol}
+    time::Vector{Float64}
+    observableId::Vector{Symbol}
+    preEquilibrationConditionId::Vector{Symbol}
+    simulationConditionId::Vector{Symbol}
+    noiseParameters::T
+    observableParameters::Vector{String}
 end
 
 
