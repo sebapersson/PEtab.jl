@@ -44,6 +44,7 @@ include(joinpath("Derivatives", "Adjoint_sensitivity_analysis.jl"))
 include(joinpath("Derivatives", "Forward_sensitivity_equations.jl"))
 include(joinpath("Derivatives", "Gauss_newton.jl"))
 include(joinpath("Derivatives", "Common.jl"))
+include(joinpath("Derivatives", "ForwardDiff_run_over_chunks.jl"))
 
 # Files related to solving the ODE-system
 include(joinpath("Solve_ODE", "Change_experimental_condition.jl"))
@@ -83,6 +84,6 @@ include(joinpath("Optimization", "Setup_optim.jl"))
 include(joinpath("Optimization", "Setup_fides.jl"))
 include(joinpath("Optimization", "Callibration.jl"))
 
-export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, Fides, readPEtabModel, setupPEtabODEProblem, getODESolverOptions, getSteadyStateSolverOptions, createOptimProblem, createFidesProblem, callibrateModel
+export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, Fides, readPEtabModel, setupPEtabODEProblem, getODESolverOptions, getSteadyStateSolverOptions, createOptimProblem, createFidesProblem, callibrateModel, remakePEtabProblem
 
 end

@@ -947,7 +947,7 @@ function getStringSolverOptions(a::ODESolverOptions)
 end
 
 
-function git(petabProblem::PEtabODEProblem, parametersChange::Dict)::PEtabODEProblem
+function remakePEtabProblem(petabProblem::PEtabODEProblem, parametersChange::Dict)::PEtabODEProblem
 
     # Only keep which parameters should be fixed 
     for key in keys(parametersChange)

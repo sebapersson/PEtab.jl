@@ -3,6 +3,9 @@ using PyCall
 using Printf
 using OrdinaryDiffEq
 using Optim
+using DataFrames
+using CSV
+using YAML
 
 # Adding functionality for working with PEtab select
 # Inputs 
@@ -69,14 +72,14 @@ function call_py(pathYAML::String,
     def update_model(select_problem, candidate_space, nllh, estimatedParameters, nDataPoints, index):
         model = candidate_space.models[index]
         model.set_criterion(petab_select.constants.Criterion.NLLH, nllh)
-        if select_problem.criterion == "AIC":
-            model.set_criterion(select_problem.criterion, 2*len(estimatedParameters) + 2*nllh)
-        elif select_problem.criterion == "BIC":
-            model.set_criterion(select_problem.criterion, len(estimatedParameters)*np.log(nDataPoints) + 2*nllh)
-        elif select_problem.criterion == "AICc":
+        if select_problem.method == "famos" or select_problem.criterion == "AIC":
+            model.set_criterion(petab_select.constants.Criterion.AIC, 2*len(estimatedParameters) + 2*nllh)
+        if select_problem.method == "famos" or select_problem.criterion == "BIC":
+            model.set_criterion(petab_select.constants.Criterion.BIC, len(estimatedParameters)*np.log(nDataPoints) + 2*nllh)
+        if select_problem.method == "famos" or select_problem.criterion == "AICc":
             AIC =  2*len(estimatedParameters) + 2*nllh
             AICc = AIC + ((2*len(estimatedParameters)**2 + 2*len(estimatedParameters)) / (nDataPoints - len(estimatedParameters)-1))
-            model.set_criterion(select_problem.criterion, AICc)
+            model.set_criterion(petab_select.constants.Criterion.AICC, AICc)
         model.estimated_parameters = estimatedParameters
         return
 
@@ -98,20 +101,13 @@ function call_py(pathYAML::String,
     
     """
 
-    function callibrate_models(candidate_space, select_problem, n_candidates; nStartGuesses=100)
+    function callibrate_models(candidate_space, select_problem, n_candidates, _petabProblem::PEtabODEProblem; nStartGuesses=100)
         for i in 1:n_candidates
             subspaceId, subspaceYAML, _subspaceParameters = py"get_model_to_test"(candidate_space, i-1)
             subspaceParameters = Dict(Symbol(k) => v for (k, v) in pairs(_subspaceParameters)) 
 
             @info "Callibrating model $subspaceId"
-            petabModel = readPEtabModel(subspaceYAML, forceBuildJuliaFiles=true, customParameterValues=subspaceParameters, verbose=false)
-            petabProblem = setupPEtabODEProblem(petabModel, 
-                                                odeSolverOptions, 
-                                                gradientMethod=gradientMethod,
-                                                hessianMethod=hessianMethod,
-                                                reuseS=reuseS,
-                                                sensealg=sensealg,
-                                                customParameterValues=subspaceParameters, verbose=false)
+            petabProblem = remakePEtabProblem(_petabProblem, subspaceParameters)
             if isnothing(optimizerOptions)
                 f, fArg = callibrateModel(petabProblem, optimizer, nStartGuesses=nStartGuesses)
             else
@@ -119,11 +115,26 @@ function call_py(pathYAML::String,
             end
             # Setup dictionary to conveniently storing model parameters 
             estimatedParameters = Dict(string(petabProblem.θ_estNames[i]) => fArg[i] for i in eachindex(fArg)) 
-            nDataPoints = length(petabProblem.computeCost.measurementInfo.measurement)
+            nDataPoints = length(_petabProblem.computeCost.measurementInfo.measurement)
             py"update_model"(select_problem, candidate_space, f, estimatedParameters, nDataPoints, i-1)
         end
         return nothing, false
     end
+
+    # First we use the model-space file to build (from parameter viewpoint) the biggest possible PEtab model. Then remake is called on the "big" petabproblem, 
+    # thus when we compare different models we do not have to pre-compile the model 
+    dirModel = splitdir(pathYAML)[1]
+    fileYAML = YAML.load_file(pathYAML)
+    modelSpaceFile = CSV.read(joinpath(dirModel, fileYAML["model_space_files"][1]), DataFrame)
+    parametersToChange = Symbol.(names(modelSpaceFile)[3:end])
+    _customParameterValues = Dict(); [_customParameterValues[parametersToChange[i]] = "estimate" for i in eachindex(parametersToChange)]
+    _petabModel = readPEtabModel(joinpath(dirModel, modelSpaceFile[1, :petab_yaml]), forceBuildJuliaFiles=true, verbose=false)
+    _petabProblem = setupPEtabODEProblem(_petabModel, odeSolverOptions, 
+                                         gradientMethod=gradientMethod, 
+                                         hessianMethod=hessianMethod, 
+                                         sensealg=sensealg,
+                                         reuseS=reuseS, 
+                                         verbose=false)
 
     calibrated_models, newly_calibrated_models = py"setup_tracking"()
 
@@ -138,8 +149,9 @@ function call_py(pathYAML::String,
     local best_model
     while true
         # Start the iterative model selction process 
-        @info "Model selection round $k with $n_candidates candidates"
-        callibrate_models(candidate_space, select_problem, n_candidates, nStartGuesses=nMultiStarts)
+        k == 1 && @info "Model selection round $k with $n_candidates candidates - as the code compiles in this round compiled it takes extra long time https://xkcd.com/303/"
+        k != 1 && @info "Model selection round $k with $n_candidates candidates"
+        callibrate_models(candidate_space, select_problem, n_candidates, _petabProblem, nStartGuesses=nMultiStarts)
         newly_calibrated_models, calibrated_models = py"update_selection"(newly_calibrated_models, calibrated_models, select_problem,  candidate_space)
         
         py"update_candidate_space"(candidate_space, select_problem, newly_calibrated_models)
@@ -189,9 +201,9 @@ call_py(pathYAML, Fides(verbose=false), gradientMethod=:ForwardEquations, hessia
 # 1. Setup callibration with Fides. Done 
 # 2. Run all tests. Done 
 # 3. Try estimating blasi model at reported values. Done 
-# 4. Launch bigg on cluster. TODO 
-# 5. Launch Fabian adjoint 
-# 6. Complete fun presentation 
+# 4. Launch bigg on cluster. Done 
+# 5. Launch Fabian adjoint Done
+# 6. Complete fun presentation. Done 
 # 7. Setup notebook second order 
 # 8. Wrap Ipopt 
 # 9. Investigate gradient fixing parameters (should be doable)
