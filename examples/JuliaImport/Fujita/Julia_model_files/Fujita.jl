@@ -28,7 +28,7 @@ function getODEModel_Fujita()
     ### Discrete events ###
 
     ### Derivatives ###
-    eqs = [
+    Eqn = [
     D(pAkt_S6) ~ +1.0 * ( 1 /Cell ) * (Cell * (S6 * pAkt * reaction_5_k1 - pAkt_S6 * reaction_5_k2))-1.0 * ( 1 /Cell ) * (Cell * pAkt_S6 * reaction_6_k1),
     D(pAkt) ~ +1.0 * ( 1 /Cell ) * (Cell * pEGFR_Akt * reaction_3_k1)-1.0 * ( 1 /Cell ) * (Cell * (S6 * pAkt * reaction_5_k1 - pAkt_S6 * reaction_5_k2))+1.0 * ( 1 /Cell ) * (Cell * pAkt_S6 * reaction_6_k1)-1.0 * ( 1 /Cell ) * (Cell * pAkt * reaction_7_k1),
     D(pS6) ~ +1.0 * ( 1 /Cell ) * (Cell * pAkt_S6 * reaction_6_k1)-1.0 * ( 1 /Cell ) * (Cell * pS6 * reaction_8_k1),
@@ -41,10 +41,10 @@ function getODEModel_Fujita()
     EGF ~ ifelse(t <= EGF_end, EGF_rate * t + EGF_0, 0)
     ]
 
-    @named sys = ODESystem(eqs, t, stateArray, parameterArray)
+    @named odeSYSTEMS = ODESystem(Eqn, t, stateArray, parameterArray)
 
     ### Initial species concentrations ###
-    initialSpeciesValues = [
+    initSV = [
     pAkt_S6 => 0.0,
     pAkt => 0.0,
     pS6 => 0.0,
@@ -57,7 +57,7 @@ function getODEModel_Fujita()
     ]
 
     ### SBML file parameter values ###
-    trueParameterValues = [
+    truePV = [
     EGF_end => 0.0,
     reaction_5_k1 => 2.9643709900602e-6,
     reaction_2_k2 => 41469.6914053245,
@@ -80,6 +80,6 @@ function getODEModel_Fujita()
     EGF_0 => 0.0
     ]
 
-    return sys, initialSpeciesValues, trueParameterValues
+    return odeSYSTEMS, initSV, truePV
 
 end

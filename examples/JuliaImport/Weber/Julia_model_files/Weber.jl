@@ -28,7 +28,7 @@ function getODEModel_Weber()
     ### Discrete events ###
 
     ### Derivatives ###
-    eqs = [
+    EQS = [
     D(CERTERa) ~ -1.0 * ( 1 /cyt ) * (cyt * (CERTERa * PI4K3Ba * p31 / (PI4K3Ba + m31)))+1.0 * ( 1 /cyt ) * (cyt * CERT * p32)+1.0 * ( 1 /cyt ) * (cyt * s31)+1.0 * ( 1 /cyt ) * (cyt * pu4 * u4)-1.0 * ( 1 /cyt ) * (cyt * CERTERa * a31),
     D(PI4K3B) ~ +1.0 * ( 1 /cyt ) * (cyt * PI4K3Ba * p21)-1.0 * ( 1 /cyt ) * (cyt * (PI4K3B * PKDDAGa * p22 / (PKDDAGa + m22)))+1.0 * ( 1 /cyt ) * (cyt * s21)+1.0 * ( 1 /cyt ) * (cyt * pu3 * u3)-1.0 * ( 1 /cyt ) * (cyt * PI4K3B * a21),
     D(CERT) ~ -1.0 * ( 1 /cyt ) * (cyt * CERT * p32)+1.0 * ( 1 /cyt ) * (cyt * (CERTTGNa * PKDDAGa * p33 / (PKDDAGa + m33)))-1.0 * ( 1 /cyt ) * (cyt * CERT * a32),
@@ -42,10 +42,10 @@ function getODEModel_Weber()
     u5 ~ ifelse(t - PdBu_time < 0, 0, PdBu_dose)
     ]
 
-    @named sys = ODESystem(eqs, t, stateArray, parameterArray)
+    @named sys = ODESystem(EQS, t, stateArray, parameterArray)
 
     ### Initial species concentrations ###
-    initialSpeciesValues = [
+    inSpecV = [
     CERTERa => 3.19483885902e7,
     PI4K3B => 1.5775405394e6,
     CERT => 160797.7364,
@@ -56,7 +56,7 @@ function getODEModel_Weber()
     ]
 
     ### SBML file parameter values ###
-    trueParameterValues = [
+    truParVal = [
     a21 => 1.86921330588484,
     m33 => 7.56019670948633e7,
     kb_NB142_70_dose => 0.0,
@@ -94,6 +94,6 @@ function getODEModel_Weber()
     a32 => 0.00010000000000001
     ]
 
-    return sys, initialSpeciesValues, trueParameterValues
+    return sys, inSpecV, truParVal
 
 end

@@ -27,7 +27,7 @@ function getODEModel_Boehm()
     ### Discrete events ###
 
     ### Derivatives ###
-    eqs = [
+    EQU = [
     D(STAT5A) ~ -2.0 * ( 1 /cyt ) * (cyt * (1.25e-7 * exp(-1 * Epo_degradation_BaF3 * t)) * (STAT5A)^(2) * k_phos)-1.0 * ( 1 /cyt ) * (cyt * (1.25e-7 * exp(-1 * Epo_degradation_BaF3 * t)) * STAT5A * STAT5B * k_phos)+2.0 * ( 1 /cyt ) * (nuc * k_exp_homo * nucpApA)+1.0 * ( 1 /cyt ) * (nuc * k_exp_hetero * nucpApB),
     D(pApA) ~ +1.0 * ( 1 /cyt ) * (cyt * (1.25e-7 * exp(-1 * Epo_degradation_BaF3 * t)) * (STAT5A)^(2) * k_phos)-1.0 * ( 1 /cyt ) * (cyt * k_imp_homo * pApA),
     D(nucpApB) ~ +1.0 * ( 1 /nuc ) * (cyt * k_imp_hetero * pApB)-1.0 * ( 1 /nuc ) * (nuc * k_exp_hetero * nucpApB),
@@ -38,10 +38,10 @@ function getODEModel_Boehm()
     D(pBpB) ~ +1.0 * ( 1 /cyt ) * (cyt * (1.25e-7 * exp(-1 * Epo_degradation_BaF3 * t)) * (STAT5B)^(2) * k_phos)-1.0 * ( 1 /cyt ) * (cyt * k_imp_homo * pBpB)
     ]
 
-    @named sys = ODESystem(eqs, t, stateArray, parameterArray)
+    @named Osys = ODESystem(EQU, t, stateArray, parameterArray)
 
     ### Initial species concentrations ###
-    initialSpeciesValues = [
+    SPECIES = [
     STAT5A => 207.6 * ratio,
     pApA => 0.0,
     nucpApB => 0.0,
@@ -53,7 +53,7 @@ function getODEModel_Boehm()
     ]
 
     ### SBML file parameter values ###
-    trueParameterValues = [
+    PARV = [
     ratio => 0.693,
     k_imp_homo => 96945.5391768823,
     k_exp_hetero => 1.00094251286741e-5,
@@ -66,6 +66,6 @@ function getODEModel_Boehm()
     k_imp_hetero => 0.0163708512310568
     ]
 
-    return sys, initialSpeciesValues, trueParameterValues
+    return Osys, SPECIES, PARV
 
 end

@@ -28,7 +28,7 @@ function getODEModel_Isensee()
     ### Discrete events ###
 
     ### Derivatives ###
-    eqs = [
+    EQS = [
     D(pAC) ~ -1.0 * ( 1 /cyt ) * (cyt * Fsk * kf_Fsk * pAC)+1.0 * ( 1 /cyt ) * (cyt * KD_Fsk * kf_Fsk * pAC_Fsk)+1.0 * ( 1 /cyt ) * (cyt * AC * Csub * kp_AC)-1.0 * ( 1 /cyt ) * (cyt * kdp_AC * pAC),
     D(Rp8_Br_cAMPS) ~ +1.0 * ( 1 /cyt ) * (cyt * -ki_Rp8_Br_cAMPS_pAB * (Rp8_Br_cAMPS - Rp8_Br_cAMPS_pAB * xi_i_Rp8_Br_cAMPS_pAB)),
     D(Rp8_pCPT_cAMPS) ~ +1.0 * ( 1 /cyt ) * (cyt * -ki_Rp8_pCPT_cAMPS_pAB * (Rp8_pCPT_cAMPS - Rp8_pCPT_cAMPS_pAB * xi_i_Rp8_pCPT_cAMPS_pAB)),
@@ -64,10 +64,10 @@ function getODEModel_Isensee()
     Sp8_Br_cAMPS_AM ~ Sp8_Br_cAMPS_AM_level * ifelse(t - Sp8_Br_cAMPS_AM_time < 0, 0, 1)
     ]
 
-    @named sys = ODESystem(eqs, t, stateArray, parameterArray)
+    @named SYS = ODESystem(EQS, t, stateArray, parameterArray)
 
     ### Initial species concentrations ###
-    initialSpeciesValues = [
+    inSpecVal = [
     pAC => 0.0,
     Rp8_Br_cAMPS => 0.0,
     Rp8_pCPT_cAMPS => 0.0,
@@ -96,7 +96,7 @@ function getODEModel_Isensee()
     ]
 
     ### SBML file parameter values ###
-    trueParameterValues = [
+    truParValu = [
     ki_Rp8_pCPT_cAMPS_pAB => 9.24294887100985,
     xi_b_Rp_cAMPS => 0.607960299288444,
     RII2_total => 1.0,
@@ -163,6 +163,6 @@ function getODEModel_Isensee()
     IBMX_level => 0.0
     ]
 
-    return sys, initialSpeciesValues, trueParameterValues
+    return SYS, inSpecVal, truParValu
 
 end

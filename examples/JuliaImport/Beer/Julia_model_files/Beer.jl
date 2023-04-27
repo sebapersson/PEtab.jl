@@ -28,7 +28,7 @@ function getODEModel_Beer()
     ### Discrete events ###
 
     ### Derivatives ###
-    eqs = [
+    EquationList = [
     D(Glu) ~ +1.0 * ( 1 /medium ) * (medium * -Bac * Glu * ksyn),
     D(cGlu) ~ +1.0 * ( 1 /medium ) * (medium * (Bac * Glu * ksyn - (cGlu)^(2) * kdim)),
     D(Ind) ~ +1.0 * ( 1 /medium ) * (medium * ((cGlu)^(2) * kdim - Ind * kdegi)),
@@ -36,10 +36,10 @@ function getODEModel_Beer()
     lag ~ ifelse(t - tau < 0, 0, 1)
     ]
 
-    @named sys = ODESystem(eqs, t, stateArray, parameterArray)
+    @named ODEsystemVar = ODESystem(EquationList, t, stateArray, parameterArray)
 
     ### Initial species concentrations ###
-    initialSpeciesValues = [
+    ISVList = [
     Glu => 10.0,
     cGlu => 0.0,
     Ind => 0.0,
@@ -47,7 +47,7 @@ function getODEModel_Beer()
     ]
 
     ### SBML file parameter values ###
-    trueParameterValues = [
+    TPVList = [
     kdegi => 1.0,
     medium => 1.0,
     Bacmax => 1.0,
@@ -58,6 +58,6 @@ function getODEModel_Beer()
     beta => 1.0
     ]
 
-    return sys, initialSpeciesValues, trueParameterValues
+    return ODEsystemVar, ISVList, TPVList
 
 end

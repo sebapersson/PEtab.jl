@@ -28,7 +28,7 @@ function getODEModel_Brannmark()
     ### Discrete events ###
 
     ### Derivatives ###
-    eqs = [
+    Eqns = [
     D(IRp) ~ +1.0 * ( 1 /cyt ) * (cyt * IRins * k1c)-1.0 * ( 1 /cyt ) * (cyt * IRp * k1d)-1.0 * ( 1 /cyt ) * (cyt * IRp * k1g),
     D(IR) ~ -1.0 * ( 1 /cyt ) * (cyt * (IR * k1aBasic + IR * insulin * k1a))+1.0 * ( 1 /cyt ) * (cyt * IRins * k1b)+1.0 * ( 1 /cyt ) * (cyt * IRp * k1g)+1.0 * ( 1 /cyt ) * (cyt * IRi * k1r),
     D(IRins) ~ +1.0 * ( 1 /cyt ) * (cyt * (IR * k1aBasic + IR * insulin * k1a))-1.0 * ( 1 /cyt ) * (cyt * IRins * k1b)-1.0 * ( 1 /cyt ) * (cyt * IRins * k1c),
@@ -41,10 +41,10 @@ function getODEModel_Brannmark()
     insulin ~ insulin_dose_1 * ifelse(t - insulin_time_1 < 0, 0, 1) + insulin_dose_2 * ifelse(t - insulin_time_2 < 0, 0, 1)
     ]
 
-    @named sys = ODESystem(eqs, t, stateArray, parameterArray)
+    @named odeSYS = ODESystem(Eqns, t, stateArray, parameterArray)
 
     ### Initial species concentrations ###
-    initialSpeciesValues = [
+    iSV = [
     IRp => 1.7629010620181e-9,
     IR => 9.94957642787569,
     IRins => 0.0173972221725393,
@@ -57,7 +57,7 @@ function getODEModel_Brannmark()
     ]
 
     ### SBML file parameter values ###
-    trueParameterValues = [
+    tPVal = [
     k1c => 0.050861851404055,
     k21 => 2.13019897196189,
     k1g => 1931.1338834437,
@@ -81,6 +81,6 @@ function getODEModel_Brannmark()
     km3 => 0.416147033419453
     ]
 
-    return sys, initialSpeciesValues, trueParameterValues
+    return odeSYS, iSV, tPVal
 
 end
