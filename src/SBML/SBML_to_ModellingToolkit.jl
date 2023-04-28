@@ -75,7 +75,9 @@ function JLToModellingToolkit(jlFilePath::String, dirJulia::String, modelName::S
             println(modelDict["boolVariables"])
             # changes final .jl in path to _fix.jl
             # and changes output model file path to the fixed one.
-            modelFileJl = replace(jlFilePath, Regex(".jl\$") => "_fix.jl")
+            fileName = splitpath(jlFilePath)[end]
+            fileNameFix = replace(fileName, Regex(".jl\$") => "_fix.jl")
+            modelFileJl = joinpath(dirJulia, fileNameFix) 
             # Create a new "fixed" julia file
             io = open(modelFileJl, "w")
             println(io, "# Model name: " * modelName)
