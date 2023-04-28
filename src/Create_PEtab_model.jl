@@ -58,7 +58,7 @@ function readPEtabModel(pathYAML::String;
         elseif !isfile(jlFilePath)
             throw("File" * jlFilePath * "does not exist")
         else
-            modelDict, pathModelJlFile = JLToModellingToolkit(modelName, jlFilePath, ifElseToEvent=ifElseToEvent)
+            modelDict, pathModelJlFile = JLToModellingToolkit(jlFilePath, dirJulia, modelName, ifElseToEvent=ifElseToEvent)
         end
     end
 

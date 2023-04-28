@@ -28,11 +28,13 @@ end
 
 
 """
-    JLToModellingToolkit(modelName::String, jlFilePath::String)
-    Checks and fixes a Julia ModelingToolkit file located in jlFilePath 
-    and stores the fixed file in the same folder but with the suffix _fix. 
+    JLToModellingToolkit(jlFilePath::String, dirJulia::String, modelName::String; ifElseToEvent::Bool=true)
+    Loads the Julia ModelingToolkit file located in jlFilePath. 
+    If the file contains ifelse statements and ifElseToEvent=true 
+    a fixed file will be stored in the Julia_model_files folder
+    with the suffix _fix in its filename.
 """
-function JLToModellingToolkit(modelName::String, jlFilePath::String; ifElseToEvent::Bool=true)
+function JLToModellingToolkit(jlFilePath::String, dirJulia::String, modelName::String; ifElseToEvent::Bool=true)
 
     # Some parts of the modelDict are needed to create the other julia files for the model.
     modelDict = Dict()
@@ -42,12 +44,8 @@ function JLToModellingToolkit(modelName::String, jlFilePath::String; ifElseToEve
     modelDict["parameters"] = Dict()
     modelDict["states"] = Dict()
 
-    modelFileJlSrc = jlFilePath
-    # changes final .jl in path to _fix.jl
-    modelFileJl = replace(jlFilePath, Regex(".jl\$") => "_fix.jl")
-
     # Read modelFile to work with it
-    odefun = include(modelFileJlSrc)
+    odefun = include(jlFilePath)
     expr = Expr(:call, Symbol(odefun))
     odeSys, stateMap, paramMap = eval(expr)
 
@@ -65,128 +63,136 @@ function JLToModellingToolkit(modelName::String, jlFilePath::String; ifElseToEve
     for stat in stateMap
         modelDict["states"][string(stat.first)] = string(stat.second)
     end
-
-    # Rewrite any time-dependent ifelse to boolean statements such that we can express these as events. 
-    # This is recomended, as it often increases the stabillity when solving the ODE, and decreases run-time
-    if ifElseToEvent == true
-        timeDependentIfElseToBool!(modelDict)
-    end
-
-    # Create a new "fixed" julia file
-    io = open(modelFileJl, "w")
-    println(io, "# Model name: " * modelName)
-    println(io, "# Number of parameters: " * string(length(paramMap)))
-    println(io, "# Number of species: " * string(length(stateMap)))
-    println(io, "function getODEModel_" * modelName * "()")
-    println(io, "")
-
-    tmpLine = "    ModelingToolkit.@variables t "
-    tmpLineArray = "    stateArray = [" 
-    for key in keys(modelDict["states"])
-        tmpLine *= key * " "
-        tmpLineArray *= replace(key,"(t)"=>"") * ", "
-    end
-    tmpLineArray = tmpLineArray[1:end-2] * "]"
-    
-    println(io, "    ### Define independent and dependent variables")
-    println(io, tmpLine)
-    println(io, "")
-    println(io, "    ### Store dependent variables in array for ODESystem command")
-    println(io, tmpLineArray)
-    println(io, "")
-    println(io, "    ### Define variable parameters")
-    println(io, "")
-    println(io, "    ### Define potential algebraic variables")
-
-    if length(modelDict["inputFunctions"]) > 0
-        tmpLine = "    ModelingToolkit.@variables "
-        for key in keys(modelDict["inputFunctions"])
-            tmpLine *= key * "(t) "
-        end
-        println(io, tmpLine)
-    end
-
-    tmpLine = "    ModelingToolkit.@parameters "
-    tmpLineArray = "    parameterArray = [" 
-    for key in keys(modelDict["parameters"])
-        tmpLine *= key * " "
-        tmpLineArray *= replace(key,"(t)"=>"") * ", "
-    end
-    tmpLineArray = tmpLineArray[1:end-2] * "]"
-        
-    println(io, "")
-    println(io, "    ### Define parameters")
-    println(io, tmpLine)
-    println(io, "")
-    println(io, "    ### Store parameters in array for ODESystem command")
-    println(io, tmpLineArray)
-    println(io, "")
-    println(io, "    ### Define an operator for the differentiation w.r.t. time")
-    println(io, "    D = Differential(t)")
-    println(io, "")
-    println(io, "    ### Continious events ###")
-    println(io, "")
-    println(io, "    ### Discrete events ###")
-    
-    equationList = string.(equations(odeSys))
-    equationList = replace.(equationList, "Differential" => "D")
-    equationList = replace.(equationList, "(t)" => "")
-
-    tmpLine = "    eqs = [\n"
-
-    for eq in equationList
-        # Fixes equations containing ifelse
-        if occursin("ifelse", eq)
-            # The equation starts either with "D(key) ~" or just "key ~"
-            tildePos = findfirst("~",eq)[1]
-            key = eq[1:tildePos-1]
-            key = replace(key,"D(" => "")
-            key = replace(key,")" => "")
-            key = replace(key," " => "")
-            tmpLine *= "    " * modelDict["inputFunctions"][key] * ",\n"
-        else
-            tmpLine *= "    " * eq * ",\n"
-        end
-    end
-    tmpLine = tmpLine[1:end-2] * "\n    ]"
-    
-    println(io, "")
-    println(io, "    ### Derivatives ###")
-    println(io, tmpLine)
-    println(io, "    @named sys = ODESystem(eqs, t, stateArray, parameterArray)")
-    println(io, "")
-    println(io, "    ### Initial species concentrations ###")
-    tmpLineArray = "    initialSpeciesValues = [\n"
-    for stat in stateMap
-        statN = replace(string(stat.first),"(t)"=>"")
-        statV = string(stat.second)
-        tmpLineArray *= "        " * statN * " => " * statV * ", \n"
-    end
-    tmpLineArray = tmpLineArray[1:end-3] * "\n    ]"
-    println(io, tmpLineArray)
-    
-    println(io, "")
-    println(io, "    ### SBML file parameter values ###")
-    parameterList = string.(paramMap)
-    tmpLineArray = "    trueParameterValues = [\n"
-    for par in parameterList
-        tmpLineArray *= "        " * par * ", \n"
-    end
    
-    # Adds boolVariables to trueParameterValues
-    for par in keys(modelDict["boolVariables"])
-        tmpLineArray *= "        " * par * " => 0.0, \n"
+    #Initialize output model file path to input path 
+    modelFileJl = jlFilePath
+
+    if ifElseToEvent == true
+        # Rewrite any time-dependent ifelse to boolean statements such that we can express these as events. 
+        # This is recomended, as it often increases the stabillity when solving the ODE, and decreases run-time
+        timeDependentIfElseToBool!(modelDict)
+        if length(modelDict["boolVariables"]) > 0
+            println(modelDict["boolVariables"])
+            # changes final .jl in path to _fix.jl
+            # and changes output model file path to the fixed one.
+            modelFileJl = replace(jlFilePath, Regex(".jl\$") => "_fix.jl")
+            # Create a new "fixed" julia file
+            io = open(modelFileJl, "w")
+            println(io, "# Model name: " * modelName)
+            println(io, "# Number of parameters: " * string(length(paramMap)))
+            println(io, "# Number of species: " * string(length(stateMap)))
+            println(io, "function getODEModel_" * modelName * "()")
+            println(io, "")
+
+            tmpLine = "    ModelingToolkit.@variables t "
+            tmpLineArray = "    stateArray = [" 
+            for key in keys(modelDict["states"])
+                tmpLine *= key * " "
+                tmpLineArray *= replace(key,"(t)"=>"") * ", "
+            end
+            tmpLineArray = tmpLineArray[1:end-2] * "]"
+            
+            println(io, "    ### Define independent and dependent variables")
+            println(io, tmpLine)
+            println(io, "")
+            println(io, "    ### Store dependent variables in array for ODESystem command")
+            println(io, tmpLineArray)
+            println(io, "")
+            println(io, "    ### Define variable parameters")
+            println(io, "")
+            println(io, "    ### Define potential algebraic variables")
+
+            if length(modelDict["inputFunctions"]) > 0
+                tmpLine = "    ModelingToolkit.@variables "
+                for key in keys(modelDict["inputFunctions"])
+                    tmpLine *= key * "(t) "
+                end
+                println(io, tmpLine)
+            end
+
+            tmpLine = "    ModelingToolkit.@parameters "
+            tmpLineArray = "    parameterArray = [" 
+            for key in keys(modelDict["parameters"])
+                tmpLine *= key * " "
+                tmpLineArray *= replace(key,"(t)"=>"") * ", "
+            end
+            tmpLineArray = tmpLineArray[1:end-2] * "]"
+                
+            println(io, "")
+            println(io, "    ### Define parameters")
+            println(io, tmpLine)
+            println(io, "")
+            println(io, "    ### Store parameters in array for ODESystem command")
+            println(io, tmpLineArray)
+            println(io, "")
+            println(io, "    ### Define an operator for the differentiation w.r.t. time")
+            println(io, "    D = Differential(t)")
+            println(io, "")
+            println(io, "    ### Continious events ###")
+            println(io, "")
+            println(io, "    ### Discrete events ###")
+            
+            equationList = string.(equations(odeSys))
+            equationList = replace.(equationList, "Differential" => "D")
+            equationList = replace.(equationList, "(t)" => "")
+
+            tmpLine = "    eqs = [\n"
+
+            for eq in equationList
+                # Fixes equations containing ifelse
+                if occursin("ifelse", eq)
+                    # The equation starts either with "D(key) ~" or just "key ~"
+                    tildePos = findfirst("~",eq)[1]
+                    key = eq[1:tildePos-1]
+                    key = replace(key,"D(" => "")
+                    key = replace(key,")" => "")
+                    key = replace(key," " => "")
+                    tmpLine *= "    " * modelDict["inputFunctions"][key] * ",\n"
+                else
+                    tmpLine *= "    " * eq * ",\n"
+                end
+            end
+            tmpLine = tmpLine[1:end-2] * "\n    ]"
+            
+            println(io, "")
+            println(io, "    ### Derivatives ###")
+            println(io, tmpLine)
+            println(io, "    @named sys = ODESystem(eqs, t, stateArray, parameterArray)")
+            println(io, "")
+            println(io, "    ### Initial species concentrations ###")
+            tmpLineArray = "    initialSpeciesValues = [\n"
+            for stat in stateMap
+                statN = replace(string(stat.first),"(t)"=>"")
+                statV = string(stat.second)
+                tmpLineArray *= "        " * statN * " => " * statV * ", \n"
+            end
+            tmpLineArray = tmpLineArray[1:end-3] * "\n    ]"
+            println(io, tmpLineArray)
+            
+            println(io, "")
+            println(io, "    ### SBML file parameter values ###")
+            parameterList = string.(paramMap)
+            tmpLineArray = "    trueParameterValues = [\n"
+            for par in parameterList
+                tmpLineArray *= "        " * par * ", \n"
+            end
+           
+            # Adds boolVariables to trueParameterValues
+            for par in keys(modelDict["boolVariables"])
+                tmpLineArray *= "        " * par * " => 0.0, \n"
+            end
+            tmpLineArray = tmpLineArray[1:end-3] * "\n    ]"
+            println(io, tmpLineArray)
+            
+            println(io, "")
+            println(io, "    return sys, initialSpeciesValues, trueParameterValues")
+            
+            println(io, "")
+            println(io, "end")
+            close(io)
+        end
     end
-    tmpLineArray = tmpLineArray[1:end-3] * "\n    ]"
-    println(io, tmpLineArray)
-    
-    println(io, "")
-    println(io, "    return sys, initialSpeciesValues, trueParameterValues")
-    
-    println(io, "")
-    println(io, "end")
-    close(io)
-    
+        
     return modelDict, modelFileJl
 
 end
