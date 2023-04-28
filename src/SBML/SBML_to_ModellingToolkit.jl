@@ -72,7 +72,6 @@ function JLToModellingToolkit(jlFilePath::String, dirJulia::String, modelName::S
         # This is recomended, as it often increases the stabillity when solving the ODE, and decreases run-time
         timeDependentIfElseToBool!(modelDict)
         if length(modelDict["boolVariables"]) > 0
-            println(modelDict["boolVariables"])
             # changes final .jl in path to _fix.jl
             # and changes output model file path to the fixed one.
             fileName = splitpath(jlFilePath)[end]
