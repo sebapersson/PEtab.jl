@@ -1,9 +1,10 @@
-# [Import julia file instead of SBML-file](@id Beer_julia_import)
+# [Import Julia file instead of SBML-file](@id Beer_Julia_import)
 
-In this tutorial we will setup the `PEtabODEproblem` problem using just a Julia file instead of an SBML-file.
+In this tutorial we will setup a `PEtabODEproblem` problem using just a Julia file instead of an SBML-file.
 
 ## Create the model file
-First we create a `.jl` file that uses `ModelingToolkit` to specify a system:
+
+First we create a `.jl` file that uses [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) to specify a system:
 
 ```julia
 function BeerOdeModel()
@@ -52,10 +53,11 @@ function BeerOdeModel()
 end
 ```
 
-Please note that the file must return the system, the initial species concentrations, and the parameter values, in that exact order. The names of the variables do not matter.
+Please note that the file must return the system, the initial species concentrations, and the parameter values, in that exact order. The names of the variables do not matter, though.
 
-## Import it model file
-To import the julia model we need to specify that the `readPEtabModel` should skip looking for an SBML-file and just import the julia model. We do this by setting the flag `jlFile` to `true` and by specifying the path to the julia file using the variable `jlFilePath`
+## Import the model file
+
+To import the Julia model we need to specify that the `readPEtabModel` should skip looking for an SBML-file and just import the Julia model. We do this by setting the flag `jlFile` to `true` and by specifying the path to the Julia file using the variable `jlFilePath`, like so:
 
 ```julia
 using PEtab
@@ -67,5 +69,4 @@ pathJuliaFile = joinpath(@__DIR__, "examples", "Beer", "Julia_import_files", "Be
 petabModel = readPEtabModel(pathYaml, verbose=true, jlFile=true, jlFilePath=pathJuliaFile)
 ```
 
-From now on the model can be used in the same manner as any model imported from an SBML-file. Please see the other tutorials to see how `petabModel` can be used to calculate the cost, gradient or hessian of the problem.
-
+From now on the model can be used in the same manner as any model imported from an SBML-file. Please see the tutorial for the [Beer model](@ref Beer_tut) to see how the `petabModel` can be used to calculate the cost, gradient or hessian for an ODE parameter estimation problem.

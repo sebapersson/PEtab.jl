@@ -13,7 +13,7 @@ PEtab.jl supports several gradient and hessian methods when building a `PEtabODE
 ## Hessian methods
 
 * `:ForwardDiff`: Compute the hessian via forward mode automatic differentiation using [ForwardDiff](https://github.com/JuliaDiff/ForwardDiff.jl).
-* `:BlockForwardDiff`: Compute a Hessian block approximation via forward mode automatic differentiation using [ForwardDiff](https://github.com/JuliaDiff/ForwardDiff.jl). In general for a PEtab model we have two set of parameters to estimate, parameters part of the ODE-system $\theta_p$ and parameter which are not a part of the ODE-system $\theta_q$. This approach computes the hessian for each block and assumes zero-valued cross-terms:
+* `:BlockForwardDiff`: Compute a Hessian block approximation via forward mode automatic differentiation using [ForwardDiff](https://github.com/JuliaDiff/ForwardDiff.jl). In general for a PEtab model we have two set of parameters to estimate: parameters part of the ODE-system $\theta_p$ and parameter which are not a part of the ODE-system $\theta_q$. This approach computes the hessian for each block and assumes zero-valued cross-terms:
 
 ```math
     H_{block} = 
@@ -25,4 +25,4 @@ PEtab.jl supports several gradient and hessian methods when building a `PEtabODE
 
 This approach often works well if the number of non-dynamic parameters in $\theta_q$ are few.
 
-`:GaussNewton`: Compute a Hessian approximation via the [Gauss-Newton](https://en.wikipedia.org/wiki/Gauss%E2%80%93Newton_algorithm) method. This method often performs better often performs better than a (L)-BFGS approximation. However, it requires access sensitives which are only feasible to compute for smaller models ($\leq 75$ parameters).
+`:GaussNewton`: Compute a Hessian approximation via the [Gauss-Newton](https://en.wikipedia.org/wiki/Gauss%E2%80%93Newton_algorithm) method. This method often performs better than a (L)-BFGS approximation. However, it requires access to sensitives which are only feasible to compute for smaller models ($\leq 75$ parameters).

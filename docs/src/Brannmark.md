@@ -1,13 +1,13 @@
-# Models with preequilibration (steady-state simulation)
+# Models with pre-equilibration (steady-state simulation)
 
-In this tutorial we show to create `PEtabODEproblem` for the small Branmark model which has a preequilibration condition. (≤ 75 states). This means that before the main simulation where we compare the model against data, the model must first be at a steady state $du = f(u, p, t) \approx 0$ which can be achieved via
+In this tutorial we show how to create a `PEtabODEproblem` for the small ($\leq 75$ states) Brannmark model, which has a pre-equilibration condition. This means that before the main simulation, where we compare the model against data, the model must first be at a steady state $du = f(u, p, t) \approx 0$ which can be achieved via
 
 1. Simulations
-2. Rootfinding
+2. Root finding
 
 To run the code you need the Brannmark PEtab files which can be found [here](https://github.com/sebapersson/PEtab.jl/tree/main/examples/Brannmark/). A fully runnable example of this tutorial can be found [here](https://github.com/sebapersson/PEtab.jl/tree/main/examples/Brannmark.jl).
 
-First we read the model and load necessary libraries.
+First we load necessary libraries and read the model.
 
 ```julia
 using PEtab
@@ -24,7 +24,7 @@ Generated Julia files are at ...
 
 ## Steady-state solver
 
-For models with preequilibration before the main simulation we must solve for the steady state $du = f(u, p, t) ≈ 0$. This can be done via i) `:Rootfinding` where we use any algorithm from [NonlinearSolve.jl](https://github.com/SciML/NonlinearSolve.jl) to find the roots of $f$, and by ii) `:Simulate` where from the initial condition we simulate the model until it reaches a steady state. The latter is more stable and often performs best.
+For models with pre-equilibration we must find the steady state $du = f(u, p, t) ≈ 0$ before the main simulation. This can be done via i) `:Rootfinding` where we use any algorithm from [NonlinearSolve.jl](https://github.com/SciML/NonlinearSolve.jl) to find the roots of $f$, and by ii) `:Simulate` where we simulate the model from the initial condition until it reaches a steady state. The latter is more stable and often performs best.
 
 When creating a `PEtabODEProblem` we can set steady-state solver options via the function `getSteadyStateSolverOptions`, where the first argument is the method to use; either `:Rootfinding` or `:Simulate` (recommended). For `:Simulate` we can choose how to terminate steady-state simulation via the `howCheckSimulationReachedSteadyState` argument which accepts:
 

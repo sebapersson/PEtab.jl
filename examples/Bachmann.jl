@@ -59,7 +59,7 @@ petabProblem.computeGradient!(gradient, p)
 
 #=
     --- Forward sensitivity equations and Gauss-Newton ---
-    For medium sized models where computing the full Hessian via forward-mode automatic differentitation is to expansive 
+    For medium sized models where computing the full Hessian via forward-mode automatic differentitation is too expensive 
     the Guass-Newton hessian approximation often performs better than the (L)-BFGS approximation. To compute the Gauss-Newton
     approximation we need the model sensitivites which are obtained via forward sensitivity equations. These sensitivites can 
     also be used to compute the gradient. As some optmizers such as Fides.py compute both the hessian and gradient at each iteration 

@@ -4,8 +4,8 @@ PEtab.jl is written to easily integrate with available optimization packages suc
 
 Based on an extensive benchmark a good rule of thumb when choosing optimizer is:
 
-* If you can provide a full Hessian the Interior-point Newton method in Optim.jl often outperforms the trust-region method in Fides.py.
-* In case you cannot provide the full Hessian but the Gauss-Newton hessian approximation the Newton trust-region method in Fides.py often outperforms the interior-point method in Optim.jl.
+* If you can provide a full Hessian the Interior-point Newton method in [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl) often outperforms the trust-region method in Fides.py.
+* In case you cannot provide the full Hessian but the Gauss-Newton hessian approximation, the Newton trust-region method in Fides.py often outperforms the interior-point method in [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl).
 
 !!! note
-    Every problem is unique, and the recommended choice here often work well but might not optimal for a specific model
+    Every problem is unique, and the recommended choice here will often work well but might not be optimal for a specific model
