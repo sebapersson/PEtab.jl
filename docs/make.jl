@@ -20,7 +20,8 @@ makedocs(;
         "Tutorials" => Any["Models with preequilibration (steady-state simulation)" => "Brannmark.md",
                           "Medium sized models and adjoint sensitivity analysis" => "Bachmann.md",
                           "Models with many conditions specific parameters" => "Beer.md",
-                          "Parameter estimation" => "Parameter_estimation.md"
+                          "Parameter estimation" => "Parameter_estimation.md",
+                          "Import julia ODE model" => "Beer_julia_import.md"
                           ],
         "Supported gradient and hessian methods" => "Gradient_hessian_support.md",
         "Choosing the best options for a PEtab problem" => "Best_options.md",

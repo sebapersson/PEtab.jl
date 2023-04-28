@@ -27,6 +27,7 @@ julia> ] add PEtab
 
 ## Feature list
 
+* Import ODE systems specified either by an SBML file or a julia file.
 * Symbolic model preprocessing via [ModelingToolkit](https://github.com/SciML/ModelingToolkit.jl)
 * Support for all ODE solvers in [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl)
 * Gradient via:
