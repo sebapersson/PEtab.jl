@@ -134,7 +134,7 @@ function setupPEtabODEProblem(petabModel::PEtabModel,
     elseif gradientMethod === :Adjoint
         @assert (typeof(sensealg) <: SciMLSensitivity.AbstractAdjointSensitivityAlgorithm) "For adjoint sensitivity analysis allowed sensealg are InterpolatingAdjoint() or QuadratureAdjoint()"
     elseif gradientMethod === :Zygote
-        @assert (typeof(sensealg) <: SciMLSensitivity.AbstractSensitivityAlgorithm) "For Zygote an abstract sensitivity algorithm from SciMLSensitivity must be used"
+        @assert (typeof(sensealg) <: SciMLBase.AbstractSensitivityAlgorithm) "For Zygote an abstract sensitivity algorithm from SciMLSensitivity must be used"
     end
     odeProblemGradient = gradientMethod === :ForwardEquations ? getODEProblemForwardEquations(odeProblem, sensealg) : getODEProblemForwardEquations(odeProblem, :NoSpecialProblem)
     # ssSolverGradient defaults to the same options as for the cost, but with tolerances set in relation to gradient ODE solver                                                 

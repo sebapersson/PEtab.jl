@@ -26,9 +26,9 @@ include(joinpath(@__DIR__, "Common.jl"))
 
 """
     testOdeSol(solver, tol; printRes=false)
-    Compare analytical vs numeric ODE solver using a provided solver with
-    tolerance tol for the Test_model2.
-    Returns true if passes test (sqDiff less than 1e-8) else returns false.
+Compare analytical vs numeric ODE solver using a provided solver with
+tolerance tol for the Test_model2.
+Returns true if passes test (sqDiff less than 1e-8) else returns false.
 """
 function testODESolverTestModel2(petabModel::PEtabModel, solverOptions)
 
@@ -118,10 +118,10 @@ end
 
 """
     testCostGradientOrHessianTestModel2(solver, tol; printRes::Bool=false)
-    Compare cost, gradient and hessian computed via the analytical solution
-    vs the PeTab importer functions (to check PeTab importer) for five random
-    parameter vectors for Test_model2. For the analytical solution the gradient
-    and hessian are computed via ForwardDiff.
+Compare cost, gradient and hessian computed via the analytical solution
+vs the PeTab importer functions (to check PeTab importer) for five random
+parameter vectors for Test_model2. For the analytical solution the gradient
+and hessian are computed via ForwardDiff.
 """
 function testCostGradientOrHessianTestModel2(petabModel::PEtabModel, solverOptions)
 
