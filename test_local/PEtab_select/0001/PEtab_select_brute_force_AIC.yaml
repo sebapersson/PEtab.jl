@@ -3,8 +3,8 @@ criteria:
   NLLH: -4.0877016297398665
 estimated_parameters:
   sigma_x2: 0.12248209784705692
-model_hash: 45f0402057f24d3d9c22e2701c8a3f51bdc4afc84af2ddf9c5a3904dfe4025f36e4bb54f86420e1a066b3d65ac6c5e111183c741c893da82362327c8392c483a
-model_id: 45f0402057f24d3d9c22e2701c8a3f51bdc4afc84af2ddf9c5a3904dfe4025f36e4bb54f86420e1a066b3d65ac6c5e111183c741c893da82362327c8392c483a
+model_hash: 01282ea8a648dc91ef4680a6902321e1421fbb63817c1cd3273e83ad6bab16dff77a2dede176d7a0ef522365ac70f54593528c54bcabd9d157aaa50624cc8268
+model_id: 01282ea8a648dc91ef4680a6902321e1421fbb63817c1cd3273e83ad6bab16dff77a2dede176d7a0ef522365ac70f54593528c54bcabd9d157aaa50624cc8268
 model_subspace_id: M1_1
 model_subspace_indices:
 - 0
@@ -14,5 +14,5 @@ parameters:
   k1: 0.2
   k2: 0.1
   k3: 0
-petab_yaml: /home/sebpe/.julia/dev/PEtab/tests/PEtab_select/0001/petab/petab_problem.yaml
+petab_yaml: /home/sebpe/.julia/dev/PEtab/test_local/PEtab_select/0001/petab/petab_problem.yaml
 predecessor_model_hash: None

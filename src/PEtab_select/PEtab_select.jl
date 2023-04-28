@@ -134,7 +134,8 @@ function call_py(pathYAML::String,
                                          hessianMethod=hessianMethod, 
                                          sensealg=sensealg,
                                          reuseS=reuseS, 
-                                         verbose=false)
+                                         verbose=false, 
+                                         customParameterValues=_customParameterValues)
 
     calibrated_models, newly_calibrated_models = py"setup_tracking"()
 
@@ -196,15 +197,3 @@ call_py(pathYAML, Fides(verbose=false), gradientMethod=:ForwardEquations, hessia
 
 pathYAML = joinpath(@__DIR__, "..", "..", "test_local", "PEtab_select", "0009", "petab_select_problem.yaml")
 call_py(pathYAML, Fides(verbose=false), gradientMethod=:ForwardEquations, hessianMethod=:GaussNewton, reuseS=true, sensealg=:ForwardDiff, nMultiStarts=100)
-
-# TODO : 
-# 1. Setup callibration with Fides. Done 
-# 2. Run all tests. Done 
-# 3. Try estimating blasi model at reported values. Done 
-# 4. Launch bigg on cluster. Done 
-# 5. Launch Fabian adjoint Done
-# 6. Complete fun presentation. Done 
-# 7. Setup notebook second order 
-# 8. Wrap Ipopt 
-# 9. Investigate gradient fixing parameters (should be doable)
-# 10. Work on benchmark paper 

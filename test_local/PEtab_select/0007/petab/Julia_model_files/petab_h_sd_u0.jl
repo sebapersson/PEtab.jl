@@ -1,9 +1,6 @@
 #u[1] = x1, u[2] = x2
 #pODEProblemNames[1] = default, pODEProblemNames[2] = observable_x2, pODEProblemNames[3] = k3, pODEProblemNames[4] = k1, pODEProblemNames[5] = k2
-##parameterInfo.nominalValue[1] = k1_C 
-#parameterInfo.nominalValue[2] = k2_C 
-#parameterInfo.nominalValue[3] = k3_C 
-
+#
 
 function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                    θ_nonDynamic::AbstractVector, parameterInfo::ParametersInfo, observableId::Symbol,

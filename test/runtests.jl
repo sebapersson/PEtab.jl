@@ -6,4 +6,6 @@ using SafeTestsets
 
 @safetestset "Boehm against PyPesto" begin include("Boehm.jl") end
 
+@safetestset "PEtab remake" begin include("PEtab_remake.jl") end
+
 @safetestset "Log-likelihood values and gradients for published models" begin include("Test_ll.jl") end

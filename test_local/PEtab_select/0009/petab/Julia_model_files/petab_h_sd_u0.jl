@@ -1,23 +1,19 @@
 #u[1] = x_k05k16, u[2] = x_k05k08k16, u[3] = x_k05k12k16, u[4] = x_k16, u[5] = x_0ac, u[6] = x_k12, u[7] = x_k12k16, u[8] = x_k05k12, u[9] = x_k08, u[10] = x_k05k08, u[11] = x_k08k16, u[12] = x_k08k12, u[13] = x_k05k08k12, u[14] = x_k05, u[15] = x_4ac, u[16] = x_k08k12k16
 #pODEProblemNames[1] = a_k05_k05k12, pODEProblemNames[2] = a_0ac_k16, pODEProblemNames[3] = a_k08_k08k12, pODEProblemNames[4] = a_k16_k08k16, pODEProblemNames[5] = a_k05k08k16_4ac, pODEProblemNames[6] = a_k05k16_k05k08k16, pODEProblemNames[7] = a_k05k16_k05k12k16, pODEProblemNames[8] = a_k05k08_k05k08k16, pODEProblemNames[9] = a_k08k12_k08k12k16, pODEProblemNames[10] = a_k12k16_k05k12k16, pODEProblemNames[11] = a_k12_k12k16, pODEProblemNames[12] = a_0ac_k12, pODEProblemNames[13] = a_b, pODEProblemNames[14] = a_k05_k05k08, pODEProblemNames[15] = a_k08k16_k05k08k16, pODEProblemNames[16] = a_k08k12k16_4ac, pODEProblemNames[17] = a_k05k08k12_4ac, pODEProblemNames[18] = a_k05k08_k05k08k12, pODEProblemNames[19] = a_k08k16_k08k12k16, pODEProblemNames[20] = a_k05k12k16_4ac, pODEProblemNames[21] = a_k05k12_k05k12k16, pODEProblemNames[22] = a_k08_k05k08, pODEProblemNames[23] = a_k08_k08k16, pODEProblemNames[24] = a_k05k12_k05k08k12, pODEProblemNames[25] = a_k12k16_k08k12k16, pODEProblemNames[26] = a_k12_k05k12, pODEProblemNames[27] = da_b, pODEProblemNames[28] = compartment, pODEProblemNames[29] = a_0ac_k08, pODEProblemNames[30] = a_0ac_k05, pODEProblemNames[31] = a_k16_k05k16, pODEProblemNames[32] = a_k08k12_k05k08k12, pODEProblemNames[33] = a_k05_k05k16, pODEProblemNames[34] = a_k12_k08k12, pODEProblemNames[35] = a_k16_k12k16
 ##parameterInfo.nominalValue[1] = a_0ac_k05_C 
-#parameterInfo.nominalValue[2] = a_0ac_k08_C 
 #parameterInfo.nominalValue[3] = a_0ac_k12_C 
 #parameterInfo.nominalValue[4] = a_0ac_k16_C 
 #parameterInfo.nominalValue[5] = a_k05_k05k08_C 
-#parameterInfo.nominalValue[6] = a_k05_k05k12_C 
 #parameterInfo.nominalValue[7] = a_k05_k05k16_C 
+#parameterInfo.nominalValue[8] = a_k08_k05k08_C 
 #parameterInfo.nominalValue[9] = a_k08_k08k12_C 
 #parameterInfo.nominalValue[10] = a_k08_k08k16_C 
-#parameterInfo.nominalValue[11] = a_k12_k05k12_C 
 #parameterInfo.nominalValue[12] = a_k12_k08k12_C 
 #parameterInfo.nominalValue[13] = a_k12_k12k16_C 
 #parameterInfo.nominalValue[14] = a_k16_k05k16_C 
 #parameterInfo.nominalValue[15] = a_k16_k08k16_C 
-#parameterInfo.nominalValue[16] = a_k16_k12k16_C 
 #parameterInfo.nominalValue[17] = a_k05k08_k05k08k12_C 
 #parameterInfo.nominalValue[18] = a_k05k08_k05k08k16_C 
-#parameterInfo.nominalValue[19] = a_k05k12_k05k08k12_C 
 #parameterInfo.nominalValue[20] = a_k05k12_k05k12k16_C 
 #parameterInfo.nominalValue[21] = a_k05k16_k05k08k16_C 
 #parameterInfo.nominalValue[22] = a_k05k16_k05k12k16_C 
@@ -26,11 +22,9 @@
 #parameterInfo.nominalValue[25] = a_k08k16_k05k08k16_C 
 #parameterInfo.nominalValue[26] = a_k08k16_k08k12k16_C 
 #parameterInfo.nominalValue[27] = a_k12k16_k05k12k16_C 
-#parameterInfo.nominalValue[28] = a_k12k16_k08k12k16_C 
 #parameterInfo.nominalValue[29] = a_k05k08k12_4ac_C 
 #parameterInfo.nominalValue[30] = a_k05k08k16_4ac_C 
 #parameterInfo.nominalValue[31] = a_k05k12k16_4ac_C 
-#parameterInfo.nominalValue[32] = a_k08k12k16_4ac_C 
 #parameterInfo.nominalValue[34] = da_b_C 
 #parameterInfo.nominalValue[35] = sigma__C 
 

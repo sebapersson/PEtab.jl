@@ -229,7 +229,9 @@ via `setupPEtabODEProblem`, more info on tuneable options can be found in the do
 # Fields
 - `computeCost`: For θ computes the objective value cost = computeCost(θ)
 - `computeGradient!`: For θ computes in-place gradient computeGradient!(gradient, θ)
+- `computeGradient`: For θ computes out-place gradient gradient = computeGradient(θ)
 - `computeHessian!`: For θ computes in-place hessian-(approximation) computeHessian!(hessian, θ)
+- `computeHessian!`: For θ computes out-place hessian-(approximation) hessian = computeHessian(θ)
 - `costMethod`: Method for computing the cost (:Standard, :Zygote)
 - `gradientMethod`: Method for computing the gradient (:ForwardDiff, :ForwardEquations :Adjoint, :Zygote)
 - `hessianMethod`:  Method for computing/approximating the hessian (:ForwardDiff, :BlocForwardDiff :GaussNewton)
@@ -245,7 +247,9 @@ via `setupPEtabODEProblem`, more info on tuneable options can be found in the do
 """
 struct PEtabODEProblem{F1<:Function,
                        F2<:Function,
+                       _F2<:Function,
                        F3<:Function,
+                       _F3<:Function,
                        T1<:PEtabModel, 
                        T2<:ODESolverOptions, 
                        T3<:ODESolverOptions, 
@@ -256,7 +260,9 @@ struct PEtabODEProblem{F1<:Function,
 
     computeCost::F1
     computeGradient!::F2
+    computeGradient::_F2
     computeHessian!::F3
+    computeHessian::_F3
     costMethod::Symbol
     gradientMethod::Symbol
     hessianMethod::Symbol

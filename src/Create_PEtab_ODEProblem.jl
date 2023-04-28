@@ -153,6 +153,11 @@ function setupPEtabODEProblem(petabModel::PEtabModel,
                                      petabODESolverCache, petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo,
                                      chunkSize=chunkSize, numberOfprocesses=numberOfprocesses, jobs=jobs, results=results,
                                      splitOverConditions=splitOverConditions, sensealg=sensealg, sensealgSS=sensealgSS)
+    computeGradient = (θ) -> begin
+        gradient = zeros(Float64, length(θ))
+        computeGradient!(gradient, θ)
+        return gradient
+    end                                     
     verbose == true && @printf(" done. Time = %.1e\n", bBuild)
 
     # The Hessian can either be computed via automatic differentation, or approximated via a block approximation or the
@@ -163,6 +168,11 @@ function setupPEtabODEProblem(petabModel::PEtabModel,
                                    petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo, chunkSize,
                                    numberOfprocesses=numberOfprocesses, jobs=jobs, results=results, splitOverConditions=splitOverConditions, 
                                    reuseS=reuseS)
+    computeHessian = (θ) -> begin
+        hessian = zeros(Float64, length(θ), length(θ))
+        computeHessian!(hessian, θ)
+        return hessian
+    end
     verbose == true && @printf(" done. Time = %.1e\n", bBuild)                                   
     
     # Extract nominal parameter vector and parameter bounds. If needed transform parameters
@@ -176,7 +186,9 @@ function setupPEtabODEProblem(petabModel::PEtabModel,
 
     petabProblem = PEtabODEProblem(computeCost,
                                    computeGradient!,
+                                   computeGradient,
                                    computeHessian!,
+                                   computeHessian,
                                    costMethod,
                                    gradientMethod, 
                                    Symbol(hessianMethod), 
@@ -1052,6 +1064,11 @@ function remakePEtabProblem(petabProblem::PEtabODEProblem, parametersChange::Dic
                                                     end
                                                     gradient .= _gradient[iMap]
                                                 end
+    _computeGradient = (θ) -> begin
+        gradient = zeros(Float64, length(θ))
+        _computeGradient!(gradient, θ)
+        return gradient
+    end                                                                                     
 
     _computeHessian! = (hessian, θ_est) ->  begin 
                                                 __θ_est = convert.(eltype(θ_est), _θ_est)
@@ -1069,10 +1086,17 @@ function remakePEtabProblem(petabProblem::PEtabODEProblem, parametersChange::Dic
                                                     end
                                                 end
                                             end
+    _computeHessian = (θ) -> begin
+        hessian = zeros(Float64, length(θ), length(θ))
+        _computeHessian!(hessian, θ)
+        return hessian
+    end                                                                                                                                 
 
     _petabProblem = PEtabODEProblem(_computeCost,
                                     _computeGradient!,
+                                    _computeGradient,
                                     _computeHessian!,
+                                    _computeHessian,
                                     petabProblem.costMethod,
                                     petabProblem.gradientMethod, 
                                     petabProblem.hessianMethod, 

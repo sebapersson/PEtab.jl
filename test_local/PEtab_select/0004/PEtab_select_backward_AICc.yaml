@@ -1,11 +1,11 @@
 criteria:
-  AICc: -0.7053223863072766
-  NLLH: -4.352661193153638
+  AICc: -0.7053223876761905
+  NLLH: -4.352661193838095
 estimated_parameters:
-  k1: 0.20160877988731785
-  sigma_x2: 0.11720448356186158
-model_hash: 6a9702d39b3a2d3e42a2c6ddd07e59620b46482a18fe96d4bf993b330f7a1f32508d10adca3846a2051ca51bf0f71e7c91925142a5e7e796ab20f1af6b5d9b51
-model_id: 6a9702d39b3a2d3e42a2c6ddd07e59620b46482a18fe96d4bf993b330f7a1f32508d10adca3846a2051ca51bf0f71e7c91925142a5e7e796ab20f1af6b5d9b51
+  k1: 0.20160877989272763
+  sigma_x2: 0.1172044834427723
+model_hash: 68cf4ebaa6dea455043568d75b361591b51fe8930967b92c48a85551bb3e114743603343fdfafbc17870cd832873aee06a2be3521c9041cd2ad300fcb201df35
+model_id: 68cf4ebaa6dea455043568d75b361591b51fe8930967b92c48a85551bb3e114743603343fdfafbc17870cd832873aee06a2be3521c9041cd2ad300fcb201df35
 model_subspace_id: M1_3
 model_subspace_indices:
 - 0
@@ -15,5 +15,5 @@ parameters:
   k1: estimate
   k2: 0.1
   k3: 0
-petab_yaml: /home/sebpe/.julia/dev/PEtab/tests/PEtab_select/0001/petab/petab_problem.yaml
-predecessor_model_hash: ddad6dcb5403c4d6226f95deaebe063ec8dcd5bda35e01f98dfeae0f8d354e2a4a6d1b0fb39c65e9855f77a5db7e7e604be7c751dc7097aa428d9850eaf488b8
+petab_yaml: /home/sebpe/.julia/dev/PEtab/test_local/PEtab_select/0001/petab/petab_problem.yaml
+predecessor_model_hash: df902e99d59be84f70d95212f3d997fc28116840c8d35cb584f610a477a03819ce7eb3902725521565db8ae2ce22f5d20698ad8034e7650f39d28e53770fbe53
