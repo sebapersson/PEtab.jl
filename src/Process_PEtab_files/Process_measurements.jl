@@ -9,6 +9,9 @@ function processMeasurements(measurementsFile::DataFrame, observablesFile::DataF
     measurement::Vector{Float64} = convert(Vector{Float64}, measurementsFile[!, "measurement"])
     time::Vector{Float64} = convert(Vector{Float64}, measurementsFile[!, "time"])
     nMeasurements = length(measurement)
+    chi2Values::Vector{Float64} = zeros(Float64, nMeasurements)
+    simulatedValues::Vector{Float64} = zeros(Float64, nMeasurements)
+    residuals::Vector{Float64} = zeros(Float64, nMeasurements)
 
     # In case preEquilibrationConditionId is not present in the file we assume no such conditions by default
     preEquilibrationConditionId::Vector{Symbol} = Vector{Symbol}(undef, nMeasurements)
@@ -78,7 +81,6 @@ function processMeasurements(measurementsFile::DataFrame, observablesFile::DataF
     end
     measurementT::Vector{Float64} = [transformMeasurementOrH(measurement[i], measurementTransformation[i]) for i in eachindex(measurement)]
 
-    return MeasurementsInfo(measurement, measurementT, measurementTransformation, time, observableId,
-                           preEquilibrationConditionId, simulationConditionId, noiseParameters,
-                           observableParameters)
+    return MeasurementsInfo(measurement, measurementT, simulatedValues, chi2Values, residuals, measurementTransformation, time, 
+                            observableId,preEquilibrationConditionId, simulationConditionId, noiseParameters, observableParameters)
 end

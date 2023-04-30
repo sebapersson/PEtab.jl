@@ -73,7 +73,7 @@ function setupPEtabODEProblem(petabModel::PEtabModel,
     parameterInfo = processParameters(parametersData)
     measurementInfo = processMeasurements(measurementsData, observablesData)
     simulationInfo = processSimulationInfo(petabModel, measurementInfo, sensealg=sensealg)
-    θ_indices = computeIndicesθ(parameterInfo, measurementInfo, petabModel.odeSystem, experimentalConditions)
+    θ_indices = computeIndicesθ(parameterInfo, measurementInfo, petabModel)
 
     # Set up potential prior for the parameters to estimate
     priorInfo = processPriors(θ_indices, parametersData)
@@ -125,6 +125,27 @@ function setupPEtabODEProblem(petabModel::PEtabModel,
     bBuild = @elapsed computeCost = setUpCost(costMethod, odeProblem, odeSolverOptions, _ssSolverOptions, petabODECache, petabODESolverCache, 
                             petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo,
                             numberOfprocesses=numberOfprocesses, jobs=jobs, results=results)
+    computeChi2 = (θ; asArray=false) -> begin
+        _ = computeCost(θ)
+        if asArray == false
+            return sum(measurementInfo.chi2Values)
+        else
+            return measurementInfo.chi2Values
+        end
+    end
+    computeResiduals = (θ; asArray=false) -> begin
+        _ = computeCost(θ)
+        if asArray == false
+            return sum(measurementInfo.residuals)
+        else
+            return measurementInfo.residuals
+        end
+    end
+    computeSimulatedValues = (θ; asArray=false) -> begin
+        _ = computeCost(θ)
+        return measurementInfo.simulatedValues
+    end
+
     verbose == true && @printf(" done. Time = %.1e\n", bBuild)
 
     # The gradient can either be computed via autodiff, forward sensitivity equations, adjoint sensitivity equations
@@ -152,6 +173,11 @@ function setupPEtabODEProblem(petabModel::PEtabModel,
                                      petabODESolverCache, petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo,
                                      chunkSize=chunkSize, numberOfprocesses=numberOfprocesses, jobs=jobs, results=results,
                                      splitOverConditions=splitOverConditions, sensealg=sensealg, sensealgSS=sensealgSS)
+    computeGradient = (θ) -> begin
+        gradient = zeros(Float64, length(θ))
+        computeGradient!(gradient, θ)
+        return gradient
+    end                                            
     verbose == true && @printf(" done. Time = %.1e\n", bBuild)
 
     # The Hessian can either be computed via automatic differentation, or approximated via a block approximation or the
@@ -162,6 +188,11 @@ function setupPEtabODEProblem(petabModel::PEtabModel,
                                    petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo, chunkSize,
                                    numberOfprocesses=numberOfprocesses, jobs=jobs, results=results, splitOverConditions=splitOverConditions, 
                                    reuseS=reuseS)
+    computeHessian = (θ) -> begin
+        hessian = zeros(Float64, length(θ), length(θ))
+        computeHessian!(hessian, θ)
+        return hessian
+    end                                   
     verbose == true && @printf(" done. Time = %.1e\n", bBuild)                                   
     
     # Extract nominal parameter vector and parameter bounds. If needed transform parameters
@@ -174,8 +205,13 @@ function setupPEtabODEProblem(petabModel::PEtabModel,
     θ_nominalT = transformθ(θ_nominal, θ_estNames, θ_indices, reverseTransform=true)
 
     petabProblem = PEtabODEProblem(computeCost,
+                                   computeChi2,
                                    computeGradient!,
+                                   computeGradient,
                                    computeHessian!,
+                                   computeHessian,
+                                   computeSimulatedValues, 
+                                   computeResiduals,
                                    costMethod,
                                    gradientMethod, 
                                    Symbol(hessianMethod), 
@@ -292,7 +328,7 @@ function setUpGradient(whichMethod::Symbol,
     θ_dynamic = petabODECache.θ_dynamic
     θ_sd = petabODECache.θ_sd
     θ_observable = petabODECache.θ_observable
-    θ_nonDynamic = petabODECache.θ_observable
+    θ_nonDynamic = petabODECache.θ_nonDynamic
 
     if whichMethod == :ForwardDiff && numberOfprocesses == 1
 
@@ -473,7 +509,7 @@ function setUpHessian(whichMethod::Symbol,
     θ_dynamic = petabODECache.θ_dynamic
     θ_sd = petabODECache.θ_sd
     θ_observable = petabODECache.θ_observable
-    θ_nonDynamic = petabODECache.θ_observable                      
+    θ_nonDynamic = petabODECache.θ_nonDynamic                      
 
     # Functions needed for mapping θ_est to the ODE problem, and then for solving said ODE-system
     if (whichMethod === :ForwardDiff || whichMethod === :BlockForwardDiff) && numberOfprocesses == 1

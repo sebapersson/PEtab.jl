@@ -68,6 +68,9 @@ function compute∂G∂_(∂G∂_,
         if measurementInfo.measurementTransformation[iMeasurementData] === :log10
             yObs = measurementInfo.measurementT[iMeasurementData]
             ∂h∂_ .*= 1 / (log(10) * exp10(hTransformed))
+        elseif measurementInfo.measurementTransformation[iMeasurementData] === :log
+            yObs = measurementInfo.measurementT[iMeasurementData]
+            ∂h∂_ .*= 1 / exp(hTransformed)
         elseif measurementInfo.measurementTransformation[iMeasurementData] === :lin
             yObs = measurementInfo.measurement[iMeasurementData]
         end

@@ -35,7 +35,7 @@ function readPEtabModel(pathYAML::String;
                 print(" Building Julia model file as it does not exist ...")
             end
             bBuild = @elapsed modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, ifElseToEvent=ifElseToEvent)
-            @printf(" done. Time = %.1es\n", bBuild)
+            verbose == true && @printf(" done. Time = %.1es\n", bBuild)
 
         elseif isfile(pathModelJlFile) && forceBuildJuliaFiles == false && verbose == true
             printstyled("[ Info:", color=123, bold=true)
@@ -48,13 +48,15 @@ function readPEtabModel(pathYAML::String;
             end
             isfile(pathModelJlFile) == true && rm(pathModelJlFile)
             bBuild = @elapsed modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, ifElseToEvent=ifElseToEvent)
-            @printf(" done. Time = %.1es\n", bBuild)
+            verbose == true && @printf(" done. Time = %.1es\n", bBuild)
         end
 
     else
         jlDir = joinpath(dirModel, "Julia_model_files")
         modelDict, pathModelJlFile = JLToModellingToolkit(modelName, jlDir, ifElseToEvent=ifElseToEvent)
     end
+
+    addParameterForConditionSpecificInitialValues(pathModelJlFile, pathConditions, pathParameters)
 
     # Load model ODE-system
     @assert isfile(pathModelJlFile)
@@ -84,7 +86,7 @@ function readPEtabModel(pathYAML::String;
         if !@isdefined(modelDict)
             modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, writeToFile=false, ifElseToEvent=ifElseToEvent)
         end
-        bBuild = @elapsed create_σ_h_u0_File(modelName, pathYAML, dirJulia, odeSystem, stateMap, modelDict, jlFile=jlFile)
+        bBuild = @elapsed create_σ_h_u0_File(modelName, pathYAML, dirJulia, odeSystem, parameterMap, stateMap, modelDict, jlFile=jlFile)
         verbose == true && @printf(" done. Time = %.1es\n", bBuild)
     elseif verbose == true
         printstyled("[ Info:", color=123, bold=true)
@@ -102,7 +104,7 @@ function readPEtabModel(pathYAML::String;
         if !@isdefined(modelDict)
             modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, writeToFile=false, ifElseToEvent=ifElseToEvent)
         end
-        bBuild = @elapsed createDerivative_σ_h_File(modelName, pathYAML, dirJulia, odeSystem, modelDict, jlFile=jlFile)
+        bBuild = @elapsed createDerivative_σ_h_File(modelName, pathYAML, dirJulia, odeSystem, parameterMap, stateMap, modelDict, jlFile=jlFile)
         verbose == true && @printf(" done. Time = %.1es\n", bBuild)
     elseif verbose == true
         printstyled("[ Info:", color=123, bold=true)
@@ -134,7 +136,7 @@ function readPEtabModel(pathYAML::String;
         if !@isdefined(modelDict)
             modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, writeToFile=false, ifElseToEvent=ifElseToEvent)
         end
-        bBuild = @elapsed createCallbacksForTimeDepedentPiecewise(odeSystem, modelDict, modelName, pathYAML, dirJulia, jlFile = jlFile)
+        bBuild = @elapsed createCallbacksForTimeDepedentPiecewise(odeSystem, parameterMap, stateMap, modelDict, modelName, pathYAML, dirJulia, jlFile = jlFile)
         verbose == true && @printf(" done. Time = %.1es\n", bBuild)
 
     elseif verbose == true
@@ -219,6 +221,150 @@ function getFunctionsAsString(filePath::AbstractString, nFunctions::Int64)::Vect
     end
     return out
 end
+
+
+# The PEtab standard allows the condition table to have headers which corresponds to states. In order for this to 
+# be compatible with gradient compuations we add such initial values as an additional parameter in odeProblem.p 
+# by overwriting the Julia-model file 
+function addParameterForConditionSpecificInitialValues(pathJuliaFile::String, 
+                                                       pathConditions::String,
+                                                       pathParameters::String)
+
+    fAsString = getFunctionsAsString(pathJuliaFile, 1)
+    experimentalConditionsFile = CSV.read(pathConditions, DataFrame)
+    parametersFile = CSV.read(pathParameters, DataFrame)
+
+    stateNames = getStateOrParameterNamesFromJlFunction(fAsString[1], getStates=true)
+    parameterNames = getStateOrParameterNamesFromJlFunction(fAsString[1], getStates=false)
+
+    colNames = names(experimentalConditionsFile)
+    length(colNames) == 1 && return 
+    iStart = colNames[2] == "conditionName" ? 3 : 2 # Sometimes PEtab file does not include column conditionName
+    # Only change model file in case on of the experimental conditions map to a state (that is add an init parameter)
+    if any(name -> name ∈ stateNames, colNames[iStart:end]) == false
+        return
+    end
+
+    # In case we have conditions mapping to initial values
+    whichStates = (colNames[iStart:end])[findall(x -> x ∈ stateNames, colNames[iStart:end])]
+    newParameterNames = "__init__" .* whichStates .* "__"
+    newParameterValues = Vector{String}(undef, length(newParameterNames))
+
+    # Check if the columns for which the states are assigned contain parameters. If these parameters are not a part 
+    # of the ODE-system they have to be assigned to the ODE-system (since they determine an initial value they must 
+    # be considered dynamic parameters). 
+    for state in whichStates
+        for rowValue in experimentalConditionsFile[!, state]
+            if typeof(rowValue) <: Real 
+                continue
+            elseif isNumber(rowValue) == true || string(rowValue) ∈ parameterNames
+                continue
+            elseif rowValue ∈ parametersFile[!, :parameterId]
+                # Must be a parameter which did not appear in the SBML file 
+                newParameterNames = vcat(newParameterNames, rowValue)
+                newParameterValues = vcat(newParameterValues, "0.0")
+            else
+                @error "In condtion table $rowValue does not correspond to any parameter in the SBML file parameters file"
+            end
+        end
+    end
+
+    # In case the funciton already has been rewritten return 
+    if any(x -> x ∈ parameterNames, newParameterNames)
+        return
+    end
+
+    # Go through each line and add init parameters to @parameters and parameterArray and in the inital value map
+    functionLineByLine = split(fAsString[1], '\n')
+    linesAdd = 0:0
+    for i in eachindex(functionLineByLine)
+        lineNoWhiteSpace = replace(functionLineByLine[i], " " => "")
+        lineNoWhiteSpace = replace(lineNoWhiteSpace, "\t" => "")
+
+        # Check which lines new initial value parameters should be added to the parametersMap
+        if length(lineNoWhiteSpace) ≥ 19 && lineNoWhiteSpace[1:19] == "trueParameterValues"
+            linesAdd = (i+1):(i+length(newParameterNames))
+        end
+
+        # Add new parameters for ModelingToolkit.@parameters line 
+        if length(lineNoWhiteSpace) ≥ 27 && lineNoWhiteSpace[1:27] == "ModelingToolkit.@parameters"
+            functionLineByLine[i] *= (" " * prod([str * " " for str in newParameterNames]))[1:end-1]
+        end
+
+        # Add new parameters in parameterArray
+        if length(lineNoWhiteSpace) ≥ 14 && lineNoWhiteSpace[1:14] == "parameterArray"
+            functionLineByLine[i] = functionLineByLine[i][1:end-1] * ", " * (" " * prod([str * ", " for str in newParameterNames]))[1:end-2] * "]"
+        end
+
+        # Move through state array 
+        for j in eachindex(whichStates)
+            if startsWithx(lineNoWhiteSpace, whichStates[j])
+                # Extract the default value 
+                _, defaultValue = split(lineNoWhiteSpace, "=>")
+                newParameterValues[j] = defaultValue[end] == ',' ? defaultValue[1:end-1] : defaultValue[:]
+                functionLineByLine[i] = "\t" * whichStates[j] * " => " * newParameterNames[j] * ","
+            end
+        end
+    end
+
+    functionLineByLineNew = Vector{String}(undef, length(functionLineByLine) + length(newParameterNames))
+    k = 1
+    for i in eachindex(functionLineByLineNew)
+        if i ∈ linesAdd
+            continue
+        end
+        functionLineByLineNew[i] = functionLineByLine[k]
+        k += 1
+    end
+    # We need to capture default values 
+    functionLineByLineNew[linesAdd] .= "\t" .* newParameterNames .* " => " .* newParameterValues .* ","
+
+    newFunctionString = functionLineByLineNew[1]
+    newFunctionString *= prod(row * "\n" for row in functionLineByLineNew[2:end])
+    open(pathJuliaFile, "w") do f
+        write(f, newFunctionString)
+        flush(f)
+    end
+end
+
+
+# Extract model state names from stateArray in the JL-file (and also parameter names)
+function getStateOrParameterNamesFromJlFunction(fAsString::String; getStates::Bool=false)
+
+    functionLineByLine = split(fAsString, '\n')
+    for i in eachindex(functionLineByLine)
+        lineNoWhiteSpace = replace(functionLineByLine[i], " " => "")
+        lineNoWhiteSpace = replace(lineNoWhiteSpace, "\t" => "")
+
+        # Add new parameters in parameterArray
+        if getStates == true
+            if length(lineNoWhiteSpace) ≥ 10 && lineNoWhiteSpace[1:10] == "stateArray"
+                return split(lineNoWhiteSpace[13:end-1], ",")
+            end
+        end
+
+        if getStates == false
+            if length(lineNoWhiteSpace) ≥ 14 && lineNoWhiteSpace[1:14] == "parameterArray"
+                return split(lineNoWhiteSpace[17:end-1], ",")
+            end
+        end
+    end
+
+end
+
+
+# Check if a str starts with x
+function startsWithx(str, x)
+    if length(str) < length(x)
+        return false
+    end
+
+    if str[1:length(x)] == x && str[length(x)+1] ∈ [' ', '=']
+        return true
+    end
+    return false
+end
+
 
 import Base.show
 function show(io::IO, a::PEtabModel)

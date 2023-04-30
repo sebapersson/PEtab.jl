@@ -269,6 +269,12 @@ function solveODEPostEqulibrium(odeProblem::ODEProblem,
     hasNotChanged = (odeProblem.u0 .== u0AtT0)
     @views odeProblem.u0[hasNotChanged] .= uAtSS[hasNotChanged]
 
+    # According to the PEtab standard we can sometimes have that initial assignment is overridden for 
+    # pre-eq simulation, but we do not want to override for main simulation which is done automatically 
+    # by changeExperimentalCondition!. These cases are marked as NaN 
+    isNan = isnan.(odeProblem.u0)
+    @views odeProblem.u0[isNan] .= uAtSS[isNan]
+
     # Here it is IMPORTANT that we copy odeProblem.p[:] else different experimental conditions will
     # share the same parameter vector p. This will, for example, cause the lower level adjoint
     # sensitivity interface to fail.
