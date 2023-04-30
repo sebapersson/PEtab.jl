@@ -1,6 +1,8 @@
 # Function generating callbacksets for time-depedent SBML piecewise expressions, as callbacks are more efficient than
 # using ifelse (e.g better integration stabillity)
 function createCallbacksForTimeDepedentPiecewise(odeSystem::ODESystem,
+                                                 parameterMap, 
+                                                 stateMap,
                                                  SBMLDict::Dict,
                                                  modelName::String,
                                                  pathYAML::String,
@@ -15,7 +17,7 @@ function createCallbacksForTimeDepedentPiecewise(odeSystem::ODESystem,
     experimentalConditions, measurementsData, parametersData, observablesData = readPEtabFiles(pathYAML, jlFile = jlFile)
     parameterInfo = processParameters(parametersData)
     measurementInfo = processMeasurements(measurementsData, observablesData)
-    θ_indices = computeIndicesθ(parameterInfo, measurementInfo, odeSystem, experimentalConditions)
+    θ_indices = computeIndicesθ(parameterInfo, measurementInfo, odeSystem, parameterMap, stateMap, experimentalConditions)
 
     # In case of no-callbacks the function for getting callbacks will be empty, likewise for the function
     # which compute tstops (callback-times)
@@ -42,7 +44,7 @@ function createCallbacksForTimeDepedentPiecewise(odeSystem::ODESystem,
 
     # Check whether or not the trigger for a discrete callback depends on a parameter or not. If true then the time-span 
     # must be converted to dual when computing the gradient using ForwardDiff.
-    convertTspan = shouldConvertTspan(pathYAML, SBMLDict, odeSystem, jlFile)::Bool
+    convertTspan = shouldConvertTspan(SBMLDict, odeSystem, θ_indices, jlFile)::Bool
 
     stringWriteCallbacks *= "\treturn CallbackSet(" * callbackNames * "), Function[" * checkIfActivatedT0Names * "], " * string(convertTspan)  * "\nend"
     fileWrite = dirJulia * "/" * modelName * "_callbacks.jl"
@@ -217,17 +219,9 @@ end
 # Function checking if the condition of the picewise conditions depends on a parameter which is to be estimated.
 # In case of true the time-span need to be converted to Dual when computing the gradient (or hessian) of the
 # the model via automatic differentitation
-function shouldConvertTspan(pathYAML::String, SBMLDict::Dict, odeSystem::ODESystem, jlFile::Bool)::Bool
+function shouldConvertTspan(SBMLDict::Dict, odeSystem::ODESystem, θ_indices, jlFile::Bool)::Bool
 
     pODEProblemNames = string.(parameters(odeSystem))
-
-    # Compute indices tracking parameters (needed as down the line we need to know if a parameter should be estimated
-    # or not, as if such a parameter triggers a callback we must let it be a continious callback)
-    experimentalConditions, measurementsData, parametersData, observablesData = readPEtabFiles(pathYAML, jlFile = jlFile)
-    parameterInfo = processParameters(parametersData)
-    measurementInfo = processMeasurements(measurementsData, observablesData)
-    θ_indices = computeIndicesθ(parameterInfo, measurementInfo, odeSystem, experimentalConditions)
-
     for key in keys(SBMLDict["boolVariables"])
 
         conditionFormula = SBMLDict["boolVariables"][key][1]
