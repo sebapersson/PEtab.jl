@@ -1,0 +1,4 @@
+observableId	simulationConditionId	time	measurement
+obs_a	c0	0	0.7
+obs_a	c0	10	0.1
+obs_a	c0	10	0.2

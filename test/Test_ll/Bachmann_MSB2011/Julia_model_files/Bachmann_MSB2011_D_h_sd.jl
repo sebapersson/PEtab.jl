@@ -86,25 +86,25 @@ function compute_∂h∂u!(u, t::Real, pODEProblem::AbstractVector, θ_observabl
 
 	if observableId == :observable_pEpoR_au 
 		observableParameter1_observable_pEpoR_au, observableParameter2_observable_pEpoR_au = getObsOrSdParam(θ_observable, parameterMap)
-		out[1] = (16observableParameter2_observable_pEpoR_au) / pODEProblem[34]
-		out[20] = (16observableParameter2_observable_pEpoR_au) / pODEProblem[34]
-		out[21] = (16observableParameter2_observable_pEpoR_au) / pODEProblem[34]
+		out[1] = (16.0observableParameter2_observable_pEpoR_au) / pODEProblem[34]
+		out[20] = (16.0observableParameter2_observable_pEpoR_au) / pODEProblem[34]
+		out[21] = (16.0observableParameter2_observable_pEpoR_au) / pODEProblem[34]
 		return nothing
 	end
 
 	if observableId == :observable_pJAK2_au 
 		observableParameter1_observable_pJAK2_au, observableParameter2_observable_pJAK2_au = getObsOrSdParam(θ_observable, parameterMap)
-		out[1] = (2observableParameter2_observable_pJAK2_au) / pODEProblem[34]
-		out[20] = (2observableParameter2_observable_pJAK2_au) / pODEProblem[34]
-		out[21] = (2observableParameter2_observable_pJAK2_au) / pODEProblem[34]
-		out[23] = (2observableParameter2_observable_pJAK2_au) / pODEProblem[34]
+		out[1] = (2.0observableParameter2_observable_pJAK2_au) / pODEProblem[34]
+		out[20] = (2.0observableParameter2_observable_pJAK2_au) / pODEProblem[34]
+		out[21] = (2.0observableParameter2_observable_pJAK2_au) / pODEProblem[34]
+		out[23] = (2.0observableParameter2_observable_pJAK2_au) / pODEProblem[34]
 		return nothing
 	end
 
 	if observableId == :observable_pSTAT5B_rel 
 		observableParameter1_observable_pSTAT5B_rel = getObsOrSdParam(θ_observable, parameterMap)
 		out[2] = (100.0u[7]) / ((u[7] + u[2])^2)
-		out[7] = (-100u[2]) / ((u[7] + u[2])^2)
+		out[7] = (-100.0u[2]) / ((u[7] + u[2])^2)
 		return nothing
 	end
 
@@ -210,13 +210,13 @@ function compute_∂h∂p!(u, t::Real, pODEProblem::AbstractVector, θ_observabl
 
 	if observableId == :observable_pEpoR_au 
 		observableParameter1_observable_pEpoR_au, observableParameter2_observable_pEpoR_au = getObsOrSdParam(θ_observable, parameterMap)
-		out[34] = (-16observableParameter2_observable_pEpoR_au*(u[20] + u[1] + u[21])) / (pODEProblem[34]^2)
+		out[34] = (-16.0observableParameter2_observable_pEpoR_au*(u[20] + u[1] + u[21])) / (pODEProblem[34]^2)
 		return nothing
 	end
 
 	if observableId == :observable_pJAK2_au 
 		observableParameter1_observable_pJAK2_au, observableParameter2_observable_pJAK2_au = getObsOrSdParam(θ_observable, parameterMap)
-		out[34] = (-2observableParameter2_observable_pJAK2_au*(u[23] + u[20] + u[1] + u[21])) / (pODEProblem[34]^2)
+		out[34] = (-2.0observableParameter2_observable_pJAK2_au*(u[23] + u[20] + u[1] + u[21])) / (pODEProblem[34]^2)
 		return nothing
 	end
 

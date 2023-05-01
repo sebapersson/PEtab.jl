@@ -61,7 +61,7 @@ function checkGradientResiduals(petabModel::PEtabModel, solverOptions::ODESolver
     simulationInfo = processSimulationInfo(petabModel, measurementData)
 
     # Indices for mapping parameter-estimation vector to dynamic, observable and sd parameters correctly when calculating cost
-    paramEstIndices = computeIndicesθ(parameterData, measurementData, petabModel.odeSystem, experimentalConditionsFile)
+    paramEstIndices = computeIndicesθ(parameterData, measurementData, petabModel)
 
     # Set model parameter values to those in the PeTab parameter data ensuring correct value of constant parameters
     setParamToFileValues!(petabModel.parameterMap, petabModel.stateMap, parameterData)
@@ -102,7 +102,7 @@ function getFileODEvalues(petabModel::PEtabModel)
     experimentalConditionsFile, measurementDataFile, parameterDataFile, observablesDataFile = readPEtabFiles(petabModel)
     parameterInfo = processParameters(parameterDataFile)
     measurementInfo = processMeasurements(measurementDataFile, observablesDataFile)
-    θ_indices = computeIndicesθ(parameterInfo, measurementInfo, petabModel.odeSystem, experimentalConditionsFile)
+    θ_indices = computeIndicesθ(parameterInfo, measurementInfo, petabModel)
 
     θ_estNames = θ_indices.θ_estNames
     θ_est = parameterInfo.nominalValue[findall(x -> x ∈ θ_estNames, parameterInfo.parameterId)]

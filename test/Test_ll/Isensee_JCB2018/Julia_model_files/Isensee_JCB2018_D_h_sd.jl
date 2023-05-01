@@ -6,41 +6,41 @@ function compute_∂h∂u!(u, t::Real, pODEProblem::AbstractVector, θ_observabl
                        θ_nonDynamic::AbstractVector, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
 	if observableId == :pRII_Microscopy 
 		observableParameter1_pRII_Microscopy = getObsOrSdParam(θ_observable, parameterMap)
-		out[7] = 2observableParameter1_pRII_Microscopy*θ_nonDynamic[3]*θ_nonDynamic[6]
-		out[9] = 2observableParameter1_pRII_Microscopy*θ_nonDynamic[6]*(θ_nonDynamic[3] - θ_nonDynamic[10]*(θ_nonDynamic[3] - 1))
-		out[12] = 2observableParameter1_pRII_Microscopy*θ_nonDynamic[3]*θ_nonDynamic[6]
-		out[15] = 2observableParameter1_pRII_Microscopy*θ_nonDynamic[6]
-		out[19] = 2observableParameter1_pRII_Microscopy*θ_nonDynamic[6]
-		out[21] = 2observableParameter1_pRII_Microscopy*θ_nonDynamic[3]*θ_nonDynamic[6]
-		out[23] = 2observableParameter1_pRII_Microscopy*θ_nonDynamic[3]*θ_nonDynamic[6]
-		out[24] = 2observableParameter1_pRII_Microscopy*θ_nonDynamic[6]
-		out[25] = 2observableParameter1_pRII_Microscopy*θ_nonDynamic[6]*(θ_nonDynamic[3] - θ_nonDynamic[10]*(θ_nonDynamic[3] - 1))
+		out[7] = 2.0observableParameter1_pRII_Microscopy*θ_nonDynamic[3]*θ_nonDynamic[6]
+		out[9] = 2.0observableParameter1_pRII_Microscopy*θ_nonDynamic[6]*(θ_nonDynamic[3] - θ_nonDynamic[10]*(θ_nonDynamic[3] - 1.0))
+		out[12] = 2.0observableParameter1_pRII_Microscopy*θ_nonDynamic[3]*θ_nonDynamic[6]
+		out[15] = 2.0observableParameter1_pRII_Microscopy*θ_nonDynamic[6]
+		out[19] = 2.0observableParameter1_pRII_Microscopy*θ_nonDynamic[6]
+		out[21] = 2.0observableParameter1_pRII_Microscopy*θ_nonDynamic[3]*θ_nonDynamic[6]
+		out[23] = 2.0observableParameter1_pRII_Microscopy*θ_nonDynamic[3]*θ_nonDynamic[6]
+		out[24] = 2.0observableParameter1_pRII_Microscopy*θ_nonDynamic[6]
+		out[25] = 2.0observableParameter1_pRII_Microscopy*θ_nonDynamic[6]*(θ_nonDynamic[3] - θ_nonDynamic[10]*(θ_nonDynamic[3] - 1.0))
 		return nothing
 	end
 
 	if observableId == :pRII_Western 
-		out[7] = 2θ_nonDynamic[5]
-		out[9] = 2θ_nonDynamic[5]
-		out[12] = 2θ_nonDynamic[5]
-		out[15] = 2θ_nonDynamic[5]
-		out[19] = 2θ_nonDynamic[5]
-		out[21] = 2θ_nonDynamic[5]
-		out[23] = 2θ_nonDynamic[5]
-		out[24] = 2θ_nonDynamic[5]
-		out[25] = 2θ_nonDynamic[5]
+		out[7] = 2.0θ_nonDynamic[5]
+		out[9] = 2.0θ_nonDynamic[5]
+		out[12] = 2.0θ_nonDynamic[5]
+		out[15] = 2.0θ_nonDynamic[5]
+		out[19] = 2.0θ_nonDynamic[5]
+		out[21] = 2.0θ_nonDynamic[5]
+		out[23] = 2.0θ_nonDynamic[5]
+		out[24] = 2.0θ_nonDynamic[5]
+		out[25] = 2.0θ_nonDynamic[5]
 		return nothing
 	end
 
 	if observableId == :Calpha_Microscopy 
 		observableParameter1_Calpha_Microscopy = getObsOrSdParam(θ_observable, parameterMap)
-		out[7] = 2observableParameter1_Calpha_Microscopy*θ_nonDynamic[3]*θ_nonDynamic[4]
-		out[9] = 2observableParameter1_Calpha_Microscopy*θ_nonDynamic[4]*(θ_nonDynamic[3] - θ_nonDynamic[10]*(θ_nonDynamic[3] - 1))
-		out[12] = 2observableParameter1_Calpha_Microscopy*θ_nonDynamic[3]*θ_nonDynamic[4]
-		out[16] = 2observableParameter1_Calpha_Microscopy*θ_nonDynamic[4]
-		out[17] = 2observableParameter1_Calpha_Microscopy*θ_nonDynamic[4]
-		out[21] = 2observableParameter1_Calpha_Microscopy*θ_nonDynamic[3]*θ_nonDynamic[4]
-		out[23] = 2observableParameter1_Calpha_Microscopy*θ_nonDynamic[3]*θ_nonDynamic[4]
-		out[25] = 2observableParameter1_Calpha_Microscopy*θ_nonDynamic[4]*(θ_nonDynamic[3] - θ_nonDynamic[10]*(θ_nonDynamic[3] - 1))
+		out[7] = 2.0observableParameter1_Calpha_Microscopy*θ_nonDynamic[3]*θ_nonDynamic[4]
+		out[9] = 2.0observableParameter1_Calpha_Microscopy*θ_nonDynamic[4]*(θ_nonDynamic[3] - θ_nonDynamic[10]*(θ_nonDynamic[3] - 1.0))
+		out[12] = 2.0observableParameter1_Calpha_Microscopy*θ_nonDynamic[3]*θ_nonDynamic[4]
+		out[16] = 2.0observableParameter1_Calpha_Microscopy*θ_nonDynamic[4]
+		out[17] = 2.0observableParameter1_Calpha_Microscopy*θ_nonDynamic[4]
+		out[21] = 2.0observableParameter1_Calpha_Microscopy*θ_nonDynamic[3]*θ_nonDynamic[4]
+		out[23] = 2.0observableParameter1_Calpha_Microscopy*θ_nonDynamic[3]*θ_nonDynamic[4]
+		out[25] = 2.0observableParameter1_Calpha_Microscopy*θ_nonDynamic[4]*(θ_nonDynamic[3] - θ_nonDynamic[10]*(θ_nonDynamic[3] - 1.0))
 		return nothing
 	end
 

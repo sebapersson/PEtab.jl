@@ -36,7 +36,7 @@ function testODESolverTestModel2(petabModel::PEtabModel, solverOptions)
     experimentalConditionsFile, measurementDataFile, parameterDataFile, observablesDataFile = readPEtabFiles(petabModel)
     measurementData = processMeasurements(measurementDataFile, observablesDataFile)
     paramData = processParameters(parameterDataFile)
-    θ_indices = computeIndicesθ(paramData, measurementData, petabModel.odeSystem, experimentalConditionsFile)
+    θ_indices = computeIndicesθ(paramData, measurementData, petabModel)
     simulationInfo = processSimulationInfo(petabModel, measurementData)
     setParamToFileValues!(petabModel.parameterMap, petabModel.stateMap, paramData)
 

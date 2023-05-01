@@ -8,15 +8,15 @@ function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_o
                    θ_nonDynamic::AbstractVector, parameterInfo::ParametersInfo, observableId::Symbol,
                       parameterMap::θObsOrSdParameterMap)::Real 
 	if observableId === :pSTAT5A_rel 
-		return ( 100 * u[6] + 200 * u[2] * pODEProblem[6] ) / ( u[6] + u[1] * pODEProblem[6] + 2 * u[2] * pODEProblem[6] ) 
+		return ( 100.0 * u[6] + 200.0 * u[2] * pODEProblem[6] ) / ( u[6] + u[1] * pODEProblem[6] + 2.0 * u[2] * pODEProblem[6] ) 
 	end
 
 	if observableId === :pSTAT5B_rel 
-		return - ( 100 * u[6] - 200 * u[8] * ( pODEProblem[6] - 1 ) ) / ( ( u[5] * ( pODEProblem[6] - 1 ) - u[6] ) + 2 * u[8] * ( pODEProblem[6] - 1 ) ) 
+		return - ( 100.0 * u[6] - 200.0 * u[8] * ( pODEProblem[6] - 1.0 ) ) / ( ( u[5] * ( pODEProblem[6] - 1.0 ) - u[6] ) + 2.0 * u[8] * ( pODEProblem[6] - 1.0 ) ) 
 	end
 
 	if observableId === :rSTAT5A_rel 
-		return ( 100 * u[6] + 100 * u[1] * pODEProblem[6] + 200 * u[2] * pODEProblem[6] ) / ( 2 * u[6] + u[1] * pODEProblem[6] + 2 * u[2] * pODEProblem[6] - u[5] * ( pODEProblem[6] - 1 ) - 2 * u[8] * ( pODEProblem[6] - 1 ) ) 
+		return ( 100.0 * u[6] + 100.0 * u[1] * pODEProblem[6] + 200.0 * u[2] * pODEProblem[6] ) / ( 2.0 * u[6] + u[1] * pODEProblem[6] + 2.0 * u[2] * pODEProblem[6] - u[5] * ( pODEProblem[6] - 1.0 ) - 2.0 * u[8] * ( pODEProblem[6] - 1.0 ) ) 
 	end
 
 end

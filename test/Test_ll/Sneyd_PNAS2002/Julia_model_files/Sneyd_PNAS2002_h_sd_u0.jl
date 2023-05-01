@@ -6,7 +6,7 @@ function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_o
                    θ_nonDynamic::AbstractVector, parameterInfo::ParametersInfo, observableId::Symbol,
                       parameterMap::θObsOrSdParameterMap)::Real 
 	if observableId === :open_probability 
-		return ( 0.9 * u[6] + 0.1 * u[4] ) ^ 4 
+		return ( 0.9 * u[6] + 0.1 * u[4] ) ^ 4.0 
 	end
 
 end
