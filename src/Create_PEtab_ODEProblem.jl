@@ -1,58 +1,60 @@
 """
-    setupPEtabODEProblem(petabModel::PEtabModel, 
-                         odeSolverOptions::ODESolverOptions; 
-                         <keyword arguments>)
+    createPEtabODEProblem(petabModel::PEtabModel; 
+                          <keyword arguments>)
 
-For a PEtabModel and ODE-solver options (e.g. solver and tolerances) returns a PEtabODEProblem.
+Given a `PEtabModel` creates a `PEtabODEProblem`.
 
-The PEtabODEproblem allows for efficient cost, gradient and hessian computations for a PEtab specified problem.  Using the keyword arguments (see below) the user can select cost method, gradient method, hessian method, ODE solver options, and a few tuneable options that potentially can make computations more efficient for a subset of "edge-case" models. A discussion about the most efficient option for different model types can be found in the documentation. 
+The PEtabODEproblem allows for efficient cost, gradient and hessian computations for a PEtab specified problem. Using the keyword arguments (see below) the user can select cost method, gradient method, hessian method, ODE solver options, and a few tuneable options that potentially can make computations more efficient for a subset of "edge-case" models. A discussion about the most efficient option for different model types can be found in the documentation. 
 
-# Arguments
-- `petabModel::PEtabModel`: a PEtab-specified problem processed into Julia syntax by `readPEtabModel`
+In case a keyword argument is not set to anything, e.g. odeSolverOptions=nothing, based on the number of model parameter a suitble default option is choosen. 
+!!! note
+    Every problem is unique, so even though the default settings often work well they might not be optimal.
+
+# Keyword arguments
 - `odeSolverOptions::ODESolverOptions`: ODE-solver options when computing the cost (e.g solver and tolerances)
-- `odeSolverGradientOptions=nothing` : ODE-solver options when computing the gradient, e.g. the ODE solver options used when doing adjoint sensitivity analysis. If nothing defaults to `odeSolverOptions`. 
-- `ssSolverOptions=nothing` : Options used when solving for steady-state for models with pre-equlibrium. Steady-state can be found either via simulation or rootfinding and can be set via `getSteadyStateSolverOptions` (see documentation), if nothing defaults to simulation with wrms < 1 termination. used when doing adjoint sensitivity analysis. If nothing defaults to `odeSolverOptions`. 
-- `ssSolverGradientOptions=nothing` : Options used when solving for steady-state for models with pre-equlibrium when doing gradient computations. If nothing defaults to `ssSolverOptions` value.
+- `odeSolverGradientOptions::ODESolverOptions` : ODE-solver options when computing the gradient, e.g. the ODE solver options used when doing adjoint sensitivity analysis. If nothing defaults to `odeSolverOptions`. 
+- `ssSolverOptions::SteadyStateSolverOptions` : Options used when solving for steady-state for models with pre-equlibrium. Steady-state can be found either via simulation or rootfinding and can be set via `getSteadyStateSolverOptions` (see documentation), if nothing defaults to simulation with wrms < 1 termination. used when doing adjoint sensitivity analysis. If nothing defaults to `odeSolverOptions`. 
+- `ssSolverGradientOptions::SteadyStateSolverOptions` : Options used when solving for steady-state for models with pre-equlibrium when doing gradient computations. If nothing defaults to `ssSolverOptions` value.
 - `costMethod::Symbol=:Standard` : method for computing the cost (objective). Two options are available, :Standard is most efficient, while :Zygote is less efficient but compatible with the Zygote automatic differentiation library.
-- `gradientMethod::Symbol=:ForwardDiff` : method for computing the gradient of the (objective). Four availble options:
+- `gradientMethod=nothing` : method for computing the gradient of the (objective). Four availble options:
     * `:ForwardDiff` - Compute the gradient via forward-mode automatic differentiation using ForwardDiff.jl. Most efficient for models with ≤50 parameters. Optionally the number of chunks can be set by `chunkSize`.
     * `:ForwardEquations` - Compute the gradient via the model sensitivities, where `sensealg` species how to solve for the sensitivities. Most efficient if the hessian is approximated via the Gauss-Newton method, and if in the optimizer we can reuse the sensitives (see `reuseS`) from the gradient computations in the hessian computations (e.g when the optimizer always computes the gradient before the hessian). 
     * `:Adjoint` - Compute the gradient via adjoint sensitivity analysis, where `sensealg` specifies which algorithm to use. Most efficient for large models (≥75 parameters). 
     * `:Zygote` - Compute the gradient via the Zygote package, where `sensealg` specifies which sensitivity algorithm to use when solving the ODE-model. Most inefficient option and not recommended to use at all. 
-- `hessianMethod::Symbol=:ForwardDiff` : method for computing the hessian of the cost. Three available options:
+- `hessianMethod=nothing` : method for computing the hessian of the cost. Three available options:
     * `:ForwardDiff` - Compute the hessian via forward-mode automatic differentiation using ForwardDiff.jl. Often only computationally feasible for models with ≤20 parameters, but often greatly improves optimizer convergence. 
     * `:BlockForwardDiff` - Compute hessian block approximation via forward-mode automatic differentiation using ForwardDiff.jl. Approximation consists of two block matrices, the first is the hessian for only the dynamic parameters (parameter part of the ODE system), and the second for the non-dynamic parameters (e.g noise parameters). Computationally feasible for models with ≤ 20 dynamic parameters and often performs better than BFGS-methods. 
     * `:GaussNewton` - Approximate the hessian via the Gauss-Newton method. Often performs better than the BFGS method. If in the optimizer we can reuse the sensitives from the gradient (see `reuseS`) this method is best paired with `gradientMethod=:ForwardEquations`. 
 - `sparseJacobian::Bool=false` : when solving the ODE du/dt=f(u, p, t) whether or not for implicit solvers use a sparse-jacobian. Sparse jacobian often performs best for large models (≥100 states). 
 - `specializeLevel=SciMLBase.FullSpecialize` : specialization level when building the ODE-problem. Not recommended to change (see https://docs.sciml.ai/SciMLBase/stable/interfaces/Problems/)
-- `sensealg=InterpolatingAdjoint()` : Sensitivity algorithm for gradient computations. Available options for each gradient method are:
+- `sensealg` : Sensitivity algorithm for gradient computations. Available options for each gradient method are:
     * `:ForwardDiff` : None (as ForwardDiff takes care of all computation steps)
     * `:ForwardEquations` : `:ForwardDiff` (uses ForwardDiff.jl) or `ForwardDiffSensitivity()` and `ForwardSensitivity()` from SciMLSensitivity.jl (https://github.com/SciML/SciMLSensitivity.jl). 
     * `:Adjoint` : `InterpolatingAdjoint()` and `QuadratureAdjoint()` from SciMLSensitivity.jl
     * `:Zygote` : all sensealg in SciMLSensitivity.jl 
-- `sensealgSS=InterpolatingAdjoint()` : Sensitivity algorithm for adjoint gradient compuations for steady state simulations. Availble options are `SteadyStateAdjoint()`, `InterpolatingAdjoint()` and `QuadratureAdjoint()` from SciMLSensitivity.jl. `SteadyStateAdjoint()` is most efficient but requires a non-singular jacobian, and in case of non-singular jacobian the code automatically switches to `InterpolatingAdjoint()`. 
+- `sensealgSS=nothing` : Sensitivity algorithm for adjoint gradient compuations for steady state simulations. Availble options are `SteadyStateAdjoint()`, `InterpolatingAdjoint()` and `QuadratureAdjoint()` from SciMLSensitivity.jl. `SteadyStateAdjoint()` is most efficient but requires a non-singular jacobian, and in case of non-singular jacobian the code automatically switches to `InterpolatingAdjoint()`. 
 - `chunkSize=nothing` : Chunk-size for ForwardDiff.jl when computing the gradient and hessian via forward mode automatic different. If nothing default value is used. Tuning chunkSize is non-trivial and we plan to add automatic functionality for this.
 - `splitOverConditions::Bool=false` : For gradient and hessian via ForwardDiff.jl whether or not to split calls to to ForwardDiff across experimental (simulation) conditions. Should only be set to true in case the model has many parameters tgat are specific to an experimental condition, else the overhead from the calls will increase run time.        See the Beer-example for an example where this is needed.
 - `reuseS::Bool=false` : Reuse the sensitives from the gradient computations for the Gauss-Newton hessian approximation. Only applicable when `hessianMethod=:GaussNewton` and `gradientMethod=:ForwardEquations` and should **only** be used when the optimizer **always** computes the gradient before the hessian.
 - `verbose::Bool=true` : Print progress when setting up PEtab ODEProblem
 """
-function setupPEtabODEProblem(petabModel::PEtabModel,
-                              odeSolverOptions::ODESolverOptions;
-                              odeSolverGradientOptions::Union{Nothing, ODESolverOptions}=nothing,
-                              ssSolverOptions::Union{Nothing, SteadyStateSolverOptions}=nothing,
-                              ssSolverGradientOptions::Union{Nothing, SteadyStateSolverOptions}=nothing,
-                              costMethod::Symbol=:Standard,
-                              gradientMethod::Symbol=:ForwardDiff,
-                              hessianMethod::Symbol=:ForwardDiff,
-                              sparseJacobian::Bool=false,
-                              specializeLevel=SciMLBase.FullSpecialize,
-                              sensealg::Union{Symbol, SciMLBase.AbstractSensitivityAlgorithm}=InterpolatingAdjoint(),
-                              sensealgSS::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm=InterpolatingAdjoint(),
-                              chunkSize::Union{Nothing, Int64}=nothing,
-                              splitOverConditions::Bool=false,
-                              numberOfprocesses::Signed=1,
-                              reuseS::Bool=false, 
-                              verbose::Bool=true)::PEtabODEProblem
+function createPEtabODEProblem(petabModel::PEtabModel;
+                               odeSolverOptions::Union{Nothing, ODESolverOptions}=nothing,
+                               odeSolverGradientOptions::Union{Nothing, ODESolverOptions}=nothing,
+                               ssSolverOptions::Union{Nothing, SteadyStateSolverOptions}=nothing,
+                               ssSolverGradientOptions::Union{Nothing, SteadyStateSolverOptions}=nothing,
+                               costMethod::Union{Nothing, Symbol}=:Standard,
+                               gradientMethod::Union{Nothing, Symbol}=nothing,
+                               hessianMethod::Union{Nothing, Symbol}=nothing,
+                               sparseJacobian::Union{Nothing, Bool}=nothing,
+                               specializeLevel=SciMLBase.FullSpecialize,
+                               sensealg::Union{Nothing, Symbol, SciMLBase.AbstractSensitivityAlgorithm}=nothing,
+                               sensealgSS::Union{Nothing, SciMLSensitivity.AbstractAdjointSensitivityAlgorithm}=nothing,
+                               chunkSize::Union{Nothing, Int64}=nothing,
+                               splitOverConditions::Bool=false,
+                               numberOfprocesses::Signed=1,
+                               reuseS::Bool=false, 
+                               verbose::Bool=true)::PEtabODEProblem
 
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && @printf(" Building PEtabODEProblem for %s\n", petabModel.modelName) 
@@ -63,8 +65,8 @@ function setupPEtabODEProblem(petabModel::PEtabModel,
 
     # Make sure proper gradient and hessian methods are used 
     allowedCostMethods = [:Standard, :Zygote]
-    allowedGradientMethods = [:ForwardDiff, :ForwardEquations, :Adjoint, :Zygote]
-    allowedHessianMethods = [:ForwardDiff, :BlockForwardDiff, :GaussNewton]
+    allowedGradientMethods = [nothing, :ForwardDiff, :ForwardEquations, :Adjoint, :Zygote]
+    allowedHessianMethods = [nothing, :ForwardDiff, :BlockForwardDiff, :GaussNewton]
     @assert costMethod ∈ allowedCostMethods "Allowed cost methods are " * string(allowedCostMethods) * " not " * string(costMethod)
     @assert gradientMethod ∈ allowedGradientMethods "Allowed gradient methods are " * string(allowedGradientMethods) * " not " * string(gradientMethod)
     @assert hessianMethod ∈ allowedHessianMethods "Allowed hessian methods are " * string(allowedHessianMethods) * " not " * string(hessianMethod)
@@ -80,6 +82,87 @@ function setupPEtabODEProblem(petabModel::PEtabModel,
 
     # Set model parameter values to those in the PeTab parameter to ensure correct value for constant parameters
     setParamToFileValues!(petabModel.parameterMap, petabModel.stateMap, parameterInfo)
+
+    # Sanity check user input 
+    if isnothing(gradientMethod)
+        @assert isnothing(sensealg) "In case gradient method is not set sensealg cannot be set either"
+    elseif gradientMethod === :ForwardEquations
+        @assert sensealg == :ForwardDiff || any(typeof(sensealg) .<: [ForwardSensitivity, ForwardDiffSensitivity]) "For gradient method :ForwardEquations allowed sensealg args are :ForwardDiff, ForwardSensitivity(), ForwardDiffSensitivity() not $sensealg"
+    elseif gradientMethod === :Adjoint
+        @assert any(typeof(sensealg) .<: [InterpolatingAdjoint, QuadratureAdjoint]) "For gradient method :Adjoint allowed sensealg args are InterpolatingAdjoint, QuadratureAdjoint not $sensealg"
+    elseif gradientMethod === :Zygote
+        @assert (typeof(sensealg) <: SciMLSensitivity.AbstractSensitivityAlgorithm) "For Zygote an abstract sensitivity algorithm from SciMLSensitivity must be used"
+    end
+    
+    # In case not specified by the user set options for ODE solver, gradient, 
+    nODEs = length(states(petabModel.odeSystem)) 
+    isSmallModel = nODEs ≤ 15 && length(θ_indices.θ_dynamicNames) ≤ 20
+    isMediumModel = !isSmallModel && nODEs ≤ 50 && length(θ_indices.θ_dynamicNames) ≤ 69
+    isLargeModel = !isSmallModel && !isMediumModel
+    # ODE-solver options
+    if isnothing(odeSolverOptions)
+        if isSmallModel
+            odeSolverOptions = ODESolverOptions(Rodas5P())
+        elseif isMediumModel
+            odeSolverOptions = ODESolverOptions(QNDF())
+        elseif isLargeModel
+            @warn "For large models we strongly recomend to compare different ODE-solvers instead of using default options"
+            if gradientMethod === :Adjoint || isnothing(gradientMethod)
+                odeSolverOptions = ODESolverOptions(CVODE_BDF())
+            else
+                odeSolverOptions = ODESolverOptions(KenCarp4())
+            end
+        end
+    end
+    odeSolverGradientOptions = isnothing(odeSolverGradientOptions) ? deepcopy(odeSolverOptions) : odeSolverGradientOptions
+    # Steady state solver options 
+    if isnothing(ssSolverOptions)
+        ssSolverOptions = SteadyStateSolverOptions(:Simulate, 
+                                                   abstol=odeSolverOptions.abstol, 
+                                                   reltol=odeSolverOptions.reltol)
+    end
+    if isnothing(ssSolverGradientOptions)
+        ssSolverGradientOptions = SteadyStateSolverOptions(:Simulate, 
+                                                           abstol=odeSolverGradientOptions.abstol, 
+                                                           reltol=odeSolverGradientOptions.reltol)
+    end
+    # Gradient and Hessian options 
+    if isnothing(gradientMethod)
+        if isSmallModel
+            gradientMethod = :ForwardDiff
+        elseif isMediumModel
+            if reuseS == false
+                gradientMethod = :ForwardDiff
+            else
+                gradientMethod = :ForwardEquations
+                sensealg = :ForwardDiff
+            end
+        elseif isLargeModel
+            gradientMethod = :Adjoint
+        end 
+    end
+    if isnothing(hessianMethod)
+        if isSmallModel
+            hessianMethod = :ForwardDiff
+        elseif isMediumModel
+            hessianMethod = :GaussNewton
+        elseif isLargeModel
+            hessianMethod = nothing
+        end 
+    end
+    # Sparsity of ODE system 
+    if isnothing(sparseJacobian)
+        sparseJacobian = isLargeModel ? true : false
+    end
+    # Sensealg
+    if isnothing(sensealg)
+        if gradientMethod === :Adjoint
+            sensealg = InterpolatingAdjoint()
+        elseif gradientMethod === :ForwardDiff || gradientMethod === :ForwardEquations
+            sensealg = :ForwardDiff
+        end
+    end
+    sensealgSS = isnothing(sensealgSS) ? InterpolatingAdjoint() : sensealgSS
 
     # Fast but numerically unstable method - warn the user 
     if simulationInfo.haspreEquilibrationConditionId == true && typeof(sensealgSS) <: SteadyStateAdjoint
@@ -109,20 +192,12 @@ function setupPEtabODEProblem(petabModel::PEtabModel,
 
     petabODECache = createPEtabODEProblemCache(gradientMethod, hessianMethod, petabModel, sensealg, measurementInfo, simulationInfo, θ_indices, chunkSize)
     petabODESolverCache = createPEtabODESolverCache(gradientMethod, hessianMethod, petabModel, simulationInfo, θ_indices, chunkSize)
-
-    # Setup steady-state solver options (e.g for pre-equlibration scenarios), defaults to simulate with wrms 
-    if isnothing(ssSolverOptions)
-        ssSolverOptions = getSteadyStateSolverOptions(:Simulate)
-    end
-    # In case they have not been set abstol and reltol for simulate defaults to 100 times smaller than ODE solver tolerances 
-    _ssSolverOptions = _getSteadyStateSolverOptions(ssSolverOptions, odeProblem, odeSolverOptions.abstol / 100.0, 
-                                                    odeSolverOptions.reltol / 100.0, odeSolverOptions.maxiters)
     
     # The cost (likelihood) can either be computed in the standard way or the Zygote way. The second consumes more
     # memory as in-place mutations are not compatible with Zygote
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Building cost function for method ", string(costMethod), " ...")
-    bBuild = @elapsed computeCost = setUpCost(costMethod, odeProblem, odeSolverOptions, _ssSolverOptions, petabODECache, petabODESolverCache, 
+    bBuild = @elapsed computeCost = setUpCost(costMethod, odeProblem, odeSolverOptions, ssSolverOptions, petabODECache, petabODESolverCache, 
                             petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo,
                             numberOfprocesses=numberOfprocesses, jobs=jobs, results=results)
     computeChi2 = (θ; asArray=false) -> begin
@@ -150,26 +225,11 @@ function setupPEtabODEProblem(petabModel::PEtabModel,
 
     # The gradient can either be computed via autodiff, forward sensitivity equations, adjoint sensitivity equations
     # and Zygote
-    if gradientMethod === :ForwardEquations
-        @assert (typeof(sensealg) <: SciMLSensitivity.AbstractForwardSensitivityAlgorithm || typeof(sensealg) <: Symbol) "For forward equations allowed sensealg are ForwardDiffSensitivity(), ForwardSensitivity(), or :ForwardDiff"
-    elseif gradientMethod === :Adjoint
-        @assert (typeof(sensealg) <: SciMLSensitivity.AbstractAdjointSensitivityAlgorithm) "For adjoint sensitivity analysis allowed sensealg are InterpolatingAdjoint() or QuadratureAdjoint()"
-    elseif gradientMethod === :Zygote
-        @assert (typeof(sensealg) <: SciMLSensitivity.AbstractSensitivityAlgorithm) "For Zygote an abstract sensitivity algorithm from SciMLSensitivity must be used"
-    end
     odeProblemGradient = gradientMethod === :ForwardEquations ? getODEProblemForwardEquations(odeProblem, sensealg) : getODEProblemForwardEquations(odeProblem, :NoSpecialProblem)
-    # ssSolverGradient defaults to the same options as for the cost, but with tolerances set in relation to gradient ODE solver                                                 
-    if isnothing(ssSolverGradientOptions)
-        _ssSolverGradientOptions = _getSteadyStateSolverOptions(ssSolverOptions, odeProblem, odeSolverGradientOptions.abstol / 100.0, 
-                                                                odeSolverGradientOptions.reltol / 100.0, odeSolverGradientOptions.maxiters)
-    else
-        _ssSolverGradientOptions = _getSteadyStateSolverOptions(ssSolverGradientOptions, odeProblem, odeSolverGradientOptions.abstol / 100.0, 
-                                                                odeSolverGradientOptions.reltol / 100.0, odeSolverGradientOptions.maxiters)
-    end
-
+    
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Building gradient function for method ", string(gradientMethod), " ...")
-    bBuild = @elapsed computeGradient! = setUpGradient(gradientMethod, odeProblemGradient, odeSolverGradientOptions, _ssSolverGradientOptions, petabODECache, 
+    bBuild = @elapsed computeGradient! = setUpGradient(gradientMethod, odeProblemGradient, odeSolverGradientOptions, ssSolverGradientOptions, petabODECache, 
                                      petabODESolverCache, petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo,
                                      chunkSize=chunkSize, numberOfprocesses=numberOfprocesses, jobs=jobs, results=results,
                                      splitOverConditions=splitOverConditions, sensealg=sensealg, sensealgSS=sensealgSS)
@@ -184,15 +244,20 @@ function setupPEtabODEProblem(petabModel::PEtabModel,
     # Gauss Newton method
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Building hessian function for method ", string(hessianMethod), " ...")
-    bBuild = @elapsed computeHessian! = setUpHessian(hessianMethod, odeProblem, odeSolverOptions, _ssSolverOptions, petabODECache, petabODESolverCache,
-                                   petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo, chunkSize,
-                                   numberOfprocesses=numberOfprocesses, jobs=jobs, results=results, splitOverConditions=splitOverConditions, 
-                                   reuseS=reuseS)
-    computeHessian = (θ) -> begin
-        hessian = zeros(Float64, length(θ), length(θ))
-        computeHessian!(hessian, θ)
-        return hessian
-    end                                   
+    if !isnothing(hessianMethod)
+        bBuild = @elapsed computeHessian! = setUpHessian(hessianMethod, odeProblem, odeSolverOptions, ssSolverOptions, petabODECache, petabODESolverCache,
+                                    petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo, chunkSize,
+                                    numberOfprocesses=numberOfprocesses, jobs=jobs, results=results, splitOverConditions=splitOverConditions, 
+                                    reuseS=reuseS)
+        computeHessian = (θ) -> begin
+            hessian = zeros(Float64, length(θ), length(θ))
+            computeHessian!(hessian, θ)
+            return hessian
+        end                                   
+    else
+        computeHessian! = nothing
+        computeHessian = nothing
+    end
     verbose == true && @printf(" done. Time = %.1e\n", bBuild)                                   
     
     # Extract nominal parameter vector and parameter bounds. If needed transform parameters
@@ -225,8 +290,8 @@ function setupPEtabODEProblem(petabModel::PEtabModel,
                                    petabModel, 
                                    odeSolverOptions, 
                                    odeSolverGradientOptions, 
-                                   _ssSolverOptions, 
-                                   _ssSolverGradientOptions)
+                                   ssSolverOptions, 
+                                   ssSolverGradientOptions)
     return petabProblem
 end
 
@@ -676,7 +741,7 @@ end
 
 
 function createPEtabODEProblemCache(gradientMethod::Symbol, 
-                                    hessianMethod::Symbol, 
+                                    hessianMethod::Union{Symbol, Nothing}, 
                                     petabModel::PEtabModel,
                                     sensealg,
                                     measurementInfo::MeasurementsInfo,
@@ -818,7 +883,7 @@ end
 
 
 function createPEtabODESolverCache(gradientMethod::Symbol, 
-                                   hessianMethod::Symbol,
+                                   hessianMethod::Union{Symbol, Nothing},
                                    petabModel::PEtabModel,
                                    simulationInfo::SimulationInfo,
                                    θ_indices::ParameterIndices,
@@ -857,9 +922,9 @@ end
 
 
 """
-    getODESolverOptions(solver, <keyword arguments>)
+    ODESolverOptions(solver, <keyword arguments>)
 
-Setup ODE-solver options (solver, tolerances, etc...) to use when computing gradient/cost for a PEtabODEProblem. 
+ODE-solver options (solver, tolerances, etc...) to use when computing gradient/cost for a PEtabODEProblem. 
 
 More info of about the options and available solvers can be found in the documentation for DifferentialEquations.jl (https://docs.sciml.ai/DiffEqDocs/stable/solvers/ode_solve/). Recommendeded settings for which solver and options to use for different problems can be found below and in the documentation.
 
@@ -871,15 +936,14 @@ More info of about the options and available solvers can be found in the documen
 - `dtmin=nothing`: Minimal acceptable step-size when solving the ODE-system.
 - `maxiters=10000`: Maximum number of iterations when solving the ODE-system. Increasing above the default value can cause the optimization to take substantial time.
 """
-function getODESolverOptions(solver::T1; 
-                             abstol::Float64=1e-8, 
-                             reltol::Float64=1e-8, 
-                             force_dtmin::Bool=false, 
-                             dtmin::Union{Float64, Nothing}=nothing, 
-                             maxiters::Int64=Int64(1e4))::ODESolverOptions where T1 <: SciMLAlgorithm 
+function ODESolverOptions(solver::T1; 
+                          abstol::Float64=1e-8, 
+                          reltol::Float64=1e-8, 
+                          force_dtmin::Bool=false, 
+                          dtmin::Union{Float64, Nothing}=nothing, 
+                          maxiters::Int64=Int64(1e4)) where T1 <: SciMLAlgorithm 
 
-    solverOptions = ODESolverOptions(solver, abstol, reltol, force_dtmin, dtmin, maxiters)
-    return solverOptions
+    return ODESolverOptions(solver, abstol, reltol, force_dtmin, dtmin, maxiters)
 end
 
 
@@ -913,8 +977,10 @@ function show(io::IO, a::PEtabODEProblem)
     @printf(". ODE-states: %d. Parameters to estimate: %d where %d are dynamic.\n---------- Problem settings ----------\nGradient method : ",
             numberOfODEStates, numberOfParametersToEstimate, numberOfDynamicParameters)
     printstyled(gradientMethod, color=116)
-    print("\nHessian method : ")
-    printstyled(hessianMethod, color=116)
+    if !isnothing(hessianMethod)
+        print("\nHessian method : ")
+        printstyled(hessianMethod, color=116)
+    end
     print("\n--------- ODE-solver settings --------")
     printstyled("\nCost ")
     printstyled(solverStrWrite, color=116)

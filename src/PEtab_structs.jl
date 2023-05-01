@@ -81,21 +81,6 @@ struct PEtabModel{F1<:Function,
 end
 
 
-"""
-    ODESolverOptions
-
-Stores ODE-solver options (solver, tolerances, etc...) to use when computing gradient/cost for a PEtabODEProblem. 
-
-Constructed via `getODESolverOptions`. More info regarding the options and available solvers can be found in the documentation for DifferentialEquations.jl (https://docs.sciml.ai/DiffEqDocs/stable/solvers/ode_solve/), and in the documentation for `getODESolverOptions`.
-
-# Fields
-- `solver`: Any of the ODE-solvers in DifferentialEquations.jl
-- `abstol`: Absolute tolerance when solving the ODE-system. 
-- `reltol`: Relative tolerance when solving the ODE-system
-- `force_dtmin`: Whether or not to force dtmin when solving the ODE-system.
-- `dtmin`: Minimal acceptable step-size when solving the ODE-system.
-- `maxiters`: Maximum number of iterations when solving the ODE-system.
-"""
 struct ODESolverOptions{T1 <: SciMLAlgorithm, 
                         T2 <: Union{Float64, Nothing}}
     solver::T1
@@ -107,23 +92,6 @@ struct ODESolverOptions{T1 <: SciMLAlgorithm,
 end
 
 
-"""
-    SteadyStateSolverOptions
-    
-Stores options (algorithm, tolerances, etc...) to use when computing steady state for models with pre-equlibration.
-
-Constructed via `getSteadyStateSolverOptions` with several potential user options.
-
-# Fields
-- `method`: Approach to find steady-state u*; du = f(u*, p, t) ≈ 0. Either :Rootfinding to directly solve the problem via optimisation, or :Simulate to via ODE solver simulate model to steady state.
-- `rootfindingAlgorithm`: In case of :Rootfinding which algorithm to use. Supports any of the NonlinearSolve algorithms (https://docs.sciml.ai/NonlinearSolve/stable/tutorials/nonlinear/).
-- `howCheckSimulationReachedSteadyState`: For :Simulate which method to check steady state been reached, options;
-    * wrms : Weighted root-mean square : √(∑((du ./ (reltol * u .+ abstol)).^2) / length(u)) < 1
-    * Newton : If Newton-step Δu is sufficiently small : √(∑((Δu ./ (reltol * u .+ abstol)).^2) / length(u)) < 1
-- `abstol`: Absolute tolerance when checking if steady state has been found. Defaults to 1e-8 for :Rootfinding and ODE-solver tolerance divided by 100 for :Simulate
-- `reltol`: Relative tolerance when checking if steady state has been found. As for abstol.
-- `maxiters`: Maximum number of root-finding or ODE-solver steps when solving for steady state. Defaults to 1e4 for :Rootfinding and ODE-solver options for :Simulate.
-"""
 struct SteadyStateSolverOptions{T1 <: Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}, 
                                 T2 <: Union{Nothing, AbstractFloat},
                                 T3 <: Union{Nothing, NonlinearProblem}, 
@@ -173,8 +141,8 @@ struct PEtabODEProblem{F1<:Function,
                        F2<:Function,
                        F3<:Function,
                        F4<:Function,
-                       F5<:Function,
-                       F6<:Function, 
+                       F5<:Union{Function, Nothing},
+                       F6<:Union{Function, Nothing}, 
                        F7<:Function,
                        F8<:Function,
                        T1<:PEtabModel, 
@@ -193,7 +161,7 @@ struct PEtabODEProblem{F1<:Function,
     computeResiduals::F8
     costMethod::Symbol
     gradientMethod::Symbol
-    hessianMethod::Symbol
+    hessianMethod::Union{Symbol, Nothing}
     nParametersToEstimate::Int64
     θ_estNames::Vector{Symbol}
     θ_nominal::Vector{Float64}

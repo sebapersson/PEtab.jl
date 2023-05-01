@@ -8,21 +8,26 @@
 
 Setup steady-state solver options for finding steady-state via **either** method=:Rootfinding or method=:Simulate.
 
-For `:Rootfinding` the steady state u* is found by solving the problem du = f(u, p, t) ≈ 0 with tolerances abstol and reltol via an automatically choosen optimisation algorithm (rootfindingAlgorithm=nothing) or via any algorithm in NonlinearSolve.jl (https://docs.sciml.ai/NonlinearSolve/stable/solvers/NonlinearSystemSolvers/), e.g. rootfindingAlgorithm=NonlinearSolve.TrustRegion(). (abstol, reltol, maxiters) defaults to (1e-8, 1e-8, 1e4).
+For `:Rootfinding` the steady state u* is found by solving the problem du = f(u, p, t) ≈ 0 with tolerances abstol and
+reltol via an automatically choosen optimisation algorithm (rootfindingAlgorithm=nothing) or via any algorithm in 
+NonlinearSolve.jl (https://docs.sciml.ai/NonlinearSolve/stable/), e.g. 
+rootfindingAlgorithm=NonlinearSolve.TrustRegion(). (abstol, reltol, maxiters) defaults to (1e-8, 1e-8, 1e4).
 
-For `:Simulate` the steady state u* is found by simulating the ODE-system until du = f(u, p, t) ≈ 0. Two options are availble for `howCheckSimulationReachedSteadyState`;
+For `:Simulate` the steady state u* is found by simulating the ODE-system until du = f(u, p, t) ≈ 0. Two options are 
+availble for `howCheckSimulationReachedSteadyState`;
 - `:wrms` : Weighted root-mean square √(∑((du ./ (reltol * u .+ abstol)).^2) / length(u)) < 1
 - `:Newton` : If Newton-step Δu is sufficiently small √(∑((Δu ./ (reltol * u .+ abstol)).^2) / length(u)) < 1. 
-Newton often perform better but requires an invertible Jacobian. In case not fulfilled code switches automatically to wrms. (abstol, reltol) defaults to ODE solver tolerances divided by 100 and maxiters to ODE solver value.
+Newton often perform better but requires an invertible Jacobian. In case not fulfilled code switches automatically to 
+wrms. (abstol, reltol) defaults to ODE solver tolerances divided by 100 and maxiters to ODE solver value.
         
 `maxiters` refers to either maximum number of rootfinding steps, or maximum number of integration steps.
 """
-function getSteadyStateSolverOptions(method::Symbol;
-                                     howCheckSimulationReachedSteadyState::Symbol=:wrms,
-                                     rootfindingAlgorithm::Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}=nothing,
-                                     abstol=nothing, 
-                                     reltol=nothing, 
-                                     maxiters::Union{Nothing, Int64}=nothing)::SteadyStateSolverOptions
+function SteadyStateSolverOptions(method::Symbol;
+                                  howCheckSimulationReachedSteadyState::Symbol=:wrms,
+                                  rootfindingAlgorithm::Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}=nothing,
+                                  abstol=nothing, 
+                                  reltol=nothing, 
+                                  maxiters::Union{Nothing, Int64}=nothing)::SteadyStateSolverOptions
 
     @assert method ∈ [:Rootfinding, :Simulate] "Method used to find steady state can either be :Rootfinding or :Simulate not $method"
     
