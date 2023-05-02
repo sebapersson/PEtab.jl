@@ -21,17 +21,17 @@ function _testCostGradientOrHessian(petabModel::PEtabModel,
         solverGradientOptions = deepcopy(solverOptions)
     end
 
-    petabProblem = setupPEtabODEProblem(petabModel,
-                                        solverOptions;
-                                        odeSolverGradientOptions=solverGradientOptions,
-                                        costMethod=costMethod,
-                                        gradientMethod=gradientMethod,
-                                        hessianMethod=hessianMethod,
-                                        ssSolverOptions=ssOptions,
-                                        sensealg=sensealg, 
-                                        sensealgSS=sensealgSS,
-                                        specializeLevel=SciMLBase.NoSpecialize, 
-                                        verbose=false)        
+    petabProblem = createPEtabODEProblem(petabModel,
+                                         odeSolverOptions=solverOptions;
+                                         odeSolverGradientOptions=solverGradientOptions,
+                                         costMethod=costMethod,
+                                         gradientMethod=gradientMethod,
+                                         hessianMethod=hessianMethod,
+                                         ssSolverOptions=ssOptions,
+                                         sensealg=sensealg, 
+                                         sensealgSS=sensealgSS,
+                                         specializeLevel=SciMLBase.NoSpecialize, 
+                                         verbose=false)        
 
     if computeCost == true
         return petabProblem.computeCost(p)
