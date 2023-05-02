@@ -6,6 +6,7 @@ model_space_files:
 candidate_space_arguments:
   critical_parameter_sets: []
   consecutive_laterals: true
+  predecessor_model: predecessor_model.yaml
   summary_tsv: output/summary.tsv
   swap_parameter_sets:
   - - a_0ac_k05
@@ -40,4 +41,3 @@ candidate_space_arguments:
     - a_k16_k05k16
     - a_k16_k08k16
     - a_k16_k12k16
-predecessor_model_files: predecessor_model.yaml

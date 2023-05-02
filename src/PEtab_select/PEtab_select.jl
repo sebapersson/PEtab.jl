@@ -57,20 +57,26 @@ function call_py(pathYAML::String,
     def get_number_of_candidates(candidate_space):
         return len(candidate_space.models)
 
-    def get_model_to_test(candidate_space, index):
-        model = candidate_space.models[index]
+    def get_model_to_test_info(model):
         return (model.model_subspace_id, str(model.petab_yaml), model.parameters)
+
+    def get_predecessor_model(path_yaml):
+        model = petab_select.models_from_yaml_list(path_yaml)
+        return model[0]
 
     def setup_petab_select(pathYAML):
         select_problem = petab_select.Problem.from_yaml(pathYAML)
         return select_problem
 
-    def create_candidate_space(select_problem):
-        candidate_space = petab_select.ui.candidates(problem=select_problem)
+    def create_candidate_space(select_problem, start_model=None):
+        if start_model == None:
+            candidate_space = petab_select.ui.candidates(problem=select_problem)
+        else:
+            print("Got here :)")
+            candidate_space = petab_select.ui.candidates(problem=select_problem, previous_predecessor_model=start_model)
         return candidate_space
 
-    def update_model(select_problem, candidate_space, nllh, estimatedParameters, nDataPoints, index):
-        model = candidate_space.models[index]
+    def update_model(select_problem, model, nllh, estimatedParameters, nDataPoints):
         model.set_criterion(petab_select.constants.Criterion.NLLH, nllh)
         if select_problem.method == "famos" or select_problem.criterion == "AIC":
             model.set_criterion(petab_select.constants.Criterion.AIC, 2*len(estimatedParameters) + 2*nllh)
@@ -101,22 +107,35 @@ function call_py(pathYAML::String,
     
     """
 
-    function callibrate_models(candidate_space, select_problem, n_candidates, _petabProblem::PEtabODEProblem; nStartGuesses=100)
-        for i in 1:n_candidates
-            subspaceId, subspaceYAML, _subspaceParameters = py"get_model_to_test"(candidate_space, i-1)
-            subspaceParameters = Dict(Symbol(k) => v for (k, v) in pairs(_subspaceParameters)) 
 
-            @info "Callibrating model $subspaceId"
-            petabProblem = remakePEtabProblem(_petabProblem, subspaceParameters)
-            if isnothing(optimizerOptions)
-                f, fArg = callibrateModel(petabProblem, optimizer, nStartGuesses=nStartGuesses)
-            else
-                f, fArg = callibrateModel(petabProblem, optimizer, nStartGuesses=nStartGuesses, options=optimizerOptions)
-            end
-            # Setup dictionary to conveniently storing model parameters 
-            estimatedParameters = Dict(string(petabProblem.θ_estNames[i]) => fArg[i] for i in eachindex(fArg)) 
-            nDataPoints = length(_petabProblem.computeCost.measurementInfo.measurement)
-            py"update_model"(select_problem, candidate_space, f, estimatedParameters, nDataPoints, i-1)
+    function _callibrate_model(model, select_problem, _petabProblem::PEtabODEProblem; nStartGuesses=nStartGuesses)
+        subspaceId, subspaceYAML, _subspaceParameters = py"get_model_to_test_info"(model)
+        subspaceParameters = Dict(Symbol(k) => v for (k, v) in pairs(_subspaceParameters)) 
+        @info "Callibrating model $subspaceId"
+        petabProblem = remakePEtabProblem(_petabProblem, subspaceParameters)
+        if isnothing(optimizerOptions)
+            f, fArg = callibrateModel(petabProblem, optimizer, nStartGuesses=nStartGuesses)
+        else
+            f, fArg = callibrateModel(petabProblem, optimizer, nStartGuesses=nStartGuesses, options=optimizerOptions)
+        end
+        # Setup dictionary to conveniently storing model parameters 
+        estimatedParameters = Dict(string(petabProblem.θ_estNames[i]) => fArg[i] for i in eachindex(fArg)) 
+        nDataPoints = length(_petabProblem.computeCost.measurementInfo.measurement)
+        py"update_model"(select_problem, model, f, estimatedParameters, nDataPoints)
+        return model
+    end
+
+
+    function callibrate_predecessor_model(pathYAML, select_problem, _petabProblem::PEtabODEProblem; nStartGuesses=100)
+        _model = py"get_predecessor_model"(pathYAML)
+        model = _callibrate_model(_model, select_problem, _petabProblem::PEtabODEProblem, nStartGuesses=nStartGuesses)
+        return model
+    end
+
+
+    function callibrate_candidate_models(candidate_space, select_problem, n_candidates, _petabProblem::PEtabODEProblem; nStartGuesses=100)
+        for i in 1:n_candidates
+            _ = _callibrate_model(candidate_space.models[i], select_problem, _petabProblem::PEtabODEProblem, nStartGuesses=nStartGuesses)
         end
         return nothing, false
     end
@@ -136,14 +155,21 @@ function call_py(pathYAML::String,
                                          reuseS=reuseS, 
                                          verbose=false, 
                                          customParameterValues=_customParameterValues)
-
+    
     calibrated_models, newly_calibrated_models = py"setup_tracking"()
 
     select_problem = py"setup_petab_select"(pathYAML)
     strWrite = @sprintf("PEtab select problem info\nMethod: %s\nCriterion: %s\n", select_problem.method, select_problem.criterion)
     @info "$strWrite"
 
-    candidate_space = py"create_candidate_space"(select_problem)
+    # Check if there is a predecessor model to setup the parameter space 
+    if "candidate_space_arguments" ∈ keys(fileYAML) && "predecessor_model" ∈ keys(fileYAML["candidate_space_arguments"])
+        path_predecessor = joinpath(dirname(pathYAML), fileYAML["candidate_space_arguments"]["predecessor_model"])
+        start_model = callibrate_predecessor_model(path_predecessor, select_problem, _petabProblem, nStartGuesses=nMultiStarts)
+        candidate_space = py"create_candidate_space"(select_problem, start_model=start_model)
+    else
+        candidate_space = py"create_candidate_space"(select_problem)
+    end
 
     k = 1
     n_candidates = py"get_number_of_candidates"(candidate_space)
@@ -152,7 +178,7 @@ function call_py(pathYAML::String,
         # Start the iterative model selction process 
         k == 1 && @info "Model selection round $k with $n_candidates candidates - as the code compiles in this round compiled it takes extra long time https://xkcd.com/303/"
         k != 1 && @info "Model selection round $k with $n_candidates candidates"
-        callibrate_models(candidate_space, select_problem, n_candidates, _petabProblem, nStartGuesses=nMultiStarts)
+        callibrate_candidate_models(candidate_space, select_problem, n_candidates, _petabProblem, nStartGuesses=nMultiStarts)
         newly_calibrated_models, calibrated_models = py"update_selection"(newly_calibrated_models, calibrated_models, select_problem,  candidate_space)
         
         py"update_candidate_space"(candidate_space, select_problem, newly_calibrated_models)
