@@ -1,11 +1,11 @@
 """
-    processParameters(parametersFile::DataFrame)::ParameterInfo
+    processParameters(parametersFile::CSV.File)::ParameterInfo
 
     Process the PeTab parametersFile file into a type-stable Julia struct.
 """
-function processParameters(parametersFile::DataFrame)::ParametersInfo
+function processParameters(parametersFile::CSV.File)::ParametersInfo
 
-    nParameters = length(parametersFile[!, "estimate"])
+    nParameters = length(parametersFile[:estimate])
 
     # Pre-allocate arrays to hold data
     lowerBound::Vector{Float64} = zeros(Float64, nParameters)
@@ -18,32 +18,32 @@ function processParameters(parametersFile::DataFrame)::ParametersInfo
     for i in eachindex(estimate)
 
         # If upper or lower bounds are missing assume +Inf and -Inf respectively.
-        if ismissing(parametersFile[i, "lowerBound"])
+        if ismissing(parametersFile[:lowerBound][i])
             lowerBound[i] = -Inf
         else
-            lowerBound[i] = parametersFile[i, "lowerBound"]
+            lowerBound[i] = parametersFile[:lowerBound][i]
         end
-        if ismissing(parametersFile[i, "upperBound"])
+        if ismissing(parametersFile[:upperBound][i])
             upperBound[i] = Inf
         else
-            upperBound[i] = parametersFile[i, "upperBound"]
+            upperBound[i] = parametersFile[:upperBound][i]
         end
 
-        nominalValue[i] = parametersFile[i, "nominalValue"]
-        parameterId[i] = Symbol(string(parametersFile[i, "parameterId"]))
+        nominalValue[i] = parametersFile[:nominalValue][i]
+        parameterId[i] = Symbol(string(parametersFile[:parameterId][i]))
         # Currently only supports parameters on log10-scale -> TODO: Change this
-        if parametersFile[i, "parameterScale"] == "log10"
+        if parametersFile[:parameterScale][i] == "log10"
             parameterScale[i] = :log10
-        elseif parametersFile[i, "parameterScale"] == "log"
+        elseif parametersFile[:parameterScale][i] == "log"
             parameterScale[i] = :log
-        elseif parametersFile[i, "parameterScale"] == "lin"
+        elseif parametersFile[:parameterScale][i] == "lin"
             parameterScale[i] = :lin
         else
-            errorStr = "Parameter scale " * parametersFile[i, "parameterScale"] * "not supported. Only log10, log and lin are supported in the Parameters PEtab file under the parameterScale column."
+            errorStr = "Parameter scale " * parametersFile[:parameterScale][i] * "not supported. Only log10, log and lin are supported in the Parameters PEtab file under the parameterScale column."
             throw(PEtabFileError(errorStr))
         end
 
-        estimate[i] = parametersFile[i, "estimate"] == 1 ? true : false
+        estimate[i] = parametersFile[:estimate][i] == 1 ? true : false
     end
     nParametersToEstimate::Int64 = Int64(sum(estimate))
 
@@ -51,10 +51,10 @@ function processParameters(parametersFile::DataFrame)::ParametersInfo
 end
 
 
-function processPriors(θ_indices::ParameterIndices, parametersFile::DataFrame)::PriorInfo
+function processPriors(θ_indices::ParameterIndices, parametersFile::CSV.File)::PriorInfo
 
     # In case there are no model priors
-    if "objectivePriorType" ∉ names(parametersFile)
+    if :objectivePriorType ∉ parametersFile.names
         return PriorInfo(NamedTuple(), NamedTuple(), false)
     end
 
@@ -65,8 +65,8 @@ function processPriors(θ_indices::ParameterIndices, parametersFile::DataFrame):
 
     for i in eachindex(θ_estNames)
 
-        whichParameter = findfirst(x -> x == θ_estNames[i], string.(parametersFile[!, "parameterId"]))
-        prior = parametersFile[whichParameter, "objectivePriorType"]
+        whichParameter = findfirst(x -> x == θ_estNames[i], string.(parametersFile[:parameterId]))
+        prior = parametersFile[whichParameter][:objectivePriorType]
 
         # In case the parameter lacks prior
         if ismissing(prior)
@@ -76,7 +76,7 @@ function processPriors(θ_indices::ParameterIndices, parametersFile::DataFrame):
         end
 
         # In case there is a prior is has associated parameters
-        priorParameters = parse.(Float64, split(parametersFile[whichParameter, "objectivePriorParameters"], ";"))
+        priorParameters = parse.(Float64, split(parametersFile[whichParameter][:objectivePriorParameters], ";"))
         if prior == "parameterScaleNormal"
             priorLogpdf[i] = (x) -> logpdf(Normal(priorParameters[1], priorParameters[2]), x)
             priorOnParameterScale[i] = true

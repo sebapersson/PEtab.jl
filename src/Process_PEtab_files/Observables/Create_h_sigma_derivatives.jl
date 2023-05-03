@@ -45,7 +45,7 @@ end
                        parameterInfo::ParametersInfo, 
                        pODEProblemNames::Vector{String}, 
                        θ_nonDynamicNames::Vector{String},
-                       observablesData::DataFrame,
+                       observablesData::CSV.File,
                        SBMLDict::Dict)
     
     For modelName create using Symbolics function for computing ∂h/∂u and ∂h/∂p where 
@@ -57,7 +57,7 @@ function create∂h∂_Function(modelName::String,
                             parameterInfo::ParametersInfo, 
                             pODEProblemNames::Vector{String}, 
                             θ_nonDynamicNames::Vector{String},
-                            observablesData::DataFrame,
+                            observablesData::CSV.File,
                             SBMLDict::Dict)
 
     io = open(dirModel * "/" * modelName * "_D_h_sd.jl", "w")
@@ -66,7 +66,7 @@ function create∂h∂_Function(modelName::String,
                                                                              θ_nonDynamicNames, observablesData)
     
     # Store the formula of each observable in string
-    observableIds = string.(observablesData[!, "observableId"])
+    observableIds = string.(observablesData[:observableId])
     pObservebleStr = ""
     uObservebleStr = ""
     for i in eachindex(observableIds)
@@ -75,7 +75,7 @@ function create∂h∂_Function(modelName::String,
         pObservebleStr *= "\tif observableId == " * ":" * observableIds[i] * "" * " \n"
         uObservebleStr *= "\tif observableId == " * ":" * observableIds[i] * "" * " \n"
         
-        _formula = filter(x -> !isspace(x), string(observablesData[i, "observableFormula"]))
+        _formula = filter(x -> !isspace(x), string(observablesData[:observableFormula][i]))
         formula = replaceExplicitVariableWithRule(_formula, SBMLDict)
         juliaFormula = petabFormulaToJulia(formula, modelStateNames, parameterInfo, pODEProblemNames, θ_nonDynamicNames)
         
@@ -143,14 +143,14 @@ end
     createTopOf∂h∂_Function(modelStateNames::Vector{String}, 
                             pODEProblemNames::Vector{String}, 
                             θ_nonDynamicNames::Vector{String},
-                            observablesData::DataFrame)
+                            observablesData::CSV.File)
 
     Extracts all variables needed for the functions and add them as variables for Symbolics.
 """
 function createTopOf∂h∂_Function(modelStateNames::Vector{String}, 
                                  pODEProblemNames::Vector{String}, 
                                  θ_nonDynamicNames::Vector{String},
-                                 observablesData::DataFrame)
+                                 observablesData::CSV.File)
 
     # We formulate the string in a format accepatble for symbolics so that we later 
     # can differentative the observable function with respect to the h formula 
@@ -184,18 +184,18 @@ function createTopOf∂h∂_Function(modelStateNames::Vector{String},
     end
 
     # Extracts all observable- and noise-parameters to add them to the symbolics variable string 
-    observableIds = string.(observablesData[!, "observableId"])
+    observableIds = string.(observablesData[:observableId])
     for i in eachindex(observableIds)
 
         # Extract observable parameters 
-        _formula = filter(x -> !isspace(x), string(observablesData[i, "observableFormula"]))
+        _formula = filter(x -> !isspace(x), string(observablesData[:observableFormula][i]))
         observableParameters = getObservableParametersStr(_formula)
         if !isempty(observableParameters)
             variablesStr *= observableParameters * ", "   
         end 
 
         # Extract noise parameters 
-        _formula = filter(x -> !isspace(x), string(observablesData[i, "noiseFormula"]))
+        _formula = filter(x -> !isspace(x), string(observablesData[:noiseFormula][i]))
         noiseParameters = getNoiseParametersStr(_formula)
         if !isempty(noiseParameters)
             variablesStr *= noiseParameters * ", "   
@@ -217,7 +217,7 @@ end
                             modelStateNames::Vector{String}, 
                             pODEProblemNames::Vector{String}, 
                             θ_nonDynamicNames::Vector{String},
-                            observablesData::DataFrame,
+                            observablesData::CSV.File,
                             SBMLDict::Dict)
 
     For modelName create a function for computing the standard deviation by translating the observablesData
@@ -228,12 +228,12 @@ function create∂σ∂_Function(modelName::String,
                             modelStateNames::Vector{String}, 
                             pODEProblemNames::Vector{String}, 
                             θ_nonDynamicNames::Vector{String},
-                            observablesData::DataFrame,
+                            observablesData::CSV.File,
                             SBMLDict::Dict)
 
     io = open(dirModel * "/" * modelName * "_D_h_sd.jl", "a")
     
-    observableIds = string.(observablesData[!, "observableId"])
+    observableIds = string.(observablesData[:observableId])
     pObservebleStr = ""
     uObservebleStr = ""
     for i in eachindex(observableIds)
@@ -242,7 +242,7 @@ function create∂σ∂_Function(modelName::String,
         pObservebleStr *= "\tif observableId == " * ":" * observableIds[i] * "" * " \n"
         uObservebleStr *= "\tif observableId == " * ":" * observableIds[i] * "" * " \n"
         
-        _formula = filter(x -> !isspace(x), string(observablesData[i, "noiseFormula"]))
+        _formula = filter(x -> !isspace(x), string(observablesData[:noiseFormula][i]))
         formula = replaceExplicitVariableWithRule(_formula, SBMLDict)
         juliaFormula = petabFormulaToJulia(formula, modelStateNames, parameterInfo, pODEProblemNames, θ_nonDynamicNames)
 

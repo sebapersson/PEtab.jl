@@ -2,7 +2,6 @@ module PEtab
 
 using PyCall
 using ModelingToolkit
-using DataFrames
 using CSV
 using SciMLBase
 using SciMLSensitivity

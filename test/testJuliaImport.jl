@@ -17,7 +17,7 @@ function testLogLikelihoodValue(petabModel::PEtabModel,
 
 end
 
-@testset "Log likelihood values and gradients for benchmark collection" begin
+@testset "Julia import and cost calculation" begin
     
     # Beer model - Numerically challenging gradient as we have callback rootfinding
     pathYML = joinpath(@__DIR__, "JuliaImport", "Beer", "Beer_MolBioSystems2014.yaml")

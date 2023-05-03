@@ -49,20 +49,20 @@ function readPEtabFiles(pathYAML::String; jlFile::Bool=false)
 
     pathSBML, pathParameters, pathConditions, pathObservables, pathMeasurements, dirJulia, dirModel, modelName = readPEtabYamlFile(pathYAML, jlFile=jlFile)
 
-    experimentalConditions = CSV.read(pathConditions, DataFrame, stringtype=String)
-    measurementsData = CSV.read(pathMeasurements, DataFrame, stringtype=String)
-    parametersData = CSV.read(pathParameters, DataFrame, stringtype=String)
-    observablesData = CSV.read(pathObservables, DataFrame, stringtype=String)
+    experimentalConditions = CSV.File(pathConditions, stringtype=String)
+    measurementsData = CSV.File(pathMeasurements, stringtype=String)
+    parametersData = CSV.File(pathParameters, stringtype=String)
+    observablesData = CSV.File(pathObservables, stringtype=String)
     checkFilesForCorrectDataType(experimentalConditions, measurementsData, parametersData, observablesData)
 
     return experimentalConditions, measurementsData, parametersData, observablesData
 end
 function readPEtabFiles(petabModel::PEtabModel)
 
-    experimentalConditions = CSV.read(petabModel.pathConditions, DataFrame, stringtype=String)
-    measurementsData = CSV.read(petabModel.pathMeasurements, DataFrame, stringtype=String)
-    parametersData = CSV.read(petabModel.pathParameters, DataFrame, stringtype=String)
-    observablesData = CSV.read(petabModel.pathObservables, DataFrame, stringtype=String)
+    experimentalConditions = CSV.File(petabModel.pathConditions, stringtype=String)
+    measurementsData = CSV.File(petabModel.pathMeasurements, stringtype=String)
+    parametersData = CSV.File(petabModel.pathParameters, stringtype=String)
+    observablesData = CSV.File(petabModel.pathObservables, stringtype=String)
     checkFilesForCorrectDataType(experimentalConditions, measurementsData, parametersData, observablesData)
 
     return experimentalConditions, measurementsData, parametersData, observablesData
@@ -85,13 +85,15 @@ function checkFilesForCorrectDataType(experimentalConditions, measurementsData, 
     allowedTypesVec = [stringTypes, stringTypes]
     requiredCols = ["conditionId"]
     checkDataFrameColumns(experimentalConditions, "experimentalConditions", colsToCheck, allowedTypesVec, requiredCols)
-    # Check parameter columns in experimentalConditions
-    if "conditionName" in names(experimentalConditions)
-        colsToCheck = names(experimentalConditions[!,Not([:conditionId,:conditionName])])
-    else
-        colsToCheck = names(experimentalConditions[!,Not([:conditionId])])
-    end
 
+    colsToCheck = experimentalConditions.names
+    # Check parameter columns in experimentalConditions
+    if :conditionName in colsToCheck
+        colsToCheck = colsToCheck[colsToCheck .!= :conditionId .&& colsToCheck .!= :conditionName]
+    else
+        colsToCheck = colsToCheck[colsToCheck .!= :conditionId]
+    end
+    colsToCheck = string.(colsToCheck)
     if !isempty(colsToCheck)
         allowedTypesVec = repeat([stringOrNumberTypes], length(colsToCheck))
         checkDataFrameColumns(experimentalConditions, "experimentalConditions", colsToCheck, allowedTypesVec, [])
@@ -131,6 +133,8 @@ checkDataFrameColumns(dataFrame, dataFrameName, colsToCheck, allowedTypesVec, re
 function checkDataFrameColumns(dataFrame, dataFrameName, colsToCheck, allowedTypesVec, requiredCols)
 
     check = true
+    colsToCheck = Symbol.(colsToCheck)
+    requiredCols = Symbol.(requiredCols)
 
     for colIndex in eachindex(colsToCheck)
 
@@ -138,13 +142,13 @@ function checkDataFrameColumns(dataFrame, dataFrameName, colsToCheck, allowedTyp
         allowedTypes = allowedTypesVec[colIndex]
 
         # If column is required and not present an error is thrown.
-        if (colName in requiredCols) && !(colName in names(dataFrame))
+        if (colName in requiredCols) && !(colName in dataFrame.names)
             throw(PEtabFileError("Required column '" * colName * "' missing in file '" * dataFrameName * "'"))
         # If column is required and there are missing values in that column a warning is thrown.
-        elseif (colName in requiredCols) && (Missing <: eltype(dataFrame[!, colName]))
+        elseif (colName in requiredCols) && (Missing <: eltype(dataFrame[colName]))
             if colName == "upperBound" || colName == "lowerBound"
-                for row in eachindex(dataFrame[!,colName])
-                    if dataFrame[row,colName] === missing && dataFrame[row,"estimate"] == 1
+                for row in eachindex(dataFrame[colName])
+                    if dataFrame[row][colName] === missing && dataFrame[row][:estimate] == 1
                         println("Warning : Required column " * colName * " contains rows with missing values on row " * string(row) * ".")
                     end
                 end
@@ -152,12 +156,12 @@ function checkDataFrameColumns(dataFrame, dataFrameName, colsToCheck, allowedTyp
                 println("Warning : Required column " * colName * " contains rows with missing values.")
             end
         # If column is not required and present the check is skipped.
-        elseif !(colName in requiredCols) && !(colName in names(dataFrame))
+        elseif !(colName in requiredCols) && !(colName in string.(dataFrame.names))
             continue
         end
 
         # Extract column excluding missing values
-        colToCheck = dropmissing(dataFrame, colName)[!, colName]
+        colToCheck = skipmissing(dataFrame[colName])
         dType = eltype(colToCheck)
 
         if (allowedTypes isa Array{DataType, 1})

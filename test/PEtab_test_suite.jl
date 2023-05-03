@@ -5,7 +5,6 @@ using OrdinaryDiffEq
 using Sundials
 using SciMLSensitivity
 using CSV
-using DataFrames
 using ForwardDiff
 using LinearAlgebra
 using FiniteDifferences
@@ -28,10 +27,10 @@ function testReferenceCase(testCase::String; testGradient=true)
     pathSimulations = joinpath(dirname(pathReferenceValues), referenceYAML["simulation_files"][1])
     costRef, tolCost = -1 * referenceYAML["llh"], referenceYAML["tol_llh"]
     chi2Ref, tolChi2 = referenceYAML["chi2"], referenceYAML["tol_chi2"]
-    simulatedValuesRef, tolSimulations = CSV.read(pathSimulations, DataFrame)[!, :simulation], referenceYAML["tol_simulations"]
+    simulatedValuesRef, tolSimulations = CSV.File(pathSimulations)[:simulation], referenceYAML["tol_simulations"]
 
-    @test cost ≈ costRef atol=tolCost
-    @test chi2 ≈ chi2Ref atol=tolChi2
+    @test cost ≈ costRef atol = tolCost
+    @test chi2 ≈ chi2Ref atol = tolChi2
     @test all(abs.(simulatedValues .- simulatedValuesRef) .≤ tolSimulations)
 
     if testGradient == true
@@ -42,7 +41,7 @@ function testReferenceCase(testCase::String; testGradient=true)
 end
 
 
-@testset "PEtab test-suite" begin 
+@testset "PEtab test-suite" begin
     testReferenceCase("0001")
     testReferenceCase("0002")
     testReferenceCase("0003")

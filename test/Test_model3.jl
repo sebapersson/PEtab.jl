@@ -22,7 +22,6 @@ using Test
 using OrdinaryDiffEq
 using SciMLSensitivity
 using CSV
-using DataFrames
 using ForwardDiff
 using LinearAlgebra
 using Sundials
@@ -137,11 +136,11 @@ function testCostGradientOrHessianTestModel3(petabModel::PEtabModel, solverOptio
 
     _computeCostAlgebraic = (pArg) -> computeCostAlgebraic(pArg, petabModel, solverOptions.solver, solverOptions.abstol)
 
-    cube = Matrix(CSV.read(joinpath(@__DIR__, "Test_model3", "Julia_model_files", "CubeTest_model3.csv") , DataFrame))
+    cube = CSV.File(joinpath(@__DIR__, "Test_model3", "Julia_model_files", "CubeTest_model3.csv"))
 
     for i in 1:1
 
-        p = cube[i, :]
+        p = Float64.(collect(cube[i]))
 
         referenceCost = _computeCostAlgebraic(p)
         referenceGradient = ForwardDiff.gradient(_computeCostAlgebraic, p)

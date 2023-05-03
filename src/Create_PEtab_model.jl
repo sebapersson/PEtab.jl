@@ -32,8 +32,8 @@ function readPEtabModel(pathYAML::String;
 
         pathModelJlFile = joinpath(dirJulia, modelName * ".jl")
 
-        if !isfile(pathModelJlFile) 
-            if verbose == true 
+        if !isfile(pathModelJlFile)
+            if verbose == true
                 printstyled("[ Info:", color=123, bold=true)
                 print(" Building Julia model file as it does not exist ...")
             end
@@ -45,7 +45,7 @@ function readPEtabModel(pathYAML::String;
             print(" Julia model file exists and will not be rebuilt\n")
 
         elseif forceBuildJuliaFiles == true
-            if verbose == true 
+            if verbose == true
                 printstyled("[ Info:", color=123, bold=true)
                 print(" By user option rebuilds Julia model file ...")
             end
@@ -100,7 +100,7 @@ function readPEtabModel(pathYAML::String;
         printstyled("[ Info:", color=123, bold=true)
         print(" u0, h and σ file exists and will not be rebuilt\n")
     end
-    
+
     if !isfile(path_D_h_sd) || forceBuildJuliaFiles == true
         if verbose == true && !isfile(path_D_h_sd)
             printstyled("[ Info:", color=123, bold=true)
@@ -131,7 +131,7 @@ function readPEtabModel(pathYAML::String;
     compute_∂h∂p! = @RuntimeGeneratedFunction(Meta.parse(∂_h_σ_Functions[2]))
     compute_∂σ∂σu! = @RuntimeGeneratedFunction(Meta.parse(∂_h_σ_Functions[3]))
     compute_∂σ∂σp! = @RuntimeGeneratedFunction(Meta.parse(∂_h_σ_Functions[4]))
-    
+
     pathCallback = joinpath(dirJulia, modelName * "_callbacks.jl")
     if !isfile(pathCallback) || forceBuildJuliaFiles == true
         if verbose == true && !isfile(pathCallback)
@@ -144,7 +144,7 @@ function readPEtabModel(pathYAML::String;
         if !@isdefined(modelDict)
             modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, writeToFile=false, ifElseToEvent=ifElseToEvent)
         end
-        bBuild = @elapsed createCallbacksForTimeDepedentPiecewise(odeSystem, parameterMap, stateMap, modelDict, modelName, pathYAML, dirJulia, jlFile = jlFile)
+        bBuild = @elapsed createCallbacksForTimeDepedentPiecewise(odeSystem, parameterMap, stateMap, modelDict, modelName, pathYAML, dirJulia, jlFile=jlFile)
         verbose == true && @printf(" done. Time = %.1es\n", bBuild)
 
     elseif verbose == true
@@ -234,19 +234,19 @@ end
 # The PEtab standard allows the condition table to have headers which corresponds to states. In order for this to 
 # be compatible with gradient compuations we add such initial values as an additional parameter in odeProblem.p 
 # by overwriting the Julia-model file 
-function addParameterForConditionSpecificInitialValues(pathJuliaFile::String, 
+function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
                                                        pathConditions::String,
                                                        pathParameters::String)
 
     fAsString = getFunctionsAsString(pathJuliaFile, 1)
-    experimentalConditionsFile = CSV.read(pathConditions, DataFrame)
-    parametersFile = CSV.read(pathParameters, DataFrame)
+    experimentalConditionsFile = CSV.File(pathConditions)
+    parametersFile = CSV.File(pathParameters)
 
     stateNames = getStateOrParameterNamesFromJlFunction(fAsString[1], getStates=true)
     parameterNames = getStateOrParameterNamesFromJlFunction(fAsString[1], getStates=false)
 
-    colNames = names(experimentalConditionsFile)
-    length(colNames) == 1 && return 
+    colNames = string.(experimentalConditionsFile.names)
+    length(colNames) == 1 && return
     iStart = colNames[2] == "conditionName" ? 3 : 2 # Sometimes PEtab file does not include column conditionName
     # Only change model file in case on of the experimental conditions map to a state (that is add an init parameter)
     if any(name -> name ∈ stateNames, colNames[iStart:end]) == false
@@ -262,12 +262,12 @@ function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
     # of the ODE-system they have to be assigned to the ODE-system (since they determine an initial value they must 
     # be considered dynamic parameters). 
     for state in whichStates
-        for rowValue in experimentalConditionsFile[!, state]
-            if typeof(rowValue) <: Real 
+        for rowValue in experimentalConditionsFile[Symbol(state)]
+            if typeof(rowValue) <: Real
                 continue
             elseif isNumber(rowValue) == true || string(rowValue) ∈ parameterNames
                 continue
-            elseif rowValue ∈ parametersFile[!, :parameterId]
+            elseif rowValue ∈ parametersFile[:parameterId]
                 # Must be a parameter which did not appear in the SBML file 
                 newParameterNames = vcat(newParameterNames, rowValue)
                 newParameterValues = vcat(newParameterValues, "0.0")
@@ -296,12 +296,12 @@ function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
 
         # Add new parameters for ModelingToolkit.@parameters line 
         if length(lineNoWhiteSpace) ≥ 27 && lineNoWhiteSpace[1:27] == "ModelingToolkit.@parameters"
-            functionLineByLine[i] *= (" " * prod([str * " " for str in newParameterNames]))[1:end-1]
+            functionLineByLine[i] *= (" "*prod([str * " " for str in newParameterNames]))[1:end-1]
         end
 
         # Add new parameters in parameterArray
         if length(lineNoWhiteSpace) ≥ 14 && lineNoWhiteSpace[1:14] == "parameterArray"
-            functionLineByLine[i] = functionLineByLine[i][1:end-1] * ", " * (" " * prod([str * ", " for str in newParameterNames]))[1:end-2] * "]"
+            functionLineByLine[i] = functionLineByLine[i][1:end-1] * ", " * (" "*prod([str * ", " for str in newParameterNames]))[1:end-2] * "]"
         end
 
         # Move through state array 
@@ -379,8 +379,8 @@ function show(io::IO, a::PEtabModel)
 
     modelName = @sprintf("%s", a.modelName)
     numberOfODEStates = @sprintf("%d", length(a.stateNames))
-    numberOfODEParameters = @sprintf("%d",  length(a.parameterNames))
-    
+    numberOfODEParameters = @sprintf("%d", length(a.parameterNames))
+
     printstyled("PEtabModel", color=116)
     print(" for model ")
     printstyled(modelName, color=116)

@@ -4,7 +4,6 @@ using OrdinaryDiffEq
 using Sundials
 using SciMLSensitivity
 using CSV
-using DataFrames
 using ForwardDiff
 using LinearAlgebra
 
@@ -15,27 +14,25 @@ include(joinpath(@__DIR__, "Common.jl"))
 function compareAgainstPyPestoBoehm(petabModel::PEtabModel, solverOptions)
 
     dirValues = joinpath(@__DIR__, "Test_ll", "Boehm_JProteomeRes2014")
-    paramVals = CSV.read(joinpath(dirValues, "Parameters_PyPesto.csv"), DataFrame)
-    paramMat = paramVals[!, Not([:Id, :ratio, :specC17])]
+    paramVals = CSV.File(joinpath(dirValues, "Parameters_PyPesto.csv"), drop=[:Id, :ratio, :specC17])
+    paramMat = paramVals
 
     # Reference value computed in PyPesto
-    costPython = (CSV.read(joinpath(dirValues, "Cost_PyPesto.csv"), DataFrame))[!, :Cost]
-    gradPythonMat = CSV.read(joinpath(dirValues, "Grad_PyPesto.csv"), DataFrame)
-    gradPythonMat = gradPythonMat[!, Not([:Id, :ratio, :specC17])]
-    hessPythonMat = CSV.read(joinpath(dirValues, "Hess_PyPesto.csv"), DataFrame)
-    hessPythonMatCols = names(hessPythonMat)
-    hessFilter=findall( x -> occursin("ratio", x) || occursin("specC17", x), hessPythonMatCols)
-    hessPythonMat = hessPythonMat[!, Not(["Id", hessPythonMatCols[hessFilter]...])]
+    costPython = CSV.File(joinpath(dirValues, "Cost_PyPesto.csv"))[:Cost]
+    gradPythonMat = CSV.File(joinpath(dirValues, "Grad_PyPesto.csv"), drop=[:Id, :ratio, :specC17])
+    hessPythonMat = CSV.File(joinpath(dirValues, "Hess_PyPesto.csv"))
+    hessPythonMatCols = string.(hessPythonMat.names)
+    hessFilter=findall( x -> x != "Id" && !occursin("ratio", x) && !occursin("specC17", x), hessPythonMatCols)
     
     for i in 1:5
         
-        p = collect(paramMat[i, :])
-        referenceCost = costPython[i]
-        referenceGradient = collect(gradPythonMat[i, :])
-        referenceHessian = collect(hessPythonMat[i, :])
+        p = Float64.(collect(paramMat[i]))
+        referenceCost = Float64.(collect(costPython[i]))
+        referenceGradient = Float64.(collect(gradPythonMat[i]))
+        referenceHessian = Float64.(collect(hessPythonMat[i])[hessFilter])
 
         # Test both the standard and Zygote approach to compute the cost
-        cost = _testCostGradientOrHessian(petabModel, solverOptions, p, computeCost=true, costMethod=:Standard)
+        cost = _testCostGradientOrHessian(petabModel, solverOptions, p, computeCost=true, costMethod=:Standard)       
         @test cost ≈ referenceCost atol=1e-3
         costZygote = _testCostGradientOrHessian(petabModel, solverOptions, p, computeCost=true, costMethod=:Zygote)
         @test costZygote ≈ referenceCost atol=1e-3

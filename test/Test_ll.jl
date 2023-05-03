@@ -9,7 +9,6 @@ using Test
 using OrdinaryDiffEq
 using SciMLSensitivity
 using CSV
-using DataFrames
 using ForwardDiff
 using LinearAlgebra
 using FiniteDifferences
@@ -19,19 +18,19 @@ using Sundials
 # Used to test cost-value at the nominal parameter value
 function testLogLikelihoodValue(petabModel::PEtabModel,
                                 referenceValue::Float64,
-                                solverOptions; atol=1e-3, 
+                                solverOptions; atol=1e-3,
                                 verbose=false, checkZygote=true)
 
-    modelName = petabModel.modelName                            
-    @info "Model : $modelName"                                
+    modelName = petabModel.modelName
+    @info "Model : $modelName"
     petabProblem1 = createPEtabODEProblem(petabModel, odeSolverOptions=solverOptions, costMethod=:Standard, verbose=verbose)
     petabProblem2 = createPEtabODEProblem(petabModel, odeSolverOptions=solverOptions, costMethod=:Zygote, verbose=verbose)
     cost = petabProblem1.computeCost(petabProblem1.θ_nominalT)
-    @test cost ≈ referenceValue atol=atol
-    
+    @test cost ≈ referenceValue atol = atol
+
     if checkZygote == true
         costZygote = petabProblem2.computeCost(petabProblem1.θ_nominalT)
-        @test costZygote ≈ referenceValue atol=atol
+        @test costZygote ≈ referenceValue atol = atol
     end
 end
 
@@ -53,28 +52,28 @@ function testGradientFiniteDifferences(petabModel::PEtabModel, solverOptions;
 
     # Testing the gradient via finite differences
     petabProblem1 = createPEtabODEProblem(petabModel, odeSolverOptions=solverOptions,
-                                         splitOverConditions=splitOverConditions, 
-                                         ssSolverOptions=ssOptions, 
+                                         splitOverConditions=splitOverConditions,
+                                         ssSolverOptions=ssOptions,
                                          verbose=false)
     θ_use = petabProblem1.θ_nominalT
     gradientFinite = FiniteDifferences.grad(central_fdm(5, 1), petabProblem1.computeCost, θ_use)[1]
     gradientForward = zeros(length(θ_use))
     petabProblem1.computeGradient!(gradientForward, θ_use)
     @test norm(gradientFinite - gradientForward) ≤ testTol
-    
+
     if checkForwardEquations == true
         petabProblem1 = createPEtabODEProblem(petabModel, odeSolverOptions=solverOptions,
-                                             gradientMethod=:ForwardEquations, sensealg=:ForwardDiff, 
-                                             ssSolverOptions=ssOptions, 
+                                             gradientMethod=:ForwardEquations, sensealg=:ForwardDiff,
+                                             ssSolverOptions=ssOptions,
                                              verbose=false)
         gradientForwardEquations1 = zeros(length(θ_use))
         petabProblem1.computeGradient!(gradientForwardEquations1, θ_use)
         @test norm(gradientFinite - gradientForwardEquations1) ≤ testTol
-        
+
         if onlyCheckAutoDiff == false
             petabProblem2 = createPEtabODEProblem(petabModel, odeSolverOptions=solverOptions, odeSolverGradientOptions=solverGradientOptions,
                                                  gradientMethod=:ForwardEquations, sensealg=ForwardSensitivity(),
-                                                 ssSolverOptions=ssOptions, 
+                                                 ssSolverOptions=ssOptions,
                                                  verbose=false)
             gradientForwardEquations2 = zeros(length(θ_use))
             petabProblem2.computeGradient!(gradientForwardEquations2, θ_use)
@@ -85,8 +84,8 @@ function testGradientFiniteDifferences(petabModel::PEtabModel, solverOptions;
     if checkAdjoint == true
         petabProblem1 = createPEtabODEProblem(petabModel, odeSolverOptions=solverOptions, odeSolverGradientOptions=solverGradientOptions,
                                              gradientMethod=:Adjoint, sensealg=sensealgAdjoint, sensealgSS=sensealgSS,
-                                             splitOverConditions=splitOverConditions, 
-                                             ssSolverOptions=ssOptions, 
+                                             splitOverConditions=splitOverConditions,
+                                             ssSolverOptions=ssOptions,
                                              verbose=false)
         gradientAdjoint = zeros(length(θ_use))
         petabProblem1.computeGradient!(gradientAdjoint, θ_use)
@@ -100,8 +99,8 @@ pathYML = joinpath(@__DIR__, "Test_ll", "Bachmann_MSB2011", "Bachmann_MSB2011.ya
 petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
 testLogLikelihoodValue(petabModel, -418.40573341425295, ODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12))
 testGradientFiniteDifferences(petabModel, ODESolverOptions(Rodas5(), abstol=1e-9, reltol=1e-9),
-                              solverGradientOptions=ODESolverOptions(CVODE_BDF(), abstol=1e-9, reltol=1e-9), 
-                              checkForwardEquations=true, checkAdjoint=true, testTol=1e-2)
+                             solverGradientOptions=ODESolverOptions(CVODE_BDF(), abstol=1e-9, reltol=1e-9),
+                             checkForwardEquations=true, checkAdjoint=true, testTol=1e-2)
 
 # Beer model - Numerically challenging gradient as we have callback time triggering parameters to 
 # estimate. Splitting over conditions spped up hessian computations with factor 48
@@ -139,12 +138,12 @@ testLogLikelihoodValue(petabModel, -53.08377736998929, ODESolverOptions(Rodas4P(
 # Iseense - tricky model with pre-eq criteria 
 pathYML = joinpath(@__DIR__, "Test_ll", "Isensee_JCB2018", "Isensee_JCB2018.yaml")
 petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
-testLogLikelihoodValue(petabModel, 3949.375966548649+4.45299970460275, ODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12), checkZygote=false)
+testLogLikelihoodValue(petabModel, 3949.375966548649 + 4.45299970460275, ODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12), checkZygote=false)
 
 # Schwen model. Model has priors so here we want to test all gradients
 pathYML = joinpath(@__DIR__, "Test_ll", "Schwen_PONE2014", "Schwen_PONE2014.yaml")
 petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
-testLogLikelihoodValue(petabModel, 943.9992988598723+12.519137073132825, ODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12))
+testLogLikelihoodValue(petabModel, 943.9992988598723 + 12.519137073132825, ODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12))
 
 # Sneyd model - Test against World problem by wrapping inside function
 function testSneyd()

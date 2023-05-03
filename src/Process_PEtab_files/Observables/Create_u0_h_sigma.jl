@@ -55,7 +55,7 @@ end
                       paramData::ParametersInfo,
                       namesParamDyn::Vector{String},
                       namesNonDynParam::Vector{String},
-                      observablesData::DataFrame,
+                      observablesData::CSV.File,
                       SBMLDict::Dict)
 
     For modelName create a function for computing yMod by translating the observablesData
@@ -67,7 +67,7 @@ function create_h_Function(modelName::String,
                            parameterInfo::ParametersInfo,
                            pODEProblemNames::Vector{String},
                            θ_nonDynamicNames::Vector{String},
-                           observablesData::DataFrame,
+                           observablesData::CSV.File,
                            SBMLDict::Dict)
 
     io = open(dirModel * "/" * modelName * "_h_sd_u0.jl", "w")
@@ -75,11 +75,11 @@ function create_h_Function(modelName::String,
                                                                                                 pODEProblemNames, θ_nonDynamicNames)
 
     # Write the formula for each observable in Julia syntax
-    observableIds = string.(observablesData[!, "observableId"])
+    observableIds = string.(observablesData[:observableId])
     observableStr = ""
     for i in eachindex(observableIds)
 
-        _formula = filter(x -> !isspace(x), string(observablesData[i, "observableFormula"]))
+        _formula = filter(x -> !isspace(x), string(observablesData[:observableFormula][i]))
         observableParameters = getObservableParametersStr(_formula)
         observableStr *= "\tif observableId === " * ":" * observableIds[i] * " \n"
         if !isempty(observableParameters)
@@ -241,7 +241,7 @@ end
                       modelStateNames::Vector{String},
                       pODEProblemNames::Vector{String},
                       θ_nonDynamicNames::Vector{String},
-                      observablesData::DataFrame,
+                      observablesData::CSV.File,
                       SBMLDict::Dict)
 
     For modelName create a function for computing the standard deviation σ by translating the observablesData
@@ -253,17 +253,17 @@ function create_σ_Function(modelName::String,
                            modelStateNames::Vector{String},
                            pODEProblemNames::Vector{String},
                            θ_nonDynamicNames::Vector{String},
-                           observablesData::DataFrame,
+                           observablesData::CSV.File,
                            SBMLDict::Dict)
 
     io = open(dirModel * "/" * modelName * "_h_sd_u0.jl", "a")
 
     # Write the formula for standard deviations to file
-    observableIds = string.(observablesData[!, "observableId"])
+    observableIds = string.(observablesData[:observableId])
     observableStr = ""
     for i in eachindex(observableIds)
 
-        _formula = filter(x -> !isspace(x), string(observablesData[i, "noiseFormula"]))
+        _formula = filter(x -> !isspace(x), string(observablesData[:noiseFormula][i]))
         noiseParameters = getNoiseParametersStr(_formula)
         observableStr *= "\tif observableId === " * ":" * observableIds[i] * " \n"
         if !isempty(noiseParameters)

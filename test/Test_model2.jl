@@ -13,7 +13,6 @@ using Test
 using OrdinaryDiffEq
 using SciMLSensitivity
 using CSV
-using DataFrames
 using ForwardDiff
 using LinearAlgebra
 
@@ -84,17 +83,17 @@ function computeCostAnalyticTestModel2(paramVec)
 
     u0 = [8.0, 4.0]
     alpha, beta = paramVec[1:2]
-    measurementData = CSV.read(joinpath(@__DIR__, "Test_model2/measurementData_Test_model2.tsv"), DataFrame)
+    measurementData = CSV.File(joinpath(@__DIR__, "Test_model2/measurementData_Test_model2.tsv"))
 
     # Extract correct parameter for observation i and compute logLik
     logLik = 0.0
-    for i in 1:nrow(measurementData)
+    for i in eachindex(measurementData)
 
         # Specs for observation i
-        obsID = measurementData[i, :observableId]
-        noiseID = measurementData[i, :noiseParameters]
-        yObs = measurementData[i, :measurement]
-        t = measurementData[i, :time]
+        obsID = measurementData[:observableId][i]
+        noiseID = measurementData[:noiseParameters][i]
+        yObs = measurementData[:measurement][i]
+        t = measurementData[:time][i]
         # Extract correct sigma
         if noiseID == "sd_sebastian_new"
             sigma = paramVec[3]
@@ -126,11 +125,11 @@ end
 function testCostGradientOrHessianTestModel2(petabModel::PEtabModel, solverOptions)
 
     # Cube with random parameter values for testing
-    cube = Matrix(CSV.read(joinpath(@__DIR__, "Test_model2", "Julia_model_files", "CubeTest_model2.csv") , DataFrame))
+    cube = CSV.File(joinpath(@__DIR__, "Test_model2", "Julia_model_files", "CubeTest_model2.csv"))
 
     for i in 1:1
 
-        p = cube[i, :]
+        p = Float64.(collect(cube[i]))
         referenceCost = computeCostAnalyticTestModel2(p)
         referenceGradient = ForwardDiff.gradient(computeCostAnalyticTestModel2, p)
         referenceHessian = ForwardDiff.hessian(computeCostAnalyticTestModel2, p)
