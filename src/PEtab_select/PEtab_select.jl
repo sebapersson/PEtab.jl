@@ -60,20 +60,12 @@ function call_py(pathYAML::String,
     def get_model_to_test_info(model):
         return (model.model_subspace_id, str(model.petab_yaml), model.parameters)
 
-    def get_predecessor_model(path_yaml):
-        model = petab_select.models_from_yaml_list(path_yaml)
-        return model[0]
-
     def setup_petab_select(pathYAML):
         select_problem = petab_select.Problem.from_yaml(pathYAML)
         return select_problem
 
-    def create_candidate_space(select_problem, start_model=None):
-        if start_model == None:
-            candidate_space = petab_select.ui.candidates(problem=select_problem)
-        else:
-            print("Got here :)")
-            candidate_space = petab_select.ui.candidates(problem=select_problem, previous_predecessor_model=start_model)
+    def create_candidate_space(select_problem):
+        candidate_space = petab_select.ui.candidates(problem=select_problem)
         return candidate_space
 
     def update_model(select_problem, model, nllh, estimatedParameters, nDataPoints):
@@ -121,14 +113,8 @@ function call_py(pathYAML::String,
         # Setup dictionary to conveniently storing model parameters 
         estimatedParameters = Dict(string(petabProblem.θ_estNames[i]) => fArg[i] for i in eachindex(fArg)) 
         nDataPoints = length(_petabProblem.computeCost.measurementInfo.measurement)
+        println("f-update = $f")
         py"update_model"(select_problem, model, f, estimatedParameters, nDataPoints)
-        return model
-    end
-
-
-    function callibrate_predecessor_model(pathYAML, select_problem, _petabProblem::PEtabODEProblem; nStartGuesses=100)
-        _model = py"get_predecessor_model"(pathYAML)
-        model = _callibrate_model(_model, select_problem, _petabProblem::PEtabODEProblem, nStartGuesses=nStartGuesses)
         return model
     end
 
@@ -139,6 +125,7 @@ function call_py(pathYAML::String,
         end
         return nothing, false
     end
+
 
     # First we use the model-space file to build (from parameter viewpoint) the biggest possible PEtab model. Then remake is called on the "big" petabproblem, 
     # thus when we compare different models we do not have to pre-compile the model 
@@ -163,13 +150,7 @@ function call_py(pathYAML::String,
     @info "$strWrite"
 
     # Check if there is a predecessor model to setup the parameter space 
-    if "candidate_space_arguments" ∈ keys(fileYAML) && "predecessor_model" ∈ keys(fileYAML["candidate_space_arguments"])
-        path_predecessor = joinpath(dirname(pathYAML), fileYAML["candidate_space_arguments"]["predecessor_model"])
-        start_model = callibrate_predecessor_model(path_predecessor, select_problem, _petabProblem, nStartGuesses=nMultiStarts)
-        candidate_space = py"create_candidate_space"(select_problem, start_model=start_model)
-    else
-        candidate_space = py"create_candidate_space"(select_problem)
-    end
+    candidate_space = py"create_candidate_space"(select_problem)
 
     k = 1
     n_candidates = py"get_number_of_candidates"(candidate_space)
@@ -222,4 +203,4 @@ pathYAML = joinpath(@__DIR__, "..", "..", "test_local", "PEtab_select", "0008", 
 call_py(pathYAML, Fides(verbose=false), gradientMethod=:ForwardEquations, hessianMethod=:GaussNewton, reuseS=true, sensealg=:ForwardDiff)
 
 pathYAML = joinpath(@__DIR__, "..", "..", "test_local", "PEtab_select", "0009", "petab_select_problem.yaml")
-call_py(pathYAML, Fides(verbose=false), gradientMethod=:ForwardEquations, hessianMethod=:GaussNewton, reuseS=true, sensealg=:ForwardDiff, nMultiStarts=100)
+call_py(pathYAML, Fides(verbose=false), gradientMethod=:ForwardEquations, hessianMethod=:GaussNewton, reuseS=true, sensealg=:ForwardDiff, nMultiStarts=200)
