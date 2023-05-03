@@ -1,8 +1,10 @@
 """
-    readPEtabModel(pathYAML::String;
-                   forceBuildJuliaFiles::Bool=false,
-                   verbose::Bool=true,
-                   ifElseToEvent::Bool=true)::PEtabModel
+function readPEtabModel(pathYAML::String;
+                        forceBuildJuliaFiles::Bool=false,
+                        verbose::Bool=true,
+                        ifElseToEvent::Bool=true,
+                        jlFile::Bool=false,
+                        jlFilePath::String="")::PEtabModel
 
 Parses a PEtab specified problem with yaml-file at `pathYAML` into a Julia accessible format. 
 
@@ -19,7 +21,7 @@ function readPEtabModel(pathYAML::String;
                         verbose::Bool=true,
                         ifElseToEvent::Bool=true,
                         jlFile::Bool=false,
-                        jlFilePath::String)::PEtabModel
+                        jlFilePath::String="")::PEtabModel
 
     pathSBML, pathParameters, pathConditions, pathObservables, pathMeasurements, dirJulia, dirModel, modelName = readPEtabYamlFile(pathYAML, jlFile=jlFile)
 
