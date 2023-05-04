@@ -114,7 +114,7 @@ end
 All needed to setup an optimization problem (compute cost, gradient, hessian and parameter bounds) for a PEtab model.
 
 The PEtabODEproblem for a PEtab problem allows for efficient cost, gradient and hessian computations. Constructed
-via `setupPEtabODEProblem`, more info on tuneable options can be found in the documentation [add]. 
+via `createPEtabODEProblem`, more info on tuneable options can be found in the documentation [add]. 
     
 **Note** - the parameter vector θ is **always** assumed to be on parameter scale specified in the PEtab parameters file. If needed θ is transformed to linear scale inside of the function call. 
 

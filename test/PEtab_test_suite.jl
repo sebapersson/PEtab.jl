@@ -17,7 +17,7 @@ function testReferenceCase(testCase::String; testGradient=true)
     pathReferenceValues = joinpath(@__DIR__, "PEtab_test_suite", testCase, "_" * testCase * "_solution.yaml")
 
     petabModel = readPEtabModel(pathYAML, verbose=false, forceBuildJuliaFiles=false)
-    petabProblem = setupPEtabODEProblem(petabModel, verbose=false)
+    petabProblem = createPEtabODEProblem(petabModel, verbose=false)
 
     cost = petabProblem.computeCost(petabProblem.θ_nominalT)
     chi2 = petabProblem.computeChi2(petabProblem.θ_nominalT)

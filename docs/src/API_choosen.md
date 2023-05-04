@@ -6,7 +6,7 @@ PEtabODEProblem
 ODESolverOptions
 SteadyStateSolverOptions
 readPEtabModel
-setupPEtabODEProblem
+createPEtabODEProblem
 ODESolverOptions
 getSteadyStateSolverOptions
 ```

@@ -29,7 +29,7 @@ Generated Julia files are at ...
 
 ## Creating a PEtabODEProblem
 
-Given a PEtab model we can create a `PEtabODEProblem` (in the future we plan to add surrogate, SDE, etc... problems). The function `setupPEtabODEProblem` accepts several options (full list in API documentation), but some key ones are:
+Given a PEtab model we can create a `PEtabODEProblem` (in the future we plan to add surrogate, SDE, etc... problems). The function `createPEtabODEProblem` accepts several options (full list in API documentation), but some key ones are:
 
 1. `odeSolverOptions` - Which ODE solver to use and the solver tolerances (`abstol` and `reltol`). Below we use the ODE solver `Rodas5P()` which works well for smaller models ($\leq$ 15 states), and we use the default `abstol, reltol .= 1e-8`.
 2. `gradientMethod` - For small models like Boehm forward mode automatic differentiation (AD) is fastest, thus we choose `:ForwardDiff`.
@@ -37,7 +37,7 @@ Given a PEtab model we can create a `PEtabODEProblem` (in the future we plan to 
 
 ```julia
 odeSolverOptions = ODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8)
-petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
+petabProblem = createPEtabODEProblem(petabModel, odeSolverOptions, 
                                     gradientMethod=:ForwardDiff, 
                                     hessianMethod=:ForwardDiff)
 ```

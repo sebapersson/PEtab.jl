@@ -50,7 +50,7 @@ petabModel = readPEtabModel(pathYaml, verbose=true)
     and we plan to add automatic tuning of it.
 =#
 odeSolverOptions = ODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8)
-petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
+petabProblem = createPEtabODEProblem(petabModel, odeSolverOptions, 
                                     gradientMethod=:ForwardDiff, 
                                     hessianMethod=:ForwardDiff)
 

@@ -1,6 +1,6 @@
 # [Supported gradient and hessian methods](@id gradient_support)
 
-PEtab.jl supports several gradient and hessian methods when building a `PEtabODEProblem` via `setupPEtabODEProblem`. Here we briefly cover each method and its associated tuneable parameters.
+PEtab.jl supports several gradient and hessian methods when building a `PEtabODEProblem` via `createPEtabODEProblem`. Here we briefly cover each method and its associated tuneable parameters.
 
 ## Gradient methods
 

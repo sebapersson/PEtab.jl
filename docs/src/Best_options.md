@@ -1,6 +1,6 @@
 # [Choosing the best options for a PEtab problem](@id best_options)
 
-PEtab.jl supports several gradient and hessian methods. In addition, it is compatible with the ODE solvers in the [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl) package, hence, there are many possible choices when creating a `PEtabODEProblem` via `setupPEtabODEProblem`. To help navigate these we here provide recommended settings that often work well for specific problem types. The recommendations are based on an extensive benchmark study.
+PEtab.jl supports several gradient and hessian methods. In addition, it is compatible with the ODE solvers in the [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl) package, hence, there are many possible choices when creating a `PEtabODEProblem` via `createPEtabODEProblem`. To help navigate these we here provide recommended settings that often work well for specific problem types. The recommendations are based on an extensive benchmark study.
 
 !!! note
     Every problem is unique, and the recommended choice here will often work well but might not be optimal for a specific model
@@ -24,7 +24,7 @@ All in all, for a small model a good setup often is:
 
 ```julia
 odeSolverOptions = ODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8)
-petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
+petabProblem = createPEtabODEProblem(petabModel, odeSolverOptions, 
                                     gradientMethod=:ForwardDiff, 
                                     hessianMethod=:ForwardDiff)
 ```
@@ -46,7 +46,7 @@ All in all, in case the gradient is always computed before the optimizer hessian
 
 ```julia
 odeSolverOptions = ODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8)
-petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
+petabProblem = createPEtabODEProblem(petabModel, odeSolverOptions, 
                                     gradientMethod=:ForwardEquations, 
                                     hessianMethod=:GaussNewton, 
                                     reuseS=true)
@@ -56,7 +56,7 @@ Otherwise, a good setup is:
 
 ```julia
 odeSolverOptions = ODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8)
-petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
+petabProblem = createPEtabODEProblem(petabModel, odeSolverOptions, 
                                     gradientMethod=:ForwardDiff, 
                                     hessianMethod=:GaussNewton)
 ```
@@ -80,7 +80,7 @@ All in all, for a large model a good setup often is:
 ```julia
 odeSolverOptions = ODESolverOptions(CVODE_BDF(), abstol=1e-8, reltol=1e-8) 
 odeSolverGradientOptions = ODESolverOptions(CVODE_BDF(), abstol=1e-8, reltol=1e-8) 
-petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
+petabProblem = createPEtabODEProblem(petabModel, odeSolverOptions, 
                                     odeSolverGradientOptions=odeSolverGradientOptions,
                                     gradientMethod=:Adjoint, 
                                     sensealg=InterpolatingAdjoint()) 

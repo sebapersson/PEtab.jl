@@ -30,7 +30,7 @@ For a small ODE-system like Beer the most efficient gradient method is `gradient
 
 ```julia
 odeSolverOptions = ODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8)
-petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
+petabProblem = createPEtabODEProblem(petabModel, odeSolverOptions, 
                                     gradientMethod=:ForwardDiff, 
                                     hessianMethod=:ForwardDiff, 
                                     splitOverConditions=true)

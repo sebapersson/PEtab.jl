@@ -36,7 +36,7 @@ For a subset of medium-sized models, and definitely for big models, gradients ar
 ```julia
 solverOptions = ODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8) 
 solverGradientOptions = ODESolverOptions(CVODE_BDF(), abstol=1e-8, reltol=1e-8) 
-petabProblem = setupPEtabODEProblem(petabModel, solverOptions, 
+petabProblem = createPEtabODEProblem(petabModel, solverOptions, 
                                     odeSolverGradientOptions=solverGradientOptions,
                                     gradientMethod=:Adjoint, 
                                     sensealg=InterpolatingAdjoint(autojacvec=EnzymeVJP())) 
@@ -65,7 +65,7 @@ When choosing `gradientMethod=:ForwardEquations` and `hessianMethod=:GaussNewton
 
 ```julia
 odeSolverOptions = ODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8) 
-petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
+petabProblem = createPEtabODEProblem(petabModel, odeSolverOptions, 
                                     gradientMethod=:ForwardEquations, 
                                     hessianMethod=:GaussNewton,
                                     sensealg=:ForwardDiff, 

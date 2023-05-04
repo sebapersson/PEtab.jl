@@ -39,7 +39,7 @@ Below we use `:Simulate` with `:wrms` termination:
 odeSolverOptions = ODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8)
 ssOptions = getSteadyStateSolverOptions(:Simulate,
                                         howCheckSimulationReachedSteadyState=:wrms)
-petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
+petabProblem = createPEtabODEProblem(petabModel, odeSolverOptions, 
                                     ssSolverOptions=ssOptions,
                                     gradientMethod=:ForwardDiff) 
 p = petabProblem.θ_nominalT 

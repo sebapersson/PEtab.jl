@@ -9,7 +9,7 @@
     
     Further examples include;
     Boehm.jl - here we show how to best handle small models (states ≤ 20, parameters ≤ 20). We further cover more details 
-        about the important readPEtabModel and setupPEtabODEProblem functions. Recommended to checkout before looking at
+        about the important readPEtabModel and createPEtabODEProblem functions. Recommended to checkout before looking at
         Bachmann.jl, Beer.jl and Brannmark.jl
     Bachmann.jl - here we show how to set the best options for a medium sized model (20 ≤ states ≤ 50, 20 ≤ parameters ≤ 75), 
         and how to compute gradients via adjoint sensitivity analysis.
@@ -49,7 +49,7 @@ petabModel = readPEtabModel(pathYaml, verbose=true)
 odeSolverOptions = ODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8)
 ssOptions = getSteadyStateSolverOptions(:Simulate,
                                         howCheckSimulationReachedSteadyState=:wrms)
-petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
+petabProblem = createPEtabODEProblem(petabModel, odeSolverOptions, 
                                     ssSolverOptions=ssOptions,
                                     gradientMethod=:ForwardDiff) 
 p = petabProblem.θ_nominalT # Parameter values in the PEtab file on log-scale
