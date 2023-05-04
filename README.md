@@ -38,7 +38,7 @@ Given a `PEtabModel` the user can create a `PEtabODEProblem` to compute the cost
 
 ```julia
 using OrdinaryDiffEq
-solverOptions = getODESolverOptions(QNDF())
+solverOptions = ODESolverOptions(QNDF())
 petabProblem = setupPEtabODEProblem(bachmannModel, solverOptions, 
                                     gradientMethod=:ForwardDiff, 
                                     hessianMethod=:GaussNewton)

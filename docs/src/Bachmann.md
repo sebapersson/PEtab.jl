@@ -34,8 +34,8 @@ For a subset of medium-sized models, and definitely for big models, gradients ar
 * **Note3** - below we use `QNDF()` for the cost which often is one of the best Julia solvers for larger models.
 
 ```julia
-solverOptions = getODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8) 
-solverGradientOptions = getODESolverOptions(CVODE_BDF(), abstol=1e-8, reltol=1e-8) 
+solverOptions = ODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8) 
+solverGradientOptions = ODESolverOptions(CVODE_BDF(), abstol=1e-8, reltol=1e-8) 
 petabProblem = setupPEtabODEProblem(petabModel, solverOptions, 
                                     odeSolverGradientOptions=solverGradientOptions,
                                     gradientMethod=:Adjoint, 
@@ -64,7 +64,7 @@ When choosing `gradientMethod=:ForwardEquations` and `hessianMethod=:GaussNewton
    * Note - this approach requires that `sensealg=:ForwardDiff` for the gradient.
 
 ```julia
-odeSolverOptions = getODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8) 
+odeSolverOptions = ODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8) 
 petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
                                     gradientMethod=:ForwardEquations, 
                                     hessianMethod=:GaussNewton,

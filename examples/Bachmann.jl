@@ -44,8 +44,8 @@ petabModel = readPEtabModel(pathYaml, verbose=true)
     Note2 - the compilation times can be quite hefty for adjoint sensitivity analysis.
     Note3 - below we use QNDF for the cost which often is one of the best Julia solvers for larger models.
 =#
-odeSolverOptions = getODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8) # For the cost we use QNDF
-odeSolverGradientOptions = getODESolverOptions(CVODE_BDF(), abstol=1e-8, reltol=1e-8) 
+odeSolverOptions = ODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8) # For the cost we use QNDF
+odeSolverGradientOptions = ODESolverOptions(CVODE_BDF(), abstol=1e-8, reltol=1e-8) 
 petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
                                     odeSolverGradientOptions=odeSolverGradientOptions,
                                     gradientMethod=:Adjoint, 
@@ -76,7 +76,7 @@ petabProblem.computeGradient!(gradient, p)
        Fides.py but not Optim.jl:s IPNewton(). When applicble it greatly reduces run-time. 
        Note - this approach requires that sensealg=:ForwardDiff for the gradient.
 =#
-odeSolverOptions = getODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8) # For the cost and gradient we use QNDF
+odeSolverOptions = ODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8) # For the cost and gradient we use QNDF
 petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
                                     gradientMethod=:ForwardEquations, 
                                     hessianMethod=:GaussNewton,

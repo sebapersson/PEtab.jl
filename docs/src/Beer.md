@@ -29,7 +29,7 @@ For a small ODE-system like Beer the most efficient gradient method is `gradient
 4. `splitOverConditions=true` - Force a call to ForwardDiff.jl per simulation condition. Most efficient for models where a majority of parameters are specific to a subset of simulation conditions.
 
 ```julia
-odeSolverOptions = getODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8)
+odeSolverOptions = ODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8)
 petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
                                     gradientMethod=:ForwardDiff, 
                                     hessianMethod=:ForwardDiff, 

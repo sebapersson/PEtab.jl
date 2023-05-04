@@ -5,7 +5,7 @@ using OrdinaryDiffEq
 function testLogLikelihoodValue(petabModel::PEtabModel, 
                                 referenceValue::Float64; atol=1e-3)
     
-    odeSolverOptions = getODESolverOptions(Rodas4P(), abstol=1e-8, reltol=1e-8)
+    odeSolverOptions = ODESolverOptions(Rodas4P(), abstol=1e-8, reltol=1e-8)
     petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
                                 gradientMethod=:ForwardDiff, 
                                 hessianMethod=:ForwardDiff, 

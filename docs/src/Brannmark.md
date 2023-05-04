@@ -36,7 +36,7 @@ Newton often perform better but requires an invertible Jacobian. In case it is n
 Below we use `:Simulate` with `:wrms` termination:
 
 ```julia
-odeSolverOptions = getODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8)
+odeSolverOptions = ODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8)
 ssOptions = getSteadyStateSolverOptions(:Simulate,
                                         howCheckSimulationReachedSteadyState=:wrms)
 petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 

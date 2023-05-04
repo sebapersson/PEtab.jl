@@ -36,7 +36,7 @@ Given a PEtab model we can create a `PEtabODEProblem` (in the future we plan to 
 3. `hessianMethod` - For small models like Boehm with $\leq 20$ parameters it is computationally feasible to compute the full Hessian via forward-mode AD. Thus, we choose `:ForwardDiff`.
 
 ```julia
-odeSolverOptions = getODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8)
+odeSolverOptions = ODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8)
 petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
                                     gradientMethod=:ForwardDiff, 
                                     hessianMethod=:ForwardDiff)

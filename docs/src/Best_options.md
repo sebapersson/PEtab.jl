@@ -23,7 +23,7 @@ PEtab.jl supports several gradient and hessian methods. In addition, it is compa
 All in all, for a small model a good setup often is:
 
 ```julia
-odeSolverOptions = getODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8)
+odeSolverOptions = ODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8)
 petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
                                     gradientMethod=:ForwardDiff, 
                                     hessianMethod=:ForwardDiff)
@@ -45,7 +45,7 @@ petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions,
 All in all, in case the gradient is always computed before the optimizer hessian a good setup often is:
 
 ```julia
-odeSolverOptions = getODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8)
+odeSolverOptions = ODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8)
 petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
                                     gradientMethod=:ForwardEquations, 
                                     hessianMethod=:GaussNewton, 
@@ -55,7 +55,7 @@ petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions,
 Otherwise, a good setup is:
 
 ```julia
-odeSolverOptions = getODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8)
+odeSolverOptions = ODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8)
 petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
                                     gradientMethod=:ForwardDiff, 
                                     hessianMethod=:GaussNewton)
@@ -78,8 +78,8 @@ petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions,
 All in all, for a large model a good setup often is:
 
 ```julia
-odeSolverOptions = getODESolverOptions(CVODE_BDF(), abstol=1e-8, reltol=1e-8) 
-odeSolverGradientOptions = getODESolverOptions(CVODE_BDF(), abstol=1e-8, reltol=1e-8) 
+odeSolverOptions = ODESolverOptions(CVODE_BDF(), abstol=1e-8, reltol=1e-8) 
+odeSolverGradientOptions = ODESolverOptions(CVODE_BDF(), abstol=1e-8, reltol=1e-8) 
 petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
                                     odeSolverGradientOptions=odeSolverGradientOptions,
                                     gradientMethod=:Adjoint, 

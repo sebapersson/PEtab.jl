@@ -161,7 +161,7 @@ function testCostGradientOrHessianTestModel3(petabModel::PEtabModel, solverOptio
         @test norm(normalize(gradientAdjoint) - normalize((referenceGradient))) ≤ 1e-2
         gradientForward1 = _testCostGradientOrHessian(petabModel, solverOptions, p, computeGradient=true, gradientMethod=:ForwardEquations, sensealg=:ForwardDiff, ssOptions=ssOptions)
         @test norm(gradientForward1 - referenceGradient) ≤ 1e-2
-        gradientForward2 = _testCostGradientOrHessian(petabModel, getODESolverOptions(CVODE_BDF(), abstol=1e-12, reltol=1e-12), p, computeGradient=true, gradientMethod=:ForwardEquations, sensealg=ForwardSensitivity(), ssOptions=ssOptions)
+        gradientForward2 = _testCostGradientOrHessian(petabModel, ODESolverOptions(CVODE_BDF(), abstol=1e-12, reltol=1e-12), p, computeGradient=true, gradientMethod=:ForwardEquations, sensealg=ForwardSensitivity(), ssOptions=ssOptions)
         @test norm(gradientForward2 - referenceGradient) ≤ 1e-2
 
         # Testing "exact" hessian via autodiff
@@ -177,19 +177,19 @@ petabModel = readPEtabModel(joinpath(@__DIR__, "Test_model3/Test_model3.yaml"), 
 
 @testset "ODE solver Simulate wrms termination" begin
     ssOptionsTest1 = getSteadyStateSolverOptions(:Simulate, howCheckSimulationReachedSteadyState=:wrms, abstol=1e-12, reltol=1e-10)
-    testODESolverTestModel3(petabModel, getODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12), ssOptionsTest1)
+    testODESolverTestModel3(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12), ssOptionsTest1)
 end
 
 @testset "ODE solver Simulate Newton SS termination" begin
     ssOptionsTest2 = getSteadyStateSolverOptions(:Simulate, howCheckSimulationReachedSteadyState=:Newton, abstol=1e-12, reltol=1e-10)
-    testODESolverTestModel3(petabModel, getODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12), ssOptionsTest2)
+    testODESolverTestModel3(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12), ssOptionsTest2)
 end
 
 @testset "Cost gradient and hessian" begin
     ssOptionsTest3 = getSteadyStateSolverOptions(:Simulate, howCheckSimulationReachedSteadyState=:Newton, abstol=1e-12, reltol=1e-10)
-    testCostGradientOrHessianTestModel3(petabModel, getODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12, maxiters=Int(1e5)), ssOptionsTest3)
+    testCostGradientOrHessianTestModel3(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12, maxiters=Int(1e5)), ssOptionsTest3)
 end
 
 @testset "Gradient of residuals" begin
-    checkGradientResiduals(petabModel, getODESolverOptions(Rodas4P(), abstol=1e-9, reltol=1e-9))
+    checkGradientResiduals(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-9, reltol=1e-9))
 end

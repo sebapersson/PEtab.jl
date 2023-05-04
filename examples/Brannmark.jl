@@ -46,7 +46,7 @@ petabModel = readPEtabModel(pathYaml, verbose=true)
     Note3 - All gradient and hessian options are compatible with :Simulate. :Rootfinding is only compatible 
             with approaches using Forward-mode automatic differentiation.
 =#
-odeSolverOptions = getODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8)
+odeSolverOptions = ODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8)
 ssOptions = getSteadyStateSolverOptions(:Simulate,
                                         howCheckSimulationReachedSteadyState=:wrms)
 petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
