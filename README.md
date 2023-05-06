@@ -76,4 +76,4 @@ With this functionality it is straightforward to perform parameter estimation us
 
 ## Development team
 
-This package was originally developed by [Rafael Arutjunjan](https://github.com/RafaelArutjunjan), [Sebastian Persson](https://github.com/sebapersson), [Damiano Ognissanti](https://github.com/damianoognissanti) and [Viktor Hasselgren](https://github.com/CleonII).
+This package was originally developed by [Damiano Ognissanti](https://github.com/damianoognissanti), [Rafael Arutjunjan](https://github.com/RafaelArutjunjan), [Sebastian Persson](https://github.com/sebapersson) and [Viktor Hasselgren](https://github.com/CleonII).

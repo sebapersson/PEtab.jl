@@ -118,13 +118,11 @@ function createPEtabODEProblem(petabModel::PEtabModel;
     # Steady state solver options 
     if isnothing(ssSolverOptions)
         ssSolverOptions = SteadyStateSolverOptions(:Simulate, 
-                                                   abstol=odeSolverOptions.abstol, 
-                                                   reltol=odeSolverOptions.reltol)
+                                                    abstol=odeSolverOptions.abstol / 100, 
+                                                    reltol=odeSolverOptions.reltol / 100)
     end
     if isnothing(ssSolverGradientOptions)
-        ssSolverGradientOptions = SteadyStateSolverOptions(:Simulate, 
-                                                           abstol=odeSolverGradientOptions.abstol, 
-                                                           reltol=odeSolverGradientOptions.reltol)
+        ssSolverGradientOptions = ssSolverOptions
     end
     # Gradient and Hessian options 
     if isnothing(gradientMethod)
@@ -162,7 +160,7 @@ function createPEtabODEProblem(petabModel::PEtabModel;
             sensealg = :ForwardDiff
         end
     end
-    sensealgSS = isnothing(sensealgSS) ? InterpolatingAdjoint() : sensealgSS
+    sensealgSS = isnothing(sensealgSS) ? InterpolatingAdjoint(autojacvec=ReverseDiffVJP()) : sensealgSS
 
     # Fast but numerically unstable method - warn the user 
     if simulationInfo.haspreEquilibrationConditionId == true && typeof(sensealgSS) <: SteadyStateAdjoint
@@ -178,6 +176,9 @@ function createPEtabODEProblem(petabModel::PEtabModel;
     odeProblem = remake(_odeProblem, p = convert.(Float64, _odeProblem.p), u0 = convert.(Float64, _odeProblem.u0))
     end
     verbose == true && @printf(" done. Time = %.1e\n", bBuild)
+
+    _ssSolverOptions = _getSteadyStateSolverOptions(ssSolverOptions, odeProblem, ssSolverOptions.abstol, ssSolverOptions.reltol, ssSolverOptions.maxiters)
+    _ssSolverGradientOptions = _getSteadyStateSolverOptions(ssSolverGradientOptions, odeProblem, ssSolverGradientOptions.abstol, ssSolverGradientOptions.reltol, ssSolverGradientOptions.maxiters)
 
     # If we are computing the cost, gradient and hessians accross several processes we need to send ODEProblem, and
     # PEtab structs to each process
@@ -197,7 +198,7 @@ function createPEtabODEProblem(petabModel::PEtabModel;
     # memory as in-place mutations are not compatible with Zygote
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Building cost function for method ", string(costMethod), " ...")
-    bBuild = @elapsed computeCost = setUpCost(costMethod, odeProblem, odeSolverOptions, ssSolverOptions, petabODECache, petabODESolverCache, 
+    bBuild = @elapsed computeCost = setUpCost(costMethod, odeProblem, odeSolverOptions, _ssSolverOptions, petabODECache, petabODESolverCache, 
                             petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo,
                             numberOfprocesses=numberOfprocesses, jobs=jobs, results=results)
     computeChi2 = (θ; asArray=false) -> begin
@@ -229,7 +230,7 @@ function createPEtabODEProblem(petabModel::PEtabModel;
     
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Building gradient function for method ", string(gradientMethod), " ...")
-    bBuild = @elapsed computeGradient! = setUpGradient(gradientMethod, odeProblemGradient, odeSolverGradientOptions, ssSolverGradientOptions, petabODECache, 
+    bBuild = @elapsed computeGradient! = setUpGradient(gradientMethod, odeProblemGradient, odeSolverGradientOptions, _ssSolverGradientOptions, petabODECache, 
                                      petabODESolverCache, petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo,
                                      chunkSize=chunkSize, numberOfprocesses=numberOfprocesses, jobs=jobs, results=results,
                                      splitOverConditions=splitOverConditions, sensealg=sensealg, sensealgSS=sensealgSS)
@@ -245,7 +246,7 @@ function createPEtabODEProblem(petabModel::PEtabModel;
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Building hessian function for method ", string(hessianMethod), " ...")
     if !isnothing(hessianMethod)
-        bBuild = @elapsed computeHessian! = setUpHessian(hessianMethod, odeProblem, odeSolverOptions, ssSolverOptions, petabODECache, petabODESolverCache,
+        bBuild = @elapsed computeHessian! = setUpHessian(hessianMethod, odeProblem, odeSolverOptions, _ssSolverOptions, petabODECache, petabODESolverCache,
                                     petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo, chunkSize,
                                     numberOfprocesses=numberOfprocesses, jobs=jobs, results=results, splitOverConditions=splitOverConditions, 
                                     reuseS=reuseS)

@@ -73,13 +73,12 @@ function checkGradientResiduals(petabModel::PEtabModel, solverOptions::ODESolver
     # The time-span 5e3 is overwritten when performing actual forward simulations
     odeProb = ODEProblem(petabModel.odeSystem, petabModel.stateMap, (0.0, 5e3), petabModel.parameterMap, jac=true, sparse=false)
     odeProb = remake(odeProb, p = convert.(Float64, odeProb.p), u0 = convert.(Float64, odeProb.u0))
-    ssSolverOptions = getSteadyStateSolverOptions(:Simulate)
-    _ssSolverOptions = _getSteadyStateSolverOptions(ssSolverOptions, odeProb, solverOptions.abstol / 100.0, 
-                                                    solverOptions.reltol / 100.0, solverOptions.maxiters)
-    computeJacobian = PEtab.setUpHessian(:GaussNewton, odeProb, solverOptions, _ssSolverOptions, petabODECache, petabODESolverCache,
+    ssOptions = SteadyStateSolverOptions(:Simulate, abstol=solverOptions.abstol / 100.0, reltol = solverOptions.reltol / 100.0)
+    _ssOptions = _getSteadyStateSolverOptions(ssOptions, prob, ssOptions.abstol, ssOptions.reltol, ssOptions.maxiters)
+    computeJacobian = PEtab.setUpHessian(:GaussNewton, odeProb, solverOptions, _ssOptions, petabODECache, petabODESolverCache,
                                          petabModel, simulationInfo, paramEstIndices, measurementData, 
                                          parameterData, priorInfo, nothing, returnJacobian=true)
-    computeSumResiduals = PEtab.setUpCost(:Standard, odeProb, solverOptions, _ssSolverOptions, petabODECache, petabODESolverCache,
+    computeSumResiduals = PEtab.setUpCost(:Standard, odeProb, solverOptions, _ssOptions, petabODECache, petabODESolverCache,
                                          petabModel, simulationInfo, paramEstIndices, measurementData, 
                                          parameterData, priorInfo, computeResiduals=true)
 

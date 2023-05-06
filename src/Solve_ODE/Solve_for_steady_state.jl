@@ -1,10 +1,10 @@
 """
-    getSteadyStateSolverOptions(method::Symbol;
-                                howCheckSimulationReachedSteadyState::Symbol=:wrms,
-                                rootfindingAlgorithm=nothing,
-                                abstol=nothing, 
-                                reltol=nothing, 
-                                maxiters=nothing)::SteadyStateSolverOptions
+    SteadyStateSolverOptions(method::Symbol;
+                             howCheckSimulationReachedSteadyState::Symbol=:wrms,
+                             rootfindingAlgorithm=nothing,
+                             abstol=nothing, 
+                             reltol=nothing, 
+                             maxiters=nothing)::SteadyStateSolverOptions
 
 Setup steady-state solver options for finding steady-state via **either** method=:Rootfinding or method=:Simulate.
 
@@ -44,8 +44,12 @@ function _getSteadyStateSolverOptions(howCheckSimulationReachedSteadyState::Symb
                                       reltol, 
                                       maxiters)::SteadyStateSolverOptions
 
+    _abstol = isnothing(abstol) ? 1e-8 : abstol
+    _reltol = isnothing(reltol) ? 1e-8 : reltol
+    _maxiters = isnothing(maxiters) ? Int64(1e4) : maxiters                                      
+
     @assert howCheckSimulationReachedSteadyState ∈ [:Newton, :wrms] "When steady states are computed via simulations howCheckSimulationReachedSteadyState must be :wrms or :Newton not $howCheckSimulationReachedSteadyState"
-    return SteadyStateSolverOptions(:Simulate, nothing, howCheckSimulationReachedSteadyState, abstol, reltol, maxiters, nothing, nothing)
+    return SteadyStateSolverOptions(:Simulate, nothing, howCheckSimulationReachedSteadyState, _abstol, _reltol, _maxiters, nothing, nothing)
 end
 function _getSteadyStateSolverOptions(rootfindingAlgorithm::Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm},
                                       abstol,
@@ -115,7 +119,7 @@ function solveODEPreEqulibrium!(uAtSS::AbstractVector,
     if ssSolverOptions.method === :Simulate                           
         odeSolution = simulateToSS(odeProblem, changeExperimentalCondition!, preEquilibrationId,
                                    odeSolverOptions, ssSolverOptions, convertTspan)
-        if odeSolution.retcode == ReturnCode.Terminated
+        if odeSolution.retcode == ReturnCode.Terminated || odeSolution.retcode == ReturnCode.Success
             uAtSS .= odeSolution.u[end]
             uAtT0 .= odeSolution.prob.u0
         end

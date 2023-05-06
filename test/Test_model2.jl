@@ -17,7 +17,7 @@ using ForwardDiff
 using LinearAlgebra
 
 import PEtab: readPEtabFiles, processMeasurements, processParameters, computeIndicesθ, processSimulationInfo, setParamToFileValues!
-import PEtab: _changeExperimentalCondition!, solveODEAllExperimentalConditions, PEtabODESolverCache, createPEtabODESolverCache, _getSteadyStateSolverOptions
+import PEtab: _changeExperimentalCondition!, solveODEAllExperimentalConditions, PEtabODESolverCache, createPEtabODESolverCache
 
 
 include(joinpath(@__DIR__, "Common.jl"))
@@ -57,14 +57,11 @@ function testODESolverTestModel2(petabModel::PEtabModel, solverOptions)
         prob = remake(prob, p = convert.(Float64, prob.p), u0 = convert.(Float64, prob.u0))
         θ_dynamic = getFileODEvalues(petabModel)[1:2]
 
-        ssOptions = getSteadyStateSolverOptions(:Simulate)
-        _ssSolverOptions = _getSteadyStateSolverOptions(ssOptions, prob, solverOptions.abstol / 100.0, 
-                                                        solverOptions.reltol / 100.0, solverOptions.maxiters)
-
+        ssOptions = SteadyStateSolverOptions(:Simulate, abstol = solverOptions.abstol / 100.0, reltol = solverOptions.reltol / 100.0)
         # Solve ODE system
         petabODESolverCache = createPEtabODESolverCache(:nothing, :nothing, petabModel, simulationInfo, θ_indices, nothing)
         θ_dynamic = [alpha, beta]
-        odeSolutions, success = solveODEAllExperimentalConditions(prob, petabModel, θ_dynamic, petabODESolverCache, simulationInfo, θ_indices, solverOptions, _ssSolverOptions)
+        odeSolutions, success = solveODEAllExperimentalConditions(prob, petabModel, θ_dynamic, petabODESolverCache, simulationInfo, θ_indices, solverOptions, ssOptions)
         odeSolution = odeSolutions[simulationInfo.experimentalConditionId[1]]
 
         # Compare against analytical solution
@@ -174,7 +171,6 @@ end
     testCostGradientOrHessianTestModel2(petabModel, ODESolverOptions(Vern9(), abstol=1e-15, reltol=1e-15))
 end
 
-checkGradientResiduals(petabModel, ODESolverOptions(Rodas5P(), abstol=1e-9, reltol=1e-9))
 @testset "Gradient of residuals" begin
     checkGradientResiduals(petabModel, ODESolverOptions(Rodas5P(), abstol=1e-9, reltol=1e-9))
 end

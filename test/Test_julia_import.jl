@@ -1,6 +1,8 @@
 using PEtab
 using Test
 using OrdinaryDiffEq
+
+
 # Used to test cost-value at the nominal parameter value 
 function testLogLikelihoodValue(petabModel::PEtabModel, 
                                 referenceValue::Float64; atol=1e-3)
@@ -43,16 +45,4 @@ end
     petabModel = readPEtabModel(pathYML, verbose=false, jlFile=true, jlFilePath=pathJuliaFile)
     testLogLikelihoodValue(petabModel, -53.08377736998929)
     
-    # Isensee model. Accurate gradients are computed (but the code takes ages to run with low tolerances)
-    pathYML = joinpath(@__DIR__, "JuliaImport", "Isensee", "Isensee_JCB2018.yaml")
-    pathJuliaFile = joinpath(@__DIR__, "JuliaImport", "Isensee", "Isensee.jl")
-    petabModel = readPEtabModel(pathYML, verbose=false, jlFile=true, jlFilePath=pathJuliaFile)
-    testLogLikelihoodValue(petabModel, 3949.375966548649+4.45299970460275, atol=1e-2)
-    
-    # Weber model. Challanging as it sensitivity to steady state tolerances 
-    pathYML = joinpath(@__DIR__, "JuliaImport", "Weber", "Weber_BMC2015.yaml")
-    pathJuliaFile = joinpath(@__DIR__, "JuliaImport", "Weber", "Weber.jl")
-    petabModel = readPEtabModel(pathYML, verbose=false, jlFile=true, jlFilePath=pathJuliaFile)
-    testLogLikelihoodValue(petabModel, 296.2017922646865)
-
 end

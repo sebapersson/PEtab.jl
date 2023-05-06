@@ -41,7 +41,7 @@ function testGradientFiniteDifferences(petabModel::PEtabModel, solverOptions;
                                        checkAdjoint::Bool=false,
                                        testTol::Float64=1e-3,
                                        sensealgSS=SteadyStateAdjoint(),
-                                       sensealgAdjoint=InterpolatingAdjoint(autojacvec=ReverseDiffVJP(true)),
+                                       sensealgAdjoint=InterpolatingAdjoint(),
                                        ssOptions=nothing,
                                        onlyCheckAutoDiff::Bool=false,
                                        splitOverConditions=false)
@@ -52,9 +52,10 @@ function testGradientFiniteDifferences(petabModel::PEtabModel, solverOptions;
 
     # Testing the gradient via finite differences
     petabProblem1 = createPEtabODEProblem(petabModel, odeSolverOptions=solverOptions,
-                                         splitOverConditions=splitOverConditions,
-                                         ssSolverOptions=ssOptions,
-                                         verbose=false)
+                                          gradientMethod=:ForwardDiff,
+                                          splitOverConditions=splitOverConditions,
+                                          ssSolverOptions=ssOptions,
+                                          verbose=false)
     θ_use = petabProblem1.θ_nominalT
     gradientFinite = FiniteDifferences.grad(central_fdm(5, 1), petabProblem1.computeCost, θ_use)[1]
     gradientForward = zeros(length(θ_use))
