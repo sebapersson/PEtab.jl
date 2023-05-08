@@ -2,11 +2,9 @@
 
 ```@docs
 PEtabModel
-PEtabODEProblem
-ODESolverOptions
-SteadyStateSolverOptions
 readPEtabModel
+PEtabODEProblem
 createPEtabODEProblem
 ODESolverOptions
-getSteadyStateSolverOptions
+SteadyStateSolverOptions
 ```

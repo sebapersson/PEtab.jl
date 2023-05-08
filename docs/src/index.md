@@ -1,15 +1,15 @@
 # PEtab.jl
 
-This is the documentation of [**PEtab.jl**](https://github.com/sebapersson/PEtab.jl), a Julia package that imports ODE parameter estimation problem specified in the [PEtab](https://github.com/PEtab-dev/PEtab) format into Julia.
+This is the documentation of [**PEtab.jl**](https://github.com/sebapersson/PEtab.jl), a Julia package designed to import ODE parameter estimation problems specified in the PEtab format into Julia.
 
-By leveraging the ODE solvers in Julia's [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl) package, and symbolic model processing via [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl), PEtab.jl achieves fast model simulations. This combined with support for gradients via forward- and adjoint-sensitivity approaches, and hessian via both exact and approximate methods means PEtab.jl provides everything needed to perform efficient parameter estimation for both big and small models. In an extensive benchmark study (soon to appear on Archive) PEtab.jl was in many cases 3-4 faster than the [PyPesto](https://github.com/ICB-DCM/pyPESTO) toolbox which leverages the [AMICI](https://github.com/AMICI-dev/AMICI) interface to the Sundials suite.
+PEtab.jl uses Julia's [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl) package for ODE solvers and [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) for symbolic model processing, which enables fast model simulations. This, combined with support for gradients via forward- and adjoint-sensitivity approaches, and hessian via both exact and approximate methods, allows for efficient parameter estimation for both small and large models. In an extensive benchmark study, PEtab.jl was found to be 3-4 times faster than the [PyPesto](https://github.com/ICB-DCM/pyPESTO) toolbox that leverages the [AMICI](https://github.com/AMICI-dev/AMICI) interface to the Sundials suite.
 
-In this documentation you can find:
+This documentation includes:
 
-* Getting started (a recommended introduction)
-* Tutorials for medium-sized models, small models with several conditions specific parameters, and models with pre-equilibration conditions (steady-state simulations), as well as a tutorial on how to define and import a model written in Julia.
-* Available hessian and gradient options.
-* A discussion on best options for specific model types (small, medium and large models)
+* A guide for getting started with PEtab.jl
+* Tutorials on medium-sized models, small models with several condition-specific parameters, models with pre-equilibration onditions (steady-state simulations), and how to define and import a model written in Julia.
+* Details about available hessian and gradient options.
+* Discussion of the best options for specific model types, including small, medium, and large models.
 
 ## Installation
 
@@ -27,20 +27,22 @@ julia> ] add PEtab
 
 ## Feature list
 
-* Import ODE systems specified either by an SBML file or a Julia file.
-* Symbolic model pre-processing via [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl)
-* Support for all ODE solvers in [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl)
-* Gradient via:
-    * Forward-mode automatic differentiation using [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl)
-    * Forward sensitivity analysis either via ForwardDiff.jl or [SciMLSensitivity.jl](https://github.com/SciML/SciMLSensitivity.jl)
-    * Adjoint sensitivity via any of the algorithms in SciMLSensitivity.jl
-    * Automatic differentiation via [Zygote.jl](https://github.com/FluxML/Zygote.jl)
-* Hessians computed
-    * "exactly" via forward-mode automatic differentiation using ForwardDiff.jl
-    * approximately via a block approach using ForwardDiff.jl
-    * approximately via the Gauss-Newton method (often outperform (L)-BFGS)
-* Pre-equilibration and pre-simulation conditions
-* Support for models with discrete events and logical operations
+PEtab.jl provides a range of features to import and analyze ODE parameter estimation problems specified in the PEtab format. These include:
+
+* Importing ODE systems specified either by an SBML file or as a Julia file.
+* Symbolic model pre-processing via ModelingToolkit.jl.
+* Support for all ODE solvers in DifferentialEquations.jl.
+* Gradient calculations using several approaches:
+    * Forward-mode automatic differentiation with ForwardDiff.jl.
+    * Forward sensitivity analysis with ForwardDiff.jl or SciMLSensitivity.jl.
+    * Adjoint sensitivity analysis with any of the algorithms in SciMLSensitivity.jl.
+    * Automatic differentiation via Zygote.jl.
+* Hessians computed via:
+    * Forward-mode automatic differentiation with ForwardDiff.jl (exact).
+    * Block approach with ForwardDiff.jl (approximate).
+    * Gauss-Newton method (approximate and often more performant than (L)-BFGS).
+* Handling pre-equilibration and pre-simulation conditions.
+* Support for models with discrete events and logical operations.
 
 ## Citation
 
