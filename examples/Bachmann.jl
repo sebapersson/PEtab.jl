@@ -44,12 +44,11 @@ petabModel = readPEtabModel(pathYaml, verbose=true)
     Note2 - the compilation times can be quite hefty for adjoint sensitivity analysis.
     Note3 - below we use QNDF for the cost which often is one of the best Julia solvers for larger models.
 =#
-odeSolverOptions = ODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8) # For the cost we use QNDF
-odeSolverGradientOptions = ODESolverOptions(CVODE_BDF(), abstol=1e-8, reltol=1e-8) 
-petabProblem = createPEtabODEProblem(petabModel, odeSolverOptions, 
-                                    odeSolverGradientOptions=odeSolverGradientOptions,
-                                    gradientMethod=:Adjoint, 
-                                    sensealg=InterpolatingAdjoint(autojacvec=EnzymeVJP())) # EnzymeVJP is fastest when applicble
+petabProblem = createPEtabODEProblem(petabModel,   
+                                     odeSolverOptions=ODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8),
+                                     odeSolverGradientOptions = ODESolverOptions(CVODE_BDF(), abstol=1e-8, reltol=1e-8),
+                                     gradientMethod=:Adjoint, 
+                                     sensealg=InterpolatingAdjoint(autojacvec=EnzymeVJP())) # EnzymeVJP is fastest when applicble
 p = petabProblem.θ_nominalT # Parameter values in the PEtab file on log-scale
 gradient = zeros(length(p)) # In-place gradients 
 cost = petabProblem.computeCost(p)
@@ -76,12 +75,12 @@ petabProblem.computeGradient!(gradient, p)
        Fides.py but not Optim.jl:s IPNewton(). When applicble it greatly reduces run-time. 
        Note - this approach requires that sensealg=:ForwardDiff for the gradient.
 =#
-odeSolverOptions = ODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8) # For the cost and gradient we use QNDF
-petabProblem = createPEtabODEProblem(petabModel, odeSolverOptions, 
-                                    gradientMethod=:ForwardEquations, 
-                                    hessianMethod=:GaussNewton,
-                                    sensealg=:ForwardDiff, # Fastest by far for computing the sensitivity matrix 
-                                    reuseS=true) 
+petabProblem = createPEtabODEProblem(petabModel, 
+                                     odeSolverOptions=ODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8), 
+                                     gradientMethod=:ForwardEquations, 
+                                     hessianMethod=:GaussNewton,
+                                     sensealg=:ForwardDiff, # Fastest by far for computing the sensitivity matrix 
+                                     reuseS=true) 
 p = petabProblem.θ_nominalT # Parameter values in the PEtab file on log-scale
 gradient = zeros(length(p)) # In-place gradients 
 hessian = zeros(length(p), length(p)) # In-place hessians

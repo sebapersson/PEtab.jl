@@ -34,11 +34,11 @@ petabModel = readPEtabModel(pathYaml, verbose=true, jlFile=true, jlFilePath=path
     The cost of the imported model is calculated. 
     For more details about the following lines, please look at the example for the Beer model that imports an SBML-model.
 =#
-odeSolverOptions = ODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8)
-petabProblem = createPEtabODEProblem(petabModel, odeSolverOptions, 
-                                    gradientMethod=:ForwardDiff, 
-                                    hessianMethod=:ForwardDiff, 
-                                    splitOverConditions=true)
+petabProblem = createPEtabODEProblem(petabModel, 
+                                     odeSolverOptions=ODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8),
+                                     gradientMethod=:ForwardDiff, 
+                                     hessianMethod=:ForwardDiff, 
+                                     splitOverConditions=true)
 
 p = petabProblem.θ_nominalT # Parameter values in the PEtab file on log-scale
 cost = petabProblem.computeCost(p)

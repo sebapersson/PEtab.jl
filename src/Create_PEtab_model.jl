@@ -1,20 +1,35 @@
 """
-function readPEtabModel(pathYAML::String;
-                        forceBuildJuliaFiles::Bool=false,
-                        verbose::Bool=true,
-                        ifElseToEvent::Bool=true,
-                        jlFile::Bool=false,
-                        jlFilePath::String="")::PEtabModel
+    readPEtabModel(pathYAML::String;
+                   forceBuildJuliaFiles::Bool=false,
+                   verbose::Bool=true,
+                   ifElseToEvent::Bool=true,
+                   jlFile::Bool=false,
+                   jlFilePath::String="")::PEtabModel
 
-Parses a PEtab specified problem with yaml-file at `pathYAML` into a Julia accessible format. 
+Parses a PEtab specified problem with a YAML-file located at `pathYAML` into a Julia-accessible format.
 
-When parsing a PEtab problem several things happens under the hood;
-1) The SBML file is translated into ModelingToolkit.jl format (e.g allow symbolic computations of the ODE-model Jacobian). Piecewise and model events are further written into DifferentialEquations.jl callbacks.
-2) The observable PEtab-table is translated into Julia-file with functions for computing the observable (h), noise parameter (σ) and initial values (u0). 
-3) To allow gradients via adjoint sensitivity analysis and/or forward sensitivity equations the gradients of h and σ are computed symbolically with respect to the ODE-models states (u) and parameters (odeProblem.p).
-All this happens automatically, and resulting files are stored under petabModel.dirJulia. To save time `forceBuildJlFiles=false` meaning that Julia files are not rebuilt in case the already exist.
+When parsing a PEtab problem, several things happen under the hood:
 
-In the future we plan to allow the user to also provide a Julia file instead of a SBML file.
+1. The SBML file is translated into `ModelingToolkit.jl` format to allow for symbolic computations of the ODE-model Jacobian. Piecewise and model events are further written into `DifferentialEquations.jl` callbacks.
+2. The observable PEtab table is translated into a Julia file with functions for computing the observable (`h`), noise parameter (`σ`), and initial values (`u0`).
+3. To allow gradients via adjoint sensitivity analysis and/or forward sensitivity equations, the gradients of `h` and `σ` are computed symbolically with respect to the ODE model's states (`u`) and parameters (`odeProblem.p`).
+
+All of this happens automatically, and resulting files are stored under `petabModel.dirJulia`. To save time, `forceBuildJlFiles=false` by default, which means that Julia files are not rebuilt if they already exist.
+
+In case a Julia model files is provided instead of a SBML file, set `jlFile` and provide the file path under `jlFilePath`.
+
+# Arguments
+- `pathYAML::String`: Path to the PEtab problem YAML file.
+- `forceBuildJuliaFiles::Bool=false`: If `true`, forces the creation of Julia files for the problem even if they already exist.
+- `verbose::Bool=true`: If `true`, displays verbose output during parsing.
+- `ifElseToEvent::Bool=true`: If `true`, rewrites `if-else` statements in the SBML model as event-based callbacks.
+- `jlFile::Bool=false`: If `true`, loads a pre-existing Julia file for the problem instead of parsing from the YAML.
+- `jlFilePath::String=""`: Path to an existing Julia file to load if `jlFile` is `true`.
+
+# Example
+```julia
+petabModel = readPEtabModel("path/to/petab/problem.yaml")
+```
 """
 function readPEtabModel(pathYAML::String;
                         forceBuildJuliaFiles::Bool=false,

@@ -1,4 +1,4 @@
-# [Providing a model as a Julia file instead of an SBML File](@id Beer_Julia_import)
+# [Providing the model as a Julia file instead of an SBML File](@id Beer_Julia_import)
 
 In this tutorial, we'll demonstrate how to create a `PEtabODEproblem` problem using a Julia model file instead of an SBML file.
 
@@ -57,7 +57,7 @@ end
 * The model must be defined within a function, like BeerODEModel, which returns the odeSystem, initialValues, and parameterValues in that order (the names of the variables don't matter).
 * The states and parameters must be stored in arrays, like stateArray and parameterArray, and provided as arguments when creating the ODESystem. Otherwise, a parameter might get simplified away in the symbolic pre-processing.
 * When creating the initial-value map, like initialValues, the initial values can be constants or a mathematical expression that depends on parameters. For example, Glu => kdegi / tau would be an acceptable option.
-* If you have an event, like a dosage or a time delay, (like lag), encode it using an ifelse statement. This will later be rewritten to a callback (event) In the example above we included `ifelse(t - tau < 0, 0, 1)` to capture:
+* If you have an event, like a dosage or a time delay (like lag), encode it using an ifelse statement. This will later be rewritten to a callback (event) In the example above we included `ifelse(t - tau < 0, 0, 1)` to capture:
 ```math
     lag = 
     \begin{cases}

@@ -4,23 +4,18 @@
                              rootfindingAlgorithm=nothing,
                              abstol=nothing, 
                              reltol=nothing, 
-                             maxiters=nothing)::SteadyStateSolverOptions
+                             maxiters=nothing)
 
-Setup steady-state solver options for finding steady-state via **either** method=:Rootfinding or method=:Simulate.
+Setup options for finding steady-state via either `method=:Rootfinding` or `method=:Simulate`.
 
-For `:Rootfinding` the steady state u* is found by solving the problem du = f(u, p, t) ≈ 0 with tolerances abstol and
-reltol via an automatically choosen optimisation algorithm (rootfindingAlgorithm=nothing) or via any algorithm in 
-NonlinearSolve.jl (https://docs.sciml.ai/NonlinearSolve/stable/), e.g. 
-rootfindingAlgorithm=NonlinearSolve.TrustRegion(). (abstol, reltol, maxiters) defaults to (1e-8, 1e-8, 1e4).
+For `method=:Rootfinding`, the steady-state `u*` is found by solving the problem `du = f(u, p, t) ≈ 0` with tolerances `abstol` and `reltol` via an automatically chosen optimization algorithm (`rootfindingAlgorithm=nothing`) or via any algorithm in NonlinearSolve.jl. 
 
-For `:Simulate` the steady state u* is found by simulating the ODE-system until du = f(u, p, t) ≈ 0. Two options are 
-availble for `howCheckSimulationReachedSteadyState`;
+For `method=:Simulate`, the steady-state `u*` is found by simulating the ODE system until `du = f(u, p, t) ≈ 0`. Two options are available for `howCheckSimulationReachedSteadyState`:
 - `:wrms` : Weighted root-mean square √(∑((du ./ (reltol * u .+ abstol)).^2) / length(u)) < 1
-- `:Newton` : If Newton-step Δu is sufficiently small √(∑((Δu ./ (reltol * u .+ abstol)).^2) / length(u)) < 1. 
-Newton often perform better but requires an invertible Jacobian. In case not fulfilled code switches automatically to 
-wrms. (abstol, reltol) defaults to ODE solver tolerances divided by 100 and maxiters to ODE solver value.
-        
-`maxiters` refers to either maximum number of rootfinding steps, or maximum number of integration steps.
+- `:Newton` : If Newton-step `Δu` is sufficiently small √(∑((Δu ./ (reltol * u .+ abstol)).^2) / length(u)) < 1. 
+        - Newton often performs better but requires an invertible Jacobian. In case it's not fulfilled, the code switches automatically to `:wrms`.    
+
+`maxiters` refers to either the maximum number of rootfinding steps or the maximum number of integration steps, depending on the chosen method.        
 """
 function SteadyStateSolverOptions(method::Symbol;
                                   howCheckSimulationReachedSteadyState::Symbol=:wrms,
