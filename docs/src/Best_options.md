@@ -1,87 +1,86 @@
 # [Choosing the best options for a PEtab problem](@id best_options)
 
-PEtab.jl supports several gradient and hessian methods. In addition, it is compatible with the ODE solvers in the [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl) package, hence, there are many possible choices when creating a `PEtabODEProblem` via `setupPEtabODEProblem`. To help navigate these based on an extensive benchmark study we here provide recommended settings that often work well for specific problem types.
+PEtab.jl provides several gradient and hessian methods that can be used with the ODE solvers in the DifferentialEquations.jl package. You can choose from a variety of options when creating a `PEtabODEProblem` using the `createPEtabODEProblem` function. If you don't specify any of these options, appropriate options will be selected automatically based on an extensive benchmark study. These default options usually work well for specific problem types. In the following section, we will discuss the main findings of the benchmark study.
 
 !!! note
-    Every problem is unique, and the recommended settings here often work well but might not optimal for a specific model.
+    These recommendations often work well for specific problem types, they may not be optimal for every model, as each problem is unique.
 
 ## Small models ($\leq 20$ parameters and $\leq 15$ ODE:s)
 
-**ODE solver**: For small stiff models the Rosenbrock `Rodas5P()` solver is often one of the fastest and most accurate ODE solvers. Julia bdf-solvers such as `QNDF()` can also perform well here, but they are often less accurate and reliable (fail more often) than `Rodas5P()`. If the model is “mildly” stiff composite solvers such as `AutoVern7(Rodas5P())` often performs best. Regardless of solver we recommend to use low tolerances (around `abstol, reltol = 1e-8, 1e-8`) to obtain accurate gradients.
+**ODE solver**: For small stiff models, the Rosenbrock `Rodas5P()` solver is often the fastest and most accurate option. While Julia bdf-solvers such as `QNDF()` can also perform well, they are often less reliable and less accurate than `Rodas5P()`. If the model is "mildly" stiff, composite solvers such as `AutoVern7(Rodas5P())` often perform best. Regardless of solver, we recommend using low tolerances (around `abstol, reltol = 1e-8, 1e-8`) to obtain accurate gradients.
 
-**Gradient method**: For small models forward-mode automatic differentiation via [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) performs best, and is often twice as fast as the forward-sensitivity equations approach in AMICI. Thus, we recommend `gradientMethod=:ForwardDiff`.
+**Gradient method**: For small models, forward-mode automatic differentiation via [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) tends to be the best performing option, and is often twice as fast as the forward-sensitivity equations approach in AMICI. Therefore, we recommend using `gradientMethod=:ForwardDiff`.
 
-* **Note1** - For `:ForwardDiff` the user can set the [chunk-size](https://juliadiff.org/ForwardDiff.jl/stable/). This can substantially improve performance, and we plan to add automatic tuning of it.
-* **Note2** - If the model has many simulation condition specific parameters (parameters that only appear in a subset of simulation conditions) it can be efficient to set `splitOverConditions=true` (see [this](@ref Beer_tut) tutorial).
+* **Note1** - For `:ForwardDiff`, the user can set the [chunk-size](https://juliadiff.org/ForwardDiff.jl/stable/), which can substantially improve performance. We plan to add automatic tuning of this in the future.
+* **Note2** - If the model has many simulation condition-specific parameters (parameters that only appear in a subset of simulation conditions), it can be efficient to set `splitOverConditions=true` (see [this](@ref Beer_tut) tutorial).
 
-**Hessian method**: For small models it is computationally feasible to compute an accurate full hessian via [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl). For most models we benchmarked providing a hessian improved convergence. Thus, we recommend `hessianMethod=:ForwardDiff`.
+**Hessian method**: For small models, it is computationally feasible to compute an accurate full Hessian via [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl). For most models we benchmarked, using a provided Hessian improved convergence. Therefore, we recommend using `hessianMethod=:ForwardDiff`.
 
-* **Note1** - For models with preequilibration (steady-state simulations) our benchmarks suggest it might be better to use the Gauss-Newton hessian approximation.
-* **Note2** - For models where it too expansive to compute the full hessian (e.g. due to many simulation conditions) the hessian [block approximation](@ref gradient_support) can be a good option.
-* **Note3** - In particular the interior-point Newton method from [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl) performs well if provided with a full hessian.
+* **Note1** - For models with pre-equilibration (steady-state simulations), our benchmarks suggest that it might be better to use the Gauss-Newton Hessian approximation.
+* **Note2** - For models where it is too expensive to compute the full Hessian (e.g. due to many simulation conditions), the Hessian [block approximation](@ref gradient_support) can be a good option.
+* **Note3** - In particular, the interior-point Newton method from [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl) performs well if provided with a full Hessian.
 
-All-to-all, for a small model a good setup often is:
+Overall, for a small model, a good setup often includes:
 
 ```julia
-odeSolverOptions = getODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8)
-petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
-                                    gradientMethod=:ForwardDiff, 
-                                    hessianMethod=:ForwardDiff)
+petabProblem = createPEtabODEProblem(petabModel, 
+                                     odeSolverOptions=ODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8), 
+                                     gradientMethod=:ForwardDiff, 
+                                     hessianMethod=:ForwardDiff)
 ```
 
 ## Medium-sized models ($\leq 75$ parameters and $\leq 50$ ODE:s)
 
-**ODE solver**: For medium-sized stiff models the bdf-solvers such as `QNDF()` are among the fastest, while being sufficiently accurate. The drawback with Julia bdf-solvers is that for certain models (e.g. with many events) they frequently fail at low tolerances. If this happens a good plan b option is `KenCarp4()`. Another good option is Sundial's `CVODE_BDF()`, however it is not recommended since as it is written in C++ and thus is not compatible with forward-mode automatic differentiation. Regardless of solver we recommend to use low tolerances (around `abstol, reltol = 1e-8, 1e-8`) to obtain accurate gradients.
+**ODE solver**: For medium-sized stiff models, bdf-solvers like `QNDF()` are often fast enough and accurate. However, they can fail for certain models with many events when low tolerances are used. In such cases, `KenCarp4()` is a good alternative. Another option is Sundials' `CVODE_BDF()`, but it's written in C++ and not compatible with forward-mode automatic differentiation. To obtain accurate gradients, we recommend using low tolerances (around `abstol, reltol = 1e-8, 1e-8`) regardless of solver.
 
-**Gradient method**: For medium-sized models when the hessian is approximated via the Gauss-Newton method (often performs best) we recommend computing the gradient via the forward sensitivities (`gradientMethod=:ForwardEquations`) where the sensitives are computed via forward-mode automatic differentiation (`sensealg=:ForwardDiff`). The main benefit is that if the optimizers always computes the gradient before the hessian these sensitivities can be reused when computing the hessian. Otherwise, if for example a BFGS hessian-approximation is used `gradientMethod=:ForwardDiff` often performs best.
+**Gradient method**: For medium-sized models, when using the Gauss-Newton method to approximate the Hessian, we recommend computing the gradient via the forward sensitivities (`gradientMethod=:ForwardEquations`), where the sensitivities are computed via forward-mode automatic differentiation (`sensealg=:ForwardDiff`). This way, the sensitivities can be reused when computing the Hessian if the optimizer always computes the gradient first. Otherwise, if a BFGS Hessian-approximation is used, `gradientMethod=:ForwardDiff` often performs best.
 
-* **Note1** - For `:ForwardDiff` the user can set the [chunk-size](https://juliadiff.org/ForwardDiff.jl/stable/). This can substantially improve performance, and we plan to add automatic tuning of it.
-* **Note2** - If the model has many simulation condition specific parameters (parameters that only appear in a subset of simulation conditions) it can be efficient to set `splitOverConditions=true` (see [this](@ref Beer_tut) tutorial).
+* **Note1** - For `:ForwardDiff`, the user can set the [chunk-size](https://juliadiff.org/ForwardDiff.jl/stable/) to improve performance, and we plan to add automatic tuning of it.
+* **Note2** - If the model has many simulation condition-specific parameters (parameters that only appear in a subset of simulation conditions), it can be efficient to set `splitOverConditions=true` (see [this](@ref Beer_tut) tutorial).
 
-**Hessian method**: For medium-sized models it is typically computationally infeasible to compute an accurate full hessian via [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl). Rather we recommend the Gauss-Newton hessian approximation which often performs better than the commonly used (L)-BFGS approximation. Thus, we recommend `hessianMethod=:GaussNewton`.
+**Hessian method**: For medium-sized models, it's often computationally infeasible to compute an accurate full Hessian via [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl). Instead, we recommend the Gauss-Newton Hessian approximation, which often performs better than the commonly used (L)-BFGS approximation. Thus, we recommend `hessianMethod=:GaussNewton`.
 
-* **Note1** - In particular trust-region Newton methods such as [Fides.py](https://github.com/fides-dev/fides) performs well if provided with a full hessian. Interior-point methods do not perform as well.
+* **Note1** - Trust-region Newton methods like [Fides.py](https://github.com/fides-dev/fides) perform well if provided with a full Hessian. Interior-point methods don't perform as well.
 
-All-to-all, in case the gradient is always computed before the optimizer hessian good setup often is:
+Overall, when the gradient is always computed before the Hessian in the optimizer, a good setup is often:
 
 ```julia
-odeSolverOptions = getODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8)
-petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
-                                    gradientMethod=:ForwardEquations, 
-                                    hessianMethod=:GaussNewton, 
-                                    reuseS=true)
+petabProblem = createPEtabODEProblem(petabModel, 
+                                     odeSolverOptions=ODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8),
+                                     gradientMethod=:ForwardEquations, 
+                                     hessianMethod=:GaussNewton, 
+                                     reuseS=true)
 ```
 
 Otherwise, a good setup is:
 
 ```julia
-odeSolverOptions = getODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8)
-petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
-                                    gradientMethod=:ForwardDiff, 
-                                    hessianMethod=:GaussNewton)
+petabProblem = createPEtabODEProblem(petabModel, 
+                                     odeSolverOptions=ODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8),
+                                     gradientMethod=:ForwardDiff, 
+                                     hessianMethod=:GaussNewton)
 ```
 
 ## Large models ($\geq 75$ parameters and $\geq 50$ ODE:s)
 
-**ODE solver**: For large models we recommend too first benchmark different ODE solvers suitable for large models such as; `QNDF()`, `FBDF()`, `KenCarp4()`, and `CVODE_BDF()`. Moreover, we recommend too test providing the ODE solver with a sparse Jacobian (`sparseJacobian::Bool=false`), and to test different linear solvers such as `CVODE_BDF(linsolve=:KLU)`. More details on how to efficiently solve a large stiff models can be found [here](https://docs.sciml.ai/DiffEqDocs/stable/tutorials/advanced_ode_example/).
+**ODE solver**: To efficiently solve large models, we recommend benchmarking different ODE solvers such as `QNDF()`, `FBDF()`, `KenCarp4()`, and `CVODE_BDF()`. You can also try providing the ODE solver with a sparse Jacobian (`sparseJacobian::Bool=false`) and testing different linear solvers such as `CVODE_BDF(linsolve=:KLU)`. Check out [this link](https://docs.sciml.ai/DiffEqDocs/stable/tutorials/advanced_ode_example/) for more information on solving large stiff models.
 
-* **Note** - We strongly recommend comparing different ODE solvers as this can lead to a substantial reduction of runtime.
+* **Note** - It's important to compare different ODE solvers, as this can significantly reduce runtime.
 
-**Gradient method**: For large models the most scalable approach is adjoint sensitivity analysis (`gradientMethod=:Adjoint`). Currently, for `sensealg` we support `InterpolatingAdjoint()` and `QuadratureAdjoint()` from SciMLSensitivity (see their [documentation](https://github.com/SciML/SciMLSensitivity.jl) for info), and as it is more reliable we recommend `InterpolatingAdjoint()`.
+**Gradient method**: For large models, the most scalable approach is adjoint sensitivity analysis (`gradientMethod=:Adjoint`). We support `InterpolatingAdjoint()` and `QuadratureAdjoint()` from SciMLSensitivity (see their [documentation](https://github.com/SciML/SciMLSensitivity.jl) for info), but we recommend `InterpolatingAdjoint()` because it's more reliable.
 
-* **Note1** - For adjoint sensitivity analysis we recommend to manually set the ODE solver gradient options. Currently, `CVODE_BDF()` outperform all native Julia solvers.
-* **Note2** - The user can provide any options `InterpolatingAdjoint()` and `QuadratureAdjoint()` accept.
-* **Note3** - Currently adjoint sensitivity analysis is not as reliable in Julia as in AMICI ([see](https://github.com/SciML/SciMLSensitivity.jl/issues/795)), but our benchmarks show that SciMLSensitivity has the potential to be faster.
+* **Note1** - When using adjoint sensitivity analysis, we recommend manually setting the ODE solver gradient options. Currently, `CVODE_BDF()` outperforms all native Julia solvers.
+* **Note2** - You can provide any options that `InterpolatingAdjoint()` and `QuadratureAdjoint()` accept.
+* **Note3** - Adjoint sensitivity analysis is not as reliable in Julia as in AMICI ([see](https://github.com/SciML/SciMLSensitivity.jl/issues/795)), but our benchmarks show that SciMLSensitivity has the potential to be faster.
 
-**Hessian method**: For large models computing the sensitives (Gass-Newton) or a full hessian is not computationally feasible. Hence, the best option is often to use some L-(BFGS) approximation. BFGS support is built into most available optimizers such as [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl), [Ipopt.jl](https://github.com/jump-dev/Ipopt.jl) and [Fides.py](https://github.com/fides-dev/fides).
+**Hessian method**: For large models, computing the sensitives (Gauss-Newton) or a full hessian is not computationally feasible. Thus, the best option is often to use an L-(BFGS) approximation. BFGS support is built into most available optimizers such as [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl), [Ipopt.jl](https://github.com/jump-dev/Ipopt.jl), and [Fides.py](https://github.com/fides-dev/fides).
 
-All-to-all for a large model a good setup often is:
+All in all, for a large model, a good setup often is:
 
 ```julia
-odeSolverOptions = getODESolverOptions(CVODE_BDF(), abstol=1e-8, reltol=1e-8) 
-odeSolverGradientOptions = getODESolverOptions(CVODE_BDF(), abstol=1e-8, reltol=1e-8) 
-petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
-                                    odeSolverGradientOptions=odeSolverGradientOptions,
-                                    gradientMethod=:Adjoint, 
-                                    sensealg=InterpolatingAdjoint()) 
+petabProblem = createPEtabODEProblem(petabModel, 
+                                     odeSolverOptions=ODESolverOptions(CVODE_BDF(), abstol=1e-8, reltol=1e-8), 
+                                     odeSolverGradientOptions=ODESolverOptions(CVODE_BDF(), abstol=1e-8, reltol=1e-8),
+                                     gradientMethod=:Adjoint, 
+                                     sensealg=InterpolatingAdjoint()) 
 ```

@@ -2,7 +2,6 @@ module PEtab
 
 using PyCall
 using ModelingToolkit
-using DataFrames
 using CSV
 using SciMLBase
 using SciMLSensitivity
@@ -77,6 +76,6 @@ include(joinpath("SBML", "Common.jl"))
 include(joinpath("SBML", "Process_functions.jl"))
 include(joinpath("SBML", "Process_rules.jl"))
 
-export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, setupPEtabODEProblem, getODESolverOptions, getSteadyStateSolverOptions
+export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem
 
 end

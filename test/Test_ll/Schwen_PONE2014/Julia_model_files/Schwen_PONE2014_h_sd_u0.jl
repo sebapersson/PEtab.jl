@@ -22,7 +22,7 @@ function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_o
 
 	if observableId === :observable_Insulin 
 		observableParameter1_observable_Insulin, observableParameter2_observable_Insulin, observableParameter3_observable_Insulin, observableParameter4_observable_Insulin = getObsOrSdParam(θ_observable, parameterMap)
-		return observableParameter1_observable_Insulin + observableParameter2_observable_Insulin * ( u[10] + u[7] * observableParameter3_observable_Insulin ) / ( ( u[10] + u[7] * observableParameter3_observable_Insulin ) / observableParameter4_observable_Insulin + 1 ) 
+		return observableParameter1_observable_Insulin + observableParameter2_observable_Insulin * ( u[10] + u[7] * observableParameter3_observable_Insulin ) / ( ( u[10] + u[7] * observableParameter3_observable_Insulin ) / observableParameter4_observable_Insulin + 1.0 ) 
 	end
 
 end

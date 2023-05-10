@@ -13,12 +13,11 @@ using Test
 using OrdinaryDiffEq
 using SciMLSensitivity
 using CSV
-using DataFrames
 using ForwardDiff
 using LinearAlgebra
 
 import PEtab: readPEtabFiles, processMeasurements, processParameters, computeIndicesθ, processSimulationInfo, setParamToFileValues!
-import PEtab: _changeExperimentalCondition!, solveODEAllExperimentalConditions, PEtabODESolverCache, createPEtabODESolverCache, _getSteadyStateSolverOptions
+import PEtab: _changeExperimentalCondition!, solveODEAllExperimentalConditions, PEtabODESolverCache, createPEtabODESolverCache
 
 
 include(joinpath(@__DIR__, "Common.jl"))
@@ -36,7 +35,7 @@ function testODESolverTestModel2(petabModel::PEtabModel, solverOptions)
     experimentalConditionsFile, measurementDataFile, parameterDataFile, observablesDataFile = readPEtabFiles(petabModel)
     measurementData = processMeasurements(measurementDataFile, observablesDataFile)
     paramData = processParameters(parameterDataFile)
-    θ_indices = computeIndicesθ(paramData, measurementData, petabModel.odeSystem, experimentalConditionsFile)
+    θ_indices = computeIndicesθ(paramData, measurementData, petabModel)
     simulationInfo = processSimulationInfo(petabModel, measurementData)
     setParamToFileValues!(petabModel.parameterMap, petabModel.stateMap, paramData)
 
@@ -58,14 +57,11 @@ function testODESolverTestModel2(petabModel::PEtabModel, solverOptions)
         prob = remake(prob, p = convert.(Float64, prob.p), u0 = convert.(Float64, prob.u0))
         θ_dynamic = getFileODEvalues(petabModel)[1:2]
 
-        ssOptions = getSteadyStateSolverOptions(:Simulate)
-        _ssSolverOptions = _getSteadyStateSolverOptions(ssOptions, prob, solverOptions.abstol / 100.0, 
-                                                        solverOptions.reltol / 100.0, solverOptions.maxiters)
-
+        ssOptions = SteadyStateSolverOptions(:Simulate, abstol = solverOptions.abstol / 100.0, reltol = solverOptions.reltol / 100.0)
         # Solve ODE system
         petabODESolverCache = createPEtabODESolverCache(:nothing, :nothing, petabModel, simulationInfo, θ_indices, nothing)
         θ_dynamic = [alpha, beta]
-        odeSolutions, success = solveODEAllExperimentalConditions(prob, petabModel, θ_dynamic, petabODESolverCache, simulationInfo, θ_indices, solverOptions, _ssSolverOptions)
+        odeSolutions, success = solveODEAllExperimentalConditions(prob, petabModel, θ_dynamic, petabODESolverCache, simulationInfo, θ_indices, solverOptions, ssOptions)
         odeSolution = odeSolutions[simulationInfo.experimentalConditionId[1]]
 
         # Compare against analytical solution
@@ -84,17 +80,17 @@ function computeCostAnalyticTestModel2(paramVec)
 
     u0 = [8.0, 4.0]
     alpha, beta = paramVec[1:2]
-    measurementData = CSV.read(joinpath(@__DIR__, "Test_model2/measurementData_Test_model2.tsv"), DataFrame)
+    measurementData = CSV.File(joinpath(@__DIR__, "Test_model2/measurementData_Test_model2.tsv"))
 
     # Extract correct parameter for observation i and compute logLik
     logLik = 0.0
-    for i in 1:nrow(measurementData)
+    for i in eachindex(measurementData)
 
         # Specs for observation i
-        obsID = measurementData[i, :observableId]
-        noiseID = measurementData[i, :noiseParameters]
-        yObs = measurementData[i, :measurement]
-        t = measurementData[i, :time]
+        obsID = measurementData[:observableId][i]
+        noiseID = measurementData[:noiseParameters][i]
+        yObs = measurementData[:measurement][i]
+        t = measurementData[:time][i]
         # Extract correct sigma
         if noiseID == "sd_sebastian_new"
             sigma = paramVec[3]
@@ -126,11 +122,11 @@ and hessian are computed via ForwardDiff.
 function testCostGradientOrHessianTestModel2(petabModel::PEtabModel, solverOptions)
 
     # Cube with random parameter values for testing
-    cube = Matrix(CSV.read(joinpath(@__DIR__, "Test_model2", "Julia_model_files", "CubeTest_model2.csv") , DataFrame))
+    cube = CSV.File(joinpath(@__DIR__, "Test_model2", "Julia_model_files", "CubeTest_model2.csv"))
 
     for i in 1:1
 
-        p = cube[i, :]
+        p = Float64.(collect(cube[i]))
         referenceCost = computeCostAnalyticTestModel2(p)
         referenceGradient = ForwardDiff.gradient(computeCostAnalyticTestModel2, p)
         referenceHessian = ForwardDiff.hessian(computeCostAnalyticTestModel2, p)
@@ -168,14 +164,13 @@ end
 petabModel = createModelInsideFunction()
 
 @testset "ODE solver" begin
-    testODESolverTestModel2(petabModel, getODESolverOptions(Vern9(), abstol=1e-9, reltol=1e-9))
+    testODESolverTestModel2(petabModel, ODESolverOptions(Vern9(), abstol=1e-9, reltol=1e-9))
 end
 
 @testset "Cost gradient and hessian" begin
-    testCostGradientOrHessianTestModel2(petabModel, getODESolverOptions(Vern9(), abstol=1e-15, reltol=1e-15))
+    testCostGradientOrHessianTestModel2(petabModel, ODESolverOptions(Vern9(), abstol=1e-15, reltol=1e-15))
 end
 
-checkGradientResiduals(petabModel, getODESolverOptions(Rodas5P(), abstol=1e-9, reltol=1e-9))
 @testset "Gradient of residuals" begin
-    checkGradientResiduals(petabModel, getODESolverOptions(Rodas5P(), abstol=1e-9, reltol=1e-9))
+    checkGradientResiduals(petabModel, ODESolverOptions(Rodas5P(), abstol=1e-9, reltol=1e-9))
 end

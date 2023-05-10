@@ -9,17 +9,17 @@ function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_o
                       parameterMap::θObsOrSdParameterMap)::Real 
 	if observableId === :observable_CISRNA_foldA 
 		observableParameter1_observable_CISRNA_foldA = getObsOrSdParam(θ_observable, parameterMap)
-		return u[25] * observableParameter1_observable_CISRNA_foldA / pODEProblem[15] + 1 
+		return u[25] * observableParameter1_observable_CISRNA_foldA / pODEProblem[15] + 1.0 
 	end
 
 	if observableId === :observable_CISRNA_foldB 
 		observableParameter1_observable_CISRNA_foldB = getObsOrSdParam(θ_observable, parameterMap)
-		return u[25] * observableParameter1_observable_CISRNA_foldB / pODEProblem[15] + 1 
+		return u[25] * observableParameter1_observable_CISRNA_foldB / pODEProblem[15] + 1.0 
 	end
 
 	if observableId === :observable_CISRNA_foldC 
 		observableParameter1_observable_CISRNA_foldC = getObsOrSdParam(θ_observable, parameterMap)
-		return u[25] * observableParameter1_observable_CISRNA_foldC / pODEProblem[15] + 1 
+		return u[25] * observableParameter1_observable_CISRNA_foldC / pODEProblem[15] + 1.0 
 	end
 
 	if observableId === :observable_CIS_abs 
@@ -47,17 +47,17 @@ function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_o
 
 	if observableId === :observable_SOCS3RNA_foldA 
 		observableParameter1_observable_SOCS3RNA_foldA = getObsOrSdParam(θ_observable, parameterMap)
-		return u[5] * observableParameter1_observable_SOCS3RNA_foldA / pODEProblem[26] + 1 
+		return u[5] * observableParameter1_observable_SOCS3RNA_foldA / pODEProblem[26] + 1.0 
 	end
 
 	if observableId === :observable_SOCS3RNA_foldB 
 		observableParameter1_observable_SOCS3RNA_foldB = getObsOrSdParam(θ_observable, parameterMap)
-		return u[5] * observableParameter1_observable_SOCS3RNA_foldB / pODEProblem[26] + 1 
+		return u[5] * observableParameter1_observable_SOCS3RNA_foldB / pODEProblem[26] + 1.0 
 	end
 
 	if observableId === :observable_SOCS3RNA_foldC 
 		observableParameter1_observable_SOCS3RNA_foldC = getObsOrSdParam(θ_observable, parameterMap)
-		return u[5] * observableParameter1_observable_SOCS3RNA_foldC / pODEProblem[26] + 1 
+		return u[5] * observableParameter1_observable_SOCS3RNA_foldC / pODEProblem[26] + 1.0 
 	end
 
 	if observableId === :observable_SOCS3_abs 
@@ -75,17 +75,17 @@ function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_o
 
 	if observableId === :observable_pEpoR_au 
 		observableParameter1_observable_pEpoR_au, observableParameter2_observable_pEpoR_au = getObsOrSdParam(θ_observable, parameterMap)
-		return observableParameter1_observable_pEpoR_au + observableParameter2_observable_pEpoR_au * ( 16 * u[20] + 16 * u[1] + 16 * u[21] ) / pODEProblem[34] 
+		return observableParameter1_observable_pEpoR_au + observableParameter2_observable_pEpoR_au * ( 16.0 * u[20] + 16.0 * u[1] + 16.0 * u[21] ) / pODEProblem[34] 
 	end
 
 	if observableId === :observable_pJAK2_au 
 		observableParameter1_observable_pJAK2_au, observableParameter2_observable_pJAK2_au = getObsOrSdParam(θ_observable, parameterMap)
-		return observableParameter1_observable_pJAK2_au + observableParameter2_observable_pJAK2_au * ( 2 * u[23] + 2 * u[20] + 2 * u[1] + 2 * u[21] ) / pODEProblem[34] 
+		return observableParameter1_observable_pJAK2_au + observableParameter2_observable_pJAK2_au * ( 2.0 * u[23] + 2.0 * u[20] + 2.0 * u[1] + 2.0 * u[21] ) / pODEProblem[34] 
 	end
 
 	if observableId === :observable_pSTAT5B_rel 
 		observableParameter1_observable_pSTAT5B_rel = getObsOrSdParam(θ_observable, parameterMap)
-		return observableParameter1_observable_pSTAT5B_rel + 100 * u[2] / ( u[7] + u[2] ) 
+		return observableParameter1_observable_pSTAT5B_rel + 100.0 * u[2] / ( u[7] + u[2] ) 
 	end
 
 	if observableId === :observable_pSTAT5_au 
@@ -114,7 +114,7 @@ function compute_u0!(u0::AbstractVector, pODEProblem::AbstractVector)
 	EpoRJAK2_CIS = pODEProblem[10] 
 	SOCS3nRNA4 = 0.0 
 	SOCS3RNA = 0.0 
-	SHP1 = pODEProblem[23] * ( 1 + pODEProblem[28] * pODEProblem[33] ) 
+	SHP1 = pODEProblem[23] * ( 1.0 + pODEProblem[28] * pODEProblem[33] ) 
 	STAT5 = pODEProblem[30] 
 	EpoRJAK2 = pODEProblem[34] 
 	CISnRNA1 = 0.0 
@@ -147,7 +147,7 @@ function compute_u0(pODEProblem::AbstractVector)::AbstractVector
 	EpoRJAK2_CIS = pODEProblem[10] 
 	SOCS3nRNA4 = 0.0 
 	SOCS3RNA = 0.0 
-	SHP1 = pODEProblem[23] * ( 1 + pODEProblem[28] * pODEProblem[33] ) 
+	SHP1 = pODEProblem[23] * ( 1.0 + pODEProblem[28] * pODEProblem[33] ) 
 	STAT5 = pODEProblem[30] 
 	EpoRJAK2 = pODEProblem[34] 
 	CISnRNA1 = 0.0 

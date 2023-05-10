@@ -7,7 +7,7 @@
 
 function processSimulationInfo(petabModel::PEtabModel,
                                measurementInfo::MeasurementsInfo;
-                               sensealg::Union{Symbol, SciMLSensitivity.AbstractForwardSensitivityAlgorithm, SciMLSensitivity.AbstractAdjointSensitivityAlgorithm}=InterpolatingAdjoint())::SimulationInfo
+                               sensealg::Union{Nothing, Symbol, SciMLSensitivity.AbstractForwardSensitivityAlgorithm, SciMLSensitivity.AbstractAdjointSensitivityAlgorithm}=InterpolatingAdjoint())::SimulationInfo
 
     # An experimental Id is uniqely defined by a Pre-equlibrium- and Simulation-Id, where the former can be
     # empty. For each experimental ID we store three indices, i) preEqulibriumId, ii) simulationId and iii)
@@ -83,7 +83,7 @@ function processSimulationInfo(petabModel::PEtabModel,
         callbacks[name] = deepcopy(petabModel.modelCallbackSet)
     end
 
-    if typeof(sensealg) <: Symbol
+    if typeof(sensealg) <: Symbol || isnothing(sensealg)
         sensealg = InterpolatingAdjoint()
     end
 

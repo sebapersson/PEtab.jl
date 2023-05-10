@@ -1,0 +1,7 @@
+chi2: 7.71020508625516
+llh: -5.69297960953693
+simulation_files:
+- _simulations.tsv
+tol_chi2: 0.001
+tol_llh: 0.001
+tol_simulations: 0.001

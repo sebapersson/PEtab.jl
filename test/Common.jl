@@ -21,17 +21,17 @@ function _testCostGradientOrHessian(petabModel::PEtabModel,
         solverGradientOptions = deepcopy(solverOptions)
     end
 
-    petabProblem = setupPEtabODEProblem(petabModel,
-                                        solverOptions;
-                                        odeSolverGradientOptions=solverGradientOptions,
-                                        costMethod=costMethod,
-                                        gradientMethod=gradientMethod,
-                                        hessianMethod=hessianMethod,
-                                        ssSolverOptions=ssOptions,
-                                        sensealg=sensealg, 
-                                        sensealgSS=sensealgSS,
-                                        specializeLevel=SciMLBase.NoSpecialize, 
-                                        verbose=false)        
+    petabProblem = createPEtabODEProblem(petabModel,
+                                         odeSolverOptions=solverOptions;
+                                         odeSolverGradientOptions=solverGradientOptions,
+                                         costMethod=costMethod,
+                                         gradientMethod=gradientMethod,
+                                         hessianMethod=hessianMethod,
+                                         ssSolverOptions=ssOptions,
+                                         sensealg=sensealg, 
+                                         sensealgSS=sensealgSS,
+                                         specializeLevel=SciMLBase.NoSpecialize, 
+                                         verbose=false)        
 
     if computeCost == true
         return petabProblem.computeCost(p)
@@ -61,7 +61,7 @@ function checkGradientResiduals(petabModel::PEtabModel, solverOptions::ODESolver
     simulationInfo = processSimulationInfo(petabModel, measurementData)
 
     # Indices for mapping parameter-estimation vector to dynamic, observable and sd parameters correctly when calculating cost
-    paramEstIndices = computeIndicesθ(parameterData, measurementData, petabModel.odeSystem, experimentalConditionsFile)
+    paramEstIndices = computeIndicesθ(parameterData, measurementData, petabModel)
 
     # Set model parameter values to those in the PeTab parameter data ensuring correct value of constant parameters
     setParamToFileValues!(petabModel.parameterMap, petabModel.stateMap, parameterData)
@@ -73,13 +73,12 @@ function checkGradientResiduals(petabModel::PEtabModel, solverOptions::ODESolver
     # The time-span 5e3 is overwritten when performing actual forward simulations
     odeProb = ODEProblem(petabModel.odeSystem, petabModel.stateMap, (0.0, 5e3), petabModel.parameterMap, jac=true, sparse=false)
     odeProb = remake(odeProb, p = convert.(Float64, odeProb.p), u0 = convert.(Float64, odeProb.u0))
-    ssSolverOptions = getSteadyStateSolverOptions(:Simulate)
-    _ssSolverOptions = _getSteadyStateSolverOptions(ssSolverOptions, odeProb, solverOptions.abstol / 100.0, 
-                                                    solverOptions.reltol / 100.0, solverOptions.maxiters)
-    computeJacobian = PEtab.setUpHessian(:GaussNewton, odeProb, solverOptions, _ssSolverOptions, petabODECache, petabODESolverCache,
+    ssOptions = SteadyStateSolverOptions(:Simulate, abstol=solverOptions.abstol / 100.0, reltol = solverOptions.reltol / 100.0)
+    _ssOptions = PEtab._getSteadyStateSolverOptions(ssOptions, odeProb, ssOptions.abstol, ssOptions.reltol, ssOptions.maxiters)
+    computeJacobian = PEtab.setUpHessian(:GaussNewton, odeProb, solverOptions, _ssOptions, petabODECache, petabODESolverCache,
                                          petabModel, simulationInfo, paramEstIndices, measurementData, 
                                          parameterData, priorInfo, nothing, returnJacobian=true)
-    computeSumResiduals = PEtab.setUpCost(:Standard, odeProb, solverOptions, _ssSolverOptions, petabODECache, petabODESolverCache,
+    computeSumResiduals = PEtab.setUpCost(:Standard, odeProb, solverOptions, _ssOptions, petabODECache, petabODESolverCache,
                                          petabModel, simulationInfo, paramEstIndices, measurementData, 
                                          parameterData, priorInfo, computeResiduals=true)
 
@@ -102,7 +101,7 @@ function getFileODEvalues(petabModel::PEtabModel)
     experimentalConditionsFile, measurementDataFile, parameterDataFile, observablesDataFile = readPEtabFiles(petabModel)
     parameterInfo = processParameters(parameterDataFile)
     measurementInfo = processMeasurements(measurementDataFile, observablesDataFile)
-    θ_indices = computeIndicesθ(parameterInfo, measurementInfo, petabModel.odeSystem, experimentalConditionsFile)
+    θ_indices = computeIndicesθ(parameterInfo, measurementInfo, petabModel)
 
     θ_estNames = θ_indices.θ_estNames
     θ_est = parameterInfo.nominalValue[findall(x -> x ∈ θ_estNames, parameterInfo.parameterId)]

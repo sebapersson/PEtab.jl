@@ -1,0 +1,4 @@
+observableId	observableName	observableFormula	noiseFormula	observableTransformation	noiseDistribution
+pAkt_tot		observableParameter1_pAkt_tot * (pAkt + pAkt_S6)	noiseParameter1_pAkt_tot	lin	normal
+pEGFR_tot		observableParameter1_pEGFR_tot * (pEGFR + pEGFR_Akt)	noiseParameter1_pEGFR_tot	lin	normal
+pS6_tot		pS6 * observableParameter1_pS6_tot	noiseParameter1_pS6_tot	lin	normal
