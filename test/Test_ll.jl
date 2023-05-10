@@ -41,7 +41,7 @@ function testGradientFiniteDifferences(petabModel::PEtabModel, solverOptions;
                                        checkAdjoint::Bool=false,
                                        testTol::Float64=1e-3,
                                        sensealgSS=SteadyStateAdjoint(),
-                                       sensealgAdjoint=InterpolatingAdjoint(),
+                                       sensealgAdjoint=InterpolatingAdjoint(autojacvec=ReverseDiffVJP(true)),
                                        ssOptions=nothing,
                                        onlyCheckAutoDiff::Bool=false,
                                        splitOverConditions=false)

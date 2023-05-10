@@ -17,7 +17,7 @@ end
 end
 
 @safetestset "Julia import and cost calculation" begin
-  include("testJuliaImport.jl")
+  include("Test_julia_import.jl")
 end
 
 @safetestset "PEtab test suite" begin

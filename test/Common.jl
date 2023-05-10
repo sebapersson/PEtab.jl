@@ -74,7 +74,7 @@ function checkGradientResiduals(petabModel::PEtabModel, solverOptions::ODESolver
     odeProb = ODEProblem(petabModel.odeSystem, petabModel.stateMap, (0.0, 5e3), petabModel.parameterMap, jac=true, sparse=false)
     odeProb = remake(odeProb, p = convert.(Float64, odeProb.p), u0 = convert.(Float64, odeProb.u0))
     ssOptions = SteadyStateSolverOptions(:Simulate, abstol=solverOptions.abstol / 100.0, reltol = solverOptions.reltol / 100.0)
-    _ssOptions = _getSteadyStateSolverOptions(ssOptions, prob, ssOptions.abstol, ssOptions.reltol, ssOptions.maxiters)
+    _ssOptions = PEtab._getSteadyStateSolverOptions(ssOptions, odeProb, ssOptions.abstol, ssOptions.reltol, ssOptions.maxiters)
     computeJacobian = PEtab.setUpHessian(:GaussNewton, odeProb, solverOptions, _ssOptions, petabODECache, petabODESolverCache,
                                          petabModel, simulationInfo, paramEstIndices, measurementData, 
                                          parameterData, priorInfo, nothing, returnJacobian=true)

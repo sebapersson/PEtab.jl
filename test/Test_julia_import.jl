@@ -1,20 +1,23 @@
 using PEtab
 using Test
 using OrdinaryDiffEq
+using Printf
 
 
 # Used to test cost-value at the nominal parameter value 
 function testLogLikelihoodValue(petabModel::PEtabModel, 
                                 referenceValue::Float64; atol=1e-3)
     
-    odeSolverOptions = ODESolverOptions(Rodas4P(), abstol=1e-8, reltol=1e-8)
-    petabProblem = createPEtabODEProblem(petabModel, odeSolverOptions, 
-                                gradientMethod=:ForwardDiff, 
-                                hessianMethod=:ForwardDiff, 
-                                splitOverConditions=true)
+    petabProblem = createPEtabODEProblem(petabModel,
+                                         odeSolverOptions=ODESolverOptions(Rodas4P(), abstol=1e-8, reltol=1e-8),
+                                         gradientMethod=:ForwardDiff, 
+                                         hessianMethod=:ForwardDiff, 
+                                         splitOverConditions=true, 
+                                         verbose=false)
 
     cost = petabProblem.computeCost(petabProblem.θ_nominalT)
-    println("Model : ", petabModel.modelName)
+    strWrite = @sprintf("Model : %s", petabModel.modelName)
+    @info "$strWrite"
     @test cost ≈ referenceValue atol=atol    
 
 end
