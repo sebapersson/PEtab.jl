@@ -81,9 +81,6 @@ include(joinpath("SBML", "Process_rules.jl"))
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem 
 @setup_workload begin
     pathYAML = joinpath(@__DIR__, "..", "test", "Test_model3", "Test_model3.yaml")
-    if isfile(joinpath(@__DIR__, "..", "test", "Test_model3", "Julia_model_files", "Test_model3_h_sd_u0.jl"))
-        rm(joinpath(@__DIR__, "..", "test", "Test_model3", "Julia_model_files", "Test_model3_h_sd_u0.jl"))
-    end
     @compile_workload begin
         petabModel = readPEtabModel(pathYAML, verbose=false)
         petabProblem = createPEtabODEProblem(petabModel, verbose=false)
