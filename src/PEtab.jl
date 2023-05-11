@@ -23,6 +23,7 @@ using YAML
 using RuntimeGeneratedFunctions
 using PreallocationTools
 using NonlinearSolve
+using PrecompileTools
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
@@ -75,6 +76,18 @@ include(joinpath("SBML", "SBML_to_ModellingToolkit.jl"))
 include(joinpath("SBML", "Common.jl"))
 include(joinpath("SBML", "Process_functions.jl"))
 include(joinpath("SBML", "Process_rules.jl"))
+
+
+# Reduce time for reading a PEtabModel and for building a PEtabODEProblem 
+@setup_workload begin
+    pathYAML = joinpath(@__DIR__, "..", "test", "Test_model3", "Test_model3.yaml")
+    @compile_workload begin
+        petabModel = readPEtabModel(pathYAML, verbose=false)
+        petabProblem = createPEtabODEProblem(petabModel, verbose=false)
+        petabProblem.computeCost(petabProblem.θ_nominalT)
+    end
+end
+
 
 export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem
 
