@@ -158,7 +158,7 @@ end
 
 # Used to check against world-age problem
 function createModelInsideFunction()
-    _petabModel = readPEtabModel(joinpath(@__DIR__, "Test_model2/Test_model2.yaml"), forceBuildJuliaFiles=false, verbose=true)
+    _petabModel = readPEtabModel(joinpath(@__DIR__, "Test_model2", "Test_model2.yaml"), forceBuildJuliaFiles=false, verbose=true)
     return _petabModel
 end
 petabModel = createModelInsideFunction()
