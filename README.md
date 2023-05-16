@@ -25,8 +25,6 @@ julia> ] add PEtab
 
 ## Quick start
 
-## Quick start
-
 To create a PEtab model from the path of the YAML-file for the so-called Bachmann model:
 
 ```julia
