@@ -47,6 +47,10 @@ petabProblem = createPEtabODEProblem(bachmannModel,
 After defining the parameter vector `θ`, you can compute the cost, gradient, and Hessian with the following code:
 
 ```julia
+θ = petabProblem.θ_nominalT
+```
+
+```julia
 # We only support in-place Hessian and gradients
 ∇f = zeros(length(θ))
 H = zeros(length(θ), length(θ))
@@ -75,6 +79,8 @@ Using this functionality, you can perform parameter estimation using optimizatio
 * Handling pre-equilibration and pre-simulation conditions.
 * Support for models with discrete events and logical operations.
 
+## Documentation
+Documentation and tutorials are available at https://sebapersson.github.io/PEtab.jl
 
 ## Development team
 
