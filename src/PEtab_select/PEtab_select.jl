@@ -1,33 +1,38 @@
-using PEtab
-using PyCall
-using Printf
-using OrdinaryDiffEq
-using Optim
-using DataFrames
-using CSV
-using YAML
+"""
+    runPEtabSelect(pathYAML, optimizer; <keyword arguments>)
 
-# Adding functionality for working with PEtab select
-# Inputs 
-#    pathYAML - path to the PEtab select YAML file 
-#    pathState - path where the state of the problem is stored 
-#    pathOutput - path to where the output file is stored 
-#    method - method used to find the best model as a symbol 
+Given a PEtab-select YAML file perform model selection with the algorithms specified in the YAML file. 
 
-pathPythonExe = joinpath("/", "home", "sebpe", "anaconda3", "envs", "PeTab", "bin", "python")
-ENV["PYTHON"] = pathPythonExe
-import Pkg; Pkg.build("PyCall")
+Results are written to a YAML file in the same directory as the PEtab-select YAML file.
 
+Each candidate model produced during the model selection undergoes parameter estimation using local multi-start 
+optimization. Three optimizers are supported: `optimizer=Fides()` (Fides Newton-trust region), `optimizer=IPNewton()` 
+from Optim.jl, and `optimizer=LBFGS()` from Optim.jl. Additional keywords for the optimisation are 
+`nOptimisationStarts::Int`- number of multi-starts for parameter estimation (defaults to 100) and 
+`optimizationSamplingMethod` - which is any sampling method from QuasiMonteCarlo.jl for generating start guesses 
+(defaults to LatinHypercubeSample). See also (add callibrate model)
 
-function call_py(pathYAML::String, 
-                 optimizer; 
-                 optimizerOptions=nothing,
-                 odeSolverOptions=getODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8), 
-                 gradientMethod=:ForwardDiff, 
-                 hessianMethod=:ForwardDiff, 
-                 sensealg=:ForwardDiff,
-                 reuseS=false, 
-                 nMultiStarts=5)
+Simulation options can be set using any keyword argument accepted by the `createPEtabODEProblem` function. 
+For example, setting `gradientMethod=:ForwardDiff` specifies the use of forward-mode automatic differentiation for 
+gradient computation. If left blank, we automatically select appropriate options based on the size of the problem. 
+"""
+function runPEtabSelect(pathYAML::String, 
+                        optimizer; 
+                        optimizerOptions=nothing,
+                        nOptimisationStarts=100,
+                        optimizationSamplingMethod::T=QuasiMonteCarlo.LatinHypercubeSample(),
+                        odeSolverOptions::Union{Nothing, ODESolverOptions}=nothing,
+                        odeSolverGradientOptions::Union{Nothing, ODESolverOptions}=nothing,
+                        ssSolverOptions::Union{Nothing, SteadyStateSolverOptions}=nothing,
+                        ssSolverGradientOptions::Union{Nothing, SteadyStateSolverOptions}=nothing,
+                        gradientMethod::Union{Nothing, Symbol}=nothing,
+                        hessianMethod::Union{Nothing, Symbol}=nothing,
+                        sparseJacobian::Union{Nothing, Bool}=nothing,
+                        sensealg::Union{Nothing, Symbol, SciMLBase.AbstractSensitivityAlgorithm}=nothing,
+                        sensealgSS::Union{Nothing, SciMLSensitivity.AbstractAdjointSensitivityAlgorithm}=nothing,
+                        chunkSize::Union{Nothing, Int64}=nothing,
+                        splitOverConditions::Bool=false, 
+                        reuseS::Bool=false) where T <: QuasiMonteCarlo.SamplingAlgorithm
 
     py"""
     import petab_select
@@ -100,30 +105,31 @@ function call_py(pathYAML::String,
     """
 
 
-    function _callibrate_model(model, select_problem, _petabProblem::PEtabODEProblem; nStartGuesses=nStartGuesses)
+    function _callibrate_model(model, select_problem, _petabProblem::PEtabODEProblem; nOptimisationStarts=nOptimisationStarts)
         subspaceId, subspaceYAML, _subspaceParameters = py"get_model_to_test_info"(model)
         subspaceParameters = Dict(Symbol(k) => v for (k, v) in pairs(_subspaceParameters)) 
         @info "Callibrating model $subspaceId"
         petabProblem = remakePEtabProblem(_petabProblem, subspaceParameters)
         if isnothing(optimizerOptions)
-            f, fArg = callibrateModel(petabProblem, optimizer, nStartGuesses=nStartGuesses)
+            _f, _fArg = callibrateModel(petabProblem, optimizer, nOptimisationStarts=nOptimisationStarts, samplingMethod=optimizationSamplingMethod)
         else
-            f, fArg = callibrateModel(petabProblem, optimizer, nStartGuesses=nStartGuesses, options=optimizerOptions)
+            _f, _fArg = callibrateModel(petabProblem, optimizer, nOptimisationStarts=nOptimisationStarts, options=optimizerOptions, samplingMethod=optimizationSamplingMethod)
         end
+        whichMin = argmin(_f)
+        f = _f[whichMin]
+        fArg = _fArg[whichMin, :]
+
         # Setup dictionary to conveniently storing model parameters 
         estimatedParameters = Dict(string(petabProblem.θ_estNames[i]) => fArg[i] for i in eachindex(fArg)) 
         nDataPoints = length(_petabProblem.computeCost.measurementInfo.measurement)
-        println("f-update = $f")
         py"update_model"(select_problem, model, f, estimatedParameters, nDataPoints)
-        return model
     end
 
 
-    function callibrate_candidate_models(candidate_space, select_problem, n_candidates, _petabProblem::PEtabODEProblem; nStartGuesses=100)
+    function callibrate_candidate_models(candidate_space, select_problem, n_candidates, _petabProblem::PEtabODEProblem; nOptimisationStarts=100)
         for i in 1:n_candidates
-            _ = _callibrate_model(candidate_space.models[i], select_problem, _petabProblem::PEtabODEProblem, nStartGuesses=nStartGuesses)
+            _callibrate_model(candidate_space.models[i], select_problem, _petabProblem::PEtabODEProblem, nOptimisationStarts=nOptimisationStarts)
         end
-        return nothing, false
     end
 
 
@@ -131,17 +137,25 @@ function call_py(pathYAML::String,
     # thus when we compare different models we do not have to pre-compile the model 
     dirModel = splitdir(pathYAML)[1]
     fileYAML = YAML.load_file(pathYAML)
-    modelSpaceFile = CSV.read(joinpath(dirModel, fileYAML["model_space_files"][1]), DataFrame)
-    parametersToChange = Symbol.(names(modelSpaceFile)[3:end])
+    modelSpaceFile = CSV.File(joinpath(dirModel, fileYAML["model_space_files"][1]), stringtype=String)
+    parametersToChange = Symbol.(propertynames(modelSpaceFile)[3:end])
     _customParameterValues = Dict(); [_customParameterValues[parametersToChange[i]] = "estimate" for i in eachindex(parametersToChange)]
-    _petabModel = readPEtabModel(joinpath(dirModel, modelSpaceFile[1, :petab_yaml]), forceBuildJuliaFiles=true, verbose=false)
-    _petabProblem = setupPEtabODEProblem(_petabModel, odeSolverOptions, 
-                                         gradientMethod=gradientMethod, 
-                                         hessianMethod=hessianMethod, 
-                                         sensealg=sensealg,
-                                         reuseS=reuseS, 
-                                         verbose=false, 
-                                         customParameterValues=_customParameterValues)
+    _petabModel = readPEtabModel(joinpath(dirModel, modelSpaceFile[1][:petab_yaml]), forceBuildJuliaFiles=true, verbose=false)
+    _petabProblem = createPEtabODEProblem(_petabModel, 
+                                          odeSolverOptions=odeSolverOptions,
+                                          odeSolverGradientOptions=odeSolverGradientOptions,
+                                          ssSolverOptions=ssSolverOptions,
+                                          ssSolverGradientOptions=ssSolverGradientOptions,
+                                          gradientMethod=gradientMethod,
+                                          hessianMethod=hessianMethod,
+                                          sparseJacobian=sparseJacobian,
+                                          sensealg=sensealg,
+                                          sensealgSS=sensealgSS,
+                                          chunkSize=chunkSize,
+                                          splitOverConditions=splitOverConditions, 
+                                          reuseS=reuseS,
+                                          verbose=false,
+                                          customParameterValues=_customParameterValues)
     
     calibrated_models, newly_calibrated_models = py"setup_tracking"()
 
@@ -159,7 +173,7 @@ function call_py(pathYAML::String,
         # Start the iterative model selction process 
         k == 1 && @info "Model selection round $k with $n_candidates candidates - as the code compiles in this round compiled it takes extra long time https://xkcd.com/303/"
         k != 1 && @info "Model selection round $k with $n_candidates candidates"
-        callibrate_candidate_models(candidate_space, select_problem, n_candidates, _petabProblem, nStartGuesses=nMultiStarts)
+        callibrate_candidate_models(candidate_space, select_problem, n_candidates, _petabProblem, nOptimisationStarts=nOptimisationStarts)
         newly_calibrated_models, calibrated_models = py"update_selection"(newly_calibrated_models, calibrated_models, select_problem,  candidate_space)
         
         py"update_candidate_space"(candidate_space, select_problem, newly_calibrated_models)
@@ -175,32 +189,5 @@ function call_py(pathYAML::String,
     pathSave = joinpath(splitdir(pathYAML)[1], "PEtab_select_" * string(select_problem.method) * "_" * select_problem.criterion * ".yaml")
     @info "Saving results for best model at $pathSave"
     py"write_selection_result"(best_model, pathSave)
+    return pathSave
 end
-
-
-pathYAML = joinpath(@__DIR__, "..", "..", "test_local", "PEtab_select", "0001", "petab_select_problem.yaml")
-call_py(pathYAML, Fides(verbose=false), gradientMethod=:ForwardEquations, hessianMethod=:GaussNewton, reuseS=true, sensealg=:ForwardDiff)
-
-pathYAML = joinpath(@__DIR__, "..", "..", "test_local", "PEtab_select", "0002", "petab_select_problem.yaml")
-call_py(pathYAML, Fides(verbose=false), gradientMethod=:ForwardEquations, hessianMethod=:GaussNewton, reuseS=true, sensealg=:ForwardDiff)
-
-pathYAML = joinpath(@__DIR__, "..", "..", "test_local", "PEtab_select", "0003", "petab_select_problem.yaml")
-call_py(pathYAML, Fides(verbose=false), gradientMethod=:ForwardEquations, hessianMethod=:GaussNewton, reuseS=true, sensealg=:ForwardDiff)
-
-pathYAML = joinpath(@__DIR__, "..", "..", "test_local", "PEtab_select", "0004", "petab_select_problem.yaml")
-call_py(pathYAML, Fides(verbose=false), gradientMethod=:ForwardEquations, hessianMethod=:GaussNewton, reuseS=true, sensealg=:ForwardDiff)
-
-pathYAML = joinpath(@__DIR__, "..", "..", "test_local", "PEtab_select", "0005", "petab_select_problem.yaml")
-call_py(pathYAML, Fides(verbose=false), gradientMethod=:ForwardEquations, hessianMethod=:GaussNewton, reuseS=true, sensealg=:ForwardDiff)
-
-pathYAML = joinpath(@__DIR__, "..", "..", "test_local", "PEtab_select", "0006", "petab_select_problem.yaml")
-call_py(pathYAML, Fides(verbose=false), gradientMethod=:ForwardEquations, hessianMethod=:GaussNewton, reuseS=true, sensealg=:ForwardDiff)
-
-pathYAML = joinpath(@__DIR__, "..", "..", "test_local", "PEtab_select", "0007", "petab_select_problem.yaml")
-call_py(pathYAML, Fides(verbose=false), gradientMethod=:ForwardEquations, hessianMethod=:GaussNewton, reuseS=true, sensealg=:ForwardDiff)
-
-pathYAML = joinpath(@__DIR__, "..", "..", "test_local", "PEtab_select", "0008", "petab_select_problem.yaml")
-call_py(pathYAML, Fides(verbose=false), gradientMethod=:ForwardEquations, hessianMethod=:GaussNewton, reuseS=true, sensealg=:ForwardDiff)
-
-pathYAML = joinpath(@__DIR__, "..", "..", "test_local", "PEtab_select", "0009", "petab_select_problem.yaml")
-call_py(pathYAML, Fides(verbose=false), gradientMethod=:ForwardEquations, hessianMethod=:GaussNewton, reuseS=true, sensealg=:ForwardDiff, nMultiStarts=200)

@@ -37,14 +37,18 @@ function callibrateModel(petabProblem::PEtabODEProblem,
     parameterValues = zeros(Float64, nOptimisationStarts, nParameters)
     runOptim = createOptimProblem(petabProblem, optimizer, options=options)
 
-    startGuesses = QuasiMonteCarlo.sample(nOptimisationStarts, petabProblem.lowerBounds, petabProblem.upperBounds, samplingMethod)
+    # Nothing prevents the user from sending in a parameter vector with zero parameters 
+    if length(petabProblem.lowerBounds) == 0
+        startGuesses = nothing
+    else
+        startGuesses = QuasiMonteCarlo.sample(nOptimisationStarts, petabProblem.lowerBounds, petabProblem.upperBounds, samplingMethod)
+    end
 
     # Randomly generate startguesses from a Uniform distribution, will add something like a cube later 
     # (downstream package)
     for i in 1:nOptimisationStarts
-        p0 = startGuesses[:, i]
-        if !isempty(p0)
-
+        if !isnothing(startGuesses)
+            p0 = startGuesses[:, i]
             cost0 = petabProblem.computeCost(p0)
             if isinf(cost0)
                 objValues[i] = Inf
@@ -75,14 +79,18 @@ function callibrateModel(petabProblem::PEtabODEProblem,
     parameterValues = zeros(Float64, nOptimisationStarts, nParameters)
     runFides = createFidesProblem(petabProblem, optimizer, options=options)
 
-    startGuesses = QuasiMonteCarlo.sample(nOptimisationStarts, petabProblem.lowerBounds, petabProblem.upperBounds, samplingMethod)
+    # Nothing prevents the user from sending in a parameter vector with zero parameters 
+    if length(petabProblem.lowerBounds) == 0
+        startGuesses = nothing
+    else
+        startGuesses = QuasiMonteCarlo.sample(nOptimisationStarts, petabProblem.lowerBounds, petabProblem.upperBounds, samplingMethod)
+    end
 
     # Randomly generate startguesses from a Uniform distribution, will add something like a cube later 
     # (downstream package)
     for i in 1:nOptimisationStarts
-        p0 = startGuesses[:, i]
-        if !isempty(p0)
-
+        if !isnothing(startGuesses)
+            p0 = startGuesses[:, i]
             cost0 = petabProblem.computeCost(p0)
             if isinf(cost0)
                 objValues[i] = Inf

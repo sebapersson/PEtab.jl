@@ -25,6 +25,7 @@ using PreallocationTools
 using NonlinearSolve
 using PrecompileTools
 using Optim
+using QuasiMonteCarlo
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
@@ -79,10 +80,11 @@ include(joinpath("SBML", "Common.jl"))
 include(joinpath("SBML", "Process_functions.jl"))
 include(joinpath("SBML", "Process_rules.jl"))
 
-# For Optimization - to be outsourced down the line 
+# For Optimization and model selection 
 include(joinpath("Optimization", "Setup_optim.jl"))
 include(joinpath("Optimization", "Setup_fides.jl"))
 include(joinpath("Optimization", "Callibration.jl"))
+include(joinpath("PEtab_select", "PEtab_select.jl"))
 
 #=
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem 
@@ -96,6 +98,6 @@ include(joinpath("Optimization", "Callibration.jl"))
 end
 =#
 
-export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, createOptimProblem, createFidesProblem, callibrateModel, remakePEtabProblem
+export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, createOptimProblem, createFidesProblem, callibrateModel, remakePEtabProblem, Fides, runPEtabSelect
 
 end

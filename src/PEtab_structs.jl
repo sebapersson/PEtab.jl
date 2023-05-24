@@ -340,6 +340,14 @@ struct PriorInfo{T1 <: NamedTuple,
 end
 
 
+"""
+    Fides
+
+[Fides](https://github.com/fides-dev/fides) is a Python Newton-trust region optimizer for box-bounded optimization problems.
+
+It is particularly effective when the full Hessian cannot be computed, but the Gauss-Newton Hessian approximation can be 
+computed. If constructed with `Fides(verbose=true)`, it prints optimization progress during the process.
+"""
 struct Fides
     hessianApproximation
     verbose

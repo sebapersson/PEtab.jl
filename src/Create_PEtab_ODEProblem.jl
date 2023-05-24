@@ -1051,6 +1051,17 @@ function getStringSolverOptions(a::ODESolverOptions)
 end
 
 
+"""
+    remakePEtabProblem(petabProblem::PEtabODEProblem, parametersChange::Dict) :: PEtabODEProblem
+
+Fixate model parameters for a given PEtabODEProblem without recompiling the problem.
+
+This function allows you to modify parameters without the need to recompile the underlying code, resulting in reduced 
+latency. To fixate the parameter k1, you can use `parametersChange=Dict(:k1 => 1.0)`.
+
+If model derivatives are computed using ForwardDiff.jl with a chunk-size of N, the new PEtabODEProblem will only 
+evaluate the necessary number of chunks of size N to compute the full gradient for the remade problem. 
+"""
 function remakePEtabProblem(petabProblem::PEtabODEProblem, parametersChange::Dict)::PEtabODEProblem
 
     # Only keep which parameters should be fixed 

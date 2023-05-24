@@ -51,8 +51,7 @@ function computeGradientAutoDiff!(gradient::Vector{Float64},
                 @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ[petabODECache.θ_dynamicOutputOrder]
             else
                 computeCostDynamicθ(petabODECache.θ_dynamic)
-            end
-            
+            end        
         catch 
             gradient .= 0.0
             return 
@@ -64,7 +63,7 @@ function computeGradientAutoDiff!(gradient::Vector{Float64},
         gradient .= 0.0
         return
     end
-    if !isempty(petabODECache.gradientDyanmicθ) && all(petabODECache.gradientDyanmicθ .== 0.0)
+    if !isempty(petabODECache.gradientDyanmicθ) && all(petabODECache.gradientDyanmicθ .== 0.0) && petabODECache.nθ_dynamicEst[1] != 0
         gradient .= 0.0
         return
     end

@@ -34,7 +34,7 @@ end
 function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                    parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap)::Real 
 	if observableId === :obs_x2 
-		return 1 
+		return 1.0 
 	end
 
 end
