@@ -22,7 +22,6 @@ using Test
 using OrdinaryDiffEq
 using SciMLSensitivity
 using CSV
-using DataFrames
 using ForwardDiff
 using LinearAlgebra
 using Sundials
@@ -87,7 +86,7 @@ function testODESolverTestModel3(petabModel::PEtabModel, solverOptions::ODESolve
     measurementData = processMeasurements(measurementDataFile, observablesDataFile)
     paramData = processParameters(parameterDataFile)
     setParamToFileValues!(petabModel.parameterMap, petabModel.stateMap, paramData)
-    θ_indices = computeIndicesθ(paramData, measurementData, petabModel.odeSystem, experimentalConditionsFile)
+    θ_indices = computeIndicesθ(paramData, measurementData, petabModel)
 
     # Extract experimental conditions for simulations
     simulationInfo = processSimulationInfo(petabModel, measurementData)
@@ -112,11 +111,10 @@ function testODESolverTestModel3(petabModel::PEtabModel, solverOptions::ODESolve
         prob = remake(prob, p = convert.(Float64, prob.p), u0 = convert.(Float64, prob.u0))
         θ_dynamic = getFileODEvalues(petabModel)[1:4]
         petabODESolverCache = createPEtabODESolverCache(:nothing, :nothing, petabModel, simulationInfo, θ_indices, nothing)
-        _ssSolverOptions = _getSteadyStateSolverOptions(ssOptions, prob, solverOptions.abstol / 100.0, 
-                                                        solverOptions.reltol / 100.0, solverOptions.maxiters)
+        _ssOptions = _getSteadyStateSolverOptions(ssOptions, prob, ssOptions.abstol, ssOptions.reltol, ssOptions.maxiters)
 
         # Solve ODE system
-        odeSolutions, success = solveODEAllExperimentalConditions(prob, petabModel, θ_dynamic, petabODESolverCache, simulationInfo, θ_indices, solverOptions, _ssSolverOptions)
+        odeSolutions, success = solveODEAllExperimentalConditions(prob, petabModel, θ_dynamic, petabODESolverCache, simulationInfo, θ_indices, solverOptions, _ssOptions)
         # Solve ODE system with algebraic intial values
         algebraicODESolutions = getSolAlgebraicSS(petabModel, solverOptions.solver, solverOptions.abstol, a, b, c, d)
 
@@ -137,11 +135,11 @@ function testCostGradientOrHessianTestModel3(petabModel::PEtabModel, solverOptio
 
     _computeCostAlgebraic = (pArg) -> computeCostAlgebraic(pArg, petabModel, solverOptions.solver, solverOptions.abstol)
 
-    cube = Matrix(CSV.read(joinpath(@__DIR__, "Test_model3", "Julia_model_files", "CubeTest_model3.csv") , DataFrame))
+    cube = CSV.File(joinpath(@__DIR__, "Test_model3", "Julia_model_files", "CubeTest_model3.csv"))
 
     for i in 1:1
 
-        p = cube[i, :]
+        p = Float64.(collect(cube[i]))
 
         referenceCost = _computeCostAlgebraic(p)
         referenceGradient = ForwardDiff.gradient(_computeCostAlgebraic, p)
@@ -162,7 +160,7 @@ function testCostGradientOrHessianTestModel3(petabModel::PEtabModel, solverOptio
         @test norm(normalize(gradientAdjoint) - normalize((referenceGradient))) ≤ 1e-2
         gradientForward1 = _testCostGradientOrHessian(petabModel, solverOptions, p, computeGradient=true, gradientMethod=:ForwardEquations, sensealg=:ForwardDiff, ssOptions=ssOptions)
         @test norm(gradientForward1 - referenceGradient) ≤ 1e-2
-        gradientForward2 = _testCostGradientOrHessian(petabModel, getODESolverOptions(CVODE_BDF(), abstol=1e-12, reltol=1e-12), p, computeGradient=true, gradientMethod=:ForwardEquations, sensealg=ForwardSensitivity(), ssOptions=ssOptions)
+        gradientForward2 = _testCostGradientOrHessian(petabModel, ODESolverOptions(CVODE_BDF(), abstol=1e-12, reltol=1e-12), p, computeGradient=true, gradientMethod=:ForwardEquations, sensealg=ForwardSensitivity(), ssOptions=ssOptions)
         @test norm(gradientForward2 - referenceGradient) ≤ 1e-2
 
         # Testing "exact" hessian via autodiff
@@ -174,23 +172,23 @@ function testCostGradientOrHessianTestModel3(petabModel::PEtabModel, solverOptio
 end
 
 
-petabModel = readPEtabModel(joinpath(@__DIR__, "Test_model3/Test_model3.yaml"), forceBuildJuliaFiles=false)
+petabModel = readPEtabModel(joinpath(@__DIR__, "Test_model3", "Test_model3.yaml"), forceBuildJuliaFiles=false)
 
 @testset "ODE solver Simulate wrms termination" begin
-    ssOptionsTest1 = getSteadyStateSolverOptions(:Simulate, howCheckSimulationReachedSteadyState=:wrms, abstol=1e-12, reltol=1e-10)
-    testODESolverTestModel3(petabModel, getODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12), ssOptionsTest1)
+    ssOptionsTest1 = SteadyStateSolverOptions(:Simulate, howCheckSimulationReachedSteadyState=:wrms, abstol=1e-12, reltol=1e-10)
+    testODESolverTestModel3(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12), ssOptionsTest1)
 end
 
 @testset "ODE solver Simulate Newton SS termination" begin
-    ssOptionsTest2 = getSteadyStateSolverOptions(:Simulate, howCheckSimulationReachedSteadyState=:Newton, abstol=1e-12, reltol=1e-10)
-    testODESolverTestModel3(petabModel, getODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12), ssOptionsTest2)
+    ssOptionsTest2 = SteadyStateSolverOptions(:Simulate, howCheckSimulationReachedSteadyState=:Newton, abstol=1e-12, reltol=1e-10)
+    testODESolverTestModel3(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12), ssOptionsTest2)
 end
 
 @testset "Cost gradient and hessian" begin
-    ssOptionsTest3 = getSteadyStateSolverOptions(:Simulate, howCheckSimulationReachedSteadyState=:Newton, abstol=1e-12, reltol=1e-10)
-    testCostGradientOrHessianTestModel3(petabModel, getODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12, maxiters=Int(1e5)), ssOptionsTest3)
+    ssOptionsTest3 = SteadyStateSolverOptions(:Simulate, howCheckSimulationReachedSteadyState=:wrms, abstol=1e-12, reltol=1e-10)
+    testCostGradientOrHessianTestModel3(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12, maxiters=Int(1e5)), ssOptionsTest3)
 end
 
 @testset "Gradient of residuals" begin
-    checkGradientResiduals(petabModel, getODESolverOptions(Rodas4P(), abstol=1e-9, reltol=1e-9))
+    checkGradientResiduals(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-9, reltol=1e-9))
 end

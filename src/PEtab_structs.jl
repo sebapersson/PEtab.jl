@@ -1,40 +1,41 @@
 """
     PEtabModel
 
-A PEtab specified problem translated into a Julia compatible format.
+A Julia-compatible representation of a PEtab-specified problem.
 
-Created from `readPEtabModel` contains helper functions needed to set up cost-, gradient-, hessian-computations, and for handling potential model events (callbacks). 
+Created by `readPEtabModel`, this object contains helper functions for setting up cost, gradient, and Hessian computations, as well as handling potential model events (callbacks). 
 
-**Note1** - Several of the functions in the PEtabModel are not meant to be accessible for the user. For example compute_h (and similar functions) require indices which are built in the background to efficiently map parameter between experimental (simulation) conditions. Rather, `PEtabModel` holds all information needed to create a PEtabODEProblem, and in the future PEtabSDEProblem etc ...
-**Note2** - ODEProblem.p refers to the parameters for underlying DifferentialEquations.jl ODEProblem.
+**Note1:** Several of the functions in `PEtabModel` are not intended to be accessed by the user. For example, `compute_h` (and similar functions) require indices that are built in the background to efficiently map parameters between experimental (simulation) conditions. Rather, `PEtabModel` holds all information needed to create a `PEtabODEProblem`, and in the future, `PEtabSDEProblem`, etc.
+
+**Note2:** `ODEProblem.p` refers to the parameters for the underlying `DifferentialEquations.jl` `ODEProblem`.
 
 # Fields
-- `modelName`: Model-name extracted from the PEtab yaml-file. 
-- `compute_h`: Compute the observable (h) for a specific time-point and simulation condition.
-- `compute_u0!`: In-place initial values using the ODEProblem.p for a simulation condition; compute_u0!(u0, p)
-- `compute_u0`: As above but not in-place; u0 = compute_u0(p)
-- `compute_σ`: Compute the noise parameter σ for specific time-point and simulation condition.
-- `compute_∂h∂u!`: Compute the gradient of h with respect to ODE-model states (u) for a specific time-point and simulation condition.
-- `compute_∂σ∂u!`: As above but for the noise parameter σ
-- `compute_∂h∂p!`: As above for h but with respect to ODEProblem.p
-- `compute_∂σ∂p!`: As above for σ but with respect to ODEProblem.p
-- `computeTStops`: In case the model has DiscreteCallbacks (events) this function computes the event times. 
-- `convertTspan::Bool`: In case the model has DiscreteCallbacks (events) and the trigger-time is a parameter set to be estimated this Bool tracks that for ForwardDiff.jl gradients the time-span should be converted to Dual-numbers. 
-- `dirModel`: Directory where the model.xml and PEtab files are stored.
-- `dirJulia`: Directory where the Julia-model files created by parsing the PEtab files (e.g SBML-file) are stored. 
-- `odeSystem`: A ModellingToolkit.jl ODE-system obtained from parsing the model SBML-file.  
-- `parameterMap`: A ModellingToolkit.jl parameter map for the ODE-system.
-- `stateMap`: A ModellingToolkit.jl state map for the ODE-system describing how the inital values are computed, e.g. whether or not certain initial values are computed from parameters in the parameterMap.
-- `parameterNames`: Names of the parameter in the odeSystem.
-- `stateNames`: Names of the states in the odeSystem.
-- `pathMeasurements`: Path to the PEtab measurements file
-- `pathConditions`: Path to the PEtab conditions file
-- `pathObservables`: Path to the PEtab observables file
-- `pathParameters`: Path to the PEtab parameters file
-- `pathSBML`: Path to the PEtab SBML file
-- `pathYAML`: Path to the PEtab yaml file
-- `modelCallbackSet`: Stores potential model callbacks (events)
-- `checkIfCallbackIsActive`: Piecewise SBML statements are rewritten to DiscreteCallbacks that are activated at a specific time-point. The piecewise callback has a defult value at t0 which is only triggered upon reaching t_activation. In case t_activation ≤ 0 (never reached when solvig the model) this function checks whether or not the callback should be triggered before solving the model. 
+- `modelName`: The model name extracted from the PEtab YAML file.
+- `compute_h`: Computes the observable `h` for a specific time point and simulation condition.
+- `compute_u0!`: Computes in-place initial values using `ODEProblem.p` for a simulation condition; `compute_u0!(u0, p)`.
+- `compute_u0`: Computes initial values as above, but not in-place; `u0 = compute_u0(p)`.
+- `compute_σ`: Computes the noise parameter `σ` for a specific time point and simulation condition.
+- `compute_∂h∂u!`: Computes the gradient of `h` with respect to `ODEModel` states (`u`) for a specific time point and simulation condition.
+- `compute_∂σ∂u!`: Computes the gradient of `σ` with respect to `ODEModel` states (`u`) for a specific time point and simulation condition.
+- `compute_∂h∂p!`: Computes the gradient of `h` with respect to `ODEProblem.p`.
+- `compute_∂σ∂p!`: Computes the gradient of `σ` with respect to `ODEProblem.p`.
+- `computeTStops`: Computes the event times in case the model has `DiscreteCallbacks` (events).
+- `convertTspan::Bool`: Tracks whether the time span should be converted to `Dual` numbers for `ForwardDiff.jl` gradients, in case the model has `DiscreteCallbacks` and the trigger time is a parameter set to be estimated.
+- `dirModel`: The directory where the model.xml and PEtab files are stored.
+- `dirJulia`: The directory where the Julia-model files created by parsing the PEtab files (e.g., SBML file) are stored. 
+- `odeSystem`: A `ModellingToolkit.jl` ODE system obtained from parsing the model SBML file.
+- `parameterMap`: A `ModellingToolkit.jl` parameter map for the ODE system.
+- `stateMap`: A `ModellingToolkit.jl` state map for the ODE system describing how the initial values are computed, e.g., whether or not certain initial values are computed from parameters in the `parameterMap`.
+- `parameterNames`: The names of the parameters in the `odeSystem`.
+- `stateNames`: The names of the states in the `odeSystem`.
+- `pathMeasurements`: The path to the PEtab measurements file.
+- `pathConditions`: The path to the PEtab conditions file.
+- `pathObservables`: The path to the PEtab observables file.
+- `pathParameters`: The path to the PEtab parameters file.
+- `pathSBML`: The path to the PEtab SBML file.
+- `pathYAML`: The path to the PEtab YAML file.
+- `modelCallbackSet`: This stores potential model callbacks or events.
+- `checkIfCallbackIsActive`: Piecewise SBML statements are transformed to DiscreteCallbacks that are activated at a specific time-point. The piecewise callback has a default value at t0 and is only triggered when reaching t_activation. If t_activation ≤ 0 (never reached when solving the model), this function checks whether the callback should be triggered before solving the model.
 """
 struct PEtabModel{F1<:Function,
                   F2<:Function,
@@ -81,21 +82,6 @@ struct PEtabModel{F1<:Function,
 end
 
 
-"""
-    ODESolverOptions
-
-Stores ODE-solver options (solver, tolerances, etc...) to use when computing gradient/cost for a PEtabODEProblem. 
-
-Constructed via `getODESolverOptions`. More info regarding the options and available solvers can be found in the documentation for DifferentialEquations.jl (https://docs.sciml.ai/DiffEqDocs/stable/solvers/ode_solve/), and in the documentation for `getODESolverOptions`.
-
-# Fields
-- `solver`: Any of the ODE-solvers in DifferentialEquations.jl
-- `abstol`: Absolute tolerance when solving the ODE-system. 
-- `reltol`: Relative tolerance when solving the ODE-system
-- `force_dtmin`: Whether or not to force dtmin when solving the ODE-system.
-- `dtmin`: Minimal acceptable step-size when solving the ODE-system.
-- `maxiters`: Maximum number of iterations when solving the ODE-system.
-"""
 mutable struct ODESolverOptions{T2 <: Union{Float64, Nothing}}
     solver
     abstol::Float64
@@ -106,23 +92,6 @@ mutable struct ODESolverOptions{T2 <: Union{Float64, Nothing}}
 end
 
 
-"""
-    SteadyStateSolverOptions
-    
-Stores options (algorithm, tolerances, etc...) to use when computing steady state for models with pre-equlibration.
-
-Constructed via `getSteadyStateSolverOptions` with several potential user options.
-
-# Fields
-- `method`: Approach to find steady-state u*; du = f(u*, p, t) ≈ 0. Either :Rootfinding to directly solve the problem via optimisation, or :Simulate to via ODE solver simulate model to steady state.
-- `rootfindingAlgorithm`: In case of :Rootfinding which algorithm to use. Supports any of the NonlinearSolve algorithms (https://docs.sciml.ai/NonlinearSolve/stable/tutorials/nonlinear/).
-- `howCheckSimulationReachedSteadyState`: For :Simulate which method to check steady state been reached, options;
-    * wrms : Weighted root-mean square : √(∑((du ./ (reltol * u .+ abstol)).^2) / length(u)) < 1
-    * Newton : If Newton-step Δu is sufficiently small : √(∑((Δu ./ (reltol * u .+ abstol)).^2) / length(u)) < 1
-- `abstol`: Absolute tolerance when checking if steady state has been found. Defaults to 1e-8 for :Rootfinding and ODE-solver tolerance divided by 100 for :Simulate
-- `reltol`: Relative tolerance when checking if steady state has been found. As for abstol.
-- `maxiters`: Maximum number of root-finding or ODE-solver steps when solving for steady state. Defaults to 1e4 for :Rootfinding and ODE-solver options for :Simulate.
-"""
 struct SteadyStateSolverOptions{T1 <: Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}, 
                                 T2 <: Union{Nothing, AbstractFloat},
                                 T3 <: Union{Nothing, NonlinearProblem}, 
@@ -217,39 +186,42 @@ end
 
 
 """
-    PEtabODEProblem
+PEtabODEProblem
 
-All needed to setup an optimization problem (compute cost, gradient, hessian and parameter bounds) for a PEtab model.
+Everything needed to setup an optimization problem (compute cost, gradient, hessian and parameter bounds) for a PEtab model.
 
-The PEtabODEproblem for a PEtab problem allows for efficient cost, gradient and hessian computations. Constructed
-via `setupPEtabODEProblem`, more info on tuneable options can be found in the documentation [add]. 
-    
-**Note** - the parameter vector θ is **always** assumed to be on parameter scale specified in the PEtab parameters file. If needed θ is transformed to linear scale inside of the function call. 
+!!! note 
+    The parameter vector θ is always assumed to be on the parameter scale specified in the PEtab parameters file. If needed, θ is transformed to the linear scale inside the function call.
 
 # Fields
-- `computeCost`: For θ computes the objective value cost = computeCost(θ)
+- `computeCost`: For θ computes the negative likelihood (objective to minimize)
+- `computeChi2`: For θ compute χ2 value
 - `computeGradient!`: For θ computes in-place gradient computeGradient!(gradient, θ)
 - `computeGradient`: For θ computes out-place gradient gradient = computeGradient(θ)
 - `computeHessian!`: For θ computes in-place hessian-(approximation) computeHessian!(hessian, θ)
-- `computeHessian!`: For θ computes out-place hessian-(approximation) hessian = computeHessian(θ)
-- `costMethod`: Method for computing the cost (:Standard, :Zygote)
-- `gradientMethod`: Method for computing the gradient (:ForwardDiff, :ForwardEquations :Adjoint, :Zygote)
-- `hessianMethod`:  Method for computing/approximating the hessian (:ForwardDiff, :BlocForwardDiff :GaussNewton)
-- `nParametersToEstimate`: Number of parameter to estimate.
-- `θ_estNames`: Names of the parameter in θ
-- `θ_nominal`: Nominal θ values as specified in the PEtab parameters-file. 
-- `θ_nominalT`: Nominal θ values on parameter-scale (e.g log) as specified in the PEtab parameters-file.
-- `lowerBounds`: Lower parameter bounds on parameter-scale for θ as specified in the PEtab parameters-file.
-- `upperBounds`: Upper parameter bounds on parameter-scale for θ as specified in the PEtab parameters-file.
-- `petabModel`: PEtabModel used to construct the PEtabODEProblem
-- `odeSolverOptions`: ODE-solver options specified when creating the PEtabODEProblem 
-- `odeSolverGradientOptions`: ODE-solver gradient options specified when creating the PEtabODEProblem 
+- `computeHessian`: For θ computes out-place hessian-(approximation) hessian = computeHessian(θ)
+- `computeSimulatedValues`: For θ compute the corresponding model (simulated) values to the measurements in the same order as in the Measurements PEtab table
+- `computeResiduals`: For θ compute the residuals (h_model - h_observed)^2 / σ^2 in the same order as in the Measurements PEtab table
+- `gradientMethod`: The method used to compute the gradient (either :ForwardDiff, :ForwardEquations, :Adjoint, or :Zygote).
+- `hessianMethod`: The method used to compute or approximate the Hessian (either :ForwardDiff, :BlocForwardDiff, or :GaussNewton).
+- `nParametersToEstimate`: The number of parameters to estimate.
+- `θ_estNames`: The names of the parameters in θ.
+- `θ_nominal`: The nominal values of θ as specified in the PEtab parameters file.
+- `θ_nominalT`: The nominal values of θ on the parameter scale (e.g., log) as specified in the PEtab parameters file.
+- `lowerBounds`: The lower parameter bounds on the parameter scale for θ as specified in the PEtab parameters file.
+- `upperBounds`: The upper parameter bounds on the parameter scale for θ as specified in the PEtab parameters file.
+- `petabModel`: The PEtabModel used to construct the PEtabODEProblem.
+- `odeSolverOptions`: The options for the ODE solver specified when creating the PEtabODEProblem.
+- `odeSolverGradientOptions`: The options for the ODE solver gradient specified when creating the PEtabODEProblem.
 """
 struct PEtabODEProblem{F1<:Function,
                        F2<:Function,
-                       _F2<:Function,
                        F3<:Function,
-                       _F3<:Function,
+                       F4<:Function,
+                       F5<:Union{Function, Nothing},
+                       F6<:Union{Function, Nothing}, 
+                       F7<:Function,
+                       F8<:Function,
                        T1<:PEtabModel, 
                        T2<:ODESolverOptions, 
                        T3<:ODESolverOptions, 
@@ -259,13 +231,16 @@ struct PEtabODEProblem{F1<:Function,
                        T7<:SimulationInfo}
 
     computeCost::F1
-    computeGradient!::F2
-    computeGradient::_F2
-    computeHessian!::F3
-    computeHessian::_F3
+    computeChi2::F2
+    computeGradient!::F3
+    computeGradient::F4
+    computeHessian!::F5
+    computeHessian::F6
+    computeSimulatedValues::F7
+    computeResiduals::F8
     costMethod::Symbol
     gradientMethod::Symbol
-    hessianMethod::Symbol
+    hessianMethod::Union{Symbol, Nothing}
     nParametersToEstimate::Int64
     θ_estNames::Vector{Symbol}
     θ_nominal::Vector{Float64}
@@ -281,6 +256,34 @@ struct PEtabODEProblem{F1<:Function,
     θ_indices::T6
     simulationInfo::T7
     splitOverConditions::Bool
+end
+
+
+struct ParametersInfo
+    nominalValue::Vector{Float64}
+    lowerBound::Vector{Float64}
+    upperBound::Vector{Float64}
+    parameterId::Vector{Symbol}
+    parameterScale::Vector{Symbol}
+    estimate::Vector{Bool}
+    nParametersToEstimate::Int64
+end
+
+
+struct MeasurementsInfo{T<:Vector{<:Union{<:String, <:AbstractFloat}}}
+
+    measurement::Vector{Float64}
+    measurementT::Vector{Float64}
+    simulatedValues::Vector{Float64}
+    chi2Values::Vector{Float64}
+    residuals::Vector{Float64}
+    measurementTransformation::Vector{Symbol}
+    time::Vector{Float64}
+    observableId::Vector{Symbol}
+    preEquilibrationConditionId::Vector{Symbol}
+    simulationConditionId::Vector{Symbol}
+    noiseParameters::T
+    observableParameters::Vector{String}
 end
 
 
@@ -326,31 +329,6 @@ struct PEtabODESolverCache{T1 <: NamedTuple,
                            T2 <: NamedTuple}
     pODEProblemCache::T1
     u0Cache::T2
-end
-
-
-struct ParametersInfo
-    nominalValue::Vector{Float64}
-    lowerBound::Vector{Float64}
-    upperBound::Vector{Float64}
-    parameterId::Vector{Symbol}
-    parameterScale::Vector{Symbol}
-    estimate::Vector{Bool}
-    nParametersToEstimate::Int64
-end
-
-
-struct MeasurementsInfo{T<:Vector{<:Union{<:String, <:AbstractFloat}}}
-
-    measurement::Vector{Float64}
-    measurementT::Vector{Float64}
-    measurementTransformation::Vector{Symbol}
-    time::Vector{Float64}
-    observableId::Vector{Symbol}
-    preEquilibrationConditionId::Vector{Symbol}
-    simulationConditionId::Vector{Symbol}
-    noiseParameters::T
-    observableParameters::Vector{String}
 end
 
 

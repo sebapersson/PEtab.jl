@@ -2,7 +2,6 @@ module PEtab
 
 using PyCall
 using ModelingToolkit
-using DataFrames
 using CSV
 using SciMLBase
 using SciMLSensitivity
@@ -24,6 +23,7 @@ using YAML
 using RuntimeGeneratedFunctions
 using PreallocationTools
 using NonlinearSolve
+using PrecompileTools
 using Optim
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
@@ -84,6 +84,18 @@ include(joinpath("Optimization", "Setup_optim.jl"))
 include(joinpath("Optimization", "Setup_fides.jl"))
 include(joinpath("Optimization", "Callibration.jl"))
 
-export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, Fides, readPEtabModel, setupPEtabODEProblem, getODESolverOptions, getSteadyStateSolverOptions, createOptimProblem, createFidesProblem, callibrateModel, remakePEtabProblem
+#=
+# Reduce time for reading a PEtabModel and for building a PEtabODEProblem 
+@setup_workload begin
+    pathYAML = joinpath(@__DIR__, "..", "test", "Test_model3", "Test_model3.yaml")
+    @compile_workload begin
+        petabModel = readPEtabModel(pathYAML, verbose=false)
+        petabProblem = createPEtabODEProblem(petabModel, verbose=false)
+        petabProblem.computeCost(petabProblem.θ_nominalT)
+    end
+end
+=#
+
+export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, createOptimProblem, createFidesProblem, callibrateModel, remakePEtabProblem
 
 end

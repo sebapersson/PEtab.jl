@@ -4,7 +4,6 @@ using OrdinaryDiffEq
 using Sundials
 using SciMLSensitivity
 using CSV
-using DataFrames
 using ForwardDiff
 using LinearAlgebra
 
@@ -12,7 +11,7 @@ using LinearAlgebra
 function testPEtabRemake(petabModel::PEtabModel, parametersChange, whatCheck)
     
     if :GradientForwardDiff ∈ whatCheck
-        petabProblem1 = setupPEtabODEProblem(petabModel, getODESolverOptions(Rodas5P()), chunkSize=2, verbose=false)
+        petabProblem1 = createPEtabODEProblem(petabModel, odeSolverOptions=ODESolverOptions(Rodas5P()), chunkSize=2, verbose=false)
         petabProblem2 = remakePEtabProblem(petabProblem1, parametersChange)
 
         iMatch = findall(in(petabProblem2.θ_estNames), petabProblem1.θ_estNames)
@@ -24,7 +23,7 @@ function testPEtabRemake(petabModel::PEtabModel, parametersChange, whatCheck)
     end
 
     if :GradientForwardEquations ∈ whatCheck
-        petabProblem1 = setupPEtabODEProblem(petabModel, getODESolverOptions(Rodas5P()), chunkSize=2, gradientMethod=:ForwardEquations, sensealg=:ForwardDiff, verbose=false)
+        petabProblem1 = createPEtabODEProblem(petabModel, odeSolverOptions=ODESolverOptions(Rodas5P()), chunkSize=2, gradientMethod=:ForwardEquations, sensealg=:ForwardDiff, verbose=false)
         petabProblem2 = remakePEtabProblem(petabProblem1, parametersChange)
 
         iMatch = findall(in(petabProblem2.θ_estNames), petabProblem1.θ_estNames)
@@ -36,7 +35,7 @@ function testPEtabRemake(petabModel::PEtabModel, parametersChange, whatCheck)
     end
 
     if :GaussNewton ∈ whatCheck
-        petabProblem1 = setupPEtabODEProblem(petabModel, getODESolverOptions(Rodas5P()), chunkSize=2, hessianMethod=:GaussNewton, sensealg=:ForwardDiff, verbose=false)
+        petabProblem1 = createPEtabODEProblem(petabModel, odeSolverOptions=ODESolverOptions(Rodas5P()), chunkSize=2, gradientMethod=:ForwardDiff, hessianMethod=:GaussNewton, sensealg=:ForwardDiff, verbose=false)
         petabProblem2 = remakePEtabProblem(petabProblem1, parametersChange)
         
         iMatch = findall(in(petabProblem2.θ_estNames), petabProblem1.θ_estNames)
@@ -54,7 +53,7 @@ function testPEtabRemake(petabModel::PEtabModel, parametersChange, whatCheck)
     end
 
     if :Hessian ∈ whatCheck
-        petabProblem1 = setupPEtabODEProblem(petabModel, getODESolverOptions(Rodas5P()), chunkSize=2, hessianMethod=:ForwardDiff, verbose=false)
+        petabProblem1 = createPEtabODEProblem(petabModel, odeSolverOptions=ODESolverOptions(Rodas5P()), chunkSize=2, hessianMethod=:ForwardDiff, verbose=false)
         petabProblem2 = remakePEtabProblem(petabProblem1, parametersChange)
         
         iMatch = findall(in(petabProblem2.θ_estNames), petabProblem1.θ_estNames)
@@ -105,7 +104,7 @@ parametersChange2 = Dict(:k1a => "estimate",
                         :km2 => "estimate")
 parametersChange3 = Dict(:sigmaY2Step => 5.15364156671777)
 parametersChange4 = Dict(:sigmaY2Step => 5.15364156671777, 
-                         :k22 => 666.8355739795)           
+                         :k22 => 666.8355739795)
 @testset "Test PEtab remake : BrannmarkBoehm" begin                          
     testPEtabRemake(petabModel, parametersChange1, [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton])
     testPEtabRemake(petabModel, parametersChange2, [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton])

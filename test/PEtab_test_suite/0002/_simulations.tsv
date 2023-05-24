@@ -1,0 +1,5 @@
+observableId	simulationConditionId	time	simulation
+obs_a	c0	0	0.8
+obs_a	c0	10	0.771428595186535
+obs_a	c1	0	0.9
+obs_a	c1	10	0.8142857855596045

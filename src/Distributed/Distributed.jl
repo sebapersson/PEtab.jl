@@ -130,7 +130,6 @@ function loadPackages()
                             quote
                                 using DifferentialEquations
                                 using ModelingToolkit
-                                using DataFrames
                                 using LinearAlgebra
                                 using ForwardDiff
                                 using ReverseDiff

@@ -214,8 +214,14 @@ function computeCostExpCond(odeSolution::ODESolution,
             p = odeSolution.prob.p
         end
 
-        hTransformed = computehTransformed(u, t, p, θ_observable, θ_nonDynamic, petabModel, iMeasurement, measurementInfo, θ_indices, parameterInfo)
+        h = computeh(u, t, p, θ_observable, θ_nonDynamic, petabModel, iMeasurement, measurementInfo, θ_indices, parameterInfo)
+        hTransformed = transformMeasurementOrH(h, measurementInfo.measurementTransformation[iMeasurement])
         σ = computeσ(u, t, p, θ_sd, θ_nonDynamic, petabModel, iMeasurement, measurementInfo, θ_indices, parameterInfo)
+        residual = (hTransformed - measurementInfo.measurementT[iMeasurement]) / σ
+
+        # These values might be needed by different software, e.g. PyPesto, to assess things such as parameter uncertainity. By storing them in 
+        # measurementInfo they can easily be computed given a call to the cost function has been made.
+        updateMeasurementInfo!(measurementInfo, h, hTransformed, σ, residual, iMeasurement)
 
         # By default a positive ODE solution is not enforced (even though the user can provide it as option).
         # In case with transformations on the data the code can crash, hence Inf is returned in case the
@@ -228,28 +234,31 @@ function computeCostExpCond(odeSolution::ODESolution,
         # Update log-likelihood. In case of guass newton approximation we are only interested in the residuals, and here
         # we allow the residuals to be computed to test the gauss-newton implementation
         if computeResiduals == false
-            if measurementInfo.measurementTransformation[iMeasurement] == :lin
-                cost += log(σ) + 0.5*log(2*pi) + 0.5*((hTransformed - measurementInfo.measurement[iMeasurement]) / σ)^2
-            elseif measurementInfo.measurementTransformation[iMeasurement] == :log10
-                cost += log(σ) + 0.5*log(2*pi) + log(log(10)) + log(10)*measurementInfo.measurementT[iMeasurement] + 0.5*((hTransformed - measurementInfo.measurementT[iMeasurement]) / σ)^2
-            elseif measurementInfo.measurementTransformation[iMeasurement] == :log
-                cost += log(σ) + 0.5*log(2*pi) + log(measurementInfo.measurement[iMeasurement]) + 0.5*((hTransformed - measurementInfo.measurementT[iMeasurement]) / σ)^2                
+            if measurementInfo.measurementTransformation[iMeasurement] === :lin
+                cost += log(σ) + 0.5*log(2*pi) + 0.5*residual^2
+            elseif measurementInfo.measurementTransformation[iMeasurement] === :log10
+                cost += log(σ) + 0.5*log(2*pi) + log(log(10)) + log(10)*measurementInfo.measurementT[iMeasurement] + 0.5*residual^2
+            elseif measurementInfo.measurementTransformation[iMeasurement] === :log
+                cost += log(σ) + 0.5*log(2*pi) + log(measurementInfo.measurement[iMeasurement]) + 0.5*residual^2                
             else
                 println("Transformation ", measurementInfo.measurementTransformation[iMeasurement], " not yet supported.")
                 return Inf
             end
         elseif computeResiduals == true
-            if measurementInfo.measurementTransformation[iMeasurement] == :lin
-                cost += ((hTransformed - measurementInfo.measurement[iMeasurement]) / σ)
-            elseif measurementInfo.measurementTransformation[iMeasurement] == :log10
-                cost += ((hTransformed - measurementInfo.measurementT[iMeasurement]) / σ)
-            elseif measurementInfo.measurementTransformation[iMeasurement] == :log
-                cost += ((hTransformed - measurementInfo.measurementT[iMeasurement]) / σ)
-            else
-                println("Transformation ", measurementInfo.transformData[i], " not yet supported.")
-                return Inf
-            end
+            cost += residual
         end
     end
     return cost
+end
+
+
+function updateMeasurementInfo!(measurementInfo::MeasurementsInfo, h::T, hTransformed::T, σ::T, residual::T, iMeasurement) where {T<:AbstractFloat}
+    ChainRulesCore.@ignore_derivatives begin 
+        measurementInfo.simulatedValues[iMeasurement] = h
+        measurementInfo.chi2Values[iMeasurement] = (hTransformed - measurementInfo.measurementT[iMeasurement])^2 / σ^2
+        measurementInfo.residuals[iMeasurement] = residual
+    end
+end
+function updateMeasurementInfo!(measurementInfo::MeasurementsInfo, h, hTransformed, σ, residual, iMeasurement)
+    return 
 end

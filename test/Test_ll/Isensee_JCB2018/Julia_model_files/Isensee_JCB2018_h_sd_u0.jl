@@ -22,16 +22,16 @@ function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_o
                       parameterMap::θObsOrSdParameterMap)::Real 
 	if observableId === :pRII_Microscopy 
 		observableParameter1_pRII_Microscopy = getObsOrSdParam(θ_observable, parameterMap)
-		return observableParameter1_pRII_Microscopy * ( θ_nonDynamic[2] + θ_nonDynamic[6] * ( 2 * u[24] + 2 * u[19] + 2 * u[15] + 2 * θ_nonDynamic[3] * ( u[12] + u[23] + u[7] + u[21] ) + 2 * ( u[25] + u[9] ) * ( θ_nonDynamic[3] - θ_nonDynamic[10] * ( θ_nonDynamic[3] - 1 ) ) ) ) 
+		return observableParameter1_pRII_Microscopy * ( θ_nonDynamic[2] + θ_nonDynamic[6] * ( 2.0 * u[24] + 2.0 * u[19] + 2.0 * u[15] + 2.0 * θ_nonDynamic[3] * ( u[12] + u[23] + u[7] + u[21] ) + 2.0 * ( u[25] + u[9] ) * ( θ_nonDynamic[3] - θ_nonDynamic[10] * ( θ_nonDynamic[3] - 1.0 ) ) ) ) 
 	end
 
 	if observableId === :pRII_Western 
-		return θ_nonDynamic[5] * ( 2 * u[24] + 2 * u[12] + 2 * u[19] + 2 * u[25] + 2 * u[23] + 2 * u[15] + 2 * u[7] + 2 * u[9] + 2 * u[21] ) 
+		return θ_nonDynamic[5] * ( 2.0 * u[24] + 2.0 * u[12] + 2.0 * u[19] + 2.0 * u[25] + 2.0 * u[23] + 2.0 * u[15] + 2.0 * u[7] + 2.0 * u[9] + 2.0 * u[21] ) 
 	end
 
 	if observableId === :Calpha_Microscopy 
 		observableParameter1_Calpha_Microscopy = getObsOrSdParam(θ_observable, parameterMap)
-		return observableParameter1_Calpha_Microscopy * ( θ_nonDynamic[1] + θ_nonDynamic[4] * ( 2 * u[16] + 2 * u[17] + 2 * θ_nonDynamic[3] * ( u[12] + u[23] + u[7] + u[21] ) + 2 * ( u[25] + u[9] ) * ( θ_nonDynamic[3] - θ_nonDynamic[10] * ( θ_nonDynamic[3] - 1 ) ) ) ) 
+		return observableParameter1_Calpha_Microscopy * ( θ_nonDynamic[1] + θ_nonDynamic[4] * ( 2.0 * u[16] + 2.0 * u[17] + 2.0 * θ_nonDynamic[3] * ( u[12] + u[23] + u[7] + u[21] ) + 2.0 * ( u[25] + u[9] ) * ( θ_nonDynamic[3] - θ_nonDynamic[10] * ( θ_nonDynamic[3] - 1.0 ) ) ) ) 
 	end
 
 end

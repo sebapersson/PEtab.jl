@@ -100,12 +100,30 @@ function computehTransformed(u::AbstractVector,
 end
 
 
+function computeh(u::AbstractVector{T},
+                  t::Float64,
+                  θ_dynamic::AbstractVector,
+                  θ_observable::AbstractVector,
+                  θ_nonDynamic::AbstractVector,
+                  petabModel::PEtabModel,
+                  iMeasurement::Int64,
+                  measurementInfo::MeasurementsInfo,
+                  θ_indices::ParameterIndices,
+                  parameterInfo::ParametersInfo)::Real where T
+
+    mapθ_observable = θ_indices.mapθ_observable[iMeasurement]
+    h = petabModel.compute_h(u, t, θ_dynamic, θ_observable, θ_nonDynamic, parameterInfo, measurementInfo.observableId[iMeasurement], mapθ_observable)
+    return h
+end
+
+
+
 """
     transformMeasurementOrH(val::Real, transformationArr::Array{Symbol, 1})
 
     Transform val using either :lin (identify), :log10 and :log transforamtions.
 """
-function transformMeasurementOrH(val::Real, transform::Symbol)::Real
+function transformMeasurementOrH(val::T, transform::Symbol)::T where T
     if transform == :lin
         return val
     elseif transform == :log10

@@ -70,8 +70,7 @@ function computeGradientAutoDiff!(gradient::Vector{Float64},
     end
     
     θ_notOdeSystem = @view θ_est[θ_indices.iθ_notOdeSystem]
-
-    ReverseDiff.gradient!(petabODECache.gradientNotODESystemθ, computeCostNotODESystemθ, θ_notOdeSystem)
+    ForwardDiff.gradient!(petabODECache.gradientNotODESystemθ, computeCostNotODESystemθ, θ_notOdeSystem)
     @views gradient[θ_indices.iθ_notOdeSystem] .= petabODECache.gradientNotODESystemθ
 
     # If we have prior contribution its gradient is computed via autodiff for all parameters
@@ -131,7 +130,7 @@ function computeGradientAutoDiffSplitOverConditions!(gradient::Vector{Float64},
     @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ
     
     θ_notOdeSystem = @view θ_est[θ_indices.iθ_notOdeSystem]
-    ReverseDiff.gradient!(petabODECache.gradientNotODESystemθ, computeCostNotODESystemθ, θ_notOdeSystem)
+    ForwardDiff.gradient!(petabODECache.gradientNotODESystemθ, computeCostNotODESystemθ, θ_notOdeSystem)
     @views gradient[θ_indices.iθ_notOdeSystem] .= petabODECache.gradientNotODESystemθ
 
     # If we have prior contribution its gradient is computed via autodiff for all parameters

@@ -1,28 +1,28 @@
 """
-    getSteadyStateSolverOptions(method::Symbol;
-                                howCheckSimulationReachedSteadyState::Symbol=:wrms,
-                                rootfindingAlgorithm=nothing,
-                                abstol=nothing, 
-                                reltol=nothing, 
-                                maxiters=nothing)::SteadyStateSolverOptions
+    SteadyStateSolverOptions(method::Symbol;
+                             howCheckSimulationReachedSteadyState::Symbol=:wrms,
+                             rootfindingAlgorithm=nothing,
+                             abstol=nothing, 
+                             reltol=nothing, 
+                             maxiters=nothing)
 
-Setup steady-state solver options for finding steady-state via **either** method=:Rootfinding or method=:Simulate.
+Setup options for finding steady-state via either `method=:Rootfinding` or `method=:Simulate`.
 
-For `:Rootfinding` the steady state u* is found by solving the problem du = f(u, p, t) ≈ 0 with tolerances abstol and reltol via an automatically choosen optimisation algorithm (rootfindingAlgorithm=nothing) or via any algorithm in NonlinearSolve.jl (https://docs.sciml.ai/NonlinearSolve/stable/solvers/NonlinearSystemSolvers/), e.g. rootfindingAlgorithm=NonlinearSolve.TrustRegion(). (abstol, reltol, maxiters) defaults to (1e-8, 1e-8, 1e4).
+For `method=:Rootfinding`, the steady-state `u*` is found by solving the problem `du = f(u, p, t) ≈ 0` with tolerances `abstol` and `reltol` via an automatically chosen optimization algorithm (`rootfindingAlgorithm=nothing`) or via any algorithm in NonlinearSolve.jl. 
 
-For `:Simulate` the steady state u* is found by simulating the ODE-system until du = f(u, p, t) ≈ 0. Two options are availble for `howCheckSimulationReachedSteadyState`;
+For `method=:Simulate`, the steady-state `u*` is found by simulating the ODE system until `du = f(u, p, t) ≈ 0`. Two options are available for `howCheckSimulationReachedSteadyState`:
 - `:wrms` : Weighted root-mean square √(∑((du ./ (reltol * u .+ abstol)).^2) / length(u)) < 1
-- `:Newton` : If Newton-step Δu is sufficiently small √(∑((Δu ./ (reltol * u .+ abstol)).^2) / length(u)) < 1. 
-Newton often perform better but requires an invertible Jacobian. In case not fulfilled code switches automatically to wrms. (abstol, reltol) defaults to ODE solver tolerances divided by 100 and maxiters to ODE solver value.
-        
-`maxiters` refers to either maximum number of rootfinding steps, or maximum number of integration steps.
+- `:Newton` : If Newton-step `Δu` is sufficiently small √(∑((Δu ./ (reltol * u .+ abstol)).^2) / length(u)) < 1. 
+        - Newton often performs better but requires an invertible Jacobian. In case it's not fulfilled, the code switches automatically to `:wrms`.    
+
+`maxiters` refers to either the maximum number of rootfinding steps or the maximum number of integration steps, depending on the chosen method.        
 """
-function getSteadyStateSolverOptions(method::Symbol;
-                                     howCheckSimulationReachedSteadyState::Symbol=:wrms,
-                                     rootfindingAlgorithm::Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}=nothing,
-                                     abstol=nothing, 
-                                     reltol=nothing, 
-                                     maxiters::Union{Nothing, Int64}=nothing)::SteadyStateSolverOptions
+function SteadyStateSolverOptions(method::Symbol;
+                                  howCheckSimulationReachedSteadyState::Symbol=:wrms,
+                                  rootfindingAlgorithm::Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}=nothing,
+                                  abstol=nothing, 
+                                  reltol=nothing, 
+                                  maxiters::Union{Nothing, Int64}=nothing)::SteadyStateSolverOptions
 
     @assert method ∈ [:Rootfinding, :Simulate] "Method used to find steady state can either be :Rootfinding or :Simulate not $method"
     
@@ -39,8 +39,12 @@ function _getSteadyStateSolverOptions(howCheckSimulationReachedSteadyState::Symb
                                       reltol, 
                                       maxiters)::SteadyStateSolverOptions
 
+    _abstol = isnothing(abstol) ? 1e-8 : abstol
+    _reltol = isnothing(reltol) ? 1e-8 : reltol
+    _maxiters = isnothing(maxiters) ? Int64(1e4) : maxiters                                      
+
     @assert howCheckSimulationReachedSteadyState ∈ [:Newton, :wrms] "When steady states are computed via simulations howCheckSimulationReachedSteadyState must be :wrms or :Newton not $howCheckSimulationReachedSteadyState"
-    return SteadyStateSolverOptions(:Simulate, nothing, howCheckSimulationReachedSteadyState, abstol, reltol, maxiters, nothing, nothing)
+    return SteadyStateSolverOptions(:Simulate, nothing, howCheckSimulationReachedSteadyState, _abstol, _reltol, _maxiters, nothing, nothing)
 end
 function _getSteadyStateSolverOptions(rootfindingAlgorithm::Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm},
                                       abstol,
@@ -110,7 +114,7 @@ function solveODEPreEqulibrium!(uAtSS::AbstractVector,
     if ssSolverOptions.method === :Simulate                           
         odeSolution = simulateToSS(odeProblem, odeSolverOptions.solver, changeExperimentalCondition!, preEquilibrationId,
                                    odeSolverOptions, ssSolverOptions, convertTspan)
-        if odeSolution.retcode == ReturnCode.Terminated
+        if odeSolution.retcode == ReturnCode.Terminated || odeSolution.retcode == ReturnCode.Success
             uAtSS .= odeSolution.u[end]
             uAtT0 .= odeSolution.prob.u0
         end

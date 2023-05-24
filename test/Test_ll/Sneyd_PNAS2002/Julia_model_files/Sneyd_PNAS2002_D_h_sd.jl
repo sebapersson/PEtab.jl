@@ -4,8 +4,8 @@
 function compute_∂h∂u!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,                    
                        θ_nonDynamic::AbstractVector, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
 	if observableId == :open_probability 
-		out[4] = 0.4((0.1u[4] + 0.9u[6])^3)
-		out[6] = 3.6((0.1u[4] + 0.9u[6])^3)
+		out[4] = 0.4((0.1u[4] + 0.9u[6])^3.0)
+		out[6] = 3.6((0.1u[4] + 0.9u[6])^3.0)
 		return nothing
 	end
 

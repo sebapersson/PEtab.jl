@@ -49,13 +49,13 @@ petabModel = readPEtabModel(pathYaml, verbose=true)
     Note - For :ForwardDiff the user can set the Chunk-size (see https://juliadiff.org/ForwardDiff.jl/stable/). This can improve performance, 
     and we plan to add automatic tuning of it.
 =#
-odeSolverOptions = getODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8)
-petabProblem = setupPEtabODEProblem(petabModel, odeSolverOptions, 
-                                    gradientMethod=:ForwardDiff, 
-                                    hessianMethod=:ForwardDiff)
+petabProblem = createPEtabODEProblem(petabModel, 
+                                     odeSolverOptionsODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8), 
+                                     gradientMethod=:ForwardDiff, 
+                                     hessianMethod=:ForwardDiff)
 
 #=   
-    getODESolverOptionsThe PEtabODEProblem has everything needed to set up an optimization problem with most availble optimizers. 
+    ODESolverOptionsThe PEtabODEProblem has everything needed to set up an optimization problem with most availble optimizers. 
     
     The main fields are;
     1) petabODEProblem.computeCost - Given a parameter vector θ computes the cost (objective function). 

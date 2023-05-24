@@ -1,0 +1,3 @@
+observableId	preequilibrationConditionId	simulationConditionId	time	measurement
+obs_a	preeq_c0	c0	1	0.7
+obs_a	preeq_c0	c0	10	0.1

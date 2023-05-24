@@ -65,9 +65,9 @@ function processRateRule!(modelDict::Dict, ruleFormula::String, ruleVariable::St
         delete!(modelDict["nonConstantParameters"], ruleVariable)
         modelDict["derivatives"][ruleVariable] = "D(" * ruleVariable * ") ~ " * ruleFormula
 
-    elseif ruleVariable in keys(parameterDict)
-        modelDict["states"][ruleVariable] = parameterDict[ruleVariable]
-        delete!(parameterDict, ruleVariable)
+    elseif ruleVariable in keys(modelDict["parameters"])
+        modelDict["states"][ruleVariable] = modelDict["parameters"][ruleVariable]
+        delete!(modelDict["parameters"], ruleVariable)
         modelDict["derivatives"][ruleVariable] = "D(" * ruleVariable * ") ~ " * ruleFormula
     else
         println("Warning : Cannot find rate rule variable in either model states or parameters")

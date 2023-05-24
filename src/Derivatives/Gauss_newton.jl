@@ -209,7 +209,7 @@ function computeResidualsExpCond!(residuals::AbstractVector,
         elseif measurementInfo.measurementTransformation[iMeasurement] == :log
             residuals[iMeasurement] = (hTransformed - measurementInfo.measurementT[iMeasurement]) / σ
         else
-            println("Transformation ", measurementInfo.measurementTransformation[iMeasurement], "not yet supported.")
+            println("Transformation ", measurementInfo.measurementTransformation[iMeasurement], " not yet supported.")
             return false
         end
     end
