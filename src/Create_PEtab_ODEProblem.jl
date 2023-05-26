@@ -145,7 +145,7 @@ function createPEtabODEProblem(petabModel::PEtabModel;
         elseif isMediumModel
             hessianMethod = :GaussNewton
         elseif isLargeModel
-            hessianMethod = nothing
+            hessianMethod = :GaussNewton
         end 
     end
     # Sparsity of ODE system 
@@ -199,8 +199,9 @@ function createPEtabODEProblem(petabModel::PEtabModel;
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Building cost function for method ", string(costMethod), " ...")
     bBuild = @elapsed computeCost = setUpCost(costMethod, odeProblem, odeSolverOptions, _ssSolverOptions, petabODECache, petabODESolverCache, 
-                            petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo,
-                            numberOfprocesses=numberOfprocesses, jobs=jobs, results=results)
+                                              petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo,
+                                              sensealg, numberOfprocesses, jobs, results, false)
+
     computeChi2 = (θ; asArray=false) -> begin
         _ = computeCost(θ)
         if asArray == false
@@ -313,17 +314,18 @@ function setUpCost(whichMethod::Symbol,
                    θ_indices::ParameterIndices,
                    measurementInfo::MeasurementsInfo,
                    parameterInfo::ParametersInfo,
-                   priorInfo::PriorInfo;
-                   sensealg=ForwardDiffSensitivity(),
-                   numberOfprocesses::Int64=1,
-                   jobs=nothing,
-                   results=nothing, 
-                   computeResiduals::Bool=false,)
+                   priorInfo::PriorInfo,
+                   sensealg,
+                   numberOfprocesses,
+                   jobs,
+                   results, 
+                   computeResiduals)
 
     # Functions needed for mapping θ_est to the ODE problem, and then for solving said ODE-system
     if whichMethod == :Standard && numberOfprocesses == 1
 
-        __computeCost = (θ_est) -> computeCost(θ_est,
+        __computeCost = let θ_indices=θ_indices, measurementInfo=measurementInfo, odeSolverOptions=odeSolverOptions, priorInfo=priorInfo
+                            (θ_est) -> computeCost(θ_est,
                                                odeProblem,
                                                odeSolverOptions,
                                                ssSolverOptions,
@@ -335,9 +337,11 @@ function setUpCost(whichMethod::Symbol,
                                                priorInfo,
                                                petabODECache,
                                                petabODESolverCache,
-                                               expIDSolve=[:all], 
-                                               computeCost=true,
-                                               computeResiduals=computeResiduals)
+                                               [:all], 
+                                               true,
+                                               false,
+                                               computeResiduals)
+        end
 
     elseif whichMethod == :Zygote
         changeExperimentalCondition = (pODEProblem, u0, conditionId, θ_dynamic) -> _changeExperimentalCondition(pODEProblem, u0, conditionId, θ_dynamic, petabModel, θ_indices)
@@ -592,7 +596,7 @@ function setUpHessian(whichMethod::Symbol,
             if splitOverConditions == false
                 _evalHessian = (θ_est) -> computeCost(θ_est, odeProblem, odeSolverOptions, ssSolverOptions, petabModel, simulationInfo, θ_indices,
                                                       measurementInfo, parameterInfo, priorInfo, petabODECache, petabODESolverCache,
-                                                      computeHessian=true, expIDSolve=[:all])
+                                                      [:all], false, true, false)
 
                 if !isnothing(chunkSize)
                     _θ_est = zeros(Float64, length(θ_indices.θ_estNames))
@@ -933,8 +937,10 @@ function createPEtabODESolverCache(gradientMethod::Symbol,
         conditionsToSimulateOver = unique(simulationInfo.experimentalConditionId)
     end
 
-    pODEProblemCache = NamedTuple{Tuple(name for name in conditionsToSimulateOver)}(Tuple(DiffCache(zeros(Float64, nModelParameters), chunkSize, levels=levelCache) for i in eachindex(conditionsToSimulateOver)))
-    u0Cache = NamedTuple{Tuple(name for name in conditionsToSimulateOver)}(Tuple(DiffCache(zeros(Float64, nModelStates), chunkSize, levels=levelCache) for i in eachindex(conditionsToSimulateOver)))
+    _pODEProblemCache = Tuple(DiffCache(zeros(Float64, nModelParameters), chunkSize, levels=levelCache) for i in eachindex(conditionsToSimulateOver))
+    _u0Cache = Tuple(DiffCache(zeros(Float64, nModelStates), chunkSize, levels=levelCache) for i in eachindex(conditionsToSimulateOver))
+    pODEProblemCache::Dict = Dict([(conditionsToSimulateOver[i], _pODEProblemCache[i]) for i in eachindex(_pODEProblemCache)])
+    u0Cache::Dict = Dict([(conditionsToSimulateOver[i], _u0Cache[i]) for i in eachindex(_u0Cache)])
 
     return PEtabODESolverCache(pODEProblemCache, u0Cache)
 

@@ -1,4 +1,4 @@
-function computeCost(θ_est::AbstractVector,
+function computeCost(θ_est::V,
                      odeProblem::ODEProblem,
                      odeSolverOptions::ODESolverOptions,
                      ssSolverOptions::SteadyStateSolverOptions,
@@ -9,11 +9,11 @@ function computeCost(θ_est::AbstractVector,
                      parameterInfo::ParametersInfo,
                      priorInfo::PriorInfo, 
                      petabODECache::PEtabODEProblemCache, 
-                     petabODESolverCache::PEtabODESolverCache;
-                     expIDSolve::Vector{Symbol} = [:all],
-                     computeCost::Bool=false,
-                     computeHessian::Bool=false,
-                     computeResiduals::Bool=false)::Real
+                     petabODESolverCache::PEtabODESolverCache,
+                     expIDSolve::Vector{Symbol},
+                     computeCost::Bool,
+                     computeHessian::Bool,
+                     computeResiduals::Bool) where V
 
     θ_dynamic, θ_observable, θ_sd, θ_nonDynamic = splitParameterVector(θ_est, θ_indices)
 

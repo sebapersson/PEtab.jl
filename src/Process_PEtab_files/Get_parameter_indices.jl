@@ -46,11 +46,11 @@ function computeIndicesθ(parameterInfo::ParametersInfo,
     mapODEProblem::MapODEProblem = MapODEProblem(iθDynamic, iODEProblemθDynamic)
 
     # Set up a map for changing between experimental conditions 
-    mapsConditionId = getMapsConditionId(odeSystem, paramterMap, stateMap, parameterInfo, experimentalConditionsFile, θ_dynamicNames)
+    mapsConditionId::Dict{Symbol, MapConditionId} = getMapsConditionId(odeSystem, paramterMap, stateMap, parameterInfo, experimentalConditionsFile, θ_dynamicNames)
 
     # Set up a named tuple tracking the transformation of each parameter 
     _θ_scale = [parameterInfo.parameterScale[findfirst(x -> x == θ_name, parameterInfo.parameterId)] for θ_name in θ_estNames]
-    θ_scale::NamedTuple = NamedTuple{Tuple(name for name in θ_estNames)}(Tuple(scale for scale in _θ_scale))
+    θ_scale::Dict{Symbol, Symbol} = Dict([(θ_estNames[i], _θ_scale[i]) for i in eachindex(θ_estNames)])
 
     θ_indices = ParameterIndices(iθ_dynamic,
                                  iθ_observable,
@@ -254,7 +254,7 @@ function getMapsConditionId(odeSystem::ODESystem,
                             stateMap,
                             parameterInfo::ParametersInfo,
                             experimentalConditionsFile::CSV.File,
-                            _θ_dynamicNames::Vector{Symbol})::NamedTuple
+                            _θ_dynamicNames::Vector{Symbol})::Dict{Symbol, MapConditionId}
 
     θ_dynamicNames = string.(_θ_dynamicNames)
     nConditions = length(experimentalConditionsFile)
@@ -265,7 +265,7 @@ function getMapsConditionId(odeSystem::ODESystem,
     iStart = :conditionName in experimentalConditionsFile.names ? 3 : 2 # conditionName is optional in PEtab file
     conditionSpecificVariables = string.(experimentalConditionsFile.names[iStart:end])
 
-    _mapsConditionId::Vector{MapConditionId} = Vector{MapConditionId}(undef, nConditions)
+    mapsConditionId::Dict{Symbol, MapConditionId} = Dict()
     conditionIdNames = Vector{Symbol}(undef, nConditions)
 
     for i in 1:nConditions
@@ -353,16 +353,15 @@ function getMapsConditionId(odeSystem::ODESystem,
             throw(PEtabFileError(strWrite))
         end
 
-        _mapsConditionId[i] = MapConditionId(constantParameters,
-                                             iODEProblemConstantParameters,
-                                             constantsStates,
-                                             iODEProblemConstantStates,
-                                             iθDynamic,
-                                             iODEProblemθDynamic)
+        mapsConditionId[conditionIdNames[i]] = MapConditionId(constantParameters,
+                                                              iODEProblemConstantParameters,
+                                                              constantsStates,
+                                                              iODEProblemConstantStates,
+                                                              iθDynamic,
+                                                              iODEProblemθDynamic)
     end
 
-    mapsConditionId = Tuple(element for element in _mapsConditionId)
-    return NamedTuple{Tuple(conditionId for conditionId in conditionIdNames)}(mapsConditionId)
+    return mapsConditionId
 end
 
 

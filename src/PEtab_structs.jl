@@ -46,11 +46,6 @@ struct PEtabModel{F1<:Function,
                   F7<:Function,
                   F8<:Function,
                   F9<:Function,
-                  S<:ODESystem,
-                  T1<:Vector{<:Pair{Num, <:Union{AbstractFloat, Num}}},
-                  T2<:Vector{<:Pair{Num, <:Union{AbstractFloat, Num}}},
-                  T3<:Vector{<:Any},
-                  T4<:Vector{<:Any},
                   C<:SciMLBase.DECallback,
                   FA<:Vector{<:Function}}
     modelName::String
@@ -64,11 +59,11 @@ struct PEtabModel{F1<:Function,
     compute_∂σ∂p!::F8
     computeTStops::F9
     convertTspan::Bool
-    odeSystem::S
-    parameterMap::T1
-    stateMap::T2
-    parameterNames::T3
-    stateNames::T4
+    odeSystem::ODESystem
+    parameterMap
+    stateMap
+    parameterNames
+    stateNames
     dirModel::String
     dirJulia::String
     pathMeasurements::String
@@ -82,12 +77,12 @@ struct PEtabModel{F1<:Function,
 end
 
 
-mutable struct ODESolverOptions{T2 <: Union{Float64, Nothing}}
-    solver
+mutable struct ODESolverOptions
+    solver::SciMLAlgorithm
     abstol::Float64
     reltol::Float64
     force_dtmin::Bool
-    dtmin::T2
+    dtmin::Union{Float64, Nothing}
     maxiters::Int64    
 end
 
@@ -108,14 +103,9 @@ struct SteadyStateSolverOptions{T1 <: Union{Nothing, NonlinearSolve.AbstractNonl
 end
 
 
-struct SimulationInfo{T1<:NamedTuple,
-                      T2<:NamedTuple,
-                      T3<:NamedTuple,
-                      T4<:NamedTuple,
-                      T5<:NamedTuple,
-                      T6<:Dict{<:Symbol, <:SciMLBase.DECallback},
-                      T7<:Union{<:SciMLSensitivity.AbstractForwardSensitivityAlgorithm, <:SciMLSensitivity.AbstractAdjointSensitivityAlgorithm},
-                      T9<:Dict{<:Symbol, <:SciMLBase.DECallback}}
+struct SimulationInfo{T1<:Dict{<:Symbol, <:SciMLBase.DECallback},
+                      T2<:Union{<:SciMLSensitivity.AbstractForwardSensitivityAlgorithm, <:SciMLSensitivity.AbstractAdjointSensitivityAlgorithm},
+                      T3<:Dict{<:Symbol, <:SciMLBase.DECallback}}
 
     preEquilibrationConditionId::Vector{Symbol}
     simulationConditionId::Vector{Symbol}
@@ -124,15 +114,15 @@ struct SimulationInfo{T1<:NamedTuple,
     odeSolutions::Dict{Symbol, Union{Nothing, ODESolution}}
     odeSolutionsDerivatives::Dict{Symbol, Union{Nothing, ODESolution}}
     odePreEqulibriumSolutions::Dict{Symbol, Union{Nothing, ODESolution, SciMLBase.NonlinearSolution}}
-    timeMax::T1
-    timeObserved::T2
-    iMeasurements::T3
+    timeMax::Dict{Symbol, Float64}
+    timeObserved::Dict{Symbol, Vector{Float64}}
+    iMeasurements::Dict{Symbol, Vector{Int64}}
     iTimeODESolution::Vector{Int64}
-    iPerTimePoint::T4
-    timePositionInODESolutions::T5
-    callbacks::T6
-    trackedCallbacks::T9
-    sensealg::T7 # sensealg for potential callbacks
+    iPerTimePoint::Dict{Symbol, Vector{Vector{Int64}}}
+    timePositionInODESolutions::Dict{Symbol, UnitRange{Int64}}
+    callbacks::T1
+    trackedCallbacks::T3
+    sensealg::T2
 end
 
 
@@ -161,10 +151,7 @@ struct MapODEProblem
 end
 
 
-struct ParameterIndices{T4<:Vector{<:θObsOrSdParameterMap},
-                        T5<:MapODEProblem,
-                        T6<:NamedTuple,
-                        T7<:NamedTuple}
+struct ParameterIndices
 
     iθ_dynamic::Vector{Int64}
     iθ_observable::Vector{Int64}
@@ -177,11 +164,11 @@ struct ParameterIndices{T4<:Vector{<:θObsOrSdParameterMap},
     θ_nonDynamicNames::Vector{Symbol}
     θ_notOdeSystemNames::Vector{Symbol}
     θ_estNames::Vector{Symbol}
-    θ_scale::T7
-    mapθ_observable::T4
-    mapθ_sd::T4
-    mapODEProblem::T5
-    mapsConiditionId::T6
+    θ_scale::Dict{Symbol, Symbol}
+    mapθ_observable::Vector{θObsOrSdParameterMap}
+    mapθ_sd::Vector{θObsOrSdParameterMap}
+    mapODEProblem::MapODEProblem
+    mapsConiditionId::Dict{<:Symbol, <:MapConditionId}
 end
 
 
@@ -216,28 +203,18 @@ Everything needed to setup an optimization problem (compute cost, gradient, hess
 """
 struct PEtabODEProblem{F1<:Function,
                        F2<:Function,
-                       F3<:Function,
+                       F3<:Function, 
                        F4<:Function,
-                       F5<:Union{Function, Nothing},
-                       F6<:Union{Function, Nothing}, 
-                       F7<:Function,
-                       F8<:Function,
-                       T1<:PEtabModel, 
-                       T2<:ODESolverOptions, 
-                       T3<:ODESolverOptions, 
-                       T4<:SteadyStateSolverOptions, 
-                       T5<:SteadyStateSolverOptions, 
-                       T6<:ParameterIndices, 
-                       T7<:SimulationInfo}
+                       F5<:Function}
 
     computeCost::F1
-    computeChi2::F2
-    computeGradient!::F3
-    computeGradient::F4
-    computeHessian!::F5
-    computeHessian::F6
-    computeSimulatedValues::F7
-    computeResiduals::F8
+    computeChi2
+    computeGradient!::F2
+    computeGradient::F3
+    computeHessian!::F4
+    computeHessian::F5
+    computeSimulatedValues
+    computeResiduals
     costMethod::Symbol
     gradientMethod::Symbol
     hessianMethod::Union{Symbol, Nothing}
@@ -248,13 +225,13 @@ struct PEtabODEProblem{F1<:Function,
     lowerBounds::Vector{Float64}
     upperBounds::Vector{Float64}
     pathCube::String
-    petabModel::T1
-    odeSolverOptions::T2
-    odeSolverGradientOptions::T3
-    ssSolverOptions::T4
-    ssSolverGradientOptions::T5
-    θ_indices::T6
-    simulationInfo::T7
+    petabModel::PEtabModel
+    odeSolverOptions::ODESolverOptions
+    odeSolverGradientOptions::ODESolverOptions
+    ssSolverOptions::SteadyStateSolverOptions
+    ssSolverGradientOptions::SteadyStateSolverOptions
+    θ_indices::ParameterIndices
+    simulationInfo::SimulationInfo
     splitOverConditions::Bool
 end
 
@@ -325,17 +302,15 @@ struct PEtabODEProblemCache{T1 <: AbstractVector,
 end
 
 
-struct PEtabODESolverCache{T1 <: NamedTuple, 
-                           T2 <: NamedTuple}
-    pODEProblemCache::T1
-    u0Cache::T2
+struct PEtabODESolverCache
+    pODEProblemCache
+    u0Cache
 end
 
 
-struct PriorInfo{T1 <: NamedTuple,
-                 T2 <: NamedTuple}
-    logpdf::T1
-    priorOnParameterScale::T2
+struct PriorInfo
+    logpdf::Dict{Symbol, Function}
+    priorOnParameterScale::Dict{<:Symbol, <:Bool}
     hasPriors::Bool
 end
 

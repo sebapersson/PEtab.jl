@@ -50,31 +50,31 @@ function processSimulationInfo(petabModel::PEtabModel,
 
     # Precompute the max simulation time for each experimentalConditionId
     _timeMax = Tuple(computeTimeMax(preEquilibrationConditionId[i], simulationConditionId[i], measurementInfo) for i in eachindex(preEquilibrationConditionId))
-    timeMax::NamedTuple = NamedTuple{Tuple(name for name in experimentalConditionId)}(_timeMax)
+    timeMax::Dict{Symbol, Float64} = Dict([experimentalConditionId[i] => _timeMax[i] for i in eachindex(experimentalConditionId)])
 
     # Precompute which time-points we have observed data at for experimentalConditionId (used in saveat for ODE solution)
     _timeObserved = Tuple(computeTimeObserved(preEquilibrationConditionId[i], simulationConditionId[i], measurementInfo) for i in eachindex(preEquilibrationConditionId))
-    timeObserved::NamedTuple = NamedTuple{Tuple(name for name in experimentalConditionId)}(_timeObserved)
+    timeObserved::Dict{Symbol, Vector{Float64}} = Dict([experimentalConditionId[i] => _timeObserved[i] for i in eachindex(experimentalConditionId)])
 
     # Precompute indices in measurementInfo (iMeasurement) for each experimentalConditionId
     _iMeasurementsObserved = Tuple(_computeTimeIndices(preEquilibrationConditionId[i], simulationConditionId[i], measurementInfo) for i in eachindex(preEquilibrationConditionId))
-    iMeasurementsObserved::NamedTuple = NamedTuple{Tuple(name for name in experimentalConditionId)}(_iMeasurementsObserved)
+    iMeasurementsObserved::Dict{Symbol, Vector{Int64}} = Dict([experimentalConditionId[i] => _iMeasurementsObserved[i] for i in eachindex(experimentalConditionId)])
 
     # Precompute for each measurement (entry in iMeasurement) a vector which holds the corresponding index in odeSolution.t
     # accounting for experimentalConditionId
-    iTimeODESolution = computeIndexTimeODESolution(preEquilibrationConditionId, simulationConditionId, measurementInfo)
+    iTimeODESolution::Vector{Int64} = computeIndexTimeODESolution(preEquilibrationConditionId, simulationConditionId, measurementInfo)
+
+    # When computing the gradients via forward sensitivity equations we need to track where, in the concatanated
+    # odeSolution.t (accross all condition) the time-points for an experimental conditions start as we can only
+    # compute the sensitivity matrix accross all conditions.
+    timePositionInODESolutions::Dict{Symbol, UnitRange{Int64}} = getTimePositionInODESolutions(experimentalConditionId, timeObserved)
 
     # Precompute a vector of vector where vec[i] gives the indices for time-point ti in measurementInfo for an
     # experimentalConditionId. Needed for the lower level adjoint interface where we must track the number of
     # repats per time-point (when using dgdu_discrete and dgdp_discrete)
     _iPerTimePoint = Tuple(computeTimeIndices(preEquilibrationConditionId[i], simulationConditionId[i], measurementInfo) for i in eachindex(preEquilibrationConditionId))
-    iPerTimePoint::NamedTuple = NamedTuple{Tuple(name for name in experimentalConditionId)}(_iPerTimePoint)
-
-    # When computing the gradients via forward sensitivity equations we need to track where, in the concatanated
-    # odeSolution.t (accross all condition) the time-points for an experimental conditions start as we can only
-    # compute the sensitivity matrix accross all conditions.
-    timePositionInODESolutions::NamedTuple = getTimePositionInODESolutions(experimentalConditionId, timeObserved)
-
+    iPerTimePoint::Dict{Symbol, Vector{Vector{Int64}}} = Dict([(experimentalConditionId[i], _iPerTimePoint[i]) for i in eachindex(experimentalConditionId)])
+    
     # Some models, e.g those with time dependent piecewise statements, have callbacks encoded. When doing adjoint
     # sensitivity analysis we need to track these callbacks, hence they must be stored in simulationInfo.
     callbacks = Dict{Symbol, SciMLBase.DECallback}()
@@ -164,16 +164,16 @@ end
 # conditions, where S[i:(i+nStates)] row corresponds to the sensitivites at a specific time-point.
 # An assumption made here is that we solve the ODE:s in the order of experimentalConditionId (which is true)
 function getTimePositionInODESolutions(experimentalConditionId::Vector{Symbol},
-                                       timeObserved::NamedTuple)::NamedTuple
+                                       timeObserved::Dict)::Dict{Symbol, UnitRange{Int64}}
 
-    _timePositionInODESolutions = Vector{UnitRange{Int64}}(undef, length(experimentalConditionId))
-    iStart = 1
+    iStart::Int64 = 1
+    positionInODESolutions::Dict{Symbol, UnitRange{Int64}} = Dict{Symbol, UnitRange{Int64}}()
     for i in eachindex(experimentalConditionId)
         timeObservedCondition = timeObserved[experimentalConditionId[i]]
-        _timePositionInODESolutions[i] = iStart:(iStart-1+length(timeObservedCondition))
-        iStart = _timePositionInODESolutions[i][end] + 1
+        _positionInODESolutionExpId = iStart:(iStart-1+length(timeObservedCondition))
+        iStart = _positionInODESolutionExpId[end] + 1
+        positionInODESolutions[experimentalConditionId[i]] = _positionInODESolutionExpId
     end
 
-    ___timePositionInODESolutions = Tuple(element for element in _timePositionInODESolutions)
-    return NamedTuple{Tuple(name for name in experimentalConditionId)}(___timePositionInODESolutions)
+    return positionInODESolutions
 end

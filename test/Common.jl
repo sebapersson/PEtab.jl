@@ -80,7 +80,7 @@ function checkGradientResiduals(petabModel::PEtabModel, solverOptions::ODESolver
                                          parameterData, priorInfo, nothing, returnJacobian=true)
     computeSumResiduals = PEtab.setUpCost(:Standard, odeProb, solverOptions, _ssOptions, petabODECache, petabODESolverCache,
                                          petabModel, simulationInfo, paramEstIndices, measurementData, 
-                                         parameterData, priorInfo, computeResiduals=true)
+                                         parameterData, priorInfo, nothing, 1, nothing, nothing, true)
 
     # Extract parameter vector
     namesParamEst = paramEstIndices.θ_estNames
