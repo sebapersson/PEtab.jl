@@ -53,6 +53,7 @@ function computeHessianSplitOverConditions!(hessian::Matrix{Float64},
                                     _θ_est[iθ_experimentalCondition] .= θ_arg
                                     return _evalHessian(_θ_est, [conditionId])
                                  end
+        ForwardDiff.hessian!(hTmp, evalHessian, θ_input)
         try
             ForwardDiff.hessian!(hTmp, evalHessian, θ_input)
         catch

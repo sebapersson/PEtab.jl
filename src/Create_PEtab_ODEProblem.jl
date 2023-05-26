@@ -254,9 +254,9 @@ function createPEtabODEProblem(petabModel::PEtabModel;
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Building hessian function for method ", string(hessianMethod), " ...")
     bBuild = @elapsed computeHessian! = setUpHessian(hessianMethod, odeProblem, odeSolverOptions, _ssSolverOptions, petabODECache, petabODESolverCache,
-                                   petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo, chunkSize,
-                                   numberOfprocesses=numberOfprocesses, jobs=jobs, results=results, splitOverConditions=splitOverConditions, 
-                                   reuseS=reuseS)
+                                                     petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo, chunkSize,
+                                                     numberOfprocesses=numberOfprocesses, jobs=jobs, results=results, splitOverConditions=splitOverConditions, 
+                                                     reuseS=reuseS)
     computeHessian = (θ) -> begin
                                 hessian = zeros(Float64, length(θ), length(θ))
                                 computeHessian!(hessian, θ)
@@ -596,7 +596,7 @@ function setUpHessian(whichMethod::Symbol,
             if splitOverConditions == false
                 _evalHessian = (θ_est) -> computeCost(θ_est, odeProblem, odeSolverOptions, ssSolverOptions, petabModel, simulationInfo, θ_indices,
                                                       measurementInfo, parameterInfo, priorInfo, petabODECache, petabODESolverCache,
-                                                      [:all], false, true, false)
+                                                      _expIDSolve, false, true, false)
 
                 if !isnothing(chunkSize)
                     _θ_est = zeros(Float64, length(θ_indices.θ_estNames))
@@ -616,7 +616,7 @@ function setUpHessian(whichMethod::Symbol,
             else
                 _evalHessian = (θ_est, _expIDSolve) -> computeCost(θ_est, odeProblem, odeSolverOptions, ssSolverOptions, petabModel, simulationInfo, θ_indices,
                                                                    measurementInfo, parameterInfo, priorInfo, petabODECache, petabODESolverCache,
-                                                                   computeHessian=true, expIDSolve=_expIDSolve)
+                                                                   _expIDSolve, false, true, false)
                 _computeHessian = (hessian, θ_est) -> computeHessianSplitOverConditions!(hessian,
                                                                                          θ_est,
                                                                                          _evalHessian,  
