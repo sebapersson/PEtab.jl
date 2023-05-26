@@ -21,7 +21,8 @@ makedocs(;
                           "Medium sized models and adjoint sensitivity analysis" => "Bachmann.md",
                           "Models with many conditions specific parameters" => "Beer.md",
                           "Providing the model as a Julia file instead of an SBML File" => "Beer_julia_import.md",
-                          "Parameter estimation" => "Parameter_estimation.md"
+                          "Parameter estimation" => "Parameter_estimation.md",
+                          "Model selection (PEtab select)" => "Model_selection.md"
                           ],
         "Supported gradient and hessian methods" => "Gradient_hessian_support.md",
         "Choosing the best options for a PEtab problem" => "Best_options.md",

@@ -26,8 +26,8 @@ using PEtab
 using OrdinaryDiffEq
 using Printf
 
-pathYaml = joinpath(@__DIR__, "examples", "Beer", "Beer_MolBioSystems2014.yaml") # @__DIR__ = file directory
-pathJuliaFile = joinpath(@__DIR__, "examples", "Beer", "Julia_import_files", "Beer_Julia_Import.jl")
+pathYaml = joinpath(@__DIR__, "Beer", "Beer_MolBioSystems2014.yaml") # @__DIR__ = file directory
+pathJuliaFile = joinpath(@__DIR__, "Beer", "Julia_import_files", "Beer_Julia_Import.jl")
 petabModel = readPEtabModel(pathYaml, verbose=true, jlFile=true, jlFilePath=pathJuliaFile)
 
 #=
