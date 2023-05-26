@@ -1,0 +1,2 @@
+model_subspace_id	petab_yaml	k1	k2	k3
+M1	../0001/petab/petab_problem.yaml	0;0.2;estimate	0;0.1;estimate	0;estimate

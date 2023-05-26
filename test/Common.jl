@@ -52,11 +52,11 @@ function _testCostGradientOrHessian(petabModel::PEtabModel,
 end
 
 
-function checkGradientResiduals(petabModel::PEtabModel, solverOptions::ODESolverOptions; verbose::Bool=true)
+function checkGradientResiduals(petabModel::PEtabModel, solverOptions::ODESolverOptions; verbose::Bool=true, customParameterValues=nothing)
 
     # Process PeTab files into type-stable Julia structs
     experimentalConditionsFile, measurementDataFile, parameterDataFile, observablesDataFile = readPEtabFiles(petabModel)
-    parameterData = processParameters(parameterDataFile)
+    parameterData = processParameters(parameterDataFile, customParameterValues=customParameterValues)
     measurementData = processMeasurements(measurementDataFile, observablesDataFile)
     simulationInfo = processSimulationInfo(petabModel, measurementData)
 
@@ -80,7 +80,7 @@ function checkGradientResiduals(petabModel::PEtabModel, solverOptions::ODESolver
                                          parameterData, priorInfo, nothing, returnJacobian=true)
     computeSumResiduals = PEtab.setUpCost(:Standard, odeProb, solverOptions, _ssOptions, petabODECache, petabODESolverCache,
                                          petabModel, simulationInfo, paramEstIndices, measurementData, 
-                                         parameterData, priorInfo, computeResiduals=true)
+                                         parameterData, priorInfo, nothing, 1, nothing, nothing, true)
 
     # Extract parameter vector
     namesParamEst = paramEstIndices.θ_estNames

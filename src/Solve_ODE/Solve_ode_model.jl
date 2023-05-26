@@ -20,9 +20,8 @@ function solveODEAllExperimentalConditions!(odeSolutions::Dict{Symbol, Union{Not
                                             trackCallback::Bool=false, 
                                             computeForwardSensitivites::Bool=false)::Bool # Required for adjoint sensitivity analysis
 
-    changeExperimentalCondition! = (pODEProblem, u0, conditionId) -> _changeExperimentalCondition!(pODEProblem, u0, conditionId, θ_dynamic, petabModel, θ_indices, computeForwardSensitivites=computeForwardSensitivites)
 
-    local sucess::Bool = true
+    changeExperimentalCondition! = (pODEProblem, u0, conditionId) -> _changeExperimentalCondition!(pODEProblem, u0, conditionId, θ_dynamic, petabModel, θ_indices, computeForwardSensitivites=computeForwardSensitivites)
     # In case the model is first simulated to a steady state
     if simulationInfo.haspreEquilibrationConditionId == true
 
@@ -72,25 +71,11 @@ function solveODEAllExperimentalConditions!(odeSolutions::Dict{Symbol, Union{Not
             continue
         end
 
-        # Check if we want to only save the ODE at specific time-points
-        if onlySaveAtObservedTimes == true
-            nTimePointsSave = 0
-            tSave = simulationInfo.timeObserved[experimentalId]
-        else
-            tSave=Float64[]
-        end
-
-        # Sanity check and process user input.
-        tMax = simulationInfo.timeMax[experimentalId]
-        if length(tSave) != 0 && nTimePointsSave != 0
-            println("Error : Can only provide tSave (vector to save at) or nTimePointsSave as saveat argument to solvers")
-        elseif nTimePointsSave != 0
-            tSave = collect(LinRange(0.0, tMax, nTimePointsSave))
-        end
-        if !(isempty(tSave) && nTimePointsSave == 0)
-            denseSolution = false
-        end
-
+        # In case onlySaveAtObservedTimes=true all other options are overridden and we only save the data 
+        # at observed time points.
+        _tMax = simulationInfo.timeMax[experimentalId]
+        _tSave = getTsave(Val(onlySaveAtObservedTimes), simulationInfo, experimentalId, _tMax, nTimePointsSave)
+        _denseSolution = saveDenseSolution(Val(onlySaveAtObservedTimes), nTimePointsSave, denseSolution)
         odeProblem = setODEProblemParameters(_odeProblem, petabODESolverCache, experimentalId)
 
         # In case we have a simulation with PreEqulibrium
@@ -105,57 +90,50 @@ function solveODEAllExperimentalConditions!(odeSolutions::Dict{Symbol, Union{Not
                                                                       simulationInfo,
                                                                       simulationInfo.simulationConditionId[i],
                                                                       experimentalId,
-                                                                      tMax,
+                                                                      _tMax,
                                                                       odeSolverOptions,
                                                                       petabModel.computeTStops,
-                                                                      tSave=tSave,
-                                                                      denseSolution=denseSolution,
-                                                                      trackCallback=trackCallback,
-                                                                      convertTspan=petabModel.convertTspan)
-
-                if odeSolutions[experimentalId].retcode != ReturnCode.Success
-                    sucess = false
-                end
+                                                                      _tSave,
+                                                                      _denseSolution,
+                                                                      trackCallback,
+                                                                      petabModel.convertTspan)
             catch e
                 checkError(e)
                 return false
             end
-            if sucess == false
+            if odeSolutions[experimentalId].retcode != ReturnCode.Success
                 return false
             end
 
         # In case we have an ODE solution without Pre-equlibrium
         else
-            try
-                odeSolutions[experimentalId] = solveODENoPreEqulibrium!(odeProblem,
-                                                                        changeExperimentalCondition!,
-                                                                        simulationInfo,
-                                                                        simulationInfo.simulationConditionId[i],
-                                                                        odeSolverOptions,
-                                                                        tMax,
-                                                                        petabModel.computeTStops,
-                                                                        tSave=tSave,
-                                                                        denseSolution=denseSolution,
-                                                                        trackCallback=trackCallback,
-                                                                        convertTspan=petabModel.convertTspan)
-                retcode = odeSolutions[experimentalId].retcode
-                if !(retcode == ReturnCode.Success || retcode == ReturnCode.Terminated)
-                    sucess = false
-                end
-            catch e
-                checkError(e)
-                return false
-            end
-            if sucess == false
+            #try
+                odeSolutions[experimentalId] = solveODENoPreEqulibrium(odeProblem,
+                                                                       changeExperimentalCondition!,
+                                                                       simulationInfo,
+                                                                       simulationInfo.simulationConditionId[i],
+                                                                       odeSolverOptions,
+                                                                       _tMax,
+                                                                       petabModel.computeTStops,
+                                                                       _tSave,
+                                                                       _denseSolution,
+                                                                       trackCallback,
+                                                                       petabModel.convertTspan)
+            #catch e
+                #checkError(e)
+                #return false
+            #end
+            retcode = odeSolutions[experimentalId].retcode
+            if !(retcode == ReturnCode.Success || retcode == ReturnCode.Terminated)
                 return false
             end
         end
     end
 
-    return sucess
+    return true
 end
 function solveODEAllExperimentalConditions!(odeSolutionValues::AbstractMatrix,
-                                            θ_dynamic::AbstractVector,
+                                            _θ_dynamic::AbstractVector,
                                             petabODESolverCache::PEtabODESolverCache,
                                             odeSolutions::Dict{Symbol, Union{Nothing, ODESolution}},                                        
                                             __odeProblem::ODEProblem,
@@ -163,13 +141,21 @@ function solveODEAllExperimentalConditions!(odeSolutionValues::AbstractMatrix,
                                             simulationInfo::SimulationInfo,
                                             odeSolverOptions::ODESolverOptions,
                                             ssSolverOptions::SteadyStateSolverOptions,
-                                            θ_indices::ParameterIndices;
+                                            θ_indices::ParameterIndices, 
+                                            petabODECache::PEtabODEProblemCache;
                                             expIDSolve::Vector{Symbol} = [:all],
                                             nTimePointsSave::Int64=0,
                                             onlySaveAtObservedTimes::Bool=false,
                                             denseSolution::Bool=true,
                                             trackCallback::Bool=false, 
-                                            computeForwardSensitivites::Bool=false)
+                                            computeForwardSensitivites::Bool=false, 
+                                            computeForwardSensitivitesAD::Bool=false)
+
+    if computeForwardSensitivitesAD == true && petabODECache.nθ_dynamicEst[1] != length(_θ_dynamic)
+        θ_dynamic = _θ_dynamic[petabODECache.θ_dynamicOutputOrder]
+    else
+        θ_dynamic = _θ_dynamic
+    end                  
 
     _odeProblem = remake(__odeProblem, p = convert.(eltype(θ_dynamic), __odeProblem.p), u0 = convert.(eltype(θ_dynamic), __odeProblem.u0))
     changeODEProblemParameters!(_odeProblem.p, _odeProblem.u0, θ_dynamic, θ_indices, petabModel)
@@ -206,6 +192,36 @@ function solveODEAllExperimentalConditions!(odeSolutionValues::AbstractMatrix,
             @views odeSolutionValues[:, iStart:iEnd] .= Array(odeSolutions[experimentalId])
         end
         iStart = iEnd + 1
+    end
+end
+
+
+function getTsave(::Val{onlySaveAtObservedTimes}, 
+                  simulationInfo::SimulationInfo,
+                  experimentalId::Symbol,
+                  tMax::Float64,
+                  nTimePointsSave::Int64)::Vector{Float64} where onlySaveAtObservedTimes
+
+    # Check if we want to only save the ODE at specific time-points
+    if onlySaveAtObservedTimes == true
+        return simulationInfo.timeObserved[experimentalId]
+    elseif nTimePointsSave > 0
+        return collect(LinRange(0.0, tMax, nTimePointsSave))
+    else
+        return Float64[]
+    end
+end
+
+
+function saveDenseSolution(::Val{onlySaveAtObservedTimes}, nTimePointsSave::Int64, denseSolution::Bool)::Bool where onlySaveAtObservedTimes
+
+    # Check if we want to only save the ODE at specific time-points
+    if onlySaveAtObservedTimes == true
+        return false
+    elseif nTimePointsSave > 0
+        return false
+    else
+        return denseSolution
     end
 end
 
@@ -255,11 +271,11 @@ function solveODEPostEqulibrium(odeProblem::ODEProblem,
                                 experimentalId::Symbol,
                                 tMax::Float64,
                                 odeSolverOptions::ODESolverOptions,
-                                computeTStops::Function;
-                                tSave::Vector{Float64}=Float64[],
-                                denseSolution::Bool=true,
-                                trackCallback::Bool=false,
-                                convertTspan::Bool=false)::ODESolution
+                                computeTStops::Function,
+                                tSave::Vector{Float64},
+                                denseSolution,
+                                trackCallback,
+                                convertTspan)::ODESolution
 
     changeExperimentalCondition!(odeProblem.p, odeProblem.u0, simulationConditionId)
     # Sometimes the experimentaCondition-file changes the initial values for a state
@@ -284,24 +300,24 @@ function solveODEPostEqulibrium(odeProblem::ODEProblem,
     # If case of adjoint sensitivity analysis we need to track the callback to get correct gradients
     tStops = computeTStops(_odeProblem.u0, _odeProblem.p)
     callbackSet = getCallbackSet(_odeProblem, simulationInfo, experimentalId, trackCallback)
-    sol = computeODESolution(_odeProblem, odeSolverOptions, odeSolverOptions.abstol/100.0, odeSolverOptions.reltol/100.0,
+    sol = computeODESolution(_odeProblem, odeSolverOptions.solver, odeSolverOptions, odeSolverOptions.abstol/100.0, odeSolverOptions.reltol/100.0,
                              tSave, denseSolution, callbackSet, tStops)
 
     return sol
 end
 
 
-function solveODENoPreEqulibrium!(odeProblem::ODEProblem,
-                                 changeExperimentalCondition!::Function,
+function solveODENoPreEqulibrium(odeProblem::ODEProblem,
+                                 changeExperimentalCondition!::F1,
                                  simulationInfo::SimulationInfo,
                                  simulationConditionId::Symbol,
                                  odeSolverOptions::ODESolverOptions,
                                  _tMax::Float64,
-                                 computeTStops::Function;
-                                 tSave=Float64[],
-                                 denseSolution::Bool=true,
-                                 trackCallback::Bool=false,
-                                 convertTspan::Bool=false)::ODESolution
+                                 computeTStops::F2,
+                                 tSave::Vector{Float64},
+                                 denseSolution::Bool,
+                                 trackCallback::Bool,
+                                 convertTspan::Bool)::ODESolution where {F1<:Function, F2<:Function}
 
     # Change experimental condition
     tMax = isinf(_tMax) ? 1e8 : _tMax
@@ -311,7 +327,7 @@ function solveODENoPreEqulibrium!(odeProblem::ODEProblem,
 
     tStops = computeTStops(_odeProblem.u0, _odeProblem.p)
     callbackSet = getCallbackSet(_odeProblem, simulationInfo, simulationConditionId, trackCallback)
-    sol = computeODESolution(_odeProblem, odeSolverOptions, odeSolverOptions.abstol/100.0, odeSolverOptions.reltol/100.0,
+    sol = computeODESolution(_odeProblem, odeSolverOptions.solver, odeSolverOptions, odeSolverOptions.abstol/100.0, odeSolverOptions.reltol/100.0,
                              tSave, denseSolution, callbackSet, tStops)
 
     return sol
@@ -319,20 +335,21 @@ end
 
 
 function computeODESolution(odeProblem::ODEProblem,
+                            solver::S,
                             odeSolverOptions::ODESolverOptions,
                             absTolSS::Float64,
                             relTolSS::Float64,
                             tSave::Vector{Float64},
                             denseSolution::Bool,
                             callbackSet::SciMLBase.DECallback,
-                            tStops::AbstractVector)::ODESolution
+                            tStops::AbstractVector)::ODESolution where S<:SciMLAlgorithm
 
-    solver, abstol, reltol, force_dtmin, dtmin, maxiters = odeSolverOptions.solver, odeSolverOptions.abstol, odeSolverOptions.reltol, odeSolverOptions.force_dtmin, odeSolverOptions.dtmin, odeSolverOptions.maxiters                            
+    abstol, reltol, force_dtmin, dtmin, maxiters = odeSolverOptions.abstol, odeSolverOptions.reltol, odeSolverOptions.force_dtmin, odeSolverOptions.dtmin, odeSolverOptions.maxiters                            
 
     # Different funcion calls to solve are required if a solver or a Alg-hint are provided.
     # If t_max = inf the model is simulated to steady state using the TerminateSteadyState callback.
     if isinf(odeProblem.tspan[2]) || odeProblem.tspan[2] == 1e8
-        sol = solve(odeProblem, solver, abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters, save_on=false, save_end=true, dense=denseSolution, callback=TerminateSteadyState(absTolSS, relTolSS))
+        sol = solve(odeProblem, solver, abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters, save_on=false, save_start=false, save_end=true, dense=denseSolution, callback=TerminateSteadyState(absTolSS, relTolSS))
     else
         sol = solve(odeProblem, solver, abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters, saveat=tSave, dense=denseSolution, tstops=tStops, callback=callbackSet)
     end

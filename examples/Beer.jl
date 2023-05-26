@@ -55,23 +55,3 @@ petabProblem.computeHessian!(hessian, p)
 @printf("Cost for Beer = %.2f\n", cost)
 @printf("First element in the gradient for Beer = %.2e\n", gradient[1])
 @printf("First element in the hessian for Beer = %.2f\n", hessian[1, 1])
-
-
-#=   
-    The PEtabODEProblem has as mentioned everything needed to set up an optimization problem. Below we show how to set 
-    up a problem using the Interior point Newton method in Optim.jl (https://github.com/JuliaNLSolvers/Optim.jl). Extensive 
-    benchmarks show that this method performs great in case we can compute the full Hessian via automatic differentitation.
-
-    Note - the PEtabODEProblem compute gradient and hessian are on the format which Optim.jl accepts. 
-=#
-using Optim
-using Random
-# Setup the problem on Optim.jl format
-nParameters = length(petabProblem.lowerBounds)
-df = TwiceDifferentiable(petabProblem.computeCost, petabProblem.computeGradient!, petabProblem.computeHessian!, zeros(nParameters))
-dfc = TwiceDifferentiableConstraints(petabProblem.lowerBounds, petabProblem.upperBounds)
-
-# Generate a random parameter vector within the parameter bounds. Note - this is a numerically challenging problem.
-Random.seed!(1234)
-p0 = [rand() * (petabProblem.upperBounds[i] - petabProblem.lowerBounds[i]) + petabProblem.lowerBounds[i] for i in eachindex(petabProblem.lowerBounds)]
-res = Optim.optimize(df, dfc, p0, IPNewton(), Optim.Options(iterations = 50, show_trace = true)) # 100 iterations to save time

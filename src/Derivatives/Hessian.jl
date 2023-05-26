@@ -12,9 +12,8 @@ function computeHessian!(hessian::Matrix{Float64},
                          θ_indices::ParameterIndices, 
                          priorInfo::PriorInfo)
 
-
     # Only try to compute hessian if we could compute the cost
-    if all([simulationInfo.odeSolutions[id].retcode == ReturnCode.Success for id in simulationInfo.experimentalConditionId])
+    if all([simulationInfo.odeSolutions[id].retcode == ReturnCode.Success || simulationInfo.odeSolutions[id].retcode == ReturnCode.Terminated for id in simulationInfo.experimentalConditionId])
         try
             ForwardDiff.hessian!(hessian, _evalHessian, θ_est, cfg)
             @views hessian .= Symmetric(hessian)
@@ -53,6 +52,7 @@ function computeHessianSplitOverConditions!(hessian::Matrix{Float64},
                                     _θ_est[iθ_experimentalCondition] .= θ_arg
                                     return _evalHessian(_θ_est, [conditionId])
                                  end
+        ForwardDiff.hessian!(hTmp, evalHessian, θ_input)
         try
             ForwardDiff.hessian!(hTmp, evalHessian, θ_input)
         catch
@@ -90,7 +90,11 @@ function computeHessianBlockApproximation!(hessian::Matrix{Float64},
     θ_dynamic = petabODECache.θ_dynamic 
 
     try
-        @views ForwardDiff.hessian!(hessian[θ_indices.iθ_dynamic, θ_indices.iθ_dynamic], computeCostDynamicθ, θ_dynamic, cfg)
+        if !isempty(θ_indices.iθ_dynamic)
+            @views ForwardDiff.hessian!(hessian[θ_indices.iθ_dynamic, θ_indices.iθ_dynamic], computeCostDynamicθ, θ_dynamic, cfg)
+        else
+            computeCostDynamicθ(θ_dynamic)
+        end
     catch
         hessian .= 0.0
         return
@@ -101,7 +105,7 @@ function computeHessianBlockApproximation!(hessian::Matrix{Float64},
         hessian .= 0.0
         return
     end
-    if all((@view hessian[θ_indices.iθ_dynamic, θ_indices.iθ_dynamic]) .== 0.0)
+    if !isempty(θ_dynamic) && all((@view hessian[θ_indices.iθ_dynamic, θ_indices.iθ_dynamic]) .== 0.0)
         return
     end
 
@@ -191,7 +195,8 @@ function computeGaussNewtonHessianApproximation!(out::Matrix{Float64},
                                                  reuseS::Bool=false,
                                                  splitOverConditions::Bool=false,
                                                  returnJacobian::Bool=false,
-                                                 expIDSolve::Vector{Symbol} = [:all])
+                                                 expIDSolve::Vector{Symbol} = [:all], 
+                                                 isRemade::Bool=false)
 
     # Avoid incorrect non-zero values
     out .= 0.0
@@ -202,20 +207,21 @@ function computeGaussNewtonHessianApproximation!(out::Matrix{Float64},
     θ_sd = petabODECache.θ_sd
     θ_nonDynamic = petabODECache.θ_nonDynamic
     jacobianGN = petabODECache.jacobianGN
+    jacobianGN .= 0.0
 
     # Calculate gradient seperately for dynamic and non dynamic parameter.
     computeJacobianResidualsDynamicθ!((@view jacobianGN[θ_indices.iθ_dynamic, :]), θ_dynamic, θ_sd,
                                       θ_observable, θ_nonDynamic, petabModel, odeProblem,
                                       simulationInfo, θ_indices, measurementInfo, parameterInfo,
                                       solveOdeModelAllConditions!, cfg, petabODECache;
-                                      expIDSolve=expIDSolve, reuseS=reuseS, splitOverConditions=splitOverConditions)
+                                      expIDSolve=expIDSolve, reuseS=reuseS, splitOverConditions=splitOverConditions, 
+                                      isRemade=isRemade)
 
     # Happens when at least one forward pass fails
-    if all(jacobianGN[θ_indices.iθ_dynamic, :] .== 1e8)
+    if !isempty(θ_dynamic) && all(jacobianGN[θ_indices.iθ_dynamic, :] .== 1e8)
         out .= 0.0
         return
     end
-
     @views ForwardDiff.jacobian!(jacobianGN[θ_indices.iθ_notOdeSystem, :]', computeResidualsNotSolveODE!, petabODECache.residualsGN, θ_est[θ_indices.iθ_notOdeSystem], cfgNotSolveODE)
 
     if priorInfo.hasPriors == true

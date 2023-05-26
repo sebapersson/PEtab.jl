@@ -110,10 +110,5 @@ import Pkg;
 Pkg.build("PyCall")
 
 # Set up a fides using the hessian and gradient options in the petabProblem 
-include(joinpath(@__DIR__, "Set_up_fides.jl"))
-fidesProblem = setUpFides(petabProblem, verbose=1, options=py"{'maxiter' : 10}"o) # 10 iterations to save time 
-
-# Generate a random parameter vector within the parameter bounds and run optmization 
-Random.seed!(123)
-p0 = [rand() * (petabProblem.upperBounds[i] - petabProblem.lowerBounds[i]) + petabProblem.lowerBounds[i] for i in eachindex(petabProblem.lowerBounds)]
-res, niter, converged = fidesProblem(p0)
+fvals, xvals = callibrateModel(petabProblem, Fides(verbose=true), 
+                               nOptimisationStarts=2)

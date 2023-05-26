@@ -12,7 +12,7 @@
 """
 function setParamToFileValues!(paramMap, stateMap, paramData::ParametersInfo)
 
-    parameterNames = paramData.parameterId
+    parameterNames = string.(paramData.parameterId)
     parameterNamesStr = string.([paramMap[i].first for i in eachindex(paramMap)])
     stateNamesStr = replace.(string.([stateMap[i].first for i in eachindex(stateMap)]), "(t)" => "")
     for i in eachindex(parameterNames)
@@ -199,8 +199,12 @@ function transformθ(θ::AbstractVector,
                     θ_indices::ParameterIndices;
                     reverseTransform::Bool=false)::AbstractVector
 
-    out = [transformθElement(θ[i], θ_indices.θ_scale[θ_name], reverseTransform=reverseTransform) for (i, θ_name) in pairs(θ_names)]
-    return out
+    if isempty(θ) 
+        return similar(θ)
+    else
+        out = [transformθElement(θ[i], θ_indices.θ_scale[θ_name], reverseTransform=reverseTransform) for (i, θ_name) in pairs(θ_names)]
+        return out
+    end
 end
 function transformθ(θ::AbstractVector{T},
                     θ_names::Vector{Symbol},

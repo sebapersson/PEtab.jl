@@ -30,6 +30,7 @@ julia> ] add PEtab
 PEtab.jl provides a range of features to import and analyze ODE parameter estimation problems specified in the PEtab format. These include:
 
 * Importing ODE systems specified either by an SBML file or as a Julia file.
+* Model selection via [PEtab Select](https://github.com/PEtab-dev/petab_select).
 * Symbolic model pre-processing via ModelingToolkit.jl.
 * Support for all ODE solvers in DifferentialEquations.jl.
 * Gradient calculations using several approaches:

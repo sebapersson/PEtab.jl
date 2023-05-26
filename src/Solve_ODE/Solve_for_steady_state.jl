@@ -112,7 +112,7 @@ function solveODEPreEqulibrium!(uAtSS::AbstractVector,
                                 convertTspan::Bool)::Union{ODESolution, SciMLBase.NonlinearSolution}
 
     if ssSolverOptions.method === :Simulate                           
-        odeSolution = simulateToSS(odeProblem, changeExperimentalCondition!, preEquilibrationId,
+        odeSolution = simulateToSS(odeProblem, odeSolverOptions.solver, changeExperimentalCondition!, preEquilibrationId,
                                    odeSolverOptions, ssSolverOptions, convertTspan)
         if odeSolution.retcode == ReturnCode.Terminated || odeSolution.retcode == ReturnCode.Success
             uAtSS .= odeSolution.u[end]
@@ -133,16 +133,17 @@ end
 
 
 function simulateToSS(odeProblem::ODEProblem,
+                      solver::S, 
                       changeExperimentalCondition!::Function,
                       preEquilibrationId::Symbol,
                       odeSolverOptions::ODESolverOptions,
                       ssSolverOptions::SteadyStateSolverOptions,
-                      convertTspan::Bool)::ODESolution
+                      convertTspan::Bool)::ODESolution where S<:SciMLAlgorithm
 
     changeExperimentalCondition!(odeProblem.p, odeProblem.u0, preEquilibrationId)
     _odeProblem = remakeODEProblemPreSolve(odeProblem, Inf, odeSolverOptions.solver, convertTspan)          
 
-    solver, abstol, reltol, maxiters = odeSolverOptions.solver, odeSolverOptions.abstol, odeSolverOptions.reltol, odeSolverOptions.maxiters
+    abstol, reltol, maxiters = odeSolverOptions.abstol, odeSolverOptions.reltol, odeSolverOptions.maxiters
     callbackSS = ssSolverOptions.callbackSS
 
     sol = solve(_odeProblem, solver, abstol=abstol, reltol=reltol, maxiters=maxiters, dense=false, callback=callbackSS)

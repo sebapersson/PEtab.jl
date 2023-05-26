@@ -24,6 +24,8 @@ using RuntimeGeneratedFunctions
 using PreallocationTools
 using NonlinearSolve
 using PrecompileTools
+using Optim
+using QuasiMonteCarlo
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
@@ -43,6 +45,7 @@ include(joinpath("Derivatives", "Adjoint_sensitivity_analysis.jl"))
 include(joinpath("Derivatives", "Forward_sensitivity_equations.jl"))
 include(joinpath("Derivatives", "Gauss_newton.jl"))
 include(joinpath("Derivatives", "Common.jl"))
+include(joinpath("Derivatives", "ForwardDiff_run_over_chunks.jl"))
 
 # Files related to solving the ODE-system
 include(joinpath("Solve_ODE", "Change_experimental_condition.jl"))
@@ -77,6 +80,11 @@ include(joinpath("SBML", "Common.jl"))
 include(joinpath("SBML", "Process_functions.jl"))
 include(joinpath("SBML", "Process_rules.jl"))
 
+# For Optimization and model selection 
+include(joinpath("Optimization", "Setup_optim.jl"))
+include(joinpath("Optimization", "Setup_fides.jl"))
+include(joinpath("Optimization", "Callibration.jl"))
+include(joinpath("PEtab_select", "PEtab_select.jl"))
 
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem 
 @setup_workload begin
@@ -88,7 +96,6 @@ include(joinpath("SBML", "Process_rules.jl"))
     end
 end
 
-
-export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem
+export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, createOptimProblem, createFidesProblem, callibrateModel, remakePEtabProblem, Fides, runPEtabSelect
 
 end

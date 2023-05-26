@@ -345,7 +345,7 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
     for spec in model[:getListOfSpecies]()
         stateId = spec[:getId]()
         # If initial amount is zero (default) check if intial value is given in getInitialConcentration
-        if spec[:getInitialAmount]() == 0
+        if spec[:getInitialAmount]() == 0 || isnan(spec[:getInitialAmount]())
             if spec[:getInitialConcentration]() === NaN # Default SBML value
                 modelDict["states"][stateId] = string(spec[:getInitialAmount]())
             else

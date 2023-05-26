@@ -17,7 +17,7 @@ end
 function couldSolveODEModel(simulationInfo::SimulationInfo, expIDSolve::Vector{Symbol})::Bool
     for experimentalId in simulationInfo.experimentalConditionId
         if expIDSolve[1] == :all || experimentalId ∈ expIDSolve
-            if simulationInfo.odeSolutionsDerivatives[experimentalId].retcode != ReturnCode.Success
+            if !(simulationInfo.odeSolutionsDerivatives[experimentalId].retcode == ReturnCode.Success || simulationInfo.odeSolutionsDerivatives[experimentalId].retcode == ReturnCode.Terminated)
                 return false
             end
         end

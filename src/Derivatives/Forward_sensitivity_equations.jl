@@ -25,7 +25,8 @@ function computeGradientForwardEqDynamicθ!(gradient::Vector{Float64},
                                            cfg::Union{ForwardDiff.JacobianConfig, Nothing}, 
                                            petabODECache::PEtabODEProblemCache;
                                            expIDSolve::Vector{Symbol} = [:all], 
-                                           splitOverConditions::Bool=false)
+                                           splitOverConditions::Bool=false, 
+                                           isRemade::Bool=false)
 
     θ_dynamicT = transformθ(θ_dynamic, θ_indices.θ_dynamicNames, θ_indices, :θ_dynamic, petabODECache)
     θ_sdT = transformθ(θ_sd, θ_indices.θ_sdNames, θ_indices, :θ_sd, petabODECache)
@@ -34,11 +35,15 @@ function computeGradientForwardEqDynamicθ!(gradient::Vector{Float64},
 
     # Solve the expanded ODE system for the sensitivites
     success = solveForSensitivites(odeProblem, simulationInfo, θ_indices, petabModel, sensealg, θ_dynamicT,
-                                   solveOdeModelAllConditions!, cfg, petabODECache, expIDSolve, splitOverConditions)
+                                   solveOdeModelAllConditions!, cfg, petabODECache, expIDSolve, splitOverConditions, 
+                                   isRemade)
     if success != true
-        println("Failed to solve sensitivity equations")
+        @warn "Failed to solve sensitivity equations"
         gradient .= 1e8
         return
+    end
+    if isempty(θ_dynamic)
+        return 
     end
 
     gradient .= 0.0
@@ -70,7 +75,8 @@ function solveForSensitivites(odeProblem::ODEProblem,
                               cfg::Nothing, 
                               petabODECache::PEtabODEProblemCache,
                               expIDSolve::Vector{Symbol}, 
-                              splitOverConditions::Bool)
+                              splitOverConditions::Bool, 
+                              isRemade::Bool=false)
 
     nModelStates = length(petabModel.stateNames)
     _odeProblem = remake(odeProblem, p = convert.(eltype(θ_dynamic), odeProblem.p), u0 = convert.(eltype(θ_dynamic), odeProblem.u0))
@@ -88,10 +94,36 @@ function solveForSensitivites(odeProblem::ODEProblem,
                               cfg::ForwardDiff.JacobianConfig, 
                               petabODECache::PEtabODEProblemCache,
                               expIDSolve::Vector{Symbol}, 
-                              splitOverConditions::Bool)
+                              splitOverConditions::Bool, 
+                              isRemade::Bool=false)
 
-    if splitOverConditions == false                                
-        ForwardDiff.jacobian!(petabODECache.S, solveOdeModelAllConditions!, petabODECache.odeSolutionValues, θ_dynamic, cfg)
+    petabODECache.S .= 0.0                              
+    if splitOverConditions == false       
+
+        # Case where based on the original PEtab file read into Julia we do not have any parameter vectors fixated. 
+        if isRemade == false || length(petabODECache.gradientDyanmicθ) == petabODECache.nθ_dynamicEst[1]
+            tmp = petabODECache.nθ_dynamicEst[1]; petabODECache.nθ_dynamicEst[1] = length(θ_dynamic)
+            if !isempty(θ_dynamic)                         
+                ForwardDiff.jacobian!(petabODECache.S, solveOdeModelAllConditions!, petabODECache.odeSolutionValues, θ_dynamic, cfg)
+            else
+                solveOdeModelAllConditions!(petabODECache.odeSolutionValues, θ_dynamic)
+                petabODECache.S .= 0.0
+            end
+            petabODECache.nθ_dynamicEst[1] = tmp
+        
+        # Case when we have dynamic parameters fixed. Here it is not always worth to move accross all chunks
+        else
+            if petabODECache.nθ_dynamicEst[1] != 0
+                C = length(cfg.seeds)
+                nForwardPasses = Int64(ceil(petabODECache.nθ_dynamicEst[1] / C))
+                __θ_dynamic = θ_dynamic[petabODECache.θ_dynamicInputOrder]
+                forwardDiffJacobianChunks(solveOdeModelAllConditions!, petabODECache.odeSolutionValues, petabODECache.S, __θ_dynamic, ForwardDiff.Chunk(C); nForwardPasses=nForwardPasses)
+                @views petabODECache.S .= petabODECache.S[:, petabODECache.θ_dynamicOutputOrder]
+            else
+            solveOdeModelAllConditions!(petabODECache.odeSolutionValues, θ_dynamic)
+            petabODECache.S .= 0.0
+            end            
+        end            
 
     # Slower option, but more efficient if there are several parameters unique to an experimental condition         
     else

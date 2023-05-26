@@ -50,7 +50,7 @@ petabModel = readPEtabModel(pathYaml, verbose=true)
     and we plan to add automatic tuning of it.
 =#
 petabProblem = createPEtabODEProblem(petabModel, 
-                                     odeSolverOptionsODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8), 
+                                     odeSolverOptions=ODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8), 
                                      gradientMethod=:ForwardDiff, 
                                      hessianMethod=:ForwardDiff)
 
@@ -87,20 +87,43 @@ petabProblem.computeHessian!(hessian, p)
     up a problem using the Interior point Newton method in Optim.jl (https://github.com/JuliaNLSolvers/Optim.jl). Extensive 
     benchmarks show that this method performs great in case we can compute the full Hessian via automatic differentitation.
 
-    Note - the PEtabODEProblem compute gradient and hessian are on the format which Optim.jl accepts. 
+    Note - below we sample start guesses via Latin-hypercube sampling from QuasiMonteCarlo
 =#
 using Optim
-using Random
-# Setup the problem on Optim.jl format
-nParameters = length(petabProblem.lowerBounds)
-df = TwiceDifferentiable(petabProblem.computeCost, petabProblem.computeGradient!, petabProblem.computeHessian!, zeros(nParameters))
-dfc = TwiceDifferentiableConstraints(petabProblem.lowerBounds, petabProblem.upperBounds)
-
-# Generate a random parameter vector within the parameter bounds
-Random.seed!(123)
-p0 = [rand() * (petabProblem.upperBounds[i] - petabProblem.lowerBounds[i]) + petabProblem.lowerBounds[i] for i in eachindex(petabProblem.lowerBounds)]
-res = Optim.optimize(df, dfc, p0, IPNewton(), Optim.Options(iterations = 1000, show_trace = true))
+import QuasiMonteCarlo
+fvals, xvals = callibrateModel(petabProblem, IPNewton(), 
+                               nOptimisationStarts=5, 
+                               samplingMethod=QuasiMonteCarlo.LatinHypercubeSample(), 
+                               options=Optim.Options(show_trace = false, iterations=200))
+@printf("Best found value = %.3f\n", minimum(fvals))
   
+
+#=   
+    Another popular optimizer is Fides (https://github.com/fides-dev/fides). 
+    
+    Setting up Fides in Julia is a bit involved, as it is a Python package. Fortunately, we provide a wrapper 
+    and support in callibrate model. 
+
+    As a first step though, PyCall.jl must be built with an environment which has Fides installed.    
+=#
+using PyCall
+pathPythonExe = joinpath("/", "home", "sebpe", "anaconda3", "envs", "PeTab", "bin", "python")
+ENV["PYTHON"] = pathPythonExe
+import Pkg; Pkg.build("PyCall")
+
+petabProblem = createPEtabODEProblem(petabModel, 
+                                     odeSolverOptions=ODESolverOptions(Rodas5P()), 
+                                     gradientMethod=:ForwardEquations, 
+                                     hessianMethod=:GaussNewton, 
+                                     sensealg=:ForwardDiff, 
+                                     reuseS=true)
+
+fvals, xvals = callibrateModel(petabProblem, Fides(verbose=false), 
+                               nOptimisationStarts=5, 
+                               samplingMethod=QuasiMonteCarlo.LatinHypercubeSample(), 
+                               options=py"{'maxiter' : 200}"o)
+@printf("Best found value = %.3f\n", minimum(fvals))                                     
+
 
 #=   
     Another popular optimizer is Ipopt (https://coin-or.github.io/Ipopt/). 

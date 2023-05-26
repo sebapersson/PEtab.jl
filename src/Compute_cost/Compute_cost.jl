@@ -1,4 +1,4 @@
-function computeCost(θ_est::AbstractVector,
+function computeCost(θ_est::V,
                      odeProblem::ODEProblem,
                      odeSolverOptions::ODESolverOptions,
                      ssSolverOptions::SteadyStateSolverOptions,
@@ -9,11 +9,11 @@ function computeCost(θ_est::AbstractVector,
                      parameterInfo::ParametersInfo,
                      priorInfo::PriorInfo, 
                      petabODECache::PEtabODEProblemCache, 
-                     petabODESolverCache::PEtabODESolverCache;
-                     expIDSolve::Vector{Symbol} = [:all],
-                     computeCost::Bool=false,
-                     computeHessian::Bool=false,
-                     computeResiduals::Bool=false)::Real
+                     petabODESolverCache::PEtabODESolverCache,
+                     expIDSolve::Vector{Symbol},
+                     computeCost::Bool,
+                     computeHessian::Bool,
+                     computeResiduals::Bool) where V
 
     θ_dynamic, θ_observable, θ_sd, θ_nonDynamic = splitParameterVector(θ_est, θ_indices)
 
@@ -53,7 +53,13 @@ function computeCostSolveODE(θ_dynamic::AbstractVector,
                              computeResiduals::Bool=false,
                              expIDSolve::Vector{Symbol} = [:all])::Real
 
-    θ_dynamicT = transformθ(θ_dynamic, θ_indices.θ_dynamicNames, θ_indices, :θ_dynamic, petabODECache)
+    if computeGradientDynamicθ == true && petabODECache.nθ_dynamicEst[1] != length(θ_dynamic)
+        _θ_dynamic = θ_dynamic[petabODECache.θ_dynamicOutputOrder]
+        θ_dynamicT = transformθ(_θ_dynamic, θ_indices.θ_dynamicNames, θ_indices, :θ_dynamic, petabODECache)
+    else
+        θ_dynamicT = transformθ(θ_dynamic, θ_indices.θ_dynamicNames, θ_indices, :θ_dynamic, petabODECache)
+    end
+
     θ_sdT = transformθ(θ_sd, θ_indices.θ_sdNames, θ_indices, :θ_sd, petabODECache)
     θ_observableT = transformθ(θ_observable, θ_indices.θ_observableNames, θ_indices, :θ_observable, petabODECache)
     θ_nonDynamicT = transformθ(θ_nonDynamic, θ_indices.θ_nonDynamicNames, θ_indices, :θ_nonDynamic, petabODECache)
@@ -221,17 +227,18 @@ function computeCostExpCond(odeSolution::ODESolution,
         # In case with transformations on the data the code can crash, hence Inf is returned in case the
         # model data transformation can not be perfomred.
         if isinf(hTransformed)
+            println("Warning - transformed observable is non-finite for measurement $iMeasurement")
             return Inf
         end
 
         # Update log-likelihood. In case of guass newton approximation we are only interested in the residuals, and here
         # we allow the residuals to be computed to test the gauss-newton implementation
         if computeResiduals == false
-            if measurementInfo.measurementTransformation[iMeasurement] == :lin
+            if measurementInfo.measurementTransformation[iMeasurement] === :lin
                 cost += log(σ) + 0.5*log(2*pi) + 0.5*residual^2
-            elseif measurementInfo.measurementTransformation[iMeasurement] == :log10
+            elseif measurementInfo.measurementTransformation[iMeasurement] === :log10
                 cost += log(σ) + 0.5*log(2*pi) + log(log(10)) + log(10)*measurementInfo.measurementT[iMeasurement] + 0.5*residual^2
-            elseif measurementInfo.measurementTransformation[iMeasurement] == :log
+            elseif measurementInfo.measurementTransformation[iMeasurement] === :log
                 cost += log(σ) + 0.5*log(2*pi) + log(measurementInfo.measurement[iMeasurement]) + 0.5*residual^2                
             else
                 println("Transformation ", measurementInfo.measurementTransformation[iMeasurement], " not yet supported.")
@@ -241,7 +248,6 @@ function computeCostExpCond(odeSolution::ODESolution,
             cost += residual
         end
     end
-
     return cost
 end
 
