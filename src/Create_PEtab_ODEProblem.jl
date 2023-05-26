@@ -324,7 +324,7 @@ function setUpCost(whichMethod::Symbol,
     # Functions needed for mapping θ_est to the ODE problem, and then for solving said ODE-system
     if whichMethod == :Standard && numberOfprocesses == 1
 
-        __computeCost = let θ_indices=θ_indices, measurementInfo=measurementInfo, odeSolverOptions=odeSolverOptions, priorInfo=priorInfo
+        __computeCost = let θ_indices=θ_indices, odeSolverOptions=odeSolverOptions, priorInfo=priorInfo
                             (θ_est) -> computeCost(θ_est,
                                                odeProblem,
                                                odeSolverOptions,

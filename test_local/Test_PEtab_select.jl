@@ -1,6 +1,7 @@
 using PEtab
 using OrdinaryDiffEq
 using Optim 
+using YAML
 using Test
 
 
@@ -21,7 +22,7 @@ import Pkg; Pkg.build("PyCall")
 
     pathYAML = joinpath(@__DIR__, "PEtab_select", "0002", "petab_select_problem.yaml")
     pathExepected = joinpath(@__DIR__, "PEtab_select", "0002", "expected.yaml")
-    pathSave = runPEtabSelect(pathYAML, Fides(verbose=false), gradientMethod=:ForwardDiff, hessianMethod=:ForwardDiff, nOptimisationStarts=10)
+    pathSave = runPEtabSelect(pathYAML, IPNewton(), gradientMethod=:ForwardDiff, hessianMethod=:ForwardDiff, nOptimisationStarts=10)
     dataExpected = YAML.load_file(pathExepected)
     dataComputed = YAML.load_file(pathSave)
     @test dataExpected["criteria"]["NLLH"] ≈ dataComputed["criteria"]["NLLH"] atol=1e-3
