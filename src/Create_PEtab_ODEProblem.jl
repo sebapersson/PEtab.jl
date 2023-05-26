@@ -596,7 +596,7 @@ function setUpHessian(whichMethod::Symbol,
             if splitOverConditions == false
                 _evalHessian = (θ_est) -> computeCost(θ_est, odeProblem, odeSolverOptions, ssSolverOptions, petabModel, simulationInfo, θ_indices,
                                                       measurementInfo, parameterInfo, priorInfo, petabODECache, petabODESolverCache,
-                                                      _expIDSolve, false, true, false)
+                                                      [:all], false, true, false)
 
                 if !isnothing(chunkSize)
                     _θ_est = zeros(Float64, length(θ_indices.θ_estNames))
@@ -614,9 +614,9 @@ function setUpHessian(whichMethod::Symbol,
                                                                       priorInfo)
 
             else
-                _evalHessian = (θ_est, _expIDSolve) -> computeCost(θ_est, odeProblem, odeSolverOptions, ssSolverOptions, petabModel, simulationInfo, θ_indices,
-                                                                   measurementInfo, parameterInfo, priorInfo, petabODECache, petabODESolverCache,
-                                                                   _expIDSolve, false, true, false)
+                _evalHessian = (θ_est) -> computeCost(θ_est, odeProblem, odeSolverOptions, ssSolverOptions, petabModel, simulationInfo, θ_indices,
+                                                      measurementInfo, parameterInfo, priorInfo, petabODECache, petabODESolverCache,
+                                                      [:all], false, true, false)
                 _computeHessian = (hessian, θ_est) -> computeHessianSplitOverConditions!(hessian,
                                                                                          θ_est,
                                                                                          _evalHessian,  

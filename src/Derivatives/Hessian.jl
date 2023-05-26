@@ -12,7 +12,6 @@ function computeHessian!(hessian::Matrix{Float64},
                          θ_indices::ParameterIndices, 
                          priorInfo::PriorInfo)
 
-
     # Only try to compute hessian if we could compute the cost
     if all([simulationInfo.odeSolutions[id].retcode == ReturnCode.Success || simulationInfo.odeSolutions[id].retcode == ReturnCode.Terminated for id in simulationInfo.experimentalConditionId])
         try
