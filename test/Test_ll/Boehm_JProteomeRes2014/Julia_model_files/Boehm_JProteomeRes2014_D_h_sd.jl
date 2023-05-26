@@ -41,7 +41,7 @@ function compute_∂h∂p!(u, t::Real, pODEProblem::AbstractVector, θ_observabl
 	end
 
 	if observableId == :rSTAT5A_rel 
-		out[6] = (100.0u[1]*u[5] + 100.0u[1]*u[6] + 100.0u[5]*u[6] + 200.0u[1]*u[8] + 200.0u[5]*u[2] + 200.0u[2]*u[6] + 200.0u[6]*u[8] + 400.0u[2]*u[8]) / ((u[5] + 2.0u[6] + 2.0u[8] + u[1]*pODEProblem[6] + 2.0u[2]*pODEProblem[6] - u[5]*pODEProblem[6] - 2.0u[8]*pODEProblem[6])^2)
+		out[6] = (100.0u[1]*u[5] + 200.0u[5]*u[2] + 100.0u[1]*u[6] + 100.0u[5]*u[6] + 200.0u[2]*u[6] + 200.0u[1]*u[8] + 200.0u[6]*u[8] + 400.0u[2]*u[8]) / ((u[5] + 2.0u[6] + 2.0u[8] + u[1]*pODEProblem[6] + 2.0u[2]*pODEProblem[6] - u[5]*pODEProblem[6] - 2.0u[8]*pODEProblem[6])^2)
 		return nothing
 	end
 
