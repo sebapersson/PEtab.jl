@@ -88,6 +88,6 @@ function processMeasurements(measurementsFile::CSV.File, observablesFile::CSV.Fi
     end
     measurementT::Vector{Float64} = [transformMeasurementOrH(measurement[i], measurementTransformation[i]) for i in eachindex(measurement)]
 
-    return MeasurementsInfo(measurement, measurementT, simulatedValues, chi2Values, residuals, measurementTransformation, time, 
+    return MeasurementsInfo(measurement, measurementT, simulatedValues, chi2Values, residuals, measurementTransformation, time,
                             observableId,preEquilibrationConditionId, simulationConditionId, noiseParameters, observableParameters)
 end

@@ -4,7 +4,7 @@ import PEtab: processPriors, changeODEProblemParameters!, PriorInfo, transformθ
 
 
 function _testCostGradientOrHessian(petabModel::PEtabModel,
-                                    solverOptions::ODESolverOptions, 
+                                    solverOptions::ODESolverOptions,
                                     p::Vector{Float64};
                                     solverGradientOptions=nothing,
                                     computeCost::Bool=false,
@@ -13,7 +13,7 @@ function _testCostGradientOrHessian(petabModel::PEtabModel,
                                     costMethod::Symbol=:Standard,
                                     gradientMethod::Symbol=:ForwardDiff,
                                     hessianMethod::Symbol=:ForwardDiff,
-                                    ssOptions=nothing, 
+                                    ssOptions=nothing,
                                     sensealg=InterpolatingAdjoint(autojacvec=ReverseDiffVJP(false)),
                                     sensealgSS=SteadyStateAdjoint())
 
@@ -28,10 +28,10 @@ function _testCostGradientOrHessian(petabModel::PEtabModel,
                                          gradientMethod=gradientMethod,
                                          hessianMethod=hessianMethod,
                                          ssSolverOptions=ssOptions,
-                                         sensealg=sensealg, 
+                                         sensealg=sensealg,
                                          sensealgSS=sensealgSS,
-                                         specializeLevel=SciMLBase.NoSpecialize, 
-                                         verbose=false)        
+                                         specializeLevel=SciMLBase.NoSpecialize,
+                                         verbose=false)
 
     if computeCost == true
         return petabProblem.computeCost(p)
@@ -76,10 +76,10 @@ function checkGradientResiduals(petabModel::PEtabModel, solverOptions::ODESolver
     ssOptions = SteadyStateSolverOptions(:Simulate, abstol=solverOptions.abstol / 100.0, reltol = solverOptions.reltol / 100.0)
     _ssOptions = PEtab._getSteadyStateSolverOptions(ssOptions, odeProb, ssOptions.abstol, ssOptions.reltol, ssOptions.maxiters)
     computeJacobian = PEtab.setUpHessian(:GaussNewton, odeProb, solverOptions, _ssOptions, petabODECache, petabODESolverCache,
-                                         petabModel, simulationInfo, paramEstIndices, measurementData, 
+                                         petabModel, simulationInfo, paramEstIndices, measurementData,
                                          parameterData, priorInfo, nothing, returnJacobian=true)
     computeSumResiduals = PEtab.setUpCost(:Standard, odeProb, solverOptions, _ssOptions, petabODECache, petabODESolverCache,
-                                         petabModel, simulationInfo, paramEstIndices, measurementData, 
+                                         petabModel, simulationInfo, paramEstIndices, measurementData,
                                          parameterData, priorInfo, nothing, 1, nothing, nothing, true)
 
     # Extract parameter vector

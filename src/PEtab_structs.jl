@@ -3,7 +3,7 @@
 
 A Julia-compatible representation of a PEtab-specified problem.
 
-Created by `readPEtabModel`, this object contains helper functions for setting up cost, gradient, and Hessian computations, as well as handling potential model events (callbacks). 
+Created by `readPEtabModel`, this object contains helper functions for setting up cost, gradient, and Hessian computations, as well as handling potential model events (callbacks).
 
 **Note1:** Several of the functions in `PEtabModel` are not intended to be accessed by the user. For example, `compute_h` (and similar functions) require indices that are built in the background to efficiently map parameters between experimental (simulation) conditions. Rather, `PEtabModel` holds all information needed to create a `PEtabODEProblem`, and in the future, `PEtabSDEProblem`, etc.
 
@@ -22,7 +22,7 @@ Created by `readPEtabModel`, this object contains helper functions for setting u
 - `computeTStops`: Computes the event times in case the model has `DiscreteCallbacks` (events).
 - `convertTspan::Bool`: Tracks whether the time span should be converted to `Dual` numbers for `ForwardDiff.jl` gradients, in case the model has `DiscreteCallbacks` and the trigger time is a parameter set to be estimated.
 - `dirModel`: The directory where the model.xml and PEtab files are stored.
-- `dirJulia`: The directory where the Julia-model files created by parsing the PEtab files (e.g., SBML file) are stored. 
+- `dirJulia`: The directory where the Julia-model files created by parsing the PEtab files (e.g., SBML file) are stored.
 - `odeSystem`: A `ModellingToolkit.jl` ODE system obtained from parsing the model SBML file.
 - `parameterMap`: A `ModellingToolkit.jl` parameter map for the ODE system.
 - `stateMap`: A `ModellingToolkit.jl` state map for the ODE system describing how the initial values are computed, e.g., whether or not certain initial values are computed from parameters in the `parameterMap`.
@@ -86,8 +86,8 @@ More information about the available options and solvers can be found in the doc
 
 # Arguments
 - `solver`: Any of the ODE solvers in DifferentialEquations.jl. For small (≤20 states) mildly stiff models, composite solvers such as `AutoVern7(Rodas5P())` perform well. For stiff small models, `Rodas5P()` performs well. For medium-sized models (≤75 states), `QNDF()`, `FBDF()`, and `CVODE_BDF()` perform well. `CVODE_BDF()` is not compatible with automatic differentiation and thus cannot be used if the gradient is computed via automatic differentiation or if the Gauss-Newton Hessian approximation is used. If the gradient is computed via adjoint sensitivity analysis, `CVODE_BDF()` is often the best choice as it is typically more reliable than `QNDF()` and `FBDF()` (fails less often).
-- `abstol=1e-8`: Absolute tolerance when solving the ODE system. Not recommended to increase above 1e-6 for gradients. 
-- `reltol=1e-8`: Relative tolerance when solving the ODE system. Not recommended to increase above 1e-6 for gradients. 
+- `abstol=1e-8`: Absolute tolerance when solving the ODE system. Not recommended to increase above 1e-6 for gradients.
+- `reltol=1e-8`: Relative tolerance when solving the ODE system. Not recommended to increase above 1e-6 for gradients.
 - `force_dtmin=false`: Whether or not to force `dtmin` when solving the ODE system.
 - `dtmin=nothing`: Minimal acceptable step-size when solving the ODE system.
 - `maxiters=10000`: Maximum number of iterations when solving the ODE system. Increasing above the default value can cause the optimization to take substantial time.
@@ -98,14 +98,14 @@ mutable struct ODESolverOptions
     reltol::Float64
     force_dtmin::Bool
     dtmin::Union{Float64, Nothing}
-    maxiters::Int64    
+    maxiters::Int64
 end
-function ODESolverOptions(solver::T1; 
-                          abstol::Float64=1e-8, 
-                          reltol::Float64=1e-8, 
-                          force_dtmin::Bool=false, 
-                          dtmin::Union{Float64, Nothing}=nothing, 
-                          maxiters::Int64=Int64(1e4)) where T1 <: SciMLAlgorithm 
+function ODESolverOptions(solver::T1;
+                          abstol::Float64=1e-8,
+                          reltol::Float64=1e-8,
+                          force_dtmin::Bool=false,
+                          dtmin::Union{Float64, Nothing}=nothing,
+                          maxiters::Int64=Int64(1e4)) where T1 <: SciMLAlgorithm
 
     return ODESolverOptions(solver, abstol, reltol, force_dtmin, dtmin, maxiters)
 end
@@ -115,24 +115,24 @@ end
     SteadyStateSolverOptions(method::Symbol;
                              howCheckSimulationReachedSteadyState::Symbol=:wrms,
                              rootfindingAlgorithm=nothing,
-                             abstol=nothing, 
-                             reltol=nothing, 
+                             abstol=nothing,
+                             reltol=nothing,
                              maxiters=nothing)
 
 Setup options for finding steady-state via either `method=:Rootfinding` or `method=:Simulate`.
 
-For `method=:Rootfinding`, the steady-state `u*` is found by solving the problem `du = f(u, p, t) ≈ 0` with tolerances `abstol` and `reltol` via an automatically chosen optimization algorithm (`rootfindingAlgorithm=nothing`) or via any algorithm in NonlinearSolve.jl. 
+For `method=:Rootfinding`, the steady-state `u*` is found by solving the problem `du = f(u, p, t) ≈ 0` with tolerances `abstol` and `reltol` via an automatically chosen optimization algorithm (`rootfindingAlgorithm=nothing`) or via any algorithm in NonlinearSolve.jl.
 
 For `method=:Simulate`, the steady-state `u*` is found by simulating the ODE system until `du = f(u, p, t) ≈ 0`. Two options are available for `howCheckSimulationReachedSteadyState`:
 - `:wrms` : Weighted root-mean square √(∑((du ./ (reltol * u .+ abstol)).^2) / length(u)) < 1
-- `:Newton` : If Newton-step `Δu` is sufficiently small √(∑((Δu ./ (reltol * u .+ abstol)).^2) / length(u)) < 1. 
-        - Newton often performs better but requires an invertible Jacobian. In case it's not fulfilled, the code switches automatically to `:wrms`.    
+- `:Newton` : If Newton-step `Δu` is sufficiently small √(∑((Δu ./ (reltol * u .+ abstol)).^2) / length(u)) < 1.
+        - Newton often performs better but requires an invertible Jacobian. In case it's not fulfilled, the code switches automatically to `:wrms`.
 
-`maxiters` refers to either the maximum number of rootfinding steps or the maximum number of integration steps, depending on the chosen method.        
+`maxiters` refers to either the maximum number of rootfinding steps or the maximum number of integration steps, depending on the chosen method.
 """
-struct SteadyStateSolverOptions{T1 <: Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}, 
+struct SteadyStateSolverOptions{T1 <: Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm},
                                 T2 <: Union{Nothing, AbstractFloat},
-                                T3 <: Union{Nothing, NonlinearProblem}, 
+                                T3 <: Union{Nothing, NonlinearProblem},
                                 CA <: Union{Nothing, SciMLBase.DECallback},
                                 T4 <: Union{Nothing, Integer}}
     method::Symbol
@@ -147,12 +147,12 @@ end
 function SteadyStateSolverOptions(method::Symbol;
                                   howCheckSimulationReachedSteadyState::Symbol=:wrms,
                                   rootfindingAlgorithm::Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}=nothing,
-                                  abstol=nothing, 
-                                  reltol=nothing, 
+                                  abstol=nothing,
+                                  reltol=nothing,
                                   maxiters::Union{Nothing, Int64}=nothing)::SteadyStateSolverOptions
 
     @assert method ∈ [:Rootfinding, :Simulate] "Method used to find steady state can either be :Rootfinding or :Simulate not $method"
-    
+
     if method === :Simulate
         return _getSteadyStateSolverOptions(howCheckSimulationReachedSteadyState, abstol, reltol, maxiters)
     else
@@ -235,7 +235,7 @@ PEtabODEProblem
 
 Everything needed to setup an optimization problem (compute cost, gradient, hessian and parameter bounds) for a PEtab model.
 
-!!! note 
+!!! note
     The parameter vector θ is always assumed to be on the parameter scale specified in the PEtab parameters file. If needed, θ is transformed to the linear scale inside the function call.
 
 # Fields
@@ -261,7 +261,7 @@ Everything needed to setup an optimization problem (compute cost, gradient, hess
 """
 struct PEtabODEProblem{F1<:Function,
                        F2<:Function,
-                       F3<:Function, 
+                       F3<:Function,
                        F4<:Function,
                        F5<:Function}
 
@@ -322,9 +322,9 @@ struct MeasurementsInfo{T<:Vector{<:Union{<:String, <:AbstractFloat}}}
 end
 
 
-struct PEtabODEProblemCache{T1 <: AbstractVector, 
-                            T2 <: DiffCache, 
-                            T3 <: AbstractVector, 
+struct PEtabODEProblemCache{T1 <: AbstractVector,
+                            T2 <: DiffCache,
+                            T3 <: AbstractVector,
                             T4 <: AbstractMatrix}
     θ_dynamic::T1
     θ_sd::T1
@@ -348,9 +348,9 @@ struct PEtabODEProblemCache{T1 <: AbstractVector,
     ∂G∂p::T3
     ∂G∂p_::T3
     ∂G∂u::T3
-    dp::T1 
+    dp::T1
     du::T1
-    p::T3 
+    p::T3
     u::T3
     S::T4
     odeSolutionValues::T4
@@ -378,7 +378,7 @@ end
 
 [Fides](https://github.com/fides-dev/fides) is a Python Newton-trust region optimizer for box-bounded optimization problems.
 
-It is particularly effective when the full Hessian cannot be computed, but the Gauss-Newton Hessian approximation can be 
+It is particularly effective when the full Hessian cannot be computed, but the Gauss-Newton Hessian approximation can be
 computed. If constructed with `Fides(verbose=true)`, it prints optimization progress during the process.
 """
 struct Fides

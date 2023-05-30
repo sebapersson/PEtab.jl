@@ -1,5 +1,5 @@
 """
-    calibrateModel(petabProblem::PEtabODEProblem, 
+    calibrateModel(petabProblem::PEtabODEProblem,
                    optimizer;
                    <keyword arguments>)
 
@@ -8,11 +8,11 @@ Perform multi-start local optimization for a given PEtabODEProblem and return (f
 # Arguments
 - `petabProblem::PEtabODEProblem`: The PEtabODEProblem to be calibrated.
 - `optimizer`: The optimizer algorithm to be used. Currently, we support three different algorithms:
-    1. `Fides()`: The Newton trust-region Fides optimizer from Python. Please refer to the documentation for setup 
+    1. `Fides()`: The Newton trust-region Fides optimizer from Python. Please refer to the documentation for setup
         examples. This optimizer performs well when computing the full Hessian is not possible, and the Gauss-Newton Hessian approximation can be used.
-    2. `IPNewton()`: The interior-point Newton method from Optim.jl. This optimizer performs well when it is 
+    2. `IPNewton()`: The interior-point Newton method from Optim.jl. This optimizer performs well when it is
         computationally feasible to compute the full Hessian.
-    3. `LBFGS()` or `BFGS()` from Optim.jl: These optimizers are suitable when the computation of the Gauss-Newton 
+    3. `LBFGS()` or `BFGS()` from Optim.jl: These optimizers are suitable when the computation of the Gauss-Newton
         Hessian approximation is too expensive, such as when adjoint sensitivity analysis is required for the gradient.
 - `nOptimisationStarts::Int`: Number of multi-starts to be performed. Defaults to 100.
 - `samplingMethod`: Method for generating start guesses. Any method from QuasiMonteCarlo.jl is supported, with LatinHypercube as the default.
@@ -20,15 +20,15 @@ Perform multi-start local optimization for a given PEtabODEProblem and return (f
 """
 function callibrateModel(petabProblem::PEtabODEProblem,
                          optimizer::Union{Optim.LBFGS, Optim.BFGS, Optim.IPNewton};
-                         nOptimisationStarts=100, 
-                         seed=123, 
-                         options=Optim.Options(iterations = 1000, 
-                                               show_trace = false, 
-                                               allow_f_increases=true, 
-                                               successive_f_tol = 3, 
-                                               f_tol=1e-8, 
-                                               g_tol=1e-6, 
-                                               x_tol=0.0), 
+                         nOptimisationStarts=100,
+                         seed=123,
+                         options=Optim.Options(iterations = 1000,
+                                               show_trace = false,
+                                               allow_f_increases=true,
+                                               successive_f_tol = 3,
+                                               f_tol=1e-8,
+                                               g_tol=1e-6,
+                                               x_tol=0.0),
                          samplingMethod::T=QuasiMonteCarlo.LatinHypercubeSample()) where T <: QuasiMonteCarlo.SamplingAlgorithm
 
     Random.seed!(seed)
@@ -39,7 +39,7 @@ function callibrateModel(petabProblem::PEtabODEProblem,
 
     startGuesses = generateStartGuesses(petabProblem, samplingMethod, nOptimisationStarts)
 
-    # Randomly generate startguesses from a Uniform distribution, will add something like a cube later 
+    # Randomly generate startguesses from a Uniform distribution, will add something like a cube later
     # (downstream package)
     for i in 1:nOptimisationStarts
         if isnothing(startGuesses)
@@ -56,16 +56,16 @@ function callibrateModel(petabProblem::PEtabODEProblem,
         end
 
         res = runOptim(p0)
-        objValues[i] = res.minimum 
+        objValues[i] = res.minimum
         parameterValues[i, :] .= res.minimizer
     end
 
     return objValues, parameterValues
 end
-function callibrateModel(petabProblem::PEtabODEProblem, 
+function callibrateModel(petabProblem::PEtabODEProblem,
                          optimizer::Fides=Fides(verbose=false);
-                         nOptimisationStarts=100, 
-                         seed=123, 
+                         nOptimisationStarts=100,
+                         seed=123,
                          options=py"{'maxiter' : 1000}"o,
                          samplingMethod::T=QuasiMonteCarlo.LatinHypercubeSample()) where T <: QuasiMonteCarlo.SamplingAlgorithm
 
@@ -77,7 +77,7 @@ function callibrateModel(petabProblem::PEtabODEProblem,
 
     startGuesses = generateStartGuesses(petabProblem, samplingMethod, nOptimisationStarts)
 
-    # Randomly generate startguesses from a Uniform distribution, will add something like a cube later 
+    # Randomly generate startguesses from a Uniform distribution, will add something like a cube later
     # (downstream package)
     for i in 1:nOptimisationStarts
         if isnothing(startGuesses)
@@ -103,15 +103,15 @@ end
 
 
 function generateStartGuesses(petabProblem::PEtabODEProblem,
-                              samplingMethod::T, 
+                              samplingMethod::T,
                               nOptimisationStarts::Int) where T <: QuasiMonteCarlo.SamplingAlgorithm
 
-    # Nothing prevents the user from sending in a parameter vector with zero parameters 
+    # Nothing prevents the user from sending in a parameter vector with zero parameters
     if length(petabProblem.lowerBounds) == 0
         return nothing
     end
 
-    # Return a random number sampled from uniform distribution 
+    # Return a random number sampled from uniform distribution
     if nOptimisationStarts == 1
         return [rand() * (petabProblem.upperBounds[i] - petabProblem.lowerBounds[i]) + petabProblem.lowerBounds[i] for i in eachindex(petabProblem.lowerBounds)]
     end

@@ -16,9 +16,9 @@ function processSimulationInfo(petabModel::PEtabModel,
     simulationConditionId::Vector{Symbol} = Vector{Symbol}(undef, 0)
     experimentalConditionId::Vector{Symbol} = Vector{Symbol}(undef, 0)
     for i in eachindex(measurementInfo.preEquilibrationConditionId)
-        # In case model has steady-state simulations prior to matching against data 
+        # In case model has steady-state simulations prior to matching against data
         _preEquilibrationConditionId = measurementInfo.preEquilibrationConditionId[i]
-        if _preEquilibrationConditionId == :None 
+        if _preEquilibrationConditionId == :None
             measurementInfo.simulationConditionId[i] ∈ experimentalConditionId && continue
             preEquilibrationConditionId = vcat(preEquilibrationConditionId, :None)
             simulationConditionId = vcat(simulationConditionId, measurementInfo.simulationConditionId[i])
@@ -26,7 +26,7 @@ function processSimulationInfo(petabModel::PEtabModel,
             continue
         end
 
-        # For cases with no steady-state simulations 
+        # For cases with no steady-state simulations
         _experimentalConditionId = Symbol(string(measurementInfo.preEquilibrationConditionId[i]) * string(measurementInfo.simulationConditionId[i]))
         if _experimentalConditionId ∉ experimentalConditionId
             preEquilibrationConditionId = vcat(preEquilibrationConditionId, measurementInfo.preEquilibrationConditionId[i])
@@ -78,7 +78,7 @@ function processSimulationInfo(petabModel::PEtabModel,
     # repats per time-point (when using dgdu_discrete and dgdp_discrete)
     _iPerTimePoint = Tuple(computeTimeIndices(preEquilibrationConditionId[i], simulationConditionId[i], measurementInfo) for i in eachindex(preEquilibrationConditionId))
     iPerTimePoint::Dict{Symbol, Vector{Vector{Int64}}} = Dict([(experimentalConditionId[i], _iPerTimePoint[i]) for i in eachindex(_iPerTimePoint)])
-    
+
     # Some models, e.g those with time dependent piecewise statements, have callbacks encoded. When doing adjoint
     # sensitivity analysis we need to track these callbacks, hence they must be stored in simulationInfo.
     callbacks = Dict{Symbol, SciMLBase.DECallback}()

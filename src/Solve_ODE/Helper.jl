@@ -3,7 +3,7 @@
 =#
 
 
-function getTimePointsSaveat(::Val{onlySaveAtObservedTimes}, 
+function getTimePointsSaveat(::Val{onlySaveAtObservedTimes},
                              simulationInfo::SimulationInfo,
                              experimentalId::Symbol,
                              tMax::Float64,
@@ -39,8 +39,8 @@ function getCallbackSet(odeProblem::ODEProblem,
                         trackCallback::Bool)::SciMLBase.DECallback
 
     if trackCallback == true
-        cbSet = SciMLSensitivity.track_callbacks(simulationInfo.callbacks[simulationConditionId], odeProblem.tspan[1], 
-                                                 odeProblem.u0, odeProblem.p, simulationInfo.sensealg) 
+        cbSet = SciMLSensitivity.track_callbacks(simulationInfo.callbacks[simulationConditionId], odeProblem.tspan[1],
+                                                 odeProblem.u0, odeProblem.p, simulationInfo.sensealg)
         simulationInfo.trackedCallbacks[simulationConditionId] = cbSet
         return cbSet
     end
@@ -74,16 +74,16 @@ function _getTmax(tmax::Float64, odeSolver::Union{Vector{Symbol}, SciMLAlgorithm
 end
 
 
-# Each soluation needs to have a unique vector associated with it such that the gradient 
-# is correct computed for non-dynamic parameters (condition specific parameters are mapped 
+# Each soluation needs to have a unique vector associated with it such that the gradient
+# is correct computed for non-dynamic parameters (condition specific parameters are mapped
 # correctly) as these computations employ odeProblem.p
-function setODEProblemParameters(_odeProblem::ODEProblem, petabODESolverCache::PEtabODESolverCache, conditionId::Symbol)::ODEProblem 
-    
-    # Ensure parameters constant between conditions are set correctly 
+function setODEProblemParameters(_odeProblem::ODEProblem, petabODESolverCache::PEtabODESolverCache, conditionId::Symbol)::ODEProblem
+
+    # Ensure parameters constant between conditions are set correctly
     pODEProblem = get_tmp(petabODESolverCache.pODEProblemCache[conditionId], _odeProblem.p)
     u0 = get_tmp(petabODESolverCache.u0Cache[conditionId], _odeProblem.p)
     pODEProblem .= _odeProblem.p
     @views u0 .= _odeProblem.u0[1:length(u0)]
-    
+
     return remake(_odeProblem, p = pODEProblem, u0=u0)
 end

@@ -1,13 +1,13 @@
 # Function generating callbacksets for time-depedent SBML piecewise expressions, as callbacks are more efficient than
 # using ifelse (e.g better integration stabillity)
 function createCallbacksForTimeDepedentPiecewise(odeSystem::ODESystem,
-                                                 parameterMap, 
+                                                 parameterMap,
                                                  stateMap,
                                                  SBMLDict::Dict,
                                                  modelName::String,
                                                  pathYAML::String,
                                                  dirJulia::String;
-                                                 jlFile::Bool=false, 
+                                                 jlFile::Bool=false,
                                                  customParameterValues::Union{Nothing, Dict}=nothing)
 
     pODEProblemNames = string.(parameters(odeSystem))
@@ -43,7 +43,7 @@ function createCallbacksForTimeDepedentPiecewise(odeSystem::ODESystem,
         stringWriteTstops *= "\treturn" * createFuncionForTstops(SBMLDict, modelStateNames, pODEProblemNames, θ_indices) * "\n" * "end" * "\n"
     end
 
-    # Check whether or not the trigger for a discrete callback depends on a parameter or not. If true then the time-span 
+    # Check whether or not the trigger for a discrete callback depends on a parameter or not. If true then the time-span
     # must be converted to dual when computing the gradient using ForwardDiff.
     convertTspan = shouldConvertTspan(SBMLDict, odeSystem, θ_indices, jlFile)::Bool
 

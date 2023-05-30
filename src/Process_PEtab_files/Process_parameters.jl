@@ -45,9 +45,9 @@ function processParameters(parametersFile::CSV.File; customParameterValues::Unio
 
         estimate[i] = parametersFile[:estimate][i] == 1 ? true : false
 
-        # In some case when working with the model the user might want to change model parameters but not go the entire 
+        # In some case when working with the model the user might want to change model parameters but not go the entire
         # way to the PEtab-files. This ensure ParametersInfo gets its parameters correct.
-        if isnothing(customParameterValues) 
+        if isnothing(customParameterValues)
             continue
         end
         keysDict = collect(keys(customParameterValues))

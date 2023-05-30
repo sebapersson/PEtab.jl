@@ -11,13 +11,13 @@ function solveODEAllExperimentalConditions!(odeSolutions::Dict{Symbol, Union{Not
                                             petabODESolverCache::PEtabODESolverCache,
                                             simulationInfo::SimulationInfo,
                                             θ_indices::ParameterIndices,
-                                            odeSolverOptions::ODESolverOptions, 
-                                            ssSolverOptions::SteadyStateSolverOptions; 
+                                            odeSolverOptions::ODESolverOptions,
+                                            ssSolverOptions::SteadyStateSolverOptions;
                                             expIDSolve::Vector{Symbol} = [:all],
                                             nTimePointsSave::Int64=0,
                                             onlySaveAtObservedTimes::Bool=false,
-                                            denseSolution::Bool=true, 
-                                            trackCallback::Bool=false, 
+                                            denseSolution::Bool=true,
+                                            trackCallback::Bool=false,
                                             computeForwardSensitivites::Bool=false)::Bool # Required for adjoint sensitivity analysis
 
 
@@ -40,7 +40,7 @@ function solveODEAllExperimentalConditions!(odeSolutions::Dict{Symbol, Union{Not
         u0AtT0 = Matrix{eltype(θ_dynamic)}(undef, (length(odeProblem.u0), length(preEquilibrationId)))
 
         for i in eachindex(preEquilibrationId)
-            
+
             _odeProblem = setODEProblemParameters(odeProblem, petabODESolverCache, preEquilibrationId[i])
             # Sometimes due to strongly ill-conditioned Jacobian the linear-solve runs
             # into a domain error or bounds error. This is treated as integration error.
@@ -71,7 +71,7 @@ function solveODEAllExperimentalConditions!(odeSolutions::Dict{Symbol, Union{Not
             continue
         end
 
-        # In case onlySaveAtObservedTimes=true all other options are overridden and we only save the data 
+        # In case onlySaveAtObservedTimes=true all other options are overridden and we only save the data
         # at observed time points.
         _tMax = simulationInfo.timeMax[experimentalId]
         _tSave = getTimePointsSaveat(Val(onlySaveAtObservedTimes), simulationInfo, experimentalId, _tMax, nTimePointsSave)
@@ -135,27 +135,27 @@ end
 function solveODEAllExperimentalConditions!(odeSolutionValues::AbstractMatrix,
                                             _θ_dynamic::AbstractVector,
                                             petabODESolverCache::PEtabODESolverCache,
-                                            odeSolutions::Dict{Symbol, Union{Nothing, ODESolution}},                                        
+                                            odeSolutions::Dict{Symbol, Union{Nothing, ODESolution}},
                                             odeProblem::ODEProblem,
                                             petabModel::PEtabModel,
                                             simulationInfo::SimulationInfo,
                                             odeSolverOptions::ODESolverOptions,
                                             ssSolverOptions::SteadyStateSolverOptions,
-                                            θ_indices::ParameterIndices, 
+                                            θ_indices::ParameterIndices,
                                             petabODECache::PEtabODEProblemCache;
                                             expIDSolve::Vector{Symbol} = [:all],
                                             nTimePointsSave::Int64=0,
                                             onlySaveAtObservedTimes::Bool=false,
                                             denseSolution::Bool=true,
-                                            trackCallback::Bool=false, 
-                                            computeForwardSensitivites::Bool=false, 
+                                            trackCallback::Bool=false,
+                                            computeForwardSensitivites::Bool=false,
                                             computeForwardSensitivitesAD::Bool=false)
 
     if computeForwardSensitivitesAD == true && petabODECache.nθ_dynamicEst[1] != length(_θ_dynamic)
         θ_dynamic = _θ_dynamic[petabODECache.θ_dynamicOutputOrder]
     else
         θ_dynamic = _θ_dynamic
-    end                  
+    end
 
     _odeProblem = remake(odeProblem, p = convert.(eltype(θ_dynamic), odeProblem.p), u0 = convert.(eltype(θ_dynamic), odeProblem.u0))
     changeODEProblemParameters!(_odeProblem.p, _odeProblem.u0, θ_dynamic, θ_indices, petabModel)
@@ -173,7 +173,7 @@ function solveODEAllExperimentalConditions!(odeSolutionValues::AbstractMatrix,
                                                 nTimePointsSave=nTimePointsSave,
                                                 onlySaveAtObservedTimes=onlySaveAtObservedTimes,
                                                 denseSolution=denseSolution,
-                                                trackCallback=trackCallback, 
+                                                trackCallback=trackCallback,
                                                 computeForwardSensitivites=computeForwardSensitivites)
 
     # Effectively we return a big-array with the ODE-solutions accross all experimental conditions, where
@@ -202,13 +202,13 @@ function solveODEAllExperimentalConditions(odeProblem::ODEProblem,
                                            petabODESolverCache::PEtabODESolverCache,
                                            simulationInfo::SimulationInfo,
                                            θ_indices::ParameterIndices,
-                                           odeSolverOptions::ODESolverOptions, 
+                                           odeSolverOptions::ODESolverOptions,
                                            ssSolverOptions::SteadyStateSolverOptions;
                                            expIDSolve::Vector{Symbol} = [:all],
                                            nTimePointsSave::Int64=0,
                                            onlySaveAtObservedTimes::Bool=false,
                                            denseSolution::Bool=true,
-                                           trackCallback::Bool=false, 
+                                           trackCallback::Bool=false,
                                            computeForwardSensitivites::Bool=false)::Tuple{Dict{Symbol, Union{Nothing, ODESolution}}, Bool}
 
     odeSolutions = deepcopy(simulationInfo.odeSolutions)
@@ -225,7 +225,7 @@ function solveODEAllExperimentalConditions(odeProblem::ODEProblem,
                                                  nTimePointsSave=nTimePointsSave,
                                                  onlySaveAtObservedTimes=onlySaveAtObservedTimes,
                                                  denseSolution=denseSolution,
-                                                 trackCallback=trackCallback, 
+                                                 trackCallback=trackCallback,
                                                  computeForwardSensitivites=computeForwardSensitivites)
 
     return odeSolutions, success
@@ -255,9 +255,9 @@ function solveODEPostEqulibrium(odeProblem::ODEProblem,
     hasNotChanged = (odeProblem.u0 .== u0AtT0)
     @views odeProblem.u0[hasNotChanged] .= uAtSS[hasNotChanged]
 
-    # According to the PEtab standard we can sometimes have that initial assignment is overridden for 
-    # pre-eq simulation, but we do not want to override for main simulation which is done automatically 
-    # by changeExperimentalCondition!. These cases are marked as NaN 
+    # According to the PEtab standard we can sometimes have that initial assignment is overridden for
+    # pre-eq simulation, but we do not want to override for main simulation which is done automatically
+    # by changeExperimentalCondition!. These cases are marked as NaN
     isNan = isnan.(odeProblem.u0)
     @views odeProblem.u0[isNan] .= uAtSS[isNan]
 
@@ -314,7 +314,7 @@ function computeODESolution(odeProblem::ODEProblem,
                             callbackSet::SciMLBase.DECallback,
                             tStops::AbstractVector)::ODESolution where S<:SciMLAlgorithm
 
-    abstol, reltol, force_dtmin, dtmin, maxiters = odeSolverOptions.abstol, odeSolverOptions.reltol, odeSolverOptions.force_dtmin, odeSolverOptions.dtmin, odeSolverOptions.maxiters                            
+    abstol, reltol, force_dtmin, dtmin, maxiters = odeSolverOptions.abstol, odeSolverOptions.reltol, odeSolverOptions.force_dtmin, odeSolverOptions.dtmin, odeSolverOptions.maxiters
 
     # Different funcion calls to solve are required if a solver or a Alg-hint are provided.
     # If t_max = inf the model is simulated to steady state using the TerminateSteadyState callback.

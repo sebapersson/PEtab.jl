@@ -1,11 +1,11 @@
 #=
-    Functions for better printing of relevant PEtab-structs which are 
+    Functions for better printing of relevant PEtab-structs which are
     exported to the user.
-=# 
+=#
 import Base.show
 
 
-# Helper function for printing ODE-solver options 
+# Helper function for printing ODE-solver options
 function getStringSolverOptions(a::ODESolverOptions)
     solverStr = string(a.solver)
     iEnd = findfirst(x -> x == '{', solverStr)
@@ -54,7 +54,7 @@ function show(io::IO, a::PEtabODEProblem)
 
     gradientMethod = string(a.gradientMethod)
     hessianMethod = string(a.hessianMethod)
-    
+
     printstyled("PEtabODEProblem", color=116)
     print(" for ")
     printstyled(modelName, color=116)
@@ -116,7 +116,7 @@ function show(io::IO, a::SteadyStateSolverOptions)
         else
             @printf("\nSimulation terminated if Newton-step Δu fulfill;\n√(∑((Δu ./ (reltol * u .+ abstol)).^2) / length(u)) < 1\n")
         end
-        if isnothing(a.abstol)        
+        if isnothing(a.abstol)
             @printf("with (abstol, reltol) = default values.")
         else
             @printf("with (abstol, reltol) = (%.1e, %.1e)", a.abstol, a.reltol)

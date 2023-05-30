@@ -21,11 +21,11 @@ function computeGradientForwardEqDynamicθ!(gradient::Vector{Float64},
                                            θ_indices::ParameterIndices,
                                            measurementInfo ::MeasurementsInfo,
                                            parameterInfo::ParametersInfo,
-                                           solveOdeModelAllConditions!::Function, 
-                                           cfg::Union{ForwardDiff.JacobianConfig, Nothing}, 
+                                           solveOdeModelAllConditions!::Function,
+                                           cfg::Union{ForwardDiff.JacobianConfig, Nothing},
                                            petabODECache::PEtabODEProblemCache;
-                                           expIDSolve::Vector{Symbol} = [:all], 
-                                           splitOverConditions::Bool=false, 
+                                           expIDSolve::Vector{Symbol} = [:all],
+                                           splitOverConditions::Bool=false,
                                            isRemade::Bool=false)
 
     θ_dynamicT = transformθ(θ_dynamic, θ_indices.θ_dynamicNames, θ_indices, :θ_dynamic, petabODECache)
@@ -35,7 +35,7 @@ function computeGradientForwardEqDynamicθ!(gradient::Vector{Float64},
 
     # Solve the expanded ODE system for the sensitivites
     success = solveForSensitivites(odeProblem, simulationInfo, θ_indices, petabModel, sensealg, θ_dynamicT,
-                                   solveOdeModelAllConditions!, cfg, petabODECache, expIDSolve, splitOverConditions, 
+                                   solveOdeModelAllConditions!, cfg, petabODECache, expIDSolve, splitOverConditions,
                                    isRemade)
     if success != true
         @warn "Failed to solve sensitivity equations"
@@ -43,7 +43,7 @@ function computeGradientForwardEqDynamicθ!(gradient::Vector{Float64},
         return
     end
     if isempty(θ_dynamic)
-        return 
+        return
     end
 
     gradient .= 0.0
@@ -72,10 +72,10 @@ function solveForSensitivites(odeProblem::ODEProblem,
                               sensealg::SciMLSensitivity.AbstractForwardSensitivityAlgorithm,
                               θ_dynamic::AbstractVector,
                               solveOdeModelAllConditions!::Function,
-                              cfg::Nothing, 
+                              cfg::Nothing,
                               petabODECache::PEtabODEProblemCache,
-                              expIDSolve::Vector{Symbol}, 
-                              splitOverConditions::Bool, 
+                              expIDSolve::Vector{Symbol},
+                              splitOverConditions::Bool,
                               isRemade::Bool=false)
 
     nModelStates = length(petabModel.stateNames)
@@ -91,23 +91,23 @@ function solveForSensitivites(odeProblem::ODEProblem,
                               sensealg::Symbol,
                               θ_dynamic::AbstractVector,
                               solveOdeModelAllConditions!::Function,
-                              cfg::ForwardDiff.JacobianConfig, 
+                              cfg::ForwardDiff.JacobianConfig,
                               petabODECache::PEtabODEProblemCache,
-                              expIDSolve::Vector{Symbol}, 
-                              splitOverConditions::Bool, 
+                              expIDSolve::Vector{Symbol},
+                              splitOverConditions::Bool,
                               isRemade::Bool=false)
 
-    petabODECache.S .= 0.0                              
-    if splitOverConditions == false       
+    petabODECache.S .= 0.0
+    if splitOverConditions == false
 
-        # Case where based on the original PEtab file read into Julia we do not have any parameter vectors fixated. 
+        # Case where based on the original PEtab file read into Julia we do not have any parameter vectors fixated.
         if isRemade == false || length(petabODECache.gradientDyanmicθ) == petabODECache.nθ_dynamicEst[1]
 
-            # Allow correct mapping to sensitivity matrix 
-            tmp = petabODECache.nθ_dynamicEst[1] 
+            # Allow correct mapping to sensitivity matrix
+            tmp = petabODECache.nθ_dynamicEst[1]
             petabODECache.nθ_dynamicEst[1] = length(θ_dynamic)
 
-            if isempty(θ_dynamic)   
+            if isempty(θ_dynamic)
                 solveOdeModelAllConditions!(petabODECache.odeSolutionValues, θ_dynamic)
                 petabODECache.S .= 0.0
             end
@@ -115,12 +115,12 @@ function solveForSensitivites(odeProblem::ODEProblem,
             if !isempty(θ_dynamic)
                 ForwardDiff.jacobian!(petabODECache.S, solveOdeModelAllConditions!, petabODECache.odeSolutionValues, θ_dynamic, cfg)
             end
-            
+
             petabODECache.nθ_dynamicEst[1] = tmp
         end
-    
+
         # Case when we have dynamic parameters fixed. Here it is not always worth to move accross all chunks
-        if isRemade == true
+        if !(isRemade == false || length(petabODECache.gradientDyanmicθ) == petabODECache.nθ_dynamicEst[1])
             if petabODECache.nθ_dynamicEst[1] != 0
                 C = length(cfg.seeds)
                 nForwardPasses = Int64(ceil(petabODECache.nθ_dynamicEst[1] / C))
@@ -128,15 +128,15 @@ function solveForSensitivites(odeProblem::ODEProblem,
                 forwardDiffJacobianChunks(solveOdeModelAllConditions!, petabODECache.odeSolutionValues, petabODECache.S, __θ_dynamic, ForwardDiff.Chunk(C); nForwardPasses=nForwardPasses)
                 @views petabODECache.S .= petabODECache.S[:, petabODECache.θ_dynamicOutputOrder]
             end
-        
+
             if petabODECache.nθ_dynamicEst[1] == 0
                 solveOdeModelAllConditions!(petabODECache.odeSolutionValues, θ_dynamic)
                 petabODECache.S .= 0.0
-            end            
-        end            
+            end
+        end
     end
 
-    # Slower option, but more efficient if there are several parameters unique to an experimental condition         
+    # Slower option, but more efficient if there are several parameters unique to an experimental condition
     if splitOverConditions == true
 
         petabODECache.S .= 0.0
@@ -269,7 +269,7 @@ function computeGradientForwardExpCond!(gradient::Vector{Float64},
     p = petabODECache.p
     u = petabODECache.u
     ∂G∂p, ∂G∂p_, ∂G∂u = petabODECache.∂G∂p, petabODECache.∂G∂p_, petabODECache.∂G∂u
-    _gradient = petabODECache._gradient 
+    _gradient = petabODECache._gradient
     fill!(_gradient, 0.0)
     fill!(∂G∂p, 0.0)
     for i in eachindex(timeObserved)
@@ -283,7 +283,7 @@ function computeGradientForwardExpCond!(gradient::Vector{Float64},
         @views _gradient[iθ_experimentalCondition] .+= transpose(_S)*∂G∂u
         ∂G∂p .+= ∂G∂p_
     end
-    
+
     # Thus far have have computed dY/dθ, but for parameters on the log-scale we want dY/dθ_log. We can adjust via;
     # dY/dθ_log = log(10) * θ * dY/dθ
     adjustGradientTransformedParameters!(gradient, _gradient, ∂G∂p, θ_dynamic, θ_indices,

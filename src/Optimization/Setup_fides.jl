@@ -8,37 +8,37 @@ function createFidesProblem(petabProblem::PEtabODEProblem,
     if !isnothing(fidesSetting.hessianApproximation)
         useHessianApproximation = true
     else
-        # Put hessian function into acceptable Fides format 
+        # Put hessian function into acceptable Fides format
         useHessianApproximation = false
         hessian = zeros(Float64, (nParam, nParam))
-        computeHessian! = (p) -> evalAutoDiffHess(p, petabProblem.computeHessian!, hessian)        
+        computeHessian! = (p) -> evalAutoDiffHess(p, petabProblem.computeHessian!, hessian)
     end
 
     gradient = zeros(Float64, nParam)
     computeGradient! = (p) -> evalAutoDiffGrad(p, petabProblem.computeGradient!, gradient)
-    
-    # Fides objective funciton 
+
+    # Fides objective funciton
     if useHessianApproximation == false
         fidesFunc = (p) -> fidesObjHess(p, petabProblem.computeCost, computeGradient!, computeHessian!)
     else
         fidesFunc = (p) -> fidesObjApprox(p, petabProblem.computeCost, computeGradient!)
     end
 
-    # Set up a runnable executeble for Fides 
-    fidesObj = setUpFidesClass(fidesFunc, petabProblem.upperBounds, petabProblem.lowerBounds, 
-                               fidesSetting.verbose, 
-                               options, 
-                               funargs, 
-                               fidesSetting.hessianApproximation, 
+    # Set up a runnable executeble for Fides
+    fidesObj = setUpFidesClass(fidesFunc, petabProblem.upperBounds, petabProblem.lowerBounds,
+                               fidesSetting.verbose,
+                               options,
+                               funargs,
+                               fidesSetting.hessianApproximation,
                                resfun)
 
     return fidesObj
 end
 
 
-function setUpFidesClass(fun, 
-                         ub, 
-                         lb,   
+function setUpFidesClass(fun,
+                         ub,
+                         lb,
                          verbose,
                          options,
                          funargs,
@@ -55,11 +55,11 @@ function setUpFidesClass(fun,
         if hessian_update == "BFGS":
             hessian_update = fides.hessian_approximation.BFGS()
 
-        fides_opt = fides.Optimizer(fun, ub, lb, 
+        fides_opt = fides.Optimizer(fun, ub, lb,
                                     verbose=verbose,
                                     options=options,
                                     funargs=funargs,
-                                    hessian_update=hessian_update, 
+                                    hessian_update=hessian_update,
                                     resfun=resfun)
 
         opt_res = fides_opt.minimize(x0)
@@ -74,9 +74,9 @@ function setUpFidesClass(fun,
 end
 
 
-# Helper function ensuring the hessian is returned as required by fides 
+# Helper function ensuring the hessian is returned as required by fides
 function evalAutoDiffHess(p,
-                          evalHess!::Function, 
+                          evalHess!::Function,
                           hessMat::Matrix{Float64})
     hessMat .= 0
     evalHess!(hessMat, p)
@@ -84,9 +84,9 @@ function evalAutoDiffHess(p,
 end
 
 
-# Helper function ensuring the gradient is returned as required by fides 
-function evalAutoDiffGrad(p, 
-                          evelGrad!::Function, 
+# Helper function ensuring the gradient is returned as required by fides
+function evalAutoDiffGrad(p,
+                          evelGrad!::Function,
                           gradient::Vector{Float64})
     gradient .= 0.0
     evelGrad!(gradient, p)
@@ -94,7 +94,7 @@ function evalAutoDiffGrad(p,
 end
 
 
-# Helper functions wrapping the output into a Fides acceptable format when hessian is provided 
+# Helper functions wrapping the output into a Fides acceptable format when hessian is provided
 function fidesObjHess(p, evalF::Function, evalGradF::Function, evalHessF::Function)
     fVal = evalF(p)
     fGradVal = evalGradF(p)

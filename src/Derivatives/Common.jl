@@ -19,7 +19,7 @@ function couldSolveODEModel(simulationInfo::SimulationInfo, expIDSolve::Vector{S
         if !(expIDSolve[1] == :all || experimentalId ∈ expIDSolve)
             continue
         end
-        if !(simulationInfo.odeSolutionsDerivatives[experimentalId].retcode == ReturnCode.Success || 
+        if !(simulationInfo.odeSolutionsDerivatives[experimentalId].retcode == ReturnCode.Success ||
              simulationInfo.odeSolutionsDerivatives[experimentalId].retcode == ReturnCode.Terminated)
             return false
         end
@@ -113,14 +113,14 @@ function adjustGradientTransformedParameters!(gradient::Union{AbstractVector, Su
     @views gradient[iChange] .+= _adjustGradientTransformedParameters(gradient1,
                                                                       θ_dynamic[mapODEProblem.iθDynamic],
                                                                       θ_indices.θ_dynamicNames[mapODEProblem.iθDynamic],
-                                                                      θ_indices)                                                                    
+                                                                      θ_indices)
 
     # For forward sensitives via autodiff ∂G∂p is on the same scale as odeProblem.p, while
     # S-matrix is on the same scale as θ_dynamic. To be able to handle condition specific
     # parameters mapping to several odeProblem.p parameters the sensitivity matrix part and
     # ∂G∂p must be treated seperately.
-    if autoDiffSensitivites == true   
-        _iθDynamic = unique(mapConditionId.iθDynamic)      
+    if autoDiffSensitivites == true
+        _iθDynamic = unique(mapConditionId.iθDynamic)
         gradient[_iθDynamic] .+= _adjustGradientTransformedParameters(_gradient[_iθDynamic],
                                                                       θ_dynamic[_iθDynamic],
                                                                       θ_indices.θ_dynamicNames[_iθDynamic],
@@ -134,7 +134,7 @@ function adjustGradientTransformedParameters!(gradient::Union{AbstractVector, Su
         end
     end
 
-    # Here both ∂G∂p and _gradient are on the same scale a odeProblem.p. One condition specific parameter 
+    # Here both ∂G∂p and _gradient are on the same scale a odeProblem.p. One condition specific parameter
     # can map to several parameters in odeProblem.p
     if adjoint == true || autoDiffSensitivites == false
         out = _adjustGradientTransformedParameters(_gradient[mapConditionId.iODEProblemθDynamic] .+ ∂G∂p[mapConditionId.iODEProblemθDynamic],

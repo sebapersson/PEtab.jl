@@ -139,7 +139,7 @@ function wordToJuliaSyntax(wordTranslate::String,
     end
 
     if isNumber(wordTranslate)
-        # In case there is not a . in the number add to ensure function returns floats 
+        # In case there is not a . in the number add to ensure function returns floats
         wordJuliaSyntax *= occursin('.', wordTranslate) ? wordTranslate : wordTranslate * ".0"
     end
 

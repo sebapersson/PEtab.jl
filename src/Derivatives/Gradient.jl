@@ -19,16 +19,17 @@ function computeGradientAutoDiff!(gradient::Vector{Float64},
                                   expIDSolve::Vector{Symbol} = [:all];
                                   isRemade::Bool=false)
 
+    fill!(gradient, 0.0)
     splitParameterVector!(θ_est, θ_indices, petabODECache)
 
-    # Case where based on the original PEtab file read into Julia we do not have any parameter vectors fixated. 
+    # Case where based on the original PEtab file read into Julia we do not have any parameter vectors fixated.
     if isRemade == false || length(petabODECache.gradientDyanmicθ) == petabODECache.nθ_dynamicEst[1]
         tmp = petabODECache.nθ_dynamicEst[1]
         petabODECache.nθ_dynamicEst[1] = length(petabODECache.θ_dynamic)
         try
-            # In case of no dynamic parameters we still need to solve the ODE in order to obtain the gradient for 
-            # non-dynamic parameters 
-            if length(petabODECache.gradientDyanmicθ) ≥ 1
+            # In case of no dynamic parameters we still need to solve the ODE in order to obtain the gradient for
+            # non-dynamic parameters
+            if length(petabODECache.gradientDyanmicθ) > 0
                 ForwardDiff.gradient!(petabODECache.gradientDyanmicθ, computeCostDynamicθ, petabODECache.θ_dynamic, cfg)
                 @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ
             else
@@ -40,22 +41,22 @@ function computeGradientAutoDiff!(gradient::Vector{Float64},
         end
         petabODECache.nθ_dynamicEst[1] = tmp
     end
-    
+
     # Case when we have dynamic parameters fixed. Here it is not always worth to move accross all chunks
-    if isRemade == true
+    if !(isRemade == false || length(petabODECache.gradientDyanmicθ) == petabODECache.nθ_dynamicEst[1])
         try
             if petabODECache.nθ_dynamicEst[1] != 0
                 C = length(cfg.seeds)
                 nForwardPasses = Int64(ceil(petabODECache.nθ_dynamicEst[1] / C))
                 __θ_dynamic = petabODECache.θ_dynamic[petabODECache.θ_dynamicInputOrder]
-                forwardDiffGradientChunks(computeCostDynamicθ, petabODECache.gradientDyanmicθ, __θ_dynamic, ForwardDiff.Chunk(C); nForwardPasses=nForwardPasses) 
+                forwardDiffGradientChunks(computeCostDynamicθ, petabODECache.gradientDyanmicθ, __θ_dynamic, ForwardDiff.Chunk(C); nForwardPasses=nForwardPasses)
                 @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ[petabODECache.θ_dynamicOutputOrder]
             else
                 computeCostDynamicθ(petabODECache.θ_dynamic)
-            end        
-        catch 
+            end
+        catch
             gradient .= 0.0
-            return 
+            return
         end
     end
 
@@ -68,7 +69,7 @@ function computeGradientAutoDiff!(gradient::Vector{Float64},
         gradient .= 0.0
         return
     end
-    
+
     θ_notOdeSystem = @view θ_est[θ_indices.iθ_notOdeSystem]
     ForwardDiff.gradient!(petabODECache.gradientNotODESystemθ, computeCostNotODESystemθ, θ_notOdeSystem)
     @views gradient[θ_indices.iθ_notOdeSystem] .= petabODECache.gradientNotODESystemθ
@@ -80,8 +81,8 @@ function computeGradientAutoDiff!(gradient::Vector{Float64},
 end
 
 
-# Compute the gradient via forward mode automatic differentitation where the final gradient is computed via 
-# n ForwardDiff-calls accross all experimental condtions. The most efficient approach for models with many 
+# Compute the gradient via forward mode automatic differentitation where the final gradient is computed via
+# n ForwardDiff-calls accross all experimental condtions. The most efficient approach for models with many
 # parameters which are unique to each experimental condition.
 function computeGradientAutoDiffSplitOverConditions!(gradient::Vector{Float64},
                                                      θ_est::Vector{Float64},
@@ -90,7 +91,7 @@ function computeGradientAutoDiffSplitOverConditions!(gradient::Vector{Float64},
                                                      petabODECache::PEtabODEProblemCache,
                                                      simulationInfo::SimulationInfo,
                                                      θ_indices::ParameterIndices,
-                                                     priorInfo::PriorInfo, 
+                                                     priorInfo::PriorInfo,
                                                      expIDSolve=[:all])
 
     splitParameterVector!(θ_est, θ_indices, petabODECache)
@@ -128,7 +129,7 @@ function computeGradientAutoDiffSplitOverConditions!(gradient::Vector{Float64},
         return
     end
     @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ
-    
+
     θ_notOdeSystem = @view θ_est[θ_indices.iθ_notOdeSystem]
     ForwardDiff.gradient!(petabODECache.gradientNotODESystemθ, computeCostNotODESystemθ, θ_notOdeSystem)
     @views gradient[θ_indices.iθ_notOdeSystem] .= petabODECache.gradientNotODESystemθ
@@ -152,23 +153,23 @@ function computeGradientForwardEquations!(gradient::Vector{Float64},
                                           measurementInfo::MeasurementsInfo,
                                           parameterInfo::ParametersInfo,
                                           solveOdeModelAllConditions!::Function,
-                                          priorInfo::PriorInfo, 
-                                          cfg::Union{ForwardDiff.JacobianConfig, Nothing}, 
+                                          priorInfo::PriorInfo,
+                                          cfg::Union{ForwardDiff.JacobianConfig, Nothing},
                                           petabODECache::PEtabODEProblemCache;
                                           splitOverConditions::Bool=false,
                                           expIDSolve::Vector{Symbol} = [:all],
                                           isRemade::Bool=false)
 
     splitParameterVector!(θ_est, θ_indices, petabODECache)
-    θ_dynamic = petabODECache.θ_dynamic 
+    θ_dynamic = petabODECache.θ_dynamic
     θ_observable = petabODECache.θ_observable
     θ_sd = petabODECache.θ_sd
     θ_nonDynamic = petabODECache.θ_nonDynamic
-    
+
     # Calculate gradient seperately for dynamic and non dynamic parameter.
     computeGradientForwardEqDynamicθ!(petabODECache.gradientDyanmicθ, θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, petabModel,
                                       sensealg, odeProblem, simulationInfo, θ_indices, measurementInfo, parameterInfo,
-                                      solveOdeModelAllConditions!, cfg, petabODECache, expIDSolve=expIDSolve, 
+                                      solveOdeModelAllConditions!, cfg, petabODECache, expIDSolve=expIDSolve,
                                       splitOverConditions=splitOverConditions, isRemade=isRemade)
     @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ
 
@@ -195,20 +196,20 @@ function computeGradientAdjointEquations!(gradient::Vector{Float64},
                                           ssSolverOptions::SteadyStateSolverOptions,
                                           computeCostNotODESystemθ::Function,
                                           sensealg::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
-                                          sensealgSS::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,                                          
+                                          sensealgSS::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
                                           odeProblem::ODEProblem,
                                           petabModel::PEtabModel,
                                           simulationInfo::SimulationInfo,
                                           θ_indices::ParameterIndices,
                                           measurementInfo::MeasurementsInfo,
                                           parameterInfo::ParametersInfo,
-                                          priorInfo::PriorInfo, 
-                                          petabODECache::PEtabODEProblemCache, 
+                                          priorInfo::PriorInfo,
+                                          petabODECache::PEtabODEProblemCache,
                                           petabODESolverCache::PEtabODESolverCache;
                                           expIDSolve::Vector{Symbol} = [:all])
 
     splitParameterVector!(θ_est, θ_indices, petabODECache)
-    θ_dynamic = petabODECache.θ_dynamic 
+    θ_dynamic = petabODECache.θ_dynamic
     θ_observable = petabODECache.θ_observable
     θ_sd = petabODECache.θ_sd
     θ_nonDynamic = petabODECache.θ_nonDynamic
@@ -247,7 +248,7 @@ function computeGradientZygote(gradient::Vector{Float64},
                                parameterInfo::ParametersInfo,
                                changeODEProblemParameters::Function,
                                solveOdeModelAllConditions::Function,
-                               priorInfo::PriorInfo, 
+                               priorInfo::PriorInfo,
                                petabODECache::PEtabODEProblemCache)
 
     # Split input into observeble and dynamic parameters

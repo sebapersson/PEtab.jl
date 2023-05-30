@@ -45,14 +45,14 @@ function splitParameterVector(θ_est::AbstractVector{T},
 end
 
 
-function splitParameterVector!(θ_est::AbstractVector, 
-                               θ_indices::ParameterIndices, 
+function splitParameterVector!(θ_est::AbstractVector,
+                               θ_indices::ParameterIndices,
                                petabODECache::PEtabODEProblemCache)
 
     @views petabODECache.θ_dynamic .= θ_est[θ_indices.iθ_dynamic]
     @views petabODECache.θ_observable .= θ_est[θ_indices.iθ_observable]
     @views petabODECache.θ_sd .= θ_est[θ_indices.iθ_sd]
-    @views petabODECache.θ_nonDynamic .= θ_est[θ_indices.iθ_nonDynamic]                               
+    @views petabODECache.θ_nonDynamic .= θ_est[θ_indices.iθ_nonDynamic]
 end
 
 
@@ -199,7 +199,7 @@ function transformθ(θ::AbstractVector,
                     θ_indices::ParameterIndices;
                     reverseTransform::Bool=false)::AbstractVector
 
-    if isempty(θ) 
+    if isempty(θ)
         return similar(θ)
     else
         out = [transformθElement(θ[i], θ_indices.θ_scale[θ_name], reverseTransform=reverseTransform) for (i, θ_name) in pairs(θ_names)]
@@ -209,7 +209,7 @@ end
 function transformθ(θ::AbstractVector{T},
                     θ_names::Vector{Symbol},
                     θ_indices::ParameterIndices,
-                    whichθ::Symbol, 
+                    whichθ::Symbol,
                     petabODECache::PEtabODEProblemCache;
                     reverseTransform::Bool=false)::AbstractVector{T} where T
 

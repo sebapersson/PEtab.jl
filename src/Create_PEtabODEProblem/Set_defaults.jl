@@ -1,11 +1,11 @@
 #=
-    Helper functions for setting default values when creating a PEtabODEProblem in case left unspecifed by the 
+    Helper functions for setting default values when creating a PEtabODEProblem in case left unspecifed by the
     user.
 =#
 
 
-function setODESolverOptions(odeSolverOptions::Union{ODESolverOptions, Nothing}, 
-                             modelSize::Symbol, 
+function setODESolverOptions(odeSolverOptions::Union{ODESolverOptions, Nothing},
+                             modelSize::Symbol,
                              gradientMethod::Symbol)::ODESolverOptions
 
     if !isnothing(odeSolverOptions)
@@ -16,7 +16,7 @@ function setODESolverOptions(odeSolverOptions::Union{ODESolverOptions, Nothing},
         return ODESolverOptions(Rodas5P())
     end
 
-    if modelSize === :Medium 
+    if modelSize === :Medium
         return ODESolverOptions(QNDF())
     end
 
@@ -31,23 +31,23 @@ function setODESolverOptions(odeSolverOptions::Union{ODESolverOptions, Nothing},
 end
 
 
-function setSteadyStateSolverOptions(ssOptions::Union{SteadyStateSolverOptions, Nothing}, 
+function setSteadyStateSolverOptions(ssOptions::Union{SteadyStateSolverOptions, Nothing},
                                      odeSolverOptions::ODESolverOptions)::SteadyStateSolverOptions
 
     if !isnothing(ssOptions)
         return ssOptions
     end
 
-     ssSolverOptions = SteadyStateSolverOptions(:Simulate, 
-                                                abstol=odeSolverOptions.abstol / 100, 
+     ssSolverOptions = SteadyStateSolverOptions(:Simulate,
+                                                abstol=odeSolverOptions.abstol / 100,
                                                 reltol=odeSolverOptions.reltol / 100)
     return ssSolverOptions
 end
 
 
 
-function setGradientMethod(gradientMethod::Union{Symbol, Nothing}, 
-                           modelSize::Symbol, 
+function setGradientMethod(gradientMethod::Union{Symbol, Nothing},
+                           modelSize::Symbol,
                            reuseS::Bool)::Symbol
 
     if !isnothing(gradientMethod)
@@ -58,8 +58,8 @@ function setGradientMethod(gradientMethod::Union{Symbol, Nothing},
         return :ForwardDiff
     end
 
-    if modelSize === :Medium 
-        reuseS == false && return :ForwardDiff 
+    if modelSize === :Medium
+        reuseS == false && return :ForwardDiff
         reuseS == true && return :ForwardEquations
     end
 
@@ -69,10 +69,10 @@ function setGradientMethod(gradientMethod::Union{Symbol, Nothing},
 end
 
 
-function setHessianMethod(hessianMethod::Union{Symbol, Nothing}, 
+function setHessianMethod(hessianMethod::Union{Symbol, Nothing},
                           modelSize::Symbol)
 
-    if !isnothing(hessianMethod)                          
+    if !isnothing(hessianMethod)
         return hessianMethod
     end
 
@@ -86,10 +86,10 @@ function setHessianMethod(hessianMethod::Union{Symbol, Nothing},
 end
 
 
-function setSensealg(sensealg, 
+function setSensealg(sensealg,
                      gradientMethod::Symbol)
 
-    # Sanity check user gradient input 
+    # Sanity check user gradient input
     if !isnothing(sensealg)
         if gradientMethod === :ForwardEquations
             @assert sensealg == :ForwardDiff || any(typeof(sensealg) .<: [ForwardSensitivity, ForwardDiffSensitivity]) "For gradient method :ForwardEquations allowed sensealg args are :ForwardDiff, ForwardSensitivity(), ForwardDiffSensitivity() not $sensealg"
@@ -99,14 +99,14 @@ function setSensealg(sensealg,
         end
         if gradientMethod === :Zygote
             @assert (typeof(sensealg) <: SciMLSensitivity.AbstractSensitivityAlgorithm) "For Zygote an abstract sensitivity algorithm from SciMLSensitivity must be used"
-        end                   
+        end
         return sensealg
-    end  
+    end
 
     if gradientMethod === :Adjoint
         return InterpolatingAdjoint(autojacvec=ReverseDiffVJP())
     end
-    
+
     if gradientMethod === :ForwardDiff || gradientMethod === :ForwardEquations
         return :ForwardDiff
     end

@@ -15,8 +15,8 @@ end
 end
 
 
-@safetestset "PEtab remake" begin 
-  include("PEtab_remake.jl") 
+@safetestset "PEtab remake" begin
+  include("PEtab_remake.jl")
 end
 
 

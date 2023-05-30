@@ -11,7 +11,7 @@ using Test
 
 
 @testset "Test default options" begin
-    # Check that we get correct default setting 
+    # Check that we get correct default setting
     pathYML = joinpath(@__DIR__, "Test_ll", "Bachmann_MSB2011", "Bachmann_MSB2011.yaml")
     petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
     petabProblem = createPEtabODEProblem(petabModel, verbose=false)
