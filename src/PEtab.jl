@@ -10,7 +10,7 @@ using DiffEqCallbacks
 using SteadyStateDiffEq
 using ForwardDiff
 using ReverseDiff
-import ChainRulesCore 
+import ChainRulesCore
 using Zygote
 using StatsBase
 using Sundials
@@ -49,6 +49,7 @@ include(joinpath("Derivatives", "ForwardDiff_run_over_chunks.jl"))
 
 # Files related to solving the ODE-system
 include(joinpath("Solve_ODE", "Change_experimental_condition.jl"))
+include(joinpath("Solve_ODE", "Helper.jl"))
 include(joinpath("Solve_ODE", "Solve_ode_Zygote.jl"))
 include(joinpath("Solve_ODE", "Solve_ode_model.jl"))
 include(joinpath("Solve_ODE", "Solve_for_steady_state.jl"))
@@ -69,24 +70,29 @@ include(joinpath("Process_PEtab_files", "Observables", "Create_u0_h_sigma.jl"))
 include(joinpath("Process_PEtab_files", "Read_PEtab_files.jl"))
 
 # For creating a PEtab ODE problem
-include(joinpath("Create_PEtab_ODEProblem.jl"))
+include(joinpath("Create_PEtabODEProblem", "Set_defaults.jl"))
+include(joinpath("Create_PEtabODEProblem", "Remake_PEtabODEProblem.jl"))
+include(joinpath("Create_PEtabODEProblem", "Create_PEtab_ODEProblem.jl"))
 
 # Creating the PEtab model
 include("Create_PEtab_model.jl")
 
-# Importing SBML models 
+# Importing SBML models
 include(joinpath("SBML", "SBML_to_ModellingToolkit.jl"))
 include(joinpath("SBML", "Common.jl"))
 include(joinpath("SBML", "Process_functions.jl"))
 include(joinpath("SBML", "Process_rules.jl"))
 
-# For Optimization and model selection 
+# For Optimization and model selection
 include(joinpath("Optimization", "Setup_optim.jl"))
 include(joinpath("Optimization", "Setup_fides.jl"))
 include(joinpath("Optimization", "Callibration.jl"))
 include(joinpath("PEtab_select", "PEtab_select.jl"))
 
-# Reduce time for reading a PEtabModel and for building a PEtabODEProblem 
+# For correct struct printing
+include(joinpath("Show.jl"))
+
+# Reduce time for reading a PEtabModel and for building a PEtabODEProblem
 @setup_workload begin
     pathYAML = joinpath(@__DIR__, "..", "test", "Test_model3", "Test_model3.yaml")
     @compile_workload begin

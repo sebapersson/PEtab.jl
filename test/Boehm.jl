@@ -23,16 +23,16 @@ function compareAgainstPyPestoBoehm(petabModel::PEtabModel, solverOptions)
     hessPythonMat = CSV.File(joinpath(dirValues, "Hess_PyPesto.csv"))
     hessPythonMatCols = string.(hessPythonMat.names)
     hessFilter=findall( x -> x != "Id" && !occursin("ratio", x) && !occursin("specC17", x), hessPythonMatCols)
-    
+
     for i in 1:5
-        
+
         p = Float64.(collect(paramMat[i]))
         referenceCost = Float64.(collect(costPython[i]))
         referenceGradient = Float64.(collect(gradPythonMat[i]))
         referenceHessian = Float64.(collect(hessPythonMat[i])[hessFilter])
 
         # Test both the standard and Zygote approach to compute the cost
-        cost = _testCostGradientOrHessian(petabModel, solverOptions, p, computeCost=true, costMethod=:Standard)       
+        cost = _testCostGradientOrHessian(petabModel, solverOptions, p, computeCost=true, costMethod=:Standard)
         @test cost ≈ referenceCost atol=1e-3
         costZygote = _testCostGradientOrHessian(petabModel, solverOptions, p, computeCost=true, costMethod=:Zygote)
         @test costZygote ≈ referenceCost atol=1e-3
@@ -49,15 +49,15 @@ function compareAgainstPyPestoBoehm(petabModel::PEtabModel, solverOptions)
         gradientForward2 = _testCostGradientOrHessian(petabModel, ODESolverOptions(CVODE_BDF(), abstol=1e-9, reltol=1e-9), p, computeGradient=true, gradientMethod=:ForwardEquations, sensealg=ForwardSensitivity())
         @test norm(gradientForward2 - referenceGradient) ≤ 1e-2
 
-        # Testing "exact" hessian via autodiff 
+        # Testing "exact" hessian via autodiff
         hessian = _testCostGradientOrHessian(petabModel, solverOptions, p, computeHessian=true, hessianMethod=:GaussNewton)
         @test norm(hessian[:] - referenceHessian) ≤ 1e-3
-    
+
     end
 end
 
 
 petabModel = readPEtabModel(joinpath(@__DIR__, "Test_ll", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml"), forceBuildJuliaFiles=false)
-@testset "Against PyPesto : Boehm" begin 
+@testset "Against PyPesto : Boehm" begin
     compareAgainstPyPestoBoehm(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-9, reltol=1e-9))
 end

@@ -15,9 +15,10 @@ function processMeasurements(measurementsFile::CSV.File, observablesFile::CSV.Fi
 
     # In case preEquilibrationConditionId is not present in the file we assume no such conditions by default
     preEquilibrationConditionId::Vector{Symbol} = Vector{Symbol}(undef, nMeasurements)
-    if !(:preequilibrationConditionId in measurementsFile.names)
+    if :preequilibrationConditionId ∉ measurementsFile.names
         preEquilibrationConditionId .= :None
-    else
+    end
+    if :preequilibrationConditionId ∈ measurementsFile.names
         for i in eachindex(preEquilibrationConditionId)
             preEquilibrationConditionId[i] = Symbol.(string(measurementsFile[:preequilibrationConditionId][i]))
         end
@@ -31,49 +32,55 @@ function processMeasurements(measurementsFile::CSV.File, observablesFile::CSV.Fi
     # a value (fixed). Here the values are mapped to a Union{String, Float} vector,
     # correct handling of noise parameters when computing h (yMod) is handled when
     # building the ParameterIndices-struct.
-    if !(:noiseParameters in measurementsFile.names)
+    if :noiseParameters ∉ measurementsFile.names
         _noiseParameters = [missing for i in 1:nMeasurements]
-    else
+    end
+    if :noiseParameters ∈ measurementsFile.names
         _noiseParameters = measurementsFile[:noiseParameters]
     end
     noiseParameters::Vector{Union{String, Float64}} = Vector{Union{String, Float64}}(undef, nMeasurements)
     for i in 1:nMeasurements
         if ismissing(_noiseParameters[i])
             noiseParameters[i] = ""
+            continue
+        end
+
         # In case of a single constant value
-        elseif typeof(_noiseParameters[i]) <:AbstractString && isNumber(_noiseParameters[i])
+        if typeof(_noiseParameters[i]) <:AbstractString && isNumber(_noiseParameters[i])
             noiseParameters[i] = parse(Float64, _noiseParameters[i])
+            continue
+        end
+
         # Here there might be several noise parameters, or it is a variable. Correctly handled
         # when building ParameterIndices struct
-        else
-            noiseParameters[i] = string(_noiseParameters[i])
-        end
+        noiseParameters[i] = string(_noiseParameters[i])
     end
 
     # observableParameters[i] can store more than one parameter. This is handled correctly
     # when building the ParameterIndices struct.
-    if !(:observableParameters in measurementsFile.names)
+    if :observableParameters ∉ measurementsFile.names
         _observableParameters = [missing for i in 1:nMeasurements]
-    else
+    end
+    if :observableParameters ∈ measurementsFile.names
         _observableParameters = measurementsFile[:observableParameters]
     end
     observableParameters::Vector{String} = Vector{String}(undef, nMeasurements)
     for i in 1:nMeasurements
         if ismissing(_observableParameters[i])
             observableParameters[i] = ""
-        else
-            observableParameters[i] = string(_observableParameters[i])
+            continue
         end
+        observableParameters[i] = string(_observableParameters[i])
     end
 
     # Often we work with transformed data (e.g log-normal measurement errors). To aviod repeating this
     # calculation we hare pre-compute the transformed measurements, and vector with corresponding transformations
     # for each observation.
     measurementTransformation::Vector{Symbol} = Vector{Symbol}(undef, nMeasurements)
-    # Default linear
-    if !(:observableTransformation in observablesFile.names)
+    if :observableTransformation ∉ observablesFile.names
         measurementTransformation .= :lin
-    else
+    end
+    if :observableTransformation ∈ observablesFile.names
         for i in 1:nMeasurements
             iRow = findfirst(x -> x == string(observableId[i]), observablesFile[:observableId])
             measurementTransformation[i] = Symbol(observablesFile[:observableTransformation][iRow])
@@ -81,6 +88,6 @@ function processMeasurements(measurementsFile::CSV.File, observablesFile::CSV.Fi
     end
     measurementT::Vector{Float64} = [transformMeasurementOrH(measurement[i], measurementTransformation[i]) for i in eachindex(measurement)]
 
-    return MeasurementsInfo(measurement, measurementT, simulatedValues, chi2Values, residuals, measurementTransformation, time, 
+    return MeasurementsInfo(measurement, measurementT, simulatedValues, chi2Values, residuals, measurementTransformation, time,
                             observableId,preEquilibrationConditionId, simulationConditionId, noiseParameters, observableParameters)
 end

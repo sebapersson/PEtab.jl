@@ -7,8 +7,8 @@ function computeCost(θ_est::V,
                      θ_indices::ParameterIndices,
                      measurementInfo::MeasurementsInfo,
                      parameterInfo::ParametersInfo,
-                     priorInfo::PriorInfo, 
-                     petabODECache::PEtabODEProblemCache, 
+                     priorInfo::PriorInfo,
+                     petabODECache::PEtabODEProblemCache,
                      petabODESolverCache::PEtabODESolverCache,
                      expIDSolve::Vector{Symbol},
                      computeCost::Bool,
@@ -17,11 +17,11 @@ function computeCost(θ_est::V,
 
     θ_dynamic, θ_observable, θ_sd, θ_nonDynamic = splitParameterVector(θ_est, θ_indices)
 
-    cost = computeCostSolveODE(θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, odeProblem, odeSolverOptions, ssSolverOptions, petabModel, 
+    cost = computeCostSolveODE(θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, odeProblem, odeSolverOptions, ssSolverOptions, petabModel,
                                simulationInfo, θ_indices, measurementInfo, parameterInfo, petabODECache, petabODESolverCache,
                                computeCost=computeCost,
-                               computeHessian=computeHessian, 
-                               computeResiduals=computeResiduals, 
+                               computeHessian=computeHessian,
+                               computeResiduals=computeResiduals,
                                expIDSolve=expIDSolve)
 
     if priorInfo.hasPriors == true && computeHessian == false
@@ -45,7 +45,7 @@ function computeCostSolveODE(θ_dynamic::AbstractVector,
                              θ_indices::ParameterIndices,
                              measurementInfo::MeasurementsInfo,
                              parameterInfo::ParametersInfo,
-                             petabODECache::PEtabODEProblemCache, 
+                             petabODECache::PEtabODEProblemCache,
                              petabODESolverCache::PEtabODESolverCache;
                              computeCost::Bool=false,
                              computeHessian::Bool=false,
@@ -75,7 +75,7 @@ function computeCostSolveODE(θ_dynamic::AbstractVector,
         success = solveODEAllExperimentalConditions!(simulationInfo.odeSolutions, _odeProblem, petabModel, θ_dynamicT, petabODESolverCache, simulationInfo, θ_indices, odeSolverOptions, ssSolverOptions, expIDSolve=expIDSolve, denseSolution=false, onlySaveAtObservedTimes=true)
     end
     if success != true
-        println("Failed to solve ODE model")
+        @warn "Failed to solve ODE model"
         return Inf
     end
 
@@ -96,7 +96,7 @@ function computeCostNotSolveODE(θ_sd::AbstractVector,
                                 simulationInfo::SimulationInfo,
                                 θ_indices::ParameterIndices,
                                 measurementInfo::MeasurementsInfo,
-                                parameterInfo::ParametersInfo, 
+                                parameterInfo::ParametersInfo,
                                 petabODECache::PEtabODEProblemCache;
                                 computeGradientNotSolveAutoDiff::Bool=false,
                                 computeGradientNotSolveAdjoint::Bool=false,
@@ -219,7 +219,7 @@ function computeCostExpCond(odeSolution::ODESolution,
         σ = computeσ(u, t, p, θ_sd, θ_nonDynamic, petabModel, iMeasurement, measurementInfo, θ_indices, parameterInfo)
         residual = (hTransformed - measurementInfo.measurementT[iMeasurement]) / σ
 
-        # These values might be needed by different software, e.g. PyPesto, to assess things such as parameter uncertainity. By storing them in 
+        # These values might be needed by different software, e.g. PyPesto, to assess things such as parameter uncertainity. By storing them in
         # measurementInfo they can easily be computed given a call to the cost function has been made.
         updateMeasurementInfo!(measurementInfo, h, hTransformed, σ, residual, iMeasurement)
 
@@ -239,7 +239,7 @@ function computeCostExpCond(odeSolution::ODESolution,
             elseif measurementInfo.measurementTransformation[iMeasurement] === :log10
                 cost += log(σ) + 0.5*log(2*pi) + log(log(10)) + log(10)*measurementInfo.measurementT[iMeasurement] + 0.5*residual^2
             elseif measurementInfo.measurementTransformation[iMeasurement] === :log
-                cost += log(σ) + 0.5*log(2*pi) + log(measurementInfo.measurement[iMeasurement]) + 0.5*residual^2                
+                cost += log(σ) + 0.5*log(2*pi) + log(measurementInfo.measurement[iMeasurement]) + 0.5*residual^2
             else
                 println("Transformation ", measurementInfo.measurementTransformation[iMeasurement], " not yet supported.")
                 return Inf
@@ -253,12 +253,12 @@ end
 
 
 function updateMeasurementInfo!(measurementInfo::MeasurementsInfo, h::T, hTransformed::T, σ::T, residual::T, iMeasurement) where {T<:AbstractFloat}
-    ChainRulesCore.@ignore_derivatives begin 
+    ChainRulesCore.@ignore_derivatives begin
         measurementInfo.simulatedValues[iMeasurement] = h
         measurementInfo.chi2Values[iMeasurement] = (hTransformed - measurementInfo.measurementT[iMeasurement])^2 / σ^2
         measurementInfo.residuals[iMeasurement] = residual
     end
 end
 function updateMeasurementInfo!(measurementInfo::MeasurementsInfo, h, hTransformed, σ, residual, iMeasurement)
-    return 
+    return
 end

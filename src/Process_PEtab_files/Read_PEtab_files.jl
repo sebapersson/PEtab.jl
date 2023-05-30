@@ -123,7 +123,7 @@ end
 
 """
 checkDataFrameColumns(dataFrame, dataFrameName, colsToCheck, allowedTypesVec, requiredCols)
-        
+
     Goes through each column from colsToCheck in dataFrame and checks
     if each column is of any of the DataTypes specified in allowedTypesVec[colIndex].
     Returns true if all columns are ok and false otherwise.

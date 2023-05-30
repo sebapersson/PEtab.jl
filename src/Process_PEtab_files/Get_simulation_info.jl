@@ -16,19 +16,23 @@ function processSimulationInfo(petabModel::PEtabModel,
     simulationConditionId::Vector{Symbol} = Vector{Symbol}(undef, 0)
     experimentalConditionId::Vector{Symbol} = Vector{Symbol}(undef, 0)
     for i in eachindex(measurementInfo.preEquilibrationConditionId)
-        if measurementInfo.preEquilibrationConditionId[i] == :None
-            if measurementInfo.simulationConditionId[i] ∉ experimentalConditionId
-                preEquilibrationConditionId = vcat(preEquilibrationConditionId, :None)
-                simulationConditionId = vcat(simulationConditionId, measurementInfo.simulationConditionId[i])
-                experimentalConditionId = vcat(experimentalConditionId, measurementInfo.simulationConditionId[i])
-            end
-        else
-            _experimentalConditionId = Symbol(string(measurementInfo.preEquilibrationConditionId[i]) * string(measurementInfo.simulationConditionId[i]))
-            if _experimentalConditionId ∉ experimentalConditionId
-                preEquilibrationConditionId = vcat(preEquilibrationConditionId, measurementInfo.preEquilibrationConditionId[i])
-                simulationConditionId = vcat(simulationConditionId, measurementInfo.simulationConditionId[i])
-                experimentalConditionId = vcat(experimentalConditionId, _experimentalConditionId)
-            end
+        # In case model has steady-state simulations prior to matching against data
+        _preEquilibrationConditionId = measurementInfo.preEquilibrationConditionId[i]
+        if _preEquilibrationConditionId == :None
+            measurementInfo.simulationConditionId[i] ∈ experimentalConditionId && continue
+            preEquilibrationConditionId = vcat(preEquilibrationConditionId, :None)
+            simulationConditionId = vcat(simulationConditionId, measurementInfo.simulationConditionId[i])
+            experimentalConditionId = vcat(experimentalConditionId, measurementInfo.simulationConditionId[i])
+            continue
+        end
+
+        # For cases with no steady-state simulations
+        _experimentalConditionId = Symbol(string(measurementInfo.preEquilibrationConditionId[i]) * string(measurementInfo.simulationConditionId[i]))
+        if _experimentalConditionId ∉ experimentalConditionId
+            preEquilibrationConditionId = vcat(preEquilibrationConditionId, measurementInfo.preEquilibrationConditionId[i])
+            simulationConditionId = vcat(simulationConditionId, measurementInfo.simulationConditionId[i])
+            experimentalConditionId = vcat(experimentalConditionId, _experimentalConditionId)
+            continue
         end
     end
 
@@ -50,15 +54,15 @@ function processSimulationInfo(petabModel::PEtabModel,
 
     # Precompute the max simulation time for each experimentalConditionId
     _timeMax = Tuple(computeTimeMax(preEquilibrationConditionId[i], simulationConditionId[i], measurementInfo) for i in eachindex(preEquilibrationConditionId))
-    timeMax::Dict{Symbol, Float64} = Dict([experimentalConditionId[i] => _timeMax[i] for i in eachindex(experimentalConditionId)])
+    timeMax::Dict{Symbol, Float64} = Dict([experimentalConditionId[i] => _timeMax[i] for i in eachindex(_timeMax)])
 
     # Precompute which time-points we have observed data at for experimentalConditionId (used in saveat for ODE solution)
     _timeObserved = Tuple(computeTimeObserved(preEquilibrationConditionId[i], simulationConditionId[i], measurementInfo) for i in eachindex(preEquilibrationConditionId))
-    timeObserved::Dict{Symbol, Vector{Float64}} = Dict([experimentalConditionId[i] => _timeObserved[i] for i in eachindex(experimentalConditionId)])
+    timeObserved::Dict{Symbol, Vector{Float64}} = Dict([experimentalConditionId[i] => _timeObserved[i] for i in eachindex(_timeObserved)])
 
     # Precompute indices in measurementInfo (iMeasurement) for each experimentalConditionId
     _iMeasurementsObserved = Tuple(_computeTimeIndices(preEquilibrationConditionId[i], simulationConditionId[i], measurementInfo) for i in eachindex(preEquilibrationConditionId))
-    iMeasurementsObserved::Dict{Symbol, Vector{Int64}} = Dict([experimentalConditionId[i] => _iMeasurementsObserved[i] for i in eachindex(experimentalConditionId)])
+    iMeasurementsObserved::Dict{Symbol, Vector{Int64}} = Dict([experimentalConditionId[i] => _iMeasurementsObserved[i] for i in eachindex(_iMeasurementsObserved)])
 
     # Precompute for each measurement (entry in iMeasurement) a vector which holds the corresponding index in odeSolution.t
     # accounting for experimentalConditionId
@@ -73,8 +77,8 @@ function processSimulationInfo(petabModel::PEtabModel,
     # experimentalConditionId. Needed for the lower level adjoint interface where we must track the number of
     # repats per time-point (when using dgdu_discrete and dgdp_discrete)
     _iPerTimePoint = Tuple(computeTimeIndices(preEquilibrationConditionId[i], simulationConditionId[i], measurementInfo) for i in eachindex(preEquilibrationConditionId))
-    iPerTimePoint::Dict{Symbol, Vector{Vector{Int64}}} = Dict([(experimentalConditionId[i], _iPerTimePoint[i]) for i in eachindex(experimentalConditionId)])
-    
+    iPerTimePoint::Dict{Symbol, Vector{Vector{Int64}}} = Dict([(experimentalConditionId[i], _iPerTimePoint[i]) for i in eachindex(_iPerTimePoint)])
+
     # Some models, e.g those with time dependent piecewise statements, have callbacks encoded. When doing adjoint
     # sensitivity analysis we need to track these callbacks, hence they must be stored in simulationInfo.
     callbacks = Dict{Symbol, SciMLBase.DECallback}()

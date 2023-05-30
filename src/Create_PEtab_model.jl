@@ -3,7 +3,6 @@
                    forceBuildJuliaFiles::Bool=false,
                    verbose::Bool=true,
                    ifElseToEvent::Bool=true,
-                   jlFile::Bool=false,
                    jlFilePath::String="")::PEtabModel
 
 Parses a PEtab specified problem with a YAML-file located at `pathYAML` into a Julia-accessible format.
@@ -16,15 +15,14 @@ When parsing a PEtab problem, several things happen under the hood:
 
 All of this happens automatically, and resulting files are stored under `petabModel.dirJulia`. To save time, `forceBuildJlFiles=false` by default, which means that Julia files are not rebuilt if they already exist.
 
-In case a Julia model files is provided instead of a SBML file, set `jlFile` and provide the file path under `jlFilePath`.
+In case a Julia model files is provided instead of a SBML file provide file path under `jlFilePath`.
 
 # Arguments
 - `pathYAML::String`: Path to the PEtab problem YAML file.
 - `forceBuildJuliaFiles::Bool=false`: If `true`, forces the creation of Julia files for the problem even if they already exist.
 - `verbose::Bool=true`: If `true`, displays verbose output during parsing.
 - `ifElseToEvent::Bool=true`: If `true`, rewrites `if-else` statements in the SBML model as event-based callbacks.
-- `jlFile::Bool=false`: If `true`, loads a pre-existing Julia file for the problem instead of parsing from the YAML.
-- `jlFilePath::String=""`: Path to an existing Julia file to load if `jlFile` is `true`.
+- `jlFilePath::String=""`: Path to an existing Julia file. Should only be provided if a Julia model file is availble.
 
 # Example
 ```julia
@@ -35,49 +33,38 @@ function readPEtabModel(pathYAML::String;
                         forceBuildJuliaFiles::Bool=false,
                         verbose::Bool=true,
                         ifElseToEvent::Bool=true,
-                        jlFile::Bool=false,
-                        jlFilePath::String="", 
+                        jlFilePath::String="",
                         customParameterValues::Union{Nothing, Dict}=nothing)::PEtabModel
+
+    jlFile = isempty(jlFilePath) ? false : true
 
     pathSBML, pathParameters, pathConditions, pathObservables, pathMeasurements, dirJulia, dirModel, modelName = readPEtabYamlFile(pathYAML, jlFile=jlFile)
 
-    verbose == true && printstyled("[ Info:", color=123, bold=true)
-    verbose == true && @printf(" Building PEtabModel for %s\n", modelName)
+    verbose == true && @info "Building PEtabModel for $modelName"
 
     if jlFile == false
-
         pathModelJlFile = joinpath(dirJulia, modelName * ".jl")
+        if !isfile(pathModelJlFile) || forceBuildJuliaFiles == true
+            verbose == true && printstyled("[ Info:", color=123, bold=true)
+            verbose == true && forceBuildJuliaFiles && print(" By user option rebuilds Julia model file ...")
+            verbose == true && !forceBuildJuliaFiles && print(" Building Julia model file as it does not exist ...")
 
-        if !isfile(pathModelJlFile)
-            if verbose == true
-                printstyled("[ Info:", color=123, bold=true)
-                print(" Building Julia model file as it does not exist ...")
-            end
-            bBuild = @elapsed modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, ifElseToEvent=ifElseToEvent)
-            verbose == true && @printf(" done. Time = %.1es\n", bBuild)
-
-        elseif isfile(pathModelJlFile) && forceBuildJuliaFiles == false && verbose == true
-            printstyled("[ Info:", color=123, bold=true)
-            print(" Julia model file exists and will not be rebuilt\n")
-
-        elseif forceBuildJuliaFiles == true
-            if verbose == true
-                printstyled("[ Info:", color=123, bold=true)
-                print(" By user option rebuilds Julia model file ...")
-            end
-            isfile(pathModelJlFile) == true && rm(pathModelJlFile)
             bBuild = @elapsed modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, ifElseToEvent=ifElseToEvent)
             verbose == true && @printf(" done. Time = %.1es\n", bBuild)
         end
 
-    else
-        if jlFilePath == ""
-            throw("If jlFile=true you must specify jlFilePath")
-        elseif !isfile(jlFilePath)
-            throw("File" * jlFilePath * "does not exist")
-        else
-            modelDict, pathModelJlFile = JLToModellingToolkit(jlFilePath, dirJulia, modelName, ifElseToEvent=ifElseToEvent)
+        if isfile(pathModelJlFile) && forceBuildJuliaFiles == false
+            verbose == true && printstyled("[ Info:", color=123, bold=true)
+            verbose == true && print(" Julia model file exists and will not be rebuilt\n")
         end
+    end
+
+    if jlFile == true
+        if isempty(jlFilePath) || !isfile(jlFilePath)
+            @error "In case jlFile=true you must provide the path to a valid Julia model model. $jlFilePath is not a valid file"
+        end
+
+        modelDict, pathModelJlFile = JLToModellingToolkit(jlFilePath, dirJulia, modelName, ifElseToEvent=ifElseToEvent)
     end
 
     addParameterForConditionSpecificInitialValues(pathModelJlFile, pathConditions, pathParameters)
@@ -86,61 +73,50 @@ function readPEtabModel(pathYAML::String;
     @assert isfile(pathModelJlFile)
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Symbolically processes ODE-system ...")
-    bTake = @elapsed begin
+    timeTake = @elapsed begin
         _getODESystem = @RuntimeGeneratedFunction(Meta.parse(getFunctionsAsString(pathModelJlFile, 1)[1]))
         _odeSystem, stateMap, parameterMap = _getODESystem("https://xkcd.com/303/") # Argument needed by @RuntimeGeneratedFunction
         odeSystem = structural_simplify(_odeSystem)
-        # TODO : Make these to strings here to save conversions
         parameterNames = parameters(odeSystem)
         stateNames = states(odeSystem)
     end
-    verbose == true && @printf(" done. Time = %.1es\n", bTake)
+    verbose == true && @printf(" done. Time = %.1es\n", timeTake)
 
-    # Build functions for observables, sd and u0 if does not exist and include
     path_u0_h_sigma = joinpath(dirJulia, modelName * "_h_sd_u0.jl")
-    path_D_h_sd = joinpath(dirJulia, modelName * "_D_h_sd.jl")
     if !isfile(path_u0_h_sigma) || forceBuildJuliaFiles == true
-        if verbose == true && !isfile(path_u0_h_sigma)
-            printstyled("[ Info:", color=123, bold=true)
-            print(" Building u0, h σ file as it does not exist ...")
-        elseif verbose == true
-            printstyled("[ Info:", color=123, bold=true)
-            print(" By user option rebuilds u0, h σ file ...")
-        end
+        verbose == true && printstyled("[ Info:", color=123, bold=true)
+        verbose == true && !isfile(path_u0_h_sigma) && print(" Building u0, h and σ file as it does not exist ...")
+        verbose == true && isfile(path_u0_h_sigma) && print(" By user option rebuilds u0, h and σ file ...")
         if !@isdefined(modelDict)
             modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, writeToFile=false, ifElseToEvent=ifElseToEvent)
         end
         bBuild = @elapsed create_σ_h_u0_File(modelName, pathYAML, dirJulia, odeSystem, parameterMap, stateMap, modelDict, jlFile=jlFile, customParameterValues=customParameterValues)
         verbose == true && @printf(" done. Time = %.1es\n", bBuild)
-    elseif verbose == true
-        printstyled("[ Info:", color=123, bold=true)
-        print(" u0, h and σ file exists and will not be rebuilt\n")
+    else
+        verbose == true && printstyled("[ Info:", color=123, bold=true)
+        verbose == true && print(" u0, h and σ file exists and will not be rebuilt\n")
     end
-
-    if !isfile(path_D_h_sd) || forceBuildJuliaFiles == true
-        if verbose == true && !isfile(path_D_h_sd)
-            printstyled("[ Info:", color=123, bold=true)
-            print(" Building ∂h∂p, ∂h∂u, ∂σ∂p and ∂σ∂u file as it does not exist ...")
-        elseif verbose == true
-            printstyled("[ Info:", color=123, bold=true)
-            print(" By user option rebuilds ∂h∂p, ∂h∂u, ∂σ∂p and ∂σ∂u file ...")
-        end
-        if !@isdefined(modelDict)
-            modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, writeToFile=false, ifElseToEvent=ifElseToEvent)
-        end
-        bBuild = @elapsed createDerivative_σ_h_File(modelName, pathYAML, dirJulia, odeSystem, parameterMap, stateMap, modelDict, jlFile=jlFile, customParameterValues=customParameterValues)
-        verbose == true && @printf(" done. Time = %.1es\n", bBuild)
-    elseif verbose == true
-        printstyled("[ Info:", color=123, bold=true)
-        print(" ∂h∂p, ∂h∂u, ∂σ∂p and ∂σ∂u file exists and will not be rebuilt\n")
-    end
-
     @assert isfile(path_u0_h_sigma)
     h_u0_σ_Functions = getFunctionsAsString(path_u0_h_sigma, 4)
     compute_h = @RuntimeGeneratedFunction(Meta.parse(h_u0_σ_Functions[1]))
     compute_u0! = @RuntimeGeneratedFunction(Meta.parse(h_u0_σ_Functions[2]))
     compute_u0 = @RuntimeGeneratedFunction(Meta.parse(h_u0_σ_Functions[3]))
     compute_σ = @RuntimeGeneratedFunction(Meta.parse(h_u0_σ_Functions[4]))
+
+    path_D_h_sd = joinpath(dirJulia, modelName * "_D_h_sd.jl")
+    if !isfile(path_D_h_sd) || forceBuildJuliaFiles == true
+        verbose == true && printstyled("[ Info:", color=123, bold=true)
+        verbose == true && !isfile(path_u0_h_sigma) && print(" Building ∂h∂p, ∂h∂u, ∂σ∂p and ∂σ∂u file as it does not exist ...")
+        verbose == true && isfile(path_u0_h_sigma) && print(" By user option rebuilds ∂h∂p, ∂h∂u, ∂σ∂p and ∂σ∂u file ...")
+        if !@isdefined(modelDict)
+            modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, writeToFile=false, ifElseToEvent=ifElseToEvent)
+        end
+        bBuild = @elapsed createDerivative_σ_h_File(modelName, pathYAML, dirJulia, odeSystem, parameterMap, stateMap, modelDict, jlFile=jlFile, customParameterValues=customParameterValues)
+        verbose == true && @printf(" done. Time = %.1es\n", bBuild)
+    else verbose == true
+        verbose == true && printstyled("[ Info:", color=123, bold=true)
+        verbose == true && print(" ∂h∂p, ∂h∂u, ∂σ∂p and ∂σ∂u file exists and will not be rebuilt\n")
+    end
     @assert isfile(path_D_h_sd)
     ∂_h_σ_Functions = getFunctionsAsString(path_D_h_sd, 4)
     compute_∂h∂u! = @RuntimeGeneratedFunction(Meta.parse(∂_h_σ_Functions[1]))
@@ -150,22 +126,17 @@ function readPEtabModel(pathYAML::String;
 
     pathCallback = joinpath(dirJulia, modelName * "_callbacks.jl")
     if !isfile(pathCallback) || forceBuildJuliaFiles == true
-        if verbose == true && !isfile(pathCallback)
-            printstyled("[ Info:", color=123, bold=true)
-            print(" Building callback file as it does not exist ...")
-        elseif verbose == true
-            printstyled("[ Info:", color=123, bold=true)
-            print(" By user option rebuilds callback file ...")
-        end
+        verbose == true && printstyled("[ Info:", color=123, bold=true)
+        verbose == true && !isfile(pathCallback) && print(" Building callback file as it does not exist ...")
+        verbose == true && isfile(pathCallback) && print(" By user option rebuilds callback file ...")
         if !@isdefined(modelDict)
             modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, writeToFile=false, ifElseToEvent=ifElseToEvent)
         end
         bBuild = @elapsed createCallbacksForTimeDepedentPiecewise(odeSystem, parameterMap, stateMap, modelDict, modelName, pathYAML, dirJulia, jlFile = jlFile, customParameterValues=customParameterValues)
         verbose == true && @printf(" done. Time = %.1es\n", bBuild)
-
-    elseif verbose == true
-        printstyled("[ Info:", color=123, bold=true)
-        print(" Callback file exists and will not be rebuilt\n")
+    else
+        verbose == true && printstyled("[ Info:", color=123, bold=true)
+        verbose == true && print(" Callback file exists and will not be rebuilt\n")
     end
     @assert isfile(pathCallback)
     strGetCallbacks = getFunctionsAsString(pathCallback, 2)
@@ -204,7 +175,7 @@ function readPEtabModel(pathYAML::String;
 end
 
 
-# For reading the run-time generated PEtab-related functions which via Meta.parse are passed 
+# For reading the run-time generated PEtab-related functions which via Meta.parse are passed
 # on to @RuntimeGeneratedFunction to build the PEtab related functions without world-problems.
 function getFunctionsAsString(filePath::AbstractString, nFunctions::Int64)::Vector{String}
 
@@ -235,8 +206,8 @@ function getFunctionsAsString(filePath::AbstractString, nFunctions::Int64)::Vect
     out = Vector{String}(undef, nFunctions)
     for i in eachindex(out)
 
-        # Runtime generated functions requrie at least on function argument input, hence if missing we 
-        # add a foo argument 
+        # Runtime generated functions requrie at least on function argument input, hence if missing we
+        # add a foo argument
         if bodyStr[fStart[i]][end-1:end] == "()"
             bodyStr[fStart[i]] = bodyStr[fStart[i]][1:end-2] * "(foo)"
         end
@@ -247,9 +218,9 @@ function getFunctionsAsString(filePath::AbstractString, nFunctions::Int64)::Vect
 end
 
 
-# The PEtab standard allows the condition table to have headers which corresponds to states. In order for this to 
-# be compatible with gradient compuations we add such initial values as an additional parameter in odeProblem.p 
-# by overwriting the Julia-model file 
+# The PEtab standard allows the condition table to have headers which corresponds to states. In order for this to
+# be compatible with gradient compuations we add such initial values as an additional parameter in odeProblem.p
+# by overwriting the Julia-model file
 function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
                                                        pathConditions::String,
                                                        pathParameters::String)
@@ -274,9 +245,9 @@ function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
     newParameterNames = "__init__" .* whichStates .* "__"
     newParameterValues = Vector{String}(undef, length(newParameterNames))
 
-    # Check if the columns for which the states are assigned contain parameters. If these parameters are not a part 
-    # of the ODE-system they have to be assigned to the ODE-system (since they determine an initial value they must 
-    # be considered dynamic parameters). 
+    # Check if the columns for which the states are assigned contain parameters. If these parameters are not a part
+    # of the ODE-system they have to be assigned to the ODE-system (since they determine an initial value they must
+    # be considered dynamic parameters).
     for state in whichStates
         for rowValue in experimentalConditionsFile[Symbol(state)]
             if typeof(rowValue) <: Real
@@ -284,7 +255,7 @@ function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
             elseif isNumber(rowValue) == true || string(rowValue) ∈ parameterNames
                 continue
             elseif rowValue ∈ parametersFile[:parameterId]
-                # Must be a parameter which did not appear in the SBML file 
+                # Must be a parameter which did not appear in the SBML file
                 newParameterNames = vcat(newParameterNames, rowValue)
                 newParameterValues = vcat(newParameterValues, "0.0")
             else
@@ -293,7 +264,7 @@ function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
         end
     end
 
-    # In case the funciton already has been rewritten return 
+    # In case the funciton already has been rewritten return
     if any(x -> x ∈ parameterNames, newParameterNames)
         return
     end
@@ -310,7 +281,7 @@ function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
             linesAdd = (i+1):(i+length(newParameterNames))
         end
 
-        # Add new parameters for ModelingToolkit.@parameters line 
+        # Add new parameters for ModelingToolkit.@parameters line
         if length(lineNoWhiteSpace) ≥ 27 && lineNoWhiteSpace[1:27] == "ModelingToolkit.@parameters"
             functionLineByLine[i] *= (" "*prod([str * " " for str in newParameterNames]))[1:end-1]
         end
@@ -320,10 +291,10 @@ function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
             functionLineByLine[i] = functionLineByLine[i][1:end-1] * ", " * (" "*prod([str * ", " for str in newParameterNames]))[1:end-2] * "]"
         end
 
-        # Move through state array 
+        # Move through state array
         for j in eachindex(whichStates)
             if startsWithx(lineNoWhiteSpace, whichStates[j])
-                # Extract the default value 
+                # Extract the default value
                 _, defaultValue = split(lineNoWhiteSpace, "=>")
                 newParameterValues[j] = defaultValue[end] == ',' ? defaultValue[1:end-1] : defaultValue[:]
                 functionLineByLine[i] = "\t" * whichStates[j] * " => " * newParameterNames[j] * ","
@@ -340,7 +311,7 @@ function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
         functionLineByLineNew[i] = functionLineByLine[k]
         k += 1
     end
-    # We need to capture default values 
+    # We need to capture default values
     functionLineByLineNew[linesAdd] .= "\t" .* newParameterNames .* " => " .* newParameterValues .* ","
 
     newFunctionString = functionLineByLineNew[1]
@@ -387,22 +358,4 @@ function startsWithx(str, x)
         return true
     end
     return false
-end
-
-
-import Base.show
-function show(io::IO, a::PEtabModel)
-
-    modelName = @sprintf("%s", a.modelName)
-    numberOfODEStates = @sprintf("%d", length(a.stateNames))
-    numberOfODEParameters = @sprintf("%d", length(a.parameterNames))
-
-    printstyled("PEtabModel", color=116)
-    print(" for model ")
-    printstyled(modelName, color=116)
-    print(". ODE-system has ")
-    printstyled(numberOfODEStates * " states", color=116)
-    print(" and ")
-    printstyled(numberOfODEParameters * " parameters.", color=116)
-    @printf("\nGenerated Julia files are at %s", a.dirJulia)
 end

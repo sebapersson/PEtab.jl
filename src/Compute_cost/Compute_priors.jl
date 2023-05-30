@@ -8,7 +8,7 @@ function computePriors(θ_parameterScale::AbstractVector,
     if priorInfo.hasPriors == false
         return 0.0
     end
-    
+
     priorValue = 0.0
     for (i, θ_name) in pairs(θ_names)
         logpdf = priorInfo.logpdf[θ_name]

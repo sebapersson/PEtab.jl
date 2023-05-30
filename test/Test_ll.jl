@@ -103,7 +103,7 @@ testGradientFiniteDifferences(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-
                              solverGradientOptions=ODESolverOptions(CVODE_BDF(), abstol=1e-9, reltol=1e-9),
                              checkForwardEquations=true, checkAdjoint=true, testTol=1e-2)
 
-# Beer model - Numerically challenging gradient as we have callback time triggering parameters to 
+# Beer model - Numerically challenging gradient as we have callback time triggering parameters to
 # estimate. Splitting over conditions spped up hessian computations with factor 48
 pathYML = joinpath(@__DIR__, "Test_ll", "Beer_MolBioSystems2014", "Beer_MolBioSystems2014.yaml")
 petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)

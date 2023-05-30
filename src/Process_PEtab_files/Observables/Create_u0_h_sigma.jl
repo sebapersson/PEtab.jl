@@ -20,12 +20,12 @@
 """
 function create_σ_h_u0_File(modelName::String,
                             pathYAMl::String,
-                            dirJulia::String, 
+                            dirJulia::String,
                             odeSystem::ODESystem,
                             parameterMap,
                             stateMap,
                             SBMLDict::Dict;
-                            jlFile::Bool=false, 
+                            jlFile::Bool=false,
                             customParameterValues::Union{Nothing, Dict}=nothing)
 
     pODEProblemNames = string.(parameters(odeSystem))

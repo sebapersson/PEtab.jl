@@ -9,7 +9,7 @@ function computeHessian!(hessian::Matrix{Float64},
                          _evalHessian::Function,
                          cfg::ForwardDiff.HessianConfig,
                          simulationInfo::SimulationInfo,
-                         θ_indices::ParameterIndices, 
+                         θ_indices::ParameterIndices,
                          priorInfo::PriorInfo)
 
     # Only try to compute hessian if we could compute the cost
@@ -30,15 +30,15 @@ function computeHessian!(hessian::Matrix{Float64},
 end
 
 
-# Compute the hessian via forward mode automatic differentitation where the final hessian is computed via 
-# n ForwardDiff-calls accross all experimental condtions. The most efficient approach for models with many 
+# Compute the hessian via forward mode automatic differentitation where the final hessian is computed via
+# n ForwardDiff-calls accross all experimental condtions. The most efficient approach for models with many
 # parameters which are unique to each experimental condition.
 function computeHessianSplitOverConditions!(hessian::Matrix{Float64},
                                             θ_est::Vector{Float64},
                                             _evalHessian::Function,
                                             simulationInfo::SimulationInfo,
-                                            θ_indices::ParameterIndices, 
-                                            priorInfo::PriorInfo, 
+                                            θ_indices::ParameterIndices,
+                                            priorInfo::PriorInfo,
                                             expIDSolve::Vector{Symbol} = [:all])
 
     hessian .= 0.0
@@ -82,12 +82,12 @@ function computeHessianBlockApproximation!(hessian::Matrix{Float64},
                                            θ_indices::ParameterIndices,
                                            priorInfo::PriorInfo;
                                            expIDSolve::Vector{Symbol} = [:all])
-                                  
+
     # Avoid incorrect non-zero values
     hessian .= 0.0
 
     splitParameterVector!(θ_est, θ_indices, petabODECache)
-    θ_dynamic = petabODECache.θ_dynamic 
+    θ_dynamic = petabODECache.θ_dynamic
 
     try
         if !isempty(θ_indices.iθ_dynamic)
@@ -188,21 +188,21 @@ function computeGaussNewtonHessianApproximation!(out::Matrix{Float64},
                                                  measurementInfo::MeasurementsInfo,
                                                  parameterInfo::ParametersInfo,
                                                  solveOdeModelAllConditions!::Function,
-                                                 priorInfo::PriorInfo, 
-                                                 cfg::ForwardDiff.JacobianConfig, 
+                                                 priorInfo::PriorInfo,
+                                                 cfg::ForwardDiff.JacobianConfig,
                                                  cfgNotSolveODE::ForwardDiff.JacobianConfig,
                                                  petabODECache::PEtabODEProblemCache;
                                                  reuseS::Bool=false,
                                                  splitOverConditions::Bool=false,
                                                  returnJacobian::Bool=false,
-                                                 expIDSolve::Vector{Symbol} = [:all], 
+                                                 expIDSolve::Vector{Symbol} = [:all],
                                                  isRemade::Bool=false)
 
     # Avoid incorrect non-zero values
     out .= 0.0
 
     splitParameterVector!(θ_est, θ_indices, petabODECache)
-    θ_dynamic = petabODECache.θ_dynamic 
+    θ_dynamic = petabODECache.θ_dynamic
     θ_observable = petabODECache.θ_observable
     θ_sd = petabODECache.θ_sd
     θ_nonDynamic = petabODECache.θ_nonDynamic
@@ -214,7 +214,7 @@ function computeGaussNewtonHessianApproximation!(out::Matrix{Float64},
                                       θ_observable, θ_nonDynamic, petabModel, odeProblem,
                                       simulationInfo, θ_indices, measurementInfo, parameterInfo,
                                       solveOdeModelAllConditions!, cfg, petabODECache;
-                                      expIDSolve=expIDSolve, reuseS=reuseS, splitOverConditions=splitOverConditions, 
+                                      expIDSolve=expIDSolve, reuseS=reuseS, splitOverConditions=splitOverConditions,
                                       isRemade=isRemade)
 
     # Happens when at least one forward pass fails
@@ -224,15 +224,16 @@ function computeGaussNewtonHessianApproximation!(out::Matrix{Float64},
     end
     @views ForwardDiff.jacobian!(jacobianGN[θ_indices.iθ_notOdeSystem, :]', computeResidualsNotSolveODE!, petabODECache.residualsGN, θ_est[θ_indices.iθ_notOdeSystem], cfgNotSolveODE)
 
-    if priorInfo.hasPriors == true
-        println("Warning : With Gauss Newton we do not support priors")
-    end
-
     # In case of testing we might want to return the jacobian, else we are interested in the Guass-Newton approximaiton.
     if returnJacobian == false
         out .= jacobianGN * transpose(jacobianGN)
     else
         out .= jacobianGN
+        # Even though this is a hessian approximation, due to ease of implementation and low run-time we compute the
+        # full hessian for the priors
+        if priorInfo.hasPriors == true
+            computeHessianPrior!(out, θ_est, θ_indices, priorInfo)
+        end
     end
 end
 

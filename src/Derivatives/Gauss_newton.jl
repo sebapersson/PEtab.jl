@@ -9,12 +9,12 @@ function computeJacobianResidualsDynamicθ!(jacobian::Union{Matrix{Float64}, Sub
                                            θ_indices::ParameterIndices,
                                            measurementInfo::MeasurementsInfo,
                                            parameterInfo::ParametersInfo,
-                                           solveOdeModelAllConditions!::Function, 
-                                           cfg::ForwardDiff.JacobianConfig, 
+                                           solveOdeModelAllConditions!::Function,
+                                           cfg::ForwardDiff.JacobianConfig,
                                            petabODECache::PEtabODEProblemCache;
-                                           expIDSolve::Vector{Symbol} = [:all], 
-                                           reuseS::Bool=false, 
-                                           splitOverConditions::Bool=false, 
+                                           expIDSolve::Vector{Symbol} = [:all],
+                                           reuseS::Bool=false,
+                                           splitOverConditions::Bool=false,
                                            isRemade::Bool=false)
 
     θ_dynamicT = transformθ(θ_dynamic, θ_indices.θ_dynamicNames, θ_indices, :θ_dynamic, petabODECache)
@@ -25,18 +25,18 @@ function computeJacobianResidualsDynamicθ!(jacobian::Union{Matrix{Float64}, Sub
     if reuseS == false
         # Solve the expanded ODE system for the sensitivites
         success = solveForSensitivites(odeProblem, simulationInfo, θ_indices, petabModel, :ForwardDiff, θ_dynamicT,
-                                       solveOdeModelAllConditions!, cfg, petabODECache, expIDSolve, splitOverConditions, 
+                                       solveOdeModelAllConditions!, cfg, petabODECache, expIDSolve, splitOverConditions,
                                        isRemade)
 
         if success != true
             @warn "Failed to solve sensitivity equations"
             jacobian .= 1e8
             return
-        end                                    
+        end
     end
     if isempty(θ_dynamic)
         jacobian .= 0.0
-        return 
+        return
     end
 
     # Compute the gradient by looping through all experimental conditions.
@@ -81,14 +81,14 @@ function computeJacobianResidualsExpCond!(jacobian::AbstractMatrix,
     compute∂G∂u = (out, u, p, t, i, it) -> begin compute∂G∂_(out, u, p, t, i, it,
                                                              measurementInfo, parameterInfo,
                                                              θ_indices, petabModel,
-                                                             θ_dynamic, θ_sd, θ_observable, θ_nonDynamic,
+                                                             θ_sd, θ_observable, θ_nonDynamic,
                                                              petabODECache.∂h∂u, petabODECache.∂σ∂u, compute∂G∂U=true,
                                                              computeResiduals=true)
                                             end
     compute∂G∂p = (out, u, p, t, i, it) -> begin compute∂G∂_(out, u, p, t, i, it,
                                                              measurementInfo, parameterInfo,
                                                              θ_indices, petabModel,
-                                                             θ_dynamic, θ_sd, θ_observable, θ_nonDynamic,
+                                                             θ_sd, θ_observable, θ_nonDynamic,
                                                              petabODECache.∂h∂p, petabODECache.∂σ∂p, compute∂G∂U=false,
                                                              computeResiduals=true)
                                             end
@@ -99,8 +99,8 @@ function computeJacobianResidualsExpCond!(jacobian::AbstractMatrix,
 
     # Loop through solution and extract sensitivites
     nModelStates = length(petabModel.stateNames)
+    petabODECache.p .= dualToFloat.(sol.prob.p)
     p = petabODECache.p
-    p .= dualToFloat.(sol.prob.p)
     u = petabODECache.u
     ∂G∂p = petabODECache.∂G∂p
     ∂G∂u = petabODECache.∂G∂u
@@ -134,7 +134,7 @@ function computeResidualsNotSolveODE!(residuals::AbstractVector,
                                       simulationInfo::SimulationInfo,
                                       θ_indices::ParameterIndices,
                                       measurementInfo::MeasurementsInfo,
-                                      parameterInfo::ParametersInfo, 
+                                      parameterInfo::ParametersInfo,
                                       petabODECache::PEtabODEProblemCache;
                                       expIDSolve::Vector{Symbol} = [:all])::AbstractVector
 
@@ -176,7 +176,7 @@ function computeResidualsExpCond!(residuals::AbstractVector,
                                   simulationInfo::SimulationInfo,
                                   θ_indices::ParameterIndices,
                                   measurementInfo::MeasurementsInfo,
-                                  parameterInfo::ParametersInfo, 
+                                  parameterInfo::ParametersInfo,
                                   petabODECache::PEtabODEProblemCache)::Bool
 
     if !(odeSolution.retcode == ReturnCode.Success || odeSolution.retcode == ReturnCode.Terminated)
@@ -209,8 +209,7 @@ function computeResidualsExpCond!(residuals::AbstractVector,
         elseif measurementInfo.measurementTransformation[iMeasurement] == :log
             residuals[iMeasurement] = (hTransformed - measurementInfo.measurementT[iMeasurement]) / σ
         else
-            println("Transformation ", measurementInfo.measurementTransformation[iMeasurement], " not yet supported.")
-            return false
+            @error "Transformation ", measurementInfo.measurementTransformation[iMeasurement], " not yet supported."
         end
     end
     return true
