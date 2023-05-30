@@ -39,9 +39,10 @@ function computeGradientAutoDiff!(gradient::Vector{Float64},
             return
         end
         petabODECache.nθ_dynamicEst[1] = tmp
+    end
     
     # Case when we have dynamic parameters fixed. Here it is not always worth to move accross all chunks
-    else
+    if isRemade == true
         try
             if petabODECache.nθ_dynamicEst[1] != 0
                 C = length(cfg.seeds)
@@ -122,7 +123,7 @@ function computeGradientAutoDiffSplitOverConditions!(gradient::Vector{Float64},
         gradient .= 1e8
         return
     end
-    if all(petabODECache.gradientDyanmicθ .== 0.0)
+    if !isempty(petabODECache.gradientDyanmicθ) && all(petabODECache.gradientDyanmicθ .== 0.0)
         gradient .= 1e8
         return
     end
@@ -220,7 +221,7 @@ function computeGradientAdjointEquations!(gradient::Vector{Float64},
     @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ
 
     # Happens when at least one forward pass fails and I set the gradient to 1e8
-    if all(petabODECache.gradientDyanmicθ .== 1e8)
+    if !isempty(petabODECache.gradientDyanmicθ) && all(petabODECache.gradientDyanmicθ .== 1e8)
         gradient .= 1e8
         return
     end

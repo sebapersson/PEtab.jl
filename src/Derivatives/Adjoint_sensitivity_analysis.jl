@@ -37,7 +37,7 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
         evalVJPSSVec = generateVJPSSFunction(simulationInfo, sensealgSS, odeSolverOptions, ssSolverOptions, expIDSolve)
     end
 
-    gradient .= 0.0
+    fill!(gradient, 0.0)
     # Compute the gradient by looping through all experimental conditions.
     for i in eachindex(simulationInfo.experimentalConditionId)
         experimentalConditionId = simulationInfo.experimentalConditionId[i]
@@ -47,7 +47,7 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
             continue
         end
 
-        if (haspreEquilibrationConditionId = simulationInfo.haspreEquilibrationConditionId) == true
+        if simulationInfo.haspreEquilibrationConditionId == true
             evalVJPSS = evalVJPSSVec[simulationInfo.preEquilibrationConditionId[i]]
         else
             evalVJPSS = identity
@@ -222,16 +222,16 @@ function computeGradientAdjointExpCond!(gradient::Vector{Float64},
     timeObserved = simulationInfo.timeObserved[experimentalConditionId]
     callback = simulationInfo.trackedCallbacks[experimentalConditionId]
 
-    compute∂G∂u = (out, u, p, t, i) -> begin compute∂G∂_(out, u, p, t, i, iPerTimePoint,
+    compute∂G∂u! = (out, u, p, t, i) -> begin compute∂G∂_(out, u, p, t, i, iPerTimePoint,
                                                          measurementInfo, parameterInfo,
                                                          θ_indices, petabModel,
-                                                         θ_dynamic, θ_sd, θ_observable, θ_nonDynamic,
+                                                         θ_sd, θ_observable, θ_nonDynamic,
                                                          petabODECache.∂h∂u, petabODECache.∂σ∂u, compute∂G∂U=true)
                                             end
-    compute∂G∂p = (out, u, p, t, i) -> begin compute∂G∂_(out, u, p, t, i, iPerTimePoint,
+    compute∂G∂p! = (out, u, p, t, i) -> begin compute∂G∂_(out, u, p, t, i, iPerTimePoint,
                                                          measurementInfo, parameterInfo,
                                                          θ_indices, petabModel,
-                                                         θ_dynamic, θ_sd, θ_observable, θ_nonDynamic,
+                                                         θ_sd, θ_observable, θ_nonDynamic,
                                                          petabODECache.∂h∂p, petabODECache.∂σ∂p, compute∂G∂U=false)
                                         end
 
@@ -248,7 +248,7 @@ function computeGradientAdjointExpCond!(gradient::Vector{Float64},
     if !(length(timeObserved) == 1 && timeObserved[1] == 0.0)
 
         status = __adjoint_sensitivities!(du, dp, sol, sensealg, timeObserved, solver, abstol, reltol,
-                                          force_dtmin, dtmin, maxiters, callback, compute∂G∂u)
+                                          force_dtmin, dtmin, maxiters, callback, compute∂G∂u!)
         status == false && return false
     else
         compute∂G∂u(du, sol[1], sol.prob.p, 0.0, 1)
@@ -259,14 +259,15 @@ function computeGradientAdjointExpCond!(gradient::Vector{Float64},
     # the gradient for these evaluate to NaN (as they where never thought to be estimated) which
     # results in the entire gradient evaluating to NaN. Hence, we perform this calculation outside
     # of the lower level interface.
-    ∂G∂p_ = petabODECache.∂G∂p_
+    ∂G∂p, ∂G∂p_ = petabODECache.∂G∂p_, petabODECache.∂G∂p
+    fill!(∂G∂p, 0.0)
     for i in eachindex(timeObserved)
         if onlyObsAtZero == false
-            compute∂G∂p(∂G∂p_, sol(timeObserved[i]), sol.prob.p, timeObserved[i], i)
+            compute∂G∂p!(∂G∂p_, sol(timeObserved[i]), sol.prob.p, timeObserved[i], i)
         else
-            compute∂G∂p(∂G∂p_, sol[1], sol.prob.p, timeObserved[i], i)
+            compute∂G∂p!(∂G∂p_, sol[1], sol.prob.p, timeObserved[i], i)
         end
-        dp .+= ∂G∂p_
+        ∂G∂p .+= ∂G∂p_
     end
 
     _gradient = petabODECache._gradientAdjoint
@@ -286,7 +287,7 @@ function computeGradientAdjointExpCond!(gradient::Vector{Float64},
 
     # Thus far have have computed dY/dθ, but for parameters on the log-scale we want dY/dθ_log. We can adjust via;
     # dY/dθ_log = log(10) * θ * dY/dθ
-    adjustGradientTransformedParameters!(gradient, _gradient, nothing, θ_dynamic, θ_indices,
+    adjustGradientTransformedParameters!(gradient, _gradient, ∂G∂p, θ_dynamic, θ_indices,
                                          simulationConditionId, adjoint=true)
     return true
 end

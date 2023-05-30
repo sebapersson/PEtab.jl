@@ -224,15 +224,16 @@ function computeGaussNewtonHessianApproximation!(out::Matrix{Float64},
     end
     @views ForwardDiff.jacobian!(jacobianGN[θ_indices.iθ_notOdeSystem, :]', computeResidualsNotSolveODE!, petabODECache.residualsGN, θ_est[θ_indices.iθ_notOdeSystem], cfgNotSolveODE)
 
-    if priorInfo.hasPriors == true
-        println("Warning : With Gauss Newton we do not support priors")
-    end
-
     # In case of testing we might want to return the jacobian, else we are interested in the Guass-Newton approximaiton.
     if returnJacobian == false
         out .= jacobianGN * transpose(jacobianGN)
     else
         out .= jacobianGN
+        # Even though this is a hessian approximation, due to ease of implementation and low run-time we compute the
+        # full hessian for the priors
+        if priorInfo.hasPriors == true
+            computeHessianPrior!(out, θ_est, θ_indices, priorInfo)
+        end
     end
 end
 

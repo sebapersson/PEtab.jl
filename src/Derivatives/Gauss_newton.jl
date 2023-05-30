@@ -81,14 +81,14 @@ function computeJacobianResidualsExpCond!(jacobian::AbstractMatrix,
     compute∂G∂u = (out, u, p, t, i, it) -> begin compute∂G∂_(out, u, p, t, i, it,
                                                              measurementInfo, parameterInfo,
                                                              θ_indices, petabModel,
-                                                             θ_dynamic, θ_sd, θ_observable, θ_nonDynamic,
+                                                             θ_sd, θ_observable, θ_nonDynamic,
                                                              petabODECache.∂h∂u, petabODECache.∂σ∂u, compute∂G∂U=true,
                                                              computeResiduals=true)
                                             end
     compute∂G∂p = (out, u, p, t, i, it) -> begin compute∂G∂_(out, u, p, t, i, it,
                                                              measurementInfo, parameterInfo,
                                                              θ_indices, petabModel,
-                                                             θ_dynamic, θ_sd, θ_observable, θ_nonDynamic,
+                                                             θ_sd, θ_observable, θ_nonDynamic,
                                                              petabODECache.∂h∂p, petabODECache.∂σ∂p, compute∂G∂U=false,
                                                              computeResiduals=true)
                                             end
@@ -99,8 +99,8 @@ function computeJacobianResidualsExpCond!(jacobian::AbstractMatrix,
 
     # Loop through solution and extract sensitivites
     nModelStates = length(petabModel.stateNames)
+    petabODECache.p .= dualToFloat.(sol.prob.p)
     p = petabODECache.p
-    p .= dualToFloat.(sol.prob.p)
     u = petabODECache.u
     ∂G∂p = petabODECache.∂G∂p
     ∂G∂u = petabODECache.∂G∂u
@@ -209,8 +209,7 @@ function computeResidualsExpCond!(residuals::AbstractVector,
         elseif measurementInfo.measurementTransformation[iMeasurement] == :log
             residuals[iMeasurement] = (hTransformed - measurementInfo.measurementT[iMeasurement]) / σ
         else
-            println("Transformation ", measurementInfo.measurementTransformation[iMeasurement], " not yet supported.")
-            return false
+            @error "Transformation ", measurementInfo.measurementTransformation[iMeasurement], " not yet supported."
         end
     end
     return true
