@@ -137,7 +137,6 @@ function adjustGradientTransformedParameters!(gradient::Union{AbstractVector, Su
     # Here both ∂G∂p and _gradient are on the same scale a odeProblem.p. One condition specific parameter 
     # can map to several parameters in odeProblem.p
     if adjoint == true || autoDiffSensitivites == false
-        println("Does not enter here")
         out = _adjustGradientTransformedParameters(_gradient[mapConditionId.iODEProblemθDynamic] .+ ∂G∂p[mapConditionId.iODEProblemθDynamic],
                                                    θ_dynamic[mapConditionId.iθDynamic],
                                                    θ_indices.θ_dynamicNames[mapConditionId.iθDynamic],
