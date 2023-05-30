@@ -9,6 +9,9 @@ import Base.show
 function getStringSolverOptions(a::ODESolverOptions)
     solverStr = string(a.solver)
     iEnd = findfirst(x -> x == '{', solverStr)
+    if isnothing(iEnd)
+        iEnd = findfirst(x -> x == '(', solverStr)
+    end
     solverStrWrite = solverStr[1:iEnd-1] * "()"
     optionsStr = @sprintf("(abstol, reltol, maxiters) = (%.1e, %.1e, %.1e)", a.abstol, a.reltol, a.maxiters)
     return solverStrWrite, optionsStr
