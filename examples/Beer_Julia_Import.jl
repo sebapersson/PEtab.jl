@@ -28,7 +28,7 @@ using Printf
 
 pathYaml = joinpath(@__DIR__, "Beer", "Beer_MolBioSystems2014.yaml") # @__DIR__ = file directory
 pathJuliaFile = joinpath(@__DIR__, "Beer", "Julia_import_files", "Beer_Julia_Import.jl")
-petabModel = readPEtabModel(pathYaml, verbose=true, jlFile=true, jlFilePath=pathJuliaFile)
+petabModel = readPEtabModel(pathYaml, verbose=true, jlFilePath=pathJuliaFile)
 
 #=
     The cost of the imported model is calculated. 
