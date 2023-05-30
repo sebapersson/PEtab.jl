@@ -34,7 +34,7 @@ using Test
     petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=false)
     petabProblem = createPEtabODEProblem(petabModel, verbose=false)
     @test petabProblem.gradientMethod === :Adjoint
-    @test petabProblem.hessianMethod === :nothing
+    @test petabProblem.hessianMethod === :GaussNewton
     @test typeof(petabProblem.odeSolverOptions.solver) <: CVODE_BDF
     petabProblem = createPEtabODEProblem(petabModel, gradientMethod=:ForwardDiff, verbose=false)
     @test typeof(petabProblem.odeSolverOptions.solver) <: KenCarp4

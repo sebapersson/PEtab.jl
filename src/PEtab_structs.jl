@@ -77,6 +77,21 @@ struct PEtabModel{F1<:Function,
 end
 
 
+"""
+    ODESolverOptions(solver, <keyword arguments>)
+
+ODE-solver options (solver, tolerances, etc...) to use when computing gradient/cost for a PEtabODEProblem.
+
+More information about the available options and solvers can be found in the documentation for DifferentialEquations.jl (https://docs.sciml.ai/DiffEqDocs/stable/solvers/ode_solve/). Recommended settings for which solver and options to use for different problems can be found below and in the documentation.
+
+# Arguments
+- `solver`: Any of the ODE solvers in DifferentialEquations.jl. For small (≤20 states) mildly stiff models, composite solvers such as `AutoVern7(Rodas5P())` perform well. For stiff small models, `Rodas5P()` performs well. For medium-sized models (≤75 states), `QNDF()`, `FBDF()`, and `CVODE_BDF()` perform well. `CVODE_BDF()` is not compatible with automatic differentiation and thus cannot be used if the gradient is computed via automatic differentiation or if the Gauss-Newton Hessian approximation is used. If the gradient is computed via adjoint sensitivity analysis, `CVODE_BDF()` is often the best choice as it is typically more reliable than `QNDF()` and `FBDF()` (fails less often).
+- `abstol=1e-8`: Absolute tolerance when solving the ODE system. Not recommended to increase above 1e-6 for gradients. 
+- `reltol=1e-8`: Relative tolerance when solving the ODE system. Not recommended to increase above 1e-6 for gradients. 
+- `force_dtmin=false`: Whether or not to force `dtmin` when solving the ODE system.
+- `dtmin=nothing`: Minimal acceptable step-size when solving the ODE system.
+- `maxiters=10000`: Maximum number of iterations when solving the ODE system. Increasing above the default value can cause the optimization to take substantial time.
+"""
 mutable struct ODESolverOptions
     solver::SciMLAlgorithm
     abstol::Float64
@@ -85,8 +100,36 @@ mutable struct ODESolverOptions
     dtmin::Union{Float64, Nothing}
     maxiters::Int64    
 end
+function ODESolverOptions(solver::T1; 
+                          abstol::Float64=1e-8, 
+                          reltol::Float64=1e-8, 
+                          force_dtmin::Bool=false, 
+                          dtmin::Union{Float64, Nothing}=nothing, 
+                          maxiters::Int64=Int64(1e4)) where T1 <: SciMLAlgorithm 
+
+    return ODESolverOptions(solver, abstol, reltol, force_dtmin, dtmin, maxiters)
+end
 
 
+"""
+    SteadyStateSolverOptions(method::Symbol;
+                             howCheckSimulationReachedSteadyState::Symbol=:wrms,
+                             rootfindingAlgorithm=nothing,
+                             abstol=nothing, 
+                             reltol=nothing, 
+                             maxiters=nothing)
+
+Setup options for finding steady-state via either `method=:Rootfinding` or `method=:Simulate`.
+
+For `method=:Rootfinding`, the steady-state `u*` is found by solving the problem `du = f(u, p, t) ≈ 0` with tolerances `abstol` and `reltol` via an automatically chosen optimization algorithm (`rootfindingAlgorithm=nothing`) or via any algorithm in NonlinearSolve.jl. 
+
+For `method=:Simulate`, the steady-state `u*` is found by simulating the ODE system until `du = f(u, p, t) ≈ 0`. Two options are available for `howCheckSimulationReachedSteadyState`:
+- `:wrms` : Weighted root-mean square √(∑((du ./ (reltol * u .+ abstol)).^2) / length(u)) < 1
+- `:Newton` : If Newton-step `Δu` is sufficiently small √(∑((Δu ./ (reltol * u .+ abstol)).^2) / length(u)) < 1. 
+        - Newton often performs better but requires an invertible Jacobian. In case it's not fulfilled, the code switches automatically to `:wrms`.    
+
+`maxiters` refers to either the maximum number of rootfinding steps or the maximum number of integration steps, depending on the chosen method.        
+"""
 struct SteadyStateSolverOptions{T1 <: Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}, 
                                 T2 <: Union{Nothing, AbstractFloat},
                                 T3 <: Union{Nothing, NonlinearProblem}, 
@@ -100,6 +143,21 @@ struct SteadyStateSolverOptions{T1 <: Union{Nothing, NonlinearSolve.AbstractNonl
     maxiters::T4
     callbackSS::CA
     nonlinearSolveProblem::T3
+end
+function SteadyStateSolverOptions(method::Symbol;
+                                  howCheckSimulationReachedSteadyState::Symbol=:wrms,
+                                  rootfindingAlgorithm::Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}=nothing,
+                                  abstol=nothing, 
+                                  reltol=nothing, 
+                                  maxiters::Union{Nothing, Int64}=nothing)::SteadyStateSolverOptions
+
+    @assert method ∈ [:Rootfinding, :Simulate] "Method used to find steady state can either be :Rootfinding or :Simulate not $method"
+    
+    if method === :Simulate
+        return _getSteadyStateSolverOptions(howCheckSimulationReachedSteadyState, abstol, reltol, maxiters)
+    else
+        return _getSteadyStateSolverOptions(rootfindingAlgorithm, abstol, reltol, maxiters)
+    end
 end
 
 

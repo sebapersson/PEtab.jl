@@ -75,7 +75,7 @@ function computeCostSolveODE(θ_dynamic::AbstractVector,
         success = solveODEAllExperimentalConditions!(simulationInfo.odeSolutions, _odeProblem, petabModel, θ_dynamicT, petabODESolverCache, simulationInfo, θ_indices, odeSolverOptions, ssSolverOptions, expIDSolve=expIDSolve, denseSolution=false, onlySaveAtObservedTimes=true)
     end
     if success != true
-        println("Failed to solve ODE model")
+        @warn "Failed to solve ODE model"
         return Inf
     end
 

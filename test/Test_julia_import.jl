@@ -27,25 +27,25 @@ end
     # Beer model - Numerically challenging gradient as we have callback rootfinding
     pathYML = joinpath(@__DIR__, "JuliaImport", "Beer", "Beer_MolBioSystems2014.yaml")
     pathJuliaFile = joinpath(@__DIR__, "JuliaImport", "Beer", "Beer.jl")
-    petabModel = readPEtabModel(pathYML, verbose=false, jlFile=true, jlFilePath=pathJuliaFile)
+    petabModel = readPEtabModel(pathYML, verbose=false, jlFilePath=pathJuliaFile)
     testLogLikelihoodValue(petabModel, -58622.9145631413)
     
     # Boehm model 
     pathYML = joinpath(@__DIR__, "JuliaImport", "Boehm", "Boehm_JProteomeRes2014.yaml")
     pathJuliaFile = joinpath(@__DIR__, "JuliaImport", "Boehm", "Boehm.jl")
-    petabModel = readPEtabModel(pathYML, verbose=false, jlFile=true, jlFilePath=pathJuliaFile)
+    petabModel = readPEtabModel(pathYML, verbose=false, jlFilePath=pathJuliaFile)
     testLogLikelihoodValue(petabModel, 138.22199693517703)
     
     # Brännmark model. Model has pre-equlibration criteria so here we test all gradients. Challenging to compute gradients.
     pathYML = joinpath(@__DIR__, "JuliaImport", "Brannmark", "Brannmark_JBC2010.yaml")
     pathJuliaFile = joinpath(@__DIR__, "JuliaImport", "Brannmark", "Brannmark.jl")
-    petabModel = readPEtabModel(pathYML, verbose=false, jlFile=true, jlFilePath=pathJuliaFile)
+    petabModel = readPEtabModel(pathYML, verbose=false, jlFilePath=pathJuliaFile)
     testLogLikelihoodValue(petabModel, 141.889113770537)
     
     # Fujita model. Challangeing to compute accurate gradients  
     pathYML = joinpath(@__DIR__, "JuliaImport", "Fujita", "Fujita_SciSignal2010.yaml")
     pathJuliaFile = joinpath(@__DIR__, "JuliaImport", "Fujita", "Fujita.jl")
-    petabModel = readPEtabModel(pathYML, verbose=false, jlFile=true, jlFilePath=pathJuliaFile)
+    petabModel = readPEtabModel(pathYML, verbose=false, jlFilePath=pathJuliaFile)
     testLogLikelihoodValue(petabModel, -53.08377736998929)
     
 end

@@ -49,6 +49,7 @@ include(joinpath("Derivatives", "ForwardDiff_run_over_chunks.jl"))
 
 # Files related to solving the ODE-system
 include(joinpath("Solve_ODE", "Change_experimental_condition.jl"))
+include(joinpath("Solve_ODE", "Helper.jl"))
 include(joinpath("Solve_ODE", "Solve_ode_Zygote.jl"))
 include(joinpath("Solve_ODE", "Solve_ode_model.jl"))
 include(joinpath("Solve_ODE", "Solve_for_steady_state.jl"))
@@ -69,7 +70,9 @@ include(joinpath("Process_PEtab_files", "Observables", "Create_u0_h_sigma.jl"))
 include(joinpath("Process_PEtab_files", "Read_PEtab_files.jl"))
 
 # For creating a PEtab ODE problem
-include(joinpath("Create_PEtab_ODEProblem.jl"))
+include(joinpath("Create_PEtabODEProblem", "Set_defaults.jl"))
+include(joinpath("Create_PEtabODEProblem", "Remake_PEtabODEProblem.jl"))
+include(joinpath("Create_PEtabODEProblem", "Create_PEtab_ODEProblem.jl"))
 
 # Creating the PEtab model
 include("Create_PEtab_model.jl")
@@ -86,6 +89,10 @@ include(joinpath("Optimization", "Setup_fides.jl"))
 include(joinpath("Optimization", "Callibration.jl"))
 include(joinpath("PEtab_select", "PEtab_select.jl"))
 
+# For correct struct printing 
+include(joinpath("Show.jl"))
+
+#=
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem 
 @setup_workload begin
     pathYAML = joinpath(@__DIR__, "..", "test", "Test_model3", "Test_model3.yaml")
@@ -95,6 +102,7 @@ include(joinpath("PEtab_select", "PEtab_select.jl"))
         petabProblem.computeCost(petabProblem.θ_nominalT)
     end
 end
+=#
 
 export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, createOptimProblem, createFidesProblem, callibrateModel, remakePEtabProblem, Fides, runPEtabSelect
 
