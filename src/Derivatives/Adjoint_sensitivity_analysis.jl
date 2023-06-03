@@ -62,7 +62,7 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
                                                  petabModel, θ_indices, measurementInfo, parameterInfo, evalVJPSS)
 
         if success == false
-            gradient .= 1e8
+            gradient .= 0.0
             return
         end
     end

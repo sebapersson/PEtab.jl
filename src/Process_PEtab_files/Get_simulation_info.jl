@@ -98,6 +98,7 @@ function processSimulationInfo(petabModel::PEtabModel,
                                     odeSolutions,
                                     odeSolutionsDerivatives,
                                     odePreEqulibriumSolutions,
+                                    [true], # Bool tracking if we could solve ODE 
                                     timeMax,
                                     timeObserved,
                                     iMeasurementsObserved,

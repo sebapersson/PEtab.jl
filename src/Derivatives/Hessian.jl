@@ -12,7 +12,10 @@ function computeHessian!(hessian::Matrix{Float64},
                          θ_indices::ParameterIndices,
                          priorInfo::PriorInfo)
 
-    # Only try to compute hessian if we could compute the cost
+    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
+    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
+    # retcode we cannot catch these cases 
+    simulationInfo.couldSolve[1] = true
     if all([simulationInfo.odeSolutions[id].retcode == ReturnCode.Success || simulationInfo.odeSolutions[id].retcode == ReturnCode.Terminated for id in simulationInfo.experimentalConditionId])
         try
             ForwardDiff.hessian!(hessian, _evalHessian, θ_est, cfg)
@@ -22,6 +25,12 @@ function computeHessian!(hessian::Matrix{Float64},
         end
     else
         hessian .= 0.0
+    end
+
+    # Check if we could solve the ODE (first), and if Inf was returned (second)
+    if simulationInfo.couldSolve[1] != true
+        hessian .= 0.0
+        return
     end
 
     if priorInfo.hasPriors == true
@@ -40,6 +49,11 @@ function computeHessianSplitOverConditions!(hessian::Matrix{Float64},
                                             θ_indices::ParameterIndices,
                                             priorInfo::PriorInfo,
                                             expIDSolve::Vector{Symbol} = [:all])
+
+    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
+    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
+    # retcode we cannot catch these cases                                             
+    simulationInfo.couldSolve[1] = true                                            
 
     hessian .= 0.0
     for conditionId in simulationInfo.experimentalConditionId
@@ -66,6 +80,12 @@ function computeHessianSplitOverConditions!(hessian::Matrix{Float64},
         end
     end
 
+    # Check if we could solve the ODE (first), and if Inf was returned (second)
+    if simulationInfo.couldSolve[1] != true
+        hessian .= 0.0
+        return
+    end
+
     if priorInfo.hasPriors == true
         computeHessianPrior!(hessian, θ_est, θ_indices, priorInfo)
     end
@@ -82,6 +102,11 @@ function computeHessianBlockApproximation!(hessian::Matrix{Float64},
                                            θ_indices::ParameterIndices,
                                            priorInfo::PriorInfo;
                                            expIDSolve::Vector{Symbol} = [:all])
+
+    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
+    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
+    # retcode we cannot catch these cases                                            
+    simulationInfo.couldSolve[1] = true
 
     # Avoid incorrect non-zero values
     hessian .= 0.0
@@ -101,11 +126,8 @@ function computeHessianBlockApproximation!(hessian::Matrix{Float64},
     end
 
     # Check if we could solve the ODE (first), and if Inf was returned (second)
-    if couldSolveODEModel(simulationInfo, expIDSolve) == false
+    if simulationInfo.couldSolve[1] != true
         hessian .= 0.0
-        return
-    end
-    if !isempty(θ_dynamic) && all((@view hessian[θ_indices.iθ_dynamic, θ_indices.iθ_dynamic]) .== 0.0)
         return
     end
 
@@ -128,6 +150,11 @@ function computeHessianBlockApproximationSplitOverConditions!(hessian::Matrix{Fl
                                                               θ_indices::ParameterIndices,
                                                               priorInfo::PriorInfo;
                                                               expIDSolve::Vector{Symbol} = [:all])
+
+    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
+    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
+    # retcode we cannot catch these cases                                                               
+    simulationInfo.couldSolve[1] = true
 
     # Avoid incorrect non-zero values
     hessian .= 0.0
@@ -159,11 +186,8 @@ function computeHessianBlockApproximationSplitOverConditions!(hessian::Matrix{Fl
     end
 
     # Check if we could solve the ODE (first), and if Inf was returned (second)
-    if couldSolveODEModel(simulationInfo, expIDSolve) == false
+    if simulationInfo.couldSolve[1] != true
         hessian .= 0.0
-        return
-    end
-    if all((@view hessian[θ_indices.iθ_dynamic, θ_indices.iθ_dynamic]) .== 0.0)
         return
     end
 

@@ -172,6 +172,7 @@ struct SimulationInfo{T1<:Dict{<:Symbol, <:SciMLBase.DECallback},
     odeSolutions::Dict{Symbol, Union{Nothing, ODESolution}}
     odeSolutionsDerivatives::Dict{Symbol, Union{Nothing, ODESolution}}
     odePreEqulibriumSolutions::Dict{Symbol, Union{Nothing, ODESolution, SciMLBase.NonlinearSolution}}
+    couldSolve::Vector{Bool}
     timeMax::Dict{Symbol, Float64}
     timeObserved::Dict{Symbol, Vector{Float64}}
     iMeasurements::Dict{Symbol, Vector{Int64}}

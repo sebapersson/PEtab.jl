@@ -56,9 +56,11 @@ function solveODEAllExperimentalConditions!(odeSolutions::Dict{Symbol, Union{Not
                                                                                petabModel.convertTspan)
             catch e
                 checkError(e)
+                simulationInfo.couldSolve[1] = false
                 return false
             end
             if simulationInfo.odePreEqulibriumSolutions[preEquilibrationId[i]].retcode != ReturnCode.Terminated
+                simulationInfo.couldSolve[1] = false
                 return false
             end
         end
@@ -99,9 +101,11 @@ function solveODEAllExperimentalConditions!(odeSolutions::Dict{Symbol, Union{Not
                                                                       petabModel.convertTspan)
             catch e
                 checkError(e)
+                simulationInfo.couldSolve[1] = false
                 return false
             end
             if odeSolutions[experimentalId].retcode != ReturnCode.Success
+                simulationInfo.couldSolve[1] = false
                 return false
             end
 
@@ -121,10 +125,12 @@ function solveODEAllExperimentalConditions!(odeSolutions::Dict{Symbol, Union{Not
                                                                        petabModel.convertTspan)
             catch e
                 checkError(e)
+                simulationInfo.couldSolve[1] = false
                 return false
             end
             retcode = odeSolutions[experimentalId].retcode
             if !(retcode == ReturnCode.Success || retcode == ReturnCode.Terminated)
+                simulationInfo.couldSolve[1] = false
                 return false
             end
         end
