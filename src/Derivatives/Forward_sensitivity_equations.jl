@@ -97,6 +97,10 @@ function solveForSensitivites(odeProblem::ODEProblem,
                               splitOverConditions::Bool,
                               isRemade::Bool=false)
 
+    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
+    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
+    # retcode we cannot catch these cases                               
+    simulationInfo.couldSolve[1] = true                              
     petabODECache.S .= 0.0
     if splitOverConditions == false
 
@@ -155,20 +159,7 @@ function solveForSensitivites(odeProblem::ODEProblem,
         end
     end
 
-    # Check retcode of sensitivity matrix ODE solutions
-    success::Bool = true
-    for experimentalId in simulationInfo.experimentalConditionId
-        if expIDSolve[1] != :all && experimentalId ∉ expIDSolve
-            continue
-        end
-        retcode = simulationInfo.odeSolutionsDerivatives[experimentalId].retcode
-        if !(retcode == ReturnCode.Success || retcode == ReturnCode.Terminated)
-            success = false
-            break
-        end
-    end
-
-    return success
+    return simulationInfo.couldSolve[1]
 end
 
 

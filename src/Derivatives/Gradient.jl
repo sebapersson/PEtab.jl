@@ -21,6 +21,10 @@ function computeGradientAutoDiff!(gradient::Vector{Float64},
 
     fill!(gradient, 0.0)
     splitParameterVector!(θ_est, θ_indices, petabODECache)
+    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
+    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
+    # retcode we cannot catch these cases 
+    simulationInfo.couldSolve[1] = true
 
     # Case where based on the original PEtab file read into Julia we do not have any parameter vectors fixated.
     if isRemade == false || length(petabODECache.gradientDyanmicθ) == petabODECache.nθ_dynamicEst[1]
@@ -61,13 +65,9 @@ function computeGradientAutoDiff!(gradient::Vector{Float64},
     end
 
     # Check if we could solve the ODE (first), and if Inf was returned (second)
-    if couldSolveODEModel(simulationInfo, expIDSolve) == false
+    if simulationInfo.couldSolve[1] != true
         gradient .= 0.0
-        return
-    end
-    if !isempty(petabODECache.gradientDyanmicθ) && all(petabODECache.gradientDyanmicθ .== 0.0) && petabODECache.nθ_dynamicEst[1] != 0
-        gradient .= 0.0
-        return
+        return 
     end
 
     θ_notOdeSystem = @view θ_est[θ_indices.iθ_notOdeSystem]
@@ -93,6 +93,11 @@ function computeGradientAutoDiffSplitOverConditions!(gradient::Vector{Float64},
                                                      θ_indices::ParameterIndices,
                                                      priorInfo::PriorInfo,
                                                      expIDSolve=[:all])
+
+    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
+    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
+    # retcode we cannot catch these cases                                                         
+    simulationInfo.couldSolve[1] = true                                                     
 
     splitParameterVector!(θ_est, θ_indices, petabODECache)
     θ_dynamic = petabODECache.θ_dynamic
@@ -120,13 +125,9 @@ function computeGradientAutoDiffSplitOverConditions!(gradient::Vector{Float64},
     end
 
     # Check if we could solve the ODE (first), and if Inf was returned (second)
-    if couldSolveODEModel(simulationInfo, expIDSolve) == false
-        gradient .= 1e8
-        return
-    end
-    if !isempty(petabODECache.gradientDyanmicθ) && all(petabODECache.gradientDyanmicθ .== 0.0)
-        gradient .= 1e8
-        return
+    if simulationInfo.couldSolve[1] != true
+        gradient .= 0.0
+        return 
     end
     @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ
 
@@ -160,6 +161,11 @@ function computeGradientForwardEquations!(gradient::Vector{Float64},
                                           expIDSolve::Vector{Symbol} = [:all],
                                           isRemade::Bool=false)
 
+    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
+    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
+    # retcode we cannot catch these cases                                             
+    simulationInfo.couldSolve[1] = true
+
     splitParameterVector!(θ_est, θ_indices, petabODECache)
     θ_dynamic = petabODECache.θ_dynamic
     θ_observable = petabODECache.θ_observable
@@ -174,8 +180,8 @@ function computeGradientForwardEquations!(gradient::Vector{Float64},
     @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ
 
     # Happens when at least one forward pass fails and I set the gradient to 1e8
-    if !isempty(petabODECache.gradientDyanmicθ) && all(petabODECache.gradientDyanmicθ .== 1e8)
-        gradient .= 1e8
+    if !isempty(petabODECache.gradientDyanmicθ) && all(petabODECache.gradientDyanmicθ .== 0.0)
+        gradient .= 0.0
         return
     end
 
@@ -222,8 +228,8 @@ function computeGradientAdjointEquations!(gradient::Vector{Float64},
     @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ
 
     # Happens when at least one forward pass fails and I set the gradient to 1e8
-    if !isempty(petabODECache.gradientDyanmicθ) && all(petabODECache.gradientDyanmicθ .== 1e8)
-        gradient .= 1e8
+    if !isempty(petabODECache.gradientDyanmicθ) && all(petabODECache.gradientDyanmicθ .== 0.0)
+        gradient .= 0.0
         return
     end
 

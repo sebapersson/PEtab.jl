@@ -14,20 +14,6 @@ function getIndicesParametersNotInODESystem(θ_indices::ParameterIndices)::Tuple
 end
 
 
-function couldSolveODEModel(simulationInfo::SimulationInfo, expIDSolve::Vector{Symbol})::Bool
-    for experimentalId in simulationInfo.experimentalConditionId
-        if !(expIDSolve[1] == :all || experimentalId ∈ expIDSolve)
-            continue
-        end
-        if !(simulationInfo.odeSolutionsDerivatives[experimentalId].retcode == ReturnCode.Success ||
-             simulationInfo.odeSolutionsDerivatives[experimentalId].retcode == ReturnCode.Terminated)
-            return false
-        end
-    end
-    return true
-end
-
-
 # Function to compute ∂G∂u and ∂G∂p for an observation assuming a fixed ODE-solution
 function compute∂G∂_(∂G∂_,
                      u::AbstractVector,
