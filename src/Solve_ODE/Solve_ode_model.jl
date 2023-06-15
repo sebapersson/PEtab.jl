@@ -275,7 +275,7 @@ function solveODEPostEqulibrium(odeProblem::ODEProblem,
 
     # If case of adjoint sensitivity analysis we need to track the callback to get correct gradients
     tStops = computeTStops(_odeProblem.u0, _odeProblem.p)
-    callbackSet = getCallbackSet(_odeProblem, simulationInfo, experimentalId, trackCallback)
+    callbackSet = getCallbackSet(_odeProblem, simulationInfo, experimentalId, simulationInfo.sensealg)
     sol = computeODESolution(_odeProblem, odeSolverOptions.solver, odeSolverOptions, odeSolverOptions.abstol, odeSolverOptions.reltol,
                              tSave, denseSolution, callbackSet, tStops)
 
@@ -302,7 +302,7 @@ function solveODENoPreEqulibrium(odeProblem::ODEProblem,
     @views _odeProblem.u0 .= odeProblem.u0[:] # Required remake does not handle Senstivity-problems correctly
 
     tStops = computeTStops(_odeProblem.u0, _odeProblem.p)
-    callbackSet = getCallbackSet(_odeProblem, simulationInfo, simulationConditionId, trackCallback)
+    callbackSet = getCallbackSet(_odeProblem, simulationInfo, simulationConditionId, simulationInfo.sensealg)
     sol = computeODESolution(_odeProblem, odeSolverOptions.solver, odeSolverOptions, odeSolverOptions.abstol, odeSolverOptions.reltol,
                              tSave, denseSolution, callbackSet, tStops)
 

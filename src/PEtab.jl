@@ -4,7 +4,6 @@ using PyCall
 using ModelingToolkit
 using CSV
 using SciMLBase
-using SciMLSensitivity
 using OrdinaryDiffEq
 using DiffEqCallbacks
 using SteadyStateDiffEq
@@ -103,5 +102,9 @@ include(joinpath("Show.jl"))
 end
 
 export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, createOptimProblem, createFidesProblem, callibrateModel, remakePEtabProblem, Fides, runPEtabSelect
+
+if !isdefined(Base, :get_extension)
+    include(joinpath(@__DIR__, "..", "ext",  "SciMLSensitivityExtension.jl"))
+end
 
 end

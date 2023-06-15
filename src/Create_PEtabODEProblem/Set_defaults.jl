@@ -87,24 +87,18 @@ end
 
 
 function setSensealg(sensealg,
-                     gradientMethod::Symbol)
+                     gradientMethod)
 
     # Sanity check user gradient input
     if !isnothing(sensealg)
         if gradientMethod === :ForwardEquations
             @assert sensealg == :ForwardDiff || any(typeof(sensealg) .<: [ForwardSensitivity, ForwardDiffSensitivity]) "For gradient method :ForwardEquations allowed sensealg args are :ForwardDiff, ForwardSensitivity(), ForwardDiffSensitivity() not $sensealg"
         end
-        if gradientMethod === :Adjoint
-            @assert any(typeof(sensealg) .<: [InterpolatingAdjoint, QuadratureAdjoint]) "For gradient method :Adjoint allowed sensealg args are InterpolatingAdjoint, QuadratureAdjoint not $sensealg"
-        end
+        
         if gradientMethod === :Zygote
             @assert (typeof(sensealg) <: SciMLSensitivity.AbstractSensitivityAlgorithm) "For Zygote an abstract sensitivity algorithm from SciMLSensitivity must be used"
         end
         return sensealg
-    end
-
-    if gradientMethod === :Adjoint
-        return InterpolatingAdjoint(autojacvec=ReverseDiffVJP())
     end
 
     if gradientMethod === :ForwardDiff || gradientMethod === :ForwardEquations
