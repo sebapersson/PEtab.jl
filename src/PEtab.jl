@@ -40,7 +40,6 @@ include(joinpath("Compute_cost", "Compute_cost_zygote.jl"))
 # Files related to computing derivatives
 include(joinpath("Derivatives", "Hessian.jl"))
 include(joinpath("Derivatives", "Gradient.jl"))
-include(joinpath("Derivatives", "Adjoint_sensitivity_analysis.jl"))
 include(joinpath("Derivatives", "Forward_sensitivity_equations.jl"))
 include(joinpath("Derivatives", "Gauss_newton.jl"))
 include(joinpath("Derivatives", "Common.jl"))
@@ -104,7 +103,7 @@ end
 export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, createOptimProblem, createFidesProblem, callibrateModel, remakePEtabProblem, Fides, runPEtabSelect
 
 if !isdefined(Base, :get_extension)
-    include(joinpath(@__DIR__, "..", "ext",  "SciMLSensitivityExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "SciMLSensitivityExtension.jl"))
 end
 
 end

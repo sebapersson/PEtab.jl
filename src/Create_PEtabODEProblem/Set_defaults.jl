@@ -64,6 +64,10 @@ function setGradientMethod(gradientMethod::Union{Symbol, Nothing},
     end
 
     if modelSize === :Large
+        if "SciMLSensitivity" ∉ string.(values(Base.loaded_modules)) 
+            @warn "For large models adjoint sensitivity analysis is the best gradient method. To allow this to be set by default load SciMLSensitivity via using SciMLSensitivity"
+            return :ForwardDiff
+        end
         return :Adjoint
     end
 end

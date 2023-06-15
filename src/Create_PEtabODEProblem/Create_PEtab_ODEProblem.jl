@@ -67,6 +67,10 @@ function createPEtabODEProblem(petabModel::PEtabModel;
     @assert gradientMethod ∈ allowedGradientMethods "Allowed gradient methods are " * string(allowedGradientMethods) * " not " * string(gradientMethod)
     @assert hessianMethod ∈ allowedHessianMethods "Allowed hessian methods are " * string(allowedHessianMethods) * " not " * string(hessianMethod)
 
+    if gradientMethod === :Adjoint
+        @assert "SciMLSensitivity" ∈ string.(values(Base.loaded_modules)) "To use adjoint sensitivity analysis SciMLSensitivity must be loaded"
+    end
+
     # Structs to bookep parameters, measurements, observations etc...
     experimentalConditions, measurementsData, parametersData, observablesData = readPEtabFiles(petabModel)
     parameterInfo = processParameters(parametersData, customParameterValues=customParameterValues)
@@ -93,8 +97,6 @@ function createPEtabODEProblem(petabModel::PEtabModel;
     _sparseJacobian = !isnothing(sparseJacobian) ? sparseJacobian : (modelSize === :Large ? true : false)
 
     simulationInfo = processSimulationInfo(petabModel, measurementInfo, sensealg=_sensealg)
-
-    println("_sensealg = ", _sensealg)
 
     # The time-span 5e3 is overwritten when performing forward simulations. As we solve an expanded system with the forward
     # equations, we need a seperate problem for it
