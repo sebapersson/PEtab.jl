@@ -101,7 +101,7 @@ export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, 
 
 if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "SciMLSensitivityExtension.jl"))
-    include(joinpath(@__DIR__, "..", "ext", "ZygoteExtensions.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "ZygoteExtension.jl"))
 end
 
 end
