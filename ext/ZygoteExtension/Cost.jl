@@ -1,3 +1,75 @@
+function computeCostZygote(θ_est,
+                           odeProblem::ODEProblem,
+                           petabModel::PEtabModel,
+                           simulationInfo::PEtab.SimulationInfo,
+                           θ_indices::PEtab.ParameterIndices,
+                           measurementInfo::PEtab.MeasurementsInfo,
+                           parameterInfo::PEtab.ParametersInfo,
+                           changeODEProblemParameters::Function,
+                           solveOdeModelAllConditions::Function,
+                           priorInfo::PEtab.PriorInfo)
+
+    θ_dynamic, θ_observable, θ_sd, θ_nonDynamic = PEtab.splitParameterVector(θ_est, θ_indices)
+
+    cost = _computeCostZygote(θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, odeProblem,
+                              petabModel, simulationInfo, θ_indices, measurementInfo,
+                              parameterInfo, changeODEProblemParameters, solveOdeModelAllConditions)
+
+    if priorInfo.hasPriors == true
+        θ_estT = transformθZygote(θ_est, θ_indices.θ_estNames, parameterInfo)
+        cost -= computePriors(θ_est, θ_estT, θ_indices.θ_estNames, priorInfo)
+    end
+
+    return cost
+end
+
+
+# Computes the likelihood in such a in a Zygote compatible way, which mainly means that no arrays are mutated.
+function _computeCostZygote(θ_dynamic,
+                            θ_sd,
+                            θ_observable,
+                            θ_nonDynamic,
+                            odeProblem::ODEProblem,
+                            petabModel::PEtabModel,
+                            simulationInfo::PEtab.SimulationInfo,
+                            θ_indices::PEtab.ParameterIndices,
+                            measurementInfo::PEtab.MeasurementsInfo,
+                            parameterInfo::PEtab.ParametersInfo,
+                            changeODEProblemParameters::Function,
+                            solveOdeModelAllConditions::Function)::Real
+
+    θ_dynamicT = transformθZygote(θ_dynamic, θ_indices.θ_dynamicNames, parameterInfo)
+    θ_sdT = transformθZygote(θ_sd, θ_indices.θ_sdNames, parameterInfo)
+    θ_observableT = transformθZygote(θ_observable, θ_indices.θ_observableNames, parameterInfo)
+    θ_nonDynamicT = transformθZygote(θ_nonDynamic, θ_indices.θ_nonDynamicNames, parameterInfo)
+
+    _p, _u0 = changeODEProblemParameters(odeProblem.p, θ_dynamicT)
+    _odeProblem = remake(odeProblem, p = convert.(eltype(θ_dynamic), _p), u0 = convert.(eltype(θ_dynamic), _u0))
+
+    # Compute yMod and sd-val by looping through all experimental conditons. At the end
+    # update the likelihood
+    cost = convert(eltype(θ_dynamic), 0.0)
+    for experimentalConditionId in simulationInfo.experimentalConditionId
+
+        tMax = simulationInfo.timeMax[experimentalConditionId]
+        odeSolution, success = solveOdeModelAllConditions(_odeProblem, experimentalConditionId, θ_dynamicT, tMax)
+        if success != true
+            return Inf
+        end
+
+        cost += PEtab.computeCostExpCond(odeSolution, _p, θ_sdT, θ_observableT, θ_nonDynamicT, petabModel,
+                                         experimentalConditionId, θ_indices, measurementInfo, parameterInfo, simulationInfo,
+                                         computeGradientθDynamicZygote=true)
+
+        if isinf(cost)
+            return cost
+        end
+    end
+
+    return cost
+end
+
+
 # Solve the ODE system for one experimental conditions in a Zygote compatible manner. Not well maintained and lacks
 # full support because Zygote code is currently the slowest (by far)
 function solveOdeModelAtExperimentalCondZygote(odeProblem::ODEProblem,
@@ -5,8 +77,8 @@ function solveOdeModelAtExperimentalCondZygote(odeProblem::ODEProblem,
                                                dynParamEst,
                                                t_max,
                                                changeToExperimentalCondUsePre::Function,
-                                               measurementInfo::MeasurementsInfo,
-                                               simulationInfo::SimulationInfo,
+                                               measurementInfo::PEtab.MeasurementsInfo,
+                                               simulationInfo::PEtab.SimulationInfo,
                                                solver::Union{SciMLAlgorithm, Vector{Symbol}},
                                                absTol::Float64,
                                                relTol::Float64,
@@ -119,3 +191,4 @@ function solveOdeModelAtExperimentalCondZygote(odeProblem::ODEProblem,
 
     return sol, success
 end
+

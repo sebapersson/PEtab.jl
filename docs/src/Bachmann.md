@@ -14,7 +14,6 @@ First, we'll read the model and load the necessary libraries.
 using PEtab
 using OrdinaryDiffEq
 using Sundials # For CVODE_BDF
-using SciMLSensitivity # For adjoint
 using Printf
  
 pathYaml = joinpath(@__DIR__, "Bachmann", "Bachmann_MSB2011.yaml") 
@@ -40,6 +39,7 @@ Here are a few things to keep in mind:
 * **Note3:** In the example below, we use `QNDF()` for the cost, which is often one of the best Julia solvers for larger models.
 
 ```julia
+using SciMLSensitivity # For adjoint
 petabProblem = createPEtabODEProblem(petabModel, 
                                      odeSolverOptions=ODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8), 
                                      odeSolverGradientOptions=ODESolverOptions(CVODE_BDF(), abstol=1e-8, reltol=1e-8),

@@ -5,6 +5,8 @@
 
 
 using PEtab
+using Zygote 
+using SciMLSensitivity
 using OrdinaryDiffEq
 using Sundials
 using Test

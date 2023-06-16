@@ -7,6 +7,7 @@
 using PEtab
 using Test
 using OrdinaryDiffEq
+using Zygote 
 using SciMLSensitivity
 using CSV
 using ForwardDiff
@@ -55,7 +56,8 @@ function testGradientFiniteDifferences(petabModel::PEtabModel, solverOptions;
                                           gradientMethod=:ForwardDiff,
                                           splitOverConditions=splitOverConditions,
                                           ssSolverOptions=ssOptions,
-                                          verbose=false)
+                                          verbose=false, 
+                                          sparseJacobian=false)
     θ_use = petabProblem1.θ_nominalT
     gradientFinite = FiniteDifferences.grad(central_fdm(5, 1), petabProblem1.computeCost, θ_use)[1]
     gradientForward = zeros(length(θ_use))
@@ -66,7 +68,8 @@ function testGradientFiniteDifferences(petabModel::PEtabModel, solverOptions;
         petabProblem1 = createPEtabODEProblem(petabModel, odeSolverOptions=solverOptions,
                                              gradientMethod=:ForwardEquations, sensealg=:ForwardDiff,
                                              ssSolverOptions=ssOptions,
-                                             verbose=false)
+                                             verbose=false, 
+                                             sparseJacobian=false)
         gradientForwardEquations1 = zeros(length(θ_use))
         petabProblem1.computeGradient!(gradientForwardEquations1, θ_use)
         @test norm(gradientFinite - gradientForwardEquations1) ≤ testTol
@@ -75,7 +78,8 @@ function testGradientFiniteDifferences(petabModel::PEtabModel, solverOptions;
             petabProblem2 = createPEtabODEProblem(petabModel, odeSolverOptions=solverOptions, odeSolverGradientOptions=solverGradientOptions,
                                                  gradientMethod=:ForwardEquations, sensealg=ForwardSensitivity(),
                                                  ssSolverOptions=ssOptions,
-                                                 verbose=false)
+                                                 verbose=false, 
+                                                 sparseJacobian=false)
             gradientForwardEquations2 = zeros(length(θ_use))
             petabProblem2.computeGradient!(gradientForwardEquations2, θ_use)
             @test norm(gradientFinite - gradientForwardEquations2) ≤ testTol
@@ -87,7 +91,8 @@ function testGradientFiniteDifferences(petabModel::PEtabModel, solverOptions;
                                              gradientMethod=:Adjoint, sensealg=sensealgAdjoint, sensealgSS=sensealgSS,
                                              splitOverConditions=splitOverConditions,
                                              ssSolverOptions=ssOptions,
-                                             verbose=false)
+                                             verbose=false, 
+                                             sparseJacobian=false)
         gradientAdjoint = zeros(length(θ_use))
         petabProblem1.computeGradient!(gradientAdjoint, θ_use)
         @test norm(gradientFinite - gradientAdjoint) ≤ testTol

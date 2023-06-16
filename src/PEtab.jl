@@ -4,14 +4,12 @@ using PyCall
 using ModelingToolkit
 using CSV
 using SciMLBase
-using SciMLSensitivity
 using OrdinaryDiffEq
 using DiffEqCallbacks
 using SteadyStateDiffEq
 using ForwardDiff
 using ReverseDiff
 import ChainRulesCore
-using Zygote
 using StatsBase
 using Sundials
 using Random
@@ -36,12 +34,10 @@ include("Common.jl")
 # Files related to computing the cost (likelihood)
 include(joinpath("Compute_cost", "Compute_priors.jl"))
 include(joinpath("Compute_cost", "Compute_cost.jl"))
-include(joinpath("Compute_cost", "Compute_cost_zygote.jl"))
 
 # Files related to computing derivatives
 include(joinpath("Derivatives", "Hessian.jl"))
 include(joinpath("Derivatives", "Gradient.jl"))
-include(joinpath("Derivatives", "Adjoint_sensitivity_analysis.jl"))
 include(joinpath("Derivatives", "Forward_sensitivity_equations.jl"))
 include(joinpath("Derivatives", "Gauss_newton.jl"))
 include(joinpath("Derivatives", "Common.jl"))
@@ -50,7 +46,6 @@ include(joinpath("Derivatives", "ForwardDiff_run_over_chunks.jl"))
 # Files related to solving the ODE-system
 include(joinpath("Solve_ODE", "Change_experimental_condition.jl"))
 include(joinpath("Solve_ODE", "Helper.jl"))
-include(joinpath("Solve_ODE", "Solve_ode_Zygote.jl"))
 include(joinpath("Solve_ODE", "Solve_ode_model.jl"))
 include(joinpath("Solve_ODE", "Solve_for_steady_state.jl"))
 
@@ -103,5 +98,10 @@ include(joinpath("Show.jl"))
 end
 
 export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, createOptimProblem, createFidesProblem, callibrateModel, remakePEtabProblem, Fides, runPEtabSelect
+
+if !isdefined(Base, :get_extension)
+    include(joinpath(@__DIR__, "..", "ext", "SciMLSensitivityExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "ZygoteExtension.jl"))
+end
 
 end

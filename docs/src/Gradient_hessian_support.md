@@ -2,6 +2,9 @@
 
 PEtab.jl offers various gradient and Hessian methods that can be used to build a `PEtabODEProblem` using `createPEtabODEProblem()`. In this section, we will provide a brief overview of each method and the corresponding adjustable parameters.
 
+!!! note
+    To use any functionality from SciMLSensitivity (e.g. for adjoint) it must be loaded prior to creating the `PEtabODEProblem`. Similarly, to use Zygote automatic differentiation Zygote and SciMLSensitivity must first be loaded.
+
 ## Gradient methods
 
 * `:ForwardDiff`: Uses [ForwardDiff](https://github.com/JuliaDiff/ForwardDiff.jl) to compute the gradient via forward mode automatic differentiation. You can set the chunk size using the `chunkSize` argument to improve performance. We plan to add automatic tuning for this in the future.

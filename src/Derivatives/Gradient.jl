@@ -148,7 +148,7 @@ function computeGradientForwardEquations!(gradient::Vector{Float64},
                                           computeCostNotODESystemθ::Function,
                                           petabModel::PEtabModel,
                                           odeProblem::ODEProblem,
-                                          sensealg::Union{Symbol, SciMLSensitivity.AbstractForwardSensitivityAlgorithm},
+                                          sensealg,
                                           simulationInfo::SimulationInfo,
                                           θ_indices::ParameterIndices,
                                           measurementInfo::MeasurementsInfo,
@@ -192,88 +192,6 @@ function computeGradientForwardEquations!(gradient::Vector{Float64},
     if priorInfo.hasPriors == true
         computeGradientPrior!(gradient, θ_est, θ_indices, priorInfo)
     end
-end
-
-
-# Compute gradient via adjoint sensitivity analysis
-function computeGradientAdjointEquations!(gradient::Vector{Float64},
-                                          θ_est::Vector{Float64},
-                                          solverOptions::ODESolverOptions,
-                                          ssSolverOptions::SteadyStateSolverOptions,
-                                          computeCostNotODESystemθ::Function,
-                                          sensealg::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
-                                          sensealgSS::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
-                                          odeProblem::ODEProblem,
-                                          petabModel::PEtabModel,
-                                          simulationInfo::SimulationInfo,
-                                          θ_indices::ParameterIndices,
-                                          measurementInfo::MeasurementsInfo,
-                                          parameterInfo::ParametersInfo,
-                                          priorInfo::PriorInfo,
-                                          petabODECache::PEtabODEProblemCache,
-                                          petabODESolverCache::PEtabODESolverCache;
-                                          expIDSolve::Vector{Symbol} = [:all])
-
-    splitParameterVector!(θ_est, θ_indices, petabODECache)
-    θ_dynamic = petabODECache.θ_dynamic
-    θ_observable = petabODECache.θ_observable
-    θ_sd = petabODECache.θ_sd
-    θ_nonDynamic = petabODECache.θ_nonDynamic
-
-    # Calculate gradient seperately for dynamic and non dynamic parameter.
-    computeGradientAdjointDynamicθ(petabODECache.gradientDyanmicθ, θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, odeProblem, solverOptions,
-                                   ssSolverOptions, sensealg, petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo,
-                                   petabODECache, petabODESolverCache; expIDSolve=expIDSolve,
-                                   sensealgSS=sensealgSS)
-    @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ
-
-    # Happens when at least one forward pass fails and I set the gradient to 1e8
-    if !isempty(petabODECache.gradientDyanmicθ) && all(petabODECache.gradientDyanmicθ .== 0.0)
-        gradient .= 0.0
-        return
-    end
-
-    θ_notOdeSystem = @view θ_est[θ_indices.iθ_notOdeSystem]
-    ReverseDiff.gradient!(petabODECache.gradientNotODESystemθ, computeCostNotODESystemθ, θ_notOdeSystem)
-    @views gradient[θ_indices.iθ_notOdeSystem] .= petabODECache.gradientNotODESystemθ
-
-    if priorInfo.hasPriors == true
-        computeGradientPrior!(gradient, θ_est, θ_indices, priorInfo)
-    end
-end
-
-
-# Compute gradient using Zygote
-function computeGradientZygote(gradient::Vector{Float64},
-                               θ_est::Vector{Float64},
-                               odeProblem::ODEProblem,
-                               petabModel::PEtabModel,
-                               simulationInfo::SimulationInfo,
-                               θ_indices::ParameterIndices,
-                               measurementInfo::MeasurementsInfo,
-                               parameterInfo::ParametersInfo,
-                               changeODEProblemParameters::Function,
-                               solveOdeModelAllConditions::Function,
-                               priorInfo::PriorInfo,
-                               petabODECache::PEtabODEProblemCache)
-
-    # Split input into observeble and dynamic parameters
-    θ_dynamic, θ_observable, θ_sd, θ_nonDynamic = splitParameterVector(θ_est, θ_indices)
-
-    # For Zygote the code must be out-of place. Hence a special likelihood funciton is needed.
-    computeGradientZygoteDynamicθ = (x) -> _computeCostZygote(x, θ_sd, θ_observable, θ_nonDynamic, odeProblem,
-                                                              petabModel, simulationInfo, θ_indices, measurementInfo,
-                                                              parameterInfo, changeODEProblemParameters,
-                                                              solveOdeModelAllConditions)
-    gradient[θ_indices.iθ_dynamic] .= Zygote.gradient(computeGradientZygoteDynamicθ, θ_dynamic)[1]
-
-    # Compute gradient for parameters which are not in ODE-system. Important to keep in mind that Sd- and observable
-    # parameters can overlap in θ_est.
-    iθ_sd, iθ_observable, iθ_nonDynamic, iθ_notOdeSystem = getIndicesParametersNotInODESystem(θ_indices)
-    computeCostNotODESystemθ = (x) -> computeCostNotSolveODE(x[iθ_sd], x[iθ_observable], x[iθ_nonDynamic],
-                                                             petabModel, simulationInfo, θ_indices, measurementInfo,
-                                                             parameterInfo, petabODECache)
-    @views ReverseDiff.gradient!(gradient[iθ_notOdeSystem], computeCostNotODESystemθ, θ_est[iθ_notOdeSystem])
 end
 
 

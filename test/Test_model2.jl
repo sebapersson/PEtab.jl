@@ -11,6 +11,7 @@
 using PEtab
 using Test
 using OrdinaryDiffEq
+using Zygote 
 using SciMLSensitivity
 using CSV
 using ForwardDiff
@@ -36,7 +37,7 @@ function testODESolverTestModel2(petabModel::PEtabModel, solverOptions)
     measurementData = processMeasurements(measurementDataFile, observablesDataFile)
     paramData = processParameters(parameterDataFile)
     θ_indices = computeIndicesθ(paramData, measurementData, petabModel)
-    simulationInfo = processSimulationInfo(petabModel, measurementData)
+    simulationInfo = processSimulationInfo(petabModel, measurementData, sensealg=nothing)
     setParamToFileValues!(petabModel.parameterMap, petabModel.stateMap, paramData)
 
     # Parameter values where to teast accuracy. Each column is a alpha, beta, gamma and delta
@@ -150,7 +151,7 @@ function testCostGradientOrHessianTestModel2(petabModel::PEtabModel, solverOptio
         @test norm(gradientForward2 - referenceGradient) ≤ 1e-2
 
         # Testing "exact" hessian via autodiff
-        hessian = _testCostGradientOrHessian(petabModel, solverOptions, p, computeHessian=true, hessianMethod=:ForwardDiff)
+        hessian = _testCostGradientOrHessian(petabModel, solverOptions, p, computeHessian=true, gradientMethod=:ForwardDiff, hessianMethod=:ForwardDiff)
         @test norm(hessian - referenceHessian) ≤ 1e-2
     end
 end

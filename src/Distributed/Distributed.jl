@@ -6,12 +6,12 @@ function setUpProcesses(petabModel::PEtabModel,
                         solverAbsTol::Float64,
                         solverRelTol::Float64,
                         odeSolverAdjoint::SciMLAlgorithm,
-                        sensealgAdjoint::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
-                        sensealgAdjointSS::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
+                        sensealgAdjoint,
+                        sensealgAdjointSS,
                         solverAdjointAbsTol::Float64,
                         solverAdjointRelTol::Float64,
                         odeSolverForwardEquations::SciMLAlgorithm,
-                        sensealgForwardEquations::Union{Symbol, SciMLSensitivity.AbstractForwardSensitivityAlgorithm},
+                        sensealgForwardEquations,
                         parameterInfo::ParametersInfo,
                         measurementInfo::MeasurementsInfo,
                         simulationInfo::SimulationInfo,
@@ -135,7 +135,6 @@ function loadPackages()
                                 using ReverseDiff
                                 using Zygote
                                 using Printf
-                                using SciMLSensitivity
                             end
                         end
                     end

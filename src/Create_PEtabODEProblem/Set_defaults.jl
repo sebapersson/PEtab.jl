@@ -64,6 +64,10 @@ function setGradientMethod(gradientMethod::Union{Symbol, Nothing},
     end
 
     if modelSize === :Large
+        if "SciMLSensitivity" ∉ string.(values(Base.loaded_modules)) 
+            @warn "For large models adjoint sensitivity analysis is the best gradient method. To allow this to be set by default load SciMLSensitivity via using SciMLSensitivity"
+            return :ForwardDiff
+        end
         return :Adjoint
     end
 end
@@ -87,27 +91,14 @@ end
 
 
 function setSensealg(sensealg,
-                     gradientMethod::Symbol)
-
-    # Sanity check user gradient input
+                     ::Val{:ForwardDiff})
+    return nothing
+end
+function setSensealg(sensealg,
+                     ::Val{:ForwardEquations})
     if !isnothing(sensealg)
-        if gradientMethod === :ForwardEquations
-            @assert sensealg == :ForwardDiff || any(typeof(sensealg) .<: [ForwardSensitivity, ForwardDiffSensitivity]) "For gradient method :ForwardEquations allowed sensealg args are :ForwardDiff, ForwardSensitivity(), ForwardDiffSensitivity() not $sensealg"
-        end
-        if gradientMethod === :Adjoint
-            @assert any(typeof(sensealg) .<: [InterpolatingAdjoint, QuadratureAdjoint]) "For gradient method :Adjoint allowed sensealg args are InterpolatingAdjoint, QuadratureAdjoint not $sensealg"
-        end
-        if gradientMethod === :Zygote
-            @assert (typeof(sensealg) <: SciMLSensitivity.AbstractSensitivityAlgorithm) "For Zygote an abstract sensitivity algorithm from SciMLSensitivity must be used"
-        end
+        @assert sensealg == :ForwardDiff "For gradient method :ForwardEquations allowed sensealg args are :ForwardDiff, ForwardSensitivity(), ForwardDiffSensitivity() not $sensealg"
         return sensealg
-    end
-
-    if gradientMethod === :Adjoint
-        return InterpolatingAdjoint(autojacvec=ReverseDiffVJP())
-    end
-
-    if gradientMethod === :ForwardDiff || gradientMethod === :ForwardEquations
-        return :ForwardDiff
-    end
+    end 
+    return :ForwardDiff
 end

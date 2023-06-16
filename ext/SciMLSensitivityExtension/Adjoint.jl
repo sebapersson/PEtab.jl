@@ -1,3 +1,51 @@
+# Compute gradient via adjoint sensitivity analysis
+function computeGradientAdjointEquations!(gradient::Vector{Float64},
+                                          θ_est::Vector{Float64},
+                                          solverOptions::ODESolverOptions,
+                                          ssSolverOptions::SteadyStateSolverOptions,
+                                          computeCostNotODESystemθ::Function,
+                                          sensealg::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
+                                          sensealgSS::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
+                                          odeProblem::ODEProblem,
+                                          petabModel::PEtab.PEtabModel,
+                                          simulationInfo::PEtab.SimulationInfo,
+                                          θ_indices::PEtab.ParameterIndices,
+                                          measurementInfo::PEtab.MeasurementsInfo,
+                                          parameterInfo::PEtab.ParametersInfo,
+                                          priorInfo::PEtab.PriorInfo,
+                                          petabODECache::PEtab.PEtabODEProblemCache,
+                                          petabODESolverCache::PEtab.PEtabODESolverCache;
+                                          expIDSolve::Vector{Symbol} = [:all])
+
+    PEtab.splitParameterVector!(θ_est, θ_indices, petabODECache)
+    θ_dynamic = petabODECache.θ_dynamic
+    θ_observable = petabODECache.θ_observable
+    θ_sd = petabODECache.θ_sd
+    θ_nonDynamic = petabODECache.θ_nonDynamic
+
+    # Calculate gradient seperately for dynamic and non dynamic parameter.
+    computeGradientAdjointDynamicθ(petabODECache.gradientDyanmicθ, θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, odeProblem, solverOptions,
+                                   ssSolverOptions, sensealg, petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo,
+                                   petabODECache, petabODESolverCache; expIDSolve=expIDSolve,
+                                   sensealgSS=sensealgSS)
+    @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ
+
+    # Happens when at least one forward pass fails and I set the gradient to 1e8
+    if !isempty(petabODECache.gradientDyanmicθ) && all(petabODECache.gradientDyanmicθ .== 0.0)
+        gradient .= 0.0
+        return
+    end
+
+    θ_notOdeSystem = @view θ_est[θ_indices.iθ_notOdeSystem]
+    ReverseDiff.gradient!(petabODECache.gradientNotODESystemθ, computeCostNotODESystemθ, θ_notOdeSystem)
+    @views gradient[θ_indices.iθ_notOdeSystem] .= petabODECache.gradientNotODESystemθ
+
+    if priorInfo.hasPriors == true
+        PEtab.computeGradientPrior!(gradient, θ_est, θ_indices, priorInfo)
+    end
+end
+
+
 # Compute the adjoint gradient across all experimental conditions
 function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
                                         θ_dynamic::Vector{Float64},
@@ -9,23 +57,23 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
                                         ssSolverOptions::SteadyStateSolverOptions,
                                         sensealg::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
                                         petabModel::PEtabModel,
-                                        simulationInfo::SimulationInfo,
-                                        θ_indices::ParameterIndices,
-                                        measurementInfo ::MeasurementsInfo,
-                                        parameterInfo::ParametersInfo,
-                                        petabODECache::PEtabODEProblemCache,
-                                        petabODESolverCache::PEtabODESolverCache;
+                                        simulationInfo::PEtab.SimulationInfo,
+                                        θ_indices::PEtab.ParameterIndices,
+                                        measurementInfo::PEtab.MeasurementsInfo,
+                                        parameterInfo::PEtab.ParametersInfo,
+                                        petabODECache::PEtab.PEtabODEProblemCache,
+                                        petabODESolverCache::PEtab.PEtabODESolverCache;
                                         sensealgSS=SteadyStateAdjoint(),
                                         expIDSolve::Vector{Symbol} = [:all])
 
-    θ_dynamicT = transformθ(θ_dynamic, θ_indices.θ_dynamicNames, θ_indices, :θ_dynamic, petabODECache)
-    θ_sdT = transformθ(θ_sd, θ_indices.θ_sdNames, θ_indices, :θ_sd, petabODECache)
-    θ_observableT = transformθ(θ_observable, θ_indices.θ_observableNames, θ_indices, :θ_observable, petabODECache)
-    θ_nonDynamicT = transformθ(θ_nonDynamic, θ_indices.θ_nonDynamicNames, θ_indices, :θ_nonDynamic, petabODECache)
+    θ_dynamicT = PEtab.transformθ(θ_dynamic, θ_indices.θ_dynamicNames, θ_indices, :θ_dynamic, petabODECache)
+    θ_sdT = PEtab.transformθ(θ_sd, θ_indices.θ_sdNames, θ_indices, :θ_sd, petabODECache)
+    θ_observableT = PEtab.transformθ(θ_observable, θ_indices.θ_observableNames, θ_indices, :θ_observable, petabODECache)
+    θ_nonDynamicT = PEtab.transformθ(θ_nonDynamic, θ_indices.θ_nonDynamicNames, θ_indices, :θ_nonDynamic, petabODECache)
 
     _odeProblem = remake(odeProblem, p = convert.(eltype(θ_dynamicT), odeProblem.p), u0 = convert.(eltype(θ_dynamicT), odeProblem.u0))
-    changeODEProblemParameters!(_odeProblem.p, _odeProblem.u0, θ_dynamicT, θ_indices, petabModel)
-    success = solveODEAllExperimentalConditions!(simulationInfo.odeSolutionsDerivatives, _odeProblem, petabModel, θ_dynamicT, petabODESolverCache, simulationInfo, θ_indices, odeSolverOptions, ssSolverOptions, expIDSolve=expIDSolve, denseSolution=true, onlySaveAtObservedTimes=false, trackCallback=true)
+    PEtab.changeODEProblemParameters!(_odeProblem.p, _odeProblem.u0, θ_dynamicT, θ_indices, petabModel)
+    success = PEtab.solveODEAllExperimentalConditions!(simulationInfo.odeSolutionsDerivatives, _odeProblem, petabModel, θ_dynamicT, petabODESolverCache, simulationInfo, θ_indices, odeSolverOptions, ssSolverOptions, expIDSolve=expIDSolve, denseSolution=true, onlySaveAtObservedTimes=false, trackCallback=true)
     if success != true
         gradient .= 1e8
         return
@@ -70,7 +118,7 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
 end
 
 
-function generateVJPSSFunction(simulationInfo::SimulationInfo,
+function generateVJPSSFunction(simulationInfo::PEtab.SimulationInfo,
                                sensealgSS::SteadyStateAdjoint,
                                odeSolverOptions::ODESolverOptions,
                                ssSolverOptions::SteadyStateSolverOptions,
@@ -94,7 +142,7 @@ function generateVJPSSFunction(simulationInfo::SimulationInfo,
         ssOdeProblem = SteadyStateProblem(odeProblem)
         ySS, _evalVJPSSi = Zygote.pullback((p) ->    (
                                                       solve(ssOdeProblem,
-                                                            DynamicSS(solver, abstol=ssSolverOptions.abstol, reltol=ssSolverOptions.reltol),
+                                                            SteadyStateDiffEq.DynamicSS(solver, abstol=ssSolverOptions.abstol, reltol=ssSolverOptions.reltol),
                                                             abstol=abstol,
                                                             reltol=reltol,
                                                             maxiters=maxiters,
@@ -108,7 +156,7 @@ function generateVJPSSFunction(simulationInfo::SimulationInfo,
     evalVJPSS = Tuple(f for f in _evalVJPSS)
     return NamedTuple{Tuple(name for name in preEquilibrationConditionId)}(evalVJPSS)
 end
-function generateVJPSSFunction(simulationInfo::SimulationInfo,
+function generateVJPSSFunction(simulationInfo::PEtab.SimulationInfo,
                                sensealgSS::Union{QuadratureAdjoint, InterpolatingAdjoint},
                                odeSolverOptions::ODESolverOptions,
                                ssSolverOptions::SteadyStateSolverOptions,
@@ -200,7 +248,7 @@ end
 # TODO : Important function - improve documentation.
 function computeGradientAdjointExpCond!(gradient::Vector{Float64},
                                         sol::ODESolution,
-                                        petabODECache::PEtabODEProblemCache,
+                                        petabODECache::PEtab.PEtabODEProblemCache,
                                         sensealg::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
                                         odeSolverOptions::ODESolverOptions,
                                         θ_dynamic::Vector{Float64},
@@ -209,11 +257,11 @@ function computeGradientAdjointExpCond!(gradient::Vector{Float64},
                                         θ_nonDynamic::Vector{Float64},
                                         experimentalConditionId::Symbol,
                                         simulationConditionId::Symbol,
-                                        simulationInfo::SimulationInfo,
-                                        petabModel::PEtabModel,
-                                        θ_indices::ParameterIndices,
-                                        measurementInfo::MeasurementsInfo,
-                                        parameterInfo::ParametersInfo,
+                                        simulationInfo::PEtab.SimulationInfo,
+                                        petabModel::PEtab.PEtabModel,
+                                        θ_indices::PEtab.ParameterIndices,
+                                        measurementInfo::PEtab.MeasurementsInfo,
+                                        parameterInfo::PEtab.ParametersInfo,
                                         evalVJPSS::Function)::Bool
 
     # Extract experimetnalCondition specific parameter required to solve the
@@ -222,17 +270,17 @@ function computeGradientAdjointExpCond!(gradient::Vector{Float64},
     timeObserved = simulationInfo.timeObserved[experimentalConditionId]
     callback = simulationInfo.trackedCallbacks[experimentalConditionId]
 
-    compute∂G∂u! = (out, u, p, t, i) -> begin compute∂G∂_(out, u, p, t, i, iPerTimePoint,
-                                                         measurementInfo, parameterInfo,
-                                                         θ_indices, petabModel,
-                                                         θ_sd, θ_observable, θ_nonDynamic,
-                                                         petabODECache.∂h∂u, petabODECache.∂σ∂u, compute∂G∂U=true)
+    compute∂G∂u! = (out, u, p, t, i) -> begin PEtab.compute∂G∂_(out, u, p, t, i, iPerTimePoint,
+                                                                measurementInfo, parameterInfo,
+                                                                θ_indices, petabModel,
+                                                                θ_sd, θ_observable, θ_nonDynamic,
+                                                                petabODECache.∂h∂u, petabODECache.∂σ∂u, compute∂G∂U=true)
                                             end
-    compute∂G∂p! = (out, u, p, t, i) -> begin compute∂G∂_(out, u, p, t, i, iPerTimePoint,
-                                                         measurementInfo, parameterInfo,
-                                                         θ_indices, petabModel,
-                                                         θ_sd, θ_observable, θ_nonDynamic,
-                                                         petabODECache.∂h∂p, petabODECache.∂σ∂p, compute∂G∂U=false)
+    compute∂G∂p! = (out, u, p, t, i) -> begin PEtab.compute∂G∂_(out, u, p, t, i, iPerTimePoint,
+                                                                measurementInfo, parameterInfo,
+                                                                θ_indices, petabModel,
+                                                                θ_sd, θ_observable, θ_nonDynamic,
+                                                                petabODECache.∂h∂p, petabODECache.∂σ∂p, compute∂G∂U=false)
                                         end
 
     solver, abstol, reltol, force_dtmin, dtmin, maxiters = odeSolverOptions.solver, odeSolverOptions.abstol, odeSolverOptions.reltol, odeSolverOptions.force_dtmin, odeSolverOptions.dtmin, odeSolverOptions.maxiters
@@ -287,8 +335,8 @@ function computeGradientAdjointExpCond!(gradient::Vector{Float64},
 
     # Thus far have have computed dY/dθ, but for parameters on the log-scale we want dY/dθ_log. We can adjust via;
     # dY/dθ_log = log(10) * θ * dY/dθ
-    adjustGradientTransformedParameters!(gradient, _gradient, ∂G∂p, θ_dynamic, θ_indices,
-                                         simulationConditionId, adjoint=true)
+    PEtab.adjustGradientTransformedParameters!(gradient, _gradient, ∂G∂p, θ_dynamic, θ_indices,
+                                               simulationConditionId, adjoint=true)
     return true
 end
 

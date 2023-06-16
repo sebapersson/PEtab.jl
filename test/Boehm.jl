@@ -2,6 +2,7 @@ using PEtab
 using Test
 using OrdinaryDiffEq
 using Sundials
+using Zygote
 using SciMLSensitivity
 using CSV
 using ForwardDiff

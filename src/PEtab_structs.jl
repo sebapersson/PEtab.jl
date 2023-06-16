@@ -162,8 +162,7 @@ end
 
 
 struct SimulationInfo{T1<:Dict{<:Symbol, <:SciMLBase.DECallback},
-                      T2<:Union{<:SciMLSensitivity.AbstractForwardSensitivityAlgorithm, <:SciMLSensitivity.AbstractAdjointSensitivityAlgorithm},
-                      T3<:Dict{<:Symbol, <:SciMLBase.DECallback}}
+                      T2<:Dict{<:Symbol, <:SciMLBase.DECallback}}
 
     preEquilibrationConditionId::Vector{Symbol}
     simulationConditionId::Vector{Symbol}
@@ -180,8 +179,8 @@ struct SimulationInfo{T1<:Dict{<:Symbol, <:SciMLBase.DECallback},
     iPerTimePoint::Dict{Symbol, Vector{Vector{Int64}}}
     timePositionInODESolutions::Dict{Symbol, UnitRange{Int64}}
     callbacks::T1
-    trackedCallbacks::T3
-    sensealg::T2
+    trackedCallbacks::T2
+    sensealg
 end
 
 
