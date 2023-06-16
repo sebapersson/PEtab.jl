@@ -20,6 +20,7 @@
 using PEtab
 using Test
 using OrdinaryDiffEq
+using Zygote 
 using SciMLSensitivity
 using CSV
 using ForwardDiff
@@ -89,7 +90,7 @@ function testODESolverTestModel3(petabModel::PEtabModel, solverOptions::ODESolve
     θ_indices = computeIndicesθ(paramData, measurementData, petabModel)
 
     # Extract experimental conditions for simulations
-    simulationInfo = processSimulationInfo(petabModel, measurementData)
+    simulationInfo = processSimulationInfo(petabModel, measurementData, sensealg=nothing)
 
     # Parameter values where to teast accuracy. Each column is a alpha, beta, gamma and delta
     # a, b, c, d

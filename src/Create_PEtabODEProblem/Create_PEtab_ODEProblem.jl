@@ -70,6 +70,10 @@ function createPEtabODEProblem(petabModel::PEtabModel;
     if gradientMethod === :Adjoint
         @assert "SciMLSensitivity" ∈ string.(values(Base.loaded_modules)) "To use adjoint sensitivity analysis SciMLSensitivity must be loaded"
     end
+    if gradientMethod === :Zygote
+        @assert "Zygote" ∈ string.(values(Base.loaded_modules)) "To use Zygote automatic differantiation Zygote must be loaded"
+        @assert "SciMLSensitivity" ∈ string.(values(Base.loaded_modules)) "To use Zygote automatic differantiation SciMLSensitivity must be loaded"
+    end
 
     # Structs to bookep parameters, measurements, observations etc...
     experimentalConditions, measurementsData, parametersData, observablesData = readPEtabFiles(petabModel)
@@ -128,13 +132,17 @@ function createPEtabODEProblem(petabModel::PEtabModel;
     petabODECache = createPEtabODEProblemCache(_gradientMethod, _hessianMethod, petabModel, _sensealg, measurementInfo, simulationInfo, θ_indices, chunkSize)
     petabODESolverCache = createPEtabODESolverCache(_gradientMethod, _hessianMethod, petabModel, simulationInfo, θ_indices, chunkSize)
 
+    # To get multiple dispatch to work correctly 
+    _costMethod = costMethod === :Zygote ? Val(:Zygote) : costMethod
+    __gradientMethod = _gradientMethod === :Zygote ? Val(:Zygote) : _gradientMethod
+
     # The cost (likelihood) can either be computed in the standard way or the Zygote way. The second consumes more
     # memory as in-place mutations are not compatible with Zygote
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Building cost function for method ", string(costMethod), " ...")
-    bBuild = @elapsed computeCost = setUpCost(costMethod, _odeProblem, _odeSolverOptions, _ssSolverOptions, petabODECache, petabODESolverCache,
+    bBuild = @elapsed computeCost = setUpCost(_costMethod, _odeProblem, _odeSolverOptions, _ssSolverOptions, petabODECache, petabODESolverCache,
                                               petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, priorInfo,
-                                              sensealg, numberOfprocesses, jobs, results, false)
+                                              _sensealg, numberOfprocesses, jobs, results, false)
 
     computeChi2 = (θ; asArray=false) -> begin
         _ = computeCost(θ)
@@ -163,7 +171,7 @@ function createPEtabODEProblem(petabModel::PEtabModel;
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Building gradient function for method ", string(_gradientMethod), " ...")
     _odeProblemGradient = gradientMethod === :ForwardEquations ? getODEProblemForwardEquations(_odeProblem, sensealg) : getODEProblemForwardEquations(_odeProblem, :NoSpecialProblem)
-    bBuild = @elapsed computeGradient! = setUpGradient(_gradientMethod, _odeProblemGradient, _odeSolverGradientOptions,
+    bBuild = @elapsed computeGradient! = setUpGradient(__gradientMethod, _odeProblemGradient, _odeSolverGradientOptions,
         _ssSolverGradientOptions, petabODECache, petabODESolverCache, petabModel, simulationInfo, θ_indices,
         measurementInfo, parameterInfo, _sensealg, priorInfo, chunkSize=chunkSize, numberOfprocesses=numberOfprocesses,
         jobs=jobs, results=results, splitOverConditions=splitOverConditions, sensealgSS=sensealgSS)
@@ -271,21 +279,6 @@ function setUpCost(whichMethod::Symbol,
                         end
     end
 
-    if whichMethod == :Zygote
-        changeExperimentalCondition = (pODEProblem, u0, conditionId, θ_dynamic) -> _changeExperimentalCondition(pODEProblem, u0, conditionId, θ_dynamic, petabModel, θ_indices)
-        _changeODEProblemParameters = (pODEProblem, θ_est) -> changeODEProblemParameters(pODEProblem, θ_est, θ_indices, petabModel)
-        solveODEExperimentalCondition = (odeProblem, conditionId, θ_dynamic, tMax) -> solveOdeModelAtExperimentalCondZygote(odeProblem, conditionId, θ_dynamic, tMax, changeExperimentalCondition, measurementInfo, simulationInfo, odeSolverOptions.solver, odeSolverOptions.abstol, odeSolverOptions.reltol, ssSolverOptions.abstol, ssSolverOptions.reltol, sensealg, petabModel.computeTStops)
-        __computeCost = (θ_est) -> computeCostZygote(θ_est,
-                                                     odeProblem,
-                                                     petabModel,
-                                                     simulationInfo,
-                                                     θ_indices,
-                                                     measurementInfo,
-                                                     parameterInfo,
-                                                     _changeODEProblemParameters,
-                                                     solveODEExperimentalCondition,
-                                                     priorInfo)
-    end
 
     if false
         __computeCost = (θ_est) ->  begin
@@ -437,25 +430,6 @@ function setUpGradient(whichMethod::Symbol,
                                                                                                  expIDSolve=[:all],
                                                                                                  splitOverConditions=splitOverConditions,
                                                                                                  isRemade=isRemade)
-    end
-
-    if whichMethod === :Zygote
-
-        changeExperimentalCondition = (pODEProblem, u0, conditionId, θ_dynamic) -> _changeExperimentalCondition(pODEProblem, u0, conditionId, θ_dynamic, petabModel, θ_indices)
-        _changeODEProblemParameters = (pODEProblem, θ_est) -> changeODEProblemParameters(pODEProblem, θ_est, θ_indices, petabModel)
-        solveODEExperimentalCondition = (odeProblem, conditionId, θ_dynamic, tMax) -> solveOdeModelAtExperimentalCondZygote(odeProblem, conditionId, θ_dynamic, tMax, changeExperimentalCondition, measurementInfo, simulationInfo, odeSolverOptions.solver, odeSolverOptions.abstol, odeSolverOptions.reltol, ssSolverOptions.abstol, ssSolverOptions.reltol, sensealg, petabModel.computeTStops)
-        _computeGradient! = (gradient, θ_est) -> computeGradientZygote(gradient,
-                                                                      θ_est,
-                                                                      odeProblem,
-                                                                      petabModel,
-                                                                      simulationInfo,
-                                                                      θ_indices,
-                                                                      measurementInfo,
-                                                                      parameterInfo,
-                                                                      _changeODEProblemParameters,
-                                                                      solveODEExperimentalCondition,
-                                                                      priorInfo,
-                                                                      petabODECache)
     end
 
     if false

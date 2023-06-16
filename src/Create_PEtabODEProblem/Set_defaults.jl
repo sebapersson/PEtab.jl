@@ -91,21 +91,14 @@ end
 
 
 function setSensealg(sensealg,
-                     gradientMethod)
-
-    # Sanity check user gradient input
+                     ::Val{:ForwardDiff})
+    return nothing
+end
+function setSensealg(sensealg,
+                     ::Val{:ForwardEquations})
     if !isnothing(sensealg)
-        if gradientMethod === :ForwardEquations
-            @assert sensealg == :ForwardDiff || any(typeof(sensealg) .<: [ForwardSensitivity, ForwardDiffSensitivity]) "For gradient method :ForwardEquations allowed sensealg args are :ForwardDiff, ForwardSensitivity(), ForwardDiffSensitivity() not $sensealg"
-        end
-        
-        if gradientMethod === :Zygote
-            @assert (typeof(sensealg) <: SciMLSensitivity.AbstractSensitivityAlgorithm) "For Zygote an abstract sensitivity algorithm from SciMLSensitivity must be used"
-        end
+        @assert sensealg == :ForwardDiff "For gradient method :ForwardEquations allowed sensealg args are :ForwardDiff, ForwardSensitivity(), ForwardDiffSensitivity() not $sensealg"
         return sensealg
-    end
-
-    if gradientMethod === :ForwardDiff || gradientMethod === :ForwardEquations
-        return :ForwardDiff
-    end
+    end 
+    return :ForwardDiff
 end

@@ -245,25 +245,6 @@ function transformθElement(θ_element,
 end
 
 
-# Transform parameter from log10 scale to normal scale, or reverse transform
-function transformθZygote(θ::AbstractVector,
-                          θ_names::Vector{Symbol},
-                          parameterInfo::ParametersInfo;
-                          reverseTransform::Bool=false)::AbstractVector
-
-    iθ = [findfirst(x -> x == θ_names[i], parameterInfo.parameterId) for i in eachindex(θ_names)]
-    shouldTransform = [parameterInfo.parameterScale[i] == :log10 ? true : false for i in iθ]
-    shouldNotTransform = .!shouldTransform
-
-    if reverseTransform == false
-        out = exp10.(θ) .* shouldTransform .+ θ .* shouldNotTransform
-    else
-        out = log10.(θ) .* shouldTransform .+ θ .* shouldNotTransform
-    end
-    return out
-end
-
-
 function changeODEProblemParameters!(pODEProblem::AbstractVector,
                                      u0::AbstractVector,
                                      θ::AbstractVector,

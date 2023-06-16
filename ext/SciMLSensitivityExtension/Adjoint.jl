@@ -142,7 +142,7 @@ function generateVJPSSFunction(simulationInfo::PEtab.SimulationInfo,
         ssOdeProblem = SteadyStateProblem(odeProblem)
         ySS, _evalVJPSSi = Zygote.pullback((p) ->    (
                                                       solve(ssOdeProblem,
-                                                            DynamicSS(solver, abstol=ssSolverOptions.abstol, reltol=ssSolverOptions.reltol),
+                                                            SteadyStateDiffEq.DynamicSS(solver, abstol=ssSolverOptions.abstol, reltol=ssSolverOptions.reltol),
                                                             abstol=abstol,
                                                             reltol=reltol,
                                                             maxiters=maxiters,

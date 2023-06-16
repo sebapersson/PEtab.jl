@@ -10,7 +10,6 @@ using SteadyStateDiffEq
 using ForwardDiff
 using ReverseDiff
 import ChainRulesCore
-using Zygote
 using StatsBase
 using Sundials
 using Random
@@ -35,7 +34,6 @@ include("Common.jl")
 # Files related to computing the cost (likelihood)
 include(joinpath("Compute_cost", "Compute_priors.jl"))
 include(joinpath("Compute_cost", "Compute_cost.jl"))
-include(joinpath("Compute_cost", "Compute_cost_zygote.jl"))
 
 # Files related to computing derivatives
 include(joinpath("Derivatives", "Hessian.jl"))
@@ -48,7 +46,6 @@ include(joinpath("Derivatives", "ForwardDiff_run_over_chunks.jl"))
 # Files related to solving the ODE-system
 include(joinpath("Solve_ODE", "Change_experimental_condition.jl"))
 include(joinpath("Solve_ODE", "Helper.jl"))
-include(joinpath("Solve_ODE", "Solve_ode_Zygote.jl"))
 include(joinpath("Solve_ODE", "Solve_ode_model.jl"))
 include(joinpath("Solve_ODE", "Solve_for_steady_state.jl"))
 
@@ -104,6 +101,7 @@ export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, 
 
 if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "SciMLSensitivityExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "ZygoteExtensions.jl"))
 end
 
 end

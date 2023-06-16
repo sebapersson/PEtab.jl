@@ -53,13 +53,15 @@ end
 
 function PEtab.setSensealg(sensealg, ::Val{:Adjoint})
 
-    println("Gets here as it should")
     if !isnothing(sensealg)
         @assert any(typeof(sensealg) .<: [InterpolatingAdjoint, QuadratureAdjoint]) "For gradient method :Adjoint allowed sensealg args are InterpolatingAdjoint, QuadratureAdjoint not $sensealg"
         return sensealg
     end
 
     return InterpolatingAdjoint(autojacvec=ReverseDiffVJP())
+end
+function PEtab.setSensealg(sensealg::Union{ForwardSensitivity, ForwardDiffSensitivity}, ::Val{:ForwardEquations})
+    return sensealg
 end
 
 
