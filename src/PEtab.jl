@@ -91,6 +91,9 @@ include(joinpath("Show.jl"))
 end
 
 
+export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, remakePEtabProblem
+
+
 # To make extensions to these exportable 
 function createOptimProblem end
 function createFidesProblem end 
@@ -144,7 +147,8 @@ if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "ZygoteExtension.jl"))
 end
 
-export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, createOptimProblem, createFidesProblem, callibrateModel, remakePEtabProblem, Fides, runPEtabSelect
+
+export createOptimProblem, createFidesProblem, callibrateModel, Fides, runPEtabSelect
 
 
 end
