@@ -1,23 +1,3 @@
-"""
-    calibrateModel(petabProblem::PEtabODEProblem,
-                   optimizer;
-                   <keyword arguments>)
-
-Perform multi-start local optimization for a given PEtabODEProblem and return (fmin, minimizer) for all runs.
-
-# Arguments
-- `petabProblem::PEtabODEProblem`: The PEtabODEProblem to be calibrated.
-- `optimizer`: The optimizer algorithm to be used. Currently, we support three different algorithms:
-    1. `Fides()`: The Newton trust-region Fides optimizer from Python. Please refer to the documentation for setup
-        examples. This optimizer performs well when computing the full Hessian is not possible, and the Gauss-Newton Hessian approximation can be used.
-    2. `IPNewton()`: The interior-point Newton method from Optim.jl. This optimizer performs well when it is
-        computationally feasible to compute the full Hessian.
-    3. `LBFGS()` or `BFGS()` from Optim.jl: These optimizers are suitable when the computation of the Gauss-Newton
-        Hessian approximation is too expensive, such as when adjoint sensitivity analysis is required for the gradient.
-- `nOptimisationStarts::Int`: Number of multi-starts to be performed. Defaults to 100.
-- `samplingMethod`: Method for generating start guesses. Any method from QuasiMonteCarlo.jl is supported, with LatinHypercube as the default.
-- `options`: Optimization options. For Optim.jl optimizers, it accepts an `Optim.Options` struct. For Fides, please refer to the Fides documentation and the PEtab.jl documentation for information on setting options.
-"""
 function PEtab.callibrateModel(petabProblem::PEtabODEProblem,
                                optimizer::Union{Optim.LBFGS, Optim.BFGS, Optim.IPNewton};
                                nOptimisationStarts=100,

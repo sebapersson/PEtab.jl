@@ -489,7 +489,6 @@ function writeODEModelToFile(modelDict, pathJlFile, modelName, juliaFile)
             end
         end
         
-        println(modelDict["inputFunctions"])
         if length(modelDict["inputFunctions"]) > 0
             stringDict["algebraicVariables"] = "    ModelingToolkit.@variables"
             for key in keys(modelDict["inputFunctions"])
