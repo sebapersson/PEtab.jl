@@ -79,7 +79,7 @@ include(joinpath("SBML", "Process_rules.jl"))
 # For correct struct printing
 include(joinpath("Show.jl"))
 
-#=
+
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem
 @setup_workload begin
     pathYAML = joinpath(@__DIR__, "..", "test", "Test_model3", "Test_model3.yaml")
@@ -89,7 +89,6 @@ include(joinpath("Show.jl"))
         petabProblem.computeCost(petabProblem.θ_nominalT)
     end
 end
-=#
 
 
 # To make extensions to these exportable 
