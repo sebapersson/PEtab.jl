@@ -91,7 +91,7 @@ include(joinpath("Show.jl"))
 end
 
 
-export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, remakePEtabProblem
+export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, remakePEtabProblem, Fides
 
 
 # To make extensions to these exportable 
@@ -148,7 +148,7 @@ if !isdefined(Base, :get_extension)
 end
 
 
-export createOptimProblem, createFidesProblem, callibrateModel, Fides, runPEtabSelect
+export createOptimProblem, createFidesProblem, callibrateModel, runPEtabSelect
 
 
 end
