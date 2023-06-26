@@ -1,7 +1,7 @@
 function getCallbacks_Brannmark_JBC2010()
 
 	function condition_insulin_bool1(u, t, integrator)
-		t - integrator.p[10] == 0
+		t-integrator.p[9] == 0
 	end
 
 	function affect_insulin_bool1!(integrator)
@@ -11,7 +11,7 @@ function getCallbacks_Brannmark_JBC2010()
 	function isActiveAtTime0_insulin_bool1!(u, p)
 		t = 0.0 # Used to check conditions activated at t0=0
 		p[3] = 0.0 # Default to being off
-		if !(t - p[10] < 0)
+		if !(t-p[9] < 0)
 			p[3] = 1.0
 		end
 	end
@@ -21,7 +21,7 @@ function getCallbacks_Brannmark_JBC2010()
 
 
 	function condition_insulin_bool2(u, t, integrator)
-		t - integrator.p[11] == 0
+		t-integrator.p[10] == 0
 	end
 
 	function affect_insulin_bool2!(integrator)
@@ -31,7 +31,7 @@ function getCallbacks_Brannmark_JBC2010()
 	function isActiveAtTime0_insulin_bool2!(u, p)
 		t = 0.0 # Used to check conditions activated at t0=0
 		p[14] = 0.0 # Default to being off
-		if !(t - p[11] < 0)
+		if !(t-p[10] < 0)
 			p[14] = 1.0
 		end
 	end
@@ -44,5 +44,5 @@ end
 
 
 function computeTstops(u::AbstractVector, p::AbstractVector)
-	return Float64[dualToFloat(p[10]), dualToFloat(p[11])]
+	return Float64[dualToFloat(p[9]), dualToFloat(p[10])]
 end

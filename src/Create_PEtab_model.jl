@@ -252,6 +252,8 @@ function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
         for rowValue in experimentalConditionsFile[Symbol(state)]
             if typeof(rowValue) <: Real
                 continue
+            elseif ismissing(rowValue)
+                continue
             elseif isNumber(rowValue) == true || string(rowValue) ∈ parameterNames
                 continue
             elseif rowValue ∈ parametersFile[:parameterId]
@@ -259,7 +261,7 @@ function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
                 newParameterNames = vcat(newParameterNames, rowValue)
                 newParameterValues = vcat(newParameterValues, "0.0")
             else
-                @error "In condtion table $rowValue does not correspond to any parameter in the SBML file parameters file"
+                @error "In condtion table $rowValue does not correspond to any parameter in the SBML or parameters file"
             end
         end
     end

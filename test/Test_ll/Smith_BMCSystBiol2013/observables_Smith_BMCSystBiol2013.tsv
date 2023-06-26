@@ -1,0 +1,9 @@
+observableId	observableFormula	noiseFormula
+PI3K_activity__2B	sc_PI3K * IRS1_TyrP_PI3K	1.0
+Glucose_uptake__2B	sc_GLUT_2B * cellsurface_GLUT4	1.0
+Cell_Bound_Ins__2B	sc_BINS * InR_bound	1.0
+IRSYp__2C	sc_PIRS * IRS1_TyrP	1.0
+PTP_activ__2D	sc_PTP * PTP1B_plus_PTP1B_ox	1.0
+Glucose_uptake__3B	sc_GLUT_3B * cellsurface_GLUT4	1.0
+MnSOD_fold_induction__3C	sc_SOD2 * cytoplasm_SOD2	1.0
+FOXO4__3C	sc_FOXO1 * Foxo1_all	1.0

@@ -1,7 +1,7 @@
 #u[1] = STAT5A, u[2] = pApA, u[3] = nucpApB, u[4] = nucpBpB, u[5] = STAT5B, u[6] = pApB, u[7] = nucpApA, u[8] = pBpB
 #pODEProblem[1] = ratio, pODEProblem[2] = k_imp_homo, pODEProblem[3] = k_exp_hetero, pODEProblem[4] = cyt, pODEProblem[5] = k_phos, pODEProblem[6] = specC17, pODEProblem[7] = Epo_degradation_BaF3, pODEProblem[8] = k_exp_homo, pODEProblem[9] = nuc, pODEProblem[10] = k_imp_hetero
 #
-function compute_∂h∂u!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,                    
+function compute_∂h∂u!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                        θ_nonDynamic::AbstractVector, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
 	if observableId == :pSTAT5A_rel 
 		out[1] = (pODEProblem[6]*(-100.0u[6] - 200.0u[2]*pODEProblem[6])) / ((u[6] + u[1]*pODEProblem[6] + 2.0u[2]*pODEProblem[6])^2)
@@ -47,7 +47,7 @@ function compute_∂h∂p!(u, t::Real, pODEProblem::AbstractVector, θ_observabl
 
 end
 
-function compute_∂σ∂σu!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector, 
+function compute_∂σ∂σu!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                         parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
 	if observableId == :pSTAT5A_rel 
 		return nothing
@@ -63,7 +63,7 @@ function compute_∂σ∂σu!(u, t::Real, θ_sd::AbstractVector, pODEProblem::Ab
 
 end
 
-function compute_∂σ∂σp!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector, 
+function compute_∂σ∂σp!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                         parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
 	if observableId == :pSTAT5A_rel 
 		return nothing

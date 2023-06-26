@@ -173,7 +173,7 @@ function testCostGradientOrHessianTestModel3(petabModel::PEtabModel, solverOptio
 end
 
 
-petabModel = readPEtabModel(joinpath(@__DIR__, "Test_model3", "Test_model3.yaml"), forceBuildJuliaFiles=false)
+petabModel = readPEtabModel(joinpath(@__DIR__, "Test_model3", "Test_model3.yaml"), forceBuildJuliaFiles=true)
 
 @testset "ODE solver Simulate wrms termination" begin
     ssOptionsTest1 = SteadyStateSolverOptions(:Simulate, howCheckSimulationReachedSteadyState=:wrms, abstol=1e-12, reltol=1e-10)

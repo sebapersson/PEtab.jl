@@ -1,5 +1,5 @@
 # Model name: Test_model2
-# Number of parameters: 2
+# Number of parameters: 3
 # Number of species: 2
 function getODEModel_Test_model2()
 
@@ -28,8 +28,8 @@ function getODEModel_Test_model2()
 
     ### Derivatives ###
     eqs = [
-    D(sebastian) ~ +1.0 * ( 1 /default ) * (alpha * sebastian),
-    D(damiano) ~ +1.0 * ( 1 /default ) * (beta * damiano)
+    D(sebastian) ~ +1.0 * ( 1 /default ) * (alpha*sebastian),
+    D(damiano) ~ +1.0 * ( 1 /default ) * (beta*damiano)
     ]
 
     @named sys = ODESystem(eqs, t, stateArray, parameterArray)

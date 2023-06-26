@@ -1,0 +1,11 @@
+parameter_file: parameters_Smith_BMCSystBiol2013.tsv
+format_version: 1
+problems:
+- condition_files:
+  - experimentalCondition_Smith_BMCSystBiol2013.tsv
+  measurement_files:
+  - measurementData_Smith_BMCSystBiol2013.tsv
+  sbml_files:
+  - model_Smith_BMCSystBiol2013.xml
+  observable_files:
+  - observables_Smith_BMCSystBiol2013.tsv

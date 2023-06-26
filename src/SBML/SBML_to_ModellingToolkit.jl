@@ -6,24 +6,17 @@
     XmlToModellingToolkit(pathXml::String, modelName::String, dirModel::String)
     Convert a SBML file in pathXml to a Julia ModelingToolkit file and store
     the resulting file in dirModel with name modelName.jl.
-    The SBML importer goes via libsbml in Python and currently likelly only
-    works with SBML level 3.
 """
 function XmlToModellingToolkit(pathXml::String, pathJlFile::AbstractString, modelName::AbstractString; writeToFile::Bool=true, ifElseToEvent::Bool=true)
 
-    libsbml = pyimport("libsbml")
-    reader = libsbml.SBMLReader()
-
-    document = reader[:readSBML](pathXml)
-    model = document[:getModel]() # Get the model
-    modelDict = buildODEModelDictionary(libsbml, model, ifElseToEvent)
+    modelSBML = readSBML(pathXml)
+    modelDict = buildODEModelDictionary(modelSBML, ifElseToEvent)
 
     if writeToFile
-        writeODEModelToFile(modelDict, model, pathJlFile, modelName)
+        writeODEModelToFile(modelDict, pathJlFile, modelName)
     end
 
     return modelDict
-
 end
 
 
@@ -203,27 +196,32 @@ end
 function asTrigger(triggerFormula)
     if "geq" == triggerFormula[1:3]
         strippedFormula = triggerFormula[5:end-1]
+        separatorUse = "≥"
     elseif "gt" == triggerFormula[1:2]
         strippedFormula = triggerFormula[4:end-1]
+        separatorUse = "≥"
     elseif "leq" == triggerFormula[1:3]
         strippedFormula = triggerFormula[5:end-1]
+        separatorUse = "≤"
     elseif "lt" == triggerFormula[1:2]
         strippedFormula = triggerFormula[4:end-1]
+        separatorUse = "≤"
     end
     parts = splitBetween(strippedFormula, ',')
     if occursin("time", parts[1])
         parts[1] = replaceWholeWord(parts[1], "time", "t")
     end
-    expression = "[" * parts[1] * " ~ " * parts[2] * "]"
+    expression = parts[1] * " " * separatorUse * " " * parts[2] 
     return expression
 end
 
 
 # Rewrites derivatives for a model by replacing functions, any lagging piecewise, and power functions.
 function rewriteDerivatives(derivativeAsString, modelDict, baseFunctions)
-    newDerivativeAsString = derivativeAsString
-    newDerivativeAsString = replaceFunctionWithFormula(newDerivativeAsString, modelDict["modelFunctions"])
+    
+    newDerivativeAsString = replaceFunctionWithFormula(derivativeAsString, modelDict["modelFunctions"])
     newDerivativeAsString = replaceFunctionWithFormula(newDerivativeAsString, modelDict["modelRuleFunctions"])
+    
     if occursin("pow(", newDerivativeAsString)
         newDerivativeAsString = removePowFunctions(newDerivativeAsString)
     end
@@ -238,33 +236,31 @@ function rewriteDerivatives(derivativeAsString, modelDict, baseFunctions)
 end
 
 
-function processInitialAssignment(libsbml, model, modelDict::Dict, baseFunctions::Array{String, 1})
+function processInitialAssignment(modelSBML, modelDict::Dict, baseFunctions::Array{String, 1})
 
     initallyAssignedVariable = Dict{String, String}()
     initallyAssignedParameter = Dict{String, String}()
-    for initAssign in model[:getListOfInitialAssignments]()
-
-        assignName = initAssign[:getId]()
-        assignMath = initAssign[:getMath]()
-        assignFormula = libsbml[:formulaToString](assignMath)
-        assignFormula = rewriteDerivatives(assignFormula, modelDict, baseFunctions)
+    for (assignId, initialAssignment) in modelSBML.initial_assignments
+        
+        _formula = mathToString(initialAssignment)
+        formula = rewriteDerivatives(_formula, modelDict, baseFunctions)
 
         # Figure out wheter parameters or state is affected by the initial assignment
-        if assignName in keys(modelDict["states"])
-            modelDict["states"][assignName] = assignFormula
-            initallyAssignedVariable[assignName] = "states"
+        if assignId ∈ keys(modelDict["states"])
+            modelDict["states"][assignId] = formula
+            initallyAssignedVariable[assignId] = "states"
 
-        elseif assignName in keys(modelDict["nonConstantParameters"])
-            modelDict["nonConstantParameters"][assignName] = assignFormula
-            initallyAssignedVariable[assignName] = "nonConstantParameters"
+        elseif assignId ∈ keys(modelDict["nonConstantParameters"])
+            modelDict["nonConstantParameters"][assignId] = formula
+            initallyAssignedVariable[assignId] = "nonConstantParameters"
 
-        elseif assignName in keys(modelDict["parameters"])
-            modelDict["parameters"][assignName] = assignFormula
-            initallyAssignedParameter[assignName] = "parameters"
+        elseif assignId ∈ keys(modelDict["parameters"])
+            modelDict["parameters"][assignId] = formula
+            initallyAssignedVariable[assignId] = "parameters"
+
         else
-            println("Error: could not find assigned variable/parameter")
+            @error "Could not identify assigned variable $assignId in list of states or parameters"
         end
-
     end
 
     # If the initial assignment for a state is the value of another state apply recursion until continue looping
@@ -308,7 +304,7 @@ function processInitialAssignment(libsbml, model, modelDict::Dict, baseFunctions
 end
 
 
-function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
+function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
 
     # Nested dictionaries to store relevant model data:
     # i) Model parameters (constant during for a simulation)
@@ -336,129 +332,111 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
     modelDict["numOfSpecies"] = Dict()
     modelDict["boolVariables"] = Dict()
     modelDict["events"] = Dict()
+    modelDict["reactions"] = Dict()
     # Mathemathical base functions (can be expanded if needed)
     baseFunctions = ["exp", "log", "log2", "log10", "sin", "cos", "tan", "pi"]
     stringOfEvents = ""
     discreteEventString = ""
 
-    # Extract model states, their initial values and set up derivative expression for each state
-    for spec in model[:getListOfSpecies]()
-        stateId = spec[:getId]()
-        # If initial amount is zero (default) check if intial value is given in getInitialConcentration
-        if spec[:getInitialAmount]() == 0 || isnan(spec[:getInitialAmount]())
-            if spec[:getInitialConcentration]() === NaN # Default SBML value
-                modelDict["states"][stateId] = string(spec[:getInitialAmount]())
-            else
-                modelDict["states"][stateId] = string(spec[:getInitialConcentration]())
-            end
-
-        # Else use the value provided in getInitialAmount
-        else
-            modelDict["states"][stateId] = string(spec[:getInitialAmount]())
+    for (stateId, state) in modelSBML.species
+        # If initial amount is zero or nothing (default) should use initial-concentration if non-empty 
+        if (state.initial_amount == 0 || isnothing(state.initial_amount)) && isnothing(state.initial_concentration)
+            modelDict["states"][stateId] = "0.0"
+        elseif !isnothing(state.initial_concentration)
+            modelDict["states"][stateId] = string(state.initial_concentration)
+        else 
+            modelDict["states"][stateId] = string(state.initial_amount)
         end
-        modelDict["hasOnlySubstanceUnits"][stateId] = spec[:getHasOnlySubstanceUnits]()
-        modelDict["isBoundaryCondition"][stateId] = spec[:getBoundaryCondition]()
+
+        # Setup for downstream processing 
+        modelDict["hasOnlySubstanceUnits"][stateId] = state.only_substance_units
+        modelDict["isBoundaryCondition"][stateId] = state.boundary_condition 
         modelDict["derivatives"][stateId] = "D(" * stateId * ") ~ " # ModellingToolkitSyntax
 
-        # In case being a boundary condition the state in question is assumed to only be changed via user input
+        # In case being a boundary condition the state can only be changed by the user 
         if modelDict["isBoundaryCondition"][stateId] == true
-           modelDict["derivatives"][stateId] * "0.0"
+           modelDict["derivatives"][stateId] *= "0.0"
         end
     end
 
     # Extract model parameters and their default values
-    for parameter in model[:getListOfParameters]()
-        modelDict["parameters"][parameter[:getId]()] = string(parameter[:getValue]())
+    for (parameterId, parameter) in modelSBML.parameters
+        modelDict["parameters"][parameterId] = string(parameter.value)
     end
-
-    # Extract model compartments and store their volumes along with the model parameters
-    for compartment in model[:getListOfCompartments]()
-        modelDict["parameters"][compartment[:getId]()] = string(compartment[:getSize]())
+    for (compartmentId, compartment) in modelSBML.compartments
+        modelDict["parameters"][compartmentId] = string(compartment.size)
     end
 
     # Rewrite SBML functions into Julia syntax functions and store in dictionary to allow them to
-    # be inserted into equation formulas downstream.
-    for functionDefinition in model[:getListOfFunctionDefinitions]()
-        math = functionDefinition[:getMath]()
-        functionName = functionDefinition[:getId]()
-        args = getSBMLFuncArg(math)
-        functionFormula = getSBMLFuncFormula(math, libsbml)
-        modelDict["modelFunctions"][functionName] = [args[2:end-1], functionFormula] # (args, formula)
+    # be inserted into equation formulas downstream
+    for (functionName, SBMLFunction) in modelSBML.function_definitions
+        args = getSBMLFunctionArgs(SBMLFunction)
+        functionFormula = mathToString(SBMLFunction.body.body)
+        modelDict["modelFunctions"][functionName] = [args, functionFormula]
     end
 
-    ### Define events
-    # Later by the process callback function these events are rewritten to if possible DiscreteCallback:s
-    for (eIndex, event) in enumerate(model[:getListOfEvents]())
-        eventName = event[:getName]()
-        trigger = event[:getTrigger]()
-        triggerMath = trigger[:getMath]()
-        triggerFormula = asTrigger(libsbml[:formulaToString](triggerMath))
-        eventAsString = Vector{String}(undef, length(event[:getListOfEventAssignments]()))
-        eventAssign = Vector{String}(undef, length(event[:getListOfEventAssignments]()))
-        for (eaIndex, eventAssignment) in enumerate(event[:getListOfEventAssignments]())
-            variableName = eventAssignment[:getVariable]()
-            eventMath = eventAssignment[:getMath]()
-            eventMathAsString = libsbml[:formulaToString](eventMath)
-            eventAssign[eaIndex] = variableName
-            eventAsString[eaIndex] = eventMathAsString
+    # Later by the process callback function these events are rewritten to 
+    # DiscreteCallback:s if possible 
+    eIndex = 1
+    for (eventName, event) in modelSBML.events
+        _triggerFormula = mathToString(event.trigger.math)
+        triggerFormula = asTrigger(_triggerFormula)
+        eventFormulas = Vector{String}(undef, length(event.event_assignments))
+        eventAssignTo = similar(eventFormulas)
+        for (i, eventAssignment) in pairs(event.event_assignments)
+            eventFormulas[i] = mathToString(eventAssignment.math)
+            eventAssignTo[i] = eventAssignment.variable
+        end
+        eventName = isempty(eventName) ? "event" * string(eIndex) : eventName
+        modelDict["events"][eventName] = [triggerFormula, eventAssignTo .* " = " .* eventFormulas]
+        eIndex += 1
+    end
+
+    for rule in modelSBML.rules
+        if rule isa SBML.AssignmentRule
+            ruleFormula = extractRuleFormula(rule)
+            processAssignmentRule!(modelDict, ruleFormula, rule.variable, baseFunctions)
         end
 
-        eventName = isempty(eventName) ? "event" * string(eIndex) : eventName
-        modelDict["events"][eventName] = [triggerFormula, eventAssign .* " = " .* eventAsString]
-    end
+        if rule isa SBML.RateRule
+            ruleFormula = extractRuleFormula(rule)
+            processRateRule!(modelDict, ruleFormula, rule.variable, baseFunctions)
+        end
 
-    # Extract model rules. Each rule-type is processed differently.
-    for rule in model[:getListOfRules]()
-        ruleType = rule[:getElementName]()
-
-        if ruleType == "assignmentRule"
-            ruleVariable = rule[:getVariable]()
-            ruleFormula = getRuleFormula(rule)
-            processAssignmentRule!(modelDict, ruleFormula, ruleVariable, baseFunctions)
-
-        elseif ruleType == "algebraicRule"
-            # TODO
-            println("Currently we do not support algebraic rules :(")
-
-        elseif ruleType == "rateRule"
-            ruleVariable = rule[:getVariable]() # variable
-            ruleFormula = getRuleFormula(rule)
-            processRateRule!(modelDict, ruleFormula, ruleVariable, baseFunctions)
+        if rule isa SBML.AlgebraicRule
+            @error "Currently we do not support algebraic rules"
         end
     end
 
     # Positioned after rules since some assignments may include functions
-    processInitialAssignment(libsbml, model, modelDict, baseFunctions)
+    processInitialAssignment(modelSBML, modelDict, baseFunctions)
 
-    # Process reactions into Julia functions, and keep correct Stoichiometry
-    reactions = [(r, r[:getKineticLaw]()[:getFormula]()) for r in model[:getListOfReactions]()]
-    for (reac, formula) in reactions
-        products = [(p[:species], p[:getStoichiometry]()) for p in reac[:getListOfProducts]()]
-        reactants = [(r[:species], r[:getStoichiometry]()) for r in reac[:getListOfReactants]()]
-
-        ## Replaces kinetic law parameters with their values (where-statements).
-        klparameters = reac[:getKineticLaw]()[:getListOfParameters]()
-        if length(klparameters) > 0
-            for klpar in klparameters
-                parameterName = klpar[:getId]()
-                parameterValue = klpar[:getValue]()
-                formula = replaceWholeWord(formula, parameterName, parameterValue)
-            end
+    # Process chemical reactions 
+    for (id, reaction) in modelSBML.reactions
+        # Process kinetic math into Julia syntax 
+        _formula = mathToString(reaction.kinetic_math)
+               
+        # Add values for potential kinetic parameters (where-statements)
+        for (parameterId, parameter) in reaction.kinetic_parameters
+            _formula = replaceWholeWord(_formula, parameterId, parameter.value)
         end
 
-        formula = rewriteDerivatives(formula, modelDict, baseFunctions)
-        for (rName, rStoich) in reactants
-            modelDict["isBoundaryCondition"][rName] == true && continue # Constant state
-            rComp = model[:getSpecies](rName)[:getCompartment]()
-            # Check whether or not we should scale by compartment or not
-            compartmentScaling = modelDict["hasOnlySubstanceUnits"][rName] == true ? " * " : " * ( 1 /" * rComp * " ) * "
-            modelDict["derivatives"][rName] = modelDict["derivatives"][rName] * "-" * string(rStoich) * compartmentScaling * "(" * formula * ")"
+        formula = rewriteDerivatives(_formula, modelDict, baseFunctions)
+        modelDict["reactions"][reaction.name] = formula
+        
+        for reactant in reaction.reactants
+            modelDict["isBoundaryCondition"][reactant.species] == true && continue # Constant state  
+            compartment = modelSBML.species[reactant.species].compartment
+            stoichiometry = isnothing(reactant.stoichiometry) ? "1" : string(reactant.stoichiometry)
+            compartmentScaling = modelDict["hasOnlySubstanceUnits"][reactant.species] == true ? " * " : " * ( 1 /" * compartment * " ) * "
+            modelDict["derivatives"][reactant.species] *= "-" * stoichiometry * compartmentScaling * "(" * formula * ")"
         end
-        for (pName, pStoich) in products
-            modelDict["isBoundaryCondition"][pName] == true && continue # Constant state
-            pComp = model[:getSpecies](pName)[:getCompartment]()
-            compartmentScaling = modelDict["hasOnlySubstanceUnits"][pName] == true ? " * " : " * ( 1 /" * pComp * " ) * "
-            modelDict["derivatives"][pName] = modelDict["derivatives"][pName] * "+" * string(pStoich) * compartmentScaling * "(" * formula * ")"
+        for product in reaction.products
+            modelDict["isBoundaryCondition"][product.species] == true && continue # Constant state  
+            compartment = modelSBML.species[product.species].compartment
+            stoichiometry = isnothing(product.stoichiometry) ? "1" : string(product.stoichiometry)
+            compartmentScaling = modelDict["hasOnlySubstanceUnits"][product.species] == true ? " * " : " * ( 1 /" * compartment * " ) * "
+            modelDict["derivatives"][product.species] *= "+" * stoichiometry * compartmentScaling * "(" * formula * ")"
         end
     end
 
@@ -488,8 +466,8 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
 
     modelDict["stringOfEvents"] = stringOfEvents
     modelDict["discreteEventString"] = discreteEventString
-    modelDict["numOfParameters"] =   string(length(model[:getListOfParameters]()))
-    modelDict["numOfSpecies"] =   string(length(model[:getListOfSpecies]()))
+    modelDict["numOfParameters"] = string(length(keys(modelDict["parameters"])))
+    modelDict["numOfSpecies"] = string(length(keys(modelDict["states"])))
     return modelDict
 end
 
@@ -500,7 +478,7 @@ end
     and creates a Julia ModelingToolkit file and stores
     the resulting file in dirModel with name modelName.jl.
 """
-function writeODEModelToFile(modelDict, model, pathJlFile, modelName)
+function writeODEModelToFile(modelDict, pathJlFile, modelName)
     ### Writing to file
     modelFile = open(pathJlFile, "w")
 
@@ -670,4 +648,71 @@ function writeODEModelToFile(modelDict, model, pathJlFile, modelName)
     println(modelFile, "end")
 
     close(modelFile)
+end
+
+
+function mathToString(math)
+    mathStr, _ = _mathToString(math)
+    return mathStr
+end
+
+
+function _mathToString(math::SBML.MathApply)
+
+    if math.fn ∈ ["*", "/", "+", "-", "power"] && length(math.args) == 2
+        fn = math.fn == "power" ? "^" : math.fn
+        _part1, addParenthesis1 = _mathToString(math.args[1])
+        _part2, addParenthesis2 = _mathToString(math.args[2])
+        # In case we hit the bottom in the recursion we do not need to add paranthesis 
+        # around the math-expression making the equations easier to read
+        part1 = addParenthesis1 ?  '(' * _part1 * ')' : _part1
+        part2 = addParenthesis2 ?  '(' * _part2 * ')' : _part2
+        return part1 * fn * part2, true
+    end
+
+    if math.fn ∈ ["+", "-"] && length(math.args) == 1
+        _formula, addParenthesis = _mathToString(math.args[1])
+        formula = addParenthesis ? '(' * _formula * ')' : _formula
+        return math.fn * formula, true
+    end
+
+    # Piecewise can have arbibrary number of arguments 
+    if math.fn == "piecewise"
+        formula = "piecewise("
+        for arg in math.args
+            _formula, _ = _mathToString(arg) 
+            formula *= _formula * ", "
+        end
+        return formula[1:end-2] * ')', false
+    end
+
+    if math.fn ∈ ["lt", "gt", "leq", "geq"]
+        @assert length(math.args) == 2
+        part1, _ = _mathToString(math.args[1]) 
+        part2, _ = _mathToString(math.args[2])
+        return math.fn * "(" * part1 * ", " * part2 * ')', false
+    end
+
+    if math.fn ∈ ["exp", "log", "log2", "log10", "sin", "cos", "tan"]
+        @assert length(math.args) == 1
+        formula, _ = _mathToString(math.args[1])
+        return math.fn * '(' * formula * ')', false
+    end
+
+    # At this point the only feasible option left is a SBMLFunction
+    formula = math.fn * '('
+    for arg in math.args
+        _formula, _ = _mathToString(arg) 
+        formula *= _formula * ", "
+    end
+    return formula[1:end-2] * ')', false
+end
+function _mathToString(math::SBML.MathVal)
+    return string(math.val), false
+end
+function _mathToString(math::SBML.MathIdent)
+    return string(math.id), false
+end
+function _mathToString(math::SBML.MathTime)
+    return string(math.id), false
 end

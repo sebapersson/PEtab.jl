@@ -1,5 +1,5 @@
 # Model name: 0008
-# Number of parameters: 4
+# Number of parameters: 5
 # Number of species: 2
 function getODEModel_0008()
 
@@ -28,8 +28,8 @@ function getODEModel_0008()
 
     ### Derivatives ###
     eqs = [
-    D(B) ~ +1.0 * ( 1 /compartment ) * (compartment * k1 * A)-1.0 * ( 1 /compartment ) * (compartment * k2 * B),
-    D(A) ~ -1.0 * ( 1 /compartment ) * (compartment * k1 * A)+1.0 * ( 1 /compartment ) * (compartment * k2 * B)
+    D(B) ~ +1.0 * ( 1 /compartment ) * ((compartment*k1)*A)-1.0 * ( 1 /compartment ) * ((compartment*k2)*B),
+    D(A) ~ -1.0 * ( 1 /compartment ) * ((compartment*k1)*A)+1.0 * ( 1 /compartment ) * ((compartment*k2)*B)
     ]
 
     @named sys = ODESystem(eqs, t, stateArray, parameterArray)

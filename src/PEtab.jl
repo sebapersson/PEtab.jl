@@ -1,6 +1,5 @@
 module PEtab
 
-using PyCall
 using ModelingToolkit
 using CSV
 using SciMLBase
@@ -24,6 +23,7 @@ using NonlinearSolve
 using PrecompileTools
 using Optim
 using QuasiMonteCarlo
+using SBML
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
@@ -80,9 +80,9 @@ include(joinpath("SBML", "Process_rules.jl"))
 
 # For Optimization and model selection
 include(joinpath("Optimization", "Setup_optim.jl"))
-include(joinpath("Optimization", "Setup_fides.jl"))
+#include(joinpath("Optimization", "Setup_fides.jl"))
 include(joinpath("Optimization", "Callibration.jl"))
-include(joinpath("PEtab_select", "PEtab_select.jl"))
+#include(joinpath("PEtab_select", "PEtab_select.jl"))
 
 # For correct struct printing
 include(joinpath("Show.jl"))
@@ -97,7 +97,7 @@ include(joinpath("Show.jl"))
     end
 end
 
-export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, createOptimProblem, createFidesProblem, callibrateModel, remakePEtabProblem, Fides, runPEtabSelect
+export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, createOptimProblem, callibrateModel, remakePEtabProblem, Fides
 
 if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "SciMLSensitivityExtension.jl"))

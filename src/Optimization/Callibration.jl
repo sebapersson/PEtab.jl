@@ -62,6 +62,7 @@ function callibrateModel(petabProblem::PEtabODEProblem,
 
     return objValues, parameterValues
 end
+#=
 function callibrateModel(petabProblem::PEtabODEProblem,
                          optimizer::Fides=Fides(verbose=false);
                          nOptimisationStarts=100,
@@ -100,7 +101,7 @@ function callibrateModel(petabProblem::PEtabODEProblem,
 
     return objValues, parameterValues
 end
-
+=#
 
 function generateStartGuesses(petabProblem::PEtabODEProblem,
                               samplingMethod::T,
