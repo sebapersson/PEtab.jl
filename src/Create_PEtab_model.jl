@@ -224,14 +224,39 @@ end
 function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
                                                        pathConditions::String,
                                                        pathParameters::String)
-
+    # Load necessary data
     fAsString = getFunctionsAsString(pathJuliaFile, 1)
     experimentalConditionsFile = CSV.File(pathConditions)
     parametersFile = CSV.File(pathParameters)
 
-    stateNames = getStateOrParameterNamesFromJlFunction(fAsString[1], getStates=true)
-    parameterNames = getStateOrParameterNamesFromJlFunction(fAsString[1], getStates=false)
+    # Extract return line to find names of trueParameterValues and ODESystem
+    returnLine = filter(line -> occursin(r"\s*return",line),readlines(open(pathJuliaFile)))[1]
+    returnLine = replace(returnLine, r"\s*return"=>"")
+    returnLine = replace(returnLine, " "=>"")
+    returnOutputs = split(returnLine,",")
+    odeSystemName = returnOutputs[1]
+    trueParameterValuesName = returnOutputs[end]
 
+    # Extract line with  ODESystem to find name of stateArray and parameterArray
+    odeLine = filter(line -> occursin(Regex(odeSystemName * "\\s*=\\s*ODESystem\\("),line),readlines(open(pathJuliaFile)))[1]    
+    # Finds the offset after the parenthesis in "ODESystem("
+    funStartRegex = Regex("\\bODESystem\\(\\K")
+    # Matches parentheses pairs to grab the arguments of the "ODESystem(" function
+    matchParenthesesRegex = Regex("\\((?:[^)(]*(?R)?)*+\\)")
+    funStart = match(funStartRegex, odeLine)
+    funStartPos = funStart.offset
+    insideOfFun = match(matchParenthesesRegex, odeLine[funStartPos-1:end]).match
+    insideOfFun = insideOfFun[2:end-1]
+    insideOfFun = replace(insideOfFun, " "=>"")
+    returnOutputs = split(insideOfFun,",")
+    parameterArrayName = string(returnOutputs[end])
+    stateArrayName = string(returnOutputs[end-1])
+
+    # Extract state and parameter names
+    stateNames = getStateOrParameterNamesFromJlFunction(fAsString[1], stateArrayName, parameterArrayName, getStates=true)
+    parameterNames = getStateOrParameterNamesFromJlFunction(fAsString[1], stateArrayName, parameterArrayName, getStates=false)
+    
+    # Check if the condition table contains states to map initial values
     colNames = string.(experimentalConditionsFile.names)
     length(colNames) == 1 && return
     iStart = colNames[2] == "conditionName" ? 3 : 2 # Sometimes PEtab file does not include column conditionName
@@ -240,7 +265,7 @@ function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
         return
     end
 
-    # In case we have conditions mapping to initial values
+    # Find states and create new parameter names and values
     whichStates = (colNames[iStart:end])[findall(x -> x ∈ stateNames, colNames[iStart:end])]
     newParameterNames = "__init__" .* whichStates .* "__"
     newParameterValues = Vector{String}(undef, length(newParameterNames))
@@ -252,8 +277,6 @@ function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
         for rowValue in experimentalConditionsFile[Symbol(state)]
             if typeof(rowValue) <: Real
                 continue
-            elseif ismissing(rowValue)
-                continue
             elseif isNumber(rowValue) == true || string(rowValue) ∈ parameterNames
                 continue
             elseif rowValue ∈ parametersFile[:parameterId]
@@ -261,25 +284,24 @@ function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
                 newParameterNames = vcat(newParameterNames, rowValue)
                 newParameterValues = vcat(newParameterValues, "0.0")
             else
-                @error "In condtion table $rowValue does not correspond to any parameter in the SBML or parameters file"
+                @error "The condition table value $rowValue does not correspond to any parameter in the SBML file parameters file"
             end
         end
     end
 
-    # In case the funciton already has been rewritten return
+    # Check if the function has already been rewritten
     if any(x -> x ∈ parameterNames, newParameterNames)
         return
     end
 
-    # Go through each line and add init parameters to @parameters and parameterArray and in the inital value map
+    # Update function lines with new parameters and values
     functionLineByLine = split(fAsString[1], '\n')
     linesAdd = 0:0
     for i in eachindex(functionLineByLine)
-        lineNoWhiteSpace = replace(functionLineByLine[i], " " => "")
-        lineNoWhiteSpace = replace(lineNoWhiteSpace, "\t" => "")
+        lineNoWhiteSpace = replace(functionLineByLine[i], r"\s+" => "")
 
         # Check which lines new initial value parameters should be added to the parametersMap
-        if length(lineNoWhiteSpace) ≥ 19 && lineNoWhiteSpace[1:19] == "trueParameterValues"
+        if length(lineNoWhiteSpace) ≥ 19 && lineNoWhiteSpace[1:19] == trueParameterValuesName
             linesAdd = (i+1):(i+length(newParameterNames))
         end
 
@@ -289,7 +311,7 @@ function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
         end
 
         # Add new parameters in parameterArray
-        if length(lineNoWhiteSpace) ≥ 14 && lineNoWhiteSpace[1:14] == "parameterArray"
+        if length(lineNoWhiteSpace) ≥ 14 && lineNoWhiteSpace[1:14] == parameterArrayName
             functionLineByLine[i] = functionLineByLine[i][1:end-1] * ", " * (" "*prod([str * ", " for str in newParameterNames]))[1:end-2] * "]"
         end
 
@@ -318,15 +340,15 @@ function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
 
     newFunctionString = functionLineByLineNew[1]
     newFunctionString *= prod(row * "\n" for row in functionLineByLineNew[2:end])
+    # Write the new function to the Julia file
     open(pathJuliaFile, "w") do f
         write(f, newFunctionString)
         flush(f)
     end
 end
 
-
 # Extract model state names from stateArray in the JL-file (and also parameter names)
-function getStateOrParameterNamesFromJlFunction(fAsString::String; getStates::Bool=false)
+function getStateOrParameterNamesFromJlFunction(fAsString::String, stateArrayName::String, parameterArrayName::String; getStates::Bool=false)
 
     functionLineByLine = split(fAsString, '\n')
     for i in eachindex(functionLineByLine)
@@ -335,14 +357,18 @@ function getStateOrParameterNamesFromJlFunction(fAsString::String; getStates::Bo
 
         # Add new parameters in parameterArray
         if getStates == true
-            if length(lineNoWhiteSpace) ≥ 10 && lineNoWhiteSpace[1:10] == "stateArray"
-                return split(lineNoWhiteSpace[13:end-1], ",")
+            lenStateArrayName = length(stateArrayName)
+            if length(lineNoWhiteSpace) ≥ lenStateArrayName && lineNoWhiteSpace[1:lenStateArrayName] == stateArrayName
+                locOfArrayStart = findfirst("=[",lineNoWhiteSpace)[end]
+                return split(lineNoWhiteSpace[locOfArrayStart+1:end-1], ",")
             end
         end
 
         if getStates == false
-            if length(lineNoWhiteSpace) ≥ 14 && lineNoWhiteSpace[1:14] == "parameterArray"
-                return split(lineNoWhiteSpace[17:end-1], ",")
+            lenParameterArrayName = length(parameterArrayName)
+            if length(lineNoWhiteSpace) ≥ lenParameterArrayName && lineNoWhiteSpace[1:lenParameterArrayName] == parameterArrayName
+                locOfArrayStart = findfirst("=[",lineNoWhiteSpace)[end]
+                return split(lineNoWhiteSpace[locOfArrayStart+1:end-1], ",")
             end
         end
     end
