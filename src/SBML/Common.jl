@@ -54,7 +54,7 @@ function rewritePiecewiseToIfElse(ruleFormula, variable, modelDict, baseFunction
         elseif condition[1:3] == "and" || condition[1:2] == "if"
             eqSyntaxDict[varChange] = complexPiecewiseToIfElse(condition, variable, valActive, valInactive, modelDict, baseFunctions)
         else
-            println("Error : Somehow we cannot process the piecewise expression")
+            @error "Somehow we cannot process the piecewise expression"
         end
     end
 

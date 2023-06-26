@@ -1,7 +1,7 @@
 function getCallbacks_Beer_MolBioSystems2014()
 
 	function condition_lag_bool1(u, t, integrator)
-		t - integrator.p[7] == 0
+		t-integrator.p[7] == 0
 	end
 
 	function affect_lag_bool1!(integrator)
@@ -11,7 +11,7 @@ function getCallbacks_Beer_MolBioSystems2014()
 	function isActiveAtTime0_lag_bool1!(u, p)
 		t = 0.0 # Used to check conditions activated at t0=0
 		p[1] = 0.0 # Default to being off
-		if !(t - p[7] < 0)
+		if !(t-p[7] < 0)
 			p[1] = 1.0
 		end
 	end

@@ -6,36 +6,29 @@
     XmlToModellingToolkit(pathXml::String, modelName::String, dirModel::String)
     Convert a SBML file in pathXml to a Julia ModelingToolkit file and store
     the resulting file in dirModel with name modelName.jl.
-    The SBML importer goes via libsbml in Python and currently likelly only
-    works with SBML level 3.
 """
 function XmlToModellingToolkit(pathXml::String, pathJlFile::AbstractString, modelName::AbstractString; writeToFile::Bool=true, ifElseToEvent::Bool=true)
 
-    libsbml = pyimport("libsbml")
-    reader = libsbml.SBMLReader()
-
-    document = reader[:readSBML](pathXml)
-    model = document[:getModel]() # Get the model
-    modelDict = buildODEModelDictionary(libsbml, model, ifElseToEvent)
+    modelSBML = readSBML(pathXml)
+    modelDict = buildODEModelDictionary(modelSBML, ifElseToEvent)
 
     if writeToFile
-        writeODEModelToFile(modelDict, model, pathJlFile, modelName)
+        writeODEModelToFile(modelDict, pathJlFile, modelName, false)
     end
 
     return modelDict
-
 end
 
 
 """
-    JLToModellingToolkit(jlFilePath::String, dirJulia::String, modelName::String; ifElseToEvent::Bool=true)
-    Loads the Julia ModelingToolkit file located in jlFilePath.
-    If the file contains ifelse statements and ifElseToEvent=true
-    a fixed file will be stored in the Julia_model_files folder
-    with the suffix _fix in its filename.
+JLToModellingToolkit(pathJlFile::String, dirJulia::String, modelName::String; ifElseToEvent::Bool=true)
+Loads the Julia ModelingToolkit file located in pathJlFile.
+If the file contains ifelse statements and ifElseToEvent=true
+a fixed file will be stored in the Julia_model_files folder
+with the suffix _fix in its filename.
 """
-function JLToModellingToolkit(jlFilePath::String, dirJulia::String, modelName::String; ifElseToEvent::Bool=true)
-
+function JLToModellingToolkit(pathJlFile::String, dirJulia::String, modelName::String; ifElseToEvent::Bool=true)
+    
     # Some parts of the modelDict are needed to create the other julia files for the model.
     modelDict = Dict()
     modelDict["boolVariables"] = Dict()
@@ -43,11 +36,28 @@ function JLToModellingToolkit(jlFilePath::String, dirJulia::String, modelName::S
     modelDict["inputFunctions"] = Dict()
     modelDict["parameters"] = Dict()
     modelDict["states"] = Dict()
+    modelDict["numOfParameters"] = Dict()
+    modelDict["numOfSpecies"] = Dict()
+    modelDict["equationList"] = Dict()
+    modelDict["stateMap"] = Dict()
+    modelDict["paramMap"] = Dict()
 
     # Read modelFile to work with it
-    odefun = include(jlFilePath)
+    odefun = include(pathJlFile)
     expr = Expr(:call, Symbol(odefun))
     odeSys, stateMap, paramMap = eval(expr)
+
+    modelDict["stateMap"] = stateMap
+    modelDict["paramMap"] = paramMap
+
+    # Extract some "metadata"
+    modelDict["numOfParameters"] = string(length(paramMap))
+    modelDict["numOfSpecies"] = string(length(stateMap))
+
+    equationList = string.(equations(odeSys))
+    equationList = replace.(equationList, "Differential" => "D")
+    equationList = replace.(equationList, "(t)" => "")
+    modelDict["equationList"] = equationList
 
     for eq in odeSys.eqs
         key = replace(string(eq.lhs),"(t)" => "")
@@ -55,18 +65,18 @@ function JLToModellingToolkit(jlFilePath::String, dirJulia::String, modelName::S
             modelDict["inputFunctions"][key] = key * "~" * string(eq.rhs)
         end
     end
-
+    
     for par in paramMap
         modelDict["parameters"][string(par.first)] = string(par.second)
     end
-
+    
     for stat in stateMap
         modelDict["states"][string(stat.first)] = string(stat.second)
     end
-
+    
     #Initialize output model file path to input path
-    modelFileJl = jlFilePath
-
+    modelFileJl = pathJlFile
+    
     if ifElseToEvent == true
         # Rewrite any time-dependent ifelse to boolean statements such that we can express these as events.
         # This is recomended, as it often increases the stabillity when solving the ODE, and decreases run-time
@@ -74,156 +84,50 @@ function JLToModellingToolkit(jlFilePath::String, dirJulia::String, modelName::S
         if length(modelDict["boolVariables"]) > 0
             # changes final .jl in path to _fix.jl
             # and changes output model file path to the fixed one.
-            fileName = splitpath(jlFilePath)[end]
+            fileName = splitpath(pathJlFile)[end]
             fileNameFix = replace(fileName, Regex(".jl\$") => "_fix.jl")
             modelFileJl = joinpath(dirJulia, fileNameFix)
             # Create a new "fixed" julia file
-            io = open(modelFileJl, "w")
-            println(io, "# Model name: " * modelName)
-            println(io, "# Number of parameters: " * string(length(paramMap)))
-            println(io, "# Number of species: " * string(length(stateMap)))
-            println(io, "function getODEModel_" * modelName * "()")
-            println(io, "")
-
-            tmpLine = "    ModelingToolkit.@variables t "
-            tmpLineArray = "    stateArray = ["
-            for key in keys(modelDict["states"])
-                tmpLine *= key * " "
-                tmpLineArray *= replace(key,"(t)"=>"") * ", "
-            end
-            tmpLineArray = tmpLineArray[1:end-2] * "]"
-
-            println(io, "    ### Define independent and dependent variables")
-            println(io, tmpLine)
-            println(io, "")
-            println(io, "    ### Store dependent variables in array for ODESystem command")
-            println(io, tmpLineArray)
-            println(io, "")
-            println(io, "    ### Define variable parameters")
-            println(io, "")
-            println(io, "    ### Define potential algebraic variables")
-
-            if length(modelDict["inputFunctions"]) > 0
-                tmpLine = "    ModelingToolkit.@variables "
-                for key in keys(modelDict["inputFunctions"])
-                    tmpLine *= key * "(t) "
-                end
-                println(io, tmpLine)
-            end
-
-            tmpLine = "    ModelingToolkit.@parameters "
-            tmpLineArray = "    parameterArray = ["
-            for key in keys(modelDict["parameters"])
-                tmpLine *= key * " "
-                tmpLineArray *= replace(key,"(t)"=>"") * ", "
-            end
-            tmpLineArray = tmpLineArray[1:end-2] * "]"
-
-            println(io, "")
-            println(io, "    ### Define parameters")
-            println(io, tmpLine)
-            println(io, "")
-            println(io, "    ### Store parameters in array for ODESystem command")
-            println(io, tmpLineArray)
-            println(io, "")
-            println(io, "    ### Define an operator for the differentiation w.r.t. time")
-            println(io, "    D = Differential(t)")
-            println(io, "")
-            println(io, "    ### Continious events ###")
-            println(io, "")
-            println(io, "    ### Discrete events ###")
-
-            equationList = string.(equations(odeSys))
-            equationList = replace.(equationList, "Differential" => "D")
-            equationList = replace.(equationList, "(t)" => "")
-
-            tmpLine = "    eqs = [\n"
-
-            for eq in equationList
-                # Fixes equations containing ifelse
-                if occursin("ifelse", eq)
-                    # The equation starts either with "D(key) ~" or just "key ~"
-                    tildePos = findfirst("~",eq)[1]
-                    key = eq[1:tildePos-1]
-                    key = replace(key,"D(" => "")
-                    key = replace(key,")" => "")
-                    key = replace(key," " => "")
-                    tmpLine *= "    " * modelDict["inputFunctions"][key] * ",\n"
-                else
-                    tmpLine *= "    " * eq * ",\n"
-                end
-            end
-            tmpLine = tmpLine[1:end-2] * "\n    ]"
-
-            println(io, "")
-            println(io, "    ### Derivatives ###")
-            println(io, tmpLine)
-            println(io, "    @named sys = ODESystem(eqs, t, stateArray, parameterArray)")
-            println(io, "")
-            println(io, "    ### Initial species concentrations ###")
-            tmpLineArray = "    initialSpeciesValues = [\n"
-            for stat in stateMap
-                statN = replace(string(stat.first),"(t)"=>"")
-                statV = string(stat.second)
-                tmpLineArray *= "        " * statN * " => " * statV * ", \n"
-            end
-            tmpLineArray = tmpLineArray[1:end-3] * "\n    ]"
-            println(io, tmpLineArray)
-
-            println(io, "")
-            println(io, "    ### SBML file parameter values ###")
-            parameterList = string.(paramMap)
-            tmpLineArray = "    trueParameterValues = [\n"
-            for par in parameterList
-                tmpLineArray *= "        " * par * ", \n"
-            end
-
-            # Adds boolVariables to trueParameterValues
-            for par in keys(modelDict["boolVariables"])
-                tmpLineArray *= "        " * par * " => 0.0, \n"
-            end
-            tmpLineArray = tmpLineArray[1:end-3] * "\n    ]"
-            println(io, tmpLineArray)
-
-            println(io, "")
-            println(io, "    return sys, initialSpeciesValues, trueParameterValues")
-
-            println(io, "")
-            println(io, "end")
-            close(io)
+            writeODEModelToFile(modelDict, pathJlFile, modelName, true)
         end
     end
-
+    
     return modelDict, modelFileJl
-
+    
 end
+
 
 
 # Rewrites triggers in events to propper form for ModelingToolkit
 function asTrigger(triggerFormula)
     if "geq" == triggerFormula[1:3]
         strippedFormula = triggerFormula[5:end-1]
+        separatorUse = "≥"
     elseif "gt" == triggerFormula[1:2]
         strippedFormula = triggerFormula[4:end-1]
+        separatorUse = "≥"
     elseif "leq" == triggerFormula[1:3]
         strippedFormula = triggerFormula[5:end-1]
+        separatorUse = "≤"
     elseif "lt" == triggerFormula[1:2]
         strippedFormula = triggerFormula[4:end-1]
+        separatorUse = "≤"
     end
     parts = splitBetween(strippedFormula, ',')
     if occursin("time", parts[1])
         parts[1] = replaceWholeWord(parts[1], "time", "t")
     end
-    expression = "[" * parts[1] * " ~ " * parts[2] * "]"
+    expression = parts[1] * " " * separatorUse * " " * parts[2] 
     return expression
 end
 
 
 # Rewrites derivatives for a model by replacing functions, any lagging piecewise, and power functions.
 function rewriteDerivatives(derivativeAsString, modelDict, baseFunctions)
-    newDerivativeAsString = derivativeAsString
-    newDerivativeAsString = replaceFunctionWithFormula(newDerivativeAsString, modelDict["modelFunctions"])
+    
+    newDerivativeAsString = replaceFunctionWithFormula(derivativeAsString, modelDict["modelFunctions"])
     newDerivativeAsString = replaceFunctionWithFormula(newDerivativeAsString, modelDict["modelRuleFunctions"])
+    
     if occursin("pow(", newDerivativeAsString)
         newDerivativeAsString = removePowFunctions(newDerivativeAsString)
     end
@@ -238,33 +142,31 @@ function rewriteDerivatives(derivativeAsString, modelDict, baseFunctions)
 end
 
 
-function processInitialAssignment(libsbml, model, modelDict::Dict, baseFunctions::Array{String, 1})
+function processInitialAssignment(modelSBML, modelDict::Dict, baseFunctions::Array{String, 1})
 
     initallyAssignedVariable = Dict{String, String}()
     initallyAssignedParameter = Dict{String, String}()
-    for initAssign in model[:getListOfInitialAssignments]()
-
-        assignName = initAssign[:getId]()
-        assignMath = initAssign[:getMath]()
-        assignFormula = libsbml[:formulaToString](assignMath)
-        assignFormula = rewriteDerivatives(assignFormula, modelDict, baseFunctions)
+    for (assignId, initialAssignment) in modelSBML.initial_assignments
+        
+        _formula = mathToString(initialAssignment)
+        formula = rewriteDerivatives(_formula, modelDict, baseFunctions)
 
         # Figure out wheter parameters or state is affected by the initial assignment
-        if assignName in keys(modelDict["states"])
-            modelDict["states"][assignName] = assignFormula
-            initallyAssignedVariable[assignName] = "states"
+        if assignId ∈ keys(modelDict["states"])
+            modelDict["states"][assignId] = formula
+            initallyAssignedVariable[assignId] = "states"
 
-        elseif assignName in keys(modelDict["nonConstantParameters"])
-            modelDict["nonConstantParameters"][assignName] = assignFormula
-            initallyAssignedVariable[assignName] = "nonConstantParameters"
+        elseif assignId ∈ keys(modelDict["nonConstantParameters"])
+            modelDict["nonConstantParameters"][assignId] = formula
+            initallyAssignedVariable[assignId] = "nonConstantParameters"
 
-        elseif assignName in keys(modelDict["parameters"])
-            modelDict["parameters"][assignName] = assignFormula
-            initallyAssignedParameter[assignName] = "parameters"
+        elseif assignId ∈ keys(modelDict["parameters"])
+            modelDict["parameters"][assignId] = formula
+            initallyAssignedVariable[assignId] = "parameters"
+
         else
-            println("Error: could not find assigned variable/parameter")
+            @error "Could not identify assigned variable $assignId in list of states or parameters"
         end
-
     end
 
     # If the initial assignment for a state is the value of another state apply recursion until continue looping
@@ -308,7 +210,7 @@ function processInitialAssignment(libsbml, model, modelDict::Dict, baseFunctions
 end
 
 
-function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
+function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
 
     # Nested dictionaries to store relevant model data:
     # i) Model parameters (constant during for a simulation)
@@ -336,129 +238,111 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
     modelDict["numOfSpecies"] = Dict()
     modelDict["boolVariables"] = Dict()
     modelDict["events"] = Dict()
+    modelDict["reactions"] = Dict()
     # Mathemathical base functions (can be expanded if needed)
     baseFunctions = ["exp", "log", "log2", "log10", "sin", "cos", "tan", "pi"]
     stringOfEvents = ""
     discreteEventString = ""
 
-    # Extract model states, their initial values and set up derivative expression for each state
-    for spec in model[:getListOfSpecies]()
-        stateId = spec[:getId]()
-        # If initial amount is zero (default) check if intial value is given in getInitialConcentration
-        if spec[:getInitialAmount]() == 0 || isnan(spec[:getInitialAmount]())
-            if spec[:getInitialConcentration]() === NaN # Default SBML value
-                modelDict["states"][stateId] = string(spec[:getInitialAmount]())
-            else
-                modelDict["states"][stateId] = string(spec[:getInitialConcentration]())
-            end
-
-        # Else use the value provided in getInitialAmount
-        else
-            modelDict["states"][stateId] = string(spec[:getInitialAmount]())
+    for (stateId, state) in modelSBML.species
+        # If initial amount is zero or nothing (default) should use initial-concentration if non-empty 
+        if (state.initial_amount == 0 || isnothing(state.initial_amount)) && isnothing(state.initial_concentration)
+            modelDict["states"][stateId] = "0.0"
+        elseif !isnothing(state.initial_concentration)
+            modelDict["states"][stateId] = string(state.initial_concentration)
+        else 
+            modelDict["states"][stateId] = string(state.initial_amount)
         end
-        modelDict["hasOnlySubstanceUnits"][stateId] = spec[:getHasOnlySubstanceUnits]()
-        modelDict["isBoundaryCondition"][stateId] = spec[:getBoundaryCondition]()
+
+        # Setup for downstream processing 
+        modelDict["hasOnlySubstanceUnits"][stateId] = state.only_substance_units
+        modelDict["isBoundaryCondition"][stateId] = state.boundary_condition 
         modelDict["derivatives"][stateId] = "D(" * stateId * ") ~ " # ModellingToolkitSyntax
 
-        # In case being a boundary condition the state in question is assumed to only be changed via user input
+        # In case being a boundary condition the state can only be changed by the user 
         if modelDict["isBoundaryCondition"][stateId] == true
-           modelDict["derivatives"][stateId] * "0.0"
+           modelDict["derivatives"][stateId] *= "0.0"
         end
     end
 
     # Extract model parameters and their default values
-    for parameter in model[:getListOfParameters]()
-        modelDict["parameters"][parameter[:getId]()] = string(parameter[:getValue]())
+    for (parameterId, parameter) in modelSBML.parameters
+        modelDict["parameters"][parameterId] = string(parameter.value)
     end
-
-    # Extract model compartments and store their volumes along with the model parameters
-    for compartment in model[:getListOfCompartments]()
-        modelDict["parameters"][compartment[:getId]()] = string(compartment[:getSize]())
+    for (compartmentId, compartment) in modelSBML.compartments
+        modelDict["parameters"][compartmentId] = string(compartment.size)
     end
 
     # Rewrite SBML functions into Julia syntax functions and store in dictionary to allow them to
-    # be inserted into equation formulas downstream.
-    for functionDefinition in model[:getListOfFunctionDefinitions]()
-        math = functionDefinition[:getMath]()
-        functionName = functionDefinition[:getId]()
-        args = getSBMLFuncArg(math)
-        functionFormula = getSBMLFuncFormula(math, libsbml)
-        modelDict["modelFunctions"][functionName] = [args[2:end-1], functionFormula] # (args, formula)
+    # be inserted into equation formulas downstream
+    for (functionName, SBMLFunction) in modelSBML.function_definitions
+        args = getSBMLFunctionArgs(SBMLFunction)
+        functionFormula = mathToString(SBMLFunction.body.body)
+        modelDict["modelFunctions"][functionName] = [args, functionFormula]
     end
 
-    ### Define events
-    # Later by the process callback function these events are rewritten to if possible DiscreteCallback:s
-    for (eIndex, event) in enumerate(model[:getListOfEvents]())
-        eventName = event[:getName]()
-        trigger = event[:getTrigger]()
-        triggerMath = trigger[:getMath]()
-        triggerFormula = asTrigger(libsbml[:formulaToString](triggerMath))
-        eventAsString = Vector{String}(undef, length(event[:getListOfEventAssignments]()))
-        eventAssign = Vector{String}(undef, length(event[:getListOfEventAssignments]()))
-        for (eaIndex, eventAssignment) in enumerate(event[:getListOfEventAssignments]())
-            variableName = eventAssignment[:getVariable]()
-            eventMath = eventAssignment[:getMath]()
-            eventMathAsString = libsbml[:formulaToString](eventMath)
-            eventAssign[eaIndex] = variableName
-            eventAsString[eaIndex] = eventMathAsString
+    # Later by the process callback function these events are rewritten to 
+    # DiscreteCallback:s if possible 
+    eIndex = 1
+    for (eventName, event) in modelSBML.events
+        _triggerFormula = mathToString(event.trigger.math)
+        triggerFormula = asTrigger(_triggerFormula)
+        eventFormulas = Vector{String}(undef, length(event.event_assignments))
+        eventAssignTo = similar(eventFormulas)
+        for (i, eventAssignment) in pairs(event.event_assignments)
+            eventFormulas[i] = mathToString(eventAssignment.math)
+            eventAssignTo[i] = eventAssignment.variable
+        end
+        eventName = isempty(eventName) ? "event" * string(eIndex) : eventName
+        modelDict["events"][eventName] = [triggerFormula, eventAssignTo .* " = " .* eventFormulas]
+        eIndex += 1
+    end
+
+    for rule in modelSBML.rules
+        if rule isa SBML.AssignmentRule
+            ruleFormula = extractRuleFormula(rule)
+            processAssignmentRule!(modelDict, ruleFormula, rule.variable, baseFunctions)
         end
 
-        eventName = isempty(eventName) ? "event" * string(eIndex) : eventName
-        modelDict["events"][eventName] = [triggerFormula, eventAssign .* " = " .* eventAsString]
-    end
+        if rule isa SBML.RateRule
+            ruleFormula = extractRuleFormula(rule)
+            processRateRule!(modelDict, ruleFormula, rule.variable, baseFunctions)
+        end
 
-    # Extract model rules. Each rule-type is processed differently.
-    for rule in model[:getListOfRules]()
-        ruleType = rule[:getElementName]()
-
-        if ruleType == "assignmentRule"
-            ruleVariable = rule[:getVariable]()
-            ruleFormula = getRuleFormula(rule)
-            processAssignmentRule!(modelDict, ruleFormula, ruleVariable, baseFunctions)
-
-        elseif ruleType == "algebraicRule"
-            # TODO
-            println("Currently we do not support algebraic rules :(")
-
-        elseif ruleType == "rateRule"
-            ruleVariable = rule[:getVariable]() # variable
-            ruleFormula = getRuleFormula(rule)
-            processRateRule!(modelDict, ruleFormula, ruleVariable, baseFunctions)
+        if rule isa SBML.AlgebraicRule
+            @error "Currently we do not support algebraic rules"
         end
     end
 
     # Positioned after rules since some assignments may include functions
-    processInitialAssignment(libsbml, model, modelDict, baseFunctions)
+    processInitialAssignment(modelSBML, modelDict, baseFunctions)
 
-    # Process reactions into Julia functions, and keep correct Stoichiometry
-    reactions = [(r, r[:getKineticLaw]()[:getFormula]()) for r in model[:getListOfReactions]()]
-    for (reac, formula) in reactions
-        products = [(p[:species], p[:getStoichiometry]()) for p in reac[:getListOfProducts]()]
-        reactants = [(r[:species], r[:getStoichiometry]()) for r in reac[:getListOfReactants]()]
-
-        ## Replaces kinetic law parameters with their values (where-statements).
-        klparameters = reac[:getKineticLaw]()[:getListOfParameters]()
-        if length(klparameters) > 0
-            for klpar in klparameters
-                parameterName = klpar[:getId]()
-                parameterValue = klpar[:getValue]()
-                formula = replaceWholeWord(formula, parameterName, parameterValue)
-            end
+    # Process chemical reactions 
+    for (id, reaction) in modelSBML.reactions
+        # Process kinetic math into Julia syntax 
+        _formula = mathToString(reaction.kinetic_math)
+               
+        # Add values for potential kinetic parameters (where-statements)
+        for (parameterId, parameter) in reaction.kinetic_parameters
+            _formula = replaceWholeWord(_formula, parameterId, parameter.value)
         end
 
-        formula = rewriteDerivatives(formula, modelDict, baseFunctions)
-        for (rName, rStoich) in reactants
-            modelDict["isBoundaryCondition"][rName] == true && continue # Constant state
-            rComp = model[:getSpecies](rName)[:getCompartment]()
-            # Check whether or not we should scale by compartment or not
-            compartmentScaling = modelDict["hasOnlySubstanceUnits"][rName] == true ? " * " : " * ( 1 /" * rComp * " ) * "
-            modelDict["derivatives"][rName] = modelDict["derivatives"][rName] * "-" * string(rStoich) * compartmentScaling * "(" * formula * ")"
+        formula = rewriteDerivatives(_formula, modelDict, baseFunctions)
+        modelDict["reactions"][reaction.name] = formula
+        
+        for reactant in reaction.reactants
+            modelDict["isBoundaryCondition"][reactant.species] == true && continue # Constant state  
+            compartment = modelSBML.species[reactant.species].compartment
+            stoichiometry = isnothing(reactant.stoichiometry) ? "1" : string(reactant.stoichiometry)
+            compartmentScaling = modelDict["hasOnlySubstanceUnits"][reactant.species] == true ? " * " : " * ( 1 /" * compartment * " ) * "
+            modelDict["derivatives"][reactant.species] *= "-" * stoichiometry * compartmentScaling * "(" * formula * ")"
         end
-        for (pName, pStoich) in products
-            modelDict["isBoundaryCondition"][pName] == true && continue # Constant state
-            pComp = model[:getSpecies](pName)[:getCompartment]()
-            compartmentScaling = modelDict["hasOnlySubstanceUnits"][pName] == true ? " * " : " * ( 1 /" * pComp * " ) * "
-            modelDict["derivatives"][pName] = modelDict["derivatives"][pName] * "+" * string(pStoich) * compartmentScaling * "(" * formula * ")"
+        for product in reaction.products
+            modelDict["isBoundaryCondition"][product.species] == true && continue # Constant state  
+            compartment = modelSBML.species[product.species].compartment
+            stoichiometry = isnothing(product.stoichiometry) ? "1" : string(product.stoichiometry)
+            compartmentScaling = modelDict["hasOnlySubstanceUnits"][product.species] == true ? " * " : " * ( 1 /" * compartment * " ) * "
+            modelDict["derivatives"][product.species] *= "+" * stoichiometry * compartmentScaling * "(" * formula * ")"
         end
     end
 
@@ -488,186 +372,329 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
 
     modelDict["stringOfEvents"] = stringOfEvents
     modelDict["discreteEventString"] = discreteEventString
-    modelDict["numOfParameters"] =   string(length(model[:getListOfParameters]()))
-    modelDict["numOfSpecies"] =   string(length(model[:getListOfSpecies]()))
+    modelDict["numOfParameters"] = string(length(keys(modelDict["parameters"])))
+    modelDict["numOfSpecies"] = string(length(keys(modelDict["states"])))
     return modelDict
 end
 
 
 """
-    writeODEModelToFile(modelDict, modelName, dirModel)
-    Takes a modelDict as defined by buildODEModelDictionary
-    and creates a Julia ModelingToolkit file and stores
-    the resulting file in dirModel with name modelName.jl.
+writeODEModelToFile(modelDict, pathJlFile, modelName, juliaFile)
+Takes a modelDict as defined by buildODEModelDictionary
+and creates a Julia ModelingToolkit file and stores
+the resulting file in dirModel with name modelName.jl.
 """
-function writeODEModelToFile(modelDict, model, pathJlFile, modelName)
-    ### Writing to file
-    modelFile = open(pathJlFile, "w")
+function writeODEModelToFile(modelDict, pathJlFile, modelName, juliaFile)
 
-    println(modelFile, "# Model name: " * modelName)
+        stringDict = Dict()
+        stringDict["variables"] = Dict()
+        stringDict["stateArray"] = Dict()
+        stringDict["variableParameters"] = Dict()
+        stringDict["algebraicVariables"] = Dict()
+        stringDict["parameters"] = Dict()
+        stringDict["parameterArray"] = Dict()
+        stringDict["continuousEvents"] = Dict()
+        stringDict["discreteEvents"] = Dict()
+        stringDict["derivatives"] = Dict()
+        stringDict["ODESystem"] = Dict()
+        stringDict["initialSpeciesValues"] = Dict()
+        stringDict["trueParameterValues"] = Dict()
 
-    println(modelFile, "# Number of parameters: " * string(modelDict["numOfParameters"]))
-    println(modelFile, "# Number of species: " * string(modelDict["numOfSpecies"]))
-    println(modelFile, "function getODEModel_" * modelName * "()")
+        stringDict["variables"] = "    ModelingToolkit.@variables t "
+        stringDict["stateArray"] = "    stateArray = ["
+        stringDict["variableParameters"] = ""
+        stringDict["algebraicVariables"] = ""
+        stringDict["parameters"] = "    ModelingToolkit.@parameters "
+        stringDict["parameterArray"] = "    parameterArray = ["
+        stringDict["continuousEvents"] = ""
+        stringDict["discreteEvents"] = ""
+        stringDict["derivatives"] = "    eqs = [\n"
+        stringDict["ODESystem"] = "    @named sys = ODESystem(eqs, t, stateArray, parameterArray)"
+        stringDict["initialSpeciesValues"] = "    initialSpeciesValues = [\n"
+        stringDict["trueParameterValues"] = "    trueParameterValues = [\n"
 
-    println(modelFile, "")
-    println(modelFile, "    ### Define independent and dependent variables")
-    defineVariables = "    ModelingToolkit.@variables t"
-    for key in keys(modelDict["states"])
-        defineVariables = defineVariables * " " * key * "(t)"
-    end
-    println(modelFile, defineVariables)
-
-    println(modelFile, "")
-    println(modelFile, "    ### Store dependent variables in array for ODESystem command")
-    defineVariables = "    stateArray = ["
-    for (index, key) in enumerate(keys(modelDict["states"]))
-        if index < length(modelDict["states"])
-            defineVariables = defineVariables * key * ", "
-        else
-            defineVariables = defineVariables * key * "]"
+    if juliaFile == true
+        
+        for key in keys(modelDict["states"])
+            stringDict["variables"] *= key * " "
+            stringDict["stateArray"] *= replace(key,"(t)"=>"") * ", "
         end
-    end
-    println(modelFile, defineVariables)
-
-    println(modelFile, "")
-    println(modelFile, "    ### Define variable parameters")
-    if length(modelDict["nonConstantParameters"]) > 0
-        defineVariableParameters = "    ModelingToolkit.@variables"
-        for key in keys(modelDict["nonConstantParameters"])
-            defineVariableParameters = defineVariableParameters * " " * key * "(t)"
+        stringDict["stateArray"] = stringDict["stateArray"][1:end-2] * "]"
+        
+        if length(modelDict["inputFunctions"]) > 0
+            for key in keys(modelDict["inputFunctions"])
+                stringDict["variables"] *= key * "(t) "
+            end
         end
-        println(modelFile, defineVariableParameters)
-    end
-
-    println(modelFile, "")
-    println(modelFile, "    ### Define potential algebraic variables")
-    if length(modelDict["inputFunctions"]) > 0
-        defineVariableParameters = "    ModelingToolkit.@variables"
-        for key in keys(modelDict["inputFunctions"])
-            defineVariableParameters = defineVariableParameters * " " * key * "(t)"
+        
+        for key in keys(modelDict["parameters"])
+            stringDict["parameters"] *= key * " "
+            stringDict["parameterArray"] *= replace(key,"(t)"=>"") * ", "
         end
-        println(modelFile, defineVariableParameters)
-    end
-
-    println(modelFile, "")
-    println(modelFile, "    ### Define parameters")
-    defineParameters = "    ModelingToolkit.@parameters"
-    for key in keys(modelDict["parameters"])
-        defineParameters = defineParameters * " " * key
-    end
-    println(modelFile, defineParameters)
-
-    println(modelFile, "")
-    println(modelFile, "    ### Store parameters in array for ODESystem command")
-    defineParameters = "    parameterArray = ["
-    for (index, key) in enumerate(keys(modelDict["parameters"]))
-        if index < length(modelDict["parameters"])
-           defineParameters = defineParameters * key * ", "
-        else
-           defineParameters = defineParameters * key * "]"
+        stringDict["parameterArray"] = stringDict["parameterArray"][1:end-2] * "]"
+        
+        for eq in modelDict["equationList"]
+            # Fixes equations containing ifelse
+            if occursin("ifelse", eq)
+                # The equation starts either with "D(key) ~" or just "key ~"
+                tildePos = findfirst("~",eq)[1]
+                key = eq[1:tildePos-1]
+                key = replace(key,"D(" => "")
+                key = replace(key,")" => "")
+                key = replace(key," " => "")
+                stringDict["derivatives"] *= "    " * modelDict["inputFunctions"][key] * ",\n"
+            else
+                stringDict["derivatives"] *= "    " * eq * ",\n"
+            end
         end
-    end
-    println(modelFile, defineParameters)
 
-    println(modelFile, "")
-    println(modelFile, "    ### Define an operator for the differentiation w.r.t. time")
-    println(modelFile, "    D = Differential(t)")
-
-    stringOfEvents = modelDict["stringOfEvents"]
-    println(modelFile, "")
-    println(modelFile, "    ### Continious events ###")
-    if length(stringOfEvents) > 0
-        println(modelFile, "    continuous_events = [")
-        println(modelFile, "    " * stringOfEvents)
-        println(modelFile, "    ]")
-    end
-
-    discreteEventString = modelDict["discreteEventString"]
-    println(modelFile, "")
-    println(modelFile, "    ### Discrete events ###")
-    if length(discreteEventString) > 0
-        println(modelFile, "    discrete_events = [")
-        println(modelFile, "    " * discreteEventString)
-        println(modelFile, "    ]")
-    end
-
-    println(modelFile, "")
-    println(modelFile, "    ### Derivatives ###")
-    println(modelFile, "    eqs = [")
-    for (sIndex, key) in enumerate(keys(modelDict["states"]))
-        # If the state is not part of any reaction we set its value to zero.
-        if occursin(Regex("~\\s*\$"),modelDict["derivatives"][key])
-            modelDict["derivatives"][key] *= "0.0"
+        stringDict["derivatives"] = stringDict["derivatives"][1:end-2] * "\n    ]"
+        
+        for stat in modelDict["stateMap"]
+            statN = replace(string(stat.first),"(t)"=>"")
+            statV = string(stat.second)
+            stringDict["initialSpeciesValues"] *= "        " * statN * " => " * statV * ", \n"
         end
-        if sIndex == 1
-            print(modelFile, "    " * modelDict["derivatives"][key])
-        else
-            print(modelFile, ",\n    " * modelDict["derivatives"][key])
-        end
-    end
-    for key in keys(modelDict["nonConstantParameters"])
-        print(modelFile, ",\n    D(" * key * ") ~ 0")
-    end
-    for key in keys(modelDict["inputFunctions"])
-        print(modelFile, ",\n    " * modelDict["inputFunctions"][key])
-    end
-    println(modelFile, "")
-    println(modelFile, "    ]")
+        stringDict["initialSpeciesValues"] = stringDict["initialSpeciesValues"][1:end-3] * "\n    ]"
+        
 
-    println(modelFile, "")
-    if length(stringOfEvents) > 0 && length(discreteEventString) > 0
-        println(modelFile, "    @named sys = ODESystem(eqs, t, stateArray, parameterArray, continuous_events = continuous_events, discrete_events = discrete_events)")
-    elseif length(stringOfEvents) > 0 && length(discreteEventString) == 0
-        println(modelFile, "    @named sys = ODESystem(eqs, t, stateArray, parameterArray, continuous_events = continuous_events)")
-    elseif length(stringOfEvents) == 0 && length(discreteEventString) > 0
-        println(modelFile, "    @named sys = ODESystem(eqs, t, stateArray, parameterArray, discrete_events = discrete_events)")
+        parameterList = string.(modelDict["paramMap"])
+        for par in parameterList
+            stringDict["trueParameterValues"] *= "        " * par * ", \n"
+        end
+        # Adds boolVariables to trueParameterValues
+        for par in keys(modelDict["boolVariables"])
+            stringDict["trueParameterValues"] *= "        " * par * " => 0.0, \n"
+        end
+        stringDict["trueParameterValues"] = stringDict["trueParameterValues"][1:end-3] * "\n    ]"
+
     else
-        println(modelFile, "    @named sys = ODESystem(eqs, t, stateArray, parameterArray)")
-    end
 
-    println(modelFile, "")
-    println(modelFile, "    ### Initial species concentrations ###")
-    println(modelFile, "    initialSpeciesValues = [")
-    for (index, (key, value)) in enumerate(modelDict["states"])
-        if tryparse(Float64,value) !== nothing
-            value = string(parse(Float64,value))
+        for key in keys(modelDict["states"])
+            stringDict["variables"] *= key * "(t) "
         end
-        if index == 1
-            assignString = "    " * key * " => " * value
-        else
+
+        for (index, key) in enumerate(keys(modelDict["states"]))
+            if index < length(modelDict["states"])
+                stringDict["stateArray"] *= key * ", "
+            else
+                stringDict["stateArray"] *= key * "]"
+            end
+        end
+
+        if length(modelDict["nonConstantParameters"]) > 0
+            stringDict["variableParameters"] = "    ModelingToolkit.@variables"
+            for key in keys(modelDict["nonConstantParameters"])
+                stringDict["variableParameters"] *= " " * key * "(t)"
+            end
+        end
+        
+        if length(modelDict["inputFunctions"]) > 0
+            stringDict["algebraicVariables"] = "    ModelingToolkit.@variables"
+            for key in keys(modelDict["inputFunctions"])
+                stringDict["algebraicVariables"] *= " " * key * "(t)"
+            end
+        end
+        
+        for key in keys(modelDict["parameters"])
+            stringDict["parameters"] *= key * " "
+        end
+
+        for (index, key) in enumerate(keys(modelDict["parameters"]))
+            if index < length(modelDict["parameters"])
+                stringDict["parameterArray"] *= key * ", "
+            else
+                stringDict["parameterArray"] *= key * "]"
+            end
+        end
+
+        stringDict["continuousEvents"] = modelDict["stringOfEvents"]
+        if length(modelDict["stringOfEvents"]) > 0
+            stringDict["continuousEvents"] = "    continuous_events = ["
+            stringDict["continuousEvents"] *= "    " * modelDict["stringOfEvents"]
+            stringDict["continuousEvents"] *= "    ]"
+        end
+        
+        stringDict["discreteEvents"] = modelDict["discreteEventString"]
+        if length(modelDict["discreteEventString"]) > 0
+            stringDict["discreteEvents"] = "    discrete_events = ["
+            stringDict["discreteEvents"] *= "    " * modelDict["discreteEventString"]
+            stringDict["discreteEvents"] *=  "    ]"
+        end
+
+        for (sIndex, key) in enumerate(keys(modelDict["states"]))
+            # If the state is not part of any reaction we set its value to zero.
+            if occursin(Regex("~\\s*\$"),modelDict["derivatives"][key])
+                modelDict["derivatives"][key] *= "0.0"
+            end
+            if sIndex == 1
+                stringDict["derivatives"] *= "    " * modelDict["derivatives"][key]
+            else
+                stringDict["derivatives"] *= ",\n    " * modelDict["derivatives"][key]
+            end
+        end
+        for key in keys(modelDict["nonConstantParameters"])
+            stringDict["derivatives"] *= ",\n    D(" * key * ") ~ 0"
+        end
+        for key in keys(modelDict["inputFunctions"])
+            stringDict["derivatives"] *= ",\n    " * modelDict["inputFunctions"][key]
+        end
+        stringDict["derivatives"] *= "\n"
+        stringDict["derivatives"] *= "    ]"
+
+        if length(modelDict["stringOfEvents"]) > 0 && length(modelDict["discreteEventString"]) > 0
+            stringDict["ODESystem"] = "    @named sys = ODESystem(eqs, t, stateArray, parameterArray, continuous_events = continuous_events, discrete_events = discrete_events)"
+        elseif length(modelDict["stringOfEvents"]) > 0 && length(modelDict["discreteEventString"]) == 0
+            stringDict["ODESystem"] = "    @named sys = ODESystem(eqs, t, stateArray, parameterArray, continuous_events = continuous_events)"
+        elseif length(modelDict["stringOfEvents"]) == 0 && length(modelDict["discreteEventString"]) > 0
+            stringDict["ODESystem"] = "    @named sys = ODESystem(eqs, t, stateArray, parameterArray, discrete_events = discrete_events)"
+        end
+
+        for (index, (key, value)) in enumerate(modelDict["states"])
+            if tryparse(Float64,value) !== nothing
+                value = string(parse(Float64,value))
+            end
+            if index == 1
+                assignString = "    " * key * " => " * value
+            else
+                assignString = ",\n    " * key * " => " * value
+            end
+            stringDict["initialSpeciesValues"] *= assignString
+        end
+        for (key, value) in modelDict["nonConstantParameters"]
             assignString = ",\n    " * key * " => " * value
+            stringDict["initialSpeciesValues"] *= assignString
         end
-        print(modelFile, assignString)
-    end
-    for (key, value) in modelDict["nonConstantParameters"]
-        assignString = ",\n    " * key * " => " * value
-        print(modelFile, assignString)
-    end
-    println(modelFile, "")
-    println(modelFile, "    ]")
-
-    println(modelFile, "")
-    println(modelFile, "    ### SBML file parameter values ###")
-    println(modelFile, "    trueParameterValues = [")
-    for (index, (key, value)) in enumerate(modelDict["parameters"])
-        if tryparse(Float64,value) !== nothing
-            value = string(parse(Float64,value))
+        stringDict["initialSpeciesValues"] *= "\n"
+        stringDict["initialSpeciesValues"] *= "    ]"
+        
+        for (index, (key, value)) in enumerate(modelDict["parameters"])
+            if tryparse(Float64,value) !== nothing
+                value = string(parse(Float64,value))
+            end
+            if index == 1
+                assignString = "    " * key * " => " * value
+            else
+                assignString = ",\n    " * key * " => " * value
+            end
+            stringDict["trueParameterValues"] *= assignString
         end
-        if index == 1
-            assignString = "    " * key * " => " * value
-        else
-            assignString = ",\n    " * key * " => " * value
-        end
-        print(modelFile, assignString)
+        stringDict["trueParameterValues"] *= "\n"
+        stringDict["trueParameterValues"] *= "    ]"
+        
     end
-    println(modelFile, "")
-    println(modelFile, "    ]")
-    println(modelFile, "")
 
-    println(modelFile, "    return sys, initialSpeciesValues, trueParameterValues")
-    println(modelFile, "")
-    println(modelFile, "end")
+        ### Writing to file
+        io = open(pathJlFile, "w")
+        println(io, "# Model name: " * modelName)
+        println(io, "# Number of parameters: " * modelDict["numOfParameters"])
+        println(io, "# Number of species: " * modelDict["numOfSpecies"])
+        println(io, "function getODEModel_" * modelName * "()")
+        println(io, "")
 
-    close(modelFile)
+        println(io, "    ### Define independent and dependent variables")
+        println(io, stringDict["variables"])
+        println(io, "")
+        println(io, "    ### Store dependent variables in array for ODESystem command")
+        println(io, stringDict["stateArray"])
+        println(io, "")
+        println(io, "    ### Define variable parameters")
+        println(io, stringDict["variableParameters"])
+        println(io, "    ### Define potential algebraic variables")
+        println(io, stringDict["algebraicVariables"])
+        println(io, "    ### Define parameters")
+        println(io, stringDict["parameters"])
+        println(io, "")
+        println(io, "    ### Store parameters in array for ODESystem command")
+        println(io, stringDict["parameterArray"])
+        println(io, "")
+        println(io, "    ### Define an operator for the differentiation w.r.t. time")
+        println(io, "    D = Differential(t)")
+        println(io, "")
+        println(io, "    ### Continious events ###")
+        println(io, stringDict["continuousEvents"])
+        println(io, "    ### Discrete events ###")
+        println(io, stringDict["discreteEvents"])
+        println(io, "    ### Derivatives ###")
+        println(io, stringDict["derivatives"])
+        println(io, "")
+        println(io, stringDict["ODESystem"])
+        println(io, "")
+        println(io, "    ### Initial species concentrations ###")
+        println(io, stringDict["initialSpeciesValues"])
+        println(io, "")
+        println(io, "    ### SBML file parameter values ###")
+        println(io, stringDict["trueParameterValues"])
+        println(io, "")
+        println(io, "    return sys, initialSpeciesValues, trueParameterValues")
+        println(io, "")
+        println(io, "end")
+        close(io)
+    
+end
+
+function mathToString(math)
+    mathStr, _ = _mathToString(math)
+    return mathStr
+end
+
+
+function _mathToString(math::SBML.MathApply)
+
+    if math.fn ∈ ["*", "/", "+", "-", "power"] && length(math.args) == 2
+        fn = math.fn == "power" ? "^" : math.fn
+        _part1, addParenthesis1 = _mathToString(math.args[1])
+        _part2, addParenthesis2 = _mathToString(math.args[2])
+        # In case we hit the bottom in the recursion we do not need to add paranthesis 
+        # around the math-expression making the equations easier to read
+        part1 = addParenthesis1 ?  '(' * _part1 * ')' : _part1
+        part2 = addParenthesis2 ?  '(' * _part2 * ')' : _part2
+        return part1 * fn * part2, true
+    end
+
+    if math.fn ∈ ["+", "-"] && length(math.args) == 1
+        _formula, addParenthesis = _mathToString(math.args[1])
+        formula = addParenthesis ? '(' * _formula * ')' : _formula
+        return math.fn * formula, true
+    end
+
+    # Piecewise can have arbibrary number of arguments 
+    if math.fn == "piecewise"
+        formula = "piecewise("
+        for arg in math.args
+            _formula, _ = _mathToString(arg) 
+            formula *= _formula * ", "
+        end
+        return formula[1:end-2] * ')', false
+    end
+
+    if math.fn ∈ ["lt", "gt", "leq", "geq"]
+        @assert length(math.args) == 2
+        part1, _ = _mathToString(math.args[1]) 
+        part2, _ = _mathToString(math.args[2])
+        return math.fn * "(" * part1 * ", " * part2 * ')', false
+    end
+
+    if math.fn ∈ ["exp", "log", "log2", "log10", "sin", "cos", "tan"]
+        @assert length(math.args) == 1
+        formula, _ = _mathToString(math.args[1])
+        return math.fn * '(' * formula * ')', false
+    end
+
+    # At this point the only feasible option left is a SBMLFunction
+    formula = math.fn * '('
+    for arg in math.args
+        _formula, _ = _mathToString(arg) 
+        formula *= _formula * ", "
+    end
+    return formula[1:end-2] * ')', false
+end
+function _mathToString(math::SBML.MathVal)
+    return string(math.val), false
+end
+function _mathToString(math::SBML.MathIdent)
+    return string(math.id), false
+end
+function _mathToString(math::SBML.MathTime)
+    return string(math.id), false
 end

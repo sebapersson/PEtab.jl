@@ -23,11 +23,10 @@ function createCallbacksForTimeDepedentPiecewise(odeSystem::ODESystem,
     # In case of no-callbacks the function for getting callbacks will be empty, likewise for the function
     # which compute tstops (callback-times)
     stringWriteCallbacks = "function getCallbacks_" * modelName * "()\n"
-    stringWriteFunctions = ""
     stringWriteTstops = "\nfunction computeTstops(u::AbstractVector, p::AbstractVector)\n"
 
     # In case we do not have any events
-    if isempty(SBMLDict["boolVariables"])
+    if isempty(SBMLDict["boolVariables"]) && isempty(SBMLDict["events"])
         callbackNames = ""
         checkIfActivatedT0Names = ""
         stringWriteTstops *= "\t return Float64[]\nend\n"
@@ -37,8 +36,20 @@ function createCallbacksForTimeDepedentPiecewise(odeSystem::ODESystem,
             stringWriteCallbacks *= functionsStr * "\n"
             stringWriteCallbacks *= callbackStr * "\n"
         end
-        callbackNames = prod(["cb_" * key * ", " for key in keys(SBMLDict["boolVariables"])])[1:end-2]
-        checkIfActivatedT0Names = prod(["isActiveAtTime0_" * key * "!, " for key in keys(SBMLDict["boolVariables"])])[1:end-2]
+        for key in keys(SBMLDict["events"])
+            functionsStr, callbackStr = createCallbackForEvent(key, SBMLDict, pODEProblemNames, modelStateNames)
+            stringWriteCallbacks *= functionsStr * "\n"
+            stringWriteCallbacks *= callbackStr * "\n"
+        end
+
+        _callbackNames = vcat([key for key in keys(SBMLDict["boolVariables"])], [key for key in keys(SBMLDict["events"])])
+        callbackNames = prod(["cb_" * name * ", " for name in _callbackNames])[1:end-2]
+        # Only relevant for picewise expressions 
+        if !isempty(SBMLDict["boolVariables"])
+            checkIfActivatedT0Names = prod(["isActiveAtTime0_" * key * "!, " for key in keys(SBMLDict["boolVariables"])])[1:end-2]
+        else
+            checkIfActivatedT0Names = ""
+        end
 
         stringWriteTstops *= "\treturn" * createFuncionForTstops(SBMLDict, modelStateNames, pODEProblemNames, θ_indices) * "\n" * "end" * "\n"
     end
@@ -122,6 +133,60 @@ function createCallback(callbackName::String,
 end
 
 
+function createCallbackForEvent(eventName::String, 
+                                SBMLDict::Dict, 
+                                pODEProblemNames::Vector{String}, 
+                                modelStateNames::Vector{String})
+
+    _conditionFormula, affects = SBMLDict["events"][eventName]
+    hasModelStates = conditionHasStates(_conditionFormula, modelStateNames)
+    discreteEvent = hasModelStates == true ? false : true
+
+    # If the event trigger does not contain a model state but fixed parameters it can at a maximum be triggered once.
+    if hasModelStates == false
+        _conditionFormula = replace(_conditionFormula, "≤" => "==")
+        _conditionFormula = replace(_conditionFormula, "≥" => "==")
+    end
+
+    # TODO : Refactor and merge functionality with above 
+    for i in eachindex(modelStateNames)
+        _conditionFormula = replaceWholeWord(_conditionFormula, modelStateNames[i], "u["*string(i)*"]")
+    end
+    for i in eachindex(pODEProblemNames)
+        _conditionFormula = replaceWholeWord(_conditionFormula, pODEProblemNames[i], "integrator.p["*string(i)*"]")
+    end
+
+    # Build the condition statement used in the jl function 
+    conditionStr = "\n\tfunction condition_" * eventName * "(u, t, integrator)\n"
+    conditionStr *= "\t\t" * _conditionFormula * "\n\tend\n"
+
+    # Building the affect function (which can act on states and/or parameters)
+    affectStr = "\tfunction affect_" * eventName * "!(integrator)\n"
+    for i in eachindex(affects)
+        affectStr *= "\t\t" * affects[i] * '\n'
+    end
+    affectStr *= "\tend"
+    for i in eachindex(modelStateNames)
+        affectStr = replaceWholeWord(affectStr, modelStateNames[i], "integrator.u["*string(i)*"]")
+    end
+    for i in eachindex(pODEProblemNames)
+        affectStr = replaceWholeWord(affectStr, pODEProblemNames[i], "integrator.p["*string(i)*"]")
+    end
+
+    # Build the callback 
+    if discreteEvent == false
+        callbackStr = "\tcb_" * eventName * " = ContinuousCallback(" * "condition_" * eventName * ", " * "affect_" * eventName * "!, "
+    else
+        callbackStr = "\tcb_" * eventName * " = DiscreteCallback(" * "condition_" * eventName * ", " * "affect_" * eventName * "!, "
+    end
+    callbackStr *= "save_positions=(false, false))\n" # So we do not get problems with saveat in the ODE solver 
+
+    functionsStr = conditionStr * '\n' * affectStr * '\n' 
+
+    return functionsStr, callbackStr
+end
+
+
 # Function computing t-stops (time for events) for piecewise expressions using the symbolics package
 # to symboically solve for where the condition is zero.
 function createFuncionForTstops(SBMLDict::Dict,
@@ -129,13 +194,12 @@ function createFuncionForTstops(SBMLDict::Dict,
                                 pODEProblemNames::Vector{String},
                                 θ_indices::ParameterIndices)
 
-    tstopsStr = Vector{String}(undef, length(keys(SBMLDict["boolVariables"])))
-    tstopsStrAlt = Vector{String}(undef, length(keys(SBMLDict["boolVariables"])))
     convertTspan = false
+    conditionFormulas = vcat([SBMLDict["boolVariables"][key][1] for key in keys(SBMLDict["boolVariables"])], [SBMLDict["events"][key][1] for key in keys(SBMLDict["events"])])
+    tstopsStr = Vector{String}(undef, length(conditionFormulas))
+    tstopsStrAlt = Vector{String}(undef, length(conditionFormulas))
     i = 1
-    for key in keys(SBMLDict["boolVariables"])
-
-        conditionFormula = SBMLDict["boolVariables"][key][1]
+    for conditionFormula in conditionFormulas
         # In case the activation formula contains a state we cannot precompute the t-stop time as it depends on
         # the actual ODE solution.
         if conditionHasStates(conditionFormula, modelStateNames)
@@ -158,6 +222,8 @@ function createFuncionForTstops(SBMLDict::Dict,
         # Note - below order counts (e.g having < first results in ~= incase what actually stands is <=)
         conditionFormula = replace(conditionFormula, "<=" => "~")
         conditionFormula = replace(conditionFormula, ">=" => "~")
+        conditionFormula = replace(conditionFormula, "≥" => "~")
+        conditionFormula = replace(conditionFormula, "≤" => "~")
         conditionFormula = replace(conditionFormula, "<" => "~")
         conditionFormula = replace(conditionFormula, ">" => "~")
         conditionSymbolic = eval(Meta.parse(conditionFormula))

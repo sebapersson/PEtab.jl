@@ -24,8 +24,8 @@ function getODEModel_0018(foo)
 
     ### Derivatives ###
     eqs = [
-    D(B) ~ -compartment * k2 * B + compartment * k1 * A,
-    D(A) ~ k2 * B - k1 * A
+    D(B) ~ (((-compartment)*k2)*B)+((compartment*k1)*A),
+    D(A) ~ (k2*B)-(k1*A)
     ]
 
     @named sys = ODESystem(eqs, t, stateArray, parameterArray)

@@ -1,5 +1,0 @@
-format_version: beta_1
-criterion: BIC
-method: brute_force
-model_space_files:
-- model_space.tsv

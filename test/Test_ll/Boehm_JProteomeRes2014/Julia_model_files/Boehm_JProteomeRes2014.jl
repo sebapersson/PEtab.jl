@@ -1,5 +1,5 @@
 # Model name: Boehm_JProteomeRes2014
-# Number of parameters: 9
+# Number of parameters: 10
 # Number of species: 8
 function getODEModel_Boehm_JProteomeRes2014()
 
@@ -28,25 +28,25 @@ function getODEModel_Boehm_JProteomeRes2014()
 
     ### Derivatives ###
     eqs = [
-    D(STAT5A) ~ -2.0 * ( 1 /cyt ) * (cyt * (1.25e-7 * exp(-1 * Epo_degradation_BaF3 * t)) * (STAT5A)^(2) * k_phos)-1.0 * ( 1 /cyt ) * (cyt * (1.25e-7 * exp(-1 * Epo_degradation_BaF3 * t)) * STAT5A * STAT5B * k_phos)+2.0 * ( 1 /cyt ) * (nuc * k_exp_homo * nucpApA)+1.0 * ( 1 /cyt ) * (nuc * k_exp_hetero * nucpApB),
-    D(pApA) ~ +1.0 * ( 1 /cyt ) * (cyt * (1.25e-7 * exp(-1 * Epo_degradation_BaF3 * t)) * (STAT5A)^(2) * k_phos)-1.0 * ( 1 /cyt ) * (cyt * k_imp_homo * pApA),
-    D(nucpApB) ~ +1.0 * ( 1 /nuc ) * (cyt * k_imp_hetero * pApB)-1.0 * ( 1 /nuc ) * (nuc * k_exp_hetero * nucpApB),
-    D(nucpBpB) ~ +1.0 * ( 1 /nuc ) * (cyt * k_imp_homo * pBpB)-1.0 * ( 1 /nuc ) * (nuc * k_exp_homo * nucpBpB),
-    D(STAT5B) ~ -1.0 * ( 1 /cyt ) * (cyt * (1.25e-7 * exp(-1 * Epo_degradation_BaF3 * t)) * STAT5A * STAT5B * k_phos)-2.0 * ( 1 /cyt ) * (cyt * (1.25e-7 * exp(-1 * Epo_degradation_BaF3 * t)) * (STAT5B)^(2) * k_phos)+1.0 * ( 1 /cyt ) * (nuc * k_exp_hetero * nucpApB)+2.0 * ( 1 /cyt ) * (nuc * k_exp_homo * nucpBpB),
-    D(pApB) ~ +1.0 * ( 1 /cyt ) * (cyt * (1.25e-7 * exp(-1 * Epo_degradation_BaF3 * t)) * STAT5A * STAT5B * k_phos)-1.0 * ( 1 /cyt ) * (cyt * k_imp_hetero * pApB),
-    D(nucpApA) ~ +1.0 * ( 1 /nuc ) * (cyt * k_imp_homo * pApA)-1.0 * ( 1 /nuc ) * (nuc * k_exp_homo * nucpApA),
-    D(pBpB) ~ +1.0 * ( 1 /cyt ) * (cyt * (1.25e-7 * exp(-1 * Epo_degradation_BaF3 * t)) * (STAT5B)^(2) * k_phos)-1.0 * ( 1 /cyt ) * (cyt * k_imp_homo * pBpB)
+    D(STAT5A) ~ -2.0 * ( 1 /cyt ) * (((cyt*(1.25e-7*exp((-1*Epo_degradation_BaF3)*t)))*(STAT5A^2))*k_phos)+1.0 * ( 1 /cyt ) * ((nuc*k_exp_hetero)*nucpApB)+2.0 * ( 1 /cyt ) * ((nuc*k_exp_homo)*nucpApA)-1.0 * ( 1 /cyt ) * ((((cyt*(1.25e-7*exp((-1*Epo_degradation_BaF3)*t)))*STAT5A)*STAT5B)*k_phos),
+    D(pApA) ~ +1.0 * ( 1 /cyt ) * (((cyt*(1.25e-7*exp((-1*Epo_degradation_BaF3)*t)))*(STAT5A^2))*k_phos)-1.0 * ( 1 /cyt ) * ((cyt*k_imp_homo)*pApA),
+    D(nucpApB) ~ +1.0 * ( 1 /nuc ) * ((cyt*k_imp_hetero)*pApB)-1.0 * ( 1 /nuc ) * ((nuc*k_exp_hetero)*nucpApB),
+    D(nucpBpB) ~ -1.0 * ( 1 /nuc ) * ((nuc*k_exp_homo)*nucpBpB)+1.0 * ( 1 /nuc ) * ((cyt*k_imp_homo)*pBpB),
+    D(STAT5B) ~ -2.0 * ( 1 /cyt ) * (((cyt*(1.25e-7*exp((-1*Epo_degradation_BaF3)*t)))*(STAT5B^2))*k_phos)+2.0 * ( 1 /cyt ) * ((nuc*k_exp_homo)*nucpBpB)+1.0 * ( 1 /cyt ) * ((nuc*k_exp_hetero)*nucpApB)-1.0 * ( 1 /cyt ) * ((((cyt*(1.25e-7*exp((-1*Epo_degradation_BaF3)*t)))*STAT5A)*STAT5B)*k_phos),
+    D(pApB) ~ -1.0 * ( 1 /cyt ) * ((cyt*k_imp_hetero)*pApB)+1.0 * ( 1 /cyt ) * ((((cyt*(1.25e-7*exp((-1*Epo_degradation_BaF3)*t)))*STAT5A)*STAT5B)*k_phos),
+    D(nucpApA) ~ +1.0 * ( 1 /nuc ) * ((cyt*k_imp_homo)*pApA)-1.0 * ( 1 /nuc ) * ((nuc*k_exp_homo)*nucpApA),
+    D(pBpB) ~ +1.0 * ( 1 /cyt ) * (((cyt*(1.25e-7*exp((-1*Epo_degradation_BaF3)*t)))*(STAT5B^2))*k_phos)-1.0 * ( 1 /cyt ) * ((cyt*k_imp_homo)*pBpB)
     ]
 
     @named sys = ODESystem(eqs, t, stateArray, parameterArray)
 
     ### Initial species concentrations ###
     initialSpeciesValues = [
-    STAT5A => 207.6 * ratio,
+    STAT5A => 207.6*ratio,
     pApA => 0.0,
     nucpApB => 0.0,
     nucpBpB => 0.0,
-    STAT5B => 207.6 - 207.6 * ratio,
+    STAT5B => 207.6-(207.6*ratio),
     pApB => 0.0,
     nucpApA => 0.0,
     pBpB => 0.0

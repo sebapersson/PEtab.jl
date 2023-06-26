@@ -1,5 +1,5 @@
 # Model name: Isensee_JCB2018
-# Number of parameters: 69
+# Number of parameters: 72
 # Number of species: 25
 function getODEModel_Isensee_JCB2018()
 
@@ -15,10 +15,10 @@ function getODEModel_Isensee_JCB2018()
     ModelingToolkit.@variables Rp_cAMPS_pAB(t) H89(t) Fsk(t) IBMXex(t) Rp8_Br_cAMPS_pAB(t) Rp8_pCPT_cAMPS_pAB(t) fourABnOH(t) Sp8_Br_cAMPS_AM(t)
 
     ### Define parameters
-    ModelingToolkit.@parameters ki_Rp8_pCPT_cAMPS_pAB xi_b_Rp_cAMPS RII2_total H89_level fourABnOH_incubation_time KD_Fsk kdeg_cAMP_free Rp8_Br_cAMPS_pAB_level xi_KD_Rp8_Br_cAMPS kf_PDE_Csub Sp8_Br_cAMPS_AM_level xi_kf_RII_C_2__RII_2 kf_RIIp_2__RII_2 kf_cAMP IBMX_time H89_bool1 Rp_cAMPS_pAB_incubation_time kf_H89 kf_RII_C_2__RII_2 kf_RII_C_2__RIIp_C_2 xi_i_Rp8_pCPT_cAMPS_pAB xi_pAC fourABnOH_level ki_Sp8_Br_cAMPS_AM Rp8_pCPT_cAMPS_pAB_bool1 xi_b_Sp8_Br_cAMPS xi_b_Rp8_Br_cAMPS H89_time Rp_cAMPS_pAB_bool1 kdeg_cAMP xi_AC_cAMP_Fsk xi_b_Rp8_pCPT_cAMPS ki_Rp_cAMPS_pAB xi_i_Rp_cAMPS_pAB KD_PDE_Csub ki_IBMX IBMXex_bool1 Fsk_time Rp8_pCPT_cAMPS_pAB_incubation_time PDE_total Rp8_Br_cAMPS_pAB_bool1 ki_Rp8_Br_cAMPS_pAB xi_kf_RII_2__RII_C_2 default xi_i_Rp8_Br_cAMPS_pAB Sp8_Br_cAMPS_AM_time xi_KD_Rp8_pCPT_cAMPS kp_AC xi_pPDE xi_KD_Rp_cAMPS Rp8_Br_cAMPS_pAB_incubation_time AC_total kf_RIIp_C_2__RII_C_2 xi_KD_Sp8_Br_cAMPS nuc Sp8_Br_cAMPS_AM_bool1 kf_RIIp_cAMP_C_2__RIIp_2 KD_cAMP KD_IBMX kf_Fsk xi_i_Sp8_Br_cAMPS_AM cyt KD_H89 ks_AC_cAMP fourABnOH_bool1 Rp8_pCPT_cAMPS_pAB_level Rp_cAMPS_pAB_level kf_RII_2__RII_C_2 Fsk_level Fsk_bool1 kdp_AC IBMX_level
+    ModelingToolkit.@parameters ki_Rp8_pCPT_cAMPS_pAB xi_b_Rp_cAMPS RII2_total H89_level fourABnOH_incubation_time KD_Fsk kdeg_cAMP_free Rp8_Br_cAMPS_pAB_level xi_KD_Rp8_Br_cAMPS kf_PDE_Csub Sp8_Br_cAMPS_AM_level xi_kf_RII_C_2__RII_2 kf_RIIp_2__RII_2 kf_cAMP IBMX_time H89_bool1 Rp_cAMPS_pAB_incubation_time kf_H89 kf_RII_C_2__RII_2 kf_RII_C_2__RIIp_C_2 xi_i_Rp8_pCPT_cAMPS_pAB xi_pAC fourABnOH_level ki_Sp8_Br_cAMPS_AM Rp8_pCPT_cAMPS_pAB_bool1 xi_b_Rp8_Br_cAMPS xi_b_Sp8_Br_cAMPS H89_time Rp_cAMPS_pAB_bool1 kdeg_cAMP xi_AC_cAMP_Fsk xi_b_Rp8_pCPT_cAMPS ki_Rp_cAMPS_pAB xi_i_Rp_cAMPS_pAB KD_PDE_Csub ki_IBMX IBMXex_bool1 Fsk_time Rp8_pCPT_cAMPS_pAB_incubation_time PDE_total Rp8_Br_cAMPS_pAB_bool1 ki_Rp8_Br_cAMPS_pAB xi_kf_RII_2__RII_C_2 default xi_i_Rp8_Br_cAMPS_pAB Sp8_Br_cAMPS_AM_time xi_KD_Rp8_pCPT_cAMPS kp_AC xi_pPDE xi_KD_Rp_cAMPS Rp8_Br_cAMPS_pAB_incubation_time AC_total kf_RIIp_C_2__RII_C_2 xi_KD_Sp8_Br_cAMPS nuc Sp8_Br_cAMPS_AM_bool1 kf_RIIp_cAMP_C_2__RIIp_2 KD_cAMP KD_IBMX kf_Fsk xi_i_Sp8_Br_cAMPS_AM cyt KD_H89 ks_AC_cAMP fourABnOH_bool1 Rp8_pCPT_cAMPS_pAB_level Rp_cAMPS_pAB_level kf_RII_2__RII_C_2 Fsk_level Fsk_bool1 kdp_AC IBMX_level
 
     ### Store parameters in array for ODESystem command
-    parameterArray = [ki_Rp8_pCPT_cAMPS_pAB, xi_b_Rp_cAMPS, RII2_total, H89_level, fourABnOH_incubation_time, KD_Fsk, kdeg_cAMP_free, Rp8_Br_cAMPS_pAB_level, xi_KD_Rp8_Br_cAMPS, kf_PDE_Csub, Sp8_Br_cAMPS_AM_level, xi_kf_RII_C_2__RII_2, kf_RIIp_2__RII_2, kf_cAMP, IBMX_time, H89_bool1, Rp_cAMPS_pAB_incubation_time, kf_H89, kf_RII_C_2__RII_2, kf_RII_C_2__RIIp_C_2, xi_i_Rp8_pCPT_cAMPS_pAB, xi_pAC, fourABnOH_level, ki_Sp8_Br_cAMPS_AM, Rp8_pCPT_cAMPS_pAB_bool1, xi_b_Sp8_Br_cAMPS, xi_b_Rp8_Br_cAMPS, H89_time, Rp_cAMPS_pAB_bool1, kdeg_cAMP, xi_AC_cAMP_Fsk, xi_b_Rp8_pCPT_cAMPS, ki_Rp_cAMPS_pAB, xi_i_Rp_cAMPS_pAB, KD_PDE_Csub, ki_IBMX, IBMXex_bool1, Fsk_time, Rp8_pCPT_cAMPS_pAB_incubation_time, PDE_total, Rp8_Br_cAMPS_pAB_bool1, ki_Rp8_Br_cAMPS_pAB, xi_kf_RII_2__RII_C_2, default, xi_i_Rp8_Br_cAMPS_pAB, Sp8_Br_cAMPS_AM_time, xi_KD_Rp8_pCPT_cAMPS, kp_AC, xi_pPDE, xi_KD_Rp_cAMPS, Rp8_Br_cAMPS_pAB_incubation_time, AC_total, kf_RIIp_C_2__RII_C_2, xi_KD_Sp8_Br_cAMPS, nuc, Sp8_Br_cAMPS_AM_bool1, kf_RIIp_cAMP_C_2__RIIp_2, KD_cAMP, KD_IBMX, kf_Fsk, xi_i_Sp8_Br_cAMPS_AM, cyt, KD_H89, ks_AC_cAMP, fourABnOH_bool1, Rp8_pCPT_cAMPS_pAB_level, Rp_cAMPS_pAB_level, kf_RII_2__RII_C_2, Fsk_level, Fsk_bool1, kdp_AC, IBMX_level]
+    parameterArray = [ki_Rp8_pCPT_cAMPS_pAB, xi_b_Rp_cAMPS, RII2_total, H89_level, fourABnOH_incubation_time, KD_Fsk, kdeg_cAMP_free, Rp8_Br_cAMPS_pAB_level, xi_KD_Rp8_Br_cAMPS, kf_PDE_Csub, Sp8_Br_cAMPS_AM_level, xi_kf_RII_C_2__RII_2, kf_RIIp_2__RII_2, kf_cAMP, IBMX_time, H89_bool1, Rp_cAMPS_pAB_incubation_time, kf_H89, kf_RII_C_2__RII_2, kf_RII_C_2__RIIp_C_2, xi_i_Rp8_pCPT_cAMPS_pAB, xi_pAC, fourABnOH_level, ki_Sp8_Br_cAMPS_AM, Rp8_pCPT_cAMPS_pAB_bool1, xi_b_Rp8_Br_cAMPS, xi_b_Sp8_Br_cAMPS, H89_time, Rp_cAMPS_pAB_bool1, kdeg_cAMP, xi_AC_cAMP_Fsk, xi_b_Rp8_pCPT_cAMPS, ki_Rp_cAMPS_pAB, xi_i_Rp_cAMPS_pAB, KD_PDE_Csub, ki_IBMX, IBMXex_bool1, Fsk_time, Rp8_pCPT_cAMPS_pAB_incubation_time, PDE_total, Rp8_Br_cAMPS_pAB_bool1, ki_Rp8_Br_cAMPS_pAB, xi_kf_RII_2__RII_C_2, default, xi_i_Rp8_Br_cAMPS_pAB, Sp8_Br_cAMPS_AM_time, xi_KD_Rp8_pCPT_cAMPS, kp_AC, xi_pPDE, xi_KD_Rp_cAMPS, Rp8_Br_cAMPS_pAB_incubation_time, AC_total, kf_RIIp_C_2__RII_C_2, xi_KD_Sp8_Br_cAMPS, nuc, Sp8_Br_cAMPS_AM_bool1, kf_RIIp_cAMP_C_2__RIIp_2, KD_cAMP, KD_IBMX, kf_Fsk, xi_i_Sp8_Br_cAMPS_AM, cyt, KD_H89, ks_AC_cAMP, fourABnOH_bool1, Rp8_pCPT_cAMPS_pAB_level, Rp_cAMPS_pAB_level, kf_RII_2__RII_C_2, Fsk_level, Fsk_bool1, kdp_AC, IBMX_level]
 
     ### Define an operator for the differentiation w.r.t. time
     D = Differential(t)
@@ -29,39 +29,39 @@ function getODEModel_Isensee_JCB2018()
 
     ### Derivatives ###
     eqs = [
-    D(pAC) ~ -1.0 * ( 1 /cyt ) * (cyt * Fsk * kf_Fsk * pAC)+1.0 * ( 1 /cyt ) * (cyt * KD_Fsk * kf_Fsk * pAC_Fsk)+1.0 * ( 1 /cyt ) * (cyt * AC * Csub * kp_AC)-1.0 * ( 1 /cyt ) * (cyt * kdp_AC * pAC),
-    D(Rp8_Br_cAMPS) ~ +1.0 * ( 1 /cyt ) * (cyt * -ki_Rp8_Br_cAMPS_pAB * (Rp8_Br_cAMPS - Rp8_Br_cAMPS_pAB * xi_i_Rp8_Br_cAMPS_pAB)),
-    D(Rp8_pCPT_cAMPS) ~ +1.0 * ( 1 /cyt ) * (cyt * -ki_Rp8_pCPT_cAMPS_pAB * (Rp8_pCPT_cAMPS - Rp8_pCPT_cAMPS_pAB * xi_i_Rp8_pCPT_cAMPS_pAB)),
-    D(PDE) ~ -1.0 * ( 1 /cyt ) * (cyt * Csub * PDE * kf_PDE_Csub)+1.0 * ( 1 /cyt ) * (cyt * KD_PDE_Csub * kf_PDE_Csub * pPDE),
-    D(Rp_cAMPS) ~ +1.0 * ( 1 /cyt ) * (cyt * -ki_Rp_cAMPS_pAB * (Rp_cAMPS - Rp_cAMPS_pAB * xi_i_Rp_cAMPS_pAB)),
-    D(RII_2) ~ +1.0 * ( 1 /cyt ) * (cyt * RII_C_2 * kf_RII_C_2__RII_2)-1.0 * ( 1 /cyt ) * (cyt * Csub * RII_2 * kf_RII_2__RII_C_2)+1.0 * ( 1 /cyt ) * (cyt * RIIp_2 * kf_RIIp_2__RII_2),
-    D(RIIp_Rp8_Br_cAMPS_C_2) ~ +1.0 * ( 1 /cyt ) * (cyt * RIIp_C_2 * Rp8_Br_cAMPS * kf_cAMP * xi_b_Rp8_Br_cAMPS)-1.0 * ( 1 /cyt ) * (cyt * KD_cAMP * RIIp_Rp8_Br_cAMPS_C_2 * kf_cAMP * xi_b_Rp8_Br_cAMPS * xi_KD_Rp8_Br_cAMPS),
-    D(cAMP) ~ +1.0 * ( 1 /cyt ) * (cyt * ks_AC_cAMP * (AC + pAC * xi_pAC))+1.0 * ( 1 /cyt ) * (cyt * ks_AC_cAMP * xi_AC_cAMP_Fsk * (AC_Fsk + pAC_Fsk * xi_pAC))-1.0 * ( 1 /cyt ) * (cyt * (KD_IBMX * cAMP * kdeg_cAMP_free * (PDE + pPDE * xi_pPDE) / (IBMX + KD_IBMX))),
-    D(RIIp_Sp8_Br_cAMPS_C_2) ~ +1.0 * ( 1 /cyt ) * (cyt * RIIp_C_2 * Sp8_Br_cAMPS * kf_cAMP * xi_b_Sp8_Br_cAMPS)-1.0 * ( 1 /cyt ) * (cyt * KD_cAMP * RIIp_Sp8_Br_cAMPS_C_2 * kf_cAMP * xi_b_Sp8_Br_cAMPS * xi_KD_Sp8_Br_cAMPS)-1.0 * ( 1 /cyt ) * (cyt * RIIp_Sp8_Br_cAMPS_C_2 * kf_RIIp_cAMP_C_2__RIIp_2),
-    D(IBMX) ~ +1.0 * ( 1 /cyt ) * (cyt * -ki_IBMX * (IBMX - IBMXex)),
-    D(AC_Fsk) ~ +1.0 * ( 1 /cyt ) * (cyt * AC * Fsk * kf_Fsk)-1.0 * ( 1 /cyt ) * (cyt * AC_Fsk * KD_Fsk * kf_Fsk)-1.0 * ( 1 /cyt ) * (cyt * AC_Fsk * Csub * kp_AC)+1.0 * ( 1 /cyt ) * (cyt * kdp_AC * pAC_Fsk),
-    D(RIIp_C_2) ~ -1.0 * ( 1 /cyt ) * (cyt * RIIp_C_2 * kf_RII_C_2__RII_2 * xi_kf_RII_C_2__RII_2)+1.0 * ( 1 /cyt ) * (cyt * Csub * RIIp_2 * kf_RII_2__RII_C_2 * xi_kf_RII_2__RII_C_2)+1.0 * ( 1 /cyt ) * (cyt * RII_C_2 * kf_RII_C_2__RIIp_C_2)-1.0 * ( 1 /cyt ) * (cyt * RIIp_C_2 * kf_RIIp_C_2__RII_C_2)-1.0 * ( 1 /cyt ) * (cyt * RIIp_C_2 * cAMP * kf_cAMP)+1.0 * ( 1 /cyt ) * (cyt * KD_cAMP * RIIp_cAMP_C_2 * kf_cAMP)+1.0 * ( 1 /cyt ) * (cyt * (KD_IBMX * RIIp_cAMP_C_2 * kdeg_cAMP * (PDE + pPDE * xi_pPDE) / (IBMX + KD_IBMX)))-1.0 * ( 1 /cyt ) * (cyt * RIIp_C_2 * Rp8_Br_cAMPS * kf_cAMP * xi_b_Rp8_Br_cAMPS)+1.0 * ( 1 /cyt ) * (cyt * KD_cAMP * RIIp_Rp8_Br_cAMPS_C_2 * kf_cAMP * xi_b_Rp8_Br_cAMPS * xi_KD_Rp8_Br_cAMPS)-1.0 * ( 1 /cyt ) * (cyt * RIIp_C_2 * Rp8_pCPT_cAMPS * kf_cAMP * xi_b_Rp8_pCPT_cAMPS)+1.0 * ( 1 /cyt ) * (cyt * KD_cAMP * RIIp_Rp8_pCPT_cAMPS_C_2 * kf_cAMP * xi_b_Rp8_pCPT_cAMPS * xi_KD_Rp8_pCPT_cAMPS)-1.0 * ( 1 /cyt ) * (cyt * RIIp_C_2 * Rp_cAMPS * kf_cAMP * xi_b_Rp_cAMPS)+1.0 * ( 1 /cyt ) * (cyt * KD_cAMP * RIIp_Rp_cAMPS_C_2 * kf_cAMP * xi_b_Rp_cAMPS * xi_KD_Rp_cAMPS)-1.0 * ( 1 /cyt ) * (cyt * RIIp_C_2 * Sp8_Br_cAMPS * kf_cAMP * xi_b_Sp8_Br_cAMPS)+1.0 * ( 1 /cyt ) * (cyt * KD_cAMP * RIIp_Sp8_Br_cAMPS_C_2 * kf_cAMP * xi_b_Sp8_Br_cAMPS * xi_KD_Sp8_Br_cAMPS),
-    D(Sp8_Br_cAMPS) ~ +1.0 * ( 1 /cyt ) * (cyt * -ki_Sp8_Br_cAMPS_AM * (Sp8_Br_cAMPS - Sp8_Br_cAMPS_AM * xi_i_Sp8_Br_cAMPS_AM)),
-    D(RII_C_2) ~ -1.0 * ( 1 /cyt ) * (cyt * RII_C_2 * kf_RII_C_2__RII_2)+1.0 * ( 1 /cyt ) * (cyt * Csub * RII_2 * kf_RII_2__RII_C_2)-1.0 * ( 1 /cyt ) * (cyt * RII_C_2 * kf_RII_C_2__RIIp_C_2)+1.0 * ( 1 /cyt ) * (cyt * RIIp_C_2 * kf_RIIp_C_2__RII_C_2),
-    D(RIIp_Sp8_Br_cAMPS_2) ~ +1.0 * ( 1 /cyt ) * (cyt * RIIp_Sp8_Br_cAMPS_C_2 * kf_RIIp_cAMP_C_2__RIIp_2)-1.0 * ( 1 /cyt ) * (cyt * KD_cAMP * RIIp_Sp8_Br_cAMPS_2 * kf_cAMP * xi_b_Sp8_Br_cAMPS * xi_KD_Sp8_Br_cAMPS),
-    D(Csub) ~ +1.0 * ( 1 /cyt ) * (cyt * RII_C_2 * kf_RII_C_2__RII_2)-1.0 * ( 1 /cyt ) * (cyt * Csub * RII_2 * kf_RII_2__RII_C_2)+1.0 * ( 1 /cyt ) * (cyt * RIIp_C_2 * kf_RII_C_2__RII_2 * xi_kf_RII_C_2__RII_2)-1.0 * ( 1 /cyt ) * (cyt * Csub * RIIp_2 * kf_RII_2__RII_C_2 * xi_kf_RII_2__RII_C_2)+1.0 * ( 1 /cyt ) * (cyt * RIIp_cAMP_C_2 * kf_RIIp_cAMP_C_2__RIIp_2)+1.0 * ( 1 /cyt ) * (cyt * RIIp_Sp8_Br_cAMPS_C_2 * kf_RIIp_cAMP_C_2__RIIp_2)-1.0 * ( 1 /cyt ) * (cyt * Csub * H89 * kf_H89)+1.0 * ( 1 /cyt ) * (cyt * Csub_H89 * KD_H89 * kf_H89),
-    D(Csub_H89) ~ +1.0 * ( 1 /cyt ) * (cyt * Csub * H89 * kf_H89)-1.0 * ( 1 /cyt ) * (cyt * Csub_H89 * KD_H89 * kf_H89),
-    D(AC) ~ -1.0 * ( 1 /cyt ) * (cyt * AC * Fsk * kf_Fsk)+1.0 * ( 1 /cyt ) * (cyt * AC_Fsk * KD_Fsk * kf_Fsk)-1.0 * ( 1 /cyt ) * (cyt * AC * Csub * kp_AC)+1.0 * ( 1 /cyt ) * (cyt * kdp_AC * pAC),
-    D(RIIp_cAMP_2) ~ +1.0 * ( 1 /cyt ) * (cyt * RIIp_cAMP_C_2 * kf_RIIp_cAMP_C_2__RIIp_2)-1.0 * ( 1 /cyt ) * (cyt * KD_cAMP * RIIp_cAMP_2 * kf_cAMP)-1.0 * ( 1 /cyt ) * (cyt * (KD_IBMX * RIIp_cAMP_2 * kdeg_cAMP * (PDE + pPDE * xi_pPDE) / (IBMX + KD_IBMX))),
-    D(pAC_Fsk) ~ +1.0 * ( 1 /cyt ) * (cyt * Fsk * kf_Fsk * pAC)-1.0 * ( 1 /cyt ) * (cyt * KD_Fsk * kf_Fsk * pAC_Fsk)+1.0 * ( 1 /cyt ) * (cyt * AC_Fsk * Csub * kp_AC)-1.0 * ( 1 /cyt ) * (cyt * kdp_AC * pAC_Fsk),
-    D(RIIp_Rp8_pCPT_cAMPS_C_2) ~ +1.0 * ( 1 /cyt ) * (cyt * RIIp_C_2 * Rp8_pCPT_cAMPS * kf_cAMP * xi_b_Rp8_pCPT_cAMPS)-1.0 * ( 1 /cyt ) * (cyt * KD_cAMP * RIIp_Rp8_pCPT_cAMPS_C_2 * kf_cAMP * xi_b_Rp8_pCPT_cAMPS * xi_KD_Rp8_pCPT_cAMPS),
-    D(pPDE) ~ +1.0 * ( 1 /cyt ) * (cyt * Csub * PDE * kf_PDE_Csub)-1.0 * ( 1 /cyt ) * (cyt * KD_PDE_Csub * kf_PDE_Csub * pPDE),
-    D(RIIp_Rp_cAMPS_C_2) ~ +1.0 * ( 1 /cyt ) * (cyt * RIIp_C_2 * Rp_cAMPS * kf_cAMP * xi_b_Rp_cAMPS)-1.0 * ( 1 /cyt ) * (cyt * KD_cAMP * RIIp_Rp_cAMPS_C_2 * kf_cAMP * xi_b_Rp_cAMPS * xi_KD_Rp_cAMPS),
-    D(RIIp_2) ~ +1.0 * ( 1 /cyt ) * (cyt * RIIp_C_2 * kf_RII_C_2__RII_2 * xi_kf_RII_C_2__RII_2)-1.0 * ( 1 /cyt ) * (cyt * Csub * RIIp_2 * kf_RII_2__RII_C_2 * xi_kf_RII_2__RII_C_2)-1.0 * ( 1 /cyt ) * (cyt * RIIp_2 * kf_RIIp_2__RII_2)+1.0 * ( 1 /cyt ) * (cyt * KD_cAMP * RIIp_cAMP_2 * kf_cAMP)+1.0 * ( 1 /cyt ) * (cyt * (KD_IBMX * RIIp_cAMP_2 * kdeg_cAMP * (PDE + pPDE * xi_pPDE) / (IBMX + KD_IBMX)))+1.0 * ( 1 /cyt ) * (cyt * KD_cAMP * RIIp_Sp8_Br_cAMPS_2 * kf_cAMP * xi_b_Sp8_Br_cAMPS * xi_KD_Sp8_Br_cAMPS),
-    D(RIIp_cAMP_C_2) ~ +1.0 * ( 1 /cyt ) * (cyt * RIIp_C_2 * cAMP * kf_cAMP)-1.0 * ( 1 /cyt ) * (cyt * KD_cAMP * RIIp_cAMP_C_2 * kf_cAMP)-1.0 * ( 1 /cyt ) * (cyt * (KD_IBMX * RIIp_cAMP_C_2 * kdeg_cAMP * (PDE + pPDE * xi_pPDE) / (IBMX + KD_IBMX)))-1.0 * ( 1 /cyt ) * (cyt * RIIp_cAMP_C_2 * kf_RIIp_cAMP_C_2__RIIp_2),
-    Rp_cAMPS_pAB ~ Rp_cAMPS_pAB_level * ((1 - Rp_cAMPS_pAB_bool1)*( 0) + Rp_cAMPS_pAB_bool1*( 1)),
-    H89 ~ H89_level * ((1 - H89_bool1)*( 0) + H89_bool1*( 1)),
-    Fsk ~ Fsk_level * ((1 - Fsk_bool1)*( 0) + Fsk_bool1*( 1)),
-    IBMXex ~ IBMX_level * ((1 - IBMXex_bool1)*( 0) + IBMXex_bool1*( 1)),
-    Rp8_Br_cAMPS_pAB ~ Rp8_Br_cAMPS_pAB_level * ((1 - Rp8_Br_cAMPS_pAB_bool1)*( 0) + Rp8_Br_cAMPS_pAB_bool1*( 1)),
-    Rp8_pCPT_cAMPS_pAB ~ Rp8_pCPT_cAMPS_pAB_level * ((1 - Rp8_pCPT_cAMPS_pAB_bool1)*( 0) + Rp8_pCPT_cAMPS_pAB_bool1*( 1)),
-    fourABnOH ~ fourABnOH_level * ((1 - fourABnOH_bool1)*( 0) + fourABnOH_bool1*( 1)),
-    Sp8_Br_cAMPS_AM ~ Sp8_Br_cAMPS_AM_level * ((1 - Sp8_Br_cAMPS_AM_bool1)*( 0) + Sp8_Br_cAMPS_AM_bool1*( 1))
+    D(pAC) ~ +1 * ( 1 /cyt ) * (((cyt*AC)*Csub)*kp_AC)-1 * ( 1 /cyt ) * ((cyt*kdp_AC)*pAC)+1 * ( 1 /cyt ) * (((cyt*KD_Fsk)*kf_Fsk)*pAC_Fsk)-1 * ( 1 /cyt ) * (((cyt*Fsk)*kf_Fsk)*pAC),
+    D(Rp8_Br_cAMPS) ~ +1 * ( 1 /cyt ) * ((cyt*(-ki_Rp8_Br_cAMPS_pAB))*(Rp8_Br_cAMPS-(Rp8_Br_cAMPS_pAB*xi_i_Rp8_Br_cAMPS_pAB))),
+    D(Rp8_pCPT_cAMPS) ~ +1 * ( 1 /cyt ) * ((cyt*(-ki_Rp8_pCPT_cAMPS_pAB))*(Rp8_pCPT_cAMPS-(Rp8_pCPT_cAMPS_pAB*xi_i_Rp8_pCPT_cAMPS_pAB))),
+    D(PDE) ~ +1 * ( 1 /cyt ) * (((cyt*KD_PDE_Csub)*kf_PDE_Csub)*pPDE)-1 * ( 1 /cyt ) * (((cyt*Csub)*PDE)*kf_PDE_Csub),
+    D(Rp_cAMPS) ~ +1 * ( 1 /cyt ) * ((cyt*(-ki_Rp_cAMPS_pAB))*(Rp_cAMPS-(Rp_cAMPS_pAB*xi_i_Rp_cAMPS_pAB))),
+    D(RII_2) ~ -1 * ( 1 /cyt ) * (((cyt*Csub)*RII_2)*kf_RII_2__RII_C_2)+1 * ( 1 /cyt ) * ((cyt*RIIp_2)*kf_RIIp_2__RII_2)+1 * ( 1 /cyt ) * ((cyt*RII_C_2)*kf_RII_C_2__RII_2),
+    D(RIIp_Rp8_Br_cAMPS_C_2) ~ -1 * ( 1 /cyt ) * (((((cyt*KD_cAMP)*RIIp_Rp8_Br_cAMPS_C_2)*kf_cAMP)*xi_b_Rp8_Br_cAMPS)*xi_KD_Rp8_Br_cAMPS)+1 * ( 1 /cyt ) * ((((cyt*RIIp_C_2)*Rp8_Br_cAMPS)*kf_cAMP)*xi_b_Rp8_Br_cAMPS),
+    D(cAMP) ~ +1 * ( 1 /cyt ) * ((cyt*ks_AC_cAMP)*(AC+(pAC*xi_pAC)))+1 * ( 1 /cyt ) * (((cyt*ks_AC_cAMP)*xi_AC_cAMP_Fsk)*(AC_Fsk+(pAC_Fsk*xi_pAC)))-1 * ( 1 /cyt ) * (cyt*((((KD_IBMX*cAMP)*kdeg_cAMP_free)*(PDE+(pPDE*xi_pPDE)))/(IBMX+KD_IBMX))),
+    D(RIIp_Sp8_Br_cAMPS_C_2) ~ -1 * ( 1 /cyt ) * ((cyt*RIIp_Sp8_Br_cAMPS_C_2)*kf_RIIp_cAMP_C_2__RIIp_2)-1 * ( 1 /cyt ) * (((((cyt*KD_cAMP)*RIIp_Sp8_Br_cAMPS_C_2)*kf_cAMP)*xi_b_Sp8_Br_cAMPS)*xi_KD_Sp8_Br_cAMPS)+1 * ( 1 /cyt ) * ((((cyt*RIIp_C_2)*Sp8_Br_cAMPS)*kf_cAMP)*xi_b_Sp8_Br_cAMPS),
+    D(IBMX) ~ +1 * ( 1 /cyt ) * ((cyt*(-ki_IBMX))*(IBMX-IBMXex)),
+    D(AC_Fsk) ~ +1 * ( 1 /cyt ) * (((cyt*AC)*Fsk)*kf_Fsk)-1 * ( 1 /cyt ) * (((cyt*AC_Fsk)*Csub)*kp_AC)+1 * ( 1 /cyt ) * ((cyt*kdp_AC)*pAC_Fsk)-1 * ( 1 /cyt ) * (((cyt*AC_Fsk)*KD_Fsk)*kf_Fsk),
+    D(RIIp_C_2) ~ -1 * ( 1 /cyt ) * ((cyt*RIIp_C_2)*kf_RIIp_C_2__RII_C_2)+1 * ( 1 /cyt ) * (cyt*((((KD_IBMX*RIIp_cAMP_C_2)*kdeg_cAMP)*(PDE+(pPDE*xi_pPDE)))/(IBMX+KD_IBMX)))+1 * ( 1 /cyt ) * ((((cyt*Csub)*RIIp_2)*kf_RII_2__RII_C_2)*xi_kf_RII_2__RII_C_2)+1 * ( 1 /cyt ) * (((((cyt*KD_cAMP)*RIIp_Rp8_Br_cAMPS_C_2)*kf_cAMP)*xi_b_Rp8_Br_cAMPS)*xi_KD_Rp8_Br_cAMPS)-1 * ( 1 /cyt ) * (((cyt*RIIp_C_2)*kf_RII_C_2__RII_2)*xi_kf_RII_C_2__RII_2)-1 * ( 1 /cyt ) * ((((cyt*RIIp_C_2)*Rp8_Br_cAMPS)*kf_cAMP)*xi_b_Rp8_Br_cAMPS)+1 * ( 1 /cyt ) * (((((cyt*KD_cAMP)*RIIp_Rp8_pCPT_cAMPS_C_2)*kf_cAMP)*xi_b_Rp8_pCPT_cAMPS)*xi_KD_Rp8_pCPT_cAMPS)-1 * ( 1 /cyt ) * ((((cyt*RIIp_C_2)*Rp_cAMPS)*kf_cAMP)*xi_b_Rp_cAMPS)+1 * ( 1 /cyt ) * ((cyt*RII_C_2)*kf_RII_C_2__RIIp_C_2)+1 * ( 1 /cyt ) * (((cyt*KD_cAMP)*RIIp_cAMP_C_2)*kf_cAMP)+1 * ( 1 /cyt ) * (((((cyt*KD_cAMP)*RIIp_Sp8_Br_cAMPS_C_2)*kf_cAMP)*xi_b_Sp8_Br_cAMPS)*xi_KD_Sp8_Br_cAMPS)-1 * ( 1 /cyt ) * ((((cyt*RIIp_C_2)*Rp8_pCPT_cAMPS)*kf_cAMP)*xi_b_Rp8_pCPT_cAMPS)-1 * ( 1 /cyt ) * (((cyt*RIIp_C_2)*cAMP)*kf_cAMP)-1 * ( 1 /cyt ) * ((((cyt*RIIp_C_2)*Sp8_Br_cAMPS)*kf_cAMP)*xi_b_Sp8_Br_cAMPS)+1 * ( 1 /cyt ) * (((((cyt*KD_cAMP)*RIIp_Rp_cAMPS_C_2)*kf_cAMP)*xi_b_Rp_cAMPS)*xi_KD_Rp_cAMPS),
+    D(Sp8_Br_cAMPS) ~ +1 * ( 1 /cyt ) * ((cyt*(-ki_Sp8_Br_cAMPS_AM))*(Sp8_Br_cAMPS-(Sp8_Br_cAMPS_AM*xi_i_Sp8_Br_cAMPS_AM))),
+    D(RII_C_2) ~ +1 * ( 1 /cyt ) * ((cyt*RIIp_C_2)*kf_RIIp_C_2__RII_C_2)+1 * ( 1 /cyt ) * (((cyt*Csub)*RII_2)*kf_RII_2__RII_C_2)-1 * ( 1 /cyt ) * ((cyt*RII_C_2)*kf_RII_C_2__RII_2)-1 * ( 1 /cyt ) * ((cyt*RII_C_2)*kf_RII_C_2__RIIp_C_2),
+    D(RIIp_Sp8_Br_cAMPS_2) ~ +1 * ( 1 /cyt ) * ((cyt*RIIp_Sp8_Br_cAMPS_C_2)*kf_RIIp_cAMP_C_2__RIIp_2)-1 * ( 1 /cyt ) * (((((cyt*KD_cAMP)*RIIp_Sp8_Br_cAMPS_2)*kf_cAMP)*xi_b_Sp8_Br_cAMPS)*xi_KD_Sp8_Br_cAMPS),
+    D(Csub) ~ -1 * ( 1 /cyt ) * ((((cyt*Csub)*RIIp_2)*kf_RII_2__RII_C_2)*xi_kf_RII_2__RII_C_2)+1 * ( 1 /cyt ) * (((cyt*RIIp_C_2)*kf_RII_C_2__RII_2)*xi_kf_RII_C_2__RII_2)-1 * ( 1 /cyt ) * (((cyt*Csub)*RII_2)*kf_RII_2__RII_C_2)+1 * ( 1 /cyt ) * ((cyt*RIIp_Sp8_Br_cAMPS_C_2)*kf_RIIp_cAMP_C_2__RIIp_2)+1 * ( 1 /cyt ) * ((cyt*RII_C_2)*kf_RII_C_2__RII_2)-1 * ( 1 /cyt ) * (((cyt*Csub)*H89)*kf_H89)+1 * ( 1 /cyt ) * (((cyt*Csub_H89)*KD_H89)*kf_H89)+1 * ( 1 /cyt ) * ((cyt*RIIp_cAMP_C_2)*kf_RIIp_cAMP_C_2__RIIp_2),
+    D(Csub_H89) ~ +1 * ( 1 /cyt ) * (((cyt*Csub)*H89)*kf_H89)-1 * ( 1 /cyt ) * (((cyt*Csub_H89)*KD_H89)*kf_H89),
+    D(AC) ~ -1 * ( 1 /cyt ) * (((cyt*AC)*Csub)*kp_AC)-1 * ( 1 /cyt ) * (((cyt*AC)*Fsk)*kf_Fsk)+1 * ( 1 /cyt ) * ((cyt*kdp_AC)*pAC)+1 * ( 1 /cyt ) * (((cyt*AC_Fsk)*KD_Fsk)*kf_Fsk),
+    D(RIIp_cAMP_2) ~ -1 * ( 1 /cyt ) * (((cyt*KD_cAMP)*RIIp_cAMP_2)*kf_cAMP)-1 * ( 1 /cyt ) * (cyt*((((KD_IBMX*RIIp_cAMP_2)*kdeg_cAMP)*(PDE+(pPDE*xi_pPDE)))/(IBMX+KD_IBMX)))+1 * ( 1 /cyt ) * ((cyt*RIIp_cAMP_C_2)*kf_RIIp_cAMP_C_2__RIIp_2),
+    D(pAC_Fsk) ~ +1 * ( 1 /cyt ) * (((cyt*AC_Fsk)*Csub)*kp_AC)-1 * ( 1 /cyt ) * ((cyt*kdp_AC)*pAC_Fsk)-1 * ( 1 /cyt ) * (((cyt*KD_Fsk)*kf_Fsk)*pAC_Fsk)+1 * ( 1 /cyt ) * (((cyt*Fsk)*kf_Fsk)*pAC),
+    D(RIIp_Rp8_pCPT_cAMPS_C_2) ~ -1 * ( 1 /cyt ) * (((((cyt*KD_cAMP)*RIIp_Rp8_pCPT_cAMPS_C_2)*kf_cAMP)*xi_b_Rp8_pCPT_cAMPS)*xi_KD_Rp8_pCPT_cAMPS)+1 * ( 1 /cyt ) * ((((cyt*RIIp_C_2)*Rp8_pCPT_cAMPS)*kf_cAMP)*xi_b_Rp8_pCPT_cAMPS),
+    D(pPDE) ~ -1 * ( 1 /cyt ) * (((cyt*KD_PDE_Csub)*kf_PDE_Csub)*pPDE)+1 * ( 1 /cyt ) * (((cyt*Csub)*PDE)*kf_PDE_Csub),
+    D(RIIp_Rp_cAMPS_C_2) ~ +1 * ( 1 /cyt ) * ((((cyt*RIIp_C_2)*Rp_cAMPS)*kf_cAMP)*xi_b_Rp_cAMPS)-1 * ( 1 /cyt ) * (((((cyt*KD_cAMP)*RIIp_Rp_cAMPS_C_2)*kf_cAMP)*xi_b_Rp_cAMPS)*xi_KD_Rp_cAMPS),
+    D(RIIp_2) ~ -1 * ( 1 /cyt ) * ((((cyt*Csub)*RIIp_2)*kf_RII_2__RII_C_2)*xi_kf_RII_2__RII_C_2)+1 * ( 1 /cyt ) * (((cyt*RIIp_C_2)*kf_RII_C_2__RII_2)*xi_kf_RII_C_2__RII_2)+1 * ( 1 /cyt ) * (((((cyt*KD_cAMP)*RIIp_Sp8_Br_cAMPS_2)*kf_cAMP)*xi_b_Sp8_Br_cAMPS)*xi_KD_Sp8_Br_cAMPS)-1 * ( 1 /cyt ) * ((cyt*RIIp_2)*kf_RIIp_2__RII_2)+1 * ( 1 /cyt ) * (((cyt*KD_cAMP)*RIIp_cAMP_2)*kf_cAMP)+1 * ( 1 /cyt ) * (cyt*((((KD_IBMX*RIIp_cAMP_2)*kdeg_cAMP)*(PDE+(pPDE*xi_pPDE)))/(IBMX+KD_IBMX))),
+    D(RIIp_cAMP_C_2) ~ -1 * ( 1 /cyt ) * (cyt*((((KD_IBMX*RIIp_cAMP_C_2)*kdeg_cAMP)*(PDE+(pPDE*xi_pPDE)))/(IBMX+KD_IBMX)))-1 * ( 1 /cyt ) * (((cyt*KD_cAMP)*RIIp_cAMP_C_2)*kf_cAMP)-1 * ( 1 /cyt ) * ((cyt*RIIp_cAMP_C_2)*kf_RIIp_cAMP_C_2__RIIp_2)+1 * ( 1 /cyt ) * (((cyt*RIIp_C_2)*cAMP)*kf_cAMP),
+    Rp_cAMPS_pAB ~ Rp_cAMPS_pAB_level*((1 - Rp_cAMPS_pAB_bool1)*( 0) + Rp_cAMPS_pAB_bool1*( 1)),
+    H89 ~ H89_level*((1 - H89_bool1)*( 0) + H89_bool1*( 1)),
+    Fsk ~ Fsk_level*((1 - Fsk_bool1)*( 0) + Fsk_bool1*( 1)),
+    IBMXex ~ IBMX_level*((1 - IBMXex_bool1)*( 0) + IBMXex_bool1*( 1)),
+    Rp8_Br_cAMPS_pAB ~ Rp8_Br_cAMPS_pAB_level*((1 - Rp8_Br_cAMPS_pAB_bool1)*( 0) + Rp8_Br_cAMPS_pAB_bool1*( 1)),
+    Rp8_pCPT_cAMPS_pAB ~ Rp8_pCPT_cAMPS_pAB_level*((1 - Rp8_pCPT_cAMPS_pAB_bool1)*( 0) + Rp8_pCPT_cAMPS_pAB_bool1*( 1)),
+    fourABnOH ~ fourABnOH_level*((1 - fourABnOH_bool1)*( 0) + fourABnOH_bool1*( 1)),
+    Sp8_Br_cAMPS_AM ~ Sp8_Br_cAMPS_AM_level*((1 - Sp8_Br_cAMPS_AM_bool1)*( 0) + Sp8_Br_cAMPS_AM_bool1*( 1))
     ]
 
     @named sys = ODESystem(eqs, t, stateArray, parameterArray)
@@ -122,8 +122,8 @@ function getODEModel_Isensee_JCB2018()
     fourABnOH_level => 0.0,
     ki_Sp8_Br_cAMPS_AM => 0.131083036712545,
     Rp8_pCPT_cAMPS_pAB_bool1 => 0.0,
-    xi_b_Sp8_Br_cAMPS => 21.7551956731725,
     xi_b_Rp8_Br_cAMPS => 0.0408695544562406,
+    xi_b_Sp8_Br_cAMPS => 21.7551956731725,
     H89_time => 0.0,
     Rp_cAMPS_pAB_bool1 => 0.0,
     kdeg_cAMP => 1.00032978441703e-5,

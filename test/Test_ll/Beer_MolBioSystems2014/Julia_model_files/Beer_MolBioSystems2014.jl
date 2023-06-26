@@ -1,5 +1,5 @@
 # Model name: Beer_MolBioSystems2014
-# Number of parameters: 8
+# Number of parameters: 9
 # Number of species: 4
 function getODEModel_Beer_MolBioSystems2014()
 
@@ -29,10 +29,10 @@ function getODEModel_Beer_MolBioSystems2014()
 
     ### Derivatives ###
     eqs = [
-    D(Glu) ~ +1.0 * ( 1 /medium ) * (medium * -Bac * Glu * ksyn),
-    D(cGlu) ~ +1.0 * ( 1 /medium ) * (medium * (Bac * Glu * ksyn - (cGlu)^(2) * kdim)),
-    D(Ind) ~ +1.0 * ( 1 /medium ) * (medium * ((cGlu)^(2) * kdim - Ind * kdegi)),
-    D(Bac) ~ +1.0 * ( 1 /medium ) * (medium * (Bac * beta * lag * (Bacmax + -Bac) / Bacmax)),
+    D(Glu) ~ +1.0 * ( 1 /medium ) * (((medium*(-Bac))*Glu)*ksyn),
+    D(cGlu) ~ +1.0 * ( 1 /medium ) * (medium*(((Bac*Glu)*ksyn)-((cGlu^2)*kdim))),
+    D(Ind) ~ +1.0 * ( 1 /medium ) * (medium*(((cGlu^2)*kdim)-(Ind*kdegi))),
+    D(Bac) ~ +1.0 * ( 1 /medium ) * (medium*((((Bac*beta)*lag)*(Bacmax+(-Bac)))/Bacmax)),
     lag ~ ((1 - lag_bool1)*( 0) + lag_bool1*( 1))
     ]
 

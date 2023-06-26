@@ -2,11 +2,17 @@
 
 In many scenarios we have competing hypotheses (model structures) that we want to compare. For model selection, various approaches like forward search, backward search, and exhaustive search using evaluation criteria such as AIC are commonly used. These methods are supported by [PEtab Select](https://github.com/PEtab-dev/petab_select), a tool designed for model selection.
 
+!!! note
+    To use the parameter estimation functionality Optim, QuasiMonteCarlo and PyCall must be loaded (see examples below).
+
+## Example
+
 PEtab.jl provides support for PEtab Select through the `runPEtabSelect` function. This function takes two required arguments; the path to the PEtab Select YAML file, and the optimizer for parameter estimation. For the optimizer, you can choose from `optimizer=Fides()` (Fides Newton-trust region), `optimizer=IPNewton()` from Optim.jl, or `optimizer=LBFGS()` from Optim.jl ([see](@ref parameter_estimation)). Additionally, you can pass any keyword arguments accepted by the `calibrateModel` function for parameter estimation and `createPEtabODEProblem` function for setting simulation options ([see](@ref gradient_support)).
 
 Since PEtab Select is a Python package, you need to have [PyCall.jl](https://github.com/JuliaPy/PyCall.jl) installed. Before using it, build PyCall with a Python environment that has PEtab select installed. Here's an example of how to do it (note that `pathToPythonExe` depends on your system configuration):
 
 ```julia
+using PyCall
 pathToPythonExe = joinpath("/", "home", "sebpe", "anaconda3", "envs", "PeTab", "bin", "python")
 ENV["PYTHON"] = pathToPythonExe
 import Pkg; Pkg.build("PyCall")
@@ -18,6 +24,7 @@ Once you have a correctly encoded PEtab Select problem (see the [guide](https://
 using PEtab 
 using OrdinaryDiffEq
 using Optim
+using QuasiMonteCarlo
 
 pathYAML = joinpath(@__DIR__, "PEtab_select", "0002", "petab_select_problem.yaml")
 pathSave = runPEtabSelect(pathYAML, IPNewton(), 

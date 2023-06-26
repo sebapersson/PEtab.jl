@@ -1,5 +1,5 @@
 #u[1] = Naive, u[2] = Pathogen, u[3] = LateEffector, u[4] = EarlyEffector, u[5] = Memory
-#pODEProblemNames[1] = mu_LL, pODEProblemNames[2] = delta_NE, pODEProblemNames[3] = mu_PE, pODEProblemNames[4] = mu_P, pODEProblemNames[5] = mu_PL, pODEProblemNames[6] = delta_EL, pODEProblemNames[7] = mu_EE, pODEProblemNames[8] = default, pODEProblemNames[9] = mu_N, pODEProblemNames[10] = rho_E, pODEProblemNames[11] = delta_LM, pODEProblemNames[12] = rho_P, pODEProblemNames[13] = mu_LE
+#pODEProblemNames[1] = mu_LL, pODEProblemNames[2] = delta_NE, pODEProblemNames[3] = mu_PL, pODEProblemNames[4] = mu_P, pODEProblemNames[5] = delta_EL, pODEProblemNames[6] = mu_PE, pODEProblemNames[7] = mu_EE, pODEProblemNames[8] = default, pODEProblemNames[9] = mu_N, pODEProblemNames[10] = rho_E, pODEProblemNames[11] = delta_LM, pODEProblemNames[12] = rho_P, pODEProblemNames[13] = mu_LE
 #
 
 function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
@@ -25,7 +25,7 @@ end
 
 function compute_u0!(u0::AbstractVector, pODEProblem::AbstractVector) 
 
-	#pODEProblem[1] = mu_LL, pODEProblem[2] = delta_NE, pODEProblem[3] = mu_PE, pODEProblem[4] = mu_P, pODEProblem[5] = mu_PL, pODEProblem[6] = delta_EL, pODEProblem[7] = mu_EE, pODEProblem[8] = default, pODEProblem[9] = mu_N, pODEProblem[10] = rho_E, pODEProblem[11] = delta_LM, pODEProblem[12] = rho_P, pODEProblem[13] = mu_LE
+	#pODEProblem[1] = mu_LL, pODEProblem[2] = delta_NE, pODEProblem[3] = mu_PL, pODEProblem[4] = mu_P, pODEProblem[5] = delta_EL, pODEProblem[6] = mu_PE, pODEProblem[7] = mu_EE, pODEProblem[8] = default, pODEProblem[9] = mu_N, pODEProblem[10] = rho_E, pODEProblem[11] = delta_LM, pODEProblem[12] = rho_P, pODEProblem[13] = mu_LE
 
 	Naive = 8090.0 
 	Pathogen = 1.0 
@@ -38,7 +38,7 @@ end
 
 function compute_u0(pODEProblem::AbstractVector)::AbstractVector 
 
-	#pODEProblem[1] = mu_LL, pODEProblem[2] = delta_NE, pODEProblem[3] = mu_PE, pODEProblem[4] = mu_P, pODEProblem[5] = mu_PL, pODEProblem[6] = delta_EL, pODEProblem[7] = mu_EE, pODEProblem[8] = default, pODEProblem[9] = mu_N, pODEProblem[10] = rho_E, pODEProblem[11] = delta_LM, pODEProblem[12] = rho_P, pODEProblem[13] = mu_LE
+	#pODEProblem[1] = mu_LL, pODEProblem[2] = delta_NE, pODEProblem[3] = mu_PL, pODEProblem[4] = mu_P, pODEProblem[5] = delta_EL, pODEProblem[6] = mu_PE, pODEProblem[7] = mu_EE, pODEProblem[8] = default, pODEProblem[9] = mu_N, pODEProblem[10] = rho_E, pODEProblem[11] = delta_LM, pODEProblem[12] = rho_P, pODEProblem[13] = mu_LE
 
 	Naive = 8090.0 
 	Pathogen = 1.0 

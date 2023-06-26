@@ -1,6 +1,5 @@
 module SciMLSensitivityExtension
 
-using PEtab 
 using SciMLBase
 using ModelingToolkit
 using DiffEqCallbacks
@@ -10,6 +9,7 @@ using ForwardDiff
 using ReverseDiff
 using Zygote
 using SciMLSensitivity
+using PEtab 
 
 include(joinpath(@__DIR__, "SciMLSensitivityExtension", "Helper_functions.jl"))
 include(joinpath(@__DIR__, "SciMLSensitivityExtension", "Adjoint.jl"))

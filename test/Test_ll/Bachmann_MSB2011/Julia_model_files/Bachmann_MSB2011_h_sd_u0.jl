@@ -1,5 +1,5 @@
 #u[1] = p1EpoRpJAK2, u[2] = pSTAT5, u[3] = EpoRJAK2_CIS, u[4] = SOCS3nRNA4, u[5] = SOCS3RNA, u[6] = SHP1, u[7] = STAT5, u[8] = EpoRJAK2, u[9] = CISnRNA1, u[10] = SOCS3nRNA1, u[11] = SOCS3nRNA2, u[12] = CISnRNA3, u[13] = CISnRNA4, u[14] = SOCS3, u[15] = CISnRNA5, u[16] = SOCS3nRNA5, u[17] = SOCS3nRNA3, u[18] = SHP1Act, u[19] = npSTAT5, u[20] = p12EpoRpJAK2, u[21] = p2EpoRpJAK2, u[22] = CIS, u[23] = EpoRpJAK2, u[24] = CISnRNA2, u[25] = CISRNA
-#pODEProblemNames[1] = STAT5Exp, pODEProblemNames[2] = STAT5Imp, pODEProblemNames[3] = init_SOCS3_multiplier, pODEProblemNames[4] = EpoRCISRemove, pODEProblemNames[5] = STAT5ActEpoR, pODEProblemNames[6] = SHP1ActEpoR, pODEProblemNames[7] = JAK2EpoRDeaSHP1, pODEProblemNames[8] = CISTurn, pODEProblemNames[9] = SOCS3Turn, pODEProblemNames[10] = init_EpoRJAK2_CIS, pODEProblemNames[11] = SOCS3Inh, pODEProblemNames[12] = ActD, pODEProblemNames[13] = init_CIS_multiplier, pODEProblemNames[14] = cyt, pODEProblemNames[15] = CISRNAEqc, pODEProblemNames[16] = JAK2ActEpo, pODEProblemNames[17] = Epo, pODEProblemNames[18] = SOCS3oe, pODEProblemNames[19] = CISInh, pODEProblemNames[20] = SHP1Dea, pODEProblemNames[21] = SOCS3EqcOE, pODEProblemNames[22] = CISRNADelay, pODEProblemNames[23] = init_SHP1, pODEProblemNames[24] = CISEqcOE, pODEProblemNames[25] = EpoRActJAK2, pODEProblemNames[26] = SOCS3RNAEqc, pODEProblemNames[27] = CISEqc, pODEProblemNames[28] = SHP1ProOE, pODEProblemNames[29] = SOCS3RNADelay, pODEProblemNames[30] = init_STAT5, pODEProblemNames[31] = CISoe, pODEProblemNames[32] = CISRNATurn, pODEProblemNames[33] = init_SHP1_multiplier, pODEProblemNames[34] = init_EpoRJAK2, pODEProblemNames[35] = nuc, pODEProblemNames[36] = EpoRCISInh, pODEProblemNames[37] = STAT5ActJAK2, pODEProblemNames[38] = SOCS3RNATurn, pODEProblemNames[39] = SOCS3Eqc
+#pODEProblemNames[1] = SOCS3RNATurn, pODEProblemNames[2] = STAT5Imp, pODEProblemNames[3] = SOCS3Eqc, pODEProblemNames[4] = EpoRCISRemove, pODEProblemNames[5] = STAT5ActEpoR, pODEProblemNames[6] = SHP1ActEpoR, pODEProblemNames[7] = JAK2EpoRDeaSHP1, pODEProblemNames[8] = CISTurn, pODEProblemNames[9] = SOCS3Turn, pODEProblemNames[10] = init_EpoRJAK2_CIS, pODEProblemNames[11] = SOCS3Inh, pODEProblemNames[12] = ActD, pODEProblemNames[13] = init_CIS_multiplier, pODEProblemNames[14] = cyt, pODEProblemNames[15] = CISRNAEqc, pODEProblemNames[16] = JAK2ActEpo, pODEProblemNames[17] = Epo, pODEProblemNames[18] = SOCS3oe, pODEProblemNames[19] = CISInh, pODEProblemNames[20] = SHP1Dea, pODEProblemNames[21] = SOCS3EqcOE, pODEProblemNames[22] = CISRNADelay, pODEProblemNames[23] = init_SHP1, pODEProblemNames[24] = CISEqcOE, pODEProblemNames[25] = EpoRActJAK2, pODEProblemNames[26] = SOCS3RNAEqc, pODEProblemNames[27] = CISEqc, pODEProblemNames[28] = SHP1ProOE, pODEProblemNames[29] = SOCS3RNADelay, pODEProblemNames[30] = init_STAT5, pODEProblemNames[31] = CISoe, pODEProblemNames[32] = CISRNATurn, pODEProblemNames[33] = init_SHP1_multiplier, pODEProblemNames[34] = init_EpoRJAK2, pODEProblemNames[35] = nuc, pODEProblemNames[36] = EpoRCISInh, pODEProblemNames[37] = STAT5ActJAK2, pODEProblemNames[38] = STAT5Exp, pODEProblemNames[39] = init_SOCS3_multiplier
 ##parameterInfo.nominalValue[5] = CISRNAEqc_C 
 #parameterInfo.nominalValue[20] = SOCS3RNAEqc_C 
 
@@ -66,7 +66,7 @@ function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_o
 
 	if observableId === :observable_SOCS3_au 
 		observableParameter1_observable_SOCS3_au, observableParameter2_observable_SOCS3_au = getObsOrSdParam(θ_observable, parameterMap)
-		return observableParameter1_observable_SOCS3_au + u[14] * observableParameter2_observable_SOCS3_au / pODEProblem[39] 
+		return observableParameter1_observable_SOCS3_au + u[14] * observableParameter2_observable_SOCS3_au / pODEProblem[3] 
 	end
 
 	if observableId === :observable_STAT5_abs 
@@ -107,7 +107,7 @@ end
 
 function compute_u0!(u0::AbstractVector, pODEProblem::AbstractVector) 
 
-	#pODEProblem[1] = STAT5Exp, pODEProblem[2] = STAT5Imp, pODEProblem[3] = init_SOCS3_multiplier, pODEProblem[4] = EpoRCISRemove, pODEProblem[5] = STAT5ActEpoR, pODEProblem[6] = SHP1ActEpoR, pODEProblem[7] = JAK2EpoRDeaSHP1, pODEProblem[8] = CISTurn, pODEProblem[9] = SOCS3Turn, pODEProblem[10] = init_EpoRJAK2_CIS, pODEProblem[11] = SOCS3Inh, pODEProblem[12] = ActD, pODEProblem[13] = init_CIS_multiplier, pODEProblem[14] = cyt, pODEProblem[15] = CISRNAEqc, pODEProblem[16] = JAK2ActEpo, pODEProblem[17] = Epo, pODEProblem[18] = SOCS3oe, pODEProblem[19] = CISInh, pODEProblem[20] = SHP1Dea, pODEProblem[21] = SOCS3EqcOE, pODEProblem[22] = CISRNADelay, pODEProblem[23] = init_SHP1, pODEProblem[24] = CISEqcOE, pODEProblem[25] = EpoRActJAK2, pODEProblem[26] = SOCS3RNAEqc, pODEProblem[27] = CISEqc, pODEProblem[28] = SHP1ProOE, pODEProblem[29] = SOCS3RNADelay, pODEProblem[30] = init_STAT5, pODEProblem[31] = CISoe, pODEProblem[32] = CISRNATurn, pODEProblem[33] = init_SHP1_multiplier, pODEProblem[34] = init_EpoRJAK2, pODEProblem[35] = nuc, pODEProblem[36] = EpoRCISInh, pODEProblem[37] = STAT5ActJAK2, pODEProblem[38] = SOCS3RNATurn, pODEProblem[39] = SOCS3Eqc
+	#pODEProblem[1] = SOCS3RNATurn, pODEProblem[2] = STAT5Imp, pODEProblem[3] = SOCS3Eqc, pODEProblem[4] = EpoRCISRemove, pODEProblem[5] = STAT5ActEpoR, pODEProblem[6] = SHP1ActEpoR, pODEProblem[7] = JAK2EpoRDeaSHP1, pODEProblem[8] = CISTurn, pODEProblem[9] = SOCS3Turn, pODEProblem[10] = init_EpoRJAK2_CIS, pODEProblem[11] = SOCS3Inh, pODEProblem[12] = ActD, pODEProblem[13] = init_CIS_multiplier, pODEProblem[14] = cyt, pODEProblem[15] = CISRNAEqc, pODEProblem[16] = JAK2ActEpo, pODEProblem[17] = Epo, pODEProblem[18] = SOCS3oe, pODEProblem[19] = CISInh, pODEProblem[20] = SHP1Dea, pODEProblem[21] = SOCS3EqcOE, pODEProblem[22] = CISRNADelay, pODEProblem[23] = init_SHP1, pODEProblem[24] = CISEqcOE, pODEProblem[25] = EpoRActJAK2, pODEProblem[26] = SOCS3RNAEqc, pODEProblem[27] = CISEqc, pODEProblem[28] = SHP1ProOE, pODEProblem[29] = SOCS3RNADelay, pODEProblem[30] = init_STAT5, pODEProblem[31] = CISoe, pODEProblem[32] = CISRNATurn, pODEProblem[33] = init_SHP1_multiplier, pODEProblem[34] = init_EpoRJAK2, pODEProblem[35] = nuc, pODEProblem[36] = EpoRCISInh, pODEProblem[37] = STAT5ActJAK2, pODEProblem[38] = STAT5Exp, pODEProblem[39] = init_SOCS3_multiplier
 
 	p1EpoRpJAK2 = 0.0 
 	pSTAT5 = 0.0 
@@ -122,7 +122,7 @@ function compute_u0!(u0::AbstractVector, pODEProblem::AbstractVector)
 	SOCS3nRNA2 = 0.0 
 	CISnRNA3 = 0.0 
 	CISnRNA4 = 0.0 
-	SOCS3 = pODEProblem[39] * pODEProblem[21] * pODEProblem[3] 
+	SOCS3 = pODEProblem[3] * pODEProblem[21] * pODEProblem[39] 
 	CISnRNA5 = 0.0 
 	SOCS3nRNA5 = 0.0 
 	SOCS3nRNA3 = 0.0 
@@ -140,7 +140,7 @@ end
 
 function compute_u0(pODEProblem::AbstractVector)::AbstractVector 
 
-	#pODEProblem[1] = STAT5Exp, pODEProblem[2] = STAT5Imp, pODEProblem[3] = init_SOCS3_multiplier, pODEProblem[4] = EpoRCISRemove, pODEProblem[5] = STAT5ActEpoR, pODEProblem[6] = SHP1ActEpoR, pODEProblem[7] = JAK2EpoRDeaSHP1, pODEProblem[8] = CISTurn, pODEProblem[9] = SOCS3Turn, pODEProblem[10] = init_EpoRJAK2_CIS, pODEProblem[11] = SOCS3Inh, pODEProblem[12] = ActD, pODEProblem[13] = init_CIS_multiplier, pODEProblem[14] = cyt, pODEProblem[15] = CISRNAEqc, pODEProblem[16] = JAK2ActEpo, pODEProblem[17] = Epo, pODEProblem[18] = SOCS3oe, pODEProblem[19] = CISInh, pODEProblem[20] = SHP1Dea, pODEProblem[21] = SOCS3EqcOE, pODEProblem[22] = CISRNADelay, pODEProblem[23] = init_SHP1, pODEProblem[24] = CISEqcOE, pODEProblem[25] = EpoRActJAK2, pODEProblem[26] = SOCS3RNAEqc, pODEProblem[27] = CISEqc, pODEProblem[28] = SHP1ProOE, pODEProblem[29] = SOCS3RNADelay, pODEProblem[30] = init_STAT5, pODEProblem[31] = CISoe, pODEProblem[32] = CISRNATurn, pODEProblem[33] = init_SHP1_multiplier, pODEProblem[34] = init_EpoRJAK2, pODEProblem[35] = nuc, pODEProblem[36] = EpoRCISInh, pODEProblem[37] = STAT5ActJAK2, pODEProblem[38] = SOCS3RNATurn, pODEProblem[39] = SOCS3Eqc
+	#pODEProblem[1] = SOCS3RNATurn, pODEProblem[2] = STAT5Imp, pODEProblem[3] = SOCS3Eqc, pODEProblem[4] = EpoRCISRemove, pODEProblem[5] = STAT5ActEpoR, pODEProblem[6] = SHP1ActEpoR, pODEProblem[7] = JAK2EpoRDeaSHP1, pODEProblem[8] = CISTurn, pODEProblem[9] = SOCS3Turn, pODEProblem[10] = init_EpoRJAK2_CIS, pODEProblem[11] = SOCS3Inh, pODEProblem[12] = ActD, pODEProblem[13] = init_CIS_multiplier, pODEProblem[14] = cyt, pODEProblem[15] = CISRNAEqc, pODEProblem[16] = JAK2ActEpo, pODEProblem[17] = Epo, pODEProblem[18] = SOCS3oe, pODEProblem[19] = CISInh, pODEProblem[20] = SHP1Dea, pODEProblem[21] = SOCS3EqcOE, pODEProblem[22] = CISRNADelay, pODEProblem[23] = init_SHP1, pODEProblem[24] = CISEqcOE, pODEProblem[25] = EpoRActJAK2, pODEProblem[26] = SOCS3RNAEqc, pODEProblem[27] = CISEqc, pODEProblem[28] = SHP1ProOE, pODEProblem[29] = SOCS3RNADelay, pODEProblem[30] = init_STAT5, pODEProblem[31] = CISoe, pODEProblem[32] = CISRNATurn, pODEProblem[33] = init_SHP1_multiplier, pODEProblem[34] = init_EpoRJAK2, pODEProblem[35] = nuc, pODEProblem[36] = EpoRCISInh, pODEProblem[37] = STAT5ActJAK2, pODEProblem[38] = STAT5Exp, pODEProblem[39] = init_SOCS3_multiplier
 
 	p1EpoRpJAK2 = 0.0 
 	pSTAT5 = 0.0 
@@ -155,7 +155,7 @@ function compute_u0(pODEProblem::AbstractVector)::AbstractVector
 	SOCS3nRNA2 = 0.0 
 	CISnRNA3 = 0.0 
 	CISnRNA4 = 0.0 
-	SOCS3 = pODEProblem[39] * pODEProblem[21] * pODEProblem[3] 
+	SOCS3 = pODEProblem[3] * pODEProblem[21] * pODEProblem[39] 
 	CISnRNA5 = 0.0 
 	SOCS3nRNA5 = 0.0 
 	SOCS3nRNA3 = 0.0 

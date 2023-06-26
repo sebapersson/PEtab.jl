@@ -1,5 +1,5 @@
 # Model name: Fujita_SciSignal2010
-# Number of parameters: 20
+# Number of parameters: 21
 # Number of species: 9
 function getODEModel_Fujita_SciSignal2010()
 
@@ -29,16 +29,16 @@ function getODEModel_Fujita_SciSignal2010()
 
     ### Derivatives ###
     eqs = [
-    D(pAkt_S6) ~ +1.0 * ( 1 /Cell ) * (Cell * (S6 * pAkt * reaction_5_k1 - pAkt_S6 * reaction_5_k2))-1.0 * ( 1 /Cell ) * (Cell * pAkt_S6 * reaction_6_k1),
-    D(pAkt) ~ +1.0 * ( 1 /Cell ) * (Cell * pEGFR_Akt * reaction_3_k1)-1.0 * ( 1 /Cell ) * (Cell * (S6 * pAkt * reaction_5_k1 - pAkt_S6 * reaction_5_k2))+1.0 * ( 1 /Cell ) * (Cell * pAkt_S6 * reaction_6_k1)-1.0 * ( 1 /Cell ) * (Cell * pAkt * reaction_7_k1),
-    D(pS6) ~ +1.0 * ( 1 /Cell ) * (Cell * pAkt_S6 * reaction_6_k1)-1.0 * ( 1 /Cell ) * (Cell * pS6 * reaction_8_k1),
-    D(EGFR) ~ -1.0 * ( 1 /Cell ) * (Cell * (EGF * EGFR * reaction_1_k1 - EGF_EGFR * reaction_1_k2))-1.0 * ( 1 /Cell ) * (Cell * EGFR * EGFR_turnover)+1.0 * ( 1 /Cell ) * (Cell * 68190 * EGFR_turnover),
-    D(pEGFR_Akt) ~ +1.0 * ( 1 /Cell ) * (Cell * (Akt * pEGFR * reaction_2_k1 - pEGFR_Akt * reaction_2_k2))-1.0 * ( 1 /Cell ) * (Cell * pEGFR_Akt * reaction_3_k1),
-    D(pEGFR) ~ -1.0 * ( 1 /Cell ) * (Cell * (Akt * pEGFR * reaction_2_k1 - pEGFR_Akt * reaction_2_k2))+1.0 * ( 1 /Cell ) * (Cell * pEGFR_Akt * reaction_3_k1)-1.0 * ( 1 /Cell ) * (Cell * pEGFR * reaction_4_k1)+1.0 * ( 1 /Cell ) * (Cell * EGF_EGFR * reaction_9_k1),
-    D(Akt) ~ -1.0 * ( 1 /Cell ) * (Cell * (Akt * pEGFR * reaction_2_k1 - pEGFR_Akt * reaction_2_k2))+1.0 * ( 1 /Cell ) * (Cell * pAkt * reaction_7_k1),
-    D(S6) ~ -1.0 * ( 1 /Cell ) * (Cell * (S6 * pAkt * reaction_5_k1 - pAkt_S6 * reaction_5_k2))+1.0 * ( 1 /Cell ) * (Cell * pS6 * reaction_8_k1),
-    D(EGF_EGFR) ~ +1.0 * ( 1 /Cell ) * (Cell * (EGF * EGFR * reaction_1_k1 - EGF_EGFR * reaction_1_k2))-1.0 * ( 1 /Cell ) * (Cell * EGF_EGFR * reaction_9_k1),
-    EGF ~ ((1 - EGF_bool1)*( EGF_rate * t + EGF_0) + EGF_bool1*( 0))
+    D(pAkt_S6) ~ -1.0 * ( 1 /Cell ) * ((Cell*pAkt_S6)*reaction_6_k1)+1.0 * ( 1 /Cell ) * (Cell*(((S6*pAkt)*reaction_5_k1)-(pAkt_S6*reaction_5_k2))),
+    D(pAkt) ~ +1.0 * ( 1 /Cell ) * ((Cell*pAkt_S6)*reaction_6_k1)+1.0 * ( 1 /Cell ) * ((Cell*pEGFR_Akt)*reaction_3_k1)-1.0 * ( 1 /Cell ) * ((Cell*pAkt)*reaction_7_k1)-1.0 * ( 1 /Cell ) * (Cell*(((S6*pAkt)*reaction_5_k1)-(pAkt_S6*reaction_5_k2))),
+    D(pS6) ~ +1.0 * ( 1 /Cell ) * ((Cell*pAkt_S6)*reaction_6_k1)-1.0 * ( 1 /Cell ) * ((Cell*pS6)*reaction_8_k1),
+    D(EGFR) ~ -1.0 * ( 1 /Cell ) * ((Cell*EGFR)*EGFR_turnover)+1.0 * ( 1 /Cell ) * ((Cell*68190.0)*EGFR_turnover)-1.0 * ( 1 /Cell ) * (Cell*(((EGF*EGFR)*reaction_1_k1)-(EGF_EGFR*reaction_1_k2))),
+    D(pEGFR_Akt) ~ +1.0 * ( 1 /Cell ) * (Cell*(((Akt*pEGFR)*reaction_2_k1)-(pEGFR_Akt*reaction_2_k2)))-1.0 * ( 1 /Cell ) * ((Cell*pEGFR_Akt)*reaction_3_k1),
+    D(pEGFR) ~ -1.0 * ( 1 /Cell ) * (Cell*(((Akt*pEGFR)*reaction_2_k1)-(pEGFR_Akt*reaction_2_k2)))+1.0 * ( 1 /Cell ) * ((Cell*pEGFR_Akt)*reaction_3_k1)-1.0 * ( 1 /Cell ) * ((Cell*pEGFR)*reaction_4_k1)+1.0 * ( 1 /Cell ) * ((Cell*EGF_EGFR)*reaction_9_k1),
+    D(Akt) ~ -1.0 * ( 1 /Cell ) * (Cell*(((Akt*pEGFR)*reaction_2_k1)-(pEGFR_Akt*reaction_2_k2)))+1.0 * ( 1 /Cell ) * ((Cell*pAkt)*reaction_7_k1),
+    D(S6) ~ +1.0 * ( 1 /Cell ) * ((Cell*pS6)*reaction_8_k1)-1.0 * ( 1 /Cell ) * (Cell*(((S6*pAkt)*reaction_5_k1)-(pAkt_S6*reaction_5_k2))),
+    D(EGF_EGFR) ~ -1.0 * ( 1 /Cell ) * ((Cell*EGF_EGFR)*reaction_9_k1)+1.0 * ( 1 /Cell ) * (Cell*(((EGF*EGFR)*reaction_1_k1)-(EGF_EGFR*reaction_1_k2))),
+    EGF ~ ((1 - EGF_bool1)*( (EGF_rate*t)+EGF_0) + EGF_bool1*( 0.0))
     ]
 
     @named sys = ODESystem(eqs, t, stateArray, parameterArray)

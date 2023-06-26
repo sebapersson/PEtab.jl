@@ -106,7 +106,7 @@ function replaceFunctionWithFormula(functionAsString, funcNameArgFormula)
 
     newFunctionsAsString = functionAsString
 
-    for (key,value) in funcNameArgFormula
+    for (key, value) in funcNameArgFormula
         # Find commas not surrounded by parentheses.
         # Used to split function arguments
         # If input argument are "pow(a,b),c" the list becomes ["pow(a,b)","c"]
@@ -165,37 +165,10 @@ function removePowFunctions(oldStr)
 end
 
 
-# For a SBML function extract the function arguments
-function getSBMLFuncArg(mathSBML)::String
-    args = "("
-    if mathSBML[:getNumChildren]() > 1
-        args = args * mathSBML[:getLeftChild]()[:getName]()
-        for n in range(1, mathSBML[:getNumChildren]()-1, step = 1)
-            arg = mathSBML[:getChild](n)[:getName]()
-            if arg !== nothing
-                args = args * ", " * arg
-            end
-        end
-        args = args * ")"
+function getSBMLFunctionArgs(SBMLFunction)::String
+    if isempty(SBMLFunction.body.args)
+        return ""
     end
-
+    args = prod([arg * ", " for arg in SBMLFunction.body.args])[1:end-2]
     return args
-end
-
-
-function getSBMLFuncFormula(mathSBML, libsbml)
-
-    mathAsString = libsbml[:formulaToString](mathSBML)
-
-    # Remove any lambda and only keep the arguments and actual function formulation
-    expressionStart = findfirst('(', mathAsString)+1
-    expressionStop = findlast(')', mathAsString)-1
-    StrippedMathAsString = mathAsString[expressionStart:expressionStop]
-
-    # The actual math formula is given between the last , and end paranthesis
-    functionFormula = lstrip(split(StrippedMathAsString, ',')[end])
-
-    functionFormula = removePowFunctions(functionFormula)
-
-    return functionFormula
 end
