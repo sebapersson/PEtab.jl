@@ -18,18 +18,18 @@ Perform multi-start local optimization for a given PEtabODEProblem and return (f
 - `samplingMethod`: Method for generating start guesses. Any method from QuasiMonteCarlo.jl is supported, with LatinHypercube as the default.
 - `options`: Optimization options. For Optim.jl optimizers, it accepts an `Optim.Options` struct. For Fides, please refer to the Fides documentation and the PEtab.jl documentation for information on setting options.
 """
-function callibrateModel(petabProblem::PEtabODEProblem,
-                         optimizer::Union{Optim.LBFGS, Optim.BFGS, Optim.IPNewton};
-                         nOptimisationStarts=100,
-                         seed=123,
-                         options=Optim.Options(iterations = 1000,
-                                               show_trace = false,
-                                               allow_f_increases=true,
-                                               successive_f_tol = 3,
-                                               f_tol=1e-8,
-                                               g_tol=1e-6,
-                                               x_tol=0.0),
-                         samplingMethod::T=QuasiMonteCarlo.LatinHypercubeSample()) where T <: QuasiMonteCarlo.SamplingAlgorithm
+function PEtab.callibrateModel(petabProblem::PEtabODEProblem,
+                               optimizer::Union{Optim.LBFGS, Optim.BFGS, Optim.IPNewton};
+                               nOptimisationStarts=100,
+                               seed=123,
+                               options=Optim.Options(iterations = 1000,
+                                                     show_trace = false,
+                                                     allow_f_increases=true,
+                                                     successive_f_tol = 3,
+                                                     f_tol=1e-8,
+                                                     g_tol=1e-6,
+                                                     x_tol=0.0),
+                               samplingMethod::T=QuasiMonteCarlo.LatinHypercubeSample()) where T <: QuasiMonteCarlo.SamplingAlgorithm
 
     Random.seed!(seed)
     nParameters = length(petabProblem.lowerBounds)
@@ -62,13 +62,12 @@ function callibrateModel(petabProblem::PEtabODEProblem,
 
     return objValues, parameterValues
 end
-#=
-function callibrateModel(petabProblem::PEtabODEProblem,
-                         optimizer::Fides=Fides(verbose=false);
-                         nOptimisationStarts=100,
-                         seed=123,
-                         options=py"{'maxiter' : 1000}"o,
-                         samplingMethod::T=QuasiMonteCarlo.LatinHypercubeSample()) where T <: QuasiMonteCarlo.SamplingAlgorithm
+function PEtab.callibrateModel(petabProblem::PEtabODEProblem,
+                               optimizer::Fides=Fides(verbose=false);
+                               nOptimisationStarts=100,
+                               seed=123,
+                               options=py"{'maxiter' : 1000}"o,
+                               samplingMethod::T=QuasiMonteCarlo.LatinHypercubeSample()) where T <: QuasiMonteCarlo.SamplingAlgorithm
 
     Random.seed!(seed)
     nParameters = length(petabProblem.lowerBounds)
@@ -101,7 +100,7 @@ function callibrateModel(petabProblem::PEtabODEProblem,
 
     return objValues, parameterValues
 end
-=#
+
 
 function generateStartGuesses(petabProblem::PEtabODEProblem,
                               samplingMethod::T,

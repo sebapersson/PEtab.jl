@@ -1,7 +1,0 @@
-format_version: beta_1
-criterion: AIC
-method: forward
-model_space_files:
-- model_space.tsv
-initial_model_files:
-- initial_models.tsv

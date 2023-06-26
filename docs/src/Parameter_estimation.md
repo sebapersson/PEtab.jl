@@ -12,6 +12,9 @@ PEtab.jl offers a lightweight interface for performing multi-start parameter est
 !!! note
     Keep in mind that each problem is unique, and although the suggested options are generally effective, they may not always be the ideal choice for a particular model.
 
+!!! note
+    To use the parameter estimation functionality Optim, QuasiMonteCarlo and PyCall must be loaded (see examples below).
+
 ## Parameter estimation using Optim.jl
 
 For [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl) in PEtab.jl, we provide support for three methods:
@@ -30,6 +33,7 @@ Here's an example where we run a 50 multi-start for the Boehm model using the In
 
 
 ```julia
+using PyCall
 using Optim
 import QuasiMonteCarlo
 fvals, xvals = callibrateModel(petabProblem, IPNewton(), 
@@ -51,6 +55,9 @@ Fides.py is a trust-region Newton method that excels when computing the full Hes
 Fides (specifically, Newton trust-region with box-constraints) is not available directly in Julia. Therefore, to use it, you need to call a Python library. To set up the necessary environment, make sure you have [PyCall.jl](https://github.com/JuliaPy/PyCall.jl) installed. Next you must build PyCall with a Python environment that has Fides installed (**note:** `pathToPythonExe` depends on your system configuration):
 
 ```julia
+using PyCall
+using Optim
+import QuasiMonteCarlo
 pathToPythonExe = joinpath("/", "home", "sebpe", "anaconda3", "envs", "PeTab", "bin", "python")
 ENV["PYTHON"] = pathToPythonExe
 import Pkg; Pkg.build("PyCall")

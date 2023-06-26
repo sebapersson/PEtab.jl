@@ -16,23 +16,23 @@ Simulation options can be set using any keyword argument accepted by the `create
 For example, setting `gradientMethod=:ForwardDiff` specifies the use of forward-mode automatic differentiation for
 gradient computation. If left blank, we automatically select appropriate options based on the size of the problem.
 """
-function runPEtabSelect(pathYAML::String,
-                        optimizer;
-                        optimizerOptions=nothing,
-                        nOptimisationStarts=100,
-                        optimizationSamplingMethod::T=QuasiMonteCarlo.LatinHypercubeSample(),
-                        odeSolverOptions::Union{Nothing, ODESolverOptions}=nothing,
-                        odeSolverGradientOptions::Union{Nothing, ODESolverOptions}=nothing,
-                        ssSolverOptions::Union{Nothing, SteadyStateSolverOptions}=nothing,
-                        ssSolverGradientOptions::Union{Nothing, SteadyStateSolverOptions}=nothing,
-                        gradientMethod::Union{Nothing, Symbol}=nothing,
-                        hessianMethod::Union{Nothing, Symbol}=nothing,
-                        sparseJacobian::Union{Nothing, Bool}=nothing,
-                        sensealg=nothing,
-                        sensealgSS=nothing,
-                        chunkSize::Union{Nothing, Int64}=nothing,
-                        splitOverConditions::Bool=false,
-                        reuseS::Bool=false) where T <: QuasiMonteCarlo.SamplingAlgorithm
+function PEtab.runPEtabSelect(pathYAML::String,
+                              optimizer;
+                              optimizerOptions=nothing,
+                              nOptimisationStarts=100,
+                              optimizationSamplingMethod::T=QuasiMonteCarlo.LatinHypercubeSample(),
+                              odeSolverOptions::Union{Nothing, ODESolverOptions}=nothing,
+                              odeSolverGradientOptions::Union{Nothing, ODESolverOptions}=nothing,
+                              ssSolverOptions::Union{Nothing, SteadyStateSolverOptions}=nothing,
+                              ssSolverGradientOptions::Union{Nothing, SteadyStateSolverOptions}=nothing,
+                              gradientMethod::Union{Nothing, Symbol}=nothing,
+                              hessianMethod::Union{Nothing, Symbol}=nothing,
+                              sparseJacobian::Union{Nothing, Bool}=nothing,
+                              sensealg=nothing,
+                              sensealgSS=nothing,
+                              chunkSize::Union{Nothing, Int64}=nothing,
+                              splitOverConditions::Bool=false,
+                              reuseS::Bool=false) where T <: QuasiMonteCarlo.SamplingAlgorithm
 
     py"""
     import petab_select

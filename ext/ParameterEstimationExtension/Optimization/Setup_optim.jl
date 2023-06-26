@@ -10,15 +10,15 @@ with blockAutoDiff (:blockAutoDiff). All optimizer struct can take their default
 arguments, for example, LBFGS(linesearch = LineSearches.HagerZhang()) is a valid
 argument for LBFGS.
 """
-function createOptimProblem(petabProblem::PEtabODEProblem,
-                            optimAlg;
-                            options=Optim.Options(iterations = 1000,
-                                                  show_trace = false,
-                                                  allow_f_increases=true,
-                                                  successive_f_tol = 3,
-                                                  f_tol=1e-8,
-                                                  g_tol=1e-6,
-                                                  x_tol=0.0))
+function PEtab.createOptimProblem(petabProblem::PEtabODEProblem,
+                                  optimAlg;
+                                  options=Optim.Options(iterations = 1000,
+                                                        show_trace = false,
+                                                        allow_f_increases=true,
+                                                        successive_f_tol = 3,
+                                                        f_tol=1e-8,
+                                                        g_tol=1e-6,
+                                                        x_tol=0.0))
 
     if typeof(optimAlg) <: IPNewton
         return createOptimInteriorNewton(petabProblem, optimAlg, options)

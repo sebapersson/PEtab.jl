@@ -21,8 +21,6 @@ using RuntimeGeneratedFunctions
 using PreallocationTools
 using NonlinearSolve
 using PrecompileTools
-using Optim
-using QuasiMonteCarlo
 using SBML
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
@@ -78,15 +76,10 @@ include(joinpath("SBML", "Common.jl"))
 include(joinpath("SBML", "Process_functions.jl"))
 include(joinpath("SBML", "Process_rules.jl"))
 
-# For Optimization and model selection
-include(joinpath("Optimization", "Setup_optim.jl"))
-#include(joinpath("Optimization", "Setup_fides.jl"))
-include(joinpath("Optimization", "Callibration.jl"))
-#include(joinpath("PEtab_select", "PEtab_select.jl"))
-
 # For correct struct printing
 include(joinpath("Show.jl"))
 
+#=
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem
 @setup_workload begin
     pathYAML = joinpath(@__DIR__, "..", "test", "Test_model3", "Test_model3.yaml")
@@ -96,12 +89,27 @@ include(joinpath("Show.jl"))
         petabProblem.computeCost(petabProblem.θ_nominalT)
     end
 end
+=#
 
-export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, createOptimProblem, callibrateModel, remakePEtabProblem, Fides
+
+# To make extensions to these exportable 
+function createOptimProblem end
+function createFidesProblem end 
+function callibrateModel end
+function remakePEtabProblem end 
+function Fides end 
+function runPEtabSelect end
+
 
 if !isdefined(Base, :get_extension)
+    include(joinpath(@__DIR__, "..", "ext", "ParameterEstimationExtension.jl"))
+end
+if !isdefined(Base, :get_extension)    
     include(joinpath(@__DIR__, "..", "ext", "SciMLSensitivityExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "ZygoteExtension.jl"))
 end
+
+export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, createOptimProblem, createFidesProblem, callibrateModel, remakePEtabProblem, Fides, runPEtabSelect
+
 
 end

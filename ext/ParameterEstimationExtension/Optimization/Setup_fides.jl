@@ -1,8 +1,8 @@
-function createFidesProblem(petabProblem::PEtabODEProblem,
-                            fidesSetting::Fides; # In case you want to use any Fides optimizer
-                            options=py"{'maxiter' : 1000}"o,
-                            funargs=py"None"o,
-                            resfun::Bool=false)
+function PEtab.createFidesProblem(petabProblem::PEtabODEProblem,
+                                  fidesSetting::Fides; # In case you want to use any Fides optimizer
+                                  options=py"{'maxiter' : 1000}"o,
+                                  funargs=py"None"o,
+                                  resfun::Bool=false)
 
     nParam = length(petabProblem.lowerBounds)
     if !isnothing(fidesSetting.hessianApproximation)

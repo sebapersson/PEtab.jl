@@ -1,6 +1,5 @@
 module ZygoteExtension
 
-using PEtab 
 using SciMLBase
 using ModelingToolkit
 using DiffEqCallbacks
@@ -11,6 +10,7 @@ using ReverseDiff
 using SciMLSensitivity
 import ChainRulesCore
 using Zygote
+using PEtab 
 
 include(joinpath(@__DIR__, "ZygoteExtension", "Helper_functions.jl"))
 include(joinpath(@__DIR__, "ZygoteExtension", "Cost.jl"))
