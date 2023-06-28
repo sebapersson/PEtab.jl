@@ -5,34 +5,34 @@
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://sebapersson.github.io/PEtab.jl/dev/)
 [![Build Status](https://github.com/sebapersson/PEtab.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/sebapersson/PEtab.jl/actions/workflows/CI.yml?query=branch%3Amain)
 
-PEtab.jl is a Julia package that imports ODE parameter estimation problems specified in the PEtab format. By utilizing the ODE solvers provided in the DifferentialEquations.jl package and symbolic model processing through ModelingToolkit.jl, PEtab.jl can quickly simulate models. Additionally, it supports gradients using both forward and adjoint sensitivity approaches, as well as Hessians via exact and approximate methods, making it suitable for efficient parameter estimation for models of various sizes. In benchmark tests, PEtab.jl was 2-4 times faster than the PyPesto toolbox, which utilizes the AMICI interface to the Sundials suite. For installation instructions, refer below.
+PEtab.jl is a Julia package that imports ODE parameter estimation problems specified in the PEtab format. PEtab.jl uses Julia's [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl) package for ODE solvers and [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) for symbolic model processing, which combined enables fast model simulations. Additionally, it supports gradients using both forward and adjoint sensitivity approaches, as well as Hessians via exact and approximate methods, making it suitable for efficient parameter estimation for models of various sizes. In an extensive benchmark, PEtab.jl was frequently 2-4 times faster than the pyPESTO toolbox, which utilizes the AMICI interface to the Sundials suite.
 
-The documentation contains a comprehensive list of all options and recommended settings for different model sizes.
+For installation instructions, refer below. For additional details, the documentation contains a comprehensive list of all options and recommended settings for different model sizes.
 
 ## Installation
 
-To read SBML files PEtab.jl uses the Python [python-libsbml](https://pypi.org/project/python-libsbml/) library which can be installed via:
-
-```
-pip install python-libsbml
-```
-
-Given this PEtab.jl can be installed via
+PEtab.jl can be installed via
 
 ```julia
 julia> ] add PEtab
 ```
 
+or alternatively via
+
+```julia
+julia> using Pkg; Pkg.add("PEtab")
+```
+
 ## Quick start
 
-To create a PEtab model from the path of the YAML-file for the so-called Bachmann model:
+Given a PEtab problem the first step is to read it into a PEtab model, which for the so-called Bachmann model can be done via:
 
 ```julia
 using PEtab
 bachmannModel = readPEtabModel(yamlPath)
 ```
 
-This function translates the SBML ODE model into [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl), which allows for symbolic computations of the Jacobian. Additionally, it generates functions for computing initial values, observation functions, and events from the PEtab-files.
+`readPEtabModel` translates the SBML ODE model into [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) format, which allows for symbolic computations of the Jacobian. Additionally, it generates functions for computing initial values, observation functions, and events from the PEtab-files.
 
 With a `PEtabModel`, you can create a `PEtabODEProblem` to compute the cost, gradient, and Hessian of the model. For instance, you can solve the model ODE using the [QNDF](https://docs.sciml.ai/DiffEqDocs/stable/solvers/ode_solve/) solver, compute the gradient via [ForwardDiff](https://github.com/JuliaDiff/ForwardDiff.jl), and approximate the Hessian via the Gauss-Newton method with the following code:
 
@@ -47,7 +47,6 @@ petabProblem = createPEtabODEProblem(bachmannModel,
 After defining the parameter vector `θ`, you can compute the cost, gradient, and Hessian with the following code:
 
 ```julia
-# We only support in-place Hessian and gradients
 θ = petabProblem.θ_nominalT
 ∇f = zeros(length(θ))
 H = zeros(length(θ), length(θ))
