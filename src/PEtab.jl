@@ -15,7 +15,6 @@ using Random
 using LinearAlgebra
 using Distributions
 using Printf
-using Requires
 using YAML
 using RuntimeGeneratedFunctions
 using PreallocationTools
@@ -75,6 +74,7 @@ include(joinpath("SBML", "SBML_to_ModellingToolkit.jl"))
 include(joinpath("SBML", "Common.jl"))
 include(joinpath("SBML", "Process_functions.jl"))
 include(joinpath("SBML", "Process_rules.jl"))
+include(joinpath("SBML", "Solve_SBML_model.jl"))
 
 # For correct struct printing
 include(joinpath("Show.jl"))
@@ -84,17 +84,17 @@ include(joinpath("Show.jl"))
 @setup_workload begin
     pathYAML = joinpath(@__DIR__, "..", "test", "Test_model3", "Test_model3.yaml")
     @compile_workload begin
-        petabModel = readPEtabModel(pathYAML, verbose=false)
+        petabModel = readPEtabModel(pathYAML, verbose=false, forceBuildJuliaFiles=true)
         petabProblem = createPEtabODEProblem(petabModel, verbose=false)
         petabProblem.computeCost(petabProblem.θ_nominalT)
     end
 end
 
 
-export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, remakePEtabProblem, Fides
+export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, remakePEtabProblem, Fides, solveSBMLModel
 
 
-# To make extensions to these exportable 
+# To make these extension functions exportable, and to allow docstrings to be generated for them.
 function createOptimProblem end
 function createFidesProblem end 
 """

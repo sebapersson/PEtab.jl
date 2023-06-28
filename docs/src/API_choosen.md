@@ -11,4 +11,5 @@ remakePEtabProblem
 Fides
 callibrateModel
 runPEtabSelect
+solveSBMLModel
 ```

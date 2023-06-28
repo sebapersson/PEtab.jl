@@ -192,7 +192,7 @@ end
 function createFuncionForTstops(SBMLDict::Dict,
                                 modelStateNames::Vector{String},
                                 pODEProblemNames::Vector{String},
-                                θ_indices::ParameterIndices)
+                                θ_indices::Union{ParameterIndices, Nothing})
 
     convertTspan = false
     conditionFormulas = vcat([SBMLDict["boolVariables"][key][1] for key in keys(SBMLDict["boolVariables"])], [SBMLDict["events"][key][1] for key in keys(SBMLDict["events"])])
@@ -208,7 +208,10 @@ function createFuncionForTstops(SBMLDict::Dict,
             i += 1
             continue
         end
-        if conditionHasParametersToEstimate(conditionFormula, pODEProblemNames, θ_indices)
+        if !isnothing(θ_indices) && conditionHasParametersToEstimate(conditionFormula, pODEProblemNames, θ_indices)
+            convertTspan = true
+        end
+        if isnothing(θ_indices)
             convertTspan = true
         end
 
