@@ -2,27 +2,27 @@
 
 This is the documentation of [**PEtab.jl**](https://github.com/sebapersson/PEtab.jl), a Julia package designed to import ODE parameter estimation problems specified in the PEtab format into Julia.
 
-PEtab.jl uses Julia's [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl) package for ODE solvers and [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) for symbolic model processing, which enables fast model simulations. This, combined with support for gradients via forward- and adjoint-sensitivity approaches, and hessian via both exact and approximate methods, allows for efficient parameter estimation for both small and large models. In an extensive benchmark study, PEtab.jl was found to be 3-4 times faster than the [PyPesto](https://github.com/ICB-DCM/pyPESTO) toolbox that leverages the [AMICI](https://github.com/AMICI-dev/AMICI) interface to the Sundials suite.
+PEtab.jl uses Julia's [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl) package for ODE solvers and [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) for symbolic model processing, which enables fast model simulations. This, combined with support for gradients via forward- and adjoint-sensitivity approaches, and hessian via both exact and approximate methods, allows for efficient parameter estimation for both small and large models. In an extensive benchmark study, PEtab.jl was found to be 2-4 times faster than the [pyPESTO](https://github.com/ICB-DCM/pyPESTO) toolbox that leverages the [AMICI](https://github.com/AMICI-dev/AMICI) interface to the Sundials suite.
 
 This documentation includes:
 
 * A guide for getting started with PEtab.jl
-* Tutorials on medium-sized models, small models with several condition-specific parameters, models with pre-equilibration onditions (steady-state simulations), and how to define and import a model written in Julia.
+* Tutorials on medium-sized models, small models with several condition-specific parameters, models with pre-equilibration conditions (steady-state simulations), how to define and import a model written in Julia, how to perform parameter estimation, and how to perform model selection with PEtab-select.
 * Details about available hessian and gradient options.
 * Discussion of the best options for specific model types, including small, medium, and large models.
 
 ## Installation
 
-To read SBML files PEtab.jl uses the Python [python-libsbml](https://pypi.org/project/python-libsbml/) library which can be installed via:
-
-```
-pip install python-libsbml
-```
-
-Given this PEtab.jl can be installed via
+PEtab.jl can be installed via
 
 ```julia
 julia> ] add PEtab
+```
+
+or alternatively via
+
+```julia
+julia> using Pkg; Pkg.add("PEtab")
 ```
 
 ## Feature list
