@@ -59,7 +59,7 @@ function readPEtabModel(pathYAML::String;
         if isfile(pathModelJlFile) && forceBuildJuliaFiles == false
             verbose == true && printstyled("[ Info:", color=123, bold=true)
             verbose == true && print(" Julia model file exists and will not be rebuilt\n")
-            modelStr = getFunctionsAsString(modelFileJl, 1)[1]
+            modelStr = getFunctionsAsString(pathModelJlFile, 1)[1]
         end
     end
 
