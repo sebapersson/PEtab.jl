@@ -3,6 +3,7 @@
                    forceBuildJuliaFiles::Bool=false,
                    verbose::Bool=true,
                    ifElseToEvent::Bool=true,
+                   writeToFile::Bool=true,
                    jlFilePath::String="")::PEtabModel
 
 Parses a PEtab specified problem with a YAML-file located at `pathYAML` into a Julia-accessible format.
@@ -13,7 +14,7 @@ When parsing a PEtab problem, several things happen under the hood:
 2. The observable PEtab table is translated into a Julia file with functions for computing the observable (`h`), noise parameter (`σ`), and initial values (`u0`).
 3. To allow gradients via adjoint sensitivity analysis and/or forward sensitivity equations, the gradients of `h` and `σ` are computed symbolically with respect to the ODE model's states (`u`) and parameters (`odeProblem.p`).
 
-All of this happens automatically, and resulting files are stored under `petabModel.dirJulia`. To save time, `forceBuildJlFiles=false` by default, which means that Julia files are not rebuilt if they already exist.
+All of this happens automatically, and resulting files are stored under `petabModel.dirJulia` assuming writeToFile=true. To save time, `forceBuildJlFiles=false` by default, which means that Julia files are not rebuilt if they already exist.
 
 In case a Julia model files is provided instead of a SBML file provide file path under `jlFilePath`.
 
@@ -34,7 +35,8 @@ function readPEtabModel(pathYAML::String;
                         verbose::Bool=true,
                         ifElseToEvent::Bool=true,
                         jlFilePath::String="",
-                        customParameterValues::Union{Nothing, Dict}=nothing)::PEtabModel
+                        customParameterValues::Union{Nothing, Dict}=nothing, 
+                        writeToFile::Bool=true)::PEtabModel
 
     jlFile = isempty(jlFilePath) ? false : true
 
@@ -46,16 +48,18 @@ function readPEtabModel(pathYAML::String;
         pathModelJlFile = joinpath(dirJulia, modelName * ".jl")
         if !isfile(pathModelJlFile) || forceBuildJuliaFiles == true
             verbose == true && printstyled("[ Info:", color=123, bold=true)
-            verbose == true && forceBuildJuliaFiles && print(" By user option rebuilds Julia model file ...")
+            verbose == true && forceBuildJuliaFiles && print(" By user option rebuilds Julia ODE model ...")
             verbose == true && !forceBuildJuliaFiles && print(" Building Julia model file as it does not exist ...")
 
-            bBuild = @elapsed modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, ifElseToEvent=ifElseToEvent)
+            bBuild = @elapsed modelDict, modelStr = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, 
+                ifElseToEvent=ifElseToEvent, writeToFile=writeToFile)
             verbose == true && @printf(" done. Time = %.1es\n", bBuild)
         end
 
         if isfile(pathModelJlFile) && forceBuildJuliaFiles == false
             verbose == true && printstyled("[ Info:", color=123, bold=true)
             verbose == true && print(" Julia model file exists and will not be rebuilt\n")
+            modelStr = getFunctionsAsString(pathModelJlFile, 1)[1]
         end
     end
 
@@ -64,17 +68,17 @@ function readPEtabModel(pathYAML::String;
             @error "In case jlFile=true you must provide the path to a valid Julia model model. $jlFilePath is not a valid file"
         end
 
-        modelDict, pathModelJlFile = JLToModellingToolkit(jlFilePath, dirJulia, modelName, ifElseToEvent=ifElseToEvent)
+        modelDict, pathModelJlFile, modelStr = JLToModellingToolkit(jlFilePath, dirJulia, modelName, 
+            ifElseToEvent=ifElseToEvent, writeToFile=writeToFile)
     end
 
-    addParameterForConditionSpecificInitialValues(pathModelJlFile, pathConditions, pathParameters)
+    modelStr = addParameterForConditionSpecificInitialValues(modelStr, pathConditions, pathParameters, pathModelJlFile, writeToFile)
 
     # Load model ODE-system
-    @assert isfile(pathModelJlFile)
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Symbolically processes ODE-system ...")
     timeTake = @elapsed begin
-        _getODESystem = @RuntimeGeneratedFunction(Meta.parse(getFunctionsAsString(pathModelJlFile, 1)[1]))
+        _getODESystem = @RuntimeGeneratedFunction(Meta.parse(modelStr))
         _odeSystem, stateMap, parameterMap = _getODESystem("https://xkcd.com/303/") # Argument needed by @RuntimeGeneratedFunction
         odeSystem = structural_simplify(_odeSystem)
         parameterNames = parameters(odeSystem)
@@ -88,20 +92,22 @@ function readPEtabModel(pathYAML::String;
         verbose == true && !isfile(path_u0_h_sigma) && print(" Building u0, h and σ file as it does not exist ...")
         verbose == true && isfile(path_u0_h_sigma) && print(" By user option rebuilds u0, h and σ file ...")
         if !@isdefined(modelDict)
-            modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, writeToFile=false, ifElseToEvent=ifElseToEvent)
+            modelDict, _ = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, writeToFile=false, 
+                onlyGetSBMLDict=true, ifElseToEvent=ifElseToEvent)
         end
-        bBuild = @elapsed create_σ_h_u0_File(modelName, pathYAML, dirJulia, odeSystem, parameterMap, stateMap, modelDict, jlFile=jlFile, customParameterValues=customParameterValues)
+        bBuild = @elapsed hStr, u0!Str, u0Str, σStr = create_σ_h_u0_File(modelName, pathYAML, dirJulia, odeSystem, 
+            parameterMap, stateMap, modelDict, jlFile=jlFile, customParameterValues=customParameterValues, writeToFile=writeToFile)
         verbose == true && @printf(" done. Time = %.1es\n", bBuild)
     else
         verbose == true && printstyled("[ Info:", color=123, bold=true)
         verbose == true && print(" u0, h and σ file exists and will not be rebuilt\n")
+        hStr, u0!Str, u0Str, σStr = getFunctionsAsString(path_u0_h_sigma, 4)
     end
-    @assert isfile(path_u0_h_sigma)
-    h_u0_σ_Functions = getFunctionsAsString(path_u0_h_sigma, 4)
-    compute_h = @RuntimeGeneratedFunction(Meta.parse(h_u0_σ_Functions[1]))
-    compute_u0! = @RuntimeGeneratedFunction(Meta.parse(h_u0_σ_Functions[2]))
-    compute_u0 = @RuntimeGeneratedFunction(Meta.parse(h_u0_σ_Functions[3]))
-    compute_σ = @RuntimeGeneratedFunction(Meta.parse(h_u0_σ_Functions[4]))
+    compute_h = @RuntimeGeneratedFunction(Meta.parse(hStr))
+    compute_u0! = @RuntimeGeneratedFunction(Meta.parse(u0!Str))
+    compute_u0 = @RuntimeGeneratedFunction(Meta.parse(u0Str))
+    compute_σ = @RuntimeGeneratedFunction(Meta.parse(σStr))
+    
 
     path_D_h_sd = joinpath(dirJulia, modelName * "_D_h_sd.jl")
     if !isfile(path_D_h_sd) || forceBuildJuliaFiles == true
@@ -109,20 +115,20 @@ function readPEtabModel(pathYAML::String;
         verbose == true && !isfile(path_u0_h_sigma) && print(" Building ∂h∂p, ∂h∂u, ∂σ∂p and ∂σ∂u file as it does not exist ...")
         verbose == true && isfile(path_u0_h_sigma) && print(" By user option rebuilds ∂h∂p, ∂h∂u, ∂σ∂p and ∂σ∂u file ...")
         if !@isdefined(modelDict)
-            modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, writeToFile=false, ifElseToEvent=ifElseToEvent)
+            modelDict, _ = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, writeToFile=false, 
+                onlyGetSBMLDict=true, ifElseToEvent=ifElseToEvent)
         end
-        bBuild = @elapsed createDerivative_σ_h_File(modelName, pathYAML, dirJulia, odeSystem, parameterMap, stateMap, modelDict, jlFile=jlFile, customParameterValues=customParameterValues)
+        bBuild = @elapsed ∂h∂uStr, ∂h∂pStr, ∂σ∂uStr, ∂σ∂pStr = createDerivative_σ_h_File(modelName, pathYAML, dirJulia, odeSystem, parameterMap, stateMap, modelDict, jlFile=jlFile, customParameterValues=customParameterValues, writeToFile=writeToFile)
         verbose == true && @printf(" done. Time = %.1es\n", bBuild)
     else verbose == true
         verbose == true && printstyled("[ Info:", color=123, bold=true)
         verbose == true && print(" ∂h∂p, ∂h∂u, ∂σ∂p and ∂σ∂u file exists and will not be rebuilt\n")
+        ∂h∂uStr, ∂h∂pStr, ∂σ∂uStr, ∂σ∂pStr = getFunctionsAsString(path_D_h_sd, 4)
     end
-    @assert isfile(path_D_h_sd)
-    ∂_h_σ_Functions = getFunctionsAsString(path_D_h_sd, 4)
-    compute_∂h∂u! = @RuntimeGeneratedFunction(Meta.parse(∂_h_σ_Functions[1]))
-    compute_∂h∂p! = @RuntimeGeneratedFunction(Meta.parse(∂_h_σ_Functions[2]))
-    compute_∂σ∂σu! = @RuntimeGeneratedFunction(Meta.parse(∂_h_σ_Functions[3]))
-    compute_∂σ∂σp! = @RuntimeGeneratedFunction(Meta.parse(∂_h_σ_Functions[4]))
+    compute_∂h∂u! = @RuntimeGeneratedFunction(Meta.parse(∂h∂uStr))
+    compute_∂h∂p! = @RuntimeGeneratedFunction(Meta.parse(∂h∂pStr))
+    compute_∂σ∂σu! = @RuntimeGeneratedFunction(Meta.parse(∂σ∂uStr))
+    compute_∂σ∂σp! = @RuntimeGeneratedFunction(Meta.parse(∂σ∂pStr))
 
     pathCallback = joinpath(dirJulia, modelName * "_callbacks.jl")
     if !isfile(pathCallback) || forceBuildJuliaFiles == true
@@ -130,19 +136,21 @@ function readPEtabModel(pathYAML::String;
         verbose == true && !isfile(pathCallback) && print(" Building callback file as it does not exist ...")
         verbose == true && isfile(pathCallback) && print(" By user option rebuilds callback file ...")
         if !@isdefined(modelDict)
-            modelDict = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, writeToFile=false, ifElseToEvent=ifElseToEvent)
+            modelDict, _ = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, writeToFile=false, 
+                onlyGetSBMLDict=true, ifElseToEvent=ifElseToEvent)
         end
-        bBuild = @elapsed createCallbacksForTimeDepedentPiecewise(odeSystem, parameterMap, stateMap, modelDict, modelName, pathYAML, dirJulia, jlFile = jlFile, customParameterValues=customParameterValues)
+        bBuild = @elapsed callbackStr, tstopsStr = createCallbacksForTimeDepedentPiecewise(odeSystem, parameterMap, 
+            stateMap, modelDict, modelName, pathYAML, dirJulia, jlFile = jlFile, 
+            customParameterValues=customParameterValues, writeToFile=writeToFile)
         verbose == true && @printf(" done. Time = %.1es\n", bBuild)
     else
         verbose == true && printstyled("[ Info:", color=123, bold=true)
         verbose == true && print(" Callback file exists and will not be rebuilt\n")
+        callbackStr, tstopsStr = getFunctionsAsString(pathCallback, 2)
     end
-    @assert isfile(pathCallback)
-    strGetCallbacks = getFunctionsAsString(pathCallback, 2)
-    getCallbackFunction = @RuntimeGeneratedFunction(Meta.parse(strGetCallbacks[1]))
+    getCallbackFunction = @RuntimeGeneratedFunction(Meta.parse(callbackStr))
     cbSet, checkCbActive, convertTspan = getCallbackFunction("https://xkcd.com/2694/") # Argument needed by @RuntimeGeneratedFunction
-    computeTstops = @RuntimeGeneratedFunction(Meta.parse(strGetCallbacks[2]))
+    computeTstops = @RuntimeGeneratedFunction(Meta.parse(tstopsStr))
 
     petabModel = PEtabModel(modelName,
                             compute_h,
@@ -221,16 +229,17 @@ end
 # The PEtab standard allows the condition table to have headers which corresponds to states. In order for this to
 # be compatible with gradient compuations we add such initial values as an additional parameter in odeProblem.p
 # by overwriting the Julia-model file
-function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
+function addParameterForConditionSpecificInitialValues(modelStr::String,
                                                        pathConditions::String,
-                                                       pathParameters::String)
+                                                       pathParameters::String, 
+                                                       pathJuliaFile::String,
+                                                       writeToFile::Bool)
     # Load necessary data
-    fAsString = getFunctionsAsString(pathJuliaFile, 1)
     experimentalConditionsFile = CSV.File(pathConditions)
     parametersFile = CSV.File(pathParameters)
 
     # Extract return line to find names of trueParameterValues and ODESystem
-    returnLine = filter(line -> occursin(r"\s*return",line),readlines(open(pathJuliaFile)))[1]
+    returnLine = filter(line -> occursin(r"\s*return",line), split(modelStr, "\n"))[1]
     returnLine = replace(returnLine, r"\s*return"=>"")
     returnLine = replace(returnLine, " "=>"")
     returnOutputs = split(returnLine,",")
@@ -238,7 +247,7 @@ function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
     trueParameterValuesName = returnOutputs[end]
 
     # Extract line with  ODESystem to find name of stateArray and parameterArray
-    odeLine = filter(line -> occursin(Regex(odeSystemName * "\\s*=\\s*ODESystem\\("),line),readlines(open(pathJuliaFile)))[1]    
+    odeLine = filter(line -> occursin(Regex(odeSystemName * "\\s*=\\s*ODESystem\\("), line), split(modelStr, "\n"))[1]    
     # Finds the offset after the parenthesis in "ODESystem("
     funStartRegex = Regex("\\bODESystem\\(\\K")
     # Matches parentheses pairs to grab the arguments of the "ODESystem(" function
@@ -253,16 +262,16 @@ function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
     stateArrayName = string(returnOutputs[end-1])
 
     # Extract state and parameter names
-    stateNames = getStateOrParameterNamesFromJlFunction(fAsString[1], stateArrayName, parameterArrayName, getStates=true)
-    parameterNames = getStateOrParameterNamesFromJlFunction(fAsString[1], stateArrayName, parameterArrayName, getStates=false)
+    stateNames = getStateOrParameterNamesFromJlFunction(modelStr, stateArrayName, parameterArrayName, getStates=true)
+    parameterNames = getStateOrParameterNamesFromJlFunction(modelStr, stateArrayName, parameterArrayName, getStates=false)
     
     # Check if the condition table contains states to map initial values
     colNames = string.(experimentalConditionsFile.names)
-    length(colNames) == 1 && return
+    length(colNames) == 1 && return modelStr
     iStart = colNames[2] == "conditionName" ? 3 : 2 # Sometimes PEtab file does not include column conditionName
     # Only change model file in case on of the experimental conditions map to a state (that is add an init parameter)
     if any(name -> name ∈ stateNames, colNames[iStart:end]) == false
-        return
+        return modelStr
     end
 
     # Find states and create new parameter names and values
@@ -291,11 +300,11 @@ function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
 
     # Check if the function has already been rewritten
     if any(x -> x ∈ parameterNames, newParameterNames)
-        return
+        return modelStr
     end
 
     # Update function lines with new parameters and values
-    functionLineByLine = split(fAsString[1], '\n')
+    functionLineByLine = split(modelStr, '\n')
     linesAdd = 0:0
     for i in eachindex(functionLineByLine)
         lineNoWhiteSpace = replace(functionLineByLine[i], r"\s+" => "")
@@ -341,10 +350,14 @@ function addParameterForConditionSpecificInitialValues(pathJuliaFile::String,
     newFunctionString = functionLineByLineNew[1]
     newFunctionString *= prod(row * "\n" for row in functionLineByLineNew[2:end])
     # Write the new function to the Julia file
-    open(pathJuliaFile, "w") do f
-        write(f, newFunctionString)
-        flush(f)
+    if writeToFile == true
+        open(pathJuliaFile, "w") do f
+            write(f, newFunctionString)
+            flush(f)
+        end
     end
+
+    return getFunctionsAsString(pathJuliaFile, 1)[1]
 end
 
 # Extract model state names from stateArray in the JL-file (and also parameter names)

@@ -2,7 +2,6 @@ using PEtab
 using Test
 using OrdinaryDiffEq
 using Sundials
-using SciMLSensitivity
 using CSV
 using ForwardDiff
 using LinearAlgebra

@@ -84,7 +84,7 @@ include(joinpath("Show.jl"))
 @setup_workload begin
     pathYAML = joinpath(@__DIR__, "..", "test", "Test_model3", "Test_model3.yaml")
     @compile_workload begin
-        petabModel = readPEtabModel(pathYAML, verbose=false, forceBuildJuliaFiles=true)
+        petabModel = readPEtabModel(pathYAML, verbose=false, forceBuildJuliaFiles=true, writeToFile=false)
         petabProblem = createPEtabODEProblem(petabModel, verbose=false)
         petabProblem.computeCost(petabProblem.θ_nominalT)
     end

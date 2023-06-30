@@ -26,7 +26,8 @@ function create_σ_h_u0_File(modelName::String,
                             stateMap,
                             SBMLDict::Dict;
                             jlFile::Bool=false,
-                            customParameterValues::Union{Nothing, Dict}=nothing)
+                            customParameterValues::Union{Nothing, Dict}=nothing, 
+                            writeToFile::Bool=true)
 
     pODEProblemNames = string.(parameters(odeSystem))
     modelStateNames = replace.(string.(states(odeSystem)), "(t)" => "")
@@ -38,14 +39,16 @@ function create_σ_h_u0_File(modelName::String,
     # Indices for keeping track of parameters in θ
     θ_indices = computeIndicesθ(parameterInfo, measurementInfo, odeSystem, parameterMap, stateMap, experimentalConditions)
 
-    create_h_Function(modelName, dirJulia, modelStateNames, parameterInfo, pODEProblemNames,
-                      string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict)
+    hStr = create_h_Function(modelName, dirJulia, modelStateNames, parameterInfo, pODEProblemNames,
+                             string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict, writeToFile)
 
-    create_u0_Function(modelName, dirJulia, parameterInfo, pODEProblemNames, stateMap, inPlace=true)
+    u0!Str = create_u0_Function(modelName, dirJulia, parameterInfo, pODEProblemNames, stateMap, writeToFile, inPlace=true)
 
-    create_u0_Function(modelName, dirJulia, parameterInfo, pODEProblemNames, stateMap, inPlace=false)
+    u0Str = create_u0_Function(modelName, dirJulia, parameterInfo, pODEProblemNames, stateMap, writeToFile, inPlace=false)
 
-    create_σ_Function(modelName, dirJulia, parameterInfo, modelStateNames, pODEProblemNames, string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict)
+    σStr = create_σ_Function(modelName, dirJulia, parameterInfo, modelStateNames, pODEProblemNames, string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict, writeToFile)
+
+    return hStr, u0!Str, u0Str, σStr
 end
 
 
@@ -69,9 +72,11 @@ function create_h_Function(modelName::String,
                            pODEProblemNames::Vector{String},
                            θ_nonDynamicNames::Vector{String},
                            observablesData::CSV.File,
-                           SBMLDict::Dict)
+                           SBMLDict::Dict, 
+                           writeToFile::Bool)
 
-    io = open(dirModel * "/" * modelName * "_h_sd_u0.jl", "w")
+    io = IOBuffer()
+    pathSave = joinpath(dirModel, modelName * "_h_sd_u0.jl")
     modelStateStr, θ_dynamicStr, θ_nonDynamicStr, constantParametersStr = createTopOfFunction_h(modelStateNames, parameterInfo,
                                                                                                 pODEProblemNames, θ_nonDynamicNames)
 
@@ -96,17 +101,27 @@ function create_h_Function(modelName::String,
     end
 
     # Create h function
-    write(io, modelStateStr)
-    write(io, θ_dynamicStr)
-    write(io, θ_nonDynamicStr)
-    write(io, constantParametersStr)
-    write(io, "\n")
+    if writeToFile == true
+        write(io, modelStateStr)
+        write(io, θ_dynamicStr)
+        write(io, θ_nonDynamicStr)
+        write(io, constantParametersStr)
+        write(io, "\n")
+    end
     write(io, "function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                    θ_nonDynamic::AbstractVector, parameterInfo::ParametersInfo, observableId::Symbol,
                       parameterMap::θObsOrSdParameterMap)::Real \n")
     write(io, observableStr)
-    write(io, "end\n\n")
+    write(io, "end")
+    hStr = String(take!(io))
+    if writeToFile == true
+        strWrite = hStr * "\n\n"
+        open(pathSave, "w") do f
+            write(f, strWrite)
+        end
+    end
     close(io)
+    return hStr    
 end
 
 
@@ -176,10 +191,12 @@ function create_u0_Function(modelName::String,
                             dirModel::String,
                             parameterInfo::ParametersInfo,
                             pODEProblemNames::Vector{String},
-                            stateMap;
+                            stateMap,
+                            writeToFile::Bool;
                             inPlace::Bool=true)
 
-    io = open(dirModel * "/" * modelName * "_h_sd_u0.jl", "a")
+    pathSave = joinpath(dirModel, modelName * "_h_sd_u0.jl")                            
+    io = IOBuffer()
 
     if inPlace == true
         write(io, "function compute_u0!(u0::AbstractVector, pODEProblem::AbstractVector) \n\n")
@@ -230,8 +247,17 @@ function create_u0_Function(modelName::String,
         write(io, modelStateStr)
     end
 
-    write(io, "\nend\n\n")
+    write(io, "\nend")
+    u0Str = String(take!(io))
+    if writeToFile == true
+        strWrite = u0Str * "\n\n"
+        open(pathSave, "a") do f
+            write(f, strWrite)
+        end
+    end    
     close(io)
+
+    return u0Str
 end
 
 
@@ -255,9 +281,11 @@ function create_σ_Function(modelName::String,
                            pODEProblemNames::Vector{String},
                            θ_nonDynamicNames::Vector{String},
                            observablesData::CSV.File,
-                           SBMLDict::Dict)
+                           SBMLDict::Dict, 
+                           writeToFile::Bool)
 
-    io = open(dirModel * "/" * modelName * "_h_sd_u0.jl", "a")
+    pathSave = joinpath(dirModel, modelName * "_h_sd_u0.jl")
+    io = IOBuffer()
 
     # Write the formula for standard deviations to file
     observableIds = string.(observablesData[:observableId])
@@ -282,6 +310,15 @@ function create_σ_Function(modelName::String,
     write(io, "function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                    parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap)::Real \n")
     write(io, observableStr)
-    write(io, "end")
+    write(io, "\nend")
+    σStr = String(take!(io))
+    if writeToFile == true
+        strWrite = σStr * "\n\n"
+        open(pathSave, "a") do f
+            write(f, strWrite)
+        end
+    end    
     close(io)
+
+    return σStr
 end

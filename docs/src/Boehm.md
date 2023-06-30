@@ -12,7 +12,7 @@ To get started, we first need to read the PEtab files into Julia. This can be ea
 2. The observable PEtab table is translated into Julia functions that compute observables ($h$), noise parameter ($\sigma$), and initial values ($u_0$).
 3. To compute gradients via adjoint sensitivity analysis or forward sensitivity equations, the derivatives of $h$ and $\sigma$ are calculated symbolically with respect to the ODE-model states ($u$) and parameters.
 
-All of these steps happen automatically, and you can find the resulting files in the *dirYamlFile/Julia_model_files/* directory. By default, the `readPEtabModel` function does not rebuild the Julia files if they already exist, so it saves time.
+All of these steps happen automatically, and you can find the resulting files in the *dirYamlFile/Julia_model_files/* directory assuming (as default) `writeToFile=true`, otherwise no model files are written to disk. By default, the `readPEtabModel` function does not rebuild the Julia files if they already exist to save time.
 
 ```julia
 using PEtab

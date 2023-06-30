@@ -4,19 +4,22 @@
 
 """
     XmlToModellingToolkit(pathXml::String, modelName::String, dirModel::String)
-    Convert a SBML file in pathXml to a Julia ModelingToolkit file and store
-    the resulting file in dirModel with name modelName.jl.
+
+Convert a SBML file in pathXml to a Julia ModelingToolkit file and store
+the resulting file in dirModel with name modelName.jl.
 """
-function XmlToModellingToolkit(pathXml::String, pathJlFile::AbstractString, modelName::AbstractString; writeToFile::Bool=true, ifElseToEvent::Bool=true)
+function XmlToModellingToolkit(pathXml::String, pathJlFile::AbstractString, modelName::AbstractString; 
+                               onlyGetSBMLDict::Bool=false, ifElseToEvent::Bool=true, writeToFile::Bool=true)
 
     modelSBML = readSBML(pathXml)
     modelDict = buildODEModelDictionary(modelSBML, ifElseToEvent)
 
-    if writeToFile
-        writeODEModelToFile(modelDict, pathJlFile, modelName, false)
+    if onlyGetSBMLDict == false
+        modelStr = createODEModelFunction(modelDict, pathJlFile, modelName, false, writeToFile)
+        return modelDict, modelStr
     end
 
-    return modelDict
+    return modelDict, ""
 end
 
 
@@ -27,7 +30,8 @@ If the file contains ifelse statements and ifElseToEvent=true
 a fixed file will be stored in the Julia_model_files folder
 with the suffix _fix in its filename.
 """
-function JLToModellingToolkit(pathJlFile::String, dirJulia::String, modelName::String; ifElseToEvent::Bool=true)
+function JLToModellingToolkit(pathJlFile::String, dirJulia::String, modelName::String; 
+                              ifElseToEvent::Bool=true, writeToFile::Bool=true)
     
     # Some parts of the modelDict are needed to create the other julia files for the model.
     modelDict = Dict()
@@ -76,7 +80,6 @@ function JLToModellingToolkit(pathJlFile::String, dirJulia::String, modelName::S
     
     #Initialize output model file path to input path
     modelFileJl = pathJlFile
-    
     if ifElseToEvent == true
         # Rewrite any time-dependent ifelse to boolean statements such that we can express these as events.
         # This is recomended, as it often increases the stabillity when solving the ODE, and decreases run-time
@@ -88,12 +91,15 @@ function JLToModellingToolkit(pathJlFile::String, dirJulia::String, modelName::S
             fileNameFix = replace(fileName, Regex(".jl\$") => "_fix.jl")
             modelFileJl = joinpath(dirJulia, fileNameFix)
             # Create a new "fixed" julia file
-            writeODEModelToFile(modelDict, pathJlFile, modelName, true)
+            modelStr = createODEModelFunction(modelDict, pathJlFile, modelName, true, writeToFile)
+        else
+            modelStr = getFunctionsAsString(modelFileJl, 1)[1]
         end
+    else
+        modelStr = getFunctionsAsString(modelFileJl, 1)[1]
     end
     
-    return modelDict, modelFileJl
-    
+    return modelDict, modelFileJl, modelStr
 end
 
 
@@ -379,12 +385,13 @@ end
 
 
 """
-writeODEModelToFile(modelDict, pathJlFile, modelName, juliaFile)
+    createODEModelFunction(modelDict, pathJlFile, modelName, juliaFile, writeToFile::Bool)
+
 Takes a modelDict as defined by buildODEModelDictionary
 and creates a Julia ModelingToolkit file and stores
 the resulting file in dirModel with name modelName.jl.
 """
-function writeODEModelToFile(modelDict, pathJlFile, modelName, juliaFile)
+function createODEModelFunction(modelDict, pathJlFile, modelName, juliaFile, writeToFile::Bool)
 
         stringDict = Dict()
         stringDict["variables"] = Dict()
@@ -584,53 +591,61 @@ function writeODEModelToFile(modelDict, pathJlFile, modelName, juliaFile)
         
     end
 
-        ### Writing to file
-        io = open(pathJlFile, "w")
-        println(io, "# Model name: " * modelName)
-        println(io, "# Number of parameters: " * modelDict["numOfParameters"])
-        println(io, "# Number of species: " * modelDict["numOfSpecies"])
-        println(io, "function getODEModel_" * modelName * "()")
-        println(io, "")
+    ### Writing to file
+    io = IOBuffer()
+    println(io, "function getODEModel_" * modelName * "(foo)")
+    println(io, "\t# Model name: " * modelName)
+    println(io, "\t# Number of parameters: " * modelDict["numOfParameters"])
+    println(io, "\t# Number of species: " * modelDict["numOfSpecies"])
+    println(io, "")
 
-        println(io, "    ### Define independent and dependent variables")
-        println(io, stringDict["variables"])
-        println(io, "")
-        println(io, "    ### Store dependent variables in array for ODESystem command")
-        println(io, stringDict["stateArray"])
-        println(io, "")
-        println(io, "    ### Define variable parameters")
-        println(io, stringDict["variableParameters"])
-        println(io, "    ### Define potential algebraic variables")
-        println(io, stringDict["algebraicVariables"])
-        println(io, "    ### Define parameters")
-        println(io, stringDict["parameters"])
-        println(io, "")
-        println(io, "    ### Store parameters in array for ODESystem command")
-        println(io, stringDict["parameterArray"])
-        println(io, "")
-        println(io, "    ### Define an operator for the differentiation w.r.t. time")
-        println(io, "    D = Differential(t)")
-        println(io, "")
-        println(io, "    ### Continious events ###")
-        println(io, stringDict["continuousEvents"])
-        println(io, "    ### Discrete events ###")
-        println(io, stringDict["discreteEvents"])
-        println(io, "    ### Derivatives ###")
-        println(io, stringDict["derivatives"])
-        println(io, "")
-        println(io, stringDict["ODESystem"])
-        println(io, "")
-        println(io, "    ### Initial species concentrations ###")
-        println(io, stringDict["initialSpeciesValues"])
-        println(io, "")
-        println(io, "    ### SBML file parameter values ###")
-        println(io, stringDict["trueParameterValues"])
-        println(io, "")
-        println(io, "    return sys, initialSpeciesValues, trueParameterValues")
-        println(io, "")
-        println(io, "end")
-        close(io)
+    println(io, "    ### Define independent and dependent variables")
+    println(io, stringDict["variables"])
+    println(io, "")
+    println(io, "    ### Store dependent variables in array for ODESystem command")
+    println(io, stringDict["stateArray"])
+    println(io, "")
+    println(io, "    ### Define variable parameters")
+    println(io, stringDict["variableParameters"])
+    println(io, "    ### Define potential algebraic variables")
+    println(io, stringDict["algebraicVariables"])
+    println(io, "    ### Define parameters")
+    println(io, stringDict["parameters"])
+    println(io, "")
+    println(io, "    ### Store parameters in array for ODESystem command")
+    println(io, stringDict["parameterArray"])
+    println(io, "")
+    println(io, "    ### Define an operator for the differentiation w.r.t. time")
+    println(io, "    D = Differential(t)")
+    println(io, "")
+    println(io, "    ### Continious events ###")
+    println(io, stringDict["continuousEvents"])
+    println(io, "    ### Discrete events ###")
+    println(io, stringDict["discreteEvents"])
+    println(io, "    ### Derivatives ###")
+    println(io, stringDict["derivatives"])
+    println(io, "")
+    println(io, stringDict["ODESystem"])
+    println(io, "")
+    println(io, "    ### Initial species concentrations ###")
+    println(io, stringDict["initialSpeciesValues"])
+    println(io, "")
+    println(io, "    ### SBML file parameter values ###")
+    println(io, stringDict["trueParameterValues"])
+    println(io, "")
+    println(io, "    return sys, initialSpeciesValues, trueParameterValues")
+    println(io, "")
+    println(io, "end")
+    strModel = String(take!(io))
+    close(io)
     
+    # In case user request file to be written 
+    if writeToFile == true
+        open(pathJlFile, "w") do f
+            write(f, strModel)
+        end
+    end
+    return strModel
 end
 
 function mathToString(math)

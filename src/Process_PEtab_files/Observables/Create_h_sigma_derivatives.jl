@@ -21,7 +21,8 @@ function createDerivative_σ_h_File(modelName::String,
                                    stateMap,
                                    SBMLDict::Dict;
                                    jlFile::Bool=false,
-                                   customParameterValues::Union{Nothing, Dict}=nothing)
+                                   customParameterValues::Union{Nothing, Dict}=nothing, 
+                                   writeToFile::Bool=true)
 
     pODEProblemNames = string.(parameters(odeSystem))
     modelStateNames = replace.(string.(states(odeSystem)), "(t)" => "")
@@ -33,9 +34,10 @@ function createDerivative_σ_h_File(modelName::String,
     # Indices for keeping track of parameters in θ
     θ_indices = computeIndicesθ(parameterInfo, measurementInfo, odeSystem, parameterMap, stateMap, experimentalConditions)
 
-    create∂h∂_Function(modelName, dirJulia, modelStateNames, parameterInfo, pODEProblemNames, string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict)
-
-    create∂σ∂_Function(modelName, dirJulia, parameterInfo, modelStateNames, pODEProblemNames, string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict)
+    ∂h∂uStr, ∂h∂pStr = create∂h∂_Function(modelName, dirJulia, modelStateNames, parameterInfo, pODEProblemNames, string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict, writeToFile)
+    ∂σ∂uStr, ∂σ∂pStr = create∂σ∂_Function(modelName, dirJulia, parameterInfo, modelStateNames, pODEProblemNames, string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict, writeToFile)
+    
+    return ∂h∂uStr, ∂h∂pStr, ∂σ∂uStr, ∂σ∂pStr
 end
 
 
@@ -59,9 +61,12 @@ function create∂h∂_Function(modelName::String,
                             pODEProblemNames::Vector{String},
                             θ_nonDynamicNames::Vector{String},
                             observablesData::CSV.File,
-                            SBMLDict::Dict)
+                            SBMLDict::Dict, 
+                            writeToFile::Bool)
 
-    io = open(dirModel * "/" * modelName * "_D_h_sd.jl", "w")
+    pathSave = joinpath(dirModel, modelName * "_D_h_sd.jl")
+    io1 = IOBuffer()
+    io2 = IOBuffer()
 
     modelStateStr, pODEProblemStr, θ_nonDynamicStr = createTopOf∂h∂_Function(modelStateNames, pODEProblemNames,
                                                                              θ_nonDynamicNames, observablesData)
@@ -122,21 +127,39 @@ function create∂h∂_Function(modelName::String,
     end
 
 
-    write(io, modelStateStr)
-    write(io, pODEProblemStr)
-    write(io, θ_nonDynamicStr)
-    write(io, "\n")
-    write(io, "function compute_∂h∂u!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
+    if writeToFile == true
+        write(io1, modelStateStr)
+        write(io1, pODEProblemStr)
+        write(io1, θ_nonDynamicStr)
+        write(io1, "\n")
+    end
+    write(io1, "function compute_∂h∂u!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                        θ_nonDynamic::AbstractVector, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) \n")
-    write(io, uObservebleStr)
-    write(io, "end\n\n")
+    write(io1, uObservebleStr)
+    write(io1, "end")
+    ∂h∂uStr = String(take!(io1))
+    if writeToFile
+        strWrite = ∂h∂uStr * "\n\n"
+        open(pathSave, "w") do f
+            write(f, strWrite)
+        end
+    end
 
-    write(io, "function compute_∂h∂p!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
+    write(io2, "function compute_∂h∂p!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
                        θ_nonDynamic::AbstractVector, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) \n")
-    write(io, pObservebleStr)
-    write(io, "end\n\n")
+    write(io2, pObservebleStr)
+    write(io2, "end")
+    ∂h∂pStr = String(take!(io2))
+    if writeToFile
+        strWrite = ∂h∂pStr * "\n\n"
+        open(pathSave, "a") do f
+            write(f, strWrite)
+        end
+    end
+    close(io1)
+    close(io2)
 
-    close(io)
+    return ∂h∂uStr, ∂h∂pStr
 end
 
 
@@ -230,9 +253,12 @@ function create∂σ∂_Function(modelName::String,
                             pODEProblemNames::Vector{String},
                             θ_nonDynamicNames::Vector{String},
                             observablesData::CSV.File,
-                            SBMLDict::Dict)
+                            SBMLDict::Dict, 
+                            writeToFile::Bool)
 
-    io = open(dirModel * "/" * modelName * "_D_h_sd.jl", "a")
+    pathSave = joinpath(dirModel, modelName * "_D_h_sd.jl")
+    io1 = IOBuffer()
+    io2 = IOBuffer()
 
     observableIds = string.(observablesData[:observableId])
     pObservebleStr = ""
@@ -287,15 +313,31 @@ function create∂σ∂_Function(modelName::String,
         pObservebleStr *= "\t\t" * "return nothing\n" * "\tend\n\n"
     end
 
-    write(io, "function compute_∂σ∂σu!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
+    write(io1, "function compute_∂σ∂σu!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                         parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) \n")
-    write(io, uObservebleStr)
-    write(io, "end\n\n")
+    write(io1, uObservebleStr)
+    write(io1, "end")
+    ∂σ∂σuStr = String(take!(io1))
+    if writeToFile == true
+        strWrite = ∂σ∂σuStr * "\n\n"
+        open(pathSave, "a") do f
+            write(f, strWrite)
+        end
+    end
 
-    write(io, "function compute_∂σ∂σp!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
+    write(io2, "function compute_∂σ∂σp!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
                         parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) \n")
-    write(io, pObservebleStr)
-    write(io, "end\n\n")
+    write(io2, pObservebleStr)
+    write(io2, "end")
+    ∂σ∂σpStr = String(take!(io2))
+    if writeToFile == true
+        strWrite = ∂σ∂σpStr * "\n\n"
+        open(pathSave, "a") do f
+            write(f, strWrite)
+        end
+    end
 
-    close(io)
+    close(io1)
+    close(io2)
+    return ∂σ∂σuStr, ∂σ∂σpStr
 end

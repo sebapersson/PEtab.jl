@@ -8,7 +8,8 @@ function createCallbacksForTimeDepedentPiecewise(odeSystem::ODESystem,
                                                  pathYAML::String,
                                                  dirJulia::String;
                                                  jlFile::Bool=false,
-                                                 customParameterValues::Union{Nothing, Dict}=nothing)
+                                                 customParameterValues::Union{Nothing, Dict}=nothing, 
+                                                 writeToFile::Bool=true)
 
     pODEProblemNames = string.(parameters(odeSystem))
     modelStateNames = replace.(string.(states(odeSystem)), "(t)" => "")
@@ -22,7 +23,7 @@ function createCallbacksForTimeDepedentPiecewise(odeSystem::ODESystem,
 
     # In case of no-callbacks the function for getting callbacks will be empty, likewise for the function
     # which compute tstops (callback-times)
-    stringWriteCallbacks = "function getCallbacks_" * modelName * "()\n"
+    stringWriteCallbacks = "function getCallbacks_" * modelName * "(foo)\n"
     stringWriteTstops = "\nfunction computeTstops(u::AbstractVector, p::AbstractVector)\n"
 
     # In case we do not have any events
@@ -51,7 +52,7 @@ function createCallbacksForTimeDepedentPiecewise(odeSystem::ODESystem,
             checkIfActivatedT0Names = ""
         end
 
-        stringWriteTstops *= "\treturn" * createFuncionForTstops(SBMLDict, modelStateNames, pODEProblemNames, θ_indices) * "\n" * "end" * "\n"
+        stringWriteTstops *= "\treturn" * createFuncionForTstops(SBMLDict, modelStateNames, pODEProblemNames, θ_indices) * "\n" * "end"
     end
 
     # Check whether or not the trigger for a discrete callback depends on a parameter or not. If true then the time-span
@@ -59,15 +60,17 @@ function createCallbacksForTimeDepedentPiecewise(odeSystem::ODESystem,
     convertTspan = shouldConvertTspan(SBMLDict, odeSystem, θ_indices, jlFile)::Bool
 
     stringWriteCallbacks *= "\treturn CallbackSet(" * callbackNames * "), Function[" * checkIfActivatedT0Names * "], " * string(convertTspan)  * "\nend"
-    fileWrite = dirJulia * "/" * modelName * "_callbacks.jl"
-    if isfile(fileWrite)
-        rm(fileWrite)
+    pathSave = joinpath(dirJulia, modelName * "_callbacks.jl")
+    if isfile(pathSave)
+        rm(pathSave)
     end
-    io = open(fileWrite, "w")
-    write(io, stringWriteCallbacks * "\n\n")
-    write(io, stringWriteTstops)
-
-    close(io)
+    if writeToFile == true
+        io = open(pathSave, "w")
+        write(io, stringWriteCallbacks * "\n\n")
+        write(io, stringWriteTstops)
+        close(io)
+    end
+    return stringWriteCallbacks, stringWriteTstops
 end
 
 
