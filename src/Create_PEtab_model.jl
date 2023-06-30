@@ -72,7 +72,7 @@ function readPEtabModel(pathYAML::String;
             ifElseToEvent=ifElseToEvent, writeToFile=writeToFile)
     end
 
-    modelStr = addParameterForConditionSpecificInitialValues(modelStr, pathConditions, pathParameters, writeToFile)
+    modelStr = addParameterForConditionSpecificInitialValues(modelStr, pathConditions, pathParameters, pathModelJlFile, writeToFile)
 
     # Load model ODE-system
     verbose == true && printstyled("[ Info:", color=123, bold=true)
@@ -232,6 +232,7 @@ end
 function addParameterForConditionSpecificInitialValues(modelStr::String,
                                                        pathConditions::String,
                                                        pathParameters::String, 
+                                                       pathJuliaFile::String,
                                                        writeToFile::Bool)
     # Load necessary data
     experimentalConditionsFile = CSV.File(pathConditions)
@@ -266,7 +267,7 @@ function addParameterForConditionSpecificInitialValues(modelStr::String,
     
     # Check if the condition table contains states to map initial values
     colNames = string.(experimentalConditionsFile.names)
-    length(colNames) == 1 && return
+    length(colNames) == 1 && return modelStr
     iStart = colNames[2] == "conditionName" ? 3 : 2 # Sometimes PEtab file does not include column conditionName
     # Only change model file in case on of the experimental conditions map to a state (that is add an init parameter)
     if any(name -> name ∈ stateNames, colNames[iStart:end]) == false
@@ -299,7 +300,7 @@ function addParameterForConditionSpecificInitialValues(modelStr::String,
 
     # Check if the function has already been rewritten
     if any(x -> x ∈ parameterNames, newParameterNames)
-        return
+        return modelStr
     end
 
     # Update function lines with new parameters and values
@@ -355,7 +356,8 @@ function addParameterForConditionSpecificInitialValues(modelStr::String,
             flush(f)
         end
     end
-    return newFunctionString
+
+    return getFunctionsAsString(pathJuliaFile, 1)[1]
 end
 
 # Extract model state names from stateArray in the JL-file (and also parameter names)

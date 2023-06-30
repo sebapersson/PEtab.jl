@@ -80,7 +80,6 @@ function JLToModellingToolkit(pathJlFile::String, dirJulia::String, modelName::S
     
     #Initialize output model file path to input path
     modelFileJl = pathJlFile
-    
     if ifElseToEvent == true
         # Rewrite any time-dependent ifelse to boolean statements such that we can express these as events.
         # This is recomended, as it often increases the stabillity when solving the ODE, and decreases run-time
@@ -93,6 +92,8 @@ function JLToModellingToolkit(pathJlFile::String, dirJulia::String, modelName::S
             modelFileJl = joinpath(dirJulia, fileNameFix)
             # Create a new "fixed" julia file
             modelStr = createODEModelFunction(modelDict, pathJlFile, modelName, true, writeToFile)
+        else
+            modelStr = getFunctionsAsString(modelFileJl, 1)[1]
         end
     else
         modelStr = getFunctionsAsString(modelFileJl, 1)[1]
