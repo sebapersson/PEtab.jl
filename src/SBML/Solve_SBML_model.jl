@@ -21,7 +21,7 @@ function solveSBMLModel(pathSBML, solver, timeSpan; abstol=1e-8, reltol=1e-8, sa
         mkdir(dirSave)
     end
     pathODE = joinpath(dirSave, "ODE_" * modelName * ".jl")
-    SBMLDict = XmlToModellingToolkit(pathSBML, pathODE, modelName, ifElseToEvent=true)
+    SBMLDict, _ = XmlToModellingToolkit(pathSBML, pathODE, modelName, ifElseToEvent=true)
 
     verbose && @info "Symbolically processing system"
     _getODESystem = @RuntimeGeneratedFunction(Meta.parse(getFunctionsAsString(pathODE, 1)[1]))
@@ -31,12 +31,14 @@ function solveSBMLModel(pathSBML, solver, timeSpan; abstol=1e-8, reltol=1e-8, sa
     # Build callback function 
     pODEProblemNames = string.(parameters(odeSystem))
     modelStateNames = replace.(string.(states(odeSystem)), "(t)" => "")
-
+    modelName = replace(modelName, "-" => "_")
     stringWriteCallbacks = "function getCallbacks_" * modelName * "()\n"
     stringWriteTstops = "\nfunction computeTstops(u::AbstractVector, p::AbstractVector)\n"
 
     # In case we do not have any events
     verbose && @info "Building callbacks"
+    println("SBMLDict[boolVariables] = ", SBMLDict["boolVariables"])
+    println("isempty(SBMLDict[events] = ", SBMLDict["events"])
     if isempty(SBMLDict["boolVariables"]) && isempty(SBMLDict["events"])
         callbackNames = ""
         checkIfActivatedT0Names = ""
@@ -75,6 +77,7 @@ function solveSBMLModel(pathSBML, solver, timeSpan; abstol=1e-8, reltol=1e-8, sa
     close(io)
 
     strGetCallbacks = getFunctionsAsString(fileWrite, 2)
+    println("strGetCallbacks = ", strGetCallbacks)
     getCallbackFunction = @RuntimeGeneratedFunction(Meta.parse(strGetCallbacks[1]))
     cbSet, checkCbActive, convertTspan = getCallbackFunction("https://xkcd.com/2694/") # Argument needed by @RuntimeGeneratedFunction
     computeTstops = @RuntimeGeneratedFunction(Meta.parse(strGetCallbacks[2]))

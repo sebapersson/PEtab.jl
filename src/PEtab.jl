@@ -21,6 +21,7 @@ using PreallocationTools
 using NonlinearSolve
 using PrecompileTools
 using SBML
+using SpecialFunctions
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 

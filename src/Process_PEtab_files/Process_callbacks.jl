@@ -23,6 +23,7 @@ function createCallbacksForTimeDepedentPiecewise(odeSystem::ODESystem,
 
     # In case of no-callbacks the function for getting callbacks will be empty, likewise for the function
     # which compute tstops (callback-times)
+    modelName = replace(modelName, "-" => "_")
     stringWriteCallbacks = "function getCallbacks_" * modelName * "(foo)\n"
     stringWriteTstops = "\nfunction computeTstops(u::AbstractVector, p::AbstractVector)\n"
 

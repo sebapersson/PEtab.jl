@@ -592,6 +592,7 @@ function createODEModelFunction(modelDict, pathJlFile, modelName, juliaFile, wri
     end
 
     ### Writing to file
+    modelName = replace(modelName, "-" => "_")
     io = IOBuffer()
     println(io, "function getODEModel_" * modelName * "(foo)")
     println(io, "\t# Model name: " * modelName)
@@ -694,6 +695,18 @@ function _mathToString(math::SBML.MathApply)
         @assert length(math.args) == 1
         formula, _ = _mathToString(math.args[1])
         return math.fn * '(' * formula * ')', false
+    end
+
+    # Special function which must be rewritten to Julia syntax 
+    if math.fn == "ceiling"
+        formula, _ = _mathToString(math.args[1])
+        return "ceil" * '(' * formula * ')', false
+    end
+
+    if math.fn == "factorial"
+        @warn "Factorial in the ODE model. PEtab.jl can handle factorials, but, solving the ODEs with factorial is numerically challenging, and thus if possible should be avioded"
+        formula, _ = _mathToString(math.args[1])
+        return "SpecialFunctions.gamma" * '(' * formula * " + 1.0)", false
     end
 
     # At this point the only feasible option left is a SBMLFunction
