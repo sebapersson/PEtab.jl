@@ -14,24 +14,31 @@ function solveSBMLModel(pathSBML, solver, timeSpan; abstol=1e-8, reltol=1e-8, sa
 
     @assert isfile(pathSBML) "SBML file does not exist"
 
-    verbose && @info "Building ODE system"
+    verbose && @info "Building ODE system for file at $pathSBML"
     modelName = splitdir(pathSBML)[2][1:end-4]
     dirSave = joinpath(splitdir(pathSBML)[1], "SBML")
     if !isdir(dirSave)
         mkdir(dirSave)
     end
     pathODE = joinpath(dirSave, "ODE_" * modelName * ".jl")
-    SBMLDict = XmlToModellingToolkit(pathSBML, pathODE, modelName, ifElseToEvent=true)
+    SBMLDict, _ = XmlToModellingToolkit(pathSBML, pathODE, modelName, ifElseToEvent=true)
+
+    #println("getFunctionsAsString(pathODE, 1)[1] = ", getFunctionsAsString(pathODE, 1)[1])
 
     verbose && @info "Symbolically processing system"
     _getODESystem = @RuntimeGeneratedFunction(Meta.parse(getFunctionsAsString(pathODE, 1)[1]))
     _odeSystem, stateMap, parameterMap = _getODESystem("https://xkcd.com/303/") # Argument needed by @RuntimeGeneratedFunction
-    odeSystem = structural_simplify(_odeSystem)
+    if isempty(SBMLDict["algebraicRules"])
+        odeSystem = structural_simplify(_odeSystem)
+    # DAE requires special processing
+    else
+        odeSystem = structural_simplify(dae_index_lowering(_odeSystem))
+    end
 
     # Build callback function 
     pODEProblemNames = string.(parameters(odeSystem))
     modelStateNames = replace.(string.(states(odeSystem)), "(t)" => "")
-
+    modelName = replace(modelName, "-" => "_")
     stringWriteCallbacks = "function getCallbacks_" * modelName * "()\n"
     stringWriteTstops = "\nfunction computeTstops(u::AbstractVector, p::AbstractVector)\n"
 

@@ -144,7 +144,8 @@ function wordToJuliaSyntax(wordTranslate::String,
     end
 
     if wordTranslate in listOperations
-        wordJuliaSyntax *= listOperations[wordTranslate .== listOperations]
+        wordJuliaSyntax *= listOperations[wordTranslate .== listOperations][1]
+        return wordJuliaSyntax # Not allowed to follow with a space 
     end
 
     if length(wordTranslate) >= 19 && wordTranslate[1:19] == "observableParameter"

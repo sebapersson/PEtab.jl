@@ -60,6 +60,7 @@ function getArguments(functionAsString, dictionary::Dict, baseFunctions::Vector{
     return [argumentString, includesFunction]
 end
 
+
 # Replaces a word, "replaceFrom" in functions with another word, "replaceTo".
 # Often used to change "time" to "t"
 # Makes sure not to change for example "time1" or "shift_time"
