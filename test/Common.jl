@@ -30,7 +30,7 @@ function _testCostGradientOrHessian(petabModel::PEtabModel,
                                          ssSolverOptions=ssOptions,
                                          sensealg=sensealg,
                                          sensealgSS=sensealgSS,
-                                         specializeLevel=SciMLBase.NoSpecialize,
+                                         specializeLevel=SciMLBase.FullSpecialize,
                                          verbose=false)
 
     if computeCost == true
