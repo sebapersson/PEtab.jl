@@ -150,6 +150,9 @@ function createCallbackForEvent(eventName::String,
     if hasModelStates == false
         _conditionFormula = replace(_conditionFormula, "≤" => "==")
         _conditionFormula = replace(_conditionFormula, "≥" => "==")
+    else
+        _conditionFormula = replace(_conditionFormula, "≤" => "-")
+        _conditionFormula = replace(_conditionFormula, "≥" => "-")
     end
 
     # TODO : Refactor and merge functionality with above 

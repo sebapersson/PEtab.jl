@@ -129,7 +129,7 @@ end
 
 
 # Rewrites derivatives for a model by replacing functions, any lagging piecewise, and power functions.
-function rewriteDerivatives(derivativeAsString, modelDict, baseFunctions)
+function rewriteDerivatives(derivativeAsString, modelDict, baseFunctions; checkScaling=false)
     
     newDerivativeAsString = replaceFunctionWithFormula(derivativeAsString, modelDict["modelFunctions"])
     newDerivativeAsString = replaceFunctionWithFormula(newDerivativeAsString, modelDict["modelRuleFunctions"])
@@ -143,6 +143,18 @@ function rewriteDerivatives(derivativeAsString, modelDict, baseFunctions)
 
     newDerivativeAsString = replaceWholeWordDict(newDerivativeAsString, modelDict["modelFunctions"])
     newDerivativeAsString = replaceWholeWordDict(newDerivativeAsString, modelDict["modelRuleFunctions"])
+
+    if checkScaling == false
+        return newDerivativeAsString
+    end
+
+    # Handle case when specie is given in amount, but the equations are given in concentration 
+    for stateId in keys(modelDict["states"])
+        if modelDict["stateGivenInAmounts"][stateId][1] == true && modelDict["hasOnlySubstanceUnits"][stateId] == false
+            compartment = modelDict["stateGivenInAmounts"][stateId][2]
+            newDerivativeAsString = replaceWholeWord(newDerivativeAsString, stateId, "(" * stateId * "/" * compartment * ")")
+        end
+    end
 
     return newDerivativeAsString
 end
@@ -228,6 +240,7 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
     modelDict = Dict()
     modelDict["states"] = Dict()
     modelDict["hasOnlySubstanceUnits"] = Dict()
+    modelDict["stateGivenInAmounts"] = Dict()
     modelDict["isBoundaryCondition"] = Dict()
     modelDict["parameters"] = Dict()
     modelDict["nonConstantParameters"] = Dict()
@@ -245,6 +258,8 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
     modelDict["boolVariables"] = Dict()
     modelDict["events"] = Dict()
     modelDict["reactions"] = Dict()
+    modelDict["algebraicRules"] = Dict()
+    modelDict["assignmentRulesStates"] = Dict()
     # Mathemathical base functions (can be expanded if needed)
     baseFunctions = ["exp", "log", "log2", "log10", "sin", "cos", "tan", "pi"]
     stringOfEvents = ""
@@ -252,18 +267,23 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
 
     for (stateId, state) in modelSBML.species
         # If initial amount is zero or nothing (default) should use initial-concentration if non-empty 
-        if (state.initial_amount == 0 || isnothing(state.initial_amount)) && isnothing(state.initial_concentration)
+        if isnothing(state.initial_amount) && isnothing(state.initial_concentration)
             modelDict["states"][stateId] = "0.0"
+            modelDict["stateGivenInAmounts"][stateId] = (false, state.compartment)
         elseif !isnothing(state.initial_concentration)
             modelDict["states"][stateId] = string(state.initial_concentration)
+            modelDict["stateGivenInAmounts"][stateId] = (false, state.compartment)
         else 
             modelDict["states"][stateId] = string(state.initial_amount)
+            modelDict["stateGivenInAmounts"][stateId] = (true, state.compartment)
         end
 
         # Setup for downstream processing 
-        modelDict["hasOnlySubstanceUnits"][stateId] = state.only_substance_units
+        modelDict["hasOnlySubstanceUnits"][stateId] = isnothing(state.only_substance_units) ? false : state.only_substance_units
         modelDict["isBoundaryCondition"][stateId] = state.boundary_condition 
-        modelDict["derivatives"][stateId] = "D(" * stateId * ") ~ " # ModellingToolkitSyntax
+
+        # In case equation is given in conc., but state is given in amounts 
+        modelDict["derivatives"][stateId] = "D(" * stateId * ") ~ "
 
         # In case being a boundary condition the state can only be changed by the user 
         if modelDict["isBoundaryCondition"][stateId] == true
@@ -271,12 +291,27 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
         end
     end
 
-    # Extract model parameters and their default values
+    # Extract model parameters and their default values. In case a parameter is non-constant 
+    # it is treated as a state.
+    nonConstantParameterNames = []
     for (parameterId, parameter) in modelSBML.parameters
-        modelDict["parameters"][parameterId] = string(parameter.value)
+        if parameter.constant == true
+            modelDict["parameters"][parameterId] = string(parameter.value)
+            continue
+        end
+
+        modelDict["hasOnlySubstanceUnits"][parameterId] = false
+        modelDict["stateGivenInAmounts"][parameterId] = (false, "")
+        modelDict["isBoundaryCondition"][parameterId] = false
+        modelDict["states"][parameterId] = isnothing(parameter.value) ? "0.0" : string(parameter.value)
+        modelDict["derivatives"][parameterId] = parameterId * " ~ "
+        nonConstantParameterNames = push!(nonConstantParameterNames, parameterId)
     end
     for (compartmentId, compartment) in modelSBML.compartments
-        modelDict["parameters"][compartmentId] = string(compartment.size)
+        # Allowed in SBML ≥ 2.0 with nothing, should then be interpreted as 
+        # having no compartment (equal to a value of 1.0 for compartment)
+        size = isnothing(compartment.size) ? 1.0 : compartment.size
+        modelDict["parameters"][compartmentId] = string(size)
     end
 
     # Rewrite SBML functions into Julia syntax functions and store in dictionary to allow them to
@@ -304,19 +339,26 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
         eIndex += 1
     end
 
+    assignmentRulesNames = []
+    rateRulesNames = []
     for rule in modelSBML.rules
         if rule isa SBML.AssignmentRule
             ruleFormula = extractRuleFormula(rule)
+            assignmentRulesNames = push!(assignmentRulesNames, rule.variable)
             processAssignmentRule!(modelDict, ruleFormula, rule.variable, baseFunctions)
         end
 
         if rule isa SBML.RateRule
             ruleFormula = extractRuleFormula(rule)
+            rateRulesNames = push!(rateRulesNames, rule.variable)
             processRateRule!(modelDict, ruleFormula, rule.variable, baseFunctions)
         end
 
         if rule isa SBML.AlgebraicRule
-            @error "Currently we do not support algebraic rules"
+            _ruleFormula = extractRuleFormula(rule)
+            ruleFormula = replaceFunctionWithFormula(_ruleFormula, modelDict["modelFunctions"])
+            ruleName = isempty(modelDict["algebraicRules"]) ? "1" : maximum(keys(modelDict["algebraicRules"])) * "1" # Need placeholder key 
+            modelDict["algebraicRules"][ruleName] = "0 ~ " * ruleFormula
         end
     end
 
@@ -333,7 +375,7 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
             _formula = replaceWholeWord(_formula, parameterId, parameter.value)
         end
 
-        formula = rewriteDerivatives(_formula, modelDict, baseFunctions)
+        formula = rewriteDerivatives(_formula, modelDict, baseFunctions, checkScaling=true)
         modelDict["reactions"][reaction.name] = formula
         
         for reactant in reaction.reactants
@@ -351,7 +393,27 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
             modelDict["derivatives"][product.species] *= "+" * stoichiometry * compartmentScaling * "(" * formula * ")"
         end
     end
+    # For states given in amount but model equations are in conc., multiply with compartment 
+    for (stateId, derivative) in modelDict["derivatives"]
+        if modelDict["stateGivenInAmounts"][stateId][1] == false
+            continue
+        end
+        # Algebraic rule (see below)
+        if replace(derivative, " " => "")[end] == '~' || replace(derivative, " " => "")[end] == '0'
+            continue
+        end
+        derivative = replace(derivative, "~" => "~ (") 
+        modelDict["derivatives"][stateId] = derivative * ") * " * modelSBML.species[stateId].compartment
+    end
 
+    # For states given by assignment rules 
+    for (state, formula) in modelDict["assignmentRulesStates"]
+        modelDict["derivatives"][state] = state * " ~ " * formula
+        if state ∈ nonConstantParameterNames
+            modelDict["states"][state] = formula
+        end
+    end
+    
     # Check which parameters are a part derivatives or input function. If a parameter is not a part, e.g is an initial
     # assignment parameters, add to dummy variable to keep it from being simplified away.
     isInODESys = falses(length(modelDict["parameters"]))
@@ -376,10 +438,43 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
         timeDependentIfElseToBool!(modelDict)
     end
 
+    # In case the model has algebraic rules some of the derivatives (up to this point) are zero. To figure out 
+    # which variable for which the derivative should be eliminated as the state conc. is given by the algebraic
+    # rule cycle through rules to see which state has not been given as assignment by another rule. Moreover, return 
+    # flag that model is a DAE so it can be properly processed when creating PEtabODEProblem. 
+    if !isempty(modelDict["algebraicRules"])
+        for (species, reaction) in modelDict["derivatives"]
+            # In case we have zero derivative for a state (e.g S ~ 0 or S ~)
+            if replace(reaction, " " => "")[end] != '~' && replace(reaction, " " => "")[end] != '0'
+                continue
+            end
+            if modelDict["isBoundaryCondition"][species] == true
+                continue
+            end
+            if species ∈ rateRulesNames || species ∈ assignmentRulesNames
+                continue
+            end
+            # If we reach this point the state eqution is zero without any form 
+            # of assignment -> state must be solved for via the algebraic rule 
+            delete!(modelDict["derivatives"], species)
+        end
+    end
+    for nonConstantParameter in nonConstantParameterNames
+        if nonConstantParameter ∉ keys(modelDict["derivatives"])
+            continue
+        end
+        if replace(modelDict["derivatives"][nonConstantParameter], " " => "")[end] == '~'
+            modelDict["derivatives"][nonConstantParameter] *= modelDict["states"][nonConstantParameter]
+        end
+    end
+
     modelDict["stringOfEvents"] = stringOfEvents
     modelDict["discreteEventString"] = discreteEventString
     modelDict["numOfParameters"] = string(length(keys(modelDict["parameters"])))
     modelDict["numOfSpecies"] = string(length(keys(modelDict["states"])))
+    modelDict["nonConstantParameterNames"] = nonConstantParameterNames
+    modelDict["rateRulesNames"] = rateRulesNames
+
     return modelDict
 end
 
@@ -477,6 +572,12 @@ function createODEModelFunction(modelDict, pathJlFile, modelName, juliaFile, wri
 
     else
 
+        # Add dummy to create system if empty 
+        if isempty(modelDict["states"])
+            modelDict["states"]["fooo"] = "0.0"
+            modelDict["derivatives"]["fooo"] = "D(fooo) ~ 0.0"
+        end            
+
         for key in keys(modelDict["states"])
             stringDict["variables"] *= key * "(t) "
         end
@@ -514,6 +615,10 @@ function createODEModelFunction(modelDict, pathJlFile, modelName, juliaFile, wri
                 stringDict["parameterArray"] *= key * "]"
             end
         end
+        if isempty(modelDict["parameters"])
+            stringDict["parameters"] = ""
+            stringDict["parameterArray"] *= "]"
+        end
 
         stringDict["continuousEvents"] = modelDict["stringOfEvents"]
         if length(modelDict["stringOfEvents"]) > 0
@@ -529,8 +634,14 @@ function createODEModelFunction(modelDict, pathJlFile, modelName, juliaFile, wri
             stringDict["discreteEvents"] *=  "    ]"
         end
 
-        for (sIndex, key) in enumerate(keys(modelDict["states"]))
-            # If the state is not part of any reaction we set its value to zero.
+        sIndex = 1
+        for key in keys(modelDict["states"])
+            # If the state is not part of any reaction we set its value to zero, 
+            # unless is has been removed from derivative dict as it is given by 
+            # an algebraic rule 
+            if key ∉ keys(modelDict["derivatives"]) # Algebraic rule given 
+                continue
+            end
             if occursin(Regex("~\\s*\$"),modelDict["derivatives"][key])
                 modelDict["derivatives"][key] *= "0.0"
             end
@@ -539,12 +650,16 @@ function createODEModelFunction(modelDict, pathJlFile, modelName, juliaFile, wri
             else
                 stringDict["derivatives"] *= ",\n    " * modelDict["derivatives"][key]
             end
+            sIndex += 1
         end
         for key in keys(modelDict["nonConstantParameters"])
             stringDict["derivatives"] *= ",\n    D(" * key * ") ~ 0"
         end
         for key in keys(modelDict["inputFunctions"])
             stringDict["derivatives"] *= ",\n    " * modelDict["inputFunctions"][key]
+        end
+        for key in keys(modelDict["algebraicRules"])
+            stringDict["derivatives"] *= ",\n    " * modelDict["algebraicRules"][key]
         end
         stringDict["derivatives"] *= "\n"
         stringDict["derivatives"] *= "    ]"
@@ -557,7 +672,15 @@ function createODEModelFunction(modelDict, pathJlFile, modelName, juliaFile, wri
             stringDict["ODESystem"] = "    @named sys = ODESystem(eqs, t, stateArray, parameterArray, discrete_events = discrete_events)"
         end
 
-        for (index, (key, value)) in enumerate(modelDict["states"])
+        index = 1
+        for (key, value) in modelDict["states"]
+
+            # These should not be mapped into the u0Map as they are just dynamic 
+            # parameters expression which are going to be simplifed away (and are 
+            # not in a sense states since they are not give by a rate-rule)
+            if key ∈ modelDict["nonConstantParameterNames"] && key ∉ modelDict["rateRulesNames"]
+                continue
+            end
             if tryparse(Float64,value) !== nothing
                 value = string(parse(Float64,value))
             end
@@ -567,6 +690,7 @@ function createODEModelFunction(modelDict, pathJlFile, modelName, juliaFile, wri
                 assignString = ",\n    " * key * " => " * value
             end
             stringDict["initialSpeciesValues"] *= assignString
+            index += 1
         end
         for (key, value) in modelDict["nonConstantParameters"]
             assignString = ",\n    " * key * " => " * value
@@ -703,8 +827,11 @@ function _mathToString(math::SBML.MathApply)
         return "ceil" * '(' * formula * ')', false
     end
 
+    # Factorials are, naturally, very challenging for ODE solvers. In case against the odds they 
+    # are provided we compute the factorial via the gamma-function (to handle Num type). 
     if math.fn == "factorial"
-        @warn "Factorial in the ODE model. PEtab.jl can handle factorials, but, solving the ODEs with factorial is numerically challenging, and thus if possible should be avioded"
+        @warn "Factorial in the ODE model. PEtab.jl can handle factorials, but, solving the ODEs with factorial is 
+            numerically challenging, and thus if possible should be avioded"
         formula, _ = _mathToString(math.args[1])
         return "SpecialFunctions.gamma" * '(' * formula * " + 1.0)", false
     end

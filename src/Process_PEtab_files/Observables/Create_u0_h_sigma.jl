@@ -213,6 +213,8 @@ function create_u0_Function(modelName::String,
     pODEProblemStr *= "\n\n"
     write(io, pODEProblemStr)
 
+    write(io, "\tt = 0.0 # u at time zero\n\n")
+
     # Write the formula for each initial condition to file
     modelStateNames = [replace.(string.(stateMap[i].first), "(t)" => "") for i in eachindex(stateMap)]
     modelStateStr = ""

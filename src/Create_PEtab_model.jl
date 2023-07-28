@@ -74,13 +74,23 @@ function readPEtabModel(pathYAML::String;
 
     modelStr = addParameterForConditionSpecificInitialValues(modelStr, pathConditions, pathParameters, pathModelJlFile, writeToFile)
 
-    # Load model ODE-system
+    # For down the line processing model dict is required 
+    if !@isdefined(modelDict)
+        modelDict, _ = XmlToModellingToolkit(pathSBML, pathModelJlFile, modelName, writeToFile=false, 
+            onlyGetSBMLDict=true, ifElseToEvent=ifElseToEvent)
+    end
+
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Symbolically processes ODE-system ...")
     timeTake = @elapsed begin
         _getODESystem = @RuntimeGeneratedFunction(Meta.parse(modelStr))
         _odeSystem, stateMap, parameterMap = _getODESystem("https://xkcd.com/303/") # Argument needed by @RuntimeGeneratedFunction
-        odeSystem = structural_simplify(_odeSystem)
+        if "algebraicRules" ∉ keys(modelDict) || isempty(modelDict["algebraicRules"])
+            odeSystem = structural_simplify(_odeSystem)
+        # DAE requires special processing
+        else
+            odeSystem = structural_simplify(dae_index_lowering(_odeSystem))
+        end
         parameterNames = parameters(odeSystem)
         stateNames = states(odeSystem)
     end
@@ -234,6 +244,7 @@ function addParameterForConditionSpecificInitialValues(modelStr::String,
                                                        pathParameters::String, 
                                                        pathJuliaFile::String,
                                                        writeToFile::Bool)
+
     # Load necessary data
     experimentalConditionsFile = CSV.File(pathConditions)
     parametersFile = CSV.File(pathParameters)

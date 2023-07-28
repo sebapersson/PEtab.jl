@@ -16,10 +16,10 @@
       <species id="A" compartment="compartment" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
     </listOfSpecies>
     <listOfParameters>
-      <parameter id="a0" value="1" units="per_second" constant="false"/>
-      <parameter id="b0" value="1" units="per_second" constant="false"/>
-      <parameter id="k1" value="0" units="per_second" constant="false"/>
-      <parameter id="k2" value="0" units="per_second" constant="false"/>
+      <parameter id="a0" value="1" units="per_second" constant="true"/>
+      <parameter id="b0" value="1" units="per_second" constant="true"/>
+      <parameter id="k1" value="0" units="per_second" constant="true"/>
+      <parameter id="k2" value="0" units="per_second" constant="true"/>
       <parameter id="B" value="0" units="per_second" constant="false"/>
     </listOfParameters>
     <listOfInitialAssignments>

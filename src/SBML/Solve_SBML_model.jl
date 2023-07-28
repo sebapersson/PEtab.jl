@@ -14,7 +14,7 @@ function solveSBMLModel(pathSBML, solver, timeSpan; abstol=1e-8, reltol=1e-8, sa
 
     @assert isfile(pathSBML) "SBML file does not exist"
 
-    verbose && @info "Building ODE system"
+    verbose && @info "Building ODE system for file at $pathSBML"
     modelName = splitdir(pathSBML)[2][1:end-4]
     dirSave = joinpath(splitdir(pathSBML)[1], "SBML")
     if !isdir(dirSave)
@@ -23,10 +23,17 @@ function solveSBMLModel(pathSBML, solver, timeSpan; abstol=1e-8, reltol=1e-8, sa
     pathODE = joinpath(dirSave, "ODE_" * modelName * ".jl")
     SBMLDict, _ = XmlToModellingToolkit(pathSBML, pathODE, modelName, ifElseToEvent=true)
 
+    #println("getFunctionsAsString(pathODE, 1)[1] = ", getFunctionsAsString(pathODE, 1)[1])
+
     verbose && @info "Symbolically processing system"
     _getODESystem = @RuntimeGeneratedFunction(Meta.parse(getFunctionsAsString(pathODE, 1)[1]))
     _odeSystem, stateMap, parameterMap = _getODESystem("https://xkcd.com/303/") # Argument needed by @RuntimeGeneratedFunction
-    odeSystem = structural_simplify(_odeSystem)
+    if isempty(SBMLDict["algebraicRules"])
+        odeSystem = structural_simplify(_odeSystem)
+    # DAE requires special processing
+    else
+        odeSystem = structural_simplify(dae_index_lowering(_odeSystem))
+    end
 
     # Build callback function 
     pODEProblemNames = string.(parameters(odeSystem))
@@ -37,8 +44,6 @@ function solveSBMLModel(pathSBML, solver, timeSpan; abstol=1e-8, reltol=1e-8, sa
 
     # In case we do not have any events
     verbose && @info "Building callbacks"
-    println("SBMLDict[boolVariables] = ", SBMLDict["boolVariables"])
-    println("isempty(SBMLDict[events] = ", SBMLDict["events"])
     if isempty(SBMLDict["boolVariables"]) && isempty(SBMLDict["events"])
         callbackNames = ""
         checkIfActivatedT0Names = ""
@@ -77,7 +82,6 @@ function solveSBMLModel(pathSBML, solver, timeSpan; abstol=1e-8, reltol=1e-8, sa
     close(io)
 
     strGetCallbacks = getFunctionsAsString(fileWrite, 2)
-    println("strGetCallbacks = ", strGetCallbacks)
     getCallbackFunction = @RuntimeGeneratedFunction(Meta.parse(strGetCallbacks[1]))
     cbSet, checkCbActive, convertTspan = getCallbackFunction("https://xkcd.com/2694/") # Argument needed by @RuntimeGeneratedFunction
     computeTstops = @RuntimeGeneratedFunction(Meta.parse(strGetCallbacks[2]))

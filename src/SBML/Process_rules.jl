@@ -20,6 +20,9 @@ function processAssignmentRule!(modelDict::Dict, ruleFormula::String, ruleVariab
     # event into the model to ensure proper evaluation of the gradient.
     if occursin("piecewise(", ruleFormula)
         rewritePiecewiseToIfElse(ruleFormula, ruleVariable, modelDict, baseFunctions)
+        if ruleVariable ∈ keys(modelDict["derivatives"])
+            delete!(modelDict["derivatives"], ruleVariable)
+        end
         return 
     end
 
@@ -27,26 +30,20 @@ function processAssignmentRule!(modelDict::Dict, ruleFormula::String, ruleVariab
         If the rule does not involve a piecewise expression simply encode it as a function which downsteram
         is integrated into the equations when inserting "functions" into the reactions 
     =#
-    
-    # Extract the parameters and states which make out the rule, if the rule nests another rule 
-    # additional processing is needed 
-    arguments, includesRule = getArguments(ruleFormula, modelDict["modelRuleFunctions"], baseFunctions)
-    if isempty(arguments)
-        modelDict["parameters"][ruleVariable] = ruleFormula
+    # Extract the parameters and states which make out the rule, if the rule nests another function 
+    # function is written to math 
+    arguments, includesFunction = getArguments(ruleFormula, modelDict["modelFunctions"], baseFunctions)
+    if includesFunction == true
+        ruleFormula = replaceFunctionWithFormula(ruleFormula, modelDict["modelFunctions"])
+    end
+
+    if ruleVariable in keys(modelDict["states"])
+        modelDict["assignmentRulesStates"][ruleVariable] = ruleFormula
         return 
     end
-    if includesRule == true
-        ruleFormula = replaceWholeWordDict(ruleFormula, modelDict["modelRuleFunctions"])
-    end
-    modelDict["modelRuleFunctions"][ruleVariable] = [arguments, ruleFormula]
-    # As we hard-code the rule variable into the equation remove it as state or model parameter.
-    # TODO : Add this as expression into the model eq. and allow structurally simplify to act on it.
-    if ruleVariable in keys(modelDict["states"])
-        modelDict["states"] = delete!(modelDict["states"], ruleVariable)
-    end
-    if ruleVariable in keys(modelDict["parameters"])
-        modelDict["parameters"] = delete!(modelDict["parameters"], ruleVariable)
-    end
+
+    modelDict["parameters"][ruleVariable] = ruleFormula
+    return 
 end
 
 
@@ -56,27 +53,22 @@ function processRateRule!(modelDict::Dict, ruleFormula::String, ruleVariable::St
     if occursin("piecewise(", ruleFormula)
         ruleFormula = rewritePiecewiseToIfElse(ruleFormula, ruleVariable, modelDict, baseFunctions, retFormula=true)
     else
-        arguments, includesRule = getArguments(ruleFormula, modelDict["modelRuleFunctions"], baseFunctions)
-        if !isempty(arguments) && includesRule == true
-            ruleFormula = replaceWholeWordDict(ruleFormula, modelDict["modelRuleFunctions"])
+        arguments, includesFunction = getArguments(ruleFormula, modelDict["modelFunctions"], baseFunctions)
+        if includesFunction == true
+            ruleFormula = replaceFunctionWithFormula(ruleFormula, modelDict["modelFunctions"])
         end
     end
 
     # Add rate rule as part of model derivatives and remove from parameters dict if rate rule variable
     # is a parameter
-    if ruleVariable in keys(modelDict["states"])
-        modelDict["derivatives"][ruleVariable] = "D(" * ruleVariable * ") ~ " * ruleFormula
-
-    elseif ruleVariable in keys(modelDict["nonConstantParameters"])
-        modelDict["states"][ruleVariable] = modelDict["nonConstantParameters"][ruleVariable]
-        delete!(modelDict["nonConstantParameters"], ruleVariable)
-        modelDict["derivatives"][ruleVariable] = "D(" * ruleVariable * ") ~ " * ruleFormula
-
-    elseif ruleVariable in keys(modelDict["parameters"])
+    modelDict["derivatives"][ruleVariable] = "D(" * ruleVariable * ") ~ " * ruleFormula
+    if ruleVariable in keys(modelDict["parameters"])
         modelDict["states"][ruleVariable] = modelDict["parameters"][ruleVariable]
+        modelDict["stateGivenInAmounts"][ruleVariable] = (false, "")
+        modelDict["hasOnlySubstanceUnits"][ruleVariable] = false
         delete!(modelDict["parameters"], ruleVariable)
         modelDict["derivatives"][ruleVariable] = "D(" * ruleVariable * ") ~ " * ruleFormula
-    else
+    elseif ruleVariable ∉ keys(modelDict["states"])
         @error "Warning : Cannot find rate rule variable in either model states or parameters"
     end
 end
