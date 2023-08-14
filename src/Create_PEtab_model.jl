@@ -297,6 +297,8 @@ function addParameterForConditionSpecificInitialValues(modelStr::String,
         for rowValue in experimentalConditionsFile[Symbol(state)]
             if typeof(rowValue) <: Real
                 continue
+            elseif ismissing(rowValue)
+                continue
             elseif isNumber(rowValue) == true || string(rowValue) ∈ parameterNames
                 continue
             elseif rowValue ∈ parametersFile[:parameterId]

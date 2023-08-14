@@ -39,10 +39,10 @@ function processAssignmentRule!(modelDict::Dict, ruleFormula::String, ruleVariab
 
     if ruleVariable in keys(modelDict["states"])
         modelDict["assignmentRulesStates"][ruleVariable] = ruleFormula
-        return 
+        # Delete from state dictionary (as we no longer should assign an initial value to the state)
+        delete!(modelDict["states"], ruleVariable)
     end
 
-    modelDict["parameters"][ruleVariable] = ruleFormula
     return 
 end
 

@@ -258,10 +258,16 @@ end
     Replace the explicit rule variable with the explicit rule
 """
 function replaceExplicitVariableWithRule(formula::String, SBMLDict::Dict)::String
-    for (key,value) in SBMLDict["modelRuleFunctions"]
-        formula = replaceWholeWord(formula, key, "(" * value[2] * ")")
+    _formula = deepcopy(formula)
+    while true
+        for (key, value) in SBMLDict["assignmentRulesStates"]
+            _formula = replaceWholeWord(_formula, key, "(" * value * ")")
+        end
+        _formula == formula && break
+        formula = deepcopy(_formula)
     end
-    return formula
+    
+    return _formula
 end
 
 
