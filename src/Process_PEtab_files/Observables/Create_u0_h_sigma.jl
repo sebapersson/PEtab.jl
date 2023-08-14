@@ -42,9 +42,9 @@ function create_σ_h_u0_File(modelName::String,
     hStr = create_h_Function(modelName, dirJulia, modelStateNames, parameterInfo, pODEProblemNames,
                              string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict, writeToFile)
 
-    u0!Str = create_u0_Function(modelName, dirJulia, parameterInfo, pODEProblemNames, stateMap, writeToFile, inPlace=true)
+    u0!Str = create_u0_Function(modelName, dirJulia, parameterInfo, pODEProblemNames, stateMap, writeToFile, SBMLDict, inPlace=true)
 
-    u0Str = create_u0_Function(modelName, dirJulia, parameterInfo, pODEProblemNames, stateMap, writeToFile, inPlace=false)
+    u0Str = create_u0_Function(modelName, dirJulia, parameterInfo, pODEProblemNames, stateMap, writeToFile, SBMLDict, inPlace=false)
 
     σStr = create_σ_Function(modelName, dirJulia, parameterInfo, modelStateNames, pODEProblemNames, string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict, writeToFile)
 
@@ -178,7 +178,8 @@ end
                        dirModel::String,
                        parameterInfo::ParametersInfo,
                        pODEProblemNames::Vector{String},
-                       stateMap;
+                       stateMap, 
+                       SBMLDict;
                        inPlace::Bool=true)
 
     For modelName create a function for computing initial value by translating the stateMap
@@ -192,7 +193,8 @@ function create_u0_Function(modelName::String,
                             parameterInfo::ParametersInfo,
                             pODEProblemNames::Vector{String},
                             stateMap,
-                            writeToFile::Bool;
+                            writeToFile::Bool, 
+                            SBMLDict;
                             inPlace::Bool=true)
 
     pathSave = joinpath(dirModel, modelName * "_h_sd_u0.jl")                            
@@ -216,9 +218,10 @@ function create_u0_Function(modelName::String,
     write(io, "\tt = 0.0 # u at time zero\n\n")
 
     # Write the formula for each initial condition to file
-    modelStateNames = [replace.(string.(stateMap[i].first), "(t)" => "") for i in eachindex(stateMap)]
+    _modelStateNames = [replace.(string.(stateMap[i].first), "(t)" => "") for i in eachindex(stateMap)]
+    modelStateNames = filter(x -> x ∉ string.(keys(SBMLDict["assignmentRulesStates"])), _modelStateNames)
     modelStateStr = ""
-    for i in eachindex(stateMap)
+    for i in eachindex(modelStateNames)
         stateName = modelStateNames[i]
         _stateExpression = replace(string(stateMap[i].second), " " => "")
         stateFormula = petabFormulaToJulia(_stateExpression, modelStateNames, parameterInfo, pODEProblemNames, String[])

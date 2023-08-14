@@ -410,7 +410,9 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
     for (state, formula) in modelDict["assignmentRulesStates"]
         modelDict["derivatives"][state] = state * " ~ " * formula
         if state ∈ nonConstantParameterNames
-            modelDict["states"][state] = formula
+            delete!(modelDict["states"], state)
+            delete!(modelDict["parameters"], state)
+            nonConstantParameterNames = filter(x -> x != state, nonConstantParameterNames)
         end
     end
     
@@ -581,14 +583,17 @@ function createODEModelFunction(modelDict, pathJlFile, modelName, juliaFile, wri
         for key in keys(modelDict["states"])
             stringDict["variables"] *= key * "(t) "
         end
-
-        for (index, key) in enumerate(keys(modelDict["states"]))
-            if index < length(modelDict["states"])
-                stringDict["stateArray"] *= key * ", "
-            else
-                stringDict["stateArray"] *= key * "]"
-            end
+        for (key, value) in modelDict["assignmentRulesStates"]
+            stringDict["variables"] *= key * "(t) "
         end
+
+        for (key, value) in modelDict["states"]
+            stringDict["stateArray"] *= key * ", "
+        end
+        for (key, value) in modelDict["assignmentRulesStates"]
+            stringDict["stateArray"] *= key * ", "
+        end
+        stringDict["stateArray"] = stringDict["stateArray"][1:end-2] * "]"
 
         if length(modelDict["nonConstantParameters"]) > 0
             stringDict["variableParameters"] = "    ModelingToolkit.@variables"
@@ -661,6 +666,9 @@ function createODEModelFunction(modelDict, pathJlFile, modelName, juliaFile, wri
         for key in keys(modelDict["algebraicRules"])
             stringDict["derivatives"] *= ",\n    " * modelDict["algebraicRules"][key]
         end
+        for key in keys(modelDict["assignmentRulesStates"])
+            stringDict["derivatives"] *= ",\n    " * key * " ~ " * modelDict["assignmentRulesStates"][key]
+        end
         stringDict["derivatives"] *= "\n"
         stringDict["derivatives"] *= "    ]"
 
@@ -693,6 +701,10 @@ function createODEModelFunction(modelDict, pathJlFile, modelName, juliaFile, wri
             index += 1
         end
         for (key, value) in modelDict["nonConstantParameters"]
+            assignString = ",\n    " * key * " => " * value
+            stringDict["initialSpeciesValues"] *= assignString
+        end
+        for (key, value) in modelDict["assignmentRulesStates"]
             assignString = ",\n    " * key * " => " * value
             stringDict["initialSpeciesValues"] *= assignString
         end
