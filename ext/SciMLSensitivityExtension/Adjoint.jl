@@ -363,9 +363,15 @@ function __adjoint_sensitivities!(_du::AbstractVector,
                                      abstol=abstol, reltol=reltol, callback=callback)
 
     tstops = SciMLSensitivity.ischeckpointing(sensealg, sol) ? checkpoints : similar(sol.t, 0)
-    adj_sol = solve(adjProb, odeSolver; abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters,
+    if isnothing(dtmin)
+        adj_sol = solve(adjProb, odeSolver; abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters,
                     save_everystep = false, save_start = false, saveat = eltype(sol[1])[],
                     tstops=tstops)
+    else
+        adj_sol = solve(adjProb, odeSolver; abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters,
+                    save_everystep = false, save_start = false, saveat = eltype(sol[1])[],
+                    tstops=tstops, dtmin=dtmin)
+    end
     if adj_sol.retcode != ReturnCode.Success
         _du .= 0.0
         _dp .= 0.0
@@ -420,8 +426,13 @@ function __adjoint_sensitivities!(_du::AbstractVector,
     adj_prob, rcb = ODEAdjointProblem(sol, sensealg, odeSolver, t, compute_∂G∂u, nothing,
                                       nothing, nothing, nothing, Val(true);
                                       callback)
-    adj_sol = solve(adj_prob, odeSolver; abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters,
-                    save_everystep = true, save_start = true)
+    if isnothing(dtmin)                                      
+        adj_sol = solve(adj_prob, odeSolver; abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters,
+                        save_everystep = true, save_start = true)
+    else
+        adj_sol = solve(adj_prob, odeSolver; abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters,
+                        save_everystep = true, save_start = true, dtmin=dtmin)
+    end
 
     if adj_sol.retcode != ReturnCode.Success
         _du .= 0.0
