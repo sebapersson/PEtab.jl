@@ -42,13 +42,13 @@ function getSolAlgebraicSS(petabModel::PEtabModel, solver, tol::Float64, a::T1, 
     solArray = Array{ODESolution, 1}(undef, 2)
 
     # Set model parameter values to ensure initial steady state
-    odeProb.p[5], odeProb.p[3], odeProb.p[1], odeProb.p[6] = a, b, c, d
+    odeProb.p[4], odeProb.p[2], odeProb.p[1], odeProb.p[5] = a, b, c, d
     odeProb.u0[1] = a / b + ( a * c ) / ( b * d ) # x0
     odeProb.u0[2] = a / d # y0
 
-    odeProb.p[4] = 2.0 # a_scale
+    odeProb.p[3] = 2.0 # a_scale
     solArray[1] = solve(odeProb, solver, abstol=tol, reltol=tol)
-    odeProb.p[4] = 0.5 # a_scale
+    odeProb.p[3] = 0.5 # a_scale
     solArray[2] = solve(odeProb, solver, abstol=tol, reltol=tol)
 
     return solArray
@@ -104,9 +104,9 @@ function testODESolverTestModel3(petabModel::PEtabModel, solverOptions::ODESolve
         a, b, c, d = parametersTest[:, i]
         # Set parameter values for ODE
         petabModel.parameterMap[1] = Pair(petabModel.parameterMap[1].first, c)
-        petabModel.parameterMap[3] = Pair(petabModel.parameterMap[3].first, b)
-        petabModel.parameterMap[5] = Pair(petabModel.parameterMap[5].first, a)
-        petabModel.parameterMap[6] = Pair(petabModel.parameterMap[6].first, d)
+        petabModel.parameterMap[2] = Pair(petabModel.parameterMap[2].first, b)
+        petabModel.parameterMap[4] = Pair(petabModel.parameterMap[4].first, a)
+        petabModel.parameterMap[5] = Pair(petabModel.parameterMap[5].first, d)
 
         prob = ODEProblem(petabModel.odeSystem, petabModel.stateMap, (0.0, 9.7), petabModel.parameterMap, jac=true)
         prob = remake(prob, p = convert.(Float64, prob.p), u0 = convert.(Float64, prob.u0))

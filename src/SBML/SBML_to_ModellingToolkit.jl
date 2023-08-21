@@ -495,7 +495,7 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
             continue
         end
         if replace(modelDict["derivatives"][nonConstantParameter], " " => "")[end] == '~'
-            modelDict["derivatives"][nonConstantParameter] *= modelDict["states"][nonConstantParameter]
+            modelDict["derivatives"][nonConstantParameter] *= string(modelDict["states"][nonConstantParameter])
         end
     end
 
