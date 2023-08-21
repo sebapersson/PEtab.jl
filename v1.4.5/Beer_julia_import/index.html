@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Providing the model as a Julia file instead of an SBML File · PEtab.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link rel="canonical" href="https://sebapersson.github.io/PEtab.jl/Beer_julia_import/"/><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">PEtab.jl</a></span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../Boehm/">Getting started</a></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../Brannmark/">Models with pre-equilibration (steady-state simulation)</a></li><li><a class="tocitem" href="../Bachmann/">Medium sized models and adjoint sensitivity analysis</a></li><li><a class="tocitem" href="../Beer/">Models with many conditions specific parameters</a></li><li class="is-active"><a class="tocitem" href>Providing the model as a Julia file instead of an SBML File</a><ul class="internal"><li><a class="tocitem" href="#Create-the-model-file"><span>Create the model file</span></a></li><li><a class="tocitem" href="#Import-the-model-file"><span>Import the model file</span></a></li></ul></li><li><a class="tocitem" href="../Parameter_estimation/">Parameter estimation</a></li><li><a class="tocitem" href="../Model_selection/">Model selection (PEtab select)</a></li></ul></li><li><a class="tocitem" href="../Gradient_hessian_support/">Supported gradient and hessian methods</a></li><li><a class="tocitem" href="../Best_options/">Choosing the best options for a PEtab problem</a></li><li><a class="tocitem" href="../API_choosen/">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Providing the model as a Julia file instead of an SBML File</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Providing the model as a Julia file instead of an SBML File</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/sebapersson/PEtab.jl/blob/main/docs/src/Beer_julia_import.md#" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Beer_Julia_import"><a class="docs-heading-anchor" href="#Beer_Julia_import">Providing the model as a Julia file instead of an SBML File</a><a id="Beer_Julia_import-1"></a><a class="docs-heading-anchor-permalink" href="#Beer_Julia_import" title="Permalink"></a></h1><p>In this tutorial, we&#39;ll demonstrate how to create a <code>PEtabODEproblem</code> problem using a Julia model file instead of an SBML file.</p><h2 id="Create-the-model-file"><a class="docs-heading-anchor" href="#Create-the-model-file">Create the model file</a><a id="Create-the-model-file-1"></a><a class="docs-heading-anchor-permalink" href="#Create-the-model-file" title="Permalink"></a></h2><p>To start, we&#39;ll create a .jl file that utilizes <a href="https://github.com/SciML/ModelingToolkit.jl">ModelingToolkit.jl</a> to define a system:</p><pre><code class="language-julia hljs">function BeerODEModel()
+
+    ModelingToolkit.@variables t Glu(t) cGlu(t) Ind(t) Bac(t) lag(t)
+    ModelingToolkit.@parameters kdegi medium Bacmax ksyn kdim tau init_Bac beta
+
+    ### Store dependent variables in array for ODESystem command
+    stateArray = [Glu, cGlu, Ind, Bac]
+    ### Store parameters in array for ODESystem command
+    parameterArray = [kdegi, medium, Bacmax, ksyn, kdim, tau, init_Bac, beta]
+
+    ### Equations
+    EquationList = [
+    Differential(t)(Glu) ~ -Bac * Glu * ksyn,
+    Differential(t)(cGlu) ~ Bac * Glu * ksyn - (cGlu)^(2) * kdim,
+    Differential(t)(Ind) ~ cGlu^2 * kdim - Ind * kdegi,
+    Differential(t)(Bac) ~ Bac * beta * lag * (Bacmax - Bac) / Bacmax,
+    lag ~ ifelse(t - tau &lt; 0, 0, 1)
+    ]
+
+    @named odeSystem = ODESystem(EquationList, t, stateArray, parameterArray)
+
+    ### Initial species concentrations ###
+    initialValues = [
+    Glu =&gt; 10.0,
+    cGlu =&gt; 0.0,
+    Ind =&gt; 0.0,
+    Bac =&gt; init_Bac
+    ]
+
+    ### SBML file parameter values ###
+    parameterValues = [
+    kdegi =&gt; 1.0,
+    Bacmax =&gt; 1.0,
+    ksyn =&gt; 1.0,
+    kdim =&gt; 1.0,
+    tau =&gt; 1.0,
+    init_Bac =&gt; 0.0147007946993721,
+    beta =&gt; 1.0
+    ]
+
+    return odeSystem, initialValues, parameterValues
+end
+</code></pre><p><strong>NOTE</strong> - If you are providing a model directly in Julia, there are a few things you need to keep in mind:</p><ul><li>The model must be defined within a function, like BeerODEModel, which returns the odeSystem, initialValues, and parameterValues in that order (the names of the variables don&#39;t matter).</li><li>The states and parameters must be stored in arrays, like stateArray and parameterArray, and provided as arguments when creating the ODESystem. Otherwise, a parameter might get simplified away in the symbolic pre-processing.</li><li>When creating the initial-value map, like initialValues, the initial values can be constants or a mathematical expression that depends on parameters. For example, Glu =&gt; kdegi / tau would be an acceptable option.</li><li>If you have an event, like a dosage or a time delay (like lag), encode it using an ifelse statement. This will later be rewritten to a callback (event) In the example above we included <code>ifelse(t - tau &lt; 0, 0, 1)</code> to capture:</li></ul><p class="math-container">\[    lag = 
+    \begin{cases}
+        0 \quad t \leq  \tau \\
+        1 \quad t &gt;  \tau 
+    \end{cases}\]</p><p>For more information on how to specify the model in the ModelingToolkit.jl format, please refer to their <a href="https://github.com/SciML/ModelingToolkit.jl">documentation</a>.</p><h2 id="Import-the-model-file"><a class="docs-heading-anchor" href="#Import-the-model-file">Import the model file</a><a id="Import-the-model-file-1"></a><a class="docs-heading-anchor-permalink" href="#Import-the-model-file" title="Permalink"></a></h2><p>To import the Julia model, we need to set the path to Julia file via the variable <code>jlFilePath</code>. By doing so, we inform <code>readPEtabModel</code> to skip searching for an SBML file and instead import the Julia model:</p><pre><code class="language-julia hljs">using PEtab
+using OrdinaryDiffEq
+using Printf
+
+pathYaml = joinpath(@__DIR__, &quot;Beer&quot;, &quot;Beer_MolBioSystems2014.yaml&quot;) 
+pathJuliaFile = joinpath(@__DIR__, &quot;Beer&quot;, &quot;Julia_import_files&quot;, &quot;Beer_Julia_Import.jl&quot;)
+petabModel = readPEtabModel(pathYaml, verbose=true, jlFilePath=pathJuliaFile)</code></pre><pre><code class="nohighlight hljs">PEtabModel for model Beer. ODE-system has 4 states and 9 parameters.
+Generated Julia files are at ...</code></pre><p>Moving forward, you can use the imported model similar to any other model imported from an SBML-file. To get an idea of how to use the wpetabModel` to compute the cost, gradient or hessian for an ODE parameter estimation problem, please refer to the tutorial for the <a href="../Beer/#Beer_tut">Beer model</a>.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Beer/">« Models with many conditions specific parameters</a><a class="docs-footer-nextpage" href="../Parameter_estimation/">Parameter estimation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Monday 21 August 2023 18:09">Monday 21 August 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
