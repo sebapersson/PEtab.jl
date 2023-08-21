@@ -47,7 +47,7 @@ function processAssignmentRule!(modelDict::Dict, ruleFormula::String, ruleVariab
 end
 
 
-function processRateRule!(modelDict::Dict, ruleFormula::String, ruleVariable::String, baseFunctions)
+function processRateRule!(modelDict::Dict, ruleFormula::String, ruleVariable::String, modelSBML, baseFunctions)
 
     # Rewrite rule to function if there are not any piecewise, eles rewrite to formula with ifelse
     if occursin("piecewise(", ruleFormula)
@@ -61,14 +61,18 @@ function processRateRule!(modelDict::Dict, ruleFormula::String, ruleVariable::St
 
     # Add rate rule as part of model derivatives and remove from parameters dict if rate rule variable
     # is a parameter
-    modelDict["derivatives"][ruleVariable] = "D(" * ruleVariable * ") ~ " * ruleFormula
-    if ruleVariable in keys(modelDict["parameters"])
+    if ruleVariable ∈ keys(modelDict["parameters"])
+        modelDict["derivatives"][ruleVariable] = "D(" * ruleVariable * ") ~ " * ruleFormula
         modelDict["states"][ruleVariable] = modelDict["parameters"][ruleVariable]
         modelDict["stateGivenInAmounts"][ruleVariable] = (false, "")
         modelDict["hasOnlySubstanceUnits"][ruleVariable] = false
         delete!(modelDict["parameters"], ruleVariable)
         modelDict["derivatives"][ruleVariable] = "D(" * ruleVariable * ") ~ " * ruleFormula
-    elseif ruleVariable ∉ keys(modelDict["states"])
+    elseif ruleVariable ∈ keys(modelDict["states"])
+        # Paranthesis needed to downstream add compartment to scale conc. properly to correct unit for the 
+        # state given by a rate-rule.
+        modelDict["derivatives"][ruleVariable] = "D(" * ruleVariable * ") ~ " * "(" * ruleFormula * ")"
+    else
         @error "Warning : Cannot find rate rule variable in either model states or parameters"
     end
 end

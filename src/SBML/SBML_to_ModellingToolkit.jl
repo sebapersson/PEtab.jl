@@ -105,7 +105,12 @@ end
 
 
 # Rewrites triggers in events to propper form for ModelingToolkit
-function asTrigger(triggerFormula)
+function asTrigger(triggerFormula, modelSBML)
+
+    if triggerFormula[1] == '(' && triggerFormula[end] == ')'
+        triggerFormula = triggerFormula[2:end-1]
+    end
+
     if "geq" == triggerFormula[1:3]
         strippedFormula = triggerFormula[5:end-1]
         separatorUse = "≥"
@@ -123,8 +128,16 @@ function asTrigger(triggerFormula)
     if occursin("time", parts[1])
         parts[1] = replaceWholeWord(parts[1], "time", "t")
     end
-    expression = parts[1] * " " * separatorUse * " " * parts[2] 
-    return expression
+
+    # States in ODE-system are typically in substance units, but formulas in 
+    # concentratio. Thus, each state is divided with its corresponding 
+    # compartment 
+    for (speciesId, specie) in modelSBML.species
+        parts[1] = replaceWholeWord(parts[1], speciesId, speciesId * '/' * specie.compartment)
+        parts[2] = replaceWholeWord(parts[2], speciesId, speciesId * '/' * specie.compartment)
+    end
+
+    return parts[1] * " " * separatorUse * " " * parts[2] 
 end
 
 
@@ -292,7 +305,8 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
     end
 
     # Extract model parameters and their default values. In case a parameter is non-constant 
-    # it is treated as a state.
+    # it is treated as a state. Compartments are treated simular to states (allowing them to 
+    # be dynamic)
     nonConstantParameterNames = []
     for (parameterId, parameter) in modelSBML.parameters
         if parameter.constant == true
@@ -310,8 +324,18 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
     for (compartmentId, compartment) in modelSBML.compartments
         # Allowed in SBML ≥ 2.0 with nothing, should then be interpreted as 
         # having no compartment (equal to a value of 1.0 for compartment)
-        size = isnothing(compartment.size) ? 1.0 : compartment.size
-        modelDict["parameters"][compartmentId] = string(size)
+        if compartment.constant == true
+            size = isnothing(compartment.size) ? 1.0 : compartment.size
+            modelDict["parameters"][compartmentId] = string(size)
+            continue
+        end
+        
+        modelDict["hasOnlySubstanceUnits"][compartmentId] = false
+        modelDict["stateGivenInAmounts"][compartmentId] = (false, "")
+        modelDict["isBoundaryCondition"][compartmentId] = false
+        modelDict["states"][compartmentId] = isnothing(compartment.size) ? 1.0 : compartment.size
+        modelDict["derivatives"][compartmentId] = compartmentId * " ~ "
+        nonConstantParameterNames = push!(nonConstantParameterNames, compartmentId)
     end
 
     # Rewrite SBML functions into Julia syntax functions and store in dictionary to allow them to
@@ -326,13 +350,18 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
     # DiscreteCallback:s if possible 
     eIndex = 1
     for (eventName, event) in modelSBML.events
-        _triggerFormula = mathToString(event.trigger.math)
-        triggerFormula = asTrigger(_triggerFormula)
+        _triggerFormula = replaceFunctionWithFormula(mathToString(event.trigger.math), modelDict["modelFunctions"])
+        triggerFormula = asTrigger(_triggerFormula, modelSBML)
         eventFormulas = Vector{String}(undef, length(event.event_assignments))
         eventAssignTo = similar(eventFormulas)
         for (i, eventAssignment) in pairs(event.event_assignments)
-            eventFormulas[i] = mathToString(eventAssignment.math)
             eventAssignTo[i] = eventAssignment.variable
+            eventFormulas[i] = replaceFunctionWithFormula(mathToString(eventAssignment.math), modelDict["modelFunctions"])
+            # Species typically given in substance units, but formulas in conc. Thus we must account for assignment 
+            # formula being in conc., but we are changing something by amount 
+            if eventAssignTo[i] ∈ keys(modelSBML.species)
+                eventFormulas[i] = modelSBML.species[eventAssignTo[i]].compartment *  " * (" * eventFormulas[i] * ')'
+            end
         end
         eventName = isempty(eventName) ? "event" * string(eIndex) : eventName
         modelDict["events"][eventName] = [triggerFormula, eventAssignTo .* " = " .* eventFormulas]
@@ -351,7 +380,7 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
         if rule isa SBML.RateRule
             ruleFormula = extractRuleFormula(rule)
             rateRulesNames = push!(rateRulesNames, rule.variable)
-            processRateRule!(modelDict, ruleFormula, rule.variable, baseFunctions)
+            processRateRule!(modelDict, ruleFormula, rule.variable, modelSBML, baseFunctions)
         end
 
         if rule isa SBML.AlgebraicRule
@@ -689,8 +718,10 @@ function createODEModelFunction(modelDict, pathJlFile, modelName, juliaFile, wri
             if key ∈ modelDict["nonConstantParameterNames"] && key ∉ modelDict["rateRulesNames"]
                 continue
             end
-            if tryparse(Float64,value) !== nothing
-                value = string(parse(Float64,value))
+            if typeof(value) <: Real
+                value = string(value)
+            elseif tryparse(Float64, value) !== nothing
+                value = string(parse(Float64, value))
             end
             if index == 1
                 assignString = "    " * key * " => " * value

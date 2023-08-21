@@ -151,8 +151,13 @@ function createCallbackForEvent(eventName::String,
         _conditionFormula = replace(_conditionFormula, "≤" => "==")
         _conditionFormula = replace(_conditionFormula, "≥" => "==")
     else
+        # If we have a trigger on the form a ≤ b then event should only be 
+        # activated when crossing the condition from left -> right. Reverse
+        # holds for ≥
+        affect_neg = occursin("≤", _conditionFormula) 
         _conditionFormula = replace(_conditionFormula, "≤" => "-")
         _conditionFormula = replace(_conditionFormula, "≥" => "-")
+        
     end
 
     # TODO : Refactor and merge functionality with above 
@@ -169,20 +174,28 @@ function createCallbackForEvent(eventName::String,
 
     # Building the affect function (which can act on states and/or parameters)
     affectStr = "\tfunction affect_" * eventName * "!(integrator)\n"
+    affectStr *= "\t\tuTmp = similar(integrator.u)\n"
+    affectStr *= "\t\tuTmp .= integrator.u\n"
     for i in eachindex(affects)
-        affectStr *= "\t\t" * affects[i] * '\n'
+        affectStr1, affectStr2 = split(affects[i], "=")
+        for j in eachindex(modelStateNames)
+            affectStr1 = replaceWholeWord(affectStr1, modelStateNames[j], "integrator.u["*string(j)*"]")
+            affectStr2 = replaceWholeWord(affectStr2, modelStateNames[j], "uTmp["*string(j)*"]")
+        end
+        affectStr *= "\t\t" * affectStr1 * " = " * affectStr2 * '\n'
     end
     affectStr *= "\tend"
-    for i in eachindex(modelStateNames)
-        affectStr = replaceWholeWord(affectStr, modelStateNames[i], "integrator.u["*string(i)*"]")
-    end
     for i in eachindex(pODEProblemNames)
         affectStr = replaceWholeWord(affectStr, pODEProblemNames[i], "integrator.p["*string(i)*"]")
     end
 
     # Build the callback 
     if discreteEvent == false
-        callbackStr = "\tcb_" * eventName * " = ContinuousCallback(" * "condition_" * eventName * ", " * "affect_" * eventName * "!, "
+        if affect_neg == true
+            callbackStr = "\tcb_" * eventName * " = ContinuousCallback(" * "condition_" * eventName * ", nothing, " * "affect_" * eventName * "!, "
+        else
+            callbackStr = "\tcb_" * eventName * " = ContinuousCallback(" * "condition_" * eventName * ", " * "affect_" * eventName * "!, nothing, "
+        end
     else
         callbackStr = "\tcb_" * eventName * " = DiscreteCallback(" * "condition_" * eventName * ", " * "affect_" * eventName * "!, "
     end

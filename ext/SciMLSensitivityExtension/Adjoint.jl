@@ -299,7 +299,7 @@ function computeGradientAdjointExpCond!(gradient::Vector{Float64},
                                           force_dtmin, dtmin, maxiters, callback, compute∂G∂u!)
         status == false && return false
     else
-        compute∂G∂u(du, sol[1], sol.prob.p, 0.0, 1)
+        compute∂G∂u!(du, sol[1], sol.prob.p, 0.0, 1)
         onlyObsAtZero = true
     end
     # Technically we can pass compute∂G∂p above to dgdp_discrete. However, odeProb.p often contain
