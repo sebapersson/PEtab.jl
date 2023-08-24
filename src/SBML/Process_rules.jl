@@ -14,12 +14,12 @@ function extractRuleFormula(rule)
 end
 
 
-function processAssignmentRule!(modelDict::Dict, ruleFormula::String, ruleVariable::String, baseFunctions)
+function processAssignmentRule!(modelDict::Dict, ruleFormula::String, ruleVariable::String, baseFunctions, modelSBML)
 
     # If piecewise occurs in the rule we are looking at a time-based event which is encoded as an
     # event into the model to ensure proper evaluation of the gradient.
     if occursin("piecewise(", ruleFormula)
-        rewritePiecewiseToIfElse(ruleFormula, ruleVariable, modelDict, baseFunctions)
+        rewritePiecewiseToIfElse(ruleFormula, ruleVariable, modelDict, baseFunctions, modelSBML)
         if ruleVariable ∈ keys(modelDict["derivatives"])
             delete!(modelDict["derivatives"], ruleVariable)
         end
@@ -51,7 +51,7 @@ function processRateRule!(modelDict::Dict, ruleFormula::String, ruleVariable::St
 
     # Rewrite rule to function if there are not any piecewise, eles rewrite to formula with ifelse
     if occursin("piecewise(", ruleFormula)
-        ruleFormula = rewritePiecewiseToIfElse(ruleFormula, ruleVariable, modelDict, baseFunctions, retFormula=true)
+        ruleFormula = rewritePiecewiseToIfElse(ruleFormula, ruleVariable, modelDict, baseFunctions, modelSBML, retFormula=true)
     else
         arguments, includesFunction = getArguments(ruleFormula, modelDict["modelFunctions"], baseFunctions)
         if includesFunction == true

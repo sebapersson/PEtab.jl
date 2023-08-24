@@ -41,7 +41,7 @@
       </unitDefinition>
     </listOfUnitDefinitions>
     <listOfCompartments>
-      <compartment metaid="metaid_0" id="default" size="1" constant="false"/>
+      <compartment metaid="metaid_0" id="default" size="1" constant="true"/>
     </listOfCompartments>
     <listOfSpecies>
       <species id="sebastian" name="sebastian" compartment="default" initialConcentration="1" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>

@@ -138,7 +138,7 @@ function replaceFunctionWithFormula(functionAsString, funcNameArgFormula)
             replaceDict = Dict()
             for ind in eachindex(replaceTo)
                 replaceFromRegex = Regex("(\\b" * replaceFrom[ind] * "\\b)")
-                replaceDict[replaceFromRegex] = replaceTo[ind]
+                replaceDict[replaceFromRegex] = '(' * replaceTo[ind] * ')'
             end
             replaceStr = replace(replaceStr, replaceDict...)
 

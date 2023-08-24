@@ -1,7 +1,7 @@
 # Handles piecewise functions that are to be redefined with ifelse statements in the model
 # equations to allow MKT symbolic calculations.
 # Calls goToBottomPiecewiseToEvent to handle multiple logical conditions.
-function rewritePiecewiseToIfElse(ruleFormula, variable, modelDict, baseFunctions; retFormula::Bool=false)
+function rewritePiecewiseToIfElse(ruleFormula, variable, modelDict, baseFunctions, modelSBML; retFormula::Bool=false)
 
     piecewiseStrings = getPiencewiseStr(ruleFormula)
     eqSyntaxDict = Dict() # Hold the Julia syntax for iffelse statements
@@ -37,16 +37,16 @@ function rewritePiecewiseToIfElse(ruleFormula, variable, modelDict, baseFunction
         # Check if we have nested piecewise within either the active or inactive value. If true, apply recursion
         # to reach bottom level of piecewise.
         if occursin("piecewise(", vals[cIndex])
-            valActive = rewritePiecewiseToIfElse(vals[cIndex], "foo", modelDict, baseFunctions, retFormula=true)#[7:end]
-            valActive = rewriteDerivatives(valActive, modelDict, baseFunctions)
+            valActive = rewritePiecewiseToIfElse(vals[cIndex], "foo", modelDict, baseFunctions, modelSBML, retFormula=true)#[7:end]
+            valActive = rewriteDerivatives(valActive, modelDict, baseFunctions, modelSBML)
         else
-            valActive = rewriteDerivatives(vals[cIndex], modelDict, baseFunctions)
+            valActive = rewriteDerivatives(vals[cIndex], modelDict, baseFunctions, modelSBML)
         end
         if occursin("piecewise(", vals[end])
-            valInactive = rewritePiecewiseToIfElse(vals[end], "foo", modelDict, baseFunctions, retFormula=true)#[7:end]
-            valInactive = rewriteDerivatives(valInactive, modelDict, baseFunctions)
+            valInactive = rewritePiecewiseToIfElse(vals[end], "foo", modelDict, baseFunctions, modelSBML, retFormula=true)#[7:end]
+            valInactive = rewriteDerivatives(valInactive, modelDict, baseFunctions, modelSBML)
         else
-            valInactive = rewriteDerivatives(vals[end], modelDict, baseFunctions)
+            valInactive = rewriteDerivatives(vals[end], modelDict, baseFunctions, modelSBML)
         end
 
         if condition[1:2] == "lt" || condition[1:2] == "gt" || condition[1:3] == "geq" || condition[1:3] == "leq"
@@ -70,7 +70,7 @@ function rewritePiecewiseToIfElse(ruleFormula, variable, modelDict, baseFunction
         formulaUse = replace(formulaUse, piecewiseStrings[1] => eqSyntaxDict[variable])
     end
     if retFormula == false
-        modelDict["inputFunctions"][variable] = strInput * rewriteDerivatives(formulaUse, modelDict, baseFunctions)
+        modelDict["inputFunctions"][variable] = strInput * rewriteDerivatives(formulaUse, modelDict, baseFunctions, modelSBML)
         return nothing
     else
         return formulaUse
