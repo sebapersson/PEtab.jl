@@ -105,7 +105,7 @@ end
 
 
 # Rewrites triggers in events to propper form for ModelingToolkit
-function asTrigger(triggerFormula, modelSBML)
+function asTrigger(triggerFormula, modelDict, modelSBML)
 
     if triggerFormula[1] == '(' && triggerFormula[end] == ')'
         triggerFormula = triggerFormula[2:end-1]
@@ -133,6 +133,9 @@ function asTrigger(triggerFormula, modelSBML)
     # concentratio. Thus, each state is divided with its corresponding 
     # compartment 
     for (speciesId, specie) in modelSBML.species
+        if speciesId ∈ keys(modelSBML.species) && modelDict["stateGivenInAmounts"][speciesId][1] == false
+            continue
+        end
         parts[1] = replaceWholeWord(parts[1], speciesId, speciesId * '/' * specie.compartment)
         parts[2] = replaceWholeWord(parts[2], speciesId, speciesId * '/' * specie.compartment)
     end
@@ -142,7 +145,7 @@ end
 
 
 # Rewrites derivatives for a model by replacing functions, any lagging piecewise, and power functions.
-function rewriteDerivatives(derivativeAsString, modelDict, baseFunctions; checkScaling=false)
+function rewriteDerivatives(derivativeAsString, modelDict, baseFunctions, modelSBML; checkScaling=false)
     
     newDerivativeAsString = replaceFunctionWithFormula(derivativeAsString, modelDict["modelFunctions"])
     newDerivativeAsString = replaceFunctionWithFormula(newDerivativeAsString, modelDict["modelRuleFunctions"])
@@ -151,7 +154,7 @@ function rewriteDerivatives(derivativeAsString, modelDict, baseFunctions; checkS
         newDerivativeAsString = removePowFunctions(newDerivativeAsString)
     end
     if occursin("piecewise(", newDerivativeAsString)
-        newDerivativeAsString = rewritePiecewiseToIfElse(newDerivativeAsString, "foo", modelDict, baseFunctions, retFormula=true)
+        newDerivativeAsString = rewritePiecewiseToIfElse(newDerivativeAsString, "foo", modelDict, baseFunctions, modelSBML, retFormula=true)
     end
 
     newDerivativeAsString = replaceWholeWordDict(newDerivativeAsString, modelDict["modelFunctions"])
@@ -162,9 +165,9 @@ function rewriteDerivatives(derivativeAsString, modelDict, baseFunctions; checkS
     end
 
     # Handle case when specie is given in amount, but the equations are given in concentration 
-    for stateId in keys(modelDict["states"])
+    for (stateId, state) in modelSBML.species
         if modelDict["stateGivenInAmounts"][stateId][1] == true && modelDict["hasOnlySubstanceUnits"][stateId] == false
-            compartment = modelDict["stateGivenInAmounts"][stateId][2]
+            compartment = state.compartment
             newDerivativeAsString = replaceWholeWord(newDerivativeAsString, stateId, "(" * stateId * "/" * compartment * ")")
         end
     end
@@ -180,7 +183,7 @@ function processInitialAssignment(modelSBML, modelDict::Dict, baseFunctions::Arr
     for (assignId, initialAssignment) in modelSBML.initial_assignments
         
         _formula = mathToString(initialAssignment)
-        formula = rewriteDerivatives(_formula, modelDict, baseFunctions)
+        formula = rewriteDerivatives(_formula, modelDict, baseFunctions, modelSBML)
 
         # Figure out wheter parameters or state is affected by the initial assignment
         if assignId ∈ keys(modelDict["states"])
@@ -238,6 +241,23 @@ function processInitialAssignment(modelSBML, modelDict::Dict, baseFunctions::Arr
         nestedParameter || break
     end
 
+    # Lastly, if initial assignment refers to a state we need to scale with compartment 
+    for id in keys(initallyAssignedVariable)
+        if id ∉ keys(modelSBML.species)
+            continue
+        end
+        if isnothing(modelSBML.species[id].substance_units)
+            continue
+        end
+        # We end up here 
+        if !(any([val[1] for val in  values(modelDict["stateGivenInAmounts"])]) == true)
+            continue
+        end
+        if modelSBML.species[id].substance_units == "substance"
+            modelDict["stateGivenInAmounts"][id] = (true, modelSBML.species[id].compartment)
+        end
+        modelDict["states"][id] = '(' * modelDict["states"][id] * ") * " * modelSBML.species[id].compartment
+    end
 end
 
 
@@ -351,7 +371,7 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
     eIndex = 1
     for (eventName, event) in modelSBML.events
         _triggerFormula = replaceFunctionWithFormula(mathToString(event.trigger.math), modelDict["modelFunctions"])
-        triggerFormula = asTrigger(_triggerFormula, modelSBML)
+        triggerFormula = asTrigger(_triggerFormula, modelDict, modelSBML)
         eventFormulas = Vector{String}(undef, length(event.event_assignments))
         eventAssignTo = similar(eventFormulas)
         for (i, eventAssignment) in pairs(event.event_assignments)
@@ -360,6 +380,9 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
             # Species typically given in substance units, but formulas in conc. Thus we must account for assignment 
             # formula being in conc., but we are changing something by amount 
             if eventAssignTo[i] ∈ keys(modelSBML.species)
+                if eventAssignTo[i] ∈ keys(modelSBML.species) && modelDict["stateGivenInAmounts"][eventAssignTo[i]][1] == false
+                    continue
+                end
                 eventFormulas[i] = modelSBML.species[eventAssignTo[i]].compartment *  " * (" * eventFormulas[i] * ')'
             end
         end
@@ -374,7 +397,7 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
         if rule isa SBML.AssignmentRule
             ruleFormula = extractRuleFormula(rule)
             assignmentRulesNames = push!(assignmentRulesNames, rule.variable)
-            processAssignmentRule!(modelDict, ruleFormula, rule.variable, baseFunctions)
+            processAssignmentRule!(modelDict, ruleFormula, rule.variable, baseFunctions, modelSBML)
         end
 
         if rule isa SBML.RateRule
@@ -404,7 +427,7 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
             _formula = replaceWholeWord(_formula, parameterId, parameter.value)
         end
 
-        formula = rewriteDerivatives(_formula, modelDict, baseFunctions, checkScaling=true)
+        formula = rewriteDerivatives(_formula, modelDict, baseFunctions, modelSBML, checkScaling=true)
         modelDict["reactions"][reaction.name] = formula
         
         for reactant in reaction.reactants
@@ -475,16 +498,29 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
     # flag that model is a DAE so it can be properly processed when creating PEtabODEProblem. 
     if !isempty(modelDict["algebraicRules"])
         for (species, reaction) in modelDict["derivatives"]
+            shouldContinue = true
             # In case we have zero derivative for a state (e.g S ~ 0 or S ~)
-            if replace(reaction, " " => "")[end] != '~' && replace(reaction, " " => "")[end] != '0'
-                continue
-            end
-            if modelDict["isBoundaryCondition"][species] == true
-                continue
-            end
             if species ∈ rateRulesNames || species ∈ assignmentRulesNames
                 continue
             end
+            if replace(reaction, " " => "")[end] != '~' && replace(reaction, " " => "")[end] != '0'
+                continue
+            end
+            if species ∈ keys(modelSBML.species) && modelSBML.species[species].constant == true
+                continue
+            end
+            if modelDict["isBoundaryCondition"][species] == true && modelSBML.species[species].constant == true
+                continue
+            end
+
+            # Check if state occurs in any of the algebraic rules 
+            for (ruleId, rule) in modelDict["algebraicRules"]
+                if replaceWholeWord(rule, species, "") != rule 
+                    shouldContinue = false
+                end
+            end
+            shouldContinue == true && continue
+
             # If we reach this point the state eqution is zero without any form 
             # of assignment -> state must be solved for via the algebraic rule 
             delete!(modelDict["derivatives"], species)
