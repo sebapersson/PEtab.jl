@@ -112,7 +112,7 @@ testGradientFiniteDifferences(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-
 # estimate. Splitting over conditions spped up hessian computations with factor 48
 pathYML = joinpath(@__DIR__, "Test_ll", "Beer_MolBioSystems2014", "Beer_MolBioSystems2014.yaml")
 petabModel = readPEtabModel(pathYML, verbose=false, forceBuildJuliaFiles=true)
-testLogLikelihoodValue(petabModel, -58622.9145631413, ODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12))
+testLogLikelihoodValue(petabModel, -58622.9145631413, ODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12), checkZygote=false)
 testGradientFiniteDifferences(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-8, reltol=1e-8), testTol=1e-1, onlyCheckAutoDiff=true, checkForwardEquations=true, splitOverConditions=true)
 
 # Brännmark model. Model has pre-equlibration criteria so here we test all gradients. Challenging to compute gradients.

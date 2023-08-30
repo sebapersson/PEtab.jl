@@ -185,10 +185,10 @@ end
     testODESolverTestModel3(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12), ssOptionsTest2)
 end
 
-@testset "Cost gradient and hessian" begin
+#@testset "Cost gradient and hessian" begin
     ssOptionsTest3 = SteadyStateSolverOptions(:Simulate, howCheckSimulationReachedSteadyState=:wrms, abstol=1e-12, reltol=1e-10)
     testCostGradientOrHessianTestModel3(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12, maxiters=Int(1e5)), ssOptionsTest3)
-end
+#end
 
 @testset "Gradient of residuals" begin
     checkGradientResiduals(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-9, reltol=1e-9))

@@ -7,7 +7,6 @@ function computeGradientZygote(gradient::Vector{Float64},
                                θ_indices::PEtab.ParameterIndices,
                                measurementInfo::PEtab.MeasurementsInfo,
                                parameterInfo::PEtab.ParametersInfo,
-                               changeODEProblemParameters::Function,
                                solveOdeModelAllConditions::Function,
                                priorInfo::PEtab.PriorInfo,
                                petabODECache::PEtab.PEtabODEProblemCache)
@@ -18,8 +17,7 @@ function computeGradientZygote(gradient::Vector{Float64},
     # For Zygote the code must be out-of place. Hence a special likelihood funciton is needed.
     computeGradientZygoteDynamicθ = (x) -> _computeCostZygote(x, θ_sd, θ_observable, θ_nonDynamic, odeProblem,
                                                               petabModel, simulationInfo, θ_indices, measurementInfo,
-                                                              parameterInfo, changeODEProblemParameters,
-                                                              solveOdeModelAllConditions)
+                                                              parameterInfo,solveOdeModelAllConditions)
     gradient[θ_indices.iθ_dynamic] .= Zygote.gradient(computeGradientZygoteDynamicθ, θ_dynamic)[1]
 
     # Compute gradient for parameters which are not in ODE-system. Important to keep in mind that Sd- and observable
