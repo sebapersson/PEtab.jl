@@ -172,6 +172,9 @@ function rewriteDerivatives(derivativeAsString, modelDict, baseFunctions, modelS
         end
     end
 
+    # Handle that in SBML models sometimes t is decoded as time
+    newDerivativeAsString = replaceWholeWord(newDerivativeAsString, "time", "t")
+
     return newDerivativeAsString
 end
 
@@ -184,6 +187,8 @@ function processInitialAssignment(modelSBML, modelDict::Dict, baseFunctions::Arr
         
         _formula = mathToString(initialAssignment)
         formula = rewriteDerivatives(_formula, modelDict, baseFunctions, modelSBML)
+        # Initial time i zero 
+        formula = replaceWholeWord(formula, "t", "0.0")
 
         # Figure out wheter parameters or state is affected by the initial assignment
         if assignId ∈ keys(modelDict["states"])
@@ -293,6 +298,7 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
     modelDict["reactions"] = Dict()
     modelDict["algebraicRules"] = Dict()
     modelDict["assignmentRulesStates"] = Dict()
+    modelDict["compartmentFormula"] = Dict()
     # Mathemathical base functions (can be expanded if needed)
     baseFunctions = ["exp", "log", "log2", "log10", "sin", "cos", "tan", "pi"]
     stringOfEvents = ""
@@ -377,6 +383,7 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
         for (i, eventAssignment) in pairs(event.event_assignments)
             eventAssignTo[i] = eventAssignment.variable
             eventFormulas[i] = replaceFunctionWithFormula(mathToString(eventAssignment.math), modelDict["modelFunctions"])
+            eventFormulas[i] = replaceWholeWord(eventFormulas[i], "t", "integrator.t")
             # Species typically given in substance units, but formulas in conc. Thus we must account for assignment 
             # formula being in conc., but we are changing something by amount 
             if eventAssignTo[i] ∈ keys(modelSBML.species)
@@ -411,6 +418,19 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
             ruleFormula = replaceFunctionWithFormula(_ruleFormula, modelDict["modelFunctions"])
             ruleName = isempty(modelDict["algebraicRules"]) ? "1" : maximum(keys(modelDict["algebraicRules"])) * "1" # Need placeholder key 
             modelDict["algebraicRules"][ruleName] = "0 ~ " * ruleFormula
+        end
+    end
+
+    # In case we have that the compartment is given by an assignment rule, then we need to account for this 
+    for (compartmentId, compartmenFormula) in modelDict["compartmentFormula"]
+        for (eventId, event) in modelDict["events"]
+            triggerFormula = event[1]
+            eventAssignments = event[2]
+            triggerFormula = replaceWholeWord(triggerFormula, compartmentId, compartmenFormula)
+            for i in eachindex(eventAssignments)
+                eventAssignments[i] = replaceWholeWord(eventAssignments[i], compartmentId, compartmenFormula)
+            end
+            modelDict["events"][eventId] = [triggerFormula, eventAssignments]
         end
     end
 
@@ -533,6 +553,44 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
         if replace(modelDict["derivatives"][nonConstantParameter], " " => "")[end] == '~'
             modelDict["derivatives"][nonConstantParameter] *= string(modelDict["states"][nonConstantParameter])
         end
+    end
+
+    # Up to this point technically some states can have a zero derivative, but their value can change because 
+    # their compartment changes. To sidestep this, turn the state into an equation 
+    for (specie, reaction) in modelDict["derivatives"]
+        if specie ∉ keys(modelSBML.species)
+            continue
+        end
+        if replace(reaction, " " => "")[end] != '~' && replace(reaction, " " => "")[end] != '0'
+            continue
+        end
+        divideWithCompartment = modelDict["stateGivenInAmounts"][specie][1] == false
+        c = modelSBML.species[specie].compartment
+        if divideWithCompartment == false
+            continue
+        end
+        modelDict["derivatives"][specie] = specie * " ~ (" * modelDict["states"][specie] * ") / " * c
+    end
+
+    # Sometimes parameter can be non-constant, but still have a constant rhs and they primarly change value 
+    # because of event assignments. This must be captured, so the SBML importer will look at the RHS of non-constant 
+    # parameters, and if it is constant the parameter will be moved to the parameter regime again in order to avoid 
+    # simplifaying the parameter away.
+    for id in nonConstantParameterNames
+        # Algebraic rule 
+        if id ∉ keys(modelDict["derivatives"])
+            continue
+        end
+        lhs, rhs = replace.(split(modelDict["derivatives"][id], '~'), " " => "")
+        if lhs[1] == 'D'
+            continue
+        end
+        if !isNumber(rhs)
+            continue
+        end
+        modelDict["derivatives"][id] = "D(" * id * ") ~ 0" 
+        modelDict["states"][id] = rhs
+        nonConstantParameterNames = filter(x -> x != id, nonConstantParameterNames)
     end
 
     modelDict["stringOfEvents"] = stringOfEvents
@@ -871,6 +929,23 @@ function _mathToString(math::SBML.MathApply)
         return part1 * fn * part2, true
     end
 
+    if math.fn == "log" && length(math.args) == 2
+        base, addParenthesis1 = _mathToString(math.args[1])
+        arg, addParenthesis2 = _mathToString(math.args[2])
+        part1 = addParenthesis1 ?  '(' * base * ')' : base
+        part2 = addParenthesis2 ?  '(' * arg * ')' : arg
+        return "log(" * part1 * ", " * part2 * ")", true
+    end
+
+
+    if math.fn == "root" && length(math.args) == 2
+        base, addParenthesis1 = _mathToString(math.args[1])
+        arg, addParenthesis2 = _mathToString(math.args[2])
+        part1 = addParenthesis1 ?  '(' * base * ')' : base
+        part2 = addParenthesis2 ?  '(' * arg * ')' : arg
+        return  part2 * "^(1 / " * part1 * ")", true
+    end
+
     if math.fn ∈ ["+", "-"] && length(math.args) == 1
         _formula, addParenthesis = _mathToString(math.args[1])
         formula = addParenthesis ? '(' * _formula * ')' : _formula
@@ -898,6 +973,19 @@ function _mathToString(math::SBML.MathApply)
         @assert length(math.args) == 1
         formula, _ = _mathToString(math.args[1])
         return math.fn * '(' * formula * ')', false
+    end
+
+    if math.fn ∈ ["arctan", "arcsin", "arccos"]
+        @assert length(math.args) == 1
+        formula, _ = _mathToString(math.args[1])
+        return "a" * math.fn[4:end] * '(' * formula * ')', false
+    end
+
+    if math.fn ∈ ["exp", "log", "log2", "log10", "sin", "cos", "tan", "ln"]
+        fn = math.fn == "ln" ? "log" : math.fn
+        @assert length(math.args) == 1
+        formula, _ = _mathToString(math.args[1])
+        return fn * '(' * formula * ')', false
     end
 
     # Special function which must be rewritten to Julia syntax 
@@ -930,5 +1018,15 @@ function _mathToString(math::SBML.MathIdent)
     return string(math.id), false
 end
 function _mathToString(math::SBML.MathTime)
-    return string(math.id), false
+    # Time unit is consistently in models refered to as time 
+    return "t", false
+end
+function _mathToString(math::SBML.MathConst)
+    if math.id == "exponentiale"
+        return "ℯ", false
+    elseif math.id == "pi"
+        return "π", false
+    else
+        return math.id, false
+    end
 end

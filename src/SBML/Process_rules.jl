@@ -42,6 +42,10 @@ function processAssignmentRule!(modelDict::Dict, ruleFormula::String, ruleVariab
         # Delete from state dictionary (as we no longer should assign an initial value to the state)
         delete!(modelDict["states"], ruleVariable)
     end
+    # In case compartment is assigned we need to track assignment formula 
+    if ruleVariable ∈ keys(modelSBML.compartments)
+        modelDict["compartmentFormula"][ruleVariable] = ruleFormula
+    end
 
     return 
 end
@@ -71,6 +75,13 @@ function processRateRule!(modelDict::Dict, ruleFormula::String, ruleVariable::St
     elseif ruleVariable ∈ keys(modelDict["states"])
         # Paranthesis needed to downstream add compartment to scale conc. properly to correct unit for the 
         # state given by a rate-rule.
+        for (stateId, state) in modelSBML.species
+            if !(modelDict["stateGivenInAmounts"][stateId][1] == true && modelDict["hasOnlySubstanceUnits"][stateId] == false)
+                continue
+            end
+            compartment = state.compartment
+            ruleFormula = replaceWholeWord(ruleFormula, stateId, "(" * stateId * "/" * compartment * ")")
+        end
         modelDict["derivatives"][ruleVariable] = "D(" * ruleVariable * ") ~ " * "(" * ruleFormula * ")"
     else
         @error "Warning : Cannot find rate rule variable in either model states or parameters"
