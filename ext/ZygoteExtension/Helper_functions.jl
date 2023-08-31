@@ -38,7 +38,6 @@ function PEtab.setUpGradient(::Val{:Zygote},
                              splitOverConditions::Bool=false)
 
     changeExperimentalCondition = (pODEProblem, u0, conditionId, θ_dynamic) -> PEtab._changeExperimentalCondition(pODEProblem, u0, conditionId, θ_dynamic, petabModel, θ_indices)
-    _changeODEProblemParameters = (pODEProblem, θ_est) -> PEtab.changeODEProblemParameters(pODEProblem, θ_est, θ_indices, petabModel)
     solveODEExperimentalCondition = (odeProblem, conditionId, θ_dynamic, tMax) -> solveOdeModelAtExperimentalCondZygote(odeProblem, conditionId, θ_dynamic, tMax, changeExperimentalCondition, measurementInfo, simulationInfo, odeSolverOptions.solver, odeSolverOptions.abstol, odeSolverOptions.reltol, ssSolverOptions.abstol, ssSolverOptions.reltol, sensealg, petabModel.computeTStops)
     _computeGradient! = (gradient, θ_est) -> computeGradientZygote(gradient,
                                                                    θ_est,
@@ -48,7 +47,6 @@ function PEtab.setUpGradient(::Val{:Zygote},
                                                                    θ_indices,
                                                                    measurementInfo,
                                                                    parameterInfo,
-                                                                   _changeODEProblemParameters,
                                                                    solveODEExperimentalCondition,
                                                                    priorInfo,
                                                                    petabODECache)
@@ -76,7 +74,6 @@ function PEtab.setUpCost(::Val{:Zygote},
                          computeResiduals)
 
     changeExperimentalCondition = (pODEProblem, u0, conditionId, θ_dynamic) -> PEtab._changeExperimentalCondition(pODEProblem, u0, conditionId, θ_dynamic, petabModel, θ_indices)
-    _changeODEProblemParameters = (pODEProblem, θ_est) -> PEtab.changeODEProblemParameters(pODEProblem, θ_est, θ_indices, petabModel)
     solveODEExperimentalCondition = (odeProblem, conditionId, θ_dynamic, tMax) -> solveOdeModelAtExperimentalCondZygote(odeProblem, conditionId, θ_dynamic, tMax, changeExperimentalCondition, measurementInfo, simulationInfo, odeSolverOptions.solver, odeSolverOptions.abstol, odeSolverOptions.reltol, ssSolverOptions.abstol, ssSolverOptions.reltol, sensealg, petabModel.computeTStops)
     __computeCost = (θ_est) -> computeCostZygote(θ_est,
                                                  odeProblem,
@@ -85,7 +82,6 @@ function PEtab.setUpCost(::Val{:Zygote},
                                                  θ_indices,
                                                  measurementInfo,
                                                  parameterInfo,
-                                                 _changeODEProblemParameters,
                                                  solveODEExperimentalCondition,
                                                  priorInfo)
 

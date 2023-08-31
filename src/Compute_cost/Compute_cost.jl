@@ -205,7 +205,7 @@ function computeCostExpCond(odeSolution::ODESolution,
             p = odeSolution.prob.p
 
         elseif computeGradientθDynamicZygote == true
-            u = odeSolution[:, simulationInfo.iTimeODESolution[iMeasurement]]
+            u = odeSolution.u[simulationInfo.iTimeODESolution[iMeasurement], :][1]
             p = pODEProblemZygote
 
         # When we want to extract dual number from the ODE solution
