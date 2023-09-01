@@ -134,6 +134,9 @@ function reWriteStringWithIfelseToBool(formulaWithIfelse::String, modelDict::Dic
             else
                 splitBy = ">"
             end
+        elseif occursin("!=", activationRule) || occursin("==", activationRule)
+            rewriteIfElse = false
+            continue
         else
             println("Error : Did not find criteria to split ifelse on")
         end

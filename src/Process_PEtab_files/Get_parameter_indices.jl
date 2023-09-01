@@ -9,13 +9,13 @@ function computeIndicesθ(parameterInfo::ParametersInfo,
                          measurementsInfo::MeasurementsInfo,
                          petabModel::PEtabModel)::ParameterIndices
 
-    experimentalConditionsFile = CSV.File(petabModel.pathConditions)
-    return computeIndicesθ(parameterInfo, measurementsInfo, petabModel.odeSystem, petabModel.parameterMap, petabModel.stateMap, experimentalConditionsFile)
+    experimentalConditionsFile = petabModel.pathConditions
+    return computeIndicesθ(parameterInfo, measurementsInfo, petabModel.system, petabModel.parameterMap, petabModel.stateMap, experimentalConditionsFile)
 
 end
 function computeIndicesθ(parameterInfo::ParametersInfo,
                          measurementsInfo::MeasurementsInfo,
-                         odeSystem::ODESystem,
+                         odeSystem,
                          paramterMap,
                          stateMap,
                          experimentalConditionsFile::CSV.File)::ParameterIndices
@@ -75,7 +75,7 @@ end
 
 function computeθNames(parameterInfo::ParametersInfo,
                        measurementsInfo::MeasurementsInfo,
-                       odeSystem::ODESystem,
+                       odeSystem,
                        experimentalConditionsFile::CSV.File)::Tuple{Vector{Symbol},Vector{Symbol},Vector{Symbol},Vector{Symbol}}
 
     # Extract the name of all parameter types
@@ -138,7 +138,7 @@ end
 
 # Identifaying dynamic parameters to estimate, where the dynamic parameters are only used for some specific
 # experimental conditions.
-function identifyCondSpecificDynanmicθ(odeSystem::ODESystem,
+function identifyCondSpecificDynanmicθ(odeSystem,
                                        parameterInfo::ParametersInfo,
                                        experimentalConditionsFile::CSV.File)::Vector{Symbol}
 
@@ -246,7 +246,7 @@ end
 
 
 # A map to accurately map parameters for a specific experimental conditionId to the ODE-problem
-function getMapsConditionId(odeSystem::ODESystem,
+function getMapsConditionId(odeSystem,
                             parameterMap,
                             stateMap,
                             parameterInfo::ParametersInfo,

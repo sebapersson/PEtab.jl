@@ -49,9 +49,9 @@ function rewritePiecewiseToIfElse(ruleFormula, variable, modelDict, baseFunction
             valInactive = rewriteDerivatives(vals[end], modelDict, baseFunctions, modelSBML)
         end
 
-        if condition[1:2] == "lt" || condition[1:2] == "gt" || condition[1:3] == "geq" || condition[1:3] == "leq"
+        if condition[1:2] == "lt" || condition[1:2] == "gt" || condition[1:2] == "eq" || condition[1:3] == "neq" || condition[1:3] == "geq" || condition[1:3] == "leq" 
             eqSyntaxDict[varChange] = simplePiecewiseToIfElse(condition, varChange, valActive, valInactive, modelDict, baseFunctions)
-        elseif condition[1:3] == "and" || condition[1:2] == "if"
+        elseif condition[1:3] == "and" || condition[1:2] == "if" || condition[1:2] == "or" || condition[1:3] == "xor" || condition[1:3] == "not"
             eqSyntaxDict[varChange] = complexPiecewiseToIfElse(condition, variable, valActive, valInactive, modelDict, baseFunctions)
         else
             @error "Somehow we cannot process the piecewise expression"
@@ -136,8 +136,18 @@ function simplePiecewiseToIfElse(condition, variable, valActive, valInactive, di
     elseif "gt" == condition[1:2]
         strippedCondition = condition[4:end-1]
         inEqUse = " > "
+    elseif "eq" == condition[1:2]
+        strippedCondition = condition[4:end-1]
+        inEqUse = " == "        
+    elseif "neq" == condition[1:3]
+        strippedCondition = condition[5:end-1]
+        inEqUse = " != "  
+    elseif "true" == condition[1:4]
+        return "true"
+    elseif "false" == condition[1:5]
+        return "false"
     else
-        println("Cannot recognize form of inequality")
+        @error "Cannot recognize form of inequality, condition = $condition"
     end
 
     parts = splitBetween(strippedCondition, ',')
@@ -167,13 +177,27 @@ function recursionComplexPiecewise(condition, variable, modelDict, baseFunctions
         # An or statment can in a differentiable way here be encoded as sigmoid function
         return "(" * lPartExp * ") * (" * rPartExp * ")"
 
-    elseif "if" == condition[1:2]
+    elseif "if" == condition[1:2] || "or" == condition[1:2]
         strippedCondition = condition[4:end-1]
         lPart, rPart = splitBetween(strippedCondition, ',')
         lPartExp = recursionComplexPiecewise(lPart, variable, modelDict, baseFunctions)
         rPartExp = recursionComplexPiecewise(rPart, variable, modelDict, baseFunctions)
 
-        return "1 / (exp(-" * lpartExp * "+" *  rPartExt *") + 1)"
+        return "tanh(10 * (" * lPartExp * "+" *  rPartExp * "))"
+
+    elseif "not" == condition[1:3]
+        strippedCondition = condition[5:end-1]
+        condition = recursionComplexPiecewise(strippedCondition, variable, modelDict, baseFunctions)
+        return "(1 - " * condition * ")"        
+
+    elseif "xor" == condition[1:3]
+        strippedCondition = condition[5:end-1]
+        lPart, rPart = splitBetween(strippedCondition, ',')
+        lPartExp = recursionComplexPiecewise(lPart, variable, modelDict, baseFunctions)
+        rPartExp = recursionComplexPiecewise(rPart, variable, modelDict, baseFunctions)
+
+        return "(-(" * lPartExp * "+" *  rPartExp * ")^2 + 2*(" * lPart * "+" * rPartExp * "))"
+
     else
         return simplePiecewiseToIfElse(condition, variable, "1.0", "0.0", modelDict, baseFunctions)
     end

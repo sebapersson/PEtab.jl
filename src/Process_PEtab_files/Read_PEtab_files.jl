@@ -59,10 +59,10 @@ function readPEtabFiles(pathYAML::String; jlFile::Bool=false)
 end
 function readPEtabFiles(petabModel::PEtabModel)
 
-    experimentalConditions = CSV.File(petabModel.pathConditions, stringtype=String)
-    measurementsData = CSV.File(petabModel.pathMeasurements, stringtype=String)
-    parametersData = CSV.File(petabModel.pathParameters, stringtype=String)
-    observablesData = CSV.File(petabModel.pathObservables, stringtype=String)
+    experimentalConditions = petabModel.pathConditions
+    measurementsData = petabModel.pathMeasurements
+    parametersData = petabModel.pathParameters
+    observablesData = petabModel.pathObservables
     checkFilesForCorrectDataType(experimentalConditions, measurementsData, parametersData, observablesData)
 
     return experimentalConditions, measurementsData, parametersData, observablesData
@@ -171,7 +171,7 @@ function checkDataFrameColumns(dataFrame, dataFrameName, colsToCheck, allowedTyp
         end
 
         if !check
-            throw(PEtabFileError("Wrong DataType or value in file '" * dataFrameName * "' column '" * colName * "'. Must be: " * "[" * join(allowedTypes, ", ") * "]" * "."))
+            throw(PEtabFileError("Wrong DataType or value in file '" * string(dataFrameName) * "' column '" * string(colName) * "'. Must be: " * "[" * join(allowedTypes, ", ") * "]" * "."))
         end
     end
 end

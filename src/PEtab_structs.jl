@@ -47,7 +47,8 @@ struct PEtabModel{F1<:Function,
                   F8<:Function,
                   F9<:Function,
                   C<:SciMLBase.DECallback,
-                  FA<:Vector{<:Function}}
+                  FA<:Vector{<:Function}, 
+                  S}
     modelName::String
     compute_h::F1
     compute_u0!::F2
@@ -59,17 +60,17 @@ struct PEtabModel{F1<:Function,
     compute_∂σ∂p!::F8
     computeTStops::F9
     convertTspan::Bool
-    odeSystem::ODESystem
+    system::S
     parameterMap
     stateMap
     parameterNames
     stateNames
     dirModel::String
     dirJulia::String
-    pathMeasurements::String
-    pathConditions::String
-    pathObservables::String
-    pathParameters::String
+    pathMeasurements::CSV.File
+    pathConditions::CSV.File
+    pathObservables::CSV.File
+    pathParameters::CSV.File
     pathSBML::String
     pathYAML::String
     modelCallbackSet::C

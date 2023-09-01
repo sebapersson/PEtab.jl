@@ -31,7 +31,9 @@ function show(io::IO, a::PEtabModel)
     printstyled(numberOfODEStates * " states", color=116)
     print(" and ")
     printstyled(numberOfODEParameters * " parameters.", color=116)
-    @printf("\nGenerated Julia files are at %s", a.dirJulia)
+    if !isempty(a.dirJulia)
+        @printf("\nGenerated Julia files are at %s", a.dirJulia)
+    end
 end
 function show(io::IO, a::ODESolverOptions)
     # Extract ODE solver as a readable string (without everything between)

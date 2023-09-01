@@ -781,16 +781,36 @@ function createODEModelFunction(modelDict, pathJlFile, modelName, juliaFile, wri
             sIndex += 1
         end
         for key in keys(modelDict["nonConstantParameters"])
-            stringDict["derivatives"] *= ",\n    D(" * key * ") ~ 0"
+            if sIndex != 1
+                stringDict["derivatives"] *= ",\n    D(" * key * ") ~ 0"
+            else
+                stringDict["derivatives"] *= ",    D(" * key * ") ~ 0"
+                sIndex += 1
+            end
         end
         for key in keys(modelDict["inputFunctions"])
-            stringDict["derivatives"] *= ",\n    " * modelDict["inputFunctions"][key]
+            if sIndex != 1
+                stringDict["derivatives"] *= ",\n    " * modelDict["inputFunctions"][key]
+            else
+                stringDict["derivatives"] *= "    " * modelDict["inputFunctions"][key]
+                sIndex += 1
+            end
         end
         for key in keys(modelDict["algebraicRules"])
-            stringDict["derivatives"] *= ",\n    " * modelDict["algebraicRules"][key]
+            if sIndex != 1
+                stringDict["derivatives"] *= ",\n    " * modelDict["algebraicRules"][key]
+            else
+                stringDict["derivatives"] *= "    " * modelDict["algebraicRules"][key]
+                sIndex += 1
+            end
         end
         for key in keys(modelDict["assignmentRulesStates"])
-            stringDict["derivatives"] *= ",\n    " * key * " ~ " * modelDict["assignmentRulesStates"][key]
+            if sIndex != 1
+                stringDict["derivatives"] *= ",\n    " * key * " ~ " * modelDict["assignmentRulesStates"][key]
+            else
+                stringDict["derivatives"] *= "    " * key * " ~ " * modelDict["assignmentRulesStates"][key]
+                sIndex += 1
+            end
         end
         stringDict["derivatives"] *= "\n"
         stringDict["derivatives"] *= "    ]"
@@ -826,11 +846,21 @@ function createODEModelFunction(modelDict, pathJlFile, modelName, juliaFile, wri
             index += 1
         end
         for (key, value) in modelDict["nonConstantParameters"]
-            assignString = ",\n    " * key * " => " * value
+            if index != 1
+                assignString = ",\n    " * key * " => " * value
+            else
+                assignString = "    " * key * " => " * value
+                index += 1
+            end
             stringDict["initialSpeciesValues"] *= assignString
         end
         for (key, value) in modelDict["assignmentRulesStates"]
-            assignString = ",\n    " * key * " => " * value
+            if index != 1
+                assignString = ",\n    " * key * " => " * value
+            else
+                assignString = "    " * key * " => " * value
+                index += 1
+            end
             stringDict["initialSpeciesValues"] *= assignString
         end
         stringDict["initialSpeciesValues"] *= "\n"
@@ -962,7 +992,7 @@ function _mathToString(math::SBML.MathApply)
         return formula[1:end-2] * ')', false
     end
 
-    if math.fn ∈ ["lt", "gt", "leq", "geq"]
+    if math.fn ∈ ["lt", "gt", "leq", "geq", "eq"]
         @assert length(math.args) == 2
         part1, _ = _mathToString(math.args[1]) 
         part2, _ = _mathToString(math.args[2])
@@ -975,13 +1005,14 @@ function _mathToString(math::SBML.MathApply)
         return math.fn * '(' * formula * ')', false
     end
 
-    if math.fn ∈ ["arctan", "arcsin", "arccos"]
+    if math.fn ∈ ["arctan", "arcsin", "arccos", "arcsec", "arctanh", "arcsinh", "arccosh", 
+                  "arccsc", "arcsech", "arccoth", "arccot", "arccot", "arccsch"]
         @assert length(math.args) == 1
         formula, _ = _mathToString(math.args[1])
         return "a" * math.fn[4:end] * '(' * formula * ')', false
     end
 
-    if math.fn ∈ ["exp", "log", "log2", "log10", "sin", "cos", "tan", "ln"]
+    if math.fn ∈ ["exp", "log", "log2", "log10", "sin", "cos", "tan", "csc", "ln"]
         fn = math.fn == "ln" ? "log" : math.fn
         @assert length(math.args) == 1
         formula, _ = _mathToString(math.args[1])
@@ -1021,11 +1052,15 @@ function _mathToString(math::SBML.MathTime)
     # Time unit is consistently in models refered to as time 
     return "t", false
 end
+function _mathToString(math::SBML.MathAvogadro)
+    # Time unit is consistently in models refered to as time 
+    return "6.02214179e23", false
+end
 function _mathToString(math::SBML.MathConst)
     if math.id == "exponentiale"
-        return "ℯ", false
+        return "2.718281828459045", false
     elseif math.id == "pi"
-        return "π", false
+        return "3.1415926535897", false
     else
         return math.id, false
     end
