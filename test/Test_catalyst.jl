@@ -71,10 +71,14 @@ f = petabProblem.computeCost(p)
 
 
 #= 
-    Our main problem is going to be initial values. In order for all gradient compuations to be correct I need 
-    potential such parameters to be a part of the systems, that is they appear in parameters(systems) and 
-    thus in extension ode_problem.p. This is primarly to get correct sensitivites when computing, for example, 
-    gradients.
+    Important things to discuss:
 
-    Otherwise things work well, and likelly all features of PEtab should be supported.
+    1. If a parameter species an initial value that parameter needs to be a part of 
+       of parameters(systems) - otherwise gradients will not be computed correctly. 
+       Currently we must use @parameters a0 in the systems, and in the state-map 
+       set [A => a0] - feels a bit redundant. (see how I had to do it in the 
+       first test-case). 
+
+    2. Setting default values already in the system, can this be done? Otherwise 
+       all constant parameters would have to be set in PEtab-parameters. 
 =#
