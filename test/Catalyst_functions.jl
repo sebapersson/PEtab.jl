@@ -10,9 +10,12 @@ using Tables
 using Printf
 
 
+import PEtab: getObsOrSdParam
+
+
 # The conditiosn for an experiment.
 struct PEtabExperimentalCondition
-    parameter_values::Dict{Num, Float64}
+    parameter_values::Dict{Union{Num, Symbol}, Float64}
 end
 # An observable value.
 struct PEtabObservable
@@ -116,13 +119,24 @@ end
 
 
 # The measurements will be rewritten into a DataFrame which follows the correct format
-function parsePEtabMeasurements(petabMeasurements::DataFrame)::DataFrame
+function parsePEtabMeasurements(petabMeasurements::DataFrame, 
+                                observables::Dict{String,PEtabObservable})::DataFrame
     df = DataFrame()
     df[!, "observableId"] = petabMeasurements[!, "obs_id"]
     df[!, "simulationConditionId"] = petabMeasurements[!, "exp_id"]
     df[!, "measurement"] = petabMeasurements[!, "value"]
     df[!, "time"] = petabMeasurements[!, "time_point"]
-    df[!, "noiseParameters"] = petabMeasurements[!, "noise_parameter"]
+
+    if "noise_parameter" ∉ names(petabMeasurements)
+        noiseFormulas = string.([observable.noiseFormula for (_, observable) in observables])
+        @assert all(PEtab.isNumber.(noiseFormulas))
+    else
+        df[!, "noiseParameters"] = petabMeasurements[!, "noise_parameter"]
+    end
+    if "observable_parameters" ∈ names(petabMeasurements)
+        df[!, "observableParameters"] = petabMeasurements[!, "observable_parameters"]
+    end
+
     return df
 end
 
@@ -224,13 +238,23 @@ function readPEtabModel(system::ReactionSystem,
                         observables::Dict{String,PEtabObservable},
                         meassurments::DataFrame,
                         petabParameters::Vector{PEtabParameter};
-                        verbose::Bool=false)::PEtabModel
+                        stateMap::Union{Nothing, Vector{Pair{T, Float64}}}=nothing,
+                        verbose::Bool=false)::PEtabModel where T<:Union{Symbol, Num}
 
     modelName = "ReactionSystemModel"
 
     # Build the initial value map (initial values as parameters are set in the reaction system)
     defaultValues = Catalyst.get_defaults(system)
-    stateMap = [Symbol(replace(string(S), "(t)" => "")) => S ∈ keys(defaultValues) ? defaultValues[S] : 0.0 for S in states(system)]
+    _stateMap = [Symbol(replace(string(S), "(t)" => "")) => S ∈ keys(defaultValues) ? defaultValues[S] : 0.0 for S in states(system)]
+    if !isnothing(stateMap)
+        stateMapNames = [Symbol(_S.first) for _S in stateMap]
+        for (i, S) in pairs(_stateMap)
+            if S.first ∉ stateMapNames
+                continue
+            end
+            _stateMap[i] = _stateMap[i].first => stateMap[findfirst(x -> x == S.first, stateMapNames)].second
+        end
+    end
 
     @info "Building PEtabModel for $modelName"
 
@@ -242,13 +266,13 @@ function readPEtabModel(system::ReactionSystem,
     parametersData = parsePEtabParameters(petabParameters) |> dataFrameToCSVFile
     observablesData = parsePEtabObservable(observables) |> dataFrameToCSVFile
     experimentalConditions = parsePEtabExperimentalCondition(experimental_conditions) |> dataFrameToCSVFile
-    measurementsData = parsePEtabMeasurements(meassurments) |> dataFrameToCSVFile
+    measurementsData = parsePEtabMeasurements(meassurments, observables) |> dataFrameToCSVFile
 
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Building u0, h and σ functions ...")
     timeTaken = @elapsed begin
     hStr, u0!Str, u0Str, σStr = create_σ_h_u0_File(modelName, system, experimentalConditions, measurementsData,
-                                                parametersData, observablesData, stateMap)
+                                                parametersData, observablesData, _stateMap)
     compute_h = @RuntimeGeneratedFunction(Meta.parse(hStr))
     compute_u0! = @RuntimeGeneratedFunction(Meta.parse(u0!Str))
     compute_u0 = @RuntimeGeneratedFunction(Meta.parse(u0Str))
@@ -261,7 +285,7 @@ function readPEtabModel(system::ReactionSystem,
     timeTaken = @elapsed begin
     ∂h∂uStr, ∂h∂pStr, ∂σ∂uStr, ∂σ∂pStr = createDerivative_σ_h_File(modelName, system, experimentalConditions,
                                                                    measurementsData, parametersData, observablesData,
-                                                                   stateMap)
+                                                                   _stateMap)
     compute_∂h∂u! = @RuntimeGeneratedFunction(Meta.parse(∂h∂uStr))
     compute_∂h∂p! = @RuntimeGeneratedFunction(Meta.parse(∂h∂pStr))
     compute_∂σ∂σu! = @RuntimeGeneratedFunction(Meta.parse(∂σ∂uStr))
@@ -293,7 +317,7 @@ function readPEtabModel(system::ReactionSystem,
                             false,
                             system,
                             parameterMap,
-                            stateMap,
+                            _stateMap,
                             parameterNames,
                             stateNames,
                             "",
