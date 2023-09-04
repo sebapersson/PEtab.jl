@@ -1,15 +1,3 @@
-using ModelingToolkit
-using Catalyst
-using OrdinaryDiffEq
-using Distributions
-using DataFrames
-using Plots
-using PEtab
-using CSV
-using Tables
-using Printf
-
-
 include(joinpath(@__DIR__, "Catalyst_functions.jl"))
 
 # Prepares the model simulation conditions.
@@ -42,7 +30,7 @@ exp1 = PEtabExperimentalCondition(Dict([d=>0.2, k=>2.0]))
 experimental_conditions = Dict(["Exp1" => exp1])
 
 # The observables field.
-obs1 = PEtabObservable((X + Y) / X, :lin, 0.4)
+obs1 = PEtabObservable(Y, :lin, 0.4)
 observables = Dict(["Obs1" => obs1])
 
 # The meassurments field
