@@ -15,7 +15,7 @@ import PEtab: getObsOrSdParam
 
 # The conditiosn for an experiment.
 struct PEtabExperimentalCondition
-    parameter_values::Dict{Union{Num, Symbol}, Float64}
+    parameter_values::Dict{Union{Num, Symbol}, Union{Float64, Symbol}}
 end
 # An observable value.
 struct PEtabObservable
