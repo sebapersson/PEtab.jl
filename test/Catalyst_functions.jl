@@ -102,8 +102,10 @@ end
 
 # Parse PEtabExperimentalCondition into PEtab conditions file. A lot of work is going to be needed
 # here to make sure that the user does not provide any bad values.
-function parsePEtabExperimentalCondition(experimental_conditions::Dict{String,PEtabExperimentalCondition})::DataFrame
+function parsePEtabExperimentalCondition(experimental_conditions::Dict{String,PEtabExperimentalCondition}, 
+                                         system::ReactionSystem)::DataFrame
 
+    
     df = DataFrame()
     for (conditionId, experimental_condition) in experimental_conditions
         row = DataFrame(conditionId = conditionId)
@@ -114,7 +116,39 @@ function parsePEtabExperimentalCondition(experimental_conditions::Dict{String,PE
         append!(df, row)
     end
 
+    # Check if initial value is set in condition table (must then add a parameter to the reaction-system 
+    # to correctly compute gradients)
+    stateNames = replace.(string.(states(system)), "(t)" => "")
+    for id in names(df)
+        if string(id) ∈ stateNames
+            newParameter = "__init__" * string(id) * "__"
+            eval(Meta.parse("@parameters " * newParameter))
+            Catalyst.addparam!(system, eval(Meta.parse(newParameter)))
+
+        end
+    end
+
     return df
+end
+
+
+function updateStateMap(stateMap, system::ReactionSystem, experimentalConditions::CSV.File)
+    
+    # Check if initial value is set in condition table (must then add a parameter to the reaction-system 
+    # to correctly compute gradients)
+    stateNames = replace.(string.(states(system)), "(t)" => "")
+    for id in experimentalConditions.names
+        if string(id) ∉ stateNames
+            continue
+        end
+        newParameter = "__init__" * string(id) * "__"
+        if isnothing(stateMap)
+            stateMap = [Symbol(id) => Symbol(newParameter)]
+        else
+            stateMap = vcat(stateMap, Symbol(id) => Symbol(newParameter))
+        end
+    end
+    return stateMap
 end
 
 
@@ -135,6 +169,9 @@ function parsePEtabMeasurements(petabMeasurements::DataFrame,
     end
     if "observable_parameters" ∈ names(petabMeasurements)
         df[!, "observableParameters"] = petabMeasurements[!, "observable_parameters"]
+    end
+    if "pre_eq_id" in names(petabMeasurements)
+        df[!, "preequilibrationConditionId"] = petabMeasurements[!, "pre_eq_id"]
     end
 
     return df
@@ -243,19 +280,6 @@ function readPEtabModel(system::ReactionSystem,
 
     modelName = "ReactionSystemModel"
 
-    # Build the initial value map (initial values as parameters are set in the reaction system)
-    defaultValues = Catalyst.get_defaults(system)
-    _stateMap = [Symbol(replace(string(S), "(t)" => "")) => S ∈ keys(defaultValues) ? defaultValues[S] : 0.0 for S in states(system)]
-    if !isnothing(stateMap)
-        stateMapNames = [Symbol(_S.first) for _S in stateMap]
-        for (i, S) in pairs(_stateMap)
-            if S.first ∉ stateMapNames
-                continue
-            end
-            _stateMap[i] = _stateMap[i].first => stateMap[findfirst(x -> x == S.first, stateMapNames)].second
-        end
-    end
-
     @info "Building PEtabModel for $modelName"
 
     # Extract model parameters and names
@@ -265,8 +289,22 @@ function readPEtabModel(system::ReactionSystem,
     # Extract relevant PEtab-files, convert to CSV.File
     parametersData = parsePEtabParameters(petabParameters) |> dataFrameToCSVFile
     observablesData = parsePEtabObservable(observables) |> dataFrameToCSVFile
-    experimentalConditions = parsePEtabExperimentalCondition(experimental_conditions) |> dataFrameToCSVFile
+    experimentalConditions = parsePEtabExperimentalCondition(experimental_conditions, system) |> dataFrameToCSVFile
     measurementsData = parsePEtabMeasurements(meassurments, observables) |> dataFrameToCSVFile
+
+    # Build the initial value map (initial values as parameters are set in the reaction system)
+    stateMap = updateStateMap(stateMap, system, experimentalConditions) # Parameters in condition table
+    defaultValues = Catalyst.get_defaults(system)
+    _stateMap = [Symbol(replace(string(S), "(t)" => "")) => S ∈ keys(defaultValues) ? string(defaultValues[S]) : "0.0" for S in states(system)]
+    if !isnothing(stateMap)
+        stateMapNames = [Symbol(_S.first) for _S in stateMap]
+        for (i, S) in pairs(_stateMap)
+            if S.first ∉ stateMapNames
+                continue
+            end
+            _stateMap[i] = _stateMap[i].first => string(stateMap[findfirst(x -> x == S.first, stateMapNames)].second)
+        end
+    end
 
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Building u0, h and σ functions ...")
