@@ -114,7 +114,7 @@ function createPEtabODEProblem(petabModel::PEtabModel;
     else
         # For reaction systems this bugs out if I try to set specializeLevel (specifially state-map and parameter-map are not 
         # made into vectors)
-        __odeProblem = ODEProblem(petabModel.system, petabModel.stateMap, [0.0, 5e3], petabModel.parameterMap, jac=true, sparse=_sparseJacobian)
+        __odeProblem = ODEProblem(petabModel.system, zeros(Float64, length(petabModel.stateMap)), [0.0, 5e3], petabModel.parameterMap, jac=true, sparse=_sparseJacobian)
     end
     _odeProblem = remake(__odeProblem, p = convert.(Float64, __odeProblem.p), u0 = convert.(Float64, __odeProblem.u0))
     end
