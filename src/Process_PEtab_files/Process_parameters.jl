@@ -87,9 +87,17 @@ function processPriors(θ_indices::ParameterIndices, parametersFile::CSV.File)::
         prior = parametersFile[whichParameter][:objectivePriorType]
 
         # In case the parameter lacks prior
-        if ismissing(prior)
+        if ismissing(prior) || isempty(prior)
             priorLogpdf[θ_name] = noPrior
             priorOnParameterScale[θ_name] = false
+            continue
+        end
+
+        # In case a Julia prior is provided via Catalyst importer
+        if occursin("__Julia__", prior)
+            priorParsed = eval(Meta.parse(parsePrior(prior)))
+            priorLogpdf[θ_name] = (x) -> logpdf(priorParsed, x)
+            priorOnParameterScale[θ_name] = !parametersFile[whichParameter][:priorOnLinearScale]
             continue
         end
 
@@ -127,4 +135,38 @@ end
 # Helper function in case there is not any parameter priors
 function noPrior(p::Real)::Real
     return 0.0
+end
+
+
+# Helper funciton to parse if prior has been provided via Catalyst interface 
+function parsePrior(str::String)
+    _str = replace(str, "__Julia__" => "")
+    strParse = ""
+    insideParenthesis::Bool=false
+    doNotAdd::Bool=false
+    for char in _str
+        if char == '('
+            insideParenthesis = true
+            doNotAdd = true
+            strParse *= char
+            continue
+        end
+
+        if insideParenthesis == true && doNotAdd == true && char == '='
+            doNotAdd = false
+            continue
+        end
+
+        if insideParenthesis == true && char == ','
+            doNotAdd = true
+            strParse *= char
+            continue
+        end
+
+        if doNotAdd == true
+            continue
+        end
+        strParse *= char 
+    end
+    return strParse
 end

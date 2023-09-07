@@ -31,6 +31,7 @@ struct PEtabParameter
     lb::Union{Nothing,Float64}
     ub::Union{Nothing,Float64}
     prior::Union{Nothing,Distribution{Univariate, Continuous}}
+    prior_on_linear_scale::Bool
     scale::Union{Nothing,Symbol} # :log10, :linear and :log supported.
 end
 function PEtabParameter(parameter::Union{Num, Symbol};
@@ -39,9 +40,10 @@ function PEtabParameter(parameter::Union{Num, Symbol};
                         lb::Union{Nothing, Float64}=1e-3,
                         ub::Union{Nothing, Float64}=1e3,
                         prior::Union{Nothing,Distribution{Univariate, Continuous}}=nothing,
+                        prior_on_linear_scale::Bool=true,
                         scale::Union{Nothing, Symbol}=:log10)
 
-    return PEtabParameter(parameter, estimate, value, lb, ub, prior, scale)
+    return PEtabParameter(parameter, estimate, value, lb, ub, prior, prior_on_linear_scale, scale)
 end
 
 using RuntimeGeneratedFunctions
@@ -96,6 +98,26 @@ function parsePEtabParameters(petab_parameters::Vector{PEtabParameter})::DataFra
                         estimate = estimate)
         append!(df, row)
     end
+
+    priorsPresent = !all([isnothing(petab_parameters[i].prior) for i in eachindex(petab_parameters)])
+    if priorsPresent == false
+        return df
+    end
+
+    priorList = Vector{String}(undef, length(petab_parameters))
+    isOnLinearScale = Vector{Union{Bool, String}}(undef, length(petab_parameters))
+    for i in eachindex(priorList)
+        if isnothing(petab_parameters[i].prior)
+            priorList[i] = ""
+            isOnLinearScale[i] = ""
+            continue
+        end
+
+        priorList[i] = "__Julia__" * string(petab_parameters[i].prior)
+        isOnLinearScale[i] = petab_parameters[i].prior_on_linear_scale
+    end
+    df[!, :objectivePriorType] = priorList
+    df[!, :priorOnLinearScale] = isOnLinearScale
     return df
 end
 
@@ -275,11 +297,11 @@ function readPEtabModel(system::ReactionSystem,
                         observables::Dict{String,PEtabObservable},
                         meassurments::DataFrame,
                         petabParameters::Vector{PEtabParameter};
-                        stateMap::Union{Nothing, Vector{Pair{T, Float64}}}=nothing,
-                        verbose::Bool=false)::PEtabModel where T<:Union{Symbol, Num}
+                        stateMap::Union{Nothing, Vector{Pair{T1, Float64}}}=nothing,
+                        parameterMap::Union{Nothing, Vector{Pair{T2, Float64}}}=nothing,
+                        verbose::Bool=false)::PEtabModel where {T1<:Union{Symbol, Num}, T2<:Union{Symbol, Num}}
 
     modelName = "ReactionSystemModel"
-
     @info "Building PEtabModel for $modelName"
 
     # Extract model parameters and names
@@ -341,7 +363,19 @@ function readPEtabModel(system::ReactionSystem,
     cbSet, checkCbActive, convertTspan = getCallbackFunction("https://xkcd.com/2694/") # Argument needed by @RuntimeGeneratedFunction
     computeTstops = @RuntimeGeneratedFunction(Meta.parse(stringWriteTstops))
 
-    parameterMap = [Num(p) => 0.0 for p in parameters(system)]
+    _parameterMap = [Num(p) => 0.0 for p in parameters(system)]
+    for i in eachindex(_parameterMap)
+        if isnothing(parameterMap)
+            continue
+        end
+        for j in eachindex(parameterMap)
+            if string(_parameterMap[i].first) != string(parameterMap[j].first)
+                continue
+            end
+            _parameterMap[i] = _parameterMap[i].first => parameterMap[j].second
+        end
+    end
+
     petabModel = PEtabModel(modelName,
                             compute_h,
                             compute_u0!,
@@ -354,7 +388,7 @@ function readPEtabModel(system::ReactionSystem,
                             computeTstops,
                             false,
                             system,
-                            parameterMap,
+                            _parameterMap,
                             _stateMap,
                             parameterNames,
                             stateNames,
