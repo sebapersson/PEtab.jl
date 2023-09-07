@@ -163,7 +163,7 @@ function parsePEtabMeasurements(petabMeasurements::DataFrame,
 
     if "noise_parameter" ∉ names(petabMeasurements)
         noiseFormulas = string.([observable.noiseFormula for (_, observable) in observables])
-        @assert all(PEtab.isNumber.(split(noiseFormulas, ";")))
+        @assert all(PEtab.isNumber.(noiseFormulas))
     else
         df[!, "noiseParameters"] = petabMeasurements[!, "noise_parameter"]
     end
