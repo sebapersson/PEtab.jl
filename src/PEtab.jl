@@ -92,7 +92,7 @@ include(joinpath("Show.jl"))
 end
 
 
-export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, remakePEtabProblem, Fides, solveSBMLModel
+export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, remakePEtabProblem, Fides, solveSBMLModel, PEtabOptimisationResult, IpoptOptions, IpoptOptimiser
 
 
 # To make these extension functions exportable, and to allow docstrings to be generated for them.

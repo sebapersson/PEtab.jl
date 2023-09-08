@@ -383,12 +383,58 @@ It is particularly effective when the full Hessian cannot be computed, but the G
 computed. If constructed with `Fides(verbose=true)`, it prints optimization progress during the process.
 """
 struct Fides
-    hessianApproximation
-    verbose
+    hessianApproximation::Union{Nothing, Symbol}
+    verbose::Bool
 end
 function Fides(; verbose::Bool=false)
     verboseArg = verbose == true ? 1 : 0
     return Fides(nothing, verboseArg)
+end
+function Fides(hessianApproximation::Symbol; verbose::Bool=false)
+    verboseArg = verbose == true ? 1 : 0
+    if isnothing(hessianApproximation)
+        return Fides(hessianApproximation, verboseArg)
+    end
+    allowedHessianApproximations = [:BB, :BFGS, :BG, :Broyden, :DFB, :FX, :SR1, :SSM, :TSSM]
+    @assert hessianApproximation ∈ allowedHessianApproximations "Hessian approximation method $hessianApproximation is not allowed, see documentation on Fides for allowed methods"
+    return Fides(hessianApproximation, verboseArg)
+end
+
+
+struct IpoptOptimiser
+    approximateHessian::Bool
+end
+function IpoptOptimiser(;approximateHessian::Bool=false)::IpoptOptimiser
+    return IpoptOptimiser(approximateHessian)
+end
+struct IpoptOptions
+    print_level::Int64
+    max_iter::Int64
+    tol::Float64
+    acceptable_tol::Float64
+    max_wall_time::Float64
+    acceptable_obj_change_tol::Float64
+end
+function IpoptOptions(;print_level::Int64=0, 
+                      max_iter::Int64=1000, 
+                      tol::Float64=1e-8, 
+                      acceptable_tol::Float64=1e-6, 
+                      max_wall_time::Float64=1e20, 
+                      acceptable_obj_change_tol::Float64=1e20)
+
+    return IpoptOptions(print_level, max_iter, tol, acceptable_tol, max_wall_time, acceptable_obj_change_tol)
+end
+
+
+struct PEtabOptimisationResult{T<:Any}
+    alg::Symbol
+    xTrace::Vector{Vector{Float64}} # Parameter vectors (if user wants to save them)
+    fTrace::Vector{Float64} # Likelihood value (if user wants to save them)
+    nIterations::Int64 # Number of iterations optimiser
+    fBest::Float64 # Best optimised value 
+    xBest::Vector{Float64} # Last parameter value 
+    converged::T # If user wants to 
+    runTime::Float64 # Always fun :)
 end
 
 

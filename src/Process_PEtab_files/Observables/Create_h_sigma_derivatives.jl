@@ -279,7 +279,7 @@ function create∂σ∂_Function(modelName::String,
 
                 noiseParameters = getNoiseParametersStr(formula)
                 if !isempty(noiseParameters) && enterObservable == true
-                    strObservebleU *= "\t\t" * noiseParameters * " = getObsOrSdParam(θ_sd, parameterMap)\n"
+                    uObservebleStr *= "\t\t" * noiseParameters * " = getObsOrSdParam(θ_sd, parameterMap)\n"
                     enterObservable = false
                 end
 

@@ -29,7 +29,7 @@ function PEtab.createFidesProblem(petabProblem::PEtabODEProblem,
                                fidesSetting.verbose,
                                options,
                                funargs,
-                               fidesSetting.hessianApproximation,
+                               string(fidesSetting.hessianApproximation),
                                resfun)
 
     return fidesObj
@@ -54,6 +54,24 @@ function setUpFidesClass(fun,
 
         if hessian_update == "BFGS":
             hessian_update = fides.hessian_approximation.BFGS()
+        elif hessian_update == "BB":
+            hessian_update = fides.hessian_approximation.BB()
+        elif hessian_update == "BG":
+            hessian_update = fides.hessian_approximation.BG()
+        elif hessian_update == "Broyden":
+            hessian_update = fides.hessian_approximation.Broyden()
+        elif hessian_update == "DFB":
+            hessian_update = fides.hessian_approximation.DFB()
+        elif hessian_update == "FX":
+            hessian_update = fides.hessian_approximation.FX()
+        elif hessian_update == "SR1":
+            hessian_update = fides.hessian_approximation.SR1()
+        elif hessian_update == "SSM":
+            hessian_update = fides.hessian_approximation.SSM()
+        elif hessian_update == "TSSM":
+            hessian_update = fides.hessian_approximation.TSSM()
+        else:
+            hessian_update = None
 
         fides_opt = fides.Optimizer(fun, ub, lb,
                                     verbose=verbose,
