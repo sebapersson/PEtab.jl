@@ -71,7 +71,7 @@ function checkGradientResiduals(petabModel::PEtabModel, solverOptions::ODESolver
     petabODESolverCache = createPEtabODESolverCache(:ForwardEquations, :GaussNewton, petabModel, simulationInfo, paramEstIndices, nothing)
 
     # The time-span 5e3 is overwritten when performing actual forward simulations
-    odeProb = ODEProblem(petabModel.odeSystem, petabModel.stateMap, (0.0, 5e3), petabModel.parameterMap, jac=true, sparse=false)
+    odeProb = ODEProblem(petabModel.system, petabModel.stateMap, (0.0, 5e3), petabModel.parameterMap, jac=true, sparse=false)
     odeProb = remake(odeProb, p = convert.(Float64, odeProb.p), u0 = convert.(Float64, odeProb.u0))
     ssOptions = SteadyStateSolverOptions(:Simulate, abstol=solverOptions.abstol / 100.0, reltol = solverOptions.reltol / 100.0)
     _ssOptions = PEtab._getSteadyStateSolverOptions(ssOptions, odeProb, ssOptions.abstol, ssOptions.reltol, ssOptions.maxiters)

@@ -112,7 +112,7 @@ function getNamesObservableOrSdParameters(noiseOrObservableCol::T1,
 
     θ_estNames = Symbol[]
     for i in eachindex(noiseOrObservableCol)
-        if isempty(noiseOrObservableCol[i]) || isNumber(noiseOrObservableCol[i])
+        if isempty(noiseOrObservableCol[i]) || isNumber(string(noiseOrObservableCol[i]))
             continue
         end
 
@@ -194,12 +194,12 @@ function buildθSdOrObservableMap(θ_names::Vector{Symbol},
         end
 
         # In case of a constant noise/obserable parameter encoded as a Float in the PEtab file.
-        if typeof(timePointSpecificValues[i]) <: AbstractFloat
+        if typeof(timePointSpecificValues[i]) <: Real
             parameterMap[i] = θObsOrSdParameterMap(Vector{Bool}(undef, 0), Vector{Int64}(undef, 0), Float64[timePointSpecificValues[i]], Int64(0), true)
         end
 
         # In case observable or noise parameter maps to a parameter
-        if !isempty(timePointSpecificValues[i])
+        if !isempty(timePointSpecificValues[i]) && !(typeof(timePointSpecificValues[i]) <: Real)
 
             # Parameter are delimited by ; in the PEtab files and they can be constant, or they can
             # be in the vector to estimate θ

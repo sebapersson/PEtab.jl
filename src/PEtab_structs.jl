@@ -438,6 +438,47 @@ struct PEtabOptimisationResult{T<:Any}
 end
 
 
+# An observable value.
+struct PEtabObservable
+    obs::Num
+    transformation::Union{Nothing, Symbol}
+    noiseFormula::Union{Nothing, Num}
+end
+function PEtabObservable(obs::Num, 
+                         noiseFormula::Union{Nothing, Num, T};
+                         transformation::Symbol=:lin)::PEtabObservable where T<:Real
+    return PEtabObservable(obs, transformation, noiseFormula)
+end
+
+
+# A parameter.
+struct PEtabParameter
+    parameter::Union{Num, Symbol}
+    estimate::Bool
+    value::Union{Nothing,Float64}
+    lb::Union{Nothing,Float64}
+    ub::Union{Nothing,Float64}
+    prior::Union{Nothing,Distribution{Univariate, Continuous}}
+    prior_on_linear_scale::Bool
+    scale::Union{Nothing,Symbol} # :log10, :linear and :log supported.
+end
+function PEtabParameter(parameter::Union{Num, Symbol};
+                        estimate::Bool=true,
+                        value::Union{Nothing, Float64}=nothing,
+                        lb::Union{Nothing, Float64}=1e-3,
+                        ub::Union{Nothing, Float64}=1e3,
+                        prior::Union{Nothing,Distribution{Univariate, Continuous}}=nothing,
+                        prior_on_linear_scale::Bool=true,
+                        scale::Union{Nothing, Symbol}=:log10)
+
+    return PEtabParameter(parameter, estimate, value, lb, ub, prior, prior_on_linear_scale, scale)
+end
+
+
+
 struct PEtabFileError <: Exception
+    var::String
+end
+struct PEtabFormatError <: Exception
     var::String
 end

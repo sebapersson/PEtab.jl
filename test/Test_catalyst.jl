@@ -27,7 +27,7 @@ system = rn
 
 # The experimental conditions field.
 exp1 = PEtabExperimentalCondition(Dict([d=>0.2, k=>2.0]))
-experimental_conditions = Dict(["Exp1" => exp1])
+simulation_conditions = Dict(["Exp1" => exp1])
 
 # The observables field.
 obs1 = PEtabObservable(Y, :lin, 0.4)
@@ -35,7 +35,7 @@ observables = Dict(["Obs1" => obs1])
 
 # The meassurments field
 nM = length(meassured_values)
-meassurments = DataFrame(exp_id=fill("Exp1", nM), obs_id=fill("Obs1", nM), value=meassured_values, time_point=meassurment_times, noise_parameter=fill(0.4,nM))
+meassurments = DataFrame(simulation_id=fill("Exp1", nM), obs_id=fill("Obs1", nM), value=meassured_values, time=meassurment_times, noise_parameters=fill(0.4,nM))
 
 # The parameters field (we are going to create a nice constructor here)
 par_p = PEtabParameter(p, true, nothing, 1e-2, 1e2, nothing, :log10)
@@ -47,7 +47,7 @@ petab_parameters = [par_p, par_d, par_k]
 state_map = [X => 1.0, Y => 0.0]
 
 # Creates the model
-petab_model = readPEtabModel(system, experimental_conditions, observables, meassurments, 
+petab_model = readPEtabModel(system, simulation_conditions, observables, meassurments, 
                              petab_parameters, state_map, verbose=true)
 
 # Can now easily be made into PEtabODEProblem

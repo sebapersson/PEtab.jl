@@ -33,3 +33,8 @@ end
 @safetestset "PEtab test suite" begin
   include("PEtab_test_suite.jl")
 end
+
+
+@safetestset "Catalyst integration" begin
+  include(joinpath(@__DIR__, "Catalyst_PEtab_test_suite", "Test_catalyst.jl"))
+end

@@ -4,9 +4,6 @@
 =#
 
 
-using Test
-include(joinpath(@__DIR__, "..", "Catalyst_functions.jl"))
-
 # Define reaction network model 
 rn = @reaction_network begin
     (k1, k2), A <--> B
@@ -14,13 +11,13 @@ end
 state_map = [:A => 1.0]
 
 # Measurement data 
-measurements = DataFrame(exp_id=["c0", "c0"],
+measurements = DataFrame(simulation_id=["c0", "c0"],
                          obs_id=["obs_a", "obs_a"],
-                         time_point=[0.0, 10.0],
-                         value=[0.7, 0.1])
+                         time=[0.0, 10.0],
+                         measurement=[0.7, 0.1])
 
 # Single experimental condition                          
-experimental_conditions = Dict("c0" => PEtabExperimentalCondition(Dict(:B => 2.0)))
+simulation_conditions = Dict("c0" => Dict(:B => 2.0))
 
 # PEtab-parameter to "estimate"
 petab_parameters = [PEtabParameter(:k1, value=0.8, scale=:lin)
@@ -28,12 +25,12 @@ petab_parameters = [PEtabParameter(:k1, value=0.8, scale=:lin)
 
 # Observable equation                     
 @unpack A = rn
-observables = Dict("obs_a" => PEtabObservable(A, :lin, 0.5))
+observables = Dict("obs_a" => PEtabObservable(A, 0.5))
 
 # Create a PEtabODEProblem 
-petab_model = readPEtabModel(rn, experimental_conditions, observables, measurements,
-                            petab_parameters, verbose=true, stateMap=state_map)
-petab_problem = createPEtabODEProblem(petab_model)
+petab_model = readPEtabModel(rn, simulation_conditions, observables, measurements,
+                            petab_parameters, verbose=false, stateMap=state_map)
+petab_problem = createPEtabODEProblem(petab_model, verbose=false)
 
 # Compute negative log-likelihood 
 nll = petab_problem.computeCost(petab_problem.θ_nominalT)
