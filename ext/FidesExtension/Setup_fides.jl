@@ -1,8 +1,74 @@
-function PEtab.createFidesProblem(petabProblem::PEtabODEProblem,
-                                  fidesSetting::Fides; # In case you want to use any Fides optimizer
-                                  options=py"{'maxiter' : 1000}"o,
-                                  funargs=py"None"o,
-                                  resfun::Bool=false)
+#=
+    Fides wrapper 
+=#
+
+
+function PEtab.callibrateModelMultistart(petabProblem::PEtabODEProblem, 
+                                         alg::Fides, 
+                                         nMultiStarts::Signed, 
+                                         dirSave::Union{Nothing, String};
+                                         samplingMethod::T=QuasiMonteCarlo.LatinHypercubeSample(),
+                                         options=py"{'maxiter' : 1000}"o,
+                                         seed::Union{Nothing, Integer}=nothing, 
+                                         saveTrace::Bool=false)::PEtab.PEtabMultistartOptimisationResult where T <: QuasiMonteCarlo.SamplingAlgorithm
+    if !isnothing(seed)
+        Random.seed!(seed)
+    end
+    res = PEtab._multistartModelCallibration(petabProblem, alg, nMultiStarts, dirSave, samplingMethod, options, saveTrace)
+    return res
+end
+
+
+function PEtab.callibrateModel(petabProblem::PEtabODEProblem, 
+                               p0::Vector{Float64},
+                               alg::Fides; 
+                               saveTrace::Bool=false, 
+                               options=py"{'maxiter' : 1000}"o)::PEtab.PEtabOptimisationResult
+
+    _p0 = deepcopy(p0)                               
+
+    if saveTrace == true                         
+        @warn "For Fides the x and f trace cannot currently be saved (we are working on it)" maxlog=10     
+    end          
+
+    runFides = createFidesProblem(petabProblem, alg, options=options)
+
+    # Create a runnable function taking parameter as input                            
+    local nIterations, fMin, xMin, converged, runTime, fTrace, xTrace
+    try
+        runTime = @elapsed res, nIterations, converged = runFides(p0)
+        fMin = res[1]
+        xMin = res[2]
+        fTrace = Vector{Float64}(undef, 0)
+        xTrace = Vector{Vector{Float64}}(undef, 0)
+    catch
+        nIterations = 0
+        fMin = NaN
+        xMin = similar(p0) .* NaN
+        fTrace = Vector{Float64}(undef, 0)
+        xTrace = Vector{Vector{Float64}}(undef, 0)
+        converged = :Code_crashed
+        runTime = NaN
+    end
+    algUsed = :Fides
+
+    return PEtabOptimisationResult(algUsed,
+                                   xTrace, 
+                                   fTrace, 
+                                   nIterations, 
+                                   fMin, 
+                                   _p0,
+                                   xMin, 
+                                   converged, 
+                                   runTime)
+end
+
+
+function createFidesProblem(petabProblem::PEtabODEProblem,
+                            fidesSetting::Fides; # In case you want to use any Fides optimizer
+                            options=py"{'maxiter' : 1000}"o,
+                            funargs=py"None"o,
+                            resfun::Bool=false)
 
     nParam = length(petabProblem.lowerBounds)
     if !isnothing(fidesSetting.hessianApproximation)

@@ -2,13 +2,17 @@
     Showing all different things we can handle with PEtab.jl 
 =#
 
+using CSV
+using Catalyst
+using DataFrames
 using Distributions
-include(joinpath(@__DIR__, "..", "Catalyst_functions.jl"))
+using PEtab
+
 
 # Define reaction network model 
 rn = @reaction_network begin
     @parameters se0
-    @species SE(t)=se0 # s0 = initial value for S
+    @species SE(t)=se0 # se0 = initial value for S
     c1, S + E --> SE
     c2, SE --> S + E
     c3, SE --> P + E
@@ -24,10 +28,9 @@ parameter_map = [:c1 => 1.0]
 #=
 For each simulation condtion we can specify values for states (in this case S) 
 and/or model parameters (in this case :c2) via a Dict. For these controll-
-parameters values must be set for each simulation condition (I must add a check 
-for this). Note - c0_pre corresponds to a pre-equilibration - which is a steady-
-state simulation carried out prior to matching the model against data (to mimic 
-that cells are at steady-state at time zero).
+parameters values must be set for each simulation condition. Note - c0_pre corresponds 
+to a pre-equilibration - which is a steady-state simulation carried out prior to 
+matching the model against data (to mimic that cells are at steady-state at time zero).
 =#
 simulation_conditions = Dict("c0_pre" => Dict(:S => 2.0, :c2 => 2.0),
                              "c0" => Dict(:S => 10.0, :c2 => 2.0))
@@ -89,11 +92,11 @@ petab_parameters = [PEtabParameter(:c3, scale=:log10, prior=Normal(0.0, 2.0), pr
 # Given all this it is easy to set a PEtabODEProblem and then compute the cost, gradient 
 # and Hessian.
 petab_model = readPEtabModel(rn, simulation_conditions, observables, measurements,
-                            petab_parameters, stateMap=state_map, parameterMap=parameter_map, 
-                            verbose=true)
+                             petab_parameters, stateMap=state_map, parameterMap=parameter_map, 
+                             verbose=true)
 petab_problem = createPEtabODEProblem(petab_model)
 
-# Compute negative log-likelihood 
+# Compute negative log-likelihood, gradient and Hessian
 θ = [1.0, 1.0, 1.0, 1.0, 1.0]
 f = petab_problem.computeCost(θ)
 ∇f = petab_problem.computeGradient(θ)

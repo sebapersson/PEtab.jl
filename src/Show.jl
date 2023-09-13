@@ -140,3 +140,24 @@ function show(io::IO, a::SteadyStateSolverOptions)
         @printf("(abstol, reltol, maxiters) = (%.1e, %.1e, %d)", a.abstol, a.reltol, a.maxiters)
     end
 end
+function show(io::IO, a::PEtabOptimisationResult) 
+    printstyled("PEtabOptimisationResult", color=116)
+    print("\n--------- Summary ---------\n")
+    @printf("min(f)                = %.2e\n", a.fBest)
+    @printf("Parameters esimtated  = %d\n", length(a.x0))
+    @printf("Optimiser iterations  = %d\n", a.nIterations)
+    @printf("Run time              = %.1es\n", a.runTime)
+    @printf("Optimiser algorithm   = %s\n", a.alg)
+end
+function show(io::IO, a::PEtabMultistartOptimisationResult)
+
+    printstyled("PEtabMultistartOptimisationResult", color=116)
+    print("\n--------- Summary ---------\n")
+    @printf("min(f)                = %.2e\n", a.fMin)
+    @printf("Parameters esimtated  = %d\n", length(a.xMin))
+    @printf("Number of multistarts = %d\n", a.nMultistarts)
+    @printf("Optimiser algorithm   = %s\n", a.alg)
+    if !isnothing(a.dirSave)
+        @printf("Results saved at %s\n", a.dirSave)
+    end
+end

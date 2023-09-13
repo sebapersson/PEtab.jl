@@ -432,9 +432,21 @@ struct PEtabOptimisationResult{T<:Any}
     fTrace::Vector{Float64} # Likelihood value (if user wants to save them)
     nIterations::Int64 # Number of iterations optimiser
     fBest::Float64 # Best optimised value 
+    x0::Vector{Float64} # Starting point 
     xBest::Vector{Float64} # Last parameter value 
     converged::T # If user wants to 
     runTime::Float64 # Always fun :)
+end
+
+
+struct PEtabMultistartOptimisationResult
+    xMin::Vector{Float64} # Parameter vectors (if user wants to save them)
+    fMin::Float64 # Likelihood value (if user wants to save them)
+    nMultistarts::Int
+    alg::Symbol
+    multiStartMethod::String
+    dirSave::Union{String, Nothing}
+    run::Vector{PEtabOptimisationResult} # See above
 end
 
 

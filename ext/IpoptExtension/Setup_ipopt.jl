@@ -1,11 +1,70 @@
-"""
-    createIpoptProb(petabProblem::PEtabODEProblem,
-                    hessianUse::Symbol)
+#=
+    Ipopt wrapper 
+=#
+
+
+function PEtab.callibrateModelMultistart(petabProblem::PEtabODEProblem, 
+                                         alg::IpoptOptimiser, 
+                                         nMultiStarts::Signed, 
+                                         dirSave::Union{Nothing, String};
+                                         samplingMethod::T=QuasiMonteCarlo.LatinHypercubeSample(),
+                                         options::IpoptOptions=IpoptOptions(),
+                                         seed::Union{Nothing, Integer}=nothing, 
+                                         saveTrace::Bool=false)::PEtab.PEtabMultistartOptimisationResult where T <: QuasiMonteCarlo.SamplingAlgorithm
+    if !isnothing(seed)
+        Random.seed!(seed)
+    end
+    res = PEtab._multistartModelCallibration(petabProblem, alg, nMultiStarts, dirSave, samplingMethod, options, saveTrace)
+    return res
+end
+
+
+function PEtab.callibrateModel(petabProblem::PEtabODEProblem, 
+                               p0::Vector{Float64},
+                               alg::IpoptOptimiser; 
+                               saveTrace::Bool=false, 
+                               options::IpoptOptions=IpoptOptions())::PEtab.PEtabOptimisationResult
+
+    _p0 = deepcopy(p0)                               
+
+    ipoptProblem, iterArr, fTrace, xTrace = createIpoptProblem(petabProblem, alg.approximateHessian, saveTrace, options)
+    ipoptProblem.x = deepcopy(p0)
     
-    For a PeTab model optimization struct (petabProblem) create an Ipopt optimization
-    struct where the hessian is computed via eiter autoDiff (:autoDiff), approximated 
-    with blockAutoDiff (:blockAutoDiff) or a LBFGS approximation (:LBFGS). 
-"""
+    # Create a runnable function taking parameter as input                            
+    local nIterations, fMin, xMin, converged, runTime
+    try
+        runTime = @elapsed sol_opt = Ipopt.IpoptSolve(ipoptProblem)
+        fMin = ipoptProblem.obj_val
+        xMin = ipoptProblem.x
+        nIterations = iterArr[1]
+        converged = ipoptProblem.status
+    catch
+        nIterations = 0
+        fMin = NaN
+        xMin = similar(p0) .* NaN
+        fTrace = Vector{Float64}(undef, 0)
+        xTrace = Vector{Vector{Float64}}(undef, 0)
+        converged = :Code_crashed
+        runTime = NaN
+    end
+    if alg.approximateHessian == true
+        algUsed = :Ipopt_LBFGS
+    else
+        algUsed = :Ipopt_user_Hessian
+    end
+
+    return PEtabOptimisationResult(algUsed,
+                                   xTrace, 
+                                   fTrace, 
+                                   nIterations, 
+                                   fMin, 
+                                   _p0,
+                                   xMin, 
+                                   converged, 
+                                   runTime)
+end
+
+
 function createIpoptProblem(petabProblem::PEtabODEProblem,
                             approximateHessian::Bool, 
                             saveTrace::Bool,

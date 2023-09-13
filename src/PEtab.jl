@@ -22,6 +22,7 @@ using PreallocationTools
 using NonlinearSolve
 using PrecompileTools
 using SBML
+using QuasiMonteCarlo
 using SpecialFunctions
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
@@ -66,6 +67,9 @@ include(joinpath("Process_PEtab_files", "Observables", "Common.jl"))
 include(joinpath("Process_PEtab_files", "Observables", "Create_h_sigma_derivatives.jl"))
 include(joinpath("Process_PEtab_files", "Observables", "Create_u0_h_sigma.jl"))
 
+# Common lightweigt interface for parameter estimation 
+include(joinpath("Model_callibration", "Common.jl"))
+
 # For creating a PEtab ODE problem
 include(joinpath("Create_PEtabODEProblem", "Set_defaults.jl"))
 include(joinpath("Create_PEtabODEProblem", "Remake_PEtabODEProblem.jl"))
@@ -94,56 +98,13 @@ include(joinpath("Show.jl"))
     end
 end
 
-export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, remakePEtabProblem, Fides, solveSBMLModel, PEtabOptimisationResult, IpoptOptions, IpoptOptimiser, PEtabParameter, PEtabObservable
-
-
-# To make these extension functions exportable, and to allow docstrings to be generated for them.
-function createOptimProblem end
-function createFidesProblem end 
-"""
-    calibrateModel(petabProblem::PEtabODEProblem,
-                   optimizer;
-                   <keyword arguments>)
-
-Perform multi-start local optimization for a given PEtabODEProblem and return (fmin, minimizer) for all runs.
-
-# Arguments
-- `petabProblem::PEtabODEProblem`: The PEtabODEProblem to be calibrated.
-- `optimizer`: The optimizer algorithm to be used. Currently, we support three different algorithms:
-    1. `Fides()`: The Newton trust-region Fides optimizer from Python. Please refer to the documentation for setup
-        examples. This optimizer performs well when computing the full Hessian is not possible, and the Gauss-Newton Hessian approximation can be used.
-    2. `IPNewton()`: The interior-point Newton method from Optim.jl. This optimizer performs well when it is
-        computationally feasible to compute the full Hessian.
-    3. `LBFGS()` or `BFGS()` from Optim.jl: These optimizers are suitable when the computation of the Gauss-Newton
-        Hessian approximation is too expensive, such as when adjoint sensitivity analysis is required for the gradient.
-- `nOptimisationStarts::Int`: Number of multi-starts to be performed. Defaults to 100.
-- `samplingMethod`: Method for generating start guesses. Any method from QuasiMonteCarlo.jl is supported, with LatinHypercube as the default.
-- `options`: Optimization options. For Optim.jl optimizers, it accepts an `Optim.Options` struct. For Fides, please refer to the Fides documentation and the PEtab.jl documentation for information on setting options.
-"""
-function callibrateModel end
-"""
-    runPEtabSelect(pathYAML, optimizer; <keyword arguments>)
-
-Given a PEtab-select YAML file perform model selection with the algorithms specified in the YAML file.
-
-Results are written to a YAML file in the same directory as the PEtab-select YAML file.
-
-Each candidate model produced during the model selection undergoes parameter estimation using local multi-start
-optimization. Three optimizers are supported: `optimizer=Fides()` (Fides Newton-trust region), `optimizer=IPNewton()`
-from Optim.jl, and `optimizer=LBFGS()` from Optim.jl. Additional keywords for the optimisation are
-`nOptimisationStarts::Int`- number of multi-starts for parameter estimation (defaults to 100) and
-`optimizationSamplingMethod` - which is any sampling method from QuasiMonteCarlo.jl for generating start guesses
-(defaults to LatinHypercubeSample). See also (add callibrate model)
-
-Simulation options can be set using any keyword argument accepted by the `createPEtabODEProblem` function.
-For example, setting `gradientMethod=:ForwardDiff` specifies the use of forward-mode automatic differentiation for
-gradient computation. If left blank, we automatically select appropriate options based on the size of the problem.
-"""
-function runPEtabSelect end
+export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, remakePEtabProblem, Fides, solveSBMLModel, PEtabOptimisationResult, IpoptOptions, IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult
 
 
 if !isdefined(Base, :get_extension)
-    include(joinpath(@__DIR__, "..", "ext", "ParameterEstimationExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "IpoptExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "OptimExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "FidesExtension.jl"))
 end
 if !isdefined(Base, :get_extension)    
     include(joinpath(@__DIR__, "..", "ext", "SciMLSensitivityExtension.jl"))
@@ -154,7 +115,8 @@ if !isdefined(Base, :get_extension)
 end
 
 
-export createOptimProblem, createFidesProblem, callibrateModel, runPEtabSelect
-
+function callibrateModel end
+function callibrateModelMultistart end
+export callibrateModel, callibrateModelMultistart
 
 end
