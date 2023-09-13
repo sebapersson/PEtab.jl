@@ -28,23 +28,31 @@ end
 
 function generateStartGuesses(petabProblem::PEtabODEProblem,
                               samplingMethod::T,
-                              nMultiStarts::Int64)::Matrix{Float64} where T <: QuasiMonteCarlo.SamplingAlgorithm
+                              nMultiStarts::Int64;
+                              verbose::Bool=false)::Matrix{Float64} where T <: QuasiMonteCarlo.SamplingAlgorithm
+
+    verbose == true && @info "Generating start-guesses"
 
     # Nothing prevents the user from sending in a parameter vector with zero parameters
     if length(petabProblem.lowerBounds) == 0
         return nothing
     end
 
-    # Return a random number sampled from uniform distribution
-    if nMultiStarts == 1
-        return [rand() * (petabProblem.upperBounds[i] - petabProblem.lowerBounds[i]) + petabProblem.lowerBounds[i] for i in eachindex(petabProblem.lowerBounds)]
-    end
-
     startGuesses = Matrix{Float64}(undef, length(petabProblem.lowerBounds), nMultiStarts)
     foundStarts = 0
     while true
-        _samples = QuasiMonteCarlo.sample(nMultiStarts - foundStarts, petabProblem.lowerBounds, petabProblem.upperBounds, samplingMethod)
-        for i in size(_samples)[2]
+        # QuasiMonteCarlo is deterministic, so for sufficiently few start-guesses we can end up in a never ending 
+        # loop. To sidestep this if less than 10 starts are left numbers are generated from the uniform distribution 
+        if nMultiStarts - foundStarts > 10
+            _samples = QuasiMonteCarlo.sample(nMultiStarts - foundStarts, petabProblem.lowerBounds, petabProblem.upperBounds, samplingMethod)
+        else
+            _samples = Matrix{Float64}(undef, length(petabProblem.lowerBounds), nMultiStarts - foundStarts)
+            for i in 1:(nMultiStarts - foundStarts)
+                _samples[:, i] .= [rand() * (petabProblem.upperBounds[j] - petabProblem.lowerBounds[j]) + petabProblem.lowerBounds[j] for j in eachindex(petabProblem.lowerBounds)]
+            end
+        end
+
+        for i in 1:size(_samples)[2]
             _p = _samples[:, i]
             _cost = petabProblem.computeCost(_p)
             if !isinf(_cost)
@@ -52,6 +60,7 @@ function generateStartGuesses(petabProblem::PEtabODEProblem,
                 startGuesses[:, foundStarts] .= _p
             end
         end
+        verbose == true && @printf("Found %d of %d multistarts\n", foundStarts, nMultiStarts)
         if foundStarts == nMultiStarts
             break
         end
@@ -107,9 +116,9 @@ function _multistartModelCallibration(petabProblem::PEtabODEProblem,
         end
     end
 
-    resBest = _res[argmin([_res[i].fBest for i in eachindex(_res)])]
-    fMin = resBest.fBest
-    xMin = resBest.xBest
+    resBest = _res[argmin([_res[i].fMin for i in eachindex(_res)])]
+    fMin = resBest.fMin
+    xMin = resBest.xMin
     samplingMethodStr = string(samplingMethod)[1:findfirst(x -> x == '(', string(samplingMethod))][1:end-1]
     results = PEtabMultistartOptimisationResult(xMin, 
                                                 fMin, 

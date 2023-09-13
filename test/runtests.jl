@@ -1,5 +1,6 @@
 using SafeTestsets
 
+
 @safetestset "Test model 2" begin
   include("Test_model2.jl")
 end
@@ -37,4 +38,9 @@ end
 
 @safetestset "Catalyst integration" begin
   include(joinpath(@__DIR__, "Catalyst_PEtab_test_suite", "Test_catalyst.jl"))
+end
+
+
+@safetestset "Model callibration" begin
+  include(joinpath(@__DIR__, "Callibrate_model.jl"))
 end
