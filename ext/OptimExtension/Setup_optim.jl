@@ -2,21 +2,21 @@
     Optim wrapper 
 =#
 
-
-function PEtab.callibrateModelMultistart(petabProblem::PEtabODEProblem, 
-                                         alg::Union{Optim.LBFGS, Optim.BFGS, Optim.IPNewton}, 
-                                         nMultiStarts::Signed, 
-                                         dirSave::Union{Nothing, String};
-                                         samplingMethod::T=QuasiMonteCarlo.LatinHypercubeSample(),
-                                         options::Optim.Options=Optim.Options(iterations = 1000,
-                                                                              show_trace = false,
-                                                                              allow_f_increases=true,
-                                                                              successive_f_tol = 3,
-                                                                              f_tol=1e-8,
-                                                                              g_tol=1e-6,
-                                                                              x_tol=0.0), 
-                                         seed::Union{Nothing, Integer}=nothing, 
-                                         saveTrace::Bool=false)::PEtab.PEtabMultistartOptimisationResult where T <: QuasiMonteCarlo.SamplingAlgorithm
+calibrateModelMultistart
+function PEtab.calibrateModelMultistart(petabProblem::PEtabODEProblem, 
+                                        alg::Union{Optim.LBFGS, Optim.BFGS, Optim.IPNewton}, 
+                                        nMultiStarts::Signed, 
+                                        dirSave::Union{Nothing, String};
+                                        samplingMethod::T=QuasiMonteCarlo.LatinHypercubeSample(),
+                                        options::Optim.Options=Optim.Options(iterations = 1000,
+                                                                             show_trace = false,
+                                                                             allow_f_increases=true,
+                                                                             successive_f_tol = 3,
+                                                                             f_tol=1e-8,
+                                                                             g_tol=1e-6,
+                                                                             x_tol=0.0), 
+                                        seed::Union{Nothing, Integer}=nothing, 
+                                        saveTrace::Bool=false)::PEtab.PEtabMultistartOptimisationResult where T <: QuasiMonteCarlo.SamplingAlgorithm
     if !isnothing(seed)
         Random.seed!(seed)
     end
@@ -25,7 +25,7 @@ function PEtab.callibrateModelMultistart(petabProblem::PEtabODEProblem,
 end
 
 
-function PEtab.callibrateModel(petabProblem::PEtabODEProblem, 
+function PEtab.calibrateModel(petabProblem::PEtabODEProblem, 
                                p0::Vector{Float64},
                                alg::Union{Optim.LBFGS, Optim.BFGS, Optim.IPNewton}; 
                                saveTrace::Bool=false, 

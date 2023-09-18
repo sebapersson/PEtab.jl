@@ -3,14 +3,14 @@
 =#
 
 
-function PEtab.callibrateModelMultistart(petabProblem::PEtabODEProblem, 
-                                         alg::IpoptOptimiser, 
-                                         nMultiStarts::Signed, 
-                                         dirSave::Union{Nothing, String};
-                                         samplingMethod::T=QuasiMonteCarlo.LatinHypercubeSample(),
-                                         options::IpoptOptions=IpoptOptions(),
-                                         seed::Union{Nothing, Integer}=nothing, 
-                                         saveTrace::Bool=false)::PEtab.PEtabMultistartOptimisationResult where T <: QuasiMonteCarlo.SamplingAlgorithm
+function PEtab.calibrateModelMultistart(petabProblem::PEtabODEProblem, 
+                                        alg::IpoptOptimiser, 
+                                        nMultiStarts::Signed, 
+                                        dirSave::Union{Nothing, String};
+                                        samplingMethod::T=QuasiMonteCarlo.LatinHypercubeSample(),
+                                        options::IpoptOptions=IpoptOptions(),
+                                        seed::Union{Nothing, Integer}=nothing, 
+                                        saveTrace::Bool=false)::PEtab.PEtabMultistartOptimisationResult where T <: QuasiMonteCarlo.SamplingAlgorithm
     if !isnothing(seed)
         Random.seed!(seed)
     end
@@ -19,15 +19,15 @@ function PEtab.callibrateModelMultistart(petabProblem::PEtabODEProblem,
 end
 
 
-function PEtab.callibrateModel(petabProblem::PEtabODEProblem, 
-                               p0::Vector{Float64},
-                               alg::IpoptOptimiser; 
-                               saveTrace::Bool=false, 
-                               options::IpoptOptions=IpoptOptions())::PEtab.PEtabOptimisationResult
+function PEtab.calibrateModel(petabProblem::PEtabODEProblem, 
+                              p0::Vector{Float64},
+                              alg::IpoptOptimiser; 
+                              saveTrace::Bool=false, 
+                              options::IpoptOptions=IpoptOptions())::PEtab.PEtabOptimisationResult
 
     _p0 = deepcopy(p0)                               
 
-    ipoptProblem, iterArr, fTrace, xTrace = createIpoptProblem(petabProblem, alg.approximateHessian, saveTrace, options)
+    ipoptProblem, iterArr, fTrace, xTrace = createIpoptProblem(petabProblem, alg.LBFGS, saveTrace, options)
     ipoptProblem.x = deepcopy(p0)
     
     # Create a runnable function taking parameter as input                            
@@ -47,7 +47,7 @@ function PEtab.callibrateModel(petabProblem::PEtabODEProblem,
         converged = :Code_crashed
         runTime = NaN
     end
-    if alg.approximateHessian == true
+    if alg.LBFGS == true
         algUsed = :Ipopt_LBFGS
     else
         algUsed = :Ipopt_user_Hessian
@@ -66,14 +66,14 @@ end
 
 
 function createIpoptProblem(petabProblem::PEtabODEProblem,
-                            approximateHessian::Bool, 
+                            LBFGS::Bool, 
                             saveTrace::Bool,
                             options::PEtab.IpoptOptions)
 
     lowerBounds = petabProblem.lowerBounds
     upperBounds = petabProblem.upperBounds
 
-    if approximateHessian == true
+    if LBFGS == true
         evalHessian = eval_h_empty
     else
         evalHessian = (x_arg, rows, cols, obj_factor, lambda, values) -> eval_h(x_arg, rows, cols, obj_factor, lambda, values, nParam, petabProblem.computeHessian!)
@@ -109,7 +109,7 @@ function createIpoptProblem(petabProblem::PEtabODEProblem,
     intermediateUse = (alg_mod, iter_count, obj_value, inf_pr, inf_du, mu, d_norm, regularization_size, alpha_du, alpha_pr, ls_trials) -> intermediate_ipopt(alg_mod, iter_count, obj_value, inf_pr, inf_du, mu, d_norm, regularization_size, alpha_du, alpha_pr, ls_trials, iterArr, prob, saveTrace, fTrace, xTrace)
     Ipopt.SetIntermediateCallback(prob, intermediateUse) # Allow iterations to be retrevied (see above) 
 
-    if approximateHessian == true
+    if LBFGS == true
         Ipopt.AddIpoptStrOption(prob, "hessian_approximation", "limited-memory")
     end 
 

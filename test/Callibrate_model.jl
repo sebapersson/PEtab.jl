@@ -19,6 +19,7 @@ using PEtab
     petabProblem = createPEtabODEProblem(petabModel, odeSolverOptions=ODESolverOptions(Rodas5P()), verbose=false)
     startGuesses = PEtab.generateStartGuesses(petabProblem, QuasiMonteCarlo.LatinHypercubeSample(), 100; verbose=false)
     @test startGuesses isa Matrix{Float64}
+    @info "Done with start-guess test"
 
     # Test optimisers 
     pathYAML = joinpath(@__DIR__, "Test_model2", "Test_model2.yaml")
@@ -26,15 +27,15 @@ using PEtab
     petabProblem = createPEtabODEProblem(petabModel, odeSolverOptions=ODESolverOptions(Rodas5P()), verbose=false)
     p0 = petabProblem.θ_nominalT .* 0.5
 
-    res1 = callibrateModel(petabProblem, p0, Optim.IPNewton())
+    res1 = calibrateModel(petabProblem, p0, Optim.IPNewton())
     @test all(abs.(res1.xMin - petabProblem.θ_nominalT) .< 1e-2)
 
-    res2 = callibrateModel(petabProblem, p0, IpoptOptimiser(), options=IpoptOptions(print_level=0))
+    res2 = calibrateModel(petabProblem, p0, IpoptOptimiser(false), options=IpoptOptions(print_level=0))
     @test all(abs.(res2.xMin - petabProblem.θ_nominalT) .< 1e-2)
 
-    res3 = callibrateModelMultistart(petabProblem, Optim.IPNewton(), 10, nothing)
+    res3 = calibrateModelMultistart(petabProblem, Optim.IPNewton(), 10, nothing)
     @test all(abs.(res3.xMin - petabProblem.θ_nominalT) .< 1e-2)
 
-    res4 = callibrateModelMultistart(petabProblem, IpoptOptimiser(), 10, nothing, options=IpoptOptions(print_level=0))
+    res4 = calibrateModelMultistart(petabProblem, IpoptOptimiser(true), 10, nothing, options=IpoptOptions(print_level=0))
     @test all(abs.(res4.xMin - petabProblem.θ_nominalT) .< 1e-2)
 end

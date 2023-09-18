@@ -67,9 +67,6 @@ include(joinpath("Process_PEtab_files", "Observables", "Common.jl"))
 include(joinpath("Process_PEtab_files", "Observables", "Create_h_sigma_derivatives.jl"))
 include(joinpath("Process_PEtab_files", "Observables", "Create_u0_h_sigma.jl"))
 
-# Common lightweigt interface for parameter estimation 
-include(joinpath("Model_callibration", "Common.jl"))
-
 # For creating a PEtab ODE problem
 include(joinpath("Create_PEtabODEProblem", "Set_defaults.jl"))
 include(joinpath("Create_PEtabODEProblem", "Remake_PEtabODEProblem.jl"))
@@ -115,8 +112,10 @@ if !isdefined(Base, :get_extension)
 end
 
 
-function callibrateModel end
-function callibrateModelMultistart end
-export callibrateModel, callibrateModelMultistart
+# These are given as extensions, but their docstrings are availble in the 
+# general documentation 
+include(joinpath("Model_callibration", "Common.jl"))
+
+export calibrateModel, calibrateModelMultistart
 
 end

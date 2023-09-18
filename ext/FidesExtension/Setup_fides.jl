@@ -3,14 +3,14 @@
 =#
 
 
-function PEtab.callibrateModelMultistart(petabProblem::PEtabODEProblem, 
-                                         alg::Fides, 
-                                         nMultiStarts::Signed, 
-                                         dirSave::Union{Nothing, String};
-                                         samplingMethod::T=QuasiMonteCarlo.LatinHypercubeSample(),
-                                         options=py"{'maxiter' : 1000}"o,
-                                         seed::Union{Nothing, Integer}=nothing, 
-                                         saveTrace::Bool=false)::PEtab.PEtabMultistartOptimisationResult where T <: QuasiMonteCarlo.SamplingAlgorithm
+function PEtab.calibrateModelMultistart(petabProblem::PEtab.PEtabODEProblem, 
+                                        alg::PEtab.Fides, 
+                                        nMultiStarts::Signed, 
+                                        dirSave::Union{Nothing, String};
+                                        samplingMethod::T=QuasiMonteCarlo.LatinHypercubeSample(),
+                                        options=py"{'maxiter' : 1000}"o,
+                                        seed::Union{Nothing, Integer}=nothing, 
+                                        saveTrace::Bool=false)::PEtab.PEtabMultistartOptimisationResult where T <: QuasiMonteCarlo.SamplingAlgorithm
     if !isnothing(seed)
         Random.seed!(seed)
     end
@@ -19,11 +19,11 @@ function PEtab.callibrateModelMultistart(petabProblem::PEtabODEProblem,
 end
 
 
-function PEtab.callibrateModel(petabProblem::PEtabODEProblem, 
-                               p0::Vector{Float64},
-                               alg::Fides; 
-                               saveTrace::Bool=false, 
-                               options=py"{'maxiter' : 1000}"o)::PEtab.PEtabOptimisationResult
+function PEtab.calibrateModel(petabProblem::PEtabODEProblem, 
+                              p0::Vector{Float64},
+                              alg::Fides; 
+                              saveTrace::Bool=false, 
+                              options=py"{'maxiter' : 1000}"o)::PEtab.PEtabOptimisationResult
 
     _p0 = deepcopy(p0)                               
 

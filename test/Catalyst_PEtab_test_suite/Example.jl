@@ -9,14 +9,7 @@ using Distributions
 using PEtab
 
 
-# Define reaction network model 
-rn = @reaction_network begin
-    @parameters se0
-    @species SE(t)=se0 # se0 = initial value for S
-    c1, S + E --> SE
-    c2, SE --> S + E
-    c3, SE --> P + E
-end
+
 #= 
 Set a constant state (in this case E and P) and parameter (in this case c1) 
 values via a state- and parameter-map respectively with a vector on the form 
@@ -70,8 +63,8 @@ measurements = DataFrame(simulation_id=["c0", "c0", "c0", "c0"],
                          obs_id=["obs_S", "obs_S", "obs_P", "obs_P"],
                          time=[0.0, 10.0, 1.0, 20.0],
                          measurement=[0.7, 0.1, 1.0, 1.5], 
-                         observable_parameters=["", "", "scale_P;offset_P", "scale_P;offset_P"],
-                         noise_parameters=["noise", "noise", "", ""])
+                         observable_parameters=["", "", "scale_P;offset_P", "1.0;1.0"],
+                         noise_parameters=["noise", "1.0", "", ""])
 
 #=
 For a PEtab parameter to estimate the user must specify id. Then the user can choose scale 
@@ -101,3 +94,47 @@ petab_problem = createPEtabODEProblem(petab_model)
 f = petab_problem.computeCost(θ)
 ∇f = petab_problem.computeGradient(θ)
 Δf = petab_problem.computeHessian(θ)
+
+_parameter = PEtabParameter(:c3, scale=:log10, prior=Normal(0.0, 2.0), prior_on_linear_scale=false)
+
+#=
+
+u0 = [0.44249296, 4.6280594]
+using ModelingToolkit
+using Lux
+using ComponentArrays
+using Random
+
+# Define the neural network 
+hidden_layers = 2
+first_layer = Dense(2, 5, Lux.tanh)
+intermediate_layers = [Dense(5, 5, Lux.tanh) for _ in 1:hidden_layers-1]
+last_layer = Dense(5, 2)
+nn = Lux.Chain(first_layer, intermediate_layers..., last_layer)
+rng = Random.default_rng()
+Random.seed!(rng, 1)
+p_nn, st = Lux.setup(rng, nn)
+
+# Defines initial value maps and parameter 
+@variables prey, predator
+p_mechanistic = (α = 1.3, δ = 1.8)
+u0_map = [prey => 0.44249296, predator => 4.6280594]
+p_combined = ComponentArray(merge(p_mechanistic, (p_nn=p_nn,)))
+
+# Dynamics 
+function lv!(du, u, p, t)
+    prey, predator = u
+    @unpack α, δ, p_nn = p
+
+    du_nn = nn([prey, predator], p_nn, st)[1]
+
+    du[1] = dprey =  α*prey + du_nn[1]
+    du[2] = dpredator = du_nn[2] - δ*predator
+    return nothing
+end
+
+lv_problem = ODEProblem(lv!, u0_map, (0.0, 500), p_combined)
+
+
+lv_system = modelingtoolkitize(lv_problem)
+=#

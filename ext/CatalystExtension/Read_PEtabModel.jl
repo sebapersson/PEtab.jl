@@ -1,3 +1,67 @@
+"""
+    readPEtabModel(system::ReactionSystem,
+                   simulationConditions::Dict{String, Dict},
+                   observables::Dict{String, PEtab.PEtabObservable},
+                   measurements::DataFrame,
+                   petabParameters::Vector{PEtab.PEtabParameter};
+                   stateMap::Union{Nothing, Vector{Pair}=nothing,
+                   parameterMap::Union{Nothing, Vector{Pair}=nothing,
+                   verbose::Bool=false)::PEtabModel
+
+Create a PEtabModel directly in Julia from a Catalyst reaction system.
+
+For additional information on the input format, see the main documentation. 
+
+# Arguments 
+- `system::ReactionSystem`: A Catalyst reaction system.
+- `simulationConditions::Dict{String, T}`: A dictionary specifying values for control parameters/species per simulation condition.
+- `observables::Dict{String, PEtab.PEtabObservable}`: A dictionary specifying the observable and noise formulas linking the model to data.
+- `measurements::DataFrame`: Measurement data to calibrate the model against.
+- `petabParameters::Vector{PEtab.PEtabParameter}`: Parameters to estimate in PEtabParameter format.
+- `stateMap=nothing`: An optional state-map to set initial species values to be constant across all simulation conditions.
+- `parameterMap=nothing`: An optional state-map to set parameter values to be constant across all simulation conditions.
+- `verbose::Bool=false`: Whether to print progress when building the model.
+
+# Example
+```julia
+# Define a reaction network model 
+rn = @reaction_network begin
+    @parameters a0 b0
+    @species A(t)=a0 B(t)=b0
+    (k1, k2), A <--> B
+end
+
+# Measurement data 
+measurements = DataFrame(
+    simulation_id=["c0", "c0"],
+    obs_id=["obs_a", "obs_a"],
+    time=[0, 10.0],
+    measurement=[0.7, 0.1],
+    noise_parameters=0.5
+)
+
+# Single experimental condition                          
+simulation_conditions = Dict("c0" => Dict())
+
+# PEtab-parameters to estimate
+petab_parameters = [
+    PEtabParameter(:a0, value=1.0, scale=:lin),
+    PEtabParameter(:b0, value=0.0, scale=:lin),
+    PEtabParameter(:k1, value=0.8, scale=:lin),
+    PEtabParameter(:k2, value=0.6, scale=:lin)
+]
+
+# Observable equation                     
+@unpack A = rn
+observables = Dict("obs_a" => PEtabObservable(A, 0.5))
+
+# Create a PEtabODEProblem 
+petab_model = readPEtabModel(
+    rn, simulation_conditions, observables, measurements,
+    petab_parameters, verbose=false
+)
+```
+"""
 function PEtab.readPEtabModel(system::ReactionSystem,
                               simulationConditions::Dict{String, T},
                               observables::Dict{String, PEtab.PEtabObservable},
