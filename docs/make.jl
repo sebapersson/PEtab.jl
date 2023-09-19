@@ -1,8 +1,3 @@
-using PyCall
-using SciMLSensitivity
-using Zygote
-using Optim 
-using Ipopt
 using PEtab
 using Documenter
 
