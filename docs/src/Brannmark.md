@@ -1,4 +1,4 @@
-# Models with pre-equilibration (steady-state simulation)
+# [Models with pre-equilibration (steady-state simulation)](@id steady_state_conditions)
 
 In this tutorial, we'll create a `PEtabODEproblem` for the Brannmark model, which requires pre-equilibration before comparing the model against data. In other words, the model must first reach a steady state where $du = f(u, p, t) \approx 0$ before it is matches against data. This can be achieved through simulations or root finding.
 

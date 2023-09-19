@@ -10,7 +10,7 @@ function parsePEtabParameters(petab_parameters::Vector{PEtabParameter},
     # Extract any parameter that appears in the model or in simulationConditions 
     modelParameters = string.(parameters(system))
     conditionValues = unique(reduce(vcat, (string.(collect(values(dict))) for dict in values(simulationConditions))))
-    nonDynamicParameters = [string(obs.obs) for obs in values(observables)]
+    nonDynamicParameters = vcat([string(obs.obs) for obs in values(observables)], [string(obs.noiseFormula) for obs in values(observables)])
     if "observable_parameters" ∈ names(measurements)
         observableParameters = reduce(vcat, split.(string.(measurements[!, "observable_parameters"]), ';'))
     else
@@ -56,7 +56,12 @@ function parsePEtabParameters(petab_parameters::Vector{PEtabParameter},
 
         estimate = parameter.estimate == true ? 1 : 0
 
-        if parameterId ∉ modelParameters && parameterId ∉ conditionValues && parameterId ∉ noiseParameters && parameterId ∉ observableParameters && !any(occursin.(parameterId, nonDynamicParameters))
+        if (parameterId ∉ modelParameters && 
+            parameterId ∉ conditionValues && 
+            parameterId ∉ noiseParameters && 
+            parameterId ∉ observableParameters && 
+            !any(occursin.(parameterId, nonDynamicParameters)))
+
             if parameter.estimate == true
                 strWrite = "Parameter $parameterId set to be estimated does not appear as a parameter in the reaction system, "
                 strWrite *= "as a parameter in the simulation-conditions dict, or as a noise/observable parameter in the  "

@@ -1,13 +1,14 @@
 # PEtab.jl
 
-This is the documentation of [**PEtab.jl**](https://github.com/sebapersson/PEtab.jl), a Julia package designed to import ODE parameter estimation problems specified in the PEtab format into Julia.
+This is the documentation of [**PEtab.jl**](https://github.com/sebapersson/PEtab.jl), a Julia package designed to setup ODE parameter estimation problems in Julia.
 
 PEtab.jl uses Julia's [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl) package for ODE solvers and [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) for symbolic model processing, which enables fast model simulations. This, combined with support for gradients via forward- and adjoint-sensitivity approaches, and hessian via both exact and approximate methods, allows for efficient parameter estimation for both small and large models. In an extensive benchmark study, PEtab.jl was found to be 2-4 times faster than the [pyPESTO](https://github.com/ICB-DCM/pyPESTO) toolbox that leverages the [AMICI](https://github.com/AMICI-dev/AMICI) interface to the Sundials suite.
 
-This documentation includes:
+Parameter estimation problems can either directly be imported if they are specified in the [PEtab](https://petab.readthedocs.io/en/latest/) standard format, alternatively problems can be directly specifed in Julia where the dynamic model can be provided as a [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) ODE-system or a [Catalyst](https://github.com/SciML/Catalyst.jl) reaction system. In addition, once a problem has been parsed PEtab.jl provides wrappers to Optim, Ipopt, and Fides to perform efficient multi-start parameter estimation.
 
-* A guide for getting started with PEtab.jl
-* Tutorials on medium-sized models, small models with several condition-specific parameters, models with pre-equilibration conditions (steady-state simulations), how to define and import a model written in Julia, how to perform parameter estimation, and how to perform model selection with PEtab-select.
+Besides information on how to setup a parameter estimation problem, this documentation also provides:
+
+* Tutorials on how to select options for medium-sized models, small models with several condition-specific parameters, models with pre-equilibration conditions (steady-state simulations), and how to perform model selection with PEtab-select.
 * Details about available hessian and gradient options.
 * Discussion of the best options for specific model types, including small, medium, and large models.
 
@@ -30,6 +31,7 @@ julia> using Pkg; Pkg.add("PEtab")
 PEtab.jl provides a range of features to import and analyze ODE parameter estimation problems specified in the PEtab format. These include:
 
 * Importing ODE systems specified either by an SBML file or as a Julia file.
+* Support for models defined in Julia as ODE-systems or as [Catalyst](https://github.com/SciML/Catalyst.jl) reaction systems.
 * Model selection via [PEtab Select](https://github.com/PEtab-dev/petab_select).
 * Symbolic model pre-processing via ModelingToolkit.jl.
 * Support for all ODE solvers in DifferentialEquations.jl.
