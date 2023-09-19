@@ -36,7 +36,7 @@ Here's an example where we run a 50 multi-start for the Boehm model using the In
 using PyCall
 using Optim
 import QuasiMonteCarlo
-fvals, xvals = callibrateModel(petabProblem, IPNewton(), 
+fvals, xvals = calibrateModel(petabProblem, IPNewton(), 
                                nOptimisationStarts=5, 
                                samplingMethod=QuasiMonteCarlo.LatinHypercubeSample(), 
                                options=Optim.Options(show_trace = false, iterations=200))

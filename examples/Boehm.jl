@@ -91,7 +91,7 @@ petabProblem.computeHessian!(hessian, p)
 =#
 using Optim
 import QuasiMonteCarlo
-fvals, xvals = callibrateModel(petabProblem, IPNewton(), 
+fvals, xvals = calibrateModel(petabProblem, IPNewton(), 
                                nOptimisationStarts=5, 
                                samplingMethod=QuasiMonteCarlo.LatinHypercubeSample(), 
                                options=Optim.Options(show_trace = false, iterations=200))
@@ -102,7 +102,7 @@ fvals, xvals = callibrateModel(petabProblem, IPNewton(),
     Another popular optimizer is Fides (https://github.com/fides-dev/fides). 
     
     Setting up Fides in Julia is a bit involved, as it is a Python package. Fortunately, we provide a wrapper 
-    and support in callibrate model. 
+    and support in calibrate model. 
 
     As a first step though, PyCall.jl must be built with an environment which has Fides installed.    
 =#
@@ -118,7 +118,7 @@ petabProblem = createPEtabODEProblem(petabModel,
                                      sensealg=:ForwardDiff, 
                                      reuseS=true)
 
-fvals, xvals = callibrateModel(petabProblem, Fides(verbose=false), 
+fvals, xvals = calibrateModel(petabProblem, Fides(verbose=false), 
                                nOptimisationStarts=5, 
                                samplingMethod=QuasiMonteCarlo.LatinHypercubeSample(), 
                                options=py"{'maxiter' : 200}"o)

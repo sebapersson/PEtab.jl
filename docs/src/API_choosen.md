@@ -9,7 +9,7 @@ ODESolverOptions
 SteadyStateSolverOptions
 remakePEtabProblem
 Fides
-callibrateModel
+calibrateModel
 runPEtabSelect
 solveSBMLModel
 ```

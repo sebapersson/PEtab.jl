@@ -118,7 +118,7 @@ Perform multi-start local optimization for a given PEtabODEProblem and return (f
 - `samplingMethod`: Method for generating start guesses. Any method from QuasiMonteCarlo.jl is supported, with LatinHypercube as the default.
 - `options`: Optimization options. For Optim.jl optimizers, it accepts an `Optim.Options` struct. For Fides, please refer to the Fides documentation and the PEtab.jl documentation for information on setting options.
 """
-function callibrateModel end
+function calibrateModel end
 """
     runPEtabSelect(pathYAML, optimizer; <keyword arguments>)
 
@@ -131,7 +131,7 @@ optimization. Three optimizers are supported: `optimizer=Fides()` (Fides Newton-
 from Optim.jl, and `optimizer=LBFGS()` from Optim.jl. Additional keywords for the optimisation are
 `nOptimisationStarts::Int`- number of multi-starts for parameter estimation (defaults to 100) and
 `optimizationSamplingMethod` - which is any sampling method from QuasiMonteCarlo.jl for generating start guesses
-(defaults to LatinHypercubeSample). See also (add callibrate model)
+(defaults to LatinHypercubeSample). See also (add calibrate model)
 
 Simulation options can be set using any keyword argument accepted by the `createPEtabODEProblem` function.
 For example, setting `gradientMethod=:ForwardDiff` specifies the use of forward-mode automatic differentiation for
@@ -149,7 +149,7 @@ if !isdefined(Base, :get_extension)
 end
 
 
-export createOptimProblem, createFidesProblem, callibrateModel, runPEtabSelect
+export createOptimProblem, createFidesProblem, calibrateModel, runPEtabSelect
 
 
 end

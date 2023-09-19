@@ -110,5 +110,5 @@ import Pkg;
 Pkg.build("PyCall")
 
 # Set up a fides using the hessian and gradient options in the petabProblem 
-fvals, xvals = callibrateModel(petabProblem, Fides(verbose=true), 
+fvals, xvals = calibrateModel(petabProblem, Fides(verbose=true), 
                                nOptimisationStarts=2)

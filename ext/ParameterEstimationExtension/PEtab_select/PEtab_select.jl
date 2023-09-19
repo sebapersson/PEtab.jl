@@ -87,15 +87,15 @@ function PEtab.runPEtabSelect(pathYAML::String,
     """
 
 
-    function _callibrate_model(model, select_problem, _petabProblem::PEtabODEProblem; nOptimisationStarts=nOptimisationStarts)
+    function _calibrate_model(model, select_problem, _petabProblem::PEtabODEProblem; nOptimisationStarts=nOptimisationStarts)
         subspaceId, subspaceYAML, _subspaceParameters = py"get_model_to_test_info"(model)
         subspaceParameters = Dict(Symbol(k) => v for (k, v) in pairs(_subspaceParameters))
         @info "Callibrating model $subspaceId"
         petabProblem = remakePEtabProblem(_petabProblem, subspaceParameters)
         if isnothing(optimizerOptions)
-            _f, _fArg = callibrateModel(petabProblem, optimizer, nOptimisationStarts=nOptimisationStarts, samplingMethod=optimizationSamplingMethod)
+            _f, _fArg = calibrateModel(petabProblem, optimizer, nOptimisationStarts=nOptimisationStarts, samplingMethod=optimizationSamplingMethod)
         else
-            _f, _fArg = callibrateModel(petabProblem, optimizer, nOptimisationStarts=nOptimisationStarts, options=optimizerOptions, samplingMethod=optimizationSamplingMethod)
+            _f, _fArg = calibrateModel(petabProblem, optimizer, nOptimisationStarts=nOptimisationStarts, options=optimizerOptions, samplingMethod=optimizationSamplingMethod)
         end
         whichMin = argmin(_f)
         f = _f[whichMin]
@@ -108,9 +108,9 @@ function PEtab.runPEtabSelect(pathYAML::String,
     end
 
 
-    function callibrate_candidate_models(candidate_space, select_problem, n_candidates, _petabProblem::PEtabODEProblem; nOptimisationStarts=100)
+    function calibrate_candidate_models(candidate_space, select_problem, n_candidates, _petabProblem::PEtabODEProblem; nOptimisationStarts=100)
         for i in 1:n_candidates
-            _callibrate_model(candidate_space.models[i], select_problem, _petabProblem::PEtabODEProblem, nOptimisationStarts=nOptimisationStarts)
+            _calibrate_model(candidate_space.models[i], select_problem, _petabProblem::PEtabODEProblem, nOptimisationStarts=nOptimisationStarts)
         end
     end
 
@@ -155,7 +155,7 @@ function PEtab.runPEtabSelect(pathYAML::String,
         # Start the iterative model selction process
         k == 1 && @info "Model selection round $k with $n_candidates candidates - as the code compiles in this round compiled it takes extra long time https://xkcd.com/303/"
         k != 1 && @info "Model selection round $k with $n_candidates candidates"
-        callibrate_candidate_models(candidate_space, select_problem, n_candidates, _petabProblem, nOptimisationStarts=nOptimisationStarts)
+        calibrate_candidate_models(candidate_space, select_problem, n_candidates, _petabProblem, nOptimisationStarts=nOptimisationStarts)
         newly_calibrated_models, calibrated_models = py"update_selection"(newly_calibrated_models, calibrated_models, select_problem,  candidate_space)
 
         py"update_candidate_space"(candidate_space, select_problem, newly_calibrated_models)

@@ -17,6 +17,6 @@ include(joinpath(@__DIR__, "ParameterEstimationExtension", "Optimization", "Setu
 include(joinpath(@__DIR__, "ParameterEstimationExtension", "Optimization", "Callibration.jl"))
 include(joinpath(@__DIR__, "ParameterEstimationExtension", "PEtab_select", "PEtab_select.jl"))
 
-export createOptimProblem, createFidesProblem, callibrateModel, remakePEtabProblem, Fides, runPEtabSelect
+export createOptimProblem, createFidesProblem, calibrateModel, remakePEtabProblem, Fides, runPEtabSelect
 
 end

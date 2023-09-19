@@ -1,4 +1,4 @@
-function PEtab.callibrateModel(petabProblem::PEtabODEProblem,
+function PEtab.calibrateModel(petabProblem::PEtabODEProblem,
                                optimizer::Union{Optim.LBFGS, Optim.BFGS, Optim.IPNewton};
                                nOptimisationStarts=100,
                                seed=123,
@@ -42,7 +42,7 @@ function PEtab.callibrateModel(petabProblem::PEtabODEProblem,
 
     return objValues, parameterValues
 end
-function PEtab.callibrateModel(petabProblem::PEtabODEProblem,
+function PEtab.calibrateModel(petabProblem::PEtabODEProblem,
                                optimizer::Fides=Fides(verbose=false);
                                nOptimisationStarts=100,
                                seed=123,
