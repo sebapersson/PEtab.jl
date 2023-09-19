@@ -103,6 +103,9 @@ if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "OptimExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "FidesExtension.jl"))
 end
+if !isdefined(Base, :get_extension)
+    include(joinpath(@__DIR__, "..", "ext", "PEtabSelectExtension.jl"))
+end
 if !isdefined(Base, :get_extension)    
     include(joinpath(@__DIR__, "..", "ext", "SciMLSensitivityExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "ZygoteExtension.jl"))
@@ -116,6 +119,6 @@ end
 # general documentation 
 include(joinpath("Model_callibration", "Common.jl"))
 
-export calibrateModel, calibrateModelMultistart
+export calibrateModel, calibrateModelMultistart, runPEtabSelect
 
 end
