@@ -56,6 +56,7 @@ ZygoteExtension = ["SciMLSensitivity", "Zygote"]
 
 [compat]
 CSV = "0.10"
+Catalyst = "13"
 ChainRulesCore = "1"
 DataFrames = "1"
 DiffEqCallbacks = "2"
