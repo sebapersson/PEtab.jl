@@ -1,58 +1,58 @@
-function _getSteadyStateSolverOptions(howCheckSimulationReachedSteadyState::Symbol,
+function _get_steady_state_solver(check_simulation_steady_state::Symbol,
                                       abstol,
                                       reltol,
-                                      maxiters)::SteadyStateSolverOptions
+                                      maxiters)::SteadyStateSolver
 
-    @assert howCheckSimulationReachedSteadyState ∈ [:Newton, :wrms] "When steady states are computed via simulations howCheckSimulationReachedSteadyState must be :wrms or :Newton not $howCheckSimulationReachedSteadyState"
+    @assert check_simulation_steady_state ∈ [:Newton, :wrms] "When steady states are computed via simulations check_simulation_steady_state must be :wrms or :Newton not $check_simulation_steady_state"
 
-    return SteadyStateSolverOptions(:Simulate, nothing, howCheckSimulationReachedSteadyState, abstol, reltol, maxiters, nothing, nothing)
+    return SteadyStateSolver(:Simulate, nothing, check_simulation_steady_state, abstol, reltol, maxiters, nothing, nothing)
 end
-function _getSteadyStateSolverOptions(rootfindingAlgorithm::Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm},
-                                      abstol,
-                                      reltol,
-                                      maxiters)::SteadyStateSolverOptions
+function _get_steady_state_solver(rootfinding_alg::Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm},
+                                  abstol,
+                                  reltol,
+                                  maxiters)::SteadyStateSolver
 
     # Sanity check user input
-    @assert typeof(rootfindingAlgorithm) <: Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm} "When steady states are computed via rootfinding rootfindingAlgorithm must be nothing or a NonlinearSolveAlgorithm (https://docs.sciml.ai/NonlinearSolve/stable/solvers/NonlinearSystemSolvers/)"
+    @assert typeof(rootfinding_alg) <: Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm} "When steady states are computed via rootfinding rootfinding_alg must be nothing or a NonlinearSolveAlgorithm (https://docs.sciml.ai/NonlinearSolve/stable/solvers/NonlinearSystemSolvers/)"
 
-    _rootfindingAlgorithm = isnothing(rootfindingAlgorithm) ? NonlinearSolve.TrustRegion() : rootfindingAlgorithm
-    return SteadyStateSolverOptions(:Rootfinding, _rootfindingAlgorithm, :nothing, abstol, reltol, maxiters, nothing, nothing)
+    _rootfinding_alg = isnothing(rootfinding_alg) ? NonlinearSolve.TrustRegion() : rootfinding_alg
+    return SteadyStateSolver(:Rootfinding, _rootfinding_alg, :nothing, abstol, reltol, maxiters, nothing, nothing)
 end
-function _getSteadyStateSolverOptions(ssSolverOptions::SteadyStateSolverOptions,
+function _get_steady_state_solver(ss_solver::SteadyStateSolver,
                                       odeProblem::ODEProblem,
                                       abstol,
                                       reltol,
-                                      maxiters)::SteadyStateSolverOptions
+                                      maxiters)::SteadyStateSolver
 
-    _abstol = isnothing(ssSolverOptions.abstol) ? abstol : ssSolverOptions.abstol
-    _reltol = isnothing(ssSolverOptions.reltol) ? reltol : ssSolverOptions.reltol
-    _maxiters = isnothing(ssSolverOptions.reltol) ? maxiters : ssSolverOptions.maxiters
+    _abstol = isnothing(ss_solver.abstol) ? abstol : ss_solver.abstol
+    _reltol = isnothing(ss_solver.reltol) ? reltol : ss_solver.reltol
+    _maxiters = isnothing(ss_solver.reltol) ? maxiters : ss_solver.maxiters
 
-    if ssSolverOptions.method === :Simulate
-        if ssSolverOptions.howCheckSimulationReachedSteadyState === :Newton
+    if ss_solver.method === :Simulate
+        if ss_solver.check_simulation_steady_state === :Newton
             jacobian = zeros(Float64, length(odeProblem.u0), length(odeProblem.u0))
             condCallback = (u, t, integrator) -> conditionTerminateSS(u, t, integrator, _abstol, _reltol, true,
                                                                       odeProblem.f.jac, jacobian)
-        elseif ssSolverOptions.howCheckSimulationReachedSteadyState === :wrms
+        elseif ss_solver.check_simulation_steady_state === :wrms
             jacobian = zeros(Float64, 0, 0)
             condCallback = (u, t, integrator) -> conditionTerminateSS(u, t, integrator, _abstol, _reltol, false,
                                                                       odeProblem.f.jac, jacobian)
         end
-        callbackSS = DiscreteCallback(condCallback, affectTerminateSS!, save_positions=(false, true))
+        callback_ss = DiscreteCallback(condCallback, affectTerminateSS!, save_positions=(false, true))
     end
 
-    if ssSolverOptions.method === :Rootfinding
-        callbackSS = nothing
+    if ss_solver.method === :Rootfinding
+        callback_ss = nothing
     end
 
     # Sanity check user input
-    return SteadyStateSolverOptions(ssSolverOptions.method,
-                                    ssSolverOptions.rootfindingAlgorithm,
-                                    ssSolverOptions.howCheckSimulationReachedSteadyState,
+    return SteadyStateSolver(ss_solver.method,
+                                    ss_solver.rootfinding_alg,
+                                    ss_solver.check_simulation_steady_state,
                                     _abstol,
                                     _reltol,
                                     _maxiters,
-                                    callbackSS,
+                                    callback_ss,
                                     NonlinearProblem(odeProblem))
 end
 
@@ -62,13 +62,13 @@ function solveODEPreEqulibrium!(uAtSS::AbstractVector,
                                 odeProblem::ODEProblem,
                                 changeExperimentalCondition!::Function,
                                 preEquilibrationId::Symbol,
-                                odeSolverOptions::ODESolverOptions,
-                                ssSolverOptions::SteadyStateSolverOptions,
-                                convertTspan::Bool)::Union{ODESolution, SciMLBase.NonlinearSolution}
+                                ode_solver::ODESolver,
+                                ss_solver::SteadyStateSolver,
+                                convert_tspan::Bool)::Union{ODESolution, SciMLBase.NonlinearSolution}
 
-    if ssSolverOptions.method === :Simulate
-        odeSolution = simulateToSS(odeProblem, odeSolverOptions.solver, changeExperimentalCondition!, preEquilibrationId,
-                                   odeSolverOptions, ssSolverOptions, convertTspan)
+    if ss_solver.method === :Simulate
+        odeSolution = simulateToSS(odeProblem, ode_solver.solver, changeExperimentalCondition!, preEquilibrationId,
+                                   ode_solver, ss_solver, convert_tspan)
         if odeSolution.retcode == ReturnCode.Terminated || odeSolution.retcode == ReturnCode.Success
             uAtSS .= odeSolution.u[end]
             uAtT0 .= odeSolution.prob.u0
@@ -76,9 +76,9 @@ function solveODEPreEqulibrium!(uAtSS::AbstractVector,
         return odeSolution
     end
 
-    if ssSolverOptions.method === :Rootfinding
+    if ss_solver.method === :Rootfinding
 
-        rootSolution = rootfindSS(odeProblem, changeExperimentalCondition!, preEquilibrationId, ssSolverOptions)
+        rootSolution = rootfindSS(odeProblem, changeExperimentalCondition!, preEquilibrationId, ss_solver)
         if rootSolution.retcode == ReturnCode.Success
             uAtSS .= rootSolution.u
             uAtT0 .= rootSolution.prob.u0
@@ -92,17 +92,17 @@ function simulateToSS(odeProblem::ODEProblem,
                       solver::S,
                       changeExperimentalCondition!::Function,
                       preEquilibrationId::Symbol,
-                      odeSolverOptions::ODESolverOptions,
-                      ssSolverOptions::SteadyStateSolverOptions,
-                      convertTspan::Bool)::ODESolution where S<:SciMLAlgorithm
+                      ode_solver::ODESolver,
+                      ss_solver::SteadyStateSolver,
+                      convert_tspan::Bool)::ODESolution where S<:SciMLAlgorithm
 
     changeExperimentalCondition!(odeProblem.p, odeProblem.u0, preEquilibrationId)
-    _odeProblem = setTspanODEProblem(odeProblem, Inf, odeSolverOptions.solver, convertTspan)
+    _odeProblem = setTspanODEProblem(odeProblem, Inf, ode_solver.solver, convert_tspan)
 
-    abstol, reltol, maxiters = odeSolverOptions.abstol, odeSolverOptions.reltol, odeSolverOptions.maxiters
-    callbackSS = ssSolverOptions.callbackSS
+    abstol, reltol, maxiters = ode_solver.abstol, ode_solver.reltol, ode_solver.maxiters
+    callback_ss = ss_solver.callback_ss
 
-    sol = solve(_odeProblem, solver, abstol=abstol, reltol=reltol, maxiters=maxiters, dense=false, callback=callbackSS)
+    sol = solve(_odeProblem, solver, abstol=abstol, reltol=reltol, maxiters=maxiters, dense=false, callback=callback_ss)
     return sol
 end
 
@@ -149,15 +149,15 @@ end
 function rootfindSS(odeProblem::ODEProblem,
                     changeExperimentalCondition!::Function,
                     preEquilibrationId::Symbol,
-                    ssSolverOptions::SteadyStateSolverOptions)::SciMLBase.NonlinearSolution
+                    ss_solver::SteadyStateSolver)::SciMLBase.NonlinearSolution
 
-    nonlinearProblem = remake(ssSolverOptions.nonlinearSolveProblem, u0=odeProblem.u0[:], p=odeProblem.p[:])
-    changeExperimentalCondition!(nonlinearProblem.p, nonlinearProblem.u0, preEquilibrationId)
-    nonlinearSolution = solve(nonlinearProblem,
-                              ssSolverOptions.rootfindingAlgorithm,
-                              abstol=ssSolverOptions.abstol,
-                              reltol=ssSolverOptions.reltol,
-                              maxiters=ssSolverOptions.maxiters)
+    nonlinear_problem = remake(ss_solver.nonlinearsolve_problem, u0=odeProblem.u0[:], p=odeProblem.p[:])
+    changeExperimentalCondition!(nonlinear_problem.p, nonlinear_problem.u0, preEquilibrationId)
+    nonlinearSolution = solve(nonlinear_problem,
+                              ss_solver.rootfinding_alg,
+                              abstol=ss_solver.abstol,
+                              reltol=ss_solver.reltol,
+                              maxiters=ss_solver.maxiters)
 
     return nonlinearSolution
 end

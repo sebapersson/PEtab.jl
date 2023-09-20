@@ -1,8 +1,8 @@
 """
-    calibrateModel(petabProblem::PEtabODEProblem,
+    calibrate_model(petab_problem::PEtabODEProblem,
                    p0::Vector{Float64},
                    alg;
-                   saveTrace::Bool=false,
+                   save_trace::Bool=false,
                    options=algOptions)::PEtabOptimisationResult
 
 Parameter estimate a model for a PEtabODEProblem using an optimization algorithm `alg` and an initial guess `p0`.
@@ -15,9 +15,9 @@ The optimization algorithm `alg` can be one of the following:
 Each algorithm accepts specific optimizer options in the format of the respective package. For a
 comprehensive list of available options, please refer to the main documentation.
 
-If you want the optimizer to return parameter and objective trace information, set `saveTrace=true`.
+If you want the optimizer to return parameter and objective trace information, set `save_trace=true`.
 Results are returned as a `PEtabOptimisationResult`, which includes the following information: minimum
-parameter values found (`xMin`), smallest objective value (`fMin`), number of iterations, runtime, whether
+parameter values found (`xmin`), smallest objective value (`fmin`), number of iterations, runtime, whether
 the optimizer converged, and optionally, the trace.
 
 !!! note
@@ -28,35 +28,35 @@ the optimizer converged, and optionally, the trace.
 ```julia
 # Perform parameter estimation using Optim's IPNewton with a given initial guess
 using Optim
-res = calibrateModel(petabProblem, p0, Optim.IPNewton();
+res = calibrate_model(petab_problem, p0, Optim.IPNewton();
                      options=Optim.Options(iterations = 1000))
 ```
 ```julia
 # Perform parameter estimation using Fides with a given initial guess
 using PyCall
-res = calibrateModel(petabProblem, p0, Fides(nothing);
+res = calibrate_model(petab_problem, p0, Fides(nothing);
                      options=py"{'maxiter' : 1000}"o)
 ```
 ```julia
 # Perform parameter estimation using Ipopt and save the trace
 using Ipopt
-res = calibrateModel(petabProblem, p0, IpoptOptimiser(false);
+res = calibrate_model(petab_problem, p0, IpoptOptimiser(false);
                      options=IpoptOptions(max_iter = 1000), 
-                     saveTrace=true)
+                     save_trace=true)
 ```
 """
-function calibrateModel end
+function calibrate_model end
 
 
 """
-    calibrateModelMultistart(petabProblem::PEtabODEProblem,
+    calibrate_model_multistart(petab_problem::PEtabODEProblem,
                              alg,
-                             nMultiStarts::Signed,
-                             dirSave::Union{Nothing, String};
-                             samplingMethod=QuasiMonteCarlo.LatinHypercubeSample(),
+                             n_multistarts::Signed,
+                             dir_save::Union{Nothing, String};
+                             sampling_method=QuasiMonteCarlo.LatinHypercubeSample(),
                              options=algOptions,
                              seed=nothing,
-                             saveTrace::Bool=false)::PEtabMultistartOptimisationResult
+                             save_trace::Bool=false)::PEtabMultistartOptimisationResult
 
 Perform multistart optimization for a PEtabODEProblem using the algorithm `alg`.
 
@@ -67,19 +67,19 @@ The optimization algorithm `alg` can be one of the following:
 
 For each algorithm, optimizer options can be provided in the format of the respective package.
 For a comprehensive list of available options, please refer to the main documentation. If you want the optimizer
-to return parameter and objective trace information, set `saveTrace=true`.
+to return parameter and objective trace information, set `save_trace=true`.
 
 Multistart optimization involves generating multiple starting points for optimization runs. These starting points
-are generated using the specified `samplingMethod` from [QuasiMonteCarlo.jl](https://github.com/SciML/QuasiMonteCarlo.jl),
+are generated using the specified `sampling_method` from [QuasiMonteCarlo.jl](https://github.com/SciML/QuasiMonteCarlo.jl),
 with the default being LatinHypercubeSample, a method that typically produces better results than random sampling.
 For reproducibility, you can set a random number generator seed using the `seed` parameter.
 
-If `dirSave` is provided as `nothing`, results are not written to disk. Otherwise, if a directory path is provided,
+If `dir_save` is provided as `nothing`, results are not written to disk. Otherwise, if a directory path is provided,
 results are written to disk. Writing results to disk is recommended in case the optimization process is terminated
 after a number of optimization runs.
 
-The results are returned as a `PEtabMultistartOptimisationResult`, which stores the best-found minima (`xMin`),
-smallest objective value (`fMin`), as well as optimization results for each run.
+The results are returned as a `PEtabMultistartOptimisationResult`, which stores the best-found minima (`xmin`),
+smallest objective value (`fmin`), as well as optimization results for each run.
 
 !!! note
     To use Optim optimizers, you must load Optim with `using Optim`. To use Ipopt, you must load Ipopt with `using Ipopt`. 
@@ -87,34 +87,34 @@ smallest objective value (`fMin`), as well as optimization results for each run.
 
 ## Examples
 ```julia
-# Perform 100 optimization runs using Optim's IPNewton, save results in dirSave
+# Perform 100 optimization runs using Optim's IPNewton, save results in dir_save
 using Optim
-dirSave = joinpath(@__DIR__, "Results")
-res = calibrateModelMultistart(petabProblem, Optim.IPNewton(), 100, dirSave;
+dir_save = joinpath(@__DIR__, "Results")
+res = calibrate_model_multistart(petab_problem, Optim.IPNewton(), 100, dir_save;
                                options=Optim.Options(iterations = 1000))
 ```
 ```julia
-# Perform 100 optimization runs using Fides, save results in dirSave
+# Perform 100 optimization runs using Fides, save results in dir_save
 using PyCall
-dirSave = joinpath(@__DIR__, "Results")
-res = calibrateModelMultistart(petabProblem, Fides(nothing), 100, dirSave;
+dir_save = joinpath(@__DIR__, "Results")
+res = calibrate_model_multistart(petab_problem, Fides(nothing), 100, dir_save;
                                options=py"{'maxiter' : 1000}"o)
 ```
 ```julia
-# Perform 100 optimization runs using Ipopt, save results in dirSave. For each 
+# Perform 100 optimization runs using Ipopt, save results in dir_save. For each 
 # run save the trace 
 using Ipopt
-dirSave = joinpath(@__DIR__, "Results")
-res = calibrateModelMultistart(petabProblem, IpoptOptimiser(false), 100, dirSave;
+dir_save = joinpath(@__DIR__, "Results")
+res = calibrate_model_multistart(petab_problem, IpoptOptimiser(false), 100, dir_save;
                                options=IpoptOptions(max_iter = 1000), 
-                               saveTrace=true)
+                               save_trace=true)
 ```
 """
-function calibrateModelMultistart end
+function calibrate_model_multistart end
 
 
 """
-    runPEtabSelect(pathYAML, alg; <keyword arguments>)
+    run_PEtab_select(path_yaml, alg; <keyword arguments>)
 
 Given a PEtab-select YAML file perform model selection with the algorithms specified in the YAML file.
 
@@ -123,84 +123,84 @@ Results are written to a YAML file in the same directory as the PEtab-select YAM
 Each candidate model produced during the model selection undergoes parameter estimation using local multi-start
 optimization. Three alg are supported: `optimizer=Fides()` (Fides Newton-trust region), `optimizer=IPNewton()`
 from Optim.jl, and `optimizer=LBFGS()` from Optim.jl. Additional keywords for the optimisation are
-`nOptimisationStarts::Int`- number of multi-starts for parameter estimation (defaults to 100) and
+`n_multistarts::Int`- number of multi-starts for parameter estimation (defaults to 100) and
 `optimizationSamplingMethod` - which is any sampling method from QuasiMonteCarlo.jl for generating start guesses
-(defaults to LatinHypercubeSample). See also (add callibrate model)
+(defaults to LatinHypercubeSample).
 
-Simulation options can be set using any keyword argument accepted by the `createPEtabODEProblem` function.
-For example, setting `gradientMethod=:ForwardDiff` specifies the use of forward-mode automatic differentiation for
+Simulation options can be set using any keyword argument accepted by the `PEtabODEProblem` function.
+For example, setting `gradient_method=:ForwardDiff` specifies the use of forward-mode automatic differentiation for
 gradient computation. If left blank, we automatically select appropriate options based on the size of the problem.
 
 !!! note
     To use Optim optimizers, you must load Optim with `using Optim`. To use Ipopt, you must load Ipopt with `using Ipopt`. To use Fides, load PyCall with `using PyCall` and ensure Fides is installed (see documentation for setup).
 """
-function runPEtabSelect end
+function run_PEtab_select end
 
 
 function savePartialResults(pathSaveRes::String,
                             pathSaveParameters::String,
                             pathSaveTrace::Union{String, Nothing},
                             res::PEtabOptimisationResult,
-                            θ_estNames::Vector{Symbol},
+                            θ_names::Vector{Symbol},
                             i::Int64)::Nothing
 
     dfSaveRes = DataFrame(fmin=res.fBest,
                           alg=String(res.alg),
-                          n_iterations = res.nIterations,
-                          run_time = res.runTime,
+                          n_iterations = res.n_iterations,
+                          run_time = res.runtime,
                           converged=string(res.converged),
                           Start_guess=i)
-    dfSaveParameters = DataFrame(Matrix(res.xBest'), θ_estNames)
+    dfSaveParameters = DataFrame(Matrix(res.xBest'), θ_names)
     dfSaveParameters[!, "Start_guess"] = [i]
     CSV.write(pathSaveRes, dfSaveRes, append=isfile(pathSaveRes))
     CSV.write(pathSaveParameters, dfSaveParameters, append=isfile(pathSaveParameters))
 
     if !isnothing(pathSaveTrace)
-        dfSaveTrace = DataFrame(Matrix(reduce(vcat, res.xTrace')), θ_estNames)
-        dfSaveTrace[!, "f_trace"] = res.fTrace
-        dfSaveTrace[!, "Start_guess"] = repeat([i], length(res.fTrace))
+        dfSaveTrace = DataFrame(Matrix(reduce(vcat, res.xtrace')), θ_names)
+        dfSaveTrace[!, "f_trace"] = res.ftrace
+        dfSaveTrace[!, "Start_guess"] = repeat([i], length(res.ftrace))
         CSV.write(pathSaveTrace, dfSaveTrace, append=isfile(pathSaveTrace))
     end
     return nothing
 end
 
 
-function generateStartGuesses(petabProblem::PEtabODEProblem,
-                              samplingMethod::T,
-                              nMultiStarts::Int64;
+function generateStartGuesses(petab_problem::PEtabODEProblem,
+                              sampling_method::T,
+                              n_multistarts::Int64;
                               verbose::Bool=false)::Matrix{Float64} where T <: QuasiMonteCarlo.SamplingAlgorithm
 
     verbose == true && @info "Generating start-guesses"
 
     # Nothing prevents the user from sending in a parameter vector with zero parameters
-    if length(petabProblem.lowerBounds) == 0
+    if length(petab_problem.lower_bounds) == 0
         return nothing
     end
 
-    startGuesses = Matrix{Float64}(undef, length(petabProblem.lowerBounds), nMultiStarts)
+    startGuesses = Matrix{Float64}(undef, length(petab_problem.lower_bounds), n_multistarts)
     foundStarts = 0
     while true
         # QuasiMonteCarlo is deterministic, so for sufficiently few start-guesses we can end up in a never ending
         # loop. To sidestep this if less than 10 starts are left numbers are generated from the uniform distribution
-        if nMultiStarts - foundStarts > 10
-            _samples = QuasiMonteCarlo.sample(nMultiStarts - foundStarts, petabProblem.lowerBounds, petabProblem.upperBounds, samplingMethod)
+        if n_multistarts - foundStarts > 10
+            _samples = QuasiMonteCarlo.sample(n_multistarts - foundStarts, petab_problem.lower_bounds, petab_problem.upper_bounds, sampling_method)
         else
-            _samples = Matrix{Float64}(undef, length(petabProblem.lowerBounds), nMultiStarts - foundStarts)
-            for i in 1:(nMultiStarts - foundStarts)
-                _samples[:, i] .= [rand() * (petabProblem.upperBounds[j] - petabProblem.lowerBounds[j]) + petabProblem.lowerBounds[j] for j in eachindex(petabProblem.lowerBounds)]
+            _samples = Matrix{Float64}(undef, length(petab_problem.lower_bounds), n_multistarts - foundStarts)
+            for i in 1:(n_multistarts - foundStarts)
+                _samples[:, i] .= [rand() * (petab_problem.upper_bounds[j] - petab_problem.lower_bounds[j]) + petab_problem.lower_bounds[j] for j in eachindex(petab_problem.lower_bounds)]
             end
         end
 
         for i in 1:size(_samples)[2]
             _p = _samples[:, i]
-            _cost = petabProblem.computeCost(_p)
+            _cost = petab_problem.compute_cost(_p)
             if !isinf(_cost)
                 foundStarts += 1
                 startGuesses[:, foundStarts] .= _p
             end
         end
-        verbose == true && @printf("Found %d of %d multistarts\n", foundStarts, nMultiStarts)
-        if foundStarts == nMultiStarts
+        verbose == true && @printf("Found %d of %d multistarts\n", foundStarts, n_multistarts)
+        if foundStarts == n_multistarts
             break
         end
     end
@@ -209,62 +209,62 @@ function generateStartGuesses(petabProblem::PEtabODEProblem,
 end
 
 
-function _multistartModelCallibration(petabProblem::PEtabODEProblem,
+function _multistartModelCallibration(petab_problem::PEtabODEProblem,
                                       alg,
-                                      nMultiStarts,
-                                      dirSave,
-                                      samplingMethod,
+                                      n_multistarts,
+                                      dir_save,
+                                      sampling_method,
                                       options,
-                                      saveTrace::Bool)::PEtabMultistartOptimisationResult
+                                      save_trace::Bool)::PEtabMultistartOptimisationResult
 
-    if isnothing(dirSave)
+    if isnothing(dir_save)
         pathSavex0, pathSaveRes, pathSaveTrace = nothing, nothing, nothing
     else
-        !isdir(dirSave) && mkpath(dirSave)
+        !isdir(dir_save) && mkpath(dir_save)
         _i = 1
         while true
-            pathSavex0 = joinpath(dirSave, "Start_guesses" * string(_i) * ".csv")
+            pathSavex0 = joinpath(dir_save, "Start_guesses" * string(_i) * ".csv")
             if !isfile(pathSavex0)
                 break
             end
             _i += 1
         end
-        pathSavex0 = joinpath(dirSave, "Start_guesses" * string(_i) * ".csv")
-        pathSaveRes = joinpath(dirSave, "Optimisation_results" * string(_i) * ".csv")
-        pathSaveParameters = joinpath(dirSave, "Best_parameters" * string(_i) * ".csv")
-        if saveTrace == true
-            pathSaveTrace = joinpath(dirSave, "Trace" * string(_i) * ".csv")
+        pathSavex0 = joinpath(dir_save, "Start_guesses" * string(_i) * ".csv")
+        pathSaveRes = joinpath(dir_save, "Optimisation_results" * string(_i) * ".csv")
+        pathSaveParameters = joinpath(dir_save, "Best_parameters" * string(_i) * ".csv")
+        if save_trace == true
+            pathSaveTrace = joinpath(dir_save, "Trace" * string(_i) * ".csv")
         else
             pathSaveTrace = nothing
         end
     end
 
-    startGuesses = generateStartGuesses(petabProblem, samplingMethod, nMultiStarts)
+    startGuesses = generateStartGuesses(petab_problem, sampling_method, n_multistarts)
     if !isnothing(pathSavex0)
-        startGuessesDf = DataFrame(Matrix(startGuesses)', petabProblem.θ_estNames)
+        startGuessesDf = DataFrame(Matrix(startGuesses)', petab_problem.θ_names)
         startGuessesDf[!, "Start_guess"] = 1:size(startGuessesDf)[1]
         CSV.write(pathSavex0, startGuessesDf)
     end
 
-    _res = Vector{PEtabOptimisationResult}(undef, nMultiStarts)
-    for i in 1:nMultiStarts
+    _res = Vector{PEtabOptimisationResult}(undef, n_multistarts)
+    for i in 1:n_multistarts
         _p0 = startGuesses[:, i]
-        _res[i] = calibrateModel(petabProblem, _p0, alg, saveTrace=saveTrace, options=options)
+        _res[i] = calibrate_model(petab_problem, _p0, alg, save_trace=save_trace, options=options)
         if !isnothing(pathSaveRes)
-            savePartialResults(pathSaveRes, pathSaveParameters, pathSaveTrace, _res[i], petabProblem.θ_estNames, i)
+            savePartialResults(pathSaveRes, pathSaveParameters, pathSaveTrace, _res[i], petab_problem.θ_names, i)
         end
     end
 
-    resBest = _res[argmin([_res[i].fMin for i in eachindex(_res)])]
-    fMin = resBest.fMin
-    xMin = resBest.xMin
-    samplingMethodStr = string(samplingMethod)[1:findfirst(x -> x == '(', string(samplingMethod))][1:end-1]
-    results = PEtabMultistartOptimisationResult(xMin,
-                                                fMin,
-                                                nMultiStarts,
+    resBest = _res[argmin([_res[i].fmin for i in eachindex(_res)])]
+    fmin = resBest.fmin
+    xmin = resBest.xmin
+    sampling_methodStr = string(sampling_method)[1:findfirst(x -> x == '(', string(sampling_method))][1:end-1]
+    results = PEtabMultistartOptimisationResult(xmin,
+                                                fmin,
+                                                n_multistarts,
                                                 resBest.alg,
-                                                samplingMethodStr,
-                                                dirSave,
+                                                sampling_methodStr,
+                                                dir_save,
                                                 _res)
     return results
 end

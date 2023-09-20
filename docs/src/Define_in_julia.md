@@ -149,13 +149,13 @@ measurements = DataFrame(
 After defining the model, observables, parameters to estimate, simulation conditions, and measurement data, you can easily create a `PEtabODEProblem` for your parameter estimation task:
 
 ```julia
-petab_model = readPEtabModel(rn, simulation_conditions, observables, measurements,
-                             parameters, stateMap=state_map, parameterMap=parameter_map,
+petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
+                             parameters, state_map=state_map, parameter_map=parameter_map,
                              verbose=true)
-petab_problem = createPEtabODEProblem(petab_model, verbose=true)
+petab_problem = PEtabODEProblem(petab_model, verbose=true)
 ```
 
-The `PEtabODEProblem` contains all the necessary information to work with most available optimizers (ADD!). Alternatively, if you want to perform parameter estimation using a multi-start approach, you can use the `calibrateModelMultistart` function (see see [Parameter estimation](@ref parameter_estimation)).
+The `PEtabODEProblem` contains all the necessary information to work with most available optimizers (ADD!). Alternatively, if you want to perform parameter estimation using a multi-start approach, you can use the `calibrate_model_multistart` function (see see [Parameter estimation](@ref parameter_estimation)).
 
 ## What is Next
 
@@ -224,11 +224,11 @@ measurements = DataFrame(
 )
 
 # Create a PEtab model
-petab_model = readPEtabModel(
+petab_model = PEtabModel(
     rn, simulation_conditions, observables, measurements,
-    parameters, stateMap=state_map, parameterMap=parameter_map, verbose=true
+    parameters, state_map=state_map, parameter_map=parameter_map, verbose=true
 )
 
 # Create a PEtabODEProblem
-petab_problem = createPEtabODEProblem(petab_model)
+petab_problem = PEtabODEProblem(petab_model)
 ```

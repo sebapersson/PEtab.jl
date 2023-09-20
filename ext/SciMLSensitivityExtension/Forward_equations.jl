@@ -10,27 +10,27 @@ end
 
 
 function PEtab.solveForSensitivites(odeProblem::ODEProblem,
-                                    simulationInfo::PEtab.SimulationInfo,
+                                    simulation_info::PEtab.SimulationInfo,
                                     θ_indices::PEtab.ParameterIndices,
-                                    petabModel::PEtabModel,
+                                    petab_model::PEtabModel,
                                     sensealg::SciMLSensitivity.AbstractForwardSensitivityAlgorithm,
                                     θ_dynamic::AbstractVector,
                                     solveOdeModelAllConditions!::Function,
                                     cfg::Nothing,
                                     petabODECache::PEtab.PEtabODEProblemCache,
                                     expIDSolve::Vector{Symbol},
-                                    splitOverConditions::Bool,
+                                    split_over_conditions::Bool,
                                     isRemade::Bool=false)
 
-    nModelStates = length(petabModel.stateNames)
+    nModelStates = length(petab_model.state_names)
     _odeProblem = remake(odeProblem, p = convert.(eltype(θ_dynamic), odeProblem.p), u0 = convert.(eltype(θ_dynamic), odeProblem.u0))
-    PEtab.changeODEProblemParameters!(_odeProblem.p, (@view _odeProblem.u0[1:nModelStates]), θ_dynamic, θ_indices, petabModel)
-    success = solveOdeModelAllConditions!(simulationInfo.odeSolutionsDerivatives, _odeProblem, θ_dynamic, expIDSolve)
+    PEtab.changeODEProblemParameters!(_odeProblem.p, (@view _odeProblem.u0[1:nModelStates]), θ_dynamic, θ_indices, petab_model)
+    success = solveOdeModelAllConditions!(simulation_info.odeSolutionsDerivatives, _odeProblem, θ_dynamic, expIDSolve)
     return success
 end
 
 
-function PEtab.computeGradientForwardExpCond!(gradient::Vector{Float64},
+function PEtab.compute_gradientForwardExpCond!(gradient::Vector{Float64},
                                               sol::ODESolution,
                                               petabODECache::PEtab.PEtabODEProblemCache,
                                               sensealg::SciMLSensitivity.AbstractForwardSensitivityAlgorithm,
@@ -40,25 +40,25 @@ function PEtab.computeGradientForwardExpCond!(gradient::Vector{Float64},
                                               θ_nonDynamic::Vector{Float64},
                                               experimentalConditionId::Symbol,
                                               simulationConditionId::Symbol,
-                                              simulationInfo::PEtab.SimulationInfo,
-                                              petabModel::PEtabModel,
+                                              simulation_info::PEtab.SimulationInfo,
+                                              petab_model::PEtabModel,
                                               θ_indices::PEtab.ParameterIndices,
                                               measurementInfo::PEtab.MeasurementsInfo,
                                               parameterInfo::PEtab.ParametersInfo)
 
-    iPerTimePoint = simulationInfo.iPerTimePoint[experimentalConditionId]
-    timeObserved = simulationInfo.timeObserved[experimentalConditionId]
+    iPerTimePoint = simulation_info.iPerTimePoint[experimentalConditionId]
+    timeObserved = simulation_info.timeObserved[experimentalConditionId]
 
     # To compute
     compute∂G∂u = (out, u, p, t, i) -> begin PEtab.compute∂G∂_(out, u, p, t, i, iPerTimePoint,
                                                                measurementInfo, parameterInfo,
-                                                               θ_indices, petabModel,
+                                                               θ_indices, petab_model,
                                                                θ_sd, θ_observable, θ_nonDynamic,
                                                                petabODECache.∂h∂u, petabODECache.∂σ∂u, compute∂G∂U=true)
                                             end
     compute∂G∂p = (out, u, p, t, i) -> begin PEtab.compute∂G∂_(out, u, p, t, i, iPerTimePoint,
                                                                measurementInfo, parameterInfo,
-                                                               θ_indices, petabModel,
+                                                               θ_indices, petab_model,
                                                                θ_sd, θ_observable, θ_nonDynamic,
                                                                petabODECache.∂h∂p, petabODECache.∂σ∂p, compute∂G∂U=false)
                                         end
@@ -66,7 +66,7 @@ function PEtab.computeGradientForwardExpCond!(gradient::Vector{Float64},
     # Loop through solution and extract sensitivites
     p = sol.prob.p
     ∂G∂p, ∂G∂p_ = zeros(Float64, length(p)), zeros(Float64, length(p))
-    ∂G∂u = zeros(Float64, length(petabModel.stateNames))
+    ∂G∂u = zeros(Float64, length(petab_model.state_names))
     _gradient = zeros(Float64, length(p))
     for i in eachindex(timeObserved)
         u, _S = extract_local_sensitivities(sol, i, true)

@@ -70,7 +70,7 @@ For more information on how to specify the model in the ModelingToolkit.jl forma
 
 ## Import the model file
 
-To import the Julia model, we need to set the path to Julia file via the variable `jlFilePath`. By doing so, we inform `readPEtabModel` to skip searching for an SBML file and instead import the Julia model:
+To import the Julia model, we need to set the path to Julia file via the variable `jlfile_path`. By doing so, we inform `PEtabModel` to skip searching for an SBML file and instead import the Julia model:
 
 ```julia
 using PEtab
@@ -79,11 +79,11 @@ using Printf
 
 pathYaml = joinpath(@__DIR__, "Beer", "Beer_MolBioSystems2014.yaml") 
 pathJuliaFile = joinpath(@__DIR__, "Beer", "Julia_import_files", "Beer_Julia_Import.jl")
-petabModel = readPEtabModel(pathYaml, verbose=true, jlFilePath=pathJuliaFile)
+petab_model = PEtabModel(pathYaml, verbose=true, jlfile_path=pathJuliaFile)
 ```
 ```
 PEtabModel for model Beer. ODE-system has 4 states and 9 parameters.
 Generated Julia files are at ...
 ```
 
-Moving forward, you can use the imported model similar to any other model imported from an SBML-file. To get an idea of how to use the wpetabModel` to compute the cost, gradient or hessian for an ODE parameter estimation problem, please refer to the tutorial for the [Beer model](@ref Beer_tut).
+Moving forward, you can use the imported model similar to any other model imported from an SBML-file. To get an idea of how to use the wpetab_model` to compute the cost, gradient or hessian for an ODE parameter estimation problem, please refer to the tutorial for the [Beer model](@ref Beer_tut).

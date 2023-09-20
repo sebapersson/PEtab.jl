@@ -1,75 +1,75 @@
 
 """
-    createFileDYmodSdU0(modelName::String,
-                       dirModel::String,
+    createFileDYmodSdU0(model_name::String,
+                       dir_model::String,
                        odeSys::ODESystem,
-                       stateMap,
+                       state_map,
                        SBMLDict::Dict)
 
-    For a PeTab model with name modelName with all PeTab-files in dirModel and associated
-    ModellingToolkit ODESystem (with its stateMap) build a file containing a functions for
+    For a PeTab model with name model_name with all PeTab-files in dir_model and associated
+    ModellingToolkit ODESystem (with its state_map) build a file containing a functions for
     i) computing the observable model value (yMod) ii) compute the initial value u0 (by using the
-    stateMap) and iii) computing the standard error (sd) for each observableFormula in the
+    state_map) and iii) computing the standard error (sd) for each observableFormula in the
     observables PeTab file.
     Note - The produced Julia file will go via the JIT-compiler.
 """
-function createDerivative_σ_h_File(modelName::String,
+function createDerivative_σ_h_File(model_name::String,
                                    pathYAMl::String,
-                                   dirJulia::String,
+                                   dir_julia::String,
                                    odeSystem::ODESystem,
-                                   parameterMap,
-                                   stateMap,
+                                   parameter_map,
+                                   state_map,
                                    SBMLDict::Dict;
                                    jlFile::Bool=false,
-                                   customParameterValues::Union{Nothing, Dict}=nothing, 
-                                   writeToFile::Bool=true)
+                                   custom_parameter_values::Union{Nothing, Dict}=nothing, 
+                                   write_to_file::Bool=true)
 
     pODEProblemNames = string.(parameters(odeSystem))
     modelStateNames = replace.(string.(states(odeSystem)), "(t)" => "")
 
     experimentalConditions, measurementsData, parametersData, observablesData = readPEtabFiles(pathYAMl, jlFile = jlFile)
-    parameterInfo = processParameters(parametersData, customParameterValues=customParameterValues)
+    parameterInfo = processParameters(parametersData, custom_parameter_values=custom_parameter_values)
     measurementInfo = processMeasurements(measurementsData, observablesData)
 
     # Indices for keeping track of parameters in θ
-    θ_indices = computeIndicesθ(parameterInfo, measurementInfo, odeSystem, parameterMap, stateMap, experimentalConditions)
+    θ_indices = computeIndicesθ(parameterInfo, measurementInfo, odeSystem, parameter_map, state_map, experimentalConditions)
 
-    ∂h∂uStr, ∂h∂pStr = create∂h∂_Function(modelName, dirJulia, modelStateNames, parameterInfo, pODEProblemNames, string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict, writeToFile)
-    ∂σ∂uStr, ∂σ∂pStr = create∂σ∂_Function(modelName, dirJulia, parameterInfo, modelStateNames, pODEProblemNames, string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict, writeToFile)
+    ∂h∂uStr, ∂h∂pStr = create∂h∂_Function(model_name, dir_julia, modelStateNames, parameterInfo, pODEProblemNames, string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict, write_to_file)
+    ∂σ∂uStr, ∂σ∂pStr = create∂σ∂_Function(model_name, dir_julia, parameterInfo, modelStateNames, pODEProblemNames, string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict, write_to_file)
     
     return ∂h∂uStr, ∂h∂pStr, ∂σ∂uStr, ∂σ∂pStr
 end
-function createDerivative_σ_h_File(modelName::String,
+function createDerivative_σ_h_File(model_name::String,
                                    system,
                                    experimentalConditions::CSV.File,
                                    measurementsData::CSV.File,
                                    parametersData::CSV.File,
                                    observablesData::CSV.File,
-                                   stateMap)
+                                   state_map)
 
     pODEProblemNames = string.(parameters(system))
     modelStateNames = replace.(string.(states(system)), "(t)" => "")
-    parameterMap = [p => 0.0 for p in parameters(system)]
+    parameter_map = [p => 0.0 for p in parameters(system)]
 
     parameterInfo = PEtab.processParameters(parametersData)
     measurementInfo = PEtab.processMeasurements(measurementsData, observablesData)
 
     # Indices for keeping track of parameters in θ
-    θ_indices = PEtab.computeIndicesθ(parameterInfo, measurementInfo, system, parameterMap, stateMap, experimentalConditions)
+    θ_indices = PEtab.computeIndicesθ(parameterInfo, measurementInfo, system, parameter_map, state_map, experimentalConditions)
 
     # Dummary variables to keep PEtab importer happy even as we are not providing any PEtab files
     SBMLDict = Dict(); SBMLDict["assignmentRulesStates"] = Dict()
 
-    ∂h∂uStr, ∂h∂pStr = PEtab.create∂h∂_Function(modelName, @__DIR__, modelStateNames, parameterInfo, pODEProblemNames, string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict, false)
-    ∂σ∂uStr, ∂σ∂pStr = PEtab.create∂σ∂_Function(modelName, @__DIR__, parameterInfo, modelStateNames, pODEProblemNames, string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict, false)
+    ∂h∂uStr, ∂h∂pStr = PEtab.create∂h∂_Function(model_name, @__DIR__, modelStateNames, parameterInfo, pODEProblemNames, string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict, false)
+    ∂σ∂uStr, ∂σ∂pStr = PEtab.create∂σ∂_Function(model_name, @__DIR__, parameterInfo, modelStateNames, pODEProblemNames, string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict, false)
 
     return ∂h∂uStr, ∂h∂pStr, ∂σ∂uStr, ∂σ∂pStr
 end
 
 
 """
-    create∂h∂_Function(modelName::String,
-                       dirModel::String,
+    create∂h∂_Function(model_name::String,
+                       dir_model::String,
                        modelStateNames::Vector{String},
                        parameterInfo::ParametersInfo,
                        pODEProblemNames::Vector{String},
@@ -77,20 +77,20 @@ end
                        observablesData::CSV.File,
                        SBMLDict::Dict)
 
-    For modelName create using Symbolics function for computing ∂h/∂u and ∂h/∂p where
+    For model_name create using Symbolics function for computing ∂h/∂u and ∂h/∂p where
     u = modelStates and p = pODEProblem (parameters for ODE problem)
 """
-function create∂h∂_Function(modelName::String,
-                            dirModel::String,
+function create∂h∂_Function(model_name::String,
+                            dir_model::String,
                             modelStateNames::Vector{String},
                             parameterInfo::ParametersInfo,
                             pODEProblemNames::Vector{String},
                             θ_nonDynamicNames::Vector{String},
                             observablesData::CSV.File,
                             SBMLDict::Dict, 
-                            writeToFile::Bool)
+                            write_to_file::Bool)
 
-    pathSave = joinpath(dirModel, modelName * "_D_h_sd.jl")
+    pathSave = joinpath(dir_model, model_name * "_D_h_sd.jl")
     io1 = IOBuffer()
     io2 = IOBuffer()
 
@@ -117,7 +117,7 @@ function create∂h∂_Function(modelName::String,
                 # Extract observable parameters
                 observableParameters = getObservableParametersStr(formula)
                 if !isempty(observableParameters) && enterObservable == true
-                    uObservebleStr *= "\t\t" * observableParameters * " = getObsOrSdParam(θ_observable, parameterMap)\n"
+                    uObservebleStr *= "\t\t" * observableParameters * " = getObsOrSdParam(θ_observable, parameter_map)\n"
                     enterObservable = false
                 end
 
@@ -136,7 +136,7 @@ function create∂h∂_Function(modelName::String,
                 # Extract observable parameters
                 observableParameters = getObservableParametersStr(formula)
                 if !isempty(observableParameters) && enterObservable == true
-                    pObservebleStr *= "\t\t" * observableParameters * " = getObsOrSdParam(θ_observable, parameterMap)\n"
+                    pObservebleStr *= "\t\t" * observableParameters * " = getObsOrSdParam(θ_observable, parameter_map)\n"
                     enterObservable = false
                 end
 
@@ -153,18 +153,18 @@ function create∂h∂_Function(modelName::String,
     end
 
 
-    if writeToFile == true
+    if write_to_file == true
         write(io1, modelStateStr)
         write(io1, pODEProblemStr)
         write(io1, θ_nonDynamicStr)
         write(io1, "\n")
     end
     write(io1, "function compute_∂h∂u!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
-                       θ_nonDynamic::AbstractVector, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) \n")
+                       θ_nonDynamic::AbstractVector, observableId::Symbol, parameter_map::θObsOrSdParameterMap, out) \n")
     write(io1, uObservebleStr)
     write(io1, "end")
     ∂h∂uStr = String(take!(io1))
-    if writeToFile
+    if write_to_file
         strWrite = ∂h∂uStr * "\n\n"
         open(pathSave, "w") do f
             write(f, strWrite)
@@ -172,11 +172,11 @@ function create∂h∂_Function(modelName::String,
     end
 
     write(io2, "function compute_∂h∂p!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
-                       θ_nonDynamic::AbstractVector, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) \n")
+                       θ_nonDynamic::AbstractVector, observableId::Symbol, parameter_map::θObsOrSdParameterMap, out) \n")
     write(io2, pObservebleStr)
     write(io2, "end")
     ∂h∂pStr = String(take!(io2))
-    if writeToFile
+    if write_to_file
         strWrite = ∂h∂pStr * "\n\n"
         open(pathSave, "a") do f
             write(f, strWrite)
@@ -261,8 +261,8 @@ end
 
 
 """
-    create∂σ∂_Function(modelName::String,
-                            dirModel::String,
+    create∂σ∂_Function(model_name::String,
+                            dir_model::String,
                             parameterInfo::ParametersInfo,
                             modelStateNames::Vector{String},
                             pODEProblemNames::Vector{String},
@@ -270,19 +270,19 @@ end
                             observablesData::CSV.File,
                             SBMLDict::Dict)
 
-    For modelName create a function for computing the standard deviation by translating the observablesData
+    For model_name create a function for computing the standard deviation by translating the observablesData
 """
-function create∂σ∂_Function(modelName::String,
-                            dirModel::String,
+function create∂σ∂_Function(model_name::String,
+                            dir_model::String,
                             parameterInfo::ParametersInfo,
                             modelStateNames::Vector{String},
                             pODEProblemNames::Vector{String},
                             θ_nonDynamicNames::Vector{String},
                             observablesData::CSV.File,
                             SBMLDict::Dict, 
-                            writeToFile::Bool)
+                            write_to_file::Bool)
 
-    pathSave = joinpath(dirModel, modelName * "_D_h_sd.jl")
+    pathSave = joinpath(dir_model, model_name * "_D_h_sd.jl")
     io1 = IOBuffer()
     io2 = IOBuffer()
 
@@ -305,7 +305,7 @@ function create∂σ∂_Function(modelName::String,
 
                 noiseParameters = getNoiseParametersStr(formula)
                 if !isempty(noiseParameters) && enterObservable == true
-                    uObservebleStr *= "\t\t" * noiseParameters * " = getObsOrSdParam(θ_sd, parameterMap)\n"
+                    uObservebleStr *= "\t\t" * noiseParameters * " = getObsOrSdParam(θ_sd, parameter_map)\n"
                     enterObservable = false
                 end
 
@@ -323,7 +323,7 @@ function create∂σ∂_Function(modelName::String,
 
                 noiseParameters = getNoiseParametersStr(formula)
                 if !isempty(noiseParameters) && enterObservable == true
-                    pObservebleStr *= "\t\t" * noiseParameters * " = getObsOrSdParam(θ_sd, parameterMap)\n"
+                    pObservebleStr *= "\t\t" * noiseParameters * " = getObsOrSdParam(θ_sd, parameter_map)\n"
                     enterObservable = false
                 end
 
@@ -340,11 +340,11 @@ function create∂σ∂_Function(modelName::String,
     end
 
     write(io1, "function compute_∂σ∂σu!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
-                        parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) \n")
+                        parameterInfo::ParametersInfo, observableId::Symbol, parameter_map::θObsOrSdParameterMap, out) \n")
     write(io1, uObservebleStr)
     write(io1, "end")
     ∂σ∂σuStr = String(take!(io1))
-    if writeToFile == true
+    if write_to_file == true
         strWrite = ∂σ∂σuStr * "\n\n"
         open(pathSave, "a") do f
             write(f, strWrite)
@@ -352,11 +352,11 @@ function create∂σ∂_Function(modelName::String,
     end
 
     write(io2, "function compute_∂σ∂σp!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
-                        parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) \n")
+                        parameterInfo::ParametersInfo, observableId::Symbol, parameter_map::θObsOrSdParameterMap, out) \n")
     write(io2, pObservebleStr)
     write(io2, "end")
     ∂σ∂σpStr = String(take!(io2))
-    if writeToFile == true
+    if write_to_file == true
         strWrite = ∂σ∂σpStr * "\n\n"
         open(pathSave, "a") do f
             write(f, strWrite)

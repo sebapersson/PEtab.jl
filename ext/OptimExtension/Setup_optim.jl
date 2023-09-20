@@ -2,12 +2,12 @@
     Optim wrapper 
 =#
 
-calibrateModelMultistart
-function PEtab.calibrateModelMultistart(petabProblem::PEtabODEProblem, 
+calibrate_model_multistart
+function PEtab.calibrate_model_multistart(petab_problem::PEtabODEProblem, 
                                         alg::Union{Optim.LBFGS, Optim.BFGS, Optim.IPNewton}, 
-                                        nMultiStarts::Signed, 
-                                        dirSave::Union{Nothing, String};
-                                        samplingMethod::T=QuasiMonteCarlo.LatinHypercubeSample(),
+                                        n_multistarts::Signed, 
+                                        dir_save::Union{Nothing, String};
+                                        sampling_method::T=QuasiMonteCarlo.LatinHypercubeSample(),
                                         options::Optim.Options=Optim.Options(iterations = 1000,
                                                                              show_trace = false,
                                                                              allow_f_increases=true,
@@ -16,19 +16,19 @@ function PEtab.calibrateModelMultistart(petabProblem::PEtabODEProblem,
                                                                              g_tol=1e-6,
                                                                              x_tol=0.0), 
                                         seed::Union{Nothing, Integer}=nothing, 
-                                        saveTrace::Bool=false)::PEtab.PEtabMultistartOptimisationResult where T <: QuasiMonteCarlo.SamplingAlgorithm
+                                        save_trace::Bool=false)::PEtab.PEtabMultistartOptimisationResult where T <: QuasiMonteCarlo.SamplingAlgorithm
     if !isnothing(seed)
         Random.seed!(seed)
     end
-    res = PEtab._multistartModelCallibration(petabProblem, alg, nMultiStarts, dirSave, samplingMethod, options, saveTrace)
+    res = PEtab._multistartModelCallibration(petab_problem, alg, n_multistarts, dir_save, sampling_method, options, save_trace)
     return res
 end
 
 
-function PEtab.calibrateModel(petabProblem::PEtabODEProblem, 
+function PEtab.calibrate_model(petab_problem::PEtabODEProblem, 
                                p0::Vector{Float64},
                                alg::Union{Optim.LBFGS, Optim.BFGS, Optim.IPNewton}; 
-                               saveTrace::Bool=false, 
+                               save_trace::Bool=false, 
                                options=Optim.Options(iterations = 1000,
                                                      show_trace = false,
                                                      allow_f_increases=true,
@@ -61,39 +61,39 @@ function PEtab.calibrateModel(petabProblem::PEtabODEProblem,
                             successive_f_tol=options.successive_f_tol, 
                             iterations=options.iterations, 
                             outer_iterations=options.outer_iterations, 
-                            store_trace=saveTrace, 
+                            store_trace=save_trace, 
                             trace_simplex=options.trace_simplex, 
                             show_trace=options.show_trace, 
-                            extended_trace=saveTrace, 
+                            extended_trace=save_trace, 
                             show_every=options.show_every, 
                             callback=options.callback, 
                             time_limit=options.time_limit)
 
     # Create a runnable function taking parameter as input                            
-    optimProblem =  createOptimProblem(petabProblem, alg, options=_options)
-    local nIterations, fMin, xMin, converged, runTime, fTrace, xTrace
+    optimProblem =  createOptimProblem(petab_problem, alg, options=_options)
+    local n_iterations, fmin, xmin, converged, runtime, ftrace, xtrace
     try
         res = optimProblem(p0)
-        nIterations = Optim.iterations(res)
-        fMin = Optim.minimum(res)
-        xMin = Optim.minimizer(res)
+        n_iterations = Optim.iterations(res)
+        fmin = Optim.minimum(res)
+        xmin = Optim.minimizer(res)
         converged = Optim.converged(res)
-        runTime = res.time_run # In seconds 
-        if saveTrace == true
-            fTrace = Optim.f_trace(res)
-            xTrace = Optim.x_trace(res)
+        runtime = res.time_run # In seconds 
+        if save_trace == true
+            ftrace = Optim.f_trace(res)
+            xtrace = Optim.x_trace(res)
         else
-            fTrace = Vector{Float64}(undef, 0)
-            xTrace = Vector{Vector{Float64}}(undef, 0)
+            ftrace = Vector{Float64}(undef, 0)
+            xtrace = Vector{Vector{Float64}}(undef, 0)
         end
     catch
-        nIterations = 0
-        fMin = NaN
-        xMin = similar(p0) .* NaN
-        fTrace = Vector{Float64}(undef, 0)
-        xTrace = Vector{Vector{Float64}}(undef, 0)
+        n_iterations = 0
+        fmin = NaN
+        xmin = similar(p0) .* NaN
+        ftrace = Vector{Float64}(undef, 0)
+        xtrace = Vector{Vector{Float64}}(undef, 0)
         converged = :Code_crashed
-        runTime = NaN
+        runtime = NaN
     end
 
     if typeof(alg) <: Optim.IPNewton
@@ -105,30 +105,30 @@ function PEtab.calibrateModel(petabProblem::PEtabODEProblem,
     end
 
     return PEtabOptimisationResult(algUsed,
-                                   xTrace, 
-                                   fTrace, 
-                                   nIterations, 
-                                   fMin, 
+                                   xtrace, 
+                                   ftrace, 
+                                   n_iterations, 
+                                   fmin, 
                                    _p0,
-                                   xMin, 
+                                   xmin, 
                                    converged, 
-                                   runTime)
+                                   runtime)
 end
 
 
 """
-    createOptimProb(petabProblem::PEtabODEProblem,
+    createOptimProb(petab_problem::PEtabODEProblem,
                     optimAlg;
                     hessianUse::Symbol=:blockAutoDiff)
 
-For a PeTab model optimization struct (petabProblem) create an Optim optmization (evalOptim)
+For a PeTab model optimization struct (petab_problem) create an Optim optmization (evalOptim)
 function using as optimAlg IPNewton (interior point Newton) or LBFGS, BFGS, ConjugateGradient.
 For IPNewton the hessian is computed via eiter autoDiff (:autoDiff), or approximated
 with blockAutoDiff (:blockAutoDiff). All optimizer struct can take their default
 arguments, for example, LBFGS(linesearch = LineSearches.HagerZhang()) is a valid
 argument for LBFGS.
 """
-function createOptimProblem(petabProblem::PEtabODEProblem,
+function createOptimProblem(petab_problem::PEtabODEProblem,
                             optimAlg;
                             options=Optim.Options(iterations = 1000,
                                                   show_trace = false,
@@ -139,9 +139,9 @@ function createOptimProblem(petabProblem::PEtabODEProblem,
                                                   x_tol=0.0))
 
     if typeof(optimAlg) <: IPNewton
-        return createOptimInteriorNewton(petabProblem, optimAlg, options)
+        return createOptimInteriorNewton(petab_problem, optimAlg, options)
     elseif typeof(optimAlg) <: LBFGS || typeof(optimAlg) <: BFGS || typeof(optimAlg) <: ConjugateGradient
-        return createOptimFminbox(petabProblem, optimAlg, options)
+        return createOptimFminbox(petab_problem, optimAlg, options)
     else
         @error "optimAlg $optimAlg is not supported - supported methods are IPNewton, ConjugateGradient, LBFGS and BFGS"
     end
@@ -149,31 +149,31 @@ end
 
 
 """
-    createOptimInteriorNewton(petabProblem::PEtabODEProblem;
+    createOptimInteriorNewton(petab_problem::PEtabODEProblem;
                               hessianUse::Symbol=:blockAutoDiff)
 
-For a PeTab model optimization struct (petabProblem) create an Optim interior point Newton
+For a PeTab model optimization struct (petab_problem) create an Optim interior point Newton
 function struct where the hessian is computed via eiter autoDiff (:autoDiff), or approximated
 with blockAutoDiff (:blockAutoDiff).
 """
-function createOptimInteriorNewton(petabProblem::PEtabODEProblem,
+function createOptimInteriorNewton(petab_problem::PEtabODEProblem,
                                    optimAlg,
                                    options)
 
-    lowerBounds = petabProblem.lowerBounds
-    upperBounds = petabProblem.upperBounds
+    lower_bounds = petab_problem.lower_bounds
+    upper_bounds = petab_problem.upper_bounds
 
-    nParam = length(lowerBounds)
+    nParam = length(lower_bounds)
     x0 = zeros(Float64, nParam)
-    df = TwiceDifferentiable(petabProblem.computeCost, petabProblem.computeGradient!, petabProblem.computeHessian!, x0)
-    dfc = TwiceDifferentiableConstraints(lowerBounds, upperBounds)
+    df = TwiceDifferentiable(petab_problem.compute_cost, petab_problem.compute_gradient!, petab_problem.compute_hessian!, x0)
+    dfc = TwiceDifferentiableConstraints(lower_bounds, upper_bounds)
 
     evalOptim = (p0) -> begin
                             # Move points within bounds
-                            iBelow = p0 .<= petabProblem.lowerBounds
-                            iAbove = p0 .>= petabProblem.upperBounds
-                            p0[iBelow] .= petabProblem.lowerBounds[iBelow] .+ 0.001
-                            p0[iAbove] .= petabProblem.upperBounds[iAbove] .- 0.001
+                            iBelow = p0 .<= petab_problem.lower_bounds
+                            iAbove = p0 .>= petab_problem.upper_bounds
+                            p0[iBelow] .= petab_problem.lower_bounds[iBelow] .+ 0.001
+                            p0[iAbove] .= petab_problem.upper_bounds[iAbove] .- 0.001
                             df.f(p0)
                             return Optim.optimize(df,
                                                   dfc,
@@ -187,23 +187,23 @@ end
 
 
 """
-    createOptimFminbox(petabProblem::PEtabODEProblem;
+    createOptimFminbox(petab_problem::PEtabODEProblem;
                        lineSearch=LineSearches.HagerZhang())
 
-For a PeTab model optimization struct (petabProblem) create an Optim Fminbox optimizer where the
+For a PeTab model optimization struct (petab_problem) create an Optim Fminbox optimizer where the
 inner optimizer is either LBFGS or BFGS using lineSearch.
 """
-function createOptimFminbox(petabProblem::PEtabODEProblem,
+function createOptimFminbox(petab_problem::PEtabODEProblem,
                             optimAlg,
                             options)
 
-    lowerBounds = petabProblem.lowerBounds
-    upperBounds = petabProblem.upperBounds
+    lower_bounds = petab_problem.lower_bounds
+    upper_bounds = petab_problem.upper_bounds
 
-    evalOptim = (p0) -> Optim.optimize(petabProblem.computeCost,
-                                       petabProblem.computeGradient!,
-                                       lowerBounds,
-                                       upperBounds,
+    evalOptim = (p0) -> Optim.optimize(petab_problem.compute_cost,
+                                       petab_problem.compute_gradient!,
+                                       lower_bounds,
+                                       upper_bounds,
                                        p0,
                                        Fminbox(optimAlg),
                                        options)

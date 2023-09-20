@@ -9,7 +9,7 @@ PEtab.jl supports three optimization methods from [Optim.jl](https://julianlsolv
 For example, LBFGS with 10,000 iterations can be used via:
 
 ```julia
-res = calibrateModel(petabProblem, p0, Optim.LBFGS(),
+res = calibrate_model(petab_problem, p0, Optim.LBFGS(),
                      options=Optim.Options(iterations = 10000))
 ```
 
@@ -33,7 +33,7 @@ To use the LBFGS Hessian approximation with Ipopt write:
 
 ```julia
 using Optim
-res = calibrateModel(petabProblem, p0, IpoptOptimiser(true))
+res = calibrate_model(petab_problem, p0, IpoptOptimiser(true))
 ```
 
 With `true` indicates the use of the LBFGS approximation.
@@ -42,7 +42,7 @@ To use the method in the `PEtabODEProblem`, and want to run Ipopt for 200 iterat
 
 ```julia
 using Ipopt
-res = calibrateModel(petabProblem, p0, IpoptOptimiser(false),
+res = calibrate_model(petab_problem, p0, IpoptOptimiser(false),
                      options=IpoptOptions(max_iter = 200))
 ```
 
@@ -106,14 +106,14 @@ To use Fides with a specific Hessian approximation method, such as BFGS, write:
 
 ```julia
 using PyCall
-res = calibrateModel(petabProblem, p0, Fides(:BFGS))
+res = calibrate_model(petab_problem, p0, Fides(:BFGS))
 ```
 
 If you prefer to use the Hessian method from the `PEtabODEProblem` and limit Fides to 200 iterations, write:
 
 ```julia
 using PyCall
-res = calibrateModel(petabProblem, p0, Fides(nothing),
+res = calibrate_model(petab_problem, p0, Fides(nothing),
                      options=py"{'maxiter' : 1000}"o)
 ```
 

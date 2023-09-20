@@ -85,17 +85,19 @@ include(joinpath("SBML", "Solve_SBML_model.jl"))
 # For correct struct printing
 include(joinpath("Show.jl"))
 
+#=
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem
 @setup_workload begin
-    pathYAML = joinpath(@__DIR__, "..", "test", "Test_model3", "Test_model3.yaml")
+    path_yaml = joinpath(@__DIR__, "..", "test", "Test_model3", "Test_model3.yaml")
     @compile_workload begin
-        petabModel = readPEtabModel(pathYAML, verbose=false, forceBuildJuliaFiles=true, writeToFile=false)
-        petabProblem = createPEtabODEProblem(petabModel, verbose=false)
-        petabProblem.computeCost(petabProblem.θ_nominalT)
+        petab_model = PEtabModel(path_yaml, verbose=false, build_julia_files=true, write_to_file=false)
+        petab_problem = PEtabODEProblem(petab_model, verbose=false)
+        petab_problem.compute_cost(petab_problem.θ_nominalT)
     end
 end
+=#
 
-export PEtabModel, PEtabODEProblem, ODESolverOptions, SteadyStateSolverOptions, readPEtabModel, createPEtabODEProblem, remakePEtabProblem, Fides, solveSBMLModel, PEtabOptimisationResult, IpoptOptions, IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult
+export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel, PEtabODEProblem, remake_PEtab_problem, Fides, solve_SBML, PEtabOptimisationResult, IpoptOptions, IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult
 
 
 if !isdefined(Base, :get_extension)
@@ -119,6 +121,6 @@ end
 # general documentation 
 include(joinpath("Model_callibration", "Common.jl"))
 
-export calibrateModel, calibrateModelMultistart, runPEtabSelect
+export calibrate_model, calibrate_model_multistart, run_PEtab_select
 
 end

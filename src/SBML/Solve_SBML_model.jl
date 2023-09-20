@@ -1,5 +1,5 @@
 """
-solveSBMLModel(pathSBML, solver, timeSpan; abstol=1e-8, reltol=1e-8, saveat=Float64[], verbose=true)
+solve_SBML(path_SBML, solver, tspan; abstol=1e-8, reltol=1e-8, saveat=Float64[], verbose=true)
 
 Solve an ODE SBML model at the values reported in the SBML file over the specified time span (t0::Float, tend::Float).
 
@@ -10,24 +10,24 @@ The Julia model files are saved in the same directory as the SBML file, in a sub
 !!! note
     This function is primarily intended for testing the SBML importer.
 """
-function solveSBMLModel(pathSBML, solver, timeSpan; abstol=1e-8, reltol=1e-8, saveat::Vector{Float64}=Float64[], verbose::Bool=true)
+function solve_SBML(path_SBML, solver, tspan; abstol=1e-8, reltol=1e-8, saveat::Vector{Float64}=Float64[], verbose::Bool=true)
 
-    @assert isfile(pathSBML) "SBML file does not exist"
+    @assert isfile(path_SBML) "SBML file does not exist"
 
-    verbose && @info "Building ODE system for file at $pathSBML"
-    modelName = splitdir(pathSBML)[2][1:end-4]
-    dirSave = joinpath(splitdir(pathSBML)[1], "SBML")
-    if !isdir(dirSave)
-        mkdir(dirSave)
+    verbose && @info "Building ODE system for file at $path_SBML"
+    model_name = splitdir(path_SBML)[2][1:end-4]
+    dir_save = joinpath(splitdir(path_SBML)[1], "SBML")
+    if !isdir(dir_save)
+        mkdir(dir_save)
     end
-    pathODE = joinpath(dirSave, "ODE_" * modelName * ".jl")
-    SBMLDict, _ = XmlToModellingToolkit(pathSBML, pathODE, modelName, ifElseToEvent=true)
+    pathODE = joinpath(dir_save, "ODE_" * model_name * ".jl")
+    SBMLDict, _ = XmlToModellingToolkit(path_SBML, pathODE, model_name, ifelse_to_event=true)
 
     #println("getFunctionsAsString(pathODE, 1)[1] = ", getFunctionsAsString(pathODE, 1)[1])
 
     verbose && @info "Symbolically processing system"
     _getODESystem = @RuntimeGeneratedFunction(Meta.parse(getFunctionsAsString(pathODE, 1)[1]))
-    _odeSystem, stateMap, parameterMap = _getODESystem("https://xkcd.com/303/") # Argument needed by @RuntimeGeneratedFunction
+    _odeSystem, state_map, parameter_map = _getODESystem("https://xkcd.com/303/") # Argument needed by @RuntimeGeneratedFunction
     if isempty(SBMLDict["algebraicRules"])
         odeSystem = structural_simplify(_odeSystem)
     # DAE requires special processing
@@ -38,8 +38,8 @@ function solveSBMLModel(pathSBML, solver, timeSpan; abstol=1e-8, reltol=1e-8, sa
     # Build callback function 
     pODEProblemNames = string.(parameters(odeSystem))
     modelStateNames = replace.(string.(states(odeSystem)), "(t)" => "")
-    modelName = replace(modelName, "-" => "_")
-    stringWriteCallbacks = "function getCallbacks_" * modelName * "()\n"
+    model_name = replace(model_name, "-" => "_")
+    stringWriteCallbacks = "function getCallbacks_" * model_name * "()\n"
     stringWriteTstops = "\nfunction computeTstops(u::AbstractVector, p::AbstractVector)\n"
 
     # In case we do not have any events
@@ -71,9 +71,9 @@ function solveSBMLModel(pathSBML, solver, timeSpan; abstol=1e-8, reltol=1e-8, sa
         end
         stringWriteTstops *= "\treturn" * createFuncionForTstops(SBMLDict, modelStateNames, pODEProblemNames, nothing) * "\n" * "end" * "\n"
     end
-    convertTspan = false
-    stringWriteCallbacks *= "\treturn CallbackSet(" * callbackNames * "), Function[" * checkIfActivatedT0Names * "], " * string(convertTspan)  * "\nend"
-    fileWrite = dirSave * "/" * modelName * "_callbacks.jl"
+    convert_tspan = false
+    stringWriteCallbacks *= "\treturn CallbackSet(" * callbackNames * "), Function[" * checkIfActivatedT0Names * "], " * string(convert_tspan)  * "\nend"
+    fileWrite = dir_save * "/" * model_name * "_callbacks.jl"
     if isfile(fileWrite)
         rm(fileWrite)
     end
@@ -84,12 +84,12 @@ function solveSBMLModel(pathSBML, solver, timeSpan; abstol=1e-8, reltol=1e-8, sa
 
     strGetCallbacks = getFunctionsAsString(fileWrite, 2)
     getCallbackFunction = @RuntimeGeneratedFunction(Meta.parse(strGetCallbacks[1]))
-    cbSet, checkCbActive, convertTspan = getCallbackFunction("https://xkcd.com/2694/") # Argument needed by @RuntimeGeneratedFunction
+    cbSet, checkCbActive, convert_tspan = getCallbackFunction("https://xkcd.com/2694/") # Argument needed by @RuntimeGeneratedFunction
     computeTstops = @RuntimeGeneratedFunction(Meta.parse(strGetCallbacks[2]))
 
     verbose && @info "Solving ODE"
 
-    odeProblem = ODEProblem(odeSystem, stateMap, timeSpan, parameterMap, jac=true)
+    odeProblem = ODEProblem(odeSystem, state_map, tspan, parameter_map, jac=true)
     tStops = computeTstops(odeProblem.u0, odeProblem.p)
     for f! in checkCbActive
         f!(odeProblem.u0, odeProblem.p)

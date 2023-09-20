@@ -24,32 +24,32 @@ function compute∂G∂_(∂G∂_,
                      measurementInfo::MeasurementsInfo,
                      parameterInfo::ParametersInfo,
                      θ_indices::ParameterIndices,
-                     petabModel::PEtabModel,
+                     petab_model::PEtabModel,
                      θ_sd::Vector{Float64},
                      θ_observable::Vector{Float64},
                      θ_nonDynamic::Vector{Float64},
                      ∂h∂_::Vector{Float64},
                      ∂σ∂_::Vector{Float64};
                      compute∂G∂U::Bool=true,
-                     computeResiduals::Bool=false)
+                     compute_residuals::Bool=false)
 
     fill!(∂G∂_, 0.0)
     for iMeasurementData in iPerTimePoint[i]
         fill!(∂h∂_, 0.0)
         fill!(∂σ∂_, 0.0)
 
-        hTransformed = computehTransformed(u, t, p, θ_observable, θ_nonDynamic, petabModel, iMeasurementData, measurementInfo, θ_indices, parameterInfo)
-        σ = computeσ(u, t, p, θ_sd, θ_nonDynamic, petabModel, iMeasurementData, measurementInfo, θ_indices, parameterInfo)
+        hTransformed = computehTransformed(u, t, p, θ_observable, θ_nonDynamic, petab_model, iMeasurementData, measurementInfo, θ_indices, parameterInfo)
+        σ = computeσ(u, t, p, θ_sd, θ_nonDynamic, petab_model, iMeasurementData, measurementInfo, θ_indices, parameterInfo)
 
         # Maps needed to correctly extract the right SD and observable parameters
         mapθ_sd = θ_indices.mapθ_sd[iMeasurementData]
         mapθ_observable = θ_indices.mapθ_observable[iMeasurementData]
         if compute∂G∂U == true
-            petabModel.compute_∂h∂u!(u, t, p, θ_observable, θ_nonDynamic, measurementInfo.observableId[iMeasurementData], mapθ_observable, ∂h∂_)
-            petabModel.compute_∂σ∂u!(u, t, θ_sd, p, θ_nonDynamic, parameterInfo, measurementInfo.observableId[iMeasurementData], mapθ_sd, ∂σ∂_)
+            petab_model.compute_∂h∂u!(u, t, p, θ_observable, θ_nonDynamic, measurementInfo.observableId[iMeasurementData], mapθ_observable, ∂h∂_)
+            petab_model.compute_∂σ∂u!(u, t, θ_sd, p, θ_nonDynamic, parameterInfo, measurementInfo.observableId[iMeasurementData], mapθ_sd, ∂σ∂_)
         else
-            petabModel.compute_∂h∂p!(u, t, p, θ_observable, θ_nonDynamic, measurementInfo.observableId[iMeasurementData], mapθ_observable, ∂h∂_)
-            petabModel.compute_∂σ∂p!(u, t, θ_sd, p, θ_nonDynamic, parameterInfo, measurementInfo.observableId[iMeasurementData], mapθ_sd, ∂σ∂_)
+            petab_model.compute_∂h∂p!(u, t, p, θ_observable, θ_nonDynamic, measurementInfo.observableId[iMeasurementData], mapθ_observable, ∂h∂_)
+            petab_model.compute_∂σ∂p!(u, t, θ_sd, p, θ_nonDynamic, parameterInfo, measurementInfo.observableId[iMeasurementData], mapθ_sd, ∂σ∂_)
         end
 
         if measurementInfo.measurementTransformation[iMeasurementData] === :log10
@@ -63,7 +63,7 @@ function compute∂G∂_(∂G∂_,
         end
 
         # In case of Guass Newton approximation we target the residuals (y_mod - y_obs)/σ
-        if computeResiduals == false
+        if compute_residuals == false
             ∂G∂h = ( hTransformed - yObs ) / σ^2
             ∂G∂σ = 1/σ - (( hTransformed - yObs )^2 / σ^3)
         else
@@ -136,11 +136,11 @@ end
 
 function _adjustGradientTransformedParameters(_gradient::AbstractVector{T},
                                               θ::AbstractVector{T},
-                                              θ_names::AbstractVector{Symbol},
+                                              n_parameters_estimate::AbstractVector{Symbol},
                                               θ_indices::ParameterIndices)::Vector{T} where T
 
     out = similar(_gradient)
-    @inbounds for (i, θ_name) in pairs(θ_names)
+    @inbounds for (i, θ_name) in pairs(n_parameters_estimate)
         θ_scale = θ_indices.θ_scale[θ_name]
         if θ_scale === :log10
             out[i] = log(10) * _gradient[i] * θ[i]

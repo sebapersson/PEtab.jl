@@ -1,9 +1,9 @@
-function computeCost(θ_est::V,
+function compute_cost(θ_est::V,
                      odeProblem::ODEProblem,
-                     odeSolverOptions::ODESolverOptions,
-                     ssSolverOptions::SteadyStateSolverOptions,
-                     petabModel::PEtabModel,
-                     simulationInfo::SimulationInfo,
+                     ode_solver::ODESolver,
+                     ss_solver::SteadyStateSolver,
+                     petab_model::PEtabModel,
+                     simulation_info::SimulationInfo,
                      θ_indices::ParameterIndices,
                      measurementInfo::MeasurementsInfo,
                      parameterInfo::ParametersInfo,
@@ -11,49 +11,49 @@ function computeCost(θ_est::V,
                      petabODECache::PEtabODEProblemCache,
                      petabODESolverCache::PEtabODESolverCache,
                      expIDSolve::Vector{Symbol},
-                     computeCost::Bool,
-                     computeHessian::Bool,
-                     computeResiduals::Bool) where V
+                     compute_cost::Bool,
+                     compute_hessian::Bool,
+                     compute_residuals::Bool) where V
 
     θ_dynamic, θ_observable, θ_sd, θ_nonDynamic = splitParameterVector(θ_est, θ_indices)
 
-    cost = computeCostSolveODE(θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, odeProblem, odeSolverOptions, ssSolverOptions, petabModel,
-                               simulationInfo, θ_indices, measurementInfo, parameterInfo, petabODECache, petabODESolverCache,
-                               computeCost=computeCost,
-                               computeHessian=computeHessian,
-                               computeResiduals=computeResiduals,
+    cost = compute_costSolveODE(θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, odeProblem, ode_solver, ss_solver, petab_model,
+                               simulation_info, θ_indices, measurementInfo, parameterInfo, petabODECache, petabODESolverCache,
+                               compute_cost=compute_cost,
+                               compute_hessian=compute_hessian,
+                               compute_residuals=compute_residuals,
                                expIDSolve=expIDSolve)
 
-    if priorInfo.hasPriors == true && computeHessian == false
-        θ_estT = transformθ(θ_est, θ_indices.θ_estNames, θ_indices)
-        cost -= computePriors(θ_est, θ_estT, θ_indices.θ_estNames, priorInfo) # We work with -loglik
+    if priorInfo.hasPriors == true && compute_hessian == false
+        θ_estT = transformθ(θ_est, θ_indices.θ_names, θ_indices)
+        cost -= computePriors(θ_est, θ_estT, θ_indices.θ_names, priorInfo) # We work with -loglik
     end
 
     return cost
 end
 
 
-function computeCostSolveODE(θ_dynamic::AbstractVector,
+function compute_costSolveODE(θ_dynamic::AbstractVector,
                              θ_sd::AbstractVector,
                              θ_observable::AbstractVector,
                              θ_nonDynamic::AbstractVector,
                              odeProblem::ODEProblem,
-                             odeSolverOptions::ODESolverOptions,
-                             ssSolverOptions::SteadyStateSolverOptions,
-                             petabModel::PEtabModel,
-                             simulationInfo::SimulationInfo,
+                             ode_solver::ODESolver,
+                             ss_solver::SteadyStateSolver,
+                             petab_model::PEtabModel,
+                             simulation_info::SimulationInfo,
                              θ_indices::ParameterIndices,
                              measurementInfo::MeasurementsInfo,
                              parameterInfo::ParametersInfo,
                              petabODECache::PEtabODEProblemCache,
                              petabODESolverCache::PEtabODESolverCache;
-                             computeCost::Bool=false,
-                             computeHessian::Bool=false,
-                             computeGradientDynamicθ::Bool=false,
-                             computeResiduals::Bool=false,
+                             compute_cost::Bool=false,
+                             compute_hessian::Bool=false,
+                             compute_gradientDynamicθ::Bool=false,
+                             compute_residuals::Bool=false,
                              expIDSolve::Vector{Symbol} = [:all])::Real
 
-    if computeGradientDynamicθ == true && petabODECache.nθ_dynamicEst[1] != length(θ_dynamic)
+    if compute_gradientDynamicθ == true && petabODECache.nθ_dynamicEst[1] != length(θ_dynamic)
         _θ_dynamic = θ_dynamic[petabODECache.θ_dynamicOutputOrder]
         θ_dynamicT = transformθ(_θ_dynamic, θ_indices.θ_dynamicNames, θ_indices, :θ_dynamic, petabODECache)
     else
@@ -65,42 +65,42 @@ function computeCostSolveODE(θ_dynamic::AbstractVector,
     θ_nonDynamicT = transformθ(θ_nonDynamic, θ_indices.θ_nonDynamicNames, θ_indices, :θ_nonDynamic, petabODECache)
 
     _odeProblem = remake(odeProblem, p = convert.(eltype(θ_dynamicT), odeProblem.p), u0 = convert.(eltype(θ_dynamicT), odeProblem.u0))
-    changeODEProblemParameters!(_odeProblem.p, _odeProblem.u0, θ_dynamicT, θ_indices, petabModel)
+    changeODEProblemParameters!(_odeProblem.p, _odeProblem.u0, θ_dynamicT, θ_indices, petab_model)
 
     # If computing hessian or gradient store ODE solution in arrary with dual numbers, else use
     # solution array with floats
-    if computeHessian == true || computeGradientDynamicθ == true
-        success = solveODEAllExperimentalConditions!(simulationInfo.odeSolutionsDerivatives, _odeProblem, petabModel, θ_dynamicT, petabODESolverCache, simulationInfo, θ_indices, odeSolverOptions, ssSolverOptions, expIDSolve=expIDSolve, denseSolution=false, onlySaveAtObservedTimes=true)
-    elseif computeCost == true
-        success = solveODEAllExperimentalConditions!(simulationInfo.odeSolutions, _odeProblem, petabModel, θ_dynamicT, petabODESolverCache, simulationInfo, θ_indices, odeSolverOptions, ssSolverOptions, expIDSolve=expIDSolve, denseSolution=false, onlySaveAtObservedTimes=true)
+    if compute_hessian == true || compute_gradientDynamicθ == true
+        success = solveODEAllExperimentalConditions!(simulation_info.odeSolutionsDerivatives, _odeProblem, petab_model, θ_dynamicT, petabODESolverCache, simulation_info, θ_indices, ode_solver, ss_solver, expIDSolve=expIDSolve, denseSolution=false, onlySaveAtObservedTimes=true)
+    elseif compute_cost == true
+        success = solveODEAllExperimentalConditions!(simulation_info.odeSolutions, _odeProblem, petab_model, θ_dynamicT, petabODESolverCache, simulation_info, θ_indices, ode_solver, ss_solver, expIDSolve=expIDSolve, denseSolution=false, onlySaveAtObservedTimes=true)
     end
     if success != true
         @warn "Failed to solve ODE model"
         return Inf
     end
 
-    cost = _computeCost(θ_sdT, θ_observableT, θ_nonDynamicT, petabModel, simulationInfo, θ_indices, measurementInfo,
+    cost = _compute_cost(θ_sdT, θ_observableT, θ_nonDynamicT, petab_model, simulation_info, θ_indices, measurementInfo,
                         parameterInfo, expIDSolve,
-                        computeHessian=computeHessian,
-                        computeGradientDynamicθ=computeGradientDynamicθ,
-                        computeResiduals=computeResiduals)
+                        compute_hessian=compute_hessian,
+                        compute_gradientDynamicθ=compute_gradientDynamicθ,
+                        compute_residuals=compute_residuals)
 
     return cost
 end
 
 
-function computeCostNotSolveODE(θ_sd::AbstractVector,
+function compute_costNotSolveODE(θ_sd::AbstractVector,
                                 θ_observable::AbstractVector,
                                 θ_nonDynamic::AbstractVector,
-                                petabModel::PEtabModel,
-                                simulationInfo::SimulationInfo,
+                                petab_model::PEtabModel,
+                                simulation_info::SimulationInfo,
                                 θ_indices::ParameterIndices,
                                 measurementInfo::MeasurementsInfo,
                                 parameterInfo::ParametersInfo,
                                 petabODECache::PEtabODEProblemCache;
-                                computeGradientNotSolveAutoDiff::Bool=false,
-                                computeGradientNotSolveAdjoint::Bool=false,
-                                computeGradientNotSolveForward::Bool=false,
+                                compute_gradientNotSolveAutoDiff::Bool=false,
+                                compute_gradientNotSolveAdjoint::Bool=false,
+                                compute_gradientNotSolveForward::Bool=false,
                                 expIDSolve::Vector{Symbol} = [:all])::Real
 
     # To be able to use ReverseDiff sdParamEstUse and obsParamEstUse cannot be overwritten.
@@ -109,40 +109,40 @@ function computeCostNotSolveODE(θ_sd::AbstractVector,
     θ_observableT = transformθ(θ_observable, θ_indices.θ_observableNames, θ_indices, :θ_observable, petabODECache)
     θ_nonDynamicT = transformθ(θ_nonDynamic, θ_indices.θ_nonDynamicNames, θ_indices, :θ_nonDynamic, petabODECache)
 
-    cost = _computeCost(θ_sdT, θ_observableT, θ_nonDynamicT, petabModel, simulationInfo, θ_indices,
+    cost = _compute_cost(θ_sdT, θ_observableT, θ_nonDynamicT, petab_model, simulation_info, θ_indices,
                         measurementInfo, parameterInfo, expIDSolve,
-                        computeGradientNotSolveAutoDiff=computeGradientNotSolveAutoDiff,
-                        computeGradientNotSolveAdjoint=computeGradientNotSolveAdjoint,
-                        computeGradientNotSolveForward=computeGradientNotSolveForward)
+                        compute_gradientNotSolveAutoDiff=compute_gradientNotSolveAutoDiff,
+                        compute_gradientNotSolveAdjoint=compute_gradientNotSolveAdjoint,
+                        compute_gradientNotSolveForward=compute_gradientNotSolveForward)
 
     return cost
 end
 
 
-function _computeCost(θ_sd::AbstractVector,
+function _compute_cost(θ_sd::AbstractVector,
                       θ_observable::AbstractVector,
                       θ_nonDynamic::AbstractVector,
-                      petabModel::PEtabModel,
-                      simulationInfo::SimulationInfo,
+                      petab_model::PEtabModel,
+                      simulation_info::SimulationInfo,
                       θ_indices::ParameterIndices,
                       measurementInfo::MeasurementsInfo,
                       parameterInfo::ParametersInfo,
                       expIDSolve::Vector{Symbol} = [:all];
-                      computeHessian::Bool=false,
-                      computeGradientDynamicθ::Bool=false,
-                      computeResiduals::Bool=false,
-                      computeGradientNotSolveAdjoint::Bool=false,
-                      computeGradientNotSolveForward::Bool=false,
-                      computeGradientNotSolveAutoDiff::Bool=false)::Real
+                      compute_hessian::Bool=false,
+                      compute_gradientDynamicθ::Bool=false,
+                      compute_residuals::Bool=false,
+                      compute_gradientNotSolveAdjoint::Bool=false,
+                      compute_gradientNotSolveForward::Bool=false,
+                      compute_gradientNotSolveAutoDiff::Bool=false)::Real
 
-    if computeHessian == true || computeGradientDynamicθ == true || computeGradientNotSolveAdjoint == true || computeGradientNotSolveForward == true || computeGradientNotSolveAutoDiff == true
-        odeSolutions = simulationInfo.odeSolutionsDerivatives
+    if compute_hessian == true || compute_gradientDynamicθ == true || compute_gradientNotSolveAdjoint == true || compute_gradientNotSolveForward == true || compute_gradientNotSolveAutoDiff == true
+        odeSolutions = simulation_info.odeSolutionsDerivatives
     else
-        odeSolutions = simulationInfo.odeSolutions
+        odeSolutions = simulation_info.odeSolutions
     end
 
     cost = 0.0
-    for experimentalConditionId in simulationInfo.experimentalConditionId
+    for experimentalConditionId in simulation_info.experimentalConditionId
 
         if expIDSolve[1] != :all && experimentalConditionId ∉ expIDSolve
             continue
@@ -150,12 +150,12 @@ function _computeCost(θ_sd::AbstractVector,
 
         # Extract the ODE-solution for specific condition ID
         odeSolution = odeSolutions[experimentalConditionId]
-        cost += computeCostExpCond(odeSolution, Float64[], θ_sd, θ_observable, θ_nonDynamic, petabModel,
-                                   experimentalConditionId, θ_indices, measurementInfo, parameterInfo, simulationInfo,
-                                   computeResiduals=computeResiduals,
-                                   computeGradientNotSolveAdjoint=computeGradientNotSolveAdjoint,
-                                   computeGradientNotSolveForward=computeGradientNotSolveForward,
-                                   computeGradientNotSolveAutoDiff=computeGradientNotSolveAutoDiff)
+        cost += compute_costExpCond(odeSolution, Float64[], θ_sd, θ_observable, θ_nonDynamic, petab_model,
+                                   experimentalConditionId, θ_indices, measurementInfo, parameterInfo, simulation_info,
+                                   compute_residuals=compute_residuals,
+                                   compute_gradientNotSolveAdjoint=compute_gradientNotSolveAdjoint,
+                                   compute_gradientNotSolveForward=compute_gradientNotSolveForward,
+                                   compute_gradientNotSolveAutoDiff=compute_gradientNotSolveAutoDiff)
 
         if isinf(cost)
             return Inf
@@ -166,57 +166,57 @@ function _computeCost(θ_sd::AbstractVector,
 end
 
 
-function computeCostExpCond(odeSolution::ODESolution,
+function compute_costExpCond(odeSolution::ODESolution,
                             pODEProblemZygote::AbstractVector,
                             θ_sd::AbstractVector,
                             θ_observable::AbstractVector,
                             θ_nonDynamic::AbstractVector,
-                            petabModel::PEtabModel,
+                            petab_model::PEtabModel,
                             experimentalConditionId::Symbol,
                             θ_indices::ParameterIndices,
                             measurementInfo::MeasurementsInfo,
                             parameterInfo::ParametersInfo,
-                            simulationInfo::SimulationInfo;
-                            computeResiduals::Bool=false,
-                            computeGradientNotSolveAdjoint::Bool=false,
-                            computeGradientNotSolveForward::Bool=false,
-                            computeGradientNotSolveAutoDiff::Bool=false,
-                            computeGradientθDynamicZygote::Bool=false)::Real
+                            simulation_info::SimulationInfo;
+                            compute_residuals::Bool=false,
+                            compute_gradientNotSolveAdjoint::Bool=false,
+                            compute_gradientNotSolveForward::Bool=false,
+                            compute_gradientNotSolveAutoDiff::Bool=false,
+                            compute_gradientθDynamicZygote::Bool=false)::Real
 
     if !(odeSolution.retcode == ReturnCode.Success || odeSolution.retcode == ReturnCode.Terminated)
         return Inf
     end
 
     cost = 0.0
-    for iMeasurement in simulationInfo.iMeasurements[experimentalConditionId]
+    for iMeasurement in simulation_info.iMeasurements[experimentalConditionId]
 
         t = measurementInfo.time[iMeasurement]
 
         # In these cases we only save the ODE at observed time-points and we do not want
         # to extract Dual ODE solution
-        if computeGradientNotSolveForward == true || computeGradientNotSolveAutoDiff == true
-            nModelStates = length(petabModel.stateNames)
-            u = dualToFloat.(odeSolution[1:nModelStates, simulationInfo.iTimeODESolution[iMeasurement]])
+        if compute_gradientNotSolveForward == true || compute_gradientNotSolveAutoDiff == true
+            nModelStates = length(petab_model.state_names)
+            u = dualToFloat.(odeSolution[1:nModelStates, simulation_info.iTimeODESolution[iMeasurement]])
             p = dualToFloat.(odeSolution.prob.p)
         # For adjoint sensitivity analysis we have a dense-ode solution
-        elseif computeGradientNotSolveAdjoint == true
+        elseif compute_gradientNotSolveAdjoint == true
             # In case we only have sol.t = 0.0 (or similar) interpolation does not work
             u = length(odeSolution.t) > 1 ? odeSolution(t) : odeSolution[1]
             p = odeSolution.prob.p
 
-        elseif computeGradientθDynamicZygote == true
-            u = odeSolution.u[simulationInfo.iTimeODESolution[iMeasurement], :][1]
+        elseif compute_gradientθDynamicZygote == true
+            u = odeSolution.u[simulation_info.iTimeODESolution[iMeasurement], :][1]
             p = pODEProblemZygote
 
         # When we want to extract dual number from the ODE solution
         else
-            u = odeSolution[:, simulationInfo.iTimeODESolution[iMeasurement]]
+            u = odeSolution[:, simulation_info.iTimeODESolution[iMeasurement]]
             p = odeSolution.prob.p
         end
 
-        h = computeh(u, t, p, θ_observable, θ_nonDynamic, petabModel, iMeasurement, measurementInfo, θ_indices, parameterInfo)
+        h = computeh(u, t, p, θ_observable, θ_nonDynamic, petab_model, iMeasurement, measurementInfo, θ_indices, parameterInfo)
         hTransformed = transformMeasurementOrH(h, measurementInfo.measurementTransformation[iMeasurement])
-        σ = computeσ(u, t, p, θ_sd, θ_nonDynamic, petabModel, iMeasurement, measurementInfo, θ_indices, parameterInfo)
+        σ = computeσ(u, t, p, θ_sd, θ_nonDynamic, petab_model, iMeasurement, measurementInfo, θ_indices, parameterInfo)
         residual = (hTransformed - measurementInfo.measurementT[iMeasurement]) / σ
 
         # These values might be needed by different software, e.g. PyPesto, to assess things such as parameter uncertainity. By storing them in
@@ -233,7 +233,7 @@ function computeCostExpCond(odeSolution::ODESolution,
 
         # Update log-likelihood. In case of guass newton approximation we are only interested in the residuals, and here
         # we allow the residuals to be computed to test the gauss-newton implementation
-        if computeResiduals == false
+        if compute_residuals == false
             if measurementInfo.measurementTransformation[iMeasurement] === :lin
                 cost += log(σ) + 0.5*log(2*pi) + 0.5*residual^2
             elseif measurementInfo.measurementTransformation[iMeasurement] === :log10
@@ -244,7 +244,7 @@ function computeCostExpCond(odeSolution::ODESolution,
                 println("Transformation ", measurementInfo.measurementTransformation[iMeasurement], " not yet supported.")
                 return Inf
             end
-        elseif computeResiduals == true
+        elseif compute_residuals == true
             cost += residual
         end
     end

@@ -4,19 +4,19 @@
 =#
 
 
-function computeHessian!(hessian::Matrix{Float64},
+function compute_hessian!(hessian::Matrix{Float64},
                          θ_est::Vector{Float64},
                          _evalHessian::Function,
                          cfg::ForwardDiff.HessianConfig,
-                         simulationInfo::SimulationInfo,
+                         simulation_info::SimulationInfo,
                          θ_indices::ParameterIndices,
                          priorInfo::PriorInfo)
 
     # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
     # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
     # retcode we cannot catch these cases 
-    simulationInfo.couldSolve[1] = true
-    if all([simulationInfo.odeSolutions[id].retcode == ReturnCode.Success || simulationInfo.odeSolutions[id].retcode == ReturnCode.Terminated for id in simulationInfo.experimentalConditionId])
+    simulation_info.couldSolve[1] = true
+    if all([simulation_info.odeSolutions[id].retcode == ReturnCode.Success || simulation_info.odeSolutions[id].retcode == ReturnCode.Terminated for id in simulation_info.experimentalConditionId])
         try
             ForwardDiff.hessian!(hessian, _evalHessian, θ_est, cfg)
             @views hessian .= Symmetric(hessian)
@@ -28,13 +28,13 @@ function computeHessian!(hessian::Matrix{Float64},
     end
 
     # Check if we could solve the ODE (first), and if Inf was returned (second)
-    if simulationInfo.couldSolve[1] != true
+    if simulation_info.couldSolve[1] != true
         hessian .= 0.0
         return
     end
 
     if priorInfo.hasPriors == true
-        computeHessianPrior!(hessian, θ_est, θ_indices, priorInfo)
+        compute_hessianPrior!(hessian, θ_est, θ_indices, priorInfo)
     end
 end
 
@@ -42,10 +42,10 @@ end
 # Compute the hessian via forward mode automatic differentitation where the final hessian is computed via
 # n ForwardDiff-calls accross all experimental condtions. The most efficient approach for models with many
 # parameters which are unique to each experimental condition.
-function computeHessianSplitOverConditions!(hessian::Matrix{Float64},
+function compute_hessianSplitOverConditions!(hessian::Matrix{Float64},
                                             θ_est::Vector{Float64},
                                             _evalHessian::Function,
-                                            simulationInfo::SimulationInfo,
+                                            simulation_info::SimulationInfo,
                                             θ_indices::ParameterIndices,
                                             priorInfo::PriorInfo,
                                             expIDSolve::Vector{Symbol} = [:all])
@@ -53,10 +53,10 @@ function computeHessianSplitOverConditions!(hessian::Matrix{Float64},
     # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
     # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
     # retcode we cannot catch these cases                                             
-    simulationInfo.couldSolve[1] = true                                            
+    simulation_info.couldSolve[1] = true                                            
 
     hessian .= 0.0
-    for conditionId in simulationInfo.experimentalConditionId
+    for conditionId in simulation_info.experimentalConditionId
         mapConditionId = θ_indices.mapsConiditionId[conditionId]
         iθ_experimentalCondition = unique(vcat(θ_indices.mapODEProblem.iθDynamic, mapConditionId.iθDynamic, θ_indices.iθ_notOdeSystem))
         θ_input = θ_est[iθ_experimentalCondition]
@@ -81,24 +81,24 @@ function computeHessianSplitOverConditions!(hessian::Matrix{Float64},
     end
 
     # Check if we could solve the ODE (first), and if Inf was returned (second)
-    if simulationInfo.couldSolve[1] != true
+    if simulation_info.couldSolve[1] != true
         hessian .= 0.0
         return
     end
 
     if priorInfo.hasPriors == true
-        computeHessianPrior!(hessian, θ_est, θ_indices, priorInfo)
+        compute_hessianPrior!(hessian, θ_est, θ_indices, priorInfo)
     end
 end
 
 
-function computeHessianBlockApproximation!(hessian::Matrix{Float64},
+function compute_hessianBlockApproximation!(hessian::Matrix{Float64},
                                            θ_est::Vector{Float64},
-                                           computeCostNotODESystemθ::Function,
-                                           computeCostDynamicθ::Function,
+                                           compute_costNotODESystemθ::Function,
+                                           compute_costDynamicθ::Function,
                                            petabODECache::PEtabODEProblemCache,
                                            cfg::ForwardDiff.HessianConfig,
-                                           simulationInfo::SimulationInfo,
+                                           simulation_info::SimulationInfo,
                                            θ_indices::ParameterIndices,
                                            priorInfo::PriorInfo;
                                            expIDSolve::Vector{Symbol} = [:all])
@@ -106,7 +106,7 @@ function computeHessianBlockApproximation!(hessian::Matrix{Float64},
     # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
     # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
     # retcode we cannot catch these cases                                            
-    simulationInfo.couldSolve[1] = true
+    simulation_info.couldSolve[1] = true
 
     # Avoid incorrect non-zero values
     hessian .= 0.0
@@ -116,9 +116,9 @@ function computeHessianBlockApproximation!(hessian::Matrix{Float64},
 
     try
         if !isempty(θ_indices.iθ_dynamic)
-            @views ForwardDiff.hessian!(hessian[θ_indices.iθ_dynamic, θ_indices.iθ_dynamic], computeCostDynamicθ, θ_dynamic, cfg)
+            @views ForwardDiff.hessian!(hessian[θ_indices.iθ_dynamic, θ_indices.iθ_dynamic], compute_costDynamicθ, θ_dynamic, cfg)
         else
-            computeCostDynamicθ(θ_dynamic)
+            compute_costDynamicθ(θ_dynamic)
         end
     catch
         hessian .= 0.0
@@ -126,27 +126,27 @@ function computeHessianBlockApproximation!(hessian::Matrix{Float64},
     end
 
     # Check if we could solve the ODE (first), and if Inf was returned (second)
-    if simulationInfo.couldSolve[1] != true
+    if simulation_info.couldSolve[1] != true
         hessian .= 0.0
         return
     end
 
     iθ_notOdeSystem = θ_indices.iθ_notOdeSystem
-    @views ForwardDiff.hessian!(hessian[iθ_notOdeSystem, iθ_notOdeSystem], computeCostNotODESystemθ, θ_est[iθ_notOdeSystem])
+    @views ForwardDiff.hessian!(hessian[iθ_notOdeSystem, iθ_notOdeSystem], compute_costNotODESystemθ, θ_est[iθ_notOdeSystem])
 
     # Even though this is a hessian approximation, due to ease of implementation and low run-time we compute the
     # full hessian for the priors
     if priorInfo.hasPriors == true
-        computeHessianPrior!(hessian, θ_est, θ_indices, priorInfo)
+        compute_hessianPrior!(hessian, θ_est, θ_indices, priorInfo)
     end
 end
 
-function computeHessianBlockApproximationSplitOverConditions!(hessian::Matrix{Float64},
+function compute_hessianBlockApproximationSplitOverConditions!(hessian::Matrix{Float64},
                                                               θ_est::Vector{Float64},
-                                                              computeCostNotODESystemθ::Function,
-                                                              _computeCostDynamicθ::Function,
+                                                              compute_costNotODESystemθ::Function,
+                                                              _compute_costDynamicθ::Function,
                                                               petabODECache::PEtabODEProblemCache,
-                                                              simulationInfo::SimulationInfo,
+                                                              simulation_info::SimulationInfo,
                                                               θ_indices::ParameterIndices,
                                                               priorInfo::PriorInfo;
                                                               expIDSolve::Vector{Symbol} = [:all])
@@ -154,7 +154,7 @@ function computeHessianBlockApproximationSplitOverConditions!(hessian::Matrix{Fl
     # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
     # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
     # retcode we cannot catch these cases                                                               
-    simulationInfo.couldSolve[1] = true
+    simulation_info.couldSolve[1] = true
 
     # Avoid incorrect non-zero values
     hessian .= 0.0
@@ -162,18 +162,18 @@ function computeHessianBlockApproximationSplitOverConditions!(hessian::Matrix{Fl
     splitParameterVector!(θ_est, θ_indices, petabODECache)
     θ_dynamic = petabODECache.θ_dynamic
 
-    for conditionId in simulationInfo.experimentalConditionId
+    for conditionId in simulation_info.experimentalConditionId
         mapConditionId = θ_indices.mapsConiditionId[conditionId]
         iθ_experimentalCondition = unique(vcat(θ_indices.mapODEProblem.iθDynamic, mapConditionId.iθDynamic))
         θ_input = θ_dynamic[iθ_experimentalCondition]
         hTmp = zeros(length(θ_input), length(θ_input))
-        computeCostDynamicθ = (θ_arg) ->    begin
+        compute_costDynamicθ = (θ_arg) ->    begin
                                                     _θ_dynamic = convert.(eltype(θ_arg), θ_dynamic)
                                                     @views _θ_dynamic[iθ_experimentalCondition] .= θ_arg
-                                                    return _computeCostDynamicθ(_θ_dynamic, [conditionId])
+                                                    return _compute_costDynamicθ(_θ_dynamic, [conditionId])
                                             end
         try
-            ForwardDiff.hessian!(hTmp, computeCostDynamicθ, θ_input)
+            ForwardDiff.hessian!(hTmp, compute_costDynamicθ, θ_input)
         catch
             hessian .= 0.0
             return
@@ -186,18 +186,18 @@ function computeHessianBlockApproximationSplitOverConditions!(hessian::Matrix{Fl
     end
 
     # Check if we could solve the ODE (first), and if Inf was returned (second)
-    if simulationInfo.couldSolve[1] != true
+    if simulation_info.couldSolve[1] != true
         hessian .= 0.0
         return
     end
 
     iθ_notOdeSystem = θ_indices.iθ_notOdeSystem
-    @views ForwardDiff.hessian!(hessian[iθ_notOdeSystem, iθ_notOdeSystem], computeCostNotODESystemθ, θ_est[iθ_notOdeSystem])
+    @views ForwardDiff.hessian!(hessian[iθ_notOdeSystem, iθ_notOdeSystem], compute_costNotODESystemθ, θ_est[iθ_notOdeSystem])
 
     # Even though this is a hessian approximation, due to ease of implementation and low run-time we compute the
     # full hessian for the priors
     if priorInfo.hasPriors == true
-        computeHessianPrior!(hessian, θ_est, θ_indices, priorInfo)
+        compute_hessianPrior!(hessian, θ_est, θ_indices, priorInfo)
     end
 end
 
@@ -205,9 +205,9 @@ end
 function computeGaussNewtonHessianApproximation!(out::Matrix{Float64},
                                                  θ_est::Vector{Float64},
                                                  odeProblem::ODEProblem,
-                                                 computeResidualsNotSolveODE!::Function,
-                                                 petabModel::PEtabModel,
-                                                 simulationInfo::SimulationInfo,
+                                                 compute_residualsNotSolveODE!::Function,
+                                                 petab_model::PEtabModel,
+                                                 simulation_info::SimulationInfo,
                                                  θ_indices::ParameterIndices,
                                                  measurementInfo::MeasurementsInfo,
                                                  parameterInfo::ParametersInfo,
@@ -216,8 +216,8 @@ function computeGaussNewtonHessianApproximation!(out::Matrix{Float64},
                                                  cfg::ForwardDiff.JacobianConfig,
                                                  cfgNotSolveODE::ForwardDiff.JacobianConfig,
                                                  petabODECache::PEtabODEProblemCache;
-                                                 reuseS::Bool=false,
-                                                 splitOverConditions::Bool=false,
+                                                 reuse_sensitivities::Bool=false,
+                                                 split_over_conditions::Bool=false,
                                                  returnJacobian::Bool=false,
                                                  expIDSolve::Vector{Symbol} = [:all],
                                                  isRemade::Bool=false)
@@ -235,10 +235,10 @@ function computeGaussNewtonHessianApproximation!(out::Matrix{Float64},
 
     # Calculate gradient seperately for dynamic and non dynamic parameter.
     computeJacobianResidualsDynamicθ!((@view jacobianGN[θ_indices.iθ_dynamic, :]), θ_dynamic, θ_sd,
-                                      θ_observable, θ_nonDynamic, petabModel, odeProblem,
-                                      simulationInfo, θ_indices, measurementInfo, parameterInfo,
+                                      θ_observable, θ_nonDynamic, petab_model, odeProblem,
+                                      simulation_info, θ_indices, measurementInfo, parameterInfo,
                                       solveOdeModelAllConditions!, cfg, petabODECache;
-                                      expIDSolve=expIDSolve, reuseS=reuseS, splitOverConditions=splitOverConditions,
+                                      expIDSolve=expIDSolve, reuse_sensitivities=reuse_sensitivities, split_over_conditions=split_over_conditions,
                                       isRemade=isRemade)
 
     # Happens when at least one forward pass fails
@@ -246,7 +246,7 @@ function computeGaussNewtonHessianApproximation!(out::Matrix{Float64},
         out .= 0.0
         return
     end
-    @views ForwardDiff.jacobian!(jacobianGN[θ_indices.iθ_notOdeSystem, :]', computeResidualsNotSolveODE!, petabODECache.residualsGN, θ_est[θ_indices.iθ_notOdeSystem], cfgNotSolveODE)
+    @views ForwardDiff.jacobian!(jacobianGN[θ_indices.iθ_notOdeSystem, :]', compute_residualsNotSolveODE!, petabODECache.residualsGN, θ_est[θ_indices.iθ_notOdeSystem], cfgNotSolveODE)
 
     # In case of testing we might want to return the jacobian, else we are interested in the Guass-Newton approximaiton.
     if returnJacobian == false
@@ -256,7 +256,7 @@ function computeGaussNewtonHessianApproximation!(out::Matrix{Float64},
         # Even though this is a hessian approximation, due to ease of implementation and low run-time we compute the
         # full hessian for the priors
         if priorInfo.hasPriors == true
-            computeHessianPrior!(out, θ_est, θ_indices, priorInfo)
+            compute_hessianPrior!(out, θ_est, θ_indices, priorInfo)
         end
     end
 end
@@ -264,14 +264,14 @@ end
 
 
 # Compute prior contribution to log-likelihood, note θ in on the parameter scale (e.g might be on log-scale)
-function computeHessianPrior!(hessian::AbstractMatrix,
+function compute_hessianPrior!(hessian::AbstractMatrix,
                               θ::AbstractVector,
                               θ_indices::ParameterIndices,
                               priorInfo::PriorInfo)
 
     _evalPriors = (θ_est) -> begin
-                                θ_estT =  transformθ(θ_est, θ_indices.θ_estNames, θ_indices)
-                                return -1.0 * computePriors(θ_est, θ_estT, θ_indices.θ_estNames, priorInfo) # We work with -loglik
+                                θ_estT =  transformθ(θ_est, θ_indices.θ_names, θ_indices)
+                                return -1.0 * computePriors(θ_est, θ_estT, θ_indices.θ_names, priorInfo) # We work with -loglik
                             end
     hessian .+= ForwardDiff.hessian(_evalPriors, θ)
 end

@@ -1,11 +1,11 @@
 """
-    readPEtabModel(system::ReactionSystem,
+    PEtabModel(system::ReactionSystem,
                    simulationConditions::Dict{String, Dict},
                    observables::Dict{String, PEtab.PEtabObservable},
                    measurements::DataFrame,
                    petabParameters::Vector{PEtab.PEtabParameter};
-                   stateMap::Union{Nothing, Vector{Pair}=nothing,
-                   parameterMap::Union{Nothing, Vector{Pair}=nothing,
+                   state_map::Union{Nothing, Vector{Pair}=nothing,
+                   parameter_map::Union{Nothing, Vector{Pair}=nothing,
                    verbose::Bool=false)::PEtabModel
 
 Create a PEtabModel directly in Julia from a Catalyst reaction system.
@@ -18,8 +18,8 @@ For additional information on the input format, see the main documentation.
 - `observables::Dict{String, PEtab.PEtabObservable}`: A dictionary specifying the observable and noise formulas linking the model to data.
 - `measurements::DataFrame`: Measurement data to calibrate the model against.
 - `petabParameters::Vector{PEtab.PEtabParameter}`: Parameters to estimate in PEtabParameter format.
-- `stateMap=nothing`: An optional state-map to set initial species values to be constant across all simulation conditions.
-- `parameterMap=nothing`: An optional state-map to set parameter values to be constant across all simulation conditions.
+- `state_map=nothing`: An optional state-map to set initial species values to be constant across all simulation conditions.
+- `parameter_map=nothing`: An optional state-map to set parameter values to be constant across all simulation conditions.
 - `verbose::Bool=false`: Whether to print progress when building the model.
 
 # Example
@@ -56,27 +56,27 @@ petab_parameters = [
 observables = Dict("obs_a" => PEtabObservable(A, 0.5))
 
 # Create a PEtabODEProblem 
-petab_model = readPEtabModel(
+petab_model = PEtabModel(
     rn, simulation_conditions, observables, measurements,
     petab_parameters, verbose=false
 )
 ```
 """
-function PEtab.readPEtabModel(system::ReactionSystem,
+function PEtab.PEtabModel(system::ReactionSystem,
                               simulationConditions::Dict{String, T},
                               observables::Dict{String, PEtab.PEtabObservable},
                               measurements::DataFrame,
                               petabParameters::Vector{PEtab.PEtabParameter};
-                              stateMap::Union{Nothing, Vector{Pair{T1, Float64}}}=nothing,
-                              parameterMap::Union{Nothing, Vector{Pair{T2, Float64}}}=nothing,
+                              state_map::Union{Nothing, Vector{Pair{T1, Float64}}}=nothing,
+                              parameter_map::Union{Nothing, Vector{Pair{T2, Float64}}}=nothing,
                               verbose::Bool=false)::PEtab.PEtabModel where {T1<:Union{Symbol, Num}, T2<:Union{Symbol, Num}, T<:Dict}
 
-    modelName = "ReactionSystemModel"
-    verbose == true && @info "Building PEtabModel for $modelName"
+    model_name = "ReactionSystemModel"
+    verbose == true && @info "Building PEtabModel for $model_name"
 
     # Extract model parameters and names
-    parameterNames = parameters(system)
-    stateNames = states(system)
+    parameter_names = parameters(system)
+    state_names = states(system)
 
     # Extract relevant PEtab-files, convert to CSV.File
     measurementsData = PEtab.parsePEtabMeasurements(measurements, observables, simulationConditions, petabParameters) |> PEtab.dataFrameToCSVFile
@@ -86,24 +86,24 @@ function PEtab.readPEtabModel(system::ReactionSystem,
     
 
     # Build the initial value map (initial values as parameters are set in the reaction system)
-    stateMap = PEtab.updateStateMap(stateMap, system, experimentalConditions) # Parameters in condition table
+    state_map = PEtab.updateStateMap(state_map, system, experimentalConditions) # Parameters in condition table
     defaultValues = Catalyst.get_defaults(system)
-    _stateMap = [Symbol(replace(string(S), "(t)" => "")) => S ∈ keys(defaultValues) ? string(defaultValues[S]) : "0.0" for S in states(system)]
-    if !isnothing(stateMap)
-        stateMapNames = [Symbol(_S.first) for _S in stateMap]
-        for (i, S) in pairs(_stateMap)
-            if S.first ∉ stateMapNames
+    _state_map = [Symbol(replace(string(S), "(t)" => "")) => S ∈ keys(defaultValues) ? string(defaultValues[S]) : "0.0" for S in states(system)]
+    if !isnothing(state_map)
+        state_mapNames = [Symbol(_S.first) for _S in state_map]
+        for (i, S) in pairs(_state_map)
+            if S.first ∉ state_mapNames
                 continue
             end
-            _stateMap[i] = _stateMap[i].first => string(stateMap[findfirst(x -> x == S.first, stateMapNames)].second)
+            _state_map[i] = _state_map[i].first => string(state_map[findfirst(x -> x == S.first, state_mapNames)].second)
         end
     end
 
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Building u0, h and σ functions ...")
     timeTaken = @elapsed begin
-    hStr, u0!Str, u0Str, σStr = PEtab.create_σ_h_u0_File(modelName, system, experimentalConditions, measurementsData,
-                                                         parametersData, observablesData, _stateMap)
+    hStr, u0!Str, u0Str, σStr = PEtab.create_σ_h_u0_File(model_name, system, experimentalConditions, measurementsData,
+                                                         parametersData, observablesData, _state_map)
     compute_h = @RuntimeGeneratedFunction(Meta.parse(hStr))
     compute_u0! = @RuntimeGeneratedFunction(Meta.parse(u0!Str))
     compute_u0 = @RuntimeGeneratedFunction(Meta.parse(u0Str))
@@ -114,9 +114,9 @@ function PEtab.readPEtabModel(system::ReactionSystem,
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Building ∂h∂p, ∂h∂u, ∂σ∂p and ∂σ∂u functions ...")
     timeTaken = @elapsed begin
-    ∂h∂uStr, ∂h∂pStr, ∂σ∂uStr, ∂σ∂pStr = PEtab.createDerivative_σ_h_File(modelName, system, experimentalConditions,
+    ∂h∂uStr, ∂h∂pStr, ∂σ∂uStr, ∂σ∂pStr = PEtab.createDerivative_σ_h_File(model_name, system, experimentalConditions,
                                                                          measurementsData, parametersData, observablesData,
-                                                                         _stateMap)
+                                                                         _state_map)
     compute_∂h∂u! = @RuntimeGeneratedFunction(Meta.parse(∂h∂uStr))
     compute_∂h∂p! = @RuntimeGeneratedFunction(Meta.parse(∂h∂pStr))
     compute_∂σ∂σu! = @RuntimeGeneratedFunction(Meta.parse(∂σ∂uStr))
@@ -126,28 +126,28 @@ function PEtab.readPEtabModel(system::ReactionSystem,
 
     # For Callbacks. These function are needed by SBML generated PEtab-files, as for those we as an example rewrite
     # piecewise expressions into events
-    stringWriteCallbacks = "function getCallbacks_" * modelName * "(foo)\n"
+    stringWriteCallbacks = "function getCallbacks_" * model_name * "(foo)\n"
     stringWriteTstops = "\nfunction computeTstops(u::AbstractVector, p::AbstractVector)\n"
     stringWriteTstops *= "\t return Float64[]\nend\n"
     stringWriteCallbacks *= "\treturn CallbackSet(), Function[], false\nend"
     getCallbackFunction = @RuntimeGeneratedFunction(Meta.parse(stringWriteCallbacks))
-    cbSet, checkCbActive, convertTspan = getCallbackFunction("https://xkcd.com/2694/") # Argument needed by @RuntimeGeneratedFunction
+    cbSet, checkCbActive, convert_tspan = getCallbackFunction("https://xkcd.com/2694/") # Argument needed by @RuntimeGeneratedFunction
     computeTstops = @RuntimeGeneratedFunction(Meta.parse(stringWriteTstops))
 
-    _parameterMap = [Num(p) => 0.0 for p in parameters(system)]
-    for i in eachindex(_parameterMap)
-        if isnothing(parameterMap)
+    _parameter_map = [Num(p) => 0.0 for p in parameters(system)]
+    for i in eachindex(_parameter_map)
+        if isnothing(parameter_map)
             continue
         end
-        for j in eachindex(parameterMap)
-            if string(_parameterMap[i].first) != string(parameterMap[j].first)
+        for j in eachindex(parameter_map)
+            if string(_parameter_map[i].first) != string(parameter_map[j].first)
                 continue
             end
-            _parameterMap[i] = _parameterMap[i].first => parameterMap[j].second
+            _parameter_map[i] = _parameter_map[i].first => parameter_map[j].second
         end
     end
 
-    petabModel = PEtabModel(modelName,
+    petab_model = PEtabModel(model_name,
                             compute_h,
                             compute_u0!,
                             compute_u0,
@@ -159,10 +159,10 @@ function PEtab.readPEtabModel(system::ReactionSystem,
                             computeTstops,
                             false,
                             system,
-                            _parameterMap,
-                            _stateMap,
-                            parameterNames,
-                            stateNames,
+                            _parameter_map,
+                            _state_map,
+                            parameter_names,
+                            state_names,
                             "",
                             "",
                             measurementsData,
@@ -173,7 +173,7 @@ function PEtab.readPEtabModel(system::ReactionSystem,
                             "",
                             cbSet,
                             checkCbActive)
-    return petabModel
+    return petab_model
 end
 
 

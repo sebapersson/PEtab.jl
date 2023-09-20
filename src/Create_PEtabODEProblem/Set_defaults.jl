@@ -4,54 +4,54 @@
 =#
 
 
-function setODESolverOptions(odeSolverOptions::Union{ODESolverOptions, Nothing},
+function setODESolver(ode_solver::Union{ODESolver, Nothing},
                              modelSize::Symbol,
-                             gradientMethod::Symbol)::ODESolverOptions
+                             gradient_method::Symbol)::ODESolver
 
-    if !isnothing(odeSolverOptions)
-        return odeSolverOptions
+    if !isnothing(ode_solver)
+        return ode_solver
     end
 
     if modelSize === :Small
-        return ODESolverOptions(Rodas5P())
+        return ODESolver(Rodas5P())
     end
 
     if modelSize === :Medium
-        return ODESolverOptions(QNDF())
+        return ODESolver(QNDF())
     end
 
     if modelSize === :Large
         @warn "For large models we strongly recomend to compare different ODE-solvers instead of using default options"
-        if gradientMethod === :Adjoint || isnothing(gradientMethod)
-            return ODESolverOptions(CVODE_BDF())
+        if gradient_method === :Adjoint || isnothing(gradient_method)
+            return ODESolver(CVODE_BDF())
         else
-            return ODESolverOptions(KenCarp4())
+            return ODESolver(KenCarp4())
         end
     end
 end
 
 
-function setSteadyStateSolverOptions(ssOptions::Union{SteadyStateSolverOptions, Nothing},
-                                     odeSolverOptions::ODESolverOptions)::SteadyStateSolverOptions
+function setSteadyStateSolver(ssOptions::Union{SteadyStateSolver, Nothing},
+                                     ode_solver::ODESolver)::SteadyStateSolver
 
     if !isnothing(ssOptions)
         return ssOptions
     end
 
-     ssSolverOptions = SteadyStateSolverOptions(:Simulate,
-                                                abstol=odeSolverOptions.abstol / 100,
-                                                reltol=odeSolverOptions.reltol / 100)
-    return ssSolverOptions
+     ss_solver = SteadyStateSolver(:Simulate,
+                                                abstol=ode_solver.abstol / 100,
+                                                reltol=ode_solver.reltol / 100)
+    return ss_solver
 end
 
 
 
-function setGradientMethod(gradientMethod::Union{Symbol, Nothing},
+function setGradientMethod(gradient_method::Union{Symbol, Nothing},
                            modelSize::Symbol,
-                           reuseS::Bool)::Symbol
+                           reuse_sensitivities::Bool)::Symbol
 
-    if !isnothing(gradientMethod)
-        return gradientMethod
+    if !isnothing(gradient_method)
+        return gradient_method
     end
 
     if modelSize === :Small
@@ -59,8 +59,8 @@ function setGradientMethod(gradientMethod::Union{Symbol, Nothing},
     end
 
     if modelSize === :Medium
-        reuseS == false && return :ForwardDiff
-        reuseS == true && return :ForwardEquations
+        reuse_sensitivities == false && return :ForwardDiff
+        reuse_sensitivities == true && return :ForwardEquations
     end
 
     if modelSize === :Large
@@ -73,11 +73,11 @@ function setGradientMethod(gradientMethod::Union{Symbol, Nothing},
 end
 
 
-function setHessianMethod(hessianMethod::Union{Symbol, Nothing},
+function setHessianMethod(hessian_method::Union{Symbol, Nothing},
                           modelSize::Symbol)
 
-    if !isnothing(hessianMethod)
-        return hessianMethod
+    if !isnothing(hessian_method)
+        return hessian_method
     end
 
     if modelSize === :Small

@@ -1,30 +1,30 @@
 # Function generating callbacksets for time-depedent SBML piecewise expressions, as callbacks are more efficient than
 # using ifelse (e.g better integration stabillity)
 function createCallbacksForTimeDepedentPiecewise(odeSystem::ODESystem,
-                                                 parameterMap,
-                                                 stateMap,
+                                                 parameter_map,
+                                                 state_map,
                                                  SBMLDict::Dict,
-                                                 modelName::String,
-                                                 pathYAML::String,
-                                                 dirJulia::String;
+                                                 model_name::String,
+                                                 path_yaml::String,
+                                                 dir_julia::String;
                                                  jlFile::Bool=false,
-                                                 customParameterValues::Union{Nothing, Dict}=nothing, 
-                                                 writeToFile::Bool=true)
+                                                 custom_parameter_values::Union{Nothing, Dict}=nothing, 
+                                                 write_to_file::Bool=true)
 
     pODEProblemNames = string.(parameters(odeSystem))
     modelStateNames = replace.(string.(states(odeSystem)), "(t)" => "")
 
     # Compute indices tracking parameters (needed as down the line we need to know if a parameter should be estimated
     # or not, as if such a parameter triggers a callback we must let it be a continious callback)
-    experimentalConditions, measurementsData, parametersData, observablesData = readPEtabFiles(pathYAML, jlFile = jlFile)
-    parameterInfo = processParameters(parametersData, customParameterValues=customParameterValues)
+    experimentalConditions, measurementsData, parametersData, observablesData = readPEtabFiles(path_yaml, jlFile = jlFile)
+    parameterInfo = processParameters(parametersData, custom_parameter_values=custom_parameter_values)
     measurementInfo = processMeasurements(measurementsData, observablesData)
-    θ_indices = computeIndicesθ(parameterInfo, measurementInfo, odeSystem, parameterMap, stateMap, experimentalConditions)
+    θ_indices = computeIndicesθ(parameterInfo, measurementInfo, odeSystem, parameter_map, state_map, experimentalConditions)
 
     # In case of no-callbacks the function for getting callbacks will be empty, likewise for the function
     # which compute tstops (callback-times)
-    modelName = replace(modelName, "-" => "_")
-    stringWriteCallbacks = "function getCallbacks_" * modelName * "(foo)\n"
+    model_name = replace(model_name, "-" => "_")
+    stringWriteCallbacks = "function getCallbacks_" * model_name * "(foo)\n"
     stringWriteTstops = "\nfunction computeTstops(u::AbstractVector, p::AbstractVector)\n"
 
     # In case we do not have any events
@@ -58,14 +58,14 @@ function createCallbacksForTimeDepedentPiecewise(odeSystem::ODESystem,
 
     # Check whether or not the trigger for a discrete callback depends on a parameter or not. If true then the time-span
     # must be converted to dual when computing the gradient using ForwardDiff.
-    convertTspan = shouldConvertTspan(SBMLDict, odeSystem, θ_indices, jlFile)::Bool
+    convert_tspan = shouldConvertTspan(SBMLDict, odeSystem, θ_indices, jlFile)::Bool
 
-    stringWriteCallbacks *= "\treturn CallbackSet(" * callbackNames * "), Function[" * checkIfActivatedT0Names * "], " * string(convertTspan)  * "\nend"
-    pathSave = joinpath(dirJulia, modelName * "_callbacks.jl")
+    stringWriteCallbacks *= "\treturn CallbackSet(" * callbackNames * "), Function[" * checkIfActivatedT0Names * "], " * string(convert_tspan)  * "\nend"
+    pathSave = joinpath(dir_julia, model_name * "_callbacks.jl")
     if isfile(pathSave)
         rm(pathSave)
     end
-    if writeToFile == true
+    if write_to_file == true
         io = open(pathSave, "w")
         write(io, stringWriteCallbacks * "\n\n")
         write(io, stringWriteTstops)
@@ -214,7 +214,7 @@ function createFuncionForTstops(SBMLDict::Dict,
                                 pODEProblemNames::Vector{String},
                                 θ_indices::Union{ParameterIndices, Nothing})
 
-    convertTspan = false
+    convert_tspan = false
     conditionFormulas = vcat([SBMLDict["boolVariables"][key][1] for key in keys(SBMLDict["boolVariables"])], [SBMLDict["events"][key][1] for key in keys(SBMLDict["events"])])
     tstopsStr = Vector{String}(undef, length(conditionFormulas))
     tstopsStrAlt = Vector{String}(undef, length(conditionFormulas))
@@ -229,10 +229,10 @@ function createFuncionForTstops(SBMLDict::Dict,
             continue
         end
         if !isnothing(θ_indices) && conditionHasParametersToEstimate(conditionFormula, pODEProblemNames, θ_indices)
-            convertTspan = true
+            convert_tspan = true
         end
         if isnothing(θ_indices)
-            convertTspan = true
+            convert_tspan = true
         end
 
         # We need to make the parameters and states symbolic in order to solve the condition expression
@@ -267,7 +267,7 @@ function createFuncionForTstops(SBMLDict::Dict,
         i += 1
     end
 
-    if convertTspan == true
+    if convert_tspan == true
         return"[" * prod([isempty(tstopsStrAlt[i]) ? "" : tstopsStrAlt[i] * ", " for i in eachindex(tstopsStrAlt)])[1:end-2] * "]"
     else
         return " Float64[" * prod([isempty(tstopsStr[i]) ? "" : tstopsStr[i] * ", " for i in eachindex(tstopsStr)])[1:end-2] * "]"

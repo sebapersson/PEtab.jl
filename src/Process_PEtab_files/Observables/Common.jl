@@ -1,6 +1,6 @@
 
 """
-    petabFormulaToJulia(formula::String, stateNames, paramData::ParametersInfo, namesParamDyn::Vector{String}, namesNonDynParam::Vector{String})::String
+    petabFormulaToJulia(formula::String, state_names, paramData::ParametersInfo, namesParamDyn::Vector{String}, namesNonDynParam::Vector{String})::String
 
     Translate a peTab formula (e.g for observable or for sd-parameter) into Julia syntax and output the result
     as a string.
@@ -101,7 +101,7 @@ end
 
 """"
     wordToJuliaSyntax(wordTranslate::String,
-                      stateNames,
+                      state_names,
                       paramData::ParametersInfo,
                       namesParamDyn::Vector{String})::String
 
@@ -211,7 +211,7 @@ end
 
 
 """
-    replaceVariablesWithArrayIndex(formula,stateNames,parameterNames,namesNonDynParam,paramData)::String
+    replaceVariablesWithArrayIndex(formula,state_names,parameter_names,namesNonDynParam,paramData)::String
 
     Replaces any state or parameter from formula with their corresponding index in the ODE system
     Symbolics can return strings without multiplication sign, e.g. 100.0STAT5 instead of 100.0*STAT5

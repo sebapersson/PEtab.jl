@@ -3,99 +3,99 @@
 =#
 
 
-function PEtab.calibrateModelMultistart(petabProblem::PEtab.PEtabODEProblem, 
-                                        alg::PEtab.Fides, 
-                                        nMultiStarts::Signed, 
-                                        dirSave::Union{Nothing, String};
-                                        samplingMethod::T=QuasiMonteCarlo.LatinHypercubeSample(),
-                                        options=py"{'maxiter' : 1000}"o,
-                                        seed::Union{Nothing, Integer}=nothing, 
-                                        saveTrace::Bool=false)::PEtab.PEtabMultistartOptimisationResult where T <: QuasiMonteCarlo.SamplingAlgorithm
+function PEtab.calibrate_model_multistart(petab_problem::PEtab.PEtabODEProblem, 
+                                          alg::PEtab.Fides, 
+                                          n_multistarts::Signed, 
+                                          dir_save::Union{Nothing, String};
+                                          sampling_method::T=QuasiMonteCarlo.LatinHypercubeSample(),
+                                          options=py"{'maxiter' : 1000}"o,
+                                          seed::Union{Nothing, Integer}=nothing, 
+                                          save_trace::Bool=false)::PEtab.PEtabMultistartOptimisationResult where T <: QuasiMonteCarlo.SamplingAlgorithm
     if !isnothing(seed)
         Random.seed!(seed)
     end
-    res = PEtab._multistartModelCallibration(petabProblem, alg, nMultiStarts, dirSave, samplingMethod, options, saveTrace)
+    res = PEtab._multistartModelCallibration(petab_problem, alg, n_multistarts, dir_save, sampling_method, options, save_trace)
     return res
 end
 
 
-function PEtab.calibrateModel(petabProblem::PEtabODEProblem, 
-                              p0::Vector{Float64},
-                              alg::Fides; 
-                              saveTrace::Bool=false, 
-                              options=py"{'maxiter' : 1000}"o)::PEtab.PEtabOptimisationResult
+function PEtab.calibrate_model(petab_problem::PEtabODEProblem, 
+                               p0::Vector{Float64},
+                               alg::Fides; 
+                               save_trace::Bool=false, 
+                               options=py"{'maxiter' : 1000}"o)::PEtab.PEtabOptimisationResult
 
     _p0 = deepcopy(p0)                               
 
-    if saveTrace == true                         
+    if save_trace == true                         
         @warn "For Fides the x and f trace cannot currently be saved (we are working on it)" maxlog=10     
     end          
 
-    runFides = createFidesProblem(petabProblem, alg, options=options)
+    runFides = createFidesProblem(petab_problem, alg, options=options)
 
     # Create a runnable function taking parameter as input                            
-    local nIterations, fMin, xMin, converged, runTime, fTrace, xTrace
+    local n_iterations, fmin, xmin, converged, runtime, ftrace, xtrace
     try
-        runTime = @elapsed res, nIterations, converged = runFides(p0)
-        fMin = res[1]
-        xMin = res[2]
-        fTrace = Vector{Float64}(undef, 0)
-        xTrace = Vector{Vector{Float64}}(undef, 0)
+        runtime = @elapsed res, n_iterations, converged = runFides(p0)
+        fmin = res[1]
+        xmin = res[2]
+        ftrace = Vector{Float64}(undef, 0)
+        xtrace = Vector{Vector{Float64}}(undef, 0)
     catch
-        nIterations = 0
-        fMin = NaN
-        xMin = similar(p0) .* NaN
-        fTrace = Vector{Float64}(undef, 0)
-        xTrace = Vector{Vector{Float64}}(undef, 0)
+        n_iterations = 0
+        fmin = NaN
+        xmin = similar(p0) .* NaN
+        ftrace = Vector{Float64}(undef, 0)
+        xtrace = Vector{Vector{Float64}}(undef, 0)
         converged = :Code_crashed
-        runTime = NaN
+        runtime = NaN
     end
     algUsed = :Fides
 
     return PEtabOptimisationResult(algUsed,
-                                   xTrace, 
-                                   fTrace, 
-                                   nIterations, 
-                                   fMin, 
+                                   xtrace, 
+                                   ftrace, 
+                                   n_iterations, 
+                                   fmin, 
                                    _p0,
-                                   xMin, 
+                                   xmin, 
                                    converged, 
-                                   runTime)
+                                   runtime)
 end
 
 
-function createFidesProblem(petabProblem::PEtabODEProblem,
+function createFidesProblem(petab_problem::PEtabODEProblem,
                             fidesSetting::Fides; # In case you want to use any Fides optimizer
                             options=py"{'maxiter' : 1000}"o,
                             funargs=py"None"o,
                             resfun::Bool=false)
 
-    nParam = length(petabProblem.lowerBounds)
-    if !isnothing(fidesSetting.hessianApproximation)
+    nParam = length(petab_problem.lower_bounds)
+    if !isnothing(fidesSetting.hessian_method)
         useHessianApproximation = true
     else
         # Put hessian function into acceptable Fides format
         useHessianApproximation = false
         hessian = zeros(Float64, (nParam, nParam))
-        computeHessian! = (p) -> evalAutoDiffHess(p, petabProblem.computeHessian!, hessian)
+        compute_hessian! = (p) -> evalAutoDiffHess(p, petab_problem.compute_hessian!, hessian)
     end
 
     gradient = zeros(Float64, nParam)
-    computeGradient! = (p) -> evalAutoDiffGrad(p, petabProblem.computeGradient!, gradient)
+    compute_gradient! = (p) -> evalAutoDiffGrad(p, petab_problem.compute_gradient!, gradient)
 
     # Fides objective funciton
     if useHessianApproximation == false
-        fidesFunc = (p) -> fidesObjHess(p, petabProblem.computeCost, computeGradient!, computeHessian!)
+        fidesFunc = (p) -> fidesObjHess(p, petab_problem.compute_cost, compute_gradient!, compute_hessian!)
     else
-        fidesFunc = (p) -> fidesObjApprox(p, petabProblem.computeCost, computeGradient!)
+        fidesFunc = (p) -> fidesObjApprox(p, petab_problem.compute_cost, compute_gradient!)
     end
 
     # Set up a runnable executeble for Fides
-    fidesObj = setUpFidesClass(fidesFunc, petabProblem.upperBounds, petabProblem.lowerBounds,
+    fidesObj = setUpFidesClass(fidesFunc, petab_problem.upper_bounds, petab_problem.lower_bounds,
                                fidesSetting.verbose,
                                options,
                                funargs,
-                               string(fidesSetting.hessianApproximation),
+                               string(fidesSetting.hessian_method),
                                resfun)
 
     return fidesObj

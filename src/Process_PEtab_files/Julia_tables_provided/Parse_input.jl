@@ -171,9 +171,9 @@ function parsePEtabExperimentalCondition(simulationConditions::Dict{String, T},
 
     # Check if initial value is set in condition table (must then add a parameter to the reaction-system
     # to correctly compute gradients)
-    stateNames = replace.(string.(states(system)), "(t)" => "")
+    state_names = replace.(string.(states(system)), "(t)" => "")
     for id in names(df)
-        if string(id) ∈ stateNames
+        if string(id) ∈ state_names
             newParameter = "__init__" * string(id) * "__"
             addModelParameter!(system, newParameter)
         end
@@ -188,23 +188,23 @@ function addModelParameter!(system, newParameter)
 end
 
 
-function updateStateMap(stateMap, system, experimentalConditions::CSV.File)
+function updateStateMap(state_map, system, experimentalConditions::CSV.File)
 
     # Check if initial value is set in condition table (must then add a parameter to the reaction-system
     # to correctly compute gradients)
-    stateNames = replace.(string.(states(system)), "(t)" => "")
+    state_names = replace.(string.(states(system)), "(t)" => "")
     for id in experimentalConditions.names
-        if string(id) ∉ stateNames
+        if string(id) ∉ state_names
             continue
         end
         newParameter = "__init__" * string(id) * "__"
-        if isnothing(stateMap)
-            stateMap = [Symbol(id) => Symbol(newParameter)]
+        if isnothing(state_map)
+            state_map = [Symbol(id) => Symbol(newParameter)]
         else
-            stateMap = vcat(stateMap, Symbol(id) => Symbol(newParameter))
+            state_map = vcat(state_map, Symbol(id) => Symbol(newParameter))
         end
     end
-    return stateMap
+    return state_map
 end
 
 

@@ -3,7 +3,7 @@
 
 Process the PeTab parametersFile file into a type-stable Julia struct.
 """
-function processParameters(parametersFile::CSV.File; customParameterValues::Union{Nothing, Dict}=nothing)::ParametersInfo
+function processParameters(parametersFile::CSV.File; custom_parameter_values::Union{Nothing, Dict}=nothing)::ParametersInfo
 
     nParameters = length(parametersFile[:estimate])
 
@@ -47,13 +47,13 @@ function processParameters(parametersFile::CSV.File; customParameterValues::Unio
 
         # In some case when working with the model the user might want to change model parameters but not go the entire
         # way to the PEtab-files. This ensure ParametersInfo gets its parameters correct.
-        if isnothing(customParameterValues)
+        if isnothing(custom_parameter_values)
             continue
         end
-        keysDict = collect(keys(customParameterValues))
+        keysDict = collect(keys(custom_parameter_values))
         iKey = findfirst(x -> x == parameterId[i], keysDict)
         isnothing(iKey) && continue
-        valueChangeTo = customParameterValues[keysDict[iKey]]
+        valueChangeTo = custom_parameter_values[keysDict[iKey]]
         if typeof(valueChangeTo) <: Real
             estimate[i] = false
             nominalValue[i] = valueChangeTo
@@ -67,8 +67,8 @@ function processParameters(parametersFile::CSV.File; customParameterValues::Unio
         end
     end
 
-    nParametersToEstimate::Int64 = Int64(sum(estimate))
-    return ParametersInfo(nominalValue, lowerBound, upperBound, parameterId, parameterScale, estimate, nParametersToEstimate)
+    n_parameters_esimtate::Int64 = Int64(sum(estimate))
+    return ParametersInfo(nominalValue, lowerBound, upperBound, parameterId, parameterScale, estimate, n_parameters_esimtate)
 end
 
 
@@ -81,7 +81,7 @@ function processPriors(θ_indices::ParameterIndices, parametersFile::CSV.File)::
 
     priorLogpdf::Dict{Symbol, Function} = Dict()
     priorOnParameterScale::Dict{Symbol, Bool} = Dict()
-    for θ_name in θ_indices.θ_estNames
+    for θ_name in θ_indices.θ_names
 
         whichParameter = findfirst(x -> x == string(θ_name), string.(parametersFile[:parameterId]))
         prior = parametersFile[whichParameter][:objectivePriorType]

@@ -1,68 +1,68 @@
-function readPEtabYamlFile(pathYAML::AbstractString; jlFile::Bool=false)
+function readPEtabYamlFile(path_yaml::AbstractString; jlFile::Bool=false)
 
-    if !isfile(pathYAML)
+    if !isfile(path_yaml)
         throw(PEtabFileError("Model YAML file does not exist in the model directory"))
     end
-    fileYAML = YAML.load_file(pathYAML)
+    fileYAML = YAML.load_file(path_yaml)
 
-    dirModel = dirname(pathYAML)
-    pathSBML = ""
+    dir_model = dirname(path_yaml)
+    path_SBML = ""
     if jlFile == false
-        pathSBML = joinpath(dirModel, fileYAML["problems"][1]["sbml_files"][1])
-        if !isfile(pathSBML)
+        path_SBML = joinpath(dir_model, fileYAML["problems"][1]["sbml_files"][1])
+        if !isfile(path_SBML)
             throw(PEtabFileError("SBML file does not exist in the model directory"))
         end
     end
 
-    pathMeasurements = joinpath(dirModel, fileYAML["problems"][1]["measurement_files"][1])
-    if !isfile(pathMeasurements)
+    path_measurements = joinpath(dir_model, fileYAML["problems"][1]["measurement_files"][1])
+    if !isfile(path_measurements)
         throw(PEtabFileError("Measurements file does not exist in the model directory"))
     end
 
-    pathObservables = joinpath(dirModel, fileYAML["problems"][1]["observable_files"][1])
-    if !isfile(pathObservables)
+    path_observables = joinpath(dir_model, fileYAML["problems"][1]["observable_files"][1])
+    if !isfile(path_observables)
         throw(PEtabFileError("Observables file does not exist in the models directory"))
     end
 
-    pathConditions = joinpath(dirModel, fileYAML["problems"][1]["condition_files"][1])
-    if !isfile(pathConditions)
+    path_conditions = joinpath(dir_model, fileYAML["problems"][1]["condition_files"][1])
+    if !isfile(path_conditions)
         throw(PEtabFileError("Conditions file does not exist in the models directory"))
     end
 
-    pathParameters = joinpath(dirModel, fileYAML["parameter_file"])
-    if !isfile(pathParameters)
+    path_parameters = joinpath(dir_model, fileYAML["parameter_file"])
+    if !isfile(path_parameters)
         throw(PEtabFileError("Parameter file does not exist in the models directory"))
     end
 
     # Extract YAML directory and use directory name as model name and build directory for Julia files
-    dirJulia = joinpath(dirModel, "Julia_model_files")
-    modelName = splitdir(dirModel)[end]
-    if !isdir(dirJulia)
-        mkdir(dirJulia)
+    dir_julia = joinpath(dir_model, "Julia_model_files")
+    model_name = splitdir(dir_model)[end]
+    if !isdir(dir_julia)
+        mkdir(dir_julia)
     end
 
-    return pathSBML, pathParameters, pathConditions, pathObservables, pathMeasurements, dirJulia, dirModel, modelName
+    return path_SBML, path_parameters, path_conditions, path_observables, path_measurements, dir_julia, dir_model, model_name
 end
 
 
-function readPEtabFiles(pathYAML::String; jlFile::Bool=false)
+function readPEtabFiles(path_yaml::String; jlFile::Bool=false)
 
-    pathSBML, pathParameters, pathConditions, pathObservables, pathMeasurements, dirJulia, dirModel, modelName = readPEtabYamlFile(pathYAML, jlFile=jlFile)
+    path_SBML, path_parameters, path_conditions, path_observables, path_measurements, dir_julia, dir_model, model_name = readPEtabYamlFile(path_yaml, jlFile=jlFile)
 
-    experimentalConditions = CSV.File(pathConditions, stringtype=String)
-    measurementsData = CSV.File(pathMeasurements, stringtype=String)
-    parametersData = CSV.File(pathParameters, stringtype=String)
-    observablesData = CSV.File(pathObservables, stringtype=String)
+    experimentalConditions = CSV.File(path_conditions, stringtype=String)
+    measurementsData = CSV.File(path_measurements, stringtype=String)
+    parametersData = CSV.File(path_parameters, stringtype=String)
+    observablesData = CSV.File(path_observables, stringtype=String)
     checkFilesForCorrectDataType(experimentalConditions, measurementsData, parametersData, observablesData)
 
     return experimentalConditions, measurementsData, parametersData, observablesData
 end
-function readPEtabFiles(petabModel::PEtabModel)
+function readPEtabFiles(petab_model::PEtabModel)
 
-    experimentalConditions = petabModel.pathConditions
-    measurementsData = petabModel.pathMeasurements
-    parametersData = petabModel.pathParameters
-    observablesData = petabModel.pathObservables
+    experimentalConditions = petab_model.path_conditions
+    measurementsData = petab_model.path_measurements
+    parametersData = petab_model.path_parameters
+    observablesData = petab_model.path_observables
     checkFilesForCorrectDataType(experimentalConditions, measurementsData, parametersData, observablesData)
 
     return experimentalConditions, measurementsData, parametersData, observablesData

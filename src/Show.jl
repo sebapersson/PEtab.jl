@@ -6,7 +6,7 @@ import Base.show
 
 
 # Helper function for printing ODE-solver options
-function getStringSolverOptions(a::ODESolverOptions)
+function getStringSolverOptions(a::ODESolver)
     solverStr = string(a.solver)
     iEnd = findfirst(x -> x == '{', solverStr)
     if isnothing(iEnd)
@@ -20,52 +20,52 @@ end
 
 function show(io::IO, a::PEtabModel)
 
-    modelName = @sprintf("%s", a.modelName)
-    numberOfODEStates = @sprintf("%d", length(a.stateNames))
-    numberOfODEParameters = @sprintf("%d", length(a.parameterNames))
+    model_name = @sprintf("%s", a.model_name)
+    numberOfODEStates = @sprintf("%d", length(a.state_names))
+    numberOfODEParameters = @sprintf("%d", length(a.parameter_names))
 
     printstyled(io, "PEtabModel", color=116)
     print(io, " for model ")
-    printstyled(io, modelName, color=116)
+    printstyled(io, model_name, color=116)
     print(io, ". ODE-system has ")
     printstyled(io, numberOfODEStates * " states", color=116)
     print(io, " and ")
     printstyled(io, numberOfODEParameters * " parameters.", color=116)
-    if !isempty(a.dirJulia)
-        @printf(io, "\nGenerated Julia files are at %s", a.dirJulia)
+    if !isempty(a.dir_julia)
+        @printf(io, "\nGenerated Julia files are at %s", a.dir_julia)
     end
 end
-function show(io::IO, a::ODESolverOptions)
+function show(io::IO, a::ODESolver)
     # Extract ODE solver as a readable string (without everything between)
     solverStrWrite, optionsStr = getStringSolverOptions(a)
-    printstyled(io, "ODESolverOptions", color=116)
+    printstyled(io, "ODESolver", color=116)
     print(io, " with ODE solver ")
     printstyled(io, solverStrWrite, color=116)
     @printf(io, ". Options %s", optionsStr)
 end
 function show(io::IO, a::PEtabODEProblem)
 
-    modelName = a.petabModel.modelName
-    numberOfODEStates = length(a.petabModel.stateNames)
-    numberOfParametersToEstimate = length(a.θ_estNames)
+    model_name = a.petab_model.model_name
+    numberOfODEStates = length(a.petab_model.state_names)
+    numberOfParametersToEstimate = length(a.θ_names)
     θ_indices = a.θ_indices
-    numberOfDynamicParameters = length(intersect(θ_indices.θ_dynamicNames, a.θ_estNames))
+    numberOfDynamicParameters = length(intersect(θ_indices.θ_dynamicNames, a.θ_names))
 
-    solverStrWrite, optionsStr = getStringSolverOptions(a.odeSolverOptions)
-    solverGradStrWrite, optionsGradStr = getStringSolverOptions(a.odeSolverGradientOptions)
+    solverStrWrite, optionsStr = getStringSolverOptions(a.ode_solver)
+    solverGradStrWrite, optionsGradStr = getStringSolverOptions(a.ode_solver_gradient)
 
-    gradientMethod = string(a.gradientMethod)
-    hessianMethod = string(a.hessianMethod)
+    gradient_method = string(a.gradient_method)
+    hessian_method = string(a.hessian_method)
 
     printstyled(io, "PEtabODEProblem", color=116)
     print(io, " for ")
-    printstyled(io, modelName, color=116)
+    printstyled(io, model_name, color=116)
     @printf(io, ". ODE-states: %d. Parameters to estimate: %d where %d are dynamic.\n---------- Problem settings ----------\nGradient method : ",
             numberOfODEStates, numberOfParametersToEstimate, numberOfDynamicParameters)
-    printstyled(io, gradientMethod, color=116)
-    if !isnothing(hessianMethod)
+    printstyled(io, gradient_method, color=116)
+    if !isnothing(hessian_method)
         print(io, "\nHessian method : ")
-        printstyled(io, hessianMethod, color=116)
+        printstyled(io, hessian_method, color=116)
     end
     print(io, "\n--------- ODE-solver settings --------")
     printstyled(io, "\nCost ")
@@ -75,45 +75,45 @@ function show(io::IO, a::PEtabODEProblem)
     printstyled(io, solverGradStrWrite, color=116)
     @printf(io, ". Options %s", optionsGradStr)
 
-    if a.simulationInfo.haspreEquilibrationConditionId == true
+    if a.simulation_info.haspreEquilibrationConditionId == true
         print(io, "\n--------- SS solver settings ---------")
         # Print cost steady state solver
         print(io, "\nCost ")
-        printstyled(io, string(a.ssSolverOptions.method), color=116)
-        if a.ssSolverOptions.method === :Simulate && a.ssSolverOptions.howCheckSimulationReachedSteadyState === :wrms
-            @printf(io, ". Option wrms with (abstol, reltol) = (%.1e, %.1e)", a.ssSolverOptions.abstol, a.ssSolverOptions.reltol)
-        elseif a.ssSolverOptions.method === :Simulate && a.ssSolverOptions.howCheckSimulationReachedSteadyState === :Newton
-            @printf(io, ". Option small Newton-step with (abstol, reltol) = (%.1e, %.1e)", a.ssSolverOptions.abstol, a.ssSolverOptions.reltol)
-        elseif a.ssSolverOptions.method === :Rootfinding
-            algStr = string(a.ssSolverOptions.rootfindingAlgorithm)
+        printstyled(io, string(a.ss_solver.method), color=116)
+        if a.ss_solver.method === :Simulate && a.ss_solver.check_simulation_steady_state === :wrms
+            @printf(io, ". Option wrms with (abstol, reltol) = (%.1e, %.1e)", a.ss_solver.abstol, a.ss_solver.reltol)
+        elseif a.ss_solver.method === :Simulate && a.ss_solver.check_simulation_steady_state === :Newton
+            @printf(io, ". Option small Newton-step with (abstol, reltol) = (%.1e, %.1e)", a.ss_solver.abstol, a.ss_solver.reltol)
+        elseif a.ss_solver.method === :Rootfinding
+            algStr = string(a.ss_solver.rootfindingAlgorithm)
             iEnd = findfirst(x -> x == '{', algStr)
             algStr = algStr[1:iEnd-1] * "()"
-            @printf(io, ". Algorithm %s with (abstol, reltol, maxiters) = (%.1e, %.1e, %.1e)", algStr, a.ssSolverOptions.abstol, a.ssSolverOptions.reltol, a.ssSolverOptions.maxiters)
+            @printf(io, ". Algorithm %s with (abstol, reltol, maxiters) = (%.1e, %.1e, %.1e)", algStr, a.ss_solver.abstol, a.ss_solver.reltol, a.ss_solver.maxiters)
         end
 
         # Print gradient steady state solver
         print(io, "\nGradient ")
-        printstyled(io, string(a.ssSolverGradientOptions.method), color=116)
-        if a.ssSolverGradientOptions.method === :Simulate && a.ssSolverGradientOptions.howCheckSimulationReachedSteadyState === :wrms
-            @printf(io, ". Options wrms with (abstol, reltol) = (%.1e, %.1e)", a.ssSolverGradientOptions.abstol, a.ssSolverGradientOptions.reltol)
-        elseif a.ssSolverGradientOptions.method === :Simulate && a.ssSolverGradientOptions.howCheckSimulationReachedSteadyState === :Newton
-            @printf(io, ". Option small Newton-step with (abstol, reltol) = (%.1e, %.1e)", a.ssSolverGradientOptions.abstol, a.ssSolverGradientOptions.reltol)
-        elseif a.ssSolverGradientOptions.method === :Rootfinding
-            algStr = string(a.ssSolverGradientOptions.rootfindingAlgorithm)
+        printstyled(io, string(a.ss_solver_gradient.method), color=116)
+        if a.ss_solver_gradient.method === :Simulate && a.ss_solver_gradient.check_simulation_steady_state === :wrms
+            @printf(io, ". Options wrms with (abstol, reltol) = (%.1e, %.1e)", a.ss_solver_gradient.abstol, a.ss_solver_gradient.reltol)
+        elseif a.ss_solver_gradient.method === :Simulate && a.ss_solver_gradient.check_simulation_steady_state === :Newton
+            @printf(io, ". Option small Newton-step with (abstol, reltol) = (%.1e, %.1e)", a.ss_solver_gradient.abstol, a.ss_solver_gradient.reltol)
+        elseif a.ss_solver_gradient.method === :Rootfinding
+            algStr = string(a.ss_solver_gradient.rootfindingAlgorithm)
             iEnd = findfirst(x -> x == '{', algStr)
             algStr = algStr[1:iEnd-1] * "()"
-            @printf(io, ". Algorithm %s with (abstol, reltol, maxiters) = (%.1e, %.1e, %.1e)", algStr, a.ssSolverGradientOptions.abstol, a.ssSolverGradientOptions.reltol, a.ssSolverGradientOptions.maxiters)
+            @printf(io, ". Algorithm %s with (abstol, reltol, maxiters) = (%.1e, %.1e, %.1e)", algStr, a.ss_solver_gradient.abstol, a.ss_solver_gradient.reltol, a.ss_solver_gradient.maxiters)
         end
     end
 end
-function show(io::IO, a::SteadyStateSolverOptions)
+function show(io::IO, a::SteadyStateSolver)
 
-    printstyled(io, "SteadyStateSolverOptions", color=116)
+    printstyled(io, "SteadyStateSolver", color=116)
     if a.method === :Simulate
         print(io, " with method ")
         printstyled(io, ":Simulate", color=116)
         print(io, " ODE-model until du = f(u, p, t) ≈ 0.")
-        if a.howCheckSimulationReachedSteadyState === :wrms
+        if a.check_simulation_steady_state === :wrms
             @printf(io, "\nSimulation terminated if wrms fulfill;\n√(∑((du ./ (reltol * u .+ abstol)).^2) / length(u)) < 1\n")
         else
             @printf(io, "\nSimulation terminated if Newton-step Δu fulfill;\n√(∑((Δu ./ (reltol * u .+ abstol)).^2) / length(u)) < 1\n")
@@ -143,22 +143,22 @@ end
 function show(io::IO, a::PEtabOptimisationResult) 
     printstyled(io, "PEtabOptimisationResult", color=116)
     print(io, "\n--------- Summary ---------\n")
-    @printf(io, "min(f)                = %.2e\n", a.fMin)
+    @printf(io, "min(f)                = %.2e\n", a.fmin)
     @printf(io, "Parameters esimtated  = %d\n", length(a.x0))
-    @printf(io, "Optimiser iterations  = %d\n", a.nIterations)
-    @printf(io, "Run time              = %.1es\n", a.runTime)
+    @printf(io, "Optimiser iterations  = %d\n", a.n_iterations)
+    @printf(io, "Run time              = %.1es\n", a.runtime)
     @printf(io, "Optimiser algorithm   = %s\n", a.alg)
 end
 function show(io::IO, a::PEtabMultistartOptimisationResult)
 
     printstyled(io, "PEtabMultistartOptimisationResult", color=116)
     print(io, "\n--------- Summary ---------\n")
-    @printf(io, "min(f)                = %.2e\n", a.fMin)
-    @printf(io, "Parameters esimtated  = %d\n", length(a.xMin))
-    @printf(io, "Number of multistarts = %d\n", a.nMultistarts)
+    @printf(io, "min(f)                = %.2e\n", a.fmin)
+    @printf(io, "Parameters esimtated  = %d\n", length(a.xmin))
+    @printf(io, "Number of multistarts = %d\n", a.n_multistarts)
     @printf(io, "Optimiser algorithm   = %s\n", a.alg)
-    if !isnothing(a.dirSave)
-        @printf(io, "Results saved at %s\n", a.dirSave)
+    if !isnothing(a.dir_save)
+        @printf(io, "Results saved at %s\n", a.dir_save)
     end
 end
 function show(io::IO, a::PEtabParameter)

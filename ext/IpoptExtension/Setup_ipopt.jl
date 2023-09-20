@@ -3,49 +3,49 @@
 =#
 
 
-function PEtab.calibrateModelMultistart(petabProblem::PEtabODEProblem, 
+function PEtab.calibrate_model_multistart(petab_problem::PEtabODEProblem, 
                                         alg::IpoptOptimiser, 
-                                        nMultiStarts::Signed, 
-                                        dirSave::Union{Nothing, String};
-                                        samplingMethod::T=QuasiMonteCarlo.LatinHypercubeSample(),
+                                        n_multistarts::Signed, 
+                                        dir_save::Union{Nothing, String};
+                                        sampling_method::T=QuasiMonteCarlo.LatinHypercubeSample(),
                                         options::IpoptOptions=IpoptOptions(),
                                         seed::Union{Nothing, Integer}=nothing, 
-                                        saveTrace::Bool=false)::PEtab.PEtabMultistartOptimisationResult where T <: QuasiMonteCarlo.SamplingAlgorithm
+                                        save_trace::Bool=false)::PEtab.PEtabMultistartOptimisationResult where T <: QuasiMonteCarlo.SamplingAlgorithm
     if !isnothing(seed)
         Random.seed!(seed)
     end
-    res = PEtab._multistartModelCallibration(petabProblem, alg, nMultiStarts, dirSave, samplingMethod, options, saveTrace)
+    res = PEtab._multistartModelCallibration(petab_problem, alg, n_multistarts, dir_save, sampling_method, options, save_trace)
     return res
 end
 
 
-function PEtab.calibrateModel(petabProblem::PEtabODEProblem, 
+function PEtab.calibrate_model(petab_problem::PEtabODEProblem, 
                               p0::Vector{Float64},
                               alg::IpoptOptimiser; 
-                              saveTrace::Bool=false, 
+                              save_trace::Bool=false, 
                               options::IpoptOptions=IpoptOptions())::PEtab.PEtabOptimisationResult
 
     _p0 = deepcopy(p0)                               
 
-    ipoptProblem, iterArr, fTrace, xTrace = createIpoptProblem(petabProblem, alg.LBFGS, saveTrace, options)
+    ipoptProblem, iterArr, ftrace, xtrace = createIpoptProblem(petab_problem, alg.LBFGS, save_trace, options)
     ipoptProblem.x = deepcopy(p0)
     
     # Create a runnable function taking parameter as input                            
-    local nIterations, fMin, xMin, converged, runTime
+    local n_iterations, fmin, xmin, converged, runtime
     try
-        runTime = @elapsed sol_opt = Ipopt.IpoptSolve(ipoptProblem)
-        fMin = ipoptProblem.obj_val
-        xMin = ipoptProblem.x
-        nIterations = iterArr[1]
+        runtime = @elapsed sol_opt = Ipopt.IpoptSolve(ipoptProblem)
+        fmin = ipoptProblem.obj_val
+        xmin = ipoptProblem.x
+        n_iterations = iterArr[1]
         converged = ipoptProblem.status
     catch
-        nIterations = 0
-        fMin = NaN
-        xMin = similar(p0) .* NaN
-        fTrace = Vector{Float64}(undef, 0)
-        xTrace = Vector{Vector{Float64}}(undef, 0)
+        n_iterations = 0
+        fmin = NaN
+        xmin = similar(p0) .* NaN
+        ftrace = Vector{Float64}(undef, 0)
+        xtrace = Vector{Vector{Float64}}(undef, 0)
         converged = :Code_crashed
-        runTime = NaN
+        runtime = NaN
     end
     if alg.LBFGS == true
         algUsed = :Ipopt_LBFGS
@@ -54,33 +54,33 @@ function PEtab.calibrateModel(petabProblem::PEtabODEProblem,
     end
 
     return PEtabOptimisationResult(algUsed,
-                                   xTrace, 
-                                   fTrace, 
-                                   nIterations, 
-                                   fMin, 
+                                   xtrace, 
+                                   ftrace, 
+                                   n_iterations, 
+                                   fmin, 
                                    _p0,
-                                   xMin, 
+                                   xmin, 
                                    converged, 
-                                   runTime)
+                                   runtime)
 end
 
 
-function createIpoptProblem(petabProblem::PEtabODEProblem,
+function createIpoptProblem(petab_problem::PEtabODEProblem,
                             LBFGS::Bool, 
-                            saveTrace::Bool,
+                            save_trace::Bool,
                             options::PEtab.IpoptOptions)
 
-    lowerBounds = petabProblem.lowerBounds
-    upperBounds = petabProblem.upperBounds
+    lower_bounds = petab_problem.lower_bounds
+    upper_bounds = petab_problem.upper_bounds
 
     if LBFGS == true
         evalHessian = eval_h_empty
     else
-        evalHessian = (x_arg, rows, cols, obj_factor, lambda, values) -> eval_h(x_arg, rows, cols, obj_factor, lambda, values, nParam, petabProblem.computeHessian!)
+        evalHessian = (x_arg, rows, cols, obj_factor, lambda, values) -> eval_h(x_arg, rows, cols, obj_factor, lambda, values, nParam, petab_problem.compute_hessian!)
     end
 
-    nParam = length(lowerBounds)
-    evalGradFUse = (xArg, grad) -> petabProblem.computeGradient!(grad, xArg)
+    nParam = length(lower_bounds)
+    evalGradFUse = (xArg, grad) -> petab_problem.compute_gradient!(grad, xArg)
 
 
     m = 0
@@ -89,14 +89,14 @@ function createIpoptProblem(petabProblem::PEtabODEProblem,
     g_L = Float64[]
     g_U = Float64[] 
     prob = Ipopt.CreateIpoptProblem(nParam, 
-                                    lowerBounds, 
-                                    upperBounds, 
+                                    lower_bounds, 
+                                    upper_bounds, 
                                     m, # No constraints
                                     g_L, # No constraints
                                     g_U, # No constraints
                                     0, # No constraints
                                     nParamHess, 
-                                    petabProblem.computeCost, 
+                                    petab_problem.compute_cost, 
                                     eval_g, # No constraints 
                                     evalGradFUse,
                                     eval_jac_g, 
@@ -104,9 +104,9 @@ function createIpoptProblem(petabProblem::PEtabODEProblem,
     # Ipopt does not allow the iteration count to be stored directly. Thus the iteration is stored in an arrary which 
     # is sent into the Ipopt callback function. 
     iterArr = ones(Int64, 1) .* 20
-    fTrace = Vector{Float64}(undef, 0)
-    xTrace = Vector{Vector{Float64}}(undef, 0)
-    intermediateUse = (alg_mod, iter_count, obj_value, inf_pr, inf_du, mu, d_norm, regularization_size, alpha_du, alpha_pr, ls_trials) -> intermediate_ipopt(alg_mod, iter_count, obj_value, inf_pr, inf_du, mu, d_norm, regularization_size, alpha_du, alpha_pr, ls_trials, iterArr, prob, saveTrace, fTrace, xTrace)
+    ftrace = Vector{Float64}(undef, 0)
+    xtrace = Vector{Vector{Float64}}(undef, 0)
+    intermediateUse = (alg_mod, iter_count, obj_value, inf_pr, inf_du, mu, d_norm, regularization_size, alpha_du, alpha_pr, ls_trials) -> intermediate_ipopt(alg_mod, iter_count, obj_value, inf_pr, inf_du, mu, d_norm, regularization_size, alpha_du, alpha_pr, ls_trials, iterArr, prob, save_trace, ftrace, xtrace)
     Ipopt.SetIntermediateCallback(prob, intermediateUse) # Allow iterations to be retrevied (see above) 
 
     if LBFGS == true
@@ -121,7 +121,7 @@ function createIpoptProblem(petabProblem::PEtabODEProblem,
     Ipopt.AddIpoptNumOption(prob, "max_wall_time", options.max_wall_time)
     Ipopt.AddIpoptNumOption(prob, "acceptable_obj_change_tol", options.acceptable_obj_change_tol)
 
-    return prob, iterArr, fTrace, xTrace
+    return prob, iterArr, ftrace, xtrace
 end
 
 
@@ -211,13 +211,13 @@ function intermediate_ipopt(alg_mod::Cint,
                             ls_trials::Cint, 
                             iterArr, 
                             ipopt_prob, 
-                            saveTrace::Bool, 
-                            fTrace::Vector{Float64}, 
-                            xTrace::Vector{Vector{Float64}})
+                            save_trace::Bool, 
+                            ftrace::Vector{Float64}, 
+                            xtrace::Vector{Vector{Float64}})
     iterArr[1] = Int(iter_count)
-    if saveTrace == true
-        push!(fTrace, obj_value)
-        push!(xTrace, deepcopy(ipopt_prob.x))
+    if save_trace == true
+        push!(ftrace, obj_value)
+        push!(xtrace, deepcopy(ipopt_prob.x))
     end
 
     return true 

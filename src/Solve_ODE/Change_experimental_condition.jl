@@ -10,7 +10,7 @@ function _changeExperimentalCondition!(pODEProblem::AbstractVector,
                                        u0::AbstractVector,
                                        conditionId::Symbol,
                                        θ_dynamic::AbstractVector,
-                                       petabModel::PEtabModel,
+                                       petab_model::PEtabModel,
                                        θ_indices::ParameterIndices;
                                        computeForwardSensitivites::Bool=false)
 
@@ -23,11 +23,11 @@ function _changeExperimentalCondition!(pODEProblem::AbstractVector,
     pODEProblem[mapConditionId.iODEProblemθDynamic] .= θ_dynamic[mapConditionId.iθDynamic]
 
     # Given changes in parameters initial values might have to be re-evaluated
-    nModelStates = length(petabModel.stateNames)
-    petabModel.compute_u0!((@view u0[1:nModelStates]), pODEProblem)
+    nModelStates = length(petab_model.state_names)
+    petab_model.compute_u0!((@view u0[1:nModelStates]), pODEProblem)
 
     # Account for any potential events (callbacks) which are active at time zero
-    for f! in petabModel.checkIfCallbackIsActive
+    for f! in petab_model.check_callback_is_active
         f!(u0, pODEProblem)
     end
 
@@ -40,7 +40,7 @@ function _changeExperimentalCondition!(pODEProblem::AbstractVector,
     # by computing the jacobian at t0
     if computeForwardSensitivites == true
         St0::Matrix{Float64} = Matrix{Float64}(undef, (nModelStates, length(pODEProblem)))
-        ForwardDiff.jacobian!(St0, petabModel.compute_u0, pODEProblem)
+        ForwardDiff.jacobian!(St0, petab_model.compute_u0, pODEProblem)
         u0[(nModelStates+1):end] .= vec(St0)
     end
 
@@ -52,7 +52,7 @@ function _changeExperimentalCondition(pODEProblem::AbstractVector,
                                       u0::AbstractVector,
                                       conditionId::Symbol,
                                       θ_dynamic::AbstractVector,
-                                      petabModel::PEtabModel,
+                                      petab_model::PEtabModel,
                                       θ_indices::ParameterIndices)
 
     mapConditionId = θ_indices.mapsConiditionId[conditionId]
@@ -75,7 +75,7 @@ function _changeExperimentalCondition(pODEProblem::AbstractVector,
     __pODEProblem = [i ∈ mapConditionId.iODEProblemθDynamic ? θ_dynamic[iParametersEst(i)] : _pODEProblem[i] for i in eachindex(_pODEProblem)]
 
     # When using AD as Zygote we must use the non-mutating version of evalU0
-    _u0 = petabModel.compute_u0(__pODEProblem)
+    _u0 = petab_model.compute_u0(__pODEProblem)
 
     # In case an experimental condition maps directly to the initial value of a state.
     # Very rare, will fix if ever needed for slow Zygote
@@ -84,7 +84,7 @@ function _changeExperimentalCondition(pODEProblem::AbstractVector,
     end
 
     # Account for any potential events
-    for f! in petabModel.checkIfCallbackIsActive
+    for f! in petab_model.check_callback_is_active
         f!(_u0, __pODEProblem)
     end
 

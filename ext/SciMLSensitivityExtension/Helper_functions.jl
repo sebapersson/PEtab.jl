@@ -1,44 +1,44 @@
 function PEtab.setUpGradient(whichMethod::Symbol,
                              odeProblem::ODEProblem,
-                             odeSolverOptions::ODESolverOptions,
-                             ssSolverOptions::SteadyStateSolverOptions,
+                             ode_solver::ODESolver,
+                             ss_solver::SteadyStateSolver,
                              petabODECache::PEtab.PEtabODEProblemCache,
                              petabODESolverCache::PEtab.PEtabODESolverCache,
-                             petabModel::PEtabModel,
-                             simulationInfo::PEtab.SimulationInfo,
+                             petab_model::PEtabModel,
+                             simulation_info::PEtab.SimulationInfo,
                              θ_indices::PEtab.ParameterIndices,
                              measurementInfo::PEtab.MeasurementsInfo,
                              parameterInfo::PEtab.ParametersInfo,
                              sensealg::Union{InterpolatingAdjoint, QuadratureAdjoint},
                              priorInfo::PEtab.PriorInfo;
-                             chunkSize::Union{Nothing, Int64}=nothing,
-                             sensealgSS=nothing,
-                             numberOfprocesses::Int64=1,
+                             chunksize::Union{Nothing, Int64}=nothing,
+                             sensealg_ss=nothing,
+                             n_processes::Int64=1,
                              jobs=nothing,
                              results=nothing,
-                             splitOverConditions::Bool=false)
+                             split_over_conditions::Bool=false)
 
-    _sensealgSS = isnothing(sensealgSS) ? InterpolatingAdjoint(autojacvec=ReverseDiffVJP()) : sensealgSS
+    _sensealg_ss = isnothing(sensealg_ss) ? InterpolatingAdjoint(autojacvec=ReverseDiffVJP()) : sensealg_ss
     # Fast but numerically unstable method
-    if simulationInfo.haspreEquilibrationConditionId == true && typeof(_sensealgSS) <: SteadyStateAdjoint
-        @warn "If using adjoint sensitivity analysis for a model with PreEq-criteria the most the most efficient sensealgSS is as provided SteadyStateAdjoint. However, SteadyStateAdjoint fails if the Jacobian is singular hence we recomend you check that the Jacobian is non-singular."
+    if simulation_info.haspreEquilibrationConditionId == true && typeof(_sensealg_ss) <: SteadyStateAdjoint
+        @warn "If using adjoint sensitivity analysis for a model with PreEq-criteria the most the most efficient sensealg_ss is as provided SteadyStateAdjoint. However, SteadyStateAdjoint fails if the Jacobian is singular hence we recomend you check that the Jacobian is non-singular."
     end
 
     iθ_sd, iθ_observable, iθ_nonDynamic, iθ_notOdeSystem = PEtab.getIndicesParametersNotInODESystem(θ_indices)
-    computeCostNotODESystemθ = (x) -> PEtab.computeCostNotSolveODE(x[iθ_sd], x[iθ_observable], x[iθ_nonDynamic],
-        petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, petabODECache, expIDSolve=[:all],
-        computeGradientNotSolveAdjoint=true)
+    compute_costNotODESystemθ = (x) -> PEtab.compute_costNotSolveODE(x[iθ_sd], x[iθ_observable], x[iθ_nonDynamic],
+        petab_model, simulation_info, θ_indices, measurementInfo, parameterInfo, petabODECache, expIDSolve=[:all],
+        compute_gradientNotSolveAdjoint=true)
 
-    _computeGradient! = (gradient, θ_est) -> computeGradientAdjointEquations!(gradient,
+    _compute_gradient! = (gradient, θ_est) -> compute_gradientAdjointEquations!(gradient,
                                                                               θ_est,
-                                                                              odeSolverOptions,
-                                                                              ssSolverOptions,
-                                                                              computeCostNotODESystemθ,
+                                                                              ode_solver,
+                                                                              ss_solver,
+                                                                              compute_costNotODESystemθ,
                                                                               sensealg,
-                                                                              _sensealgSS,
+                                                                              _sensealg_ss,
                                                                               odeProblem,
-                                                                              petabModel,
-                                                                              simulationInfo,
+                                                                              petab_model,
+                                                                              simulation_info,
                                                                               θ_indices,
                                                                               measurementInfo,
                                                                               parameterInfo,
@@ -47,7 +47,7 @@ function PEtab.setUpGradient(whichMethod::Symbol,
                                                                               petabODESolverCache,
                                                                               expIDSolve=[:all])
     
-    return _computeGradient!
+    return _compute_gradient!
 end
 
 
@@ -66,12 +66,12 @@ end
 
 
 function PEtab.getCallbackSet(odeProblem::ODEProblem,
-                              simulationInfo::PEtab.SimulationInfo,
+                              simulation_info::PEtab.SimulationInfo,
                               simulationConditionId::Symbol,
                               sensealg::Union{InterpolatingAdjoint, QuadratureAdjoint})::SciMLBase.DECallback
 
-    cbSet = SciMLSensitivity.track_callbacks(simulationInfo.callbacks[simulationConditionId], odeProblem.tspan[1],
+    cbSet = SciMLSensitivity.track_callbacks(simulation_info.callbacks[simulationConditionId], odeProblem.tspan[1],
                                                  odeProblem.u0, odeProblem.p, sensealg)
-    simulationInfo.trackedCallbacks[simulationConditionId] = cbSet
+    simulation_info.trackedCallbacks[simulationConditionId] = cbSet
     return cbSet
 end

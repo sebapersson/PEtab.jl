@@ -1,14 +1,14 @@
 # Compute gradient via adjoint sensitivity analysis
-function computeGradientAdjointEquations!(gradient::Vector{Float64},
+function compute_gradientAdjointEquations!(gradient::Vector{Float64},
                                           θ_est::Vector{Float64},
-                                          solverOptions::ODESolverOptions,
-                                          ssSolverOptions::SteadyStateSolverOptions,
-                                          computeCostNotODESystemθ::Function,
+                                          solverOptions::ODESolver,
+                                          ss_solver::SteadyStateSolver,
+                                          compute_costNotODESystemθ::Function,
                                           sensealg::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
-                                          sensealgSS::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
+                                          sensealg_ss::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
                                           odeProblem::ODEProblem,
-                                          petabModel::PEtab.PEtabModel,
-                                          simulationInfo::PEtab.SimulationInfo,
+                                          petab_model::PEtab.PEtabModel,
+                                          simulation_info::PEtab.SimulationInfo,
                                           θ_indices::PEtab.ParameterIndices,
                                           measurementInfo::PEtab.MeasurementsInfo,
                                           parameterInfo::PEtab.ParametersInfo,
@@ -24,10 +24,10 @@ function computeGradientAdjointEquations!(gradient::Vector{Float64},
     θ_nonDynamic = petabODECache.θ_nonDynamic
 
     # Calculate gradient seperately for dynamic and non dynamic parameter.
-    computeGradientAdjointDynamicθ(petabODECache.gradientDyanmicθ, θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, odeProblem, solverOptions,
-                                   ssSolverOptions, sensealg, petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo,
+    compute_gradientAdjointDynamicθ(petabODECache.gradientDyanmicθ, θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, odeProblem, solverOptions,
+                                   ss_solver, sensealg, petab_model, simulation_info, θ_indices, measurementInfo, parameterInfo,
                                    petabODECache, petabODESolverCache; expIDSolve=expIDSolve,
-                                   sensealgSS=sensealgSS)
+                                   sensealg_ss=sensealg_ss)
     @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ
 
     # Happens when at least one forward pass fails and I set the gradient to 1e8
@@ -37,33 +37,33 @@ function computeGradientAdjointEquations!(gradient::Vector{Float64},
     end
 
     θ_notOdeSystem = @view θ_est[θ_indices.iθ_notOdeSystem]
-    ReverseDiff.gradient!(petabODECache.gradientNotODESystemθ, computeCostNotODESystemθ, θ_notOdeSystem)
+    ReverseDiff.gradient!(petabODECache.gradientNotODESystemθ, compute_costNotODESystemθ, θ_notOdeSystem)
     @views gradient[θ_indices.iθ_notOdeSystem] .= petabODECache.gradientNotODESystemθ
 
     if priorInfo.hasPriors == true
-        PEtab.computeGradientPrior!(gradient, θ_est, θ_indices, priorInfo)
+        PEtab.compute_gradientPrior!(gradient, θ_est, θ_indices, priorInfo)
     end
 end
 
 
 # Compute the adjoint gradient across all experimental conditions
-function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
+function compute_gradientAdjointDynamicθ(gradient::Vector{Float64},
                                         θ_dynamic::Vector{Float64},
                                         θ_sd::Vector{Float64},
                                         θ_observable::Vector{Float64},
                                         θ_nonDynamic::Vector{Float64},
                                         odeProblem::ODEProblem,
-                                        odeSolverOptions::ODESolverOptions,
-                                        ssSolverOptions::SteadyStateSolverOptions,
+                                        ode_solver::ODESolver,
+                                        ss_solver::SteadyStateSolver,
                                         sensealg::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
-                                        petabModel::PEtabModel,
-                                        simulationInfo::PEtab.SimulationInfo,
+                                        petab_model::PEtabModel,
+                                        simulation_info::PEtab.SimulationInfo,
                                         θ_indices::PEtab.ParameterIndices,
                                         measurementInfo::PEtab.MeasurementsInfo,
                                         parameterInfo::PEtab.ParametersInfo,
                                         petabODECache::PEtab.PEtabODEProblemCache,
                                         petabODESolverCache::PEtab.PEtabODESolverCache;
-                                        sensealgSS=SteadyStateAdjoint(),
+                                        sensealg_ss=SteadyStateAdjoint(),
                                         expIDSolve::Vector{Symbol} = [:all])
 
     θ_dynamicT = PEtab.transformθ(θ_dynamic, θ_indices.θ_dynamicNames, θ_indices, :θ_dynamic, petabODECache)
@@ -72,8 +72,8 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
     θ_nonDynamicT = PEtab.transformθ(θ_nonDynamic, θ_indices.θ_nonDynamicNames, θ_indices, :θ_nonDynamic, petabODECache)
 
     _odeProblem = remake(odeProblem, p = convert.(eltype(θ_dynamicT), odeProblem.p), u0 = convert.(eltype(θ_dynamicT), odeProblem.u0))
-    PEtab.changeODEProblemParameters!(_odeProblem.p, _odeProblem.u0, θ_dynamicT, θ_indices, petabModel)
-    success = PEtab.solveODEAllExperimentalConditions!(simulationInfo.odeSolutionsDerivatives, _odeProblem, petabModel, θ_dynamicT, petabODESolverCache, simulationInfo, θ_indices, odeSolverOptions, ssSolverOptions, expIDSolve=expIDSolve, denseSolution=true, onlySaveAtObservedTimes=false, trackCallback=true)
+    PEtab.changeODEProblemParameters!(_odeProblem.p, _odeProblem.u0, θ_dynamicT, θ_indices, petab_model)
+    success = PEtab.solveODEAllExperimentalConditions!(simulation_info.odeSolutionsDerivatives, _odeProblem, petab_model, θ_dynamicT, petabODESolverCache, simulation_info, θ_indices, ode_solver, ss_solver, expIDSolve=expIDSolve, denseSolution=true, onlySaveAtObservedTimes=false, trackCallback=true)
     if success != true
         gradient .= 1e8
         return
@@ -81,33 +81,33 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
 
     # In case of PreEq-critera we need to compute the pullback function at tSS to compute the VJP between
     # λ_t0 and the sensitivites at steady state time
-    if simulationInfo.haspreEquilibrationConditionId == true
-        evalVJPSSVec = generateVJPSSFunction(simulationInfo, sensealgSS, odeSolverOptions, ssSolverOptions, expIDSolve)
+    if simulation_info.haspreEquilibrationConditionId == true
+        evalVJPSSVec = generateVJPSSFunction(simulation_info, sensealg_ss, ode_solver, ss_solver, expIDSolve)
     end
 
     fill!(gradient, 0.0)
     # Compute the gradient by looping through all experimental conditions.
-    for i in eachindex(simulationInfo.experimentalConditionId)
-        experimentalConditionId = simulationInfo.experimentalConditionId[i]
-        simulationConditionId = simulationInfo.simulationConditionId[i]
+    for i in eachindex(simulation_info.experimentalConditionId)
+        experimentalConditionId = simulation_info.experimentalConditionId[i]
+        simulationConditionId = simulation_info.simulationConditionId[i]
 
         if expIDSolve[1] != :all && experimentalConditionId ∉ expIDSolve
             continue
         end
 
-        if simulationInfo.haspreEquilibrationConditionId == true
-            evalVJPSS = evalVJPSSVec[simulationInfo.preEquilibrationConditionId[i]]
+        if simulation_info.haspreEquilibrationConditionId == true
+            evalVJPSS = evalVJPSSVec[simulation_info.preEquilibrationConditionId[i]]
         else
             evalVJPSS = identity
         end
 
         # In case the model is simulated first to a steady state we need to keep track of the post-equlibrium experimental
         # condition Id to identify parameters specific to an experimental condition.
-        sol = simulationInfo.odeSolutionsDerivatives[experimentalConditionId]
-        success = computeGradientAdjointExpCond!(gradient, sol, petabODECache, sensealg, odeSolverOptions,
+        sol = simulation_info.odeSolutionsDerivatives[experimentalConditionId]
+        success = compute_gradientAdjointExpCond!(gradient, sol, petabODECache, sensealg, ode_solver,
                                                  θ_dynamicT, θ_sdT, θ_observableT, θ_nonDynamicT, experimentalConditionId,
-                                                 simulationConditionId, simulationInfo,
-                                                 petabModel, θ_indices, measurementInfo, parameterInfo, evalVJPSS)
+                                                 simulationConditionId, simulation_info,
+                                                 petab_model, θ_indices, measurementInfo, parameterInfo, evalVJPSS)
 
         if success == false
             gradient .= 0.0
@@ -118,37 +118,37 @@ function computeGradientAdjointDynamicθ(gradient::Vector{Float64},
 end
 
 
-function generateVJPSSFunction(simulationInfo::PEtab.SimulationInfo,
-                               sensealgSS::SteadyStateAdjoint,
-                               odeSolverOptions::ODESolverOptions,
-                               ssSolverOptions::SteadyStateSolverOptions,
+function generateVJPSSFunction(simulation_info::PEtab.SimulationInfo,
+                               sensealg_ss::SteadyStateAdjoint,
+                               ode_solver::ODESolver,
+                               ss_solver::SteadyStateSolver,
                                expIDSolve::Vector{Symbol})::NamedTuple
 
     # Extract all unique Pre-equlibrium conditions. If the code is run in parallell
     # (expIDSolve != [["all]]) the number of preEq cond. might be smaller than the
     # total number of preEq cond.
     if expIDSolve[1] == :all
-        preEquilibrationConditionId = unique(simulationInfo.preEquilibrationConditionId)
+        preEquilibrationConditionId = unique(simulation_info.preEquilibrationConditionId)
     else
-        whichIds  = findall(x -> x ∈ simulationInfo.experimentalConditionId, expIDSolve)
-        preEquilibrationConditionId = unique(simulationInfo.preEquilibrationConditionId[whichIds])
+        whichIds  = findall(x -> x ∈ simulation_info.experimentalConditionId, expIDSolve)
+        preEquilibrationConditionId = unique(simulation_info.preEquilibrationConditionId[whichIds])
     end
 
     _evalVJPSS = Vector{Function}(undef, length(preEquilibrationConditionId))
-    solver, abstol, reltol, force_dtmin, dtmin, maxiters = odeSolverOptions.solver, odeSolverOptions.abstol, odeSolverOptions.reltol, odeSolverOptions.force_dtmin, odeSolverOptions.dtmin, odeSolverOptions.maxiters
+    solver, abstol, reltol, force_dtmin, dtmin, maxiters = ode_solver.solver, ode_solver.abstol, ode_solver.reltol, ode_solver.force_dtmin, ode_solver.dtmin, ode_solver.maxiters
     for i in eachindex(preEquilibrationConditionId)
 
-        odeProblem = simulationInfo.odePreEqulibriumSolutions[preEquilibrationConditionId[i]].prob
+        odeProblem = simulation_info.odePreEqulibriumSolutions[preEquilibrationConditionId[i]].prob
         ssOdeProblem = SteadyStateProblem(odeProblem)
         ySS, _evalVJPSSi = Zygote.pullback((p) ->    (
                                                       solve(ssOdeProblem,
-                                                            SteadyStateDiffEq.DynamicSS(solver, abstol=ssSolverOptions.abstol, reltol=ssSolverOptions.reltol),
+                                                            SteadyStateDiffEq.DynamicSS(solver, abstol=ss_solver.abstol, reltol=ss_solver.reltol),
                                                             abstol=abstol,
                                                             reltol=reltol,
                                                             maxiters=maxiters,
                                                             force_dtmin=force_dtmin,
                                                             p=p,
-                                                            sensealg=sensealgSS)[:]), odeProblem.p)
+                                                            sensealg=sensealg_ss)[:]), odeProblem.p)
 
         _evalVJPSS[i] = (du) -> begin return _evalVJPSSi(du)[1] end
     end
@@ -156,34 +156,34 @@ function generateVJPSSFunction(simulationInfo::PEtab.SimulationInfo,
     evalVJPSS = Tuple(f for f in _evalVJPSS)
     return NamedTuple{Tuple(name for name in preEquilibrationConditionId)}(evalVJPSS)
 end
-function generateVJPSSFunction(simulationInfo::PEtab.SimulationInfo,
-                               sensealgSS::Union{QuadratureAdjoint, InterpolatingAdjoint},
-                               odeSolverOptions::ODESolverOptions,
-                               ssSolverOptions::SteadyStateSolverOptions,
+function generateVJPSSFunction(simulation_info::PEtab.SimulationInfo,
+                               sensealg_ss::Union{QuadratureAdjoint, InterpolatingAdjoint},
+                               ode_solver::ODESolver,
+                               ss_solver::SteadyStateSolver,
                                expIDSolve::Vector{Symbol})::NamedTuple
 
     # Extract all unique Pre-equlibrium conditions. If the code is run in parallell
     # (expIDSolve != [["all]]) the number of preEq cond. might be smaller than the
     # total number of preEq cond.
     if expIDSolve[1] == :all
-        preEquilibrationConditionId = unique(simulationInfo.preEquilibrationConditionId)
+        preEquilibrationConditionId = unique(simulation_info.preEquilibrationConditionId)
     else
-        whichIds  = findall(x -> x ∈ simulationInfo.experimentalConditionId, expIDSolve)
-        preEquilibrationConditionId = unique(simulationInfo.preEquilibrationConditionId[whichIds])
+        whichIds  = findall(x -> x ∈ simulation_info.experimentalConditionId, expIDSolve)
+        preEquilibrationConditionId = unique(simulation_info.preEquilibrationConditionId[whichIds])
     end
 
     _evalVJPSS = Vector{Function}(undef, length(preEquilibrationConditionId))
-    solver, abstol, reltol, force_dtmin, dtmin, maxiters = odeSolverOptions.solver, odeSolverOptions.abstol, odeSolverOptions.reltol, odeSolverOptions.force_dtmin, odeSolverOptions.dtmin, odeSolverOptions.maxiters
+    solver, abstol, reltol, force_dtmin, dtmin, maxiters = ode_solver.solver, ode_solver.abstol, ode_solver.reltol, ode_solver.force_dtmin, ode_solver.dtmin, ode_solver.maxiters
     for i in eachindex(preEquilibrationConditionId)
 
         # Sets up a function which takes du and solves the Adjoint ODE system with du
         # as starting point. This is a temporary ugly solution as there are some problems
         # with retcode Terminated and using CVODE_BDF
-        _sol = simulationInfo.odePreEqulibriumSolutions[preEquilibrationConditionId[i]]
+        _sol = simulation_info.odePreEqulibriumSolutions[preEquilibrationConditionId[i]]
         _prob = remake(_sol.prob, tspan=(0.0, _sol.t[end]))
-        sol = solve(_prob, solver, abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, sensealgSS, maxiters=maxiters)
+        sol = solve(_prob, solver, abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, sensealg_ss, maxiters=maxiters)
 
-        _evalVJPSSi = (du) -> computeVJPSS(du, sol, solver, sensealgSS, reltol, abstol, dtmin, force_dtmin, maxiters)
+        _evalVJPSSi = (du) -> computeVJPSS(du, sol, solver, sensealg_ss, reltol, abstol, dtmin, force_dtmin, maxiters)
         _evalVJPSS[i] = _evalVJPSSi
     end
 
@@ -246,19 +246,19 @@ end
 # For a given experimental condition compute the gradient using adjoint sensitivity analysis
 # for a funciton on the form G = (h - yObs)^2 / σ^2
 # TODO : Important function - improve documentation.
-function computeGradientAdjointExpCond!(gradient::Vector{Float64},
+function compute_gradientAdjointExpCond!(gradient::Vector{Float64},
                                         sol::ODESolution,
                                         petabODECache::PEtab.PEtabODEProblemCache,
                                         sensealg::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
-                                        odeSolverOptions::ODESolverOptions,
+                                        ode_solver::ODESolver,
                                         θ_dynamic::Vector{Float64},
                                         θ_sd::Vector{Float64},
                                         θ_observable::Vector{Float64},
                                         θ_nonDynamic::Vector{Float64},
                                         experimentalConditionId::Symbol,
                                         simulationConditionId::Symbol,
-                                        simulationInfo::PEtab.SimulationInfo,
-                                        petabModel::PEtab.PEtabModel,
+                                        simulation_info::PEtab.SimulationInfo,
+                                        petab_model::PEtab.PEtabModel,
                                         θ_indices::PEtab.ParameterIndices,
                                         measurementInfo::PEtab.MeasurementsInfo,
                                         parameterInfo::PEtab.ParametersInfo,
@@ -266,24 +266,24 @@ function computeGradientAdjointExpCond!(gradient::Vector{Float64},
 
     # Extract experimetnalCondition specific parameter required to solve the
     # adjoitn ODE
-    iPerTimePoint = simulationInfo.iPerTimePoint[experimentalConditionId]
-    timeObserved = simulationInfo.timeObserved[experimentalConditionId]
-    callback = simulationInfo.trackedCallbacks[experimentalConditionId]
+    iPerTimePoint = simulation_info.iPerTimePoint[experimentalConditionId]
+    timeObserved = simulation_info.timeObserved[experimentalConditionId]
+    callback = simulation_info.trackedCallbacks[experimentalConditionId]
 
     compute∂G∂u! = (out, u, p, t, i) -> begin PEtab.compute∂G∂_(out, u, p, t, i, iPerTimePoint,
                                                                 measurementInfo, parameterInfo,
-                                                                θ_indices, petabModel,
+                                                                θ_indices, petab_model,
                                                                 θ_sd, θ_observable, θ_nonDynamic,
                                                                 petabODECache.∂h∂u, petabODECache.∂σ∂u, compute∂G∂U=true)
                                             end
     compute∂G∂p! = (out, u, p, t, i) -> begin PEtab.compute∂G∂_(out, u, p, t, i, iPerTimePoint,
                                                                 measurementInfo, parameterInfo,
-                                                                θ_indices, petabModel,
+                                                                θ_indices, petab_model,
                                                                 θ_sd, θ_observable, θ_nonDynamic,
                                                                 petabODECache.∂h∂p, petabODECache.∂σ∂p, compute∂G∂U=false)
                                         end
 
-    solver, abstol, reltol, force_dtmin, dtmin, maxiters = odeSolverOptions.solver, odeSolverOptions.abstol, odeSolverOptions.reltol, odeSolverOptions.force_dtmin, odeSolverOptions.dtmin, odeSolverOptions.maxiters
+    solver, abstol, reltol, force_dtmin, dtmin, maxiters = ode_solver.solver, ode_solver.abstol, ode_solver.reltol, ode_solver.force_dtmin, ode_solver.dtmin, ode_solver.maxiters
 
     # The standard allow cases where we only observe data at t0, that is we do not solve the ODE. Here adjoint_sensitivities fails (naturally). In this case we compute the gradient
     # via ∇G_p = dp + du*J(u(t_0)) where du is the cost function differentiated with respect to the states at time zero,
@@ -319,11 +319,11 @@ function computeGradientAdjointExpCond!(gradient::Vector{Float64},
     end
 
     _gradient = petabODECache._gradientAdjoint
-    if simulationInfo.haspreEquilibrationConditionId == false
+    if simulation_info.haspreEquilibrationConditionId == false
         # In case we do not simulate the ODE for a steady state first we can compute
         # the initial sensitivites easily via automatic differantitatiom
         St0 = petabODECache.St0
-        ForwardDiff.jacobian!(St0, petabModel.compute_u0!, sol.prob.u0, sol.prob.p)
+        ForwardDiff.jacobian!(St0, petab_model.compute_u0!, sol.prob.u0, sol.prob.p)
         _gradient .= dp .+ transpose(St0) * du
 
     else

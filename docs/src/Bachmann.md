@@ -17,7 +17,7 @@ using Sundials # For CVODE_BDF
 using Printf
  
 pathYaml = joinpath(@__DIR__, "Bachmann", "Bachmann_MSB2011.yaml") 
-petabModel = readPEtabModel(pathYaml, verbose=true)
+petab_model = PEtabModel(pathYaml, verbose=true)
 ```
 
 ```
@@ -27,9 +27,9 @@ Generated Julia files are at ...
 
 ## Adjoint sensitivity analysis
 
-When working with a subset of medium and definitely for large-sized models, the most efficient way to compute gradients is through adjoint sensitivity analysis (`gradientMethod=:Adjoint`). There are several tuneable options that can improve performance, including:
+When working with a subset of medium and definitely for large-sized models, the most efficient way to compute gradients is through adjoint sensitivity analysis (`gradient_method=:Adjoint`). There are several tuneable options that can improve performance, including:
 
-1. `odeSolverGradientOptions`: This determines which ODE solver and solver tolerances (`abstol` and `reltol`) to use when computing the gradient (i.e., when solving the adjoint ODE-system). Currently, the best performing stiff solver for the adjoint problem in Julia is `CVODE_BDF()`.
+1. `ode_solver_gradient`: This determines which ODE solver and solver tolerances (`abstol` and `reltol`) to use when computing the gradient (i.e., when solving the adjoint ODE-system). Currently, the best performing stiff solver for the adjoint problem in Julia is `CVODE_BDF()`.
 2. `sensealg`: This determines which adjoint algorithm to use. Currently, `InterpolatingAdjoint` and `QuadratureAdjoint` from SciMLSensitivity are supported. You can find more information in their [documentation](https://github.com/SciML/SciMLSensitivity.jl). You can provide any of the options that these methods are compatible with. For example, if you want to use the `ReverseDiffVJP` algorithm, an acceptable option is `sensealg=InterpolatingAdjoint(autojacvec=ReversDiffVJP())`.
 
 Here are a few things to keep in mind:
@@ -40,15 +40,15 @@ Here are a few things to keep in mind:
 
 ```julia
 using SciMLSensitivity # For adjoint
-petabProblem = createPEtabODEProblem(petabModel, 
-                                     odeSolverOptions=ODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8), 
-                                     odeSolverGradientOptions=ODESolverOptions(CVODE_BDF(), abstol=1e-8, reltol=1e-8),
-                                     gradientMethod=:Adjoint, 
+petab_problem = PEtabODEProblem(petab_model, 
+                                     ode_solver=ODESolver(QNDF(), abstol=1e-8, reltol=1e-8), 
+                                     ode_solver_gradient=ODESolver(CVODE_BDF(), abstol=1e-8, reltol=1e-8),
+                                     gradient_method=:Adjoint, 
                                      sensealg=InterpolatingAdjoint(autojacvec=EnzymeVJP())) 
-p = petabProblem.θ_nominalT 
+p = petab_problem.θ_nominalT 
 gradient = zeros(length(p)) 
-cost = petabProblem.computeCost(p)
-petabProblem.computeGradient!(gradient, p)
+cost = petab_problem.compute_cost(p)
+petab_problem.compute_gradient!(gradient, p)
 @printf("Cost = %.2f\n", cost)
 @printf("First element in the gradient = %.2e\n", gradient[1])
 ```
@@ -62,25 +62,25 @@ First element in the gradient = -1.70e-03
 
 For medium-sized models, computing the full Hessian via forward-mode automatic differentiation can be too expensive, so we need an approximation. The [Gauss-Newton](https://en.wikipedia.org/wiki/Gauss%E2%80%93Newton_algorithm) (GN) approximation often performs better than the (L)-BFGS approximation. To compute it, we need the forward sensitivities. These sensitivities can also be used to compute the gradient. As some optimizers such as Fides.py compute both the Hessian and gradient at each iteration, we can save the sensitivities between the gradient and Hessian computations.
 
-When choosing `gradientMethod=:ForwardEquations` and `hessianMethod=:GaussNewton`, there are several tunable options, the key ones are:
+When choosing `gradient_method=:ForwardEquations` and `hessian_method=:GaussNewton`, there are several tunable options, the key ones are:
 
 1. `sensealg` - which sensitivity algorithm to use when computing the sensitivities. We support both `ForwardSensitivity()` and `ForwardDiffSensitivity()` with tunable options as provided by SciMLSensitivity (see their [documentation](https://github.com/SciML/SciMLSensitivity.jl) for more information). The most efficient option is `:ForwardDiff`, where forward-mode automatic differentiation is used to compute the sensitivities.
-2. `reuseS::Bool` - whether or not to reuse the sensitivities from the gradient computations when computing the Gauss-Newton Hessian approximation. Whether this option is applicable depends on the optimizer. For example, it works with Fides.py but not with Optim.jl's `IPNewton()`.
+2. `reuse_sensitivities::Bool` - whether or not to reuse the sensitivities from the gradient computations when computing the Gauss-Newton Hessian approximation. Whether this option is applicable depends on the optimizer. For example, it works with Fides.py but not with Optim.jl's `IPNewton()`.
    * Note - this approach requires that `sensealg=:ForwardDiff` for the gradient.
 
 ```julia
-petabProblem = createPEtabODEProblem(petabModel, 
-                                     odeSolverOptions=ODESolverOptions(QNDF(), abstol=1e-8, reltol=1e-8),
-                                     gradientMethod=:ForwardEquations, 
-                                     hessianMethod=:GaussNewton,
+petab_problem = PEtabODEProblem(petab_model, 
+                                     ode_solver=ODESolver(QNDF(), abstol=1e-8, reltol=1e-8),
+                                     gradient_method=:ForwardEquations, 
+                                     hessian_method=:GaussNewton,
                                      sensealg=:ForwardDiff, 
-                                     reuseS=true) 
-p = petabProblem.θ_nominalT 
+                                     reuse_sensitivities=true) 
+p = petab_problem.θ_nominalT 
 gradient = zeros(length(p)) 
 hessian = zeros(length(p), length(p)) 
-cost = petabProblem.computeCost(p)
-petabProblem.computeGradient!(gradient, p)
-petabProblem.computeHessian!(hessian, p)
+cost = petab_problem.compute_cost(p)
+petab_problem.compute_gradient!(gradient, p)
+petab_problem.compute_hessian!(hessian, p)
 @printf("Cost for Bachmann = %.2f\n", cost)
 @printf("First element in the gradient = %.2e\n", gradient[1])
 @printf("First element in the Gauss-Newton Hessian = %.2f\n", hessian[1, 1])

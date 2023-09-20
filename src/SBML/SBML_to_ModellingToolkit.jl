@@ -3,19 +3,19 @@
 
 
 """
-    XmlToModellingToolkit(pathXml::String, modelName::String, dirModel::String)
+    XmlToModellingToolkit(pathXml::String, model_name::String, dir_model::String)
 
 Convert a SBML file in pathXml to a Julia ModelingToolkit file and store
-the resulting file in dirModel with name modelName.jl.
+the resulting file in dir_model with name model_name.jl.
 """
-function XmlToModellingToolkit(pathXml::String, pathJlFile::AbstractString, modelName::AbstractString; 
-                               onlyGetSBMLDict::Bool=false, ifElseToEvent::Bool=true, writeToFile::Bool=true)
+function XmlToModellingToolkit(pathXml::String, pathJlFile::AbstractString, model_name::AbstractString; 
+                               onlyGetSBMLDict::Bool=false, ifelse_to_event::Bool=true, write_to_file::Bool=true)
 
     modelSBML = readSBML(pathXml)
-    modelDict = buildODEModelDictionary(modelSBML, ifElseToEvent)
+    modelDict = buildODEModelDictionary(modelSBML, ifelse_to_event)
 
     if onlyGetSBMLDict == false
-        modelStr = createODEModelFunction(modelDict, pathJlFile, modelName, false, writeToFile)
+        modelStr = createODEModelFunction(modelDict, pathJlFile, model_name, false, write_to_file)
         return modelDict, modelStr
     end
 
@@ -24,14 +24,14 @@ end
 
 
 """
-JLToModellingToolkit(pathJlFile::String, dirJulia::String, modelName::String; ifElseToEvent::Bool=true)
+JLToModellingToolkit(pathJlFile::String, dir_julia::String, model_name::String; ifelse_to_event::Bool=true)
 Loads the Julia ModelingToolkit file located in pathJlFile.
-If the file contains ifelse statements and ifElseToEvent=true
+If the file contains ifelse statements and ifelse_to_event=true
 a fixed file will be stored in the Julia_model_files folder
 with the suffix _fix in its filename.
 """
-function JLToModellingToolkit(pathJlFile::String, dirJulia::String, modelName::String; 
-                              ifElseToEvent::Bool=true, writeToFile::Bool=true)
+function JLToModellingToolkit(pathJlFile::String, dir_julia::String, model_name::String; 
+                              ifelse_to_event::Bool=true, write_to_file::Bool=true)
     
     # Some parts of the modelDict are needed to create the other julia files for the model.
     modelDict = Dict()
@@ -43,20 +43,20 @@ function JLToModellingToolkit(pathJlFile::String, dirJulia::String, modelName::S
     modelDict["numOfParameters"] = Dict()
     modelDict["numOfSpecies"] = Dict()
     modelDict["equationList"] = Dict()
-    modelDict["stateMap"] = Dict()
+    modelDict["state_map"] = Dict()
     modelDict["paramMap"] = Dict()
 
     # Read modelFile to work with it
     odefun = include(pathJlFile)
     expr = Expr(:call, Symbol(odefun))
-    odeSys, stateMap, paramMap = eval(expr)
+    odeSys, state_map, paramMap = eval(expr)
 
-    modelDict["stateMap"] = stateMap
+    modelDict["state_map"] = state_map
     modelDict["paramMap"] = paramMap
 
     # Extract some "metadata"
     modelDict["numOfParameters"] = string(length(paramMap))
-    modelDict["numOfSpecies"] = string(length(stateMap))
+    modelDict["numOfSpecies"] = string(length(state_map))
 
     equationList = string.(equations(odeSys))
     equationList = replace.(equationList, "Differential" => "D")
@@ -74,13 +74,13 @@ function JLToModellingToolkit(pathJlFile::String, dirJulia::String, modelName::S
         modelDict["parameters"][string(par.first)] = string(par.second)
     end
     
-    for stat in stateMap
+    for stat in state_map
         modelDict["states"][string(stat.first)] = string(stat.second)
     end
     
     #Initialize output model file path to input path
     modelFileJl = pathJlFile
-    if ifElseToEvent == true
+    if ifelse_to_event == true
         # Rewrite any time-dependent ifelse to boolean statements such that we can express these as events.
         # This is recomended, as it often increases the stabillity when solving the ODE, and decreases run-time
         timeDependentIfElseToBool!(modelDict)
@@ -89,9 +89,9 @@ function JLToModellingToolkit(pathJlFile::String, dirJulia::String, modelName::S
             # and changes output model file path to the fixed one.
             fileName = splitpath(pathJlFile)[end]
             fileNameFix = replace(fileName, Regex(".jl\$") => "_fix.jl")
-            modelFileJl = joinpath(dirJulia, fileNameFix)
+            modelFileJl = joinpath(dir_julia, fileNameFix)
             # Create a new "fixed" julia file
-            modelStr = createODEModelFunction(modelDict, pathJlFile, modelName, true, writeToFile)
+            modelStr = createODEModelFunction(modelDict, pathJlFile, model_name, true, write_to_file)
         else
             modelStr = getFunctionsAsString(modelFileJl, 1)[1]
         end
@@ -266,7 +266,7 @@ function processInitialAssignment(modelSBML, modelDict::Dict, baseFunctions::Arr
 end
 
 
-function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
+function buildODEModelDictionary(modelSBML, ifelse_to_event::Bool)
 
     # Nested dictionaries to store relevant model data:
     # i) Model parameters (constant during for a simulation)
@@ -508,7 +508,7 @@ function buildODEModelDictionary(modelSBML, ifElseToEvent::Bool)
 
     # Rewrite any time-dependent ifelse to boolean statements such that we can express these as events.
     # This is recomended, as it often increases the stabillity when solving the ODE, and decreases run-time
-    if ifElseToEvent == true
+    if ifelse_to_event == true
         timeDependentIfElseToBool!(modelDict)
     end
 
@@ -605,13 +605,13 @@ end
 
 
 """
-    createODEModelFunction(modelDict, pathJlFile, modelName, juliaFile, writeToFile::Bool)
+    createODEModelFunction(modelDict, pathJlFile, model_name, juliaFile, write_to_file::Bool)
 
 Takes a modelDict as defined by buildODEModelDictionary
 and creates a Julia ModelingToolkit file and stores
-the resulting file in dirModel with name modelName.jl.
+the resulting file in dir_model with name model_name.jl.
 """
-function createODEModelFunction(modelDict, pathJlFile, modelName, juliaFile, writeToFile::Bool)
+function createODEModelFunction(modelDict, pathJlFile, model_name, juliaFile, write_to_file::Bool)
 
         stringDict = Dict()
         stringDict["variables"] = Dict()
@@ -677,7 +677,7 @@ function createODEModelFunction(modelDict, pathJlFile, modelName, juliaFile, wri
 
         stringDict["derivatives"] = stringDict["derivatives"][1:end-2] * "\n    ]"
         
-        for stat in modelDict["stateMap"]
+        for stat in modelDict["state_map"]
             statN = replace(string(stat.first),"(t)"=>"")
             statV = string(stat.second)
             stringDict["initialSpeciesValues"] *= "        " * statN * " => " * statV * ", \n"
@@ -883,10 +883,10 @@ function createODEModelFunction(modelDict, pathJlFile, modelName, juliaFile, wri
     end
 
     ### Writing to file
-    modelName = replace(modelName, "-" => "_")
+    model_name = replace(model_name, "-" => "_")
     io = IOBuffer()
-    println(io, "function getODEModel_" * modelName * "(foo)")
-    println(io, "\t# Model name: " * modelName)
+    println(io, "function getODEModel_" * model_name * "(foo)")
+    println(io, "\t# Model name: " * model_name)
     println(io, "\t# Number of parameters: " * modelDict["numOfParameters"])
     println(io, "\t# Number of species: " * modelDict["numOfSpecies"])
     println(io, "")
@@ -932,7 +932,7 @@ function createODEModelFunction(modelDict, pathJlFile, modelName, juliaFile, wri
     close(io)
     
     # In case user request file to be written 
-    if writeToFile == true
+    if write_to_file == true
         open(pathJlFile, "w") do f
             write(f, strModel)
         end

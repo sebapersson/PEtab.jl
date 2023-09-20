@@ -7,17 +7,17 @@
 
 function computeIndicesθ(parameterInfo::ParametersInfo,
                          measurementsInfo::MeasurementsInfo,
-                         petabModel::PEtabModel)::ParameterIndices
+                         petab_model::PEtabModel)::ParameterIndices
 
-    experimentalConditionsFile = petabModel.pathConditions
-    return computeIndicesθ(parameterInfo, measurementsInfo, petabModel.system, petabModel.parameterMap, petabModel.stateMap, experimentalConditionsFile)
+    experimentalConditionsFile = petab_model.path_conditions
+    return computeIndicesθ(parameterInfo, measurementsInfo, petab_model.system, petab_model.parameter_map, petab_model.state_map, experimentalConditionsFile)
 
 end
 function computeIndicesθ(parameterInfo::ParametersInfo,
                          measurementsInfo::MeasurementsInfo,
                          odeSystem,
                          paramterMap,
-                         stateMap,
+                         state_map,
                          experimentalConditionsFile::CSV.File)::ParameterIndices
 
     θ_observableNames, θ_sdNames, θ_nonDynamicNames, θ_dynamicNames = computeθNames(parameterInfo, measurementsInfo,
@@ -25,14 +25,14 @@ function computeIndicesθ(parameterInfo::ParametersInfo,
     # When computing the gradient tracking parameters not part of ODE system is helpful
     iθ_notOdeSystemNames::Vector{Symbol} = Symbol.(unique(vcat(θ_sdNames, θ_observableNames, θ_nonDynamicNames)))
     # Names in the big θ_est vector
-    θ_estNames::Vector{Symbol} = Symbol.(vcat(θ_dynamicNames, iθ_notOdeSystemNames))
+    θ_names::Vector{Symbol} = Symbol.(vcat(θ_dynamicNames, iθ_notOdeSystemNames))
 
     # Indices for each parameter in the big θ_est vector
-    iθ_dynamic::Vector{Int64} = [findfirst(x -> x == θ_dynamicNames[i], θ_estNames) for i in eachindex(θ_dynamicNames)]
-    iθ_sd::Vector{Int64} = [findfirst(x -> x == θ_sdNames[i], θ_estNames) for i in eachindex(θ_sdNames)]
-    iθ_observable::Vector{Int64} = [findfirst(x -> x == θ_observableNames[i], θ_estNames) for i in eachindex(θ_observableNames)]
-    iθ_nonDynamic::Vector{Int64} = [findfirst(x -> x == θ_nonDynamicNames[i], θ_estNames) for i in eachindex(θ_nonDynamicNames)]
-    iθ_notOdeSystem::Vector{Int64} = [findfirst(x -> x == iθ_notOdeSystemNames[i], θ_estNames) for i in eachindex(iθ_notOdeSystemNames)]
+    iθ_dynamic::Vector{Int64} = [findfirst(x -> x == θ_dynamicNames[i], θ_names) for i in eachindex(θ_dynamicNames)]
+    iθ_sd::Vector{Int64} = [findfirst(x -> x == θ_sdNames[i], θ_names) for i in eachindex(θ_sdNames)]
+    iθ_observable::Vector{Int64} = [findfirst(x -> x == θ_observableNames[i], θ_names) for i in eachindex(θ_observableNames)]
+    iθ_nonDynamic::Vector{Int64} = [findfirst(x -> x == θ_nonDynamicNames[i], θ_names) for i in eachindex(θ_nonDynamicNames)]
+    iθ_notOdeSystem::Vector{Int64} = [findfirst(x -> x == iθ_notOdeSystemNames[i], θ_names) for i in eachindex(iθ_notOdeSystemNames)]
 
     # When extracting observable or sd parameter for computing the cost we use a pre-computed map to efficently
     # extract correct parameters
@@ -46,11 +46,11 @@ function computeIndicesθ(parameterInfo::ParametersInfo,
     mapODEProblem::MapODEProblem = MapODEProblem(iθDynamic, iODEProblemθDynamic)
 
     # Set up a map for changing between experimental conditions
-    mapsConditionId::Dict{Symbol, MapConditionId} = getMapsConditionId(odeSystem, paramterMap, stateMap, parameterInfo, experimentalConditionsFile, θ_dynamicNames)
+    mapsConditionId::Dict{Symbol, MapConditionId} = getMapsConditionId(odeSystem, paramterMap, state_map, parameterInfo, experimentalConditionsFile, θ_dynamicNames)
 
     # Set up a named tuple tracking the transformation of each parameter
-    _θ_scale = [parameterInfo.parameterScale[findfirst(x -> x == θ_name, parameterInfo.parameterId)] for θ_name in θ_estNames]
-    θ_scale::Dict{Symbol, Symbol} = Dict([(θ_estNames[i], _θ_scale[i]) for i in eachindex(θ_estNames)])
+    _θ_scale = [parameterInfo.parameterScale[findfirst(x -> x == θ_name, parameterInfo.parameterId)] for θ_name in θ_names]
+    θ_scale::Dict{Symbol, Symbol} = Dict([(θ_names[i], _θ_scale[i]) for i in eachindex(θ_names)])
 
     θ_indices = ParameterIndices(iθ_dynamic,
                                  iθ_observable,
@@ -62,7 +62,7 @@ function computeIndicesθ(parameterInfo::ParametersInfo,
                                  θ_sdNames,
                                  θ_nonDynamicNames,
                                  iθ_notOdeSystemNames,
-                                 θ_estNames,
+                                 θ_names,
                                  θ_scale,
                                  mapθ_observable,
                                  mapθ_sd,
@@ -110,7 +110,7 @@ end
 function getNamesObservableOrSdParameters(noiseOrObservableCol::T1,
                                           parameterInfo::ParametersInfo) where {T1<:Vector{<:Union{<:String,<:AbstractFloat}}}
 
-    θ_estNames = Symbol[]
+    θ_names = Symbol[]
     for i in eachindex(noiseOrObservableCol)
         if isempty(noiseOrObservableCol[i]) || isNumber(string(noiseOrObservableCol[i]))
             continue
@@ -122,17 +122,17 @@ function getNamesObservableOrSdParameters(noiseOrObservableCol::T1,
             parameter = Symbol(_parameter)
             # Disregard Id if parameters should not be estimated, or
             iParameter = findfirst(x -> x == parameter, parameterInfo.parameterId)
-            if isNumber(_parameter) || parameter in θ_estNames || parameterInfo.estimate[iParameter] == false
+            if isNumber(_parameter) || parameter in θ_names || parameterInfo.estimate[iParameter] == false
                 continue
             elseif isnothing(iParameter)
                 @error "Parameter $parameter could not be found in parameter file"
             end
 
-            θ_estNames = vcat(θ_estNames, parameter)
+            θ_names = vcat(θ_names, parameter)
         end
     end
 
-    return θ_estNames
+    return θ_names
 end
 
 
@@ -173,12 +173,12 @@ end
 
 # For each observation build a map that correctly from either θ_observable or θ_sd map extract the correct value
 # for the time-point specific observable and noise parameters when compuing σ or h (observable) value.
-function buildθSdOrObservableMap(θ_names::Vector{Symbol},
+function buildθSdOrObservableMap(n_parameters_estimate::Vector{Symbol},
                                  measurementsInfo::MeasurementsInfo,
                                  parameterInfo::ParametersInfo;
                                  buildθ_observable=true)
 
-    parameterMap::Vector{θObsOrSdParameterMap} = Vector{θObsOrSdParameterMap}(undef, length(measurementsInfo.time))
+    parameter_map::Vector{θObsOrSdParameterMap} = Vector{θObsOrSdParameterMap}(undef, length(measurementsInfo.time))
     if buildθ_observable == true
         timePointSpecificValues = measurementsInfo.observableParameters
     else
@@ -187,15 +187,15 @@ function buildθSdOrObservableMap(θ_names::Vector{Symbol},
 
     # For each time-point build an associated map which stores if i) noise/obserable parameters are constants, ii) should
     # be estimated, iii) and corresponding index in parameter vector
-    for i in eachindex(parameterMap)
+    for i in eachindex(parameter_map)
         # In case we do not have any noise/obserable parameter
         if isempty(timePointSpecificValues[i])
-            parameterMap[i] = θObsOrSdParameterMap(Vector{Bool}(undef, 0), Vector{Int64}(undef, 0), Vector{Float64}(undef, 0), Int64(0), false)
+            parameter_map[i] = θObsOrSdParameterMap(Vector{Bool}(undef, 0), Vector{Int64}(undef, 0), Vector{Float64}(undef, 0), Int64(0), false)
         end
 
         # In case of a constant noise/obserable parameter encoded as a Float in the PEtab file.
         if typeof(timePointSpecificValues[i]) <: Real
-            parameterMap[i] = θObsOrSdParameterMap(Vector{Bool}(undef, 0), Vector{Int64}(undef, 0), Float64[timePointSpecificValues[i]], Int64(0), true)
+            parameter_map[i] = θObsOrSdParameterMap(Vector{Bool}(undef, 0), Vector{Int64}(undef, 0), Float64[timePointSpecificValues[i]], Int64(0), true)
         end
 
         # In case observable or noise parameter maps to a parameter
@@ -212,9 +212,9 @@ function buildθSdOrObservableMap(θ_names::Vector{Symbol},
             for j in eachindex(parametersInExpression)
                 # In case observable parameter in paramsRet[j] should be estimated save which index
                 # it has in the θ vector
-                if Symbol(parametersInExpression[j]) ∈ θ_names
+                if Symbol(parametersInExpression[j]) ∈ n_parameters_estimate
                     shouldEstimate[j] = true
-                    indexInθ[j] = Int64(findfirst(x -> x == Symbol(parametersInExpression[j]), θ_names))
+                    indexInθ[j] = Int64(findfirst(x -> x == Symbol(parametersInExpression[j]), n_parameters_estimate))
                     continue
                 end
 
@@ -236,19 +236,19 @@ function buildθSdOrObservableMap(θ_names::Vector{Symbol},
                 @error "Cannot find matching for parameter ", parametersInExpression[j], " when building map."
             end
 
-            parameterMap[i] = θObsOrSdParameterMap(shouldEstimate, indexInθ[shouldEstimate], constantValues[.!shouldEstimate],
+            parameter_map[i] = θObsOrSdParameterMap(shouldEstimate, indexInθ[shouldEstimate], constantValues[.!shouldEstimate],
                 Int64(length(parametersInExpression)), false)
         end
     end
 
-    return parameterMap
+    return parameter_map
 end
 
 
 # A map to accurately map parameters for a specific experimental conditionId to the ODE-problem
 function getMapsConditionId(odeSystem,
-                            parameterMap,
-                            stateMap,
+                            parameter_map,
+                            state_map,
                             parameterInfo::ParametersInfo,
                             experimentalConditionsFile::CSV.File,
                             _θ_dynamicNames::Vector{Symbol})::Dict{Symbol, MapConditionId}
@@ -317,13 +317,13 @@ function getMapsConditionId(odeSystem,
             # have access to the parameter and state map to handle both states and parameters. Then must fix such that
             # __init__ parameters  take on the correct value.
             if rowI[j] == "missing" && conditionSpecificVariables[j] ∈ allODESystemParameters
-                valueDefault = getDefaultValueFromMaps(string(conditionSpecificVariables[j]), parameterMap, stateMap)
+                valueDefault = getDefaultValueFromMaps(string(conditionSpecificVariables[j]), parameter_map, state_map)
                 constantParameters = vcat(constantParameters, valueDefault)
                 iODEProblemConstantParameters = vcat(iODEProblemConstantParameters, findfirst(x -> x == conditionSpecificVariables[j], allODESystemParameters))
                 continue
             end
             if rowI[j] == "missing" && conditionSpecificVariables[j] ∈ modelStateNames
-                valueDefault = getDefaultValueFromMaps(string(conditionSpecificVariables[j]), parameterMap, stateMap)
+                valueDefault = getDefaultValueFromMaps(string(conditionSpecificVariables[j]), parameter_map, state_map)
                 constantParameters = vcat(constantParameters, valueDefault)
                 iODEProblemConstantParameters = vcat(iODEProblemConstantParameters, findfirst(x -> x == "__init__" * conditionSpecificVariables[j] * "__", allODESystemParameters))
                 continue
@@ -357,31 +357,31 @@ end
 
 
 # Extract default parameter value from state, or parameter map
-function getDefaultValueFromMaps(whichParameterOrState, parameterMap, stateMap)
+function getDefaultValueFromMaps(whichParameterOrState, parameter_map, state_map)
 
-    parameterMapNames = string.([parameterMap[i].first for i in eachindex(parameterMap)])
-    stateMapNames = replace.(string.([stateMap[i].first for i in eachindex(stateMap)]), "(t)" => "")
+    parameter_mapNames = string.([parameter_map[i].first for i in eachindex(parameter_map)])
+    state_mapNames = replace.(string.([state_map[i].first for i in eachindex(state_map)]), "(t)" => "")
 
     # Parameters are only allowed to map to concrete values
-    if whichParameterOrState ∈ parameterMapNames
-        whichIndex = findfirst(x -> x == whichParameterOrState, parameterMapNames)
-        return parse(Float64, string(parameterMap[whichIndex].second))
+    if whichParameterOrState ∈ parameter_mapNames
+        whichIndex = findfirst(x -> x == whichParameterOrState, parameter_mapNames)
+        return parse(Float64, string(parameter_map[whichIndex].second))
     end
 
     # States can by default map to a parameter by one level of recursion
-    @assert whichParameterOrState ∈ stateMapNames
-    whichIndex = findfirst(x -> x == whichParameterOrState, stateMapNames)
-    valueMapTo = string(stateMap[whichIndex].second)
-    if valueMapTo ∈ parameterMapNames
-        whichIndexParameter = findfirst(x -> x == valueMapTo, parameterMapNames)
-        _valueMapTo = string(parameterMap[whichIndexParameter].second)
-        if _valueMapTo ∈ parameterMapNames
-            _whichIndexParameter = findfirst(x -> x == _valueMapTo, parameterMapNames)
-            return parse(Float64, string.(parameterMap[_whichIndexParameter].second))
+    @assert whichParameterOrState ∈ state_mapNames
+    whichIndex = findfirst(x -> x == whichParameterOrState, state_mapNames)
+    valueMapTo = string(state_map[whichIndex].second)
+    if valueMapTo ∈ parameter_mapNames
+        whichIndexParameter = findfirst(x -> x == valueMapTo, parameter_mapNames)
+        _valueMapTo = string(parameter_map[whichIndexParameter].second)
+        if _valueMapTo ∈ parameter_mapNames
+            _whichIndexParameter = findfirst(x -> x == _valueMapTo, parameter_mapNames)
+            return parse(Float64, string.(parameter_map[_whichIndexParameter].second))
         else
             return parse(Float64, _valueMapTo)
         end
     end
 
-    return parse(Float64, string(stateMap[whichIndex].second))
+    return parse(Float64, string(state_map[whichIndex].second))
 end
