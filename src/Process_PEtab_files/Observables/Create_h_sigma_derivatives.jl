@@ -39,6 +39,32 @@ function createDerivative_σ_h_File(modelName::String,
     
     return ∂h∂uStr, ∂h∂pStr, ∂σ∂uStr, ∂σ∂pStr
 end
+function createDerivative_σ_h_File(modelName::String,
+                                   system,
+                                   experimentalConditions::CSV.File,
+                                   measurementsData::CSV.File,
+                                   parametersData::CSV.File,
+                                   observablesData::CSV.File,
+                                   stateMap)
+
+    pODEProblemNames = string.(parameters(system))
+    modelStateNames = replace.(string.(states(system)), "(t)" => "")
+    parameterMap = [p => 0.0 for p in parameters(system)]
+
+    parameterInfo = PEtab.processParameters(parametersData)
+    measurementInfo = PEtab.processMeasurements(measurementsData, observablesData)
+
+    # Indices for keeping track of parameters in θ
+    θ_indices = PEtab.computeIndicesθ(parameterInfo, measurementInfo, system, parameterMap, stateMap, experimentalConditions)
+
+    # Dummary variables to keep PEtab importer happy even as we are not providing any PEtab files
+    SBMLDict = Dict(); SBMLDict["assignmentRulesStates"] = Dict()
+
+    ∂h∂uStr, ∂h∂pStr = PEtab.create∂h∂_Function(modelName, @__DIR__, modelStateNames, parameterInfo, pODEProblemNames, string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict, false)
+    ∂σ∂uStr, ∂σ∂pStr = PEtab.create∂σ∂_Function(modelName, @__DIR__, parameterInfo, modelStateNames, pODEProblemNames, string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict, false)
+
+    return ∂h∂uStr, ∂h∂pStr, ∂σ∂uStr, ∂σ∂pStr
+end
 
 
 """
@@ -279,7 +305,7 @@ function create∂σ∂_Function(modelName::String,
 
                 noiseParameters = getNoiseParametersStr(formula)
                 if !isempty(noiseParameters) && enterObservable == true
-                    strObservebleU *= "\t\t" * noiseParameters * " = getObsOrSdParam(θ_sd, parameterMap)\n"
+                    uObservebleStr *= "\t\t" * noiseParameters * " = getObsOrSdParam(θ_sd, parameterMap)\n"
                     enterObservable = false
                 end
 

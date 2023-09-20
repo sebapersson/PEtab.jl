@@ -264,7 +264,7 @@ end
 
 
 # Compute prior contribution to log-likelihood, note θ in on the parameter scale (e.g might be on log-scale)
-function computeHessianPrior!(hessian::AbstractVector,
+function computeHessianPrior!(hessian::AbstractMatrix,
                               θ::AbstractVector,
                               θ_indices::ParameterIndices,
                               priorInfo::PriorInfo)

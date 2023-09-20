@@ -47,7 +47,8 @@ struct PEtabModel{F1<:Function,
                   F8<:Function,
                   F9<:Function,
                   C<:SciMLBase.DECallback,
-                  FA<:Vector{<:Function}}
+                  FA<:Vector{<:Function}, 
+                  S}
     modelName::String
     compute_h::F1
     compute_u0!::F2
@@ -59,17 +60,17 @@ struct PEtabModel{F1<:Function,
     compute_∂σ∂p!::F8
     computeTStops::F9
     convertTspan::Bool
-    odeSystem::ODESystem
+    system::S
     parameterMap
     stateMap
     parameterNames
     stateNames
     dirModel::String
     dirJulia::String
-    pathMeasurements::String
-    pathConditions::String
-    pathObservables::String
-    pathParameters::String
+    pathMeasurements::CSV.File
+    pathConditions::CSV.File
+    pathObservables::CSV.File
+    pathParameters::CSV.File
     pathSBML::String
     pathYAML::String
     modelCallbackSet::C
@@ -374,23 +375,232 @@ end
 
 
 """
-    Fides
+    Fides(hessianMethod::Union{Nothing, Symbol}; verbose::Bool=false)
 
-[Fides](https://github.com/fides-dev/fides) is a Python Newton-trust region optimizer for box-bounded optimization problems.
+[Fides](https://github.com/fides-dev/fides) is a Python Newton-trust region optimizer designed for box-bounded optimization problems.
 
-It is particularly effective when the full Hessian cannot be computed, but the Gauss-Newton Hessian approximation can be
-computed. If constructed with `Fides(verbose=true)`, it prints optimization progress during the process.
+It excels when the full Hessian is too computationally expensive, but a Gauss-Newton Hessian approximation can be calculated. When constructed with `Fides(verbose=true)`, it displays optimization progress during estimation.
+
+## Hessian Methods
+
+If `hessianMethod=nothing`, the Hessian method from the `PEtabODEProblem` is used, which can be either exact or a Gauss-Newton approximation. Additionally, Fides supports the following Hessian approximation methods:
+
+- `:BB`: Broyden's "bad" method
+- `:BFGS`: Broyden-Fletcher-Goldfarb-Shanno update strategy
+- `:BG`: Broyden's "good" method
+- `:Broyden`: BroydenClass Update scheme 
+- `:SR1`: Symmetric Rank 1 update
+- `:SSM`: Structured Secant Method
+- `:TSSM`: Totally Structured Secant Method
+
+For more information on each method, see the Fides [documentation](https://fides-optimizer.readthedocs.io/en/latest/generated/fides.hessian_approximation.html).
+
+See also [`callibrateModel`](@ref) and [`callibrateModelMultistart`](@ref)
+
+## Examples
+```julia
+# Fides with the Hessian method as in the PEtabProblem
+fides_opt = Fides(nothing)
+```
+```julia
+# Fides with the BFGS Hessian approximation, with progress printing
+fides_opt = Fides(:BFGS; verbose=true)
+```
 """
 struct Fides
-    hessianApproximation
-    verbose
+    hessianApproximation::Union{Nothing, Symbol}
+    verbose::Bool
 end
-function Fides(; verbose::Bool=false)
+function Fides(hessianMethod::Union{Nothing, Symbol}; verbose::Bool=false)
     verboseArg = verbose == true ? 1 : 0
-    return Fides(nothing, verboseArg)
+    if isnothing(hessianMethod)
+        return Fides(hessianMethod, verboseArg)
+    end
+    hessianMethod = [:BB, :BFGS, :BG, :Broyden, :DFB, :FX, :SR1, :SSM, :TSSM]
+    @assert hessianMethod ∈ allowedHessianApproximations "Hessian approximation method $hessianMethod is not allowed, see documentation on Fides for allowed methods"
+    return Fides(hessianMethod, verboseArg)
 end
+
+
+"""
+    IpoptOptimiser(LBFGS::Bool)
+
+[Ipopt](https://coin-or.github.io/Ipopt/) is an Interior-point Newton method designed for nonlinear optimization.
+
+Ipopt can be configured to use either the Hessian method from the `PEtabODEProblem` (`LBFGS=false`) or a LBFGS scheme (`LBFGS=true`). 
+For setting Ipopt options, see [`IpoptOptions`](@ref).
+
+See also [`calibrateModel`](@ref) and [`calibrateModelMultistart`](@ref).
+
+## Examples
+```julia
+# Ipopt with the Hessian method as in the PEtabProblem
+ipopt_opt = IpoptOptimiser(false)
+```
+```julia
+# Ipopt with LBFGS Hessian approximation
+ipopt_opt = IpoptOptimiser(true)
+```
+"""
+struct IpoptOptimiser
+    LBFGS::Bool
+end
+
+
+"""
+    IpoptOptions(;print_level::Int64=0, 
+                 max_iter::Int64=1000, 
+                 tol::Float64=1e-8, 
+                 acceptable_tol::Float64=1e-6, 
+                 max_wall_time::Float64=1e20, 
+                 acceptable_obj_change_tol::Float64=1e20)
+
+Wrapper for a subset of Ipopt options to set during parameter estimation.
+
+For more information about each options see the Ipopt [documentation](https://coin-or.github.io/Ipopt/OPTIONS.html)
+
+## Arguments
+- `print_level`: Output verbosity level (valid values are 0 ≤ print_level ≤ 12)
+- `max_iter`: Maximum number of iterations
+- `tol`: Relative convergence tolerance
+- `acceptable_tol`: Acceptable relative convergence tolerance
+- `max_wall_time`: Max wall time optimisation is allowed to run
+- `acceptable_obj_change_tol`: Acceptance stopping criterion based on objective function change.
+
+See also [`calibrateModel`](@ref) and [`calibrateModelMultistart`](@ref).
+"""
+struct IpoptOptions
+    print_level::Int64
+    max_iter::Int64
+    tol::Float64
+    acceptable_tol::Float64
+    max_wall_time::Float64
+    acceptable_obj_change_tol::Float64
+end
+function IpoptOptions(;print_level::Int64=0, 
+                      max_iter::Int64=1000, 
+                      tol::Float64=1e-8, 
+                      acceptable_tol::Float64=1e-6, 
+                      max_wall_time::Float64=1e20, 
+                      acceptable_obj_change_tol::Float64=1e20)
+
+    return IpoptOptions(print_level, max_iter, tol, acceptable_tol, max_wall_time, acceptable_obj_change_tol)
+end
+
+
+struct PEtabOptimisationResult{T<:Any}
+    alg::Symbol
+    xTrace::Vector{Vector{Float64}} # Parameter vectors (if user wants to save them)
+    fTrace::Vector{Float64} # Likelihood value (if user wants to save them)
+    nIterations::Int64 # Number of iterations optimiser
+    fMin::Float64 # Best optimised value 
+    x0::Vector{Float64} # Starting point 
+    xMin::Vector{Float64} # Last parameter value 
+    converged::T # If user wants to 
+    runTime::Float64 # Always fun :)
+end
+
+
+struct PEtabMultistartOptimisationResult
+    xMin::Vector{Float64} # Parameter vectors (if user wants to save them)
+    fMin::Float64 # Likelihood value (if user wants to save them)
+    nMultistarts::Int
+    alg::Symbol
+    multiStartMethod::String
+    dirSave::Union{String, Nothing}
+    runs::Vector{PEtabOptimisationResult} # See above
+end
+
+
+"""
+    PEtabObservable(obsFormula, noiseFormula; transformation::Symbol=:lin)
+
+Links a model to measurements using an observable formula and measurement noise formula.
+
+The `transformation` argument can take one of three values: `:lin` (for normal measurement noise), `:log`, or `:log10` (for log-normal measurement noise). For a full description of options, including how to define measurement-specific observable and noise parameters, see the main documentation.
+
+## Examples
+```julia 
+# Example 1: Log-normal measurement noise with known error σ=3.0
+@unpack X = rn  # 'rn' is the dynamic model
+PEtabObservable(X, 3.0, transformation=:log)
+```
+```julia 
+# Example 2: Normal measurement noise with estimation of σ (defined as PEtabParameter)
+@unpack X, Y = rn  # 'rn' is the dynamic model
+@parameters sigma
+PEtabObservable((X + Y) / X, sigma)
+```
+```julia
+# Example 3: Normal measurement noise with measurement-specific noiseParameter
+@unpack X, Y = rn  # 'rn' is the dynamic model
+@parameters noiseParameter1  # Must be in the format 'noiseParameter'
+PEtabObservable(X, noiseParameter1 * X)
+```
+"""
+struct PEtabObservable
+    obs::Num
+    transformation::Union{Nothing, Symbol}
+    noiseFormula::Union{Nothing, Num}
+end
+function PEtabObservable(obs::Num, 
+                         noiseFormula::Union{Nothing, Num, T};
+                         transformation::Symbol=:lin)::PEtabObservable where T<:Real
+    return PEtabObservable(obs, transformation, noiseFormula)
+end
+
+
+"""
+    PEtabParameter(id::Symbol; <keyword arguments>)
+
+Represents a parameter to be estimated in a PEtab model calibration problem.
+
+## Keyword Arguments
+- `estimate::Bool=true`: Specifies whether the parameter should be estimated (default) or set as constant.
+- `value::Union{Nothing, Float64}=nothing`: The parameter value to use if `estimate=false`. Defaults to the midpoint between `lb` and `ub`.
+- `scale::Symbol=:log10`: The scale on which to estimate the parameter. Allowed options are `:log10` (default), `:log`, and `:lin`.
+- `lb::Float64=1e-3`: The lower parameter bound in parameter estimation (default: 1e-3).
+- `ub::Float64=1e-3`: The upper parameter bound in parameter estimation (default: 1e3).
+- `prior=nothing`: An optional continuous prior distribution from the Distributions package.
+- `prior_on_linear_scale::Bool=true`: Specifies whether the prior is on the linear scale (default) or the transformed scale, e.g., log10-scale.
+
+## Examples
+```julia 
+# Example 1: Parameter with a Log-Normal prior (LN(μ=3.0, σ=1.0)) estimated on the log10 scale
+PEtabParameter(:c1, prior=LogNormal(3.0, 1.0))
+```
+```julia
+# Example 2: Parameter estimated on the log scale with a Normal prior (N(0.0, 1.0)) on the log scale
+PEtabParameter(:c1, scale=:log, prior=Normal(0.0, 1.0), prior_on_linear_scale=false)
+```
+"""
+struct PEtabParameter
+    parameter::Union{Num, Symbol}
+    estimate::Bool
+    value::Union{Nothing,Float64}
+    lb::Union{Nothing,Float64}
+    ub::Union{Nothing,Float64}
+    prior::Union{Nothing,Distribution{Univariate, Continuous}}
+    prior_on_linear_scale::Bool
+    scale::Union{Nothing,Symbol} # :log10, :linear and :log supported.
+end
+function PEtabParameter(id::Union{Num, Symbol};
+                        estimate::Bool=true,
+                        value::Union{Nothing, Float64}=nothing,
+                        lb::Union{Nothing, Float64}=1e-3,
+                        ub::Union{Nothing, Float64}=1e3,
+                        prior::Union{Nothing,Distribution{Univariate, Continuous}}=nothing,
+                        prior_on_linear_scale::Bool=true,
+                        scale::Union{Nothing, Symbol}=:log10)
+
+    return PEtabParameter(id, estimate, value, lb, ub, prior, prior_on_linear_scale, scale)
+end
+
 
 
 struct PEtabFileError <: Exception
+    var::String
+end
+struct PEtabFormatError <: Exception
     var::String
 end

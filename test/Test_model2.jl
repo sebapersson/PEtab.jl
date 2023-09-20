@@ -54,7 +54,7 @@ function testODESolverTestModel2(petabModel::PEtabModel, solverOptions)
         # Set parameter values for ODE
         petabModel.parameterMap[2] = Pair(petabModel.parameterMap[2].first, alpha)
         petabModel.parameterMap[3] = Pair(petabModel.parameterMap[3].first, beta)
-        prob = ODEProblem(petabModel.odeSystem, petabModel.stateMap, (0.0, 5e3), petabModel.parameterMap, jac=true)
+        prob = ODEProblem(petabModel.system, petabModel.stateMap, (0.0, 5e3), petabModel.parameterMap, jac=true)
         prob = remake(prob, p = convert.(Float64, prob.p), u0 = convert.(Float64, prob.u0))
         θ_dynamic = getFileODEvalues(petabModel)[1:2]
 

@@ -1,6 +1,6 @@
-# Getting started
+# Importing a PEtab problem
 
-In this starting tutorial, we will use the small Boehm model to demonstrate the key features of PEtab.jl.
+In this starting tutorial, we will use the small Boehm model to demonstrate how to import a parameter-estimation problem specifed in the PEtab-format.
 
 To run the code, you will need the Boehm PEtab files, which can be accessed [here](https://github.com/sebapersson/PEtab.jl/tree/main/examples/Boehm). For a fully functional example of this tutorial, please visit [this link](https://github.com/sebapersson/PEtab.jl/tree/main/examples/Boehm.jl).
 
@@ -29,7 +29,7 @@ Generated Julia files are at ...
 
 ## Creating a PEtabODEProblem
 
-To create a `PEtabODEProblem` from a PEtab model, we use the `createPEtabODEProblem` function. This function allows us to customize various options (see the API documentation for a full list), but the most important ones are:
+Next step is to create a `PEtabODEProblem` from a PEtab model, for which we use the `createPEtabODEProblem` function. This function allows us to customize various options (see the API documentation for a full list), but the most important ones are:
 
 * `odeSolverOptions`: This option lets us choose an ODE solver and set tolerances for the solver. For example, we can choose the `Rodas5P()` solver and set tolerances of `abstol, reltol = 1e-8`. This solver works well for smaller models with up to 15 states.
 * `gradientMethod`: This option lets us choose a gradient computation method. For small models like Boehm, forward mode automatic differentiation (AD) is the fastest method, so we choose `:ForwardDiff`.
@@ -100,4 +100,4 @@ First element in the hessian = 2199.49
 
 ## Where to go from here
 
-Next, we suggest you take a look at the [Choosing best options for a PEtab problem](@ref best_options) guide. Additionally, we recommend exploring the [Supported gradient and hessian methods](@ref gradient_support) section. In case you want to provide your model-file as a Julia-file instead of an SBML file take a look at [Providing a model as a Julia file instead of an SBML File](@ref Beer_Julia_import).
+Next, if you want the estimate the model we suggest you take a look at the (ADD!). We also recommend [Choosing best options for a PEtab problem](@ref best_options) guide. Additionally, we recommend exploring the [Supported gradient and hessian methods](@ref gradient_support) section. In case you want to provide your model-file as a Julia-file instead of an SBML file take a look at [Providing a model as a Julia file instead of an SBML File](@ref Beer_Julia_import).

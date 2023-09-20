@@ -1,99 +1,125 @@
-# [Optimization (Parameter Estimation)](@id parameter_estimation)
+# [Parameter Estimation (Model Calibration)](@id parameter_estimation)
 
-PEtab.jl seamlessly integrates with various optimization packages such as [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl), [Ipopt.jl](https://github.com/jump-dev/Ipopt.jl), and [Fides.py](https://github.com/fides-dev/fides). Check out our [examples](https://github.com/sebapersson/PEtab.jl/tree/main/examples), or see below, to see how it is done.
+PEtab.jl provides interfaces to three optimization packages:
 
-For parameter estimation in ODE models used in systems biology, a widely adopted approach is multi-start local optimization. In this method, a local optimizer is run from a large number (around 100-1000) of random start-guesses. These start-guesses are efficiently generated using techniques like Latin-hypercube sampling to explore the parameter space effectively. When it comes to selecting the optimizer, based on extensive benchmarks, here's a useful rule of thumb:
+- [Optim](https://julianlsolvers.github.io/Optim.jl/stable/): Supports LBFGS, BFGS, or IPNewton methods.
+- [IpoptOptimiser](https://coin-or.github.io/Ipopt/): An interior-point optimizer.
+- [Fides](https://github.com/fides-dev/fides): A Newton trust region method.
 
-- If you can provide a full Hessian, the Interior-point Newton method in [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl) generally outperforms the trust-region method in Fides.py.
-- If you can only provide a Gauss-Newton Hessian approximation (not the full Hessian), the Newton trust-region method in Fides.py usually outperforms the interior-point method in [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl).
+You can find available options for each optimizer in the [Available Optimizers](@ref options_optimizers) section. To help you choose the right optimizer, based on extensive benchmarks we recomend:
 
-PEtab.jl offers a lightweight interface for performing multi-start parameter estimation with [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl) and [Fides.py](https://github.com/fides-dev/fides) (see below).
+- If you have access to a full Hessian matrix, the Interior-point Newton method in [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl) typically outperforms the trust-region method in Fides.py.
+- If you can only provide a Gauss-Newton Hessian approximation (not the full Hessian), the Newton trust-region method in Fides.py is usually more effective than the interior-point method in [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl).
 
 !!! note
     Keep in mind that each problem is unique, and although the suggested options are generally effective, they may not always be the ideal choice for a particular model.
 
 !!! note
-    To use the parameter estimation functionality Optim, QuasiMonteCarlo and PyCall must be loaded (see examples below).
+    To use Optim optimizers, you must load Optim with `using Optim`. To use Ipopt, you must load Ipopt with `using Ipopt`. To use Fides, load PyCall with `using PyCall` and ensure Fides is installed (see documentation for setup).
 
-## Parameter estimation using Optim.jl
+Additionally, the `PEtabODEProblem` contain all the necessary information to use other optimization libraries like [NLopt.jl](https://github.com/JuliaOpt/NLopt.jl).
 
-For [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl) in PEtab.jl, we provide support for three methods:
+## Multi-Start Local Optimization
 
-- IPNewton(): Interior point Newton method.
-- LBFGS(): Newton's method with LBFGS Hessian approximation and box-constraints (Fminbox).
-- BFGS(): Newton's method with BFGS Hessian approximation and box-constraints (Fminbox).
+A widely adopted and effective approach for model calibration is multi-start local optimization. In this method, a local optimizer is run from a large number (typically 100-1000) of randomly generated initial parameter guesses. These guesses are efficiently generated using techniques like Latin-hypercube sampling to effectively explore the parameter space.
 
-To perform parameter estimation, you can use the `calibrateModel` function. This function requires a `PEtabODEProblem`, an optimization algorithm, and the following keyword options:
+To perform multi-start parameter estimation, you can employ the `calibrateModelMultistart` function. This function requires a `PEtabODEProblem`, the number of multi-starts, one of the available optimizer algorithms, and a directory to save the results. If you provide `dirSave=nothing` as the directory path, the results will not be written to disk. However, as a precaution against premature termination, we strongly recommended to specify a directory.
 
-- `nOptimisationStarts::Int`: The number of multi-starts to be performed. The default value is 100.
-- `samplingMethod`: The method for generating start guesses. It supports any method from QuasiMonteCarlo.jl, with LatinHypercube being the default.
-- `options`: Optimization options. For Optim.jl optimizers, it accepts an `Optim.Options` struct.
-
-Here's an example where we run a 50 multi-start for the Boehm model using the Interior-point method and Latin-Hypercube sampling to generate the start-guesses:
-
+For example, to use the Interior-point Newton method from [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl) to perform parameter estimation on the Boehm model with 10 multi-starts you can write:
 
 ```julia
-using PyCall
+using PEtab
 using Optim
-import QuasiMonteCarlo
-fvals, xvals = callibrateModel(petabProblem, IPNewton(), 
-                               nOptimisationStarts=5, 
-                               samplingMethod=QuasiMonteCarlo.LatinHypercubeSample(), 
-                               options=Optim.Options(show_trace = false, iterations=200))
-@printf("Best found value = %.3f\n", minimum(fvals))
+
+petab_model = readPEtabModel(path_to_Boehm_model)
+petab_problem = createPEtabODEProblem(petab_model)
+res = calibrateModelMultistart(petab_problem, IPNewton(), 10, dir_save,
+                               options=Optim.Options(iterations = 200))
+print(res)
 ```
 ```
-Best found value = 138.222
+PEtabMultistartOptimisationResult
+--------- Summary ---------
+min(f)                = 1.48e+02
+Parameters esimtated  = 9
+Number of multistarts = 10
+Optimiser algorithm   = Optim_IPNewton
 ```
 
-Note that via `Optim.Options` we set the maximum number of iterations to 200.
+In this example, we use `Optim.Options` to set the maximum number of iterations to 200. You can find a full list of options [here](https://julianlsolvers.github.io/Optim.jl/v0.9.3/user/config/). The results are returned as a `PEtabMultistartOptimisationResult`, which contains the best-found minima (`xMin`), the smallest objective value (`fMin`), and optimization results for each run.
 
-## Parameter estimation using Fides.py
-
-Fides.py is a trust-region Newton method that excels when computing the full Hessian is computationally expensive but we can compute the Gauss-Newton Hessian approximation.
-
-Fides (specifically, Newton trust-region with box-constraints) is not available directly in Julia. Therefore, to use it, you need to call a Python library. To set up the necessary environment, make sure you have [PyCall.jl](https://github.com/JuliaPy/PyCall.jl) installed. Next you must build PyCall with a Python environment that has Fides installed (**note:** `pathToPythonExe` depends on your system configuration):
+The method for generating initial parameter guesses can also be chosen, as we support any method available in [QuasiMonteCarlo.jl](https://github.com/SciML/QuasiMonteCarlo.jl). For instance, to use Latin-Hypercube sampling (which is the default), and to perform multi-start calibration with Fides, write:
 
 ```julia
+using PEtab
 using PyCall
-using Optim
-import QuasiMonteCarlo
-pathToPythonExe = joinpath("/", "home", "sebpe", "anaconda3", "envs", "PeTab", "bin", "python")
-ENV["PYTHON"] = pathToPythonExe
-import Pkg; Pkg.build("PyCall")
+using QuasiMonteCarlo
+
+petab_model = readPEtabModel(path_yaml)
+petab_problem = createPEtabODEProblem(petab_model)
+res = calibrateModelMultistart(petab_problem, Fides(nothing), 10, dir_save,
+                               samplingMethod=QuasiMonteCarlo.LatinHypercubeSample())
+print(res)
+```
+```
+PEtabMultistartOptimisationResult
+--------- Summary ---------
+min(f)                = 1.38e+02
+Parameters esimtated  = 9
+Number of multistarts = 10
+Optimiser algorithm   = Fides
 ```
 
-Fides always computes the cost, gradient, and Hessian at each iteration. Therefore, if you use the Gauss-Newton Hessian approximation, you can reuse the forward sensitivities (`reuseS=true`) from the gradient calculation by setting `gradientMethod=:ForwardEquations` in the `createPEtabODEProblem` function:
+In this example, we utilize Latin-Hypercube sampling by specifying `samplingMethod=QuasiMonteCarlo.LatinHypercubeSample()`.
 
-```julia
-petabProblem = createPEtabODEProblem(petabModel, 
-                                     odeSolverOptions=ODESolverOptions(Rodas5P()), 
-                                     gradientMethod=:ForwardEquations, 
-                                     hessianMethod=:GaussNewton, 
-                                     sensealg=:ForwardDiff, 
-                                     reuseS=true)
-```
-```
-PEtabODEProblem for Boehm. ODE-states: 8. Parameters to estimate: 9 where 6 are dynamic.
----------- Problem settings ----------
-Gradient method : ForwardEquations
-Hessian method : GaussNewton
---------- ODE-solver settings --------
-Cost Rodas5P(). Options (abstol, reltol, maxiters) = (1.0e-08, 1.0e-08, 1.0e+04)
-Gradient Rodas5P(). Options (abstol, reltol, maxiters) = (1.0e-08, 1.0e-08, 1.0e+04)
-```
-
-Now, you can proceed with the parameter estimation:
+Finally, we have the option to save the trace of each optimization run. For instance, if we want to use `Ipopt` and save the trace for each run, while ensuring reproducibility by setting a seed, we can use the following code:
 
 ```julia
-fvals, xvals = calibrateModel(petabProblem, Fides(verbose=false), 
-                              nOptimisationStarts=5, 
-                              samplingMethod=QuasiMonteCarlo.LatinHypercubeSample(), 
-                              options=py"{'maxiter' : 200}"o)
-@printf("Best found value = %.3f\n", minimum(fvals))     
+using PEtab
+using Ipopt
+
+petab_model = readPEtabModel(path_yaml)
+petab_problem = createPEtabODEProblem(petab_model)
+res = calibrateModelMultistart(petab_problem, IpoptOptimiser(false), 10, dir_save,
+                               saveTrace=true,
+                               seed=123)
+print(res)
 ```
 ```
-Best found value = 147.544
+PEtabMultistartOptimisationResult
+--------- Summary ---------
+min(f)                = 1.38e+02
+Parameters esimtated  = 9
+Number of multistarts = 10
+Optimiser algorithm   = Ipopt_user_Hessian
 ```
 
-Please note that since Fides is a Python package, when providing options, they must be in the form of a Python dictionary using the `py"..."` string.
+In this example, we use `saveTrace=true` to enable trace saving and set `seed=123` for reproducibility. We can access the traces for the first run as follows:
+
+```julia
+res.runs[1].xTrace
+res.runs[1].fTrace
+```
+
+## Single-Start Parameter Estimation
+
+If we want to perform single-start parameter estimation instead of multistart, we can use the `calibrateModel` function. This function runs a single optimization from a given initial guess.
+
+Given a starting point `p0`, and that we want to use Ipopt for optimization the model can be parameter estimated via:
+
+```julia
+res = calibrateModel(petabProblem, p0, IpoptOptimiser(false),
+                     options=IpoptOptions(max_iter = 1000))
+print(res)
+```
+```
+PEtabOptimisationResult
+--------- Summary ---------
+min(f)                = 1.38e+02
+Parameters esimtated  = 9
+Optimiser iterations  = 31
+Run time              = 1.9e+00s
+Optimiser algorithm   = Ipopt_user_Hessian
+```
+
+The results are returned as a `PEtabOptimisationResult`, which includes the following information: minimum parameter values found (`xMin`), smallest objective value (`fMin`), number of iterations, runtime, whether the optimizer converged, and optionally, the trace if `saveTrace=true`.

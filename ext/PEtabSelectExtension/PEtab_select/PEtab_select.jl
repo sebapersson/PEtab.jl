@@ -93,13 +93,12 @@ function PEtab.runPEtabSelect(pathYAML::String,
         @info "Callibrating model $subspaceId"
         petabProblem = remakePEtabProblem(_petabProblem, subspaceParameters)
         if isnothing(optimizerOptions)
-            _f, _fArg = callibrateModel(petabProblem, optimizer, nOptimisationStarts=nOptimisationStarts, samplingMethod=optimizationSamplingMethod)
+            _res = PEtab.calibrateModelMultistart(petabProblem, optimizer, nOptimisationStarts, nothing, samplingMethod=optimizationSamplingMethod)
         else
-            _f, _fArg = callibrateModel(petabProblem, optimizer, nOptimisationStarts=nOptimisationStarts, options=optimizerOptions, samplingMethod=optimizationSamplingMethod)
+            _res = PEtab.calibrateModelMultistart(petabProblem, optimizer, nOptimisationStarts, nothing, options=optimizerOptions, samplingMethod=optimizationSamplingMethod)
         end
-        whichMin = argmin(_f)
-        f = _f[whichMin]
-        fArg = _fArg[whichMin, :]
+        f = _res.fMin
+        fArg = _res.xMin
 
         # Setup dictionary to conveniently storing model parameters
         estimatedParameters = Dict(string(petabProblem.θ_estNames[i]) => fArg[i] for i in eachindex(fArg))

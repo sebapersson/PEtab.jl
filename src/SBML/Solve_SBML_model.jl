@@ -49,13 +49,14 @@ function solveSBMLModel(pathSBML, solver, timeSpan; abstol=1e-8, reltol=1e-8, sa
         checkIfActivatedT0Names = ""
         stringWriteTstops *= "\t return Float64[]\nend\n"
     else
+        modelStateNames = isempty(modelStateNames) ? String[] : modelStateNames
         for key in keys(SBMLDict["boolVariables"])
-            functionsStr, callbackStr =  createCallback(key, SBMLDict, pODEProblemNames, modelStateNames)
+            functionsStr, callbackStr =  createCallback(key, SBMLDict, pODEProblemNames, string.(modelStateNames))
             stringWriteCallbacks *= functionsStr * "\n"
             stringWriteCallbacks *= callbackStr * "\n"
         end
         for key in keys(SBMLDict["events"])
-            functionsStr, callbackStr = createCallbackForEvent(key, SBMLDict, pODEProblemNames, modelStateNames)
+            functionsStr, callbackStr = createCallbackForEvent(key, SBMLDict, pODEProblemNames, string.(modelStateNames))
             stringWriteCallbacks *= functionsStr * "\n"
             stringWriteCallbacks *= callbackStr * "\n"
         end

@@ -50,6 +50,41 @@ function create_σ_h_u0_File(modelName::String,
 
     return hStr, u0!Str, u0Str, σStr
 end
+"""
+    When parsed from Julia input.
+"""
+function create_σ_h_u0_File(modelName::String,
+                            system,
+                            experimentalConditions::CSV.File,
+                            measurementsData::CSV.File,
+                            parametersData::CSV.File,
+                            observablesData::CSV.File,
+                            stateMap)::NTuple{4, String}
+
+    pODEProblemNames = string.(parameters(system))
+    modelStateNames = replace.(string.(states(system)), "(t)" => "")
+    parameterMap = [p => 0.0 for p in parameters(system)]
+
+    parameterInfo = PEtab.processParameters(parametersData)
+    measurementInfo = PEtab.processMeasurements(measurementsData, observablesData)
+
+    # Indices for keeping track of parameters in θ
+    θ_indices = PEtab.computeIndicesθ(parameterInfo, measurementInfo, system, parameterMap, stateMap, experimentalConditions)
+
+    # Dummary variables to keep PEtab importer happy even as we are not providing any PEtab files
+    SBMLDict = Dict(); SBMLDict["assignmentRulesStates"] = Dict()
+
+    hStr = PEtab.create_h_Function(modelName, @__DIR__, modelStateNames, parameterInfo, pODEProblemNames,
+                                   string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict, false)
+    u0!Str = PEtab.create_u0_Function(modelName, @__DIR__, parameterInfo, pODEProblemNames, stateMap, false,
+                                      SBMLDict, inPlace=true)
+    u0Str = PEtab.create_u0_Function(modelName, @__DIR__, parameterInfo, pODEProblemNames, stateMap, false,
+                                     SBMLDict, inPlace=false)
+    σStr = PEtab.create_σ_Function(modelName, @__DIR__, parameterInfo, modelStateNames, pODEProblemNames,
+                                   string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict, false)
+
+    return hStr, u0!Str, u0Str, σStr
+end
 
 
 """

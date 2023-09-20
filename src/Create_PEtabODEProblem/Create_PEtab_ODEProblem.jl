@@ -83,7 +83,7 @@ function createPEtabODEProblem(petabModel::PEtabModel;
     priorInfo = processPriors(θ_indices, parametersData)
 
     # In case not specified by the user set ODE, gradient and Hessian options
-    nODEs = length(states(petabModel.odeSystem))
+    nODEs = length(states(petabModel.system))
     if nODEs ≤ 15 && length(θ_indices.θ_dynamicNames) ≤ 20
         modelSize = :Small
     elseif nODEs ≤ 50 && length(θ_indices.θ_dynamicNames) ≤ 69
@@ -109,7 +109,13 @@ function createPEtabODEProblem(petabModel::PEtabModel;
     timeTake = @elapsed begin
     # Set model parameter values to those in the PeTab parameter to ensure correct constant parameters
     setParamToFileValues!(petabModel.parameterMap, petabModel.stateMap, parameterInfo)
-    __odeProblem = ODEProblem{true, specializeLevel}(petabModel.odeSystem, petabModel.stateMap, [0.0, 5e3], petabModel.parameterMap, jac=true, sparse=_sparseJacobian)
+    if petabModel.system isa ODESystem
+        __odeProblem = ODEProblem{true, specializeLevel}(petabModel.system, petabModel.stateMap, [0.0, 5e3], petabModel.parameterMap, jac=true, sparse=_sparseJacobian)
+    else
+        # For reaction systems this bugs out if I try to set specializeLevel (specifially state-map and parameter-map are not 
+        # made into vectors)
+        __odeProblem = ODEProblem(petabModel.system, zeros(Float64, length(petabModel.stateMap)), [0.0, 5e3], petabModel.parameterMap, jac=true, sparse=_sparseJacobian)
+    end
     _odeProblem = remake(__odeProblem, p = convert.(Float64, __odeProblem.p), u0 = convert.(Float64, __odeProblem.u0))
     end
     verbose == true && @printf(" done. Time = %.1e\n", timeTake)
@@ -682,8 +688,8 @@ function createPEtabODEProblemCache(gradientMethod::Symbol,
     # For forward sensitivity equations and adjoint sensitivity analysis we need to
     # compute partial derivatives symbolically. Here the helping vectors are pre-allocated
     if gradientMethod ∈ [:Adjoint, :ForwardEquations] || hessianMethod ∈ [:GaussNewton]
-        nModelStates = length(states(petabModel.odeSystem))
-        nModelParameters = length(parameters(petabModel.odeSystem))
+        nModelStates = length(states(petabModel.system))
+        nModelParameters = length(parameters(petabModel.system))
         ∂h∂u = zeros(Float64, nModelStates)
         ∂σ∂u = zeros(Float64, nModelStates)
         ∂h∂p = zeros(Float64, nModelParameters)
@@ -710,7 +716,7 @@ function createPEtabODEProblemCache(gradientMethod::Symbol,
     # pre-equlibrita model). Here we pre-allocate said matrix and the output matrix from the forward senstivity
     # code
     if (gradientMethod === :ForwardEquations && sensealg === :ForwardDiff) || hessianMethod === :GaussNewton
-        nModelStates = length(states(petabModel.odeSystem))
+        nModelStates = length(states(petabModel.system))
         nTimePointsSaveAt = sum(length(simulationInfo.timeObserved[experimentalConditionId]) for experimentalConditionId in simulationInfo.experimentalConditionId)
         S = zeros(Float64, (nTimePointsSaveAt*nModelStates, length(θ_indices.θ_dynamicNames)))
         odeSolutionValues = zeros(Float64, nModelStates, nTimePointsSaveAt)
@@ -734,8 +740,8 @@ function createPEtabODEProblemCache(gradientMethod::Symbol,
     end
 
     if gradientMethod === :Adjoint
-        nModelStates = length(states(petabModel.odeSystem))
-        nModelParameters = length(parameters(petabModel.odeSystem))
+        nModelStates = length(states(petabModel.system))
+        nModelParameters = length(parameters(petabModel.system))
         du = zeros(Float64, nModelStates)
         dp = zeros(Float64, nModelParameters)
         _gradientAdjoint = zeros(Float64, nModelParameters)
@@ -797,8 +803,8 @@ function createPEtabODESolverCache(gradientMethod::Symbol,
                                    θ_indices::ParameterIndices,
                                    _chunkSize)::PEtabODESolverCache
 
-    nModelStates = length(states(petabModel.odeSystem))
-    nModelParameters = length(parameters(petabModel.odeSystem))
+    nModelStates = length(states(petabModel.system))
+    nModelParameters = length(parameters(petabModel.system))
 
     levelCache = 0
     if hessianMethod ∈ [:ForwardDiff, :BlockForwardDiff, :GaussNewton]

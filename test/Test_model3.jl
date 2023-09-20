@@ -37,7 +37,7 @@ include(joinpath(@__DIR__, "Common.jl"))
 function getSolAlgebraicSS(petabModel::PEtabModel, solver, tol::Float64, a::T1, b::T1, c::T1, d::T1) where T1<:Real
 
     # ODE solution with algebraically computed initial values (instead of ss pre-simulation)
-    odeProb = ODEProblem(petabModel.odeSystem, petabModel.stateMap, (0.0, 9.7), petabModel.parameterMap, jac=true)
+    odeProb = ODEProblem(petabModel.system, petabModel.stateMap, (0.0, 9.7), petabModel.parameterMap, jac=true)
     odeProb = remake(odeProb, p = convert.(eltype(a), odeProb.p), u0 = convert.(eltype(a), odeProb.u0))
     solArray = Array{ODESolution, 1}(undef, 2)
 
@@ -108,7 +108,7 @@ function testODESolverTestModel3(petabModel::PEtabModel, solverOptions::ODESolve
         petabModel.parameterMap[5] = Pair(petabModel.parameterMap[5].first, a)
         petabModel.parameterMap[6] = Pair(petabModel.parameterMap[6].first, d)
 
-        prob = ODEProblem(petabModel.odeSystem, petabModel.stateMap, (0.0, 9.7), petabModel.parameterMap, jac=true)
+        prob = ODEProblem(petabModel.system, petabModel.stateMap, (0.0, 9.7), petabModel.parameterMap, jac=true)
         prob = remake(prob, p = convert.(Float64, prob.p), u0 = convert.(Float64, prob.u0))
         θ_dynamic = getFileODEvalues(petabModel)[1:4]
         petabODESolverCache = createPEtabODESolverCache(:nothing, :nothing, petabModel, simulationInfo, θ_indices, nothing)
@@ -185,10 +185,10 @@ end
     testODESolverTestModel3(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12), ssOptionsTest2)
 end
 
-#@testset "Cost gradient and hessian" begin
+@testset "Cost gradient and hessian" begin
     ssOptionsTest3 = SteadyStateSolverOptions(:Simulate, howCheckSimulationReachedSteadyState=:wrms, abstol=1e-12, reltol=1e-10)
     testCostGradientOrHessianTestModel3(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12, maxiters=Int(1e5)), ssOptionsTest3)
-#end
+end
 
 @testset "Gradient of residuals" begin
     checkGradientResiduals(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-9, reltol=1e-9))

@@ -5,11 +5,16 @@ PEtabModel
 readPEtabModel
 PEtabODEProblem
 createPEtabODEProblem
+PEtabObservable
+PEtabParameter
 ODESolverOptions
 SteadyStateSolverOptions
 remakePEtabProblem
 Fides
-callibrateModel
+IpoptOptions
+IpoptOptimiser
+calibrateModel
+calibrateModelMultistart
 runPEtabSelect
 solveSBMLModel
 ```
