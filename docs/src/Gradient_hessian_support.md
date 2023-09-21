@@ -1,6 +1,6 @@
 # [Supported gradient and hessian methods](@id gradient_support)
 
-PEtab.jl offers various gradient and Hessian methods that can be used to build a `PEtabODEProblem` using `PEtabODEProblem()`. In this section, we will provide a brief overview of each method and the corresponding adjustable parameters.
+PEtab.jl offers various gradient and Hessian methods that can be used to build a `PEtabODEProblem`. In this section, we will provide a brief overview of each method and the corresponding adjustable parameters.
 
 !!! note
     To use any functionality from SciMLSensitivity (e.g. for adjoint) it must be loaded prior to creating the `PEtabODEProblem`. Similarly, to use Zygote automatic differentiation Zygote and SciMLSensitivity must first be loaded.
@@ -19,11 +19,11 @@ PEtab.jl offers various gradient and Hessian methods that can be used to build a
 * `:BlockForwardDiff`: This method computes a Hessian block approximation via forward mode automatic differentiation using [ForwardDiff](https://github.com/JuliaDiff/ForwardDiff.jl). For PEtab models, there are typically two sets of parameters to estimate: the parameters that are part of the ODE system $\theta_p$ and those that are not $\theta_q$. This method computes the Hessian for each block and assumes that cross-terms are zero-valued. The resulting Hessian block takes the form:
 
 ```math
-H_{block} = 
+H_{block} =
 \begin{bmatrix}
 H_{p} & \mathbf{0} \\
 \mathbf{0} & \mathbf{H}_q
 \end{bmatrix}
 ```
-    
-* `:GaussNewton`: This method computes a Hessian approximation using the [Gauss-Newton](https://en.wikipedia.org/wiki/Gauss%E2%80%93Newton_algorithm) method. It often performs better than a (L)-BFGS approximation, but requires access to sensitivities, which may only be feasible to compute for smaller models with 75 or fewer parameters. 
+
+* `:GaussNewton`: This method computes a Hessian approximation using the [Gauss-Newton](https://en.wikipedia.org/wiki/Gauss%E2%80%93Newton_algorithm) method. It often performs better than a (L)-BFGS approximation, but requires access to sensitivities, which may only be feasible to compute for smaller models with 75 or fewer parameters.

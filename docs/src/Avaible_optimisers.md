@@ -1,8 +1,8 @@
 # [Available Optimizers](@id options_optimizers)
 
-PEtab.jl offers a interface for performing parameter estimation with popular optimization packages such as [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl), [Ipopt.jl](https://github.com/jump-dev/Ipopt.jl), and [Fides.py](https://github.com/fides-dev/fides). Below, you find the available options for each optimizer.
+PEtab.jl offers an interface to several popular optimization packages such as [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl), [Ipopt.jl](https://github.com/jump-dev/Ipopt.jl), and [Fides.py](https://github.com/fides-dev/fides) for performing parameter estimation. Below, you find the available options for each optimizer.
 
-## Optim Optimizer
+## Optim
 
 PEtab.jl supports three optimization methods from [Optim.jl](https://julianlsolvers.github.io/Optim.jl/stable/): LBFGS, BFGS, and IPNewton (Interior-point Newton). You can further customize the optimization by providing options via `Optim.Options()`. A complete list of available options can be found [here](https://julianlsolvers.github.io/Optim.jl/v0.9.3/user/config/).
 
@@ -57,7 +57,7 @@ You can further configure Ipopt's behavior using `IpoptOptions`. Available optio
 - `max_wall_time`: Maximum wall time for optimization
 - `acceptable_obj_change_tol`: Stopping criterion based on objective function change.
 
-If no options are provided, PEtab.jl uses defaults to:
+If no options are provided, PEtab.jl defaults to:
 
 ```julia
 using Ipopt
@@ -69,7 +69,7 @@ IpoptOptions(;print_level::Int64=0,
              acceptable_obj_change_tol::Float64=1e20)
 ```
 
-**Fides**
+## Fides
 
 [Fides.py](https://github.com/fides-dev/fides) is a trust-region Newton method known for box-constrained optimisation problems. It is particularly efficient when computing the full Hessian is computationally expensive, but a Gauss-Newton Hessian approximation is feasible.
 
@@ -79,10 +79,10 @@ In PEtab.jl, you can use Fides for parameter estimation, but note that Fides is 
 using PyCall
 
 # Set the path to your Python executable
-pathToPythonExe = "pathToPython"
+path_python_exe = "path_python"
 
 # Set the PYTHON environment variable to the path of your Python executable
-ENV["PYTHON"] = pathToPythonExe
+ENV["PYTHON"] = path_python_exe
 
 # Build PyCall with the specified Python environment
 import Pkg
@@ -90,7 +90,7 @@ Pkg.build("PyCall")
 ```
 
 !!!note
-    `pathToPythonExe` should point to your Python executable, and it depends on the system configuration
+    `path_python_exe` should point to your Python executable, and it depends on the system configuration
 
 Fides can be configured to use different Hessian methods; the method from the `PEtabODEProblem` or various approximation methods:
 

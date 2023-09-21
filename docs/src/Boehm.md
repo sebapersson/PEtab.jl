@@ -1,26 +1,26 @@
-# Importing a PEtab problem
+# [Importing a PEtab problem](@id import_petab_problem)
 
 In this starting tutorial, we will use the small Boehm model to demonstrate how to import a parameter-estimation problem specifed in the PEtab-format.
 
-To run the code, you will need the Boehm PEtab files, which can be accessed [here](https://github.com/sebapersson/PEtab.jl/tree/main/examples/Boehm). For a fully functional example of this tutorial, please visit [this link](https://github.com/sebapersson/PEtab.jl/tree/main/examples/Boehm.jl).
+To run the code, you will need the Boehm PEtab files, which can be accessed [here](https://github.com/sebapersson/PEtab.jl/tree/main/examples/Boehm). For a fully functional example of this tutorial, see [here](https://github.com/sebapersson/PEtab.jl/tree/main/examples/Boehm.jl).
 
 ## Reading a PEtab model
 
-To get started, we first need to read the PEtab files into Julia. This can be easily done using the PEtab.jl package. Once we provide the path to the PEtab yaml-file, PEtab.jl reads all the PEtab files and creates a `PEtabModel` struct. Here are some of the things that happen behind the scenes:
+To get started, we first need to read the PEtab files into Julia. This can be easily done using `PEtabModel(path_yaml)`, which by using the PEtab-yaml file parses the PEtab files into a `PEtabModel` struct. Here several things happen behind the scenes:
 
 1. The SBML file is converted into [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) format, which allows for symbolic computation of the ODE-model Jacobian.
 2. The observable PEtab table is translated into Julia functions that compute observables ($h$), noise parameter ($\sigma$), and initial values ($u_0$).
 3. To compute gradients via adjoint sensitivity analysis or forward sensitivity equations, the derivatives of $h$ and $\sigma$ are calculated symbolically with respect to the ODE-model states ($u$) and parameters.
 
-All of these steps happen automatically, and you can find the resulting files in the *dirYamlFile/Julia_model_files/* directory assuming (as default) `write_to_file=true`, otherwise no model files are written to disk. By default, the `PEtabModel` function does not rebuild the Julia files if they already exist to save time.
+All of these steps happen automatically, and you can find the resulting files in the *dirYamlFile/Julia_model_files/* directory assuming (as default) `write_to_file=true`, otherwise no model files are written to disk. By default, the `PEtabModel` constructor does not rebuild the Julia files if they already exist to save time.
 
 ```julia
 using PEtab
 using OrdinaryDiffEq
 using Printf
 
-pathYaml = joinpath(@__DIR__, "Boehm", "Boehm_JProteomeRes2014.yaml")
-petab_model = PEtabModel(pathYaml, verbose=true)
+path_yaml = joinpath(@__DIR__, "Boehm", "Boehm_JProteomeRes2014.yaml")
+petab_model = PEtabModel(path_yaml, verbose=true)
 ```
 ```
 PEtabModel for model Boehm. ODE-system has 8 states and 10 parameters.
@@ -29,7 +29,7 @@ Generated Julia files are at ...
 
 ## Creating a PEtabODEProblem
 
-Next step is to create a `PEtabODEProblem` from a PEtab model, for which we use the `PEtabODEProblem` function. This function allows us to customize various options (see the API documentation for a full list), but the most important ones are:
+Next step is to create a `PEtabODEProblem` from a PEtab model, for which we use the `PEtabODEProblem` constructor. This constructors allows various options (see the API documentation for a full list), where the most important ones are:
 
 * `ode_solver`: This option lets us choose an ODE solver and set tolerances for the solver. For example, we can choose the `Rodas5P()` solver and set tolerances of `abstol, reltol = 1e-8`. This solver works well for smaller models with up to 15 states.
 * `gradient_method`: This option lets us choose a gradient computation method. For small models like Boehm, forward mode automatic differentiation (AD) is the fastest method, so we choose `:ForwardDiff`.
@@ -37,9 +37,9 @@ Next step is to create a `PEtabODEProblem` from a PEtab model, for which we use 
 
 ```julia
 petab_problem = PEtabODEProblem(petab_model, 
-                                     ode_solver=ODESolver(Rodas5P(), abstol=1e-8, reltol=1e-8), 
-                                     gradient_method=:ForwardDiff, 
-                                     hessian_method=:ForwardDiff)
+                                ode_solver=ODESolver(Rodas5P(), abstol=1e-8, reltol=1e-8), 
+                                gradient_method=:ForwardDiff, 
+                                hessian_method=:ForwardDiff)
 ```
 ```
 PEtabODEProblem for Boehm. ODE-states: 8. Parameters to estimate: 9 where 6 are dynamic.
@@ -51,7 +51,7 @@ Cost Rodas5P(). Options (abstol, reltol, maxiters) = (1.0e-08, 1.0e-08, 1.0e+04)
 Gradient Rodas5P(). Options (abstol, reltol, maxiters) = (1.0e-08, 1.0e-08, 1.0e+04)
 ```
 
-If we don't provide any of these arguments, we automatically select appropriate options based on the size of the problem following the guidelines in [Choosing best options for a PEtab problem](@ref best_options).
+If we don not provide any of these arguments, appropriate options are automatically selected based on the size of the problem following the guidelines in [Choosing best options for a PEtab problem](@ref best_options).
 
 ```julia
 petab_problem = PEtabODEProblem(petab_model)
@@ -77,8 +77,10 @@ The `PEtabODEProblem` includes all the necessary information to set up an optimi
 5. `petabODEProblem.upper_bounds` - This field is a vector containing the upper bounds for the parameters, as specified in the PEtab parameters file.
 6. `petabODEProblem.θ_names` - This field is a vector containing the names of the parameters to be estimated.
 
-* **Note1** - The parameter vector `θ` is assumed to be on the scale specified by the PEtab parameters file. For example, if parameter `i` is on the log scale, then `θ[i]` should also be on the log scale.
-* **Note2** - The `compute_gradient!` and `compute_hessian!` functions are in-place functions, meaning that their first argument is a pre-allocated gradient or Hessian, respectively (see below).
+!!! note
+    The parameter vector `θ` is assumed to be on the scale specified by the PEtab parameters file. For example, if parameter `i` is on the log scale, then `θ[i]` should also be on the log scale.
+!!! note
+    The `compute_gradient!` and `compute_hessian!` functions are in-place functions, meaning that their first argument is a pre-allocated gradient or Hessian, respectively (see below).
 
 ```julia
 # Parameters are log-scaled
@@ -100,4 +102,4 @@ First element in the hessian = 2199.49
 
 ## Where to go from here
 
-Next, if you want the estimate the model we suggest you take a look at the (ADD!). We also recommend [Choosing best options for a PEtab problem](@ref best_options) guide. Additionally, we recommend exploring the [Supported gradient and hessian methods](@ref gradient_support) section. In case you want to provide your model-file as a Julia-file instead of an SBML file take a look at [Providing a model as a Julia file instead of an SBML File](@ref Beer_Julia_import).
+Next, if you want the estimate the model we suggest you take a look at the [Parameter Estimation (Model Calibration)](@ref parameter_estimation). We also recommend [Choosing best options for a PEtab problem](@ref best_options) guide. In case you want to setup the PEtab problem directory in Julia take a look at [Creating a PEtab Parameter Estimation Problem in Julia](@ref define_in_julia)
