@@ -1,31 +1,26 @@
-# Model name: Beer_MolBioSystems2014
-# Number of parameters: 9
-# Number of species: 4
-function getODEModel_Beer_MolBioSystems2014()
+function getODEModel_Beer_MolBioSystems2014(foo)
+	# Model name: Beer_MolBioSystems2014
+	# Number of parameters: 9
+	# Number of species: 5
 
     ### Define independent and dependent variables
-    ModelingToolkit.@variables t Glu(t) cGlu(t) Ind(t) Bac(t)
+    ModelingToolkit.@variables t Glu(t) cGlu(t) Ind(t) Bac(t) lag(t) 
 
     ### Store dependent variables in array for ODESystem command
-    stateArray = [Glu, cGlu, Ind, Bac]
+    stateArray = [Glu, cGlu, Ind, Bac, lag]
 
     ### Define variable parameters
 
     ### Define potential algebraic variables
     ModelingToolkit.@variables lag(t)
-
     ### Define parameters
-    ModelingToolkit.@parameters lag_bool1 kdegi medium Bacmax ksyn kdim tau init_Bac beta
+    ModelingToolkit.@parameters lag_bool1 kdegi medium Bacmax ksyn kdim tau init_Bac beta 
 
     ### Store parameters in array for ODESystem command
     parameterArray = [lag_bool1, kdegi, medium, Bacmax, ksyn, kdim, tau, init_Bac, beta]
 
     ### Define an operator for the differentiation w.r.t. time
     D = Differential(t)
-
-    ### Continious events ###
-
-    ### Discrete events ###
 
     ### Derivatives ###
     eqs = [

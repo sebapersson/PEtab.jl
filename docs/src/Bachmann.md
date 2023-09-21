@@ -32,10 +32,10 @@ When working with a subset of medium-sized models, and definitely for large-size
 2. `sensealg`: This determines which adjoint algorithm to use. Currently, `InterpolatingAdjoint` and `QuadratureAdjoint` from SciMLSensitivity are supported. You can find more information in their [documentation](https://github.com/SciML/SciMLSensitivity.jl). You can provide any of the options that these methods are compatible with. For example, if you want to use the `ReverseDiffVJP` algorithm, an acceptable option is `sensealg=InterpolatingAdjoint(autojacvec=ReversDiffVJP())`.
 
 Here are a few things to keep in mind:
+
 !!! note
-   Adjoint sensitivity analysis is not as reliable in Julia as it is in [AMICI](https://github.com/SciML/SciMLSensitivity.jl/issues/795). However, our benchmarks show that SciMLSensitivity has the potential to be faster.
-!!! note
-   Compilation times for adjoint sensitivity analysis can be quite substantial.
+    Adjoint sensitivity analysis is not as reliable in Julia as it is in [AMICI](https://github.com/SciML/SciMLSensitivity.jl/issues/795). However, our benchmarks show that SciMLSensitivity has the potential to be faster.
+
 
 ```julia
 using Zygote # For adjoint

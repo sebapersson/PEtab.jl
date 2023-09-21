@@ -1,10 +1,10 @@
 #u[1] = Glu, u[2] = cGlu, u[3] = Ind, u[4] = Bac
-#pODEProblemNames[1] = lag_bool1, pODEProblemNames[2] = kdegi, pODEProblemNames[3] = medium, pODEProblemNames[4] = Bacmax, pODEProblemNames[5] = ksyn, pODEProblemNames[6] = kdim, pODEProblemNames[7] = tau, pODEProblemNames[8] = init_Bac, pODEProblemNames[9] = beta
+#p_ode_problem_names[1] = lag_bool1, p_ode_problem_names[2] = kdegi, p_ode_problem_names[3] = medium, p_ode_problem_names[4] = Bacmax, p_ode_problem_names[5] = ksyn, p_ode_problem_names[6] = kdim, p_ode_problem_names[7] = tau, p_ode_problem_names[8] = init_Bac, p_ode_problem_names[9] = beta
 #
 
-function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
-                   θ_nonDynamic::AbstractVector, parameterInfo::ParametersInfo, observableId::Symbol,
-                      parameterMap::θObsOrSdParameterMap)::Real 
+function compute_h(u::AbstractVector, t::Real, p_ode_problem::AbstractVector, θ_observable::AbstractVector,
+                   θ_non_dynamic::AbstractVector, parameter_info::ParametersInfo, observableId::Symbol,
+                      parameter_map::θObsOrSdParameterMap)::Real 
 	if observableId === :Bacnorm 
 		return u[4] 
 	end
@@ -15,40 +15,46 @@ function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_o
 
 end
 
-function compute_u0!(u0::AbstractVector, pODEProblem::AbstractVector) 
+function compute_u0!(u0::AbstractVector, p_ode_problem::AbstractVector) 
 
-	#pODEProblem[1] = lag_bool1, pODEProblem[2] = kdegi, pODEProblem[3] = medium, pODEProblem[4] = Bacmax, pODEProblem[5] = ksyn, pODEProblem[6] = kdim, pODEProblem[7] = tau, pODEProblem[8] = init_Bac, pODEProblem[9] = beta
+	#p_ode_problem[1] = lag_bool1, p_ode_problem[2] = kdegi, p_ode_problem[3] = medium, p_ode_problem[4] = Bacmax, p_ode_problem[5] = ksyn, p_ode_problem[6] = kdim, p_ode_problem[7] = tau, p_ode_problem[8] = init_Bac, p_ode_problem[9] = beta
+
+	t = 0.0 # u at time zero
 
 	Glu = 10.0 
 	cGlu = 0.0 
 	Ind = 0.0 
-	Bac = pODEProblem[8] 
+	Bac = p_ode_problem[8] 
 
 	u0 .= Glu, cGlu, Ind, Bac
 end
 
-function compute_u0(pODEProblem::AbstractVector)::AbstractVector 
+function compute_u0(p_ode_problem::AbstractVector)::AbstractVector 
 
-	#pODEProblem[1] = lag_bool1, pODEProblem[2] = kdegi, pODEProblem[3] = medium, pODEProblem[4] = Bacmax, pODEProblem[5] = ksyn, pODEProblem[6] = kdim, pODEProblem[7] = tau, pODEProblem[8] = init_Bac, pODEProblem[9] = beta
+	#p_ode_problem[1] = lag_bool1, p_ode_problem[2] = kdegi, p_ode_problem[3] = medium, p_ode_problem[4] = Bacmax, p_ode_problem[5] = ksyn, p_ode_problem[6] = kdim, p_ode_problem[7] = tau, p_ode_problem[8] = init_Bac, p_ode_problem[9] = beta
+
+	t = 0.0 # u at time zero
 
 	Glu = 10.0 
 	cGlu = 0.0 
 	Ind = 0.0 
-	Bac = pODEProblem[8] 
+	Bac = p_ode_problem[8] 
 
 	 return [Glu, cGlu, Ind, Bac]
 end
 
-function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
-                   parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap)::Real 
+function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, p_ode_problem::AbstractVector,  θ_non_dynamic::AbstractVector,
+                   parameter_info::ParametersInfo, observableId::Symbol, parameter_map::θObsOrSdParameterMap)::Real 
 	if observableId === :Bacnorm 
-		noiseParameter1_Bacnorm = getObsOrSdParam(θ_sd, parameterMap)
+		noiseParameter1_Bacnorm = get_obs_sd_parameter(θ_sd, parameter_map)
 		return noiseParameter1_Bacnorm 
 	end
 
 	if observableId === :IndconcNormRange 
-		noiseParameter1_IndconcNormRange = getObsOrSdParam(θ_sd, parameterMap)
+		noiseParameter1_IndconcNormRange = get_obs_sd_parameter(θ_sd, parameter_map)
 		return noiseParameter1_IndconcNormRange 
 	end
 
+
 end
+

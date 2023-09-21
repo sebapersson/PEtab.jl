@@ -14,7 +14,7 @@ using OrdinaryDiffEq
 using Optim
 path_yaml = joinpath(@__DIR__, "0002", "petab_select_problem.yaml")
 path_save = run_PEtab_select(path_yaml, IPNewton(), 
-                          nOptimisationStarts=10, 
-                          ode_solver=ODESolver(Rodas5P()),
-                          gradient_method=:ForwardDiff, 
-                          hessian_method=:ForwardDiff)
+                             n_multistarts=10, 
+                             ode_solver=ODESolver(Rodas5P()),
+                             gradient_method=:ForwardDiff, 
+                             hessian_method=:ForwardDiff)

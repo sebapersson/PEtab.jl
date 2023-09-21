@@ -1,4 +1,4 @@
-parameterId	parameterName	parameterScale	lowerBound	upperBound	nominalValue	estimate	priorType	priorParameters	hierarchicalOptimization (optional)
+parameterId	parameterName	parameterScale	lowerBound	upperBound	nominalValue	estimate	priorType	prior_parameters	hierarchicalOptimization (optional)
 EGFR_turnover	EGFR_{turnover}	log10	1E-08	100000000	0.001479614562719	1			
 init_AKT	init_{AKT}	log10	1E-08	100000000	0.026930923029049	1			
 init_EGFR	init_{EGFR}	log10	1E-08	100000000	37536153.8059105	1			

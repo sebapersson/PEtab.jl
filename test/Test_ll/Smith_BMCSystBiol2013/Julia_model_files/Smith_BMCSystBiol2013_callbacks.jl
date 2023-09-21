@@ -37,5 +37,5 @@ end
 
 
 function computeTstops(u::AbstractVector, p::AbstractVector)
-	return Float64[dualToFloat(2895.0), dualToFloat(p[68]), dualToFloat(2880.0)]
+	return Float64[dual_to_float(2895.0), dual_to_float(p[68]), dual_to_float(2880.0)]
 end

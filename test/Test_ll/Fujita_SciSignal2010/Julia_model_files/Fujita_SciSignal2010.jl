@@ -1,31 +1,26 @@
-# Model name: Fujita_SciSignal2010
-# Number of parameters: 21
-# Number of species: 9
-function getODEModel_Fujita_SciSignal2010()
+function getODEModel_Fujita_SciSignal2010(foo)
+	# Model name: Fujita_SciSignal2010
+	# Number of parameters: 21
+	# Number of species: 10
 
     ### Define independent and dependent variables
-    ModelingToolkit.@variables t pAkt_S6(t) pAkt(t) pS6(t) EGFR(t) pEGFR_Akt(t) pEGFR(t) Akt(t) S6(t) EGF_EGFR(t)
+    ModelingToolkit.@variables t pAkt_S6(t) pAkt(t) pS6(t) EGFR(t) pEGFR_Akt(t) pEGFR(t) Akt(t) S6(t) EGF_EGFR(t) EGF(t) 
 
     ### Store dependent variables in array for ODESystem command
-    stateArray = [pAkt_S6, pAkt, pS6, EGFR, pEGFR_Akt, pEGFR, Akt, S6, EGF_EGFR]
+    stateArray = [pAkt_S6, pAkt, pS6, EGFR, pEGFR_Akt, pEGFR, Akt, S6, EGF_EGFR, EGF]
 
     ### Define variable parameters
 
     ### Define potential algebraic variables
     ModelingToolkit.@variables EGF(t)
-
     ### Define parameters
-    ModelingToolkit.@parameters EGF_end reaction_5_k1 reaction_2_k2 init_AKT init_EGFR EGF_bool1 EGF_rate EGFR_turnover reaction_1_k1 reaction_1_k2 reaction_8_k1 reaction_4_k1 reaction_6_k1 reaction_2_k1 init_S6 reaction_7_k1 reaction_9_k1 reaction_3_k1 reaction_5_k2 Cell EGF_0
+    ModelingToolkit.@parameters EGF_end reaction_5_k1 reaction_2_k2 init_AKT init_EGFR EGF_bool1 EGF_rate EGFR_turnover reaction_1_k1 reaction_1_k2 reaction_8_k1 reaction_4_k1 reaction_6_k1 reaction_2_k1 init_S6 reaction_7_k1 reaction_9_k1 reaction_3_k1 reaction_5_k2 Cell EGF_0 
 
     ### Store parameters in array for ODESystem command
     parameterArray = [EGF_end, reaction_5_k1, reaction_2_k2, init_AKT, init_EGFR, EGF_bool1, EGF_rate, EGFR_turnover, reaction_1_k1, reaction_1_k2, reaction_8_k1, reaction_4_k1, reaction_6_k1, reaction_2_k1, init_S6, reaction_7_k1, reaction_9_k1, reaction_3_k1, reaction_5_k2, Cell, EGF_0]
 
     ### Define an operator for the differentiation w.r.t. time
     D = Differential(t)
-
-    ### Continious events ###
-
-    ### Discrete events ###
 
     ### Derivatives ###
     eqs = [

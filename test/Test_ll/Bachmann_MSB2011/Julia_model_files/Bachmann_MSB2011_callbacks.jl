@@ -1,4 +1,4 @@
-function getCallbacks_Bachmann_MSB2011()
+function getCallbacks_Bachmann_MSB2011(foo)
 	return CallbackSet(), Function[], false
 end
 

@@ -1,31 +1,26 @@
-# Model name: Isensee_JCB2018
-# Number of parameters: 72
-# Number of species: 25
-function getODEModel_Isensee_JCB2018()
+function getODEModel_Isensee_JCB2018(foo)
+	# Model name: Isensee_JCB2018
+	# Number of parameters: 72
+	# Number of species: 33
 
     ### Define independent and dependent variables
-    ModelingToolkit.@variables t pAC(t) Rp8_Br_cAMPS(t) Rp8_pCPT_cAMPS(t) PDE(t) Rp_cAMPS(t) RII_2(t) RIIp_Rp8_Br_cAMPS_C_2(t) cAMP(t) RIIp_Sp8_Br_cAMPS_C_2(t) IBMX(t) AC_Fsk(t) RIIp_C_2(t) Sp8_Br_cAMPS(t) RII_C_2(t) RIIp_Sp8_Br_cAMPS_2(t) Csub(t) Csub_H89(t) AC(t) RIIp_cAMP_2(t) pAC_Fsk(t) RIIp_Rp8_pCPT_cAMPS_C_2(t) pPDE(t) RIIp_Rp_cAMPS_C_2(t) RIIp_2(t) RIIp_cAMP_C_2(t)
+    ModelingToolkit.@variables t H89(t) pAC(t) Rp8_Br_cAMPS(t) Rp8_pCPT_cAMPS_pAB(t) Rp8_pCPT_cAMPS(t) PDE(t) Rp_cAMPS(t) RII_2(t) fourABnOH(t) RIIp_Rp8_Br_cAMPS_C_2(t) Sp8_Br_cAMPS_AM(t) cAMP(t) RIIp_Sp8_Br_cAMPS_C_2(t) IBMX(t) AC_Fsk(t) RIIp_C_2(t) Sp8_Br_cAMPS(t) RII_C_2(t) Fsk(t) IBMXex(t) RIIp_Sp8_Br_cAMPS_2(t) Csub(t) Csub_H89(t) AC(t) RIIp_cAMP_2(t) pAC_Fsk(t) RIIp_Rp8_pCPT_cAMPS_C_2(t) pPDE(t) RIIp_Rp_cAMPS_C_2(t) Rp_cAMPS_pAB(t) Rp8_Br_cAMPS_pAB(t) RIIp_2(t) RIIp_cAMP_C_2(t) 
 
     ### Store dependent variables in array for ODESystem command
-    stateArray = [pAC, Rp8_Br_cAMPS, Rp8_pCPT_cAMPS, PDE, Rp_cAMPS, RII_2, RIIp_Rp8_Br_cAMPS_C_2, cAMP, RIIp_Sp8_Br_cAMPS_C_2, IBMX, AC_Fsk, RIIp_C_2, Sp8_Br_cAMPS, RII_C_2, RIIp_Sp8_Br_cAMPS_2, Csub, Csub_H89, AC, RIIp_cAMP_2, pAC_Fsk, RIIp_Rp8_pCPT_cAMPS_C_2, pPDE, RIIp_Rp_cAMPS_C_2, RIIp_2, RIIp_cAMP_C_2]
+    stateArray = [H89, pAC, Rp8_Br_cAMPS, Rp8_pCPT_cAMPS_pAB, Rp8_pCPT_cAMPS, PDE, Rp_cAMPS, RII_2, fourABnOH, RIIp_Rp8_Br_cAMPS_C_2, Sp8_Br_cAMPS_AM, cAMP, RIIp_Sp8_Br_cAMPS_C_2, IBMX, AC_Fsk, RIIp_C_2, Sp8_Br_cAMPS, RII_C_2, Fsk, IBMXex, RIIp_Sp8_Br_cAMPS_2, Csub, Csub_H89, AC, RIIp_cAMP_2, pAC_Fsk, RIIp_Rp8_pCPT_cAMPS_C_2, pPDE, RIIp_Rp_cAMPS_C_2, Rp_cAMPS_pAB, Rp8_Br_cAMPS_pAB, RIIp_2, RIIp_cAMP_C_2]
 
     ### Define variable parameters
 
     ### Define potential algebraic variables
     ModelingToolkit.@variables Rp_cAMPS_pAB(t) H89(t) Fsk(t) IBMXex(t) Rp8_Br_cAMPS_pAB(t) Rp8_pCPT_cAMPS_pAB(t) fourABnOH(t) Sp8_Br_cAMPS_AM(t)
-
     ### Define parameters
-    ModelingToolkit.@parameters ki_Rp8_pCPT_cAMPS_pAB xi_b_Rp_cAMPS RII2_total H89_level fourABnOH_incubation_time KD_Fsk kdeg_cAMP_free Rp8_Br_cAMPS_pAB_level xi_KD_Rp8_Br_cAMPS kf_PDE_Csub Sp8_Br_cAMPS_AM_level xi_kf_RII_C_2__RII_2 kf_RIIp_2__RII_2 kf_cAMP IBMX_time H89_bool1 Rp_cAMPS_pAB_incubation_time kf_H89 kf_RII_C_2__RII_2 kf_RII_C_2__RIIp_C_2 xi_i_Rp8_pCPT_cAMPS_pAB xi_pAC fourABnOH_level ki_Sp8_Br_cAMPS_AM Rp8_pCPT_cAMPS_pAB_bool1 xi_b_Rp8_Br_cAMPS xi_b_Sp8_Br_cAMPS H89_time Rp_cAMPS_pAB_bool1 kdeg_cAMP xi_AC_cAMP_Fsk xi_b_Rp8_pCPT_cAMPS ki_Rp_cAMPS_pAB xi_i_Rp_cAMPS_pAB KD_PDE_Csub ki_IBMX IBMXex_bool1 Fsk_time Rp8_pCPT_cAMPS_pAB_incubation_time PDE_total Rp8_Br_cAMPS_pAB_bool1 ki_Rp8_Br_cAMPS_pAB xi_kf_RII_2__RII_C_2 default xi_i_Rp8_Br_cAMPS_pAB Sp8_Br_cAMPS_AM_time xi_KD_Rp8_pCPT_cAMPS kp_AC xi_pPDE xi_KD_Rp_cAMPS Rp8_Br_cAMPS_pAB_incubation_time AC_total kf_RIIp_C_2__RII_C_2 xi_KD_Sp8_Br_cAMPS nuc Sp8_Br_cAMPS_AM_bool1 kf_RIIp_cAMP_C_2__RIIp_2 KD_cAMP KD_IBMX kf_Fsk xi_i_Sp8_Br_cAMPS_AM cyt KD_H89 ks_AC_cAMP fourABnOH_bool1 Rp8_pCPT_cAMPS_pAB_level Rp_cAMPS_pAB_level kf_RII_2__RII_C_2 Fsk_level Fsk_bool1 kdp_AC IBMX_level
+    ModelingToolkit.@parameters ki_Rp8_pCPT_cAMPS_pAB xi_b_Rp_cAMPS RII2_total H89_level fourABnOH_incubation_time KD_Fsk kdeg_cAMP_free Rp8_Br_cAMPS_pAB_level xi_KD_Rp8_Br_cAMPS kf_PDE_Csub Sp8_Br_cAMPS_AM_level xi_kf_RII_C_2__RII_2 kf_RIIp_2__RII_2 kf_cAMP IBMX_time H89_bool1 Rp_cAMPS_pAB_incubation_time kf_H89 kf_RII_C_2__RII_2 kf_RII_C_2__RIIp_C_2 xi_i_Rp8_pCPT_cAMPS_pAB xi_pAC fourABnOH_level ki_Sp8_Br_cAMPS_AM Rp8_pCPT_cAMPS_pAB_bool1 xi_b_Rp8_Br_cAMPS xi_b_Sp8_Br_cAMPS H89_time Rp_cAMPS_pAB_bool1 kdeg_cAMP xi_AC_cAMP_Fsk xi_b_Rp8_pCPT_cAMPS ki_Rp_cAMPS_pAB xi_i_Rp_cAMPS_pAB KD_PDE_Csub ki_IBMX IBMXex_bool1 Fsk_time Rp8_pCPT_cAMPS_pAB_incubation_time PDE_total Rp8_Br_cAMPS_pAB_bool1 ki_Rp8_Br_cAMPS_pAB xi_kf_RII_2__RII_C_2 default xi_i_Rp8_Br_cAMPS_pAB Sp8_Br_cAMPS_AM_time xi_KD_Rp8_pCPT_cAMPS kp_AC xi_pPDE xi_KD_Rp_cAMPS Rp8_Br_cAMPS_pAB_incubation_time AC_total kf_RIIp_C_2__RII_C_2 xi_KD_Sp8_Br_cAMPS nuc Sp8_Br_cAMPS_AM_bool1 kf_RIIp_cAMP_C_2__RIIp_2 KD_cAMP KD_IBMX kf_Fsk xi_i_Sp8_Br_cAMPS_AM cyt KD_H89 ks_AC_cAMP fourABnOH_bool1 Rp8_pCPT_cAMPS_pAB_level Rp_cAMPS_pAB_level kf_RII_2__RII_C_2 Fsk_level Fsk_bool1 kdp_AC IBMX_level 
 
     ### Store parameters in array for ODESystem command
     parameterArray = [ki_Rp8_pCPT_cAMPS_pAB, xi_b_Rp_cAMPS, RII2_total, H89_level, fourABnOH_incubation_time, KD_Fsk, kdeg_cAMP_free, Rp8_Br_cAMPS_pAB_level, xi_KD_Rp8_Br_cAMPS, kf_PDE_Csub, Sp8_Br_cAMPS_AM_level, xi_kf_RII_C_2__RII_2, kf_RIIp_2__RII_2, kf_cAMP, IBMX_time, H89_bool1, Rp_cAMPS_pAB_incubation_time, kf_H89, kf_RII_C_2__RII_2, kf_RII_C_2__RIIp_C_2, xi_i_Rp8_pCPT_cAMPS_pAB, xi_pAC, fourABnOH_level, ki_Sp8_Br_cAMPS_AM, Rp8_pCPT_cAMPS_pAB_bool1, xi_b_Rp8_Br_cAMPS, xi_b_Sp8_Br_cAMPS, H89_time, Rp_cAMPS_pAB_bool1, kdeg_cAMP, xi_AC_cAMP_Fsk, xi_b_Rp8_pCPT_cAMPS, ki_Rp_cAMPS_pAB, xi_i_Rp_cAMPS_pAB, KD_PDE_Csub, ki_IBMX, IBMXex_bool1, Fsk_time, Rp8_pCPT_cAMPS_pAB_incubation_time, PDE_total, Rp8_Br_cAMPS_pAB_bool1, ki_Rp8_Br_cAMPS_pAB, xi_kf_RII_2__RII_C_2, default, xi_i_Rp8_Br_cAMPS_pAB, Sp8_Br_cAMPS_AM_time, xi_KD_Rp8_pCPT_cAMPS, kp_AC, xi_pPDE, xi_KD_Rp_cAMPS, Rp8_Br_cAMPS_pAB_incubation_time, AC_total, kf_RIIp_C_2__RII_C_2, xi_KD_Sp8_Br_cAMPS, nuc, Sp8_Br_cAMPS_AM_bool1, kf_RIIp_cAMP_C_2__RIIp_2, KD_cAMP, KD_IBMX, kf_Fsk, xi_i_Sp8_Br_cAMPS_AM, cyt, KD_H89, ks_AC_cAMP, fourABnOH_bool1, Rp8_pCPT_cAMPS_pAB_level, Rp_cAMPS_pAB_level, kf_RII_2__RII_C_2, Fsk_level, Fsk_bool1, kdp_AC, IBMX_level]
 
     ### Define an operator for the differentiation w.r.t. time
     D = Differential(t)
-
-    ### Continious events ###
-
-    ### Discrete events ###
 
     ### Derivatives ###
     eqs = [
