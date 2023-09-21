@@ -33,10 +33,10 @@ petab_parameters = [PEtabParameter(:k1, value=0.8, scale=:lin),
 observables = Dict("obs_a" => PEtabObservable(A, noiseParameter1_obs_a + noiseParameter2_obs_a))
 
 # Create a PEtabODEProblem 
-petab_model = readPEtabModel(rn, simulation_conditions, observables, measurements,
+petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
                             petab_parameters, verbose=false)
-petab_problem = createPEtabODEProblem(petab_model, verbose=false)
+petab_problem = PEtabODEProblem(petab_model, verbose=false)
 
 # Compute negative log-likelihood 
-nll = petab_problem.computeCost(petab_problem.θ_nominalT)
+nll = petab_problem.compute_cost(petab_problem.θ_nominalT)
 @test nll ≈ 3.68629528983135 atol=1e-3

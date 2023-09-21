@@ -6,53 +6,53 @@ import Base.show
 
 
 # Helper function for printing ODE-solver options
-function getStringSolverOptions(a::ODESolver)
+function get_ode_solver_str(a::ODESolver)
     solverStr = string(a.solver)
-    iEnd = findfirst(x -> x == '{', solverStr)
-    if isnothing(iEnd)
-        iEnd = findfirst(x -> x == '(', solverStr)
+    i_end = findfirst(x -> x == '{', solverStr)
+    if isnothing(i_end)
+        i_end = findfirst(x -> x == '(', solverStr)
     end
-    solverStrWrite = solverStr[1:iEnd-1] * "()"
-    optionsStr = @sprintf("(abstol, reltol, maxiters) = (%.1e, %.1e, %.1e)", a.abstol, a.reltol, a.maxiters)
-    return solverStrWrite, optionsStr
+    solver_str = solverStr[1:i_end-1] * "()"
+    options_str = @sprintf("(abstol, reltol, maxiters) = (%.1e, %.1e, %.1e)", a.abstol, a.reltol, a.maxiters)
+    return solver_str, options_str
 end
 
 
 function show(io::IO, a::PEtabModel)
 
     model_name = @sprintf("%s", a.model_name)
-    numberOfODEStates = @sprintf("%d", length(a.state_names))
-    numberOfODEParameters = @sprintf("%d", length(a.parameter_names))
+    n_odes = @sprintf("%d", length(a.state_names))
+    n_ode_parameters = @sprintf("%d", length(a.parameter_names))
 
     printstyled(io, "PEtabModel", color=116)
     print(io, " for model ")
     printstyled(io, model_name, color=116)
     print(io, ". ODE-system has ")
-    printstyled(io, numberOfODEStates * " states", color=116)
+    printstyled(io, n_odes * " states", color=116)
     print(io, " and ")
-    printstyled(io, numberOfODEParameters * " parameters.", color=116)
+    printstyled(io, n_ode_parameters * " parameters.", color=116)
     if !isempty(a.dir_julia)
         @printf(io, "\nGenerated Julia files are at %s", a.dir_julia)
     end
 end
 function show(io::IO, a::ODESolver)
     # Extract ODE solver as a readable string (without everything between)
-    solverStrWrite, optionsStr = getStringSolverOptions(a)
+    solver_str, options_str = get_ode_solver_str(a)
     printstyled(io, "ODESolver", color=116)
     print(io, " with ODE solver ")
-    printstyled(io, solverStrWrite, color=116)
-    @printf(io, ". Options %s", optionsStr)
+    printstyled(io, solver_str, color=116)
+    @printf(io, ". Options %s", options_str)
 end
 function show(io::IO, a::PEtabODEProblem)
 
     model_name = a.petab_model.model_name
-    numberOfODEStates = length(a.petab_model.state_names)
-    numberOfParametersToEstimate = length(a.θ_names)
+    n_odes = length(a.petab_model.state_names)
+    n_parameters_est = length(a.θ_names)
     θ_indices = a.θ_indices
-    numberOfDynamicParameters = length(intersect(θ_indices.θ_dynamicNames, a.θ_names))
+    n_dynamic_parameters = length(intersect(θ_indices.θ_dynamic_names, a.θ_names))
 
-    solverStrWrite, optionsStr = getStringSolverOptions(a.ode_solver)
-    solverGradStrWrite, optionsGradStr = getStringSolverOptions(a.ode_solver_gradient)
+    solver_str, options_str = get_ode_solver_str(a.ode_solver)
+    solver_gradient_str, options_gradient_str = get_ode_solver_str(a.ode_solver_gradient)
 
     gradient_method = string(a.gradient_method)
     hessian_method = string(a.hessian_method)
@@ -61,7 +61,7 @@ function show(io::IO, a::PEtabODEProblem)
     print(io, " for ")
     printstyled(io, model_name, color=116)
     @printf(io, ". ODE-states: %d. Parameters to estimate: %d where %d are dynamic.\n---------- Problem settings ----------\nGradient method : ",
-            numberOfODEStates, numberOfParametersToEstimate, numberOfDynamicParameters)
+            n_odes, n_parameters_est, n_dynamic_parameters)
     printstyled(io, gradient_method, color=116)
     if !isnothing(hessian_method)
         print(io, "\nHessian method : ")
@@ -69,13 +69,13 @@ function show(io::IO, a::PEtabODEProblem)
     end
     print(io, "\n--------- ODE-solver settings --------")
     printstyled(io, "\nCost ")
-    printstyled(io, solverStrWrite, color=116)
-    @printf(io, ". Options %s", optionsStr)
+    printstyled(io, solver_str, color=116)
+    @printf(io, ". Options %s", options_str)
     printstyled(io, "\nGradient ")
-    printstyled(io, solverGradStrWrite, color=116)
-    @printf(io, ". Options %s", optionsGradStr)
+    printstyled(io, solver_gradient_str, color=116)
+    @printf(io, ". Options %s", options_gradient_str)
 
-    if a.simulation_info.haspreEquilibrationConditionId == true
+    if a.simulation_info.has_pre_equilibration_condition_id == true
         print(io, "\n--------- SS solver settings ---------")
         # Print cost steady state solver
         print(io, "\nCost ")
@@ -86,8 +86,8 @@ function show(io::IO, a::PEtabODEProblem)
             @printf(io, ". Option small Newton-step with (abstol, reltol) = (%.1e, %.1e)", a.ss_solver.abstol, a.ss_solver.reltol)
         elseif a.ss_solver.method === :Rootfinding
             algStr = string(a.ss_solver.rootfindingAlgorithm)
-            iEnd = findfirst(x -> x == '{', algStr)
-            algStr = algStr[1:iEnd-1] * "()"
+            i_end = findfirst(x -> x == '{', algStr)
+            algStr = algStr[1:i_end-1] * "()"
             @printf(io, ". Algorithm %s with (abstol, reltol, maxiters) = (%.1e, %.1e, %.1e)", algStr, a.ss_solver.abstol, a.ss_solver.reltol, a.ss_solver.maxiters)
         end
 
@@ -100,8 +100,8 @@ function show(io::IO, a::PEtabODEProblem)
             @printf(io, ". Option small Newton-step with (abstol, reltol) = (%.1e, %.1e)", a.ss_solver_gradient.abstol, a.ss_solver_gradient.reltol)
         elseif a.ss_solver_gradient.method === :Rootfinding
             algStr = string(a.ss_solver_gradient.rootfindingAlgorithm)
-            iEnd = findfirst(x -> x == '{', algStr)
-            algStr = algStr[1:iEnd-1] * "()"
+            i_end = findfirst(x -> x == '{', algStr)
+            algStr = algStr[1:i_end-1] * "()"
             @printf(io, ". Algorithm %s with (abstol, reltol, maxiters) = (%.1e, %.1e, %.1e)", algStr, a.ss_solver_gradient.abstol, a.ss_solver_gradient.reltol, a.ss_solver_gradient.maxiters)
         end
     end
@@ -133,8 +133,8 @@ function show(io::IO, a::SteadyStateSolver)
             @printf(io, "\nAlgorithm : NonlinearSolve's heruistic. Options ")
         else
             algStr = string(a.rootfindingAlgorithm)
-            iEnd = findfirst(x -> x == '{', algStr)
-            algStr = algStr[1:iEnd-1] * "()"
+            i_end = findfirst(x -> x == '{', algStr)
+            algStr = algStr[1:i_end-1] * "()"
             @printf(io, "\nAlgorithm : %s. Options ", algStr)
         end
         @printf(io, "(abstol, reltol, maxiters) = (%.1e, %.1e, %d)", a.abstol, a.reltol, a.maxiters)
@@ -177,7 +177,7 @@ function show(io::IO, a::PEtabParameter)
 end
 function show(io::IO, a::PEtabObservable)
     printstyled(io, "PEtabObservable", color=116)
-    @printf(io, ": h = %s, noise-formula = %s and ", string(a.obs), string(a.noiseFormula))
+    @printf(io, ": h = %s, noise-formula = %s and ", string(a.obs), string(a.noise_formula))
     if a.transformation ∈ [:log, :log10]
         @printf(io, "log-normal measurement noise")
     else

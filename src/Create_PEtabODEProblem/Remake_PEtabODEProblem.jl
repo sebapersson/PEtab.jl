@@ -19,28 +19,28 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem, parameters_change:
         end
     end
 
-    parametersFix = collect(keys(parameters_change))
-    iParametersFix = [findfirst(x -> x == parameterFix, petab_problem.θ_names) for parameterFix in parametersFix]
-    parametersFixValues = Vector{Float64}(undef, length(parametersFix))
+    parameters_fixate = collect(keys(parameters_change))
+    i_parameters_fixate = [findfirst(x -> x == parameter_fixate, petab_problem.θ_names) for parameter_fixate in parameters_fixate]
+    parameters_fixated_values = Vector{Float64}(undef, length(parameters_fixate))
     # Ensure we fixate parameter values on the correct scale
-    for i in eachindex(iParametersFix)
-        transform = petab_problem.compute_cost.parameterInfo.parameterScale[findfirst(x -> x == parametersFix[i], petab_problem.compute_cost.parameterInfo.parameterId)]
+    for i in eachindex(i_parameters_fixate)
+        transform = petab_problem.compute_cost.parameter_info.parameter_scale[findfirst(x -> x == parameters_fixate[i], petab_problem.compute_cost.parameter_info.parameter_id)]
         if transform === :lin
-            parametersFixValues[i] = parameters_change[parametersFix[i]]
+            parameters_fixated_values[i] = parameters_change[parameters_fixate[i]]
         elseif transform === :log
-            parametersFixValues[i] = log(parameters_change[parametersFix[i]])
+            parameters_fixated_values[i] = log(parameters_change[parameters_fixate[i]])
         elseif transform === :log10
-            parametersFixValues[i] = log10(parameters_change[parametersFix[i]])
+            parameters_fixated_values[i] = log10(parameters_change[parameters_fixate[i]])
         end
     end
 
     # Setup parameters for new problem of lower dimension
-    iUse = findall(x -> x ∉ parametersFix, petab_problem.θ_names)
-    lower_bounds = petab_problem.lower_bounds[iUse]
-    upper_bounds = petab_problem.upper_bounds[iUse]
-    θ_names = petab_problem.θ_names[iUse]
-    θ_nominal = petab_problem.θ_nominal[iUse]
-    θ_nominalT = petab_problem.θ_nominalT[iUse]
+    i_use = findall(x -> x ∉ parameters_fixate, petab_problem.θ_names)
+    lower_bounds = petab_problem.lower_bounds[i_use]
+    upper_bounds = petab_problem.upper_bounds[i_use]
+    θ_names = petab_problem.θ_names[i_use]
+    θ_nominal = petab_problem.θ_nominal[i_use]
+    θ_nominalT = petab_problem.θ_nominalT[i_use]
 
     # Gradient place-holders for the underlaying functions
     _θ_est::Vector{Float64} = similar(petab_problem.lower_bounds)
@@ -50,31 +50,31 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem, parameters_change:
     # In case we fixate more parameters than there are chunk-size we might only want to evaluate ForwardDiff over a
     # subset of chunks. To this end we here make sure "fixed" parameter are moved to the end of the parameter vector
     # allowing us to take the chunks across the first parameters
-    __iθ_dynamicFix = [findfirst(x -> x == parameterFix, petab_problem.θ_indices.θ_dynamicNames) for parameterFix in parametersFix]
-    _iθ_dynamicFix = __iθ_dynamicFix[findall(x -> !isnothing(x), __iθ_dynamicFix)]
-    if !isempty(_iθ_dynamicFix)
+    __iθ_dynamic_fixate = [findfirst(x -> x == parameter_fixate, petab_problem.θ_indices.θ_dynamic_names) for parameter_fixate in parameters_fixate]
+    _iθ_dynamic_fixate = __iθ_dynamic_fixate[findall(x -> !isnothing(x), __iθ_dynamic_fixate)]
+    if !isempty(_iθ_dynamic_fixate)
         k = 1
         # Make sure the parameter which are to be "estimated" end up in the from
         # of the parameter vector when running ForwardDiff
-        for i in eachindex(petab_problem.θ_indices.θ_dynamicNames)
-            if i ∈ _iθ_dynamicFix
+        for i in eachindex(petab_problem.θ_indices.θ_dynamic_names)
+            if i ∈ _iθ_dynamic_fixate
                 continue
             end
-            petab_problem.compute_cost.petabODECache.θ_dynamicInputOrder[k] = i
-            petab_problem.compute_cost.petabODECache.θ_dynamicOutputOrder[i] = k
+            petab_problem.compute_cost.petab_ODE_cache.θ_dynamic_input_order[k] = i
+            petab_problem.compute_cost.petab_ODE_cache.θ_dynamic_output_order[i] = k
             k += 1
         end
         # Make sure the parameter which are fixated ends up in the end of the parameter
         # vector when running ForwardDiff
-        for i in eachindex(petab_problem.θ_indices.θ_dynamicNames)
-            if i ∉ _iθ_dynamicFix
+        for i in eachindex(petab_problem.θ_indices.θ_dynamic_names)
+            if i ∉ _iθ_dynamic_fixate
                 continue
             end
-            petab_problem.compute_cost.petabODECache.θ_dynamicInputOrder[k] = i
-            petab_problem.compute_cost.petabODECache.θ_dynamicOutputOrder[i] = k
+            petab_problem.compute_cost.petab_ODE_cache.θ_dynamic_input_order[k] = i
+            petab_problem.compute_cost.petab_ODE_cache.θ_dynamic_output_order[i] = k
             k += 1
         end
-        petab_problem.compute_cost.petabODECache.nθ_dynamicEst[1] = length(petab_problem.θ_indices.θ_dynamicNames) - length(_iθ_dynamicFix)
+        petab_problem.compute_cost.petab_ODE_cache.nθ_dynamic[1] = length(petab_problem.θ_indices.θ_dynamic_names) - length(_iθ_dynamic_fixate)
 
         # Aviod  problems with autodiff=true for ODE solvers for computing the gradient
         if typeof(petab_problem.ode_solver_gradient.solver) <: Rodas5P
@@ -89,49 +89,49 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem, parameters_change:
             petab_problem.ode_solver_gradient.solver = Rosenbrock23(autodiff=false)
         end
     else
-        petab_problem.compute_cost.petabODECache.θ_dynamicInputOrder .= 1:length(petab_problem.θ_indices.θ_dynamicNames)
-        petab_problem.compute_cost.petabODECache.θ_dynamicOutputOrder .= 1:length(petab_problem.θ_indices.θ_dynamicNames)
-        petab_problem.compute_cost.petabODECache.nθ_dynamicEst[1] = length(petab_problem.θ_indices.θ_dynamicNames)
+        petab_problem.compute_cost.petab_ODE_cache.θ_dynamic_input_order .= 1:length(petab_problem.θ_indices.θ_dynamic_names)
+        petab_problem.compute_cost.petab_ODE_cache.θ_dynamic_output_order .= 1:length(petab_problem.θ_indices.θ_dynamic_names)
+        petab_problem.compute_cost.petab_ODE_cache.nθ_dynamic[1] = length(petab_problem.θ_indices.θ_dynamic_names)
     end
 
     # Setup mapping from θ_est to _θ_est
-    iMap = [findfirst(x -> x == θ_names[i], petab_problem.θ_names) for i in eachindex(θ_names)]
+    i_map = [findfirst(x -> x == θ_names[i], petab_problem.θ_names) for i in eachindex(θ_names)]
 
     _compute_cost = (θ_est) ->   begin
                                     __θ_est = convert.(eltype(θ_est), _θ_est)
-                                    __θ_est[iParametersFix] .= parametersFixValues
-                                    __θ_est[iMap] .= θ_est
+                                    __θ_est[i_parameters_fixate] .= parameters_fixated_values
+                                    __θ_est[i_map] .= θ_est
                                     return petab_problem.compute_cost(__θ_est)
                                 end
-    _compute_simulated_values = (θ_est; asArray=false) -> begin
+    _compute_simulated_values = (θ_est; as_array=false) -> begin
         __θ_est = convert.(eltype(θ_est), _θ_est)
-        __θ_est[iParametersFix] .= parametersFixValues
-        __θ_est[iMap] .= θ_est
+        __θ_est[i_parameters_fixate] .= parameters_fixated_values
+        __θ_est[i_map] .= θ_est
         return petab_problem.compute_simulated_values(__θ_est)
     end
     _compute_chi2 = (θ_est) -> begin
         __θ_est = convert.(eltype(θ_est), _θ_est)
-        __θ_est[iParametersFix] .= parametersFixValues
-        __θ_est[iMap] .= θ_est
+        __θ_est[i_parameters_fixate] .= parameters_fixated_values
+        __θ_est[i_map] .= θ_est
         return petab_problem.compute_chi2(__θ_est)
     end
     _compute_residuals = (θ_est) -> begin
         __θ_est = convert.(eltype(θ_est), _θ_est)
-        __θ_est[iParametersFix] .= parametersFixValues
-        __θ_est[iMap] .= θ_est
+        __θ_est[i_parameters_fixate] .= parameters_fixated_values
+        __θ_est[i_map] .= θ_est
         return petab_problem.compute_residuals(__θ_est)
     end
 
     _compute_gradient! = (gradient, θ_est) ->    begin
                                                     __θ_est = convert.(eltype(θ_est), _θ_est)
-                                                    __θ_est[iParametersFix] .= parametersFixValues
-                                                    __θ_est[iMap] .= θ_est
+                                                    __θ_est[i_parameters_fixate] .= parameters_fixated_values
+                                                    __θ_est[i_map] .= θ_est
                                                     if (petab_problem.gradient_method === :ForwardDiff || petab_problem.gradient_method === :ForwardEquations) && petab_problem.split_over_conditions == false
-                                                        petab_problem.compute_gradient!(_gradient, __θ_est; isRemade=true)
+                                                        petab_problem.compute_gradient!(_gradient, __θ_est; isremade=true)
                                                     else
                                                         petab_problem.compute_gradient!(_gradient, __θ_est)
                                                     end
-                                                    gradient .= _gradient[iMap]
+                                                    gradient .= _gradient[i_map]
                                                 end
     _compute_gradient = (θ) -> begin
         gradient = zeros(Float64, length(θ))
@@ -141,16 +141,16 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem, parameters_change:
 
     _compute_hessian! = (hessian, θ_est) ->  begin
                                                 __θ_est = convert.(eltype(θ_est), _θ_est)
-                                                __θ_est[iParametersFix] .= parametersFixValues
-                                                __θ_est[iMap] .= θ_est
+                                                __θ_est[i_parameters_fixate] .= parameters_fixated_values
+                                                __θ_est[i_map] .= θ_est
                                                 if (petab_problem.gradient_method === :GaussNewton) && petab_problem.split_over_conditions == false
-                                                    petab_problem.compute_hessian!(_hessian, __θ_est; isRemade=true)
+                                                    petab_problem.compute_hessian!(_hessian, __θ_est; isremade=true)
                                                 else
                                                     petab_problem.compute_hessian!(_hessian, __θ_est)
                                                 end
                                                 # Can use double index with first and second
-                                                @inbounds for (i1, i2) in pairs(iMap)
-                                                    for (j1, j2) in pairs(iMap)
+                                                @inbounds for (i1, i2) in pairs(i_map)
+                                                    for (j1, j2) in pairs(i_map)
                                                         hessian[i1, j1] = _hessian[i2, j2]
                                                     end
                                                 end
@@ -178,7 +178,6 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem, parameters_change:
                                     θ_nominalT,
                                     lower_bounds,
                                     upper_bounds,
-                                    petab_problem.pathCube,
                                     petab_problem.petab_model,
                                     petab_problem.ode_solver,
                                     petab_problem.ode_solver_gradient,

@@ -11,13 +11,13 @@ function setUpProcesses(petab_model::PEtabModel,
                         solverAdjointAbsTol::Float64,
                         solverAdjointRelTol::Float64,
                         odeSolverForwardEquations::SciMLAlgorithm,
-                        sensealgForwardEquations,
-                        parameterInfo::ParametersInfo,
-                        measurementInfo::MeasurementsInfo,
+                        sensealg_forward_equations,
+                        parameter_info::ParametersInfo,
+                        measurement_info::MeasurementsInfo,
                         simulation_info::SimulationInfo,
                         θ_indices::ParameterIndices, 
                         pirorInfo::PriorInfo,
-                        odeProblem::ODEProblem,
+                        ode_problem::ODEProblem,
                         chunksize::Union{Int64, Nothing})
 
     println("Setting up cost, grad, and hessian to be computed on several processes using Distributed.jl")
@@ -28,12 +28,12 @@ function setUpProcesses(petab_model::PEtabModel,
     loadYmodSdU0(petab_model)
 
     nProcs = nprocs()
-    experimentalConditionId = unique(simulation_info.experimentalConditionId)
-    if nProcs > length(experimentalConditionId)
+    experimental_condition_id = unique(simulation_info.experimental_condition_id)
+    if nProcs > length(experimental_condition_id)
         println("Warning - There are less experimental conditions than processes. Hence some processes will run empty")
         println("Number of processes = $nProcs, number of experimental conditions = ", length(simulation_info.conditionIdSol))
     end
-    idsEachProcess = collect(Iterators.partition(experimentalConditionId, Int(round(length(experimentalConditionId) /nProcs))))
+    idsEachProcess = collect(Iterators.partition(experimental_condition_id, Int(round(length(experimental_condition_id) /nProcs))))
 
     # Divide the experimental conditions between the number of processes and set up channels for
     # communicating with each process
@@ -42,7 +42,7 @@ function setUpProcesses(petab_model::PEtabModel,
 
     # Send ODE-problem, and simultaneously launch the processes
     for i in 1:nProcs
-        @async put!(jobs[i], tuple(deepcopy(odeProblem)))
+        @async put!(jobs[i], tuple(deepcopy(ode_problem)))
         remote_do(runProcess, procs()[i], jobs[i], results[i])
         status = take!(results[i])[1]
         if status != :Done
@@ -53,8 +53,8 @@ function setUpProcesses(petab_model::PEtabModel,
     # Send required PEtab structs to processes
     for i in 1:nProcs
         sendPEtabStruct(petab_model, jobs[i], results[i], "PEtab model", procs()[i])
-        sendPEtabStruct(parameterInfo, jobs[i], results[i], "Parameter data", procs()[i])
-        sendPEtabStruct(measurementInfo, jobs[i], results[i], "Measurement data", procs()[i])
+        sendPEtabStruct(parameter_info, jobs[i], results[i], "Parameter data", procs()[i])
+        sendPEtabStruct(measurement_info, jobs[i], results[i], "Measurement data", procs()[i])
         sendPEtabStruct(simulation_info, jobs[i], results[i], "Simulation info", procs()[i])
         sendPEtabStruct(θ_indices, jobs[i], results[i], "Parameter indices", procs()[i])
         sendPEtabStruct(pirorInfo, jobs[i], results[i], "Prior info", procs()[i])
@@ -80,7 +80,7 @@ function setUpProcesses(petab_model::PEtabModel,
 
     # Send forward sensitivity equations solver and associated
     for i in 1:nProcs
-        @async put!(jobs[i], tuple(odeSolverForwardEquations, sensealgForwardEquations, chunksize))
+        @async put!(jobs[i], tuple(odeSolverForwardEquations, sensealg_forward_equations, chunksize))
         status = take!(results[i])[1]
         if status != :Done
             println("Error : Could not send adjSolver, adjTolerance and adjSensealg to proces ", procs()[i])
@@ -162,9 +162,9 @@ function loadYmodSdU0(petab_model::PEtabModel)
     print("Loading u0, σ, h and callback functions ... ")
     path_u0_h_sigma = joinpath(petab_model.dir_julia, petab_model.model_name * "_h_sd_u0.jl")
     path_D_h_sd = joinpath(petab_model.dir_julia, petab_model.model_name * "_D_h_sd.jl")
-    pathCallback = joinpath(petab_model.dir_julia, petab_model.model_name * "_callbacks.jl")
+    path_callback = joinpath(petab_model.dir_julia, petab_model.model_name * "_callbacks.jl")
     @eval @everywhere include($path_u0_h_sigma)
     @eval @everywhere include($path_D_h_sd)
-    @eval @everywhere include($pathCallback)
+    @eval @everywhere include($path_callback)
     print("done \n")
 end

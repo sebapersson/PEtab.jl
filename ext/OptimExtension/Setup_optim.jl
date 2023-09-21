@@ -2,25 +2,24 @@
     Optim wrapper 
 =#
 
-calibrate_model_multistart
 function PEtab.calibrate_model_multistart(petab_problem::PEtabODEProblem, 
-                                        alg::Union{Optim.LBFGS, Optim.BFGS, Optim.IPNewton}, 
-                                        n_multistarts::Signed, 
-                                        dir_save::Union{Nothing, String};
-                                        sampling_method::T=QuasiMonteCarlo.LatinHypercubeSample(),
-                                        options::Optim.Options=Optim.Options(iterations = 1000,
-                                                                             show_trace = false,
-                                                                             allow_f_increases=true,
-                                                                             successive_f_tol = 3,
-                                                                             f_tol=1e-8,
-                                                                             g_tol=1e-6,
-                                                                             x_tol=0.0), 
-                                        seed::Union{Nothing, Integer}=nothing, 
-                                        save_trace::Bool=false)::PEtab.PEtabMultistartOptimisationResult where T <: QuasiMonteCarlo.SamplingAlgorithm
+                                          alg::Union{Optim.LBFGS, Optim.BFGS, Optim.IPNewton}, 
+                                          n_multistarts::Signed, 
+                                          dir_save::Union{Nothing, String};
+                                          sampling_method::T=QuasiMonteCarlo.LatinHypercubeSample(),
+                                          options::Optim.Options=Optim.Options(iterations = 1000,
+                                                                               show_trace = false,
+                                                                               allow_f_increases=true,
+                                                                               successive_f_tol = 3,
+                                                                               f_tol=1e-8,
+                                                                               g_tol=1e-6,
+                                                                               x_tol=0.0), 
+                                          seed::Union{Nothing, Integer}=nothing, 
+                                          save_trace::Bool=false)::PEtab.PEtabMultistartOptimisationResult where T <: QuasiMonteCarlo.SamplingAlgorithm
     if !isnothing(seed)
         Random.seed!(seed)
     end
-    res = PEtab._multistartModelCallibration(petab_problem, alg, n_multistarts, dir_save, sampling_method, options, save_trace)
+    res = PEtab._calibrate_model_multistart(petab_problem, alg, n_multistarts, dir_save, sampling_method, options, save_trace)
     return res
 end
 
@@ -70,10 +69,10 @@ function PEtab.calibrate_model(petab_problem::PEtabODEProblem,
                             time_limit=options.time_limit)
 
     # Create a runnable function taking parameter as input                            
-    optimProblem =  createOptimProblem(petab_problem, alg, options=_options)
+    optim_problem =  create_optim_problem(petab_problem, alg, options=_options)
     local n_iterations, fmin, xmin, converged, runtime, ftrace, xtrace
     try
-        res = optimProblem(p0)
+        res = optim_problem(p0)
         n_iterations = Optim.iterations(res)
         fmin = Optim.minimum(res)
         xmin = Optim.minimizer(res)
@@ -97,14 +96,14 @@ function PEtab.calibrate_model(petab_problem::PEtabODEProblem,
     end
 
     if typeof(alg) <: Optim.IPNewton
-        algUsed = :Optim_IPNewton
+        alg_used = :Optim_IPNewton
     elseif typeof(alg) <: Optim.BFGS
-        algUsed = :Optim_BFGS
+        alg_used = :Optim_BFGS
     elseif typeof(alg) <: Optim.LBFGS
-        algUsed = :Optim_LBFGS
+        alg_used = :Optim_LBFGS
     end
 
-    return PEtabOptimisationResult(algUsed,
+    return PEtabOptimisationResult(alg_used,
                                    xtrace, 
                                    ftrace, 
                                    n_iterations, 
@@ -117,20 +116,20 @@ end
 
 
 """
-    createOptimProb(petab_problem::PEtabODEProblem,
-                    optimAlg;
-                    hessianUse::Symbol=:blockAutoDiff)
+    create_optim_problem(petab_problem::PEtabODEProblem,
+                         alg;
+                         options)
 
-For a PeTab model optimization struct (petab_problem) create an Optim optmization (evalOptim)
-function using as optimAlg IPNewton (interior point Newton) or LBFGS, BFGS, ConjugateGradient.
+For a PeTab model optimization struct (petab_problem) create an Optim optmization (run_optim)
+function using as alg IPNewton (interior point Newton) or LBFGS, BFGS, ConjugateGradient.
 For IPNewton the hessian is computed via eiter autoDiff (:autoDiff), or approximated
 with blockAutoDiff (:blockAutoDiff). All optimizer struct can take their default
 arguments, for example, LBFGS(linesearch = LineSearches.HagerZhang()) is a valid
 argument for LBFGS.
 """
-function createOptimProblem(petab_problem::PEtabODEProblem,
-                            optimAlg;
-                            options=Optim.Options(iterations = 1000,
+function create_optim_problem(petab_problem::PEtabODEProblem,
+                              alg;
+                              options=Optim.Options(iterations = 1000,
                                                   show_trace = false,
                                                   allow_f_increases=true,
                                                   successive_f_tol = 3,
@@ -138,37 +137,29 @@ function createOptimProblem(petab_problem::PEtabODEProblem,
                                                   g_tol=1e-6,
                                                   x_tol=0.0))
 
-    if typeof(optimAlg) <: IPNewton
-        return createOptimInteriorNewton(petab_problem, optimAlg, options)
-    elseif typeof(optimAlg) <: LBFGS || typeof(optimAlg) <: BFGS || typeof(optimAlg) <: ConjugateGradient
-        return createOptimFminbox(petab_problem, optimAlg, options)
+    if typeof(alg) <: IPNewton
+        return create_optim_IPNewton(petab_problem, alg, options)
+    elseif typeof(alg) <: LBFGS || typeof(alg) <: BFGS || typeof(alg) <: ConjugateGradient
+        return create_optim_fminbox(petab_problem, alg, options)
     else
-        @error "optimAlg $optimAlg is not supported - supported methods are IPNewton, ConjugateGradient, LBFGS and BFGS"
+        @error "alg $alg is not supported - supported methods are IPNewton, ConjugateGradient, LBFGS and BFGS"
     end
 end
 
 
-"""
-    createOptimInteriorNewton(petab_problem::PEtabODEProblem;
-                              hessianUse::Symbol=:blockAutoDiff)
-
-For a PeTab model optimization struct (petab_problem) create an Optim interior point Newton
-function struct where the hessian is computed via eiter autoDiff (:autoDiff), or approximated
-with blockAutoDiff (:blockAutoDiff).
-"""
-function createOptimInteriorNewton(petab_problem::PEtabODEProblem,
-                                   optimAlg,
-                                   options)
+function create_optim_IPNewton(petab_problem::PEtabODEProblem,
+                               alg,
+                               options)
 
     lower_bounds = petab_problem.lower_bounds
     upper_bounds = petab_problem.upper_bounds
 
-    nParam = length(lower_bounds)
-    x0 = zeros(Float64, nParam)
+    n_parameters = length(lower_bounds)
+    x0 = zeros(Float64, n_parameters)
     df = TwiceDifferentiable(petab_problem.compute_cost, petab_problem.compute_gradient!, petab_problem.compute_hessian!, x0)
     dfc = TwiceDifferentiableConstraints(lower_bounds, upper_bounds)
 
-    evalOptim = (p0) -> begin
+    run_optim = (p0) -> begin
                             # Move points within bounds
                             iBelow = p0 .<= petab_problem.lower_bounds
                             iAbove = p0 .>= petab_problem.upper_bounds
@@ -178,35 +169,28 @@ function createOptimInteriorNewton(petab_problem::PEtabODEProblem,
                             return Optim.optimize(df,
                                                   dfc,
                                                   p0,
-                                                  optimAlg,
+                                                  alg,
                                                   options)
                         end
 
-    return evalOptim
+    return run_optim
 end
 
 
-"""
-    createOptimFminbox(petab_problem::PEtabODEProblem;
-                       lineSearch=LineSearches.HagerZhang())
-
-For a PeTab model optimization struct (petab_problem) create an Optim Fminbox optimizer where the
-inner optimizer is either LBFGS or BFGS using lineSearch.
-"""
-function createOptimFminbox(petab_problem::PEtabODEProblem,
-                            optimAlg,
-                            options)
+function create_optim_fminbox(petab_problem::PEtabODEProblem,
+                              alg,
+                              options)
 
     lower_bounds = petab_problem.lower_bounds
     upper_bounds = petab_problem.upper_bounds
 
-    evalOptim = (p0) -> Optim.optimize(petab_problem.compute_cost,
+    run_optim = (p0) -> Optim.optimize(petab_problem.compute_cost,
                                        petab_problem.compute_gradient!,
                                        lower_bounds,
                                        upper_bounds,
                                        p0,
-                                       Fminbox(optimAlg),
+                                       Fminbox(alg),
                                        options)
 
-    return evalOptim
+    return run_optim
 end

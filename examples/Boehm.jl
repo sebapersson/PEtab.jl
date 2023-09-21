@@ -1,9 +1,4 @@
 #= 
-    Example for how to set a PEtab ODE problem for the small Boehm model and how given a parameter vector 
-    performed Hessian based optmization using;
-        1) Optim.jl (Interior point Newton)
-        2) Ipopt.jl (Interior point Newton like method)
-
     In this example we setup the PEtab problem with the best options for a small model (≤20 states and ≤ 20 parameters). 
     
     Further examples include;
@@ -28,11 +23,11 @@ using Printf
        of h and σ are computed symbolically with respect to the ODE-models states (u) and parameters. 
     
     All these files are created automatically, and and you can find the resulting files in dirIfYamlFile/Julia_files/. 
-    To save time the fucntion readPEtabModel has the default forceBuildJlFiles=false meaning that the Julia files 
+    To save time the fucntion PEtabModel has the default forceBuildJlFiles=false meaning that the Julia files 
     are not rebuilt in case they already exist.
 =#    
-pathYaml = joinpath(@__DIR__, "Boehm", "Boehm_JProteomeRes2014.yaml") # @__DIR__ = file directory
-petabModel = readPEtabModel(pathYaml, verbose=true)
+path_yaml = joinpath(@__DIR__, "Boehm", "Boehm_JProteomeRes2014.yaml") # @__DIR__ = file directory
+petab_model = PEtabModel(path_yaml, verbose=true)
 
 #=
     Given a PEtab model we can create a PEtabODEProblem (in the future we plan to add surrogate, SDE, etc... problems). 
@@ -49,97 +44,34 @@ petabModel = readPEtabModel(pathYaml, verbose=true)
     Note - For :ForwardDiff the user can set the Chunk-size (see https://juliadiff.org/ForwardDiff.jl/stable/). This can improve performance, 
     and we plan to add automatic tuning of it.
 =#
-petabProblem = createPEtabODEProblem(petabModel, 
-                                     odeSolverOptions=ODESolverOptions(Rodas5P(), abstol=1e-8, reltol=1e-8), 
-                                     gradientMethod=:ForwardDiff, 
-                                     hessianMethod=:ForwardDiff)
+petab_problem = PEtabODEProblem(petab_model, 
+                                ode_solver=ODESolver(Rodas5P(), abstol=1e-8, reltol=1e-8), 
+                                gradient_method=:ForwardDiff, 
+                                hessian_method=:ForwardDiff)
 
 #=   
-    ODESolverOptionsThe PEtabODEProblem has everything needed to set up an optimization problem with most availble optimizers. 
+    ODESolverThe PEtabODEProblem has everything needed to set up an optimization problem with most availble optimizers. 
     
     The main fields are;
-    1) petabODEProblem.computeCost - Given a parameter vector θ computes the cost (objective function). 
-    2) petabODEProblem.computeGradient!- Given a parameter vector θ computes the gradient using the choosen method
-    3) petabODEProblem.computeHessian!- Given a parameter vector θ computes the gradient using the choosen method
-    4) petabODEProblem.lowerBounds- A vector with the lower bounds for parameters as specified by the PEtab parameters file. 
-    5) petabODEProblem.upperBounds- A vector with the upper bounds for parameters as specified by the PEtab parameters file. 
-    6) petabODEProblem.θ_estNames- A vector with the names of the parameters to estimate. 
+    1) petabODEProblem.compute_cost - Given a parameter vector θ computes the cost (objective function). 
+    2) petabODEProblem.compute_gradient!- Given a parameter vector θ computes the gradient using the choosen method
+    3) petabODEProblem.compute_hessian!- Given a parameter vector θ computes the gradient using the choosen method
+    4) petabODEProblem.lower_bounds- A vector with the lower bounds for parameters as specified by the PEtab parameters file. 
+    5) petabODEProblem.upper_bounds- A vector with the upper bounds for parameters as specified by the PEtab parameters file. 
+    6) petabODEProblem.θ_names- A vector with the names of the parameters to estimate. 
 
     Note1 - The parameter vector θ is assumed to be on PEtab specfied parameter-scale. Thus if parameter i is on is on the 
     log-scale so should θ[i] be. 
 
-    Note2 - The computeGradient! and computeHessian! functions are in-place functions. Thus their first argument is
+    Note2 - The compute_gradient! and compute_hessian! functions are in-place functions. Thus their first argument is
     an already pre-allocated gradient and hessian respectively (see below)
 =#
-p = petabProblem.θ_nominalT # Parameter values in the PEtab file on log-scale
+p = petab_problem.θ_nominalT # Parameter values in the PEtab file on log-scale
 gradient = zeros(length(p))
 hessian = zeros(length(p), length(p))
-cost = petabProblem.computeCost(p)
-petabProblem.computeGradient!(gradient, p)
-petabProblem.computeHessian!(hessian, p)
+cost = petab_problem.compute_cost(p)
+petab_problem.compute_gradient!(gradient, p)
+petab_problem.compute_hessian!(hessian, p)
 @printf("Cost for Boehm = %.2f\n", cost)
 @printf("First element in the gradient for Boehm = %.2e\n", gradient[1])
 @printf("First element in the hessian for Boehm = %.2f\n", hessian[1, 1])
-
-
-#=   
-    The PEtabODEProblem has as mentioned everything needed to set up an optimization problem. Below we show how to set 
-    up a problem using the Interior point Newton method in Optim.jl (https://github.com/JuliaNLSolvers/Optim.jl). Extensive 
-    benchmarks show that this method performs great in case we can compute the full Hessian via automatic differentitation.
-
-    Note - below we sample start guesses via Latin-hypercube sampling from QuasiMonteCarlo
-=#
-using Optim
-import QuasiMonteCarlo
-fvals, xvals = callibrateModel(petabProblem, IPNewton(), 
-                               nOptimisationStarts=5, 
-                               samplingMethod=QuasiMonteCarlo.LatinHypercubeSample(), 
-                               options=Optim.Options(show_trace = false, iterations=200))
-@printf("Best found value = %.3f\n", minimum(fvals))
-  
-
-#=   
-    Another popular optimizer is Fides (https://github.com/fides-dev/fides). 
-    
-    Setting up Fides in Julia is a bit involved, as it is a Python package. Fortunately, we provide a wrapper 
-    and support in callibrate model. 
-
-    As a first step though, PyCall.jl must be built with an environment which has Fides installed.    
-=#
-using PyCall
-pathPythonExe = joinpath("/", "home", "sebpe", "anaconda3", "envs", "PeTab", "bin", "python")
-ENV["PYTHON"] = pathPythonExe
-import Pkg; Pkg.build("PyCall")
-
-petabProblem = createPEtabODEProblem(petabModel, 
-                                     odeSolverOptions=ODESolverOptions(Rodas5P()), 
-                                     gradientMethod=:ForwardEquations, 
-                                     hessianMethod=:GaussNewton, 
-                                     sensealg=:ForwardDiff, 
-                                     reuseS=true)
-
-fvals, xvals = callibrateModel(petabProblem, Fides(verbose=false), 
-                               nOptimisationStarts=5, 
-                               samplingMethod=QuasiMonteCarlo.LatinHypercubeSample(), 
-                               options=py"{'maxiter' : 200}"o)
-@printf("Best found value = %.3f\n", minimum(fvals))                                     
-
-
-#=   
-    Another popular optimizer is Ipopt (https://coin-or.github.io/Ipopt/). 
-    
-    Setting up Ipopt in Julia is a bit involved, and for anyone interested in the details we provide an Ipopt wrapper function in the file 
-    Set_up_Ipopt.jl.
-
-    Note - Ipopt.jl allows the hessian to be approximated via a L-BFGS function. The user can choose this option 
-    below by specifaying hessianMethod=:LBFGS, while hessianMethod=:userProvided means that the hessian in the 
-    PEtabODEProblem is used.
-=#
-using Ipopt
-include(joinpath(@__DIR__, "Set_up_ipopt.jl"))
-ipoptProblem, iterations = createIpoptProblem(petabProblem, hessianMethod=:userProvided)
-ipoptProblem.x .= p0 # Set initial values
-# Options 
-Ipopt.AddIpoptIntOption(ipoptProblem, "print_level", 5)
-Ipopt.AddIpoptIntOption(ipoptProblem, "max_iter", 1000)
-sol_opt = Ipopt.IpoptSolve(ipoptProblem)

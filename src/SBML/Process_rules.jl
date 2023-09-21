@@ -1,27 +1,19 @@
-function getRuleFormula(rule)
-
-    ruleFormula = rule[:getFormula]()
-    ruleFormula = replaceWholeWord(ruleFormula, "time", "t")
-    ruleFormula = removePowFunctions(ruleFormula)
-
-    return ruleFormula
-end
-function extractRuleFormula(rule)
-    __ruleFormula = mathToString(rule.math)
-    _ruleFormula = replaceWholeWord(__ruleFormula, "time", "t")
-    ruleFormula = removePowFunctions(_ruleFormula)
-    return ruleFormula
+function extract_rule_formula(rule)
+    __rule_formula = SBML_math_to_str(rule.math)
+    _rule_formula = replace_whole_word(__rule_formula, "time", "t")
+    rule_formula = remove_power_functions(_rule_formula)
+    return rule_formula
 end
 
 
-function processAssignmentRule!(modelDict::Dict, ruleFormula::String, ruleVariable::String, baseFunctions, modelSBML)
+function process_assignment_rule!(model_dict::Dict, rule_formula::String, rule_variable::String, base_functions, model_SBML)
 
     # If piecewise occurs in the rule we are looking at a time-based event which is encoded as an
     # event into the model to ensure proper evaluation of the gradient.
-    if occursin("piecewise(", ruleFormula)
-        rewritePiecewiseToIfElse(ruleFormula, ruleVariable, modelDict, baseFunctions, modelSBML)
-        if ruleVariable ∈ keys(modelDict["derivatives"])
-            delete!(modelDict["derivatives"], ruleVariable)
+    if occursin("piecewise(", rule_formula)
+        rewrite_piecewise_to_ifelse(rule_formula, rule_variable, model_dict, base_functions, model_SBML)
+        if rule_variable ∈ keys(model_dict["derivatives"])
+            delete!(model_dict["derivatives"], rule_variable)
         end
         return 
     end
@@ -32,57 +24,57 @@ function processAssignmentRule!(modelDict::Dict, ruleFormula::String, ruleVariab
     =#
     # Extract the parameters and states which make out the rule, if the rule nests another function 
     # function is written to math 
-    arguments, includesFunction = getArguments(ruleFormula, modelDict["modelFunctions"], baseFunctions)
-    if includesFunction == true
-        ruleFormula = replaceFunctionWithFormula(ruleFormula, modelDict["modelFunctions"])
+    arguments, includes_function = get_arguments(rule_formula, model_dict["modelFunctions"], base_functions)
+    if includes_function == true
+        rule_formula = replace_function_with_formula(rule_formula, model_dict["modelFunctions"])
     end
 
-    if ruleVariable in keys(modelDict["states"])
-        modelDict["assignmentRulesStates"][ruleVariable] = ruleFormula
+    if rule_variable in keys(model_dict["states"])
+        model_dict["assignmentRulesStates"][rule_variable] = rule_formula
         # Delete from state dictionary (as we no longer should assign an initial value to the state)
-        delete!(modelDict["states"], ruleVariable)
+        delete!(model_dict["states"], rule_variable)
     end
     # In case compartment is assigned we need to track assignment formula 
-    if ruleVariable ∈ keys(modelSBML.compartments)
-        modelDict["compartmentFormula"][ruleVariable] = ruleFormula
+    if rule_variable ∈ keys(model_SBML.compartments)
+        model_dict["compartmentFormula"][rule_variable] = rule_formula
     end
 
     return 
 end
 
 
-function processRateRule!(modelDict::Dict, ruleFormula::String, ruleVariable::String, modelSBML, baseFunctions)
+function process_rate_rule!(model_dict::Dict, rule_formula::String, rule_variable::String, model_SBML, base_functions)
 
     # Rewrite rule to function if there are not any piecewise, eles rewrite to formula with ifelse
-    if occursin("piecewise(", ruleFormula)
-        ruleFormula = rewritePiecewiseToIfElse(ruleFormula, ruleVariable, modelDict, baseFunctions, modelSBML, retFormula=true)
+    if occursin("piecewise(", rule_formula)
+        rule_formula = rewrite_piecewise_to_ifelse(rule_formula, rule_variable, model_dict, base_functions, model_SBML, ret_formula=true)
     else
-        arguments, includesFunction = getArguments(ruleFormula, modelDict["modelFunctions"], baseFunctions)
-        if includesFunction == true
-            ruleFormula = replaceFunctionWithFormula(ruleFormula, modelDict["modelFunctions"])
+        arguments, includes_function = get_arguments(rule_formula, model_dict["modelFunctions"], base_functions)
+        if includes_function == true
+            rule_formula = replace_function_with_formula(rule_formula, model_dict["modelFunctions"])
         end
     end
 
     # Add rate rule as part of model derivatives and remove from parameters dict if rate rule variable
     # is a parameter
-    if ruleVariable ∈ keys(modelDict["parameters"])
-        modelDict["derivatives"][ruleVariable] = "D(" * ruleVariable * ") ~ " * ruleFormula
-        modelDict["states"][ruleVariable] = modelDict["parameters"][ruleVariable]
-        modelDict["stateGivenInAmounts"][ruleVariable] = (false, "")
-        modelDict["hasOnlySubstanceUnits"][ruleVariable] = false
-        delete!(modelDict["parameters"], ruleVariable)
-        modelDict["derivatives"][ruleVariable] = "D(" * ruleVariable * ") ~ " * ruleFormula
-    elseif ruleVariable ∈ keys(modelDict["states"])
+    if rule_variable ∈ keys(model_dict["parameters"])
+        model_dict["derivatives"][rule_variable] = "D(" * rule_variable * ") ~ " * rule_formula
+        model_dict["states"][rule_variable] = model_dict["parameters"][rule_variable]
+        model_dict["stateGivenInAmounts"][rule_variable] = (false, "")
+        model_dict["hasOnlySubstanceUnits"][rule_variable] = false
+        delete!(model_dict["parameters"], rule_variable)
+        model_dict["derivatives"][rule_variable] = "D(" * rule_variable * ") ~ " * rule_formula
+    elseif rule_variable ∈ keys(model_dict["states"])
         # Paranthesis needed to downstream add compartment to scale conc. properly to correct unit for the 
         # state given by a rate-rule.
-        for (stateId, state) in modelSBML.species
-            if !(modelDict["stateGivenInAmounts"][stateId][1] == true && modelDict["hasOnlySubstanceUnits"][stateId] == false)
+        for (state_id, state) in model_SBML.species
+            if !(model_dict["stateGivenInAmounts"][state_id][1] == true && model_dict["hasOnlySubstanceUnits"][state_id] == false)
                 continue
             end
             compartment = state.compartment
-            ruleFormula = replaceWholeWord(ruleFormula, stateId, "(" * stateId * "/" * compartment * ")")
+            rule_formula = replace_whole_word(rule_formula, state_id, "(" * state_id * "/" * compartment * ")")
         end
-        modelDict["derivatives"][ruleVariable] = "D(" * ruleVariable * ") ~ " * "(" * ruleFormula * ")"
+        model_dict["derivatives"][rule_variable] = "D(" * rule_variable * ") ~ " * "(" * rule_formula * ")"
     else
         @error "Warning : Cannot find rate rule variable in either model states or parameters"
     end
@@ -92,50 +84,50 @@ end
 # Rewrites time-dependent ifElse-statements to depend on a boolean variable. This makes it possible to treat piecewise
 # as events, allowing us to properly handle discontinious. Does not rewrite ifElse if the activation criteria depends
 # on a state.
-function timeDependentIfElseToBool!(modelDict::Dict)
+function time_dependent_ifelse_to_bool!(model_dict::Dict)
 
     # Rewrite piecewise using Boolean variables. Due to the abillity of piecewiese statements to be nested
     # recursion is needed.
-    for key in keys(modelDict["inputFunctions"])
-        formulaWithIfelse = modelDict["inputFunctions"][key]
-        modelDict["inputFunctions"][key] = reWriteStringWithIfelseToBool(string(formulaWithIfelse), modelDict, key)
+    for key in keys(model_dict["inputFunctions"])
+        formula_with_ifelse = model_dict["inputFunctions"][key]
+        model_dict["inputFunctions"][key] = _time_dependent_ifelse_to_bool(string(formula_with_ifelse), model_dict, key)
     end
 end
 
 
-function reWriteStringWithIfelseToBool(formulaWithIfelse::String, modelDict::Dict, key::String)::String
+function _time_dependent_ifelse_to_bool(formula_with_ifelse::String, model_dict::Dict, key::String)::String
 
-    formulaReplaced = formulaWithIfelse
+    formula_replaced = formula_with_ifelse
 
-    indexIfElse = getIndexPiecewise(formulaWithIfelse)
-    if isempty(indexIfElse)
-        return formulaReplaced
+    index_ifelse = get_index_piecewise(formula_with_ifelse)
+    if isempty(index_ifelse)
+        return formula_replaced
     end
 
-    for i in eachindex(indexIfElse)
+    for i in eachindex(index_ifelse)
 
-        ifelseFormula = formulaWithIfelse[indexIfElse[i]][8:end-1]
-        activationRule, leftSide, rightSide = splitIfElse(ifelseFormula)
+        ifelse_formula = formula_with_ifelse[index_ifelse[i]][8:end-1]
+        activationRule, left_side, right_side = split_ifelse(ifelse_formula)
 
         # Find inequality
         iLt = findfirst(x -> x == '<', activationRule)
         iGt = findfirst(x -> x == '>', activationRule)
         if isnothing(iGt) && !isnothing(iLt)
-            signUsed = "lt"
+            sign_used = "lt"
             if activationRule[iLt:(iLt+1)] == "<="
                 splitBy = "<="
             else
                 splitBy = "<"
             end
         elseif !isnothing(iGt) && isnothing(iLt)
-            signUsed = "gt"
+            sign_used = "gt"
             if activationRule[iGt:(iGt+1)] == ">="
                 splitBy = ">="
             else
                 splitBy = ">"
             end
         elseif occursin("!=", activationRule) || occursin("==", activationRule)
-            rewriteIfElse = false
+            rewrite_ifelse = false
             continue
         else
             println("Error : Did not find criteria to split ifelse on")
@@ -143,91 +135,91 @@ function reWriteStringWithIfelseToBool(formulaWithIfelse::String, modelDict::Dic
         lhsRule, rhsRule = split(activationRule, string(splitBy))
 
         # Identify which side of ifelse expression is activated with time
-        timeRight = checkForTime(string(rhsRule))
-        timeLeft = checkForTime(string(lhsRule))
-        rewriteIfElse = true
-        if timeLeft == false && timeLeft == false
+        time_right = check_for_time(string(rhsRule))
+        time_left = check_for_time(string(lhsRule))
+        rewrite_ifelse = true
+        if time_left == false && time_left == false
             println("Have ifelse statements which does not contain time. Hence we do not rewrite as event, but rather keep it as an ifelse.")
-            rewriteIfElse = false
+            rewrite_ifelse = false
             continue
-        elseif timeLeft == true
-            signTime = checkSignTime(string(lhsRule))
-            if (signTime == 1 && signUsed == "lt") || (signTime == -1 && signUsed == "gt")
-                sideActivatedWithTime = "right"
-            elseif (signTime == 1 && signUsed == "gt") || (signTime == -1 && signUsed == "lt")
-                sideActivatedWithTime = "left"
+        elseif time_left == true
+            sign_time = check_sign_time(string(lhsRule))
+            if (sign_time == 1 && sign_used == "lt") || (sign_time == -1 && sign_used == "gt")
+                side_activated_with_time = "right"
+            elseif (sign_time == 1 && sign_used == "gt") || (sign_time == -1 && sign_used == "lt")
+                side_activated_with_time = "left"
             end
-        elseif timeRight == true
-            signTime = checkSignTime(string(rhsRule))
-            if (signTime == 1 && signUsed == "lt") || (signTime == -1 && signUsed == "gt")
-                sideActivatedWithTime = "left"
-            elseif (signTime == 1 && signUsed == "gt") || (signTime == -1 && signUsed == "lt")
-                sideActivatedWithTime = "right"
+        elseif time_right == true
+            sign_time = check_sign_time(string(rhsRule))
+            if (sign_time == 1 && sign_used == "lt") || (sign_time == -1 && sign_used == "gt")
+                side_activated_with_time = "left"
+            elseif (sign_time == 1 && sign_used == "gt") || (sign_time == -1 && sign_used == "lt")
+                side_activated_with_time = "right"
             end
         end
 
         # In case of nested ifelse rewrite left-hand and right-hand side
-        leftSide = reWriteStringWithIfelseToBool(string(leftSide), modelDict, key)
-        rightSide = reWriteStringWithIfelseToBool(string(rightSide), modelDict, key)
+        left_side = _time_dependent_ifelse_to_bool(string(left_side), model_dict, key)
+        right_side = _time_dependent_ifelse_to_bool(string(right_side), model_dict, key)
 
-        if rewriteIfElse == true
+        if rewrite_ifelse == true
             j = 1
-            local varName = ""
+            local variable_name = ""
             while true
-                varName = string(key) * "_bool" * string(j)
-                if varName ∉ keys(modelDict["boolVariables"])
+                variable_name = string(key) * "_bool" * string(j)
+                if variable_name ∉ keys(model_dict["boolVariables"])
                     break
                 end
                 j += 1
             end
-            activatedWithTime = sideActivatedWithTime == "left" ? leftSide : rightSide
-            deActivatedWithTime = sideActivatedWithTime == "left" ? rightSide : leftSide
-            formulaInModel = "((1 - " * varName * ")*" * "(" * deActivatedWithTime *") + " * varName * "*(" * activatedWithTime * "))"
-            modelDict["parameters"][varName] = "0.0"
-            formulaReplaced = replace(formulaReplaced, formulaWithIfelse[indexIfElse[i]] => formulaInModel)
-            modelDict["boolVariables"][varName] = [activationRule, sideActivatedWithTime]
+            activated_with_time = side_activated_with_time == "left" ? left_side : right_side
+            deactivated_with_time = side_activated_with_time == "left" ? right_side : left_side
+            formula_in_model = "((1 - " * variable_name * ")*" * "(" * deactivated_with_time *") + " * variable_name * "*(" * activated_with_time * "))"
+            model_dict["parameters"][variable_name] = "0.0"
+            formula_replaced = replace(formula_replaced, formula_with_ifelse[index_ifelse[i]] => formula_in_model)
+            model_dict["boolVariables"][variable_name] = [activationRule, side_activated_with_time]
         end
     end
 
-    return formulaReplaced
+    return formula_replaced
 end
 
 
 # Here we assume we receive the arguments to ifelse(a ≤ 1 , b, c) on the form
 # a ≤ 1, b, c and our goal is to return tuple(a ≤ 1, b, c)
-function splitIfElse(str::String)
-    paranthesisLevel = 0
+function split_ifelse(str::String)
+    paranthesis_level = 0
     split, i = 1, 1
-    firstSet, secondSet, thirdSet = 1, 1, 1
+    first_set, second_set, thirdSet = 1, 1, 1
     while i < length(str)
 
         if str[i] == '('
-            paranthesisLevel += 1
+            paranthesis_level += 1
         elseif str[i] == ')'
-            paranthesisLevel -= 1
+            paranthesis_level -= 1
         end
 
-        if str[i] == ',' && paranthesisLevel == 0
+        if str[i] == ',' && paranthesis_level == 0
             if split == 1
-                firstSet = 1:(i-1)
+                first_set = 1:(i-1)
                 split += 1
             elseif split == 2
-                secondSet = (firstSet[end]+2):(i-1)
-                thirdSet = (secondSet[end]+2):length(str)
+                second_set = (first_set[end]+2):(i-1)
+                thirdSet = (second_set[end]+2):length(str)
                 break
             end
         end
         i += 1
     end
-    return str[firstSet], str[secondSet], str[thirdSet]
+    return str[first_set], str[second_set], str[thirdSet]
 end
 
 
-function getIndexPiecewise(str::String)
+function get_index_piecewise(str::String)
 
     ret = Array{Any, 1}(undef, 0)
 
-    iStart, iEnd = 0, 0
+    i_start, i_end = 0, 0
     i = 1
     while i < length(str)
 
@@ -236,21 +228,21 @@ function getIndexPiecewise(str::String)
         end
 
         if str[i:(i+5)] == "ifelse"
-            iStart = i
-            paranthesisLevel = 1
+            i_start = i
+            paranthesis_level = 1
             for j in (i+7):length(str)
                 if str[j] == '('
-                    paranthesisLevel += 1
+                    paranthesis_level += 1
                 elseif str[j] == ')'
-                    paranthesisLevel -= 1
+                    paranthesis_level -= 1
                 end
-                if paranthesisLevel == 0
-                    iEnd = j
+                if paranthesis_level == 0
+                    i_end = j
                     break
                 end
             end
-            ret = push!(ret, collect(iStart:iEnd))
-            i = iEnd + 1
+            ret = push!(ret, collect(i_start:i_end))
+            i = i_end + 1
             continue
         end
         i += 1

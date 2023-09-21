@@ -12,7 +12,7 @@ using LinearAlgebra
 include(joinpath(@__DIR__, "Common.jl"))
 
 
-function compareAgainstPyPestoBoehm(petabModel::PEtabModel, solverOptions)
+function compareAgainstPyPestoBoehm(petab_model::PEtabModel, solverOptions)
 
     dirValues = joinpath(@__DIR__, "Test_ll", "Boehm_JProteomeRes2014")
     paramVals = CSV.File(joinpath(dirValues, "Parameters_PyPesto.csv"), drop=[:Id, :ratio, :specC17])
@@ -33,32 +33,32 @@ function compareAgainstPyPestoBoehm(petabModel::PEtabModel, solverOptions)
         referenceHessian = Float64.(collect(hessPythonMat[i])[hessFilter])
 
         # Test both the standard and Zygote approach to compute the cost
-        cost = _testCostGradientOrHessian(petabModel, solverOptions, p, computeCost=true, costMethod=:Standard)
+        cost = _testCostGradientOrHessian(petab_model, solverOptions, p, compute_cost=true, cost_method=:Standard)
         @test cost ≈ referenceCost atol=1e-3
-        costZygote = _testCostGradientOrHessian(petabModel, solverOptions, p, computeCost=true, costMethod=:Zygote)
+        costZygote = _testCostGradientOrHessian(petab_model, solverOptions, p, compute_cost=true, cost_method=:Zygote)
         @test costZygote ≈ referenceCost atol=1e-3
 
         # Test all gradient combinations. Note we test sensitivity equations with and without autodiff
-        gradientForwardDiff = _testCostGradientOrHessian(petabModel, solverOptions, p, computeGradient=true, gradientMethod=:ForwardDiff)
+        gradientForwardDiff = _testCostGradientOrHessian(petab_model, solverOptions, p, compute_gradient=true, gradient_method=:ForwardDiff)
         @test norm(gradientForwardDiff - referenceGradient) ≤ 1e-2
-        gradientZygote = _testCostGradientOrHessian(petabModel, solverOptions, p, computeGradient=true, gradientMethod=:Zygote, sensealg=ForwardDiffSensitivity())
+        gradientZygote = _testCostGradientOrHessian(petab_model, solverOptions, p, compute_gradient=true, gradient_method=:Zygote, sensealg=ForwardDiffSensitivity())
         @test norm(gradientZygote - referenceGradient) ≤ 1e-2
-        gradientAdjoint = _testCostGradientOrHessian(petabModel, solverOptions, p, computeGradient=true, gradientMethod=:Adjoint, sensealg=InterpolatingAdjoint(autojacvec=ReverseDiffVJP(false)))
-        @test norm(normalize(gradientAdjoint) - normalize((referenceGradient))) ≤ 1e-2
-        gradientForward1 = _testCostGradientOrHessian(petabModel, solverOptions, p, computeGradient=true, gradientMethod=:ForwardEquations, sensealg=:ForwardDiff)
+        gradient_adjoint = _testCostGradientOrHessian(petab_model, solverOptions, p, compute_gradient=true, gradient_method=:Adjoint, sensealg=InterpolatingAdjoint(autojacvec=ReverseDiffVJP(false)))
+        @test norm(normalize(gradient_adjoint) - normalize((referenceGradient))) ≤ 1e-2
+        gradientForward1 = _testCostGradientOrHessian(petab_model, solverOptions, p, compute_gradient=true, gradient_method=:ForwardEquations, sensealg=:ForwardDiff)
         @test norm(gradientForward1 - referenceGradient) ≤ 1e-2
-        gradientForward2 = _testCostGradientOrHessian(petabModel, ODESolverOptions(CVODE_BDF(), abstol=1e-9, reltol=1e-9), p, computeGradient=true, gradientMethod=:ForwardEquations, sensealg=ForwardSensitivity())
+        gradientForward2 = _testCostGradientOrHessian(petab_model, ODESolver(CVODE_BDF(), abstol=1e-9, reltol=1e-9), p, compute_gradient=true, gradient_method=:ForwardEquations, sensealg=ForwardSensitivity())
         @test norm(gradientForward2 - referenceGradient) ≤ 1e-2
 
         # Testing "exact" hessian via autodiff
-        hessian = _testCostGradientOrHessian(petabModel, solverOptions, p, computeHessian=true, hessianMethod=:GaussNewton)
+        hessian = _testCostGradientOrHessian(petab_model, solverOptions, p, compute_hessian=true, hessian_method=:GaussNewton)
         @test norm(hessian[:] - referenceHessian) ≤ 1e-3
 
     end
 end
 
-pathYAML = joinpath(@__DIR__, "Test_ll", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
-petabModel = readPEtabModel(pathYAML, forceBuildJuliaFiles=true, writeToFile=false)
+path_yaml = joinpath(@__DIR__, "Test_ll", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
+petab_model = PEtabModel(path_yaml, build_julia_files=true, write_to_file=false)
 @testset "Against PyPesto : Boehm" begin
-    compareAgainstPyPestoBoehm(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-9, reltol=1e-9))
+    compareAgainstPyPestoBoehm(petab_model, ODESolver(Rodas4P(), abstol=1e-9, reltol=1e-9))
 end

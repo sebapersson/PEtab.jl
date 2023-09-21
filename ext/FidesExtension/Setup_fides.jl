@@ -14,7 +14,7 @@ function PEtab.calibrate_model_multistart(petab_problem::PEtab.PEtabODEProblem,
     if !isnothing(seed)
         Random.seed!(seed)
     end
-    res = PEtab._multistartModelCallibration(petab_problem, alg, n_multistarts, dir_save, sampling_method, options, save_trace)
+    res = PEtab._calibrate_model_multistart(petab_problem, alg, n_multistarts, dir_save, sampling_method, options, save_trace)
     return res
 end
 
@@ -31,12 +31,12 @@ function PEtab.calibrate_model(petab_problem::PEtabODEProblem,
         @warn "For Fides the x and f trace cannot currently be saved (we are working on it)" maxlog=10     
     end          
 
-    runFides = createFidesProblem(petab_problem, alg, options=options)
+    run_fides = create_fides_problem(petab_problem, alg, options=options)
 
     # Create a runnable function taking parameter as input                            
     local n_iterations, fmin, xmin, converged, runtime, ftrace, xtrace
     try
-        runtime = @elapsed res, n_iterations, converged = runFides(p0)
+        runtime = @elapsed res, n_iterations, converged = run_fides(p0)
         fmin = res[1]
         xmin = res[2]
         ftrace = Vector{Float64}(undef, 0)
@@ -50,9 +50,9 @@ function PEtab.calibrate_model(petab_problem::PEtabODEProblem,
         converged = :Code_crashed
         runtime = NaN
     end
-    algUsed = :Fides
+    alg_used = :Fides
 
-    return PEtabOptimisationResult(algUsed,
+    return PEtabOptimisationResult(alg_used,
                                    xtrace, 
                                    ftrace, 
                                    n_iterations, 
@@ -64,52 +64,52 @@ function PEtab.calibrate_model(petab_problem::PEtabODEProblem,
 end
 
 
-function createFidesProblem(petab_problem::PEtabODEProblem,
-                            fidesSetting::Fides; # In case you want to use any Fides optimizer
-                            options=py"{'maxiter' : 1000}"o,
-                            funargs=py"None"o,
-                            resfun::Bool=false)
+function create_fides_problem(petab_problem::PEtabODEProblem,
+                              fides::Fides; 
+                              options=py"{'maxiter' : 1000}"o,
+                              funargs=py"None"o,
+                              resfun::Bool=false)
 
-    nParam = length(petab_problem.lower_bounds)
-    if !isnothing(fidesSetting.hessian_method)
-        useHessianApproximation = true
+    n_parameters = length(petab_problem.lower_bounds)
+    if !isnothing(fides.hessian_method)
+        approximate_hessian = true
     else
         # Put hessian function into acceptable Fides format
-        useHessianApproximation = false
-        hessian = zeros(Float64, (nParam, nParam))
-        compute_hessian! = (p) -> evalAutoDiffHess(p, petab_problem.compute_hessian!, hessian)
+        approximate_hessian = false
+        hessian = zeros(Float64, (n_parameters, n_parameters))
+        compute_hessian! = (p) -> eval_ad_hessian(p, petab_problem.compute_hessian!, hessian)
     end
 
-    gradient = zeros(Float64, nParam)
-    compute_gradient! = (p) -> evalAutoDiffGrad(p, petab_problem.compute_gradient!, gradient)
+    gradient = zeros(Float64, n_parameters)
+    compute_gradient! = (p) -> eval_ad_gradient(p, petab_problem.compute_gradient!, gradient)
 
     # Fides objective funciton
-    if useHessianApproximation == false
-        fidesFunc = (p) -> fidesObjHess(p, petab_problem.compute_cost, compute_gradient!, compute_hessian!)
+    if approximate_hessian == false
+        fidesFunc = (p) -> fides_obj_hessian(p, petab_problem.compute_cost, compute_gradient!, compute_hessian!)
     else
-        fidesFunc = (p) -> fidesObjApprox(p, petab_problem.compute_cost, compute_gradient!)
+        fidesFunc = (p) -> fides_obj_hessian_approximation(p, petab_problem.compute_cost, compute_gradient!)
     end
 
     # Set up a runnable executeble for Fides
-    fidesObj = setUpFidesClass(fidesFunc, petab_problem.upper_bounds, petab_problem.lower_bounds,
-                               fidesSetting.verbose,
-                               options,
-                               funargs,
-                               string(fidesSetting.hessian_method),
-                               resfun)
+    fides_runable = setup_fides(fidesFunc, petab_problem.upper_bounds, petab_problem.lower_bounds,
+                                fides.verbose,
+                                options,
+                                funargs,
+                                string(fides.hessian_method),
+                                resfun)
 
-    return fidesObj
+    return fides_runable
 end
 
 
-function setUpFidesClass(fun,
-                         ub,
-                         lb,
-                         verbose,
-                         options,
-                         funargs,
-                         hessian_update,
-                         resfun::Bool)
+function setup_fides(fun,
+                     ub,
+                     lb,
+                     verbose,
+                     options,
+                     funargs,
+                     hessian_update,
+                     resfun::Bool)
 
     py"""
     import numpy as np
@@ -153,43 +153,43 @@ function setUpFidesClass(fun,
 
     """
 
-    runFidesJulia = (x0; verbose=verbose, options=options, funargs=funargs, hessian_update=hessian_update, resfun=resfun) -> py"run_fides_python"(x0, fun, ub, lb, verbose, options, funargs, hessian_update, resfun)
-    return runFidesJulia
+    run_fides_julia = (x0; verbose=verbose, options=options, funargs=funargs, hessian_update=hessian_update, resfun=resfun) -> py"run_fides_python"(x0, fun, ub, lb, verbose, options, funargs, hessian_update, resfun)
+    return run_fides_julia
 end
 
 
 # Helper function ensuring the hessian is returned as required by fides
-function evalAutoDiffHess(p,
-                          evalHess!::Function,
-                          hessMat::Matrix{Float64})
-    hessMat .= 0
-    evalHess!(hessMat, p)
-    return hessMat[:, :]
+function eval_ad_hessian(p,
+                         compute_hessian!::Function,
+                         hessian::Matrix{Float64})
+    hessian .= 0
+    compute_hessian!(hessian, p)
+    return hessian[:, :]
 end
 
 
 # Helper function ensuring the gradient is returned as required by fides
-function evalAutoDiffGrad(p,
-                          evelGrad!::Function,
+function eval_ad_gradient(p,
+                          compute_gradient!::Function,
                           gradient::Vector{Float64})
-    gradient .= 0.0
-    evelGrad!(gradient, p)
+    fill!(gradient, 0.0)
+    compute_gradient!(gradient, p)
     return gradient[:]
 end
 
 
 # Helper functions wrapping the output into a Fides acceptable format when hessian is provided
-function fidesObjHess(p, evalF::Function, evalGradF::Function, evalHessF::Function)
-    fVal = evalF(p)
-    fGradVal = evalGradF(p)
-    fHessVal = evalHessF(p)
-    return (fVal, fGradVal, fHessVal)
+function fides_obj_hessian(p, compute_cost::Function, compute_gradient::Function, compute_hessian::Function)
+    f = compute_cost(p)
+    ∇f = compute_gradient(p)
+    Δf = compute_hessian(p)
+    return (f, ∇f, Δf)
 end
 
 
 # Helper functions wrapping the output into a Fides acceptable format when hessian approximation is used
-function fidesObjApprox(p, evalF::Function, evalGradF::Function)
-    fVal = evalF(p)
-    fGradVal = evalGradF(p)
-    return (fVal, fGradVal)
+function fides_obj_hessian_approximation(p, compute_cost::Function, compute_gradient::Function)
+    f = compute_cost(p)
+    ∇f = compute_gradient(p)
+    return (f, ∇f)
 end

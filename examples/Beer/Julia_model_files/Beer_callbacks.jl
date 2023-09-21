@@ -8,7 +8,7 @@ function getCallbacks_Beer()
 		integrator.p[1] = 1.0
 	end
 
-	function isActiveAtTime0_lag_bool1!(u, p)
+	function is_active_t0_lag_bool1!(u, p)
 		t = 0.0 # Used to check conditions activated at t0=0
 		p[1] = 0.0 # Default to being off
 		if !(t - p[7] < 0)
@@ -19,7 +19,7 @@ function getCallbacks_Beer()
 
 	cb_lag_bool1 = DiscreteCallback(condition_lag_bool1, affect_lag_bool1!, save_positions=(false, false))
 
-	return CallbackSet(cb_lag_bool1), Function[isActiveAtTime0_lag_bool1!], true
+	return CallbackSet(cb_lag_bool1), Function[is_active_t0_lag_bool1!], true
 end
 
 

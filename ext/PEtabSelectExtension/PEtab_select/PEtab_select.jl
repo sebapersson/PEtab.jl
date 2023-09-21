@@ -102,7 +102,7 @@ function PEtab.run_PEtab_select(path_yaml::String,
 
         # Setup dictionary to conveniently storing model parameters
         estimatedParameters = Dict(string(petab_problem.θ_names[i]) => fArg[i] for i in eachindex(fArg))
-        nDataPoints = length(_petab_problem.compute_cost.measurementInfo.measurement)
+        nDataPoints = length(_petab_problem.compute_cost.measurement_info.measurement)
         py"update_model"(select_problem, model, f, estimatedParameters, nDataPoints)
     end
 
@@ -117,8 +117,8 @@ function PEtab.run_PEtab_select(path_yaml::String,
     # First we use the model-space file to build (from parameter viewpoint) the biggest possible PEtab model. Then remake is called on the "big" petabproblem,
     # thus when we compare different models we do not have to pre-compile the model
     dir_model = splitdir(path_yaml)[1]
-    fileYAML = YAML.load_file(path_yaml)
-    modelSpaceFile = CSV.File(joinpath(dir_model, fileYAML["model_space_files"][1]), stringtype=String)
+    file_yaml = YAML.load_file(path_yaml)
+    modelSpaceFile = CSV.File(joinpath(dir_model, file_yaml["model_space_files"][1]), stringtype=String)
     parametersToChange = Symbol.(propertynames(modelSpaceFile)[3:end])
     _custom_parameter_values = Dict(); [_custom_parameter_values[parametersToChange[i]] = "estimate" for i in eachindex(parametersToChange)]
     _petab_model = PEtabModel(joinpath(dir_model, modelSpaceFile[1][:petab_yaml]), build_julia_files=true, verbose=false)
@@ -141,8 +141,8 @@ function PEtab.run_PEtab_select(path_yaml::String,
     calibrated_models, newly_calibrated_models = py"setup_tracking"()
 
     select_problem = py"setup_petab_select"(path_yaml)
-    strWrite = @sprintf("PEtab select problem info\nMethod: %s\nCriterion: %s\n", select_problem.method, select_problem.criterion)
-    @info "$strWrite"
+    str_write = @sprintf("PEtab select problem info\nMethod: %s\nCriterion: %s\n", select_problem.method, select_problem.criterion)
+    @info "$str_write"
 
     # Check if there is a predecessor model to setup the parameter space
     candidate_space = py"create_candidate_space"(select_problem)
@@ -167,8 +167,8 @@ function PEtab.run_PEtab_select(path_yaml::String,
     end
 
     # Export best model information to YAML
-    pathSave = joinpath(splitdir(path_yaml)[1], "PEtab_select_" * string(select_problem.method) * "_" * select_problem.criterion * ".yaml")
-    @info "Saving results for best model at $pathSave"
-    py"write_selection_result"(best_model, pathSave)
-    return pathSave
+    path_save = joinpath(splitdir(path_yaml)[1], "PEtab_select_" * string(select_problem.method) * "_" * select_problem.criterion * ".yaml")
+    @info "Saving results for best model at $path_save"
+    py"write_selection_result"(best_model, path_save)
+    return path_save
 end

@@ -25,11 +25,11 @@ For how to construct see below.
 - `convert_tspan::Bool`: Tracks whether the time span should be converted to `Dual` numbers for `ForwardDiff.jl` gradients, in case the model has `DiscreteCallbacks` and the trigger time is a parameter set to be estimated.
 - `dir_model`: The directory where the model.xml and PEtab files are stored.
 - `dir_julia`: The directory where the Julia-model files created by parsing the PEtab files (e.g., SBML file) are stored.
-- `odeSystem`: A `ModellingToolkit.jl` ODE system obtained from parsing the model SBML file.
+- `ode_system`: A `ModellingToolkit.jl` ODE system obtained from parsing the model SBML file.
 - `parameter_map`: A `ModellingToolkit.jl` parameter map for the ODE system.
 - `state_map`: A `ModellingToolkit.jl` state map for the ODE system describing how the initial values are computed, e.g., whether or not certain initial values are computed from parameters in the `parameter_map`.
-- `parameter_names`: The names of the parameters in the `odeSystem`.
-- `state_names`: The names of the states in the `odeSystem`.
+- `parameter_names`: The names of the parameters in the `ode_system`.
+- `state_names`: The names of the states in the `ode_system`.
 - `path_measurements`: The path to the PEtab measurements file.
 - `path_conditions`: The path to the PEtab conditions file.
 - `path_observables`: The path to the PEtab observables file.
@@ -172,48 +172,48 @@ end
 struct SimulationInfo{T1<:Dict{<:Symbol, <:SciMLBase.DECallback},
                       T2<:Dict{<:Symbol, <:SciMLBase.DECallback}}
 
-    preEquilibrationConditionId::Vector{Symbol}
-    simulationConditionId::Vector{Symbol}
-    experimentalConditionId::Vector{Symbol}
-    haspreEquilibrationConditionId::Bool
-    odeSolutions::Dict{Symbol, Union{Nothing, ODESolution}}
-    odeSolutionsDerivatives::Dict{Symbol, Union{Nothing, ODESolution}}
-    odePreEqulibriumSolutions::Dict{Symbol, Union{Nothing, ODESolution, SciMLBase.NonlinearSolution}}
-    couldSolve::Vector{Bool}
-    timeMax::Dict{Symbol, Float64}
-    timeObserved::Dict{Symbol, Vector{Float64}}
-    iMeasurements::Dict{Symbol, Vector{Int64}}
-    iTimeODESolution::Vector{Int64}
-    iPerTimePoint::Dict{Symbol, Vector{Vector{Int64}}}
-    timePositionInODESolutions::Dict{Symbol, UnitRange{Int64}}
+    pre_equilibration_condition_id::Vector{Symbol}
+    simulation_condition_id::Vector{Symbol}
+    experimental_condition_id::Vector{Symbol}
+    has_pre_equilibration_condition_id::Bool
+    ode_sols::Dict{Symbol, Union{Nothing, ODESolution}}
+    ode_sols_derivatives::Dict{Symbol, Union{Nothing, ODESolution}}
+    ode_sols_pre_equlibrium::Dict{Symbol, Union{Nothing, ODESolution, SciMLBase.NonlinearSolution}}
+    could_solve::Vector{Bool}
+    tmax::Dict{Symbol, Float64}
+    time_observed::Dict{Symbol, Vector{Float64}}
+    i_measurements::Dict{Symbol, Vector{Int64}}
+    i_time_ode_sol::Vector{Int64}
+    i_per_time_point::Dict{Symbol, Vector{Vector{Int64}}}
+    time_position_ode_sol::Dict{Symbol, UnitRange{Int64}}
     callbacks::T1
-    trackedCallbacks::T2
+    tracked_callbacks::T2
     sensealg
 end
 
 
 struct θObsOrSdParameterMap
-    shouldEstimate::Array{Bool, 1}
-    indexInθ::Array{Int64, 1}
-    constantValues::Vector{Float64}
-    nParameters::Int64
-    isSingleConstant::Bool
+    should_estimate::Array{Bool, 1}
+    index_in_θ::Array{Int64, 1}
+    constant_values::Vector{Float64}
+    n_parameters::Int64
+    is_single_constant::Bool
 end
 
 
 struct MapConditionId
-    constantParameters::Vector{Float64}
-    iODEProblemConstantParameters::Vector{Int64}
-    constantsStates::Vector{Float64}
-    iODEProblemConstantStates::Vector{Int64}
-    iθDynamic::Vector{Int64}
-    iODEProblemθDynamic::Vector{Int64}
+    constant_parameters::Vector{Float64}
+    i_ode_constant_parameters::Vector{Int64}
+    constant_states::Vector{Float64}
+    i_ode_constant_states::Vector{Int64}
+    iθ_dynamic::Vector{Int64}
+    i_ode_problem_θ_dynamic::Vector{Int64}
 end
 
 
-struct MapODEProblem
-    iθDynamic::Vector{Int64}
-    iODEProblemθDynamic::Vector{Int64}
+struct Map_ode_problem
+    iθ_dynamic::Vector{Int64}
+    i_ode_problem_θ_dynamic::Vector{Int64}
 end
 
 
@@ -222,20 +222,21 @@ struct ParameterIndices
     iθ_dynamic::Vector{Int64}
     iθ_observable::Vector{Int64}
     iθ_sd::Vector{Int64}
-    iθ_nonDynamic::Vector{Int64}
-    iθ_notOdeSystem::Vector{Int64}
-    θ_dynamicNames::Vector{Symbol}
-    θ_observableNames::Vector{Symbol}
-    θ_sdNames::Vector{Symbol}
-    θ_nonDynamicNames::Vector{Symbol}
-    θ_notOdeSystemNames::Vector{Symbol}
+    iθ_non_dynamic::Vector{Int64}
+    iθ_not_ode::Vector{Int64}
+    θ_dynamic_names::Vector{Symbol}
+    θ_observable_names::Vector{Symbol}
+    θ_sd_names::Vector{Symbol}
+    θ_non_dynamic_names::Vector{Symbol}
+    θ_not_odeNames::Vector{Symbol}
     θ_names::Vector{Symbol}
     θ_scale::Dict{Symbol, Symbol}
     mapθ_observable::Vector{θObsOrSdParameterMap}
     mapθ_sd::Vector{θObsOrSdParameterMap}
-    mapODEProblem::MapODEProblem
-    mapsConiditionId::Dict{<:Symbol, <:MapConditionId}
+    map_ode_problem::Map_ode_problem
+    maps_conidition_id::Dict{<:Symbol, <:MapConditionId}
 end
+
 
 """
 Everything needed to setup an optimization problem (compute cost, gradient, hessian and  parameter bounds) for a PEtab model.
@@ -301,11 +302,11 @@ end
 
 
 struct ParametersInfo
-    nominalValue::Vector{Float64}
-    lowerBound::Vector{Float64}
-    upperBound::Vector{Float64}
-    parameterId::Vector{Symbol}
-    parameterScale::Vector{Symbol}
+    nominal_value::Vector{Float64}
+    lower_bounds::Vector{Float64}
+    upper_bounds::Vector{Float64}
+    parameter_id::Vector{Symbol}
+    parameter_scale::Vector{Symbol}
     estimate::Vector{Bool}
     n_parameters_esimtate::Int64
 end
@@ -315,16 +316,16 @@ struct MeasurementsInfo{T<:Vector{<:Union{<:String, <:AbstractFloat}}}
 
     measurement::Vector{Float64}
     measurementT::Vector{Float64}
-    simulatedValues::Vector{Float64}
-    chi2Values::Vector{Float64}
+    simulated_values::Vector{Float64}
+    chi2_values::Vector{Float64}
     residuals::Vector{Float64}
-    measurementTransformation::Vector{Symbol}
+    measurement_transformation::Vector{Symbol}
     time::Vector{Float64}
-    observableId::Vector{Symbol}
-    preEquilibrationConditionId::Vector{Symbol}
-    simulationConditionId::Vector{Symbol}
-    noiseParameters::T
-    observableParameters::Vector{String}
+    observable_id::Vector{Symbol}
+    pre_equilibration_condition_id::Vector{Symbol}
+    simulation_condition_id::Vector{Symbol}
+    noise_parameters::T
+    observable_parameters::Vector{String}
 end
 
 
@@ -335,18 +336,18 @@ struct PEtabODEProblemCache{T1 <: AbstractVector,
     θ_dynamic::T1
     θ_sd::T1
     θ_observable::T1
-    θ_nonDynamic::T1
+    θ_non_dynamic::T1
     θ_dynamicT::T2 # T = transformed vector
     θ_sdT::T2
     θ_observableT::T2
-    θ_nonDynamicT::T2
-    gradientDyanmicθ::T1
-    gradientNotODESystemθ::T1
-    jacobianGN::T4
-    residualsGN::T1
+    θ_non_dynamicT::T2
+    gradient_θ_dyanmic::T1
+    gradient_θ_not_ode::T1
+    jacobian_gn::T4
+    residuals_gn::T1
     _gradient::T1
-    _gradientAdjoint::T1
-    St0::T4
+    _gradient_adjoint::T1
+    S_t0::T4
     ∂h∂u::T3
     ∂σ∂u::T3
     ∂h∂p::T3
@@ -359,23 +360,23 @@ struct PEtabODEProblemCache{T1 <: AbstractVector,
     p::T3
     u::T3
     S::T4
-    odeSolutionValues::T4
-    θ_dynamicInputOrder::Vector{Int64}
-    θ_dynamicOutputOrder::Vector{Int64}
-    nθ_dynamicEst::Vector{Int64}
+    sol_values::T4
+    θ_dynamic_input_order::Vector{Int64}
+    θ_dynamic_output_order::Vector{Int64}
+    nθ_dynamic::Vector{Int64}
 end
 
 
 struct PEtabODESolverCache
-    pODEProblemCache
-    u0Cache
+    p_ode_problem_cache
+    u0_cache
 end
 
 
 struct PriorInfo
     logpdf::Dict{Symbol, Function}
-    priorOnParameterScale::Dict{<:Symbol, <:Bool}
-    hasPriors::Bool
+    prior_on_parameter_scale::Dict{<:Symbol, <:Bool}
+    has_priors::Bool
 end
 
 
@@ -417,13 +418,13 @@ struct Fides
     verbose::Bool
 end
 function Fides(hessian_method::Union{Nothing, Symbol}; verbose::Bool=false)
-    verboseArg = verbose == true ? 1 : 0
+    verbose_arg = verbose == true ? 1 : 0
     if isnothing(hessian_method)
-        return Fides(hessian_method, verboseArg)
+        return Fides(hessian_method, verbose_arg)
     end
     allowed_approximations = [:BB, :BFGS, :BG, :Broyden, :DFB, :FX, :SR1, :SSM, :TSSM]
     @assert hessian_method ∈ allowed_approximations "Hessian approximation method $hessian_method is not allowed, see documentation on Fides for allowed methods"
-    return Fides(hessian_method, verboseArg)
+    return Fides(hessian_method, verbose_arg)
 end
 
 

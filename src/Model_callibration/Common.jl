@@ -1,9 +1,9 @@
 """
     calibrate_model(petab_problem::PEtabODEProblem,
-                   p0::Vector{Float64},
-                   alg;
-                   save_trace::Bool=false,
-                   options=algOptions)::PEtabOptimisationResult
+                    p0::Vector{Float64},
+                    alg;
+                    save_trace::Bool=false,
+                    options=algOptions)::PEtabOptimisationResult
 
 Parameter estimate a model for a PEtabODEProblem using an optimization algorithm `alg` and an initial guess `p0`.
 
@@ -137,38 +137,38 @@ gradient computation. If left blank, we automatically select appropriate options
 function run_PEtab_select end
 
 
-function savePartialResults(pathSaveRes::String,
-                            pathSaveParameters::String,
-                            pathSaveTrace::Union{String, Nothing},
-                            res::PEtabOptimisationResult,
-                            θ_names::Vector{Symbol},
-                            i::Int64)::Nothing
+function save_partial_results(path_save_res::String,
+                              path_save_parameters::String,
+                              path_save_trace::Union{String, Nothing},
+                              res::PEtabOptimisationResult,
+                              θ_names::Vector{Symbol},
+                              i::Int64)::Nothing
 
-    dfSaveRes = DataFrame(fmin=res.fBest,
+    df_save_res = DataFrame(fmin=res.fmin,
                           alg=String(res.alg),
                           n_iterations = res.n_iterations,
                           run_time = res.runtime,
                           converged=string(res.converged),
                           Start_guess=i)
-    dfSaveParameters = DataFrame(Matrix(res.xBest'), θ_names)
-    dfSaveParameters[!, "Start_guess"] = [i]
-    CSV.write(pathSaveRes, dfSaveRes, append=isfile(pathSaveRes))
-    CSV.write(pathSaveParameters, dfSaveParameters, append=isfile(pathSaveParameters))
+    df_save_parameters = DataFrame(Matrix(res.xmin'), θ_names)
+    df_save_parameters[!, "Start_guess"] = [i]
+    CSV.write(path_save_res, df_save_res, append=isfile(path_save_res))
+    CSV.write(path_save_parameters, df_save_parameters, append=isfile(path_save_parameters))
 
-    if !isnothing(pathSaveTrace)
-        dfSaveTrace = DataFrame(Matrix(reduce(vcat, res.xtrace')), θ_names)
-        dfSaveTrace[!, "f_trace"] = res.ftrace
-        dfSaveTrace[!, "Start_guess"] = repeat([i], length(res.ftrace))
-        CSV.write(pathSaveTrace, dfSaveTrace, append=isfile(pathSaveTrace))
+    if !isnothing(path_save_trace)
+        df_save_trace = DataFrame(Matrix(reduce(vcat, res.xtrace')), θ_names)
+        df_save_trace[!, "f_trace"] = res.ftrace
+        df_save_trace[!, "Start_guess"] = repeat([i], length(res.ftrace))
+        CSV.write(path_save_trace, df_save_trace, append=isfile(path_save_trace))
     end
     return nothing
 end
 
 
-function generateStartGuesses(petab_problem::PEtabODEProblem,
-                              sampling_method::T,
-                              n_multistarts::Int64;
-                              verbose::Bool=false)::Matrix{Float64} where T <: QuasiMonteCarlo.SamplingAlgorithm
+function generate_startguesses(petab_problem::PEtabODEProblem,
+                               sampling_method::T,
+                               n_multistarts::Int64;
+                               verbose::Bool=false)::Matrix{Float64} where T <: QuasiMonteCarlo.SamplingAlgorithm
 
     verbose == true && @info "Generating start-guesses"
 
@@ -177,16 +177,16 @@ function generateStartGuesses(petab_problem::PEtabODEProblem,
         return nothing
     end
 
-    startGuesses = Matrix{Float64}(undef, length(petab_problem.lower_bounds), n_multistarts)
-    foundStarts = 0
+    startguesses = Matrix{Float64}(undef, length(petab_problem.lower_bounds), n_multistarts)
+    found_starts = 0
     while true
         # QuasiMonteCarlo is deterministic, so for sufficiently few start-guesses we can end up in a never ending
         # loop. To sidestep this if less than 10 starts are left numbers are generated from the uniform distribution
-        if n_multistarts - foundStarts > 10
-            _samples = QuasiMonteCarlo.sample(n_multistarts - foundStarts, petab_problem.lower_bounds, petab_problem.upper_bounds, sampling_method)
+        if n_multistarts - found_starts > 10
+            _samples = QuasiMonteCarlo.sample(n_multistarts - found_starts, petab_problem.lower_bounds, petab_problem.upper_bounds, sampling_method)
         else
-            _samples = Matrix{Float64}(undef, length(petab_problem.lower_bounds), n_multistarts - foundStarts)
-            for i in 1:(n_multistarts - foundStarts)
+            _samples = Matrix{Float64}(undef, length(petab_problem.lower_bounds), n_multistarts - found_starts)
+            for i in 1:(n_multistarts - found_starts)
                 _samples[:, i] .= [rand() * (petab_problem.upper_bounds[j] - petab_problem.lower_bounds[j]) + petab_problem.lower_bounds[j] for j in eachindex(petab_problem.lower_bounds)]
             end
         end
@@ -195,75 +195,75 @@ function generateStartGuesses(petab_problem::PEtabODEProblem,
             _p = _samples[:, i]
             _cost = petab_problem.compute_cost(_p)
             if !isinf(_cost)
-                foundStarts += 1
-                startGuesses[:, foundStarts] .= _p
+                found_starts += 1
+                startguesses[:, found_starts] .= _p
             end
         end
-        verbose == true && @printf("Found %d of %d multistarts\n", foundStarts, n_multistarts)
-        if foundStarts == n_multistarts
+        verbose == true && @printf("Found %d of %d multistarts\n", found_starts, n_multistarts)
+        if found_starts == n_multistarts
             break
         end
     end
 
-    return startGuesses
+    return startguesses
 end
 
 
-function _multistartModelCallibration(petab_problem::PEtabODEProblem,
-                                      alg,
-                                      n_multistarts,
-                                      dir_save,
-                                      sampling_method,
-                                      options,
-                                      save_trace::Bool)::PEtabMultistartOptimisationResult
+function _calibrate_model_multistart(petab_problem::PEtabODEProblem,
+                                     alg,
+                                     n_multistarts,
+                                     dir_save,
+                                     sampling_method,
+                                     options,
+                                     save_trace::Bool)::PEtabMultistartOptimisationResult
 
     if isnothing(dir_save)
-        pathSavex0, pathSaveRes, pathSaveTrace = nothing, nothing, nothing
+        path_save_x0, path_save_res, path_save_trace = nothing, nothing, nothing
     else
         !isdir(dir_save) && mkpath(dir_save)
         _i = 1
         while true
-            pathSavex0 = joinpath(dir_save, "Start_guesses" * string(_i) * ".csv")
-            if !isfile(pathSavex0)
+            path_save_x0 = joinpath(dir_save, "Start_guesses" * string(_i) * ".csv")
+            if !isfile(path_save_x0)
                 break
             end
             _i += 1
         end
-        pathSavex0 = joinpath(dir_save, "Start_guesses" * string(_i) * ".csv")
-        pathSaveRes = joinpath(dir_save, "Optimisation_results" * string(_i) * ".csv")
-        pathSaveParameters = joinpath(dir_save, "Best_parameters" * string(_i) * ".csv")
+        path_save_x0 = joinpath(dir_save, "Start_guesses" * string(_i) * ".csv")
+        path_save_res = joinpath(dir_save, "Optimisation_results" * string(_i) * ".csv")
+        path_save_parameters = joinpath(dir_save, "Best_parameters" * string(_i) * ".csv")
         if save_trace == true
-            pathSaveTrace = joinpath(dir_save, "Trace" * string(_i) * ".csv")
+            path_save_trace = joinpath(dir_save, "Trace" * string(_i) * ".csv")
         else
-            pathSaveTrace = nothing
+            path_save_trace = nothing
         end
     end
 
-    startGuesses = generateStartGuesses(petab_problem, sampling_method, n_multistarts)
-    if !isnothing(pathSavex0)
-        startGuessesDf = DataFrame(Matrix(startGuesses)', petab_problem.θ_names)
-        startGuessesDf[!, "Start_guess"] = 1:size(startGuessesDf)[1]
-        CSV.write(pathSavex0, startGuessesDf)
+    startguesses = generate_startguesses(petab_problem, sampling_method, n_multistarts)
+    if !isnothing(path_save_x0)
+        startguessesDf = DataFrame(Matrix(startguesses)', petab_problem.θ_names)
+        startguessesDf[!, "Start_guess"] = 1:size(startguessesDf)[1]
+        CSV.write(path_save_x0, startguessesDf)
     end
 
     _res = Vector{PEtabOptimisationResult}(undef, n_multistarts)
     for i in 1:n_multistarts
-        _p0 = startGuesses[:, i]
+        _p0 = startguesses[:, i]
         _res[i] = calibrate_model(petab_problem, _p0, alg, save_trace=save_trace, options=options)
-        if !isnothing(pathSaveRes)
-            savePartialResults(pathSaveRes, pathSaveParameters, pathSaveTrace, _res[i], petab_problem.θ_names, i)
+        if !isnothing(path_save_res)
+            save_partial_results(path_save_res, path_save_parameters, path_save_trace, _res[i], petab_problem.θ_names, i)
         end
     end
 
-    resBest = _res[argmin([_res[i].fmin for i in eachindex(_res)])]
-    fmin = resBest.fmin
-    xmin = resBest.xmin
-    sampling_methodStr = string(sampling_method)[1:findfirst(x -> x == '(', string(sampling_method))][1:end-1]
+    res_best = _res[argmin([_res[i].fmin for i in eachindex(_res)])]
+    fmin = res_best.fmin
+    xmin = res_best.xmin
+    sampling_method_str = string(sampling_method)[1:findfirst(x -> x == '(', string(sampling_method))][1:end-1]
     results = PEtabMultistartOptimisationResult(xmin,
                                                 fmin,
                                                 n_multistarts,
-                                                resBest.alg,
-                                                sampling_methodStr,
+                                                res_best.alg,
+                                                sampling_method_str,
                                                 dir_save,
                                                 _res)
     return results

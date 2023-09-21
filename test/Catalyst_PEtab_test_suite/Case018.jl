@@ -29,10 +29,10 @@ observables = Dict("obs_a" => PEtabObservable(A, 0.5),
                    "obs_b" => PEtabObservable(B, 0.2))
 
 # Create a PEtabODEProblem 
-petab_model = readPEtabModel(rn, simulation_conditions, observables, measurements,
+petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
                             petab_parameters, verbose=false)
-petab_problem = createPEtabODEProblem(petab_model, verbose=false)
+petab_problem = PEtabODEProblem(petab_model, verbose=false)
 
 # Compute negative log-likelihood 
-nll = petab_problem.computeCost(petab_problem.θ_nominalT)
+nll = petab_problem.compute_cost(petab_problem.θ_nominalT)
 @test nll ≈ 6.3898204385477 atol=1e-3

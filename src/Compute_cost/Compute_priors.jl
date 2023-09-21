@@ -1,23 +1,23 @@
 # Evaluate prior contribution. Note, the prior can be on parameter-scale (θ) or on the transformed parameters
 # scale (θT)
-function computePriors(θ_parameterScale::AbstractVector,
-                       θ_linearScale::AbstractVector,
-                       n_parameters_estimate::Vector{Symbol},
-                       priorInfo::PriorInfo)::Real
+function compute_priors(θ_parameter_scale::AbstractVector,
+                        θ_linear_scale::AbstractVector,
+                        n_parameters_estimate::Vector{Symbol},
+                        prior_info::PriorInfo)::Real
 
-    if priorInfo.hasPriors == false
+    if prior_info.has_priors == false
         return 0.0
     end
 
-    priorValue = 0.0
+    prior_value = 0.0
     for (i, θ_name) in pairs(n_parameters_estimate)
-        logpdf = priorInfo.logpdf[θ_name]
-        if priorInfo.priorOnParameterScale[θ_name] == true
-            priorValue += logpdf(θ_parameterScale[i])
+        logpdf = prior_info.logpdf[θ_name]
+        if prior_info.prior_on_parameter_scale[θ_name] == true
+            prior_value += logpdf(θ_parameter_scale[i])
         else
-            priorValue += logpdf(θ_linearScale[i])
+            prior_value += logpdf(θ_linear_scale[i])
         end
     end
 
-    return priorValue
+    return prior_value
 end

@@ -1,7 +1,7 @@
 function _get_steady_state_solver(check_simulation_steady_state::Symbol,
-                                      abstol,
-                                      reltol,
-                                      maxiters)::SteadyStateSolver
+                                  abstol,
+                                  reltol,
+                                  maxiters)::SteadyStateSolver
 
     @assert check_simulation_steady_state ∈ [:Newton, :wrms] "When steady states are computed via simulations check_simulation_steady_state must be :wrms or :Newton not $check_simulation_steady_state"
 
@@ -19,10 +19,10 @@ function _get_steady_state_solver(rootfinding_alg::Union{Nothing, NonlinearSolve
     return SteadyStateSolver(:Rootfinding, _rootfinding_alg, :nothing, abstol, reltol, maxiters, nothing, nothing)
 end
 function _get_steady_state_solver(ss_solver::SteadyStateSolver,
-                                      odeProblem::ODEProblem,
-                                      abstol,
-                                      reltol,
-                                      maxiters)::SteadyStateSolver
+                                  ode_problem::ODEProblem,
+                                  abstol::Float64,
+                                  reltol::Float64,
+                                  maxiters)::SteadyStateSolver
 
     _abstol = isnothing(ss_solver.abstol) ? abstol : ss_solver.abstol
     _reltol = isnothing(ss_solver.reltol) ? reltol : ss_solver.reltol
@@ -30,15 +30,15 @@ function _get_steady_state_solver(ss_solver::SteadyStateSolver,
 
     if ss_solver.method === :Simulate
         if ss_solver.check_simulation_steady_state === :Newton
-            jacobian = zeros(Float64, length(odeProblem.u0), length(odeProblem.u0))
-            condCallback = (u, t, integrator) -> conditionTerminateSS(u, t, integrator, _abstol, _reltol, true,
-                                                                      odeProblem.f.jac, jacobian)
+            jacobian = zeros(Float64, length(ode_problem.u0), length(ode_problem.u0))
+            condition_ss_callback = (u, t, integrator) -> condition_terminate_ss(u, t, integrator, _abstol, _reltol, true,
+                                                                                 ode_problem.f.jac, jacobian)
         elseif ss_solver.check_simulation_steady_state === :wrms
             jacobian = zeros(Float64, 0, 0)
-            condCallback = (u, t, integrator) -> conditionTerminateSS(u, t, integrator, _abstol, _reltol, false,
-                                                                      odeProblem.f.jac, jacobian)
+            condition_ss_callback = (u, t, integrator) -> condition_terminate_ss(u, t, integrator, _abstol, _reltol, false,
+                                                                                 ode_problem.f.jac, jacobian)
         end
-        callback_ss = DiscreteCallback(condCallback, affectTerminateSS!, save_positions=(false, true))
+        callback_ss = DiscreteCallback(condition_ss_callback, affect_terminate_ss!, save_positions=(false, true))
     end
 
     if ss_solver.method === :Rootfinding
@@ -47,117 +47,116 @@ function _get_steady_state_solver(ss_solver::SteadyStateSolver,
 
     # Sanity check user input
     return SteadyStateSolver(ss_solver.method,
-                                    ss_solver.rootfinding_alg,
-                                    ss_solver.check_simulation_steady_state,
-                                    _abstol,
-                                    _reltol,
-                                    _maxiters,
-                                    callback_ss,
-                                    NonlinearProblem(odeProblem))
+                             ss_solver.rootfinding_alg,
+                             ss_solver.check_simulation_steady_state,
+                             _abstol,
+                             _reltol,
+                             _maxiters,
+                             callback_ss,
+                             NonlinearProblem(ode_problem))
 end
 
 
-function solveODEPreEqulibrium!(uAtSS::AbstractVector,
-                                uAtT0::AbstractVector,
-                                odeProblem::ODEProblem,
-                                changeExperimentalCondition!::Function,
-                                preEquilibrationId::Symbol,
-                                ode_solver::ODESolver,
-                                ss_solver::SteadyStateSolver,
-                                convert_tspan::Bool)::Union{ODESolution, SciMLBase.NonlinearSolution}
+function solve_ode_pre_equlibrium!(u_ss::AbstractVector,
+                                   u_t0::AbstractVector,
+                                   ode_problem::ODEProblem,
+                                   change_simulation_condition!::Function,
+                                   pre_equilibration_id::Symbol,
+                                   ode_solver::ODESolver,
+                                   ss_solver::SteadyStateSolver,
+                                   convert_tspan::Bool)::Union{ODESolution, SciMLBase.NonlinearSolution}
 
     if ss_solver.method === :Simulate
-        odeSolution = simulateToSS(odeProblem, ode_solver.solver, changeExperimentalCondition!, preEquilibrationId,
-                                   ode_solver, ss_solver, convert_tspan)
-        if odeSolution.retcode == ReturnCode.Terminated || odeSolution.retcode == ReturnCode.Success
-            uAtSS .= odeSolution.u[end]
-            uAtT0 .= odeSolution.prob.u0
+        ode_sol = simulate_to_ss(ode_problem, change_simulation_condition!, pre_equilibration_id,
+                                 ode_solver, ss_solver, convert_tspan)
+        if ode_sol.retcode == ReturnCode.Terminated || ode_sol.retcode == ReturnCode.Success
+            u_ss .= ode_sol.u[end]
+            u_t0 .= ode_sol.prob.u0
         end
-        return odeSolution
+        return ode_sol
     end
 
     if ss_solver.method === :Rootfinding
 
-        rootSolution = rootfindSS(odeProblem, changeExperimentalCondition!, preEquilibrationId, ss_solver)
-        if rootSolution.retcode == ReturnCode.Success
-            uAtSS .= rootSolution.u
-            uAtT0 .= rootSolution.prob.u0
+        root_sol = rootfind_ss(ode_problem, change_simulation_condition!, pre_equilibration_id, ss_solver)
+        if root_sol.retcode == ReturnCode.Success
+            u_ss .= root_sol.u
+            u_t0 .= root_sol.prob.u0
         end
-        return rootSolution
+        return root_sol
     end
 end
 
 
-function simulateToSS(odeProblem::ODEProblem,
-                      solver::S,
-                      changeExperimentalCondition!::Function,
-                      preEquilibrationId::Symbol,
-                      ode_solver::ODESolver,
-                      ss_solver::SteadyStateSolver,
-                      convert_tspan::Bool)::ODESolution where S<:SciMLAlgorithm
+function simulate_to_ss(ode_problem::ODEProblem,
+                        change_simulation_condition!::Function,
+                        pre_equilibration_id::Symbol,
+                        ode_solver::ODESolver,
+                        ss_solver::SteadyStateSolver,
+                        convert_tspan::Bool)::ODESolution 
 
-    changeExperimentalCondition!(odeProblem.p, odeProblem.u0, preEquilibrationId)
-    _odeProblem = setTspanODEProblem(odeProblem, Inf, ode_solver.solver, convert_tspan)
+    change_simulation_condition!(ode_problem.p, ode_problem.u0, pre_equilibration_id)
+    _ode_problem = get_tspan(ode_problem, Inf, ode_solver.solver, convert_tspan)
 
     abstol, reltol, maxiters = ode_solver.abstol, ode_solver.reltol, ode_solver.maxiters
     callback_ss = ss_solver.callback_ss
 
-    sol = solve(_odeProblem, solver, abstol=abstol, reltol=reltol, maxiters=maxiters, dense=false, callback=callback_ss)
+    sol = solve(_ode_problem, ode_solver.solver, abstol=abstol, reltol=reltol, maxiters=maxiters, dense=false, callback=callback_ss)
     return sol
 end
 
 
 # Callback in case steady-state is found via  model simulation
-function conditionTerminateSS(u, t, integrator,
-                              abstol::Float64,
-                              reltol::Float64,
-                              checkNewton::Bool,
-                              computeJacobian!::Function,
-                              jacobian::AbstractMatrix)
+function condition_terminate_ss(u, t, integrator,
+                                abstol::Float64,
+                                reltol::Float64,
+                                check_newton::Bool,
+                                compute_jacobian::Function,
+                                jacobian::AbstractMatrix)
 
     testval = first(get_tmp_cache(integrator))
     DiffEqBase.get_du!(testval, integrator)
 
-    checkWrms = true
+    check_wrms = true
     local Δu
 
-    if checkNewton == true
-        computeJacobian!(jacobian, dualToFloat.(u), dualToFloat.(integrator.p), dualToFloat(t))
+    if check_newton == true
+        compute_jacobian(jacobian, dual_to_float.(u), dual_to_float.(integrator.p), dual_to_float(t))
         # In case Jacobian is non-invertible default wrms
         try
             Δu = jacobian \ testval
-            checkWrms = false
+            check_wrms = false
         catch
             @warn "Jacobian non-invertible resorts to wrms for steady state simulations (displays max 10 times)" maxlog=10
-            checkWrms = true
+            check_wrms = true
         end
     end
 
-    if checkWrms == false
-        valCheck = sqrt(sum((Δu / (reltol * integrator.u .+ abstol)).^2) / length(u))
+    if check_wrms == false
+        value_check = sqrt(sum((Δu / (reltol * integrator.u .+ abstol)).^2) / length(u))
     else
-        valCheck = sqrt(sum((testval ./ (reltol * integrator.u .+ abstol)).^2) / length(u))
+        value_check = sqrt(sum((testval ./ (reltol * integrator.u .+ abstol)).^2) / length(u))
     end
 
-    return valCheck < 1.0
+    return value_check < 1.0
 end
-function affectTerminateSS!(integrator)
+function affect_terminate_ss!(integrator)
     terminate!(integrator)
 end
 
 
-function rootfindSS(odeProblem::ODEProblem,
-                    changeExperimentalCondition!::Function,
-                    preEquilibrationId::Symbol,
-                    ss_solver::SteadyStateSolver)::SciMLBase.NonlinearSolution
+function rootfind_ss(ode_problem::ODEProblem,
+                     change_simulation_condition!::Function,
+                     pre_equilibration_id::Symbol,
+                     ss_solver::SteadyStateSolver)::SciMLBase.NonlinearSolution
 
-    nonlinear_problem = remake(ss_solver.nonlinearsolve_problem, u0=odeProblem.u0[:], p=odeProblem.p[:])
-    changeExperimentalCondition!(nonlinear_problem.p, nonlinear_problem.u0, preEquilibrationId)
-    nonlinearSolution = solve(nonlinear_problem,
+    nonlinear_problem = remake(ss_solver.nonlinearsolve_problem, u0=ode_problem.u0[:], p=ode_problem.p[:])
+    change_simulation_condition!(nonlinear_problem.p, nonlinear_problem.u0, pre_equilibration_id)
+    root_sol = solve(nonlinear_problem,
                               ss_solver.rootfinding_alg,
                               abstol=ss_solver.abstol,
                               reltol=ss_solver.reltol,
                               maxiters=ss_solver.maxiters)
 
-    return nonlinearSolution
+    return root_sol
 end

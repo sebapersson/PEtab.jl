@@ -1,12 +1,9 @@
-# TODO: Refactor yMod and SD functions to avoid redundant code
-
-
 """
-    create_σ_h_u0_File(model_name::String,
+    create_σ_h_u0_file(model_name::String,
                        dir_model::String,
-                       odeSystem::ODESystem,
+                       system::ODESystem,
                        state_map,
-                       SBMLDict::Dict;
+                       SBML_dict::Dict;
                        verbose::Bool=false)
 
     For a PeTab model with name model_name with all PeTab-files in dir_model and associated
@@ -18,204 +15,203 @@
     Note - The produced Julia file will go via the JIT-compiler. The SBML-dict is needed as
     sometimes variables are encoded via explicit-SBML rules.
 """
-function create_σ_h_u0_File(model_name::String,
-                            pathYAMl::String,
+function create_σ_h_u0_file(model_name::String,
+                            path_yaml::String,
                             dir_julia::String,
-                            odeSystem::ODESystem,
+                            system::ODESystem,
                             parameter_map,
                             state_map,
-                            SBMLDict::Dict;
-                            jlFile::Bool=false,
+                            SBML_dict::Dict;
                             custom_parameter_values::Union{Nothing, Dict}=nothing, 
                             write_to_file::Bool=true)
 
-    pODEProblemNames = string.(parameters(odeSystem))
-    modelStateNames = replace.(string.(states(odeSystem)), "(t)" => "")
+    p_ode_problem_names = string.(parameters(system))
+    model_state_names = replace.(string.(states(system)), "(t)" => "")
 
-    experimentalConditions, measurementsData, parametersData, observablesData = readPEtabFiles(pathYAMl, jlFile=jlFile)
-    parameterInfo = processParameters(parametersData, custom_parameter_values=custom_parameter_values)
-    measurementInfo = processMeasurements(measurementsData, observablesData)
+    experimental_conditions, measurements_data, parameters_data, observables_data = read_petab_files(path_yaml)
+    parameter_info = process_parameters(parameters_data, custom_parameter_values=custom_parameter_values)
+    measurement_info = process_measurements(measurements_data, observables_data)
 
     # Indices for keeping track of parameters in θ
-    θ_indices = computeIndicesθ(parameterInfo, measurementInfo, odeSystem, parameter_map, state_map, experimentalConditions)
+    θ_indices = compute_θ_indices(parameter_info, measurement_info, system, parameter_map, state_map, experimental_conditions)
 
-    hStr = create_h_Function(model_name, dir_julia, modelStateNames, parameterInfo, pODEProblemNames,
-                             string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict, write_to_file)
+    h_str = create_h_function(model_name, dir_julia, model_state_names, parameter_info, p_ode_problem_names,
+                              string.(θ_indices.θ_non_dynamic_names), observables_data, SBML_dict, write_to_file)
 
-    u0!Str = create_u0_Function(model_name, dir_julia, parameterInfo, pODEProblemNames, state_map, write_to_file, SBMLDict, inPlace=true)
+    u0!_str = create_u0_function(model_name, dir_julia, parameter_info, p_ode_problem_names, state_map, write_to_file, SBML_dict, inplace=true)
 
-    u0Str = create_u0_Function(model_name, dir_julia, parameterInfo, pODEProblemNames, state_map, write_to_file, SBMLDict, inPlace=false)
+    u0_str = create_u0_function(model_name, dir_julia, parameter_info, p_ode_problem_names, state_map, write_to_file, SBML_dict, inplace=false)
 
-    σStr = create_σ_Function(model_name, dir_julia, parameterInfo, modelStateNames, pODEProblemNames, string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict, write_to_file)
+    σ_str = create_σ_function(model_name, dir_julia, parameter_info, model_state_names, p_ode_problem_names, string.(θ_indices.θ_non_dynamic_names), observables_data, SBML_dict, write_to_file)
 
-    return hStr, u0!Str, u0Str, σStr
+    return h_str, u0!_str, u0_str, σ_str
 end
 """
     When parsed from Julia input.
 """
-function create_σ_h_u0_File(model_name::String,
+function create_σ_h_u0_file(model_name::String,
                             system,
-                            experimentalConditions::CSV.File,
-                            measurementsData::CSV.File,
-                            parametersData::CSV.File,
-                            observablesData::CSV.File,
+                            experimental_conditions::CSV.File,
+                            measurements_data::CSV.File,
+                            parameters_data::CSV.File,
+                            observables_data::CSV.File,
                             state_map)::NTuple{4, String}
 
-    pODEProblemNames = string.(parameters(system))
-    modelStateNames = replace.(string.(states(system)), "(t)" => "")
+    p_ode_problem_names = string.(parameters(system))
+    model_state_names = replace.(string.(states(system)), "(t)" => "")
     parameter_map = [p => 0.0 for p in parameters(system)]
 
-    parameterInfo = PEtab.processParameters(parametersData)
-    measurementInfo = PEtab.processMeasurements(measurementsData, observablesData)
+    parameter_info = PEtab.process_parameters(parameters_data)
+    measurement_info = PEtab.process_measurements(measurements_data, observables_data)
 
     # Indices for keeping track of parameters in θ
-    θ_indices = PEtab.computeIndicesθ(parameterInfo, measurementInfo, system, parameter_map, state_map, experimentalConditions)
+    θ_indices = PEtab.compute_θ_indices(parameter_info, measurement_info, system, parameter_map, state_map, experimental_conditions)
 
     # Dummary variables to keep PEtab importer happy even as we are not providing any PEtab files
-    SBMLDict = Dict(); SBMLDict["assignmentRulesStates"] = Dict()
+    SBML_dict = Dict(); SBML_dict["assignmentRulesStates"] = Dict()
 
-    hStr = PEtab.create_h_Function(model_name, @__DIR__, modelStateNames, parameterInfo, pODEProblemNames,
-                                   string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict, false)
-    u0!Str = PEtab.create_u0_Function(model_name, @__DIR__, parameterInfo, pODEProblemNames, state_map, false,
-                                      SBMLDict, inPlace=true)
-    u0Str = PEtab.create_u0_Function(model_name, @__DIR__, parameterInfo, pODEProblemNames, state_map, false,
-                                     SBMLDict, inPlace=false)
-    σStr = PEtab.create_σ_Function(model_name, @__DIR__, parameterInfo, modelStateNames, pODEProblemNames,
-                                   string.(θ_indices.θ_nonDynamicNames), observablesData, SBMLDict, false)
+    h_str = PEtab.create_h_function(model_name, @__DIR__, model_state_names, parameter_info, p_ode_problem_names,
+                                   string.(θ_indices.θ_non_dynamic_names), observables_data, SBML_dict, false)
+    u0!_str = PEtab.create_u0_function(model_name, @__DIR__, parameter_info, p_ode_problem_names, state_map, false,
+                                      SBML_dict, inplace=true)
+    u0_str = PEtab.create_u0_function(model_name, @__DIR__, parameter_info, p_ode_problem_names, state_map, false,
+                                     SBML_dict, inplace=false)
+    σ_str = PEtab.create_σ_function(model_name, @__DIR__, parameter_info, model_state_names, p_ode_problem_names,
+                                   string.(θ_indices.θ_non_dynamic_names), observables_data, SBML_dict, false)
 
-    return hStr, u0!Str, u0Str, σStr
+    return h_str, u0!_str, u0_str, σ_str
 end
 
 
 """
-    create_h_Function(model_name::String,
+    create_h_function(model_name::String,
                       dir_model::String,
-                      modelStateNames::Vector{String},
+                      model_state_names::Vector{String},
                       paramData::ParametersInfo,
                       namesParamDyn::Vector{String},
                       namesNonDynParam::Vector{String},
-                      observablesData::CSV.File,
-                      SBMLDict::Dict)
+                      observables_data::CSV.File,
+                      SBML_dict::Dict)
 
-    For model_name create a function for computing yMod by translating the observablesData
+    For model_name create a function for computing y_model by translating the observables_data
     PeTab-file into Julia syntax.
 """
-function create_h_Function(model_name::String,
+function create_h_function(model_name::String,
                            dir_model::String,
-                           modelStateNames::Vector{String},
-                           parameterInfo::ParametersInfo,
-                           pODEProblemNames::Vector{String},
-                           θ_nonDynamicNames::Vector{String},
-                           observablesData::CSV.File,
-                           SBMLDict::Dict, 
+                           model_state_names::Vector{String},
+                           parameter_info::ParametersInfo,
+                           p_ode_problem_names::Vector{String},
+                           θ_non_dynamic_names::Vector{String},
+                           observables_data::CSV.File,
+                           SBML_dict::Dict, 
                            write_to_file::Bool)
 
     io = IOBuffer()
-    pathSave = joinpath(dir_model, model_name * "_h_sd_u0.jl")
-    modelStateStr, θ_dynamicStr, θ_nonDynamicStr, constantParametersStr = createTopOfFunction_h(modelStateNames, parameterInfo,
-                                                                                                pODEProblemNames, θ_nonDynamicNames)
+    path_save = joinpath(dir_model, model_name * "_h_sd_u0.jl")
+    model_state_str, θ_dynamic_str,  θ_non_dynamic_str, constant_parameters_str = create_top_function_h(model_state_names, 
+        parameter_info, p_ode_problem_names,  θ_non_dynamic_names)
 
     # Write the formula for each observable in Julia syntax
-    observableIds = string.(observablesData[:observableId])
-    observableStr = ""
-    for i in eachindex(observableIds)
+    observable_ids = string.(observables_data[:observableId])
+    observable_str = ""
+    for i in eachindex(observable_ids)
 
-        _formula = filter(x -> !isspace(x), string(observablesData[:observableFormula][i]))
-        observableParameters = getObservableParametersStr(_formula)
-        observableStr *= "\tif observableId === " * ":" * observableIds[i] * " \n"
-        if !isempty(observableParameters)
-            observableStr *= "\t\t" * observableParameters * " = getObsOrSdParam(θ_observable, parameter_map)\n"
+        _formula = filter(x -> !isspace(x), string(observables_data[:observableFormula][i]))
+        observable_parameters = get_observable_parameters(_formula)
+        observable_str *= "\tif observableId === " * ":" * observable_ids[i] * " \n"
+        if !isempty(observable_parameters)
+            observable_str *= "\t\t" * observable_parameters * " = get_obs_sd_parameter(θ_observable, parameter_map)\n"
         end
 
-        formula = replaceExplicitVariableWithRule(_formula, SBMLDict)
+        formula = replace_explicit_variable_rule(_formula, SBML_dict)
 
         # Translate the formula for the observable to Julia syntax
-        _juliaFormula = petabFormulaToJulia(formula, modelStateNames, parameterInfo, pODEProblemNames, θ_nonDynamicNames)
-        juliaFormula = replaceVariablesWithArrayIndex(_juliaFormula, modelStateNames, parameterInfo, pODEProblemNames, θ_nonDynamicNames, pODEProblem=true)
-        observableStr *= "\t\t" * "return " * juliaFormula * "\n" * "\tend\n\n"
+        _julia_formula = petab_formula_to_Julia(formula, model_state_names, parameter_info, p_ode_problem_names,  θ_non_dynamic_names)
+        julia_formula = variables_to_array_index(_julia_formula, model_state_names, parameter_info, p_ode_problem_names,  θ_non_dynamic_names, p_ode_problem=true)
+        observable_str *= "\t\t" * "return " * julia_formula * "\n" * "\tend\n\n"
     end
 
     # Create h function
     if write_to_file == true
-        write(io, modelStateStr)
-        write(io, θ_dynamicStr)
-        write(io, θ_nonDynamicStr)
-        write(io, constantParametersStr)
+        write(io, model_state_str)
+        write(io, θ_dynamic_str)
+        write(io,  θ_non_dynamic_str)
+        write(io, constant_parameters_str)
         write(io, "\n")
     end
-    write(io, "function compute_h(u::AbstractVector, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
-                   θ_nonDynamic::AbstractVector, parameterInfo::ParametersInfo, observableId::Symbol,
+    write(io, "function compute_h(u::AbstractVector, t::Real, p_ode_problem::AbstractVector, θ_observable::AbstractVector,
+                   θ_non_dynamic::AbstractVector, parameter_info::ParametersInfo, observableId::Symbol,
                       parameter_map::θObsOrSdParameterMap)::Real \n")
-    write(io, observableStr)
+    write(io, observable_str)
     write(io, "end")
-    hStr = String(take!(io))
+    h_str = String(take!(io))
     if write_to_file == true
-        strWrite = hStr * "\n\n"
-        open(pathSave, "w") do f
-            write(f, strWrite)
+        str_write = h_str * "\n\n"
+        open(path_save, "w") do f
+            write(f, str_write)
         end
     end
     close(io)
-    return hStr    
+    return h_str    
 end
 
 
 """
-    createTopOfFunction_h(modelStateNames::Vector{String},
+    create_top_function_h(model_state_names::Vector{String},
                           paramData::ParametersInfo,
                           namesParamODEProb::Vector{String},
                           namesNonDynParam::Vector{String})
 
     Extracts all variables needed for the observable h function.
 """
-function createTopOfFunction_h(modelStateNames::Vector{String},
-                               parameterInfo::ParametersInfo,
-                               pODEProblemNames::Vector{String},
-                               θ_nonDynamicNames::Vector{String})
+function create_top_function_h(model_state_names::Vector{String},
+                               parameter_info::ParametersInfo,
+                               p_ode_problem_names::Vector{String},
+                               θ_non_dynamic_names::Vector{String})
 
-    modelStateStr = "#"
-    for i in eachindex(modelStateNames)
-        modelStateStr *= "u[" * string(i) * "] = " * modelStateNames[i] * ", "
+    model_state_str = "#"
+    for i in eachindex(model_state_names)
+        model_state_str *= "u[" * string(i) * "] = " * model_state_names[i] * ", "
     end
-    modelStateStr = modelStateStr[1:end-2] # Remove last non needed ", "
-    modelStateStr *= "\n"
+    model_state_str = model_state_str[1:end-2] # Remove last non needed ", "
+    model_state_str *= "\n"
 
-    θ_dynamicStr = "#"
-    for i in eachindex(pODEProblemNames)
-        θ_dynamicStr *= "pODEProblemNames[" * string(i) * "] = " * pODEProblemNames[i] * ", "
+    θ_dynamic_str = "#"
+    for i in eachindex(p_ode_problem_names)
+        θ_dynamic_str *= "p_ode_problem_names[" * string(i) * "] = " * p_ode_problem_names[i] * ", "
     end
-    θ_dynamicStr = θ_dynamicStr[1:end-2] # Remove last non needed ", "
-    θ_dynamicStr *= "\n"
+    θ_dynamic_str = θ_dynamic_str[1:end-2] # Remove last non needed ", "
+    θ_dynamic_str *= "\n"
 
-    θ_nonDynamicStr = "#"
-    if !isempty(θ_nonDynamicNames)
-        for i in eachindex(θ_nonDynamicNames)
-            θ_nonDynamicStr *= "θ_nonDynamic[" * string(i)* "] = " * θ_nonDynamicNames[i] * ", "
+    θ_non_dynamic_str = "#"
+    if !isempty(θ_non_dynamic_names)
+        for i in eachindex(θ_non_dynamic_names)
+            θ_non_dynamic_str *= "θ_non_dynamic[" * string(i)* "] = " *  θ_non_dynamic_names[i] * ", "
         end
-        θ_nonDynamicStr = θ_nonDynamicStr[1:end-2] # Remove last non needed ", "
-        θ_nonDynamicStr *= "\n"
+        θ_non_dynamic_str =  θ_non_dynamic_str[1:end-2] # Remove last non needed ", "
+        θ_non_dynamic_str *= "\n"
     end
 
-    constantParametersStr = ""
-    for i in eachindex(parameterInfo.parameterId)
-        if parameterInfo.estimate[i] == false
-            constantParametersStr *= "#parameterInfo.nominalValue[" * string(i) *"] = " * string(parameterInfo.parameterId[i]) * "_C \n"
+    constant_parameters_str = ""
+    for i in eachindex(parameter_info.parameter_id)
+        if parameter_info.estimate[i] == false
+            constant_parameters_str *= "#parameter_info.nominalValue[" * string(i) *"] = " * string(parameter_info.parameter_id[i]) * "_C \n"
         end
     end
-    constantParametersStr *= "\n"
+    constant_parameters_str *= "\n"
 
-    return modelStateStr, θ_dynamicStr, θ_nonDynamicStr, constantParametersStr
+    return model_state_str, θ_dynamic_str,  θ_non_dynamic_str, constant_parameters_str
 end
 
 
 """
-    create_u0_Function(model_name::String,
+    create_u0_function(model_name::String,
                        dir_model::String,
-                       parameterInfo::ParametersInfo,
-                       pODEProblemNames::Vector{String},
+                       parameter_info::ParametersInfo,
+                       p_ode_problem_names::Vector{String},
                        state_map, 
-                       SBMLDict;
-                       inPlace::Bool=true)
+                       SBML_dict;
+                       inplace::Bool=true)
 
     For model_name create a function for computing initial value by translating the state_map
     into Julia syntax.
@@ -223,142 +219,142 @@ end
     To correctly create the function the name of all parameters, paramData (to get constant parameters)
     are required.
 """
-function create_u0_Function(model_name::String,
+function create_u0_function(model_name::String,
                             dir_model::String,
-                            parameterInfo::ParametersInfo,
-                            pODEProblemNames::Vector{String},
+                            parameter_info::ParametersInfo,
+                            p_ode_problem_names::Vector{String},
                             state_map,
                             write_to_file::Bool, 
-                            SBMLDict;
-                            inPlace::Bool=true)
+                            SBML_dict;
+                            inplace::Bool=true)
 
-    pathSave = joinpath(dir_model, model_name * "_h_sd_u0.jl")                            
+    path_save = joinpath(dir_model, model_name * "_h_sd_u0.jl")                            
     io = IOBuffer()
 
-    if inPlace == true
-        write(io, "function compute_u0!(u0::AbstractVector, pODEProblem::AbstractVector) \n\n")
+    if inplace == true
+        write(io, "function compute_u0!(u0::AbstractVector, p_ode_problem::AbstractVector) \n\n")
     else
-        write(io, "function compute_u0(pODEProblem::AbstractVector)::AbstractVector \n\n")
+        write(io, "function compute_u0(p_ode_problem::AbstractVector)::AbstractVector \n\n")
     end
 
     # Write named list of parameter to file
-    pODEProblemStr = "\t#"
-    for i in eachindex(pODEProblemNames)
-        pODEProblemStr *= "pODEProblem[" * string(i) * "] = " * pODEProblemNames[i] * ", "
+    p_ode_problem_str = "\t#"
+    for i in eachindex(p_ode_problem_names)
+        p_ode_problem_str *= "p_ode_problem[" * string(i) * "] = " * p_ode_problem_names[i] * ", "
     end
-    pODEProblemStr = pODEProblemStr[1:end-2]
-    pODEProblemStr *= "\n\n"
-    write(io, pODEProblemStr)
+    p_ode_problem_str = p_ode_problem_str[1:end-2]
+    p_ode_problem_str *= "\n\n"
+    write(io, p_ode_problem_str)
 
     write(io, "\tt = 0.0 # u at time zero\n\n")
 
     # Write the formula for each initial condition to file
-    _modelStateNames = [replace.(string.(state_map[i].first), "(t)" => "") for i in eachindex(state_map)]
-    modelStateNames = filter(x -> x ∉ string.(keys(SBMLDict["assignmentRulesStates"])), _modelStateNames)
-    modelStateStr = ""
-    for i in eachindex(modelStateNames)
-        stateName = modelStateNames[i]
+    _model_state_names = [replace.(string.(state_map[i].first), "(t)" => "") for i in eachindex(state_map)]
+    model_state_names = filter(x -> x ∉ string.(keys(SBML_dict["assignmentRulesStates"])), _model_state_names)
+    model_state_str = ""
+    for i in eachindex(model_state_names)
+        stateName = model_state_names[i]
         _stateExpression = replace(string(state_map[i].second), " " => "")
-        stateFormula = petabFormulaToJulia(_stateExpression, modelStateNames, parameterInfo, pODEProblemNames, String[])
-        for i in eachindex(pODEProblemNames)
-            stateFormula = replaceWholeWord(stateFormula, pODEProblemNames[i], "pODEProblem["*string(i)*"]")
+        stateFormula = petab_formula_to_Julia(_stateExpression, model_state_names, parameter_info, p_ode_problem_names, String[])
+        for i in eachindex(p_ode_problem_names)
+            stateFormula = replace_whole_word(stateFormula, p_ode_problem_names[i], "p_ode_problem["*string(i)*"]")
         end
-        modelStateStr *= "\t" * stateName * " = " * stateFormula * "\n"
+        model_state_str *= "\t" * stateName * " = " * stateFormula * "\n"
     end
-    write(io, modelStateStr * "\n")
+    write(io, model_state_str * "\n")
 
     # Ensure the states in correct order are written to u0
-    if inPlace == true
-        modelStateStr = "\tu0 .= "
-        for i in eachindex(modelStateNames)
-            modelStateStr *= modelStateNames[i] * ", "
+    if inplace == true
+        model_state_str = "\tu0 .= "
+        for i in eachindex(model_state_names)
+            model_state_str *= model_state_names[i] * ", "
         end
-        modelStateStr = modelStateStr[1:end-2]
-        write(io, modelStateStr)
+        model_state_str = model_state_str[1:end-2]
+        write(io, model_state_str)
 
     # Where we return the entire initial value vector
-    elseif inPlace == false
-        modelStateStr = "\t return ["
-        for i in eachindex(modelStateNames)
-            modelStateStr *= modelStateNames[i] * ", "
+    elseif inplace == false
+        model_state_str = "\t return ["
+        for i in eachindex(model_state_names)
+            model_state_str *= model_state_names[i] * ", "
         end
-        modelStateStr = modelStateStr[1:end-2]
-        modelStateStr *= "]"
-        write(io, modelStateStr)
+        model_state_str = model_state_str[1:end-2]
+        model_state_str *= "]"
+        write(io, model_state_str)
     end
 
     write(io, "\nend")
-    u0Str = String(take!(io))
+    u0_str = String(take!(io))
     if write_to_file == true
-        strWrite = u0Str * "\n\n"
-        open(pathSave, "a") do f
-            write(f, strWrite)
+        str_write = u0_str * "\n\n"
+        open(path_save, "a") do f
+            write(f, str_write)
         end
     end    
     close(io)
 
-    return u0Str
+    return u0_str
 end
 
 
 """
-    create_σ_Function(model_name::String,
+    create_σ_function(model_name::String,
                       dir_model::String,
-                      parameterInfo::ParametersInfo,
-                      modelStateNames::Vector{String},
-                      pODEProblemNames::Vector{String},
-                      θ_nonDynamicNames::Vector{String},
-                      observablesData::CSV.File,
-                      SBMLDict::Dict)
+                      parameter_info::ParametersInfo,
+                      model_state_names::Vector{String},
+                      p_ode_problem_names::Vector{String},
+                      θ_non_dynamic_names::Vector{String},
+                      observables_data::CSV.File,
+                      SBML_dict::Dict)
 
-    For model_name create a function for computing the standard deviation σ by translating the observablesData
+    For model_name create a function for computing the standard deviation σ by translating the observables_data
     PeTab-file into Julia syntax.
 """
-function create_σ_Function(model_name::String,
+function create_σ_function(model_name::String,
                            dir_model::String,
-                           parameterInfo::ParametersInfo,
-                           modelStateNames::Vector{String},
-                           pODEProblemNames::Vector{String},
-                           θ_nonDynamicNames::Vector{String},
-                           observablesData::CSV.File,
-                           SBMLDict::Dict, 
+                           parameter_info::ParametersInfo,
+                           model_state_names::Vector{String},
+                           p_ode_problem_names::Vector{String},
+                           θ_non_dynamic_names::Vector{String},
+                           observables_data::CSV.File,
+                           SBML_dict::Dict, 
                            write_to_file::Bool)
 
-    pathSave = joinpath(dir_model, model_name * "_h_sd_u0.jl")
+    path_save = joinpath(dir_model, model_name * "_h_sd_u0.jl")
     io = IOBuffer()
 
     # Write the formula for standard deviations to file
-    observableIds = string.(observablesData[:observableId])
-    observableStr = ""
-    for i in eachindex(observableIds)
+    observable_ids = string.(observables_data[:observableId])
+    observable_str = ""
+    for i in eachindex(observable_ids)
 
-        _formula = filter(x -> !isspace(x), string(observablesData[:noiseFormula][i]))
-        noiseParameters = getNoiseParametersStr(_formula)
-        observableStr *= "\tif observableId === " * ":" * observableIds[i] * " \n"
-        if !isempty(noiseParameters)
-            observableStr *= "\t\t" * noiseParameters * " = getObsOrSdParam(θ_sd, parameter_map)\n"
+        _formula = filter(x -> !isspace(x), string(observables_data[:noiseFormula][i]))
+        noise_parameters = get_noise_parameters(_formula)
+        observable_str *= "\tif observableId === " * ":" * observable_ids[i] * " \n"
+        if !isempty(noise_parameters)
+            observable_str *= "\t\t" * noise_parameters * " = get_obs_sd_parameter(θ_sd, parameter_map)\n"
         end
 
-        formula = replaceExplicitVariableWithRule(_formula, SBMLDict)
+        formula = replace_explicit_variable_rule(_formula, SBML_dict)
 
         # Translate the formula for the observable to Julia syntax
-        _juliaFormula = petabFormulaToJulia(formula, modelStateNames, parameterInfo, pODEProblemNames, θ_nonDynamicNames)
-        juliaFormula = replaceVariablesWithArrayIndex(_juliaFormula, modelStateNames, parameterInfo, pODEProblemNames, θ_nonDynamicNames, pODEProblem=true)
-        observableStr *= "\t\t" * "return " * juliaFormula * "\n" * "\tend\n\n"
+        _julia_formula = petab_formula_to_Julia(formula, model_state_names, parameter_info, p_ode_problem_names,  θ_non_dynamic_names)
+        julia_formula = variables_to_array_index(_julia_formula, model_state_names, parameter_info, p_ode_problem_names,  θ_non_dynamic_names, p_ode_problem=true)
+        observable_str *= "\t\t" * "return " * julia_formula * "\n" * "\tend\n\n"
     end
 
-    write(io, "function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
-                   parameterInfo::ParametersInfo, observableId::Symbol, parameter_map::θObsOrSdParameterMap)::Real \n")
-    write(io, observableStr)
+    write(io, "function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, p_ode_problem::AbstractVector,  θ_non_dynamic::AbstractVector,
+                   parameter_info::ParametersInfo, observableId::Symbol, parameter_map::θObsOrSdParameterMap)::Real \n")
+    write(io, observable_str)
     write(io, "\nend")
-    σStr = String(take!(io))
+    σ_str = String(take!(io))
     if write_to_file == true
-        strWrite = σStr * "\n\n"
-        open(pathSave, "a") do f
-            write(f, strWrite)
+        str_write = σ_str * "\n\n"
+        open(path_save, "a") do f
+            write(f, str_write)
         end
     end    
     close(io)
 
-    return σStr
+    return σ_str
 end
