@@ -97,6 +97,10 @@ end
 
 export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel, PEtabODEProblem, remake_PEtab_problem, Fides, solve_SBML, PEtabOptimisationResult, IpoptOptions, IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult
 
+# These are given as extensions, but their docstrings are availble in the 
+# general documentation 
+include(joinpath("Model_callibration", "Common.jl"))
+export calibrate_model, calibrate_model_multistart, run_PEtab_select
 
 if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "IpoptExtension.jl"))
@@ -113,12 +117,5 @@ end
 if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "CatalystExtension.jl"))
 end
-
-
-# These are given as extensions, but their docstrings are availble in the 
-# general documentation 
-include(joinpath("Model_callibration", "Common.jl"))
-
-export calibrate_model, calibrate_model_multistart, run_PEtab_select
 
 end
