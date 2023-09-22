@@ -45,12 +45,12 @@ end
 """
     get_word(str::String, i_start::Int, char_terminate::Vector{Char})
 
-    In a string starting from position i_start extract the next "word", which is the longest
-    concurent occurance of characters that are not in the character list with word termination
-    characters. Returns the word and i_end (the position where the word ends).
+In a string starting from position i_start extract the next "word", which is the longest
+concurent occurance of characters that are not in the character list with word termination
+characters. Returns the word and i_end (the position where the word ends).
 
-    For example, if charListTerm = ['(', ')', '+', '-', '/', '*', '^'] abc123 is
-    considered a word but not abc123*.
+For example, if char_terminate = ['(', ')', '+', '-', '/', '*', '^'] abc123 is
+considered a word but not abc123*.
 """
 function get_word(str::String, i_start::Int, char_terminate::Vector{Char})
 

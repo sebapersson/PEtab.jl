@@ -74,6 +74,7 @@ include(joinpath("Create_PEtabODEProblem", "Create_PEtab_ODEProblem.jl"))
 
 # Creating the PEtab model
 include("Create_PEtab_model.jl")
+include(joinpath("Process_PEtab_files", "Julia_tables_provided", "Create_PEtab_model.jl"))
 
 # Importing SBML models
 include(joinpath("SBML", "SBML_to_ModellingToolkit.jl"))

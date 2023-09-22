@@ -77,6 +77,7 @@ struct PEtabModel{F1<:Function,
     path_yaml::String
     model_callbacks::C
     check_callback_is_active::FA
+    defined_in_julia::Bool
 end
 
 

@@ -4,7 +4,7 @@
 function parse_petab_parameters(petab_parameters::Vector{PEtabParameter}, 
                                 system, 
                                 simulation_conditions::Dict{String, T}, 
-                                observables::Dict{String,PEtabObservable},
+                                observables::Dict{String, PEtabObservable},
                                 measurements::DataFrame)::DataFrame where T<:Dict
 
     # Extract any parameter that appears in the model or in simulation_conditions 
@@ -110,6 +110,7 @@ end
 # here to make sure that the user does not provide any bad values.
 function parse_petab_conditions(simulation_conditions::Dict{String, T},
                                 petab_parameters::Vector{PEtabParameter},
+                                observables::Dict{String, PEtabObservable},
                                 system)::DataFrame where {T<:Dict}
 
     # Sanity check that parameters/states set for a specific experimental condition correspond
@@ -117,14 +118,18 @@ function parse_petab_conditions(simulation_conditions::Dict{String, T},
     model_state_names = replace.(string.(states(system)), "(t)" => "")
     model_parameter_names = string.(parameters(system))
     petab_parameterIds = [string(petab_parameter.parameter) for petab_parameter in petab_parameters]
+    non_dynamic_parameters = vcat([string(obs.obs) for obs in values(observables)], [string(obs.noise_formula) for obs in values(observables)])
+
     for condition_id in keys(simulation_conditions)
         for id in keys(simulation_conditions[condition_id])
             id_str = string(id)
-            if id_str ∈ model_state_names || id_str ∈ model_parameter_names
+            if (id_str ∈ model_state_names || 
+                id_str ∈ model_parameter_names || 
+                any(occursin.(id_str, non_dynamic_parameters)))
                 continue
             end
-            str_write = "Parameter/state $id_str specifed to change between simulation-conditions (set as dictionary \n" 
-            str_write *= "key for simulation-conditions) does not as required correspond to one of the states or \n"
+            str_write = "Parameter/state $id_str specifed to change between simulation-conditions (set as dictionary " 
+            str_write *= "key for simulation-conditions) does not as required correspond to one of the states or "
             str_write *= "parameters in the model"
             throw(PEtab.PEtabFormatError(str_write))
         end
@@ -162,7 +167,12 @@ function parse_petab_conditions(simulation_conditions::Dict{String, T},
                 continue
             end
 
-            str_write = "For simulation-condition $condition_id $id is set to map to $tmp. However, as\n"
+            if parameterOrSpeciesOrCompartmentStr == "NaN" && string(id) ∈ model_state_names
+                row[!, string(id)] = [string(parameterOrSpeciesOrCompartment)]
+                continue
+            end
+
+            str_write = "For simulation-condition $condition_id $id is set to map to $tmp. However, as"
             str_write *= " required $tmp does not correspond to a number, model parameter or a PEtabParameter."
             throw(PEtab.PEtabFormatError(str_write))
         end
