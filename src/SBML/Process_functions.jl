@@ -2,93 +2,92 @@
 # If a dictionary (with functions) is supplied, will also check if there are nested functions and will
 # include the arguments of these nested functions as arguments of the first function.
 # The returned string will only contain unique arguments.
-function getArguments(functionAsString, baseFunctions::Array{String, 1})
-    parts = split(functionAsString, ['(', ')', '/', '+', '-', '*', ' ', '~', '>', '<', '=', ','], keepempty = false)
+function get_arguments(function_as_str, base_functions::Array{String, 1})
+    parts = split(function_as_str, ['(', ')', '/', '+', '-', '*', ' ', '~', '>', '<', '=', ','], keepempty = false)
     arguments = Dict()
     for part in parts
         if isdigit(part[1])
             nothing
         else
-            if (part in values(arguments)) == false && !(part in baseFunctions)
+            if (part in values(arguments)) == false && !(part in base_functions)
                 arguments[length(arguments)+1] = part
             end
         end
     end
     if length(arguments) > 0
-        argumentString = arguments[1]
+        argument_str = arguments[1]
         for i = 2:length(arguments)
-            argumentString = argumentString * ", " * arguments[i]
+            argument_str = argument_str * ", " * arguments[i]
         end
     else
-        argumentString = ""
+        argument_str = ""
     end
-    return argumentString
+    return argument_str
 end
-function getArguments(functionAsString, dictionary::Dict, baseFunctions::Vector{String})
-    parts = split(functionAsString, ['(', ')', '/', '+', '-', '*', ' ', '~', '>', '<', '=', ','], keepempty = false)
-    existingFunctions = keys(dictionary)
-    includesFunction = false
+function get_arguments(function_as_str, dictionary::Dict, base_functions::Vector{String})
+    parts = split(function_as_str, ['(', ')', '/', '+', '-', '*', ' ', '~', '>', '<', '=', ','], keepempty = false)
+    existing_functions = keys(dictionary)
+    includes_function = false
     arguments = Dict()
     for part in parts
         if isdigit(part[1])
             nothing
         else
-            if part in existingFunctions
-                includesFunction = true
-                funcArgs = dictionary[part][1]
-                funcArgs = split(funcArgs, [',', ' '], keepempty = false)
-                for arg in funcArgs
+            if part in existing_functions
+                includes_function = true
+                function_arguments = dictionary[part][1]
+                function_arguments = split(function_arguments, [',', ' '], keepempty = false)
+                for arg in function_arguments
                     if (arg in values(arguments)) == false
                         arguments[length(arguments)+1] = arg
                     end
                 end
             else
-                if (part in values(arguments)) == false && !(part in baseFunctions)
+                if (part in values(arguments)) == false && !(part in base_functions)
                     arguments[length(arguments)+1] = part
                 end
             end
         end
     end
     if length(arguments) > 0
-        argumentString = arguments[1]
+        argument_str = arguments[1]
         for i = 2:length(arguments)
-            argumentString = argumentString * ", " * arguments[i]
+            argument_str = argument_str * ", " * arguments[i]
         end
     else
-        argumentString = ""
+        argument_str = ""
     end
-    return [argumentString, includesFunction]
+    return [argument_str, includes_function]
 end
 
 
-# Replaces a word, "replaceFrom" in functions with another word, "replaceTo".
+# Replaces a word, "replace_from" in functions with another word, "replace_to".
 # Often used to change "time" to "t"
 # Makes sure not to change for example "time1" or "shift_time"
-function replaceWholeWord(oldString, replaceFrom, replaceTo)
+function replace_whole_word(old_str, replace_from, replace_to)
 
-    replaceFromRegex = Regex("(\\b" * replaceFrom * "\\b)")
-    newString = replace(oldString, replaceFromRegex => replaceTo)
-    return newString
-
+    replace_from_regex = Regex("(\\b" * replace_from * "\\b)")
+    new_str = replace(old_str, replace_from_regex => replace_to)
+    return new_str
 end
 
 
 
-# Replaces words in oldString given a dictionary replaceDict.
+# Replaces words in old_str given a dictionary replace_dict.
 # In the Dict, the key  is the word to replace and the second
 # value is the value to replace with.
 # Makes sure to only change whole words.
-function replaceWholeWordDict(oldString, replaceDict)
+function replace_whole_word_dict(old_str, replace_dict)
 
-    newString = oldString
-    regexReplaceDict = Dict()
-    for (key,value) in replaceDict
-        replaceFromRegex = Regex("(\\b" * key * "\\b)")
-        regexReplaceDict[replaceFromRegex] = "(" * value[2] * ")"
+    new_str = old_str
+    regex_replace_dict = Dict()
+    for (key, value) in replace_dict
+        replace_from_regex = Regex("(\\b" * key * "\\b)")
+        regex_replace_dict[replace_from_regex] = "(" * value[2] * ")"
     end
-    newString = replace(newString, regexReplaceDict...)
+    new_str = replace(new_str, regex_replace_dict...)
 
-    return newString
+    return new_str
 
 end
 
@@ -103,73 +102,73 @@ end
 # test["fun2"] = ["a,b","a*b"]
 # test["fun3"] = ["a,b","a+b"]
 # Gives ((a*b)^(c+d))
-function replaceFunctionWithFormula(functionAsString, funcNameArgFormula)
+function replace_function_with_formula(function_as_str, function_arguments)
 
-    newFunctionsAsString = functionAsString
+    new_function_str = function_as_str
 
-    for (key, value) in funcNameArgFormula
+    for (key, value) in function_arguments
         # Find commas not surrounded by parentheses.
         # Used to split function arguments
         # If input argument are "pow(a,b),c" the list becomes ["pow(a,b)","c"]
-        findOutsideCommaRegex = Regex(",(?![^()]*\\))")
+        outside_comma_regex = Regex(",(?![^()]*\\))")
         # Finds the old input arguments, removes spaces and puts them in a list
-        replaceFrom = split(replace(value[1]," "=>""),findOutsideCommaRegex)
+        replace_from = split(replace(value[1]," "=>""), outside_comma_regex)
 
         # Finds all functions on the form "funName("
-        numberOfFuns = Regex("\\b" * key * "\\(")
+        n_functions = Regex("\\b" * key * "\\(")
         # Finds the offset after the parenthesis in "funName("
-        funStartRegex = Regex("\\b" * key * "\\(\\K")
+        function_start_regex = Regex("\\b" * key * "\\(\\K")
         # Matches parentheses pairs to grab the arguments of the "funName(" function
-        matchParenthesesRegex = Regex("\\((?:[^)(]*(?R)?)*+\\)")
-        while !isnothing(match(numberOfFuns, newFunctionsAsString))
+        match_parentheses_regex = Regex("\\((?:[^)(]*(?R)?)*+\\)")
+        while !isnothing(match(n_functions, new_function_str))
             # The string we wish to insert when the correct
             # replacement has been made.
             # Must be resetted after each pass.
-            replaceStr = value[2]
+            replace_str = value[2]
             # Extracts the function arguments
-            funStart = match(funStartRegex, newFunctionsAsString)
-            funStartPos = funStart.offset
-            insideOfFun = match(matchParenthesesRegex, newFunctionsAsString[funStartPos-1:end]).match
-            insideOfFun = insideOfFun[2:end-1]
-            replaceTo = split(replace(insideOfFun,", "=>","),findOutsideCommaRegex)
+            function_start = match(function_start_regex, new_function_str)
+            function_start_position = function_start.offset
+            inside_function = match(match_parentheses_regex, new_function_str[function_start_position-1:end]).match
+            inside_function = inside_function[2:end-1]
+            replace_to = split(replace(inside_function,", "=>","), outside_comma_regex)
 
             # Replace each variable used in the formula with the
             # variable name used as input for the function.
-            replaceDict = Dict()
-            for ind in eachindex(replaceTo)
-                replaceFromRegex = Regex("(\\b" * replaceFrom[ind] * "\\b)")
-                replaceDict[replaceFromRegex] = '(' * replaceTo[ind] * ')'
+            replace_dict = Dict()
+            for ind in eachindex(replace_to)
+                replace_from_regex = Regex("(\\b" * replace_from[ind] * "\\b)")
+                replace_dict[replace_from_regex] = '(' * replace_to[ind] * ')'
             end
-            replaceStr = replace(replaceStr, replaceDict...)
+            replace_str = replace(replace_str, replace_dict...)
 
             if key != "pow"
                 # Replace function(input) with formula where each variable in formula has the correct name.
-                newFunctionsAsString = replace(newFunctionsAsString, key * "(" * insideOfFun * ")" => "(" * replaceStr * ")")
+                new_function_str = replace(new_function_str, key * "(" * inside_function * ")" => "(" * replace_str * ")")
             else
                 # Same as above, but skips extra parentheses around the entire power.
-                newFunctionsAsString = replace(newFunctionsAsString, key * "(" * insideOfFun * ")" => replaceStr)
+                new_function_str = replace(new_function_str, key * "(" * inside_function * ")" => replace_str)
             end
 
         end
     end
-    return newFunctionsAsString
+    return new_function_str
 end
 
 # Rewrites pow(base,exponent) into (base)^(exponent), which Julia can handle
-function removePowFunctions(oldStr)
+function remove_power_functions(oldStr)
 
-    powDict = Dict()
-    powDict["pow"] = ["base, exponent","(base)^(exponent)"]
-    newStr = replaceFunctionWithFormula(oldStr, powDict)
-    return newStr
+    power_dict = Dict()
+    power_dict["pow"] = ["base, exponent","(base)^(exponent)"]
+    new_str = replace_function_with_formula(oldStr, power_dict)
+    return new_str
 
 end
 
 
-function getSBMLFunctionArgs(SBMLFunction)::String
-    if isempty(SBMLFunction.body.args)
+function get_SBML_function_args(SBML_function)::String
+    if isempty(SBML_function.body.args)
         return ""
     end
-    args = prod([arg * ", " for arg in SBMLFunction.body.args])[1:end-2]
+    args = prod([arg * ", " for arg in SBML_function.body.args])[1:end-2]
     return args
 end

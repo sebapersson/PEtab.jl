@@ -1,10 +1,10 @@
-# Model name: Crauste_CellSystems2017
-# Number of parameters: 13
-# Number of species: 5
-function getODEModel_Crauste_CellSystems2017()
+function getODEModel_Crauste_CellSystems2017(foo)
+	# Model name: Crauste_CellSystems2017
+	# Number of parameters: 13
+	# Number of species: 5
 
     ### Define independent and dependent variables
-    ModelingToolkit.@variables t Naive(t) Pathogen(t) LateEffector(t) EarlyEffector(t) Memory(t)
+    ModelingToolkit.@variables t Naive(t) Pathogen(t) LateEffector(t) EarlyEffector(t) Memory(t) 
 
     ### Store dependent variables in array for ODESystem command
     stateArray = [Naive, Pathogen, LateEffector, EarlyEffector, Memory]
@@ -14,17 +14,13 @@ function getODEModel_Crauste_CellSystems2017()
     ### Define potential algebraic variables
 
     ### Define parameters
-    ModelingToolkit.@parameters mu_LL delta_NE mu_PL mu_P delta_EL mu_PE mu_EE default mu_N rho_E delta_LM rho_P mu_LE
+    ModelingToolkit.@parameters mu_LL delta_NE mu_PL mu_P delta_EL mu_PE mu_EE default mu_N rho_E delta_LM rho_P mu_LE 
 
     ### Store parameters in array for ODESystem command
     parameterArray = [mu_LL, delta_NE, mu_PL, mu_P, delta_EL, mu_PE, mu_EE, default, mu_N, rho_E, delta_LM, rho_P, mu_LE]
 
     ### Define an operator for the differentiation w.r.t. time
     D = Differential(t)
-
-    ### Continious events ###
-
-    ### Discrete events ###
 
     ### Derivatives ###
     eqs = [

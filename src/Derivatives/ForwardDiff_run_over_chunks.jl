@@ -1,4 +1,4 @@
-function forwardDiffGradientChunks(f::F, Δx, x, ::ForwardDiff.Chunk{C}; nForwardPasses=nothing) where {F, C}
+function forwarddiff_gradient_chunks(f::F, Δx, x, ::ForwardDiff.Chunk{C}; n_forward_passes=nothing) where {F, C}
 
     cfg = ForwardDiff.GradientConfig(f, x, ForwardDiff.Chunk{C}(), nothing)
     N = length(x)
@@ -6,27 +6,27 @@ function forwardDiffGradientChunks(f::F, Δx, x, ::ForwardDiff.Chunk{C}; nForwar
     seeds = cfg.seeds
     ForwardDiff.seed!(xdual, x)
 
-    _nForwardPasses = isnothing(nForwardPasses) ? Int64(ceil(length(x) / C)) : nForwardPasses
-    for i in 1:_nForwardPasses
-        iStart = (i-1)*C + 1
-        iEnd = iStart + C
-        if iEnd ≤ (N+1)
-            ForwardDiff.seed!(xdual, x, iStart, seeds)
+    _n_forward_passes = isnothing(n_forward_passes) ? Int64(ceil(length(x) / C)) : n_forward_passes
+    for i in 1:_n_forward_passes
+        i_start = (i-1)*C + 1
+        i_end = i_start + C
+        if i_end ≤ (N+1)
+            ForwardDiff.seed!(xdual, x, i_start, seeds)
             ydual = f(xdual)
-            ForwardDiff.extract_gradient_chunk!(Nothing, Δx, ydual, iStart, C)
-            ForwardDiff.seed!(xdual, x, iStart)
+            ForwardDiff.extract_gradient_chunk!(Nothing, Δx, ydual, i_start, C)
+            ForwardDiff.seed!(xdual, x, i_start)
         else
             lastchunksize = N - C*(i-1)
-            ForwardDiff.seed!(xdual, x, iStart, seeds, lastchunksize)
+            ForwardDiff.seed!(xdual, x, i_start, seeds, lastchunksize)
             _ydual = f(xdual)
-            ForwardDiff.extract_gradient_chunk!(Nothing, Δx, _ydual, iStart, lastchunksize)
+            ForwardDiff.extract_gradient_chunk!(Nothing, Δx, _ydual, i_start, lastchunksize)
         end
     end
 end
 
 
 # Only works with inplace function f!
-function forwardDiffJacobianChunks(f!::F, y, J, x, ::ForwardDiff.Chunk{C}; nForwardPasses=nothing) where {F, C}
+function forwarddiff_jacobian_chunks(f!::F, y, J, x, ::ForwardDiff.Chunk{C}; n_forward_passes=nothing) where {F, C}
 
     J .= 0.0
     cfg = ForwardDiff.JacobianConfig(f!, y, x, ForwardDiff.Chunk{C}(), nothing)
@@ -38,20 +38,20 @@ function forwardDiffJacobianChunks(f!::F, y, J, x, ::ForwardDiff.Chunk{C}; nForw
     seeds = cfg.seeds
     Δx_reshaped = ForwardDiff.reshape_jacobian(J, ydual, xdual)
 
-    _nForwardPasses = isnothing(nForwardPasses) ? Int64(ceil(length(x) / C)) : nForwardPasses
-    for i in 1:_nForwardPasses
-        iStart = (i-1)*C + 1
-        iEnd = iStart + C
-        if iEnd ≤ (N+1)
-            ForwardDiff.seed!(xdual, x, iStart, seeds)
+    _n_forward_passes = isnothing(n_forward_passes) ? Int64(ceil(length(x) / C)) : n_forward_passes
+    for i in 1:_n_forward_passes
+        i_start = (i-1)*C + 1
+        i_end = i_start + C
+        if i_end ≤ (N+1)
+            ForwardDiff.seed!(xdual, x, i_start, seeds)
             f!(ForwardDiff.seed!(ydual, y), xdual)
-            ForwardDiff.extract_jacobian_chunk!(Nothing, Δx_reshaped, ydual, iStart, C)
-            ForwardDiff.seed!(xdual, x, iStart)
+            ForwardDiff.extract_jacobian_chunk!(Nothing, Δx_reshaped, ydual, i_start, C)
+            ForwardDiff.seed!(xdual, x, i_start)
         else
             lastchunksize = N - C*(i-1)
-            ForwardDiff.seed!(xdual, x, iStart, seeds, lastchunksize)
+            ForwardDiff.seed!(xdual, x, i_start, seeds, lastchunksize)
             f!(ForwardDiff.seed!(ydual, y), xdual)
-            ForwardDiff.extract_jacobian_chunk!(Nothing, Δx_reshaped, ydual, iStart, lastchunksize)
+            ForwardDiff.extract_jacobian_chunk!(Nothing, Δx_reshaped, ydual, i_start, lastchunksize)
         end
     end
 end

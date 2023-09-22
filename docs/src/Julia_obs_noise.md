@@ -70,9 +70,9 @@ measurements = DataFrame(
 With this setup, you can create a `PEtabODEProblem` for model calibration:
 
 ```julia
-petab_model = readPEtabModel(
+petab_model = PEtabModel(
     rn, simulation_conditions, observables, measurements,
-    parameters, stateMap=state_map, parameterMap=parameter_map, verbose=true
+    parameters, state_map=state_map, parameter_map=parameter_map, verbose=true
 )
-petab_problem = createPEtabODEProblem(petab_model)  
+petab_problem = PEtabODEProblem(petab_model)  
 ```

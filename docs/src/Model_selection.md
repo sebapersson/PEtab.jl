@@ -7,14 +7,14 @@ In many scenarios we have competing hypotheses (model structures) that we want t
 
 ## Example
 
-PEtab.jl provides support for PEtab Select through the `runPEtabSelect` function. This function takes two required arguments; the path to the PEtab Select YAML file, and the optimizer for parameter estimation. For the optimizer, you can choose from `optimizer=Fides()` (Fides Newton-trust region), `optimizer=IPNewton()` from Optim.jl, or `optimizer=LBFGS()` from Optim.jl ([see](@ref parameter_estimation)). Additionally, you can pass any keyword arguments accepted by the `calibrateModel` function for parameter estimation and `createPEtabODEProblem` function for setting simulation options ([see](@ref gradient_support)).
+PEtab.jl provides support for PEtab Select through the `run_PEtab_select` function. This function takes two required arguments; the path to the PEtab Select YAML file, and the optimizer for parameter estimation. For the optimizer, you can choose from `optimizer=Fides()` (Fides Newton-trust region), `optimizer=IPNewton()` from Optim.jl, or `optimizer=LBFGS()` from Optim.jl ([see](@ref parameter_estimation)). Additionally, you can pass any keyword arguments accepted by the `calibrate_model` function for parameter estimation and `PEtabODEProblem` function for setting simulation options ([see](@ref gradient_support)).
 
-Since PEtab Select is a Python package, you need to have [PyCall.jl](https://github.com/JuliaPy/PyCall.jl) installed. Before using it, build PyCall with a Python environment that has PEtab select installed. Here's an example of how to do it (note that `pathToPythonExe` depends on your system configuration):
+Since PEtab Select is a Python package, you need to have [PyCall.jl](https://github.com/JuliaPy/PyCall.jl) installed. Before using it, build PyCall with a Python environment that has PEtab select installed. Here's an example of how to do it (note that `path_python_exe` depends on your system configuration):
 
 ```julia
 using PyCall
-pathToPythonExe = joinpath("/", "home", "sebpe", "anaconda3", "envs", "PeTab", "bin", "python")
-ENV["PYTHON"] = pathToPythonExe
+path_python_exe = joinpath("/", "home", "sebpe", "anaconda3", "envs", "PeTab", "bin", "python")
+ENV["PYTHON"] = path_python_exe
 import Pkg; Pkg.build("PyCall")
 ```
 
@@ -26,12 +26,12 @@ using OrdinaryDiffEq
 using Optim
 using QuasiMonteCarlo
 
-pathYAML = joinpath(@__DIR__, "PEtab_select", "0002", "petab_select_problem.yaml")
-pathSave = runPEtabSelect(pathYAML, IPNewton(), 
+path_yaml = joinpath(@__DIR__, "PEtab_select", "0002", "petab_select_problem.yaml")
+path_save = run_PEtab_select(path_yaml, IPNewton(), 
                           nOptimisationStarts=10, 
-                          odeSolverOptions=ODESolverOptions(Rodas5P()),
-                          gradientMethod=:ForwardDiff, 
-                          hessianMethod=:ForwardDiff)
+                          ode_solver=ODESolver(Rodas5P()),
+                          gradient_method=:ForwardDiff, 
+                          hessian_method=:ForwardDiff)
 ```
 ```
 ┌ Info: PEtab select problem info
@@ -51,6 +51,6 @@ pathSave = runPEtabSelect(pathYAML, IPNewton(),
 [ Info: Saving results for best model at 0002/PEtab_select_forward_AIC.yaml
 ```
 
-The YAML file storing the model selection results will be saved at `pathSave`.
+The YAML file storing the model selection results will be saved at `path_save`.
 
 To run the code, you will need the PEtab files, which you can find [here](https://github.com/sebapersson/PEtab.jl/tree/main/examples/0002). You can also find a fully runnable example of this tutorial [here](https://github.com/sebapersson/PEtab.jl/tree/main/examples/PEtab_select.jl).

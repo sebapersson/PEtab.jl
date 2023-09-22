@@ -1,82 +1,82 @@
 
 """
-    petabFormulaToJulia(formula::String, stateNames, paramData::ParametersInfo, namesParamDyn::Vector{String}, namesNonDynParam::Vector{String})::String
+    petab_formula_to_Julia(formula::String, state_names, paramData::ParametersInfo, namesParamDyn::Vector{String}, namesNonDynParam::Vector{String})::String
 
     Translate a peTab formula (e.g for observable or for sd-parameter) into Julia syntax and output the result
     as a string.
 """
-function petabFormulaToJulia(formula::String,
-                             modelStateNames::Vector{String},
-                             parameterInfo::ParametersInfo,
-                             θ_dynamicNames::Vector{String},
-                             θ_nonDynamicNames::Vector{String})::String
+function petab_formula_to_Julia(formula::String,
+                                model_state_names::Vector{String},
+                                parameter_info::ParametersInfo,
+                                θ_dynamic_names::Vector{String},
+                                θ_non_dynamic_names::Vector{String})::String
 
     # Characters directly translate to Julia and characters that also are assumed to terminate a word (e.g state
     # and parameter)
-    charDirectlyTranslate = ['(', ')', '+', '-', '/', '*', '^']
-    lenFormula = length(formula)
+    char_directly_translate = ['(', ')', '+', '-', '/', '*', '^']
+    len_formula = length(formula)
 
-    i, juliaFormula = 1, ""
-    while i <= lenFormula
+    i, julia_formula = 1, ""
+    while i <= len_formula
         # In case character i of the string can be translated directly
-        if formula[i] in charDirectlyTranslate
-            juliaFormula *= formula[i] * " "
+        if formula[i] in char_directly_translate
+            julia_formula *= formula[i] * " "
             i += 1
 
         # In case character i cannot be translated directly (is part of a word)
         else
             # Get word (e.g param, state, math-operation or number)
-            word, iNew = getWord(formula, i, charDirectlyTranslate)
+            word, i_new = get_word(formula, i, char_directly_translate)
             # Translate word to Julia syntax
-            juliaFormula *= wordToJuliaSyntax(word, modelStateNames, parameterInfo, θ_dynamicNames, θ_nonDynamicNames)
-            i = iNew
+            julia_formula *= word_to_julia(word, model_state_names, parameter_info, θ_dynamic_names,  θ_non_dynamic_names)
+            i = i_new
 
             # Special case where we have multiplication
-            if isNumber(word) && i <= lenFormula && isletter(formula[i])
-                juliaFormula *= "* "
+            if is_number(word) && i <= len_formula && isletter(formula[i])
+                julia_formula *= "* "
             end
         end
     end
 
-    return juliaFormula
+    return julia_formula
 end
 
 
 """
-    getWord(str::String, iStart::Int, charTerminate::Vector{Char})
+    get_word(str::String, i_start::Int, char_terminate::Vector{Char})
 
-    In a string starting from position iStart extract the next "word", which is the longest
+    In a string starting from position i_start extract the next "word", which is the longest
     concurent occurance of characters that are not in the character list with word termination
-    characters. Returns the word and iEnd (the position where the word ends).
+    characters. Returns the word and i_end (the position where the word ends).
 
     For example, if charListTerm = ['(', ')', '+', '-', '/', '*', '^'] abc123 is
     considered a word but not abc123*.
 """
-function getWord(str::String, iStart::Int, charTerminate::Vector{Char})
+function get_word(str::String, i_start::Int, char_terminate::Vector{Char})
 
-    wordStr = ""
-    iEnd = iStart
+    word_str = ""
+    i_end = i_start
 
     # If the first character is a numberic the termination occurs when
     # the first non-numeric character (not digit or dot .) is reached.
-    startIsNumeric = isnumeric(str[iEnd])
+    start_is_numeric = isnumeric(str[i_end])
 
-    while iEnd <= length(str)
+    while i_end <= length(str)
 
-        # In case str[iEnd] is not a termination character we need to be careful with numbers
+        # In case str[i_end] is not a termination character we need to be careful with numbers
         # so that we handle sciencetific notations correctly, e.g we do not consider
         # 1.2e-3 to be two words [1.2e, 3] but rather a single workd.
-        if !(str[iEnd] in charTerminate)
+        if !(str[i_end] in char_terminate)
 
             # Parase sciencetific notation for number
-            if startIsNumeric == true && str[iEnd] == 'e'
-                if length(str) > iEnd && (str[iEnd+1] == '-' || isnumeric(str[iEnd+1]))
-                    if str[iEnd+1] == '-'
-                        iEnd += 2
-                        wordStr *= "e-"
+            if start_is_numeric == true && str[i_end] == 'e'
+                if length(str) > i_end && (str[i_end+1] == '-' || isnumeric(str[i_end+1]))
+                    if str[i_end+1] == '-'
+                        i_end += 2
+                        word_str *= "e-"
                     else
-                        iEnd += 1
-                        wordStr *= "e"
+                        i_end += 1
+                        word_str *= "e"
                     end
 
                 else
@@ -84,167 +84,157 @@ function getWord(str::String, iStart::Int, charTerminate::Vector{Char})
                 end
             end
 
-            if startIsNumeric == true && !(isnumeric(str[iEnd]) || str[iEnd] == '.')
+            if start_is_numeric == true && !(isnumeric(str[i_end]) || str[i_end] == '.')
                 break
             end
-            wordStr *= str[iEnd]
+            word_str *= str[i_end]
         else
             break
         end
-        iEnd += 1
+        i_end += 1
     end
     # Remove all spaces from the word
-    wordStr = replace(wordStr, " " => "")
-    return wordStr, iEnd
+    word_str = replace(word_str, " " => "")
+    return word_str, i_end
 end
 
 
-""""
-    wordToJuliaSyntax(wordTranslate::String,
-                      stateNames,
-                      paramData::ParametersInfo,
-                      namesParamDyn::Vector{String})::String
-
-    Translate a word (state, parameter, math-expression or number) into Julia syntax
-    when building Ymod, U0 and Sd functions.
-
-"""
-function wordToJuliaSyntax(wordTranslate::String,
-                           modelStateNames::Vector{String},
-                           parameterInfo::ParametersInfo,
-                           θ_dynamicNames::Vector{String},
-                           θ_nonDynamicNames::Vector{String})::String
+function word_to_julia(word_translate::String,
+                       model_state_names::Vector{String},
+                       parameter_info::ParametersInfo,
+                       θ_dynamic_names::Vector{String},
+                       θ_non_dynamic_names::Vector{String})::String
 
     # List of mathemathical operations that are accpeted and will be translated
     # into Julia syntax (t is assumed to be time)
-    listOperations = ["exp", "sin", "cos", "t"]
+    list_operations = ["exp", "sin", "cos", "t"]
 
-    wordJuliaSyntax = ""
-    # If wordTranslate is a constant parameter
-    if wordTranslate ∈ string.(parameterInfo.parameterId) && wordTranslate ∉ θ_dynamicNames && wordTranslate ∉ θ_nonDynamicNames
+    word_julia = ""
+    # If word_translate is a constant parameter
+    if word_translate ∈ string.(parameter_info.parameter_id) && word_translate ∉ θ_dynamic_names && word_translate ∉  θ_non_dynamic_names
         # Constant parameters get a _C appended to tell them apart
-        wordJuliaSyntax *= wordTranslate * "_C"
+        word_julia *= word_translate * "_C"
     end
 
-    if wordTranslate ∈ θ_dynamicNames
-        wordJuliaSyntax *= wordTranslate
+    if word_translate ∈ θ_dynamic_names
+        word_julia *= word_translate
     end
 
-    if wordTranslate ∈ θ_nonDynamicNames
-        wordJuliaSyntax *= wordTranslate
+    if word_translate ∈  θ_non_dynamic_names
+        word_julia *= word_translate
     end
 
-    if wordTranslate ∈ modelStateNames
-        wordJuliaSyntax *= wordTranslate
+    if word_translate ∈ model_state_names
+        word_julia *= word_translate
     end
 
-    if isNumber(wordTranslate)
+    if is_number(word_translate)
         # In case there is not a . in the number add to ensure function returns floats
-        wordJuliaSyntax *= occursin('.', wordTranslate) ? wordTranslate : wordTranslate * ".0"
+        word_julia *= occursin('.', word_translate) ? word_translate : word_translate * ".0"
     end
 
-    if wordTranslate in listOperations
-        wordJuliaSyntax *= listOperations[wordTranslate .== listOperations][1]
-        return wordJuliaSyntax # Not allowed to follow with a space 
+    if word_translate in list_operations
+        word_julia *= list_operations[word_translate .== list_operations][1]
+        return word_julia # Not allowed to follow with a space 
     end
 
-    if length(wordTranslate) >= 19 && wordTranslate[1:19] == "observableParameter"
-        wordJuliaSyntax *= wordTranslate
+    if length(word_translate) >= 19 && word_translate[1:19] == "observableParameter"
+        word_julia *= word_translate
     end
 
-    if length(wordTranslate) >= 14 && wordTranslate[1:14] == "noiseParameter"
-        wordJuliaSyntax *= wordTranslate
+    if length(word_translate) >= 14 && word_translate[1:14] == "noiseParameter"
+        word_julia *= word_translate
     end
 
-    if isempty(wordTranslate)
-        println("Warning : When creating observation function $wordTranslate could not be processed")
+    if isempty(word_translate)
+        println("Warning : When creating observation function $word_translate could not be processed")
     end
 
-    wordJuliaSyntax *= " "
+    word_julia *= " "
 
-    return wordJuliaSyntax
+    return word_julia
 end
 
 
 """
-    getObservableParametersStr(formula::String)::String
+    get_observable_parameters(formula::String)::String
 
-    Helper function to extract all observableParameter in the observableFormula in the PEtab-file.
+Helper function to extract all observableParameter in the observableFormula in the PEtab-file.
 """
-function getObservableParametersStr(formula::String)::String
+function get_observable_parameters(formula::String)::String
 
     # Find all words on the form observableParameter
-    _observableParameters = sort(unique([ match.match for match in eachmatch(r"observableParameter[0-9]_\w+", formula)]))
-    observableParameters = ""
-    for i in eachindex(_observableParameters)
-        if i != length(_observableParameters)
-            observableParameters *= _observableParameters[i] * ", "
+    _observable_parameters = sort(unique([ match.match for match in eachmatch(r"observableParameter[0-9]_\w+", formula)]))
+    observable_parameters = ""
+    for i in eachindex(_observable_parameters)
+        if i != length(_observable_parameters)
+            observable_parameters *= _observable_parameters[i] * ", "
         else
-            observableParameters *= _observableParameters[i]
+            observable_parameters *= _observable_parameters[i]
         end
     end
 
-    return observableParameters
+    return observable_parameters
 end
 
 
 """
-    getNoiseParametersStr(formula::String)::String
+    get_noise_parameters(formula::String)::String
 
-    Helper function to extract all the noiseParameter in noiseParameter formula in the PEtab file.
+Helper function to extract all the noiseParameter in noiseParameter formula in the PEtab file.
 """
-function getNoiseParametersStr(formula::String)::String
+function get_noise_parameters(formula::String)::String
 
     # Find all words on the form observableParameter
-    _noiseParameters = [ match.match for match in eachmatch(r"noiseParameter[0-9]_\w+", formula) ]
-    noiseParameters = ""
-    for i in eachindex(_noiseParameters)
-        if i != length(_noiseParameters)
-            noiseParameters *= _noiseParameters[i] * ", "
+    _noise_parameters = [ match.match for match in eachmatch(r"noiseParameter[0-9]_\w+", formula) ]
+    noise_parameters = ""
+    for i in eachindex(_noise_parameters)
+        if i != length(_noise_parameters)
+            noise_parameters *= _noise_parameters[i] * ", "
         else
-            noiseParameters *= _noiseParameters[i]
+            noise_parameters *= _noise_parameters[i]
         end
     end
 
-    return noiseParameters
+    return noise_parameters
 end
 
 
 """
-    replaceVariablesWithArrayIndex(formula,stateNames,parameterNames,namesNonDynParam,paramData)::String
+    variables_to_array_index(formula,state_names,parameter_names,namesNonDynParam,paramData)::String
 
-    Replaces any state or parameter from formula with their corresponding index in the ODE system
-    Symbolics can return strings without multiplication sign, e.g. 100.0STAT5 instead of 100.0*STAT5
-    so replaceWholeWord cannot be used here
+Replaces any state or parameter from formula with their corresponding index in the ODE system
+Symbolics can return strings without multiplication sign, e.g. 100.0STAT5 instead of 100.0*STAT5
+so replace_whole_word cannot be used here
 """
-function replaceVariablesWithArrayIndex(formula::String,
-                                        modelStateNames::Vector{String},
-                                        parameterInfo::ParametersInfo,
-                                        pNames::Vector{String},
-                                        θ_nonDynamicNames::Vector{String};
-                                        pODEProblem::Bool=false)::String
+function variables_to_array_index(formula::String,
+                                  model_state_names::Vector{String},
+                                  parameter_info::ParametersInfo,
+                                  pNames::Vector{String},
+                                  θ_non_dynamic_names::Vector{String};
+                                  p_ode_problem::Bool=false)::String
 
-    for (i, stateName) in pairs(modelStateNames)
-        formula = replaceWholeWordWithNumberPrefix(formula, stateName, "u["*string(i)*"]")
+    for (i, stateName) in pairs(model_state_names)
+        formula = replace_word_number_prefix(formula, stateName, "u["*string(i)*"]")
     end
 
-    if pODEProblem == true
+    if p_ode_problem == true
         for (i, pName) in pairs(pNames)
-            formula = replaceWholeWordWithNumberPrefix(formula, pName, "pODEProblem["*string(i)*"]")
+            formula = replace_word_number_prefix(formula, pName, "p_ode_problem["*string(i)*"]")
         end
     else
         for (i, pName) in pairs(pNames)
-            formula = replaceWholeWordWithNumberPrefix(formula, pName, "θ_dynamic["*string(i)*"]")
+            formula = replace_word_number_prefix(formula, pName, "θ_dynamic["*string(i)*"]")
         end
     end
 
-    for (i, θ_nonDynamicName) in pairs(θ_nonDynamicNames)
-        formula = replaceWholeWordWithNumberPrefix(formula, θ_nonDynamicName, "θ_nonDynamic["*string(i)*"]")
+    for (i,  θ_non_dynamicName) in pairs(θ_non_dynamic_names)
+        formula = replace_word_number_prefix(formula,  θ_non_dynamicName, "θ_non_dynamic["*string(i)*"]")
     end
 
-    for i in eachindex(parameterInfo.parameterId)
-        if parameterInfo.estimate[i] == false
-            formula = replaceWholeWordWithNumberPrefix(formula, string(parameterInfo.parameterId[i]) * "_C", "parameterInfo.nominalValue[" * string(i) *"]")
+    for i in eachindex(parameter_info.parameter_id)
+        if parameter_info.estimate[i] == false
+            formula = replace_word_number_prefix(formula, string(parameter_info.parameter_id[i]) * "_C", "parameter_info.nominalValue[" * string(i) *"]")
         end
     end
 
@@ -253,15 +243,15 @@ end
 
 
 """
-    replaceExplicitVariableWithRule(formula::String, SBMLDict::Dict)::String
+    replace_explicit_variable_rule(formula::String, SBML_dict::Dict)::String
 
-    Replace the explicit rule variable with the explicit rule
+Replace the explicit rule variable with the explicit rule
 """
-function replaceExplicitVariableWithRule(formula::String, SBMLDict::Dict)::String
+function replace_explicit_variable_rule(formula::String, SBML_dict::Dict)::String
     _formula = deepcopy(formula)
     while true
-        for (key, value) in SBMLDict["assignmentRulesStates"]
-            _formula = replaceWholeWord(_formula, key, "(" * value * ")")
+        for (key, value) in SBML_dict["assignmentRulesStates"]
+            _formula = replace_whole_word(_formula, key, "(" * value * ")")
         end
         _formula == formula && break
         formula = deepcopy(_formula)
@@ -272,16 +262,16 @@ end
 
 
 """
-    replaceWholeWordWithNumberPrefix(formula, from, to)::String
+    replace_word_number_prefix(formula, from, to)::String
 
-    Replaces variables that can be prefixed with numbers, e.g.,
-    replaceWholeWordWithNumberPrefix("4STAT5 + 100.0STAT5 + RE*STAT5 + STAT5","STAT5","u[1]") gives
-    4u[1] + 100.0u[1] + RE*u[1] + u[1]
+Replaces variables that can be prefixed with numbers, e.g., 
+replace_word_number_prefix("4STAT5 + 100.0STAT5 + RE*STAT5 + STAT5","STAT5","u[1]") 
+gives 4u[1] + 100.0u[1] + RE*u[1] + u[1]
 """
-function replaceWholeWordWithNumberPrefix(oldString, replaceFrom, replaceTo)
-    replaceFromRegex = Regex("\\b(\\d+\\.?\\d*+)*(" * replaceFrom * ")\\b")
-    replaceToRegex = SubstitutionString("\\1" * replaceTo )
+function replace_word_number_prefix(old_str, replace_from, replace_to)
+    replace_from_regex = Regex("\\b(\\d+\\.?\\d*+)*(" * replace_from * ")\\b")
+    replace_to_regex = SubstitutionString("\\1" * replace_to )
     sleep(0.001)
-    newString = replace(oldString, replaceFromRegex => replaceToRegex)
-    return newString
+    new_str = replace(old_str, replace_from_regex => replace_to_regex)
+    return new_str
 end

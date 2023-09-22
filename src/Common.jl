@@ -2,57 +2,57 @@
 
 
 """
-    setParamToFileValues!(paramMap, stateMap, paramData::ParamData)
+    set_parameters_to_file_values!(parameter_map, state_map, parameters_info::ParamData)
 
-    Function that sets the parameter and state values in paramMap and stateMap
-    to those in the PeTab parameters file.
+Function that sets the parameter and state values in parameter_map and state_map
+to those in the PeTab parameters file.
 
-    Used when setting up the PeTab cost function, and when solving the ODE-system
-    for the values in the parameters-file.
+Used when setting up the PeTab cost function, and when solving the ODE-system
+for the values in the parameters-file.
 """
-function setParamToFileValues!(paramMap, stateMap, paramData::ParametersInfo)
+function set_parameters_to_file_values!(parameter_map, state_map, parameters_info::ParametersInfo)
 
-    parameterNames = string.(paramData.parameterId)
-    parameterNamesStr = string.([paramMap[i].first for i in eachindex(paramMap)])
-    stateNamesStr = replace.(string.([stateMap[i].first for i in eachindex(stateMap)]), "(t)" => "")
-    for i in eachindex(parameterNames)
+    parameter_names = string.(parameters_info.parameter_id)
+    parameter_names_str = string.([parameter_map[i].first for i in eachindex(parameter_map)])
+    state_namesStr = replace.(string.([state_map[i].first for i in eachindex(state_map)]), "(t)" => "")
+    for i in eachindex(parameter_names)
 
-        parameterName = parameterNames[i]
-        valChangeTo = paramData.nominalValue[i]
+        parameter_name = parameter_names[i]
+        valChangeTo = parameters_info.nominal_value[i]
 
         # Check for value to change to in parameter file
-        i_param = findfirst(x -> x == parameterName, parameterNamesStr)
-        i_state = findfirst(x -> x == parameterName, stateNamesStr)
+        i_param = findfirst(x -> x == parameter_name, parameter_names_str)
+        i_state = findfirst(x -> x == parameter_name, state_namesStr)
 
         if !isnothing(i_param)
-            paramMap[i_param] = Pair(paramMap[i_param].first, valChangeTo)
+            parameter_map[i_param] = Pair(parameter_map[i_param].first, valChangeTo)
         elseif !isnothing(i_state)
-            stateMap[i_state] = Pair(stateMap[i_state].first, valChangeTo)
+            state_map[i_state] = Pair(state_map[i_state].first, valChangeTo)
         end
     end
 end
 
 
-function splitParameterVector(θ_est::AbstractVector{T},
-                              θ_indices::ParameterIndices)::Tuple{AbstractVector{T}, AbstractVector{T}, AbstractVector{T}, AbstractVector{T}} where T
+function splitθ(θ_est::AbstractVector{T},
+                θ_indices::ParameterIndices)::Tuple{AbstractVector{T}, AbstractVector{T}, AbstractVector{T}, AbstractVector{T}} where T
 
     θ_dynamic = @view θ_est[θ_indices.iθ_dynamic]
     θ_observable = @view θ_est[θ_indices.iθ_observable]
     θ_sd = @view θ_est[θ_indices.iθ_sd]
-    θ_nonDynamic = @view θ_est[θ_indices.iθ_nonDynamic]
+    θ_non_dynamic = @view θ_est[θ_indices.iθ_non_dynamic]
 
-    return θ_dynamic, θ_observable, θ_sd, θ_nonDynamic
+    return θ_dynamic, θ_observable, θ_sd,  θ_non_dynamic
 end
 
 
-function splitParameterVector!(θ_est::AbstractVector,
-                               θ_indices::ParameterIndices,
-                               petabODECache::PEtabODEProblemCache)
+function splitθ!(θ_est::AbstractVector,
+                 θ_indices::ParameterIndices,
+                 petab_ODE_cache::PEtabODEProblemCache)
 
-    @views petabODECache.θ_dynamic .= θ_est[θ_indices.iθ_dynamic]
-    @views petabODECache.θ_observable .= θ_est[θ_indices.iθ_observable]
-    @views petabODECache.θ_sd .= θ_est[θ_indices.iθ_sd]
-    @views petabODECache.θ_nonDynamic .= θ_est[θ_indices.iθ_nonDynamic]
+    @views petab_ODE_cache.θ_dynamic .= θ_est[θ_indices.iθ_dynamic]
+    @views petab_ODE_cache.θ_observable .= θ_est[θ_indices.iθ_observable]
+    @views petab_ODE_cache.θ_sd .= θ_est[θ_indices.iθ_sd]
+    @views petab_ODE_cache.θ_non_dynamic .= θ_est[θ_indices.iθ_non_dynamic]
 end
 
 
@@ -60,19 +60,19 @@ function computeσ(u::AbstractVector,
                   t::Float64,
                   θ_dynamic::AbstractVector,
                   θ_sd::AbstractVector,
-                  θ_nonDynamic::AbstractVector,
-                  petabModel::PEtabModel,
-                  iMeasurement::Int64,
-                  measurementInfo::MeasurementsInfo,
+                  θ_non_dynamic::AbstractVector,
+                  petab_model::PEtabModel,
+                  i_measurement::Int64,
+                  measurement_info::MeasurementsInfo,
                   θ_indices::ParameterIndices,
-                  parameterInfo::ParametersInfo)::Real
+                  parameter_info::ParametersInfo)::Real
 
     # Compute associated SD-value or extract said number if it is known
-    mapθ_sd = θ_indices.mapθ_sd[iMeasurement]
-    if mapθ_sd.isSingleConstant == true
-        σ = mapθ_sd.constantValues[1]
+    mapθ_sd = θ_indices.mapθ_sd[i_measurement]
+    if mapθ_sd.is_single_constant == true
+        σ = mapθ_sd.constant_values[1]
     else
-        σ = petabModel.compute_σ(u, t, θ_sd, θ_dynamic, θ_nonDynamic, parameterInfo, measurementInfo.observableId[iMeasurement], mapθ_sd)
+        σ = petab_model.compute_σ(u, t, θ_sd, θ_dynamic,  θ_non_dynamic, parameter_info, measurement_info.observable_id[i_measurement], mapθ_sd)
     end
 
     return σ
@@ -80,23 +80,23 @@ end
 
 
 # Compute observation function h
-function computehTransformed(u::AbstractVector,
-                             t::Float64,
-                             θ_dynamic::AbstractVector,
-                             θ_observable::AbstractVector,
-                             θ_nonDynamic::AbstractVector,
-                             petabModel::PEtabModel,
-                             iMeasurement::Int64,
-                             measurementInfo::MeasurementsInfo,
-                             θ_indices::ParameterIndices,
-                             parameterInfo::ParametersInfo)::Real
+function computehT(u::AbstractVector,
+                   t::Float64,
+                   θ_dynamic::AbstractVector,
+                   θ_observable::AbstractVector,
+                   θ_non_dynamic::AbstractVector,
+                   petab_model::PEtabModel,
+                   i_measurement::Int64,
+                   measurement_info::MeasurementsInfo,
+                   θ_indices::ParameterIndices,
+                   parameter_info::ParametersInfo)::Real
 
-    mapθ_observable = θ_indices.mapθ_observable[iMeasurement]
-    h = petabModel.compute_h(u, t, θ_dynamic, θ_observable, θ_nonDynamic, parameterInfo, measurementInfo.observableId[iMeasurement], mapθ_observable)
-    # Transform yMod is necessary
-    hTransformed = transformMeasurementOrH(h, measurementInfo.measurementTransformation[iMeasurement])
+    mapθ_observable = θ_indices.mapθ_observable[i_measurement]
+    h = petab_model.compute_h(u, t, θ_dynamic, θ_observable,  θ_non_dynamic, parameter_info, measurement_info.observable_id[i_measurement], mapθ_observable)
+    # Transform y_model is necessary
+    hT = transform_measurement_or_h(h, measurement_info.measurement_transformation[i_measurement])
 
-    return hTransformed
+    return hT
 end
 
 
@@ -104,26 +104,26 @@ function computeh(u::AbstractVector{T},
                   t::Float64,
                   θ_dynamic::AbstractVector,
                   θ_observable::AbstractVector,
-                  θ_nonDynamic::AbstractVector,
-                  petabModel::PEtabModel,
-                  iMeasurement::Int64,
-                  measurementInfo::MeasurementsInfo,
+                  θ_non_dynamic::AbstractVector,
+                  petab_model::PEtabModel,
+                  i_measurement::Int64,
+                  measurement_info::MeasurementsInfo,
                   θ_indices::ParameterIndices,
-                  parameterInfo::ParametersInfo)::Real where T
+                  parameter_info::ParametersInfo)::Real where T
 
-    mapθ_observable = θ_indices.mapθ_observable[iMeasurement]
-    h = petabModel.compute_h(u, t, θ_dynamic, θ_observable, θ_nonDynamic, parameterInfo, measurementInfo.observableId[iMeasurement], mapθ_observable)
+    mapθ_observable = θ_indices.mapθ_observable[i_measurement]
+    h = petab_model.compute_h(u, t, θ_dynamic, θ_observable,  θ_non_dynamic, parameter_info, measurement_info.observable_id[i_measurement], mapθ_observable)
     return h
 end
 
 
 
 """
-    transformMeasurementOrH(val::Real, transformationArr::Array{Symbol, 1})
+    transform_measurement_or_h(val::Real, transformationArr::Array{Symbol, 1})
 
     Transform val using either :lin (identify), :log10 and :log transforamtions.
 """
-function transformMeasurementOrH(val::T, transform::Symbol)::T where T
+function transform_measurement_or_h(val::T, transform::Symbol)::T where T
     if transform == :lin
         return val
     elseif transform == :log10
@@ -138,45 +138,45 @@ end
 
 
 # Function to extract observable or noise parameters when computing h or σ
-function getObsOrSdParam(θ::AbstractVector, parameterMap::θObsOrSdParameterMap)
+function get_obs_sd_parameter(θ::AbstractVector, parameter_map::θObsOrSdParameterMap)
 
     # Helper function to map SD or obs-parameters in non-mutating way
-    function map1Tmp(iVal)
-        whichI = sum(parameterMap.shouldEstimate[1:iVal])
-        return parameterMap.indexInθ[whichI]
+    function map1Tmp(i_value)
+        whichI = sum(parameter_map.should_estimate[1:i_value])
+        return parameter_map.index_in_θ[whichI]
     end
-    function map2Tmp(iVal)
-        whichI = sum(.!parameterMap.shouldEstimate[1:iVal])
+    function map2Tmp(i_value)
+        whichI = sum(.!parameter_map.should_estimate[1:i_value])
         return whichI
     end
 
     # In case of no SD/observable parameter exit function
-    if parameterMap.nParameters == 0
+    if parameter_map.n_parameters == 0
         return
     end
 
     # In case of single-value return do not have to return an array and think about type
-    if parameterMap.nParameters == 1
-        if parameterMap.shouldEstimate[1] == true
-            return θ[parameterMap.indexInθ][1]
+    if parameter_map.n_parameters == 1
+        if parameter_map.should_estimate[1] == true
+            return θ[parameter_map.index_in_θ][1]
         else
-            return parameterMap.constantValues[1]
+            return parameter_map.constant_values[1]
         end
     end
 
-    nParametersToEstimte = sum(parameterMap.shouldEstimate)
-    if nParametersToEstimte == parameterMap.nParameters
-        return θ[parameterMap.indexInθ]
+    n_parameters_estimate = sum(parameter_map.should_estimate)
+    if n_parameters_estimate == parameter_map.n_parameters
+        return θ[parameter_map.index_in_θ]
 
-    elseif nParametersToEstimte == 0
-        return parameterMap.constantValues
+    elseif n_parameters_estimate == 0
+        return parameter_map.constant_values
 
     # Computaionally most demanding case. Here a subset of the parameters
     # are to be estimated. This code must be non-mutating to support Zygote which
     # negatively affects performance
-    elseif nParametersToEstimte > 0
-        _values = [parameterMap.shouldEstimate[i] == true ? θ[map1Tmp(i)] : 0.0 for i in 1:parameterMap.nParameters]
-        values = [parameterMap.shouldEstimate[i] == false ? parameterMap.constantValues[map2Tmp(i)] : _values[i] for i in 1:parameterMap.nParameters]
+    elseif n_parameters_estimate > 0
+        _values = [parameter_map.should_estimate[i] == true ? θ[map1Tmp(i)] : 0.0 for i in 1:parameter_map.n_parameters]
+        values = [parameter_map.should_estimate[i] == false ? parameter_map.constant_values[map2Tmp(i)] : _values[i] for i in 1:parameter_map.n_parameters]
         return values
     end
 end
@@ -184,111 +184,111 @@ end
 
 # Transform parameter from log10 scale to normal scale, or reverse transform
 function transformθ!(θ::AbstractVector,
-                     θ_names::Vector{Symbol},
+                     n_parameters_estimate::Vector{Symbol},
                      θ_indices::ParameterIndices;
-                     reverseTransform::Bool=false)
+                     reverse_transform::Bool=false)
 
-    @inbounds for (i, θ_name) in pairs(θ_names)
-        θ[i] = transformθElement(θ[i], θ_indices.θ_scale[θ_name], reverseTransform=reverseTransform)
+    @inbounds for (i, θ_name) in pairs(n_parameters_estimate)
+        θ[i] = transform_θ_element(θ[i], θ_indices.θ_scale[θ_name], reverse_transform=reverse_transform)
     end
 end
 
 # Transform parameter from log10 scale to normal scale, or reverse transform
 function transformθ(θ::AbstractVector,
-                    θ_names::Vector{Symbol},
+                    n_parameters_estimate::Vector{Symbol},
                     θ_indices::ParameterIndices;
-                    reverseTransform::Bool=false)::AbstractVector
+                    reverse_transform::Bool=false)::AbstractVector
 
     if isempty(θ)
         return similar(θ)
     else
-        out = [transformθElement(θ[i], θ_indices.θ_scale[θ_name], reverseTransform=reverseTransform) for (i, θ_name) in pairs(θ_names)]
+        out = [transform_θ_element(θ[i], θ_indices.θ_scale[θ_name], reverse_transform=reverse_transform) for (i, θ_name) in pairs(n_parameters_estimate)]
         return out
     end
 end
 function transformθ(θ::AbstractVector{T},
-                    θ_names::Vector{Symbol},
+                    n_parameters_estimate::Vector{Symbol},
                     θ_indices::ParameterIndices,
                     whichθ::Symbol,
-                    petabODECache::PEtabODEProblemCache;
-                    reverseTransform::Bool=false)::AbstractVector{T} where T
+                    petab_ODE_cache::PEtabODEProblemCache;
+                    reverse_transform::Bool=false)::AbstractVector{T} where T
 
     if whichθ === :θ_dynamic
-        θ_out = get_tmp(petabODECache.θ_dynamicT, θ)
+        θ_out = get_tmp(petab_ODE_cache.θ_dynamicT, θ)
     elseif whichθ === :θ_sd
-        θ_out = get_tmp(petabODECache.θ_sdT, θ)
-    elseif whichθ === :θ_nonDynamic
-        θ_out = get_tmp(petabODECache.θ_nonDynamicT, θ)
+        θ_out = get_tmp(petab_ODE_cache.θ_sdT, θ)
+    elseif whichθ === :θ_non_dynamic
+        θ_out = get_tmp(petab_ODE_cache.θ_non_dynamicT, θ)
     elseif whichθ === :θ_observable
-        θ_out = get_tmp(petabODECache.θ_observableT, θ)
+        θ_out = get_tmp(petab_ODE_cache.θ_observableT, θ)
     end
 
-    @inbounds for (i, θ_name) in pairs(θ_names)
-        θ_out[i] = transformθElement(θ[i], θ_indices.θ_scale[θ_name], reverseTransform=reverseTransform)
+    @inbounds for (i, θ_name) in pairs(n_parameters_estimate)
+        θ_out[i] = transform_θ_element(θ[i], θ_indices.θ_scale[θ_name], reverse_transform=reverse_transform)
     end
 
     return θ_out
 end
 
 
-function transformθElement(θ_element,
+function transform_θ_element(θ_element,
                            scale::Symbol;
-                           reverseTransform::Bool=false)::Real
+                           reverse_transform::Bool=false)::Real
 
     if scale === :lin
         return θ_element
     elseif scale === :log10
-        return reverseTransform == true ? log10(θ_element) : exp10(θ_element)
+        return reverse_transform == true ? log10(θ_element) : exp10(θ_element)
     elseif scale === :log
-        return reverseTransform == true ? log(θ_element) : exp(θ_element)
+        return reverse_transform == true ? log(θ_element) : exp(θ_element)
     end
 end
 
 
-function changeODEProblemParameters!(pODEProblem::AbstractVector,
-                                     u0::AbstractVector,
-                                     θ::AbstractVector,
-                                     θ_indices::ParameterIndices,
-                                     petabModel::PEtabModel)
+function change_ode_parameters!(p_ode_problem::AbstractVector,
+                                u0::AbstractVector,
+                                θ::AbstractVector,
+                                θ_indices::ParameterIndices,
+                                petab_model::PEtabModel)
 
-    mapODEProblem = θ_indices.mapODEProblem
-    pODEProblem[mapODEProblem.iODEProblemθDynamic] .= θ[mapODEProblem.iθDynamic]
-    petabModel.compute_u0!(u0, pODEProblem)
+    map_ode_problem = θ_indices.map_ode_problem
+    p_ode_problem[map_ode_problem.i_ode_problem_θ_dynamic] .= θ[map_ode_problem.iθ_dynamic]
+    petab_model.compute_u0!(u0, p_ode_problem)
 
     return nothing
 end
 
 
-function changeODEProblemParameters(pODEProblem::AbstractVector,
-                                    θ::AbstractVector,
-                                    θ_indices::ParameterIndices,
-                                    petabModel::PEtabModel)
+function change_ode_parameters(p_ode_problem::AbstractVector,
+                               θ::AbstractVector,
+                               θ_indices::ParameterIndices,
+                               petab_model::PEtabModel)
 
     # Helper function to not-inplace map parameters
-    function mapParamToEst(j::Integer, mapDynParam::MapODEProblem)
-        whichIndex = findfirst(x -> x == j, mapDynParam.iODEProblemθDynamic)
-        return mapODEProblem.iθDynamic[whichIndex]
+    function mapParamToEst(j::Integer, mapDynParam::Map_ode_problem)
+        which_index = findfirst(x -> x == j, mapDynParam.i_ode_problem_θ_dynamic)
+        return map_ode_problem.iθ_dynamic[which_index]
     end
 
-    mapODEProblem = θ_indices.mapODEProblem
-    outpODEProblem = [i ∈ mapODEProblem.iODEProblemθDynamic ? θ[mapParamToEst(i, mapODEProblem)] : pODEProblem[i] for i in eachindex(pODEProblem)]
-    outu0 = petabModel.compute_u0(outpODEProblem)
+    map_ode_problem = θ_indices.map_ode_problem
+    outp_ode_problem = [i ∈ map_ode_problem.i_ode_problem_θ_dynamic ? θ[mapParamToEst(i, map_ode_problem)] : p_ode_problem[i] for i in eachindex(p_ode_problem)]
+    outu0 = petab_model.compute_u0(outp_ode_problem)
 
-    return outpODEProblem, outu0
+    return outp_ode_problem, outu0
 end
 
 
 """
-    dualToFloat(x::ForwardDiff.Dual)::Real
+    dual_to_float(x::ForwardDiff.Dual)::Real
 
-    Via recursion convert a Dual to a Float.
+Via recursion convert a Dual to a Float.
 """
-function dualToFloat(x::ForwardDiff.Dual)::Real
-    return dualToFloat(x.value)
+function dual_to_float(x::ForwardDiff.Dual)::Real
+    return dual_to_float(x.value)
 end
 """
-    dualToFloat(x::AbstractFloat)::AbstractFloat
+    dual_to_float(x::AbstractFloat)::AbstractFloat
 """
-function dualToFloat(x::AbstractFloat)::AbstractFloat
+function dual_to_float(x::AbstractFloat)::AbstractFloat
     return x
 end

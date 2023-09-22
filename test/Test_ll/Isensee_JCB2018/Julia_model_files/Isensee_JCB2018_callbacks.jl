@@ -1,4 +1,4 @@
-function getCallbacks_Isensee_JCB2018()
+function getCallbacks_Isensee_JCB2018(foo)
 
 	function condition_H89_bool1(u, t, integrator)
 		t-integrator.p[28] == 0
@@ -8,7 +8,7 @@ function getCallbacks_Isensee_JCB2018()
 		integrator.p[16] = 1.0
 	end
 
-	function isActiveAtTime0_H89_bool1!(u, p)
+	function is_active_t0_H89_bool1!(u, p)
 		t = 0.0 # Used to check conditions activated at t0=0
 		p[16] = 0.0 # Default to being off
 		if !(t-p[28] < 0)
@@ -28,7 +28,7 @@ function getCallbacks_Isensee_JCB2018()
 		integrator.p[56] = 1.0
 	end
 
-	function isActiveAtTime0_Sp8_Br_cAMPS_AM_bool1!(u, p)
+	function is_active_t0_Sp8_Br_cAMPS_AM_bool1!(u, p)
 		t = 0.0 # Used to check conditions activated at t0=0
 		p[56] = 0.0 # Default to being off
 		if !(t-p[46] < 0)
@@ -48,7 +48,7 @@ function getCallbacks_Isensee_JCB2018()
 		integrator.p[29] = 1.0
 	end
 
-	function isActiveAtTime0_Rp_cAMPS_pAB_bool1!(u, p)
+	function is_active_t0_Rp_cAMPS_pAB_bool1!(u, p)
 		t = 0.0 # Used to check conditions activated at t0=0
 		p[29] = 0.0 # Default to being off
 		if !(t-p[17] < 0)
@@ -68,7 +68,7 @@ function getCallbacks_Isensee_JCB2018()
 		integrator.p[70] = 1.0
 	end
 
-	function isActiveAtTime0_Fsk_bool1!(u, p)
+	function is_active_t0_Fsk_bool1!(u, p)
 		t = 0.0 # Used to check conditions activated at t0=0
 		p[70] = 0.0 # Default to being off
 		if !(t-p[38] < 0)
@@ -88,7 +88,7 @@ function getCallbacks_Isensee_JCB2018()
 		integrator.p[37] = 1.0
 	end
 
-	function isActiveAtTime0_IBMXex_bool1!(u, p)
+	function is_active_t0_IBMXex_bool1!(u, p)
 		t = 0.0 # Used to check conditions activated at t0=0
 		p[37] = 0.0 # Default to being off
 		if !(t-p[15] < 0)
@@ -108,7 +108,7 @@ function getCallbacks_Isensee_JCB2018()
 		integrator.p[65] = 1.0
 	end
 
-	function isActiveAtTime0_fourABnOH_bool1!(u, p)
+	function is_active_t0_fourABnOH_bool1!(u, p)
 		t = 0.0 # Used to check conditions activated at t0=0
 		p[65] = 0.0 # Default to being off
 		if !(t-p[5] < 0)
@@ -128,7 +128,7 @@ function getCallbacks_Isensee_JCB2018()
 		integrator.p[41] = 1.0
 	end
 
-	function isActiveAtTime0_Rp8_Br_cAMPS_pAB_bool1!(u, p)
+	function is_active_t0_Rp8_Br_cAMPS_pAB_bool1!(u, p)
 		t = 0.0 # Used to check conditions activated at t0=0
 		p[41] = 0.0 # Default to being off
 		if !(t-p[51] < 0)
@@ -148,7 +148,7 @@ function getCallbacks_Isensee_JCB2018()
 		integrator.p[25] = 1.0
 	end
 
-	function isActiveAtTime0_Rp8_pCPT_cAMPS_pAB_bool1!(u, p)
+	function is_active_t0_Rp8_pCPT_cAMPS_pAB_bool1!(u, p)
 		t = 0.0 # Used to check conditions activated at t0=0
 		p[25] = 0.0 # Default to being off
 		if !(t-p[39] < 0)
@@ -159,10 +159,10 @@ function getCallbacks_Isensee_JCB2018()
 
 	cb_Rp8_pCPT_cAMPS_pAB_bool1 = DiscreteCallback(condition_Rp8_pCPT_cAMPS_pAB_bool1, affect_Rp8_pCPT_cAMPS_pAB_bool1!, save_positions=(false, false))
 
-	return CallbackSet(cb_H89_bool1, cb_Sp8_Br_cAMPS_AM_bool1, cb_Rp_cAMPS_pAB_bool1, cb_Fsk_bool1, cb_IBMXex_bool1, cb_fourABnOH_bool1, cb_Rp8_Br_cAMPS_pAB_bool1, cb_Rp8_pCPT_cAMPS_pAB_bool1), Function[isActiveAtTime0_H89_bool1!, isActiveAtTime0_Sp8_Br_cAMPS_AM_bool1!, isActiveAtTime0_Rp_cAMPS_pAB_bool1!, isActiveAtTime0_Fsk_bool1!, isActiveAtTime0_IBMXex_bool1!, isActiveAtTime0_fourABnOH_bool1!, isActiveAtTime0_Rp8_Br_cAMPS_pAB_bool1!, isActiveAtTime0_Rp8_pCPT_cAMPS_pAB_bool1!], false
+	return CallbackSet(cb_H89_bool1, cb_Sp8_Br_cAMPS_AM_bool1, cb_Rp_cAMPS_pAB_bool1, cb_Fsk_bool1, cb_IBMXex_bool1, cb_fourABnOH_bool1, cb_Rp8_Br_cAMPS_pAB_bool1, cb_Rp8_pCPT_cAMPS_pAB_bool1), Function[is_active_t0_H89_bool1!, is_active_t0_Sp8_Br_cAMPS_AM_bool1!, is_active_t0_Rp_cAMPS_pAB_bool1!, is_active_t0_Fsk_bool1!, is_active_t0_IBMXex_bool1!, is_active_t0_fourABnOH_bool1!, is_active_t0_Rp8_Br_cAMPS_pAB_bool1!, is_active_t0_Rp8_pCPT_cAMPS_pAB_bool1!], false
 end
 
 
 function computeTstops(u::AbstractVector, p::AbstractVector)
-	return Float64[dualToFloat(p[28]), dualToFloat(p[46]), dualToFloat(p[17]), dualToFloat(p[38]), dualToFloat(p[15]), dualToFloat(p[5]), dualToFloat(p[51]), dualToFloat(p[39])]
+	return Float64[dual_to_float(p[28]), dual_to_float(p[46]), dual_to_float(p[17]), dual_to_float(p[38]), dual_to_float(p[15]), dual_to_float(p[5]), dual_to_float(p[51]), dual_to_float(p[39])]
 end

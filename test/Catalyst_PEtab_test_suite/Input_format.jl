@@ -37,16 +37,16 @@
         # Case 1 everything should work
         simulation_conditions = Dict("c0" => Dict(:a0 => 0.8),
                                     "c1" => Dict(:a0 => 0.9))
-        petab_model = readPEtabModel(rn, simulation_conditions, observables, measurements,
-                                    petab_parameters, verbose=false, stateMap=state_map)
+        petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
+                                    petab_parameters, verbose=false, state_map=state_map)
         @test typeof(petab_model) <: PEtabModel
 
 
         simulation_conditions = Dict("c0" => Dict(:b0 => 0.8),
                                     "c1" => Dict(:b0 => 0.9))
         @test_throws PEtab.PEtabFormatError begin
-        petab_model = readPEtabModel(rn, simulation_conditions, observables, measurements,
-                                    petab_parameters, verbose=false, stateMap=state_map)
+        petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
+                                    petab_parameters, verbose=false, state_map=state_map)
         end
 
 
@@ -56,24 +56,24 @@
                             PEtabParameter(:noise, value=0.6, scale=:lin)]
         simulation_conditions = Dict("c0" => Dict(:a0 => 0.8),
                                     "c1" => Dict(:a0 => :noise))
-        petab_model = readPEtabModel(rn, simulation_conditions, observables, measurements,
-                                    petab_parameters, verbose=false, stateMap=state_map)
+        petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
+                                    petab_parameters, verbose=false, state_map=state_map)
         @test typeof(petab_model) <: PEtabModel
 
 
         simulation_conditions = Dict("c0" => Dict(:a0 => 0.8),
                                     "c1" => Dict(:a0 => :noise1))
         @test_throws PEtab.PEtabFormatError begin
-        petab_model = readPEtabModel(rn, simulation_conditions, observables, measurements,
-                                    petab_parameters, verbose=false, stateMap=state_map)
+        petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
+                                    petab_parameters, verbose=false, state_map=state_map)
         end
 
 
         simulation_conditions = Dict("c0" => Dict(:a0 => 0.8),
                                     "c1" => Dict(:k1 => :noise))
         @test_throws PEtab.PEtabFormatError begin
-        petab_model = readPEtabModel(rn, simulation_conditions, observables, measurements,
-                                    petab_parameters, verbose=false, stateMap=state_map)
+        petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
+                                    petab_parameters, verbose=false, state_map=state_map)
         end
     end
 
@@ -85,8 +85,8 @@
         petab_parameters = [PEtabParameter(:k1, value=0.8, scale=:lin),
                             PEtabParameter(:k2, value=0.6, scale=:lin),
                             PEtabParameter(:noise, value=0.6, scale=:lin)]
-        petab_model = readPEtabModel(rn, simulation_conditions, observables, measurements,
-                                        petab_parameters, verbose=false, stateMap=state_map)
+        petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
+                                        petab_parameters, verbose=false, state_map=state_map)
         @test typeof(petab_model) <: PEtabModel
 
 
@@ -95,8 +95,8 @@
                             PEtabParameter(:noise, value=0.6, scale=:lin),
                             PEtabParameter(:k3, value=0.6, scale=:lin)]
         @test_throws PEtab.PEtabFormatError begin
-        petab_model = readPEtabModel(rn, simulation_conditions, observables, measurements,
-                                        petab_parameters, verbose=false, stateMap=state_map)
+        petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
+                                        petab_parameters, verbose=false, state_map=state_map)
         end
 
 
@@ -104,8 +104,8 @@
                             PEtabParameter(:k2, value=0.6, scale=:lin),
                             PEtabParameter(:noise, value=0.6, scale=:lin),
                             PEtabParameter(:k3, value=0.6, scale=:lin, estimate=false)]
-        petab_model = readPEtabModel(rn, simulation_conditions, observables, measurements,
-                                        petab_parameters, verbose=false, stateMap=state_map)
+        petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
+                                        petab_parameters, verbose=false, state_map=state_map)
         @test typeof(petab_model) <: PEtabModel
     end
 
@@ -135,16 +135,16 @@
                                 measurement=[0.7, 0.1, 0.8, 0.2],
                                 observable_parameters=[missing, "", "scale_P;offset_P", "1.0;1.0"],
                                 noise_parameters=[1.0, "noise", missing, missing])                    
-        petab_model = readPEtabModel(rn, simulation_conditions, observables, measurements,
-                                    petab_parameters, verbose=false, stateMap=state_map)
+        petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
+                                    petab_parameters, verbose=false, state_map=state_map)
         @test typeof(petab_model) <: PEtabModel
 
         path = joinpath(@__DIR__, "Tmp.csv")
         CSV.write(path, measurements)
         dataFromDisk = CSV.read(path, DataFrame)
         rm(path)
-        petab_model = readPEtabModel(rn, simulation_conditions, observables, dataFromDisk,
-                                    petab_parameters, verbose=false, stateMap=state_map)
+        petab_model = PEtabModel(rn, simulation_conditions, observables, dataFromDisk,
+                                    petab_parameters, verbose=false, state_map=state_map)
         @test typeof(petab_model) <: PEtabModel
 
         # Start messing up the data
@@ -155,8 +155,8 @@
                                 observable_parameters=[missing, "", "scale_P;offset_P", "1.0;1.0"],
                                 noise_parameters=[1.0, "noise", missing, missing])
         @test_throws PEtab.PEtabFormatError begin                         
-        petab_model = readPEtabModel(rn, simulation_conditions, observables, measurements,
-                                    petab_parameters, verbose=false, stateMap=state_map)
+        petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
+                                    petab_parameters, verbose=false, state_map=state_map)
         end                             
 
         measurements = DataFrame(simulation_id=[1.0, "c0", "c1", "c1"],
@@ -166,8 +166,8 @@
                                 observable_parameters=[missing, "", "scale_P;offset_P", "1.0;1.0"],
                                 noise_parameters=[1.0, "noise", missing, missing])
         @test_throws PEtab.PEtabFormatError begin                         
-        petab_model = readPEtabModel(rn, simulation_conditions, observables, measurements,
-                                    petab_parameters, verbose=false, stateMap=state_map)
+        petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
+                                    petab_parameters, verbose=false, state_map=state_map)
         end                             
 
         measurements = DataFrame(simulation_id=["c0", "c0", "c1", "c1"],
@@ -177,8 +177,8 @@
                                 observable_parameters=[missing, "", "scale_P;offset_P", "1.0;1.0"],
                                 noise_parameters=[1.0, "noise", missing, missing])
         @test_throws PEtab.PEtabFormatError begin                         
-        petab_model = readPEtabModel(rn, simulation_conditions, observables, measurements,
-                                    petab_parameters, verbose=false, stateMap=state_map)
+        petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
+                                    petab_parameters, verbose=false, state_map=state_map)
         end                             
 
         measurements = DataFrame(simulation_id=["c0", "c0", "c1", "c1"],
@@ -188,8 +188,8 @@
                                 observable_parameters=[missing, "", "scale_P;offset_P", "1.0;1.0"],
                                 noise_parameters=[1.0, "noise1", missing, missing])
         @test_throws PEtab.PEtabFormatError begin                         
-        petab_model = readPEtabModel(rn, simulation_conditions, observables, measurements,
-                                    petab_parameters, verbose=false, stateMap=state_map)                             
+        petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
+                                    petab_parameters, verbose=false, state_map=state_map)                             
         end                             
 
         measurements = DataFrame(simulation_id=["c0", "c0", "c1", "c1"],
@@ -199,7 +199,7 @@
                                 observable_parameters=[missing, "", "scale_P;offset_P1", "1.0;1.0"],
                                 noise_parameters=[1.0, "noise", missing, missing])
         @test_throws PEtab.PEtabFormatError begin                         
-        petab_model = readPEtabModel(rn, simulation_conditions, observables, measurements,
-                                    petab_parameters, verbose=false, stateMap=state_map) 
+        petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
+                                    petab_parameters, verbose=false, state_map=state_map) 
         end                                   
     end

@@ -1,4 +1,4 @@
-function getCallbacks_Zheng_PNAS2012()
+function getCallbacks_Zheng_PNAS2012(foo)
 	return CallbackSet(), Function[], false
 end
 

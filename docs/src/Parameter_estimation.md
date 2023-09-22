@@ -23,7 +23,7 @@ Additionally, the `PEtabODEProblem` contain all the necessary information to use
 
 A widely adopted and effective approach for model calibration is multi-start local optimization. In this method, a local optimizer is run from a large number (typically 100-1000) of randomly generated initial parameter guesses. These guesses are efficiently generated using techniques like Latin-hypercube sampling to effectively explore the parameter space.
 
-To perform multi-start parameter estimation, you can employ the `calibrateModelMultistart` function. This function requires a `PEtabODEProblem`, the number of multi-starts, one of the available optimizer algorithms, and a directory to save the results. If you provide `dirSave=nothing` as the directory path, the results will not be written to disk. However, as a precaution against premature termination, we strongly recommended to specify a directory.
+To perform multi-start parameter estimation, you can employ the `calibrate_model_multistart` function. This function requires a `PEtabODEProblem`, the number of multi-starts, one of the available optimizer algorithms, and a directory to save the results. If you provide `dir_save=nothing` as the directory path, the results will not be written to disk. However, as a precaution against premature termination, we strongly recommended to specify a directory.
 
 For example, to use the Interior-point Newton method from [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl) to perform parameter estimation on the Boehm model with 10 multi-starts you can write:
 
@@ -31,9 +31,9 @@ For example, to use the Interior-point Newton method from [Optim.jl](https://git
 using PEtab
 using Optim
 
-petab_model = readPEtabModel(path_to_Boehm_model)
-petab_problem = createPEtabODEProblem(petab_model)
-res = calibrateModelMultistart(petab_problem, IPNewton(), 10, dir_save,
+petab_model = PEtabModel(path_to_Boehm_model)
+petab_problem = PEtabODEProblem(petab_model)
+res = calibrate_model_multistart(petab_problem, IPNewton(), 10, dir_save,
                                options=Optim.Options(iterations = 200))
 print(res)
 ```
@@ -46,7 +46,7 @@ Number of multistarts = 10
 Optimiser algorithm   = Optim_IPNewton
 ```
 
-In this example, we use `Optim.Options` to set the maximum number of iterations to 200. You can find a full list of options [here](https://julianlsolvers.github.io/Optim.jl/v0.9.3/user/config/). The results are returned as a `PEtabMultistartOptimisationResult`, which contains the best-found minima (`xMin`), the smallest objective value (`fMin`), and optimization results for each run.
+In this example, we use `Optim.Options` to set the maximum number of iterations to 200. You can find a full list of options [here](https://julianlsolvers.github.io/Optim.jl/v0.9.3/user/config/). The results are returned as a `PEtabMultistartOptimisationResult`, which contains the best-found minima (`xmin`), the smallest objective value (`fmin`), and optimization results for each run.
 
 The method for generating initial parameter guesses can also be chosen, as we support any method available in [QuasiMonteCarlo.jl](https://github.com/SciML/QuasiMonteCarlo.jl). For instance, to use Latin-Hypercube sampling (which is the default), and to perform multi-start calibration with Fides, write:
 
@@ -55,10 +55,10 @@ using PEtab
 using PyCall
 using QuasiMonteCarlo
 
-petab_model = readPEtabModel(path_yaml)
-petab_problem = createPEtabODEProblem(petab_model)
-res = calibrateModelMultistart(petab_problem, Fides(nothing), 10, dir_save,
-                               samplingMethod=QuasiMonteCarlo.LatinHypercubeSample())
+petab_model = PEtabModel(path_yaml)
+petab_problem = PEtabODEProblem(petab_model)
+res = calibrate_model_multistart(petab_problem, Fides(nothing), 10, dir_save,
+                               sampling_method=QuasiMonteCarlo.LatinHypercubeSample())
 print(res)
 ```
 ```
@@ -70,7 +70,7 @@ Number of multistarts = 10
 Optimiser algorithm   = Fides
 ```
 
-In this example, we utilize Latin-Hypercube sampling by specifying `samplingMethod=QuasiMonteCarlo.LatinHypercubeSample()`.
+In this example, we utilize Latin-Hypercube sampling by specifying `sampling_method=QuasiMonteCarlo.LatinHypercubeSample()`.
 
 Finally, we have the option to save the trace of each optimization run. For instance, if we want to use `Ipopt` and save the trace for each run, while ensuring reproducibility by setting a seed, we can use the following code:
 
@@ -78,10 +78,10 @@ Finally, we have the option to save the trace of each optimization run. For inst
 using PEtab
 using Ipopt
 
-petab_model = readPEtabModel(path_yaml)
-petab_problem = createPEtabODEProblem(petab_model)
-res = calibrateModelMultistart(petab_problem, IpoptOptimiser(false), 10, dir_save,
-                               saveTrace=true,
+petab_model = PEtabModel(path_yaml)
+petab_problem = PEtabODEProblem(petab_model)
+res = calibrate_model_multistart(petab_problem, IpoptOptimiser(false), 10, dir_save,
+                               save_trace=true,
                                seed=123)
 print(res)
 ```
@@ -94,21 +94,21 @@ Number of multistarts = 10
 Optimiser algorithm   = Ipopt_user_Hessian
 ```
 
-In this example, we use `saveTrace=true` to enable trace saving and set `seed=123` for reproducibility. We can access the traces for the first run as follows:
+In this example, we use `save_trace=true` to enable trace saving and set `seed=123` for reproducibility. We can access the traces for the first run as follows:
 
 ```julia
-res.runs[1].xTrace
-res.runs[1].fTrace
+res.runs[1].xtrace
+res.runs[1].ftrace
 ```
 
 ## Single-Start Parameter Estimation
 
-If we want to perform single-start parameter estimation instead of multistart, we can use the `calibrateModel` function. This function runs a single optimization from a given initial guess.
+If we want to perform single-start parameter estimation instead of multistart, we can use the `calibrate_model` function. This function runs a single optimization from a given initial guess.
 
 Given a starting point `p0`, and that we want to use Ipopt for optimization the model can be parameter estimated via:
 
 ```julia
-res = calibrateModel(petabProblem, p0, IpoptOptimiser(false),
+res = calibrate_model(petab_problem, p0, IpoptOptimiser(false),
                      options=IpoptOptions(max_iter = 1000))
 print(res)
 ```
@@ -122,4 +122,4 @@ Run time              = 1.9e+00s
 Optimiser algorithm   = Ipopt_user_Hessian
 ```
 
-The results are returned as a `PEtabOptimisationResult`, which includes the following information: minimum parameter values found (`xMin`), smallest objective value (`fMin`), number of iterations, runtime, whether the optimizer converged, and optionally, the trace if `saveTrace=true`.
+The results are returned as a `PEtabOptimisationResult`, which includes the following information: minimum parameter values found (`xmin`), smallest objective value (`fmin`), number of iterations, runtime, whether the optimizer converged, and optionally, the trace if `save_trace=true`.

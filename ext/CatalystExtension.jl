@@ -9,7 +9,7 @@ using Printf
 using DiffEqCallbacks
 using Catalyst
 
-import PEtab.getObsOrSdParam
+import PEtab.get_obs_sd_parameter
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 

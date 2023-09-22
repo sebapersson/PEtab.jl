@@ -1,4 +1,4 @@
-function getCallbacks_Sneyd_PNAS2002(foo)
+function getCallbacks_model_Boehm_JProteomeRes2014()
 	return CallbackSet(), Function[], false
 end
 

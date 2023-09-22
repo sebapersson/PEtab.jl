@@ -9,54 +9,54 @@ using LinearAlgebra
 using FiniteDifferences
 
 
-function testReferenceCase(testCase::String; testGradient=true)
+function test_reference_case(testCase::String; testGradient=true)
 
     @info "Test case $testCase"
-    pathYAML = joinpath(@__DIR__, "PEtab_test_suite", testCase, "_" * testCase * ".yaml")
+    path_yaml = joinpath(@__DIR__, "PEtab_test_suite", testCase, "_" * testCase * ".yaml")
     pathReferenceValues = joinpath(@__DIR__, "PEtab_test_suite", testCase, "_" * testCase * "_solution.yaml")
 
-    petabModel = readPEtabModel(pathYAML, verbose=false, forceBuildJuliaFiles=true)
-    petabProblem = createPEtabODEProblem(petabModel, verbose=false)
+    petab_model = PEtabModel(path_yaml, verbose=false, build_julia_files=true)
+    petab_problem = PEtabODEProblem(petab_model, verbose=false)
 
-    cost = petabProblem.computeCost(petabProblem.θ_nominalT)
-    chi2 = petabProblem.computeChi2(petabProblem.θ_nominalT)
-    simulatedValues = petabProblem.computeSimulatedValues(petabProblem.θ_nominalT)
+    cost = petab_problem.compute_cost(petab_problem.θ_nominalT)
+    chi2 = petab_problem.compute_chi2(petab_problem.θ_nominalT)
+    simulated_values = petab_problem.compute_simulated_values(petab_problem.θ_nominalT)
 
     referenceYAML = YAML.load_file(pathReferenceValues)
     pathSimulations = joinpath(dirname(pathReferenceValues), referenceYAML["simulation_files"][1])
     costRef, tolCost = -1 * referenceYAML["llh"], referenceYAML["tol_llh"]
     chi2Ref, tolChi2 = referenceYAML["chi2"], referenceYAML["tol_chi2"]
-    simulatedValuesRef, tolSimulations = CSV.File(pathSimulations)[:simulation], referenceYAML["tol_simulations"]
+    simulated_valuesRef, tolSimulations = CSV.File(pathSimulations)[:simulation], referenceYAML["tol_simulations"]
 
     @test cost ≈ costRef atol = tolCost
     @test chi2 ≈ chi2Ref atol = tolChi2
-    @test all(abs.(simulatedValues .- simulatedValuesRef) .≤ tolSimulations)
+    @test all(abs.(simulated_values .- simulated_valuesRef) .≤ tolSimulations)
 
     if testGradient == true
-        gRef = FiniteDifferences.grad(central_fdm(5, 1), petabProblem.computeCost, petabProblem.θ_nominalT)[1]
-        g = petabProblem.computeGradient(petabProblem.θ_nominalT)
+        gRef = FiniteDifferences.grad(central_fdm(5, 1), petab_problem.compute_cost, petab_problem.θ_nominalT)[1]
+        g = petab_problem.compute_gradient(petab_problem.θ_nominalT)
         @test norm(g - gRef) ≤ 1e-7
     end
 end
 
 
 @testset "PEtab test-suite" begin
-    testReferenceCase("0001")
-    testReferenceCase("0002")
-    testReferenceCase("0003")
-    testReferenceCase("0004")
-    testReferenceCase("0005")
-    testReferenceCase("0006")
-    testReferenceCase("0007")
-    testReferenceCase("0008")
-    testReferenceCase("0009")
-    testReferenceCase("0010")
-    testReferenceCase("0011")
-    testReferenceCase("0012")
-    testReferenceCase("0013")
-    testReferenceCase("0014")
-    testReferenceCase("0015")
-    testReferenceCase("0016")
-    testReferenceCase("0017")
-    testReferenceCase("0018")
+    test_reference_case("0001")
+    test_reference_case("0002")
+    test_reference_case("0003")
+    test_reference_case("0004")
+    test_reference_case("0005")
+    test_reference_case("0006")
+    test_reference_case("0007")
+    test_reference_case("0008")
+    test_reference_case("0009")
+    test_reference_case("0010")
+    test_reference_case("0011")
+    test_reference_case("0012")
+    test_reference_case("0013")
+    test_reference_case("0014")
+    test_reference_case("0015")
+    test_reference_case("0016")
+    test_reference_case("0017")
+    test_reference_case("0018")
 end

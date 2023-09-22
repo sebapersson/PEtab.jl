@@ -1,4 +1,4 @@
-function getCallbacks_Boehm_JProteomeRes2014()
+function getCallbacks_Boehm_JProteomeRes2014(foo)
 	return CallbackSet(), Function[], false
 end
 

@@ -1,20 +1,20 @@
-function PEtab.runPEtabSelect(pathYAML::String,
-                              optimizer;
-                              optimizerOptions=nothing,
-                              nOptimisationStarts=100,
-                              optimizationSamplingMethod::T=QuasiMonteCarlo.LatinHypercubeSample(),
-                              odeSolverOptions::Union{Nothing, ODESolverOptions}=nothing,
-                              odeSolverGradientOptions::Union{Nothing, ODESolverOptions}=nothing,
-                              ssSolverOptions::Union{Nothing, SteadyStateSolverOptions}=nothing,
-                              ssSolverGradientOptions::Union{Nothing, SteadyStateSolverOptions}=nothing,
-                              gradientMethod::Union{Nothing, Symbol}=nothing,
-                              hessianMethod::Union{Nothing, Symbol}=nothing,
-                              sparseJacobian::Union{Nothing, Bool}=nothing,
-                              sensealg=nothing,
-                              sensealgSS=nothing,
-                              chunkSize::Union{Nothing, Int64}=nothing,
-                              splitOverConditions::Bool=false,
-                              reuseS::Bool=false) where T <: QuasiMonteCarlo.SamplingAlgorithm
+function PEtab.run_PEtab_select(path_yaml::String,
+                                optimizer;
+                                options=nothing,
+                                n_multistarts=100,
+                                sampling_method::T=QuasiMonteCarlo.LatinHypercubeSample(),
+                                ode_solver::Union{Nothing, ODESolver}=nothing,
+                                ode_solver_gradient::Union{Nothing, ODESolver}=nothing,
+                                ss_solver::Union{Nothing, SteadyStateSolver}=nothing,
+                                ss_solver_gradient::Union{Nothing, SteadyStateSolver}=nothing,
+                                gradient_method::Union{Nothing, Symbol}=nothing,
+                                hessian_method::Union{Nothing, Symbol}=nothing,
+                                sparse_jacobian::Union{Nothing, Bool}=nothing,
+                                sensealg=nothing,
+                                sensealg_ss=nothing,
+                                chunksize::Union{Nothing, Int64}=nothing,
+                                split_over_conditions::Bool=false,
+                                reuse_sensitivities::Bool=false) where T <: QuasiMonteCarlo.SamplingAlgorithm
 
     py"""
     import petab_select
@@ -47,8 +47,8 @@ function PEtab.runPEtabSelect(pathYAML::String,
     def get_model_to_test_info(model):
         return (model.model_subspace_id, str(model.petab_yaml), model.parameters)
 
-    def setup_petab_select(pathYAML):
-        select_problem = petab_select.Problem.from_yaml(pathYAML)
+    def setup_petab_select(path_yaml):
+        select_problem = petab_select.Problem.from_yaml(path_yaml)
         return select_problem
 
     def create_candidate_space(select_problem):
@@ -87,62 +87,62 @@ function PEtab.runPEtabSelect(pathYAML::String,
     """
 
 
-    function _callibrate_model(model, select_problem, _petabProblem::PEtabODEProblem; nOptimisationStarts=nOptimisationStarts)
+    function _callibrate_model(model, select_problem, _petab_problem::PEtabODEProblem; n_multistarts=n_multistarts)
         subspaceId, subspaceYAML, _subspaceParameters = py"get_model_to_test_info"(model)
         subspaceParameters = Dict(Symbol(k) => v for (k, v) in pairs(_subspaceParameters))
         @info "Callibrating model $subspaceId"
-        petabProblem = remakePEtabProblem(_petabProblem, subspaceParameters)
-        if isnothing(optimizerOptions)
-            _res = PEtab.calibrateModelMultistart(petabProblem, optimizer, nOptimisationStarts, nothing, samplingMethod=optimizationSamplingMethod)
+        petab_problem = remake_PEtab_problem(_petab_problem, subspaceParameters)
+        if isnothing(options)
+            _res = PEtab.calibrate_model_multistart(petab_problem, optimizer, n_multistarts, nothing, sampling_method=sampling_method)
         else
-            _res = PEtab.calibrateModelMultistart(petabProblem, optimizer, nOptimisationStarts, nothing, options=optimizerOptions, samplingMethod=optimizationSamplingMethod)
+            _res = PEtab.calibrate_model_multistart(petab_problem, optimizer, n_multistarts, nothing, options=options, sampling_method=sampling_method)
         end
-        f = _res.fMin
-        fArg = _res.xMin
+        f = _res.fmin
+        fArg = _res.xmin
 
         # Setup dictionary to conveniently storing model parameters
-        estimatedParameters = Dict(string(petabProblem.θ_estNames[i]) => fArg[i] for i in eachindex(fArg))
-        nDataPoints = length(_petabProblem.computeCost.measurementInfo.measurement)
+        estimatedParameters = Dict(string(petab_problem.θ_names[i]) => fArg[i] for i in eachindex(fArg))
+        nDataPoints = length(_petab_problem.compute_cost.measurement_info.measurement)
         py"update_model"(select_problem, model, f, estimatedParameters, nDataPoints)
     end
 
 
-    function callibrate_candidate_models(candidate_space, select_problem, n_candidates, _petabProblem::PEtabODEProblem; nOptimisationStarts=100)
+    function callibrate_candidate_models(candidate_space, select_problem, n_candidates, _petab_problem::PEtabODEProblem; n_multistarts=100)
         for i in 1:n_candidates
-            _callibrate_model(candidate_space.models[i], select_problem, _petabProblem::PEtabODEProblem, nOptimisationStarts=nOptimisationStarts)
+            _callibrate_model(candidate_space.models[i], select_problem, _petab_problem::PEtabODEProblem, n_multistarts=n_multistarts)
         end
     end
 
 
     # First we use the model-space file to build (from parameter viewpoint) the biggest possible PEtab model. Then remake is called on the "big" petabproblem,
     # thus when we compare different models we do not have to pre-compile the model
-    dirModel = splitdir(pathYAML)[1]
-    fileYAML = YAML.load_file(pathYAML)
-    modelSpaceFile = CSV.File(joinpath(dirModel, fileYAML["model_space_files"][1]), stringtype=String)
+    dir_model = splitdir(path_yaml)[1]
+    file_yaml = YAML.load_file(path_yaml)
+    modelSpaceFile = CSV.File(joinpath(dir_model, file_yaml["model_space_files"][1]), stringtype=String)
     parametersToChange = Symbol.(propertynames(modelSpaceFile)[3:end])
-    _customParameterValues = Dict(); [_customParameterValues[parametersToChange[i]] = "estimate" for i in eachindex(parametersToChange)]
-    _petabModel = readPEtabModel(joinpath(dirModel, modelSpaceFile[1][:petab_yaml]), forceBuildJuliaFiles=true, verbose=false)
-    _petabProblem = createPEtabODEProblem(_petabModel,
-                                          odeSolverOptions=odeSolverOptions,
-                                          odeSolverGradientOptions=odeSolverGradientOptions,
-                                          ssSolverOptions=ssSolverOptions,
-                                          ssSolverGradientOptions=ssSolverGradientOptions,
-                                          gradientMethod=gradientMethod,
-                                          hessianMethod=hessianMethod,
-                                          sparseJacobian=sparseJacobian,
+    _custom_parameter_values = Dict(); [_custom_parameter_values[parametersToChange[i]] = "estimate" for i in eachindex(parametersToChange)]
+    _petab_model = PEtabModel(joinpath(dir_model, modelSpaceFile[1][:petab_yaml]), build_julia_files=true, verbose=false)
+    _petab_problem = PEtabODEProblem(_petab_model,
+                                          ode_solver=ode_solver,
+                                          ode_solver_gradient=ode_solver_gradient,
+                                          ss_solver=ss_solver,
+                                          ss_solver_gradient=ss_solver_gradient,
+                                          gradient_method=gradient_method,
+                                          hessian_method=hessian_method,
+                                          sparse_jacobian=sparse_jacobian,
                                           sensealg=sensealg,
-                                          sensealgSS=sensealgSS,
-                                          chunkSize=chunkSize,
-                                          splitOverConditions=splitOverConditions,
-                                          reuseS=reuseS,
+                                          sensealg_ss=sensealg_ss,
+                                          chunksize=chunksize,
+                                          split_over_conditions=split_over_conditions,
+                                          reuse_sensitivities=reuse_sensitivities,
                                           verbose=false,
-                                          customParameterValues=_customParameterValues)
+                                          custom_parameter_values=_custom_parameter_values)
 
     calibrated_models, newly_calibrated_models = py"setup_tracking"()
 
-    select_problem = py"setup_petab_select"(pathYAML)
-    strWrite = @sprintf("PEtab select problem info\nMethod: %s\nCriterion: %s\n", select_problem.method, select_problem.criterion)
-    @info "$strWrite"
+    select_problem = py"setup_petab_select"(path_yaml)
+    str_write = @sprintf("PEtab select problem info\nMethod: %s\nCriterion: %s\n", select_problem.method, select_problem.criterion)
+    @info "$str_write"
 
     # Check if there is a predecessor model to setup the parameter space
     candidate_space = py"create_candidate_space"(select_problem)
@@ -154,7 +154,7 @@ function PEtab.runPEtabSelect(pathYAML::String,
         # Start the iterative model selction process
         k == 1 && @info "Model selection round $k with $n_candidates candidates - as the code compiles in this round compiled it takes extra long time https://xkcd.com/303/"
         k != 1 && @info "Model selection round $k with $n_candidates candidates"
-        callibrate_candidate_models(candidate_space, select_problem, n_candidates, _petabProblem, nOptimisationStarts=nOptimisationStarts)
+        callibrate_candidate_models(candidate_space, select_problem, n_candidates, _petab_problem, n_multistarts=n_multistarts)
         newly_calibrated_models, calibrated_models = py"update_selection"(newly_calibrated_models, calibrated_models, select_problem,  candidate_space)
 
         py"update_candidate_space"(candidate_space, select_problem, newly_calibrated_models)
@@ -167,8 +167,8 @@ function PEtab.runPEtabSelect(pathYAML::String,
     end
 
     # Export best model information to YAML
-    pathSave = joinpath(splitdir(pathYAML)[1], "PEtab_select_" * string(select_problem.method) * "_" * select_problem.criterion * ".yaml")
-    @info "Saving results for best model at $pathSave"
-    py"write_selection_result"(best_model, pathSave)
-    return pathSave
+    path_save = joinpath(splitdir(path_yaml)[1], "PEtab_select_" * string(select_problem.method) * "_" * select_problem.criterion * ".yaml")
+    @info "Saving results for best model at $path_save"
+    py"write_selection_result"(best_model, path_save)
+    return path_save
 end

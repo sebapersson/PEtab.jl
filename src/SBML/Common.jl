@@ -1,30 +1,30 @@
 # Handles piecewise functions that are to be redefined with ifelse statements in the model
 # equations to allow MKT symbolic calculations.
 # Calls goToBottomPiecewiseToEvent to handle multiple logical conditions.
-function rewritePiecewiseToIfElse(ruleFormula, variable, modelDict, baseFunctions, modelSBML; retFormula::Bool=false)
+function rewrite_piecewise_to_ifelse(rule_formula, variable, model_dict, base_functions, model_SBML; ret_formula::Bool=false)
 
-    piecewiseStrings = getPiencewiseStr(ruleFormula)
-    eqSyntaxDict = Dict() # Hold the Julia syntax for iffelse statements
+    piecewise_strs = get_piecewise_str(rule_formula)
+    eq_syntax_dict = Dict() # Hold the Julia syntax for iffelse statements
 
     # If the rule variable is a part of the parameters list remove it
-    if variable in keys(modelDict["parameters"])
-        delete!(modelDict["parameters"], variable)
+    if variable in keys(model_dict["parameters"])
+        delete!(model_dict["parameters"], variable)
     end
 
     # Loop over each piecewise statement
-    for i in eachindex(piecewiseStrings)
+    for i in eachindex(piecewise_strs)
 
-        piecewiseString = (piecewiseStrings[i])[11:end-1] # Extract everything inside piecewise
+        piecewise_str = (piecewise_strs[i])[11:end-1] # Extract everything inside piecewise
 
-        args = splitBetween(piecewiseString, ',')
+        args = split_between(piecewise_str, ',')
         vals = args[1:2:end]
         conds = args[2:2:end]
 
         # In case our variable is the sum of several piecewise bookeep each piecewise
-        if length(piecewiseStrings) > 1
-            varChange = variable * "Event" * string(i)
+        if length(piecewise_strs) > 1
+            variable_change = variable * "Event" * string(i)
         else
-            varChange = variable
+            variable_change = variable
         end
 
         if length(conds) > 1
@@ -32,45 +32,45 @@ function rewritePiecewiseToIfElse(ruleFormula, variable, modelDict, baseFunction
         end
 
         # Process the piecewise into ifelse statements
-        cIndex, condition = 1, conds[1]
+        c_index, condition = 1, conds[1]
 
         # Check if we have nested piecewise within either the active or inactive value. If true, apply recursion
         # to reach bottom level of piecewise.
-        if occursin("piecewise(", vals[cIndex])
-            valActive = rewritePiecewiseToIfElse(vals[cIndex], "foo", modelDict, baseFunctions, modelSBML, retFormula=true)#[7:end]
-            valActive = rewriteDerivatives(valActive, modelDict, baseFunctions, modelSBML)
+        if occursin("piecewise(", vals[c_index])
+            value_active = rewrite_piecewise_to_ifelse(vals[c_index], "foo", model_dict, base_functions, model_SBML, ret_formula=true)#[7:end]
+            value_active = rewrite_derivatives(value_active, model_dict, base_functions, model_SBML)
         else
-            valActive = rewriteDerivatives(vals[cIndex], modelDict, baseFunctions, modelSBML)
+            value_active = rewrite_derivatives(vals[c_index], model_dict, base_functions, model_SBML)
         end
         if occursin("piecewise(", vals[end])
-            valInactive = rewritePiecewiseToIfElse(vals[end], "foo", modelDict, baseFunctions, modelSBML, retFormula=true)#[7:end]
-            valInactive = rewriteDerivatives(valInactive, modelDict, baseFunctions, modelSBML)
+            value_inactive = rewrite_piecewise_to_ifelse(vals[end], "foo", model_dict, base_functions, model_SBML, ret_formula=true)#[7:end]
+            value_inactive = rewrite_derivatives(value_inactive, model_dict, base_functions, model_SBML)
         else
-            valInactive = rewriteDerivatives(vals[end], modelDict, baseFunctions, modelSBML)
+            value_inactive = rewrite_derivatives(vals[end], model_dict, base_functions, model_SBML)
         end
 
         if condition[1:2] == "lt" || condition[1:2] == "gt" || condition[1:2] == "eq" || condition[1:3] == "neq" || condition[1:3] == "geq" || condition[1:3] == "leq" 
-            eqSyntaxDict[varChange] = simplePiecewiseToIfElse(condition, varChange, valActive, valInactive, modelDict, baseFunctions)
+            eq_syntax_dict[variable_change] = simple_piecewise_to_ifelse(condition, variable_change, value_active, value_inactive, model_dict, base_functions)
         elseif condition[1:3] == "and" || condition[1:2] == "if" || condition[1:2] == "or" || condition[1:3] == "xor" || condition[1:3] == "not"
-            eqSyntaxDict[varChange] = complexPiecewiseToIfElse(condition, variable, valActive, valInactive, modelDict, baseFunctions)
+            eq_syntax_dict[variable_change] = complex_piecewise_to_ifelse(condition, variable, value_active, value_inactive, model_dict, base_functions)
         else
             @error "Somehow we cannot process the piecewise expression"
         end
     end
 
     # Add the rule as equation into the model
-    delete!(modelDict["inputFunctions"], "foo")
-    strInput = variable * " ~ "
-    formulaUse = deepcopy(ruleFormula)
-    if length(piecewiseStrings) > 1
-        for i in eachindex(piecewiseStrings)
-            formulaUse = replace(formulaUse, piecewiseStrings[i] => eqSyntaxDict[variable * "Event" * string(i)])
+    delete!(model_dict["inputFunctions"], "foo")
+    input_str = variable * " ~ "
+    formulaUse = deepcopy(rule_formula)
+    if length(piecewise_strs) > 1
+        for i in eachindex(piecewise_strs)
+            formulaUse = replace(formulaUse, piecewise_strs[i] => eq_syntax_dict[variable * "Event" * string(i)])
         end
     else
-        formulaUse = replace(formulaUse, piecewiseStrings[1] => eqSyntaxDict[variable])
+        formulaUse = replace(formulaUse, piecewise_strs[1] => eq_syntax_dict[variable])
     end
-    if retFormula == false
-        modelDict["inputFunctions"][variable] = strInput * rewriteDerivatives(formulaUse, modelDict, baseFunctions, modelSBML)
+    if ret_formula == false
+        model_dict["inputFunctions"][variable] = input_str * rewrite_derivatives(formulaUse, model_dict, base_functions, model_SBML)
         return nothing
     else
         return formulaUse
@@ -78,12 +78,12 @@ function rewritePiecewiseToIfElse(ruleFormula, variable, modelDict, baseFunction
 end
 
 
-function getPiencewiseStr(strArg::AbstractString)::Array{String, 1}
+function get_piecewise_str(arg_str::AbstractString)::Array{String, 1}
 
     # Extract in a string the substrings captured by the piecewise
-    iPiecewise = findall("piecewise(", strArg)
-    nPiecewise = length(iPiecewise)
-    piecewiseStr = fill("", nPiecewise)
+    i_piecewise = findall("piecewise(", arg_str)
+    n_piecewise = length(i_piecewise)
+    piecewise_str = fill("", n_piecewise)
 
     # Extract entire piecewise expression. Handles inner paranthesis, e.g
     # when we have "piecewise(0, lt(t - insulin_time_1, 0), 1)" it extracts
@@ -91,56 +91,56 @@ function getPiencewiseStr(strArg::AbstractString)::Array{String, 1}
     # one for
     # piecewise(beta_0, lt(t, t_1), piecewise(beta_1, lt(t, t_2), beta_2 * (1 - beta_2_multiplier)))
     i, k = 1, 1
-    while i <= nPiecewise
-        iStart = iPiecewise[i][1]
-        nInnerParanthesis = 0
-        iEnd = iPiecewise[i][end]
+    while i <= n_piecewise
+        i_start = i_piecewise[i][1]
+        n_inner_paranthesis = 0
+        i_end = i_piecewise[i][end]
         while true
-            iEnd += 1
-            if nInnerParanthesis == 0 && strArg[iEnd] == ')'
+            i_end += 1
+            if n_inner_paranthesis == 0 && arg_str[i_end] == ')'
                 break
             end
 
-            if strArg[iEnd] == '('
-                nInnerParanthesis += 1
+            if arg_str[i_end] == '('
+                n_inner_paranthesis += 1
             end
 
-            if strArg[iEnd] == ')'
-                nInnerParanthesis -= 1
+            if arg_str[i_end] == ')'
+                n_inner_paranthesis -= 1
             end
         end
 
-        piecewiseStr[k] = strArg[iStart:iEnd]
+        piecewise_str[k] = arg_str[i_start:i_end]
         k += 1
 
         # Check the number of piecewise inside the piecewise to avoid counting nested ones
-        nInnerPiecewise = length(findall("piecewise(", strArg[iStart:iEnd]))
-        i += nInnerPiecewise
+        n_inner_piecewise = length(findall("piecewise(", arg_str[i_start:i_end]))
+        i += n_inner_piecewise
     end
 
-    return piecewiseStr[piecewiseStr .!== ""]
+    return piecewise_str[piecewise_str .!== ""]
 end
 
 
-function simplePiecewiseToIfElse(condition, variable, valActive, valInactive, dicts, baseFunctions)
+function simple_piecewise_to_ifelse(condition, variable, value_active, value_inactive, dicts, base_functions)
 
     if "leq" == condition[1:3]
-        strippedCondition = condition[5:end-1]
+        stripped_condition = condition[5:end-1]
         inEqUse = " <= "
     elseif "lt" == condition[1:2]
-        strippedCondition = condition[4:end-1]
+        stripped_condition = condition[4:end-1]
         inEqUse = " < "
     elseif "geq" == condition[1:3]
-        strippedCondition = condition[5:end-1]
+        stripped_condition = condition[5:end-1]
         inEqUse = " >= "
     elseif "gt" == condition[1:2]
-        strippedCondition = condition[4:end-1]
+        stripped_condition = condition[4:end-1]
         inEqUse = " > "
     elseif "eq" == condition[1:2]
-        strippedCondition = condition[4:end-1]
+        stripped_condition = condition[4:end-1]
         inEqUse = " == "        
     elseif "neq" == condition[1:3]
-        strippedCondition = condition[5:end-1]
+        stripped_condition = condition[5:end-1]
         inEqUse = " != "  
     elseif "true" == condition[1:4]
         return "true"
@@ -150,62 +150,66 @@ function simplePiecewiseToIfElse(condition, variable, valActive, valInactive, di
         @error "Cannot recognize form of inequality, condition = $condition"
     end
 
-    parts = splitBetween(strippedCondition, ',')
+    parts = split_between(stripped_condition, ',')
     # Trigger of event
-    expression = "ifelse(" * parts[1] * inEqUse * parts[2] * ", " * valActive * ", " * valInactive * ")"
+    expression = "ifelse(" * parts[1] * inEqUse * parts[2] * ", " * value_active * ", " * value_inactive * ")"
 
     return expression
 end
 
 
-function complexPiecewiseToIfElse(condition, variable, valActive, valInactive, modelDict, baseFunctions)
-    eventStr = recursionComplexPiecewise(condition, variable, modelDict, baseFunctions)
-    return eventStr * " * (" * valActive * ") + (1 - " * eventStr *") * (" * valInactive * ")"
+function complex_piecewise_to_ifelse(condition, variable, value_active, value_inactive, model_dict, base_functions)
+    event_str = recursion_complex_piecewise(condition, variable, model_dict, base_functions)
+    return event_str * " * (" * value_active * ") + (1 - " * event_str *") * (" * value_inactive * ")"
 end
 
 
 # As MTK does not support iffelse with multiple comparisons, e.g, a < b && c < d when we have nested piecewise
 # with && and || statements the situation is more tricky when trying to create a reasonable expression.
-function recursionComplexPiecewise(condition, variable, modelDict, baseFunctions)
+function recursion_complex_piecewise(condition, variable, model_dict, base_functions)
 
+    # mutliplication can be used to mimic an and condition for two bool variables
     if "and" == condition[1:3]
-        strippedCondition = condition[5:end-1]
-        lPart, rPart = splitBetween(strippedCondition, ',')
-        lPartExp = recursionComplexPiecewise(lPart, variable, modelDict, baseFunctions)
-        rPartExp = recursionComplexPiecewise(rPart, variable, modelDict, baseFunctions)
+        stripped_condition = condition[5:end-1]
+        left_part, rigth_part = split_between(stripped_condition, ',')
+        left_part_exp = recursion_complex_piecewise(left_part, variable, model_dict, base_functions)
+        rigth_part_exp = recursion_complex_piecewise(rigth_part, variable, model_dict, base_functions)
 
         # An or statment can in a differentiable way here be encoded as sigmoid function
-        return "(" * lPartExp * ") * (" * rPartExp * ")"
+        return "(" * left_part_exp * ") * (" * rigth_part_exp * ")"
 
+    # tanh can be used to approximate an or condition for two bool        
     elseif "if" == condition[1:2] || "or" == condition[1:2]
-        strippedCondition = condition[4:end-1]
-        lPart, rPart = splitBetween(strippedCondition, ',')
-        lPartExp = recursionComplexPiecewise(lPart, variable, modelDict, baseFunctions)
-        rPartExp = recursionComplexPiecewise(rPart, variable, modelDict, baseFunctions)
+        stripped_condition = condition[4:end-1]
+        left_part, rigth_part = split_between(stripped_condition, ',')
+        left_part_exp = recursion_complex_piecewise(left_part, variable, model_dict, base_functions)
+        rigth_part_exp = recursion_complex_piecewise(rigth_part, variable, model_dict, base_functions)
 
-        return "tanh(10 * (" * lPartExp * "+" *  rPartExp * "))"
+        return "tanh(10 * (" * left_part_exp * "+" *  rigth_part_exp * "))"
 
     elseif "not" == condition[1:3]
-        strippedCondition = condition[5:end-1]
-        condition = recursionComplexPiecewise(strippedCondition, variable, modelDict, baseFunctions)
+        stripped_condition = condition[5:end-1]
+        condition = recursion_complex_piecewise(stripped_condition, variable, model_dict, base_functions)
         return "(1 - " * condition * ")"        
 
+    # xor for two boolean variables can be replicated with a second degree polynominal which is zero at 
+    # 0 and 2, but 1 at x=1
     elseif "xor" == condition[1:3]
-        strippedCondition = condition[5:end-1]
-        lPart, rPart = splitBetween(strippedCondition, ',')
-        lPartExp = recursionComplexPiecewise(lPart, variable, modelDict, baseFunctions)
-        rPartExp = recursionComplexPiecewise(rPart, variable, modelDict, baseFunctions)
+        stripped_condition = condition[5:end-1]
+        left_part, rigth_part = split_between(stripped_condition, ',')
+        left_part_exp = recursion_complex_piecewise(left_part, variable, model_dict, base_functions)
+        rigth_part_exp = recursion_complex_piecewise(rigth_part, variable, model_dict, base_functions)
 
-        return "(-(" * lPartExp * "+" *  rPartExp * ")^2 + 2*(" * lPart * "+" * rPartExp * "))"
+        return "(-(" * left_part_exp * "+" *  rigth_part_exp * ")^2 + 2*(" * left_part * "+" * rigth_part_exp * "))"
 
     else
-        return simplePiecewiseToIfElse(condition, variable, "1.0", "0.0", modelDict, baseFunctions)
+        return simple_piecewise_to_ifelse(condition, variable, "1.0", "0.0", model_dict, base_functions)
     end
 end
 
 
 # Splits strings by a given delimiter, but only if the delimiter is not inside a function / parenthesis.
-function splitBetween(stringToSplit, delimiter)
+function split_between(stringToSplit, delimiter)
     parts = Vector{SubString{String}}(undef, length(stringToSplit))
     numParts = 0
     inParenthesis = 0
@@ -233,75 +237,76 @@ end
 
 
 # Check if time is present in a string (used for rewriting piecewise to event)
-function checkForTime(str::String)
-    strNoWhitespace = replace(str, " " => "")
+function check_for_time(str::String)
+    str_no_whitespace = replace(str, " " => "")
 
     # In case we find time t
     iT = 0
-    findT = false
-    for i in eachindex(strNoWhitespace)
-        if strNoWhitespace[i] == 't'
-            if (i > 1 && i < length(strNoWhitespace)) && !isletter(strNoWhitespace[i-1]) && !isletter(strNoWhitespace[i+1])
-                findT = true
+    t_present = false
+    for i in eachindex(str_no_whitespace)
+        if str_no_whitespace[i] == 't'
+            if (i > 1 && i < length(str_no_whitespace)) && !isletter(str_no_whitespace[i-1]) && !isletter(str_no_whitespace[i+1])
+                t_present = true
                 iT = i
                 break
-            elseif i == 1 && i < length(strNoWhitespace) && !isletter(strNoWhitespace[i+1])
-                findT = true
+            elseif i == 1 && i < length(str_no_whitespace) && !isletter(str_no_whitespace[i+1])
+                t_present = true
                 iT = i
                 break
-            elseif i == 1 && i == length(strNoWhitespace)
-                findT = true
+            elseif i == 1 && i == length(str_no_whitespace)
+                t_present = true
                 iT = i
                 break
-            elseif 1 == length(strNoWhitespace)
-                findT = true
+            elseif 1 == length(str_no_whitespace)
+                t_present = true
                 iT = i
                 break
-            elseif i == length(strNoWhitespace) && length(strNoWhitespace) > 1 && !isletter(strNoWhitespace[i-1])
-                findT = true
+            elseif i == length(str_no_whitespace) && length(str_no_whitespace) > 1 && !isletter(str_no_whitespace[i-1])
+                t_present = true
                 iT = i
                 break
             end
         end
     end
 
-    return findT
+    return t_present
 end
 
 
 # If we identity time in an ifelse expression identify the sign of time to know whether or not the ifelse statement will
-# or will not be triggered with time.
-function checkSignTime(str::String)
+# or will not be triggered with time. 
+# TODO : This code is bad and should be refactored (albeit it works)
+function check_sign_time(str::String)
 
     # Easy special case with single term
-    strNoWhitespace = replace(str, " " => "")
-    strNoWhitespace = replace(strNoWhitespace, "(" => "")
-    strNoWhitespace = replace(strNoWhitespace, ")" => "")
-    if strNoWhitespace == "t"
+    str_no_whitespace = replace(str, " " => "")
+    str_no_whitespace = replace(str_no_whitespace, "(" => "")
+    str_no_whitespace = replace(str_no_whitespace, ")" => "")
+    if str_no_whitespace == "t"
         return 1
     end
 
-    terms = findTerms(strNoWhitespace)
-    iTime = 0
+    terms = t_presenterms(str_no_whitespace)
+    i_time = 0
     for i in eachindex(terms)
-        iStart, iEnd = terms[i]
-        if checkForTime(strNoWhitespace[iStart:iEnd]) == true
-            iTime = i
+        i_start, i_end = terms[i]
+        if check_for_time(str_no_whitespace[i_start:i_end]) == true
+            i_time = i
             break
         end
     end
-    iStart, iEnd = terms[iTime]
-    strTime = strNoWhitespace[iStart:iEnd]
-    signTime = findSignTerm(strTime)
-    if iStart == 1
-        signBefore = 1
-    elseif strNoWhitespace[iStart-1] == '-'
-        signBefore = -1
+    i_start, i_end = terms[i_time]
+    time_str = str_no_whitespace[i_start:i_end]
+    sign_time = findSignTerm(time_str)
+    if i_start == 1
+        sign_before = 1
+    elseif str_no_whitespace[i_start-1] == '-'
+        sign_before = -1
     else
-        signBefore = 1
+        sign_before = 1
     end
 
-    return signTime * signBefore
+    return sign_time * sign_before
 end
 
 
@@ -309,7 +314,7 @@ end
 # with a paranthesis
 function findIParanthesis(str::String)
     numberNested = 0
-    iEnd = 1
+    i_end = 1
     for i in eachindex(str)
         if str[i] == '('
             numberNested += 1
@@ -318,44 +323,44 @@ function findIParanthesis(str::String)
             numberNested -= 1
         end
         if numberNested == 0
-            iEnd = i
+            i_end = i
             break
         end
     end
-    return iEnd
+    return i_end
 end
 
 
 # For a mathemathical expression finds the terms
-function findTerms(str::String)
+function t_presenterms(str::String)
     iTerm = Array{Tuple, 1}(undef, 0)
     i = 1
     while i < length(str)
         if str[i] == '-' || str[i] == '+' || isletter(str[i]) || isnumeric(str[i]) || str[i] == '('
-            iEnd = 0
-            iStart = str[i] ∈ ['-', '+'] ? i+1 : i
-            j = iStart
+            i_end = 0
+            i_start = str[i] ∈ ['-', '+'] ? i+1 : i
+            j = i_start
             while j ≤ length(str)
                 if str[j] == '+'
-                    iEnd = j-1
+                    i_end = j-1
                     i = j
                     break
                 end
                 if str[j] == '-'
                     if length(str) ≥ j+1 && (isnumeric(str[j+1]) || isletter(str[j+1]))
-                        if j == iStart
+                        if j == i_start
                             j += 1
                             continue
                         elseif str[j-1] ∈ ['*', '/']
                             j += 1
                             continue
                         else
-                            iEnd = j-1
+                            i_end = j-1
                             i = j
                             break
                         end
                     else
-                        iEnd = j-1
+                        i_end = j-1
                         i = j
                         break
                     end
@@ -363,7 +368,7 @@ function findTerms(str::String)
                 if str[j] == '('
                     j += (findIParanthesis(str[j:end]) - 1)
                     if j == length(str)
-                        iEnd = j
+                        i_end = j
                         i = j
                         break
                     end
@@ -371,12 +376,12 @@ function findTerms(str::String)
                 j += 1
                 if j ≥ length(str)
                     j = length(str)
-                    iEnd = j
+                    i_end = j
                     i = j
                     break
                 end
             end
-            iTerm = push!(iTerm, tuple(iStart, iEnd))
+            iTerm = push!(iTerm, tuple(i_start, i_end))
         end
     end
     return iTerm
@@ -390,23 +395,23 @@ function findSignTerm(str::String)
     iFactor = Array{Tuple, 1}(undef, 0)
     i = 1
     while i ≤ length(str)
-        iStart = i
-        j = iStart
-        iEnd = 0
+        i_start = i
+        j = i_start
+        i_end = 0
         while j ≤ length(str)
             if str[j] ∈ ['*', '/']
-                iEnd = j - 1
+                i_end = j - 1
                 i = j+1
                 break
             end
             if length(str) == j
-                iEnd = j
+                i_end = j
                 i = j + 1
                 break
             end
             if str[j] == '('
                 j += (findIParanthesis(str[j:end]) - 1)
-                iEnd = j
+                i_end = j
                 if length(str) > j+1 && str[j+1] ∈ ['*', '/']
                     i = j+2
                 else
@@ -416,8 +421,8 @@ function findSignTerm(str::String)
             end
             j += 1
         end
-        iFactor = push!(iFactor, tuple(iStart, iEnd))
-        if iEnd == length(str)
+        iFactor = push!(iFactor, tuple(i_start, i_end))
+        if i_end == length(str)
             break
         end
     end
@@ -425,11 +430,11 @@ function findSignTerm(str::String)
     signTerms = ones(length(iFactor))
     for i in eachindex(iFactor)
 
-        iStart, iEnd = iFactor[i]
+        i_start, i_end = iFactor[i]
 
-        if str[iStart] == '('
-            signTerms[i] = getSignExpression(str[(iStart+1):(iEnd-1)])
-        elseif '-' ∈ str[iStart:iEnd]
+        if str[i_start] == '('
+            signTerms[i] = getSignExpression(str[(i_start+1):(i_end-1)])
+        elseif '-' ∈ str[i_start:i_end]
             signTerms[i] = -1
         else
             signTerms[i] = 1
@@ -444,24 +449,24 @@ end
 # handle paranthesis
 function getSignExpression(str::String)
 
-    iTerms = findTerms(str)
+    iTerms = t_presenterms(str)
     signTerms = ones(Float64, length(iTerms)) * 100
     for i in eachindex(signTerms)
 
         # Get the sign before the term
-        iStart, iEnd = iTerms[i]
-        if iStart == 1
-            signBeforeTerm = 1
-        elseif str[iStart-1] == '-'
-            signBeforeTerm = -1
-        elseif str[iStart-1] == '+'
-            signBeforeTerm = 1
+        i_start, i_end = iTerms[i]
+        if i_start == 1
+            sign_beforeTerm = 1
+        elseif str[i_start-1] == '-'
+            sign_beforeTerm = -1
+        elseif str[i_start-1] == '+'
+            sign_beforeTerm = 1
         else
             println("Cannot infer sign before term")
         end
 
-        valRet = findSignTerm(str[iStart:iEnd])
-        signTerms[i] = signBeforeTerm * valRet
+        valRet = findSignTerm(str[i_start:i_end])
+        signTerms[i] = sign_beforeTerm * valRet
 
     end
 

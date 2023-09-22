@@ -1,22 +1,22 @@
-function computeCostZygote(θ_est,
-                           odeProblem::ODEProblem,
-                           petabModel::PEtabModel,
-                           simulationInfo::PEtab.SimulationInfo,
+function compute_cost_zygote(θ_est,
+                           ode_problem::ODEProblem,
+                           petab_model::PEtabModel,
+                           simulation_info::PEtab.SimulationInfo,
                            θ_indices::PEtab.ParameterIndices,
-                           measurementInfo::PEtab.MeasurementsInfo,
-                           parameterInfo::PEtab.ParametersInfo,
-                           solveOdeModelAllConditions::Function,
-                           priorInfo::PEtab.PriorInfo)
+                           measurement_info::PEtab.MeasurementsInfo,
+                           parameter_info::PEtab.ParametersInfo,
+                           solve_ode_condition::Function,
+                           prior_info::PEtab.PriorInfo)
 
-    θ_dynamic, θ_observable, θ_sd, θ_nonDynamic = PEtab.splitParameterVector(θ_est, θ_indices)
+    θ_dynamic, θ_observable, θ_sd,  θ_non_dynamic = PEtab.splitθ(θ_est, θ_indices)
 
-    cost = _computeCostZygote(θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, odeProblem,
-                              petabModel, simulationInfo, θ_indices, measurementInfo,
-                              parameterInfo, solveOdeModelAllConditions)
+    cost = _compute_cost_zygote(θ_dynamic, θ_sd, θ_observable,  θ_non_dynamic, ode_problem,
+                                petab_model, simulation_info, θ_indices, measurement_info,
+                                parameter_info, solve_ode_condition)
 
-    if priorInfo.hasPriors == true
-        θ_estT = transformθZygote(θ_est, θ_indices.θ_estNames, parameterInfo)
-        cost -= computePriors(θ_est, θ_estT, θ_indices.θ_estNames, priorInfo)
+    if prior_info.has_priors == true
+        θ_estT = transformθ_zygote(θ_est, θ_indices.θ_names, parameter_info)
+        cost -= compute_priors(θ_est, θ_estT, θ_indices.θ_names, prior_info)
     end
 
     return cost
@@ -24,40 +24,40 @@ end
 
 
 # Computes the likelihood in such a in a Zygote compatible way, which mainly means that no arrays are mutated.
-function _computeCostZygote(θ_dynamic,
-                            θ_sd,
-                            θ_observable,
-                            θ_nonDynamic,
-                            odeProblem::ODEProblem,
-                            petabModel::PEtabModel,
-                            simulationInfo::PEtab.SimulationInfo,
-                            θ_indices::PEtab.ParameterIndices,
-                            measurementInfo::PEtab.MeasurementsInfo,
-                            parameterInfo::PEtab.ParametersInfo,
-                            solveOdeModelAllConditions::Function)::Real
+function _compute_cost_zygote(θ_dynamic,
+                              θ_sd,
+                              θ_observable,
+                              θ_non_dynamic,
+                              ode_problem::ODEProblem,
+                              petab_model::PEtabModel,
+                              simulation_info::PEtab.SimulationInfo,
+                              θ_indices::PEtab.ParameterIndices,
+                              measurement_info::PEtab.MeasurementsInfo,
+                              parameter_info::PEtab.ParametersInfo,
+                              solve_ode_condition::Function)::Real
 
-    θ_dynamicT = transformθZygote(θ_dynamic, θ_indices.θ_dynamicNames, parameterInfo)
-    θ_sdT = transformθZygote(θ_sd, θ_indices.θ_sdNames, parameterInfo)
-    θ_observableT = transformθZygote(θ_observable, θ_indices.θ_observableNames, parameterInfo)
-    θ_nonDynamicT = transformθZygote(θ_nonDynamic, θ_indices.θ_nonDynamicNames, parameterInfo)
+    θ_dynamicT = transformθ_zygote(θ_dynamic, θ_indices.θ_dynamic_names, parameter_info)
+    θ_sdT = transformθ_zygote(θ_sd, θ_indices.θ_sd_names, parameter_info)
+    θ_observableT = transformθ_zygote(θ_observable, θ_indices.θ_observable_names, parameter_info)
+    θ_non_dynamicT = transformθ_zygote(θ_non_dynamic, θ_indices.θ_non_dynamic_names, parameter_info)
 
-    _p, _u0 = PEtab.changeODEProblemParameters(odeProblem.p, θ_dynamicT, θ_indices, petabModel)
-    _odeProblem = remake(odeProblem, p = _p, u0=_u0)
+    _p, _u0 = PEtab.change_ode_parameters(ode_problem.p, θ_dynamicT, θ_indices, petab_model)
+    _ode_problem = remake(ode_problem, p = _p, u0=_u0)
 
-    # Compute yMod and sd-val by looping through all experimental conditons. At the end
+    # Compute y_model and sd-val by looping through all experimental conditons. At the end
     # update the likelihood
     cost = 0.0
-    for experimentalConditionId in simulationInfo.experimentalConditionId
+    for experimental_condition_id in simulation_info.experimental_condition_id
 
-        tMax = simulationInfo.timeMax[experimentalConditionId]
-        odeSolution, success = solveOdeModelAllConditions(_odeProblem, experimentalConditionId, θ_dynamicT, tMax)
+        tmax = simulation_info.tmax[experimental_condition_id]
+        ode_sol, success = solve_ode_condition(_ode_problem, experimental_condition_id, θ_dynamicT, tmax)
         if success != true
             return Inf
         end
 
-        cost += PEtab.computeCostExpCond(odeSolution, _p, θ_sdT, θ_observableT, θ_nonDynamicT, petabModel,
-                                         experimentalConditionId, θ_indices, measurementInfo, parameterInfo, simulationInfo,
-                                         computeGradientθDynamicZygote=true)
+        cost += PEtab.compute_cost_condition(ode_sol, _p, θ_sdT, θ_observableT,  θ_non_dynamicT, petab_model,
+                                             experimental_condition_id, θ_indices, measurement_info, parameter_info, 
+                                             simulation_info, compute_gradient_θ_dynamic_zygote=true)
 
         if isinf(cost)
             return cost
@@ -65,42 +65,42 @@ function _computeCostZygote(θ_dynamic,
     end
 
     return cost
-end
+end 
 
 
 # Solve the ODE system for one experimental conditions in a Zygote compatible manner. Not well maintained and lacks
 # full support because Zygote code is currently the slowest (by far)
-function solveOdeModelAtExperimentalCondZygote(odeProblem::ODEProblem,
-                                               experimentalId::Symbol,
-                                               dynParamEst,
-                                               t_max,
-                                               changeToExperimentalCondUsePre::Function,
-                                               measurementInfo::PEtab.MeasurementsInfo,
-                                               simulationInfo::PEtab.SimulationInfo,
-                                               solver::Union{SciMLAlgorithm, Vector{Symbol}},
-                                               absTol::Float64,
-                                               relTol::Float64,
-                                               absTolSS::Float64,
-                                               relTolSS,
-                                               sensealg,
-                                               calcTStops::Function)
+function solve_ode_condition_zygote(ode_problem::ODEProblem,
+                                    experimental_id::Symbol,
+                                    θ_dynamic,
+                                    t_max,
+                                    changeToExperimentalCondUsePre::Function,
+                                    measurement_info::PEtab.MeasurementsInfo,
+                                    simulation_info::PEtab.SimulationInfo,
+                                    solver::Union{SciMLAlgorithm, Vector{Symbol}},
+                                    absTol::Float64,
+                                    relTol::Float64,
+                                    abstol_ss::Float64,
+                                    reltol_ss,
+                                    sensealg,
+                                    compute_tstops::Function)
 
     # For storing ODE solution (required for split gradient computations)
-    whichCondID = findfirst(x -> x == experimentalId, simulationInfo.experimentalConditionId)
+    whichCondID = findfirst(x -> x == experimental_id, simulation_info.experimental_condition_id)
 
     # In case the model is first simulated to a steady state
     local success = true
-    if simulationInfo.haspreEquilibrationConditionId == true
+    if simulation_info.has_pre_equilibration_condition_id == true
 
-        firstExpId = simulationInfo.preEquilibrationConditionId[whichCondID]
-        shiftExpId = simulationInfo.simulationConditionId[whichCondID]
-        tSave = simulationInfo.timeObserved[experimentalId]
+        first_expid = simulation_info.pre_equilibration_condition_id[whichCondID]
+        shift_expid = simulation_info.simulation_condition_id[whichCondID]
+        t_save = simulation_info.time_observed[experimental_id]
 
-        u0Pre = odeProblem.u0[:]
-        pUsePre, u0UsePre = changeToExperimentalCondUsePre(odeProblem.p, odeProblem.u0, firstExpId, dynParamEst)
-        probUsePre = remake(odeProblem, tspan=(0.0, 1e8), u0 = convert.(eltype(dynParamEst), u0UsePre), p = convert.(eltype(dynParamEst), pUsePre))
+        u0_pre = ode_problem.u0[:]
+        pUsePre, u0UsePre = changeToExperimentalCondUsePre(ode_problem.p, ode_problem.u0, first_expid, θ_dynamic)
+        probUsePre = remake(ode_problem, tspan=(0.0, 1e8), u0 = convert.(eltype(θ_dynamic), u0UsePre), p = convert.(eltype(θ_dynamic), pUsePre))
         ssProb = SteadyStateProblem(probUsePre)
-        solSS = solve(ssProb, DynamicSS(solver, abstol=absTolSS, reltol=relTolSS), abstol=absTol, reltol=relTol)
+        solSS = solve(ssProb, DynamicSS(solver, abstol=abstol_ss, reltol=reltol_ss), abstol=absTol, reltol=relTol)
 
         # Terminate if a steady state was not reached in preequilibration simulations
         if solSS.retcode != ReturnCode.Success
@@ -108,61 +108,61 @@ function solveOdeModelAtExperimentalCondZygote(odeProblem::ODEProblem,
         end
 
         # Change to parameters for the post steady state parameters
-        pUsePost, u0UsePostTmp = changeToExperimentalCondUsePre(odeProblem.p, odeProblem.u0, shiftExpId, dynParamEst)
+        pUsePost, u0UsePostTmp = changeToExperimentalCondUsePre(ode_problem.p, ode_problem.u0, shift_expid, θ_dynamic)
 
         # Given the standard the experimentaCondition-file can change the initial values for a state
         # whose value was changed in the preequilibration-simulation. The experimentalCondition
         # value is prioritized by only changing u0 to the steady state value for those states
-        # that were not affected by change to shiftExpId.
-        hasNotChanged = (u0UsePostTmp .== u0Pre)
-        u0UsePost = [hasNotChanged[i] == true ? solSS[i] : u0UsePostTmp[i] for i in eachindex(u0UsePostTmp)]
-        probUsePost = remake(odeProblem, tspan=(0.0, t_max), u0 = convert.(eltype(dynParamEst), u0UsePost), p = convert.(eltype(dynParamEst), pUsePost))
+        # that were not affected by change to shift_expid.
+        has_not_changed = (u0UsePostTmp .== u0_pre)
+        u0UsePost = [has_not_changed[i] == true ? solSS[i] : u0UsePostTmp[i] for i in eachindex(u0UsePostTmp)]
+        probUsePost = remake(ode_problem, tspan=(0.0, t_max), u0 = convert.(eltype(θ_dynamic), u0UsePost), p = convert.(eltype(θ_dynamic), pUsePost))
 
         # Different funcion calls to solve are required if a solver or a Alg-hint are provided.
         # The preequilibration simulations are terminated upon a steady state using the TerminateSteadyState callback.
-        tStops = calcTStops(probUsePost.u0, probUsePost.p)
+        tstops = compute_tstops(probUsePost.u0, probUsePost.p)
         sol = solve(probUsePost,
                     solver,
                     abstol=absTol,
                     reltol=relTol,
-                    saveat=tSave,
+                    saveat=t_save,
                     sensealg=sensealg,
-                    callback=simulationInfo.callbacks[experimentalId],
-                    tstops=tStops)
+                    callback=simulation_info.callbacks[experimental_id],
+                    tstops=tstops)
 
-        ChainRulesCore.@ignore_derivatives simulationInfo.odeSolutions[experimentalId] = sol
+        ChainRulesCore.@ignore_derivatives simulation_info.ode_sols[experimental_id] = sol
 
         if sol.retcode != ReturnCode.Success
             sucess = false
         end
 
     # In case the model is not first simulated to a steady state
-    elseif simulationInfo.haspreEquilibrationConditionId == false
+    elseif simulation_info.has_pre_equilibration_condition_id == false
 
-        firstExpId = simulationInfo.simulationConditionId[whichCondID]
-        tSave = simulationInfo.timeObserved[experimentalId]
+        first_expid = simulation_info.simulation_condition_id[whichCondID]
+        t_save = simulation_info.time_observed[experimental_id]
         t_max_use = isinf(t_max) ? 1e8 : t_max
 
-        pUse, u0Use = changeToExperimentalCondUsePre(odeProblem.p, odeProblem.u0, firstExpId, dynParamEst)
-        probUse = remake(odeProblem, tspan=(0.0, t_max_use))
+        pUse, u0Use = changeToExperimentalCondUsePre(ode_problem.p, ode_problem.u0, first_expid, θ_dynamic)
+        probUse = remake(ode_problem, tspan=(0.0, t_max_use))
 
         # Different funcion calls to solve are required if a solver or a Alg-hint are provided.
         # If t_max = inf the model is simulated to steady state using the TerminateSteadyState callback.
-        tStops = calcTStops(probUse.u0, probUse.p)
-        #tStops = Float64[]
+        tstops = compute_tstops(probUse.u0, probUse.p)
+        #tstops = Float64[]
         if !(typeof(solver) <: Vector{Symbol}) && isinf(t_max)
             sol = (probArg) -> solve(probArg, solver, abstol=absTol, reltol=relTol, save_on=false,
-                                     save_end=true, dense=dense, callback=TerminateSteadyState(absTolSS, relTolSS))
+                                     save_end=true, dense=dense, callback=TerminateSteadyState(abstol_ss, reltol_ss))
 
         elseif !(typeof(solver) <: Vector{Symbol}) && !isinf(t_max)
             sol = solve(probUse, solver, p = pUse, u0 = u0Use,
-                        abstol=absTol, reltol=relTol, saveat=tSave, sensealg=sensealg,
-                        callback=simulationInfo.callbacks[experimentalId], tstops=tStops)
+                        abstol=absTol, reltol=relTol, saveat=t_save, sensealg=sensealg,
+                        callback=simulation_info.callbacks[experimental_id], tstops=tstops)
         else
             println("Error : Solver option does not exist")
         end
 
-        ChainRulesCore.@ignore_derivatives simulationInfo.odeSolutions[experimentalId] = sol
+        ChainRulesCore.@ignore_derivatives simulation_info.ode_sols[experimental_id] = sol
 
         if typeof(sol) <: ODESolution && !(sol.retcode == ReturnCode.Success || sol.retcode == ReturnCode.Terminated)
             sucess = false

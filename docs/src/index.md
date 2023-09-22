@@ -4,7 +4,7 @@ This is the documentation of [**PEtab.jl**](https://github.com/sebapersson/PEtab
 
 PEtab.jl uses Julia's [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl) package for ODE solvers and [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) for symbolic model processing, which enables fast model simulations. This, combined with support for gradients via forward- and adjoint-sensitivity approaches, and hessian via both exact and approximate methods, allows for efficient parameter estimation for both small and large models. In an extensive benchmark study, PEtab.jl was found to be 2-4 times faster than the [pyPESTO](https://github.com/ICB-DCM/pyPESTO) toolbox that leverages the [AMICI](https://github.com/AMICI-dev/AMICI) interface to the Sundials suite.
 
-Parameter estimation problems can either directly be imported if they are specified in the [PEtab](https://petab.readthedocs.io/en/latest/) standard format, alternatively problems can be directly specifed in Julia where the dynamic model can be provided as a [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) ODE-system or a [Catalyst](https://github.com/SciML/Catalyst.jl) reaction system. In addition, once a problem has been parsed PEtab.jl provides wrappers to Optim, Ipopt, and Fides to perform efficient multi-start parameter estimation.
+Parameter estimation problems can be directly imported if they are specified in the [PEtab](https://petab.readthedocs.io/en/latest/) standard format, alternatively problems can be directly specifed in Julia where the dynamic model can be provided as a [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) ODE-system or a [Catalyst](https://github.com/SciML/Catalyst.jl) reaction system. Once a problem has been parsed PEtab.jl provides wrappers to Optim, Ipopt, and Fides to perform efficient multi-start parameter estimation.
 
 Besides information on how to setup a parameter estimation problem, this documentation also provides:
 
@@ -30,7 +30,7 @@ julia> using Pkg; Pkg.add("PEtab")
 
 PEtab.jl provides a range of features to import and analyze ODE parameter estimation problems specified in the PEtab format. These include:
 
-* Importing ODE systems specified either by an SBML file or as a Julia file.
+* Importing ODE systems specified either by an SBML file.
 * Support for models defined in Julia as ODE-systems or as [Catalyst](https://github.com/SciML/Catalyst.jl) reaction systems.
 * Model selection via [PEtab Select](https://github.com/PEtab-dev/petab_select).
 * Symbolic model pre-processing via ModelingToolkit.jl.

@@ -1,57 +1,57 @@
-function PEtab.setUpGradient(whichMethod::Symbol,
-                             odeProblem::ODEProblem,
-                             odeSolverOptions::ODESolverOptions,
-                             ssSolverOptions::SteadyStateSolverOptions,
-                             petabODECache::PEtab.PEtabODEProblemCache,
-                             petabODESolverCache::PEtab.PEtabODESolverCache,
-                             petabModel::PEtabModel,
-                             simulationInfo::PEtab.SimulationInfo,
-                             θ_indices::PEtab.ParameterIndices,
-                             measurementInfo::PEtab.MeasurementsInfo,
-                             parameterInfo::PEtab.ParametersInfo,
-                             sensealg::Union{InterpolatingAdjoint, QuadratureAdjoint},
-                             priorInfo::PEtab.PriorInfo;
-                             chunkSize::Union{Nothing, Int64}=nothing,
-                             sensealgSS=nothing,
-                             numberOfprocesses::Int64=1,
-                             jobs=nothing,
-                             results=nothing,
-                             splitOverConditions::Bool=false)
+function PEtab.create_gradient_function(which_method::Symbol,
+                                        ode_problem::ODEProblem,
+                                        ode_solver::ODESolver,
+                                        ss_solver::SteadyStateSolver,
+                                        petab_ODE_cache::PEtab.PEtabODEProblemCache,
+                                        petab_ODESolver_cache::PEtab.PEtabODESolverCache,
+                                        petab_model::PEtabModel,
+                                        simulation_info::PEtab.SimulationInfo,
+                                        θ_indices::PEtab.ParameterIndices,
+                                        measurement_info::PEtab.MeasurementsInfo,
+                                        parameter_info::PEtab.ParametersInfo,
+                                        sensealg::Union{InterpolatingAdjoint, QuadratureAdjoint},
+                                        prior_info::PEtab.PriorInfo;
+                                        chunksize::Union{Nothing, Int64}=nothing,
+                                        sensealg_ss=nothing,
+                                        n_processes::Int64=1,
+                                        jobs=nothing,
+                                        results=nothing,
+                                        split_over_conditions::Bool=false)
 
-    _sensealgSS = isnothing(sensealgSS) ? InterpolatingAdjoint(autojacvec=ReverseDiffVJP()) : sensealgSS
+    _sensealg_ss = isnothing(sensealg_ss) ? InterpolatingAdjoint(autojacvec=ReverseDiffVJP()) : sensealg_ss
     # Fast but numerically unstable method
-    if simulationInfo.haspreEquilibrationConditionId == true && typeof(_sensealgSS) <: SteadyStateAdjoint
-        @warn "If using adjoint sensitivity analysis for a model with PreEq-criteria the most the most efficient sensealgSS is as provided SteadyStateAdjoint. However, SteadyStateAdjoint fails if the Jacobian is singular hence we recomend you check that the Jacobian is non-singular."
+    if simulation_info.has_pre_equilibration_condition_id == true && typeof(_sensealg_ss) <: SteadyStateAdjoint
+        @warn "If using adjoint sensitivity analysis for a model with PreEq-criteria the most the most efficient sensealg_ss is as provided SteadyStateAdjoint. However, SteadyStateAdjoint fails if the Jacobian is singular hence we recomend you check that the Jacobian is non-singular."
     end
 
-    iθ_sd, iθ_observable, iθ_nonDynamic, iθ_notOdeSystem = PEtab.getIndicesParametersNotInODESystem(θ_indices)
-    computeCostNotODESystemθ = (x) -> PEtab.computeCostNotSolveODE(x[iθ_sd], x[iθ_observable], x[iθ_nonDynamic],
-        petabModel, simulationInfo, θ_indices, measurementInfo, parameterInfo, petabODECache, expIDSolve=[:all],
-        computeGradientNotSolveAdjoint=true)
+    iθ_sd, iθ_observable, iθ_non_dynamic, iθ_not_ode = PEtab.get_index_parameters_not_ODE(θ_indices)
+    compute_cost_θ_not_ODE = (x) -> PEtab.compute_cost_not_solve_ODE(x[iθ_sd], x[iθ_observable], x[iθ_non_dynamic],
+        petab_model, simulation_info, θ_indices, measurement_info, parameter_info, petab_ODE_cache, exp_id_solve=[:all],
+        compute_gradient_not_solve_adjoint=true)
 
-    _computeGradient! = (gradient, θ_est) -> computeGradientAdjointEquations!(gradient,
-                                                                              θ_est,
-                                                                              odeSolverOptions,
-                                                                              ssSolverOptions,
-                                                                              computeCostNotODESystemθ,
-                                                                              sensealg,
-                                                                              _sensealgSS,
-                                                                              odeProblem,
-                                                                              petabModel,
-                                                                              simulationInfo,
-                                                                              θ_indices,
-                                                                              measurementInfo,
-                                                                              parameterInfo,
-                                                                              priorInfo,
-                                                                              petabODECache,
-                                                                              petabODESolverCache,
-                                                                              expIDSolve=[:all])
+    _compute_gradient! = (gradient, θ_est) -> compute_gradient_adjoint!(gradient,
+                                                                        θ_est,
+                                                                        ode_solver,
+                                                                        ss_solver,
+                                                                        compute_cost_θ_not_ODE,
+                                                                        sensealg,
+                                                                        _sensealg_ss,
+                                                                        ode_problem,
+                                                                        petab_model,
+                                                                        simulation_info,
+                                                                        θ_indices,
+                                                                        measurement_info,
+                                                                        parameter_info,
+                                                                        prior_info,
+                                                                        petab_ODE_cache,
+                                                                        petab_ODESolver_cache,
+                                                                        exp_id_solve=[:all])
     
-    return _computeGradient!
+    return _compute_gradient!
 end
 
 
-function PEtab.setSensealg(sensealg, ::Val{:Adjoint})
+function PEtab.set_sensealg(sensealg, ::Val{:Adjoint})
 
     if !isnothing(sensealg)
         @assert any(typeof(sensealg) .<: [InterpolatingAdjoint, QuadratureAdjoint]) "For gradient method :Adjoint allowed sensealg args are InterpolatingAdjoint, QuadratureAdjoint not $sensealg"
@@ -60,18 +60,18 @@ function PEtab.setSensealg(sensealg, ::Val{:Adjoint})
 
     return InterpolatingAdjoint(autojacvec=ReverseDiffVJP())
 end
-function PEtab.setSensealg(sensealg::Union{ForwardSensitivity, ForwardDiffSensitivity}, ::Val{:ForwardEquations})
+function PEtab.set_sensealg(sensealg::Union{ForwardSensitivity, ForwardDiffSensitivity}, ::Val{:ForwardEquations})
     return sensealg
 end
 
 
-function PEtab.getCallbackSet(odeProblem::ODEProblem,
-                              simulationInfo::PEtab.SimulationInfo,
-                              simulationConditionId::Symbol,
-                              sensealg::Union{InterpolatingAdjoint, QuadratureAdjoint})::SciMLBase.DECallback
+function PEtab.get_callbackset(ode_problem::ODEProblem,
+                               simulation_info::PEtab.SimulationInfo,
+                               simulation_condition_id::Symbol,
+                               sensealg::Union{InterpolatingAdjoint, QuadratureAdjoint})::SciMLBase.DECallback
 
-    cbSet = SciMLSensitivity.track_callbacks(simulationInfo.callbacks[simulationConditionId], odeProblem.tspan[1],
-                                                 odeProblem.u0, odeProblem.p, sensealg)
-    simulationInfo.trackedCallbacks[simulationConditionId] = cbSet
-    return cbSet
+    cbset = SciMLSensitivity.track_callbacks(simulation_info.callbacks[simulation_condition_id], ode_problem.tspan[1],
+                                                 ode_problem.u0, ode_problem.p, sensealg)
+    simulation_info.tracked_callbacks[simulation_condition_id] = cbset
+    return cbset
 end

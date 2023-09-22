@@ -1,387 +1,387 @@
 #=
     Functions for creating the ParameterIndices struct. This index struct contains maps for how to
     split the θ_est into the dynamic, non-dynamic, sd and observable parameters. There are also
-    indices for mapping parameters between odeProblem.p and θ_est for parameters which are constant
+    indices for mapping parameters between ode_problem.p and θ_est for parameters which are constant
     constant accross experimental conditions, and parameters specific to experimental conditions.
 =#
 
-function computeIndicesθ(parameterInfo::ParametersInfo,
-                         measurementsInfo::MeasurementsInfo,
-                         petabModel::PEtabModel)::ParameterIndices
+function compute_θ_indices(parameter_info::ParametersInfo,
+                           measurements_info::MeasurementsInfo,
+                           petab_model::PEtabModel)::ParameterIndices
 
-    experimentalConditionsFile = petabModel.pathConditions
-    return computeIndicesθ(parameterInfo, measurementsInfo, petabModel.system, petabModel.parameterMap, petabModel.stateMap, experimentalConditionsFile)
+    experimental_conditions_file = petab_model.path_conditions
+    return compute_θ_indices(parameter_info, measurements_info, petab_model.system, petab_model.parameter_map, petab_model.state_map, experimental_conditions_file)
 
 end
-function computeIndicesθ(parameterInfo::ParametersInfo,
-                         measurementsInfo::MeasurementsInfo,
-                         odeSystem,
-                         paramterMap,
-                         stateMap,
-                         experimentalConditionsFile::CSV.File)::ParameterIndices
+function compute_θ_indices(parameter_info::ParametersInfo,
+                           measurements_info::MeasurementsInfo,
+                           system,
+                           parameter_map,
+                           state_map,
+                           experimental_conditions_file::CSV.File)::ParameterIndices
 
-    θ_observableNames, θ_sdNames, θ_nonDynamicNames, θ_dynamicNames = computeθNames(parameterInfo, measurementsInfo,
-        odeSystem, experimentalConditionsFile)
+    θ_observable_names, θ_sd_names,  θ_non_dynamic_names, θ_dynamic_names = compute_θ_names(parameter_info, 
+        measurements_info, system, experimental_conditions_file)
     # When computing the gradient tracking parameters not part of ODE system is helpful
-    iθ_notOdeSystemNames::Vector{Symbol} = Symbol.(unique(vcat(θ_sdNames, θ_observableNames, θ_nonDynamicNames)))
+    iθ_not_ode_names::Vector{Symbol} = Symbol.(unique(vcat(θ_sd_names, θ_observable_names, θ_non_dynamic_names)))
     # Names in the big θ_est vector
-    θ_estNames::Vector{Symbol} = Symbol.(vcat(θ_dynamicNames, iθ_notOdeSystemNames))
+    θ_names::Vector{Symbol} = Symbol.(vcat(θ_dynamic_names, iθ_not_ode_names))
 
     # Indices for each parameter in the big θ_est vector
-    iθ_dynamic::Vector{Int64} = [findfirst(x -> x == θ_dynamicNames[i], θ_estNames) for i in eachindex(θ_dynamicNames)]
-    iθ_sd::Vector{Int64} = [findfirst(x -> x == θ_sdNames[i], θ_estNames) for i in eachindex(θ_sdNames)]
-    iθ_observable::Vector{Int64} = [findfirst(x -> x == θ_observableNames[i], θ_estNames) for i in eachindex(θ_observableNames)]
-    iθ_nonDynamic::Vector{Int64} = [findfirst(x -> x == θ_nonDynamicNames[i], θ_estNames) for i in eachindex(θ_nonDynamicNames)]
-    iθ_notOdeSystem::Vector{Int64} = [findfirst(x -> x == iθ_notOdeSystemNames[i], θ_estNames) for i in eachindex(iθ_notOdeSystemNames)]
+    iθ_dynamic::Vector{Int64} = [findfirst(x -> x == θ_dynamic_names[i], θ_names) for i in eachindex(θ_dynamic_names)]
+    iθ_sd::Vector{Int64} = [findfirst(x -> x == θ_sd_names[i], θ_names) for i in eachindex(θ_sd_names)]
+    iθ_observable::Vector{Int64} = [findfirst(x -> x == θ_observable_names[i], θ_names) for i in eachindex(θ_observable_names)]
+    iθ_non_dynamic::Vector{Int64} = [findfirst(x -> x ==  θ_non_dynamic_names[i], θ_names) for i in eachindex(θ_non_dynamic_names)]
+    iθ_not_ode::Vector{Int64} = [findfirst(x -> x == iθ_not_ode_names[i], θ_names) for i in eachindex(iθ_not_ode_names)]
 
     # When extracting observable or sd parameter for computing the cost we use a pre-computed map to efficently
     # extract correct parameters
-    mapθ_observable = buildθSdOrObservableMap(θ_observableNames, measurementsInfo, parameterInfo, buildθ_observable=true)
-    mapθ_sd = buildθSdOrObservableMap(θ_sdNames, measurementsInfo, parameterInfo, buildθ_observable=false)
+    mapθ_observable = build_θ_sd_observable_map(θ_observable_names, measurements_info, parameter_info, buildθ_observable=true)
+    mapθ_sd = build_θ_sd_observable_map(θ_sd_names, measurements_info, parameter_info, buildθ_observable=false)
 
-    # Compute a map to map parameters between θ_dynamic and odeProblem.p
-    nameParametersODESystem = Symbol.(string.(parameters(odeSystem)))
-    iθDynamic::Vector{Int64} = findall(x -> x ∈ nameParametersODESystem, θ_dynamicNames)
-    iODEProblemθDynamic::Vector{Int64} = [findfirst(x -> x == θ_dynamicNames[i], nameParametersODESystem) for i in iθDynamic]
-    mapODEProblem::MapODEProblem = MapODEProblem(iθDynamic, iODEProblemθDynamic)
+    # Compute a map to map parameters between θ_dynamic and ode_problem.p
+    name_parameters_ode = Symbol.(string.(parameters(system)))
+    _iθ_dynamic::Vector{Int64} = findall(x -> x ∈ name_parameters_ode, θ_dynamic_names)
+    i_ode_problem_θ_dynamic::Vector{Int64} = [findfirst(x -> x == θ_dynamic_names[i], name_parameters_ode) for i in _iθ_dynamic]
+    map_ode_problem::Map_ode_problem = Map_ode_problem(_iθ_dynamic, i_ode_problem_θ_dynamic)
 
     # Set up a map for changing between experimental conditions
-    mapsConditionId::Dict{Symbol, MapConditionId} = getMapsConditionId(odeSystem, paramterMap, stateMap, parameterInfo, experimentalConditionsFile, θ_dynamicNames)
+    maps_condition_id::Dict{Symbol, MapConditionId} = compute_maps_condition(system, parameter_map, state_map, parameter_info, experimental_conditions_file, θ_dynamic_names)
 
     # Set up a named tuple tracking the transformation of each parameter
-    _θ_scale = [parameterInfo.parameterScale[findfirst(x -> x == θ_name, parameterInfo.parameterId)] for θ_name in θ_estNames]
-    θ_scale::Dict{Symbol, Symbol} = Dict([(θ_estNames[i], _θ_scale[i]) for i in eachindex(θ_estNames)])
+    _θ_scale = [parameter_info.parameter_scale[findfirst(x -> x == θ_name, parameter_info.parameter_id)] for θ_name in θ_names]
+    θ_scale::Dict{Symbol, Symbol} = Dict([(θ_names[i], _θ_scale[i]) for i in eachindex(θ_names)])
 
     θ_indices = ParameterIndices(iθ_dynamic,
                                  iθ_observable,
                                  iθ_sd,
-                                 iθ_nonDynamic,
-                                 iθ_notOdeSystem,
-                                 θ_dynamicNames,
-                                 θ_observableNames,
-                                 θ_sdNames,
-                                 θ_nonDynamicNames,
-                                 iθ_notOdeSystemNames,
-                                 θ_estNames,
+                                 iθ_non_dynamic,
+                                 iθ_not_ode,
+                                 θ_dynamic_names,
+                                 θ_observable_names,
+                                 θ_sd_names,
+                                 θ_non_dynamic_names,
+                                 iθ_not_ode_names,
+                                 θ_names,
                                  θ_scale,
                                  mapθ_observable,
                                  mapθ_sd,
-                                 mapODEProblem,
-                                 mapsConditionId)
+                                 map_ode_problem,
+                                 maps_condition_id)
 
     return θ_indices
 end
 
 
-function computeθNames(parameterInfo::ParametersInfo,
-                       measurementsInfo::MeasurementsInfo,
-                       odeSystem,
-                       experimentalConditionsFile::CSV.File)::Tuple{Vector{Symbol},Vector{Symbol},Vector{Symbol},Vector{Symbol}}
+function compute_θ_names(parameter_info::ParametersInfo,
+                         measurements_info::MeasurementsInfo,
+                         system,
+                         experimental_conditions_file::CSV.File)::Tuple{Vector{Symbol},Vector{Symbol},Vector{Symbol},Vector{Symbol}}
 
     # Extract the name of all parameter types
-    θ_observableNames::Vector{Symbol} = getNamesObservableOrSdParameters(measurementsInfo.observableParameters, parameterInfo)
-    isθ_observable::Vector{Bool} = [parameterInfo.parameterId[i] in θ_observableNames for i in eachindex(parameterInfo.parameterId)]
+    θ_observable_names::Vector{Symbol} = compute_names_obs_sd_parameters(measurements_info.observable_parameters, parameter_info)
+    isθ_observable::Vector{Bool} = [parameter_info.parameter_id[i] in θ_observable_names for i in eachindex(parameter_info.parameter_id)]
 
-    θ_sdNames::Vector{Symbol} = getNamesObservableOrSdParameters(measurementsInfo.noiseParameters, parameterInfo)
-    isθ_sd::Vector{Bool} = [parameterInfo.parameterId[i] in θ_sdNames for i in eachindex(parameterInfo.parameterId)]
+    θ_sd_names::Vector{Symbol} = compute_names_obs_sd_parameters(measurements_info.noise_parameters, parameter_info)
+    isθ_sd::Vector{Bool} = [parameter_info.parameter_id[i] in θ_sd_names for i in eachindex(parameter_info.parameter_id)]
 
     # Non-dynamic parameters. This are parameters not entering the ODE system (or initial values), are not
     # noise-parameter or observable parameters, but appear in SD and/or OBS functions. We need to track these
     # as non-dynamic parameters since  want to compute gradients for these given a fixed ODE solution.
     # Non-dynamic parameters not allowed to be observable or sd parameters
-    _isθ_nonDynamic = (parameterInfo.estimate .&& .!isθ_observable .&& .!isθ_sd)
-    _θ_nonDynamicNames = parameterInfo.parameterId[_isθ_nonDynamic]
+    _isθ_non_dynamic = (parameter_info.estimate .&& .!isθ_observable .&& .!isθ_sd)
+    _θ_non_dynamic_names = parameter_info.parameter_id[_isθ_non_dynamic]
     # Non-dynamic parameters not allowed to be part of the ODE-system
-    _θ_nonDynamicNames = _θ_nonDynamicNames[findall(x -> x ∉ Symbol.(string.(parameters(odeSystem))), _θ_nonDynamicNames)]
+    _θ_non_dynamic_names = _θ_non_dynamic_names[findall(x -> x ∉ Symbol.(string.(parameters(system))), _θ_non_dynamic_names)]
     # Non-dynamic parameters not allowed to be experimental condition specific parameters
-    conditionsSpecificθDynamic = identifyCondSpecificDynanmicθ(odeSystem, parameterInfo, experimentalConditionsFile)
-    θ_nonDynamicNames::Vector{Symbol} = _θ_nonDynamicNames[findall(x -> x ∉ conditionsSpecificθDynamic, _θ_nonDynamicNames)]
-    isθ_nonDynamic = [parameterInfo.parameterId[i] in θ_nonDynamicNames for i in eachindex(parameterInfo.parameterId)]
+    conditions_specific_θ_dynamic = identify_cond_specific_θ_dynamic(system, parameter_info, experimental_conditions_file)
+    θ_non_dynamic_names::Vector{Symbol} = _θ_non_dynamic_names[findall(x -> x ∉ conditions_specific_θ_dynamic, _θ_non_dynamic_names)]
+    isθ_non_dynamic = [parameter_info.parameter_id[i] in  θ_non_dynamic_names for i in eachindex(parameter_info.parameter_id)]
 
-    isθ_dynamic::Vector{Bool} = (parameterInfo.estimate .&& .!isθ_nonDynamic .&& .!isθ_sd .&& .!isθ_observable)
-    θ_dynamicNames::Vector{Symbol} = parameterInfo.parameterId[isθ_dynamic]
+    isθ_dynamic::Vector{Bool} = (parameter_info.estimate .&& .!isθ_non_dynamic .&& .!isθ_sd .&& .!isθ_observable)
+    θ_dynamic_names::Vector{Symbol} = parameter_info.parameter_id[isθ_dynamic]
 
-    return θ_observableNames, θ_sdNames, θ_nonDynamicNames, θ_dynamicNames
+    return θ_observable_names, θ_sd_names,  θ_non_dynamic_names, θ_dynamic_names
 end
 
 
 # Helper function for extracting ID:s for observable and noise parameters from the noise- and observable column
 # in the PEtab file.
-function getNamesObservableOrSdParameters(noiseOrObservableCol::T1,
-                                          parameterInfo::ParametersInfo) where {T1<:Vector{<:Union{<:String,<:AbstractFloat}}}
+function compute_names_obs_sd_parameters(noise_obs_column::T1,
+                                         parameter_info::ParametersInfo) where {T1<:Vector{<:Union{<:String,<:AbstractFloat}}}
 
-    θ_estNames = Symbol[]
-    for i in eachindex(noiseOrObservableCol)
-        if isempty(noiseOrObservableCol[i]) || isNumber(string(noiseOrObservableCol[i]))
+    θ_names = Symbol[]
+    for i in eachindex(noise_obs_column)
+        if isempty(noise_obs_column[i]) || is_number(string(noise_obs_column[i]))
             continue
         end
 
-        parametersRowi = split(noiseOrObservableCol[i], ';')
-        for _parameter in parametersRowi
+        parameters_rowi = split(noise_obs_column[i], ';')
+        for _parameter in parameters_rowi
 
             parameter = Symbol(_parameter)
             # Disregard Id if parameters should not be estimated, or
-            iParameter = findfirst(x -> x == parameter, parameterInfo.parameterId)
-            if isNumber(_parameter) || parameter in θ_estNames || parameterInfo.estimate[iParameter] == false
+            i_parameter = findfirst(x -> x == parameter, parameter_info.parameter_id)
+            if is_number(_parameter) || parameter in θ_names || parameter_info.estimate[i_parameter] == false
                 continue
-            elseif isnothing(iParameter)
+            elseif isnothing(i_parameter)
                 @error "Parameter $parameter could not be found in parameter file"
             end
 
-            θ_estNames = vcat(θ_estNames, parameter)
+            θ_names = vcat(θ_names, parameter)
         end
     end
 
-    return θ_estNames
+    return θ_names
 end
 
 
 # Identifaying dynamic parameters to estimate, where the dynamic parameters are only used for some specific
 # experimental conditions.
-function identifyCondSpecificDynanmicθ(odeSystem,
-                                       parameterInfo::ParametersInfo,
-                                       experimentalConditionsFile::CSV.File)::Vector{Symbol}
+function identify_cond_specific_θ_dynamic(system,
+                                          parameter_info::ParametersInfo,
+                                          experimental_conditions_file::CSV.File)::Vector{Symbol}
 
-    allODESystemParameters = string.(parameters(odeSystem))
-    modelStateNames = string.(states(odeSystem))
-    modelStateNames = replace.(modelStateNames, "(t)" => "")
-    parametersToEstimate = parameterInfo.parameterId[parameterInfo.estimate]
+    all_parameters_ode = string.(parameters(system))
+    model_state_names = string.(states(system))
+    model_state_names = replace.(model_state_names, "(t)" => "")
+    parameters_estimate = parameter_info.parameter_id[parameter_info.estimate]
 
     # List of parameters which have specific values for specific experimental conditions, these can be extracted
-    # from the rows of the experimentalConditionsFile (where the column is the name of the parameter in the ODE-system,
+    # from the rows of the experimental_conditions_file (where the column is the name of the parameter in the ODE-system,
     # and the rows are the corresponding names of the parameter value to estimate)
-    conditionsSpecificθDynamic = Vector{Symbol}(undef, 0)
-    colNames = string.(experimentalConditionsFile.names)
-    length(colNames) == 1 && return conditionsSpecificθDynamic
-    iStart = colNames[2] == "conditionName" ? 3 : 2 # Sometimes PEtab file does not include column conditionName
-    for i in iStart:length(experimentalConditionsFile.names)
+    conditions_specific_θ_dynamic = Vector{Symbol}(undef, 0)
+    column_names = string.(experimental_conditions_file.names)
+    length(column_names) == 1 && return conditions_specific_θ_dynamic
+    i_start = column_names[2] == "conditionName" ? 3 : 2 # Sometimes PEtab file does not include column conditionName
+    for i in i_start:length(experimental_conditions_file.names)
 
-        if colNames[i] ∉ allODESystemParameters && colNames[i] ∉ modelStateNames
-            @error "Problem : Parameter ", colNames[i], " should be in the ODE model as it dicates an experimental condition"
+        if column_names[i] ∉ all_parameters_ode && column_names[i] ∉ model_state_names
+            @error "Problem : Parameter ", column_names[i], " should be in the ODE model as it dicates an experimental condition"
         end
 
-        for j in eachindex(experimentalConditionsFile)
-            if (_parameter = Symbol(string(experimentalConditionsFile[j][i]))) ∈ parametersToEstimate
-                conditionsSpecificθDynamic = vcat(conditionsSpecificθDynamic, _parameter)
+        for j in eachindex(experimental_conditions_file)
+            if (_parameter = Symbol(string(experimental_conditions_file[j][i]))) ∈ parameters_estimate
+                conditions_specific_θ_dynamic = vcat(conditions_specific_θ_dynamic, _parameter)
             end
         end
     end
 
-    return unique(conditionsSpecificθDynamic)
+    return unique(conditions_specific_θ_dynamic)
 end
 
 
 # For each observation build a map that correctly from either θ_observable or θ_sd map extract the correct value
 # for the time-point specific observable and noise parameters when compuing σ or h (observable) value.
-function buildθSdOrObservableMap(θ_names::Vector{Symbol},
-                                 measurementsInfo::MeasurementsInfo,
-                                 parameterInfo::ParametersInfo;
-                                 buildθ_observable=true)
+function build_θ_sd_observable_map(n_parameters_estimate::Vector{Symbol},
+                                   measurements_info::MeasurementsInfo,
+                                   parameter_info::ParametersInfo;
+                                   buildθ_observable=true)
 
-    parameterMap::Vector{θObsOrSdParameterMap} = Vector{θObsOrSdParameterMap}(undef, length(measurementsInfo.time))
+    parameter_map::Vector{θObsOrSdParameterMap} = Vector{θObsOrSdParameterMap}(undef, length(measurements_info.time))
     if buildθ_observable == true
-        timePointSpecificValues = measurementsInfo.observableParameters
+        timepoint_values = measurements_info.observable_parameters
     else
-        timePointSpecificValues = measurementsInfo.noiseParameters
+        timepoint_values = measurements_info.noise_parameters
     end
 
     # For each time-point build an associated map which stores if i) noise/obserable parameters are constants, ii) should
     # be estimated, iii) and corresponding index in parameter vector
-    for i in eachindex(parameterMap)
+    for i in eachindex(parameter_map)
         # In case we do not have any noise/obserable parameter
-        if isempty(timePointSpecificValues[i])
-            parameterMap[i] = θObsOrSdParameterMap(Vector{Bool}(undef, 0), Vector{Int64}(undef, 0), Vector{Float64}(undef, 0), Int64(0), false)
+        if isempty(timepoint_values[i])
+            parameter_map[i] = θObsOrSdParameterMap(Vector{Bool}(undef, 0), Vector{Int64}(undef, 0), Vector{Float64}(undef, 0), Int64(0), false)
         end
 
         # In case of a constant noise/obserable parameter encoded as a Float in the PEtab file.
-        if typeof(timePointSpecificValues[i]) <: Real
-            parameterMap[i] = θObsOrSdParameterMap(Vector{Bool}(undef, 0), Vector{Int64}(undef, 0), Float64[timePointSpecificValues[i]], Int64(0), true)
+        if typeof(timepoint_values[i]) <: Real
+            parameter_map[i] = θObsOrSdParameterMap(Vector{Bool}(undef, 0), Vector{Int64}(undef, 0), Float64[timepoint_values[i]], Int64(0), true)
         end
 
         # In case observable or noise parameter maps to a parameter
-        if !isempty(timePointSpecificValues[i]) && !(typeof(timePointSpecificValues[i]) <: Real)
+        if !isempty(timepoint_values[i]) && !(typeof(timepoint_values[i]) <: Real)
 
             # Parameter are delimited by ; in the PEtab files and they can be constant, or they can
             # be in the vector to estimate θ
-            parametersInExpression = split(timePointSpecificValues[i], ';')
-            nParameters::Int = length(parametersInExpression)
-            shouldEstimate::Vector{Bool} = Vector{Bool}(undef, nParameters)
-            indexInθ::Vector{Int64} = Vector{Int64}(undef, nParameters)
-            constantValues::Array{Float64,1} = Vector{Float64}(undef, nParameters)
+            parameters_in_expression = split(timepoint_values[i], ';')
+            n_parameters::Int = length(parameters_in_expression)
+            should_estimate::Vector{Bool} = Vector{Bool}(undef, n_parameters)
+            index_in_θ::Vector{Int64} = Vector{Int64}(undef, n_parameters)
+            constant_values::Array{Float64,1} = Vector{Float64}(undef, n_parameters)
 
-            for j in eachindex(parametersInExpression)
+            for j in eachindex(parameters_in_expression)
                 # In case observable parameter in paramsRet[j] should be estimated save which index
                 # it has in the θ vector
-                if Symbol(parametersInExpression[j]) ∈ θ_names
-                    shouldEstimate[j] = true
-                    indexInθ[j] = Int64(findfirst(x -> x == Symbol(parametersInExpression[j]), θ_names))
+                if Symbol(parameters_in_expression[j]) ∈ n_parameters_estimate
+                    should_estimate[j] = true
+                    index_in_θ[j] = Int64(findfirst(x -> x == Symbol(parameters_in_expression[j]), n_parameters_estimate))
                     continue
                 end
 
                 # In case observable parameter in paramsRet[j] is constant save its constant value.
-                # The constant value can be found either directly in the measurementsInfoFile, or in
-                # in the parametersFile.
-                shouldEstimate[j] = false
+                # The constant value can be found either directly in the measurements_infoFile, or in
+                # in the parameters_file.
+                should_estimate[j] = false
                 # Hard coded in Measurement data file
-                if isNumber(parametersInExpression[j])
-                    constantValues[j] = parse(Float64, parametersInExpression[j])
+                if is_number(parameters_in_expression[j])
+                    constant_values[j] = parse(Float64, parameters_in_expression[j])
                     continue
                 end
                 # Hard coded in Parameters file
-                if Symbol(parametersInExpression[j]) in parameterInfo.parameterId
-                    constantValues[j] = parameterInfo.nominalValue[findfirst(x -> x == Symbol(parametersInExpression[j]), parameterInfo.parameterId)]
+                if Symbol(parameters_in_expression[j]) in parameter_info.parameter_id
+                    constant_values[j] = parameter_info.nominal_value[findfirst(x -> x == Symbol(parameters_in_expression[j]), parameter_info.parameter_id)]
                     continue
                 end
 
-                @error "Cannot find matching for parameter ", parametersInExpression[j], " when building map."
+                @error "Cannot find matching for parameter ", parameters_in_expression[j], " when building map."
             end
 
-            parameterMap[i] = θObsOrSdParameterMap(shouldEstimate, indexInθ[shouldEstimate], constantValues[.!shouldEstimate],
-                Int64(length(parametersInExpression)), false)
+            parameter_map[i] = θObsOrSdParameterMap(should_estimate, index_in_θ[should_estimate], constant_values[.!should_estimate],
+                Int64(length(parameters_in_expression)), false)
         end
     end
 
-    return parameterMap
+    return parameter_map
 end
 
 
 # A map to accurately map parameters for a specific experimental conditionId to the ODE-problem
-function getMapsConditionId(odeSystem,
-                            parameterMap,
-                            stateMap,
-                            parameterInfo::ParametersInfo,
-                            experimentalConditionsFile::CSV.File,
-                            _θ_dynamicNames::Vector{Symbol})::Dict{Symbol, MapConditionId}
+function compute_maps_condition(system,
+                                parameter_map,
+                                state_map,
+                                parameter_info::ParametersInfo,
+                                experimental_conditions_file::CSV.File,
+                                _θ_dynamic_names::Vector{Symbol})::Dict{Symbol, MapConditionId}
 
-    θ_dynamicNames = string.(_θ_dynamicNames)
-    nConditions = length(experimentalConditionsFile)
-    modelStateNames = string.(states(odeSystem))
-    modelStateNames = replace.(modelStateNames, "(t)" => "")
-    allODESystemParameters = string.(parameters(odeSystem))
+    θ_dynamic_names = string.(_θ_dynamic_names)
+    n_conditions = length(experimental_conditions_file)
+    model_state_names = string.(states(system))
+    model_state_names = replace.(model_state_names, "(t)" => "")
+    all_parameters_ode = string.(parameters(system))
 
-    iStart = :conditionName in experimentalConditionsFile.names ? 3 : 2 # conditionName is optional in PEtab file
-    conditionSpecificVariables = string.(experimentalConditionsFile.names[iStart:end])
+    i_start = :conditionName in experimental_conditions_file.names ? 3 : 2 # conditionName is optional in PEtab file
+    condition_specific_variables = string.(experimental_conditions_file.names[i_start:end])
 
-    mapsConditionId::Dict{Symbol, MapConditionId} = Dict()
+    maps_condition_id::Dict{Symbol, MapConditionId} = Dict()
 
-    for i in 1:nConditions
+    for i in 1:n_conditions
 
-        constantParameters::Vector{Float64} = Vector{Float64}(undef, 0)
-        iODEProblemConstantParameters::Vector{Int64} = Vector{Int64}(undef, 0)
-        constantsStates::Vector{Float64} = Vector{Float64}(undef, 0)
-        iODEProblemConstantStates::Vector{Int64} = Vector{Int64}(undef, 0)
-        iθDynamic::Vector{Int64} = Vector{Int64}(undef, 0)
-        iODEProblemθDynamic::Vector{Int64} = Vector{Int64}(undef, 0)
+        constant_parameters::Vector{Float64} = Vector{Float64}(undef, 0)
+        i_ode_constant_parameters::Vector{Int64} = Vector{Int64}(undef, 0)
+        constant_states::Vector{Float64} = Vector{Float64}(undef, 0)
+        i_ode_constant_states::Vector{Int64} = Vector{Int64}(undef, 0)
+        iθ_dynamic::Vector{Int64} = Vector{Int64}(undef, 0)
+        i_ode_problem_θ_dynamic::Vector{Int64} = Vector{Int64}(undef, 0)
 
-        conditionIdName = Symbol(string(experimentalConditionsFile[i][1]))
+        condition_id_name = Symbol(string(experimental_conditions_file[i][1]))
 
-        rowI = string.(collect(experimentalConditionsFile[i])[iStart:end])
-        for j in eachindex(rowI)
+        rowi = string.(collect(experimental_conditions_file[i])[i_start:end])
+        for j in eachindex(rowi)
 
             # In case a condition specific ode-system parameter is mapped to constant number
-            if isNumber(rowI[j]) && conditionSpecificVariables[j] ∈ allODESystemParameters
-                constantParameters = vcat(constantParameters, parse(Float64, rowI[j]))
-                iODEProblemConstantParameters = vcat(iODEProblemConstantParameters, findfirst(x -> x == conditionSpecificVariables[j], allODESystemParameters))
+            if is_number(rowi[j]) && condition_specific_variables[j] ∈ all_parameters_ode
+                constant_parameters = vcat(constant_parameters, parse(Float64, rowi[j]))
+                i_ode_constant_parameters = vcat(i_ode_constant_parameters, findfirst(x -> x == condition_specific_variables[j], all_parameters_ode))
                 continue
             end
-            if isNumber(rowI[j]) && conditionSpecificVariables[j] ∈ modelStateNames
-                constantParameters = vcat(constantParameters, parse(Float64, rowI[j]))
-                iODEProblemConstantParameters = vcat(iODEProblemConstantParameters, findfirst(x -> x == "__init__" * conditionSpecificVariables[j] * "__", allODESystemParameters))
+            if is_number(rowi[j]) && condition_specific_variables[j] ∈ model_state_names
+                constant_parameters = vcat(constant_parameters, parse(Float64, rowi[j]))
+                i_ode_constant_parameters = vcat(i_ode_constant_parameters, findfirst(x -> x == "__init__" * condition_specific_variables[j] * "__", all_parameters_ode))
                 continue
             end
-            isNumber(rowI[j]) && @error "Error : Cannot build map for experimental condition variable", conditionSpecificVariables[j]
+            is_number(rowi[j]) && @error "Error : Cannot build map for experimental condition variable", condition_specific_variables[j]
 
 
             # In case we are trying to change one the θ_dynamic parameters we are estimating
-            if rowI[j] ∈ θ_dynamicNames && conditionSpecificVariables[j] ∈ allODESystemParameters
-                iθDynamic = vcat(iθDynamic, findfirst(x -> x == rowI[j], θ_dynamicNames))
-                iODEProblemθDynamic = vcat(iODEProblemθDynamic, findfirst(x -> x == conditionSpecificVariables[j], allODESystemParameters))
+            if rowi[j] ∈ θ_dynamic_names && condition_specific_variables[j] ∈ all_parameters_ode
+                iθ_dynamic = vcat(iθ_dynamic, findfirst(x -> x == rowi[j], θ_dynamic_names))
+                i_ode_problem_θ_dynamic = vcat(i_ode_problem_θ_dynamic, findfirst(x -> x == condition_specific_variables[j], all_parameters_ode))
                 continue
             end
-            if rowI[j] ∈ θ_dynamicNames && conditionSpecificVariables[j] ∈ modelStateNames
-                iθDynamic = vcat(iθDynamic, findfirst(x -> x == rowI[j], θ_dynamicNames))
-                iODEProblemθDynamic = vcat(iODEProblemθDynamic, findfirst(x -> x == "__init__" * conditionSpecificVariables[j] * "__", allODESystemParameters))
+            if rowi[j] ∈ θ_dynamic_names && condition_specific_variables[j] ∈ model_state_names
+                iθ_dynamic = vcat(iθ_dynamic, findfirst(x -> x == rowi[j], θ_dynamic_names))
+                i_ode_problem_θ_dynamic = vcat(i_ode_problem_θ_dynamic, findfirst(x -> x == "__init__" * condition_specific_variables[j] * "__", all_parameters_ode))
                 continue
             end
-            rowI[j] ∈ θ_dynamicNames && @error "Could not map " * string(conditionSpecificVariables[j]) * " when building condition map"
+            rowi[j] ∈ θ_dynamic_names && @error "Could not map " * string(condition_specific_variables[j]) * " when building condition map"
 
-            # In case rowI is a parameter but we do not estimate said parameter
-            if rowI[j] ∈ string.(parameterInfo.parameterId)
-                iVal = findfirst(x -> x == rowI[j], string.(parameterInfo.parameterId))
-                constantParameters = vcat(constantParameters, parameterInfo.nominalValue[iVal])
-                iODEProblemConstantParameters = vcat(iODEProblemConstantParameters, findfirst(x -> x == conditionSpecificVariables[j], allODESystemParameters))
+            # In case rowi is a parameter but we do not estimate said parameter
+            if rowi[j] ∈ string.(parameter_info.parameter_id)
+                i_value = findfirst(x -> x == rowi[j], string.(parameter_info.parameter_id))
+                constant_parameters = vcat(constant_parameters, parameter_info.nominal_value[i_value])
+                i_ode_constant_parameters = vcat(i_ode_constant_parameters, findfirst(x -> x == condition_specific_variables[j], all_parameters_ode))
                 continue
             end
 
-            # In case rowI is missing (specifically NaN) the default SBML-file value should be used. To this end we need to
+            # In case rowi is missing (specifically NaN) the default SBML-file value should be used. To this end we need to
             # have access to the parameter and state map to handle both states and parameters. Then must fix such that
             # __init__ parameters  take on the correct value.
-            if rowI[j] == "missing" && conditionSpecificVariables[j] ∈ allODESystemParameters
-                valueDefault = getDefaultValueFromMaps(string(conditionSpecificVariables[j]), parameterMap, stateMap)
-                constantParameters = vcat(constantParameters, valueDefault)
-                iODEProblemConstantParameters = vcat(iODEProblemConstantParameters, findfirst(x -> x == conditionSpecificVariables[j], allODESystemParameters))
+            if rowi[j] == "missing" && condition_specific_variables[j] ∈ all_parameters_ode
+                valueDefault = get_default_values_maps(string(condition_specific_variables[j]), parameter_map, state_map)
+                constant_parameters = vcat(constant_parameters, valueDefault)
+                i_ode_constant_parameters = vcat(i_ode_constant_parameters, findfirst(x -> x == condition_specific_variables[j], all_parameters_ode))
                 continue
             end
-            if rowI[j] == "missing" && conditionSpecificVariables[j] ∈ modelStateNames
-                valueDefault = getDefaultValueFromMaps(string(conditionSpecificVariables[j]), parameterMap, stateMap)
-                constantParameters = vcat(constantParameters, valueDefault)
-                iODEProblemConstantParameters = vcat(iODEProblemConstantParameters, findfirst(x -> x == "__init__" * conditionSpecificVariables[j] * "__", allODESystemParameters))
+            if rowi[j] == "missing" && condition_specific_variables[j] ∈ model_state_names
+                valueDefault = get_default_values_maps(string(condition_specific_variables[j]), parameter_map, state_map)
+                constant_parameters = vcat(constant_parameters, valueDefault)
+                i_ode_constant_parameters = vcat(i_ode_constant_parameters, findfirst(x -> x == "__init__" * condition_specific_variables[j] * "__", all_parameters_ode))
                 continue
             end
 
             # NaN can only applie for states
-            if rowI[j] == "NaN" && conditionSpecificVariables[j] ∈ modelStateNames
-                constantParameters = vcat(constantParameters, NaN)
-                iODEProblemConstantParameters = vcat(iODEProblemConstantParameters, findfirst(x -> x == "__init__" * conditionSpecificVariables[j] * "__", allODESystemParameters))
+            if rowi[j] == "NaN" && condition_specific_variables[j] ∈ model_state_names
+                constant_parameters = vcat(constant_parameters, NaN)
+                i_ode_constant_parameters = vcat(i_ode_constant_parameters, findfirst(x -> x == "__init__" * condition_specific_variables[j] * "__", all_parameters_ode))
                 continue
             else
-                strWrite = "If a row in conditions file is NaN then the column header must be a state"
-                throw(PEtabFileError(strWrite))
+                str_write = "If a row in conditions file is NaN then the column header must be a state"
+                throw(PEtabFileError(str_write))
             end
 
             # If we reach this far something is off and an error must be thrown
-            strWrite = "Could not map parameters for condition " * string(conditionIdName) * " for parameter " * string(rowI[j])
-            throw(PEtabFileError(strWrite))
+            str_write = "Could not map parameters for condition " * string(condition_id_name) * " for parameter " * string(rowi[j])
+            throw(PEtabFileError(str_write))
         end
 
-        mapsConditionId[conditionIdName] = MapConditionId(constantParameters,
-                                                          iODEProblemConstantParameters,
-                                                          constantsStates,
-                                                          iODEProblemConstantStates,
-                                                          iθDynamic,
-                                                          iODEProblemθDynamic)
+        maps_condition_id[condition_id_name] = MapConditionId(constant_parameters,
+                                                              i_ode_constant_parameters,
+                                                              constant_states,
+                                                              i_ode_constant_states,
+                                                              iθ_dynamic,
+                                                              i_ode_problem_θ_dynamic)
     end
 
-    return mapsConditionId
+    return maps_condition_id
 end
 
 
 # Extract default parameter value from state, or parameter map
-function getDefaultValueFromMaps(whichParameterOrState, parameterMap, stateMap)
+function get_default_values_maps(which_parameter_state, parameter_map, state_map)
 
-    parameterMapNames = string.([parameterMap[i].first for i in eachindex(parameterMap)])
-    stateMapNames = replace.(string.([stateMap[i].first for i in eachindex(stateMap)]), "(t)" => "")
+    parameter_map_names = string.([parameter_map[i].first for i in eachindex(parameter_map)])
+    state_map_names = replace.(string.([state_map[i].first for i in eachindex(state_map)]), "(t)" => "")
 
     # Parameters are only allowed to map to concrete values
-    if whichParameterOrState ∈ parameterMapNames
-        whichIndex = findfirst(x -> x == whichParameterOrState, parameterMapNames)
-        return parse(Float64, string(parameterMap[whichIndex].second))
+    if which_parameter_state ∈ parameter_map_names
+        which_index = findfirst(x -> x == which_parameter_state, parameter_map_names)
+        return parse(Float64, string(parameter_map[which_index].second))
     end
 
     # States can by default map to a parameter by one level of recursion
-    @assert whichParameterOrState ∈ stateMapNames
-    whichIndex = findfirst(x -> x == whichParameterOrState, stateMapNames)
-    valueMapTo = string(stateMap[whichIndex].second)
-    if valueMapTo ∈ parameterMapNames
-        whichIndexParameter = findfirst(x -> x == valueMapTo, parameterMapNames)
-        _valueMapTo = string(parameterMap[whichIndexParameter].second)
-        if _valueMapTo ∈ parameterMapNames
-            _whichIndexParameter = findfirst(x -> x == _valueMapTo, parameterMapNames)
-            return parse(Float64, string.(parameterMap[_whichIndexParameter].second))
+    @assert which_parameter_state ∈ state_map_names
+    which_index = findfirst(x -> x == which_parameter_state, state_map_names)
+    value_map_to = string(state_map[which_index].second)
+    if value_map_to ∈ parameter_map_names
+        which_index_parameter = findfirst(x -> x == value_map_to, parameter_map_names)
+        _value_map_to = string(parameter_map[which_index_parameter].second)
+        if _value_map_to ∈ parameter_map_names
+            _which_index_parameter = findfirst(x -> x == _value_map_to, parameter_map_names)
+            return parse(Float64, string.(parameter_map[_which_index_parameter].second))
         else
-            return parse(Float64, _valueMapTo)
+            return parse(Float64, _value_map_to)
         end
     end
 
-    return parse(Float64, string(stateMap[whichIndex].second))
+    return parse(Float64, string(state_map[which_index].second))
 end

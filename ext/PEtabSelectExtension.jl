@@ -11,6 +11,4 @@ using PEtab
 
 include(joinpath(@__DIR__, "PEtabSelectExtension", "PEtab_select", "PEtab_select.jl"))
 
-export createOptimProblem, createFidesProblem, callibrateModel, remakePEtabProblem, Fides, runPEtabSelect
-
 end

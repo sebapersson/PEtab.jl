@@ -9,7 +9,7 @@ rn = @reaction_network begin
     @parameters par
     (k1, k2), A <--> B
 end
-stateMap = [:A => 1.0]
+state_map = [:A => 1.0]
 
 # Measurement data 
 measurements = DataFrame(simulation_id=["c0", "c0"],
@@ -30,10 +30,10 @@ petab_parameters = [PEtabParameter(:k1, value=0.8, scale=:lin),
 observables = Dict("obs_a" => PEtabObservable(A, 0.5))
 
 # Create a PEtabODEProblem 
-petab_model = readPEtabModel(rn, simulation_conditions, observables, measurements,
-                            petab_parameters, verbose=false, stateMap=state_map)
-petab_problem = createPEtabODEProblem(petab_model, verbose=false)
+petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
+                            petab_parameters, verbose=false, state_map=state_map)
+petab_problem = PEtabODEProblem(petab_model, verbose=false)
 
 # Compute negative log-likelihood 
-nll = petab_problem.computeCost(petab_problem.θ_nominalT)
+nll = petab_problem.compute_cost(petab_problem.θ_nominalT)
 @test nll ≈ 22.79033132827511 atol=1e-3

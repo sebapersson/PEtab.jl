@@ -1,4 +1,4 @@
-function getCallbacks_petab()
+function getCallbacks_petab(foo)
 	return CallbackSet(), Function[], false
 end
 

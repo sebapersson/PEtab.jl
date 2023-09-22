@@ -1,8 +1,8 @@
 #u[1] = K27me0K36me0, u[2] = K27me2K36me3, u[3] = K27me2K36me0, u[4] = K27me0K36me1, u[5] = K27me2K36me1, u[6] = K27me0K36me2, u[7] = K27me1K36me2, u[8] = K27me3K36me2, u[9] = K27me1K36me1, u[10] = K27me1K36me3, u[11] = K27me2K36me2, u[12] = K27me0K36me3, u[13] = K27me3K36me1, u[14] = K27me3K36me0, u[15] = K27me1K36me0
-#pODEProblem[1] = k20_10, pODEProblem[2] = k11_12, pODEProblem[3] = k22_32, pODEProblem[4] = k21_11, pODEProblem[5] = k13_12, pODEProblem[6] = k01_00, pODEProblem[7] = k11_01, pODEProblem[8] = k22_21, pODEProblem[9] = k22_12, pODEProblem[10] = k11_10, pODEProblem[11] = k12_11, pODEProblem[12] = k21_31, pODEProblem[13] = k02_12, pODEProblem[14] = k30_20, pODEProblem[15] = dilution, pODEProblem[16] = k31_21, pODEProblem[17] = k23_22, pODEProblem[18] = k02_01, pODEProblem[19] = k03_13, pODEProblem[20] = k10_11, pODEProblem[21] = k21_20, pODEProblem[22] = k10_00, pODEProblem[23] = k30_31, pODEProblem[24] = k20_30, pODEProblem[25] = k20_21, pODEProblem[26] = k00_10, pODEProblem[27] = k12_13, pODEProblem[28] = k01_11, pODEProblem[29] = k02_03, pODEProblem[30] = k00_01, pODEProblem[31] = k03_02, pODEProblem[32] = k23_13, pODEProblem[33] = k32_31, pODEProblem[34] = default, pODEProblem[35] = k13_03, pODEProblem[36] = k31_30, pODEProblem[37] = k12_02, pODEProblem[38] = k31_32, pODEProblem[39] = k01_02, pODEProblem[40] = k13_23, pODEProblem[41] = k21_22, pODEProblem[42] = k12_22, pODEProblem[43] = k11_21, pODEProblem[44] = k22_23, pODEProblem[45] = k10_20, pODEProblem[46] = inflowp, pODEProblem[47] = k32_22
+#p_ode_problem[1] = k20_10, p_ode_problem[2] = k11_12, p_ode_problem[3] = k22_32, p_ode_problem[4] = k21_11, p_ode_problem[5] = k13_12, p_ode_problem[6] = k01_00, p_ode_problem[7] = k11_01, p_ode_problem[8] = k22_21, p_ode_problem[9] = k22_12, p_ode_problem[10] = k11_10, p_ode_problem[11] = k12_11, p_ode_problem[12] = k21_31, p_ode_problem[13] = k02_12, p_ode_problem[14] = k30_20, p_ode_problem[15] = dilution, p_ode_problem[16] = k31_21, p_ode_problem[17] = k23_22, p_ode_problem[18] = k02_01, p_ode_problem[19] = k03_13, p_ode_problem[20] = k10_11, p_ode_problem[21] = k21_20, p_ode_problem[22] = k10_00, p_ode_problem[23] = k30_31, p_ode_problem[24] = k20_30, p_ode_problem[25] = k20_21, p_ode_problem[26] = k00_10, p_ode_problem[27] = k12_13, p_ode_problem[28] = k01_11, p_ode_problem[29] = k02_03, p_ode_problem[30] = k00_01, p_ode_problem[31] = k03_02, p_ode_problem[32] = k23_13, p_ode_problem[33] = k32_31, p_ode_problem[34] = default, p_ode_problem[35] = k13_03, p_ode_problem[36] = k31_30, p_ode_problem[37] = k12_02, p_ode_problem[38] = k31_32, p_ode_problem[39] = k01_02, p_ode_problem[40] = k13_23, p_ode_problem[41] = k21_22, p_ode_problem[42] = k12_22, p_ode_problem[43] = k11_21, p_ode_problem[44] = k22_23, p_ode_problem[45] = k10_20, p_ode_problem[46] = inflowp, p_ode_problem[47] = k32_22
 #
-function compute_∂h∂u!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
-                       θ_nonDynamic::AbstractVector, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
+function compute_∂h∂u!(u, t::Real, p_ode_problem::AbstractVector, θ_observable::AbstractVector,
+                       θ_non_dynamic::AbstractVector, observableId::Symbol, parameter_map::θObsOrSdParameterMap, out) 
 	if observableId == :observable_K27me0K36me0 
 		out[1] = (u[4] + u[6] + u[12] + u[15] + u[9] + u[7] + u[10] + u[3] + u[5] + u[11] + u[2] + u[14] + u[13] + u[8]) / ((u[1] + u[4] + u[6] + u[12] + u[15] + u[9] + u[7] + u[10] + u[3] + u[5] + u[11] + u[2] + u[14] + u[13] + u[8])^2)
 		out[2] = (-u[1]) / ((u[1] + u[4] + u[6] + u[12] + u[15] + u[9] + u[7] + u[10] + u[3] + u[5] + u[11] + u[2] + u[14] + u[13] + u[8])^2)
@@ -290,8 +290,8 @@ function compute_∂h∂u!(u, t::Real, pODEProblem::AbstractVector, θ_observabl
 
 end
 
-function compute_∂h∂p!(u, t::Real, pODEProblem::AbstractVector, θ_observable::AbstractVector,
-                       θ_nonDynamic::AbstractVector, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
+function compute_∂h∂p!(u, t::Real, p_ode_problem::AbstractVector, θ_observable::AbstractVector,
+                       θ_non_dynamic::AbstractVector, observableId::Symbol, parameter_map::θObsOrSdParameterMap, out) 
 	if observableId == :observable_K27me0K36me0 
 		return nothing
 	end
@@ -354,8 +354,8 @@ function compute_∂h∂p!(u, t::Real, pODEProblem::AbstractVector, θ_observabl
 
 end
 
-function compute_∂σ∂σu!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
-                        parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
+function compute_∂σ∂σu!(u, t::Real, θ_sd::AbstractVector, p_ode_problem::AbstractVector,  θ_non_dynamic::AbstractVector,
+                        parameter_info::ParametersInfo, observableId::Symbol, parameter_map::θObsOrSdParameterMap, out) 
 	if observableId == :observable_K27me0K36me0 
 		return nothing
 	end
@@ -418,8 +418,8 @@ function compute_∂σ∂σu!(u, t::Real, θ_sd::AbstractVector, pODEProblem::Ab
 
 end
 
-function compute_∂σ∂σp!(u, t::Real, θ_sd::AbstractVector, pODEProblem::AbstractVector, θ_nonDynamic::AbstractVector,
-                        parameterInfo::ParametersInfo, observableId::Symbol, parameterMap::θObsOrSdParameterMap, out) 
+function compute_∂σ∂σp!(u, t::Real, θ_sd::AbstractVector, p_ode_problem::AbstractVector,  θ_non_dynamic::AbstractVector,
+                        parameter_info::ParametersInfo, observableId::Symbol, parameter_map::θObsOrSdParameterMap, out) 
 	if observableId == :observable_K27me0K36me0 
 		return nothing
 	end

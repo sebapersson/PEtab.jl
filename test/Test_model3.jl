@@ -27,17 +27,17 @@ using ForwardDiff
 using LinearAlgebra
 using Sundials
 
-import PEtab: readPEtabFiles, processMeasurements, processParameters, computeIndicesθ, processSimulationInfo, setParamToFileValues!
-import PEtab: _changeExperimentalCondition!, solveODEAllExperimentalConditions, _getSteadyStateSolverOptions
+import PEtab: read_petab_files, process_measurements, process_parameters, compute_θ_indices, process_simulationinfo, set_parameters_to_file_values!
+import PEtab: _change_simulation_condition!, solve_ODE_all_conditions, _get_steady_state_solver
 
 
 include(joinpath(@__DIR__, "Common.jl"))
 
 
-function getSolAlgebraicSS(petabModel::PEtabModel, solver, tol::Float64, a::T1, b::T1, c::T1, d::T1) where T1<:Real
+function getSolAlgebraicSS(petab_model::PEtabModel, solver, tol::Float64, a::T1, b::T1, c::T1, d::T1) where T1<:Real
 
     # ODE solution with algebraically computed initial values (instead of ss pre-simulation)
-    odeProb = ODEProblem(petabModel.system, petabModel.stateMap, (0.0, 9.7), petabModel.parameterMap, jac=true)
+    odeProb = ODEProblem(petab_model.system, petab_model.state_map, (0.0, 9.7), petab_model.parameter_map, jac=true)
     odeProb = remake(odeProb, p = convert.(eltype(a), odeProb.p), u0 = convert.(eltype(a), odeProb.u0))
     solArray = Array{ODESolution, 1}(undef, 2)
 
@@ -55,42 +55,42 @@ function getSolAlgebraicSS(petabModel::PEtabModel, solver, tol::Float64, a::T1, 
 end
 
 
-function computeCostAlgebraic(paramVec, petabModel, solver, tol)
+function compute_costAlgebraic(paramVec, petab_model, solver, tol)
 
     a, b, c, d = paramVec
 
-    experimentalConditionsFile, measurementDataFile, parameterDataFile, observablesDataFile = readPEtabFiles(petabModel)
-    measurementData = processMeasurements(measurementDataFile, observablesDataFile)
+    experimental_conditions_file, measurementDataFile, parameterDataFile, observables_dataFile = read_petab_files(petab_model)
+    measurementData = process_measurements(measurementDataFile, observables_dataFile)
 
-    solArrayAlg = getSolAlgebraicSS(petabModel, solver, tol, a, b, c, d)
-    logLik = 0.0
+    solArrayAlg = getSolAlgebraicSS(petab_model, solver, tol, a, b, c, d)
+    loglik = 0.0
     for i in eachindex(measurementData.time)
-        yObs = measurementData.measurement[i]
+        y_obs = measurementData.measurement[i]
         t = measurementData.time[i]
-        if measurementData.simulationConditionId[i] == :double
-            yMod = solArrayAlg[1](t)[1]
+        if measurementData.simulation_condition_id[i] == :double
+            y_model = solArrayAlg[1](t)[1]
         else
-            yMod = solArrayAlg[2](t)[2]
+            y_model = solArrayAlg[2](t)[2]
         end
         sigma = 0.04
-        logLik += log(sigma) + 0.5*log(2*pi) + 0.5 * ((yObs - yMod) / sigma)^2
+        loglik += log(sigma) + 0.5*log(2*pi) + 0.5 * ((y_obs - y_model) / sigma)^2
     end
 
-    return logLik
+    return loglik
 end
 
 
-function testODESolverTestModel3(petabModel::PEtabModel, solverOptions::ODESolverOptions, ssOptions::SteadyStateSolverOptions)
+function test_ode_solver_test_model3(petab_model::PEtabModel, solverOptions::ODESolver, ss_options::SteadyStateSolver)
 
     # Set values to PeTab file values
-    experimentalConditionsFile, measurementDataFile, parameterDataFile, observablesDataFile = readPEtabFiles(petabModel)
-    measurementData = processMeasurements(measurementDataFile, observablesDataFile)
-    paramData = processParameters(parameterDataFile)
-    setParamToFileValues!(petabModel.parameterMap, petabModel.stateMap, paramData)
-    θ_indices = computeIndicesθ(paramData, measurementData, petabModel)
+    experimental_conditions_file, measurementDataFile, parameterDataFile, observables_dataFile = read_petab_files(petab_model)
+    measurementData = process_measurements(measurementDataFile, observables_dataFile)
+    paramData = process_parameters(parameterDataFile)
+    set_parameters_to_file_values!(petab_model.parameter_map, petab_model.state_map, paramData)
+    θ_indices = compute_θ_indices(paramData, measurementData, petab_model)
 
     # Extract experimental conditions for simulations
-    simulationInfo = processSimulationInfo(petabModel, measurementData, sensealg=nothing)
+    simulation_info = process_simulationinfo(petab_model, measurementData, sensealg=nothing)
 
     # Parameter values where to teast accuracy. Each column is a alpha, beta, gamma and delta
     # a, b, c, d
@@ -103,26 +103,26 @@ function testODESolverTestModel3(petabModel::PEtabModel, solverOptions::ODESolve
     for i in 1:5
         a, b, c, d = parametersTest[:, i]
         # Set parameter values for ODE
-        petabModel.parameterMap[1] = Pair(petabModel.parameterMap[1].first, c)
-        petabModel.parameterMap[3] = Pair(petabModel.parameterMap[3].first, b)
-        petabModel.parameterMap[5] = Pair(petabModel.parameterMap[5].first, a)
-        petabModel.parameterMap[6] = Pair(petabModel.parameterMap[6].first, d)
+        petab_model.parameter_map[1] = Pair(petab_model.parameter_map[1].first, c)
+        petab_model.parameter_map[3] = Pair(petab_model.parameter_map[3].first, b)
+        petab_model.parameter_map[5] = Pair(petab_model.parameter_map[5].first, a)
+        petab_model.parameter_map[6] = Pair(petab_model.parameter_map[6].first, d)
 
-        prob = ODEProblem(petabModel.system, petabModel.stateMap, (0.0, 9.7), petabModel.parameterMap, jac=true)
+        prob = ODEProblem(petab_model.system, petab_model.state_map, (0.0, 9.7), petab_model.parameter_map, jac=true)
         prob = remake(prob, p = convert.(Float64, prob.p), u0 = convert.(Float64, prob.u0))
-        θ_dynamic = getFileODEvalues(petabModel)[1:4]
-        petabODESolverCache = createPEtabODESolverCache(:nothing, :nothing, petabModel, simulationInfo, θ_indices, nothing)
-        _ssOptions = _getSteadyStateSolverOptions(ssOptions, prob, ssOptions.abstol, ssOptions.reltol, ssOptions.maxiters)
+        θ_dynamic = get_file_ode_values(petab_model)[1:4]
+        petab_ODESolver_cache = PEtabODESolverCache(:nothing, :nothing, petab_model, simulation_info, θ_indices, nothing)
+        _ss_options = _get_steady_state_solver(ss_options, prob, ss_options.abstol, ss_options.reltol, ss_options.maxiters)
 
         # Solve ODE system
-        odeSolutions, success = solveODEAllExperimentalConditions(prob, petabModel, θ_dynamic, petabODESolverCache, simulationInfo, θ_indices, solverOptions, _ssOptions)
+        ode_sols, success = solve_ODE_all_conditions(prob, petab_model, θ_dynamic, petab_ODESolver_cache, simulation_info, θ_indices, solverOptions, _ss_options)
         # Solve ODE system with algebraic intial values
-        algebraicODESolutions = getSolAlgebraicSS(petabModel, solverOptions.solver, solverOptions.abstol, a, b, c, d)
+        algebraicODESolutions = getSolAlgebraicSS(petab_model, solverOptions.solver, solverOptions.abstol, a, b, c, d)
 
         # Compare against analytical solution
         sqDiff = 0.0
-        for i in eachindex(simulationInfo.experimentalConditionId)
-            solNum = odeSolutions[simulationInfo.experimentalConditionId[i]]
+        for i in eachindex(simulation_info.experimental_condition_id)
+            solNum = ode_sols[simulation_info.experimental_condition_id[i]]
             solAlg = algebraicODESolutions[i]
             sqDiff += sum((Array(solNum) - Array(solAlg(solNum.t))).^2)
         end
@@ -132,9 +132,9 @@ function testODESolverTestModel3(petabModel::PEtabModel, solverOptions::ODESolve
 end
 
 
-function testCostGradientOrHessianTestModel3(petabModel::PEtabModel, solverOptions, ssOptions)
+function test_cost_gradient_hessian_test_model3(petab_model::PEtabModel, solverOptions, ss_options)
 
-    _computeCostAlgebraic = (pArg) -> computeCostAlgebraic(pArg, petabModel, solverOptions.solver, solverOptions.abstol)
+    _compute_costAlgebraic = (pArg) -> compute_costAlgebraic(pArg, petab_model, solverOptions.solver, solverOptions.abstol)
 
     cube = CSV.File(joinpath(@__DIR__, "Test_model3", "Julia_model_files", "CubeTest_model3.csv"))
 
@@ -142,30 +142,30 @@ function testCostGradientOrHessianTestModel3(petabModel::PEtabModel, solverOptio
 
         p = Float64.(collect(cube[i]))
 
-        referenceCost = _computeCostAlgebraic(p)
-        referenceGradient = ForwardDiff.gradient(_computeCostAlgebraic, p)
-        referenceHessian = ForwardDiff.hessian(_computeCostAlgebraic, p)
+        referenceCost = _compute_costAlgebraic(p)
+        referenceGradient = ForwardDiff.gradient(_compute_costAlgebraic, p)
+        referenceHessian = ForwardDiff.hessian(_compute_costAlgebraic, p)
 
         # Test both the standard and Zygote approach to compute the cost
-        cost = _testCostGradientOrHessian(petabModel, solverOptions, p, computeCost=true, costMethod=:Standard, ssOptions=ssOptions)
+        cost = _testCostGradientOrHessian(petab_model, solverOptions, p, compute_cost=true, cost_method=:Standard, ss_options=ss_options)
         @test cost ≈ referenceCost atol=1e-3
-        costZygote = _testCostGradientOrHessian(petabModel, solverOptions, p, computeCost=true, costMethod=:Zygote, ssOptions=ssOptions)
+        costZygote = _testCostGradientOrHessian(petab_model, solverOptions, p, compute_cost=true, cost_method=:Zygote, ss_options=ss_options)
         @test costZygote ≈ referenceCost atol=1e-3
 
         # Test all gradient combinations. Note we test sensitivity equations with and without autodiff
-        gradientForwardDiff = _testCostGradientOrHessian(petabModel, solverOptions, p, computeGradient=true, gradientMethod=:ForwardDiff, ssOptions=ssOptions)
+        gradientForwardDiff = _testCostGradientOrHessian(petab_model, solverOptions, p, compute_gradient=true, gradient_method=:ForwardDiff, ss_options=ss_options)
         @test norm(gradientForwardDiff - referenceGradient) ≤ 1e-2
-        gradientZygote = _testCostGradientOrHessian(petabModel, solverOptions, p, computeGradient=true, gradientMethod=:Zygote, sensealg=ForwardDiffSensitivity(), ssOptions=ssOptions)
+        gradientZygote = _testCostGradientOrHessian(petab_model, solverOptions, p, compute_gradient=true, gradient_method=:Zygote, sensealg=ForwardDiffSensitivity(), ss_options=ss_options)
         @test norm(gradientZygote - referenceGradient) ≤ 1e-2
-        gradientAdjoint = _testCostGradientOrHessian(petabModel, solverOptions, p, computeGradient=true, gradientMethod=:Adjoint, sensealg=QuadratureAdjoint(autojacvec=ReverseDiffVJP(false)), ssOptions=ssOptions)
-        @test norm(normalize(gradientAdjoint) - normalize((referenceGradient))) ≤ 1e-2
-        gradientForward1 = _testCostGradientOrHessian(petabModel, solverOptions, p, computeGradient=true, gradientMethod=:ForwardEquations, sensealg=:ForwardDiff, ssOptions=ssOptions)
+        gradient_adjoint = _testCostGradientOrHessian(petab_model, solverOptions, p, compute_gradient=true, gradient_method=:Adjoint, sensealg=QuadratureAdjoint(autojacvec=ReverseDiffVJP(false)), ss_options=ss_options)
+        @test norm(normalize(gradient_adjoint) - normalize((referenceGradient))) ≤ 1e-2
+        gradientForward1 = _testCostGradientOrHessian(petab_model, solverOptions, p, compute_gradient=true, gradient_method=:ForwardEquations, sensealg=:ForwardDiff, ss_options=ss_options)
         @test norm(gradientForward1 - referenceGradient) ≤ 1e-2
-        gradientForward2 = _testCostGradientOrHessian(petabModel, ODESolverOptions(CVODE_BDF(), abstol=1e-12, reltol=1e-12), p, computeGradient=true, gradientMethod=:ForwardEquations, sensealg=ForwardSensitivity(), ssOptions=ssOptions)
+        gradientForward2 = _testCostGradientOrHessian(petab_model, ODESolver(CVODE_BDF(), abstol=1e-12, reltol=1e-12), p, compute_gradient=true, gradient_method=:ForwardEquations, sensealg=ForwardSensitivity(), ss_options=ss_options)
         @test norm(gradientForward2 - referenceGradient) ≤ 1e-2
 
         # Testing "exact" hessian via autodiff
-        hessian = _testCostGradientOrHessian(petabModel, solverOptions, p, computeHessian=true, hessianMethod=:ForwardDiff, ssOptions=ssOptions)
+        hessian = _testCostGradientOrHessian(petab_model, solverOptions, p, compute_hessian=true, hessian_method=:ForwardDiff, ss_options=ss_options)
         @test norm(hessian - referenceHessian) ≤ 1e-2
     end
 
@@ -173,23 +173,23 @@ function testCostGradientOrHessianTestModel3(petabModel::PEtabModel, solverOptio
 end
 
 
-petabModel = readPEtabModel(joinpath(@__DIR__, "Test_model3", "Test_model3.yaml"), forceBuildJuliaFiles=true, writeToFile=true)
+petab_model = PEtabModel(joinpath(@__DIR__, "Test_model3", "Test_model3.yaml"), build_julia_files=true, write_to_file=true)
 
 @testset "ODE solver Simulate wrms termination" begin
-    ssOptionsTest1 = SteadyStateSolverOptions(:Simulate, howCheckSimulationReachedSteadyState=:wrms, abstol=1e-12, reltol=1e-10)
-    testODESolverTestModel3(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12), ssOptionsTest1)
+    ss_optionsTest1 = SteadyStateSolver(:Simulate, check_simulation_steady_state=:wrms, abstol=1e-12, reltol=1e-10)
+    test_ode_solver_test_model3(petab_model, ODESolver(Rodas4P(), abstol=1e-12, reltol=1e-12), ss_optionsTest1)
 end
 
 @testset "ODE solver Simulate Newton SS termination" begin
-    ssOptionsTest2 = SteadyStateSolverOptions(:Simulate, howCheckSimulationReachedSteadyState=:Newton, abstol=1e-12, reltol=1e-10)
-    testODESolverTestModel3(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12), ssOptionsTest2)
+    ss_optionsTest2 = SteadyStateSolver(:Simulate, check_simulation_steady_state=:Newton, abstol=1e-12, reltol=1e-10)
+    test_ode_solver_test_model3(petab_model, ODESolver(Rodas4P(), abstol=1e-12, reltol=1e-12), ss_optionsTest2)
 end
 
 @testset "Cost gradient and hessian" begin
-    ssOptionsTest3 = SteadyStateSolverOptions(:Simulate, howCheckSimulationReachedSteadyState=:wrms, abstol=1e-12, reltol=1e-10)
-    testCostGradientOrHessianTestModel3(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-12, reltol=1e-12, maxiters=Int(1e5)), ssOptionsTest3)
+    ss_optionsTest3 = SteadyStateSolver(:Simulate, check_simulation_steady_state=:wrms, abstol=1e-12, reltol=1e-10)
+    test_cost_gradient_hessian_test_model3(petab_model, ODESolver(Rodas4P(), abstol=1e-12, reltol=1e-12, maxiters=Int(1e5)), ss_optionsTest3)
 end
 
 @testset "Gradient of residuals" begin
-    checkGradientResiduals(petabModel, ODESolverOptions(Rodas4P(), abstol=1e-9, reltol=1e-9))
+    check_gradient_residuals(petab_model, ODESolver(Rodas4P(), abstol=1e-9, reltol=1e-9))
 end

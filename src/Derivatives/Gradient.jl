@@ -7,56 +7,56 @@
 
 
 # Compute the gradient via forward mode automatic differentitation
-function computeGradientAutoDiff!(gradient::Vector{Float64},
-                                  θ_est::Vector{Float64},
-                                  computeCostNotODESystemθ::Function,
-                                  computeCostDynamicθ::Function,
-                                  petabODECache::PEtabODEProblemCache,
-                                  cfg::ForwardDiff.GradientConfig,
-                                  simulationInfo::SimulationInfo,
-                                  θ_indices::ParameterIndices,
-                                  priorInfo::PriorInfo,
-                                  expIDSolve::Vector{Symbol} = [:all];
-                                  isRemade::Bool=false)
+function compute_gradient_autodiff!(gradient::Vector{Float64},
+                                    θ_est::Vector{Float64},
+                                    compute_cost_θ_not_ODE::Function,
+                                    compute_cost_θ_dynamic::Function,
+                                    petab_ODE_cache::PEtabODEProblemCache,
+                                    cfg::ForwardDiff.GradientConfig,
+                                    simulation_info::SimulationInfo,
+                                    θ_indices::ParameterIndices,
+                                    prior_info::PriorInfo,
+                                    exp_id_solve::Vector{Symbol} = [:all];
+                                    isremade::Bool=false)
 
     fill!(gradient, 0.0)
-    splitParameterVector!(θ_est, θ_indices, petabODECache)
+    splitθ!(θ_est, θ_indices, petab_ODE_cache)
     # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
     # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
     # retcode we cannot catch these cases 
-    simulationInfo.couldSolve[1] = true
+    simulation_info.could_solve[1] = true
 
     # Case where based on the original PEtab file read into Julia we do not have any parameter vectors fixated.
-    if isRemade == false || length(petabODECache.gradientDyanmicθ) == petabODECache.nθ_dynamicEst[1]
-        tmp = petabODECache.nθ_dynamicEst[1]
-        petabODECache.nθ_dynamicEst[1] = length(petabODECache.θ_dynamic)
+    if isremade == false || length(petab_ODE_cache.gradient_θ_dyanmic) == petab_ODE_cache.nθ_dynamic[1]
+        tmp = petab_ODE_cache.nθ_dynamic[1]
+        petab_ODE_cache.nθ_dynamic[1] = length(petab_ODE_cache.θ_dynamic)
         try
             # In case of no dynamic parameters we still need to solve the ODE in order to obtain the gradient for
             # non-dynamic parameters
-            if length(petabODECache.gradientDyanmicθ) > 0
-                ForwardDiff.gradient!(petabODECache.gradientDyanmicθ, computeCostDynamicθ, petabODECache.θ_dynamic, cfg)
-                @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ
+            if length(petab_ODE_cache.gradient_θ_dyanmic) > 0
+                ForwardDiff.gradient!(petab_ODE_cache.gradient_θ_dyanmic, compute_cost_θ_dynamic, petab_ODE_cache.θ_dynamic, cfg)
+                @views gradient[θ_indices.iθ_dynamic] .= petab_ODE_cache.gradient_θ_dyanmic
             else
-                computeCostDynamicθ(petabODECache.θ_dynamic)
+                compute_cost_θ_dynamic(petab_ODE_cache.θ_dynamic)
             end
         catch
             gradient .= 0.0
             return
         end
-        petabODECache.nθ_dynamicEst[1] = tmp
+        petab_ODE_cache.nθ_dynamic[1] = tmp
     end
 
     # Case when we have dynamic parameters fixed. Here it is not always worth to move accross all chunks
-    if !(isRemade == false || length(petabODECache.gradientDyanmicθ) == petabODECache.nθ_dynamicEst[1])
+    if !(isremade == false || length(petab_ODE_cache.gradient_θ_dyanmic) == petab_ODE_cache.nθ_dynamic[1])
         try
-            if petabODECache.nθ_dynamicEst[1] != 0
+            if petab_ODE_cache.nθ_dynamic[1] != 0
                 C = length(cfg.seeds)
-                nForwardPasses = Int64(ceil(petabODECache.nθ_dynamicEst[1] / C))
-                __θ_dynamic = petabODECache.θ_dynamic[petabODECache.θ_dynamicInputOrder]
-                forwardDiffGradientChunks(computeCostDynamicθ, petabODECache.gradientDyanmicθ, __θ_dynamic, ForwardDiff.Chunk(C); nForwardPasses=nForwardPasses)
-                @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ[petabODECache.θ_dynamicOutputOrder]
+                n_forward_passes = Int64(ceil(petab_ODE_cache.nθ_dynamic[1] / C))
+                __θ_dynamic = petab_ODE_cache.θ_dynamic[petab_ODE_cache.θ_dynamic_input_order]
+                forwarddiff_gradient_chunks(compute_cost_θ_dynamic, petab_ODE_cache.gradient_θ_dyanmic, __θ_dynamic, ForwardDiff.Chunk(C); n_forward_passes=n_forward_passes)
+                @views gradient[θ_indices.iθ_dynamic] .= petab_ODE_cache.gradient_θ_dyanmic[petab_ODE_cache.θ_dynamic_output_order]
             else
-                computeCostDynamicθ(petabODECache.θ_dynamic)
+                compute_cost_θ_dynamic(petab_ODE_cache.θ_dynamic)
             end
         catch
             gradient .= 0.0
@@ -65,18 +65,18 @@ function computeGradientAutoDiff!(gradient::Vector{Float64},
     end
 
     # Check if we could solve the ODE (first), and if Inf was returned (second)
-    if simulationInfo.couldSolve[1] != true
+    if simulation_info.could_solve[1] != true
         gradient .= 0.0
         return 
     end
 
-    θ_notOdeSystem = @view θ_est[θ_indices.iθ_notOdeSystem]
-    ForwardDiff.gradient!(petabODECache.gradientNotODESystemθ, computeCostNotODESystemθ, θ_notOdeSystem)
-    @views gradient[θ_indices.iθ_notOdeSystem] .= petabODECache.gradientNotODESystemθ
+    θ_not_ode = @view θ_est[θ_indices.iθ_not_ode]
+    ForwardDiff.gradient!(petab_ODE_cache.gradient_θ_not_ode, compute_cost_θ_not_ODE, θ_not_ode)
+    @views gradient[θ_indices.iθ_not_ode] .= petab_ODE_cache.gradient_θ_not_ode
 
     # If we have prior contribution its gradient is computed via autodiff for all parameters
-    if priorInfo.hasPriors == true
-        computeGradientPrior!(gradient, θ_est, θ_indices, priorInfo)
+    if prior_info.has_priors == true
+        compute_gradient_prior!(gradient, θ_est, θ_indices, prior_info)
     end
 end
 
@@ -84,39 +84,39 @@ end
 # Compute the gradient via forward mode automatic differentitation where the final gradient is computed via
 # n ForwardDiff-calls accross all experimental condtions. The most efficient approach for models with many
 # parameters which are unique to each experimental condition.
-function computeGradientAutoDiffSplitOverConditions!(gradient::Vector{Float64},
-                                                     θ_est::Vector{Float64},
-                                                     computeCostNotODESystemθ::Function,
-                                                     _computeCostDynamicθ::Function,
-                                                     petabODECache::PEtabODEProblemCache,
-                                                     simulationInfo::SimulationInfo,
-                                                     θ_indices::ParameterIndices,
-                                                     priorInfo::PriorInfo,
-                                                     expIDSolve=[:all])
+function compute_gradient_autodiff_split!(gradient::Vector{Float64},
+                                          θ_est::Vector{Float64},
+                                          compute_cost_θ_not_ODE::Function,
+                                          _compute_cost_θ_dynamic::Function,
+                                          petab_ODE_cache::PEtabODEProblemCache,
+                                          simulation_info::SimulationInfo,
+                                          θ_indices::ParameterIndices,
+                                          prior_info::PriorInfo,
+                                          exp_id_solve=[:all])
 
     # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
     # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
     # retcode we cannot catch these cases                                                         
-    simulationInfo.couldSolve[1] = true                                                     
+    simulation_info.could_solve[1] = true                                                     
 
-    splitParameterVector!(θ_est, θ_indices, petabODECache)
-    θ_dynamic = petabODECache.θ_dynamic
-    petabODECache.gradientDyanmicθ .= 0.0
+    splitθ!(θ_est, θ_indices, petab_ODE_cache)
+    θ_dynamic = petab_ODE_cache.θ_dynamic
+    petab_ODE_cache.gradient_θ_dyanmic .= 0.0
 
-    for conditionId in simulationInfo.experimentalConditionId
-        mapConditionId = θ_indices.mapsConiditionId[conditionId]
-        iθ_experimentalCondition = unique(vcat(θ_indices.mapODEProblem.iθDynamic, mapConditionId.iθDynamic))
-        θ_input = θ_dynamic[iθ_experimentalCondition]
-        computeCostDynamicθ = (θ_arg) ->    begin
+    for conditionId in simulation_info.experimental_condition_id
+        map_condition_id = θ_indices.maps_conidition_id[conditionId]
+        iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.iθ_dynamic, map_condition_id.iθ_dynamic))
+        θ_input = θ_dynamic[iθ_experimental_condition]
+        compute_cost_θ_dynamic = (θ_arg) ->    begin
                                                     _θ_dynamic = convert.(eltype(θ_arg), θ_dynamic)
-                                                    @views _θ_dynamic[iθ_experimentalCondition] .= θ_arg
-                                                    return _computeCostDynamicθ(_θ_dynamic, [conditionId])
+                                                    @views _θ_dynamic[iθ_experimental_condition] .= θ_arg
+                                                    return _compute_cost_θ_dynamic(_θ_dynamic, [conditionId])
                                             end
         try
             if length(θ_input) ≥ 1
-                @views petabODECache.gradientDyanmicθ[iθ_experimentalCondition] .+= ForwardDiff.gradient(computeCostDynamicθ, θ_input)::Vector{Float64}
+                @views petab_ODE_cache.gradient_θ_dyanmic[iθ_experimental_condition] .+= ForwardDiff.gradient(compute_cost_θ_dynamic, θ_input)::Vector{Float64}
             else
-                computeCostDynamicθ(θ_input)
+                compute_cost_θ_dynamic(θ_input)
             end
         catch
             gradient .= 1e8
@@ -125,85 +125,85 @@ function computeGradientAutoDiffSplitOverConditions!(gradient::Vector{Float64},
     end
 
     # Check if we could solve the ODE (first), and if Inf was returned (second)
-    if simulationInfo.couldSolve[1] != true
+    if simulation_info.could_solve[1] != true
         gradient .= 0.0
         return 
     end
-    @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ
+    @views gradient[θ_indices.iθ_dynamic] .= petab_ODE_cache.gradient_θ_dyanmic
 
-    θ_notOdeSystem = @view θ_est[θ_indices.iθ_notOdeSystem]
-    ForwardDiff.gradient!(petabODECache.gradientNotODESystemθ, computeCostNotODESystemθ, θ_notOdeSystem)
-    @views gradient[θ_indices.iθ_notOdeSystem] .= petabODECache.gradientNotODESystemθ
+    θ_not_ode = @view θ_est[θ_indices.iθ_not_ode]
+    ForwardDiff.gradient!(petab_ODE_cache.gradient_θ_not_ode, compute_cost_θ_not_ODE, θ_not_ode)
+    @views gradient[θ_indices.iθ_not_ode] .= petab_ODE_cache.gradient_θ_not_ode
 
     # If we have prior contribution its gradient is computed via autodiff for all parameters
-    if priorInfo.hasPriors == true
-        computeGradientPrior!(gradient, θ_est, θ_indices, priorInfo)
+    if prior_info.has_priors == true
+        compute_gradient_prior!(gradient, θ_est, θ_indices, prior_info)
     end
 end
 
 
 # Compute the gradient via forward sensitivity equations
-function computeGradientForwardEquations!(gradient::Vector{Float64},
-                                          θ_est::Vector{Float64},
-                                          computeCostNotODESystemθ::Function,
-                                          petabModel::PEtabModel,
-                                          odeProblem::ODEProblem,
-                                          sensealg,
-                                          simulationInfo::SimulationInfo,
-                                          θ_indices::ParameterIndices,
-                                          measurementInfo::MeasurementsInfo,
-                                          parameterInfo::ParametersInfo,
-                                          solveOdeModelAllConditions!::Function,
-                                          priorInfo::PriorInfo,
-                                          cfg::Union{ForwardDiff.JacobianConfig, Nothing},
-                                          petabODECache::PEtabODEProblemCache;
-                                          splitOverConditions::Bool=false,
-                                          expIDSolve::Vector{Symbol} = [:all],
-                                          isRemade::Bool=false)
+function compute_gradient_forward_equations!(gradient::Vector{Float64},
+                                             θ_est::Vector{Float64},
+                                             compute_cost_θ_not_ODE::Function,
+                                             petab_model::PEtabModel,
+                                             ode_problem::ODEProblem,
+                                             sensealg,
+                                             simulation_info::SimulationInfo,
+                                             θ_indices::ParameterIndices,
+                                             measurement_info::MeasurementsInfo,
+                                             parameter_info::ParametersInfo,
+                                             _solve_ode_all_conditions!::Function,
+                                             prior_info::PriorInfo,
+                                             cfg::Union{ForwardDiff.JacobianConfig, Nothing},
+                                             petab_ODE_cache::PEtabODEProblemCache;
+                                             split_over_conditions::Bool=false,
+                                             exp_id_solve::Vector{Symbol} = [:all],
+                                             isremade::Bool=false)
 
     # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
     # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
     # retcode we cannot catch these cases                                             
-    simulationInfo.couldSolve[1] = true
+    simulation_info.could_solve[1] = true
 
-    splitParameterVector!(θ_est, θ_indices, petabODECache)
-    θ_dynamic = petabODECache.θ_dynamic
-    θ_observable = petabODECache.θ_observable
-    θ_sd = petabODECache.θ_sd
-    θ_nonDynamic = petabODECache.θ_nonDynamic
+    splitθ!(θ_est, θ_indices, petab_ODE_cache)
+    θ_dynamic = petab_ODE_cache.θ_dynamic
+    θ_observable = petab_ODE_cache.θ_observable
+    θ_sd = petab_ODE_cache.θ_sd
+    θ_non_dynamic = petab_ODE_cache.θ_non_dynamic
 
     # Calculate gradient seperately for dynamic and non dynamic parameter.
-    computeGradientForwardEqDynamicθ!(petabODECache.gradientDyanmicθ, θ_dynamic, θ_sd, θ_observable, θ_nonDynamic, petabModel,
-                                      sensealg, odeProblem, simulationInfo, θ_indices, measurementInfo, parameterInfo,
-                                      solveOdeModelAllConditions!, cfg, petabODECache, expIDSolve=expIDSolve,
-                                      splitOverConditions=splitOverConditions, isRemade=isRemade)
-    @views gradient[θ_indices.iθ_dynamic] .= petabODECache.gradientDyanmicθ
+    compute_gradient_forward_equations!(petab_ODE_cache.gradient_θ_dyanmic, θ_dynamic, θ_sd, θ_observable,  θ_non_dynamic, petab_model,
+                                        sensealg, ode_problem, simulation_info, θ_indices, measurement_info, parameter_info,
+                                        _solve_ode_all_conditions!, cfg, petab_ODE_cache, exp_id_solve=exp_id_solve,
+                                        split_over_conditions=split_over_conditions, isremade=isremade)
+    @views gradient[θ_indices.iθ_dynamic] .= petab_ODE_cache.gradient_θ_dyanmic
 
     # Happens when at least one forward pass fails and I set the gradient to 1e8
-    if !isempty(petabODECache.gradientDyanmicθ) && all(petabODECache.gradientDyanmicθ .== 0.0)
+    if !isempty(petab_ODE_cache.gradient_θ_dyanmic) && all(petab_ODE_cache.gradient_θ_dyanmic .== 0.0)
         gradient .= 0.0
         return
     end
 
-    θ_notOdeSystem = @view θ_est[θ_indices.iθ_notOdeSystem]
-    ReverseDiff.gradient!(petabODECache.gradientNotODESystemθ, computeCostNotODESystemθ, θ_notOdeSystem)
-    @views gradient[θ_indices.iθ_notOdeSystem] .= petabODECache.gradientNotODESystemθ
+    θ_not_ode = @view θ_est[θ_indices.iθ_not_ode]
+    ReverseDiff.gradient!(petab_ODE_cache.gradient_θ_not_ode, compute_cost_θ_not_ODE, θ_not_ode)
+    @views gradient[θ_indices.iθ_not_ode] .= petab_ODE_cache.gradient_θ_not_ode
 
-    if priorInfo.hasPriors == true
-        computeGradientPrior!(gradient, θ_est, θ_indices, priorInfo)
+    if prior_info.has_priors == true
+        compute_gradient_prior!(gradient, θ_est, θ_indices, prior_info)
     end
 end
 
 
 # Compute prior contribution to log-likelihood
-function computeGradientPrior!(gradient::AbstractVector,
-                               θ::AbstractVector,
-                               θ_indices::ParameterIndices,
-                               priorInfo::PriorInfo)
+function compute_gradient_prior!(gradient::AbstractVector,
+                                 θ::AbstractVector,
+                                 θ_indices::ParameterIndices,
+                                 prior_info::PriorInfo)
 
     _evalPriors = (θ_est) -> begin
-                                θ_estT = transformθ(θ_est, θ_indices.θ_estNames, θ_indices)
-                                return -1.0 * computePriors(θ_est, θ_estT, θ_indices.θ_estNames, priorInfo) # We work with -loglik
+                                θ_estT = transformθ(θ_est, θ_indices.θ_names, θ_indices)
+                                return -1.0 * compute_priors(θ_est, θ_estT, θ_indices.θ_names, prior_info) # We work with -loglik
                             end
     gradient .+= ForwardDiff.gradient(_evalPriors, θ)
 end

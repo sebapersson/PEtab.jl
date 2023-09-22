@@ -1,31 +1,26 @@
-# Model name: Brannmark_JBC2010
-# Number of parameters: 23
-# Number of species: 9
-function getODEModel_Brannmark_JBC2010()
+function getODEModel_Brannmark_JBC2010(foo)
+	# Model name: Brannmark_JBC2010
+	# Number of parameters: 23
+	# Number of species: 10
 
     ### Define independent and dependent variables
-    ModelingToolkit.@variables t IRp(t) IR(t) IRins(t) IRiP(t) IRS(t) X(t) IRi(t) IRSiP(t) Xp(t)
+    ModelingToolkit.@variables t IRp(t) IR(t) IRins(t) IRiP(t) IRS(t) X(t) IRi(t) insulin(t) IRSiP(t) Xp(t) 
 
     ### Store dependent variables in array for ODESystem command
-    stateArray = [IRp, IR, IRins, IRiP, IRS, X, IRi, IRSiP, Xp]
+    stateArray = [IRp, IR, IRins, IRiP, IRS, X, IRi, insulin, IRSiP, Xp]
 
     ### Define variable parameters
 
     ### Define potential algebraic variables
     ModelingToolkit.@variables insulin(t)
-
     ### Define parameters
-    ModelingToolkit.@parameters k1c k21 insulin_bool1 k1g insulin_dose_2 k1a insulin_dose_1 k1aBasic insulin_time_1 insulin_time_2 k1d cyt k22 insulin_bool2 default k1r k1f k1b k3 km2 k1e k_IRSiP_DosR km3
+    ModelingToolkit.@parameters k1c k21 insulin_bool1 k1g insulin_dose_2 k1a insulin_dose_1 k1aBasic insulin_time_1 insulin_time_2 k1d cyt k22 insulin_bool2 default k1r k1f k1b k3 km2 k1e k_IRSiP_DosR km3 
 
     ### Store parameters in array for ODESystem command
     parameterArray = [k1c, k21, insulin_bool1, k1g, insulin_dose_2, k1a, insulin_dose_1, k1aBasic, insulin_time_1, insulin_time_2, k1d, cyt, k22, insulin_bool2, default, k1r, k1f, k1b, k3, km2, k1e, k_IRSiP_DosR, km3]
 
     ### Define an operator for the differentiation w.r.t. time
     D = Differential(t)
-
-    ### Continious events ###
-
-    ### Discrete events ###
 
     ### Derivatives ###
     eqs = [

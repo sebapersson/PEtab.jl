@@ -1,95 +1,95 @@
 # Transform parameter from log10 scale to normal scale, or reverse transform
-function transformθZygote(θ::AbstractVector,
-                          θ_names::Vector{Symbol},
-                          parameterInfo::PEtab.ParametersInfo;
-                          reverseTransform::Bool=false)::AbstractVector
+function transformθ_zygote(θ::AbstractVector,
+                           n_parameters_estimate::Vector{Symbol},
+                           parameter_info::PEtab.ParametersInfo;
+                           reverse_transform::Bool=false)::AbstractVector
 
-    iθ = [findfirst(x -> x == θ_names[i], parameterInfo.parameterId) for i in eachindex(θ_names)]
-    shouldTransform = [parameterInfo.parameterScale[i] == :log10 ? true : false for i in iθ]
-    shouldNotTransform = .!shouldTransform
+    iθ = [findfirst(x -> x == n_parameters_estimate[i], parameter_info.parameter_id) for i in eachindex(n_parameters_estimate)]
+    should_transform = [parameter_info.parameter_scale[i] == :log10 ? true : false for i in iθ]
+    should_not_transform = .!should_transform
 
-    if reverseTransform == false
-        out = exp10.(θ) .* shouldTransform .+ θ .* shouldNotTransform
+    if reverse_transform == false
+        out = exp10.(θ) .* should_transform .+ θ .* should_not_transform
     else
-        out = log10.(θ) .* shouldTransform .+ θ .* shouldNotTransform
+        out = log10.(θ) .* should_transform .+ θ .* should_not_transform
     end
     return out
 end
 
 
-function PEtab.setUpGradient(::Val{:Zygote},
-                             odeProblem::ODEProblem,
-                             odeSolverOptions::ODESolverOptions,
-                             ssSolverOptions::SteadyStateSolverOptions,
-                             petabODECache::PEtab.PEtabODEProblemCache,
-                             petabODESolverCache::PEtab.PEtabODESolverCache,
-                             petabModel::PEtabModel,
-                             simulationInfo::PEtab.SimulationInfo,
-                             θ_indices::PEtab.ParameterIndices,
-                             measurementInfo::PEtab.MeasurementsInfo,
-                             parameterInfo::PEtab.ParametersInfo,
-                             sensealg::SciMLBase.AbstractSensitivityAlgorithm,
-                             priorInfo::PEtab.PriorInfo;
-                             chunkSize::Union{Nothing, Int64}=nothing,
-                             sensealgSS=nothing,
-                             numberOfprocesses::Int64=1,
-                             jobs=nothing,
-                             results=nothing,
-                             splitOverConditions::Bool=false)
+function PEtab.create_gradient_function(::Val{:Zygote},
+                                        ode_problem::ODEProblem,
+                                        ode_solver::ODESolver,
+                                        ss_solver::SteadyStateSolver,
+                                        petab_ODE_cache::PEtab.PEtabODEProblemCache,
+                                        petab_ODESolver_cache::PEtab.PEtabODESolverCache,
+                                        petab_model::PEtabModel,
+                                        simulation_info::PEtab.SimulationInfo,
+                                        θ_indices::PEtab.ParameterIndices,
+                                        measurement_info::PEtab.MeasurementsInfo,
+                                        parameter_info::PEtab.ParametersInfo,
+                                        sensealg::SciMLBase.AbstractSensitivityAlgorithm,
+                                        prior_info::PEtab.PriorInfo;
+                                        chunksize::Union{Nothing, Int64}=nothing,
+                                        sensealg_ss=nothing,
+                                        n_processes::Int64=1,
+                                        jobs=nothing,
+                                        results=nothing,
+                                        split_over_conditions::Bool=false)
 
-    changeExperimentalCondition = (pODEProblem, u0, conditionId, θ_dynamic) -> PEtab._changeExperimentalCondition(pODEProblem, u0, conditionId, θ_dynamic, petabModel, θ_indices)
-    solveODEExperimentalCondition = (odeProblem, conditionId, θ_dynamic, tMax) -> solveOdeModelAtExperimentalCondZygote(odeProblem, conditionId, θ_dynamic, tMax, changeExperimentalCondition, measurementInfo, simulationInfo, odeSolverOptions.solver, odeSolverOptions.abstol, odeSolverOptions.reltol, ssSolverOptions.abstol, ssSolverOptions.reltol, sensealg, petabModel.computeTStops)
-    _computeGradient! = (gradient, θ_est) -> computeGradientZygote(gradient,
-                                                                   θ_est,
-                                                                   odeProblem,
-                                                                   petabModel,
-                                                                   simulationInfo,
-                                                                   θ_indices,
-                                                                   measurementInfo,
-                                                                   parameterInfo,
-                                                                   solveODEExperimentalCondition,
-                                                                   priorInfo,
-                                                                   petabODECache)
+    change_simulation_condition = (p_ode_problem, u0, conditionId, θ_dynamic) -> PEtab._change_simulation_condition(p_ode_problem, u0, conditionId, θ_dynamic, petab_model, θ_indices)
+    solve_ode_condition = (ode_problem, conditionId, θ_dynamic, tmax) -> solve_ode_condition_zygote(ode_problem, conditionId, θ_dynamic, tmax, change_simulation_condition, measurement_info, simulation_info, ode_solver.solver, ode_solver.abstol, ode_solver.reltol, ss_solver.abstol, ss_solver.reltol, sensealg, petab_model.compute_tstops)
+    _compute_gradient! = (gradient, θ_est) -> compute_gradient_zygote!(gradient,
+                                                                       θ_est,
+                                                                       ode_problem,
+                                                                       petab_model,
+                                                                       simulation_info,
+                                                                       θ_indices,
+                                                                       measurement_info,
+                                                                       parameter_info,
+                                                                       solve_ode_condition,
+                                                                       prior_info,
+                                                                       petab_ODE_cache)
     
-    return _computeGradient!
+    return _compute_gradient!
 end
 
 
-function PEtab.setUpCost(::Val{:Zygote},
-                         odeProblem::ODEProblem,
-                         odeSolverOptions::ODESolverOptions,
-                         ssSolverOptions::SteadyStateSolverOptions,
-                         petabODECache::PEtab.PEtabODEProblemCache,
-                         petabODESolverCache::PEtab.PEtabODESolverCache,
-                         petabModel::PEtabModel,
-                         simulationInfo::PEtab.SimulationInfo,
-                         θ_indices::PEtab.ParameterIndices,
-                         measurementInfo::PEtab.MeasurementsInfo,
-                         parameterInfo::PEtab.ParametersInfo,
-                         priorInfo::PEtab.PriorInfo,
-                         sensealg,
-                         numberOfprocesses,
-                         jobs,
-                         results,
-                         computeResiduals)
+function PEtab.create_cost_function(::Val{:Zygote},
+                                    ode_problem::ODEProblem,
+                                    ode_solver::ODESolver,
+                                    ss_solver::SteadyStateSolver,
+                                    petab_ODE_cache::PEtab.PEtabODEProblemCache,
+                                    petab_ODESolver_cache::PEtab.PEtabODESolverCache,
+                                    petab_model::PEtabModel,
+                                    simulation_info::PEtab.SimulationInfo,
+                                    θ_indices::PEtab.ParameterIndices,
+                                    measurement_info::PEtab.MeasurementsInfo,
+                                    parameter_info::PEtab.ParametersInfo,
+                                    prior_info::PEtab.PriorInfo,
+                                    sensealg,
+                                    n_processes,
+                                    jobs,
+                                    results,
+                                    compute_residuals)
 
-    changeExperimentalCondition = (pODEProblem, u0, conditionId, θ_dynamic) -> PEtab._changeExperimentalCondition(pODEProblem, u0, conditionId, θ_dynamic, petabModel, θ_indices)
-    solveODEExperimentalCondition = (odeProblem, conditionId, θ_dynamic, tMax) -> solveOdeModelAtExperimentalCondZygote(odeProblem, conditionId, θ_dynamic, tMax, changeExperimentalCondition, measurementInfo, simulationInfo, odeSolverOptions.solver, odeSolverOptions.abstol, odeSolverOptions.reltol, ssSolverOptions.abstol, ssSolverOptions.reltol, sensealg, petabModel.computeTStops)
-    __computeCost = (θ_est) -> computeCostZygote(θ_est,
-                                                 odeProblem,
-                                                 petabModel,
-                                                 simulationInfo,
+    change_simulation_condition = (p_ode_problem, u0, conditionId, θ_dynamic) -> PEtab._change_simulation_condition(p_ode_problem, u0, conditionId, θ_dynamic, petab_model, θ_indices)
+    solve_ode_condition = (ode_problem, conditionId, θ_dynamic, tmax) -> solve_ode_condition_zygote(ode_problem, conditionId, θ_dynamic, tmax, change_simulation_condition, measurement_info, simulation_info, ode_solver.solver, ode_solver.abstol, ode_solver.reltol, ss_solver.abstol, ss_solver.reltol, sensealg, petab_model.compute_tstops)
+    __compute_cost = (θ_est) -> compute_cost_zygote(θ_est,
+                                                 ode_problem,
+                                                 petab_model,
+                                                 simulation_info,
                                                  θ_indices,
-                                                 measurementInfo,
-                                                 parameterInfo,
-                                                 solveODEExperimentalCondition,
-                                                 priorInfo)
+                                                 measurement_info,
+                                                 parameter_info,
+                                                 solve_ode_condition,
+                                                 prior_info)
 
-    return __computeCost
+    return __compute_cost
 end
 
 
-function PEtab.setSensealg(sensealg, ::Val{:Zygote})
+function PEtab.set_sensealg(sensealg, ::Val{:Zygote})
 
     if !isnothing(sensealg)
         @assert (typeof(sensealg) <: SciMLSensitivity.AbstractSensitivityAlgorithm) "For Zygote an abstract sensitivity algorithm from SciMLSensitivity must be used"

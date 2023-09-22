@@ -3,14 +3,16 @@
 
 A Julia-compatible representation of a PEtab-specified problem.
 
-Created by `readPEtabModel`, this object contains helper functions for setting up cost, gradient, and Hessian computations, as well as handling potential model events (callbacks).
+For how to construct see below.
 
-**Note1:** Several of the functions in `PEtabModel` are not intended to be accessed by the user. For example, `compute_h` (and similar functions) require indices that are built in the background to efficiently map parameters between experimental (simulation) conditions. Rather, `PEtabModel` holds all information needed to create a `PEtabODEProblem`, and in the future, `PEtabSDEProblem`, etc.
-
-**Note2:** `ODEProblem.p` refers to the parameters for the underlying `DifferentialEquations.jl` `ODEProblem`.
+!!! note
+    Most of the functions in `PEtabModel` are not intended to be accessed by the user. For example, `compute_h` 
+    (and similar functions) require indices that are built in the background to efficiently map parameters between 
+    experimental (simulation) conditions. Rather, `PEtabModel` holds all information needed to create a 
+    `PEtabODEProblem`, and in the future, `PEtabSDEProblem`, etc.
 
 # Fields
-- `modelName`: The model name extracted from the PEtab YAML file.
+- `model_name`: The model name extracted from the PEtab YAML file.
 - `compute_h`: Computes the observable `h` for a specific time point and simulation condition.
 - `compute_u0!`: Computes in-place initial values using `ODEProblem.p` for a simulation condition; `compute_u0!(u0, p)`.
 - `compute_u0`: Computes initial values as above, but not in-place; `u0 = compute_u0(p)`.
@@ -19,23 +21,23 @@ Created by `readPEtabModel`, this object contains helper functions for setting u
 - `compute_∂σ∂u!`: Computes the gradient of `σ` with respect to `ODEModel` states (`u`) for a specific time point and simulation condition.
 - `compute_∂h∂p!`: Computes the gradient of `h` with respect to `ODEProblem.p`.
 - `compute_∂σ∂p!`: Computes the gradient of `σ` with respect to `ODEProblem.p`.
-- `computeTStops`: Computes the event times in case the model has `DiscreteCallbacks` (events).
-- `convertTspan::Bool`: Tracks whether the time span should be converted to `Dual` numbers for `ForwardDiff.jl` gradients, in case the model has `DiscreteCallbacks` and the trigger time is a parameter set to be estimated.
-- `dirModel`: The directory where the model.xml and PEtab files are stored.
-- `dirJulia`: The directory where the Julia-model files created by parsing the PEtab files (e.g., SBML file) are stored.
-- `odeSystem`: A `ModellingToolkit.jl` ODE system obtained from parsing the model SBML file.
-- `parameterMap`: A `ModellingToolkit.jl` parameter map for the ODE system.
-- `stateMap`: A `ModellingToolkit.jl` state map for the ODE system describing how the initial values are computed, e.g., whether or not certain initial values are computed from parameters in the `parameterMap`.
-- `parameterNames`: The names of the parameters in the `odeSystem`.
-- `stateNames`: The names of the states in the `odeSystem`.
-- `pathMeasurements`: The path to the PEtab measurements file.
-- `pathConditions`: The path to the PEtab conditions file.
-- `pathObservables`: The path to the PEtab observables file.
-- `pathParameters`: The path to the PEtab parameters file.
-- `pathSBML`: The path to the PEtab SBML file.
-- `pathYAML`: The path to the PEtab YAML file.
-- `modelCallbackSet`: This stores potential model callbacks or events.
-- `checkIfCallbackIsActive`: Piecewise SBML statements are transformed to DiscreteCallbacks that are activated at a specific time-point. The piecewise callback has a default value at t0 and is only triggered when reaching t_activation. If t_activation ≤ 0 (never reached when solving the model), this function checks whether the callback should be triggered before solving the model.
+- `compute_tstops`: Computes the event times in case the model has `DiscreteCallbacks` (events).
+- `convert_tspan::Bool`: Tracks whether the time span should be converted to `Dual` numbers for `ForwardDiff.jl` gradients, in case the model has `DiscreteCallbacks` and the trigger time is a parameter set to be estimated.
+- `dir_model`: The directory where the model.xml and PEtab files are stored.
+- `dir_julia`: The directory where the Julia-model files created by parsing the PEtab files (e.g., SBML file) are stored.
+- `ode_system`: A `ModellingToolkit.jl` ODE system obtained from parsing the model SBML file.
+- `parameter_map`: A `ModellingToolkit.jl` parameter map for the ODE system.
+- `state_map`: A `ModellingToolkit.jl` state map for the ODE system describing how the initial values are computed, e.g., whether or not certain initial values are computed from parameters in the `parameter_map`.
+- `parameter_names`: The names of the parameters in the `ode_system`.
+- `state_names`: The names of the states in the `ode_system`.
+- `path_measurements`: The path to the PEtab measurements file.
+- `path_conditions`: The path to the PEtab conditions file.
+- `path_observables`: The path to the PEtab observables file.
+- `path_parameters`: The path to the PEtab parameters file.
+- `path_SBML`: The path to the PEtab SBML file.
+- `path_yaml`: The path to the PEtab YAML file.
+- `model_callbacks`: This stores potential model callbacks or events.
+- `check_callback_is_active`: Piecewise SBML statements are transformed to DiscreteCallbacks that are activated at a specific time-point. The piecewise callback has a default value at t0 and is only triggered when reaching t_activation. If t_activation ≤ 0 (never reached when solving the model), this function checks whether the callback should be triggered before solving the model.
 """
 struct PEtabModel{F1<:Function,
                   F2<:Function,
@@ -49,7 +51,7 @@ struct PEtabModel{F1<:Function,
                   C<:SciMLBase.DECallback,
                   FA<:Vector{<:Function}, 
                   S}
-    modelName::String
+    model_name::String
     compute_h::F1
     compute_u0!::F2
     compute_u0::F3
@@ -58,28 +60,28 @@ struct PEtabModel{F1<:Function,
     compute_∂σ∂u!::F6
     compute_∂h∂p!::F7
     compute_∂σ∂p!::F8
-    computeTStops::F9
-    convertTspan::Bool
+    compute_tstops::F9
+    convert_tspan::Bool
     system::S
-    parameterMap
-    stateMap
-    parameterNames
-    stateNames
-    dirModel::String
-    dirJulia::String
-    pathMeasurements::CSV.File
-    pathConditions::CSV.File
-    pathObservables::CSV.File
-    pathParameters::CSV.File
-    pathSBML::String
-    pathYAML::String
-    modelCallbackSet::C
-    checkIfCallbackIsActive::FA
+    parameter_map
+    state_map
+    parameter_names
+    state_names
+    dir_model::String
+    dir_julia::String
+    path_measurements::CSV.File
+    path_conditions::CSV.File
+    path_observables::CSV.File
+    path_parameters::CSV.File
+    path_SBML::String
+    path_yaml::String
+    model_callbacks::C
+    check_callback_is_active::FA
 end
 
 
 """
-    ODESolverOptions(solver, <keyword arguments>)
+    ODESolver(solver, <keyword arguments>)
 
 ODE-solver options (solver, tolerances, etc...) to use when computing gradient/cost for a PEtabODEProblem.
 
@@ -93,7 +95,7 @@ More information about the available options and solvers can be found in the doc
 - `dtmin=nothing`: Minimal acceptable step-size when solving the ODE system.
 - `maxiters=10000`: Maximum number of iterations when solving the ODE system. Increasing above the default value can cause the optimization to take substantial time.
 """
-mutable struct ODESolverOptions
+mutable struct ODESolver
     solver::SciMLAlgorithm
     abstol::Float64
     reltol::Float64
@@ -101,63 +103,68 @@ mutable struct ODESolverOptions
     dtmin::Union{Float64, Nothing}
     maxiters::Int64
 end
-function ODESolverOptions(solver::T1;
+function ODESolver(solver::T1;
                           abstol::Float64=1e-8,
                           reltol::Float64=1e-8,
                           force_dtmin::Bool=false,
                           dtmin::Union{Float64, Nothing}=nothing,
                           maxiters::Int64=Int64(1e4)) where T1 <: SciMLAlgorithm
 
-    return ODESolverOptions(solver, abstol, reltol, force_dtmin, dtmin, maxiters)
+    return ODESolver(solver, abstol, reltol, force_dtmin, dtmin, maxiters)
 end
 
 
 """
-    SteadyStateSolverOptions(method::Symbol;
-                             howCheckSimulationReachedSteadyState::Symbol=:wrms,
-                             rootfindingAlgorithm=nothing,
-                             abstol=nothing,
-                             reltol=nothing,
-                             maxiters=nothing)
+    SteadyStateSolver(method::Symbol;
+                      check_simulation_steady_state::Symbol=:wrms,
+                      rootfinding_alg=nothing,
+                      abstol=nothing,
+                      reltol=nothing,
+                      maxiters=nothing)
 
 Setup options for finding steady-state via either `method=:Rootfinding` or `method=:Simulate`.
 
-For `method=:Rootfinding`, the steady-state `u*` is found by solving the problem `du = f(u, p, t) ≈ 0` with tolerances `abstol` and `reltol` via an automatically chosen optimization algorithm (`rootfindingAlgorithm=nothing`) or via any algorithm in NonlinearSolve.jl.
+For `method=:Rootfinding`, the steady-state `u*` is found by solving the problem `du = f(u, p, t) ≈ 0` with tolerances 
+`abstol` and `reltol` via an automatically chosen optimization algorithm (`rootfinding_alg=nothing`) or via any 
+provided algorithm in [NonlinearSolve.jl](https://github.com/SciML/NonlinearSolve.jl).
 
-For `method=:Simulate`, the steady-state `u*` is found by simulating the ODE system until `du = f(u, p, t) ≈ 0`. Two options are available for `howCheckSimulationReachedSteadyState`:
+For `method=:Simulate`, the steady-state `u*` is found by simulating the ODE system until `du = f(u, p, t) ≈ 0`. 
+Two options are available for `check_simulation_steady_state`:
 - `:wrms` : Weighted root-mean square √(∑((du ./ (reltol * u .+ abstol)).^2) / length(u)) < 1
 - `:Newton` : If Newton-step `Δu` is sufficiently small √(∑((Δu ./ (reltol * u .+ abstol)).^2) / length(u)) < 1.
-        - Newton often performs better but requires an invertible Jacobian. In case it's not fulfilled, the code switches automatically to `:wrms`.
+        - Newton often performs better but requires an invertible Jacobian. In case it's not fulfilled, the code 
+          switches automatically to `:wrms`.
 
-`maxiters` refers to either the maximum number of rootfinding steps or the maximum number of integration steps, depending on the chosen method.
+`maxiters` refers to either the maximum number of rootfinding steps or the maximum number of integration steps, 
+depending on the chosen method.
 """
-struct SteadyStateSolverOptions{T1 <: Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm},
-                                T2 <: Union{Nothing, AbstractFloat},
-                                T3 <: Union{Nothing, NonlinearProblem},
-                                CA <: Union{Nothing, SciMLBase.DECallback},
-                                T4 <: Union{Nothing, Integer}}
+struct SteadyStateSolver{T1 <: Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm},
+                         T2 <: Union{Nothing, AbstractFloat},
+                         T3 <: Union{Nothing, NonlinearProblem},
+                         CA <: Union{Nothing, SciMLBase.DECallback},
+                         T4 <: Union{Nothing, Integer}}
     method::Symbol
-    rootfindingAlgorithm::T1
-    howCheckSimulationReachedSteadyState::Symbol
+    rootfinding_alg::T1
+    check_simulation_steady_state::Symbol
     abstol::T2
     reltol::T2
     maxiters::T4
-    callbackSS::CA
-    nonlinearSolveProblem::T3
+    callback_ss::CA
+    nonlinearsolve_problem::T3
 end
-function SteadyStateSolverOptions(method::Symbol;
-                                  howCheckSimulationReachedSteadyState::Symbol=:wrms,
-                                  rootfindingAlgorithm::Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}=nothing,
-                                  abstol=nothing,
-                                  reltol=nothing,
-                                  maxiters::Union{Nothing, Int64}=nothing)::SteadyStateSolverOptions
+function SteadyStateSolver(method::Symbol;
+                           check_simulation_steady_state::Symbol=:wrms,
+                           rootfinding_alg::Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}=nothing,
+                           abstol=nothing,
+                           reltol=nothing,
+                           maxiters::Union{Nothing, Int64}=nothing)::SteadyStateSolver
 
     @assert method ∈ [:Rootfinding, :Simulate] "Method used to find steady state can either be :Rootfinding or :Simulate not $method"
 
     if method === :Simulate
-        return _getSteadyStateSolverOptions(howCheckSimulationReachedSteadyState, abstol, reltol, maxiters)
+        return _get_steady_state_solver(check_simulation_steady_state, abstol, reltol, maxiters)
     else
-        return _getSteadyStateSolverOptions(rootfindingAlgorithm, abstol, reltol, maxiters)
+        return _get_steady_state_solver(rootfinding_alg, abstol, reltol, maxiters)
     end
 end
 
@@ -165,48 +172,48 @@ end
 struct SimulationInfo{T1<:Dict{<:Symbol, <:SciMLBase.DECallback},
                       T2<:Dict{<:Symbol, <:SciMLBase.DECallback}}
 
-    preEquilibrationConditionId::Vector{Symbol}
-    simulationConditionId::Vector{Symbol}
-    experimentalConditionId::Vector{Symbol}
-    haspreEquilibrationConditionId::Bool
-    odeSolutions::Dict{Symbol, Union{Nothing, ODESolution}}
-    odeSolutionsDerivatives::Dict{Symbol, Union{Nothing, ODESolution}}
-    odePreEqulibriumSolutions::Dict{Symbol, Union{Nothing, ODESolution, SciMLBase.NonlinearSolution}}
-    couldSolve::Vector{Bool}
-    timeMax::Dict{Symbol, Float64}
-    timeObserved::Dict{Symbol, Vector{Float64}}
-    iMeasurements::Dict{Symbol, Vector{Int64}}
-    iTimeODESolution::Vector{Int64}
-    iPerTimePoint::Dict{Symbol, Vector{Vector{Int64}}}
-    timePositionInODESolutions::Dict{Symbol, UnitRange{Int64}}
+    pre_equilibration_condition_id::Vector{Symbol}
+    simulation_condition_id::Vector{Symbol}
+    experimental_condition_id::Vector{Symbol}
+    has_pre_equilibration_condition_id::Bool
+    ode_sols::Dict{Symbol, Union{Nothing, ODESolution}}
+    ode_sols_derivatives::Dict{Symbol, Union{Nothing, ODESolution}}
+    ode_sols_pre_equlibrium::Dict{Symbol, Union{Nothing, ODESolution, SciMLBase.NonlinearSolution}}
+    could_solve::Vector{Bool}
+    tmax::Dict{Symbol, Float64}
+    time_observed::Dict{Symbol, Vector{Float64}}
+    i_measurements::Dict{Symbol, Vector{Int64}}
+    i_time_ode_sol::Vector{Int64}
+    i_per_time_point::Dict{Symbol, Vector{Vector{Int64}}}
+    time_position_ode_sol::Dict{Symbol, UnitRange{Int64}}
     callbacks::T1
-    trackedCallbacks::T2
+    tracked_callbacks::T2
     sensealg
 end
 
 
 struct θObsOrSdParameterMap
-    shouldEstimate::Array{Bool, 1}
-    indexInθ::Array{Int64, 1}
-    constantValues::Vector{Float64}
-    nParameters::Int64
-    isSingleConstant::Bool
+    should_estimate::Array{Bool, 1}
+    index_in_θ::Array{Int64, 1}
+    constant_values::Vector{Float64}
+    n_parameters::Int64
+    is_single_constant::Bool
 end
 
 
 struct MapConditionId
-    constantParameters::Vector{Float64}
-    iODEProblemConstantParameters::Vector{Int64}
-    constantsStates::Vector{Float64}
-    iODEProblemConstantStates::Vector{Int64}
-    iθDynamic::Vector{Int64}
-    iODEProblemθDynamic::Vector{Int64}
+    constant_parameters::Vector{Float64}
+    i_ode_constant_parameters::Vector{Int64}
+    constant_states::Vector{Float64}
+    i_ode_constant_states::Vector{Int64}
+    iθ_dynamic::Vector{Int64}
+    i_ode_problem_θ_dynamic::Vector{Int64}
 end
 
 
-struct MapODEProblem
-    iθDynamic::Vector{Int64}
-    iODEProblemθDynamic::Vector{Int64}
+struct Map_ode_problem
+    iθ_dynamic::Vector{Int64}
+    i_ode_problem_θ_dynamic::Vector{Int64}
 end
 
 
@@ -215,50 +222,50 @@ struct ParameterIndices
     iθ_dynamic::Vector{Int64}
     iθ_observable::Vector{Int64}
     iθ_sd::Vector{Int64}
-    iθ_nonDynamic::Vector{Int64}
-    iθ_notOdeSystem::Vector{Int64}
-    θ_dynamicNames::Vector{Symbol}
-    θ_observableNames::Vector{Symbol}
-    θ_sdNames::Vector{Symbol}
-    θ_nonDynamicNames::Vector{Symbol}
-    θ_notOdeSystemNames::Vector{Symbol}
-    θ_estNames::Vector{Symbol}
+    iθ_non_dynamic::Vector{Int64}
+    iθ_not_ode::Vector{Int64}
+    θ_dynamic_names::Vector{Symbol}
+    θ_observable_names::Vector{Symbol}
+    θ_sd_names::Vector{Symbol}
+    θ_non_dynamic_names::Vector{Symbol}
+    θ_not_odeNames::Vector{Symbol}
+    θ_names::Vector{Symbol}
     θ_scale::Dict{Symbol, Symbol}
     mapθ_observable::Vector{θObsOrSdParameterMap}
     mapθ_sd::Vector{θObsOrSdParameterMap}
-    mapODEProblem::MapODEProblem
-    mapsConiditionId::Dict{<:Symbol, <:MapConditionId}
+    map_ode_problem::Map_ode_problem
+    maps_conidition_id::Dict{<:Symbol, <:MapConditionId}
 end
 
 
 """
-PEtabODEProblem
+Everything needed to setup an optimization problem (compute cost, gradient, hessian and  parameter bounds) for a PEtab model.
 
-Everything needed to setup an optimization problem (compute cost, gradient, hessian and parameter bounds) for a PEtab model.
+For how to construct, see below.
 
 !!! note
     The parameter vector θ is always assumed to be on the parameter scale specified in the PEtab parameters file. If needed, θ is transformed to the linear scale inside the function call.
 
-# Fields
-- `computeCost`: For θ computes the negative likelihood (objective to minimize)
-- `computeChi2`: For θ compute χ2 value
-- `computeGradient!`: For θ computes in-place gradient computeGradient!(gradient, θ)
-- `computeGradient`: For θ computes out-place gradient gradient = computeGradient(θ)
-- `computeHessian!`: For θ computes in-place hessian-(approximation) computeHessian!(hessian, θ)
-- `computeHessian`: For θ computes out-place hessian-(approximation) hessian = computeHessian(θ)
-- `computeSimulatedValues`: For θ compute the corresponding model (simulated) values to the measurements in the same order as in the Measurements PEtab table
-- `computeResiduals`: For θ compute the residuals (h_model - h_observed)^2 / σ^2 in the same order as in the Measurements PEtab table
-- `gradientMethod`: The method used to compute the gradient (either :ForwardDiff, :ForwardEquations, :Adjoint, or :Zygote).
-- `hessianMethod`: The method used to compute or approximate the Hessian (either :ForwardDiff, :BlocForwardDiff, or :GaussNewton).
-- `nParametersToEstimate`: The number of parameters to estimate.
-- `θ_estNames`: The names of the parameters in θ.
+## Fields
+- `compute_cost`: For θ computes the negative likelihood (objective to minimize)
+- `compute_chi2`: For θ compute χ2 value
+- `compute_gradient!`: For θ computes in-place gradient compute_gradient!(gradient, θ)
+- `compute_gradient`: For θ computes out-place gradient gradient = compute_gradient(θ)
+- `compute_hessian!`: For θ computes in-place hessian-(approximation) compute_hessian!(hessian, θ)
+- `compute_hessian`: For θ computes out-place hessian-(approximation) hessian = compute_hessian(θ)
+- `compute_simulated_values`: For θ compute the corresponding model (simulated) values to the measurements in the same order as in the Measurements PEtab table
+- `compute_residuals`: For θ compute the residuals (h_model - h_observed)^2 / σ^2 in the same order as in the Measurements PEtab table
+- `gradient_method`: The method used to compute the gradient (either :ForwardDiff, :ForwardEquations, :Adjoint, or :Zygote).
+- `hessian_method`: The method used to compute or approximate the Hessian (either :ForwardDiff, :BlocForwardDiff, or :GaussNewton).
+- `n_parameters_esimtate`: The number of parameters to estimate.
+- `θ_names`: The names of the parameters in θ.
 - `θ_nominal`: The nominal values of θ as specified in the PEtab parameters file.
 - `θ_nominalT`: The nominal values of θ on the parameter scale (e.g., log) as specified in the PEtab parameters file.
-- `lowerBounds`: The lower parameter bounds on the parameter scale for θ as specified in the PEtab parameters file.
-- `upperBounds`: The upper parameter bounds on the parameter scale for θ as specified in the PEtab parameters file.
-- `petabModel`: The PEtabModel used to construct the PEtabODEProblem.
-- `odeSolverOptions`: The options for the ODE solver specified when creating the PEtabODEProblem.
-- `odeSolverGradientOptions`: The options for the ODE solver gradient specified when creating the PEtabODEProblem.
+- `lower_bounds`: The lower parameter bounds on the parameter scale for θ as specified in the PEtab parameters file.
+- `upper_bounds`: The upper parameter bounds on the parameter scale for θ as specified in the PEtab parameters file.
+- `petab_model`: The PEtabModel used to construct the PEtabODEProblem.
+- `ode_solver`: The options for the ODE solver specified when creating the PEtabODEProblem.
+- `ode_solver_gradient`: The options for the ODE solver gradient specified when creating the PEtabODEProblem.
 """
 struct PEtabODEProblem{F1<:Function,
                        F2<:Function,
@@ -266,43 +273,42 @@ struct PEtabODEProblem{F1<:Function,
                        F4<:Function,
                        F5<:Function}
 
-    computeCost::F1
-    computeChi2
-    computeGradient!::F2
-    computeGradient::F3
-    computeHessian!::F4
-    computeHessian::F5
-    computeSimulatedValues
-    computeResiduals
-    costMethod::Symbol
-    gradientMethod::Symbol
-    hessianMethod::Union{Symbol, Nothing}
-    nParametersToEstimate::Int64
-    θ_estNames::Vector{Symbol}
+    compute_cost::F1
+    compute_chi2
+    compute_gradient!::F2
+    compute_gradient::F3
+    compute_hessian!::F4
+    compute_hessian::F5
+    compute_simulated_values
+    compute_residuals
+    cost_method::Symbol
+    gradient_method::Symbol
+    hessian_method::Union{Symbol, Nothing}
+    n_parameters_esimtate::Int64
+    θ_names::Vector{Symbol}
     θ_nominal::Vector{Float64}
     θ_nominalT::Vector{Float64}
-    lowerBounds::Vector{Float64}
-    upperBounds::Vector{Float64}
-    pathCube::String
-    petabModel::PEtabModel
-    odeSolverOptions::ODESolverOptions
-    odeSolverGradientOptions::ODESolverOptions
-    ssSolverOptions::SteadyStateSolverOptions
-    ssSolverGradientOptions::SteadyStateSolverOptions
+    lower_bounds::Vector{Float64}
+    upper_bounds::Vector{Float64}
+    petab_model::PEtabModel
+    ode_solver::ODESolver
+    ode_solver_gradient::ODESolver
+    ss_solver::SteadyStateSolver
+    ss_solver_gradient::SteadyStateSolver
     θ_indices::ParameterIndices
-    simulationInfo::SimulationInfo
-    splitOverConditions::Bool
+    simulation_info::SimulationInfo
+    split_over_conditions::Bool
 end
 
 
 struct ParametersInfo
-    nominalValue::Vector{Float64}
-    lowerBound::Vector{Float64}
-    upperBound::Vector{Float64}
-    parameterId::Vector{Symbol}
-    parameterScale::Vector{Symbol}
+    nominal_value::Vector{Float64}
+    lower_bounds::Vector{Float64}
+    upper_bounds::Vector{Float64}
+    parameter_id::Vector{Symbol}
+    parameter_scale::Vector{Symbol}
     estimate::Vector{Bool}
-    nParametersToEstimate::Int64
+    n_parameters_esimtate::Int64
 end
 
 
@@ -310,16 +316,16 @@ struct MeasurementsInfo{T<:Vector{<:Union{<:String, <:AbstractFloat}}}
 
     measurement::Vector{Float64}
     measurementT::Vector{Float64}
-    simulatedValues::Vector{Float64}
-    chi2Values::Vector{Float64}
+    simulated_values::Vector{Float64}
+    chi2_values::Vector{Float64}
     residuals::Vector{Float64}
-    measurementTransformation::Vector{Symbol}
+    measurement_transformation::Vector{Symbol}
     time::Vector{Float64}
-    observableId::Vector{Symbol}
-    preEquilibrationConditionId::Vector{Symbol}
-    simulationConditionId::Vector{Symbol}
-    noiseParameters::T
-    observableParameters::Vector{String}
+    observable_id::Vector{Symbol}
+    pre_equilibration_condition_id::Vector{Symbol}
+    simulation_condition_id::Vector{Symbol}
+    noise_parameters::T
+    observable_parameters::Vector{String}
 end
 
 
@@ -330,18 +336,18 @@ struct PEtabODEProblemCache{T1 <: AbstractVector,
     θ_dynamic::T1
     θ_sd::T1
     θ_observable::T1
-    θ_nonDynamic::T1
+    θ_non_dynamic::T1
     θ_dynamicT::T2 # T = transformed vector
     θ_sdT::T2
     θ_observableT::T2
-    θ_nonDynamicT::T2
-    gradientDyanmicθ::T1
-    gradientNotODESystemθ::T1
-    jacobianGN::T4
-    residualsGN::T1
+    θ_non_dynamicT::T2
+    gradient_θ_dyanmic::T1
+    gradient_θ_not_ode::T1
+    jacobian_gn::T4
+    residuals_gn::T1
     _gradient::T1
-    _gradientAdjoint::T1
-    St0::T4
+    _gradient_adjoint::T1
+    S_t0::T4
     ∂h∂u::T3
     ∂σ∂u::T3
     ∂h∂p::T3
@@ -354,28 +360,28 @@ struct PEtabODEProblemCache{T1 <: AbstractVector,
     p::T3
     u::T3
     S::T4
-    odeSolutionValues::T4
-    θ_dynamicInputOrder::Vector{Int64}
-    θ_dynamicOutputOrder::Vector{Int64}
-    nθ_dynamicEst::Vector{Int64}
+    sol_values::T4
+    θ_dynamic_input_order::Vector{Int64}
+    θ_dynamic_output_order::Vector{Int64}
+    nθ_dynamic::Vector{Int64}
 end
 
 
 struct PEtabODESolverCache
-    pODEProblemCache
-    u0Cache
+    p_ode_problem_cache
+    u0_cache
 end
 
 
 struct PriorInfo
     logpdf::Dict{Symbol, Function}
-    priorOnParameterScale::Dict{<:Symbol, <:Bool}
-    hasPriors::Bool
+    prior_on_parameter_scale::Dict{<:Symbol, <:Bool}
+    has_priors::Bool
 end
 
 
 """
-    Fides(hessianMethod::Union{Nothing, Symbol}; verbose::Bool=false)
+    Fides(hessian_method::Union{Nothing, Symbol}; verbose::Bool=false)
 
 [Fides](https://github.com/fides-dev/fides) is a Python Newton-trust region optimizer designed for box-bounded optimization problems.
 
@@ -383,7 +389,7 @@ It excels when the full Hessian is too computationally expensive, but a Gauss-Ne
 
 ## Hessian Methods
 
-If `hessianMethod=nothing`, the Hessian method from the `PEtabODEProblem` is used, which can be either exact or a Gauss-Newton approximation. Additionally, Fides supports the following Hessian approximation methods:
+If `hessian_method=nothing`, the Hessian method from the `PEtabODEProblem` is used, which can be either exact or a Gauss-Newton approximation. Additionally, Fides supports the following Hessian approximation methods:
 
 - `:BB`: Broyden's "bad" method
 - `:BFGS`: Broyden-Fletcher-Goldfarb-Shanno update strategy
@@ -408,17 +414,17 @@ fides_opt = Fides(:BFGS; verbose=true)
 ```
 """
 struct Fides
-    hessianApproximation::Union{Nothing, Symbol}
+    hessian_method::Union{Nothing, Symbol}
     verbose::Bool
 end
-function Fides(hessianMethod::Union{Nothing, Symbol}; verbose::Bool=false)
-    verboseArg = verbose == true ? 1 : 0
-    if isnothing(hessianMethod)
-        return Fides(hessianMethod, verboseArg)
+function Fides(hessian_method::Union{Nothing, Symbol}; verbose::Bool=false)
+    verbose_arg = verbose == true ? 1 : 0
+    if isnothing(hessian_method)
+        return Fides(hessian_method, verbose_arg)
     end
-    hessianMethod = [:BB, :BFGS, :BG, :Broyden, :DFB, :FX, :SR1, :SSM, :TSSM]
-    @assert hessianMethod ∈ allowedHessianApproximations "Hessian approximation method $hessianMethod is not allowed, see documentation on Fides for allowed methods"
-    return Fides(hessianMethod, verboseArg)
+    allowed_approximations = [:BB, :BFGS, :BG, :Broyden, :DFB, :FX, :SR1, :SSM, :TSSM]
+    @assert hessian_method ∈ allowed_approximations "Hessian approximation method $hessian_method is not allowed, see documentation on Fides for allowed methods"
+    return Fides(hessian_method, verbose_arg)
 end
 
 
@@ -430,7 +436,7 @@ end
 Ipopt can be configured to use either the Hessian method from the `PEtabODEProblem` (`LBFGS=false`) or a LBFGS scheme (`LBFGS=true`). 
 For setting Ipopt options, see [`IpoptOptions`](@ref).
 
-See also [`calibrateModel`](@ref) and [`calibrateModelMultistart`](@ref).
+See also [`calibrate_model`](@ref) and [`calibrate_model_multistart`](@ref).
 
 ## Examples
 ```julia
@@ -467,7 +473,7 @@ For more information about each options see the Ipopt [documentation](https://co
 - `max_wall_time`: Max wall time optimisation is allowed to run
 - `acceptable_obj_change_tol`: Acceptance stopping criterion based on objective function change.
 
-See also [`calibrateModel`](@ref) and [`calibrateModelMultistart`](@ref).
+See also [`calibrate_model`](@ref) and [`calibrate_model_multistart`](@ref).
 """
 struct IpoptOptions
     print_level::Int64
@@ -490,30 +496,30 @@ end
 
 struct PEtabOptimisationResult{T<:Any}
     alg::Symbol
-    xTrace::Vector{Vector{Float64}} # Parameter vectors (if user wants to save them)
-    fTrace::Vector{Float64} # Likelihood value (if user wants to save them)
-    nIterations::Int64 # Number of iterations optimiser
-    fMin::Float64 # Best optimised value 
+    xtrace::Vector{Vector{Float64}} # Parameter vectors (if user wants to save them)
+    ftrace::Vector{Float64} # Likelihood value (if user wants to save them)
+    n_iterations::Int64 # Number of iterations optimiser
+    fmin::Float64 # Best optimised value 
     x0::Vector{Float64} # Starting point 
-    xMin::Vector{Float64} # Last parameter value 
+    xmin::Vector{Float64} # Last parameter value 
     converged::T # If user wants to 
-    runTime::Float64 # Always fun :)
+    runtime::Float64 # Always fun :)
 end
 
 
 struct PEtabMultistartOptimisationResult
-    xMin::Vector{Float64} # Parameter vectors (if user wants to save them)
-    fMin::Float64 # Likelihood value (if user wants to save them)
-    nMultistarts::Int
+    xmin::Vector{Float64} # Parameter vectors (if user wants to save them)
+    fmin::Float64 # Likelihood value (if user wants to save them)
+    n_multistarts::Int
     alg::Symbol
-    multiStartMethod::String
-    dirSave::Union{String, Nothing}
+    multistart_method::String
+    dir_save::Union{String, Nothing}
     runs::Vector{PEtabOptimisationResult} # See above
 end
 
 
 """
-    PEtabObservable(obsFormula, noiseFormula; transformation::Symbol=:lin)
+    PEtabObservable(obs_formula, noise_formula; transformation::Symbol=:lin)
 
 Links a model to measurements using an observable formula and measurement noise formula.
 
@@ -541,12 +547,12 @@ PEtabObservable(X, noiseParameter1 * X)
 struct PEtabObservable
     obs::Num
     transformation::Union{Nothing, Symbol}
-    noiseFormula::Union{Nothing, Num}
+    noise_formula::Union{Nothing, Num}
 end
 function PEtabObservable(obs::Num, 
-                         noiseFormula::Union{Nothing, Num, T};
+                         noise_formula::Union{Nothing, Num, T};
                          transformation::Symbol=:lin)::PEtabObservable where T<:Real
-    return PEtabObservable(obs, transformation, noiseFormula)
+    return PEtabObservable(obs, transformation, noise_formula)
 end
 
 

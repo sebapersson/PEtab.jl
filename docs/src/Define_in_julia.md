@@ -40,7 +40,7 @@ If a parameter or initial value is not specified anywhere it defaults to zero.
 
 To connect our model with measurement data, we need an observable formula. Since data from a reaction networks typically includes measurement noise, we also require a noise formula and a noise distribution.
 
-Let us assume we are observing the product `P` with a normally distributed multiplicative measurement error (`sigma * P`) on a relative scale. To account for this relative scale we cam as commonly done use `scale` and `offset` parameters. Additionally, let us assume we are directly measure the sum `E + SE` with log-normal measurement noise, and we already know the measurement error (`sigma`) is 3.0. This can be defined as
+Let us assume we are observing the product `P` with a normally distributed multiplicative measurement error (`sigma * P`) on a relative scale. To account for this relative scale we can as commonly done use `scale` and `offset` parameters. Additionally, let us assume we are directly measure the sum `E + SE` with log-normal measurement noise, and we already know the measurement error (`sigma`) is 3.0. This can be defined as
 
 ```julia
 @unpack P, E, SE = rn
@@ -149,15 +149,15 @@ measurements = DataFrame(
 After defining the model, observables, parameters to estimate, simulation conditions, and measurement data, you can easily create a `PEtabODEProblem` for your parameter estimation task:
 
 ```julia
-petab_model = readPEtabModel(rn, simulation_conditions, observables, measurements,
-                             parameters, stateMap=state_map, parameterMap=parameter_map,
-                             verbose=true)
-petab_problem = createPEtabODEProblem(petab_model, verbose=true)
+petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
+                         parameters, state_map=state_map, parameter_map=parameter_map,
+                         verbose=true)
+petab_problem = PEtabODEProblem(petab_model, verbose=true)
 ```
 
-The `PEtabODEProblem` contains all the necessary information to work with most available optimizers (ADD!). Alternatively, if you want to perform parameter estimation using a multi-start approach, you can use the `calibrateModelMultistart` function (see see [Parameter estimation](@ref parameter_estimation)).
+The `PEtabODEProblem` contains all the necessary information to work with most available optimizers (see [here](@ref import_petab_problem)). Alternatively, if you want to perform parameter estimation using a multi-start approach, you can use the `calibrate_model_multistart` function (see see [Parameter estimation](@ref parameter_estimation)).
 
-## What is Next
+## Where to Go Next
 
 This example has covered the fundamental aspects of setting up a parameter estimation problem directly Julia, but there are additional options:
 
@@ -224,11 +224,11 @@ measurements = DataFrame(
 )
 
 # Create a PEtab model
-petab_model = readPEtabModel(
+petab_model = PEtabModel(
     rn, simulation_conditions, observables, measurements,
-    parameters, stateMap=state_map, parameterMap=parameter_map, verbose=true
+    parameters, state_map=state_map, parameter_map=parameter_map, verbose=true
 )
 
 # Create a PEtabODEProblem
-petab_problem = createPEtabODEProblem(petab_model)
+petab_problem = PEtabODEProblem(petab_model)
 ```
