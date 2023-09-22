@@ -27,7 +27,28 @@ rn = @reaction_network begin
 end
 ```
 
-If you want to estimate the initial value of a species (like `SE`), you must define it as a parameter, as here with `SE(t) = se0`. Additionally, if you want to fixate a parameter or initial value to a constant value across all simulations, you can use a state and/or parameter map. For instance, to set `E` and `P` to be 1.0 and 0.0, and set `c1` to 1.0, do:
+If you want to estimate the initial value of a species (like `SE`), you must define it as a parameter, as here with `SE(t) = se0`.
+
+Using a ModellingToolkit `ODESystem` we define the model as:
+
+```julia
+using ModellingToolkit
+
+@parameters c1, c2, c3, se0
+@variables t S(t) SE(t) P(t) E(t)
+D = Differential(t)
+eqs = [
+    D(S) ~ -c1*S*E + c2*SE,
+    D(E) ~ -c1*S*E + c2*SE + c3*SE,
+    D(SE) ~ c1*S*E - c2*SE - c3*SE,
+    D(P) ~ c3*SE
+]
+@named sys = ODESystem(eqs; defaults=Dict(SE => se0))
+```
+
+To estimate an initial value, such as `SE`, for an `ODESystem`, you need to define it using a dictionary under the `defaults` keyword, here done via `defaults = Dict(SE => se0)`.
+
+Regardless of how the model is defined, if you want to fixate a parameter or initial value to a constant value across all simulations, you can use a state and/or parameter map. For instance, to set `E` and `P` to be 1.0 and 0.0, and set `c1` to 1.0, do:
 
 ```julia
 state_map = [:E => 1.0, :P => 0.0]
@@ -146,10 +167,19 @@ measurements = DataFrame(
 
 ## Bringing It All Together
 
-After defining the model, observables, parameters to estimate, simulation conditions, and measurement data, you can easily create a `PEtabODEProblem` for your parameter estimation task:
+After defining the model, observables, parameters to estimate, simulation conditions, and measurement data, you can easily create a `PEtabODEProblem` for your parameter estimation task using the `ReactionSystem`:
 
 ```julia
 petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
+                         parameters, state_map=state_map, parameter_map=parameter_map,
+                         verbose=true)
+petab_problem = PEtabODEProblem(petab_model, verbose=true)
+```
+
+or the `ODESystem`:
+
+```julia
+petab_model = PEtabModel(sys, simulation_conditions, observables, measurements,
                          parameters, state_map=state_map, parameter_map=parameter_map,
                          verbose=true)
 petab_problem = PEtabODEProblem(petab_model, verbose=true)
@@ -175,6 +205,7 @@ Here is the complete code from the tutorial
 using Catalyst
 using DataFrames
 using Distributions
+using ModellingToolkit
 using PEtab
 
 # Define the reaction network
@@ -185,6 +216,17 @@ rn = @reaction_network begin
     c2, SE --> S + E
     c3, SE --> P + E
 end
+
+@parameters c1, c2, c3, se0
+@variables t S(t) SE(t) P(t) E(t)
+D = Differential(t)
+eqs = [
+    D(S) ~ -c1*S*E + c2*SE,
+    D(E) ~ -c1*S*E + c2*SE + c3*SE,
+    D(SE) ~ c1*S*E - c2*SE - c3*SE,
+    D(P) ~ c3*SE
+]
+@named sys = ODESystem(eqs; defaults=Dict(SE => se0))
 
 # Define state and parameter maps
 state_map =  [:E => 1.0, :P => 0.0]
@@ -223,7 +265,8 @@ measurements = DataFrame(
     measurement=[0.7, 0.1, 1.0, 1.5]
 )
 
-# Create a PEtab model
+# Create a PEtab model. To build the petab_model with ODE-system instead of
+# ReactionSystem provide sys instead of rn as first argument
 petab_model = PEtabModel(
     rn, simulation_conditions, observables, measurements,
     parameters, state_map=state_map, parameter_map=parameter_map, verbose=true
