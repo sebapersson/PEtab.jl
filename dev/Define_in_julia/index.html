@@ -8,7 +8,18 @@ rn = @reaction_network begin
     c1, S + E --&gt; SE
     c2, SE --&gt; S + E
     c3, SE --&gt; P + E
-end</code></pre><p>If you want to estimate the initial value of a species (like <code>SE</code>), you must define it as a parameter, as here with <code>SE(t) = se0</code>. Additionally, if you want to fixate a parameter or initial value to a constant value across all simulations, you can use a state and/or parameter map. For instance, to set <code>E</code> and <code>P</code> to be 1.0 and 0.0, and set <code>c1</code> to 1.0, do:</p><pre><code class="language-julia hljs">state_map = [:E =&gt; 1.0, :P =&gt; 0.0]
+end</code></pre><p>If you want to estimate the initial value of a species (like <code>SE</code>), you must define it as a parameter, as here with <code>SE(t) = se0</code>.</p><p>Using a ModellingToolkit <code>ODESystem</code> we define the model as:</p><pre><code class="language-julia hljs">using ModellingToolkit
+
+@parameters c1, c2, c3, se0
+@variables t S(t) SE(t) P(t) E(t)
+D = Differential(t)
+eqs = [
+    D(S) ~ -c1*S*E + c2*SE,
+    D(E) ~ -c1*S*E + c2*SE + c3*SE,
+    D(SE) ~ c1*S*E - c2*SE - c3*SE,
+    D(P) ~ c3*SE
+]
+@named sys = ODESystem(eqs; defaults=Dict(SE =&gt; se0))</code></pre><p>To estimate an initial value, such as <code>SE</code>, for an <code>ODESystem</code>, you need to define it using a dictionary under the <code>defaults</code> keyword, here done via <code>defaults = Dict(SE =&gt; se0)</code>.</p><p>Regardless of how the model is defined, if you want to fixate a parameter or initial value to a constant value across all simulations, you can use a state and/or parameter map. For instance, to set <code>E</code> and <code>P</code> to be 1.0 and 0.0, and set <code>c1</code> to 1.0, do:</p><pre><code class="language-julia hljs">state_map = [:E =&gt; 1.0, :P =&gt; 0.0]
 parameter_map = [:c1 =&gt; 1.0]</code></pre><p>If a parameter or initial value is not specified anywhere it defaults to zero.</p><h2 id="Defining-the-Observable"><a class="docs-heading-anchor" href="#Defining-the-Observable">Defining the Observable</a><a id="Defining-the-Observable-1"></a><a class="docs-heading-anchor-permalink" href="#Defining-the-Observable" title="Permalink"></a></h2><p>To connect our model with measurement data, we need an observable formula. Since data from a reaction networks typically includes measurement noise, we also require a noise formula and a noise distribution.</p><p>Let us assume we are observing the product <code>P</code> with a normally distributed multiplicative measurement error (<code>sigma * P</code>) on a relative scale. To account for this relative scale we can as commonly done use <code>scale</code> and <code>offset</code> parameters. Additionally, let us assume we are directly measure the sum <code>E + SE</code> with log-normal measurement noise, and we already know the measurement error (<code>sigma</code>) is 3.0. This can be defined as</p><pre><code class="language-julia hljs">@unpack P, E, SE = rn
 @parameters sigma, scale, offset
 obs_P = PEtabObservable(scale * P + offset, sigma * P, transformation=:lin)
@@ -26,12 +37,16 @@ measurements = DataFrame(
     simulation_id=[&quot;c0&quot;, &quot;c0&quot;, &quot;c1&quot;, &quot;c1&quot;],
     obs_id=[&quot;obs_P&quot;, &quot;obs_Sum&quot;, &quot;obs_P&quot;, &quot;obs_Sum&quot;],
     time=[0.0, 10.0, 1.0, 20.0],
-    measurement=[0.7, 0.1, 1.0, 1.5])</code></pre><h2 id="Bringing-It-All-Together"><a class="docs-heading-anchor" href="#Bringing-It-All-Together">Bringing It All Together</a><a id="Bringing-It-All-Together-1"></a><a class="docs-heading-anchor-permalink" href="#Bringing-It-All-Together" title="Permalink"></a></h2><p>After defining the model, observables, parameters to estimate, simulation conditions, and measurement data, you can easily create a <code>PEtabODEProblem</code> for your parameter estimation task:</p><pre><code class="language-julia hljs">petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
+    measurement=[0.7, 0.1, 1.0, 1.5])</code></pre><h2 id="Bringing-It-All-Together"><a class="docs-heading-anchor" href="#Bringing-It-All-Together">Bringing It All Together</a><a id="Bringing-It-All-Together-1"></a><a class="docs-heading-anchor-permalink" href="#Bringing-It-All-Together" title="Permalink"></a></h2><p>After defining the model, observables, parameters to estimate, simulation conditions, and measurement data, you can easily create a <code>PEtabODEProblem</code> for your parameter estimation task using the <code>ReactionSystem</code>:</p><pre><code class="language-julia hljs">petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
+                         parameters, state_map=state_map, parameter_map=parameter_map,
+                         verbose=true)
+petab_problem = PEtabODEProblem(petab_model, verbose=true)</code></pre><p>or the <code>ODESystem</code>:</p><pre><code class="language-julia hljs">petab_model = PEtabModel(sys, simulation_conditions, observables, measurements,
                          parameters, state_map=state_map, parameter_map=parameter_map,
                          verbose=true)
 petab_problem = PEtabODEProblem(petab_model, verbose=true)</code></pre><p>The <code>PEtabODEProblem</code> contains all the necessary information to work with most available optimizers (see <a href="../Boehm/#import_petab_problem">here</a>). Alternatively, if you want to perform parameter estimation using a multi-start approach, you can use the <code>calibrate_model_multistart</code> function (see see <a href="../Parameter_estimation/#parameter_estimation">Parameter estimation</a>).</p><h2 id="Where-to-Go-Next"><a class="docs-heading-anchor" href="#Where-to-Go-Next">Where to Go Next</a><a id="Where-to-Go-Next-1"></a><a class="docs-heading-anchor-permalink" href="#Where-to-Go-Next" title="Permalink"></a></h2><p>This example has covered the fundamental aspects of setting up a parameter estimation problem directly Julia, but there are additional options:</p><ul><li><p><strong>Steady-State Initialization</strong>: In some cases, you might require your model to be at a steady-state at time zero when starting to match the model against data. To learn how to set up pre-equilibration criteria, see <a href="../Julia_steady_state/#define_with_ss">this</a> tutorial.</p></li><li><p><strong>Time-Point Specific Parameters</strong>: You might measure the same observable with different assays, leading to different observable parameters (e.g., scale and offset) and noise parameters for various time points. To handle time-point-specific measurement and noise parameters, see <a href="../Julia_obs_noise/#time_point_parameters">this</a> tutorial.</p></li></ul><p>For guidance on choosing the best options for your specific PEtab problem, we recommend the <a href="../Best_options/#best_options">Choosing the Best Options for a PEtab Problem</a> section and refer to the <a href="../Gradient_hessian_support/#gradient_support">Supported Gradient and Hessian Methods</a> section for more information on available gradient and hessian methods.</p><h2 id="Runnable-Example"><a class="docs-heading-anchor" href="#Runnable-Example">Runnable Example</a><a id="Runnable-Example-1"></a><a class="docs-heading-anchor-permalink" href="#Runnable-Example" title="Permalink"></a></h2><p>Here is the complete code from the tutorial</p><pre><code class="language-julia hljs">using Catalyst
 using DataFrames
 using Distributions
+using ModellingToolkit
 using PEtab
 
 # Define the reaction network
@@ -42,6 +57,17 @@ rn = @reaction_network begin
     c2, SE --&gt; S + E
     c3, SE --&gt; P + E
 end
+
+@parameters c1, c2, c3, se0
+@variables t S(t) SE(t) P(t) E(t)
+D = Differential(t)
+eqs = [
+    D(S) ~ -c1*S*E + c2*SE,
+    D(E) ~ -c1*S*E + c2*SE + c3*SE,
+    D(SE) ~ c1*S*E - c2*SE - c3*SE,
+    D(P) ~ c3*SE
+]
+@named sys = ODESystem(eqs; defaults=Dict(SE =&gt; se0))
 
 # Define state and parameter maps
 state_map =  [:E =&gt; 1.0, :P =&gt; 0.0]
@@ -80,11 +106,12 @@ measurements = DataFrame(
     measurement=[0.7, 0.1, 1.0, 1.5]
 )
 
-# Create a PEtab model
+# Create a PEtab model. To build the petab_model with ODE-system instead of
+# ReactionSystem provide sys instead of rn as first argument
 petab_model = PEtabModel(
     rn, simulation_conditions, observables, measurements,
     parameters, state_map=state_map, parameter_map=parameter_map, verbose=true
 )
 
 # Create a PEtabODEProblem
-petab_problem = PEtabODEProblem(petab_model)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Boehm/">« Importing a PEtab problem</a><a class="docs-footer-nextpage" href="../Julia_steady_state/">Pre-equilibration (steady-state simulations) »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Friday 22 September 2023 06:20">Friday 22 September 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+petab_problem = PEtabODEProblem(petab_model)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Boehm/">« Importing a PEtab problem</a><a class="docs-footer-nextpage" href="../Julia_steady_state/">Pre-equilibration (steady-state simulations) »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Saturday 23 September 2023 04:48">Saturday 23 September 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
