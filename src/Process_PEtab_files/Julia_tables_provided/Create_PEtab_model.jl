@@ -1,5 +1,5 @@
 """
-    PEtabModel(system::ReactionSystem,
+    PEtabModel(system::Union{ReactionSystem, ODESystem},
                simulation_conditions::Dict{String, Dict},
                observables::Dict{String, PEtabObservable},
                measurements::DataFrame,
@@ -8,12 +8,12 @@
                parameter_map::Union{Nothing, Vector{Pair}=nothing,
                verbose::Bool=false)::PEtabModel
 
-Create a PEtabModel directly in Julia from a Catalyst reaction system.
+Create a PEtabModel directly in Julia from a Catalyst reaction system or MTK ODESystem.
 
 For additional information on the input format, see the main documentation. 
 
 # Arguments 
-- `system::ReactionSystem`: A Catalyst reaction system.
+- `system::Union{ReactionSystem, ODESystem}`: A Catalyst reaction system or a ModellingToolkit ODESystem
 - `simulation_conditions::Dict{String, T}`: A dictionary specifying values for control parameters/species per simulation condition.
 - `observables::Dict{String, PEtab.PEtabObservable}`: A dictionary specifying the observable and noise formulas linking the model to data.
 - `measurements::DataFrame`: Measurement data to calibrate the model against.
@@ -30,6 +30,16 @@ rn = @reaction_network begin
     @species A(t)=a0 B(t)=b0
     (k1, k2), A <--> B
 end
+
+# Alternatively we can use an ODESystem (just use sys in PEtabModel)
+@parameters a0 b0 k1 k2
+@variables t A(t) B(t)
+D = Differential(t)
+eqs = [
+    D(A) ~ -k1*A + k2*B
+    D(B) ~ k1*A - k2*B
+]
+@named sys = ODESystem(eqs; defaults=Dict(A => a0, B => b0))
 
 # Measurement data 
 measurements = DataFrame(
@@ -62,16 +72,31 @@ petab_model = PEtabModel(
 )
 ```
 """
-function PEtab.PEtabModel(system::ReactionSystem,
-                          simulation_conditions::Dict{String, T},
-                          observables::Dict{String, PEtab.PEtabObservable},
-                          measurements::DataFrame,
-                          petab_parameters::Vector{PEtab.PEtabParameter};
-                          state_map::Union{Nothing, Vector{Pair{T1, Float64}}}=nothing,
-                          parameter_map::Union{Nothing, Vector{Pair{T2, Float64}}}=nothing,
-                          verbose::Bool=false)::PEtab.PEtabModel where {T1<:Union{Symbol, Num}, T2<:Union{Symbol, Num}, T<:Dict}
+function PEtabModel(system::ODESystem,
+                    simulation_conditions::Dict{String, T},
+                    observables::Dict{String, PEtab.PEtabObservable},
+                    measurements::DataFrame,
+                    petab_parameters::Vector{PEtab.PEtabParameter};
+                    state_map::Union{Nothing, Vector{Pair{T1, Float64}}}=nothing,
+                    parameter_map::Union{Nothing, Vector{Pair{T2, Float64}}}=nothing,
+                    verbose::Bool=false)::PEtab.PEtabModel where {T1<:Union{Symbol, Num}, T2<:Union{Symbol, Num}, T<:Dict}
 
-    model_name = "ReactionSystemModel"
+    model_name = "ODESystemModel"                          
+    return _PEtabModel(system, model_name, simulation_conditions, observables, measurements, 
+                       petab_parameters, state_map, parameter_map, verbose)
+end
+
+
+function _PEtabModel(system,
+                     model_name::String,
+                     simulation_conditions::Dict{String, T},
+                     observables::Dict{String, PEtab.PEtabObservable},
+                     measurements::DataFrame,
+                     petab_parameters::Vector{PEtab.PEtabParameter},
+                     state_map::Union{Nothing, Vector{Pair{T1, Float64}}},
+                     parameter_map::Union{Nothing, Vector{Pair{T2, Float64}}},
+                     verbose::Bool)::PEtab.PEtabModel where {T1<:Union{Symbol, Num}, T2<:Union{Symbol, Num}, T<:Dict}
+
     verbose == true && @info "Building PEtabModel for $model_name"
 
     # Extract model parameters and names
@@ -80,14 +105,14 @@ function PEtab.PEtabModel(system::ReactionSystem,
 
     # Extract relevant PEtab-files, convert to CSV.File
     measurements_data = PEtab.parse_petab_measurements(measurements, observables, simulation_conditions, petab_parameters) |> PEtab.dataframe_to_CSVFile
-    parameters_data = PEtab.parse_petab_parameters(petab_parameters, system, simulation_conditions, observables, measurements) |> PEtab.dataframe_to_CSVFile
     observables_data = PEtab.parse_petab_observables(observables) |> PEtab.dataframe_to_CSVFile
-    experimental_conditions = PEtab.parse_petab_conditions(simulation_conditions, petab_parameters, system) |> PEtab.dataframe_to_CSVFile
-    
+        
     # Build the initial value map (initial values as parameters are set in the reaction system)
-    state_map = PEtab.update_state_map(state_map, system, experimental_conditions) # Parameters in condition table
-    default_values = Catalyst.get_defaults(system)
+    default_values = get_default_values(system)
     _state_map = [Symbol(replace(string(S), "(t)" => "")) => S ∈ keys(default_values) ? string(default_values[S]) : "0.0" for S in states(system)]
+    add_parameter_inital_values!(system, _state_map)
+    experimental_conditions = PEtab.parse_petab_conditions(simulation_conditions, petab_parameters, observables, system) |> PEtab.dataframe_to_CSVFile
+    state_map = PEtab.update_state_map(state_map, system, experimental_conditions) # Parameters in condition table
     if !isnothing(state_map)
         state_map_names = [Symbol(_S.first) for _S in state_map]
         for (i, S) in pairs(_state_map)
@@ -98,11 +123,14 @@ function PEtab.PEtabModel(system::ReactionSystem,
         end
     end
 
+    # Once all potential parameters have been added to the system PEtab parameters can be parsed 
+    parameters_data = PEtab.parse_petab_parameters(petab_parameters, system, simulation_conditions, observables, measurements) |> PEtab.dataframe_to_CSVFile
+
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Building u0, h and σ functions ...")
     time_taken = @elapsed begin
     h_str, u0!_str, u0_str, σ_str = PEtab.create_σ_h_u0_file(model_name, system, experimental_conditions, measurements_data,
-                                                             parameters_data, observables_data, _state_map)
+                                                                parameters_data, observables_data, _state_map)
     compute_h = @RuntimeGeneratedFunction(Meta.parse(h_str))
     compute_u0! = @RuntimeGeneratedFunction(Meta.parse(u0!_str))
     compute_u0 = @RuntimeGeneratedFunction(Meta.parse(u0_str))
@@ -114,8 +142,8 @@ function PEtab.PEtabModel(system::ReactionSystem,
     verbose == true && print(" Building ∂h∂p, ∂h∂u, ∂σ∂p and ∂σ∂u functions ...")
     time_taken = @elapsed begin
     ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str = PEtab.create_derivative_σ_h_file(model_name, system, experimental_conditions,
-                                                                         measurements_data, parameters_data, observables_data,
-                                                                         _state_map)
+                                                                            measurements_data, parameters_data, observables_data,
+                                                                            _state_map)
     compute_∂h∂u! = @RuntimeGeneratedFunction(Meta.parse(∂h∂u_str))
     compute_∂h∂p! = @RuntimeGeneratedFunction(Meta.parse(∂h∂p_str))
     compute_∂σ∂σu! = @RuntimeGeneratedFunction(Meta.parse(∂σ∂u_str))
@@ -171,12 +199,55 @@ function PEtab.PEtabModel(system::ReactionSystem,
                              "",
                              "",
                              cbset,
-                             check_cb_active)
+                             check_cb_active, 
+                             true)
     return petab_model
 end
 
 
-function PEtab.add_model_parameter!(system::ReactionSystem, new_parameter)
-    eval(Meta.parse("@parameters " * new_parameter))
-    Catalyst.addparam!(system, eval(Meta.parse(new_parameter)))
+function get_default_values(system::ODESystem)
+    return ModelingToolkit.get_defaults(system)
+end
+
+
+function PEtab.add_model_parameter!(system::ODESystem, new_parameter)
+    eval(Meta.parse("@parameters $new_parameter"))
+    push!(ModelingToolkit.get_ps(system), eval(Meta.parse("ModelingToolkit.value($new_parameter)")))
+end
+
+
+function add_parameter_inital_values!(system::ODESystem, state_map)
+
+    # Add potential new parameters appearing in the inital conditions to the model. For an ODE-system 
+    # parameter only appearing in the initial conditions are not a part of the system, and in order 
+    # to compute gradients accurately they need to be added.
+    for i in eachindex(state_map)
+        str = replace(String(state_map[i].second), " " => "")
+        parameter_names = string.(parameters(system))
+        state_names = replace.(string.(states(system)), "(t)" => "")
+        i_start, i_end = 1, 1
+        char_terminate = ['(', ')', '+', '-', '/', '*', '^']
+        while i_end < length(str)
+            word_str, i_end = PEtab.get_word(str, i_start, char_terminate)
+            i_start = i_start == i_end ? i_end+1 : i_end
+
+            if isempty(word_str)
+                continue
+            end
+            if PEtab.is_number(word_str)
+                continue
+            end
+            if word_str ∈ parameter_names
+                continue
+            end
+            if word_str ∈ state_names
+                str_write = "Initial default value of a state cannot be another state, as currently for $word_str"
+                throw(PEtab.PEtabFormatError("$str_write"))
+            end
+            # At this point the initial default value is a parameter, that does not occur in the ODESystem. In order 
+            # to ensure correct comuations downstream it must be added as a parameter 
+            PEtab.add_model_parameter!(system, word_str)
+        end
+    end
+    return 
 end

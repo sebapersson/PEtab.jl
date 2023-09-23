@@ -178,7 +178,8 @@ function PEtabModel(path_yaml::String;
                              path_SBML,
                              path_yaml,
                              cbset,
-                             check_cb_active)
+                             check_cb_active, 
+                             false)
 
     return petab_model
 end

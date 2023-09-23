@@ -32,7 +32,7 @@ end
 
 
 @safetestset "Catalyst integration" begin
-  include(joinpath(@__DIR__, "Catalyst_PEtab_test_suite", "Test_catalyst.jl"))
+  include(joinpath(@__DIR__, "Julia_import", "Test_catalyst.jl"))
 end
 
 
