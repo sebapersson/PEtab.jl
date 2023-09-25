@@ -121,7 +121,7 @@ if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "CatalystExtension.jl"))
 end
 if !isdefined(Base, :get_extension)
-    include(joinpath(@__DIR__, "..", "ext", "PlotsExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "PEtabPlotsExtension.jl"))
 end
 
 end
