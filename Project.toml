@@ -53,7 +53,7 @@ FidesExtension = ["PyCall"]
 IpoptExtension = ["Ipopt"]
 OptimExtension = ["Optim"]
 PEtabSelectExtension = ["PyCall"]
-PlotsExtension = ["Plots"]
+PEtabPlotsExtension = ["Plots"]
 SciMLSensitivityExtension = ["SciMLSensitivity", "Zygote"]
 ZygoteExtension = ["SciMLSensitivity", "Zygote"]
 

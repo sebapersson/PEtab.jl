@@ -71,9 +71,10 @@ end
         end
         x_vals = [1:length(best_vals) for best_vals in y_vals]
     elseif plot_type == :waterfall
-        label --> ""
+        label --> ""# "Run " .* string.(1:length(res_ms.runs))
         seriestype --> :scatter
         xlabel --> "Optimisation run"
+        color --> 1:length(res_ms.runs)
 
         y_vals = getfield.(res_ms.runs, :fmin)
         x_vals = sortperm(sortperm(y_vals))
