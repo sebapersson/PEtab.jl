@@ -5,9 +5,10 @@ DocMeta.setdocmeta!(PEtab, :DocTestSetup, :(using PEtab); recursive=true)
 
 makedocs(;
     modules=[PEtab],
-    strict=false,
     authors="Viktor Hasselgren, Sebastian Persson, Damiano Ognissanti, Rafael Arutjunjan",
     repo="https://github.com/sebapersson/PEtab.jl/blob/{commit}{path}#{line}",
+    checkdocs=:exports,
+    warnonly=false,
     sitename="PEtab.jl",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",

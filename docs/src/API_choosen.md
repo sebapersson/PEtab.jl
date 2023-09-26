@@ -1,9 +1,7 @@
 # API
 
-```@docs
+```@docs; canonical=true
 PEtabModel
-PEtabModel
-PEtabODEProblem
 PEtabODEProblem
 PEtabObservable
 PEtabParameter

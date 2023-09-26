@@ -7,7 +7,7 @@ Here we demonstrate how to define a parameter estimation problem using a simple 
 1. **Dynamic Model**: You can use either a `ReactionSystem` defined in [Catalyst](https://petab.readthedocs.io/en/latest/) or an `ODESystem` defined in [ModellingToolkit](https://github.com/SciML/ModelingToolkit.jl).
 2. **Observable Formula**: To link the model to the measurement data, you need an observable formula. Since real-world data often comes with measurement noise, you also must specify a noise formula and noise distribution. This is specified as a `PEtabObservable`.
 3. **Parameters to Estimate**: Typically, you do not want to estimate all model parameters. Moreover, sometimes you might want to incorporate prior beliefs by assigning priors to certain parameters. Parameter information is provided as a vector of `PEtabParameter`.
-4. **Simulation Conditions**: Measurements are often taken under various experimental conditions, such as different substrate concentrations. These experimental conditions typically correspond to model control parameters, like the initial value of a model species. You specify these conditions as a `Dict` (see below).
+4. **Simulation Conditions**: Measurements are often taken under various experimental conditions, such as different substrate concentrations. These experimental conditions typically correspond to model control parameters, like the initial value of a model species. You specify these conditions as a `Dict` (see below). In case the model only has a single simulation conditions, `simulation_conditions` can be omitted when building the `PEtabModel`.
 5. **Measurement Data**: To calibrate the model, you need measurement data, which should be provided as a `DataFrame`. The data format is explained below.
 
 ## Defining the Dynamic Model
@@ -186,6 +186,9 @@ petab_problem = PEtabODEProblem(petab_model, verbose=true)
 ```
 
 The `PEtabODEProblem` contains all the necessary information to work with most available optimizers (see [here](@ref import_petab_problem)). Alternatively, if you want to perform parameter estimation using a multi-start approach, you can use the `calibrate_model_multistart` function (see see [Parameter estimation](@ref parameter_estimation)).
+
+!!! note
+    If the model does not have multiple simulation conditions (e.g., data is collected under a single condition), you can omit the `simulation_conditions` argument when constructing the `PEtabModel` and the `simulation_id` columns from the measurement data. Simply use the following format: `PEtabModel(sys, observables, measurements, parameters, <keyword arguments>)`.
 
 ## Where to Go Next
 
