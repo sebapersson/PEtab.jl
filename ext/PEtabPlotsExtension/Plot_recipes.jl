@@ -25,6 +25,12 @@ const plot_types_ms = [:objective, :best_objective, :waterfall]
 
         x_vals = 1:(res.n_iterations+1)
         y_vals = deepcopy(res.ftrace)
+
+        # In case some values are Infs, reduce these.
+        inf_idxs = isinf.(y_vals)
+        max_val = maximum(filter(!isinf, y_vals))
+        y_vals[inf_idxs] .= max_val
+        markershape --> ifelse.(inf_idxs, :cross, :circle)
     elseif plot_type == :best_objective
         seriestype --> :path
 
@@ -61,6 +67,15 @@ end
 
         y_vals = getfield.(res_ms.runs, :ftrace)
         x_vals = [1:length(best_vals) for best_vals in y_vals]
+
+        # In case some values are Infs, reduce these.
+        max_val = maximum(filter(!isinf, vcat(y_vals...)))
+        inf_idxs = [isinf.(yvs) for yvs in y_vals]
+
+        markershape --> [ifelse.(iis, :cross, :circle) for iis in inf_idxs]
+        for (iis, yvs) in zip(inf_idxs, y_vals)
+            yvs[iis] .= max_val
+        end
     elseif plot_type == :best_objective
         xlabel --> "Function evaluations"
         seriestype --> :path
@@ -71,13 +86,19 @@ end
         end
         x_vals = [1:length(best_vals) for best_vals in y_vals]
     elseif plot_type == :waterfall
-        label --> ""# "Run " .* string.(1:length(res_ms.runs))
+        label --> "" # "Run " .* string.(1:length(res_ms.runs))
         seriestype --> :scatter
         xlabel --> "Optimisation run"
         color --> 1:length(res_ms.runs)
 
         y_vals = getfield.(res_ms.runs, :fmin)
         x_vals = sortperm(sortperm(y_vals))
+
+        # In case some values are Infs, reduce these.
+        inf_idxs = isinf.(y_vals)
+        max_val = maximum(filter(!isinf, y_vals))
+        y_vals[inf_idxs] .= max_val
+        markershape --> ifelse.(inf_idxs, :cross, :circle)
     end
     
     x_vals, y_vals
