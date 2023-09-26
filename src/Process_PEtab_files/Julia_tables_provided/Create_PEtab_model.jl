@@ -85,6 +85,32 @@ function PEtabModel(system::ODESystem,
     return _PEtabModel(system, model_name, simulation_conditions, observables, measurements, 
                        petab_parameters, state_map, parameter_map, verbose)
 end
+"""
+    PEtabModel(system::Union{ReactionSystem, ODESystem},
+               observables::Dict{String, PEtabObservable},
+               measurements::DataFrame,
+               petab_parameters::Vector{PEtabParameter};
+               state_map::Union{Nothing, Vector{Pair}=nothing,
+               parameter_map::Union{Nothing, Vector{Pair}=nothing,
+               verbose::Bool=false)::PEtabModel
+
+Create a PEtabModel directly in Julia from a Catalyst ReactionSystem or MTK ODESystem without simulation conditions.
+
+In case of simulation conditions, see above.
+"""
+function PEtabModel(system::ODESystem,
+                    observables::Dict{String, PEtab.PEtabObservable},
+                    measurements::DataFrame,
+                    petab_parameters::Vector{PEtab.PEtabParameter};
+                    state_map::Union{Nothing, Vector{Pair{T1, Float64}}}=nothing,
+                    parameter_map::Union{Nothing, Vector{Pair{T2, Float64}}}=nothing,
+                    verbose::Bool=false)::PEtab.PEtabModel where {T1<:Union{Symbol, Num}, T2<:Union{Symbol, Num}}
+
+    simulation_conditions = Dict("__c0__" => Dict())                        
+    model_name = "ODESystemModel"                          
+    return _PEtabModel(system, model_name, simulation_conditions, observables, measurements, 
+                       petab_parameters, state_map, parameter_map, verbose)
+end
 
 
 function _PEtabModel(system,

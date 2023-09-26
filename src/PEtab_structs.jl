@@ -3,7 +3,7 @@
 
 A Julia-compatible representation of a PEtab-specified problem.
 
-For how to construct see below.
+For constructor see below.
 
 !!! note
     Most of the functions in `PEtabModel` are not intended to be accessed by the user. For example, `compute_h` 
@@ -240,9 +240,11 @@ end
 
 
 """
+    PEtabODEProblem
+
 Everything needed to setup an optimization problem (compute cost, gradient, hessian and  parameter bounds) for a PEtab model.
 
-For how to construct, see below.
+For constructor, see below.
 
 !!! note
     The parameter vector θ is always assumed to be on the parameter scale specified in the PEtab parameters file. If needed, θ is transformed to the linear scale inside the function call.
@@ -402,7 +404,6 @@ If `hessian_method=nothing`, the Hessian method from the `PEtabODEProblem` is us
 
 For more information on each method, see the Fides [documentation](https://fides-optimizer.readthedocs.io/en/latest/generated/fides.hessian_approximation.html).
 
-See also [`callibrateModel`](@ref) and [`callibrateModelMultistart`](@ref)
 
 ## Examples
 ```julia

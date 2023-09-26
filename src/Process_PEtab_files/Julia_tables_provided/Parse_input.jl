@@ -1,13 +1,13 @@
 
 # Parse PEtabParameter into PEtab-parameters file. In case of nothing a default value is set
 # for a specific row.
-function parse_petab_parameters(petab_parameters::Vector{PEtabParameter}, 
-                                system, 
-                                simulation_conditions::Dict{String, T}, 
+function parse_petab_parameters(petab_parameters::Vector{PEtabParameter},
+                                system,
+                                simulation_conditions::Dict{String, T},
                                 observables::Dict{String, PEtabObservable},
                                 measurements::DataFrame)::DataFrame where T<:Dict
 
-    # Extract any parameter that appears in the model or in simulation_conditions 
+    # Extract any parameter that appears in the model or in simulation_conditions
     model_parameters = string.(parameters(system))
     condition_values = unique(reduce(vcat, (string.(collect(values(dict))) for dict in values(simulation_conditions))))
     non_dynamic_parameters = vcat([string(obs.obs) for obs in values(observables)], [string(obs.noise_formula) for obs in values(observables)])
@@ -56,10 +56,10 @@ function parse_petab_parameters(petab_parameters::Vector{PEtabParameter},
 
         estimate = parameter.estimate == true ? 1 : 0
 
-        if (parameter_id ∉ model_parameters && 
-            parameter_id ∉ condition_values && 
-            parameter_id ∉ noise_parameters && 
-            parameter_id ∉ observable_parameters && 
+        if (parameter_id ∉ model_parameters &&
+            parameter_id ∉ condition_values &&
+            parameter_id ∉ noise_parameters &&
+            parameter_id ∉ observable_parameters &&
             !any(occursin.(parameter_id, non_dynamic_parameters)))
 
             if parameter.estimate == true
@@ -123,12 +123,12 @@ function parse_petab_conditions(simulation_conditions::Dict{String, T},
     for condition_id in keys(simulation_conditions)
         for id in keys(simulation_conditions[condition_id])
             id_str = string(id)
-            if (id_str ∈ model_state_names || 
-                id_str ∈ model_parameter_names || 
+            if (id_str ∈ model_state_names ||
+                id_str ∈ model_parameter_names ||
                 any(occursin.(id_str, non_dynamic_parameters)))
                 continue
             end
-            str_write = "Parameter/state $id_str specifed to change between simulation-conditions (set as dictionary " 
+            str_write = "Parameter/state $id_str specifed to change between simulation-conditions (set as dictionary "
             str_write *= "key for simulation-conditions) does not as required correspond to one of the states or "
             str_write *= "parameters in the model"
             throw(PEtab.PEtabFormatError(str_write))
@@ -220,8 +220,8 @@ end
 
 # The measurements will be rewritten into a DataFrame which follows the correct format
 function parse_petab_measurements(petab_measurements::DataFrame,
-                                  observables::Dict{String,PEtabObservable}, 
-                                  simulation_conditions, 
+                                  observables::Dict{String,PEtabObservable},
+                                  simulation_conditions,
                                   petab_parameters::Vector{PEtabParameter})::DataFrame
 
     allowed_names = ["time", "obs_id", "observable_id", "noise_parameters", "measurement",
@@ -237,8 +237,8 @@ function parse_petab_measurements(petab_measurements::DataFrame,
     end
     df = DataFrame()
 
-    #= 
-        Check that input data is valid 
+    #=
+        Check that input data is valid
     =#
     check_measurement_column(petab_measurements, "measurement", simulation_conditions, observables, petab_parameters)
     df[!, "measurement"] = petab_measurements[!, "measurement"]
@@ -246,8 +246,25 @@ function parse_petab_measurements(petab_measurements::DataFrame,
     check_measurement_column(petab_measurements, "time", simulation_conditions, observables, petab_parameters)
     df[!, "time"] = petab_measurements[!, "time"]
 
-    check_measurement_column(petab_measurements, "simulation_id", simulation_conditions, observables, petab_parameters)
-    df[!, "simulationConditionId"] = petab_measurements[!, "simulation_id"]
+    # Parse optionally provided simulation conditions 
+    conditions_provided = !(length(simulation_conditions) == 1 && collect(keys(simulation_conditions))[1] == "__c0__")
+    if "simulation_id" ∈ names(petab_measurements) && conditions_provided == false
+        str_write = "As simulation conditions are specified in the measurement data, simulation conditions must also "
+        str_write *= "be provided when building the PEtabModel"
+        throw(PEtab.PEtabFormatError(str_write))
+
+    elseif "simulation_id" ∉ names(petab_measurements) && conditions_provided == true
+        str_write = "As simulation conditions are not specified in the measurement data, simulation conditions must "
+        str_write *= "be provided when building the PEtabModel"
+        throw(PEtab.PEtabFormatError(str_write))
+
+    elseif "simulation_id" ∉ names(petab_measurements) && conditions_provided == false
+        df[!, "simulationConditionId"] .= "__c0__"
+
+    elseif "simulation_id" ∈ names(petab_measurements) && conditions_provided == true
+        check_measurement_column(petab_measurements, "simulation_id", simulation_conditions, observables, petab_parameters)
+        df[!, "simulationConditionId"] = petab_measurements[!, "simulation_id"]
+    end
 
     _name = "observable_id" ∈ column_names ? "observable_id" : "obs_id"
     check_measurement_column(petab_measurements, _name, simulation_conditions, observables, petab_parameters)
