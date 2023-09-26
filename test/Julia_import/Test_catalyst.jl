@@ -3,6 +3,7 @@ using Distributions
 using PEtab 
 using CSV
 using DataFrames
+using ModelingToolkit
 using Catalyst
 
 # Case 5 and 12 rely on SBML features and have no direct correspondence to 

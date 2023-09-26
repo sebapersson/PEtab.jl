@@ -137,6 +137,96 @@ gradient computation. If left blank, we automatically select appropriate options
 function run_PEtab_select end
 
 
+"""
+    generate_startguesses(petab_problem::PEtabODEProblem,
+                          n_multistarts::Int64;
+                          sampling_method::T=QuasiMonteCarlo.LatinHypercubeSample(),
+                          allow_inf_for_startguess::Bool=false,
+                          verbose::Bool=false)::Array{Float64} where T <: QuasiMonteCarlo.SamplingAlgorithm
+
+Generate `n_multistarts` initial parameter guesses within the parameter bounds in the `petab_problem` with `sampling_method`
+
+Any sampling algorithm from QuasiMonteCarlo is supported, but `LatinHypercubeSample` is recomended as it usually 
+performs well.
+
+If `n_multistarts` is set to 1, a single random vector within the parameter bounds is returned. For 
+`n_multistarts > 1`, a matrix is returned, with each column representing a different initial guess.
+
+By default `allow_inf_startguess=false` - only initial guesses that result in finite cost evaluations are returned. 
+If `allow_inf_startguess=true`, initial guesses that result in `Inf` are allowed.
+
+## Example
+```julia
+# Generate a single initial guess within the parameter bounds
+start_guess = generate_startguesses(petab_problem, 1)
+```
+
+```julia
+# Generate 10 initial guesses using Sobol sampling
+start_guess = generate_startguesses(petab_problem, 10, 
+                                    sampling_method=QuasiMonteCarlo.SobolSample())
+```
+"""
+function generate_startguesses(petab_problem::PEtabODEProblem,
+                               n_multistarts::Int64;
+                               sampling_method::T=QuasiMonteCarlo.LatinHypercubeSample(),
+                               allow_inf_for_startguess::Bool=false,
+                               verbose::Bool=false)::Array{Float64} where T <: QuasiMonteCarlo.SamplingAlgorithm
+
+    verbose == true && @info "Generating start-guesses"
+
+    # Nothing prevents the user from sending in a parameter vector with zero parameters
+    if length(petab_problem.lower_bounds) == 0
+        return Vector{Float64}(undef, 0)
+    end
+
+    if n_multistarts == 1
+        while true
+            _p::Vector{Float64} = [rand() * (petab_problem.upper_bounds[j] - petab_problem.lower_bounds[j]) + petab_problem.lower_bounds[j] for j in eachindex(petab_problem.lower_bounds)]
+            _cost = petab_problem.compute_cost(_p)
+            if allow_inf_for_startguess == true
+                return _p
+            elseif !isinf(_cost)
+                return _p
+            end
+        end
+    end
+
+    startguesses = Matrix{Float64}(undef, length(petab_problem.lower_bounds), n_multistarts)
+    found_starts = 0
+    while true
+        # QuasiMonteCarlo is deterministic, so for sufficiently few start-guesses we can end up in a never ending
+        # loop. To sidestep this if less than 10 starts are left numbers are generated from the uniform distribution
+        if n_multistarts - found_starts > 10
+            _samples = QuasiMonteCarlo.sample(n_multistarts - found_starts, petab_problem.lower_bounds, petab_problem.upper_bounds, sampling_method)
+        else
+            _samples = Matrix{Float64}(undef, length(petab_problem.lower_bounds), n_multistarts - found_starts)
+            for i in 1:(n_multistarts - found_starts)
+                _samples[:, i] .= [rand() * (petab_problem.upper_bounds[j] - petab_problem.lower_bounds[j]) + petab_problem.lower_bounds[j] for j in eachindex(petab_problem.lower_bounds)]
+            end
+        end
+
+        for i in 1:size(_samples)[2]
+            _p = _samples[:, i]
+            _cost = petab_problem.compute_cost(_p)
+            if allow_inf_for_startguess == true
+                found_starts += 1
+                startguesses[:, found_starts] .= _p
+            elseif !isinf(_cost)
+                found_starts += 1
+                startguesses[:, found_starts] .= _p
+            end
+        end
+        verbose == true && @printf("Found %d of %d multistarts\n", found_starts, n_multistarts)
+        if found_starts == n_multistarts
+            break
+        end
+    end
+
+    return startguesses
+end
+
+
 function save_partial_results(path_save_res::String,
                               path_save_parameters::String,
                               path_save_trace::Union{String, Nothing},
@@ -162,50 +252,6 @@ function save_partial_results(path_save_res::String,
         CSV.write(path_save_trace, df_save_trace, append=isfile(path_save_trace))
     end
     return nothing
-end
-
-
-function generate_startguesses(petab_problem::PEtabODEProblem,
-                               sampling_method::T,
-                               n_multistarts::Int64;
-                               verbose::Bool=false)::Matrix{Float64} where T <: QuasiMonteCarlo.SamplingAlgorithm
-
-    verbose == true && @info "Generating start-guesses"
-
-    # Nothing prevents the user from sending in a parameter vector with zero parameters
-    if length(petab_problem.lower_bounds) == 0
-        return nothing
-    end
-
-    startguesses = Matrix{Float64}(undef, length(petab_problem.lower_bounds), n_multistarts)
-    found_starts = 0
-    while true
-        # QuasiMonteCarlo is deterministic, so for sufficiently few start-guesses we can end up in a never ending
-        # loop. To sidestep this if less than 10 starts are left numbers are generated from the uniform distribution
-        if n_multistarts - found_starts > 10
-            _samples = QuasiMonteCarlo.sample(n_multistarts - found_starts, petab_problem.lower_bounds, petab_problem.upper_bounds, sampling_method)
-        else
-            _samples = Matrix{Float64}(undef, length(petab_problem.lower_bounds), n_multistarts - found_starts)
-            for i in 1:(n_multistarts - found_starts)
-                _samples[:, i] .= [rand() * (petab_problem.upper_bounds[j] - petab_problem.lower_bounds[j]) + petab_problem.lower_bounds[j] for j in eachindex(petab_problem.lower_bounds)]
-            end
-        end
-
-        for i in 1:size(_samples)[2]
-            _p = _samples[:, i]
-            _cost = petab_problem.compute_cost(_p)
-            if !isinf(_cost)
-                found_starts += 1
-                startguesses[:, found_starts] .= _p
-            end
-        end
-        verbose == true && @printf("Found %d of %d multistarts\n", found_starts, n_multistarts)
-        if found_starts == n_multistarts
-            break
-        end
-    end
-
-    return startguesses
 end
 
 
@@ -239,7 +285,7 @@ function _calibrate_model_multistart(petab_problem::PEtabODEProblem,
         end
     end
 
-    startguesses = generate_startguesses(petab_problem, sampling_method, n_multistarts)
+    startguesses = generate_startguesses(petab_problem, n_multistarts; sampling_method=sampling_method)
     if !isnothing(path_save_x0)
         startguessesDf = DataFrame(Matrix(startguesses)', petab_problem.θ_names)
         startguessesDf[!, "Start_guess"] = 1:size(startguessesDf)[1]

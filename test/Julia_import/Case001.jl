@@ -21,14 +21,10 @@ eqs = [
 @named sys = ODESystem(eqs; defaults=Dict(A => a0, B => b0))
 
 # Measurement data 
-measurements = DataFrame(simulation_id=["c0", "c0"],
-                         obs_id=["obs_a", "obs_a"],
+measurements = DataFrame(obs_id=["obs_a", "obs_a"],
                          time=[0, 10.0],
                          measurement=[0.7, 0.1],
                          noise_parameters=0.5)
-
-# Single experimental condition                          
-simulation_conditions = Dict("c0" => Dict())
 
 # PEtab-parameter to "estimate"
 petab_parameters = [PEtabParameter(:a0, value=1.0, scale=:lin),
@@ -41,11 +37,11 @@ petab_parameters = [PEtabParameter(:a0, value=1.0, scale=:lin),
 observables = Dict("obs_a" => PEtabObservable(A, 0.5))
 
 # Create a PEtabODEProblem ReactionNetwork
-petab_model_rn = PEtabModel(rn, simulation_conditions, observables, measurements,
-                             petab_parameters, verbose=false)
+petab_model_rn = PEtabModel(rn, observables, measurements,
+                            petab_parameters, verbose=false)
 petab_problem_rn = PEtabODEProblem(petab_model_rn, verbose=false)
 # Create a PEtabODEProblem ODESystem
-petab_model_sys = PEtabModel(sys, simulation_conditions, observables, measurements,
+petab_model_sys = PEtabModel(sys, observables, measurements,
                              petab_parameters, verbose=false)
 petab_problem_sys = PEtabODEProblem(petab_model_sys, verbose=false)
 

@@ -1,9 +1,7 @@
 # API
 
-```@docs
+```@docs; canonical=true
 PEtabModel
-PEtabModel
-PEtabODEProblem
 PEtabODEProblem
 PEtabObservable
 PEtabParameter
@@ -17,4 +15,5 @@ calibrate_model
 calibrate_model_multistart
 run_PEtab_select
 solve_SBML
+generate_startguesses
 ```

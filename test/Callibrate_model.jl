@@ -17,7 +17,8 @@ using PEtab
     path_yaml = joinpath(@__DIR__, "Test_ll", "Crauste_CellSystems2017", "Crauste_CellSystems2017.yaml")
     petab_model = PEtabModel(path_yaml, verbose=false)
     petab_problem = PEtabODEProblem(petab_model, ode_solver=ODESolver(Rodas5P()), verbose=false)
-    startguesses = PEtab.generate_startguesses(petab_problem, QuasiMonteCarlo.LatinHypercubeSample(), 100; verbose=false)
+    startguesses = generate_startguesses(petab_problem, 100; verbose=false, 
+                                         sampling_method=QuasiMonteCarlo.LatinHypercubeSample())
     @test startguesses isa Matrix{Float64}
     @info "Done with start-guess test"
 
