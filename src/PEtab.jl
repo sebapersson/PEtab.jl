@@ -85,7 +85,6 @@ include(joinpath("SBML", "Solve_SBML_model.jl"))
 
 # For correct struct printing
 include(joinpath("Show.jl"))
-#=
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem
 @setup_workload begin
     path_yaml = joinpath(@__DIR__, "..", "test", "Test_model3", "Test_model3.yaml")
@@ -95,9 +94,8 @@ include(joinpath("Show.jl"))
         petab_problem.compute_cost(petab_problem.θ_nominalT)
     end
 end
-=#
 
-export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel, PEtabODEProblem, remake_PEtab_problem, Fides, solve_SBML, PEtabOptimisationResult, IpoptOptions, IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult
+export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel, PEtabODEProblem, remake_PEtab_problem, Fides, solve_SBML, PEtabOptimisationResult, IpoptOptions, IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult, generate_startguesses
 
 # These are given as extensions, but their docstrings are availble in the 
 # general documentation 
