@@ -95,7 +95,10 @@ include(joinpath("Show.jl"))
     end
 end
 
-export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel, PEtabODEProblem, remake_PEtab_problem, Fides, solve_SBML, PEtabOptimisationResult, IpoptOptions, IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult, generate_startguesses
+# Temporary file added by Torkel.
+include(joinpath("Utility.jl"))
+
+export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel, PEtabODEProblem, remake_PEtab_problem, Fides, solve_SBML, PEtabOptimisationResult, IpoptOptions, IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult, generate_startguesses, get_best_ps
 
 # These are given as extensions, but their docstrings are availble in the 
 # general documentation 
