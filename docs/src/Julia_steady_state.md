@@ -49,14 +49,14 @@ Now, let us assume that before gathering data for conditions `c0` and `c1`, 2mM 
 
 ```julia
 condition_c_pre = Dict(:S => 2.0)
-simulation_conditions["c0_pre"] = condition_c_pre
+simulation_conditions["c_pre"] = condition_c_pre
 ```
 
 To ensure that the correct pre-equilibration simulation is performed when simulating the model during parameter estimation, add a new column `pre_eq_id` to the measurement data:
 
 | simulation_id (str) | pre\_eq\_id (str) | obs_id (str) | time (float) | measurement (float) |
 |---------------------|-----------------|--------------|--------------|---------------------|
-| c0                  | c_pre           | obs_P        | 0.0          | 0.7                 |
+| c0                  | c_pre           | obs_P        | 1.0          | 0.7                 |
 | c0                  | c_pre           | obs_Sum      | 10.0         | 0.1                 |
 | c1                  | c_pre           | obs_P        | 1.0          | 1.0                 |
 | c1                  | c_pre           | obs_Sum      | 20.0         | 1.5                 |
@@ -67,9 +67,9 @@ In Julia, it would look like this:
 using DataFrames
 measurements = DataFrame(
     simulation_id=["c0", "c0", "c1", "c1"],
-    pre_eq_id=["c0_pre", "c0_pre", "c0_pre", "c0_pre"], # Steady-state pre-eq simulations 
+    pre_eq_id=["c_pre", "c_pre", "c_pre", "c_pre"], # Steady-state pre-eq simulations 
     obs_id=["obs_P", "obs_Sum", "obs_P", "obs_Sum"],
-    time=[0.0, 10.0, 1.0, 20.0],
+    time=[1.0, 10.0, 1.0, 20.0],
     measurement=[0.7, 0.1, 1.0, 1.5]
 )
 ```

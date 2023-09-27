@@ -49,7 +49,7 @@ Next, we provide values for these parameters in the measurement data. These para
 
 | simulation_id (str) | obs_id (str) | time (float) | measurement (float) | observable_parameters (str\|float) | noise_parameters (str\|float) |
 |---------------------|--------------|--------------|---------------------|------------------------------------|-------------------------------|
-| c0                  | obs_P        | 0.0          | 0.7                 |                                    |                               |
+| c0                  | obs_P        | 1.0          | 0.7                 |                                    |                               |
 | c0                  | obs_Sum      | 10.0         | 0.1                 | scale;offset               | sigma                         |
 | c1                  | obs_P        | 1.0          | 1.0                 |                                    |                               |
 | c1                  | obs_Sum      | 20.0         | 1.5                 | 1.0;1.0                            | 4.0                           |
@@ -60,7 +60,7 @@ Note, in case an observable (like `obs_P`) does not have noise-or observable-par
 measurements = DataFrame(
     simulation_id=["c0", "c0", "c0", "c0"],
     obs_id=["obs_P", "obs_Sum", "obs_P", "obs_Sum"],
-    time=[0.0, 10.0, 1.0, 20.0],
+    time=[1.0, 10.0, 1.0, 20.0],
     measurement=[0.7, 0.1, 1.0, 1.5], 
     observable_parameters=[missing, "scale;offset", missing, "1.0;1.0"],
     noise_parameters=[missing, "sigma", missing, 4.0]

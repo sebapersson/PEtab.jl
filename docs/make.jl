@@ -27,7 +27,8 @@ makedocs(;
                            "Models with many conditions specific parameters" => "Beer.md"],
         "Parameter estimation" => Any["Parameter estimation" => "Parameter_estimation.md",
                                       "Available optimisers" => "Avaible_optimisers.md",
-                                      "Model selection (PEtab select)" => "Model_selection.md"],
+                                      "Model selection (PEtab select)" => "Model_selection.md",
+                                      "Condition specific system/model parameters" => "Julia_condition_specific.md"],
         "Supported gradient and hessian methods" => "Gradient_hessian_support.md",
         "Choosing the best options for a PEtab problem" => "Best_options.md",
         "API" => "API_choosen.md"
