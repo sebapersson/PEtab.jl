@@ -5,7 +5,7 @@ function PEtab.PEtabModel(system::ReactionSystem,
                           petab_parameters::Vector{PEtab.PEtabParameter};
                           state_map::Union{Nothing, Vector{Pair{T1, Float64}}}=nothing,
                           parameter_map::Union{Nothing, Vector{Pair{T2, Float64}}}=nothing,
-                          verbose::Bool=false)::PEtab.PEtabModel where {T1<:Union{Symbol, Num}, T2<:Union{Symbol, Num}, T<:Dict}
+                          verbose::Bool=false)::PEtab.PEtabModel where {T1<:Union{Symbol, Any}, T2<:Union{Symbol, Any}, T<:Dict}
 
     model_name = "ReactionSystemModel"                          
     return PEtab._PEtabModel(system, model_name, simulation_conditions, observables, measurements, 
@@ -17,7 +17,7 @@ function PEtab.PEtabModel(system::ReactionSystem,
                           petab_parameters::Vector{PEtab.PEtabParameter};
                           state_map::Union{Nothing, Vector{Pair{T1, Float64}}}=nothing,
                           parameter_map::Union{Nothing, Vector{Pair{T2, Float64}}}=nothing,
-                          verbose::Bool=false)::PEtab.PEtabModel where {T1<:Union{Symbol, Num}, T2<:Union{Symbol, Num}}
+                          verbose::Bool=false)::PEtab.PEtabModel where {T1<:Union{Symbol, Any}, T2<:Union{Symbol, Any}}
 
     simulation_conditions = Dict("__c0__" => Dict())                        
     model_name = "ReactionSystemModel"                          
