@@ -25,8 +25,8 @@ using Test
                                   10.0)
     c_id = :model1_data1
     @unpack u0, p = petab_problem.simulation_info.ode_sols[c_id].prob
-    u0_test = get_fitted_u0(res, petab_problem, c_id; retmap=false)
-    p_test = get_fitted_ps(res, petab_problem, c_id; retmap=false)
+    u0_test = get_fitted_u0(res, petab_problem; retmap=false)
+    p_test = get_fitted_ps(res, petab_problem; retmap=false)
     @test all(u0_test .== u0)
     @test all(p == p_test)
 
@@ -47,8 +47,8 @@ using Test
                                   10.0)
     c_id = :typeIDT1_ExpID1
     @unpack u0, p = petab_problem.simulation_info.ode_sols[c_id].prob
-    u0_test = get_fitted_u0(res, petab_problem, c_id; retmap=false)
-    p_test = get_fitted_ps(res, petab_problem, c_id; retmap=false)
+    u0_test = get_fitted_u0(res, petab_problem; condition_id=c_id, retmap=false)
+    p_test = get_fitted_ps(res, petab_problem; condition_id=c_id, retmap=false)
     @test all(u0_test .== u0)
     @test all(p[2:end] == p_test[2:end]) # 2:end to account for event variable
 
@@ -70,8 +70,8 @@ using Test
     c_id = :Dose_01
     pre_eq_id = :Dose_0
     @unpack u0, p = petab_problem.simulation_info.ode_sols[:Dose_0Dose_01].prob
-    p_test = get_fitted_ps(res, petab_problem, c_id; retmap=false)
-    u0_test = get_fitted_u0(res, petab_problem, c_id; retmap=false, pre_eq_id=pre_eq_id)
+    p_test = get_fitted_ps(res, petab_problem; condition_id=c_id, retmap=false)
+    u0_test = get_fitted_u0(res, petab_problem; condition_id=c_id, retmap=false, pre_eq_id=pre_eq_id)
     @test all(u0_test .== u0)
     @test all(p == p_test)
 end

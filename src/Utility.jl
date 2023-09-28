@@ -1,16 +1,19 @@
 """
     get_fitted_ps(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult}, 
-                  petab_problem::PEtabODEProblem,
-                  condition_id::Union{String, Symbol}; 
-                  retmap=true)
+                  petab_problem::PEtabODEProblem;
+                  condition_id::Union{String, Symbol, Nothing}=nothing,
+                  retmap::Bool=true)
 
-From a fitted PEtab model retrieve the ODE parameters to simulate the model for the specified `condition_id`.
+From a fitted PEtab model retrieve the ODE parameters to simulate the model.
+
+If `condition_id` is provided, the parameters are extracted for that specific simulation condition. If not provided, 
+parameters for the first (default) simulation condition are returned.
 
 If `retmap=true`, a parameter vector is returned; otherwise, a vector is returned.
 """
 function get_fitted_ps(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult}, 
-                       petab_problem::PEtabODEProblem,
-                       condition_id::Union{String, Symbol}; 
+                       petab_problem::PEtabODEProblem;
+                       condition_id::Union{String, Symbol, Nothing}=nothing,
                        retmap=true)
 
     u0, p = _get_fitted_parameters(res, petab_problem, condition_id, nothing, retmap)
@@ -20,12 +23,15 @@ end
 
 """
     get_fitted_u0(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult}, 
-                  petab_problem::PEtabODEProblem,
-                  condition_id::Union{String, Symbol}; 
+                  petab_problem::PEtabODEProblem;
+                  condition_id::Union{String, Symbol}=nothing,
                   pre_eq_id::Union{String, Symbol, Nothing}=nothing, 
-                  retmap=true)
+                  retmap::Bool=true)
 
 From a fitted PEtab model retrieve the inital values (u0) to simulate the model for the specified `condition_id`.
+
+If `condition_id` is provided, the initial values are extracted for that specific simulation condition. If not provided, 
+initial values for the first (default) simulation condition are returned.
 
 If a `pre_eq_id` is provided, the initial values are taken from the pre-equilibration simulation corresponding to 
 `pre_eq_id`. If there are potential overrides of initial values in the simulation conditions, they take priority over 
@@ -34,8 +40,8 @@ the pre-equilibrium simulation.
 If `retmap=true`, a parameter vector is returned; otherwise, a vector is returned.
 """
 function get_fitted_u0(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult}, 
-                       petab_problem::PEtabODEProblem,
-                       condition_id::Union{String, Symbol}; 
+                       petab_problem::PEtabODEProblem;
+                       condition_id::Union{String, Symbol, Nothing}=nothing,
                        pre_eq_id::Union{String, Symbol, Nothing}=nothing, 
                        retmap::Bool=true)
     u0, p = _get_fitted_parameters(res, petab_problem, condition_id, pre_eq_id, retmap)
@@ -45,7 +51,7 @@ end
 
 function _get_fitted_parameters(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult}, 
                                 petab_problem::PEtabODEProblem,
-                                condition_id::Union{String, Symbol},
+                                condition_id::Union{String, Symbol, Nothing},
                                 pre_eq_id::Union{String, Symbol, Nothing}, 
                                 retmap::Bool=true)
 
@@ -53,8 +59,12 @@ function _get_fitted_parameters(res::Union{PEtabOptimisationResult, PEtabMultist
     @unpack θ_indices, petab_model, simulation_info, ode_problem = petab_problem
 
     # Sanity check input
-    _c_id = Symbol(condition_id)
-    @assert _c_id ∈ simulation_info.simulation_condition_id "A simulation condition id was given that could not be found in among the petab model conditions."
+    if isnothing(condition_id)
+        _c_id = simulation_info.simulation_condition_id[1]
+    else
+        _c_id = Symbol(condition_id)
+        @assert _c_id ∈ simulation_info.simulation_condition_id "A simulation condition id was given that could not be found in among the petab model conditions."
+    end
     if !isnothing(pre_eq_id)
         _pre_eq_id = Symbol(pre_eq_id)
         @assert _pre_eq_id ∈ simulation_info.pre_equilibration_condition_id "A pre-equilbration simulation condition id was given that could not be found in among the petab model conditions."
