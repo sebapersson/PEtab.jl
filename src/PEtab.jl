@@ -98,7 +98,7 @@ include(joinpath("Show.jl"))
     end
 end
 
-export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel, PEtabODEProblem, remake_PEtab_problem, Fides, solve_SBML, PEtabOptimisationResult, IpoptOptions, IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult, generate_startguesses, get_best_model_parameters
+export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel, PEtabODEProblem, remake_PEtab_problem, Fides, solve_SBML, PEtabOptimisationResult, IpoptOptions, IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult, generate_startguesses, get_fitted_ps, get_fitted_u0
 
 # These are given as extensions, but their docstrings are availble in the 
 # general documentation 

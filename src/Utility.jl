@@ -1,19 +1,53 @@
+"""
+    get_fitted_ps(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult}, 
+                  petab_problem::PEtabODEProblem,
+                  condition_id::Union{String, Symbol}; 
+                  retmap=true)
+
+From a fitted PEtab model retrieve the ODE parameters to simulate the model for the specified `condition_id`.
+
+If `retmap=true`, a parameter vector is returned; otherwise, a vector is returned.
+"""
+function get_fitted_ps(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult}, 
+                       petab_problem::PEtabODEProblem,
+                       condition_id::Union{String, Symbol}; 
+                       retmap=true)
+
+    u0, p = _get_fitted_parameters(res, petab_problem, condition_id, nothing, retmap)
+    return p
+end
+
 
 """
-    get_best_model_parameters(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult}, 
-                              petab_problem::PEtabODEProblem,
-                              condition_id::Union{String, Symbol}; 
-                              pre_eq_id::Union{String, Nothing}=nothing, 
-                              retmap=true)
+    get_fitted_u0(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult}, 
+                  petab_problem::PEtabODEProblem,
+                  condition_id::Union{String, Symbol}; 
+                  pre_eq_id::Union{String, Symbol, Nothing}=nothing, 
+                  retmap=true)
 
-From a PEtab parameter estimation result and model, retrives a full parameter set and intial values 
-to simulate the model.
+From a fitted PEtab model retrieve the inital values (u0) to simulate the model for the specified `condition_id`.
+
+If a `pre_eq_id` is provided, the initial values are taken from the pre-equilibration simulation corresponding to 
+`pre_eq_id`. If there are potential overrides of initial values in the simulation conditions, they take priority over 
+the pre-equilibrium simulation.
+
+If `retmap=true`, a parameter vector is returned; otherwise, a vector is returned.
 """
-function get_best_model_parameters(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult}, 
-                                   petab_problem::PEtabODEProblem,
-                                   condition_id::Union{String, Symbol}; 
-                                   pre_eq_id::Union{String, Symbol, Nothing}=nothing, 
-                                   retmap=true)
+function get_fitted_u0(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult}, 
+                       petab_problem::PEtabODEProblem,
+                       condition_id::Union{String, Symbol}; 
+                       pre_eq_id::Union{String, Symbol, Nothing}=nothing, 
+                       retmap::Bool=true)
+    u0, p = _get_fitted_parameters(res, petab_problem, condition_id, pre_eq_id, retmap)
+    return u0
+end
+
+
+function _get_fitted_parameters(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult}, 
+                                petab_problem::PEtabODEProblem,
+                                condition_id::Union{String, Symbol},
+                                pre_eq_id::Union{String, Symbol, Nothing}, 
+                                retmap::Bool=true)
 
 
     @unpack θ_indices, petab_model, simulation_info, ode_problem = petab_problem
@@ -28,8 +62,8 @@ function get_best_model_parameters(res::Union{PEtabOptimisationResult, PEtabMult
         _pre_eq_id = nothing
     end
 
-    p, ps = ode_problem.p, first.(petab_model.parameter_map)
-    u0, u0s = ode_problem.u0, first.(petab_model.state_map)
+    p, ps = ode_problem.p[:], first.(petab_model.parameter_map)
+    u0, u0s = ode_problem.u0[:], first.(petab_model.state_map)
 
     θT = transformθ(res.xmin, θ_indices.θ_names, θ_indices)
     θ_dynamic, θ_observable, θ_sd, θ_non_dynamic = splitθ(θT, θ_indices)
