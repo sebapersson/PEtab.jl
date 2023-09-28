@@ -300,6 +300,7 @@ struct PEtabODEProblem{F1<:Function,
     ss_solver_gradient::SteadyStateSolver
     θ_indices::ParameterIndices
     simulation_info::SimulationInfo
+    ode_problem::ODEProblem
     split_over_conditions::Bool
 end
 

@@ -242,6 +242,7 @@ function PEtabODEProblem(petab_model::PEtabModel;
                                     _ss_solver_gradient,
                                     θ_indices,
                                     simulation_info,
+                                    _ode_problem,
                                     split_over_conditions)
     return petab_problem
 end
