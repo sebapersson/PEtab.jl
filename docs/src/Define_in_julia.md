@@ -141,7 +141,7 @@ The measurement data should be organized as a `DataFrame` in the following forma
 
 | simulation_id (str) | obs_id (str) | time (float) | measurement (float) |
 |---------------------|--------------|--------------|---------------------|
-| c0                  | obs_P        | 0.0          | 0.7                 |
+| c0                  | obs_P        | 1.0          | 0.7                 |
 | c0                  | obs_Sum      | 10.0         | 0.1                 |
 | c1                  | obs_P        | 1.0          | 1.0                 |
 | c1                  | obs_Sum      | 20.0         | 1.5                 |
@@ -161,7 +161,7 @@ using DataFrames
 measurements = DataFrame(
     simulation_id=["c0", "c0", "c1", "c1"],
     obs_id=["obs_P", "obs_Sum", "obs_P", "obs_Sum"],
-    time=[0.0, 10.0, 1.0, 20.0],
+    time=[1.0, 10.0, 1.0, 20.0],
     measurement=[0.7, 0.1, 1.0, 1.5])
 ```
 
@@ -197,6 +197,8 @@ This example has covered the fundamental aspects of setting up a parameter estim
 - **Steady-State Initialization**: In some cases, you might require your model to be at a steady-state at time zero when starting to match the model against data. To learn how to set up pre-equilibration criteria, see [this](@ref define_with_ss) tutorial.
 
 - **Time-Point Specific Parameters**: You might measure the same observable with different assays, leading to different observable parameters (e.g., scale and offset) and noise parameters for various time points. To handle time-point-specific measurement and noise parameters, see [this](@ref time_point_parameters) tutorial.
+
+- **Condition Specific System/Model Parameters**: Sometimes a subset of model parameters, like protein synthesis rates, vary between simulation conditions, while other parameters remain constant across all conditions. To handle conditions specific parameters, see [this](@ref define_conditions) tutorial.
 
 For guidance on choosing the best options for your specific PEtab problem, we recommend the [Choosing the Best Options for a PEtab Problem](@ref best_options) section and refer to the [Supported Gradient and Hessian Methods](@ref gradient_support) section for more information on available gradient and hessian methods.
 
@@ -264,7 +266,7 @@ simulation_conditions = Dict("c0" => condition_c0,
 measurements = DataFrame(
     simulation_id=["c0", "c0", "c1", "c1"],
     obs_id=["obs_P", "obs_Sum", "obs_P", "obs_Sum"],
-    time=[0.0, 10.0, 1.0, 20.0],
+    time=[1.0, 10.0, 1.0, 20.0],
     measurement=[0.7, 0.1, 1.0, 1.5]
 )
 

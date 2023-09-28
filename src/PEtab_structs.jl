@@ -547,11 +547,11 @@ PEtabObservable(X, noiseParameter1 * X)
 ```
 """
 struct PEtabObservable
-    obs::Num
+    obs::Any
     transformation::Union{Nothing, Symbol}
-    noise_formula::Union{Nothing, Num}
+    noise_formula::Union{Nothing, Any}
 end
-function PEtabObservable(obs::Num, 
+function PEtabObservable(obs::Any, 
                          noise_formula::Union{Nothing, Num, T};
                          transformation::Symbol=:lin)::PEtabObservable where T<:Real
     return PEtabObservable(obs, transformation, noise_formula)

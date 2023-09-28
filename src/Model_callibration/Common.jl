@@ -301,7 +301,7 @@ function _calibrate_model_multistart(petab_problem::PEtabODEProblem,
         end
     end
 
-    res_best = _res[argmin([_res[i].fmin for i in eachindex(_res)])]
+    res_best = _res[argmin([isnan(_res[i].fmin) ? Inf : _res[i].fmin for i in eachindex(_res)])]
     fmin = res_best.fmin
     xmin = res_best.xmin
     sampling_method_str = string(sampling_method)[1:findfirst(x -> x == '(', string(sampling_method))][1:end-1]
