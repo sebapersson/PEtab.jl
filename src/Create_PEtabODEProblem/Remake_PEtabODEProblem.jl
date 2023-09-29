@@ -185,6 +185,7 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem, parameters_change:
                                     petab_problem.ss_solver_gradient,
                                     petab_problem.θ_indices,
                                     petab_problem.simulation_info,
+                                    petab_problem.ode_problem,
                                     petab_problem.split_over_conditions)
     return _petab_problem
 end

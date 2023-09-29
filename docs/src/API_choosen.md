@@ -16,4 +16,6 @@ calibrate_model_multistart
 run_PEtab_select
 solve_SBML
 generate_startguesses
+get_fitted_ps
+get_fitted_u0
 ```

@@ -25,6 +25,10 @@ end
   include("Test_ll.jl")
 end
 
+@safetestset "Utility functions" begin
+  include(joinpath(@__DIR__, "Test_util.jl"))
+end
+
 
 @safetestset "PEtab test suite" begin
   include("PEtab_test_suite.jl")
