@@ -13,32 +13,39 @@ const plot_types_ms = [:objective, :best_objective, :waterfall, :runtime_eval, :
     if !in(plot_type, plot_types)
         error("Argument plot_type have an unrecognised value ($(plot_type)). Alternative values are: $(plot_types).")
     end
-
-    # Sets default values common for all plot types.
-    xlabel --> "Function evaluations"
-    yguide --> "Best objective value"
-    yaxis --> :log10
      
     # Options for different plot types.
     if plot_type == :objective
+        # Fixed
+        label --> ""
+        yaxis --> :log10
+        xlabel --> "Function evaluation"
+        yguide --> "Objective value"
         seriestype --> :scatter
 
-        x_vals = 1:(res.n_iterations+1)
-        y_vals = deepcopy(res.ftrace)
+        # Derived
+        y_vals = res.ftrace
+        x_vals = 1:length(y_vals)
 
-        # In case some values are Infs, reduce these.
-        inf_idxs = isinf.(y_vals)
-        max_val = maximum(filter(!isinf, y_vals))
-        y_vals[inf_idxs] .= max_val
-        markershape --> ifelse.(inf_idxs, :cross, :circle)
+        markershape --> handle_Inf!(y_vals)
     elseif plot_type == :best_objective
+        # Fixed
+        label --> ""
+        yaxis --> :log10
+        xlabel --> "Function evaluation"
+        yguide --> "Best objective value"
         seriestype --> :path
 
-        x_vals = 1:(res.n_iterations+1)
-        y_vals = deepcopy(res.ftrace)
+        # Tunable
+        lw --> 3
+
+        # Derived
+        y_vals = res.ftrace
         for idx in 2:(res.n_iterations+1)
             y_vals[idx] = min(res.ftrace[idx], y_vals[idx-1])
         end
+        x_vals = 1:length(y_vals)
+        xlimit --> (1, length(x_vals))
     end
 
     x_vals, y_vals
