@@ -52,7 +52,12 @@ const plot_types_ms = [:objective, :best_objective, :waterfall, :runtime_eval, :
 end
 
 # Plots the objective function progressions for a PEtabMultistartOptimisationResult.
-@recipe function f(res_ms::PEtabMultistartOptimisationResult; plot_type=:best_objective, best_idxs_n=10, idxs=best_runs(res_ms, plot_type, best_idxs_n), clustering_function=assign_grouped_colors)
+@recipe function f( res_ms::PEtabMultistartOptimisationResult; 
+                    plot_type=:best_objective, 
+                    best_idxs_n=(plot_type in [:waterfall, :runtime_eval] ?  res_ms.n_multistarts : 10), 
+                    idxs=best_runs(res_ms, best_idxs_n), 
+                    clustering_function=assign_grouped_colors)
+    
     # Checks if any values were recorded.
     if isempty(res_ms.runs[1].ftrace)
         error("No function evaluations where recorded in the calibration run, was save_trace=true?")
@@ -150,7 +155,8 @@ end
         # Derived
         p_mins = [minimum(run.xmin[idx] for run in res_ms.runs[idxs]) for idx in 1:length(res_ms.xmin)]
         p_maxs = [maximum(run.xmin[idx] for run in res_ms.runs[idxs]) for idx in 1:length(res_ms.xmin)]
-        x_vals = [[(p_val-p_min)/(p_max-p_min) for (p_val,p_min,p_max) in zip(run.xmin,p_mins,p_maxs)] for run in res_ms.runs]
+        x_vals = [[(p_val-p_min)/(p_max-p_min) for (p_val,p_min,p_max) in zip(run.xmin,p_mins,p_maxs)] for run in res_ms.runs[idxs]]
+
         y_vals = 1:length(res_ms.xmin)
         yticks --> (y_vals, res_ms.xnames)
         color --> clustering_function(res_ms.runs[idxs])
@@ -160,8 +166,7 @@ end
 end
 
 # Finds the best n runs in among all runs, and return their indexes.
-function best_runs(res_ms, plot_type, n)
-    (plot_type in [:waterfall, :runtime_eval]) && return 1:res_ms.n_multistarts
+function best_runs(res_ms, n)
     best_idxs = sortperm(getfield.(res_ms.runs, :fmin))
     return best_idxs[end-min(n, res_ms.n_multistarts)+1:end]
 end
