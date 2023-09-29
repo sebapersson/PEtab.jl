@@ -33,7 +33,9 @@ using Test
     # Beer model
     path_yaml = joinpath(@__DIR__, "Test_ll", "Beer_MolBioSystems2014", "Beer_MolBioSystems2014.yaml")
     petab_model = PEtabModel(path_yaml, verbose=false, build_julia_files=true)
-    petab_problem = PEtabODEProblem(petab_model, verbose=false)
+    petab_problem = PEtabODEProblem(petab_model, verbose=false, 
+                                    ode_solver=ODESolver(Rodas5P()),
+                                    sparse_jacobian=false)
     θ = petab_problem.θ_nominalT .* 0.9
     cost = petab_problem.compute_cost(θ)
     res = PEtabOptimisationResult(:Fides,
