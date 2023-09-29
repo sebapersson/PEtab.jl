@@ -453,18 +453,20 @@ function process_petab_event(event::PEtabEvent, event_name, system)::Tuple{Strin
     if PEtab.is_number(condition) || condition ∈ parameter_names
         condition = "t == " * condition
     elseif condition ∈ state_names
-        str_write = "A PEtab event trigger cannot be a model state as $condition. It must be a Boolean expression, or a 
-                    single constant value or parameter (assuming at that time point an event is triggered)"
-    elseif any(occursin.(["==", "!=", ">", "<", "≥", "≤"], condition))
-        str_write = "A PEtab event trigger must be a Boolean expression (contain ==, !=, >, <, ≤, or ≥), or a single 
-                    value of parameter. This does not hold for $condition"
-
+        str_write = "A PEtab event trigger cannot be a model state as condition. It must be a Boolean expression, or a "
+        str_write *= "single constant value or parameter"
+        throw(PEtabFormatError(str_write))                    
+    elseif !any(occursin.(["==", "!=", ">", "<", "≥", "≤"], condition))
+        str_write = "A PEtab event trigger must be a Boolean expression (contain ==, !=, >, <, ≤, or ≥), or a single "
+        str_write *= "value or parameter. This does not hold for condition: $condition"
+        throw(PEtabFormatError(str_write))                    
     end
 
     # Sanity check, target
     target = replace(string(event.target), "(t)" => "")
     if target ∉ state_names && target ∉ parameter_names
         str_write = "Event target must be either a model parameter or model state. This does not hold for $target"
+        throw(PEtabFormatError(str_write))
     end
 
     condition_has_states = PEtab.check_condition_has_states(condition, state_names)
