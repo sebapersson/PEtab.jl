@@ -60,6 +60,7 @@ function PEtab.calibrate_model(petab_problem::PEtabODEProblem,
                                    fmin, 
                                    _p0,
                                    xmin, 
+                                   petab_problem.θ_names,
                                    converged, 
                                    runtime)
 end

@@ -505,6 +505,7 @@ struct PEtabOptimisationResult{T<:Any}
     fmin::Float64 # Best optimised value 
     x0::Vector{Float64} # Starting point 
     xmin::Vector{Float64} # Last parameter value 
+    xnames::Vector{Symbol}
     converged::T # If user wants to 
     runtime::Float64 # Always fun :)
 end
@@ -512,6 +513,7 @@ end
 
 struct PEtabMultistartOptimisationResult
     xmin::Vector{Float64} # Parameter vectors (if user wants to save them)
+    xnames::Vector{Symbol}
     fmin::Float64 # Likelihood value (if user wants to save them)
     n_multistarts::Int
     alg::Symbol
