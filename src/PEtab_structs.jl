@@ -521,6 +521,15 @@ struct PEtabMultistartOptimisationResult
 end
 
 
+struct PEtabEvent{T1<:Any, 
+                  T2<:Any, 
+                  T3<:Any}
+    condition::T1
+    affect::T2
+    target::T3
+end
+
+
 """
     PEtabObservable(obs_formula, noise_formula; transformation::Symbol=:lin)
 

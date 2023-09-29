@@ -31,6 +31,7 @@ function create_callbacks_for_piecewise(system::ODESystem,
         callback_names = ""
         check_activated_t0_names = ""
         write_tstops_str *= "\t return Float64[]\nend\n"
+        convert_tspan = false
     else
         for key in keys(SBML_dict["boolVariables"])
             function_str, callback_str =  create_callback(key, SBML_dict, p_ode_problem_names, model_state_names)
@@ -52,12 +53,9 @@ function create_callbacks_for_piecewise(system::ODESystem,
             check_activated_t0_names = ""
         end
 
-        write_tstops_str *= "\treturn" * create_tstops_function(SBML_dict, model_state_names, p_ode_problem_names, θ_indices) * "\n" * "end"
+        _write_tstops_str, convert_tspan = create_tstops_function(SBML_dict, model_state_names, p_ode_problem_names, θ_indices)
+        write_tstops_str *= "\treturn" * _write_tstops_str  * "\n" * "end"
     end
-
-    # Check whether or not the trigger for a discrete callback depends on a parameter or not. If true then the time-span
-    # must be converted to dual when computing the gradient using ForwardDiff.
-    convert_tspan = check_convert_tspan(SBML_dict, system, θ_indices)::Bool
 
     write_callbacks_str *= "\treturn CallbackSet(" * callback_names * "), Function[" * check_activated_t0_names * "], " * string(convert_tspan)  * "\nend"
     path_save = joinpath(dir_julia, model_name * "_callbacks.jl")
@@ -213,8 +211,32 @@ function create_tstops_function(SBML_dict::Dict,
                                 p_ode_problem_names::Vector{String},
                                 θ_indices::Union{ParameterIndices, Nothing})
 
-    convert_tspan = false
     condition_formulas = vcat([SBML_dict["boolVariables"][key][1] for key in keys(SBML_dict["boolVariables"])], [SBML_dict["events"][key][1] for key in keys(SBML_dict["events"])])
+
+    return _create_tstops_function(condition_formulas, model_state_names, p_ode_problem_names, θ_indices)
+end
+function create_tstops_function(events::Vector{T},
+                                system,
+                                θ_indices::Union{ParameterIndices, Nothing}) where T<:PEtabEvent
+
+    model_state_names = replace.(string.(states(system)), "(t)" => "")        
+    p_ode_problem_names = string.(parameters(system))    
+    condition_formulas = [string(event.condition) for event in events]
+    for (i, condition) in pairs(condition_formulas)
+        if PEtab.is_number(condition) || condition ∈ p_ode_problem_names
+            condition_formulas[i] = "t == " * condition
+        end
+    end
+    return _create_tstops_function(condition_formulas, model_state_names, p_ode_problem_names, θ_indices)
+end
+
+
+function _create_tstops_function(condition_formulas::Vector{String},
+                                 model_state_names::Vector{String},
+                                 p_ode_problem_names::Vector{String},
+                                 θ_indices::Union{ParameterIndices, Nothing})
+
+    convert_tspan = false
     tstops_str = Vector{String}(undef, length(condition_formulas))
     tstops_str_alt = Vector{String}(undef, length(condition_formulas))
     i = 1
@@ -237,17 +259,12 @@ function create_tstops_function(SBML_dict::Dict,
         # We need to make the parameters and states symbolic in order to solve the condition expression
         # using the Symbolics package.
         variables_str = "@variables t, "
-        variables_str *= prod(string.(collect(keys(SBML_dict["parameters"]))) .* ", " )[1:end-2] * " "
-        variables_str *= prod(string.(collect(keys(SBML_dict["states"]))) .* ", " )[1:end-2]
+        variables_str *= prod(string.(collect(p_ode_problem_names)) .* ", " )[1:end-2] * " "
+        variables_str *= prod(string.(collect(model_state_names)) .* ", " )[1:end-2]
         variables_symbolic = eval(Meta.parse(variables_str))
 
         # Note - below order counts (e.g having < first results in ~= incase what actually stands is <=)
-        condition_formula = replace(condition_formula, "<=" => "~")
-        condition_formula = replace(condition_formula, ">=" => "~")
-        condition_formula = replace(condition_formula, "≥" => "~")
-        condition_formula = replace(condition_formula, "≤" => "~")
-        condition_formula = replace(condition_formula, "<" => "~")
-        condition_formula = replace(condition_formula, ">" => "~")
+        condition_formula = replace(condition_formula, r"≤|≥|<=|>=|<|>|==" => "~")
         condition_symbolic = eval(Meta.parse(condition_formula))
 
         # Expression for the time at which the condition is triggered
@@ -267,9 +284,11 @@ function create_tstops_function(SBML_dict::Dict,
     end
 
     if convert_tspan == true
-        return"[" * prod([isempty(tstops_str_alt[i]) ? "" : tstops_str_alt[i] * ", " for i in eachindex(tstops_str_alt)])[1:end-2] * "]"
+        tstops = "[" * prod([isempty(tstops_str_alt[i]) ? "" : tstops_str_alt[i] * ", " for i in eachindex(tstops_str_alt)])[1:end-2] * "]"
+        return tstops, convert_tspan
     else
-        return " Float64[" * prod([isempty(tstops_str[i]) ? "" : tstops_str[i] * ", " for i in eachindex(tstops_str)])[1:end-2] * "]"
+        tstops = " Float64[" * prod([isempty(tstops_str[i]) ? "" : tstops_str[i] * ", " for i in eachindex(tstops_str)])[1:end-2] * "]"
+        return tstops, convert_tspan
     end
 end
 
@@ -286,8 +305,8 @@ end
 
 
 function check_has_parameter_to_estimate(condition_formula::AbstractString,
-                                          p_ode_problem_names::Vector{String},
-                                          θ_indices::ParameterIndices)::Bool
+                                         p_ode_problem_names::Vector{String},
+                                         θ_indices::ParameterIndices)::Bool
 
     # Parameters which are present for each experimental condition, and condition specific parameters
     i_ode_θ_all_conditions = θ_indices.map_ode_problem.i_ode_problem_θ_dynamic
@@ -299,23 +318,6 @@ function check_has_parameter_to_estimate(condition_formula::AbstractString,
             if i ∈ i_ode_θ_all_conditions || i ∈ i_ode_problem_θ_dynamicCondition
                 return true
             end
-        end
-    end
-    return false
-end
-
-
-# Function checking if the condition of the picewise conditions depends on a parameter which is to be estimated.
-# In case of true the time-span need to be converted to Dual when computing the gradient (or hessian) of the
-# the model via automatic differentitation
-function check_convert_tspan(SBML_dict::Dict, system::ODESystem, θ_indices)::Bool
-
-    p_ode_problem_names = string.(parameters(system))
-    for key in keys(SBML_dict["boolVariables"])
-
-        condition_formula = SBML_dict["boolVariables"][key][1]
-        if check_has_parameter_to_estimate(condition_formula, p_ode_problem_names, θ_indices)
-            return true
         end
     end
     return false

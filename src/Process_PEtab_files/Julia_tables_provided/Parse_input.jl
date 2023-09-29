@@ -416,6 +416,120 @@ function parse_petab_observables(observables::Dict{String, PEtabObservable})::Da
 end
 
 
+function process_petab_events(events::Union{PEtabEvent, Vector{T}}, 
+                              system, 
+                              model_name::String, 
+                              θ_indices::ParameterIndices) where T<:PEtabEvent
+
+    # Must be a vector for downstream processing 
+    if events isa PEtabEvent
+        events = [events]
+    end
+
+    write_callbacks_str = "function getCallbacks_" * model_name * "(foo)\n"
+    write_tstops_str = "\nfunction computeTstops(u::AbstractVector, p::AbstractVector)\n"
+    for (i, event) in pairs(events)
+        event_name = "event" * string(i)
+        function_str, callback_str = process_petab_event(event, event_name, system)
+        write_callbacks_str *= function_str * "\n"
+        write_callbacks_str *= callback_str * "\n"
+    end
+    callback_names = prod(["cb_event" * string(i) * ", " for i in eachindex(events)])[1:end-2]
+    _write_tstops_str, convert_tspan = PEtab.create_tstops_function(events, system, θ_indices)
+    write_tstops_str *= "\treturn" * _write_tstops_str  * "\n" * "end"
+
+    write_callbacks_str *= "\treturn CallbackSet(" * callback_names * "), Function[], " * string(convert_tspan)  * "\nend"
+
+    return write_callbacks_str, write_tstops_str
+end
+
+
+function process_petab_event(event::PEtabEvent, event_name, system)::Tuple{String, String}
+    state_names = replace.(string.(states(system)), "(t)" => "")
+    parameter_names = string.(parameters(system))
+
+    # Sanity check input, trigger 
+    condition = replace(string(event.condition), "(t)" => "")
+    if PEtab.is_number(condition) || condition ∈ parameter_names
+        condition = "t == " * condition
+    elseif condition ∈ state_names
+        str_write = "A PEtab event trigger cannot be a model state as $condition. It must be a Boolean expression, or a 
+                    single constant value or parameter (assuming at that time point an event is triggered)"
+    elseif any(occursin.(["==", "!=", ">", "<", "≥", "≤"], condition))
+        str_write = "A PEtab event trigger must be a Boolean expression (contain ==, !=, >, <, ≤, or ≥), or a single 
+                    value of parameter. This does not hold for $condition"
+
+    end
+
+    # Sanity check, target
+    target = replace(string(event.target), "(t)" => "")
+    if target ∉ state_names && target ∉ parameter_names
+        str_write = "Event target must be either a model parameter or model state. This does not hold for $target"
+    end
+
+    condition_has_states = PEtab.check_condition_has_states(condition, state_names)
+    discrete_event = condition_has_states == false 
+
+    if discrete_event == true
+        # Only for time-triggered events, here we can help the user to replace any 
+        # in-equality signs used 
+        condition = replace(condition, r"≤|≥|<=|>=|<|>" => "==")
+
+    elseif discrete_event == false
+        # If we have a trigger on the form a ≤ b then event should only be 
+        # activated when crossing the condition from left -> right. Reverse
+        # holds for ≥
+        affect_neg = any(occursin.(["≤", "<", "=<"], condition))
+        affect_equality = occursin.("==", condition)
+        condition = replace(condition, r"≤|≥|<=|>=|<|>|==" => "-")
+    end
+
+    # Building the condition syntax for the event 
+    for i in eachindex(state_names)
+        condition = PEtab.replace_whole_word(condition, state_names[i], "u["*string(i)*"]")
+    end
+    for i in eachindex(parameter_names)
+        condition = PEtab.replace_whole_word(condition, parameter_names[i], "integrator.p["*string(i)*"]")
+    end
+    condition_str = "\n\tfunction condition_" * event_name * "(u, t, integrator)\n\t\t" * condition * "\n\tend\n"
+
+    # Build the affect syntax for the event. Note, a tmp variable is used in case of several affects. For example, if the 
+    # event affects u[1] and u[2], then I do not want that a change in u[1] should affect the value for u[2], similar holds 
+    # for parameters 
+    # TODO Allow vector trigger 
+    affect_str = "\tfunction affect_" * event_name * "!(integrator)\n\t\tu_tmp = similar(integrator.u)\n\t\tu_tmp .= integrator.u\n\t\tp_tmp = similar(integrator.p)\n\t\tp_tmp .= integrator.p\n\n"
+    affect = replace(string(event.affect), "(t)" => "")
+    _affect = target * " = " * affect
+    _affect1, _affect2 = split(_affect, "=")
+    for j in eachindex(state_names)
+        _affect1 = PEtab.replace_whole_word(_affect1, state_names[j], "integrator.u["*string(j)*"]")
+        _affect2 = PEtab.replace_whole_word(_affect2, state_names[j], "u_tmp["*string(j)*"]")
+    end
+    for j in eachindex(parameter_names)
+        _affect1 = PEtab.replace_whole_word(_affect1, parameter_names[j], "integrator.p["*string(j)*"]")
+        _affect2 = PEtab.replace_whole_word(_affect2, parameter_names[j], "p_tmp["*string(j)*"]")
+    end
+    affect_str *= "\t\t" * _affect1 * " = " * _affect2 * '\n' * "\tend"
+
+    # Build the callback 
+    if discrete_event == false
+        if affect_equality == true
+            callback_str = "\tcb_" * event_name * " = ContinuousCallback(" * "condition_" * event_name * ", " * "affect_" * event_name * "!, "
+        elseif affect_neg == true
+            callback_str = "\tcb_" * event_name * " = ContinuousCallback(" * "condition_" * event_name * ", nothing, " * "affect_" * event_name * "!, "
+        else
+            callback_str = "\tcb_" * event_name * " = ContinuousCallback(" * "condition_" * event_name * ", " * "affect_" * event_name * "!, nothing, "
+        end
+    else
+        callback_str = "\tcb_" * event_name * " = DiscreteCallback(" * "condition_" * event_name * ", " * "affect_" * event_name * "!, "
+    end
+    callback_str *= "save_positions=(false, false))\n" # So we do not get problems with saveat in the ODE solver 
+    function_str = condition_str * '\n' * affect_str * '\n' 
+
+    return function_str, callback_str
+end
+
+
 function dataframe_to_CSVFile(df::DataFrame)
     io = IOBuffer()
     io = CSV.write(io, df)

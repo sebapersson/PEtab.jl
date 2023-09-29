@@ -1,5 +1,5 @@
 """
-    get_fitted_ps(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult}, 
+    get_fitted_ps(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult, Vector{Float64}}, 
                   petab_problem::PEtabODEProblem;
                   condition_id::Union{String, Symbol, Nothing}=nothing,
                   retmap::Bool=true)
@@ -11,7 +11,7 @@ parameters for the first (default) simulation condition are returned.
 
 If `retmap=true`, a parameter vector is returned; otherwise, a vector is returned.
 """
-function get_fitted_ps(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult}, 
+function get_fitted_ps(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult, Vector{Float64}}, 
                        petab_problem::PEtabODEProblem;
                        condition_id::Union{String, Symbol, Nothing}=nothing,
                        retmap=true)
@@ -22,7 +22,7 @@ end
 
 
 """
-    get_fitted_u0(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult}, 
+    get_fitted_u0(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult, Vector{Float64}}, 
                   petab_problem::PEtabODEProblem;
                   condition_id::Union{String, Symbol}=nothing,
                   pre_eq_id::Union{String, Symbol, Nothing}=nothing, 
@@ -39,7 +39,7 @@ the pre-equilibrium simulation.
 
 If `retmap=true`, a parameter vector is returned; otherwise, a vector is returned.
 """
-function get_fitted_u0(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult}, 
+function get_fitted_u0(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult, Vector{Float64}}, 
                        petab_problem::PEtabODEProblem;
                        condition_id::Union{String, Symbol, Nothing}=nothing,
                        pre_eq_id::Union{String, Symbol, Nothing}=nothing, 
@@ -49,7 +49,7 @@ function get_fitted_u0(res::Union{PEtabOptimisationResult, PEtabMultistartOptimi
 end
 
 
-function _get_fitted_parameters(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult}, 
+function _get_fitted_parameters(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult, Vector{Float64}}, 
                                 petab_problem::PEtabODEProblem,
                                 condition_id::Union{String, Symbol, Nothing},
                                 pre_eq_id::Union{String, Symbol, Nothing}, 
@@ -75,7 +75,11 @@ function _get_fitted_parameters(res::Union{PEtabOptimisationResult, PEtabMultist
     p, ps = ode_problem.p[:], first.(petab_model.parameter_map)
     u0, u0s = ode_problem.u0[:], first.(petab_model.state_map)
 
-    θT = transformθ(res.xmin, θ_indices.θ_names, θ_indices)
+    if res isa Vector{Float64}
+        θT = transformθ(res, θ_indices.θ_names, θ_indices)
+    else
+        θT = transformθ(res.xmin, θ_indices.θ_names, θ_indices)
+    end
     θ_dynamic, θ_observable, θ_sd, θ_non_dynamic = splitθ(θT, θ_indices)
 
     # Set constant model parameters 
