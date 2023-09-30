@@ -1,9 +1,5 @@
 module PEtabPlotsExtension
 
-
-println("Plots extension laoded")
-GGF(X::Float64) = println("PEtab Plots extension loaded sucesfully")
-
 import PEtab: PEtabOptimisationResult, PEtabMultistartOptimisationResult
 using Plots
 using RuntimeGeneratedFunctions
