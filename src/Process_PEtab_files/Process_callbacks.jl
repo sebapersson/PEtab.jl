@@ -211,7 +211,7 @@ function create_tstops_function(SBML_dict::Dict,
                                 p_ode_problem_names::Vector{String},
                                 θ_indices::Union{ParameterIndices, Nothing})
 
-    condition_formulas = vcat([SBML_dict["boolVariables"][key][1] for key in keys(SBML_dict["boolVariables"])], [SBML_dict["events"][key][1] for key in keys(SBML_dict["events"])])
+    condition_formulas = string.(vcat([SBML_dict["boolVariables"][key][1] for key in keys(SBML_dict["boolVariables"])], [SBML_dict["events"][key][1] for key in keys(SBML_dict["events"])]))
 
     return _create_tstops_function(condition_formulas, model_state_names, p_ode_problem_names, θ_indices)
 end

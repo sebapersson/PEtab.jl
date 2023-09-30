@@ -6,6 +6,7 @@
                petab_parameters::Vector{PEtabParameter};
                state_map::Union{Nothing, Vector{Pair}=nothing,
                parameter_map::Union{Nothing, Vector{Pair}=nothing,
+               events::Union{Nothing, PEtabEvent, Vector{PEtabEvent}}=nothing,
                verbose::Bool=false)::PEtabModel
 
 Create a PEtabModel directly in Julia from a Catalyst reaction system or MTK ODESystem.
@@ -20,6 +21,7 @@ For additional information on the input format, see the main documentation.
 - `petab_parameters::Vector{PEtab.PEtabParameter}`: Parameters to estimate in PEtabParameter format.
 - `state_map=nothing`: An optional state-map to set initial species values to be constant across all simulation conditions.
 - `parameter_map=nothing`: An optional state-map to set parameter values to be constant across all simulation conditions.
+- `events=nothing`: Potential model event (callbacks) defined via `PEtabEvent`. In case of several events provide a vector of `PEtabEvent`.
 - `verbose::Bool=false`: Whether to print progress when building the model.
 
 # Example
@@ -93,11 +95,12 @@ end
                petab_parameters::Vector{PEtabParameter};
                state_map::Union{Nothing, Vector{Pair}=nothing,
                parameter_map::Union{Nothing, Vector{Pair}=nothing,
+               events::Union{Nothing, PEtabEvent, Vector{PEtabEvent}}=nothing,
                verbose::Bool=false)::PEtabModel
 
 Create a PEtabModel directly in Julia from a Catalyst ReactionSystem or MTK ODESystem without simulation conditions.
 
-In case of simulation conditions, see above.
+In case of simulation conditions, and for all arguments, see above.
 """
 function PEtabModel(system::ODESystem,
                     observables::Dict{String, PEtab.PEtabObservable},
