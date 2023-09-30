@@ -184,3 +184,8 @@ function show(io::IO, a::PEtabObservable)
         @printf(io, "normal (Gaussian) measurement noise")
     end
 end
+function show(io::IO, a::PEtabEvent)
+    printstyled(io, "PEtabEvent", color=116)
+    condition = is_number(string(a.condition)) ? "t == " * string(a.condition) : string(a.condition)
+    @printf(io, ": condition %s, affect %s = %s", condition, string(a.target), string(a.affect))
+end

@@ -6,6 +6,7 @@
                petab_parameters::Vector{PEtabParameter};
                state_map::Union{Nothing, Vector{Pair}=nothing,
                parameter_map::Union{Nothing, Vector{Pair}=nothing,
+               events::Union{Nothing, PEtabEvent, Vector{PEtabEvent}}=nothing,
                verbose::Bool=false)::PEtabModel
 
 Create a PEtabModel directly in Julia from a Catalyst reaction system or MTK ODESystem.
@@ -20,6 +21,7 @@ For additional information on the input format, see the main documentation.
 - `petab_parameters::Vector{PEtab.PEtabParameter}`: Parameters to estimate in PEtabParameter format.
 - `state_map=nothing`: An optional state-map to set initial species values to be constant across all simulation conditions.
 - `parameter_map=nothing`: An optional state-map to set parameter values to be constant across all simulation conditions.
+- `events=nothing`: Potential model event (callbacks) defined via `PEtabEvent`. In case of several events provide a vector of `PEtabEvent`.
 - `verbose::Bool=false`: Whether to print progress when building the model.
 
 # Example
@@ -79,11 +81,12 @@ function PEtabModel(system::ODESystem,
                     petab_parameters::Vector{PEtab.PEtabParameter};
                     state_map::Union{Nothing, Vector{Pair{T1, Float64}}}=nothing,
                     parameter_map::Union{Nothing, Vector{Pair{T2, Float64}}}=nothing,
-                    verbose::Bool=false)::PEtab.PEtabModel where {T1<:Union{Symbol, Any}, T2<:Union{Symbol, Any}, T<:Dict}
+                    events::Union{T3, Vector{T3}, Nothing}=nothing,
+                    verbose::Bool=false)::PEtab.PEtabModel where {T1<:Union{Symbol, Any}, T2<:Union{Symbol, Any}, T<:Dict, T3<:PEtabEvent}
 
     model_name = "ODESystemModel"                          
     return _PEtabModel(system, model_name, simulation_conditions, observables, measurements, 
-                       petab_parameters, state_map, parameter_map, verbose)
+                       petab_parameters, state_map, parameter_map, events, verbose)
 end
 """
     PEtabModel(system::Union{ReactionSystem, ODESystem},
@@ -92,11 +95,12 @@ end
                petab_parameters::Vector{PEtabParameter};
                state_map::Union{Nothing, Vector{Pair}=nothing,
                parameter_map::Union{Nothing, Vector{Pair}=nothing,
+               events::Union{Nothing, PEtabEvent, Vector{PEtabEvent}}=nothing,
                verbose::Bool=false)::PEtabModel
 
 Create a PEtabModel directly in Julia from a Catalyst ReactionSystem or MTK ODESystem without simulation conditions.
 
-In case of simulation conditions, see above.
+In case of simulation conditions, and for all arguments, see above.
 """
 function PEtabModel(system::ODESystem,
                     observables::Dict{String, PEtab.PEtabObservable},
@@ -104,12 +108,13 @@ function PEtabModel(system::ODESystem,
                     petab_parameters::Vector{PEtab.PEtabParameter};
                     state_map::Union{Nothing, Vector{Pair{T1, Float64}}}=nothing,
                     parameter_map::Union{Nothing, Vector{Pair{T2, Float64}}}=nothing,
-                    verbose::Bool=false)::PEtab.PEtabModel where {T1<:Union{Symbol, Any}, T2<:Union{Symbol, Any}}
+                    events::Union{T3, Vector{T3}, Nothing}=nothing,
+                    verbose::Bool=false)::PEtab.PEtabModel where {T1<:Union{Symbol, Any}, T2<:Union{Symbol, Any},  T3<:PEtabEvent}
 
     simulation_conditions = Dict("__c0__" => Dict())                        
     model_name = "ODESystemModel"                          
     return _PEtabModel(system, model_name, simulation_conditions, observables, measurements, 
-                       petab_parameters, state_map, parameter_map, verbose)
+                       petab_parameters, state_map, parameter_map, events, verbose)
 end
 
 
@@ -121,7 +126,8 @@ function _PEtabModel(system,
                      petab_parameters::Vector{PEtab.PEtabParameter},
                      state_map::Union{Nothing, Vector{Pair{T1, Float64}}},
                      parameter_map::Union{Nothing, Vector{Pair{T2, Float64}}},
-                     verbose::Bool)::PEtab.PEtabModel where {T1<:Union{Symbol, Any}, T2<:Union{Symbol, Any}, T<:Dict}
+                     events::Union{T3, Vector{T3}, Nothing},
+                     verbose::Bool)::PEtab.PEtabModel where {T1<:Union{Symbol, Any}, T2<:Union{Symbol, Any}, T<:Dict, T3<:PEtabEvent}
 
     verbose == true && @info "Building PEtabModel for $model_name"
 
@@ -177,16 +183,6 @@ function _PEtabModel(system,
     end
     verbose == true && @printf(" done. Time = %.1e\n", time_taken)
 
-    # For Callbacks. These function are needed by SBML generated PEtab-files, as for those we as an example rewrite
-    # piecewise expressions into events
-    write_callbacks_str = "function getCallbacks_" * model_name * "(foo)\n"
-    write_tstops_str = "\nfunction compute_tstops(u::AbstractVector, p::AbstractVector)\n"
-    write_tstops_str *= "\t return Float64[]\nend\n"
-    write_callbacks_str *= "\treturn CallbackSet(), Function[], false\nend"
-    get_callback_function = @RuntimeGeneratedFunction(Meta.parse(write_callbacks_str))
-    cbset, check_cb_active, convert_tspan = get_callback_function("https://xkcd.com/2694/") # Argument needed by @RuntimeGeneratedFunction
-    compute_tstops = @RuntimeGeneratedFunction(Meta.parse(write_tstops_str))
-
     _parameter_map = [Num(p) => 0.0 for p in parameters(system)]
     for i in eachindex(_parameter_map)
         if isnothing(parameter_map)
@@ -200,6 +196,23 @@ function _PEtabModel(system,
         end
     end
 
+    # For Callbacks. These function are needed by SBML generated PEtab-files, as for those we as an example rewrite
+    # piecewise expressions into events
+    if isnothing(events)
+        write_callbacks_str = "function getCallbacks_" * model_name * "(foo)\n"
+        write_tstops_str = "\nfunction compute_tstops(u::AbstractVector, p::AbstractVector)\n"
+        write_tstops_str *= "\t return Float64[]\nend\n"
+        write_callbacks_str *= "\treturn CallbackSet(), Function[], false\nend"
+    else
+        parameter_info = process_parameters(parameters_data)
+        measurement_info = process_measurements(measurements_data, observables_data)
+        θ_indices = compute_θ_indices(parameter_info, measurement_info, system, _parameter_map, _state_map, experimental_conditions)
+        write_callbacks_str, write_tstops_str = process_petab_events(events, system, model_name, θ_indices)
+    end
+    get_callback_function = @RuntimeGeneratedFunction(Meta.parse(write_callbacks_str))
+    cbset, check_cb_active, convert_tspan = get_callback_function("https://xkcd.com/2694/") # Argument needed by @RuntimeGeneratedFunction
+    compute_tstops = @RuntimeGeneratedFunction(Meta.parse(write_tstops_str))
+
     petab_model = PEtabModel(model_name,
                              compute_h,
                              compute_u0!,
@@ -210,7 +223,7 @@ function _PEtabModel(system,
                              compute_∂h∂p!,
                              compute_∂σ∂σp!,
                              compute_tstops,
-                             false,
+                             convert_tspan,
                              system,
                              _parameter_map,
                              _state_map,

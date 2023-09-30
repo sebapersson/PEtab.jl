@@ -21,6 +21,7 @@ using Test
                                   cost,
                                   θ ./ 0.9,
                                   θ,
+                                  petab_problem.θ_names,
                                   true,
                                   10.0)
     c_id = :model1_data1
@@ -45,6 +46,7 @@ using Test
                                   cost,
                                   θ ./ 0.9,
                                   θ,
+                                  petab_problem.θ_names,
                                   true,
                                   10.0)
     c_id = :typeIDT1_ExpID1
@@ -67,6 +69,7 @@ using Test
                                   cost,
                                   θ ./ 0.9,
                                   θ,
+                                  petab_problem.θ_names,
                                   true,
                                   10.0)
     c_id = :Dose_01

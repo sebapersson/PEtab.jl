@@ -505,6 +505,7 @@ struct PEtabOptimisationResult{T<:Any}
     fmin::Float64 # Best optimised value 
     x0::Vector{Float64} # Starting point 
     xmin::Vector{Float64} # Last parameter value 
+    xnames::Vector{Symbol}
     converged::T # If user wants to 
     runtime::Float64 # Always fun :)
 end
@@ -512,12 +513,74 @@ end
 
 struct PEtabMultistartOptimisationResult
     xmin::Vector{Float64} # Parameter vectors (if user wants to save them)
+    xnames::Vector{Symbol}
     fmin::Float64 # Likelihood value (if user wants to save them)
     n_multistarts::Int
     alg::Symbol
     multistart_method::String
     dir_save::Union{String, Nothing}
     runs::Vector{PEtabOptimisationResult} # See above
+end
+
+
+"""
+    PEtabEvent(condition, affect, target)
+
+An event triggered by `condition` that sets the value of `target` to that of `affect`.
+    
+If `condition` is a single value or model parameter (e.g., `c1` or `1.0`), the event is triggered when 
+time reaches that value (e.g., `t == c1` or `t == 1.0`). Condition can also depend on model states, 
+for example, `S == 2.0` will trigger the event when the state `S` reaches the value 2.0. In contrast, 
+`S > 2.0` will trigger the condition when `S` increases from below 2.0 (specifically, the event is 
+triggered when the condition changes from `false` to `true`). Note that the condition can contain 
+model parameter values or species, e.g., `S > c1`.
+    
+`affect` can be a constant value (e.g., `1.0`) or an algebraic expression of model parameters/states. 
+For example, to add `5.0` to the state `S`, write `S + 5`.
+    
+`target` is either a model state or parameter that the event acts on.
+    
+For more details, see the documentation.
+
+!!! note
+    If the condition and target are single parameters or states, they can be specied as `Num` (from unpack) or `Symbol`. 
+    If the event involves multiple parameters or states, you must provide them as either a `Num` (as shown below) or a 
+    `String`.
+
+## Examples 
+```julia
+using Catalyst
+# Trigger event at t = 3.0, add 5 to A
+rn = @reaction_network begin
+    (k1, k2), A <--> B
+end
+@unpack A = rn
+event = PEtabEvent(3.0, A + 5.0, A)
+```
+```julia
+using Catalyst
+# Trigger event at t = k1, set k2 to 3
+rn = @reaction_network begin
+    (k1, k2), A <--> B
+end
+event = PEtabEvent(:k1, 3.0, :k2)
+```
+```julia
+using Catalyst
+# Trigger event when A == 0.2, set B to 2.0
+rn = @reaction_network begin
+    (k1, k2), A <--> B
+end
+@unpack A, B = rn
+event = PEtabEvent(A == 0.2, 2.0, B)
+```
+"""
+struct PEtabEvent{T1<:Any, 
+                  T2<:Any, 
+                  T3<:Any}
+    condition::T1
+    affect::T2
+    target::T3
 end
 
 

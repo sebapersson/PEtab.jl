@@ -200,6 +200,8 @@ This example has covered the fundamental aspects of setting up a parameter estim
 
 - **Condition Specific System/Model Parameters**: Sometimes a subset of model parameters, like protein synthesis rates, vary between simulation conditions, while other parameters remain constant across all conditions. To handle conditions specific parameters, see [this](@ref define_conditions) tutorial.
 
+- **Events**: Sometimes a model incorporates events like substrate addition at specific time points, and/or parameter changes when a state/species reaches certain values. To manage these events/callbacks, see [this](@ref define_events) tutorial.
+
 For guidance on choosing the best options for your specific PEtab problem, we recommend the [Choosing the Best Options for a PEtab Problem](@ref best_options) section and refer to the [Supported Gradient and Hessian Methods](@ref gradient_support) section for more information on available gradient and hessian methods.
 
 ## Runnable Example

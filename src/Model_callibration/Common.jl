@@ -306,6 +306,7 @@ function _calibrate_model_multistart(petab_problem::PEtabODEProblem,
     xmin = res_best.xmin
     sampling_method_str = string(sampling_method)[1:findfirst(x -> x == '(', string(sampling_method))][1:end-1]
     results = PEtabMultistartOptimisationResult(xmin,
+                                                petab_problem.θ_names,
                                                 fmin,
                                                 n_multistarts,
                                                 res_best.alg,
