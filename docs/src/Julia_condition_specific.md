@@ -1,6 +1,6 @@
 # [Condition Specific System/Model Parameters](@id define_conditions)
 
-In some cases, certain model such like a substrate enzyme binding rate may vary between experimental conditions while other parameters remain constant. These condition-specific parameters can be defined via the simulation conditions. To demonstrate how, let us consider the same enzyme kinetics model as used in the [Creating a PEtab Parameter Estimation Problem in Julia](@ref define_in_julia) tutorial.
+In some cases, certain model parameters such like a substrate enzyme binding rate may vary between experimental conditions while other parameters remain constant. These condition-specific parameters can be defined via the simulation conditions. To demonstrate how, let us consider the same enzyme kinetics model as used in the [Creating a PEtab Parameter Estimation Problem in Julia](@ref define_in_julia) tutorial.
 
 ```julia
 using Catalyst

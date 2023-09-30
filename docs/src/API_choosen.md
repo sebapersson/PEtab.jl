@@ -5,6 +5,7 @@ PEtabModel
 PEtabODEProblem
 PEtabObservable
 PEtabParameter
+PEtabEvent
 ODESolver
 SteadyStateSolver
 remake_PEtab_problem
