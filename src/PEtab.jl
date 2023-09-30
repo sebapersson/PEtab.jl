@@ -124,7 +124,5 @@ if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabPlotsExtension.jl"))
 end
 
-export GGF
-GGF(X::Int64) = println("PEtab loaded sucesfully")
 
 end
