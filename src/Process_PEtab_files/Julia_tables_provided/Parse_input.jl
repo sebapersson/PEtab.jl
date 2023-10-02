@@ -92,6 +92,9 @@ function parse_petab_parameters(petab_parameters::Vector{PEtabParameter},
         cond2 = model_parameter ∉ condition_parameters
         cond3 = isnothing(parameter_map) ? true : model_parameter ∉ string.(first.(parameter_map))
         cond4 = isnothing(state_map) ? true : model_parameter ∉ string.(first.(state_map))
+        if model_parameter[1:2] == "__" && model_parameter[end-2:end] == "__"
+            continue
+        end
         if cond1 && cond2 && cond3 && cond4 
             @warn "No value has been specified for model parameters $model_parameter, it defaults to zero"
         end

@@ -1,17 +1,108 @@
 """
-    get_fitted_ps(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult, Vector{Float64}}, 
-                  petab_problem::PEtabODEProblem;
-                  condition_id::Union{String, Symbol, Nothing}=nothing,
-                  retmap::Bool=true)
+    get_odesol(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult, Vector{Float64}}, 
+               petab_problem::PEtabODEProblem;
+               condition_id::Union{String, Symbol, Nothing}=nothing, 
+               pre_eq_id::Union{String, Symbol, Nothing}=nothing)
 
-From a fitted PEtab model retrieve the ODE parameters to simulate the model.
+From a fitted PEtab model or parameter vector retrieve the ODE solution for the specified `condition_id`.
 
 If `condition_id` is provided, the parameters are extracted for that specific simulation condition. If not provided, 
 parameters for the first (default) simulation condition are returned.
 
+If a `pre_eq_id` is provided, the initial values are taken from the pre-equilibration simulation corresponding to 
+`pre_eq_id`.
+
+If a parameter vector is provided it must have the parameters in the same order as `petab_problem.θ_names`.
+
+Potential events are accounted for when solving the ODE model. The ODE solver options specified when creating the 
+`petab_problem` are used for solving the model.
+"""
+function get_odesol(θ::Vector{Float64},
+                    petab_problem::PEtabODEProblem;
+                    condition_id::Union{String, Symbol, Nothing}=nothing,
+                    pre_eq_id::Union{String, Symbol, Nothing}=nothing)
+
+    @unpack simulation_info, ode_solver = petab_problem
+    if isnothing(condition_id)
+        condition_id = simulation_info.simulation_condition_id[1]
+    end
+
+    u0, p = _get_fitted_parameters(θ, petab_problem, condition_id, pre_eq_id, false)
+    tmax = petab_problem.simulation_info.tmax[condition_id]
+    ode_problem = remake(petab_problem.ode_problem, p=p, u0=u0, tspan=(0.0, tmax))
+
+    cbset = petab_problem.petab_model.model_callbacks
+    tstops = petab_problem.petab_model.compute_tstops(u0, p)
+
+    @unpack solver, abstol, reltol = ode_solver
+    return solve(ode_problem, solver, abstol=abstol, reltol=reltol, callback=cbset, tstops=tstops)
+end
+
+
+"""
+    get_odeproblem(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult, Vector{Float64}}, 
+                   petab_problem::PEtabODEProblem;
+                   condition_id::Union{String, Symbol, Nothing}=nothing, 
+                   pre_eq_id::Union{String, Symbol, Nothing}=nothing)
+
+From a fitted PEtab model or parameter vector retrieve the `ODEProblem` and callbacks to simulate the model for the specified `condition_id`.
+
+If `condition_id` is provided, the parameters are extracted for that specific simulation condition. If not provided, 
+parameters for the first (default) simulation condition are returned.
+
+If a `pre_eq_id` is provided, the initial values are taken from the pre-equilibration simulation corresponding to 
+`pre_eq_id`.
+
+If a parameter vector is provided it must have the parameters in the same order as `petab_problem.θ_names`.
+
+Potential events are returned as second argument, and potential time of events (`tstops`) are returned as 
+third argument.
+
+## Example
+```julia
+using OrdinaryDiffEq
+# Solve the model with callbacks 
+prob, cb, tstops = get_odeproblem(res, petab_problem, condition_id="cond1")
+sol = solve(prob, Rodas5P(), callback=cb, tstops=tstops)
+```
+"""
+function get_odeproblem(θ::Vector{Float64},
+                        petab_problem::PEtabODEProblem;
+                        condition_id::Union{String, Symbol, Nothing}=nothing,
+                        pre_eq_id::Union{String, Symbol, Nothing}=nothing)
+
+    @unpack simulation_info, ode_solver = petab_problem
+    if isnothing(condition_id)
+        condition_id = simulation_info.simulation_condition_id[1]
+    end
+
+    u0, p = _get_fitted_parameters(θ, petab_problem, condition_id, pre_eq_id, false)
+    tmax = petab_problem.simulation_info.tmax[condition_id]
+    ode_problem = remake(petab_problem.ode_problem, p=p, u0=u0, tspan=(0.0, tmax))
+
+    cbset = petab_problem.petab_model.model_callbacks
+    tstops = petab_problem.petab_model.compute_tstops(u0, p)
+
+    return ode_problem, cbset, tstops
+end
+
+
+"""
+    get_ps(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult, Vector{Float64}}, 
+           petab_problem::PEtabODEProblem;
+           condition_id::Union{String, Symbol, Nothing}=nothing,
+           retmap::Bool=true)
+
+From a fitted PEtab model or parameter vector retrieve the ODE parameters to simulate the model for the specified `condition_id`.
+
+If `condition_id` is provided, the parameters are extracted for that specific simulation condition. If not provided, 
+parameters for the first (default) simulation condition are returned.
+
+If a parameter vector is provided it must have the parameters in the same order as `petab_problem.θ_names`.
+
 If `retmap=true`, a parameter vector is returned; otherwise, a vector is returned.
 """
-function get_fitted_ps(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult, Vector{Float64}}, 
+function get_ps(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult, Vector{Float64}}, 
                        petab_problem::PEtabODEProblem;
                        condition_id::Union{String, Symbol, Nothing}=nothing,
                        retmap=true)
@@ -22,13 +113,13 @@ end
 
 
 """
-    get_fitted_u0(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult, Vector{Float64}}, 
-                  petab_problem::PEtabODEProblem;
-                  condition_id::Union{String, Symbol}=nothing,
-                  pre_eq_id::Union{String, Symbol, Nothing}=nothing, 
-                  retmap::Bool=true)
+    get_u0(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult, Vector{Float64}}, 
+           petab_problem::PEtabODEProblem;
+           condition_id::Union{String, Symbol}=nothing,
+           pre_eq_id::Union{String, Symbol, Nothing}=nothing, 
+           retmap::Bool=true)
 
-From a fitted PEtab model retrieve the inital values (u0) to simulate the model for the specified `condition_id`.
+From a fitted PEtab model or parameter vector retrieve the inital values (u0) to simulate the model for the specified `condition_id`.
 
 If `condition_id` is provided, the initial values are extracted for that specific simulation condition. If not provided, 
 initial values for the first (default) simulation condition are returned.
@@ -37,9 +128,11 @@ If a `pre_eq_id` is provided, the initial values are taken from the pre-equilibr
 `pre_eq_id`. If there are potential overrides of initial values in the simulation conditions, they take priority over 
 the pre-equilibrium simulation.
 
+If a parameter vector is provided it must have the parameters in the same order as `petab_problem.θ_names`.
+
 If `retmap=true`, a parameter vector is returned; otherwise, a vector is returned.
 """
-function get_fitted_u0(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult, Vector{Float64}}, 
+function get_u0(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult, Vector{Float64}}, 
                        petab_problem::PEtabODEProblem;
                        condition_id::Union{String, Symbol, Nothing}=nothing,
                        pre_eq_id::Union{String, Symbol, Nothing}=nothing, 
