@@ -95,6 +95,7 @@ More information about the available options and solvers can be found in the doc
 - `force_dtmin=false`: Whether or not to force `dtmin` when solving the ODE system.
 - `dtmin=nothing`: Minimal acceptable step-size when solving the ODE system.
 - `maxiters=10000`: Maximum number of iterations when solving the ODE system. Increasing above the default value can cause the optimization to take substantial time.
+- `verbose::Bool=true`: Whether or not warnings are displayed if the solver exits early. `true` is recommended in order to detect if a suboptimal ODE solver was chosen.
 """
 mutable struct ODESolver
     solver::SciMLAlgorithm
@@ -103,15 +104,17 @@ mutable struct ODESolver
     force_dtmin::Bool
     dtmin::Union{Float64, Nothing}
     maxiters::Int64
+    verbose::Bool
 end
 function ODESolver(solver::T1;
-                          abstol::Float64=1e-8,
-                          reltol::Float64=1e-8,
-                          force_dtmin::Bool=false,
-                          dtmin::Union{Float64, Nothing}=nothing,
-                          maxiters::Int64=Int64(1e4)) where T1 <: SciMLAlgorithm
+                   abstol::Float64=1e-8,
+                   reltol::Float64=1e-8,
+                   force_dtmin::Bool=false,
+                   dtmin::Union{Float64, Nothing}=nothing,
+                   maxiters::Int64=Int64(1e4), 
+                   verbose::Bool=true) where T1 <: SciMLAlgorithm
 
-    return ODESolver(solver, abstol, reltol, force_dtmin, dtmin, maxiters)
+    return ODESolver(solver, abstol, reltol, force_dtmin, dtmin, maxiters, verbose)
 end
 
 

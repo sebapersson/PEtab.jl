@@ -320,14 +320,14 @@ function compute_ode_sol(ode_problem::ODEProblem,
                          callback_set::SciMLBase.DECallback,
                          tstops::AbstractVector)::ODESolution where S<:SciMLAlgorithm
 
-    abstol, reltol, force_dtmin, dtmin, maxiters = ode_solver.abstol, ode_solver.reltol, ode_solver.force_dtmin, ode_solver.dtmin, ode_solver.maxiters
+    @unpack abstol, reltol, force_dtmin, dtmin, maxiters, verbose = ode_solver
 
     # Different funcion calls to solve are required if a solver or a Alg-hint are provided.
     # If t_max = inf the model is simulated to steady state using the TerminateSteadyState callback.
     if isinf(ode_problem.tspan[2]) || ode_problem.tspan[2] == 1e8
-        sol = solve(ode_problem, solver, abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters, save_on=false, save_start=false, save_end=true, dense=dense_sol, callback=TerminateSteadyState(abstol_ss, reltol_ss))
+        sol = solve(ode_problem, solver, abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters, save_on=false, save_start=false, save_end=true, dense=dense_sol, callback=TerminateSteadyState(abstol_ss, reltol_ss), verbose=verbose)
     else
-        sol = solve(ode_problem, solver, abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters, saveat=t_save, dense=dense_sol, tstops=tstops, callback=callback_set)
+        sol = solve(ode_problem, solver, abstol=abstol, reltol=reltol, force_dtmin=force_dtmin, maxiters=maxiters, saveat=t_save, dense=dense_sol, tstops=tstops, callback=callback_set, verbose=verbose)
     end
     return sol
 end
