@@ -28,8 +28,5 @@ using Catalyst
     include(joinpath(@__DIR__, "Parameter_map.jl"))
     include(joinpath(@__DIR__, "Priors.jl"))
     include(joinpath(@__DIR__, "PEtab_events.jl"))
-end
-
-@testset "Testing input format" begin
     include(joinpath(@__DIR__, "Input_format.jl"))
 end

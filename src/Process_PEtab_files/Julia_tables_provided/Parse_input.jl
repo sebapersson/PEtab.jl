@@ -5,11 +5,14 @@ function parse_petab_parameters(petab_parameters::Vector{PEtabParameter},
                                 system,
                                 simulation_conditions::Dict{String, T},
                                 observables::Dict{String, PEtabObservable},
-                                measurements::DataFrame)::DataFrame where T<:Dict
+                                measurements::DataFrame, 
+                                state_map, 
+                                parameter_map)::DataFrame where T<:Dict
 
     # Extract any parameter that appears in the model or in simulation_conditions
     model_parameters = string.(parameters(system))
     condition_values = unique(reduce(vcat, (string.(collect(values(dict))) for dict in values(simulation_conditions))))
+    condition_parameters = unique(reduce(vcat, (string.(collect(keys(dict))) for dict in values(simulation_conditions))))
     non_dynamic_parameters = vcat([string(obs.obs) for obs in values(observables)], [string(obs.noise_formula) for obs in values(observables)])
     if "observable_parameters" ∈ names(measurements)
         observable_parameters = reduce(vcat, split.(string.(measurements[!, "observable_parameters"]), ';'))
@@ -81,6 +84,17 @@ function parse_petab_parameters(petab_parameters::Vector{PEtabParameter},
                         nominalValue = nominalValue,
                         estimate = estimate)
         append!(df, row)
+    end
+
+    # Sanity check if all model have been defined anywhere 
+    for model_parameter in model_parameters
+        cond1 = model_parameter ∉ df[!, :parameterId]
+        cond2 = model_parameter ∉ condition_parameters
+        cond3 = isnothing(parameter_map) ? true : model_parameter ∉ string.(first.(parameter_map))
+        cond4 = isnothing(state_map) ? true : model_parameter ∉ string.(first.(state_map))
+        if cond1 && cond2 && cond3 && cond4 
+            @warn "No value has been specified for model parameters $model_parameter, it defaults to zero"
+        end
     end
 
     has_priors = !all([isnothing(petab_parameters[i].prior) for i in eachindex(petab_parameters)])

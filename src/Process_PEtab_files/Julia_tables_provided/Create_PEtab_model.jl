@@ -156,7 +156,7 @@ function _PEtabModel(system,
     end
 
     # Once all potential parameters have been added to the system PEtab parameters can be parsed 
-    parameters_data = PEtab.parse_petab_parameters(petab_parameters, system, simulation_conditions, observables, measurements) |> PEtab.dataframe_to_CSVFile
+    parameters_data = PEtab.parse_petab_parameters(petab_parameters, system, simulation_conditions, observables, measurements, state_map, parameter_map) |> PEtab.dataframe_to_CSVFile
 
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Building u0, h and σ functions ...")
