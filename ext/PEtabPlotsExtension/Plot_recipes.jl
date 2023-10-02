@@ -53,7 +53,7 @@ end
 
 # Plots the objective function progressions for a PEtabMultistartOptimisationResult.
 @recipe function f( res_ms::PEtabMultistartOptimisationResult; 
-                    plot_type=:best_objective, 
+                    plot_type=:waterfall, 
                     best_idxs_n=(plot_type in [:waterfall, :runtime_eval] ?  res_ms.n_multistarts : 10), 
                     idxs=best_runs(res_ms, best_idxs_n), 
                     clustering_function=assign_grouped_colors)
