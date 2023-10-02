@@ -31,6 +31,7 @@ For example, to use the Interior-point Newton method from [Optim.jl](https://git
 using PEtab
 using Optim
 
+dir_save = joinpath(@__DIR__, "Boehm_opt")
 petab_model = PEtabModel(path_to_Boehm_model)
 petab_problem = PEtabODEProblem(petab_model)
 res = calibrate_model_multistart(petab_problem, IPNewton(), 10, dir_save,
@@ -46,7 +47,20 @@ Number of multistarts = 10
 Optimiser algorithm   = Optim_IPNewton
 ```
 
-In this example, we use `Optim.Options` to set the maximum number of iterations to 200. You can find a full list of options [here](https://julianlsolvers.github.io/Optim.jl/v0.9.3/user/config/). The results are returned as a `PEtabMultistartOptimisationResult`, which contains the best-found minima (`xmin`), the smallest objective value (`fmin`), and optimization results for each run.
+In this example, we use `Optim.Options` to set the maximum number of iterations to 200. You can find a full list of options [here](https://julianlsolvers.github.io/Optim.jl/v0.9.3/user/config/). The results are returned as a `PEtabMultistartOptimisationResult`, which contains the best-found minima (`xmin`), the smallest objective value (`fmin`), and optimization results for each run. In case a `dir_save` is provided results can also easily be read from disk into a `PEtabMultistartOptimisationResult` struct:
+
+```julia
+res_read = PEtabMultistartOptimisationResult(dir_save)
+print(res_read)
+```
+```
+PEtabMultistartOptimisationResult
+--------- Summary ---------
+min(f)                = 1.48e+02
+Parameters esimtated  = 9
+Number of multistarts = 10
+Optimiser algorithm   = Optim_IPNewton
+```
 
 The method for generating initial parameter guesses can also be chosen, as we support any method available in [QuasiMonteCarlo.jl](https://github.com/SciML/QuasiMonteCarlo.jl). For instance, to use Latin-Hypercube sampling (which is the default), and to perform multi-start calibration with Fides, write:
 

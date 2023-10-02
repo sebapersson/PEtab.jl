@@ -511,6 +511,16 @@ struct PEtabOptimisationResult{T<:Any}
 end
 
 
+"""
+    PEtabMultistartOptimisationResult(dir_res::String; which_run::String="1")
+
+Read PEtab multistart optimization results saved at `dir_res`.
+
+Each time a new optimization run is performed, results are saved with unique numerical endings 
+appended to the directory specified by `dir_res`. Results from a specific run can be retreived 
+by specifying the numerical ending by `which_run`. For example, to access results from the second run, 
+set `which_run="2"`.
+"""
 struct PEtabMultistartOptimisationResult
     xmin::Vector{Float64} # Parameter vectors (if user wants to save them)
     xnames::Vector{Symbol}
@@ -520,6 +530,61 @@ struct PEtabMultistartOptimisationResult
     multistart_method::String
     dir_save::Union{String, Nothing}
     runs::Vector{PEtabOptimisationResult} # See above
+end
+function PEtabMultistartOptimisationResult(dir_res::String; which_run::String="1")::PEtabMultistartOptimisationResult
+    
+    @assert isdir(dir_res) "Directory $dir_res does not exist"
+
+    path_res = joinpath(dir_res, "Optimisation_results" * which_run * ".csv")
+    path_parameters = joinpath(dir_res, "Best_parameters" * which_run * ".csv")
+    path_startguess = joinpath(dir_res, "Start_guesses" * which_run * ".csv")
+    path_trace = joinpath(dir_res, "Trace" * which_run * ".csv")
+    
+    @assert isfile(path_res) "Result file (Optimisation_results...) does not exist"
+    @assert isfile(path_parameters) "Optimal parameters file (Best_parameters...) does not exist"
+    @assert isfile(path_startguess) "Startguess file (Start_guesses...) does not exist"
+    data_res = CSV.read(path_res, DataFrame)
+    data_parameters = CSV.read(path_parameters, DataFrame)
+    data_startguess = CSV.read(path_startguess, DataFrame)
+    xnames = Symbol.(names(data_parameters))[1:end-1]
+
+    if isfile(path_trace)
+        data_trace = CSV.read(path_trace, DataFrame)
+    end
+
+    _runs = Vector{PEtab.PEtabOptimisationResult}(undef, size(data_res)[1])
+    for i in eachindex(_runs)
+
+        if isfile(path_trace)
+            data_trace_i = data_trace[findall(x -> x == i, data_trace[!, :Start_guess]), :]
+            _ftrace = data_trace_i[!, :f_trace]
+            _xtrace = [Vector{Float64}(data_trace_i[i, 1:end-2]) for i in 1:size(data_trace_i)[1]]
+        else
+            _ftrace = Vector{Float64}(undef, 0)
+            _xtrace = Vector{Vector{Float64}}(undef, 0)
+        end
+
+        _runs[i] = PEtab.PEtabOptimisationResult(Symbol(data_res[i, :alg]), 
+                                                 _xtrace,
+                                                 _ftrace,
+                                                 data_res[i, :n_iterations],
+                                                 data_res[i, :fmin],
+                                                 data_startguess[i, 1:end-1] |> Vector{Float64},
+                                                 data_parameters[i, 1:end-1] |> Vector{Float64},
+                                                 xnames,
+                                                 data_res[i, :converged], 
+                                                 data_res[i, :run_time])
+    end
+    run_best = _runs[argmin([isnan(_runs[i].fmin) ? Inf : _runs[i].fmin for i in eachindex(_runs)])]
+    _res = PEtabMultistartOptimisationResult(run_best.xmin,
+                                             xnames,
+                                             run_best.fmin,
+                                             length(_runs),
+                                             run_best.alg,
+                                             "",
+                                             dir_res,
+                                             _runs)
+    return _res
 end
 
 
