@@ -43,3 +43,8 @@ end
 @safetestset "Model callibration" begin
   include(joinpath(@__DIR__, "Callibrate_model.jl"))
 end
+
+
+@safetestset "Optimisation results plotting" begin
+  include(joinpath(@__DIR__, "Plot_optimsiation_results.jl"))
+end

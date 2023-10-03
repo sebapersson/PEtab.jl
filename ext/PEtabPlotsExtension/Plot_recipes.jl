@@ -56,7 +56,7 @@ end
                     plot_type=:waterfall, 
                     best_idxs_n=(plot_type in [:waterfall, :runtime_eval] ?  res_ms.n_multistarts : 10), 
                     idxs=best_runs(res_ms, best_idxs_n), 
-                    clustering_function=assign_grouped_colors)
+                    clustering_function=objective_value_clustering)
     
     # Checks if any values were recorded.
     if isempty(res_ms.runs[1].ftrace)
@@ -131,7 +131,7 @@ end
         xlabel --> "Runtime (s)"
         ylabel --> "Best objective value"
         seriestype --> :scatter
-
+        
         # Tunable
         ms --> 6
         ma --> 0.9
@@ -183,7 +183,7 @@ function handle_Inf!(y_vals::Vector{Vector{Float64}})
 end
 
 # For a multistart optimisation result, clusters the runs according to their bojective value (and assign them a number, which corresponds to a colour).
-function assign_grouped_colors(runs::Vector{PEtabOptimisationResult}; thres=0.1)
+function objective_value_clustering(runs::Vector{PEtabOptimisationResult}; thres=0.1)
     vals = getfield.(runs,:fmin)
     n = length(vals)
     idxs_v = Pair.(1:n, vals)
