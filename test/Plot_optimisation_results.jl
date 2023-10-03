@@ -6,7 +6,7 @@
 # Fetch packages.
 using PEtab
 using Plots
-using Tests
+using Test
 
 ### Preparations ###
 petab_ms_res = PEtabMultistartOptimisationResult(joinpath(@__DIR__, "Optimisation_results", "boehm"))
