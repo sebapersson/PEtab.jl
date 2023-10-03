@@ -1,3 +1,0 @@
-fmin,alg,n_iterations,run_time,converged,Start_guess
-1.0145519791563329e9,Optim_IPNewton,10,0.9454731941223145,false,1
-6912.14867117776,Optim_IPNewton,10,0.12961697578430176,false,2
