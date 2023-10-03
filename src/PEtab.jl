@@ -106,19 +106,19 @@ include(joinpath("Model_callibration", "Common.jl"))
 export calibrate_model, calibrate_model_multistart, run_PEtab_select
 
 if !isdefined(Base, :get_extension)
-    include(joinpath(@__DIR__, "..", "ext", "IpoptExtension.jl"))
-    include(joinpath(@__DIR__, "..", "ext", "OptimExtension.jl"))
-    include(joinpath(@__DIR__, "..", "ext", "FidesExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "PEtabIpoptExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "PEtabOptimExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "PEtabFidesExtension.jl"))
 end
 if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabSelectExtension.jl"))
 end
 if !isdefined(Base, :get_extension)    
-    include(joinpath(@__DIR__, "..", "ext", "SciMLSensitivityExtension.jl"))
-    include(joinpath(@__DIR__, "..", "ext", "ZygoteExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "PEtabSciMLSensitivityExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "PEtabZygoteExtension.jl"))
 end
 if !isdefined(Base, :get_extension)
-    include(joinpath(@__DIR__, "..", "ext", "CatalystExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "PEtabCatalystExtension.jl"))
 end
 
 end

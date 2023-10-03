@@ -1,4 +1,4 @@
-module CatalystExtension
+module PEtabCatalystExtension
 
 using SciMLBase
 using DataFrames
@@ -14,6 +14,6 @@ import PEtab.get_obs_sd_parameter
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
 # For Optimization and model selection
-include(joinpath(@__DIR__, "CatalystExtension", "Create_PEtab_model.jl"))
+include(joinpath(@__DIR__, "PEtabCatalystExtension", "Create_PEtab_model.jl"))
 
 end

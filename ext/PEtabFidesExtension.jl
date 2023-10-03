@@ -1,4 +1,4 @@
-module FidesExtension
+module PEtabFidesExtension
 
 using CSV
 using PyCall
@@ -9,6 +9,6 @@ using Printf
 using YAML
 using PEtab 
 
-include(joinpath(@__DIR__, "FidesExtension/", "Setup_fides.jl"))
+include(joinpath(@__DIR__, "PEtabFidesExtension/", "Setup_fides.jl"))
 
 end
