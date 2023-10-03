@@ -46,5 +46,5 @@ end
 
 
 @safetestset "Optimisation results plotting" begin
-  include(joinpath(@__DIR__, "Plot_optimsiation_results.jl"))
+  include(joinpath(@__DIR__, "Plot_optimisation_results.jl"))
 end
