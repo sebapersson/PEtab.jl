@@ -3,13 +3,13 @@
 # Comment: I am only aware of how to load PEtabMultistartOptimisationResult from folders (and not PEtabOptimisationResult), hence I am only testing on teh former (as I don't want to actually run an optimiser within these tests).
 
 
-### Preparations ###
-petab_ms_res = PEtabMultistartOptimisationResult(joinpath(@__DIR__, "Optimisation_results", "boehm"))
-
 # Fetch packages.
 using PEtab
 using Plots
 using Tests
+
+### Preparations ###
+petab_ms_res = PEtabMultistartOptimisationResult(joinpath(@__DIR__, "Optimisation_results", "boehm"))
 
 # Helper functions.
 function cumulative_mins(v)
