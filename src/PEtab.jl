@@ -88,6 +88,7 @@ include(joinpath("Utility.jl"))
 
 # For correct struct printing
 include(joinpath("Show.jl"))
+
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem
 @setup_workload begin
     path_yaml = joinpath(@__DIR__, "..", "test", "Test_model3", "Test_model3.yaml")

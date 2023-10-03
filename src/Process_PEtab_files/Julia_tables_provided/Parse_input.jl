@@ -92,7 +92,7 @@ function parse_petab_parameters(petab_parameters::Vector{PEtabParameter},
         cond2 = model_parameter ∉ condition_parameters
         cond3 = isnothing(parameter_map) ? true : model_parameter ∉ string.(first.(parameter_map))
         cond4 = isnothing(state_map) ? true : model_parameter ∉ string.(first.(state_map))
-        if model_parameter[1:2] == "__" && model_parameter[end-2:end] == "__"
+        if length(model_parameter) > 2 && model_parameter[1:2] == "__" && model_parameter[end-1:end] == "__"
             continue
         end
         if cond1 && cond2 && cond3 && cond4 
@@ -433,7 +433,7 @@ function parse_petab_observables(observables::Dict{String, PEtabObservable})::Da
 end
 
 
-function process_petab_events(events::Union{PEtabEvent, Vector{T}}, 
+function process_petab_events(events::Union{T, Vector{T}}, 
                               system, 
                               model_name::String, 
                               θ_indices::ParameterIndices) where T<:PEtabEvent
@@ -480,10 +480,35 @@ function process_petab_event(event::PEtabEvent, event_name, system)::Tuple{Strin
     end
 
     # Sanity check, target
-    target = replace(string(event.target), "(t)" => "")
-    if target ∉ state_names && target ∉ parameter_names
-        str_write = "Event target must be either a model parameter or model state. This does not hold for $target"
-        throw(PEtabFormatError(str_write))
+    if typeof(event.target) <: Vector{<:Any}
+        if !(typeof(event.affect) <: Vector{<:Any}) || length(event.target) != length(event.affect)
+            str_write = "In case of several event targets (targets provided as vector) the affect vector must match the length of the affect vector"
+            throw(PEtabFormatError(str_write))
+        end
+        targets = event.target
+    else
+        # Input needs to be a Vector for downstream processing
+        targets = [event.target]
+    end
+
+    # Sanity check affect 
+    if typeof(event.affect) <: Vector{<:Any}
+        if !(typeof(event.target) <: Vector{<:Any}) || length(event.target) != length(event.affect)
+            str_write = "In case of several event targets (targets provided as vector) the affect vector must match the length of the affect vector"
+            throw(PEtabFormatError(str_write))
+        end
+        affects = event.affect
+    else
+        # Input needs to be a Vector for downstream processing
+        affects = [event.affect]
+    end
+
+    targets = replace.(string.(targets), "(t)" => "")
+    for target in targets
+        if target ∉ state_names && target ∉ parameter_names
+            str_write = "Event target must be either a model parameter or model state. This does not hold for $target"
+            throw(PEtabFormatError(str_write))
+        end
     end
 
     condition_has_states = PEtab.check_condition_has_states(condition, state_names)
@@ -515,20 +540,22 @@ function process_petab_event(event::PEtabEvent, event_name, system)::Tuple{Strin
     # Build the affect syntax for the event. Note, a tmp variable is used in case of several affects. For example, if the 
     # event affects u[1] and u[2], then I do not want that a change in u[1] should affect the value for u[2], similar holds 
     # for parameters 
-    # TODO Allow vector trigger 
     affect_str = "\tfunction affect_" * event_name * "!(integrator)\n\t\tu_tmp = similar(integrator.u)\n\t\tu_tmp .= integrator.u\n\t\tp_tmp = similar(integrator.p)\n\t\tp_tmp .= integrator.p\n\n"
-    affect = replace(string(event.affect), "(t)" => "")
-    _affect = target * " = " * affect
-    _affect1, _affect2 = split(_affect, "=")
-    for j in eachindex(state_names)
-        _affect1 = PEtab.replace_whole_word(_affect1, state_names[j], "integrator.u["*string(j)*"]")
-        _affect2 = PEtab.replace_whole_word(_affect2, state_names[j], "u_tmp["*string(j)*"]")
+    affects = replace.(string.(affects), "(t)" => "")
+    for (i, affect) in pairs(affects)
+        _affect = targets[i] * " = " * affect
+        _affect1, _affect2 = split(_affect, "=")
+        for j in eachindex(state_names)
+            _affect1 = PEtab.replace_whole_word(_affect1, state_names[j], "integrator.u["*string(j)*"]")
+            _affect2 = PEtab.replace_whole_word(_affect2, state_names[j], "u_tmp["*string(j)*"]")
+        end
+        for j in eachindex(parameter_names)
+            _affect1 = PEtab.replace_whole_word(_affect1, parameter_names[j], "integrator.p["*string(j)*"]")
+            _affect2 = PEtab.replace_whole_word(_affect2, parameter_names[j], "p_tmp["*string(j)*"]")
+        end
+        affect_str *= "\t\t" * _affect1 * " = " * _affect2  * '\n'
     end
-    for j in eachindex(parameter_names)
-        _affect1 = PEtab.replace_whole_word(_affect1, parameter_names[j], "integrator.p["*string(j)*"]")
-        _affect2 = PEtab.replace_whole_word(_affect2, parameter_names[j], "p_tmp["*string(j)*"]")
-    end
-    affect_str *= "\t\t" * _affect1 * " = " * _affect2 * '\n' * "\tend"
+    affect_str *= '\n' * "\tend"
 
     # Build the callback 
     if discrete_event == false
@@ -544,7 +571,7 @@ function process_petab_event(event::PEtabEvent, event_name, system)::Tuple{Strin
     end
     callback_str *= "save_positions=(false, false))\n" # So we do not get problems with saveat in the ODE solver 
     function_str = condition_str * '\n' * affect_str * '\n' 
-
+        
     return function_str, callback_str
 end
 
