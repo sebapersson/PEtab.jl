@@ -1,11 +1,6 @@
 using SafeTestsets
 
 
-@safetestset "Optimisation results plotting" begin
-  include(joinpath(@__DIR__, "Plot_optimisation_results.jl"))
-end
-
-
 @safetestset "Test model 2" begin
   include("Test_model2.jl")
 end
@@ -47,4 +42,9 @@ end
 
 @safetestset "Model callibration" begin
   include(joinpath(@__DIR__, "Callibrate_model.jl"))
+end
+
+
+@safetestset "Optimisation results plotting" begin
+  include(joinpath(@__DIR__, "Plot_optimisation_results.jl"))
 end
