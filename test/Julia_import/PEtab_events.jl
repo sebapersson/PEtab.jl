@@ -138,6 +138,18 @@ end
     cbset = DiscreteCallback(_condition, _affect!)
     test_callbacks(event, cbset, [0.8], true)
 
+    # When t == k1 change A -> 1.0, B -> B + 2 (multiple targets and affects)
+    @parameters t
+    @unpack B = rn
+    event = PEtabEvent(:k1, [1.0, B + 2], [:A, B])
+    _condition(u, t, integrator) = t == integrator.p[1]
+    function _affect_!(integrator) 
+         integrator.u[1] = 1.0
+         integrator.u[2] += 2.0
+    end
+    cbset = DiscreteCallback(_condition, _affect_!)
+    test_callbacks(event, cbset, [0.8], true)
+
     # When t = 1.5 change A -> 3.0, and when B == 1 -> B -> 3.0 (mix events)
     @unpack B = rn
     events = [PEtabEvent(:k1, 3.0, :A), PEtabEvent(B == 1.0, 3.0, B)]
@@ -147,7 +159,7 @@ end
     affect2!(integrator) = integrator.u[2] = 3.0
     cbset = CallbackSet(DiscreteCallback(condition1, affect1!),
                         ContinuousCallback(condition2, affect2!))
-    test_callbacks(event, cbset, [0.8], true)
+    test_callbacks(events, cbset, [0.8], true)
 
     measurements = DataFrame(obs_id=["obs_a", "obs_a"],
                             time=[0, 10.0],
@@ -171,9 +183,17 @@ end
     end
 
     @test_throws PEtab.PEtabFormatError begin
+        event = PEtabEvent(:k1, [1.0, 2.0], :A)
+        PEtabModel(rn, observables, measurements, petab_parameters, verbose=false, events=event)
+    end
+
+    @test_throws PEtab.PEtabFormatError begin
+        event = PEtabEvent(:k1, [1.0], [:A, :B])
+        PEtabModel(rn, observables, measurements, petab_parameters, verbose=false, events=event)
+    end
+
+    @test_throws PEtab.PEtabFormatError begin
         event = PEtabEvent(A + 3, 5.0, :A) # Trigger cannot not only be a stte
         PEtabModel(rn, observables, measurements, petab_parameters, verbose=false, events=event)
     end
 end
-
-
