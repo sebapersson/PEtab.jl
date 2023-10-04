@@ -7,4 +7,5 @@ SBML = "e5567a89-2604-4b09-9718-f5f78e97c3bb"
 [compat]
 Documenter = "1"
 PEtab = "2"
+Plots = "1"
 SBML = "1"
