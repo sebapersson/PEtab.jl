@@ -4,6 +4,7 @@
 =#
 
 
+@testset "Define Julia input format" begin
 
     # Define reaction network model
     rn = @reaction_network begin
@@ -15,9 +16,9 @@
 
     # Measurement data
     measurements = DataFrame(simulation_id=["c0", "c0", "c1", "c1"],
-                            obs_id=["obs_a", "obs_a", "obs_a", "obs_a"],
-                            time=[0, 10.0, 0, 10.0],
-                            measurement=[0.7, 0.1, 0.8, 0.2])
+                             obs_id=["obs_a", "obs_a", "obs_a", "obs_a"],
+                             time=[0, 10.0, 0, 10.0],
+                             measurement=[0.7, 0.1, 0.8, 0.2])
 
     # Single experimental condition
     simulation_conditions = Dict("c0" => Dict(:a0 => 0.8),
@@ -27,6 +28,29 @@
     @unpack A = rn
     observables = Dict(["obs_a" => PEtabObservable(A, :lin, 1.0)])
 
+    @testset "Non-specified parameters" begin
+        simulation_conditions = Dict("c0" => Dict(),
+                                     "c1" => Dict())
+        petab_parameters = [PEtabParameter(:k1, value=0.8, scale=:lin),
+                            PEtabParameter(:k2, value=0.6, scale=:lin)]
+        @test_warn "No value has been specified for model parameters a0, it defaults to zero" begin
+        petab_model = PEtabModel(rn, simulation_conditions, observables, measurements, petab_parameters, 
+                                 verbose=false, state_map=state_map)
+        end
+
+        simulation_conditions = Dict("c0" => Dict(:a0 => 1.0),
+                                     "c1" => Dict(:a0 => 2.0))
+        petab_parameters = [PEtabParameter(:k1, value=0.8, scale=:lin)]
+        @test_warn "No value has been specified for model parameters k2, it defaults to zero" begin
+        petab_model = PEtabModel(rn, simulation_conditions, observables, measurements, petab_parameters, 
+                                 verbose=false, state_map=state_map)
+        end
+        parameter_map = [:k2 => 1.0]
+        @test_nowarn begin
+        petab_model = PEtabModel(rn, simulation_conditions, observables, measurements, petab_parameters, 
+                                 verbose=false, state_map=state_map, parameter_map=parameter_map)
+        end
+    end
 
     @testset "Experimental conditions input" begin
 
@@ -36,9 +60,9 @@
 
         # Case 1 everything should work
         simulation_conditions = Dict("c0" => Dict(:a0 => 0.8),
-                                    "c1" => Dict(:a0 => 0.9))
+                                     "c1" => Dict(:a0 => 0.9))
         petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
-                                    petab_parameters, verbose=false, state_map=state_map)
+                                 petab_parameters, verbose=false, state_map=state_map)
         @test typeof(petab_model) <: PEtabModel
 
 
@@ -203,3 +227,4 @@
                                     petab_parameters, verbose=false, state_map=state_map) 
         end                                   
     end
+end

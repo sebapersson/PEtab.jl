@@ -10,9 +10,9 @@ where
 
 - `condition` is the event trigger and can be i) a constant value or a model parameter that are assumed to be the time the event is activated, or ii) a Boolean expression triggered when, for example, a state exceeds a certain value.
 
-- `affect` is the effect of the event, which can either be a value or an algebraic expression involving model parameters and/or states.
+- `affect` is the effect of the event, which can either be a value or an algebraic expression involving model parameters and/or states. In case of several affects, provide a `Vector`.
 
-- `target` specifies the target on which the effect acts. It must be either a model state or parameter.
+- `target` specifies the target on which the effect acts. It must be either a model state or parameter. In case of several targets, provide a `Vector` of targets where `target[i]` will be the target for `affect[i]`.
 
 This section provides examples of how to use `PEtabEvent` to encode different types of events, and uses a modified version of the example in the [Creating a PEtab Parameter Estimation Problem in Julia](@ref define_in_julia) tutorial:
 
@@ -66,7 +66,7 @@ measurements = DataFrame(
 In this section we cover two types of events: those triggered at specific time-points and those triggered by a state (e.g., when a state exceeds a certain concentration).
 
 !!! note
-    Even though events can be directly encoded in a Catalyst or ModellingToolkit model, we recommend `PEtabEvent` for optimal performance (e.g. use `DiscreteCallback` when possible), and for ensuring correct evaluation of the objective function and its derivatives.
+    Even though events can be directly encoded in a Catalyst or ModellingToolkit model, we strongly recommend `PEtabEvent` for optimal performance (e.g. use `DiscreteCallback` when possible), and for ensuring correct evaluation of the objective function and its derivatives.
 
 ## Time-Triggered Events
 
@@ -177,9 +177,34 @@ event = PEtabEvent(S == s_trigger, s_value, S)
 
 Now, for conditions `c0` and `c1`, the event is triggered when `S == 0.2` and `S == 0.3`, respectively. Additionally, the value of `S` changes to 1.0 and 2.0 for conditions `c0` and `c1`, respectively.
 
+
+## Multiple Targets for an Event
+
+Sometimes an event can affect multiple states and/or parameters. In this case, both `affect` and `target` should be provided as vectors to the `PEtabEvent`. For example, suppose an event is triggered when the substrate `S < 0.2`, where `S` is incremented by 2.0, and `c1` changes its values to 2.0. This can be encoded as:
+
+```julia
+@unpack S, c1 = system
+event = PEtabEvent(S < 0.2, [S + 2, 2.0], [S, c1])
+```
+
+These events can then be provided when building the `PEtabModel` using the `events` keyword:
+
+```julia
+petab_model = PEtabModel(
+    system, simulation_conditions, observables, measurements,
+    petab_parameters, state_map=state_map, parameter_map=parameter_map,
+    events=events, verbose=true
+)
+petab_problem = PEtabODEProblem(petab_model)
+```
+
+!!! note
+    In case of several affects the length of the affect vector must match the length of the event vector.
+
+
 ## Multiple Events
 
-A model can have multiple events, which can be easily defined as a `PEtabModel` accepts a `Vector` of `PEtabEvent` as input. For example, suppose we have an event triggered when the substrate `S` satisfies `S < 0.2`, where `S` changes its value to `1.0`. Additionally, we have another event triggered when `t == 1.0`, where the parameter `c1` changes its value to `2.0`. This can be encoded as follows:
+A model can have multiple events, which can be easily defined as a `PEtabModel` accepts a `Vector` of `PEtabEvent` as input. For example, suppose we have an event triggered when the substrate `S` satisfies `S < 0.2`, where `S` changes its value to `1.0`. Additionally, we have another event triggered when `t == 1.0`, where the parameter `c1` changes its value to `2.0`. This can be encoded as:
 
 ```julia
 @unpack S, c1 = system

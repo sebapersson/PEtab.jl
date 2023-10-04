@@ -98,10 +98,10 @@ function simulate_to_ss(ode_problem::ODEProblem,
     change_simulation_condition!(ode_problem.p, ode_problem.u0, pre_equilibration_id)
     _ode_problem = get_tspan(ode_problem, Inf, ode_solver.solver, convert_tspan)
 
-    abstol, reltol, maxiters = ode_solver.abstol, ode_solver.reltol, ode_solver.maxiters
+    @unpack abstol, reltol, maxiters, verbose = ode_solver
     callback_ss = ss_solver.callback_ss
 
-    sol = solve(_ode_problem, ode_solver.solver, abstol=abstol, reltol=reltol, maxiters=maxiters, dense=false, callback=callback_ss)
+    sol = solve(_ode_problem, ode_solver.solver, abstol=abstol, reltol=reltol, maxiters=maxiters, dense=false, callback=callback_ss, verbose=verbose)
     return sol
 end
 

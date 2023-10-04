@@ -1,4 +1,4 @@
-module IpoptExtension
+module PEtabIpoptExtension
 
 using CSV
 using Ipopt
@@ -9,6 +9,6 @@ using Printf
 using YAML
 using PEtab 
 
-include(joinpath(@__DIR__, "IpoptExtension/", "Setup_ipopt.jl"))
+include(joinpath(@__DIR__, "PEtabIpoptExtension/", "Setup_ipopt.jl"))
 
 end

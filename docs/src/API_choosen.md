@@ -18,6 +18,8 @@ PEtabMultistartOptimisationResult
 run_PEtab_select
 solve_SBML
 generate_startguesses
-get_fitted_ps
-get_fitted_u0
+get_ps
+get_u0
+get_odeproblem
+get_odesol
 ```

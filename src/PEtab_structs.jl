@@ -95,6 +95,7 @@ More information about the available options and solvers can be found in the doc
 - `force_dtmin=false`: Whether or not to force `dtmin` when solving the ODE system.
 - `dtmin=nothing`: Minimal acceptable step-size when solving the ODE system.
 - `maxiters=10000`: Maximum number of iterations when solving the ODE system. Increasing above the default value can cause the optimization to take substantial time.
+- `verbose::Bool=true`: Whether or not warnings are displayed if the solver exits early. `true` is recommended in order to detect if a suboptimal ODE solver was chosen.
 """
 mutable struct ODESolver
     solver::SciMLAlgorithm
@@ -103,15 +104,17 @@ mutable struct ODESolver
     force_dtmin::Bool
     dtmin::Union{Float64, Nothing}
     maxiters::Int64
+    verbose::Bool
 end
 function ODESolver(solver::T1;
-                          abstol::Float64=1e-8,
-                          reltol::Float64=1e-8,
-                          force_dtmin::Bool=false,
-                          dtmin::Union{Float64, Nothing}=nothing,
-                          maxiters::Int64=Int64(1e4)) where T1 <: SciMLAlgorithm
+                   abstol::Float64=1e-8,
+                   reltol::Float64=1e-8,
+                   force_dtmin::Bool=false,
+                   dtmin::Union{Float64, Nothing}=nothing,
+                   maxiters::Int64=Int64(1e4), 
+                   verbose::Bool=true) where T1 <: SciMLAlgorithm
 
-    return ODESolver(solver, abstol, reltol, force_dtmin, dtmin, maxiters)
+    return ODESolver(solver, abstol, reltol, force_dtmin, dtmin, maxiters, verbose)
 end
 
 
@@ -601,9 +604,11 @@ triggered when the condition changes from `false` to `true`). Note that the cond
 model parameter values or species, e.g., `S > c1`.
     
 `affect` can be a constant value (e.g., `1.0`) or an algebraic expression of model parameters/states. 
-For example, to add `5.0` to the state `S`, write `S + 5`.
+For example, to add `5.0` to the state `S`, write `S + 5`. In case an event affects several parameters
+and/or states provide affect as a `Vector`, for example `[S + 5, 1.0]`.
     
-`target` is either a model state or parameter that the event acts on.
+`target` is either a model state or parameter that the event acts on. In case an event affects several 
+states and/or parameters provide as a `Vector` where `target[i]` is the target of `affect[i]`.
     
 For more details, see the documentation.
 
@@ -638,6 +643,15 @@ rn = @reaction_network begin
 end
 @unpack A, B = rn
 event = PEtabEvent(A == 0.2, 2.0, B)
+```
+```julia
+using Catalyst
+# Trigger event when A == 0.2, set B to 2.0 and A += 2
+rn = @reaction_network begin
+    (k1, k2), A <--> B
+end
+@unpack A, B = rn
+event = PEtabEvent(A == 0.2, [A + 2, 2.0], [A, B])
 ```
 """
 struct PEtabEvent{T1<:Any, 

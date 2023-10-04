@@ -88,6 +88,7 @@ include(joinpath("Utility.jl"))
 
 # For correct struct printing
 include(joinpath("Show.jl"))
+
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem
 @setup_workload begin
     path_yaml = joinpath(@__DIR__, "..", "test", "Test_model3", "Test_model3.yaml")
@@ -98,7 +99,7 @@ include(joinpath("Show.jl"))
     end
 end
 
-export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel, PEtabODEProblem, remake_PEtab_problem, Fides, solve_SBML, PEtabOptimisationResult, IpoptOptions, IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult, generate_startguesses, get_fitted_ps, get_fitted_u0, PEtabEvent
+export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel, PEtabODEProblem, remake_PEtab_problem, Fides, solve_SBML, PEtabOptimisationResult, IpoptOptions, IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult, generate_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, PEtabEvent
 
 # These are given as extensions, but their docstrings are availble in the 
 # general documentation 
@@ -106,19 +107,19 @@ include(joinpath("Model_callibration", "Common.jl"))
 export calibrate_model, calibrate_model_multistart, run_PEtab_select
 
 if !isdefined(Base, :get_extension)
-    include(joinpath(@__DIR__, "..", "ext", "IpoptExtension.jl"))
-    include(joinpath(@__DIR__, "..", "ext", "OptimExtension.jl"))
-    include(joinpath(@__DIR__, "..", "ext", "FidesExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "PEtabIpoptExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "PEtabOptimExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "PEtabFidesExtension.jl"))
 end
 if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabSelectExtension.jl"))
 end
 if !isdefined(Base, :get_extension)    
-    include(joinpath(@__DIR__, "..", "ext", "SciMLSensitivityExtension.jl"))
-    include(joinpath(@__DIR__, "..", "ext", "ZygoteExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "PEtabSciMLSensitivityExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "PEtabZygoteExtension.jl"))
 end
 if !isdefined(Base, :get_extension)
-    include(joinpath(@__DIR__, "..", "ext", "CatalystExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "PEtabCatalystExtension.jl"))
 end
 if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabPlotsExtension.jl"))

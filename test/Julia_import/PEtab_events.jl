@@ -5,28 +5,6 @@ using PEtab
 using Test
 
 
-function get_ode_sol(θ::Vector{Float64},
-                     petab_problem::PEtabODEProblem;
-                     condition_id::Union{String, Symbol, Nothing}=nothing,
-                     pre_eq_id::Union{String, Symbol, Nothing}=nothing)
-
-    @unpack simulation_info, ode_solver = petab_problem
-    if isnothing(condition_id)
-        condition_id = simulation_info.simulation_condition_id[1]
-    end
-
-    u0, p = PEtab._get_fitted_parameters(θ, petab_problem, condition_id, pre_eq_id, false)
-    tmax = petab_problem.simulation_info.tmax[condition_id]
-    ode_problem = remake(petab_problem.ode_problem, p=p, u0=u0, tspan=(0.0, tmax))
-
-    cbset = petab_problem.petab_model.model_callbacks
-    tstops = petab_problem.petab_model.compute_tstops(u0, p)
-
-    @unpack solver, abstol, reltol = ode_solver
-    return solve(ode_problem, solver, abstol=abstol, reltol=reltol, callback=cbset, tstops=tstops)
-end
-
-
 function sol_compare_to(cbset, tstops)
     a0, b0, k1, k2 = [1.0, 0.0, 0.8, 0.6]
     _f! = function(du, u, p, t)
@@ -65,7 +43,7 @@ function test_callbacks(events, cbset, tstops, convert_tspan::Bool)
                             petab_parameters, verbose=false, events=events)
     petab_problem = PEtabODEProblem(petab_model, verbose=false)
     p0 = petab_problem.θ_nominalT
-    sol_petab = get_ode_sol(p0, petab_problem)
+    sol_petab = get_odesol(p0, petab_problem)
     sol_compare = sol_compare_to(cbset, tstops)
 
     @test all(reduce(vcat, (sol_petab(sol_petab.t) .-= sol_compare(sol_petab.t))) .< 1e-4)
