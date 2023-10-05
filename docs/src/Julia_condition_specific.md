@@ -42,7 +42,7 @@ Now, assume that for condition `cond0`, the substrate binding rate `c1` should h
 
 ```julia
 _c3 = PEtabParameter(:c3, scale=:log10)
-_se0 = PEtabParameter(:c3, prior=LogNormal(1.0, 0.5), prior_on_linear_scale=true)
+_se0 = PEtabParameter(:se, prior=LogNormal(1.0, 0.5), prior_on_linear_scale=true)
 _sigma = PEtabParameter(:sigma)
 _scale = PEtabParameter(:scale)
 _offset = PEtabParameter(:offset)

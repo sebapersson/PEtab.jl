@@ -26,6 +26,12 @@ function get_odesol(θ::Vector{Float64},
     if isnothing(condition_id)
         condition_id = simulation_info.simulation_condition_id[1]
     end
+    if condition_id isa String
+        condition_id = Symbol(condition_id)
+    end
+    if !isnothing(pre_eq_id) && pre_eq_id isa String
+        pre_eq_id = Symbol(pre_eq_id)
+    end
 
     u0, p = _get_fitted_parameters(θ, petab_problem, condition_id, pre_eq_id, false)
     tmax = petab_problem.simulation_info.tmax[condition_id]
