@@ -12,6 +12,7 @@ First, we load a multi start optimisation result:
 using PEtab
 using Plots
 petab_ms_res = PEtabMultistartOptimisationResult(joinpath(@__DIR__, "assets", "optimisation_results", "boehm"))
+default(left_margin=10Plots.Measures.mm, bottom_margin=10Plots.Measures.mm) # hide
 nothing # hide
 ```
 next, we will, throughout the following sections, demonstrate the available types of plots using `petab_ms_res` as input.

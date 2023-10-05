@@ -62,7 +62,7 @@ measurements = DataFrame(
     time=[1.0, 10.0, 1.0, 20.0],
     measurement=[0.7, 0.1, 1.0, 1.5]
 )
-default(left_margin=7Plots.Measures.mm, bottom_margin=7Plots.Measures.mm) # hide
+default(left_margin=10Plots.Measures.mm, bottom_margin=10Plots.Measures.mm) # hide
 nothing # hide
 ```
 
@@ -171,7 +171,7 @@ plot(odesol)
 
 ## Modifying Event Parameters for Different Simulation Conditions
 
-The trigger (`condition`) and/or `affect` can be made specific to different simulation conditions by introducing control parameters (here `c_time` and `c_value`) and setting their values accordingly in the simulation conditions:
+The trigger time (`condition`) and/or `affect` can be made specific to different simulation conditions by introducing control parameters (here `c_time` and `c_value`) and setting their values accordingly in the simulation conditions:
 
 ```@example 1
 system = @reaction_network begin
