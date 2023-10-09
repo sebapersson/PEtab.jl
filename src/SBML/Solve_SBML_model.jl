@@ -69,7 +69,8 @@ function solve_SBML(path_SBML, solver, tspan; abstol=1e-8, reltol=1e-8, saveat::
         else
             check_activated_t0_names = ""
         end
-        write_tstops_str *= "\treturn" * create_tstops_function(SBML_dict, model_state_names, p_ode_problem_names, nothing) * "\n" * "end" * "\n"
+        _write_tstops_str, convert_tspan = create_tstops_function(SBML_dict, model_state_names, p_ode_problem_names, nothing)
+        write_tstops_str *= "\treturn" * _write_tstops_str * "\n" * "end" * "\n"
     end
     convert_tspan = false
     write_callbacks_str *= "\treturn CallbackSet(" * callback_names * "), Function[" * check_activated_t0_names * "], " * string(convert_tspan)  * "\nend"
