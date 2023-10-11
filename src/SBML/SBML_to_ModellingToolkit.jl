@@ -122,9 +122,15 @@ function process_initial_assignment(model_SBML, model_dict::Dict, base_functions
             model_dict["parameters"][assignId] = formula
             initally_assigned_variable[assignId] = "parameters"
 
+        # At this point the assignment should be accepted as a state in the model, 
+        # and thus has to be added             
         else
-            @error "Could not identify assigned variable $assignId in list of states or parameters"
-        end
+            model_dict["states"][assignId] = formula
+            model_dict["stateGivenInAmounts"][assignId] = (true, collect(keys(model_SBML.compartments))[1])
+            model_dict["hasOnlySubstanceUnits"][assignId] =  false 
+            model_dict["isBoundaryCondition"][assignId] = false
+            model_dict["derivatives"][assignId] = "D(" * assignId * ") ~ "
+        end        
     end
 
     # If the initial assignment for a state is the value of another state apply recursion until continue looping
@@ -216,7 +222,7 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
     model_dict["reactions"] = Dict()
     model_dict["algebraicRules"] = Dict()
     model_dict["assignmentRulesStates"] = Dict()
-    model_dict["compartmentFormula"] = Dict()
+    model_dict["compartment_formula"] = Dict()
     # Mathemathical base functions (can be expanded if needed)
     base_functions = ["exp", "log", "log2", "log10", "sin", "cos", "tan", "pi"]
 
@@ -307,10 +313,24 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
                     continue
                 end
                 event_formulas[i] = model_SBML.species[event_assign_to[i]].compartment *  " * (" * event_formulas[i] * ')'
+                continue
             end
+            if event_assign_to[i] ∈ keys(model_SBML.parameters)
+                continue
+            end
+            if event_assign_to[i] ∈ non_constant_parameter_names
+                continue
+            end
+            # At this state the assign variable should be treated as state that for the first time is introduced 
+            # here, and takes the value 1 prior to being event assigned 
+            model_dict["states"][event_assign_to[i]] = 1.0
+            model_dict["stateGivenInAmounts"][event_assign_to[i]] = (true, collect(keys(model_SBML.compartments))[1])
+            model_dict["hasOnlySubstanceUnits"][event_assign_to[i]] =  false 
+            model_dict["isBoundaryCondition"][event_assign_to[i]] = false
+            model_dict["derivatives"][event_assign_to[i]] = "D(" * event_assign_to[i] * ") ~ "   
         end
         event_name = isempty(event_name) ? "event" * string(e_index) : event_name
-        model_dict["events"][event_name] = [trigger_formula, event_assign_to .* " = " .* event_formulas]
+        model_dict["events"][event_name] = [trigger_formula, event_assign_to .* " = " .* event_formulas, event.trigger.initial_value]
         e_index += 1
     end
 
@@ -338,15 +358,15 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
     end
 
     # In case we have that the compartment is given by an assignment rule, then we need to account for this 
-    for (compartment_id, compartmen_formula) in model_dict["compartmentFormula"]
+    for (compartment_id, compartment_formula) in model_dict["compartment_formula"]
         for (eventId, event) in model_dict["events"]
             trigger_formula = event[1]
             event_assignments = event[2]
-            trigger_formula = replace_whole_word(trigger_formula, compartment_id, compartmen_formula)
+            trigger_formula = replace_whole_word(trigger_formula, compartment_id, compartment_formula)
             for i in eachindex(event_assignments)
-                event_assignments[i] = replace_whole_word(event_assignments[i], compartment_id, compartmen_formula)
+                event_assignments[i] = replace_whole_word(event_assignments[i], compartment_id, compartment_formula)
             end
-            model_dict["events"][eventId] = [trigger_formula, event_assignments]
+            model_dict["events"][eventId] = [trigger_formula, event_assignments, event[3]]
         end
     end
 
@@ -376,7 +396,11 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
         for product in reaction.products
             model_dict["isBoundaryCondition"][product.species] == true && continue # Constant state  
             compartment = model_SBML.species[product.species].compartment
-            stoichiometry = isnothing(product.stoichiometry) ? "1" : string(product.stoichiometry)
+            if isnothing(product.id)
+                stoichiometry = isnothing(product.stoichiometry) ? "1" : string(product.stoichiometry)
+            else
+                stoichiometry = product.id
+            end
             compartment_scaling = model_dict["hasOnlySubstanceUnits"][product.species] == true ? " * " : " * ( 1 /" * compartment * " ) * "
             model_dict["derivatives"][product.species] *= "+" * stoichiometry * compartment_scaling * "(" * formula * ")"
         end
@@ -487,6 +511,14 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
         end
         model_dict["derivatives"][specie] = specie * " ~ (" * model_dict["states"][specie] * ") / " * c
     end
+
+    # In case the model has a conversion factor 
+    for (specie, reaction) in model_dict["derivatives"]
+        if !isnothing(model_SBML.conversion_factor)
+            model_dict["derivatives"][specie] *= " * " * model_SBML.conversion_factor
+        end
+    end
+
 
     # Sometimes parameter can be non-constant, but still have a constant rhs and they primarly change value 
     # because of event assignments. This must be captured, so the SBML importer will look at the RHS of non-constant 

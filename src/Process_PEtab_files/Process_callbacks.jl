@@ -139,22 +139,22 @@ function create_callback_event(event_name::String,
                                p_ode_problem_names::Vector{String}, 
                                model_state_names::Vector{String})
 
-    _condition_formula, affects = SBML_dict["events"][event_name]
+    _condition_formula, affects, initial_value_cond = SBML_dict["events"][event_name]
     has_model_states = check_condition_has_states(_condition_formula, model_state_names)
     discrete_event = has_model_states == true ? false : true
 
     # If the event trigger does not contain a model state but fixed parameters it can at a maximum be triggered once.
-    if has_model_states == false
-        _condition_formula = replace(_condition_formula, "≤" => "==")
-        _condition_formula = replace(_condition_formula, "≥" => "==")
-    else
+    if discrete_event == false
         # If we have a trigger on the form a ≤ b then event should only be 
         # activated when crossing the condition from left -> right. Reverse
         # holds for ≥
         affect_neg = occursin("≤", _condition_formula) 
         _condition_formula = replace(_condition_formula, "≤" => "-")
         _condition_formula = replace(_condition_formula, "≥" => "-")
-        
+    else
+        __condition_formula = _condition_formula
+        _condition_formula = "\tcond = " * _condition_formula * " && from_neg[1] == true\n"
+        _condition_formula *= "\t\tfrom_neg[1] = !(" * __condition_formula * ")\n\t\treturn cond"
     end
 
     # TODO : Refactor and merge functionality with above 
@@ -166,8 +166,14 @@ function create_callback_event(event_name::String,
     end
 
     # Build the condition statement used in the jl function 
-    condition_str = "\n\tfunction condition_" * event_name * "(u, t, integrator)\n"
-    condition_str *= "\t\t" * _condition_formula * "\n\tend\n"
+    if discrete_event == false
+        condition_str = "\n\tfunction condition_" * event_name * "(u, t, integrator)\n"
+        condition_str *= "\t\t" * _condition_formula * "\n\tend\n"
+    else
+        condition_str = "\n\tfunction _condition_" * event_name * "(u, t, integrator, from_neg)\n"
+        condition_str *= "\t" * _condition_formula * "\n\tend\n"
+        condition_str *= "\n\tcondition_" * event_name * " = let from_neg=" * "[" * string(!initial_value_cond) * "]\n\t\t(u, t, integrator) -> _condition_" * event_name * "(u, t, integrator, from_neg)\n\tend\n"
+    end
 
     # Building the affect function (which can act on states and/or parameters)
     affect_str = "\tfunction affect_" * event_name * "!(integrator)\n"
@@ -186,19 +192,45 @@ function create_callback_event(event_name::String,
         affect_str = replace_whole_word(affect_str, p_ode_problem_names[i], "integrator.p["*string(i)*"]")
     end
 
+    # In case the event can be activated at time zero,
+    if discrete_event == true && initial_value_cond == false
+        initial_value_str = "\tfunction init_" * event_name * "(c,u,t,integrator)\n"
+        initial_value_str *= "\t\tcond = condition_" * event_name * "(u, t, integrator)\n"
+        initial_value_str *= "\t\tif cond == true\n"
+        initial_value_str *= "\t\t\taffect_" * event_name * "!(integrator)\n\t\tend\n"
+        initial_value_str *= "\tend"
+    elseif discrete_event == false && initial_value_cond == false
+        initial_value_str = "\tfunction init_" * event_name * "(c,u,t,integrator)\n"
+        initial_value_str *= "\t\tcond = " * _condition_formula * "\n"
+        initial_value_str *= "\t\tif cond == true\n"
+        initial_value_str *= "\t\t\taffect_" * event_name * "!(integrator)\n\t\tend\n"
+        initial_value_str *= "\tend"
+        inequality_symbol = occursin("≤", SBML_dict["events"][event_name][1]) ? "≤" : "≥"
+        initial_value_str = replace(initial_value_str, "-" => inequality_symbol)
+    else
+        initial_value_str = ""
+    end
+
     # Build the callback 
     if discrete_event == false
         if affect_neg == true
-            callback_str = "\tcb_" * event_name * " = ContinuousCallback(" * "condition_" * event_name * ", nothing, " * "affect_" * event_name * "!, "
+            callback_str = "\tcb_" * event_name * " = ContinuousCallback(" * "condition_" * event_name * ", nothing, " * "affect_" * event_name * "!,"
         else
-            callback_str = "\tcb_" * event_name * " = ContinuousCallback(" * "condition_" * event_name * ", " * "affect_" * event_name * "!, nothing, "
+            callback_str = "\tcb_" * event_name * " = ContinuousCallback(" * "condition_" * event_name * ", " * "affect_" * event_name * "!, nothing,"
         end
-    else
-        callback_str = "\tcb_" * event_name * " = DiscreteCallback(" * "condition_" * event_name * ", " * "affect_" * event_name * "!, "
+        if initial_value_cond == false
+            callback_str *= " initialize=init_" * event_name * ", "
+        end
+    elseif discrete_event == true
+        if initial_value_cond == false
+            callback_str = "\tcb_" * event_name * " = DiscreteCallback(" * "condition_" * event_name * ", " * "affect_" * event_name * "!, initialize=init_" * event_name * ", "
+        else
+            callback_str = "\tcb_" * event_name * " = DiscreteCallback(" * "condition_" * event_name * ", " * "affect_" * event_name * "!, "
+        end
     end
     callback_str *= "save_positions=(false, false))\n" # So we do not get problems with saveat in the ODE solver 
 
-    function_str = condition_str * '\n' * affect_str * '\n' 
+    function_str = condition_str * '\n' * affect_str * '\n' * initial_value_str * '\n'
 
     return function_str, callback_str
 end
