@@ -62,7 +62,7 @@ measurements = DataFrame(
     time=[1.0, 10.0, 1.0, 20.0],
     measurement=[0.7, 0.1, 1.0, 1.5]
 )
-default(left_margin=10Plots.Measures.mm, bottom_margin=10Plots.Measures.mm) # hide
+default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm) # hide
 nothing # hide
 ```
 

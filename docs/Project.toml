@@ -10,7 +10,10 @@ SBML = "e5567a89-2604-4b09-9718-f5f78e97c3bb"
 
 [compat]
 Catalyst = "13"
+DataFrames = "1"
+Distributions = "0.25"
 Documenter = "1"
+ModelingToolkit = "8"
 PEtab = "2"
 Plots = "1"
 SBML = "1"
