@@ -9,6 +9,7 @@ Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 SBML = "e5567a89-2604-4b09-9718-f5f78e97c3bb"
 
 [compat]
+Distributions = "0.25"
 Documenter = "1"
 PEtab = "2"
 Plots = "1"
