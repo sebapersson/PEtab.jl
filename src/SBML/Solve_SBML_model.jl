@@ -23,8 +23,6 @@ function solve_SBML(path_SBML, solver, tspan; abstol=1e-8, reltol=1e-8, saveat::
     pathODE = joinpath(dir_save, "ODE_" * model_name * ".jl")
     SBML_dict, _ = SBML_to_ModellingToolkit(path_SBML, pathODE, model_name, ifelse_to_event=true)
 
-    #println("get_function_str(pathODE, 1)[1] = ", get_function_str(pathODE, 1)[1])
-
     verbose && @info "Symbolically processing system"
     _get_ode_system = @RuntimeGeneratedFunction(Meta.parse(get_function_str(pathODE, 1)[1]))
     _ode_system, state_map, parameter_map = _get_ode_system("https://xkcd.com/303/") # Argument needed by @RuntimeGeneratedFunction
@@ -36,7 +34,7 @@ function solve_SBML(path_SBML, solver, tspan; abstol=1e-8, reltol=1e-8, saveat::
     end
 
     # Build callback function 
-    p_ode_problem_names = string.(parameters(ode_system))
+    p_ode_problem_names = isempty(parameters(ode_system)) ? String[] : string.(parameters(ode_system))
     model_state_names = replace.(string.(states(ode_system)), "(t)" => "")
     model_name = replace(model_name, "-" => "_")
     write_callbacks_str = "function getCallbacks_" * model_name * "()\n"

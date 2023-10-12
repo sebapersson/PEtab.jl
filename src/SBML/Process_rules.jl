@@ -34,9 +34,23 @@ function process_assignment_rule!(model_dict::Dict, rule_formula::String, rule_v
         # Delete from state dictionary (as we no longer should assign an initial value to the state)
         delete!(model_dict["states"], rule_variable)
     end
-    # In case compartment is assigned we need to track assignment formula 
     if rule_variable ∈ keys(model_SBML.compartments)
-        model_dict["compartmentFormula"][rule_variable] = rule_formula
+        # In case compartment is assigned we need to track assignment formula 
+        model_dict["compartment_formula"][rule_variable] = rule_formula
+    end
+
+    # At this point the assignment rule create a new state via a speciesreference, 
+    # should thus be added to species list
+    if !(rule_variable ∈ keys(model_dict["states"]) || 
+         rule_variable ∈ keys(model_SBML.compartments) || 
+         rule_variable ∈ keys(model_SBML.parameters) ||
+         rule_variable ∈ keys(model_dict["assignmentRulesStates"]))
+
+        model_dict["states"][rule_variable] = rule_formula
+        model_dict["stateGivenInAmounts"][rule_variable] = (true, collect(keys(model_SBML.compartments))[1])
+        model_dict["hasOnlySubstanceUnits"][rule_variable] =  false 
+        model_dict["isBoundaryCondition"][rule_variable] = false
+        model_dict["derivatives"][rule_variable] = "D(" * rule_variable * ") ~ "        
     end
 
     return 
