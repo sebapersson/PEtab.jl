@@ -250,6 +250,13 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
         if model_dict["isBoundaryCondition"][state_id] == true
            model_dict["derivatives"][state_id] *= "0.0"
         end
+
+        # In case the conc. is given in initial conc, but the state should be in amounts this 
+        # must be acounted for with initial values
+        if model_dict["stateGivenInAmounts"][state_id][1] == false && model_dict["hasOnlySubstanceUnits"][state_id] == true
+            model_dict["stateGivenInAmounts"][state_id] = (true, state.compartment)
+            model_dict["states"][state_id] = string(state.initial_concentration) * " * " * state.compartment
+        end
     end
 
     # Extract model parameters and their default values. In case a parameter is non-constant 
@@ -410,6 +417,10 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
         if model_dict["stateGivenInAmounts"][state_id][1] == false
             continue
         end
+        # Here equations should be given in amounts 
+        if model_dict["hasOnlySubstanceUnits"][state_id] == true
+            continue
+        end
         # Algebraic rule (see below)
         if replace(derivative, " " => "")[end] == '~' || replace(derivative, " " => "")[end] == '0'
             continue
@@ -420,7 +431,13 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
 
     # For states given by assignment rules 
     for (state, formula) in model_dict["assignmentRulesStates"]
-        model_dict["derivatives"][state] = state * " ~ " * formula
+        _formula = rewrite_derivatives(formula, model_dict, base_functions, model_SBML; check_scaling=true)
+        # Must track if species is given in amounts or conc.
+        if state ∈ keys(model_SBML.species)
+            cmult = model_dict["stateGivenInAmounts"][state][1] == true ? " * " * model_SBML.species[state].compartment : ""
+            _formula = "(" * _formula * ")" * cmult
+        end
+        model_dict["derivatives"][state] = state * " ~ " * _formula
         if state ∈ non_constant_parameter_names
             delete!(model_dict["states"], state)
             delete!(model_dict["parameters"], state)
@@ -509,7 +526,17 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
         if divide_with_compartment == false
             continue
         end
-        model_dict["derivatives"][specie] = specie * " ~ (" * model_dict["states"][specie] * ") / " * c
+        if model_dict["stateGivenInAmounts"][specie][1] == true
+            model_dict["derivatives"][specie] = specie * " ~ (" * model_dict["states"][specie] * ") / " * c
+        else
+            # Must account for the fact that the compartment can change in size, and thus need to 
+            # account for its initial value 
+            if c ∈ keys(model_dict["parameters"])
+                model_dict["derivatives"][specie] = specie * " ~ (" * model_dict["states"][specie] * ")"
+            else
+                model_dict["derivatives"][specie] = specie * " ~ (" * model_dict["states"][specie] * ")" * " * " * string(model_dict["states"][c]) * " / " * c 
+            end
+        end
     end
 
     # In case the model has a conversion factor 
@@ -676,11 +703,12 @@ function create_ode_model(model_dict, path_jl_file, model_name, write_to_file::B
             s_index += 1
         end
     end
-    for key in keys(model_dict["assignmentRulesStates"])
+    for (key, formula) in model_dict["assignmentRulesStates"]
+        what_write = key ∈ keys(model_dict["derivatives"]) ? model_dict["derivatives"][key] : key * " ~ " * model_dict["assignmentRulesStates"][key]
         if s_index != 1
-            dict_model_str["derivatives"] *= ",\n    " * key * " ~ " * model_dict["assignmentRulesStates"][key]
+            dict_model_str["derivatives"] *= ",\n    " * what_write
         else
-            dict_model_str["derivatives"] *= "    " * key * " ~ " * model_dict["assignmentRulesStates"][key]
+            dict_model_str["derivatives"] *= "    " * what_write
             s_index += 1
         end
     end

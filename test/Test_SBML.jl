@@ -18,9 +18,10 @@ using DataFrames
 =#
 
 
-testCase = "00001"
-testCase = "00607"
-testSBMLTestSuite(testCase, Rodas4P())
+testCase = "00829"
+testCase = "01064"
+testCase = "00295"
+#testSBMLTestSuite(testCase, Rodas4P())
 # Next we must allow species to first be defined via an InitialAssignment, pretty stupied to me, but aja...
 function testSBMLTestSuite(testCase, solver)
     @info "Test case $testCase"
@@ -34,10 +35,12 @@ function testSBMLTestSuite(testCase, solver)
     if testCase == "00995" || testCase == "00996" || testCase == "00997"
         expected = expected[2:end, :]
     end
+    col_names =  Symbol.(replace.(string.(names(expected)), " " => ""))
+    rename!(expected, col_names)
 
     t_save = Float64.(expected[!, :time])
     tmax = maximum(t_save)
-    whatCheck = Symbol.(filter(x -> x != "time", names(expected)))
+    whatCheck = filter(x -> x != :time, col_names)
     path_SBML = path_SBMLFiles[end]
 
     # Read settings file 
@@ -74,31 +77,41 @@ function testSBMLTestSuite(testCase, solver)
                 continue
             end
 
-            if toCheck ∈ speciesTest && toCheck ∈  speciesTestConc
-
+            if toCheck ∈ speciesTest && toCheck ∈ speciesTestConc && string(toCheck) ∈ keys(model_SBML.species)
                 compartmentName = model_SBML.species[string(toCheck)].compartment
-                if model_dict["stateGivenInAmounts"][string(toCheck)][1] == false
+                if model_dict["stateGivenInAmounts"][string(toCheck)][1] == false 
                     c = 1.0
                 elseif compartmentName in string.(model_parameters)
                     c = sol.prob.p[findfirst(x -> x == compartmentName, string.(model_parameters))]
                 else
                     c = sol[Symbol(compartmentName)]
                 end
+            elseif toCheck ∈ speciesTest && toCheck ∈ speciesTestAmount && string(toCheck) ∈ keys(model_SBML.species)
+                compartmentName = model_SBML.species[string(toCheck)].compartment
+                if model_dict["stateGivenInAmounts"][string(toCheck)][1] == false 
+                    if compartmentName in string.(model_parameters)
+                        c = 1 / (sol.prob.p[findfirst(x -> x == compartmentName, string.(model_parameters))])
+                    else
+                        c = 1 ./ sol[Symbol(compartmentName)]
+                    end
+                else
+                    c = 1.0
+                end
             else
                 c = 1.0
             end
-
+            
             @test all(abs.(sol[toCheck] ./ c .- expected[!, toCheck]) .< absTolTest .+ relTolTest .* abs.(expected[!, toCheck]))
         end
     end
 end
 
 
-# 00945 crash!!
+# 01063 current max 
 # 00369
 solver = Rodas4P()
 @testset "SBML test suite" begin
-    for i in 1:997
+    for i in 1:1023
         testCase = repeat("0", 5 - length(string(i))) *  string(i)
 
         if testCase == "00028"
@@ -110,7 +123,8 @@ solver = Rodas4P()
         if testCase ∈ ["00068", "00069", "00070", "00129", "00130", "00131", "00388", "00391", "00394", "00516", 
                        "00517", "00518", "00519", "00520", "00521", "00522", "00561", "00562", "00563", 
                        "00564", "00731", "00827", "00828", "00829", "00898", "00899", "00900", "00609", 
-                       "00610", "00968", "00973", "00989", "00990", "00991", "00992", "00993", "00994"]
+                       "00610", "00968", "00973", "00989", "00990", "00991", "00992", "00993", "00994", 
+                       "01027", "01028", "01029"]
             continue
         end
 
@@ -151,7 +165,7 @@ solver = Rodas4P()
 
         # Fast reactions can technically be handled via algebraic rules, will add support if wanted 
         if testCase ∈ ["00870", "00871", "00872", "00873", "00874", "00875", "00986", "00987", 
-                       "00988"]
+                       "00988", "01051", "01052", "01053"]
             continue
         end
 
@@ -186,53 +200,11 @@ solver = Rodas4P()
                        "00770", "00771", "00772", "00773", "00774", "00775", "00776", 
                        "00777", "00778", "00779", "00780", "00848", "00849", "00850", 
                        "00886", "00887", "00932", "00933", "00936", "00408", "00461", 
-                       "00655", "00656", "00657", "00980", ]) || testCase ∈ notTest
+                       "00655", "00656", "00657", "00980", "01000", "01048", "01049", 
+                       "01050"]) || testCase ∈ notTest
             continue
         end
 
         testSBMLTestSuite(testCase, solver)
     end
-end
-
-
-
-using OrdinaryDiffEq
-function f(du, u, p, t)
-    du[1] = -u[1]*p[1]
-end
-u0 = [10.0]
-const V = 1
-prob = ODEProblem(f, u0, (0.0, 10.0), [1.0])
-
-function condition_test(u, t, integrator)
-    
-    if integrator.p[1] > 0 && integrator.p[1] < 10
-        println("t = ", t)
-        return true
-    end
-    return false
-end
-affect!(integrator) = integrator.p[1] = 10
-function testinit(c,u,t,integrator)
-    cond = condition_test(u, t, integrator)
-    if cond == true
-        println("t in init = $t")
-        affect!(integrator)
-    end
-end
-
-cb = DiscreteCallback(condition_test, affect!, initialize=testinit)
-
-sol = solve(prob, Tsit5(), callback = cb)
-
-
-function hej(x, y)
-    println("y[1] = ", y[1])
-    y[1] += 1
-    return x * y[1]
-end
-
-
-_hej = let y=[1.0]
-    (x) -> hej(x, y)
 end
