@@ -153,7 +153,7 @@ function _time_dependent_ifelse_to_bool(formula_with_ifelse::String, model_dict:
         time_left = check_for_time(string(lhsRule))
         rewrite_ifelse = true
         if time_left == false && time_left == false
-            println("Have ifelse statements which does not contain time. Hence we do not rewrite as event, but rather keep it as an ifelse.")
+            @info "Have ifelse statements which does not contain time. Hence we do not rewrite as event, but rather keep it as an ifelse." maxlog=1
             rewrite_ifelse = false
             continue
         elseif time_left == true

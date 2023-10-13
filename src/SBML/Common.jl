@@ -51,10 +51,17 @@ function rewrite_piecewise_to_ifelse(rule_formula, variable, model_dict, base_fu
 
         if condition[1:2] == "lt" || condition[1:2] == "gt" || condition[1:2] == "eq" || condition[1:3] == "neq" || condition[1:3] == "geq" || condition[1:3] == "leq" 
             eq_syntax_dict[variable_change] = simple_piecewise_to_ifelse(condition, variable_change, value_active, value_inactive, model_dict, base_functions)
+
         elseif condition[1:3] == "and" || condition[1:2] == "if" || condition[1:2] == "or" || condition[1:3] == "xor" || condition[1:3] == "not"
             eq_syntax_dict[variable_change] = complex_piecewise_to_ifelse(condition, variable, value_active, value_inactive, model_dict, base_functions)
+
+        # Recursion to handle nested piecewise in condition             
+        elseif length(condition) ≥ 9 && condition[1:9] == "piecewise"
+            condition = rewrite_piecewise_to_ifelse(condition, "foo", model_dict, base_functions, model_SBML, ret_formula=true)
+            condition = rewrite_derivatives(condition, model_dict, base_functions, model_SBML)
+            eq_syntax_dict[variable_change] = simple_piecewise_to_ifelse(condition, variable_change, value_active, value_inactive, model_dict, base_functions)
         else
-            @error "Somehow we cannot process the piecewise expression"
+            @error "Somehow we cannot process the piecewise expression, condition = $condition"
         end
     end
 
@@ -124,6 +131,7 @@ end
 
 function simple_piecewise_to_ifelse(condition, variable, value_active, value_inactive, dicts, base_functions)
 
+    nested_condition::Bool = false
     if "leq" == condition[1:3]
         stripped_condition = condition[5:end-1]
         inEqUse = " <= "
@@ -146,13 +154,18 @@ function simple_piecewise_to_ifelse(condition, variable, value_active, value_ina
         return "true"
     elseif "false" == condition[1:5]
         return "false"
+    elseif "ifelse" == condition[1:6]
+        nested_condition = true
     else
         @error "Cannot recognize form of inequality, condition = $condition"
     end
 
-    parts = split_between(stripped_condition, ',')
-    # Trigger of event
-    expression = "ifelse(" * parts[1] * inEqUse * parts[2] * ", " * value_active * ", " * value_inactive * ")"
+    if nested_condition == false
+        parts = split_between(stripped_condition, ',')
+        expression = "ifelse(" * parts[1] * inEqUse * parts[2] * ", " * value_active * ", " * value_inactive * ")"
+    else
+        expression = "ifelse(" * condition * ", " * value_active * ", " * value_inactive * ")"
+    end
 
     return expression
 end

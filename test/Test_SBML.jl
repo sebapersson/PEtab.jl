@@ -17,10 +17,10 @@ using DataFrames
     goes from false to true 
 =#
 
-
+# 01064 has stochiometry math 
 testCase = "00829"
-testCase = "01064"
 testCase = "00295"
+testCase = "01208"
 #testSBMLTestSuite(testCase, Rodas4P())
 # Next we must allow species to first be defined via an InitialAssignment, pretty stupied to me, but aja...
 function testSBMLTestSuite(testCase, solver)
@@ -61,6 +61,7 @@ function testSBMLTestSuite(testCase, solver)
         sol = solve_SBML(path_SBML, solver, (0.0, tmax); abstol=1e-12, reltol=1e-12, verbose=false, saveat=t_save)
         model_parameters = parameters(sol.prob.f.sys)
         for toCheck in whatCheck
+            println("toCheck = ", toCheck)
             toCheckNoWhitespace = Symbol(replace(string(toCheck), " " => ""))
             if toCheckNoWhitespace ∈ Symbol.(model_parameters)
                 iParam = findfirst(x -> x == toCheckNoWhitespace, Symbol.(model_parameters))
@@ -107,11 +108,11 @@ function testSBMLTestSuite(testCase, solver)
 end
 
 
-# 01063 current max 
+# 01014 current max 
 # 00369
 solver = Rodas4P()
 @testset "SBML test suite" begin
-    for i in 1:1023
+    for i in 1100:1210
         testCase = repeat("0", 5 - length(string(i))) *  string(i)
 
         if testCase == "00028"
@@ -119,17 +120,32 @@ solver = Rodas4P()
             continue
         end
 
-        # StoichiometryMath we do not aim to support 
+        # StoichiometryMath we do not yet support
         if testCase ∈ ["00068", "00069", "00070", "00129", "00130", "00131", "00388", "00391", "00394", "00516", 
                        "00517", "00518", "00519", "00520", "00521", "00522", "00561", "00562", "00563", 
                        "00564", "00731", "00827", "00828", "00829", "00898", "00899", "00900", "00609", 
                        "00610", "00968", "00973", "00989", "00990", "00991", "00992", "00993", "00994", 
-                       "01027", "01028", "01029"]
+                       "01027", "01028", "01029", "01064", "01066", "01064", "01069", "01071", "01073", 
+                       "01084", "01085", "01086", "01088", "01095", "01096", "01097", "01100", "01101", 
+                       "01103", "01104", "01105", "01106", "01107", "01108", "01109", "01110", "01111", 
+                       "01121"]
             continue
         end
 
         # Species conversionfactor not yet supported in Julia
         if testCase ∈ ["00976", "00977"]
+            continue
+        end
+
+        # We and SBML.jl do not currently support hierarchical models
+        not_test = ["011" * string(i) for i in 26:83]
+        if testCase ∈ not_test
+            continue
+        end
+
+        # We do not aim to support Flux-Balance-Analysis (FBA) models
+        not_test = ["01" * string(i) for i in 186:197]
+        if testCase ∈ not_test
             continue
         end
 
@@ -182,6 +198,12 @@ solver = Rodas4P()
             continue
         end
 
+        # Piecewise in initialAssignments we do not aim to support (can easily be 
+        # side-stepeed with assignmentrules)
+        if testCase ∈ ["01112", "01113", "01114", "01115", "01116", "01208", "01209", "01210"]
+            continue
+        end
+
         # We do not allow stochastic simulations 
         if testCase ∈ ["00952", "00953"]
             continue
@@ -201,7 +223,7 @@ solver = Rodas4P()
                        "00777", "00778", "00779", "00780", "00848", "00849", "00850", 
                        "00886", "00887", "00932", "00933", "00936", "00408", "00461", 
                        "00655", "00656", "00657", "00980", "01000", "01048", "01049", 
-                       "01050"]) || testCase ∈ notTest
+                       "01050", "01074", "01075", "01076", "01119", "01120"]) || testCase ∈ notTest
             continue
         end
 

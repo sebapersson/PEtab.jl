@@ -433,7 +433,7 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
     for (state, formula) in model_dict["assignmentRulesStates"]
         _formula = rewrite_derivatives(formula, model_dict, base_functions, model_SBML; check_scaling=true)
         # Must track if species is given in amounts or conc.
-        if state ∈ keys(model_SBML.species)
+        if state ∈ keys(model_SBML.species) && model_SBML.species[state].only_substance_units == false
             cmult = model_dict["stateGivenInAmounts"][state][1] == true ? " * " * model_SBML.species[state].compartment : ""
             _formula = "(" * _formula * ")" * cmult
         end
