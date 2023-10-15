@@ -18,9 +18,9 @@ using DataFrames
 =#
 
 # 01064 has stochiometry math 
-testCase = "00829"
 testCase = "00295"
-testCase = "01208"
+testCase = "00051"
+testCase = "01233"
 #testSBMLTestSuite(testCase, Rodas4P())
 # Next we must allow species to first be defined via an InitialAssignment, pretty stupied to me, but aja...
 function testSBMLTestSuite(testCase, solver)
@@ -38,9 +38,9 @@ function testSBMLTestSuite(testCase, solver)
     col_names =  Symbol.(replace.(string.(names(expected)), " " => ""))
     rename!(expected, col_names)
 
-    t_save = Float64.(expected[!, :time])
+    t_save = "Time" in names(expected) ? Float64.(expected[!, :Time]) : Float64.(expected[!, :time])
     tmax = maximum(t_save)
-    whatCheck = filter(x -> x != :time, col_names)
+    whatCheck = filter(x -> x ∉ [:time, :Time], col_names)
     path_SBML = path_SBMLFiles[end]
 
     # Read settings file 
@@ -61,7 +61,6 @@ function testSBMLTestSuite(testCase, solver)
         sol = solve_SBML(path_SBML, solver, (0.0, tmax); abstol=1e-12, reltol=1e-12, verbose=false, saveat=t_save)
         model_parameters = parameters(sol.prob.f.sys)
         for toCheck in whatCheck
-            println("toCheck = ", toCheck)
             toCheckNoWhitespace = Symbol(replace(string(toCheck), " " => ""))
             if toCheckNoWhitespace ∈ Symbol.(model_parameters)
                 iParam = findfirst(x -> x == toCheckNoWhitespace, Symbol.(model_parameters))
@@ -112,7 +111,7 @@ end
 # 00369
 solver = Rodas4P()
 @testset "SBML test suite" begin
-    for i in 1100:1210
+    for i in 1:1236
         testCase = repeat("0", 5 - length(string(i))) *  string(i)
 
         if testCase == "00028"
@@ -159,7 +158,7 @@ solver = Rodas4P()
         # As of yet we do not support events with priority, but could if there are interest. However should
         # be put up as an issue on GitHub 
         if testCase ∈ ["00931", "00934", "00935", "00962", "00963", "00964", "00965", "00966", "00967", 
-                       "00978", "00978"]
+                       "00978", "00978", "01229"]
             continue
         end
 
@@ -182,6 +181,21 @@ solver = Rodas4P()
         # Fast reactions can technically be handled via algebraic rules, will add support if wanted 
         if testCase ∈ ["00870", "00871", "00872", "00873", "00874", "00875", "00986", "00987", 
                        "00988", "01051", "01052", "01053"]
+            continue
+        end
+
+        # We do not support an event with multiple triggers 
+        if testCase ∈ ["01211"]
+            continue
+        end
+
+        # We do not support an event with piecewise in the activation 
+        if testCase ∈ ["01212", "01213", "01214", "01215"]
+            continue
+        end
+
+        # We do not lt etc... with multiple pair (more than two) parameters 
+        if testCase ∈ ["01216"]
             continue
         end
 
@@ -223,7 +237,7 @@ solver = Rodas4P()
                        "00777", "00778", "00779", "00780", "00848", "00849", "00850", 
                        "00886", "00887", "00932", "00933", "00936", "00408", "00461", 
                        "00655", "00656", "00657", "00980", "01000", "01048", "01049", 
-                       "01050", "01074", "01075", "01076", "01119", "01120"]) || testCase ∈ notTest
+                       "01050", "01074", "01075", "01076", "01119", "01120", "01230"]) || testCase ∈ notTest
             continue
         end
 

@@ -48,6 +48,10 @@ function as_trigger(trigger_formula, model_dict, model_SBML)
         parts[1] = replace_whole_word(parts[1], "time", "t")
     end
 
+    # Account for potential reaction-math kinetics making out the trigger 
+    parts[1] = replace_reactionid_with_math(parts[1], model_SBML)
+    parts[2] = replace_reactionid_with_math(parts[2], model_SBML)
+
     # States in ODE-system are typically in substance units, but formulas in 
     # concentratio. Thus, each state is divided with its corresponding 
     # compartment 
@@ -104,7 +108,10 @@ function process_initial_assignment(model_SBML, model_dict::Dict, base_functions
     initally_assigned_parameter = Dict{String, String}()
     for (assignId, initialAssignment) in model_SBML.initial_assignments
         
+        # The formula might refer to reaciton, in this case insert reaction dynamics 
         _formula = SBML_math_to_str(initialAssignment)
+        _formula = replace_reactionid_with_math(_formula, model_SBML)
+        
         formula = rewrite_derivatives(_formula, model_dict, base_functions, model_SBML)
         # Initial time i zero 
         formula = replace_whole_word(formula, "t", "0.0")
@@ -313,6 +320,8 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
             event_assign_to[i] = event_assignment.variable
             event_formulas[i] = replace_function_with_formula(SBML_math_to_str(event_assignment.math), model_dict["modelFunctions"])
             event_formulas[i] = replace_whole_word(event_formulas[i], "t", "integrator.t")
+            event_formulas[i] = replace_reactionid_with_math(event_formulas[i], model_SBML)
+
             # Species typically given in substance units, but formulas in conc. Thus we must account for assignment 
             # formula being in conc., but we are changing something by amount 
             if event_assign_to[i] ∈ keys(model_SBML.species)
@@ -412,8 +421,12 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
             model_dict["derivatives"][product.species] *= "+" * stoichiometry * compartment_scaling * "(" * formula * ")"
         end
     end
-    # For states given in amount but model equations are in conc., multiply with compartment 
+    # For states given in amount but model equations are in conc., multiply with compartment, also handle potential 
+    # reaction identifayers in the derivative
     for (state_id, derivative) in model_dict["derivatives"]
+
+        model_dict["derivatives"][state_id] = replace_reactionid_with_math(model_dict["derivatives"][state_id], model_SBML)
+
         if model_dict["stateGivenInAmounts"][state_id][1] == false
             continue
         end
@@ -566,6 +579,35 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
         model_dict["derivatives"][id] = "D(" * id * ") ~ 0" 
         model_dict["states"][id] = rhs
         non_constant_parameter_names = filter(x -> x != id, non_constant_parameter_names)
+    end
+
+    #=
+        Sometimes the volume might change over time but the amount should stay constant, as we have a boundary condition
+        In this case it follows that amount n (amount), V (compartment) and conc. are related 
+        via the chain rule by - I need to change my ODE:s and add state
+        dn/dt = d(n/V)/dt*V + n*dV/dt 
+    =#
+    for specie in keys(model_SBML.species)
+
+        if !(model_dict["stateGivenInAmounts"][specie][1] == true && 
+             model_SBML.species[specie].compartment ∈  rate_rules_names && 
+             model_dict["isBoundaryCondition"][specie] == true &&
+             specie ∈ rate_rules_names && 
+             model_dict["hasOnlySubstanceUnits"][specie] == false)
+            continue
+        end
+
+        # Derivative and inital values for concentratin species
+        compartment = model_SBML.species[specie].compartment
+        specie_conc = "__" * specie * "__conc__"
+        model_dict["states"][specie_conc] = model_dict["states"][specie] * " / " * compartment
+        i_start = findfirst(x -> x == '~', model_dict["derivatives"][specie]) + 1
+        i_end = findlast(x -> x == ')', model_dict["derivatives"][specie])
+        model_dict["derivatives"][specie_conc] = "D(" * specie_conc  * ") ~ " * model_dict["derivatives"][specie][i_start:i_end]
+
+        # Rebuild derivative for amount specie
+        itmp1, itmp2 = findfirst(x -> x == '~', model_dict["derivatives"][specie_conc]) + 1, findfirst(x -> x == '~', model_dict["derivatives"][compartment]) + 1
+        model_dict["derivatives"][specie] = "D(" * specie * ") ~ " * model_dict["derivatives"][specie_conc][itmp1:end] * "*" *  compartment * " + " * specie * "*" * model_dict["derivatives"][compartment][itmp2:end] * " / " * compartment
     end
 
     model_dict["numOfParameters"] = string(length(keys(model_dict["parameters"])))
@@ -950,4 +992,13 @@ function _SBML_math_to_str(math::SBML.MathConst)
     else
         return math.id, false
     end
+end
+
+
+function replace_reactionid_with_math(formula::T, model_SBML)::T where T<:AbstractString
+    for (reaction_id, reaction) in model_SBML.reactions
+        reaction_math = SBML_math_to_str(reaction.kinetic_math)
+        formula = replace_whole_word(formula, reaction_id, reaction_math)
+    end
+    return formula
 end
