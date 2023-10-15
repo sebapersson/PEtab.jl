@@ -18,6 +18,8 @@ function process_assignment_rule!(model_dict::Dict, rule_formula::String, rule_v
         return 
     end
 
+    rule_formula = replace_reactionid_with_math(rule_formula, model_SBML)
+
     #=
         If the rule does not involve a piecewise expression simply encode it as a function which downsteram
         is integrated into the equations when inserting "functions" into the reactions 
@@ -68,6 +70,8 @@ function process_rate_rule!(model_dict::Dict, rule_formula::String, rule_variabl
             rule_formula = replace_function_with_formula(rule_formula, model_dict["modelFunctions"])
         end
     end
+
+    rule_formula = replace_reactionid_with_math(rule_formula, model_SBML)
 
     # Add rate rule as part of model derivatives and remove from parameters dict if rate rule variable
     # is a parameter
@@ -153,7 +157,7 @@ function _time_dependent_ifelse_to_bool(formula_with_ifelse::String, model_dict:
         time_left = check_for_time(string(lhsRule))
         rewrite_ifelse = true
         if time_left == false && time_left == false
-            println("Have ifelse statements which does not contain time. Hence we do not rewrite as event, but rather keep it as an ifelse.")
+            @info "Have ifelse statements which does not contain time. Hence we do not rewrite as event, but rather keep it as an ifelse." maxlog=1
             rewrite_ifelse = false
             continue
         elseif time_left == true
