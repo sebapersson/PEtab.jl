@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Events (callbacks, dosages etc...) · PEtab.jl</title><meta name="title" content="Events (callbacks, dosages etc...) · PEtab.jl"/><meta property="og:title" content="Events (callbacks, dosages etc...) · PEtab.jl"/><meta property="twitter:title" content="Events (callbacks, dosages etc...) · PEtab.jl"/><meta name="description" content="Documentation for PEtab.jl."/><meta property="og:description" content="Documentation for PEtab.jl."/><meta property="twitter:description" content="Documentation for PEtab.jl."/><meta property="og:url" content="https://sebapersson.github.io/PEtab.jl/Julia_event/"/><meta property="twitter:url" content="https://sebapersson.github.io/PEtab.jl/Julia_event/"/><link rel="canonical" href="https://sebapersson.github.io/PEtab.jl/Julia_event/"/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">PEtab.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../Boehm/">Importing a PEtab problem</a></li><li><span class="tocitem">Defining a PEtab problem in Julia</span><ul><li><a class="tocitem" href="../Define_in_julia/">Getting started</a></li><li><a class="tocitem" href="../Julia_steady_state/">Pre-equilibration (steady-state simulations)</a></li><li><a class="tocitem" href="../Julia_obs_noise/">Noise and observable parameters</a></li><li><a class="tocitem" href="../Julia_condition_specific/">Condition specific system/model parameters</a></li><li class="is-active"><a class="tocitem" href>Events (callbacks, dosages etc...)</a><ul class="internal"><li><a class="tocitem" href="#Time-Triggered-Events"><span>Time-Triggered Events</span></a></li><li><a class="tocitem" href="#State-Triggered-Events"><span>State Triggered Events</span></a></li><li><a class="tocitem" href="#Modifying-Event-Parameters-for-Different-Simulation-Conditions"><span>Modifying Event Parameters for Different Simulation Conditions</span></a></li><li><a class="tocitem" href="#Multiple-Targets-for-an-Event"><span>Multiple Targets for an Event</span></a></li><li><a class="tocitem" href="#Multiple-Events"><span>Multiple Events</span></a></li></ul></li></ul></li><li><span class="tocitem">Selecting options for a PEtab-problem</span><ul><li><a class="tocitem" href="../Brannmark/">Models with pre-equilibration (steady-state simulation)</a></li><li><a class="tocitem" href="../Bachmann/">Medium sized models and adjoint sensitivity analysis</a></li><li><a class="tocitem" href="../Beer/">Models with many conditions specific parameters</a></li></ul></li><li><span class="tocitem">Parameter estimation</span><ul><li><a class="tocitem" href="../Parameter_estimation/">Parameter estimation</a></li><li><a class="tocitem" href="../Avaible_optimisers/">Available optimisers</a></li><li><a class="tocitem" href="../Model_selection/">Model selection (PEtab select)</a></li><li><a class="tocitem" href="../optimisation_output_plotting/">Plots evaluating parameter estimation</a></li></ul></li><li><a class="tocitem" href="../Gradient_hessian_support/">Supported gradient and hessian methods</a></li><li><a class="tocitem" href="../Best_options/">Choosing the best options for a PEtab problem</a></li><li><a class="tocitem" href="../API_choosen/">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Defining a PEtab problem in Julia</a></li><li class="is-active"><a href>Events (callbacks, dosages etc...)</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Events (callbacks, dosages etc...)</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/sebapersson/PEtab.jl/blob/main/docs/src/Julia_event.md#" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="define_events"><a class="docs-heading-anchor" href="#define_events">Events (callbacks, dosages etc...)</a><a id="define_events-1"></a><a class="docs-heading-anchor-permalink" href="#define_events" title="Permalink"></a></h1><p>To account for experimental interventions, such as the addition of a substrate, changes in experimental conditions (e.g., temperature), or automatic dosages when a species exceeds a certain concentration, events (often called callbacks, dosages etc...) can be used. In a <code>PEtabModel</code>, events can be encoded via <code>PEtabEvent</code>:</p><pre><code class="language-julia hljs">PEtabEvent(condition, affect, target)</code></pre><p>where</p><ul><li><p><code>condition</code> is the event trigger and can be i) a constant value or a model parameter that are assumed to be the time the event is activated, or ii) a Boolean expression triggered when, for example, a state exceeds a certain value.</p></li><li><p><code>affect</code> is the effect of the event, which can either be a value or an algebraic expression involving model parameters and/or states. In case of several affects, provide a <code>Vector</code>.</p></li><li><p><code>target</code> specifies the target on which the effect acts. It must be either a model state or parameter. In case of several targets, provide a <code>Vector</code> of targets where <code>affect[i]</code> is the effect for <code>target[i]</code>.</p></li></ul><p>In this section we cover two types of events: those triggered at specific time-points and those triggered by a state (e.g., when a state exceeds a certain concentration), and as working example we use a modified version of the example in the <a href="../Define_in_julia/#define_in_julia">Creating a PEtab Parameter Estimation Problem in Julia</a> tutorial:</p><pre><code class="language-julia hljs">using Catalyst
+using DataFrames
+using Distributions
+using PEtab
+using Plots
+
+
+system = @reaction_network begin
+    @parameters se0
+    @species SE(t) = se0  # se0 = initial value for S
+    c1, S + E --&gt; SE
+    c2, SE --&gt; S + E
+    c3, SE --&gt; P + E
+end
+
+# Define state and parameter maps
+state_map =  [:E =&gt; 1.0, :P =&gt; 0.0]
+parameter_map = [:c1 =&gt; 1.0]
+
+# Define observables
+@unpack P, E, SE = system
+obs_P = PEtabObservable(P, 1.0, transformation=:lin)
+obs_Sum = PEtabObservable(E + SE, 3.0, transformation=:log)
+observables = Dict(&quot;obs_P&quot; =&gt; obs_P,
+                   &quot;obs_Sum&quot; =&gt; obs_Sum)
+
+# Define parameters for estimation
+_c3 = PEtabParameter(:c3, scale=:log10)
+_se0 = PEtabParameter(:se0, prior=LogNormal(1.0, 0.5), prior_on_linear_scale=true)
+_c2 = PEtabParameter(:c2)
+petab_parameters = [_c2, _c3, _se0]
+
+# Define simulation conditions
+condition_c0 = Dict(:S =&gt; 5.0)
+condition_c1 = Dict(:S =&gt; 2.0)
+simulation_conditions = Dict(&quot;cond0&quot; =&gt; condition_c0,
+                             &quot;cond1&quot; =&gt; condition_c1)
+
+# Define measurement data
+measurements = DataFrame(
+    simulation_id=[&quot;cond0&quot;, &quot;cond0&quot;, &quot;cond1&quot;, &quot;cond1&quot;],
+    obs_id=[&quot;obs_P&quot;, &quot;obs_Sum&quot;, &quot;obs_P&quot;, &quot;obs_Sum&quot;],
+    time=[1.0, 10.0, 1.0, 20.0],
+    measurement=[0.7, 0.1, 1.0, 1.5]
+)</code></pre><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>Even though events can be directly encoded in a Catalyst or ModellingToolkit model, we strongly recommend <code>PEtabEvent</code> for optimal performance (e.g. use <code>DiscreteCallback</code> when possible), and for ensuring correct evaluation of the objective function and its derivatives.</p></div></div><h2 id="Time-Triggered-Events"><a class="docs-heading-anchor" href="#Time-Triggered-Events">Time-Triggered Events</a><a id="Time-Triggered-Events-1"></a><a class="docs-heading-anchor-permalink" href="#Time-Triggered-Events" title="Permalink"></a></h2><p>Time-triggered events are activated at specific time-points. The condition can either a constant value (e.g. 1.0) or a model parameter (e.g. <code>c2</code>). For example, to trigger an event at <code>t = 2</code> where the value 2 is added to the state <code>S</code> write:</p><pre><code class="language-julia hljs">@unpack S = system
+event = PEtabEvent(2.0, S + 2, S)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr38_5" style="color:#87d7d7">PEtabEvent</span>: condition t == 2.0, affect S(t) = 2 + S(t)</code></pre><p>When building the <code>PEtabModel</code> the event is then provided via the <code>events</code> keyword:</p><pre><code class="language-julia hljs">petab_model = PEtabModel(
+    system, simulation_conditions, observables, measurements,
+    petab_parameters, state_map=state_map, parameter_map=parameter_map,
+    events=event, verbose=false
+)
+petab_problem = PEtabODEProblem(petab_model, verbose=false)</code></pre><p>Solving the model with the parameter vector <code>p = [c2=0.1, c3=0.1, se0=0.1]</code> we can clearly see that at <code>t == 2</code> <code>S</code> is incremented by 2;</p><pre><code class="language-julia hljs">p = [0.1, 0.1, 0.1]
+odesol = get_odesol(p, petab_problem)
+plot(odesol)</code></pre><img src="40ac8fe6.svg" alt="Example block output"/><p>The trigger time can also be a model parameter. For instance, to trigger the event when <code>t == c2</code> and to set <code>c1</code> to 2.0 write:</p><pre><code class="language-julia hljs">event = PEtabEvent(:c2, 2.0, :c1)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr38_5" style="color:#87d7d7">PEtabEvent</span>: condition c2, affect c1 = 2.0</code></pre><p>and here it is clear a change occurs at <code>t == c2</code></p><pre><code class="language-julia hljs">petab_model = PEtabModel(
+    system, simulation_conditions, observables, measurements,
+    petab_parameters, state_map=state_map, parameter_map=parameter_map,
+    events=event, verbose=false
+)
+petab_problem = PEtabODEProblem(petab_model, verbose=false)
+odesol = get_odesol(p, petab_problem)
+plot(odesol)</code></pre><img src="338630af.svg" alt="Example block output"/><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>If the condition and target are single parameters or states, they can be specied as <code>Num</code> (from unpack) or a <code>Symbol</code>. If the event involves multiple parameters or states, you must provide them as either a <code>Num</code> (as shown below) or a <code>String</code>.</p></div></div><h2 id="State-Triggered-Events"><a class="docs-heading-anchor" href="#State-Triggered-Events">State Triggered Events</a><a id="State-Triggered-Events-1"></a><a class="docs-heading-anchor-permalink" href="#State-Triggered-Events" title="Permalink"></a></h2><p>State-triggered events are activated when a species/state fulfills a certain condition. For example, suppose we have a dosage machine that trigger when the substrate <code>S</code> drops below the threshold value of <code>0.1</code>, and at this time the machine adds up the substrate so it reaches the value 1.0:</p><pre><code class="language-julia hljs">@unpack S = system
+event = PEtabEvent(S == 0.2, 1.0, S)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr38_5" style="color:#87d7d7">PEtabEvent</span>: condition S(t) == 0.2, affect S(t) = 1.0</code></pre><p>Here, <code>S == 0.1</code> means that the event is triggered when <code>S</code> reaches the value of 0.1. Plotting the solution we clearly see how <code>S</code> is affected:</p><pre><code class="language-julia hljs">petab_model = PEtabModel(
+    system, simulation_conditions, observables, measurements,
+    petab_parameters, state_map=state_map, parameter_map=parameter_map,
+    events=event, verbose=false
+)
+petab_problem = PEtabODEProblem(petab_model, verbose=false)
+odesol = get_odesol(p, petab_problem)
+plot(odesol)</code></pre><img src="24ffec34.svg" alt="Example block output"/><p>With state-triggered events, the direction of the condition can matter. For instance, with <code>S == 0.2</code>, the event is triggered whether <code>S</code> approaches <code>0.2</code> from above or below. If we want it to activate only when <code>S</code> enters from above, write:</p><pre><code class="language-julia hljs">@unpack S = system
+event = PEtabEvent(S &lt; 0.2, 1.0, S)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr38_5" style="color:#87d7d7">PEtabEvent</span>: condition S(t) &lt; 0.2, affect S(t) = 1.0</code></pre><p>Here, <code>S &lt; 0.2</code> means that the event will trigger only when the expression goes from <code>false</code> to <code>true</code>, in this case when <code>S</code> approaches <code>0.2</code> from above. To trigger the event only when <code>S</code> approaches <code>0.2</code> from below, write <code>S &gt; 0.2</code>, and we can clearly see that with </p><pre><code class="language-julia hljs">@unpack S = system
+event = PEtabEvent(S &gt; 0.2, 1.0, S)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr38_5" style="color:#87d7d7">PEtabEvent</span>: condition S(t) &gt; 0.2, affect S(t) = 1.0</code></pre><p>the event is not triggered when simulating the model as <code>S</code> comes from above</p><pre><code class="language-julia hljs">petab_model = PEtabModel(
+    system, simulation_conditions, observables, measurements,
+    petab_parameters, state_map=state_map, parameter_map=parameter_map,
+    events=event, verbose=false
+)
+petab_problem = PEtabODEProblem(petab_model, verbose=false)
+odesol = get_odesol(p, petab_problem)
+plot(odesol)</code></pre><img src="6a70c593.svg" alt="Example block output"/><h2 id="Modifying-Event-Parameters-for-Different-Simulation-Conditions"><a class="docs-heading-anchor" href="#Modifying-Event-Parameters-for-Different-Simulation-Conditions">Modifying Event Parameters for Different Simulation Conditions</a><a id="Modifying-Event-Parameters-for-Different-Simulation-Conditions-1"></a><a class="docs-heading-anchor-permalink" href="#Modifying-Event-Parameters-for-Different-Simulation-Conditions" title="Permalink"></a></h2><p>The trigger time (<code>condition</code>) and/or <code>affect</code> can be made specific to different simulation conditions by introducing control parameters (here <code>c_time</code> and <code>c_value</code>) and setting their values accordingly in the simulation conditions:</p><pre><code class="language-julia hljs">system = @reaction_network begin
+    @parameters se0 c_time c_value
+    @species SE(t) = se0  # se0 represents the initial value of S
+    c1, S + E --&gt; SE
+    c2, SE --&gt; S + E
+    c3, SE --&gt; P + E
+end
+
+# Define state and parameter maps
+state_map =  [:E =&gt; 1.0, :P =&gt; 0.0]
+# c_value defaults to 1 prior to the event trigger
+parameter_map = [:c1 =&gt; 1.0]
+
+condition_c0 = Dict(:S =&gt; 5.0, :c_time =&gt; 1.0, :c_value =&gt; 2.0)
+condition_c1 = Dict(:S =&gt; 2.0, :c_time =&gt; 4.0, :c_value =&gt; 3.0)
+simulation_conditions = Dict(&quot;cond0&quot; =&gt; condition_c0,
+                             &quot;cond1&quot; =&gt; condition_c1)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Dict{String, Dict{Symbol, Float64}} with 2 entries:
+  &quot;cond0&quot; =&gt; Dict(:S=&gt;5.0, :c_time=&gt;1.0, :c_value=&gt;2.0)
+  &quot;cond1&quot; =&gt; Dict(:S=&gt;2.0, :c_time=&gt;4.0, :c_value=&gt;3.0)</code></pre><p>In this setup, when the event is defined as:</p><pre><code class="language-julia hljs">event = PEtabEvent(:c_time, :c_value, :c1)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr38_5" style="color:#87d7d7">PEtabEvent</span>: condition c_time, affect c1 = c_value</code></pre><p>the <code>c_time</code> parameter controls when the event is triggered, so for condition <code>c0</code>, the event is triggered at <code>t=1.0</code>, while for condition <code>c1</code>, it is triggered at <code>t=4.0</code>. Additionally, for conditions <code>cond0</code> and <code>cond1</code>, the parameter <code>c1</code> takes on the corresponding <code>c_value</code> values, which is <code>2.0</code> and <code>3.0</code>, respectively, which can clearly be seen when plotting the solution for <code>cond0</code></p><pre><code class="language-julia hljs">petab_model = PEtabModel(
+    system, simulation_conditions, observables, measurements,
+    petab_parameters, state_map=state_map, parameter_map=parameter_map,
+    events=event, verbose=false
+)
+petab_problem = PEtabODEProblem(petab_model, verbose=false)
+odesol = get_odesol(p, petab_problem; condition_id=:cond0)
+plot(odesol)</code></pre><img src="a8bc3711.svg" alt="Example block output"/><p>and <code>cond1</code></p><pre><code class="language-julia hljs">odesol = get_odesol(p, petab_problem; condition_id=:cond1)
+plot(odesol)</code></pre><img src="09b9115d.svg" alt="Example block output"/><h2 id="Multiple-Targets-for-an-Event"><a class="docs-heading-anchor" href="#Multiple-Targets-for-an-Event">Multiple Targets for an Event</a><a id="Multiple-Targets-for-an-Event-1"></a><a class="docs-heading-anchor-permalink" href="#Multiple-Targets-for-an-Event" title="Permalink"></a></h2><p>Sometimes an event can affect multiple states and/or parameters. In this case, both <code>affect</code> and <code>target</code> should be provided as vectors to the <code>PEtabEvent</code>. For example, suppose an event is triggered when the substrate <code>S &lt; 0.2</code>, where <code>S</code> is incremented by 2.0, and <code>c1</code> changes its values to 2.0. This can be encoded as:</p><pre><code class="language-julia hljs">@unpack S, c1 = system
+event = PEtabEvent(S &lt; 0.2, [S + 2, 2.0], [S, c1])</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr38_5" style="color:#87d7d7">PEtabEvent</span>: condition S(t) &lt; 0.2, affect Symbolics.Num[S(t), c1] = Symbolics.Num[2 + S(t), 2.0]</code></pre><p>These events can then be provided when building the <code>PEtabModel</code> using the <code>events</code> keyword:</p><pre><code class="language-julia hljs">petab_model = PEtabModel(
+    system, simulation_conditions, observables, measurements,
+    petab_parameters, state_map=state_map, parameter_map=parameter_map,
+    events=event, verbose=false
+)
+petab_problem = PEtabODEProblem(petab_model, verbose=false)
+odesol = get_odesol(p, petab_problem)
+plot(odesol)</code></pre><img src="dd1e0c96.svg" alt="Example block output"/><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>In case of several affects the length of the affect vector must match the length of the event vector.</p></div></div><h2 id="Multiple-Events"><a class="docs-heading-anchor" href="#Multiple-Events">Multiple Events</a><a id="Multiple-Events-1"></a><a class="docs-heading-anchor-permalink" href="#Multiple-Events" title="Permalink"></a></h2><p>A model can have multiple events, which can be easily defined as a <code>PEtabModel</code> accepts a <code>Vector</code> of <code>PEtabEvent</code> as input. For example, suppose we have an event triggered when the substrate <code>S</code> satisfies <code>S &lt; 0.2</code>, where <code>S</code> changes its value to <code>1.0</code>. Additionally, we have another event triggered when <code>t == 1.0</code>, where the parameter <code>c1</code> changes its value to <code>2.0</code>. This can be encoded as:</p><pre><code class="language-julia hljs">@unpack S, c1 = system
+event1 = PEtabEvent(S &lt; 0.2, 1.0, S)
+event2 = PEtabEvent(1.0, 2.0, :c1)
+events = [event1, event2]</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">2-element Vector{PEtabEvent{T1, Float64} where T1}:
+ <span class="sgr38_5" style="color:#87d7d7">PEtabEvent</span>: condition S(t) &lt; 0.2, affect S(t) = 1.0
+ <span class="sgr38_5" style="color:#87d7d7">PEtabEvent</span>: condition t == 1.0, affect c1 = 2.0</code></pre><p>These events can then be provided when building the <code>PEtabModel</code> with the <code>events</code> keyword:</p><pre><code class="language-julia hljs">petab_model = PEtabModel(
+    system, simulation_conditions, observables, measurements,
+    petab_parameters, state_map=state_map, parameter_map=parameter_map,
+    events=events, verbose=false
+)
+petab_problem = PEtabODEProblem(petab_model, verbose=false)
+odesol = get_odesol(p, petab_problem)
+plot(odesol)</code></pre><img src="f93ab181.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Julia_condition_specific/">« Condition specific system/model parameters</a><a class="docs-footer-nextpage" href="../Brannmark/">Models with pre-equilibration (steady-state simulation) »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.1 on <span class="colophon-date" title="Monday 16 October 2023 08:46">Monday 16 October 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
