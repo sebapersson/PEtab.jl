@@ -387,6 +387,34 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
             model_dict["derivatives"][event_assign_to[i]] = "D(" * event_assign_to[i] * ") ~ "   
         end
 
+        # Handle special case where an event assignment acts on a compartment, and a species with said 
+        # compartment 
+        __event_assign_to = deepcopy(event_assign_to)
+        for (i, assign_to) in pairs(__event_assign_to[not_skip_assignments])
+            if assign_to ∉ keys(model_SBML.compartments)
+                continue
+            end
+            for (specie_id, specie) in model_SBML.species
+                if specie.compartment != assign_to
+                    continue
+                end
+                if model_dict["stateGivenInAmounts"][specie_id][1] == true
+                    continue
+                end
+                if specie_id ∈ event_assign_to
+                    is = findfirst(x -> x == specie_id, event_assign_to)
+                    event_formulas[is] = "(" * event_formulas[is] * ")" * "*" * assign_to * "/" * "(" * event_formulas[i] * ")"
+                    continue
+                end
+                _assign_to = specie_id
+                # assign_to = compartment
+                _formula = specie_id * "*" * assign_to * "/" * "(" * event_formulas[i] * ")"
+                event_assign_to = vcat(event_assign_to, _assign_to)
+                event_formulas = vcat(event_formulas, _formula)
+                not_skip_assignments = vcat(not_skip_assignments, true)
+            end
+        end
+
         event_name = isempty(event_name) ? "event" * string(e_index) : event_name
         model_dict["events"][event_name] = [trigger_formula, event_assign_to[not_skip_assignments] .* " = " .* event_formulas[not_skip_assignments], event.trigger.initial_value]
         e_index += 1
@@ -448,6 +476,7 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
             model_dict["isBoundaryCondition"][reactant.species] == true && continue # Constant state  
             compartment = model_SBML.species[reactant.species].compartment
             stoichiometry = isnothing(reactant.stoichiometry) ? "1" : string(reactant.stoichiometry)
+            stoichiometry = stoichiometry[1] == '-' ? "(" * stoichiometry * ")" : stoichiometry
             compartment_scaling = model_dict["hasOnlySubstanceUnits"][reactant.species] == true ? " * " : " * ( 1 /" * compartment * " ) * "
             model_dict["derivatives"][reactant.species] *= "-" * stoichiometry * compartment_scaling * "(" * formula * ")"
         end
@@ -459,6 +488,7 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
             else
                 stoichiometry = product.id
             end
+            stoichiometry = stoichiometry[1] == '-' ? "(" * stoichiometry * ")" : stoichiometry
             compartment_scaling = model_dict["hasOnlySubstanceUnits"][product.species] == true ? " * " : " * ( 1 /" * compartment * " ) * "
             model_dict["derivatives"][product.species] *= "+" * stoichiometry * compartment_scaling * "(" * formula * ")"
         end
@@ -600,6 +630,9 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
 
     # In case the model has a conversion factor 
     for (specie, reaction) in model_dict["derivatives"]
+        if specie ∈ assignment_rules_names
+            continue
+        end
         if !isnothing(model_SBML.conversion_factor)
             model_dict["derivatives"][specie] *= " * " * model_SBML.conversion_factor
         end
@@ -681,6 +714,9 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
         end
         # Trigger
         event[1] = replace_rateOf(event[1], model_dict)
+    end
+    for (rule_id, rule) in model_dict["algebraicRules"]
+        model_dict["algebraicRules"][rule_id] = replace_rateOf(rule, model_dict)
     end
 
     return model_dict
@@ -966,6 +1002,13 @@ function replace_rateOf(_formula::T, model_dict::Dict) where T<:Union{<:Abstract
             rate_change = model_dict["derivatives"][arg]
             replace_with[i] = rate_change[(findfirst(x -> x == '~', rate_change)+1):end]
         end
+        if (arg ∈ keys(model_dict["states"]) && 
+            model_dict["stateGivenInAmounts"][arg][1] == true && 
+            !isempty(model_dict["stateGivenInAmounts"][arg][2] == true) &&
+            model_dict["hasOnlySubstanceUnits"][arg] == false)
+
+            replace_with[i] = "(" * replace_with[i] * ") / " * model_dict["stateGivenInAmounts"][arg][2]
+        end
     end
 
     formula_cp = deepcopy(formula)
@@ -1112,6 +1155,9 @@ function _SBML_math_to_str(math::SBML.MathApply; inequality_to_julia::Bool=false
 
     # At this point the only feasible option left is a SBML_function
     formula = math.fn * '('
+    if length(math.args) == 0
+        return formula * ')', false
+    end
     for arg in math.args
         _formula, _ = _SBML_math_to_str(arg) 
         formula *= _formula * ", "

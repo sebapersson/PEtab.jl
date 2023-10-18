@@ -105,21 +105,21 @@ end
 function replace_function_with_formula(function_as_str, function_arguments)
 
     new_function_str = function_as_str
+    outside_comma_regex = Regex(",(?![^()]*\\))")
+    match_parentheses_regex = Regex("\\((?:[^)(]*(?R)?)*+\\)")
 
     for (key, value) in function_arguments
         # Find commas not surrounded by parentheses.
         # Used to split function arguments
         # If input argument are "pow(a,b),c" the list becomes ["pow(a,b)","c"]
-        outside_comma_regex = Regex(",(?![^()]*\\))")
         # Finds the old input arguments, removes spaces and puts them in a list
-        replace_from = split(replace(value[1]," "=>""), outside_comma_regex)
+        replace_from = split(replace(value[1], " " => ""), outside_comma_regex)
 
         # Finds all functions on the form "funName("
         n_functions = Regex("\\b" * key * "\\(")
         # Finds the offset after the parenthesis in "funName("
         function_start_regex = Regex("\\b" * key * "\\(\\K")
         # Matches parentheses pairs to grab the arguments of the "funName(" function
-        match_parentheses_regex = Regex("\\((?:[^)(]*(?R)?)*+\\)")
         while !isnothing(match(n_functions, new_function_str))
             # The string we wish to insert when the correct
             # replacement has been made.
@@ -137,7 +137,11 @@ function replace_function_with_formula(function_as_str, function_arguments)
             replace_dict = Dict()
             for ind in eachindex(replace_to)
                 replace_from_regex = Regex("(\\b" * replace_from[ind] * "\\b)")
-                replace_dict[replace_from_regex] = '(' * replace_to[ind] * ')'
+                if !isempty(replace_from[ind])
+                    replace_dict[replace_from_regex] = '(' * replace_to[ind] * ')'                        
+                else
+                    replace_dict[replace_from_regex] = ""
+                end
             end
             replace_str = replace(replace_str, replace_dict...)
 
@@ -151,11 +155,21 @@ function replace_function_with_formula(function_as_str, function_arguments)
 
         end
     end
+
+    model_functions = collect(keys(function_arguments))
+    if any(occursin.(model_functions, new_function_str))
+        new_function_str = replace_function_with_formula(new_function_str, function_arguments)
+    end
+
     return new_function_str
 end
 
 # Rewrites pow(base,exponent) into (base)^(exponent), which Julia can handle
 function remove_power_functions(oldStr)
+
+    if !occursin(Regex("(\\bpow\\b)"), oldStr)
+        return oldStr
+    end
 
     power_dict = Dict()
     power_dict["pow"] = ["base, exponent","(base)^(exponent)"]

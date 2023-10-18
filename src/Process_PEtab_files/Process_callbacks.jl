@@ -149,8 +149,6 @@ function create_callback_event(event_name::String,
         # activated when crossing the condition from left -> right. Reverse
         # holds for ≥
         affect_neg = occursin("≤", _condition_formula) 
-        _condition_formula = replace(_condition_formula, "≤" => "-")
-        _condition_formula = replace(_condition_formula, "≥" => "-")
     else
         __condition_formula = _condition_formula
         _condition_formula = "\tcond = " * _condition_formula * " && from_neg[1] == true\n"
@@ -167,8 +165,10 @@ function create_callback_event(event_name::String,
 
     # Build the condition statement used in the jl function 
     if discrete_event == false
+        __condition_formula = replace(_condition_formula, "≤" => "-")
+        __condition_formula = replace(__condition_formula, "≥" => "-")
         condition_str = "\n\tfunction condition_" * event_name * "(u, t, integrator)\n"
-        condition_str *= "\t\t" * _condition_formula * "\n\tend\n"
+        condition_str *= "\t\t" * __condition_formula * "\n\tend\n"
     else
         condition_str = "\n\tfunction _condition_" * event_name * "(u, t, integrator, from_neg)\n"
         condition_str *= "\t" * _condition_formula * "\n\tend\n"
@@ -205,8 +205,6 @@ function create_callback_event(event_name::String,
         initial_value_str *= "\t\tif cond == true\n"
         initial_value_str *= "\t\t\taffect_" * event_name * "!(integrator)\n\t\tend\n"
         initial_value_str *= "\tend"
-        inequality_symbol = occursin("≤", SBML_dict["events"][event_name][1]) ? "≤" : "≥"
-        initial_value_str = replace(initial_value_str, "-" => inequality_symbol)
     else
         initial_value_str = ""
     end
