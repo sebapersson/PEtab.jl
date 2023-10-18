@@ -30,6 +30,26 @@ function as_trigger(trigger_formula, model_dict, model_SBML)
         trigger_formula = trigger_formula[2:end-1]
     end
 
+    if occursin(r"<|≤|>|≥", trigger_formula)
+        trigger_formula = replace_whole_word(trigger_formula, "time", "t")
+        trigger_formula = replace(trigger_formula, "<" => "≤")
+        trigger_formula = replace(trigger_formula, ">" => "≥")
+        for (species_id, specie) in model_SBML.species
+            if species_id ∈ keys(model_SBML.species) && model_dict["stateGivenInAmounts"][species_id][1] == false
+                continue
+            end
+            if occursin("rateOf", trigger_formula)
+                continue
+            end
+            trigger_formula = replace_whole_word(trigger_formula, species_id, species_id * '/' * specie.compartment)
+        end
+        return trigger_formula
+    end
+
+    if typeof(trigger_formula) <: Real || is_number(trigger_formula)
+        return string(trigger_formula) * " != 0"
+    end
+
     if "geq" == trigger_formula[1:3]
         stripped_formula = trigger_formula[5:end-1]
         separator_use = "≥"
@@ -57,6 +77,9 @@ function as_trigger(trigger_formula, model_dict, model_SBML)
     # compartment 
     for (species_id, specie) in model_SBML.species
         if species_id ∈ keys(model_SBML.species) && model_dict["stateGivenInAmounts"][species_id][1] == false
+            continue
+        end
+        if occursin("rateOf", parts[1]) || occursin("rateOf", parts[2])
             continue
         end
         parts[1] = replace_whole_word(parts[1], species_id, species_id * '/' * specie.compartment)
@@ -143,10 +166,14 @@ function process_initial_assignment(model_SBML, model_dict::Dict, base_functions
     # If the initial assignment for a state is the value of another state apply recursion until continue looping
     # until we have the initial assignment expressed as non state variables
     while true
+        # Skip if rateOf occurs as this is processed longer down when derivatives are done 
         nested_variables = false
         for (variable, dictName) in initally_assigned_variable
             if dictName == "states"
                 variable_value = model_dict["states"][variable]
+                if occursin("rateOf", variable_value)
+                    continue
+                end
                 args = split(get_arguments(variable_value, base_functions))
                 for arg in args
                     if arg in keys(model_dict["states"])
@@ -303,9 +330,12 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
     # Rewrite SBML functions into Julia syntax functions and store in dictionary to allow them to
     # be inserted into equation formulas downstream
     for (function_name, SBML_function) in model_SBML.function_definitions
+        if isnothing(SBML_function.body)
+            continue
+        end
         args = get_SBML_function_args(SBML_function)
-        functionFormula = SBML_math_to_str(SBML_function.body.body)
-        model_dict["modelFunctions"][function_name] = [args, functionFormula]
+        function_formula = SBML_math_to_str(SBML_function.body.body, true)
+        model_dict["modelFunctions"][function_name] = [args, function_formula]
     end
 
     # Later by the process callback function these events are rewritten to 
@@ -313,10 +343,21 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
     e_index = 1
     for (event_name, event) in model_SBML.events
         _trigger_formula = replace_function_with_formula(SBML_math_to_str(event.trigger.math), model_dict["modelFunctions"])
+        if isnothing(_trigger_formula)
+            continue
+        end
         trigger_formula = as_trigger(_trigger_formula, model_dict, model_SBML)
         event_formulas = Vector{String}(undef, length(event.event_assignments))
         event_assign_to = similar(event_formulas)
+        not_skip_assignments = fill(true, length(event.event_assignments))
         for (i, event_assignment) in pairs(event.event_assignments)
+
+            # Check if event should be ignored as no math child was provided 
+            if isnothing(SBML_math_to_str(event_assignment.math))
+                not_skip_assignments[i] = false
+                continue
+            end
+
             event_assign_to[i] = event_assignment.variable
             event_formulas[i] = replace_function_with_formula(SBML_math_to_str(event_assignment.math), model_dict["modelFunctions"])
             event_formulas[i] = replace_whole_word(event_formulas[i], "t", "integrator.t")
@@ -345,8 +386,9 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
             model_dict["isBoundaryCondition"][event_assign_to[i]] = false
             model_dict["derivatives"][event_assign_to[i]] = "D(" * event_assign_to[i] * ") ~ "   
         end
+
         event_name = isempty(event_name) ? "event" * string(e_index) : event_name
-        model_dict["events"][event_name] = [trigger_formula, event_assign_to .* " = " .* event_formulas, event.trigger.initial_value]
+        model_dict["events"][event_name] = [trigger_formula, event_assign_to[not_skip_assignments] .* " = " .* event_formulas[not_skip_assignments], event.trigger.initial_value]
         e_index += 1
     end
 
@@ -444,11 +486,15 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
 
     # For states given by assignment rules 
     for (state, formula) in model_dict["assignmentRulesStates"]
-        _formula = rewrite_derivatives(formula, model_dict, base_functions, model_SBML; check_scaling=true)
         # Must track if species is given in amounts or conc.
-        if state ∈ keys(model_SBML.species) && model_SBML.species[state].only_substance_units == false
-            cmult = model_dict["stateGivenInAmounts"][state][1] == true ? " * " * model_SBML.species[state].compartment : ""
-            _formula = "(" * _formula * ")" * cmult
+        if !occursin("rateOf", formula)
+            _formula = rewrite_derivatives(formula, model_dict, base_functions, model_SBML; check_scaling=true)
+            if state ∈ keys(model_SBML.species) && model_SBML.species[state].only_substance_units == false
+                cmult = model_dict["stateGivenInAmounts"][state][1] == true ? " * " * model_SBML.species[state].compartment : ""
+                _formula = "(" * _formula * ")" * cmult
+            end
+        else
+            _formula = formula
         end
         model_dict["derivatives"][state] = state * " ~ " * _formula
         if state ∈ non_constant_parameter_names
@@ -614,6 +660,28 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
     model_dict["numOfSpecies"] = string(length(keys(model_dict["states"])))
     model_dict["non_constant_parameter_names"] = non_constant_parameter_names
     model_dict["rate_rules_names"] = rate_rules_names
+
+
+    # Replace potential rateOf expression with corresponding rate
+    for (parameter_id, parameter) in model_dict["parameters"]
+        model_dict["parameters"][parameter_id] = replace_rateOf(parameter, model_dict)
+    end
+    for (state_id, state) in model_dict["states"]
+        model_dict["states"][state_id] = replace_rateOf(state, model_dict)
+    end
+    for (state_id, derivative) in model_dict["derivatives"]
+        model_dict["derivatives"][state_id] = replace_rateOf(derivative, model_dict)
+    end
+    for (id, rule_formula) in model_dict["assignmentRulesStates"]
+        model_dict["assignmentRulesStates"][id] = replace_rateOf(rule_formula, model_dict)
+    end
+    for (event_id, event) in model_dict["events"]
+        for (i, assignment) in pairs(event[2])
+            event[2][i] = replace_rateOf(event[2][i], model_dict)
+        end
+        # Trigger
+        event[1] = replace_rateOf(event[1], model_dict)
+    end
 
     return model_dict
 end
@@ -868,13 +936,68 @@ function create_ode_model(model_dict, path_jl_file, model_name, write_to_file::B
     return model_str
 end
 
+
+function replace_rateOf(_formula::T, model_dict::Dict) where T<:Union{<:AbstractString, <:Real}
+
+    formula = string(_formula)
+    if !occursin("rateOf", formula)
+        return formula
+    end
+
+    # Invalid character problems
+    formula = replace(formula, "≤" => "<=")
+    formula = replace(formula, "≥" => ">=")
+
+    # Find rateof expressions 
+    start_rateof = findall(i -> formula[i:(i+6)] == "rateOf(", 1:(length(formula)-6))
+    end_rateof = [findfirst(x -> x == ')', formula[start:end])+start-1 for start in start_rateof]
+    args = [formula[start_rateof[i]+7:end_rateof[i]-1] for i in eachindex(start_rateof)]
+        
+    replace_with = Vector{String}(undef, length(args))
+    for (i, arg) in pairs(args)
+        # A constant parameter does not have a rate 
+        if arg ∈ keys(model_dict["parameters"])
+            replace_with[i] = "0.0"
+        end
+        if is_number(arg)
+            replace_with[i] = "0.0"
+        end
+        if arg ∈ keys(model_dict["states"]) || arg ∈ model_dict["rate_rules_names"]
+            rate_change = model_dict["derivatives"][arg]
+            replace_with[i] = rate_change[(findfirst(x -> x == '~', rate_change)+1):end]
+        end
+    end
+
+    formula_cp = deepcopy(formula)
+    for i in eachindex(replace_with)
+        formula = replace(formula, formula_cp[start_rateof[i]:end_rateof[i]] => replace_with[i])
+    end
+
+    formula = replace(formula, "<=" => "≤")
+    formula = replace(formula, ">=" => "≥")
+    
+    return formula
+end
+
+
 function SBML_math_to_str(math)
     math_str, _ = _SBML_math_to_str(math)
     return math_str
 end
+function SBML_math_to_str(math::SBML.MathApply, inequality_to_julia::Bool)
+    math_str, _ = _SBML_math_to_str(math; inequality_to_julia=inequality_to_julia)
+    return math_str
+end
+function SBML_math_to_str(math, inequality_to_julia::Bool)
+    math_str, _ = _SBML_math_to_str(math)
+    return math_str
+end
+function SBML_math_to_str(math::Nothing)
+    return nothing
+end
 
 
-function _SBML_math_to_str(math::SBML.MathApply)
+function _SBML_math_to_str(math::SBML.MathApply; inequality_to_julia::Bool=false)
 
     if math.fn ∈ ["*", "/", "+", "-", "power"] && length(math.args) == 2
         fn = math.fn == "power" ? "^" : math.fn
@@ -910,6 +1033,12 @@ function _SBML_math_to_str(math::SBML.MathApply)
         return math.fn * formula, true
     end
 
+    if math.fn == "quotient" 
+        arg1, _ = _SBML_math_to_str(math.args[1])
+        arg2, _ = _SBML_math_to_str(math.args[2])
+        return "div(" * arg1 * ", " * arg2 * ")", false
+    end
+
     # Piecewise can have arbibrary number of arguments 
     if math.fn == "piecewise"
         formula = "piecewise("
@@ -920,11 +1049,30 @@ function _SBML_math_to_str(math::SBML.MathApply)
         return formula[1:end-2] * ')', false
     end
 
-    if math.fn ∈ ["lt", "gt", "leq", "geq", "eq"]
+    if math.fn ∈ ["lt", "gt", "leq", "geq", "eq"] && inequality_to_julia == false
         @assert length(math.args) == 2
         part1, _ = _SBML_math_to_str(math.args[1]) 
         part2, _ = _SBML_math_to_str(math.args[2])
         return math.fn * "(" * part1 * ", " * part2 * ')', false
+    end
+
+    if math.fn ∈ ["lt", "gt", "leq", "geq", "eq"] && inequality_to_julia == true
+        @assert length(math.args) == 2
+        part1, _ = _SBML_math_to_str(math.args[1]) 
+        part2, _ = _SBML_math_to_str(math.args[2])
+        if math.fn == "lt"
+            operator = "<"
+        elseif math.fn == "gt"
+            operator = ">"
+        elseif math.fn == "geq"
+            operator = "≥"
+        elseif math.fn == "leq"
+            operator = "≤"
+        elseif math.fn == "eq"
+            operator = "=="
+        end
+
+        return "(" * part1 * operator * part2 * ')', false
     end
 
     if math.fn ∈ ["exp", "log", "log2", "log10", "sin", "cos", "tan"]
