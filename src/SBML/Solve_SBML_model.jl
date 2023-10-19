@@ -89,10 +89,14 @@ function solve_SBML(path_SBML, solver, tspan; abstol=1e-8, reltol=1e-8, saveat::
     verbose && @info "Solving ODE"
 
     ode_problem = ODEProblem(ode_system, state_map, tspan, parameter_map, jac=true)
+    # In order for an event to trigger it must transition from false to true, which is checked under the 
+    # time-stepping. However, sometimes the integrator can step directly to the event time so the flag 
+    # stating the condition is false has not been triggered yet. Solution is that we trigger a tstop 
+    # early on in the simulations 
     tstops = computeTstops(ode_problem.u0, ode_problem.p)
+    tstops = isempty(tstops) ? tstops : vcat(minimum(tstops) / 2.0, tstops)
     for f! in check_cb_active
         f!(ode_problem.u0, ode_problem.p)
     end
-
     return solve(ode_problem, solver, abstol=abstol, reltol=reltol, saveat=saveat, tstops=tstops, callback=cbset)
 end
