@@ -575,7 +575,10 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
             if species ∈ keys(model_SBML.species) && model_SBML.species[species].constant == true
                 continue
             end
-            if model_dict["isBoundaryCondition"][species] == true && model_SBML.species[species].constant == true
+            if model_dict["isBoundaryCondition"][species] == true && model_dict["stateGivenInAmounts"][species][1] == true && model_SBML.species[species].constant == true
+                continue
+            end
+            if species ∈ keys(model_SBML.species) && model_dict["stateGivenInAmounts"][species][1] == false && model_dict["isBoundaryCondition"][species] == true 
                 continue
             end
 
@@ -605,6 +608,9 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
     # their compartment changes. To sidestep this, turn the state into an equation 
     for (specie, reaction) in model_dict["derivatives"]
         if specie ∉ keys(model_SBML.species)
+            continue
+        end
+        if model_dict["isBoundaryCondition"][specie] == true && model_SBML.species[specie].constant == false
             continue
         end
         if replace(reaction, " " => "")[end] != '~' && replace(reaction, " " => "")[end] != '0'
@@ -1041,6 +1047,14 @@ end
 
 
 function _SBML_math_to_str(math::SBML.MathApply; inequality_to_julia::Bool=false)
+
+    if math.fn == "*" && length(math.args) == 0
+        return "1", false
+    end
+
+    if math.fn == "+" && length(math.args) == 0
+        return "0", false
+    end
 
     if math.fn ∈ ["*", "/", "+", "-", "power"] && length(math.args) == 2
         fn = math.fn == "power" ? "^" : math.fn

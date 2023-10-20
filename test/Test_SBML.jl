@@ -18,10 +18,12 @@ using DataFrames
 
 
 # 01064 has stochiometry math 
-testCase = "00295"
+testCase = "01118"
 testCase = "01237"
-testCase = "01510"
-testSBMLTestSuite(testCase, Rodas4P())
+testCase = "00551"
+testCase = "00555"
+testCase = "01787"
+#testSBMLTestSuite(testCase, Rodas4P())
 # Next we must allow species to first be defined via an InitialAssignment, pretty stupied to me, but aja...
 function testSBMLTestSuite(testCase, solver)
     @info "Test case $testCase"
@@ -32,7 +34,7 @@ function testSBMLTestSuite(testCase, solver)
     expected = CSV.read(joinpath(dirCases, testCase, pathResultFile), stringtype=String, DataFrame)
     # As it stands I cannot "hack" a parameter value at time zero, but the model simulation values 
     # are correct.
-    if testCase == "00995" || testCase == "00996" || testCase == "00997" || testCase == "01284" || testCase == "01510"
+    if testCase == "00995" || testCase == "00996" || testCase == "00997" || testCase == "01284" || testCase == "01510" || testCase == "01527" || testCase == "01596" || testCase == "01663" || testCase == "01686" || testCase == "01693" || testCase ∈ ["01694", "01695", "01696", "01697", "01698", "01699", "01700"]
         expected = expected[2:end, :]
     end
     col_names =  Symbol.(replace.(string.(names(expected)), " " => ""))
@@ -57,6 +59,7 @@ function testSBMLTestSuite(testCase, solver)
         if occursin("-l1", path_SBML)
             continue
         end
+        # c = n / V => n = c * V
         model_SBML = readSBML(path_SBML)
         model_dict = PEtab.build_model_dict(readSBML(path_SBML), true)
         sol = solve_SBML(path_SBML, solver, (0.0, tmax); abstol=1e-12, reltol=1e-12, verbose=false, saveat=t_save)
@@ -112,11 +115,16 @@ end
 # 00369
 solver = Rodas4P()
 @testset "SBML test suite" begin
-    for i in 1:1510
-        testCase = repeat("0", 5 - length(string(i))) *  string(i)
+    for j in 1:1821
+        testCase = repeat("0", 5 - length(string(j))) *  string(j)
 
         if testCase == "00028"
             testSBMLTestSuite(testCase, CVODE_BDF())
+            continue
+        end
+
+        # Do not name parameters Inf, true, false, pi, time, or NaN (I mean come on...)
+        if testCase ∈ ["01811", "01813", "01814", "01815", "01816", "01817", "01819", "01820", "01821"]
             continue
         end
 
@@ -129,14 +137,28 @@ solver = Rodas4P()
                        "01027", "01028", "01029", "01064", "01066", "01064", "01069", "01071", "01073", 
                        "01084", "01085", "01086", "01088", "01095", "01096", "01097", "01100", "01101", 
                        "01103", "01104", "01105", "01106", "01107", "01108", "01109", "01110", "01111", 
-                       "01121", "01433", "01434", "01435", "01436", "01437", "01464", "01465", "01498"] ||
+                       "01121", "01433", "01434", "01435", "01436", "01437", "01464", "01465", "01498", 
+                       "01517", "01543", "01552", "01553", "01554", "01555", "01562", "01563", "01564", 
+                       "01566", "01573", "01574", "01631", "01632", "01633", "01634", "01635", "01636", 
+                       "01637", "01653", "01719", "01722", "01723", "01724", "01725", "01726", "01727", 
+                       "01728", "01729", "01734", "01735", "01742", "01743", "01744", "01745", "01746", 
+                       "01747", "01748", "01749", "01750", "01751"] ||
             testCase ∈ not_test
+            continue
+        end
+    
+        # We do not yet support species reference 
+        if testCase ∈ ["01653", "01654", "01655", "01656", "01657", "01736", "01737", "01738", "01753", 
+                       "01764", "01765", "01766", "01767", "01768", "01769", "01770", "01771", "01772", 
+                       "01773", "01774", "01800", "01801", "01802"]
             continue
         end
 
         # Species conversionfactor not yet supported in Julia
         if testCase ∈ ["00976", "00977", "01405", "01406", "01407", "01408", "01409", "01410", "01484", "01500", 
-                       "01501"]
+                       "01501", "01642", "01643", "01645", "01646", "01648", "01649", "01651", "01652", "01666", 
+                       "01667", "01668", "01669", "01670", "01672", "01684", "01685", "01730", "01731", "01733", 
+                       "01739", "01740", "01775", "01776"]
             continue
         end
 
@@ -154,13 +176,15 @@ solver = Rodas4P()
         not_test1 = ["011" * string(i) for i in 26:83]
         not_test2 = ["0" * string(i) for i in 1344:1394]
         not_test3 = ["0" * string(i) for i in 1467:1477]
-        if testCase ∈ not_test1 || testCase ∈ not_test2 || testCase ∈ not_test3
+        not_test4 = ["01778"]
+        if testCase ∈ not_test1 || testCase ∈ not_test2 || testCase ∈ not_test3 || testCase ∈ not_test4
             continue
         end
 
         # We do not aim to support Flux-Balance-Analysis (FBA) models
-        not_test = ["01" * string(i) for i in 186:197]
-        if testCase ∈ not_test
+        not_test1 = ["01" * string(i) for i in 186:197]
+        not_test2 = ["01" * string(i) for i in 606:625]
+        if testCase ∈ not_test1 || testCase ∈ not_test2 || testCase ∈ ["01627", "01628", "01629", "01630"]
             continue
         end
 
@@ -175,7 +199,9 @@ solver = Rodas4P()
         # be put up as an issue on GitHub 
         if testCase ∈ ["00931", "00934", "00935", "00962", "00963", "00964", "00965", "00966", "00967", 
                        "00978", "00978", "01229", "01242", "01267", "01294", "01298", "01331", "01332", 
-                       "01333", "01334", "01336", "01337", "01466"]
+                       "01333", "01334", "01336", "01337", "01466", "01512", "01521", "01533", "01577", 
+                       "01583", "01588", "01589", "01590", "01591", "01592", "01593", "01599", "01605", 
+                       "01626", "01627", "01662", "01681", "01682", "01683", "01705", "01714"]
             continue
         end
 
@@ -193,18 +219,23 @@ solver = Rodas4P()
         if testCase ∈ ["00937", "00938", "00939", "00940", "00941", "00942", "00943", "00981", 
                        "00982", "00983", "00984", "00985", "01318", "01319", "01320", "01400", 
                        "01401", "01403", "01404", "01410", "01411", "01412", "01413", "01414", 
-                       "01415", "01416", "01417", "01418", "01419", "01454", "01480", "01481"]
+                       "01415", "01416", "01417", "01418", "01419", "01454", "01480", "01481", 
+                       "01518", "01522", "01523", "01524", "01534", "01535", "01536", "01537", 
+                       "01538", "01539"]
             continue
         end
 
         # Fast reactions can technically be handled via algebraic rules, will add support if wanted 
         if testCase ∈ ["00870", "00871", "00872", "00873", "00874", "00875", "00986", "00987", 
-                       "00988", "01051", "01052", "01053", "01396", "01397", "01398", "01399"]
+                       "00988", "01051", "01052", "01053", "01396", "01397", "01398", "01399", 
+                       "01544", "01545", "01546", "01547", "01548", "01549", "01550", "01551", 
+                       "01558", "01559", "01560", "01565", "01566", "01567", "01568", "01569",
+                       "01570", "01571", "01572"]
             continue
         end
 
-        # We do not support an event with multiple triggers 
-        if testCase ∈ ["01211"]
+        # We do not support an event with multiple triggers or and in triggers
+        if testCase ∈ ["01211", "01531"]
             continue
         end
 
@@ -214,7 +245,7 @@ solver = Rodas4P()
         end
 
         # We do not lt etc... with multiple pair (more than two) parameters 
-        if testCase ∈ ["01216", "01494"]
+        if testCase ∈ ["01216", "01494", "01781", "01782", "01783"]
             continue
         end
 
@@ -254,6 +285,16 @@ solver = Rodas4P()
             continue
         end
 
+        # We cannot have the trigger of an event be the result of an algebraic rule
+        if testCase == "01578"
+            continue
+        end
+
+        # Event assignment time must be solvable, e.g cosh(x) ≥ 0.5 is not allowed as cosh(x) == 0.5 cannot be solved
+        if testCase == "01596"
+            continue
+        end
+
         # Event with delay can be supported if there is interest as implementing 
         # it is doable (just cumbersome)
         notTest = ["004" * string(i) for i in 21:61]
@@ -271,7 +312,17 @@ solver = Rodas4P()
                        "01050", "01074", "01075", "01076", "01119", "01120", "01230", 
                        "01241", "01263", "01268", "01269", "01270", "01287", "01295", 
                        "01299", "01305", "01324", "01325", "01326", "01327", "01328", 
-                       "01329", "01335", "01507", "01508", "01509"]) || testCase ∈ notTest
+                       "01329", "01335", "01507", "01508", "01509", "01511", "01519", 
+                       "01520", "01525", "01526", "01528", "01529", "01532", "01575", 
+                       "01576", "01579", "01580", "01581", "01582", "01584", "01585", 
+                       "01586", "01587", "01594", "01595", "01597", "01598", "01600", 
+                       "01601", "01602", "01603", "01604", "01659", "01660", "01661", 
+                       "01673", "01674", "01675", "01676", "01677", "01678", "01679", 
+                       "01680", "01687", "01688", "01689", "01690", "01691", "01692", 
+                       "01701", "01702", "01703", "01704", "01706", "01707", "01708", 
+                       "01709", "01710", "01711", "01712", "01713", "01715", "01716", 
+                       "01717", "01718", "01720", "01721", "01754", "01755", "01756", 
+                       "01757", "01758", "01759", "01798"]) || testCase ∈ notTest
             continue
         end
 
