@@ -575,10 +575,10 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
             if species ∈ keys(model_SBML.species) && model_SBML.species[species].constant == true
                 continue
             end
-            if model_dict["isBoundaryCondition"][species] == true 
+            if model_dict["isBoundaryCondition"][species] == true && model_dict["stateGivenInAmounts"][species][1] == true && model_SBML.species[species].constant == true
                 continue
             end
-            if species ∈ keys(model_SBML.species) && model_SBML.species[species].constant == true
+            if species ∈ keys(model_SBML.species) && model_dict["stateGivenInAmounts"][species][1] == false && model_dict["isBoundaryCondition"][species] == true 
                 continue
             end
 
