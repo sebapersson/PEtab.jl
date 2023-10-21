@@ -1,7 +1,42 @@
+"""
+    process_SBML_str_formula(formula::T, model_dict, model_SBML; check_scaling=false)::T where T<:AbstractString
+
+Processes a string formula by inserting SBML functions, rewriting piecewise to ifelse, and scaling species
+"""
+function process_SBML_str_formula(formula::T, model_dict, model_SBML; check_scaling=false)::T where T<:AbstractString
+    
+    _formula = replace_function_with_formula(formula, model_dict["modelFunctions"])
+    if occursin("piecewise(", _formula)
+        _formula = rewrite_piecewise_to_ifelse(_formula, "foo", model_dict, model_SBML, ret_formula=true)
+    end
+    _formula = replace_whole_word_dict(_formula, model_dict["modelFunctions"])
+    _formula = replace_whole_word(_formula, "time", "t") # Sometimes t is decoded as time
+
+    # SBML equations are given in concentration, in case an amount specie appears in the equation scale with the 
+    # compartment in the formula every time the species appear
+    for (state_id, state) in model_SBML.species
+        if check_scaling == false
+            continue
+        end
+        if model_dict["stateGivenInAmounts"][state_id][1] == false 
+            continue
+        end
+        if model_dict["hasOnlySubstanceUnits"][state_id] == true
+            continue
+        end
+
+        compartment = state.compartment
+        _formula = replace_whole_word(_formula, state_id, "(" * state_id * "/" * compartment * ")")
+    end
+
+    return _formula
+end
+
+
 # Handles piecewise functions that are to be redefined with ifelse statements in the model
 # equations to allow MKT symbolic calculations.
 # Calls goToBottomPiecewiseToEvent to handle multiple logical conditions.
-function rewrite_piecewise_to_ifelse(rule_formula, variable, model_dict, base_functions, model_SBML; ret_formula::Bool=false)
+function rewrite_piecewise_to_ifelse(rule_formula, variable, model_dict, model_SBML; ret_formula::Bool=false)
 
     piecewise_strs = get_piecewise_str(rule_formula)
     eq_syntax_dict = Dict() # Hold the Julia syntax for iffelse statements
@@ -37,29 +72,29 @@ function rewrite_piecewise_to_ifelse(rule_formula, variable, model_dict, base_fu
         # Check if we have nested piecewise within either the active or inactive value. If true, apply recursion
         # to reach bottom level of piecewise.
         if occursin("piecewise(", vals[c_index])
-            value_active = rewrite_piecewise_to_ifelse(vals[c_index], "foo", model_dict, base_functions, model_SBML, ret_formula=true)#[7:end]
-            value_active = rewrite_derivatives(value_active, model_dict, base_functions, model_SBML)
+            value_active = rewrite_piecewise_to_ifelse(vals[c_index], "foo", model_dict, model_SBML, ret_formula=true)#[7:end]
+            value_active = process_SBML_str_formula(value_active, model_dict, model_SBML)
         else
-            value_active = rewrite_derivatives(vals[c_index], model_dict, base_functions, model_SBML)
+            value_active = process_SBML_str_formula(vals[c_index], model_dict, model_SBML)
         end
         if occursin("piecewise(", vals[end])
-            value_inactive = rewrite_piecewise_to_ifelse(vals[end], "foo", model_dict, base_functions, model_SBML, ret_formula=true)#[7:end]
-            value_inactive = rewrite_derivatives(value_inactive, model_dict, base_functions, model_SBML)
+            value_inactive = rewrite_piecewise_to_ifelse(vals[end], "foo", model_dict, model_SBML, ret_formula=true)#[7:end]
+            value_inactive = process_SBML_str_formula(value_inactive, model_dict, model_SBML)
         else
-            value_inactive = rewrite_derivatives(vals[end], model_dict, base_functions, model_SBML)
+            value_inactive = process_SBML_str_formula(vals[end], model_dict, model_SBML)
         end
 
         if condition[1:2] == "lt" || condition[1:2] == "gt" || condition[1:2] == "eq" || condition[1:3] == "neq" || condition[1:3] == "geq" || condition[1:3] == "leq" 
-            eq_syntax_dict[variable_change] = simple_piecewise_to_ifelse(condition, variable_change, value_active, value_inactive, model_dict, base_functions)
+            eq_syntax_dict[variable_change] = simple_piecewise_to_ifelse(condition, variable_change, value_active, value_inactive, model_dict)
 
         elseif condition[1:3] == "and" || condition[1:2] == "if" || condition[1:2] == "or" || condition[1:3] == "xor" || condition[1:3] == "not"
-            eq_syntax_dict[variable_change] = complex_piecewise_to_ifelse(condition, variable, value_active, value_inactive, model_dict, base_functions)
+            eq_syntax_dict[variable_change] = complex_piecewise_to_ifelse(condition, variable, value_active, value_inactive, model_dict)
 
         # Recursion to handle nested piecewise in condition             
         elseif length(condition) ≥ 9 && condition[1:9] == "piecewise"
-            condition = rewrite_piecewise_to_ifelse(condition, "foo", model_dict, base_functions, model_SBML, ret_formula=true)
-            condition = rewrite_derivatives(condition, model_dict, base_functions, model_SBML)
-            eq_syntax_dict[variable_change] = simple_piecewise_to_ifelse(condition, variable_change, value_active, value_inactive, model_dict, base_functions)
+            condition = rewrite_piecewise_to_ifelse(condition, "foo", model_dict, model_SBML, ret_formula=true)
+            condition = process_SBML_str_formula(condition, model_dict, model_SBML)
+            eq_syntax_dict[variable_change] = simple_piecewise_to_ifelse(condition, variable_change, value_active, value_inactive, model_dict)
         else
             @error "Somehow we cannot process the piecewise expression, condition = $condition"
         end
@@ -77,7 +112,7 @@ function rewrite_piecewise_to_ifelse(rule_formula, variable, model_dict, base_fu
         formulaUse = replace(formulaUse, piecewise_strs[1] => eq_syntax_dict[variable])
     end
     if ret_formula == false
-        model_dict["inputFunctions"][variable] = input_str * rewrite_derivatives(formulaUse, model_dict, base_functions, model_SBML)
+        model_dict["inputFunctions"][variable] = input_str * process_SBML_str_formula(formulaUse, model_dict, model_SBML)
         return nothing
     else
         return formulaUse
@@ -129,7 +164,7 @@ function get_piecewise_str(arg_str::AbstractString)::Array{String, 1}
 end
 
 
-function simple_piecewise_to_ifelse(condition, variable, value_active, value_inactive, dicts, base_functions)
+function simple_piecewise_to_ifelse(condition, variable, value_active, value_inactive, dicts)
 
     nested_condition::Bool = false
     if "leq" == condition[1:3]
@@ -171,22 +206,22 @@ function simple_piecewise_to_ifelse(condition, variable, value_active, value_ina
 end
 
 
-function complex_piecewise_to_ifelse(condition, variable, value_active, value_inactive, model_dict, base_functions)
-    event_str = recursion_complex_piecewise(condition, variable, model_dict, base_functions)
+function complex_piecewise_to_ifelse(condition, variable, value_active, value_inactive, model_dict)
+    event_str = recursion_complex_piecewise(condition, variable, model_dict)
     return event_str * " * (" * value_active * ") + (1 - " * event_str *") * (" * value_inactive * ")"
 end
 
 
 # As MTK does not support iffelse with multiple comparisons, e.g, a < b && c < d when we have nested piecewise
 # with && and || statements the situation is more tricky when trying to create a reasonable expression.
-function recursion_complex_piecewise(condition, variable, model_dict, base_functions)
+function recursion_complex_piecewise(condition, variable, model_dict)
 
     # mutliplication can be used to mimic an and condition for two bool variables
     if "and" == condition[1:3]
         stripped_condition = condition[5:end-1]
         left_part, rigth_part = split_between(stripped_condition, ',')
-        left_part_exp = recursion_complex_piecewise(left_part, variable, model_dict, base_functions)
-        rigth_part_exp = recursion_complex_piecewise(rigth_part, variable, model_dict, base_functions)
+        left_part_exp = recursion_complex_piecewise(left_part, variable, model_dict)
+        rigth_part_exp = recursion_complex_piecewise(rigth_part, variable, model_dict)
 
         # An or statment can in a differentiable way here be encoded as sigmoid function
         return "(" * left_part_exp * ") * (" * rigth_part_exp * ")"
@@ -195,14 +230,14 @@ function recursion_complex_piecewise(condition, variable, model_dict, base_funct
     elseif "if" == condition[1:2] || "or" == condition[1:2]
         stripped_condition = condition[4:end-1]
         left_part, rigth_part = split_between(stripped_condition, ',')
-        left_part_exp = recursion_complex_piecewise(left_part, variable, model_dict, base_functions)
-        rigth_part_exp = recursion_complex_piecewise(rigth_part, variable, model_dict, base_functions)
+        left_part_exp = recursion_complex_piecewise(left_part, variable, model_dict)
+        rigth_part_exp = recursion_complex_piecewise(rigth_part, variable, model_dict)
 
         return "tanh(10 * (" * left_part_exp * "+" *  rigth_part_exp * "))"
 
     elseif "not" == condition[1:3]
         stripped_condition = condition[5:end-1]
-        condition = recursion_complex_piecewise(stripped_condition, variable, model_dict, base_functions)
+        condition = recursion_complex_piecewise(stripped_condition, variable, model_dict)
         return "(1 - " * condition * ")"        
 
     # xor for two boolean variables can be replicated with a second degree polynominal which is zero at 
@@ -210,13 +245,13 @@ function recursion_complex_piecewise(condition, variable, model_dict, base_funct
     elseif "xor" == condition[1:3]
         stripped_condition = condition[5:end-1]
         left_part, rigth_part = split_between(stripped_condition, ',')
-        left_part_exp = recursion_complex_piecewise(left_part, variable, model_dict, base_functions)
-        rigth_part_exp = recursion_complex_piecewise(rigth_part, variable, model_dict, base_functions)
+        left_part_exp = recursion_complex_piecewise(left_part, variable, model_dict)
+        rigth_part_exp = recursion_complex_piecewise(rigth_part, variable, model_dict)
 
         return "(-(" * left_part_exp * "+" *  rigth_part_exp * ")^2 + 2*(" * left_part * "+" * rigth_part_exp * "))"
 
     else
-        return simple_piecewise_to_ifelse(condition, variable, "1.0", "0.0", model_dict, base_functions)
+        return simple_piecewise_to_ifelse(condition, variable, "1.0", "0.0", model_dict)
     end
 end
 

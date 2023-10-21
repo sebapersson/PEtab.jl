@@ -8,21 +8,8 @@ using Sundials
 using PEtab
 using DataFrames
 
-#=
-    There is something called rateOf. Must write a function handling rateOf in general that 
 
-    1) Identifies rateOf limits 
-    2) Extracts argument 
-    3) Based on what argument is handles rateof correctly
-=#
-
-
-# 01064 has stochiometry math 
-testCase = "01118"
-testCase = "01237"
-testCase = "00551"
-testCase = "00555"
-testCase = "01787"
+testCase = "01252"
 #testSBMLTestSuite(testCase, Rodas4P())
 # Next we must allow species to first be defined via an InitialAssignment, pretty stupied to me, but aja...
 function testSBMLTestSuite(testCase, solver)
@@ -111,11 +98,21 @@ function testSBMLTestSuite(testCase, solver)
 end
 
 
+
+if length(ARGS) > 1
+    istart = parse(Int64, ARGS[1])
+    iend = parse(Int64, ARGS[2])
+else
+    istart = 1
+    iend = 1821
+end
+
+
 # 01014 current max 
 # 00369
 solver = Rodas4P()
 @testset "SBML test suite" begin
-    for j in 1:1821
+    for j in istart:iend
         testCase = repeat("0", 5 - length(string(j))) *  string(j)
 
         if testCase == "00028"
@@ -330,10 +327,3 @@ solver = Rodas4P()
     end
 end
 
-formula = "rateOf(S1)+rateOf(p1)"
-
-
-# Write a function that after function processing un-nests functions in case they 
-# have nested arguments - a bit tricky here with arguments.
-_f = foo["getgetthis"][2]
-PEtab.replace_function_with_formula(_f, model_dict["modelFunctions"])

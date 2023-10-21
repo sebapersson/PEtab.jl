@@ -1,17 +1,16 @@
 function extract_rule_formula(rule)
-    __rule_formula = SBML_math_to_str(rule.math)
-    _rule_formula = replace_whole_word(__rule_formula, "time", "t")
-    rule_formula = remove_power_functions(_rule_formula)
+    _rule_formula = SBML_math_to_str(rule.math)
+    rule_formula = replace_whole_word(_rule_formula, "time", "t")
     return rule_formula
 end
 
 
-function process_assignment_rule!(model_dict::Dict, rule_formula::String, rule_variable::String, base_functions, model_SBML)
+function process_assignment_rule!(model_dict::Dict, rule_formula::String, rule_variable::String, model_SBML)
 
     # If piecewise occurs in the rule we are looking at a time-based event which is encoded as an
     # event into the model to ensure proper evaluation of the gradient.
     if occursin("piecewise(", rule_formula)
-        rewrite_piecewise_to_ifelse(rule_formula, rule_variable, model_dict, base_functions, model_SBML)
+        rewrite_piecewise_to_ifelse(rule_formula, rule_variable, model_dict, model_SBML)
         if rule_variable ∈ keys(model_dict["derivatives"])
             delete!(model_dict["derivatives"], rule_variable)
         end
@@ -26,7 +25,7 @@ function process_assignment_rule!(model_dict::Dict, rule_formula::String, rule_v
     =#
     # Extract the parameters and states which make out the rule, if the rule nests another function 
     # function is written to math 
-    arguments, includes_function = get_arguments(rule_formula, model_dict["modelFunctions"], base_functions)
+    arguments, includes_function = get_arguments(rule_formula, model_dict["modelFunctions"])
     if includes_function == true
         rule_formula = replace_function_with_formula(rule_formula, model_dict["modelFunctions"])
     end
@@ -59,13 +58,13 @@ function process_assignment_rule!(model_dict::Dict, rule_formula::String, rule_v
 end
 
 
-function process_rate_rule!(model_dict::Dict, rule_formula::String, rule_variable::String, model_SBML, base_functions)
+function process_rate_rule!(model_dict::Dict, rule_formula::String, rule_variable::String, model_SBML)
 
     # Rewrite rule to function if there are not any piecewise, eles rewrite to formula with ifelse
     if occursin("piecewise(", rule_formula)
-        rule_formula = rewrite_piecewise_to_ifelse(rule_formula, rule_variable, model_dict, base_functions, model_SBML, ret_formula=true)
+        rule_formula = rewrite_piecewise_to_ifelse(rule_formula, rule_variable, model_dict, model_SBML, ret_formula=true)
     else
-        arguments, includes_function = get_arguments(rule_formula, model_dict["modelFunctions"], base_functions)
+        arguments, includes_function = get_arguments(rule_formula, model_dict["modelFunctions"])
         if includes_function == true
             rule_formula = replace_function_with_formula(rule_formula, model_dict["modelFunctions"])
         end
