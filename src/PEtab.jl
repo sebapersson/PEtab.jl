@@ -79,6 +79,7 @@ include(joinpath("Process_PEtab_files", "Julia_tables_provided", "Create_PEtab_m
 # Importing SBML models
 include(joinpath("SBML", "SBML_to_ModellingToolkit.jl"))
 include(joinpath("SBML", "Common.jl"))
+include(joinpath("SBML", "Initial_assignments.jl"))
 include(joinpath("SBML", "Process_functions.jl"))
 include(joinpath("SBML", "Process_rules.jl"))
 include(joinpath("SBML", "Solve_SBML_model.jl"))

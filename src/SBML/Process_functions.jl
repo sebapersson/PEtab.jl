@@ -2,7 +2,8 @@
 # If a dictionary (with functions) is supplied, will also check if there are nested functions and will
 # include the arguments of these nested functions as arguments of the first function.
 # The returned string will only contain unique arguments.
-function get_arguments(function_as_str, base_functions::Array{String, 1})
+function get_arguments(function_as_str)
+    base_functions = ["exp", "log", "log2", "log10", "sin", "cos", "tan", "pi"]
     parts = split(function_as_str, ['(', ')', '/', '+', '-', '*', ' ', '~', '>', '<', '=', ','], keepempty = false)
     arguments = Dict()
     for part in parts
@@ -24,7 +25,8 @@ function get_arguments(function_as_str, base_functions::Array{String, 1})
     end
     return argument_str
 end
-function get_arguments(function_as_str, dictionary::Dict, base_functions::Vector{String})
+function get_arguments(function_as_str, dictionary::Dict)
+    base_functions = ["exp", "log", "log2", "log10", "sin", "cos", "tan", "pi"]
     parts = split(function_as_str, ['(', ')', '/', '+', '-', '*', ' ', '~', '>', '<', '=', ','], keepempty = false)
     existing_functions = keys(dictionary)
     includes_function = false
@@ -162,20 +164,6 @@ function replace_function_with_formula(function_as_str, function_arguments)
     end
 
     return new_function_str
-end
-
-# Rewrites pow(base,exponent) into (base)^(exponent), which Julia can handle
-function remove_power_functions(oldStr)
-
-    if !occursin(Regex("(\\bpow\\b)"), oldStr)
-        return oldStr
-    end
-
-    power_dict = Dict()
-    power_dict["pow"] = ["base, exponent","(base)^(exponent)"]
-    new_str = replace_function_with_formula(oldStr, power_dict)
-    return new_str
-
 end
 
 
