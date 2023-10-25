@@ -205,7 +205,7 @@ end
 
 Replaces any state or parameter from formula with their corresponding index in the ODE system
 Symbolics can return strings without multiplication sign, e.g. 100.0STAT5 instead of 100.0*STAT5
-so replace_whole_word cannot be used here
+so replace_variable cannot be used here
 """
 function variables_to_array_index(formula::String,
                                   model_state_names::Vector{String},
@@ -251,7 +251,7 @@ function replace_explicit_variable_rule(formula::String, SBML_dict::Dict)::Strin
     _formula = deepcopy(formula)
     while true
         for (key, value) in SBML_dict["assignmentRulesStates"]
-            _formula = replace_whole_word(_formula, key, "(" * value * ")")
+            _formula = replace_variable(_formula, key, "(" * value * ")")
         end
         _formula == formula && break
         formula = deepcopy(_formula)

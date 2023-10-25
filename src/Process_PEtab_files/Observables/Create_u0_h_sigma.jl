@@ -257,7 +257,7 @@ function create_u0_function(model_name::String,
         _stateExpression = replace(string(state_map[i].second), " " => "")
         stateFormula = petab_formula_to_Julia(_stateExpression, model_state_names, parameter_info, p_ode_problem_names, String[])
         for i in eachindex(p_ode_problem_names)
-            stateFormula = replace_whole_word(stateFormula, p_ode_problem_names[i], "p_ode_problem["*string(i)*"]")
+            stateFormula = replace_variable(stateFormula, p_ode_problem_names[i], "p_ode_problem["*string(i)*"]")
         end
         model_state_str *= "\t" * stateName * " = " * stateFormula * "\n"
     end

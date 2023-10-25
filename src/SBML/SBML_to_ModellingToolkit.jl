@@ -23,73 +23,6 @@ function SBML_to_ModellingToolkit(pathXml::String, path_jl_file::String, model_n
 end
 
 
-# Rewrites triggers in events to propper form for ModelingToolkit
-function as_trigger(trigger_formula, model_dict, model_SBML)
-
-    if trigger_formula[1] == '(' && trigger_formula[end] == ')'
-        trigger_formula = trigger_formula[2:end-1]
-    end
-
-    if occursin(r"<|≤|>|≥", trigger_formula)
-        trigger_formula = replace_whole_word(trigger_formula, "time", "t")
-        trigger_formula = replace(trigger_formula, "<" => "≤")
-        trigger_formula = replace(trigger_formula, ">" => "≥")
-        for (species_id, specie) in model_SBML.species
-            if species_id ∈ keys(model_SBML.species) && model_dict["stateGivenInAmounts"][species_id][1] == false
-                continue
-            end
-            if occursin("rateOf", trigger_formula)
-                continue
-            end
-            trigger_formula = replace_whole_word(trigger_formula, species_id, species_id * '/' * specie.compartment)
-        end
-        return trigger_formula
-    end
-
-    if typeof(trigger_formula) <: Real || is_number(trigger_formula)
-        return string(trigger_formula) * " != 0"
-    end
-
-    if "geq" == trigger_formula[1:3]
-        stripped_formula = trigger_formula[5:end-1]
-        separator_use = "≥"
-    elseif "gt" == trigger_formula[1:2]
-        stripped_formula = trigger_formula[4:end-1]
-        separator_use = "≥"
-    elseif "leq" == trigger_formula[1:3]
-        stripped_formula = trigger_formula[5:end-1]
-        separator_use = "≤"
-    elseif "lt" == trigger_formula[1:2]
-        stripped_formula = trigger_formula[4:end-1]
-        separator_use = "≤"
-    end
-    parts = split_between(stripped_formula, ',')
-    if occursin("time", parts[1])
-        parts[1] = replace_whole_word(parts[1], "time", "t")
-    end
-
-    # Account for potential reaction-math kinetics making out the trigger 
-    parts[1] = replace_reactionid_with_math(parts[1], model_SBML)
-    parts[2] = replace_reactionid_with_math(parts[2], model_SBML)
-
-    # States in ODE-system are typically in substance units, but formulas in 
-    # concentratio. Thus, each state is divided with its corresponding 
-    # compartment 
-    for (species_id, specie) in model_SBML.species
-        if species_id ∈ keys(model_SBML.species) && model_dict["stateGivenInAmounts"][species_id][1] == false
-            continue
-        end
-        if occursin("rateOf", parts[1]) || occursin("rateOf", parts[2])
-            continue
-        end
-        parts[1] = replace_whole_word(parts[1], species_id, species_id * '/' * specie.compartment)
-        parts[2] = replace_whole_word(parts[2], species_id, species_id * '/' * specie.compartment)
-    end
-
-    return parts[1] * " " * separator_use * " " * parts[2] 
-end
-
-
 function build_model_dict(model_SBML, ifelse_to_event::Bool)
 
     # Nested dictionaries to store relevant model data:
@@ -151,7 +84,7 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
     # Extract model parameters and their default values. In case a parameter is non-constant 
     # it is treated as a state. Compartments are treated simular to states (allowing them to 
     # be dynamic)
-    non_constant_parameter_names = []
+    non_constant_parameter_names::Vector{String} = String[]
     for (parameter_id, parameter) in model_SBML.parameters
         if parameter.constant == true
             model_dict["parameters"][parameter_id] = string(parameter.value)
@@ -189,91 +122,11 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
             continue
         end
         args = get_SBML_function_args(SBML_function)
-        function_formula = SBML_math_to_str(SBML_function.body.body, true)
+        function_formula = parse_SBML_math(SBML_function.body.body, true)
         model_dict["modelFunctions"][function_name] = [args, function_formula]
     end
 
-    # Later by the process callback function these events are rewritten to 
-    # DiscreteCallback:s if possible 
-    e_index = 1
-    for (event_name, event) in model_SBML.events
-        _trigger_formula = replace_function_with_formula(SBML_math_to_str(event.trigger.math), model_dict["modelFunctions"])
-        if isnothing(_trigger_formula)
-            continue
-        end
-        trigger_formula = as_trigger(_trigger_formula, model_dict, model_SBML)
-        event_formulas = Vector{String}(undef, length(event.event_assignments))
-        event_assign_to = similar(event_formulas)
-        not_skip_assignments = fill(true, length(event.event_assignments))
-        for (i, event_assignment) in pairs(event.event_assignments)
-
-            # Check if event should be ignored as no math child was provided 
-            if isnothing(SBML_math_to_str(event_assignment.math))
-                not_skip_assignments[i] = false
-                continue
-            end
-
-            event_assign_to[i] = event_assignment.variable
-            event_formulas[i] = replace_function_with_formula(SBML_math_to_str(event_assignment.math), model_dict["modelFunctions"])
-            event_formulas[i] = replace_whole_word(event_formulas[i], "t", "integrator.t")
-            event_formulas[i] = replace_reactionid_with_math(event_formulas[i], model_SBML)
-
-            # Species typically given in substance units, but formulas in conc. Thus we must account for assignment 
-            # formula being in conc., but we are changing something by amount 
-            if event_assign_to[i] ∈ keys(model_SBML.species)
-                if event_assign_to[i] ∈ keys(model_SBML.species) && model_dict["stateGivenInAmounts"][event_assign_to[i]][1] == false
-                    continue
-                end
-                event_formulas[i] = model_SBML.species[event_assign_to[i]].compartment *  " * (" * event_formulas[i] * ')'
-                continue
-            end
-            if event_assign_to[i] ∈ keys(model_SBML.parameters)
-                continue
-            end
-            if event_assign_to[i] ∈ non_constant_parameter_names
-                continue
-            end
-            # At this state the assign variable should be treated as state that for the first time is introduced 
-            # here, and takes the value 1 prior to being event assigned 
-            model_dict["states"][event_assign_to[i]] = 1.0
-            model_dict["stateGivenInAmounts"][event_assign_to[i]] = (true, collect(keys(model_SBML.compartments))[1])
-            model_dict["hasOnlySubstanceUnits"][event_assign_to[i]] =  false 
-            model_dict["isBoundaryCondition"][event_assign_to[i]] = false
-            model_dict["derivatives"][event_assign_to[i]] = "D(" * event_assign_to[i] * ") ~ "   
-        end
-
-        # Handle special case where an event assignment acts on a compartment, and a species with said 
-        # compartment 
-        __event_assign_to = deepcopy(event_assign_to)
-        for (i, assign_to) in pairs(__event_assign_to[not_skip_assignments])
-            if assign_to ∉ keys(model_SBML.compartments)
-                continue
-            end
-            for (specie_id, specie) in model_SBML.species
-                if specie.compartment != assign_to
-                    continue
-                end
-                if model_dict["stateGivenInAmounts"][specie_id][1] == true
-                    continue
-                end
-                if specie_id ∈ event_assign_to
-                    is = findfirst(x -> x == specie_id, event_assign_to)
-                    event_formulas[is] = "(" * event_formulas[is] * ")" * "*" * assign_to * "/" * "(" * event_formulas[i] * ")"
-                    continue
-                end
-                _assign_to = specie_id
-                # assign_to = compartment
-                _formula = specie_id * "*" * assign_to * "/" * "(" * event_formulas[i] * ")"
-                event_assign_to = vcat(event_assign_to, _assign_to)
-                event_formulas = vcat(event_formulas, _formula)
-                not_skip_assignments = vcat(not_skip_assignments, true)
-            end
-        end
-
-        event_name = isempty(event_name) ? "event" * string(e_index) : event_name
-        model_dict["events"][event_name] = [trigger_formula, event_assign_to[not_skip_assignments] .* " = " .* event_formulas[not_skip_assignments], event.trigger.initial_value]
-        e_index += 1
-    end
+    parse_SBML_events!(model_dict, model_SBML, non_constant_parameter_names)
 
     assignment_rules_names = []
     rate_rules_names = []
@@ -292,7 +145,7 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
 
         if rule isa SBML.AlgebraicRule
             _rule_formula = extract_rule_formula(rule)
-            rule_formula = replace_function_with_formula(_rule_formula, model_dict["modelFunctions"])
+            rule_formula = SBML_function_to_math(_rule_formula, model_dict["modelFunctions"])
             rule_name = isempty(model_dict["algebraicRules"]) ? "1" : maximum(keys(model_dict["algebraicRules"])) * "1" # Need placeholder key 
             model_dict["algebraicRules"][rule_name] = "0 ~ " * rule_formula
         end
@@ -303,9 +156,9 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
         for (eventId, event) in model_dict["events"]
             trigger_formula = event[1]
             event_assignments = event[2]
-            trigger_formula = replace_whole_word(trigger_formula, compartment_id, compartment_formula)
+            trigger_formula = replace_variable(trigger_formula, compartment_id, compartment_formula)
             for i in eachindex(event_assignments)
-                event_assignments[i] = replace_whole_word(event_assignments[i], compartment_id, compartment_formula)
+                event_assignments[i] = replace_variable(event_assignments[i], compartment_id, compartment_formula)
             end
             model_dict["events"][eventId] = [trigger_formula, event_assignments, event[3]]
         end
@@ -317,11 +170,11 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
     # Process chemical reactions 
     for (id, reaction) in model_SBML.reactions
         # Process kinetic math into Julia syntax 
-        _formula = SBML_math_to_str(reaction.kinetic_math)
+        _formula = parse_SBML_math(reaction.kinetic_math)
                
         # Add values for potential kinetic parameters (where-statements)
         for (parameter_id, parameter) in reaction.kinetic_parameters
-            _formula = replace_whole_word(_formula, parameter_id, parameter.value)
+            _formula = replace_variable(_formula, parameter_id, string(parameter.value))
         end
 
         formula = process_SBML_str_formula(_formula, model_dict, model_SBML, check_scaling=true)
@@ -332,8 +185,8 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
             compartment = model_SBML.species[reactant.species].compartment
             stoichiometry = isnothing(reactant.stoichiometry) ? "1" : string(reactant.stoichiometry)
             stoichiometry = stoichiometry[1] == '-' ? "(" * stoichiometry * ")" : stoichiometry
-            compartment_scaling = model_dict["hasOnlySubstanceUnits"][reactant.species] == true ? " * " : " * ( 1 /" * compartment * " ) * "
-            model_dict["derivatives"][reactant.species] *= "-" * stoichiometry * compartment_scaling * "(" * formula * ")"
+            compartment_scaling = model_dict["hasOnlySubstanceUnits"][reactant.species] == true ? "*" : "/" * compartment * "*"
+            model_dict["derivatives"][reactant.species] *= " - " * stoichiometry * compartment_scaling * "(" * formula * ")"
         end
         for product in reaction.products
             model_dict["isBoundaryCondition"][product.species] == true && continue # Constant state  
@@ -344,8 +197,8 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
                 stoichiometry = product.id
             end
             stoichiometry = stoichiometry[1] == '-' ? "(" * stoichiometry * ")" : stoichiometry
-            compartment_scaling = model_dict["hasOnlySubstanceUnits"][product.species] == true ? " * " : " * ( 1 /" * compartment * " ) * "
-            model_dict["derivatives"][product.species] *= "+" * stoichiometry * compartment_scaling * "(" * formula * ")"
+            compartment_scaling = model_dict["hasOnlySubstanceUnits"][product.species] == true ? "*" : "/" * compartment * "*"
+            model_dict["derivatives"][product.species] *= " + " * stoichiometry * compartment_scaling * "(" * formula * ")"
         end
     end
     # For states given in amount but model equations are in conc., multiply with compartment, also handle potential 
@@ -394,14 +247,14 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
     is_in_ode = falses(length(model_dict["parameters"]))
     for du in values(model_dict["derivatives"])
         for (i, pars) in enumerate(keys(model_dict["parameters"]))
-            if replace_whole_word(du, pars, "") !== du
+            if replace_variable(du, pars, "") !== du
                 is_in_ode[i] = true
             end
         end
     end
     for input_function in values(model_dict["inputFunctions"])
         for (i, pars) in enumerate(keys(model_dict["parameters"]))
-            if replace_whole_word(input_function, pars, "") !== input_function
+            if replace_variable(input_function, pars, "") !== input_function
                 is_in_ode[i] = true
             end
         end
@@ -439,7 +292,7 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
 
             # Check if state occurs in any of the algebraic rules 
             for (rule_id, rule) in model_dict["algebraicRules"]
-                if replace_whole_word(rule, species, "") != rule 
+                if replace_variable(rule, species, "") != rule 
                     should_continue = false
                 end
             end
@@ -860,184 +713,10 @@ function replace_rateOf(_formula::T, model_dict::Dict) where T<:Union{<:Abstract
 end
 
 
-function SBML_math_to_str(math)
-    math_str, _ = _SBML_math_to_str(math)
-    return math_str
-end
-function SBML_math_to_str(math::SBML.MathApply, inequality_to_julia::Bool)
-    math_str, _ = _SBML_math_to_str(math; inequality_to_julia=inequality_to_julia)
-    return math_str
-end
-function SBML_math_to_str(math, inequality_to_julia::Bool)
-    math_str, _ = _SBML_math_to_str(math)
-    return math_str
-end
-function SBML_math_to_str(math::Nothing)
-    return nothing
-end
-
-
-function _SBML_math_to_str(math::SBML.MathApply; inequality_to_julia::Bool=false)
-
-    if math.fn == "*" && length(math.args) == 0
-        return "1", false
-    end
-
-    if math.fn == "+" && length(math.args) == 0
-        return "0", false
-    end
-
-    if math.fn ∈ ["*", "/", "+", "-", "power"] && length(math.args) == 2
-        fn = math.fn == "power" ? "^" : math.fn
-        _part1, add_parenthesis1 = _SBML_math_to_str(math.args[1])
-        _part2, add_parenthesis2 = _SBML_math_to_str(math.args[2])
-        # In case we hit the bottom in the recursion we do not need to add paranthesis 
-        # around the math-expression making the equations easier to read
-        part1 = add_parenthesis1 ?  '(' * _part1 * ')' : _part1
-        part2 = add_parenthesis2 ?  '(' * _part2 * ')' : _part2
-        return part1 * fn * part2, true
-    end
-
-    if math.fn == "log" && length(math.args) == 2
-        base, add_parenthesis1 = _SBML_math_to_str(math.args[1])
-        arg, add_parenthesis2 = _SBML_math_to_str(math.args[2])
-        part1 = add_parenthesis1 ?  '(' * base * ')' : base
-        part2 = add_parenthesis2 ?  '(' * arg * ')' : arg
-        return "log(" * part1 * ", " * part2 * ")", true
-    end
-
-
-    if math.fn == "root" && length(math.args) == 2
-        base, add_parenthesis1 = _SBML_math_to_str(math.args[1])
-        arg, add_parenthesis2 = _SBML_math_to_str(math.args[2])
-        part1 = add_parenthesis1 ?  '(' * base * ')' : base
-        part2 = add_parenthesis2 ?  '(' * arg * ')' : arg
-        return  part2 * "^(1 / " * part1 * ")", true
-    end
-
-    if math.fn ∈ ["+", "-"] && length(math.args) == 1
-        _formula, add_parenthesis = _SBML_math_to_str(math.args[1])
-        formula = add_parenthesis ? '(' * _formula * ')' : _formula
-        return math.fn * formula, true
-    end
-
-    if math.fn == "quotient" 
-        arg1, _ = _SBML_math_to_str(math.args[1])
-        arg2, _ = _SBML_math_to_str(math.args[2])
-        return "div(" * arg1 * ", " * arg2 * ")", false
-    end
-
-    # Piecewise can have arbibrary number of arguments 
-    if math.fn == "piecewise"
-        formula = "piecewise("
-        for arg in math.args
-            _formula, _ = _SBML_math_to_str(arg) 
-            formula *= _formula * ", "
-        end
-        return formula[1:end-2] * ')', false
-    end
-
-    if math.fn ∈ ["lt", "gt", "leq", "geq", "eq"] && inequality_to_julia == false
-        @assert length(math.args) == 2
-        part1, _ = _SBML_math_to_str(math.args[1]) 
-        part2, _ = _SBML_math_to_str(math.args[2])
-        return math.fn * "(" * part1 * ", " * part2 * ')', false
-    end
-
-    if math.fn ∈ ["lt", "gt", "leq", "geq", "eq"] && inequality_to_julia == true
-        @assert length(math.args) == 2
-        part1, _ = _SBML_math_to_str(math.args[1]) 
-        part2, _ = _SBML_math_to_str(math.args[2])
-        if math.fn == "lt"
-            operator = "<"
-        elseif math.fn == "gt"
-            operator = ">"
-        elseif math.fn == "geq"
-            operator = "≥"
-        elseif math.fn == "leq"
-            operator = "≤"
-        elseif math.fn == "eq"
-            operator = "=="
-        end
-
-        return "(" * part1 * operator * part2 * ')', false
-    end
-
-    if math.fn ∈ ["exp", "log", "log2", "log10", "sin", "cos", "tan"]
-        @assert length(math.args) == 1
-        formula, _ = _SBML_math_to_str(math.args[1])
-        return math.fn * '(' * formula * ')', false
-    end
-
-    if math.fn ∈ ["arctan", "arcsin", "arccos", "arcsec", "arctanh", "arcsinh", "arccosh", 
-                  "arccsc", "arcsech", "arccoth", "arccot", "arccot", "arccsch"]
-        @assert length(math.args) == 1
-        formula, _ = _SBML_math_to_str(math.args[1])
-        return "a" * math.fn[4:end] * '(' * formula * ')', false
-    end
-
-    if math.fn ∈ ["exp", "log", "log2", "log10", "sin", "cos", "tan", "csc", "ln"]
-        fn = math.fn == "ln" ? "log" : math.fn
-        @assert length(math.args) == 1
-        formula, _ = _SBML_math_to_str(math.args[1])
-        return fn * '(' * formula * ')', false
-    end
-
-    # Special function which must be rewritten to Julia syntax 
-    if math.fn == "ceiling"
-        formula, _ = _SBML_math_to_str(math.args[1])
-        return "ceil" * '(' * formula * ')', false
-    end
-
-    # Factorials are, naturally, very challenging for ODE solvers. In case against the odds they 
-    # are provided we compute the factorial via the gamma-function (to handle Num type). 
-    if math.fn == "factorial"
-        @warn "Factorial in the ODE model. PEtab.jl can handle factorials, but, solving the ODEs with factorial is 
-            numerically challenging, and thus if possible should be avioded"
-        formula, _ = _SBML_math_to_str(math.args[1])
-        return "SpecialFunctions.gamma" * '(' * formula * " + 1.0)", false
-    end
-
-    # At this point the only feasible option left is a SBML_function
-    formula = math.fn * '('
-    if length(math.args) == 0
-        return formula * ')', false
-    end
-    for arg in math.args
-        _formula, _ = _SBML_math_to_str(arg) 
-        formula *= _formula * ", "
-    end
-    return formula[1:end-2] * ')', false
-end
-function _SBML_math_to_str(math::SBML.MathVal)
-    return string(math.val), false
-end
-function _SBML_math_to_str(math::SBML.MathIdent)
-    return string(math.id), false
-end
-function _SBML_math_to_str(math::SBML.MathTime)
-    # Time unit is consistently in models refered to as time 
-    return "t", false
-end
-function _SBML_math_to_str(math::SBML.MathAvogadro)
-    # Time unit is consistently in models refered to as time 
-    return "6.02214179e23", false
-end
-function _SBML_math_to_str(math::SBML.MathConst)
-    if math.id == "exponentiale"
-        return "2.718281828459045", false
-    elseif math.id == "pi"
-        return "3.1415926535897", false
-    else
-        return math.id, false
-    end
-end
-
-
 function replace_reactionid_with_math(formula::T, model_SBML)::T where T<:AbstractString
     for (reaction_id, reaction) in model_SBML.reactions
-        reaction_math = SBML_math_to_str(reaction.kinetic_math)
-        formula = replace_whole_word(formula, reaction_id, reaction_math)
+        reaction_math = parse_SBML_math(reaction.kinetic_math)
+        formula = replace_variable(formula, reaction_id, reaction_math)
     end
     return formula
 end

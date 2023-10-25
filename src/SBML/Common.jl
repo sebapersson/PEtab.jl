@@ -1,16 +1,28 @@
 """
+    replace_variable(formula::T, to_replace::String, replace_with::String)::T where T<:AbstractString
+
+In a formula replaces to_replace with replace_with. Note exact match is required, so if to_replace=time1
+and replace_with=1 while formula = time * 2 nothing is replaced as time != time1
+"""
+function replace_variable(formula::T, to_replace::String, replace_with::String)::T where T<:AbstractString
+
+    _to_replace = Regex("(\\b" * to_replace * "\\b)")
+    return replace(formula, _to_replace => replace_with)
+end
+
+
+"""
     process_SBML_str_formula(formula::T, model_dict, model_SBML; check_scaling=false)::T where T<:AbstractString
 
 Processes a string formula by inserting SBML functions, rewriting piecewise to ifelse, and scaling species
 """
 function process_SBML_str_formula(formula::T, model_dict, model_SBML; check_scaling=false)::T where T<:AbstractString
     
-    _formula = replace_function_with_formula(formula, model_dict["modelFunctions"])
+    _formula = SBML_function_to_math(formula, model_dict["modelFunctions"])
     if occursin("piecewise(", _formula)
         _formula = rewrite_piecewise_to_ifelse(_formula, "foo", model_dict, model_SBML, ret_formula=true)
     end
-    _formula = replace_whole_word_dict(_formula, model_dict["modelFunctions"])
-    _formula = replace_whole_word(_formula, "time", "t") # Sometimes t is decoded as time
+    _formula = replace_variable(_formula, "time", "t") # Sometimes t is decoded as time
 
     # SBML equations are given in concentration, in case an amount specie appears in the equation scale with the 
     # compartment in the formula every time the species appear
@@ -26,7 +38,7 @@ function process_SBML_str_formula(formula::T, model_dict, model_SBML; check_scal
         end
 
         compartment = state.compartment
-        _formula = replace_whole_word(_formula, state_id, "(" * state_id * "/" * compartment * ")")
+        _formula = replace_variable(_formula, state_id, "(" * state_id * "/" * compartment * ")")
     end
 
     return _formula

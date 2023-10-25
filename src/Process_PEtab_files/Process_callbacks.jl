@@ -87,10 +87,10 @@ function create_callback(callback_name::String,
     # Replace any state or parameter with their corresponding index in the ODE system to be comaptible with event
     # syntax
     for i in eachindex(model_state_names)
-        _condition_formula = replace_whole_word(_condition_formula, model_state_names[i], "u["*string(i)*"]")
+        _condition_formula = replace_variable(_condition_formula, model_state_names[i], "u["*string(i)*"]")
     end
     for i in eachindex(p_ode_problem_names)
-        _condition_formula = replace_whole_word(_condition_formula, p_ode_problem_names[i], "integrator.p["*string(i)*"]")
+        _condition_formula = replace_variable(_condition_formula, p_ode_problem_names[i], "integrator.p["*string(i)*"]")
     end
 
     # Replace inequality with - (root finding cont. event) or with == in case of
@@ -157,10 +157,10 @@ function create_callback_event(event_name::String,
 
     # TODO : Refactor and merge functionality with above 
     for i in eachindex(model_state_names)
-        _condition_formula = replace_whole_word(_condition_formula, model_state_names[i], "u["*string(i)*"]")
+        _condition_formula = replace_variable(_condition_formula, model_state_names[i], "u["*string(i)*"]")
     end
     for i in eachindex(p_ode_problem_names)
-        _condition_formula = replace_whole_word(_condition_formula, p_ode_problem_names[i], "integrator.p["*string(i)*"]")
+        _condition_formula = replace_variable(_condition_formula, p_ode_problem_names[i], "integrator.p["*string(i)*"]")
     end
 
     # Build the condition statement used in the jl function 
@@ -182,14 +182,14 @@ function create_callback_event(event_name::String,
     for i in eachindex(affects)
         affect_str1, affect_str2 = split(affects[i], "=")
         for j in eachindex(model_state_names)
-            affect_str1 = replace_whole_word(affect_str1, model_state_names[j], "integrator.u["*string(j)*"]")
-            affect_str2 = replace_whole_word(affect_str2, model_state_names[j], "u_tmp["*string(j)*"]")
+            affect_str1 = replace_variable(affect_str1, model_state_names[j], "integrator.u["*string(j)*"]")
+            affect_str2 = replace_variable(affect_str2, model_state_names[j], "u_tmp["*string(j)*"]")
         end
         affect_str *= "\t\t" * affect_str1 * " = " * affect_str2 * '\n'
     end
     affect_str *= "\tend"
     for i in eachindex(p_ode_problem_names)
-        affect_str = replace_whole_word(affect_str, p_ode_problem_names[i], "integrator.p["*string(i)*"]")
+        affect_str = replace_variable(affect_str, p_ode_problem_names[i], "integrator.p["*string(i)*"]")
     end
 
     # In case the event can be activated at time zero,
@@ -302,10 +302,10 @@ function _create_tstops_function(condition_formulas::Vector{String},
 
         # Make compatible with the PEtab importer syntax
         for i in eachindex(model_state_names)
-            expression_time = replace_whole_word(expression_time, model_state_names[i], "u["*string(i)*"]")
+            expression_time = replace_variable(expression_time, model_state_names[i], "u["*string(i)*"]")
         end
         for i in eachindex(p_ode_problem_names)
-            expression_time = replace_whole_word(expression_time, p_ode_problem_names[i], "p["*string(i)*"]")
+            expression_time = replace_variable(expression_time, p_ode_problem_names[i], "p["*string(i)*"]")
         end
         # dual_to_float is needed as tstops for the integrator cannot be of type Dual
         tstops_str[i] = "dual_to_float(" * expression_time * ")"
@@ -325,7 +325,7 @@ end
 
 function check_condition_has_states(condition_formula::AbstractString, model_state_names::Vector{String})::Bool
     for i in eachindex(model_state_names)
-        _condition_formula = replace_whole_word(condition_formula, model_state_names[i], "")
+        _condition_formula = replace_variable(condition_formula, model_state_names[i], "")
         if _condition_formula != condition_formula
             return true
         end
@@ -343,7 +343,7 @@ function check_has_parameter_to_estimate(condition_formula::AbstractString,
     i_ode_problem_θ_dynamicCondition = reduce(vcat, [θ_indices.maps_conidition_id[i].i_ode_problem_θ_dynamic for i in keys(θ_indices.maps_conidition_id)])
 
     for i in eachindex(p_ode_problem_names)
-        _condition_formula = replace_whole_word(condition_formula, p_ode_problem_names[i], "integrator.p["*string(i)*"]")
+        _condition_formula = replace_variable(condition_formula, p_ode_problem_names[i], "integrator.p["*string(i)*"]")
         if _condition_formula != condition_formula
             if i ∈ i_ode_θ_all_conditions || i ∈ i_ode_problem_θ_dynamicCondition
                 return true
