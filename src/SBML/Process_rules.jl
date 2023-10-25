@@ -1,6 +1,6 @@
 function extract_rule_formula(rule)
-    _rule_formula = SBML_math_to_str(rule.math)
-    rule_formula = replace_whole_word(_rule_formula, "time", "t")
+    _rule_formula = parse_SBML_math(rule.math)
+    rule_formula = replace_variable(_rule_formula, "time", "t")
     return rule_formula
 end
 
@@ -25,10 +25,7 @@ function process_assignment_rule!(model_dict::Dict, rule_formula::String, rule_v
     =#
     # Extract the parameters and states which make out the rule, if the rule nests another function 
     # function is written to math 
-    arguments, includes_function = get_arguments(rule_formula, model_dict["modelFunctions"])
-    if includes_function == true
-        rule_formula = replace_function_with_formula(rule_formula, model_dict["modelFunctions"])
-    end
+    rule_formula = SBML_function_to_math(rule_formula, model_dict["modelFunctions"])
 
     if rule_variable in keys(model_dict["states"])
         model_dict["assignmentRulesStates"][rule_variable] = rule_formula
@@ -64,10 +61,7 @@ function process_rate_rule!(model_dict::Dict, rule_formula::String, rule_variabl
     if occursin("piecewise(", rule_formula)
         rule_formula = rewrite_piecewise_to_ifelse(rule_formula, rule_variable, model_dict, model_SBML, ret_formula=true)
     else
-        arguments, includes_function = get_arguments(rule_formula, model_dict["modelFunctions"])
-        if includes_function == true
-            rule_formula = replace_function_with_formula(rule_formula, model_dict["modelFunctions"])
-        end
+        rule_formula = SBML_function_to_math(rule_formula, model_dict["modelFunctions"])
     end
 
     rule_formula = replace_reactionid_with_math(rule_formula, model_SBML)
@@ -89,7 +83,7 @@ function process_rate_rule!(model_dict::Dict, rule_formula::String, rule_variabl
                 continue
             end
             compartment = state.compartment
-            rule_formula = replace_whole_word(rule_formula, state_id, "(" * state_id * "/" * compartment * ")")
+            rule_formula = replace_variable(rule_formula, state_id, "(" * state_id * "/" * compartment * ")")
         end
         model_dict["derivatives"][rule_variable] = "D(" * rule_variable * ") ~ " * "(" * rule_formula * ")"
     else

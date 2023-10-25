@@ -4,10 +4,10 @@ function process_initial_assignment(model_SBML, model_dict::Dict)
     for (assign_id, initial_assignment) in model_SBML.initial_assignments
         
         # Parse the assignment formula to Julia syntax
-        formula = SBML_math_to_str(initial_assignment)
+        formula = parse_SBML_math(initial_assignment)
         formula = replace_reactionid_with_math(formula, model_SBML)
         formula = process_SBML_str_formula(formula, model_dict, model_SBML)
-        formula = replace_whole_word(formula, "t", "0.0") # Initial time is zero 
+        formula = replace_variable(formula, "t", "0.0") # Initial time is zero 
 
         if assign_id ∈ keys(model_dict["states"])
             model_dict["states"][assign_id] = formula
@@ -63,7 +63,7 @@ function unnest_initial_assignment!(model_dict::Dict, assign_id::String)::Nothin
             if state_id == assign_id
                 continue
             end
-            formula = replace_whole_word(formula, state_id, state_at_t0)
+            formula = replace_variable(formula, state_id, string(state_at_t0))
         end
 
         if formula == formula_start
