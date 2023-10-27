@@ -119,7 +119,6 @@ if !isdefined(Base, :get_extension)
 end
 if !isdefined(Base, :get_extension)    
     include(joinpath(@__DIR__, "..", "ext", "PEtabSciMLSensitivityExtension.jl"))
-    include(joinpath(@__DIR__, "..", "ext", "PEtabZygoteExtension.jl"))
 end
 if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabCatalystExtension.jl"))
