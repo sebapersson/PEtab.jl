@@ -7,6 +7,10 @@ end
 
 function process_assignment_rule!(model_dict::Dict, rule_formula::String, rule_variable::String, model_SBML)
 
+    if isempty(rule_formula)
+        rule_formula = "0.0"
+    end
+
     # If piecewise occurs in the rule we are looking at a time-based event which is encoded as an
     # event into the model to ensure proper evaluation of the gradient.
     if occursin("piecewise(", rule_formula)
@@ -18,6 +22,7 @@ function process_assignment_rule!(model_dict::Dict, rule_formula::String, rule_v
     end
 
     rule_formula = replace_reactionid_with_math(rule_formula, model_SBML)
+    rule_formula = process_SBML_str_formula(rule_formula, model_dict, model_SBML; check_scaling=false, rate_rule=false)
 
     #=
         If the rule does not involve a piecewise expression simply encode it as a function which downsteram
@@ -38,13 +43,20 @@ function process_assignment_rule!(model_dict::Dict, rule_formula::String, rule_v
     end
 
     # At this point the assignment rule create a new state via a speciesreference, 
-    # should thus be added to species list
+    # should thus be added to species list, or be treated as a generatedId, as  
+    # Stoichometry math is translated to generated id:s, and then made into assignment rules. 
+    # in this case parse into specific part of model dictionary 
     if !(rule_variable ∈ keys(model_dict["states"]) || 
          rule_variable ∈ keys(model_SBML.compartments) || 
          rule_variable ∈ keys(model_SBML.parameters) ||
          rule_variable ∈ keys(model_dict["assignmentRulesStates"]))
 
-        model_dict["states"][rule_variable] = rule_formula
+        if length(rule_variable) ≥ 11 && rule_variable[1:11] == "generatedId"
+            model_dict["generated_ids"][rule_variable] = rule_formula
+            return 
+        end
+
+        model_dict["assignmentRulesStates"][rule_variable] = rule_formula
         model_dict["stateGivenInAmounts"][rule_variable] = (true, collect(keys(model_SBML.compartments))[1])
         model_dict["hasOnlySubstanceUnits"][rule_variable] =  false 
         model_dict["isBoundaryCondition"][rule_variable] = false
@@ -65,6 +77,7 @@ function process_rate_rule!(model_dict::Dict, rule_formula::String, rule_variabl
     end
 
     rule_formula = replace_reactionid_with_math(rule_formula, model_SBML)
+    rule_formula = process_SBML_str_formula(rule_formula, model_dict, model_SBML; check_scaling=false, rate_rule=true)
 
     # Add rate rule as part of model derivatives and remove from parameters dict if rate rule variable
     # is a parameter
@@ -86,8 +99,15 @@ function process_rate_rule!(model_dict::Dict, rule_formula::String, rule_variabl
             rule_formula = replace_variable(rule_formula, state_id, "(" * state_id * "/" * compartment * ")")
         end
         model_dict["derivatives"][rule_variable] = "D(" * rule_variable * ") ~ " * "(" * rule_formula * ")"
+
+    # At this state we introduce a new specie for said rule, this for example happens when we a 
+    # special stoichometry        
     else
-        @error "Warning : Cannot find rate rule variable in either model states or parameters"
+        model_dict["states"][rule_variable] = "1.0"
+        model_dict["stateGivenInAmounts"][rule_variable] = (true, collect(keys(model_SBML.compartments))[1])
+        model_dict["hasOnlySubstanceUnits"][rule_variable] =  false 
+        model_dict["isBoundaryCondition"][rule_variable] = false
+        model_dict["derivatives"][rule_variable] = "D(" * rule_variable * ") ~ " * "(" * rule_formula * ")"
     end
 end
 
