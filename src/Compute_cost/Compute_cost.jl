@@ -232,6 +232,16 @@ function compute_cost_condition(ode_sol::ODESolution,
             return Inf
         end
 
+        # The user can provide a noise formula, e.g σ = 0.1*I(t), which technically can go below zero due to 
+        # numerical errors when solving the ODE. However, having a noise formula which can go to zero is 
+        # probably a bad noise formula to start with, so in case this happen throw a warning
+        if σ < 0.0
+            ChainRulesCore.@ignore_derivatives begin
+                @warn "Measurement noise σ is smaller than 0. Consider changing the noise formula so it\ncannot go below zero. This issue likelly happens due to numerical noise when solving the ODE" maxlog=10
+            end
+            return Inf
+        end
+
         # Update log-likelihood. In case of guass newton approximation we are only interested in the residuals, and here
         # we allow the residuals to be computed to test the gauss-newton implementation
         if compute_residuals == false
