@@ -30,6 +30,7 @@ function parse_SBML_events!(model_dict, model_SBML, non_constant_parameter_names
             event_formulas[i] = SBML_function_to_math(event_formulas[i], model_dict["modelFunctions"])
             event_formulas[i] = replace_variable(event_formulas[i], "t", "integrator.t")
             event_formulas[i] = replace_reactionid_with_math(event_formulas[i], model_SBML)
+            event_formulas[i] = process_SBML_str_formula(event_formulas[i], model_dict, model_SBML; check_scaling=false)
             
             # Formulas are given in concentration, but species can also be given in amounts. Thus, we must 
             # adjust for compartment for the latter
@@ -126,6 +127,7 @@ function parse_event_trigger(formula_trigger::T, model_dict, model_SBML)::T wher
 
     # Stay consistent with t as time :)
     formula_trigger = replace_variable(formula_trigger, "time", "t")
+    formula_trigger = process_SBML_str_formula(formula_trigger, model_dict, model_SBML)
     
     # SBML equations are given in conc, need to adapt scale state if said state is given in amounts, 
     # rateOf expressions are handled later
@@ -136,6 +138,10 @@ function parse_event_trigger(formula_trigger::T, model_dict, model_SBML)::T wher
         if occursin("rateOf", formula_trigger)
             continue
         end
+        if species_id ∈ keys(model_dict["hasOnlySubstanceUnits"]) && model_dict["hasOnlySubstanceUnits"][species_id] == true
+            continue
+        end
+
         formula_trigger = replace_variable(formula_trigger, species_id, species_id * '/' * specie.compartment)
     end
 
@@ -176,5 +182,5 @@ function parse_event_trigger(formula_trigger::T, model_dict, model_SBML)::T wher
     parts[1] = replace_reactionid_with_math(parts[1], model_SBML)
     parts[2] = replace_reactionid_with_math(parts[2], model_SBML)
 
-    return parts[1] * " " * separator * " " * parts[2] 
+    return "(" * parts[1] * ") " * separator * " (" * parts[2] * ")"
 end

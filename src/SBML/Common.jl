@@ -16,7 +16,7 @@ end
 
 Processes a string formula by inserting SBML functions, rewriting piecewise to ifelse, and scaling species
 """
-function process_SBML_str_formula(formula::T, model_dict, model_SBML; check_scaling=false)::T where T<:AbstractString
+function process_SBML_str_formula(formula::T, model_dict, model_SBML; check_scaling=false, rate_rule::Bool=false)::T where T<:AbstractString
     
     _formula = SBML_function_to_math(formula, model_dict["modelFunctions"])
     if occursin("piecewise(", _formula)
@@ -39,6 +39,56 @@ function process_SBML_str_formula(formula::T, model_dict, model_SBML; check_scal
 
         compartment = state.compartment
         _formula = replace_variable(_formula, state_id, "(" * state_id * "/" * compartment * ")")
+    end
+
+    # Replace potential expressions given in initial assignment and that appear in stoichemetric experssions
+    # of reactions (these are not species, only math expressions that should be replaced)
+    for id in keys(model_SBML.initial_assignments)
+        # In case ID does not occur in stoichemetric expressions
+        if isempty(model_SBML.reactions)
+            continue
+        end
+        if id ∉ reduce(vcat, vcat([[_r.id for _r in r.products] for r in values(model_SBML.reactions)], [[_r.id for _r in r.reactants] for r in values(model_SBML.reactions)]))
+            continue
+        end
+        if id ∉ keys(model_dict["states"]) && rate_rule == false
+            continue
+        end
+        if isnothing(id)
+            continue
+        end
+        # Do not rewrite is stoichemetric is controlled via event
+        if !isempty(model_dict["events"]) && any(occursin.(id, reduce(vcat, [e[2] for e in values(model_dict["events"])])))
+            continue
+        end
+        if rate_rule == false
+            _formula = replace_variable(_formula, id, "(" * string(model_dict["states"][id]) * ")")
+        else
+            replace_with = parse_SBML_math(model_SBML.initial_assignments[id])
+            _formula = replace_variable(_formula, id, "(" * replace_with * ")")
+        end
+    end
+
+    # Sometimes we have a stoichemetric expression appearing in for example rule expressions, etc... but it does not 
+    # have any initial assignment, or rule assignment. In this case the reference should be replaced with its corresponding 
+    # stoichemetry
+    for (_, reaction) in model_SBML.reactions
+        specie_references = vcat([reactant for reactant in reaction.reactants], [product for product in reaction.products])
+        for specie_reference in specie_references
+            if isnothing(specie_reference.id)
+                continue
+            end
+            if specie_reference.id ∈ keys(model_SBML.initial_assignments)
+                continue
+            end
+            if specie_reference.id ∈ [rule isa SBML.AlgebraicRule ? "" : rule.variable for rule in model_SBML.rules]
+                continue
+            end
+            if specie_reference.id ∈ keys(model_SBML.species)
+                continue
+            end
+            _formula = replace_variable(_formula, specie_reference.id, string(specie_reference.stoichiometry))
+        end
     end
 
     return _formula

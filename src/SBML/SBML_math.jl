@@ -48,14 +48,14 @@ function _parse_SBML_math(math::SBML.MathApply; inequality_to_julia::Bool=false)
         # For power always have the exponential in parenthesis for 
         # ensuring corectness
         if fn == "^"
-            return part1 * fn * "(" * _part2 * ")", false
+            return "(" * _part1 * ")" * fn * "(" * _part2 * ")", false
         elseif fn ∈ ["+", "-", "/"]
             return part1 * fn * part2, true
         elseif fn == "*"
             if any(occursin.(["+", "-", "/"], part1)) || any(occursin.(["+", "-", "/"], part2))
                 return part1 * fn * part2, true
             else
-                return part1 * fn * part2, false
+                return part1 * fn * part2, true
             end
         end
     end
