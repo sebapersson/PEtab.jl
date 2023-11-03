@@ -252,7 +252,9 @@ function create_u0_function(model_name::String,
     _model_state_names = [replace.(string.(state_map[i].first), "(t)" => "") for i in eachindex(state_map)]
     # If we create from Julia model (e.g.) Catalyst this is not applicable and step is skipped 
     if "parameters" ∈ keys(SBML_dict) # When built from SBML 
-        model_state_names = filter(x -> x ∈ keys(SBML_dict["species"]) && SBML_dict["species"][x].assignment_rule == false, _model_state_names)
+        model_state_names1 = filter(x -> x ∈ keys(SBML_dict["species"]) && SBML_dict["species"][x].assignment_rule == false, _model_state_names)
+        model_state_names2 = filter(x -> x ∈ keys(SBML_dict["parameters"]) && SBML_dict["parameters"][x].rate_rule == true, _model_state_names)
+        model_state_names = vcat(model_state_names1, model_state_names2)
     else
         model_state_names = _model_state_names
     end
