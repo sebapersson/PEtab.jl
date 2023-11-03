@@ -324,7 +324,7 @@ function _time_dependent_ifelse_to_bool(formula_with_ifelse::String, model_dict:
             activated_with_time = side_activated_with_time == "left" ? left_side : right_side
             deactivated_with_time = side_activated_with_time == "left" ? right_side : left_side
             formula_in_model = "((1 - " * variable_name * ")*" * "(" * deactivated_with_time *") + " * variable_name * "*(" * activated_with_time * "))"
-            model_dict["parameters"][variable_name].formula = "0.0"
+            model_dict["parameters"][variable_name] = ParameterSBML(variable_name, true, "0.0", "", false, false, false)
             formula_replaced = replace(formula_replaced, formula_with_ifelse[index_ifelse[i]] => formula_in_model)
             model_dict["boolVariables"][variable_name] = [activationRule, side_activated_with_time]
         end

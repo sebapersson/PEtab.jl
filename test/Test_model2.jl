@@ -24,12 +24,6 @@ import PEtab: _change_simulation_condition!, solve_ODE_all_conditions, PEtabODES
 include(joinpath(@__DIR__, "Common.jl"))
 
 
-"""
-    testOdeSol(solver, tol; printRes=false)
-Compare analytical vs numeric ODE solver using a provided solver with
-tolerance tol for the Test_model2.
-Returns true if passes test (sqDiff less than 1e-8) else returns false.
-"""
 function test_ode_solver_test_model2(petab_model::PEtabModel, solverOptions)
 
     # Set values to PeTab file values
@@ -52,8 +46,8 @@ function test_ode_solver_test_model2(petab_model::PEtabModel, solverOptions)
 
         alpha, beta = parametersTest[:, i]
         # Set parameter values for ODE
-        petab_model.parameter_map[2] = Pair(petab_model.parameter_map[2].first, alpha)
-        petab_model.parameter_map[3] = Pair(petab_model.parameter_map[3].first, beta)
+        petab_model.parameter_map[1] = Pair(petab_model.parameter_map[1].first, alpha)
+        petab_model.parameter_map[2] = Pair(petab_model.parameter_map[2].first, beta)
         prob = ODEProblem(petab_model.system, petab_model.state_map, (0.0, 5e3), petab_model.parameter_map, jac=true)
         prob = remake(prob, p = convert.(Float64, prob.p), u0 = convert.(Float64, prob.u0))
         θ_dynamic = get_file_ode_values(petab_model)[1:2]

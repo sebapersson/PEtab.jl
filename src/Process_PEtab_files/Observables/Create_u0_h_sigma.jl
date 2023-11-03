@@ -68,7 +68,7 @@ function create_σ_h_u0_file(model_name::String,
     θ_indices = PEtab.compute_θ_indices(parameter_info, measurement_info, system, parameter_map, state_map, experimental_conditions)
 
     # Dummary variables to keep PEtab importer happy even as we are not providing any PEtab files
-    SBML_dict = Dict(); SBML_dict["assignmentRulesStates"] = Dict()
+    SBML_dict = Dict(); SBML_dict["species"] = Dict()
 
     h_str = PEtab.create_h_function(model_name, @__DIR__, model_state_names, parameter_info, p_ode_problem_names,
                                    string.(θ_indices.θ_non_dynamic_names), observables_data, SBML_dict, false)
@@ -250,7 +250,12 @@ function create_u0_function(model_name::String,
 
     # Write the formula for each initial condition to file
     _model_state_names = [replace.(string.(state_map[i].first), "(t)" => "") for i in eachindex(state_map)]
-    model_state_names = filter(x -> x ∉ string.(keys(SBML_dict["assignmentRulesStates"])), _model_state_names)
+    # If we create from Julia model (e.g.) Catalyst this is not applicable and step is skipped 
+    if "parameters" ∈ keys(SBML_dict) # When built from SBML 
+        model_state_names = filter(x -> x ∈ keys(SBML_dict["species"]) && SBML_dict["species"][x].assignment_rule == false, _model_state_names)
+    else
+        model_state_names = _model_state_names
+    end
     model_state_str = ""
     for i in eachindex(model_state_names)
         stateName = model_state_names[i]

@@ -58,7 +58,6 @@ function compareAgainstPyPestoBoehm(petab_model::PEtabModel, solverOptions)
 end
 
 path_yaml = joinpath(@__DIR__, "Test_ll", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
-petab_model = PEtabModel(path_yaml, build_julia_files=true, write_to_file=false)
 @testset "Against PyPesto : Boehm" begin
-    compareAgainstPyPestoBoehm(petab_model, ODESolver(Rodas4P(), abstol=1e-9, reltol=1e-9))
+    compareAgainstPyPestoBoehm(petab_model, ODESolver(Rodas5P(), abstol=1e-9, reltol=1e-9))
 end

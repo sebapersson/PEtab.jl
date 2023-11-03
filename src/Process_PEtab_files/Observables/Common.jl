@@ -250,8 +250,24 @@ Replace the explicit rule variable with the explicit rule
 function replace_explicit_variable_rule(formula::String, SBML_dict::Dict)::String
     _formula = deepcopy(formula)
     while true
-        for (key, value) in SBML_dict["assignmentRulesStates"]
-            _formula = replace_variable(_formula, key, "(" * value * ")")
+        for (specie_id, specie) in SBML_dict["species"]
+            if specie.assignment_rule == false
+                continue
+            end
+            _formula = replace_variable(_formula, specie_id, "(" * specie.formula * ")")
+        end
+        _formula == formula && break
+        formula = deepcopy(_formula)
+    end
+    while true
+        if "parameters" ∉ keys(SBML_dict)
+            break
+        end
+        for (parameter_id, parameter) in SBML_dict["parameters"]
+            if parameter.assignment_rule == false
+                continue
+            end
+            _formula = replace_variable(_formula, parameter_id, "(" * parameter.formula * ")")
         end
         _formula == formula && break
         formula = deepcopy(_formula)
