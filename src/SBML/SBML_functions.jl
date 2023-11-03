@@ -1,4 +1,20 @@
-function get_SBML_function_args(SBML_function)::String
+function parse_SBML_functions!(model_dict::Dict, model_SBML::SBML.Model)::Nothing
+    
+    for (function_name, SBML_function) in model_SBML.function_definitions
+        
+        if isnothing(SBML_function.body)
+            continue
+        end
+        
+        args = get_SBML_function_args(SBML_function)
+        function_formula = parse_SBML_math(SBML_function.body.body, true)
+        model_dict["SBML_functions"][function_name] = [args, function_formula]
+    end
+    return nothing
+end
+
+
+function get_SBML_function_args(SBML_function::SBML.FunctionDefinition)::String
     if isempty(SBML_function.body.args)
         return ""
     end
@@ -88,6 +104,3 @@ function SBML_function_to_math(formula::T, model_functions::Dict)::T where T<:Ab
 
     return _formula
 end
-
-
-
