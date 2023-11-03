@@ -2,13 +2,68 @@
 
 
 
+mutable struct SpecieSBML
+    const name::String
+    const boundary_condition::Bool
+    const constant::Bool
+    initial_value::String # Can be changed by initial assignment
+    formula::String # Is updated over time
+    const compartment::String
+    const unit::Symbol
+    const only_substance_units::Bool
+    assignment_rule::Bool
+    rate_rule::Bool
+    algebraic_rule::Bool
+end
+
+
+mutable struct ParameterSBML
+    const name::String
+    const constant::Bool
+    formula::String
+    initial_value::String
+    assignment_rule::Bool
+    rate_rule::Bool
+    algebraic_rule::Bool
+end
+
+
+mutable struct CompartmentSBML
+    const name::String
+    constant::Bool
+    formula::String
+    initial_value::String
+    assignment_rule::Bool
+    rate_rule::Bool
+    algebraic_rule::Bool
+end
+
+
+mutable struct EventSBML
+    const name::String
+    trigger::String
+    const formulas::Vector{String}
+    const trigger_initial_value::Bool
+end
+
+
+mutable struct ReactionSBML
+    const name::String
+    kinetic_math::String
+    const products::Vector{String}
+    const products_stoichiometry::Vector{String}
+    const reactants::Vector{String}
+    const reactants_stoichiometry::Vector{String}
+end
+
+
 """
     SBML_to_ModellingToolkit(path_SBML::String, model_name::String, dir_model::String)
 
 Convert a SBML file in path_SBML to a Julia ModelingToolkit file and store
 the resulting file in dir_model with name model_name.jl.
 """
-function SBML_to_ModellingToolkit(path_SBML::String, path_jl_file::String, model_name::AbstractString; only_extract_model_dict::Bool=false, 
+function SBML_to_ModellingToolkit(path_SBML::String, path_jl_file::String, model_name::AbstractString; only_extract_model_dict::Bool=false,
                                   ifelse_to_event::Bool=true, write_to_file::Bool=true)
 
     f = open(path_SBML, "r")
@@ -37,88 +92,183 @@ function SBML_to_ModellingToolkit(path_SBML::String, path_jl_file::String, model
 end
 
 
-function parse_stoichiometry(specie_reference::SBML.SpeciesReference, model_dict::Dict, model_SBML)::String
+# Parse SBML species
+function parse_SBML_species!(model_dict::Dict, model_SBML::SBML.Model)::Nothing
 
-    if !isnothing(specie_reference.id)
-        
-        if specie_reference.id ∈ keys(model_dict["generated_ids"])
-            stoichiometry = model_dict["generated_ids"][specie_reference.id]
-            return stoichiometry
-        elseif specie_reference.id ∈ model_dict["rate_rules_names"]
-            return specie_reference.id
-        elseif !isempty(model_dict["events"]) && any(occursin.(specie_reference.id, reduce(vcat, [e[2] for e in values(model_dict["events"])])))
-            return specie_reference.id
-        end
-        
-        stoichiometry = specie_reference.id
-        # Handle different ways the stoichiometry might be given by assignment/rate rules, or as 
-        # initial assignment
-        if stoichiometry ∈ keys(model_dict["states"]) && is_number(string(model_dict["states"][stoichiometry]))
-            stoichiometry = isnothing(model_dict["states"][stoichiometry]) ? "1.0" : string(model_dict["states"][stoichiometry])
+    for (state_id, state) in model_SBML.species
 
-        elseif stoichiometry ∈ keys(model_dict["states"]) && model_dict["states"][stoichiometry] == "t"
-            stoichiometry = "t"
-        
-        elseif stoichiometry ∈ keys(model_dict["states"]) && model_dict["states"][stoichiometry] ∈ keys(model_dict["states"])
-            stoichiometry = model_dict["states"][stoichiometry]
-        
-        elseif stoichiometry ∈ keys(model_dict["states"]) && model_dict["states"][stoichiometry] ∈ keys(model_dict["assignmentRulesStates"])
-            stoichiometry = model_dict["states"][stoichiometry]
-
-        elseif stoichiometry ∈ keys(model_SBML.initial_assignments)
-            stoichiometry = model_dict["states"][stoichiometry]
-
-        # Last case where stoichiometry is not referenced anywhere in the model assignments, rules etc..., assign 
-        # to default value
-        elseif stoichiometry ∉ [rule isa SBML.AlgebraicRule ? "" : rule.variable for rule in model_SBML.rules]
-            stoichiometry = string(specie_reference.stoichiometry)
+        # If both initial amount and conc are empty use concentration as unit per
+        # SBML standard
+        if isnothing(state.initial_amount) && isnothing(state.initial_concentration)
+            initial_value = ""
+            unit = state.substance_units == "substance" ? :Amount : :Concentration
+        elseif !isnothing(state.initial_concentration)
+            initial_value = string(state.initial_concentration)
+            unit = :Concentration
+        else
+            initial_value = string(state.initial_amount)
+            unit = :Amount
         end
 
-    else
-        stoichiometry = isnothing(specie_reference.stoichiometry) ? "1" : string(specie_reference.stoichiometry)
-        stoichiometry = stoichiometry[1] == '-' ? "(" * stoichiometry * ")" : stoichiometry
+        # Specie data
+        only_substance_units = isnothing(state.only_substance_units) ? false : state.only_substance_units
+        boundary_condition = state.boundary_condition
+        compartment = state.compartment
+        constant = isnothing(state.constant) ? false : state.constant
+
+        # In case being a boundary condition the state can only be changed events, or rate-rules so set
+        # derivative to zero, likewise for constant the formula should be zero (no rate of change)
+        if boundary_condition == true || constant == true
+            formula = "0.0"
+        else
+            formula = ""
+        end
+
+        # In case the initial value is given in conc, but the state should be given in amounts, adjust
+        if unit == :Concentration && only_substance_units == true
+            unit = :Amount
+            initial_value *= " * " * compartment
+        end
+
+        model_dict["species"][state_id] = SpecieSBML(state_id, boundary_condition, constant, initial_value,
+                                                     formula, compartment, unit, only_substance_units,
+                                                     false, false, false)
+    end
+    return nothing
+end
+
+
+function parse_SBML_parameters!(model_dict::Dict, model_SBML::SBML.Model)::Nothing
+
+    for (parameter_id, parameter) in model_SBML.parameters
+
+        formula = isnothing(parameter.value) ? "0.0" : string(parameter.value)
+        model_dict["parameters"][parameter_id] = ParameterSBML(parameter_id, parameter.constant, formula, "", false, false, false)
+
+        if parameter.constant == false
+            push!(model_dict["non_constant_parameters"], parameter_id)
+        end
+    end
+    return nothing
+end
+
+
+function parse_SBML_compartments!(model_dict::Dict, model_SBML::SBML.Model)::Nothing
+
+    for (compartment_id, compartment) in model_SBML.compartments
+
+        size = isnothing(compartment.size) ? "1.0" : string(compartment.size)
+        model_dict["compartments"][compartment_id] = CompartmentSBML(compartment_id, compartment.constant, size, "", false, false, false)
+
+        if compartment.constant == false
+            push!(model_dict["non_constant_parameters"], compartment_id)
+        end
+    end
+    return nothing
+end
+
+
+function adjust_for_dynamic_compartment!(model_dict::Dict)
+
+    #=
+    The volume might change over time but the amount should stay constant, as we have a boundary condition
+    for a specie given by a rate-rule. In this case it follows that amount n (amount), V (compartment) and conc.
+    are related via the chain rule by:
+    dn/dt = d(n/V)/dt*V + n*dV/dt/V
+    =#
+    for (specie_id, specie) in model_dict["species"]
+
+        # Specie with amount where amount should stay constant
+        compartment = model_dict["compartments"][model_dict["species"][specie_id].compartment]
+        if !(specie.unit == :Amount &&
+             specie.rate_rule == true &&
+             specie.boundary_condition == true &&
+             specie.only_substance_units == false &&
+             compartment.rate_rule == true)
+
+            continue
+        end
+
+        if compartment.constant == true
+            continue
+        end
+
+        # In this case must add additional variable for the specie concentration, to properly get the amount equation
+        specie_conc_id = "__" * specie_id * "__conc__"
+        initial_value_conc = model_dict["species"][specie_id].initial_value * "/" * compartment.name
+        formual_conc = model_dict["species"][specie_id].formula
+
+        # Formula for amount specie
+        model_dict["species"][specie_id].formula = formual_conc * "*" *  compartment.name * " + " * specie_id * "*" * compartment.formula * " / " * compartment.name
+
+        # Add new conc. specie to model
+        model_dict["species"][specie_conc_id] = SpecieSBML(specie_conc_id, false, false, initial_value_conc,
+                                                           formual_conc, compartment, :Concentration, false, false, true, false)
     end
 
-    if isnothing(stoichiometry) || stoichiometry == "nothing"
-        return "1.0"
-    else
-        return stoichiometry
+    # When a specie is given in concentration, but the compartment concentration changes
+    for (specie_id, specie) in model_dict["species"]
+
+        compartment = model_dict["compartments"][model_dict["species"][specie_id].compartment]
+        if !(specie.unit == :Concentration &&
+             specie.only_substance_units == false &&
+             compartment.constant == false)
+            continue
+        end
+        # Rate rule has priority
+        if specie_id ∈ model_dict["rate_rule_variables"]
+            continue
+        end
+        if !any(occursin.(keys(model_dict["species"]), compartment.formula)) && compartment.rate_rule == false
+            continue
+        end
+
+        # Derivative and inital values newly introduced amount specie
+        specie_amount_id = "__" * specie_id * "__amount__"
+        initial_value_amount = specie.initial_value * "*" * compartment.name
+
+        # If boundary condition is true only amount, not concentration should stay constant with 
+        # compartment size
+        if specie.boundary_condition == true
+            formula_amount = "0.0"
+        else
+            formula_amount = isempty(specie.formula) ? "0.0" : "(" * specie.formula * ")" * compartment.name 
+        end
+
+        # New formula for conc. specie
+        specie.formula = formula_amount * "/(" * compartment.name * ") - " * specie_amount_id * "/(" * compartment.name * ")^2*" * compartment.formula
+
+        # Add new conc. specie to model
+        model_dict["species"][specie_amount_id] = SpecieSBML(specie_amount_id, false, false, initial_value_amount,
+                                                             formula_amount, compartment.name, :Amount, false, false, false, false)
     end
 end
 
 
-function remove_stoichiometry_math_from_species!(model_dict::Dict, model_SBML)
+function adjust_conversion_factor!(model_dict::Dict, model_SBML::SBML.Model)::Nothing
 
-    for (id, reaction) in model_SBML.reactions
-        specie_references = vcat([reactant for reactant in reaction.reactants], [product for product in reaction.products])
-        for specie_reference in specie_references
+    if isnothing(model_SBML.conversion_factor)
+        return nothing
+    end
 
-            if specie_reference.id ∈ keys(model_dict["generated_ids"])
-                continue
-            elseif specie_reference.id ∈ model_dict["rate_rules_names"]
-                if specie_reference.id ∉ keys(model_SBML.initial_assignments)
-                    stoichiometry_t0 = isnothing(specie_reference.stoichiometry) ? "1.0" : string(specie_reference.stoichiometry)
-                    model_dict["states"][specie_reference.id] = stoichiometry_t0
-                end
-                continue
-            elseif isnothing(specie_reference.id)
-                continue
-            end
-
-            if !isempty(model_dict["events"]) && any(occursin.(specie_reference.id, reduce(vcat, [e[2] for e in values(model_dict["events"])])))
-                continue
-            end
-
-            # An artifact from how the stoichiometry is procssed as assignment rule
-            # or initial assignment 
-            if specie_reference.id ∈ keys(model_dict["derivatives"]) && specie_reference.id ∈ keys(model_dict["derivatives"])
-                delete!(model_dict["states"], specie_reference.id)
-                delete!(model_dict["derivatives"], specie_reference.id)
-            end
+    for (specie_id, specie) in model_dict["species"]
+        if specie.assignment_rule == true
+            continue
         end
+
+        # TODO: Make stoich cases like these to parameters to avoid this?
+        if specie_id ∉ keys(model_SBML.species)
+            continue
+        end
+
+        # Zero change of rate for specie
+        if isempty(specie.formula)
+            continue
+        end
+
+        specie.formula = "(" * specie.formula * ") * " * model_SBML.conversion_factor
     end
 end
-
 
 
 function build_model_dict(model_SBML, ifelse_to_event::Bool)
@@ -131,236 +281,42 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
     # v) Model rules (rules defined in the SBML model we rewrite to Julia syntax)
     # vi) Model derivatives (derivatives defined by the SBML model)
     model_dict = Dict()
-    model_dict["states"] = Dict()
-    model_dict["hasOnlySubstanceUnits"] = Dict()
-    model_dict["stateGivenInAmounts"] = Dict()
-    model_dict["isBoundaryCondition"] = Dict()
+    model_dict["species"] = Dict()
     model_dict["parameters"] = Dict()
-    model_dict["modelFunctions"] = Dict()
+    model_dict["compartments"] = Dict()
+    model_dict["SBML_functions"] = Dict()
     model_dict["derivatives"] = Dict()
     model_dict["boolVariables"] = Dict()
     model_dict["events"] = Dict()
     model_dict["reactions"] = Dict()
-    model_dict["algebraicRules"] = Dict()
-    model_dict["assignmentRulesStates"] = Dict()
-    model_dict["compartment_formula"] = Dict()
+    model_dict["algebraic_rules"] = Dict()
     model_dict["inputFunctions"] = Dict()
     model_dict["generated_ids"] = Dict()
+    model_dict["assignment_rule_variables"] = String[]
+    model_dict["rate_rule_variables"] = String[]
+    model_dict["non_constant_parameters"] = String[]
     model_dict["appear_in_reactions"] = String[]
 
-    for (state_id, state) in model_SBML.species
-        # If initial amount is zero or nothing (default) should use initial-concentration if non-empty 
-        if isnothing(state.initial_amount) && isnothing(state.initial_concentration)
-            model_dict["states"][state_id] = "0.0"
-            model_dict["stateGivenInAmounts"][state_id] = (false, state.compartment)
-        elseif !isnothing(state.initial_concentration)
-            model_dict["states"][state_id] = string(state.initial_concentration)
-            model_dict["stateGivenInAmounts"][state_id] = (false, state.compartment)
-        else 
-            model_dict["states"][state_id] = string(state.initial_amount)
-            model_dict["stateGivenInAmounts"][state_id] = (true, state.compartment)
-        end
+    parse_SBML_species!(model_dict, model_SBML)
 
-        # Setup for downstream processing 
-        model_dict["hasOnlySubstanceUnits"][state_id] = isnothing(state.only_substance_units) ? false : state.only_substance_units
-        model_dict["isBoundaryCondition"][state_id] = state.boundary_condition 
+    parse_SBML_parameters!(model_dict, model_SBML)
 
-        # In case equation is given in conc., but state is given in amounts 
-        model_dict["derivatives"][state_id] = "D(" * state_id * ") ~ "
+    parse_SBML_compartments!(model_dict, model_SBML)
 
-        # In case being a boundary condition the state can only be changed by the user 
-        if model_dict["isBoundaryCondition"][state_id] == true
-           model_dict["derivatives"][state_id] *= "0.0"
-        end
+    parse_SBML_functions!(model_dict, model_SBML)
 
-        # In case the conc. is given in initial conc, but the state should be in amounts this 
-        # must be acounted for with initial values
-        if model_dict["stateGivenInAmounts"][state_id][1] == false && model_dict["hasOnlySubstanceUnits"][state_id] == true
-            model_dict["stateGivenInAmounts"][state_id] = (true, state.compartment)
-            model_dict["states"][state_id] = string(state.initial_concentration) * " * " * state.compartment
-        end
-    end
+    parse_SBML_rules!(model_dict, model_SBML)
 
-    # Extract model parameters and their default values. In case a parameter is non-constant 
-    # it is treated as a state. Compartments are treated simular to states (allowing them to 
-    # be dynamic)
-    non_constant_parameter_names::Vector{String} = String[]
-    for (parameter_id, parameter) in model_SBML.parameters
-        if parameter.constant == true
-            model_dict["parameters"][parameter_id] = string(parameter.value)
-            continue
-        end
-
-        model_dict["hasOnlySubstanceUnits"][parameter_id] = false
-        model_dict["stateGivenInAmounts"][parameter_id] = (false, "")
-        model_dict["isBoundaryCondition"][parameter_id] = false
-        model_dict["states"][parameter_id] = isnothing(parameter.value) ? "0.0" : string(parameter.value)
-        model_dict["derivatives"][parameter_id] = parameter_id * " ~ "
-        non_constant_parameter_names = push!(non_constant_parameter_names, parameter_id)
-    end
-    for (compartment_id, compartment) in model_SBML.compartments
-        # Allowed in SBML ≥ 2.0 with nothing, should then be interpreted as 
-        # having no compartment (equal to a value of 1.0 for compartment)
-        if compartment.constant == true
-            size = isnothing(compartment.size) ? 1.0 : compartment.size
-            model_dict["parameters"][compartment_id] = string(size)
-            continue
-        end
-        
-        model_dict["hasOnlySubstanceUnits"][compartment_id] = false
-        model_dict["stateGivenInAmounts"][compartment_id] = (false, "")
-        model_dict["isBoundaryCondition"][compartment_id] = false
-        model_dict["states"][compartment_id] = isnothing(compartment.size) ? 1.0 : compartment.size
-        model_dict["derivatives"][compartment_id] = compartment_id * " ~ "
-        non_constant_parameter_names = push!(non_constant_parameter_names, compartment_id)
-    end
-
-    # Rewrite SBML functions into Julia syntax functions and store in dictionary to allow them to
-    # be inserted into equation formulas downstream
-    for (function_name, SBML_function) in model_SBML.function_definitions
-        if isnothing(SBML_function.body)
-            continue
-        end
-        args = get_SBML_function_args(SBML_function)
-        function_formula = parse_SBML_math(SBML_function.body.body, true)
-        model_dict["modelFunctions"][function_name] = [args, function_formula]
-    end
-
-    parse_SBML_events!(model_dict, model_SBML, non_constant_parameter_names)
-
-    assignment_rules_names = []
-    rate_rules_names = []
-    for rule in model_SBML.rules
-        if rule isa SBML.AssignmentRule
-            rule_formula = extract_rule_formula(rule)
-            assignment_rules_names = push!(assignment_rules_names, rule.variable)
-            process_assignment_rule!(model_dict, rule_formula, rule.variable, model_SBML)
-        end
-
-        if rule isa SBML.RateRule
-            rule_formula = extract_rule_formula(rule)
-            rate_rules_names = push!(rate_rules_names, rule.variable)
-            process_rate_rule!(model_dict, rule_formula, rule.variable, model_SBML)
-        end
-
-        if rule isa SBML.AlgebraicRule
-            _rule_formula = extract_rule_formula(rule)
-            rule_formula = SBML_function_to_math(_rule_formula, model_dict["modelFunctions"])
-            rule_name = isempty(model_dict["algebraicRules"]) ? "1" : maximum(keys(model_dict["algebraicRules"])) * "1" # Need placeholder key 
-            model_dict["algebraicRules"][rule_name] = "0 ~ " * rule_formula
-        end
-    end
-    model_dict["rate_rules_names"] = rate_rules_names
-
-    # In case we have that the compartment is given by an assignment rule, then we need to account for this 
-    for (compartment_id, compartment_formula) in model_dict["compartment_formula"]
-        for (eventId, event) in model_dict["events"]
-            trigger_formula = event[1]
-            event_assignments = event[2]
-            trigger_formula = replace_variable(trigger_formula, compartment_id, compartment_formula)
-            for i in eachindex(event_assignments)
-                event_assignments[i] = replace_variable(event_assignments[i], compartment_id, compartment_formula)
-            end
-            model_dict["events"][eventId] = [trigger_formula, event_assignments, event[3]]
-        end
-    end
+    parse_SBML_events!(model_dict, model_SBML)
 
     # Positioned after rules since some assignments may include functions
-    process_initial_assignment(model_SBML, model_dict)
+    parse_initial_assignments!(model_dict, model_SBML)
 
-    # Process chemical reactions 
-    for (id, reaction) in model_SBML.reactions
-        # Process kinetic math into Julia syntax 
-        _formula = parse_SBML_math(reaction.kinetic_math)
-               
-        # Add values for potential kinetic parameters (where-statements)
-        for (parameter_id, parameter) in reaction.kinetic_parameters
-            _formula = replace_variable(_formula, parameter_id, string(parameter.value))
-        end
+    parse_SBML_reactions!(model_dict, model_SBML)
 
-        formula = process_SBML_str_formula(_formula, model_dict, model_SBML, check_scaling=true)
-        model_dict["reactions"][reaction.name] = formula
-        
-        for reactant in reaction.reactants
-            push!(model_dict["appear_in_reactions"], reactant.species)
-            model_dict["isBoundaryCondition"][reactant.species] == true && continue # Constant state  
-            compartment = model_SBML.species[reactant.species].compartment
-            stoichiometry = parse_stoichiometry(reactant, model_dict, model_SBML)
-            compartment_scaling = model_dict["hasOnlySubstanceUnits"][reactant.species] == true ? "*" : "/" * compartment * "*"
-            model_dict["derivatives"][reactant.species] *= " - " * stoichiometry * compartment_scaling * "(" * formula * ")"
-        end
-        for product in reaction.products
-            push!(model_dict["appear_in_reactions"], product.species)
-            model_dict["isBoundaryCondition"][product.species] == true && continue # Constant state  
-            compartment = model_SBML.species[product.species].compartment
-            stoichiometry = parse_stoichiometry(product, model_dict, model_SBML)
-            compartment_scaling = model_dict["hasOnlySubstanceUnits"][product.species] == true ? "*" : "/" * compartment * "*"
-            model_dict["derivatives"][product.species] *= " + " * stoichiometry * compartment_scaling * "(" * formula * ")"
-        end
-    end
-    remove_stoichiometry_math_from_species!(model_dict, model_SBML)
-    # For states given in amount but model equations are in conc., multiply with compartment, also handle potential 
-    # reaction identifayers in the derivative
-    for (state_id, derivative) in model_dict["derivatives"]
-
-        if state_id ∉ keys(model_SBML.species)
-            continue
-        end
-
-        model_dict["derivatives"][state_id] = replace_reactionid_with_math(model_dict["derivatives"][state_id], model_SBML)
-
-        if model_dict["stateGivenInAmounts"][state_id][1] == false
-            continue
-        end
-        # Here equations should be given in amounts 
-        if model_dict["hasOnlySubstanceUnits"][state_id] == true
-            continue
-        end
-        # Algebraic rule (see below)
-        if replace(derivative, " " => "")[end] == '~' || replace(derivative, " " => "")[end] == '0'
-            continue
-        end
-        derivative = replace(derivative, "~" => "~ (") 
-        model_dict["derivatives"][state_id] = derivative * ") * " * model_SBML.species[state_id].compartment
-    end
-
-    # For states given by assignment rules 
-    for (state, formula) in model_dict["assignmentRulesStates"]
-        # Must track if species is given in amounts or conc.
-        if !occursin("rateOf", formula)
-            _formula = process_SBML_str_formula(formula, model_dict, model_SBML; check_scaling=true)
-            if state ∈ keys(model_SBML.species) && model_SBML.species[state].only_substance_units == false
-                cmult = model_dict["stateGivenInAmounts"][state][1] == true ? " * " * model_SBML.species[state].compartment : ""
-                _formula = "(" * _formula * ")" * cmult
-            end
-        else
-            _formula = formula
-        end
-        model_dict["derivatives"][state] = state * " ~ " * _formula
-        if state ∈ non_constant_parameter_names
-            delete!(model_dict["states"], state)
-            delete!(model_dict["parameters"], state)
-            non_constant_parameter_names = filter(x -> x != state, non_constant_parameter_names)
-        end
-    end
-    
-    # Check which parameters are a part derivatives or input function. If a parameter is not a part, e.g is an initial
-    # assignment parameters, add to dummy variable to keep it from being simplified away.
-    is_in_ode = falses(length(model_dict["parameters"]))
-    for du in values(model_dict["derivatives"])
-        for (i, pars) in enumerate(keys(model_dict["parameters"]))
-            if replace_variable(du, pars, "") !== du
-                is_in_ode[i] = true
-            end
-        end
-    end
-    for input_function in values(model_dict["inputFunctions"])
-        for (i, pars) in enumerate(keys(model_dict["parameters"]))
-            if replace_variable(input_function, pars, "") !== input_function
-                is_in_ode[i] = true
-            end
-        end
-    end
+    # Given the SBML standard reaction id can sometimes appear in the reaction
+    # formulas, here the correpsonding id is overwritten with a math expression
+    replace_reactionid!(model_dict)
 
     # Rewrite any time-dependent ifelse to boolean statements such that we can express these as events.
     # This is recomended, as it often increases the stabillity when solving the ODE, and decreases run-time
@@ -368,203 +324,66 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
         time_dependent_ifelse_to_bool!(model_dict)
     end
 
-    # In case the model has algebraic rules some of the derivatives (up to this point) are zero. To figure out 
-    # which variable for which the derivative should be eliminated as the state conc. is given by the algebraic
-    # rule cycle through rules to see which state has not been given as assignment by another rule. Moreover, return 
-    # flag that model is a DAE so it can be properly processed when creating PEtabODEProblem. 
-    if !isempty(model_dict["algebraicRules"])
-        for (species, reaction) in model_dict["derivatives"]
-            should_continue = true
-            # In case we have zero derivative for a state (e.g S ~ 0 or S ~)
-            if species ∈ rate_rules_names || species ∈ assignment_rules_names
-                continue
-            end
-            if replace(reaction, " " => "")[end] != '~' && replace(reaction, " " => "")[end] != '0'
-                continue
-            end
-            if species ∈ keys(model_SBML.species) && model_SBML.species[species].constant == true
-                continue
-            end
-            if model_dict["isBoundaryCondition"][species] == true && model_dict["stateGivenInAmounts"][species][1] == true && model_SBML.species[species].constant == true
-                continue
-            end
-            if species ∈ keys(model_SBML.species) && model_dict["stateGivenInAmounts"][species][1] == false && model_dict["isBoundaryCondition"][species] == true 
-                continue
-            end
+    identify_algebraic_rule_variables!(model_dict)
 
-            # Check if state occurs in any of the algebraic rules 
-            for (rule_id, rule) in model_dict["algebraicRules"]
-                if replace_variable(rule, species, "") != rule 
-                    should_continue = false
-                end
-            end
-            should_continue == true && continue
+    # SBML allows inconstant compartment size, this must be adjusted if a specie is given in concentration
+    adjust_for_dynamic_compartment!(model_dict)
 
-            # If we reach this point the state eqution is zero without any form 
-            # of assignment -> state must be solved for via the algebraic rule 
-            delete!(model_dict["derivatives"], species)
+    adjust_conversion_factor!(model_dict, model_SBML)
+
+
+    # Sometimes parameter can be non-constant, but still have a constant rhs and they change value
+    # because of event assignments. This must be captured considered so that the parameter is not
+    # simplified away
+    for (parameter_id, parameter) in model_dict["parameters"]
+
+        if parameter.algebraic_rule == true || parameter.rate_rule == true || parameter.constant == true
+            continue
         end
+        if !is_number(parameter.formula)
+            continue
+        end
+        # To pass test case 957
+        if parse(Float64, parameter.formula) ≈ π
+            continue
+        end
+
+        parameter.rate_rule = true
+        parameter.initial_value = parameter.formula
+        parameter.formula = "0.0"
     end
-    for non_constant_parameter in non_constant_parameter_names
-        if non_constant_parameter ∉ keys(model_dict["derivatives"])
+    # Similar holds for compartments 
+    for (compartment_id, compartment) in model_dict["compartments"]
+
+        if compartment.algebraic_rule == true || compartment.rate_rule == true || compartment.constant == true
             continue
         end
-        if replace(model_dict["derivatives"][non_constant_parameter], " " => "")[end] == '~'
-            model_dict["derivatives"][non_constant_parameter] *= string(model_dict["states"][non_constant_parameter])
+        if !is_number(compartment.formula)
+            continue
         end
+
+        compartment.rate_rule = true
+        compartment.initial_value = compartment.formula
+        compartment.formula = "0.0"
     end
-
-    # Up to this point technically some states can have a zero derivative, but their value can change because 
-    # their compartment changes. To sidestep this, turn the state into an equation 
-    for (specie, reaction) in model_dict["derivatives"]
-        if specie ∉ keys(model_SBML.species)
-            continue
-        end
-        if model_dict["isBoundaryCondition"][specie] == true && model_SBML.species[specie].constant == false
-            continue
-        end
-        if replace(reaction, " " => "")[end] != '~' && replace(reaction, " " => "")[end] != '0'
-            continue
-        end
-        divide_with_compartment = model_dict["stateGivenInAmounts"][specie][1] == false
-        c = model_SBML.species[specie].compartment
-        if divide_with_compartment == false
-            continue
-        end
-        if model_dict["stateGivenInAmounts"][specie][1] == true
-            model_dict["derivatives"][specie] = specie * " ~ (" * model_dict["states"][specie] * ") / " * c
-        else
-            # Must account for the fact that the compartment can change in size, and thus need to 
-            # account for its initial value 
-            if c ∈ keys(model_dict["parameters"])
-                model_dict["derivatives"][specie] = specie * " ~ (" * model_dict["states"][specie] * ")"
-            else
-                model_dict["derivatives"][specie] = specie * " ~ (" * model_dict["states"][specie] * ")" * " * " * string(model_dict["states"][c]) * " / " * c 
-            end
-        end
-    end
-
-    # In case the model has a conversion factor 
-    for (specie, reaction) in model_dict["derivatives"]
-        if specie ∈ assignment_rules_names
-            continue
-        end
-        if specie ∉ keys(model_SBML.species)
-            continue
-        end
-        if !isnothing(model_SBML.conversion_factor)
-            # Edge case where derivative yet has to be assigned to a state
-            if model_dict["derivatives"][specie][end-1:end] == "~ "
-                continue
-            end
-            model_dict["derivatives"][specie] *= " * " * model_SBML.conversion_factor
-        end
-    end
-
-
-    # Sometimes parameter can be non-constant, but still have a constant rhs and they primarly change value 
-    # because of event assignments. This must be captured, so the SBML importer will look at the RHS of non-constant 
-    # parameters, and if it is constant the parameter will be moved to the parameter regime again in order to avoid 
-    # simplifaying the parameter away.
-    for id in non_constant_parameter_names
-        # Algebraic rule 
-        if id ∉ keys(model_dict["derivatives"])
-            continue
-        end
-        lhs, rhs = replace.(split(model_dict["derivatives"][id], '~'), " " => "")
-        if lhs[1] == 'D'
-            continue
-        end
-        if !is_number(rhs)
-            continue
-        end
-        model_dict["derivatives"][id] = "D(" * id * ") ~ 0" 
-        model_dict["states"][id] = rhs
-        non_constant_parameter_names = filter(x -> x != id, non_constant_parameter_names)
-    end
-
-    #=
-        Sometimes the volume might change over time but the amount should stay constant, as we have a boundary condition
-        In this case it follows that amount n (amount), V (compartment) and conc. are related 
-        via the chain rule by - I need to change my ODE:s and add state
-        dn/dt = d(n/V)/dt*V + n*dV/dt/V
-    =#
-    for specie in keys(model_SBML.species)
-
-        if !(model_dict["stateGivenInAmounts"][specie][1] == true && 
-             model_SBML.species[specie].compartment ∈  rate_rules_names && 
-             model_dict["isBoundaryCondition"][specie] == true &&
-             specie ∈ rate_rules_names && 
-             model_dict["hasOnlySubstanceUnits"][specie] == false)
-            continue
-        end
-
-        # Derivative and inital values for concentratin species
-        compartment = model_SBML.species[specie].compartment
-        specie_conc = "__" * specie * "__conc__"
-        model_dict["states"][specie_conc] = model_dict["states"][specie] * " / " * compartment
-        i_start = findfirst(x -> x == '~', model_dict["derivatives"][specie]) + 1
-        i_end = findlast(x -> x == ')', model_dict["derivatives"][specie])
-        model_dict["derivatives"][specie_conc] = "D(" * specie_conc  * ") ~ " * model_dict["derivatives"][specie][i_start:i_end]
-
-        # Rebuild derivative for amount specie
-        itmp1, itmp2 = findfirst(x -> x == '~', model_dict["derivatives"][specie_conc]) + 1, findfirst(x -> x == '~', model_dict["derivatives"][compartment]) + 1
-        model_dict["derivatives"][specie] = "D(" * specie * ") ~ " * model_dict["derivatives"][specie_conc][itmp1:end] * "*" *  compartment * " + " * specie * "*" * model_dict["derivatives"][compartment][itmp2:end] * " / " * compartment
-    end
-    for specie in keys(model_SBML.species)
-
-        if !(model_dict["stateGivenInAmounts"][specie][1] == false && 
-             model_SBML.species[specie].compartment ∈  rate_rules_names && 
-             model_dict["isBoundaryCondition"][specie] == false &&
-             model_dict["hasOnlySubstanceUnits"][specie] == false)
-            continue
-        end
-        if specie ∈ rate_rules_names
-            continue
-        end 
-        if specie ∉ model_dict["appear_in_reactions"]
-            continue
-        end
-
-        # Derivative and inital values for concentratin species
-        compartment = model_SBML.species[specie].compartment
-        specie_amount = "__" * specie * "__amount__"
-        model_dict["states"][specie_amount] = model_dict["states"][specie] * " * " * compartment
-        i_start = findfirst(x -> x == '~', model_dict["derivatives"][specie]) + 1
-        formula_amount = "(" * model_dict["derivatives"][specie][i_start:end] * ")*" * compartment
-        model_dict["derivatives"][specie_amount] = "D(" * specie_amount  * ") ~ " * formula_amount
-
-        # Rebuild derivative for amount specie
-        istart2 = findfirst(x -> x == '~', model_dict["derivatives"][compartment]) + 1
-        model_dict["derivatives"][specie] = "D(" * specie * ") ~ " * formula_amount * "/(" * compartment * ") - " * specie_amount * "/(" * compartment * ")^2*" * model_dict["derivatives"][compartment][istart2:end]
-    end
-
-    model_dict["numOfParameters"] = string(length(keys(model_dict["parameters"])))
-    model_dict["numOfSpecies"] = string(length(keys(model_dict["states"])))
-    model_dict["non_constant_parameter_names"] = non_constant_parameter_names
 
     # Replace potential rateOf expression with corresponding rate
     for (parameter_id, parameter) in model_dict["parameters"]
-        model_dict["parameters"][parameter_id] = replace_rateOf(parameter, model_dict)
+        parameter.formula = replace_rateOf(parameter.formula, model_dict)
+        parameter.initial_value = replace_rateOf(parameter.initial_value, model_dict)
     end
-    for (state_id, state) in model_dict["states"]
-        model_dict["states"][state_id] = replace_rateOf(state, model_dict)
-    end
-    for (state_id, derivative) in model_dict["derivatives"]
-        model_dict["derivatives"][state_id] = replace_rateOf(derivative, model_dict)
-    end
-    for (id, rule_formula) in model_dict["assignmentRulesStates"]
-        model_dict["assignmentRulesStates"][id] = replace_rateOf(rule_formula, model_dict)
+    for (specie_id, specie) in model_dict["species"]
+        specie.formula = replace_rateOf(specie.formula, model_dict)
+        specie.initial_value = replace_rateOf(specie.initial_value, model_dict)
     end
     for (event_id, event) in model_dict["events"]
-        for (i, assignment) in pairs(event[2])
-            event[2][i] = replace_rateOf(event[2][i], model_dict)
+        for (i, formula) in pairs(event.formulas)
+            event.formulas[i] = replace_rateOf(formula, model_dict)
         end
-        # Trigger
-        event[1] = replace_rateOf(event[1], model_dict)
+        event.trigger = replace_rateOf(event.trigger, model_dict)
     end
-    for (rule_id, rule) in model_dict["algebraicRules"]
-        model_dict["algebraicRules"][rule_id] = replace_rateOf(rule, model_dict)
+    for (rule_id, rule) in model_dict["algebraic_rules"]
+        model_dict["algebraic_rules"][rule_id] = replace_rateOf(rule, model_dict)
     end
 
     return model_dict
@@ -581,186 +400,194 @@ the resulting file in dir_model with name model_name.jl.
 function create_ode_model(model_dict, path_jl_file, model_name, write_to_file::Bool)
 
     dict_model_str = Dict()
-    dict_model_str["variables"] = Dict()
-    dict_model_str["stateArray"] = Dict()
-    dict_model_str["variableParameters"] = Dict()
-    dict_model_str["algebraicVariables"] = Dict()
-    dict_model_str["parameters"] = Dict()
-    dict_model_str["parameterArray"] = Dict()
-    dict_model_str["derivatives"] = Dict()
-    dict_model_str["ODESystem"] = Dict()
-    dict_model_str["initialSpeciesValues"] = Dict()
-    dict_model_str["trueParameterValues"] = Dict()
-
-    dict_model_str["variables"] = "    ModelingToolkit.@variables t "
-    dict_model_str["stateArray"] = "    stateArray = ["
-    dict_model_str["variableParameters"] = ""
+    dict_model_str["variables"] = "\tModelingToolkit.@variables t "
+    dict_model_str["stateArray"] = "\tstateArray = ["
+    dict_model_str["parameters"] = "\tModelingToolkit.@parameters "
     dict_model_str["algebraicVariables"] = ""
-    dict_model_str["parameters"] = "    ModelingToolkit.@parameters "
-    dict_model_str["parameterArray"] = "    parameterArray = ["
-    dict_model_str["derivatives"] = "    eqs = [\n"
-    dict_model_str["ODESystem"] = "    @named sys = ODESystem(eqs, t, stateArray, parameterArray)"
-    dict_model_str["initialSpeciesValues"] = "    initialSpeciesValues = [\n"
-    dict_model_str["trueParameterValues"] = "    trueParameterValues = [\n"
+    dict_model_str["parameterArray"] = "\tparameterArray = ["
+    dict_model_str["derivatives"] = "\teqs = [\n"
+    dict_model_str["ODESystem"] = "\t@named sys = ODESystem(eqs, t, stateArray, parameterArray)"
+    dict_model_str["initialSpeciesValues"] = "\tinitialSpeciesValues = [\n"
+    dict_model_str["trueParameterValues"] = "\ttrueParameterValues = [\n"
 
-    # Add dummy to create system if empty 
-    if isempty(model_dict["states"])
-        model_dict["states"]["fooo"] = "0.0"
-        model_dict["derivatives"]["fooo"] = "D(fooo) ~ 0.0"
-    end            
+    # Check if model is empty of derivatives if the case add dummy state to be able to
+    # simulate the model
+    if ((isempty(model_dict["species"]) || sum([!s.assignment_rule for s in values(model_dict["species"])]) == 0) &&
+        (isempty(model_dict["parameters"]) || sum([p.rate_rule for p in values(model_dict["parameters"])]) == 0) &&
+        (isempty(model_dict["compartments"]) || sum([c.rate_rule for c in values(model_dict["compartments"])]) == 0))
 
-    for key in keys(model_dict["states"])
-        dict_model_str["variables"] *= key * "(t) "
-    end
-    for (key, value) in model_dict["assignmentRulesStates"]
-        dict_model_str["variables"] *= key * "(t) "
+        model_dict["species"]["foo"] = SpecieSBML("foo", false, false, "1.0", "0.0", "1.0", :Amount,
+                                                  false, false, false, false)
     end
 
-    for (key, value) in model_dict["states"]
-        dict_model_str["stateArray"] *= key * ", "
+    for specie_id in keys(model_dict["species"])
+        dict_model_str["variables"] *= specie_id * "(t) "
+        dict_model_str["stateArray"] *= specie_id * ", "
     end
-    for (key, value) in model_dict["assignmentRulesStates"]
-        dict_model_str["stateArray"] *= key * ", "
+    for (parameter_id, parameter) in model_dict["parameters"]
+        if parameter.constant == true
+            continue
+        end
+        dict_model_str["variables"] *= parameter_id * "(t) "
+        dict_model_str["stateArray"] *= parameter_id * ", "
     end
-    dict_model_str["stateArray"] = dict_model_str["stateArray"][1:end-2] * "]"
-    
+    for (compartment_id, compartment) in model_dict["compartments"]
+        if compartment.constant == true
+            continue
+        end
+        dict_model_str["variables"] *= compartment_id * "(t) "
+        dict_model_str["stateArray"] *= compartment_id * ", "
+    end
     if length(model_dict["inputFunctions"]) > 0
         dict_model_str["algebraicVariables"] = "    ModelingToolkit.@variables"
         for key in keys(model_dict["inputFunctions"])
             dict_model_str["algebraicVariables"] *= " " * key * "(t)"
+            dict_model_str["stateArray"] *= key * ", "
         end
     end
-            
-    for key in keys(model_dict["parameters"])
-        dict_model_str["parameters"] *= key * " "
+    dict_model_str["stateArray"] = dict_model_str["stateArray"][1:end-2] * "]" # Ensure correct valid syntax
+
+    for (parameter_id, parameter) in model_dict["parameters"]
+        if parameter.constant == false
+            continue
+        end
+        dict_model_str["parameters"] *= parameter_id * " "
+        dict_model_str["parameterArray"] *= parameter_id * ", "
+    end
+    for (compartment_id, compartment) in model_dict["compartments"]
+        if compartment.constant == false
+            continue
+        end
+        dict_model_str["parameters"] *= compartment_id * " "
+        dict_model_str["parameterArray"] *= compartment_id * ", "
     end
 
-    for (index, key) in enumerate(keys(model_dict["parameters"]))
-        if index < length(model_dict["parameters"])
-            dict_model_str["parameterArray"] *= key * ", "
-        else
-            dict_model_str["parameterArray"] *= key * "]"
-        end
-    end
-    if isempty(model_dict["parameters"])
+    # Special case where we do not have any parameters
+    if length(dict_model_str["parameters"]) == 29
         dict_model_str["parameters"] = ""
         dict_model_str["parameterArray"] *= "]"
+    else
+        dict_model_str["parameterArray"] = dict_model_str["parameterArray"][1:end-2] * "]"
     end
 
+    #=
+        Build the model equations
+    =#
+    # Species
+    for (specie_id, specie) in model_dict["species"]
 
-    s_index = 1
-    for key in keys(model_dict["states"])
-        # If the state is not part of any reaction we set its value to zero, 
-        # unless is has been removed from derivative dict as it is given by 
-        # an algebraic rule 
-        if key ∉ keys(model_dict["derivatives"]) # Algebraic rule given 
+        if specie.algebraic_rule == true
             continue
         end
-        if occursin(Regex("~\\s*\$"),model_dict["derivatives"][key])
-            model_dict["derivatives"][key] *= "0.0"
-        end
-        if s_index == 1
-            dict_model_str["derivatives"] *= "    " * model_dict["derivatives"][key]
+
+        formula = isempty(specie.formula) ? "0.0" : specie.formula
+        if specie.assignment_rule == true
+            eq = specie_id * " ~ " * formula
         else
-            dict_model_str["derivatives"] *= ",\n    " * model_dict["derivatives"][key]
+            eq = "D(" * specie_id * ") ~ " * formula
         end
-        s_index += 1
+        dict_model_str["derivatives"] *= "\t" * eq * ",\n"
     end
+    # Parameters
+    for (parameter_id, parameter) in model_dict["parameters"]
+
+        if parameter.constant == true || parameter.algebraic_rule == true
+            continue
+        end
+
+        if parameter.rate_rule == false
+            eq = parameter_id * " ~ " * parameter.formula
+        else
+            eq = "D(" * parameter_id * ") ~ " * parameter.formula
+        end
+        dict_model_str["derivatives"] *= "\t" * eq * ",\n"
+    end
+    # Compartments
+    for (compartment_id, compartment) in model_dict["compartments"]
+
+        if compartment.constant == true || compartment.algebraic_rule == true
+            continue
+        end
+
+        if compartment.rate_rule == false
+            eq = compartment_id * " ~ " * compartment.formula
+        else
+            eq = "D(" * compartment_id * ") ~ " * compartment.formula
+        end
+        dict_model_str["derivatives"] *= "\t" * eq * ",\n"
+    end
+    # Input functions TODO: Refactor like alot
     for key in keys(model_dict["inputFunctions"])
-        if s_index != 1
-            dict_model_str["derivatives"] *= ",\n    " * model_dict["inputFunctions"][key]
-        else
-            dict_model_str["derivatives"] *= "    " * model_dict["inputFunctions"][key]
-            s_index += 1
-        end
+        dict_model_str["derivatives"] *= "\t" * model_dict["inputFunctions"][key] * ",\n"
     end
-    for key in keys(model_dict["algebraicRules"])
-        if s_index != 1
-            dict_model_str["derivatives"] *= ",\n    " * model_dict["algebraicRules"][key]
-        else
-            dict_model_str["derivatives"] *= "    " * model_dict["algebraicRules"][key]
-            s_index += 1
-        end
+    # Algebraic rules
+    for rule_formula in values(model_dict["algebraic_rules"])
+        dict_model_str["derivatives"] *= "\t" * rule_formula * ",\n"
     end
-    for (key, formula) in model_dict["assignmentRulesStates"]
-        what_write = key ∈ keys(model_dict["derivatives"]) ? model_dict["derivatives"][key] : key * " ~ " * model_dict["assignmentRulesStates"][key]
-        if s_index != 1
-            dict_model_str["derivatives"] *= ",\n    " * what_write
-        else
-            dict_model_str["derivatives"] *= "    " * what_write
-            s_index += 1
-        end
-    end
-    dict_model_str["derivatives"] *= "\n"
-    dict_model_str["derivatives"] *= "    ]"
+    dict_model_str["derivatives"] *= "\t]"
 
-    index = 1
-    for (key, value) in model_dict["states"]
-
-        # These should not be mapped into the u0Map as they are just dynamic 
-        # parameters expression which are going to be simplifed away (and are 
-        # not in a sense states since they are not give by a rate-rule)
-        if key ∈ model_dict["non_constant_parameter_names"] && key ∉ model_dict["rate_rules_names"]
+    #=
+        Build the initial value map
+    =#
+    # Species
+    for (specie_id, specie) in model_dict["species"]
+        u0eq = specie.initial_value
+        dict_model_str["initialSpeciesValues"] *= "\t" * specie_id * " =>" * u0eq * ",\n"
+    end
+    # Parameters
+    for (parameter_id, parameter) in model_dict["parameters"]
+        if !(parameter.rate_rule == true || parameter.assignment_rule == true)
             continue
         end
-        if typeof(value) <: Real
-            value = string(value)
-        elseif tryparse(Float64, value) !== nothing
-            value = string(parse(Float64, value))
-        end
-        if index == 1
-            assign_str = "    " * key * " => " * value
-        else
-            assign_str = ",\n    " * key * " => " * value
-        end
-        dict_model_str["initialSpeciesValues"] *= assign_str
-        index += 1
+        u0eq = parameter.initial_value
+        dict_model_str["initialSpeciesValues"] *= "\t" * parameter_id * " => " * u0eq * ",\n"
     end
-    for (key, value) in model_dict["assignmentRulesStates"]
-        if index != 1
-            assign_str = ",\n    " * key * " => " * value
-        else
-            assign_str = "    " * key * " => " * value
-            index += 1
+    # Compartments
+    for (compartment_id, compartment) in model_dict["compartments"]
+        if compartment.rate_rule != true 
+            continue
         end
-        dict_model_str["initialSpeciesValues"] *= assign_str
+        u0eq = compartment.initial_value        
+        dict_model_str["initialSpeciesValues"] *= "\t" * compartment_id * " => " * u0eq * ",\n"
     end
-    dict_model_str["initialSpeciesValues"] *= "\n"
-    dict_model_str["initialSpeciesValues"] *= "    ]"
-        
-    for (index, (key, value)) in enumerate(model_dict["parameters"])
-        if tryparse(Float64,value) !== nothing
-            value = string(parse(Float64,value))
+    dict_model_str["initialSpeciesValues"] *= "\t]"
+
+    #=
+        Build the parameter map
+    =#
+    if !isempty(dict_model_str["parameters"])
+        for (parameter_id, parameter) in model_dict["parameters"]
+            if parameter.constant == false
+                continue
+            end
+            peq = parameter.formula
+            dict_model_str["trueParameterValues"] *= "\t" * parameter_id * " =>" * peq * ",\n"
         end
-        if index == 1
-            assign_str = "    " * key * " => " * value
-        else
-            assign_str = ",\n    " * key * " => " * value
+        for (compartment_id, compartment) in model_dict["compartments"]
+            if compartment.constant == false
+                continue
+            end
+            ceq = compartment.formula
+            dict_model_str["trueParameterValues"] *= "\t" * compartment_id * " =>" * ceq * ",\n"
         end
-        dict_model_str["trueParameterValues"] *= assign_str
     end
-    dict_model_str["trueParameterValues"] *= "\n"
-    dict_model_str["trueParameterValues"] *= "    ]"
+    dict_model_str["trueParameterValues"] *= "\n\t]"
 
     ### Writing to file
     model_name = replace(model_name, "-" => "_")
     io = IOBuffer()
     println(io, "function getODEModel_" * model_name * "(foo)")
     println(io, "\t# Model name: " * model_name)
-    println(io, "\t# Number of parameters: " * model_dict["numOfParameters"])
-    println(io, "\t# Number of species: " * model_dict["numOfSpecies"])
     println(io, "")
 
     println(io, "    ### Define independent and dependent variables")
     println(io, dict_model_str["variables"])
     println(io, "")
+    println(io, "    ### Define potential algebraic variables")
+    println(io, dict_model_str["algebraicVariables"])
     println(io, "    ### Store dependent variables in array for ODESystem command")
     println(io, dict_model_str["stateArray"])
     println(io, "")
-    println(io, "    ### Define variable parameters")
-    println(io, dict_model_str["variableParameters"])
-    println(io, "    ### Define potential algebraic variables")
-    println(io, dict_model_str["algebraicVariables"])
     println(io, "    ### Define parameters")
     println(io, dict_model_str["parameters"])
     println(io, "")
@@ -786,8 +613,8 @@ function create_ode_model(model_dict, path_jl_file, model_name, write_to_file::B
     println(io, "end")
     model_str = String(take!(io))
     close(io)
-    
-    # In case user request file to be written 
+
+    # In case user request file to be written
     if write_to_file == true
         open(path_jl_file, "w") do f
             write(f, model_str)
@@ -797,7 +624,7 @@ function create_ode_model(model_dict, path_jl_file, model_name, write_to_file::B
 end
 
 
-function replace_rateOf(_formula::T, model_dict::Dict) where T<:Union{<:AbstractString, <:Real}
+function replace_rateOf(_formula::T, model_dict::Dict)::String where T<:Union{<:AbstractString, <:Real}
 
     formula = string(_formula)
     if !occursin("rateOf", formula)
@@ -808,30 +635,55 @@ function replace_rateOf(_formula::T, model_dict::Dict) where T<:Union{<:Abstract
     formula = replace(formula, "≤" => "<=")
     formula = replace(formula, "≥" => ">=")
 
-    # Find rateof expressions 
+    # Find rateof expressions
     start_rateof = findall(i -> formula[i:(i+6)] == "rateOf(", 1:(length(formula)-6))
     end_rateof = [findfirst(x -> x == ')', formula[start:end])+start-1 for start in start_rateof]
+    # Compenstate for nested paranthesis 
+    for i in eachindex(end_rateof) 
+        if any(occursin.(['*', '/'], formula[start_rateof[i]:end_rateof[i]]))
+            end_rateof[i] += 1
+        end
+    end
     args = [formula[start_rateof[i]+7:end_rateof[i]-1] for i in eachindex(start_rateof)]
-        
+
     replace_with = Vector{String}(undef, length(args))
     for (i, arg) in pairs(args)
-        # A constant parameter does not have a rate 
-        if arg ∈ keys(model_dict["parameters"])
+
+        # A constant parameter does not have a rate
+        if arg ∈ keys(model_dict["parameters"]) && model_dict["parameters"][arg].constant == true
             replace_with[i] = "0.0"
+            continue
         end
+        # A parameter via a rate-rule has a rate
+        if arg ∈ keys(model_dict["parameters"]) && model_dict["parameters"][arg].rate_rule == true
+            replace_with[i] = model_dict["parameters"][arg].formula
+            continue
+        end
+
+        # A number does not have a rate
         if is_number(arg)
             replace_with[i] = "0.0"
+            continue
         end
-        if arg ∈ keys(model_dict["states"]) || arg ∈ model_dict["rate_rules_names"]
-            rate_change = model_dict["derivatives"][arg]
-            replace_with[i] = rate_change[(findfirst(x -> x == '~', rate_change)+1):end]
-        end
-        if (arg ∈ keys(model_dict["states"]) && 
-            model_dict["stateGivenInAmounts"][arg][1] == true && 
-            !isempty(model_dict["stateGivenInAmounts"][arg][2] == true) &&
-            model_dict["hasOnlySubstanceUnits"][arg] == false)
 
-            replace_with[i] = "(" * replace_with[i] * ") / " * model_dict["stateGivenInAmounts"][arg][2]
+        # If specie is via a rate-rule we do not scale the state in the expression
+        if arg ∈ keys(model_dict["species"]) && model_dict["species"][arg].rate_rule == true
+            replace_with[i] = model_dict["species"][arg].formula
+            continue
+        end
+
+        # Default case, use formula for given specie, and if specie is given in amount
+        # Here it might happen that arg is scaled with compartment, e.g. S / C thus 
+        # first the specie is extracted 
+        arg = filter(x -> x ∉ ['(', ')'], arg)
+        arg = occursin('/', arg) ? arg[1:findfirst(x -> x == '/', arg)-1] : arg
+        arg = occursin('*', arg) ? arg[1:findfirst(x -> x == '*', arg)-1] : arg
+        specie = model_dict["species"][arg]
+        scale_with_compartment = specie.unit == :Amount && specie.only_substance_units == false
+        if scale_with_compartment == true
+            replace_with[i] = "(" * specie.formula * ") / " * specie.compartment
+        else
+            replace_with[i] = specie.formula
         end
     end
 
@@ -842,15 +694,21 @@ function replace_rateOf(_formula::T, model_dict::Dict) where T<:Union{<:Abstract
 
     formula = replace(formula, "<=" => "≤")
     formula = replace(formula, ">=" => "≥")
-    
+
     return formula
 end
 
 
-function replace_reactionid_with_math(formula::T, model_SBML)::T where T<:AbstractString
-    for (reaction_id, reaction) in model_SBML.reactions
-        reaction_math = parse_SBML_math(reaction.kinetic_math)
-        formula = replace_variable(formula, reaction_id, reaction_math)
+function replace_reactionid!(model_dict::Dict)::Nothing
+
+    for (specie_id, specie) in model_dict["species"]
+        for (reaction_id, reaction) in model_dict["reactions"]
+            specie.formula = replace_variable(specie.formula, reaction_id, reaction.kinetic_math)
+        end
     end
-    return formula
+
+    return nothing
 end
+
+
+

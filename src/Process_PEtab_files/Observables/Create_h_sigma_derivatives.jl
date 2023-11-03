@@ -57,7 +57,7 @@ function create_derivative_σ_h_file(model_name::String,
     θ_indices = PEtab.compute_θ_indices(parameter_info, measurement_info, system, parameter_map, state_map, experimental_conditions)
 
     # Dummary variables to keep PEtab importer happy even as we are not providing any PEtab files
-    SBML_dict = Dict(); SBML_dict["assignmentRulesStates"] = Dict()
+    SBML_dict = Dict(); SBML_dict["species"] = Dict()
 
     ∂h∂u_str, ∂h∂p_str = PEtab.create∂h∂_function(model_name, @__DIR__, model_state_names, parameter_info, p_ode_problem_names, string.(θ_indices.θ_non_dynamic_names), observables_data, SBML_dict, false)
     ∂σ∂u_str, ∂σ∂p_str = PEtab.create∂σ∂_function(model_name, @__DIR__, parameter_info, model_state_names, p_ode_problem_names, string.(θ_indices.θ_non_dynamic_names), observables_data, SBML_dict, false)

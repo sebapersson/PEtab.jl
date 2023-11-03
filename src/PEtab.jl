@@ -83,7 +83,8 @@ include(joinpath("SBML", "Events.jl"))
 include(joinpath("SBML", "SBML_math.jl"))
 include(joinpath("SBML", "Initial_assignments.jl"))
 include(joinpath("SBML", "SBML_functions.jl"))
-include(joinpath("SBML", "Process_rules.jl"))
+include(joinpath("SBML", "SBML_rules.jl"))
+include(joinpath("SBML", "Reactions.jl"))
 include(joinpath("SBML", "Solve_SBML_model.jl"))
 
 # Nice util functions 

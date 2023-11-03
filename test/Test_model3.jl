@@ -42,13 +42,13 @@ function getSolAlgebraicSS(petab_model::PEtabModel, solver, tol::Float64, a::T1,
     solArray = Array{ODESolution, 1}(undef, 2)
 
     # Set model parameter values to ensure initial steady state
-    odeProb.p[5], odeProb.p[3], odeProb.p[1], odeProb.p[6] = a, b, c, d
+    odeProb.p[4], odeProb.p[2], odeProb.p[1], odeProb.p[5] = a, b, c, d
     odeProb.u0[1] = a / b + ( a * c ) / ( b * d ) # x0
     odeProb.u0[2] = a / d # y0
 
-    odeProb.p[4] = 2.0 # a_scale
+    odeProb.p[3] = 2.0 # a_scale
     solArray[1] = solve(odeProb, solver, abstol=tol, reltol=tol)
-    odeProb.p[4] = 0.5 # a_scale
+    odeProb.p[3] = 0.5 # a_scale
     solArray[2] = solve(odeProb, solver, abstol=tol, reltol=tol)
 
     return solArray
@@ -104,9 +104,9 @@ function test_ode_solver_test_model3(petab_model::PEtabModel, solverOptions::ODE
         a, b, c, d = parametersTest[:, i]
         # Set parameter values for ODE
         petab_model.parameter_map[1] = Pair(petab_model.parameter_map[1].first, c)
-        petab_model.parameter_map[3] = Pair(petab_model.parameter_map[3].first, b)
-        petab_model.parameter_map[5] = Pair(petab_model.parameter_map[5].first, a)
-        petab_model.parameter_map[6] = Pair(petab_model.parameter_map[6].first, d)
+        petab_model.parameter_map[2] = Pair(petab_model.parameter_map[2].first, b)
+        petab_model.parameter_map[4] = Pair(petab_model.parameter_map[4].first, a)
+        petab_model.parameter_map[5] = Pair(petab_model.parameter_map[5].first, d)
 
         prob = ODEProblem(petab_model.system, petab_model.state_map, (0.0, 9.7), petab_model.parameter_map, jac=true)
         prob = remake(prob, p = convert.(Float64, prob.p), u0 = convert.(Float64, prob.u0))
@@ -187,7 +187,7 @@ end
 
 @testset "Cost gradient and hessian" begin
     ss_optionsTest3 = SteadyStateSolver(:Simulate, check_simulation_steady_state=:wrms, abstol=1e-12, reltol=1e-10)
-    test_cost_gradient_hessian_test_model3(petab_model, ODESolver(Rodas4P(), abstol=1e-12, reltol=1e-12, maxiters=Int(1e5)), ss_optionsTest3)
+    test_cost_gradient_hessian_test_model3(petab_model, ODESolver(Rodas5P(), abstol=1e-12, reltol=1e-12, maxiters=Int(1e5)), ss_optionsTest3)
 end
 
 @testset "Gradient of residuals" begin

@@ -69,7 +69,7 @@ function PEtabModel(path_yaml::String;
     timeTake = @elapsed begin
         _get_ode_system = @RuntimeGeneratedFunction(Meta.parse(model_str))
         _ode_system, state_map, parameter_map = _get_ode_system("https://xkcd.com/303/") # Argument needed by @RuntimeGeneratedFunction
-        if "algebraicRules" ∉ keys(model_dict) || isempty(model_dict["algebraicRules"])
+        if "algebraic_rules" ∉ keys(model_dict) || isempty(model_dict["algebraic_rules"])
             ode_system = structural_simplify(_ode_system)
         # DAE requires special processing
         else

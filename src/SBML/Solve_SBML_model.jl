@@ -26,7 +26,7 @@ function solve_SBML(path_SBML, solver, tspan; abstol=1e-8, reltol=1e-8, saveat::
     verbose && @info "Symbolically processing system"
     _get_ode_system = @RuntimeGeneratedFunction(Meta.parse(get_function_str(pathODE, 1)[1]))
     _ode_system, state_map, parameter_map = _get_ode_system("https://xkcd.com/303/") # Argument needed by @RuntimeGeneratedFunction
-    if isempty(SBML_dict["algebraicRules"])
+    if isempty(SBML_dict["algebraic_rules"])
         ode_system = structural_simplify(_ode_system)
     # DAE requires special processing
     else

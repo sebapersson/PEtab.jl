@@ -7,7 +7,7 @@ function create_callbacks_for_piecewise(system::ODESystem,
                                         model_name::String,
                                         path_yaml::String,
                                         dir_julia::String;
-                                        custom_parameter_values::Union{Nothing, Dict}=nothing, 
+                                        custom_parameter_values::Union{Nothing, Dict}=nothing,
                                         write_to_file::Bool=true)
 
     p_ode_problem_names = string.(parameters(system))
@@ -46,7 +46,7 @@ function create_callbacks_for_piecewise(system::ODESystem,
 
         _callback_names = vcat([key for key in keys(SBML_dict["boolVariables"])], [key for key in keys(SBML_dict["events"])])
         callback_names = prod(["cb_" * name * ", " for name in _callback_names])[1:end-2]
-        # Only relevant for picewise expressions 
+        # Only relevant for picewise expressions
         if !isempty(SBML_dict["boolVariables"])
             check_activated_t0_names = prod(["is_active_t0_" * key * "!, " for key in keys(SBML_dict["boolVariables"])])[1:end-2]
         else
@@ -134,28 +134,32 @@ function create_callback(callback_name::String,
 end
 
 
-function create_callback_event(event_name::String, 
-                               SBML_dict::Dict, 
-                               p_ode_problem_names::Vector{String}, 
+function create_callback_event(event_name::String,
+                               SBML_dict::Dict,
+                               p_ode_problem_names::Vector{String},
                                model_state_names::Vector{String})
 
-    _condition_formula, affects, initial_value_cond = SBML_dict["events"][event_name]
+    event = SBML_dict["events"][event_name]
+    _condition_formula = event.trigger
+    affects = event.formulas
+    initial_value_cond = event.trigger_initial_value
+
     has_model_states = check_condition_has_states(_condition_formula, model_state_names)
     discrete_event = has_model_states == true ? false : true
 
     # If the event trigger does not contain a model state but fixed parameters it can at a maximum be triggered once.
     if discrete_event == false
-        # If we have a trigger on the form a ≤ b then event should only be 
+        # If we have a trigger on the form a ≤ b then event should only be
         # activated when crossing the condition from left -> right. Reverse
         # holds for ≥
-        affect_neg = occursin("≤", _condition_formula) 
+        affect_neg = occursin("≤", _condition_formula)
     else
         __condition_formula = _condition_formula
         _condition_formula = "\tcond = " * _condition_formula * " && from_neg[1] == true\n"
         _condition_formula *= "\t\tfrom_neg[1] = !(" * __condition_formula * ")\n\t\treturn cond"
     end
 
-    # TODO : Refactor and merge functionality with above 
+    # TODO : Refactor and merge functionality with above
     for i in eachindex(model_state_names)
         _condition_formula = replace_variable(_condition_formula, model_state_names[i], "u["*string(i)*"]")
     end
@@ -163,7 +167,7 @@ function create_callback_event(event_name::String,
         _condition_formula = replace_variable(_condition_formula, p_ode_problem_names[i], "integrator.p["*string(i)*"]")
     end
 
-    # Build the condition statement used in the jl function 
+    # Build the condition statement used in the jl function
     if discrete_event == false
         __condition_formula = replace(_condition_formula, "≤" => "-")
         __condition_formula = replace(__condition_formula, "≥" => "-")
@@ -209,7 +213,7 @@ function create_callback_event(event_name::String,
         initial_value_str = ""
     end
 
-    # Build the callback 
+    # Build the callback
     if discrete_event == false
         if affect_neg == true
             callback_str = "\tcb_" * event_name * " = ContinuousCallback(" * "condition_" * event_name * ", nothing, " * "affect_" * event_name * "!,"
@@ -226,7 +230,7 @@ function create_callback_event(event_name::String,
             callback_str = "\tcb_" * event_name * " = DiscreteCallback(" * "condition_" * event_name * ", " * "affect_" * event_name * "!, "
         end
     end
-    callback_str *= "save_positions=(false, false))\n" # So we do not get problems with saveat in the ODE solver 
+    callback_str *= "save_positions=(false, false))\n" # So we do not get problems with saveat in the ODE solver
 
     function_str = condition_str * '\n' * affect_str * '\n' * initial_value_str * '\n'
 
@@ -241,7 +245,7 @@ function create_tstops_function(SBML_dict::Dict,
                                 p_ode_problem_names::Vector{String},
                                 θ_indices::Union{ParameterIndices, Nothing})
 
-    condition_formulas = string.(vcat([SBML_dict["boolVariables"][key][1] for key in keys(SBML_dict["boolVariables"])], [SBML_dict["events"][key][1] for key in keys(SBML_dict["events"])]))
+    condition_formulas = string.(vcat([SBML_dict["boolVariables"][key][1] for key in keys(SBML_dict["boolVariables"])], [e.trigger for e in values(SBML_dict["events"])]))
 
     return _create_tstops_function(condition_formulas, model_state_names, p_ode_problem_names, θ_indices)
 end
@@ -249,8 +253,8 @@ function create_tstops_function(events::Vector{T},
                                 system,
                                 θ_indices::Union{ParameterIndices, Nothing}) where T<:PEtabEvent
 
-    model_state_names = replace.(string.(states(system)), "(t)" => "")        
-    p_ode_problem_names = string.(parameters(system))    
+    model_state_names = replace.(string.(states(system)), "(t)" => "")
+    p_ode_problem_names = string.(parameters(system))
     condition_formulas = [string(event.condition) for event in events]
     for (i, condition) in pairs(condition_formulas)
         if PEtab.is_number(condition) || condition ∈ p_ode_problem_names

@@ -16,9 +16,9 @@ end
 
 Processes a string formula by inserting SBML functions, rewriting piecewise to ifelse, and scaling species
 """
-function process_SBML_str_formula(formula::T, model_dict, model_SBML; check_scaling=false, rate_rule::Bool=false)::T where T<:AbstractString
+function process_SBML_str_formula(formula::T, model_dict::Dict, model_SBML::SBML.Model; check_scaling=false, rate_rule::Bool=false)::T where T<:AbstractString
     
-    _formula = SBML_function_to_math(formula, model_dict["modelFunctions"])
+    _formula = SBML_function_to_math(formula, model_dict["SBML_functions"])
     if occursin("piecewise(", _formula)
         _formula = rewrite_piecewise_to_ifelse(_formula, "foo", model_dict, model_SBML, ret_formula=true)
     end
@@ -26,19 +26,16 @@ function process_SBML_str_formula(formula::T, model_dict, model_SBML; check_scal
 
     # SBML equations are given in concentration, in case an amount specie appears in the equation scale with the 
     # compartment in the formula every time the species appear
-    for (state_id, state) in model_SBML.species
+    for (specie_id, specie) in model_dict["species"]
         if check_scaling == false
             continue
         end
-        if model_dict["stateGivenInAmounts"][state_id][1] == false 
-            continue
-        end
-        if model_dict["hasOnlySubstanceUnits"][state_id] == true
+        if specie.unit == :Concentration || specie.only_substance_units == true
             continue
         end
 
-        compartment = state.compartment
-        _formula = replace_variable(_formula, state_id, "(" * state_id * "/" * compartment * ")")
+        compartment = specie.compartment
+        _formula = replace_variable(_formula, specie_id, "(" * specie_id * "/" * compartment * ")")
     end
 
     # Replace potential expressions given in initial assignment and that appear in stoichemetric experssions
@@ -51,18 +48,18 @@ function process_SBML_str_formula(formula::T, model_dict, model_SBML; check_scal
         if id ∉ reduce(vcat, vcat([[_r.id for _r in r.products] for r in values(model_SBML.reactions)], [[_r.id for _r in r.reactants] for r in values(model_SBML.reactions)]))
             continue
         end
-        if id ∉ keys(model_dict["states"]) && rate_rule == false
+        if id ∉ keys(model_dict["species"]) && rate_rule == false
             continue
         end
         if isnothing(id)
             continue
         end
         # Do not rewrite is stoichemetric is controlled via event
-        if !isempty(model_dict["events"]) && any(occursin.(id, reduce(vcat, [e[2] for e in values(model_dict["events"])])))
+        if !isempty(model_dict["events"]) && any(occursin.(id, reduce(vcat, [e.formulas for e in values(model_dict["events"])])))
             continue
         end
         if rate_rule == false
-            _formula = replace_variable(_formula, id, "(" * string(model_dict["states"][id]) * ")")
+            _formula = replace_variable(_formula, id, "(" * model_dict["species"][id].initial_value * ")")
         else
             replace_with = parse_SBML_math(model_SBML.initial_assignments[id])
             _formula = replace_variable(_formula, id, "(" * replace_with * ")")
@@ -95,7 +92,16 @@ function process_SBML_str_formula(formula::T, model_dict, model_SBML; check_scal
 end
 
 
-# Handles piecewise functions that are to be redefined with ifelse statements in the model
+function replace_reactionid_formula(formula::T, model_SBML::SBML.Model)::T where T<:AbstractString
+    for (reaction_id, reaction) in model_SBML.reactions
+        reaction_math = parse_SBML_math(reaction.kinetic_math)
+        formula = replace_variable(formula, reaction_id, reaction_math)
+    end
+    return formula
+end
+
+
+# Handles piecewise functions that are to be redefined with ifelse speciements in the model
 # equations to allow MKT symbolic calculations.
 # Calls goToBottomPiecewiseToEvent to handle multiple logical conditions.
 function rewrite_piecewise_to_ifelse(rule_formula, variable, model_dict, model_SBML; ret_formula::Bool=false)
