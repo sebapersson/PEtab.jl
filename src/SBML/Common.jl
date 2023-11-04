@@ -101,6 +101,117 @@ function replace_reactionid_formula(formula::T, model_SBML::SBML.Model)::T where
 end
 
 
+function replace_rateOf!(model_dict::Dict)::Nothing
+
+    for (parameter_id, parameter) in model_dict["parameters"]
+        parameter.formula = replace_rateOf(parameter.formula, model_dict)
+        parameter.initial_value = replace_rateOf(parameter.initial_value, model_dict)
+    end
+    for (specie_id, specie) in model_dict["species"]
+        specie.formula = replace_rateOf(specie.formula, model_dict)
+        specie.initial_value = replace_rateOf(specie.initial_value, model_dict)
+    end
+    for (event_id, event) in model_dict["events"]
+        for (i, formula) in pairs(event.formulas)
+            event.formulas[i] = replace_rateOf(formula, model_dict)
+        end
+        event.trigger = replace_rateOf(event.trigger, model_dict)
+    end
+    for (rule_id, rule) in model_dict["algebraic_rules"]
+        model_dict["algebraic_rules"][rule_id] = replace_rateOf(rule, model_dict)
+    end
+
+    return nothing
+end
+
+
+function replace_rateOf(_formula::T, model_dict::Dict)::String where T<:Union{<:AbstractString, <:Real}
+
+    formula = string(_formula)
+    if !occursin("rateOf", formula)
+        return formula
+    end
+
+    # Invalid character problems
+    formula = replace(formula, "≤" => "<=")
+    formula = replace(formula, "≥" => ">=")
+
+    # Find rateof expressions
+    start_rateof = findall(i -> formula[i:(i+6)] == "rateOf(", 1:(length(formula)-6))
+    end_rateof = [findfirst(x -> x == ')', formula[start:end])+start-1 for start in start_rateof]
+    # Compenstate for nested paranthesis 
+    for i in eachindex(end_rateof) 
+        if any(occursin.(['*', '/'], formula[start_rateof[i]:end_rateof[i]]))
+            end_rateof[i] += 1
+        end
+    end
+    args = [formula[start_rateof[i]+7:end_rateof[i]-1] for i in eachindex(start_rateof)]
+
+    replace_with = Vector{String}(undef, length(args))
+    for (i, arg) in pairs(args)
+
+        # A constant parameter does not have a rate
+        if arg ∈ keys(model_dict["parameters"]) && model_dict["parameters"][arg].constant == true
+            replace_with[i] = "0.0"
+            continue
+        end
+        # A parameter via a rate-rule has a rate
+        if arg ∈ keys(model_dict["parameters"]) && model_dict["parameters"][arg].rate_rule == true
+            replace_with[i] = model_dict["parameters"][arg].formula
+            continue
+        end
+
+        # A number does not have a rate
+        if is_number(arg)
+            replace_with[i] = "0.0"
+            continue
+        end
+
+        # If specie is via a rate-rule we do not scale the state in the expression
+        if arg ∈ keys(model_dict["species"]) && model_dict["species"][arg].rate_rule == true
+            replace_with[i] = model_dict["species"][arg].formula
+            continue
+        end
+
+        # Default case, use formula for given specie, and if specie is given in amount
+        # Here it might happen that arg is scaled with compartment, e.g. S / C thus 
+        # first the specie is extracted 
+        arg = filter(x -> x ∉ ['(', ')'], arg)
+        arg = occursin('/', arg) ? arg[1:findfirst(x -> x == '/', arg)-1] : arg
+        arg = occursin('*', arg) ? arg[1:findfirst(x -> x == '*', arg)-1] : arg
+        specie = model_dict["species"][arg]
+        scale_with_compartment = specie.unit == :Amount && specie.only_substance_units == false
+        if scale_with_compartment == true
+            replace_with[i] = "(" * specie.formula * ") / " * specie.compartment
+        else
+            replace_with[i] = specie.formula
+        end
+    end
+
+    formula_cp = deepcopy(formula)
+    for i in eachindex(replace_with)
+        formula = replace(formula, formula_cp[start_rateof[i]:end_rateof[i]] => replace_with[i])
+    end
+
+    formula = replace(formula, "<=" => "≤")
+    formula = replace(formula, ">=" => "≥")
+
+    return formula
+end
+
+
+function replace_reactionid!(model_dict::Dict)::Nothing
+
+    for (specie_id, specie) in model_dict["species"]
+        for (reaction_id, reaction) in model_dict["reactions"]
+            specie.formula = replace_variable(specie.formula, reaction_id, reaction.kinetic_math)
+        end
+    end
+
+    return nothing
+end
+
+
 # Handles piecewise functions that are to be redefined with ifelse speciements in the model
 # equations to allow MKT symbolic calculations.
 # Calls goToBottomPiecewiseToEvent to handle multiple logical conditions.

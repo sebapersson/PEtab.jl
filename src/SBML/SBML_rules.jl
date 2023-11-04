@@ -13,11 +13,7 @@ function parse_SBML_rules!(model_dict::Dict, model_SBML::SBML.Model)
         end
 
         if rule isa SBML.AlgebraicRule
-            rule_formula = parse_SBML_math(rule.math)
-            rule_formula = replace_variable(rule_formula, "time", "t")
-            rule_formula = SBML_function_to_math(rule_formula, model_dict["SBML_functions"])
-            rule_name = isempty(model_dict["algebraic_rules"]) ? "1" : maximum(keys(model_dict["algebraic_rules"])) * "1" # Need placeholder key 
-            model_dict["algebraic_rules"][rule_name] = "0 ~ " * rule_formula
+            parse_algebraic_rule!(model_dict, rule, model_SBML)
         end
     end    
 end
@@ -37,9 +33,6 @@ function parse_assignment_rule!(model_dict::Dict, rule::SBML.AssignmentRule, mod
     # case handled separately 
     if occursin("piecewise(", rule_formula)
         rewrite_piecewise_to_ifelse(rule_formula, rule_variable, model_dict, model_SBML)
-        if rule_variable ∈ keys(model_dict["derivatives"])
-            delete!(model_dict["derivatives"], rule_variable)
-        end
         return nothing
     end
 
@@ -148,6 +141,16 @@ function parse_rate_rule!(model_dict::Dict, rule::SBML.RateRule, model_SBML::SBM
                                                       rule_formula, 
                                                       collect(keys(model_SBML.compartments))[1], :Amount, 
                                                       false, false, true, false)
+    return nothing
+end
+
+
+function parse_algebraic_rule!(model_dict::Dict, rule::SBML.AlgebraicRule, model_SBML::SBML.Model)::Nothing
+    rule_formula = parse_SBML_math(rule.math)
+    rule_formula = replace_variable(rule_formula, "time", "t")
+    rule_formula = SBML_function_to_math(rule_formula, model_dict["SBML_functions"])
+    rule_name = isempty(model_dict["algebraic_rules"]) ? "1" : maximum(keys(model_dict["algebraic_rules"])) * "1" # Need placeholder key 
+    model_dict["algebraic_rules"][rule_name] = "0 ~ " * rule_formula
     return nothing
 end
 
