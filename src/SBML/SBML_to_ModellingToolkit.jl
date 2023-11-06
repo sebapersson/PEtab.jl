@@ -49,7 +49,8 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
                       "generated_ids" => Dict{String, String}(), 
                       "assignment_rule_variables" => String[], 
                       "rate_rule_variables" => String[], 
-                      "appear_in_reactions" => String[])
+                      "appear_in_reactions" => String[], 
+                      "has_piecewise" => String[])
 
     parse_SBML_species!(model_dict, model_SBML)
 

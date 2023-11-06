@@ -13,7 +13,7 @@ function parse_SBML_rules!(model_dict::Dict, model_SBML::SBML.Model)
         end
 
         if rule isa SBML.AlgebraicRule
-            parse_algebraic_rule!(model_dict, rule, model_SBML)
+            parse_algebraic_rule!(model_dict, rule)
         end
     end    
 end
@@ -32,8 +32,8 @@ function parse_assignment_rule!(model_dict::Dict, rule::SBML.AssignmentRule, mod
     # If piecewise occurs in the rule we need to unnest, rewrite to ifelse, special 
     # case handled separately 
     if occursin("piecewise(", rule_formula)
-        rewrite_piecewise_to_ifelse(rule_formula, rule_variable, model_dict, model_SBML)
-        return nothing
+        rule_formula = piecewise_to_ifelse(rule_formula, model_dict, model_SBML)
+        push!(model_dict["has_piecewise"], rule_variable)
     end
 
     # Handle reaction ids, and unnest potential SBML functions 
@@ -93,9 +93,8 @@ function parse_rate_rule!(model_dict::Dict, rule::SBML.RateRule, model_SBML::SBM
 
     # Rewrite rule to function if there are not any piecewise, eles rewrite to formula with ifelse
     if occursin("piecewise(", rule_formula)
-        rule_formula = rewrite_piecewise_to_ifelse(rule_formula, rule_variable, model_dict, model_SBML, ret_formula=true)
-    else
-        rule_formula = SBML_function_to_math(rule_formula, model_dict["SBML_functions"])
+        rule_formula = piecewise_to_ifelse(rule_formula, model_dict, model_SBML)
+        push!(model_dict["has_piecewise"], rule_variable)
     end
 
     rule_formula = replace_reactionid_formula(rule_formula, model_SBML)
@@ -145,7 +144,7 @@ function parse_rate_rule!(model_dict::Dict, rule::SBML.RateRule, model_SBML::SBM
 end
 
 
-function parse_algebraic_rule!(model_dict::Dict, rule::SBML.AlgebraicRule, model_SBML::SBML.Model)::Nothing
+function parse_algebraic_rule!(model_dict::Dict, rule::SBML.AlgebraicRule)::Nothing
     rule_formula = parse_SBML_math(rule.math)
     rule_formula = replace_variable(rule_formula, "time", "t")
     rule_formula = SBML_function_to_math(rule_formula, model_dict["SBML_functions"])
@@ -240,9 +239,14 @@ function time_dependent_ifelse_to_bool!(model_dict::Dict)
 
     # Rewrite piecewise using Boolean variables. Due to the abillity of piecewiese statements to be nested
     # recursion is needed.
-    for key in keys(model_dict["inputFunctions"])
-        formula_with_ifelse = model_dict["inputFunctions"][key]
-        model_dict["inputFunctions"][key] = _time_dependent_ifelse_to_bool(string(formula_with_ifelse), model_dict, key)
+    for variable in model_dict["has_piecewise"]
+        if variable in keys(model_dict["species"])
+            _variable = model_dict["species"][variable]
+        elseif variable in keys(model_dict["parameters"])
+            _variable = model_dict["parameters"][variable]
+        end
+
+        _variable.formula = _time_dependent_ifelse_to_bool(_variable.formula, model_dict, _variable.name)
     end
 end
 
@@ -282,13 +286,13 @@ function _time_dependent_ifelse_to_bool(formula_with_ifelse::String, model_dict:
             rewrite_ifelse = false
             continue
         else
-            println("Error : Did not find criteria to split ifelse on")
+            @error "Error : Did not find criteria to split ifelse on"
         end
         lhsRule, rhsRule = split(activationRule, string(splitBy))
 
         # Identify which side of ifelse expression is activated with time
-        time_right = check_for_time(string(rhsRule))
-        time_left = check_for_time(string(lhsRule))
+        time_right = time_in_formula(string(rhsRule))
+        time_left = time_in_formula(string(lhsRule))
         rewrite_ifelse = true
         if time_left == false && time_left == false
             @info "Have ifelse statements which does not contain time. Hence we do not rewrite as event, but rather keep it as an ifelse." maxlog=1
@@ -364,6 +368,78 @@ function split_ifelse(str::String)
         i += 1
     end
     return str[first_set], str[second_set], str[thirdSet]
+end
+
+
+# In piecewise condition cond > cond_limit, check whether cond is increasing or decreasing
+# with time. Important to later rewrite piecewise to an event 
+function check_sign_time(formula::String)
+
+    formula = replace(formula, " " => "")
+    _formula = find_term_with_t(formula)
+
+    if _formula == ""
+        str_write = "In $formula for condition in piecewise cannot identify which term time appears in."
+        throw(PEtabFileError(str_write))
+    end
+    
+    _formula = replace(_formula, "(" => "")
+    _formula = replace(_formula, ")" => "")
+    if _formula == "t"
+        return 1
+    elseif length(_formula) ≥ 2 && _formula[1:2] == "-t"
+        return -1
+    elseif length(_formula) ≥ 3 && _formula[1:3] == "--t"
+        return 1
+    elseif length(_formula) ≥ 3 && (_formula[1:3] == "+-t" || _formula[1:3] == "-+t")
+        return -1
+    end
+
+    # If '-' appears anywhere after the cases above we might be able to infer direction, 
+    # but infering in this situation is hard! - so throw an error as the user should 
+    # be able to write condition in a more easy manner (avoid several sign changing minus signs)
+    if !occursin('-', _formula)
+        return 1
+    else
+        str_write = "For piecewise with time in condition we cannot infer direction for $formula, that is if the condition value increases or decreases with time. This happens if the formula contains a minus sign in the term where t appears."
+        throw(PEtabFileError(str_write))
+    end
+end
+
+
+# Often we have condition t - parameter, here identify the term which t occurs 
+# in order to satisfy the check_sign_time function
+function find_term_with_t(formula::String)::String
+
+    # Simple edge case
+    if length(formula) == 1 && formula == "t"
+        return formula
+    end
+
+    istart, parenthesis_level = 1, 0
+    local term = ""
+    for (i, char) in pairs(formula)
+
+        if i == 1 && char ∈ ['+', '-']
+            continue
+        end
+
+        parenthesis_level = char == '(' ? parenthesis_level+1 : parenthesis_level
+        parenthesis_level = char == ')' ? parenthesis_level-1 : parenthesis_level
+
+        if parenthesis_level == 0 && (char ∈ ['+', '-'] || i == length(formula))
+            if formula[i-1] ∈ ['+', '-'] && i != length(formula)
+                continue
+            end
+
+            term = formula[istart:i]
+            if time_in_formula(term) == true || (i == length(formula) && char == 't')
+                return term[end] ∈ ['+', '-'] ? term[1:end-1] : term
+            end
+            istart = i
+        end
+    end
+    return ""
 end
 
 
