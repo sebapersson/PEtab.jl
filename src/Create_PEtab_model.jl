@@ -140,7 +140,7 @@ function PEtabModel(path_yaml::String;
             model_dict, _ = SBML_to_ModellingToolkit(path_SBML, path_model_jl_file, model_name, write_to_file=false, 
                 only_extract_model_dict=true, ifelse_to_event=ifelse_to_event)
         end
-        b_build = @elapsed callback_str, tstops_str = create_callbacks_for_piecewise(ode_system, parameter_map, 
+        b_build = @elapsed callback_str, tstops_str = create_callbacks_SBML(ode_system, parameter_map, 
             state_map, model_dict, model_name, path_yaml, dir_julia, custom_parameter_values=custom_parameter_values, 
             write_to_file=write_to_file)
         verbose == true && @printf(" done. Time = %.1es\n", b_build)

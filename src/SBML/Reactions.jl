@@ -73,7 +73,6 @@ function get_compartment_scaling(specie::String, formula::String, model_dict::Di
 end
 
 
-
 function parse_stoichiometry(specie_reference::SBML.SpeciesReference, model_dict::Dict)::String
 
     if !isnothing(specie_reference.id)

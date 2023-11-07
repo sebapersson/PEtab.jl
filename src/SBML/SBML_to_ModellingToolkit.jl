@@ -41,11 +41,10 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
                       "parameters" => Dict{String, ParameterSBML}(), 
                       "compartments" => Dict{String, CompartmentSBML}(), 
                       "SBML_functions" => Dict{String, Vector{String}}(), 
-                      "boolVariables" => Dict(), 
+                      "ifelse_parameters" => Dict(), 
                       "events" => Dict{String, EventSBML}(), 
                       "reactions" => Dict{String, ReactionSBML}(), 
                       "algebraic_rules" => Dict{String, String}(), 
-                      "inputFunctions" => Dict(), 
                       "generated_ids" => Dict{String, String}(), 
                       "assignment_rule_variables" => String[], 
                       "rate_rule_variables" => String[], 
@@ -145,13 +144,6 @@ function create_ode_model(model_dict, path_jl_file, model_name, write_to_file::B
         dict_model_str["variables"] *= compartment_id * "(t) "
         dict_model_str["species"] *= compartment_id * ", "
     end
-    if length(model_dict["inputFunctions"]) > 0
-        dict_model_str["algebraicVariables"] = "    ModelingToolkit.@variables"
-        for key in keys(model_dict["inputFunctions"])
-            dict_model_str["algebraicVariables"] *= " " * key * "(t)"
-            dict_model_str["species"] *= key * ", "
-        end
-    end
     dict_model_str["species"] = dict_model_str["species"][1:end-2] * "]" # Ensure correct valid syntax
 
     for (parameter_id, parameter) in model_dict["parameters"]
@@ -222,10 +214,6 @@ function create_ode_model(model_dict, path_jl_file, model_name, write_to_file::B
             eq = "D(" * compartment_id * ") ~ " * compartment.formula
         end
         dict_model_str["eqs"] *= "\t" * eq * ",\n"
-    end
-    # Input functions TODO: Refactor like alot
-    for key in keys(model_dict["inputFunctions"])
-        dict_model_str["eqs"] *= "\t" * model_dict["inputFunctions"][key] * ",\n"
     end
     # Algebraic rules
     for rule_formula in values(model_dict["algebraic_rules"])

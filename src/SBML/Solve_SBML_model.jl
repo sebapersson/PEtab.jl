@@ -42,28 +42,28 @@ function solve_SBML(path_SBML, solver, tspan; abstol=1e-8, reltol=1e-8, saveat::
 
     # In case we do not have any events
     verbose && @info "Building callbacks"
-    if isempty(SBML_dict["boolVariables"]) && isempty(SBML_dict["events"])
+    if isempty(SBML_dict["ifelse_parameters"]) && isempty(SBML_dict["events"])
         callback_names = ""
         check_activated_t0_names = ""
         write_tstops_str *= "\t return Float64[]\nend\n"
     else
         model_state_names = isempty(model_state_names) ? String[] : model_state_names
-        for key in keys(SBML_dict["boolVariables"])
-            function_str, callback_str =  create_callback(key, SBML_dict, p_ode_problem_names, string.(model_state_names))
+        for key in keys(SBML_dict["ifelse_parameters"])
+            function_str, callback_str =  create_callback_ifelse(key, SBML_dict, p_ode_problem_names, string.(model_state_names))
             write_callbacks_str *= function_str * "\n"
             write_callbacks_str *= callback_str * "\n"
         end
         for key in keys(SBML_dict["events"])
-            function_str, callback_str = create_callback_event(key, SBML_dict, p_ode_problem_names, string.(model_state_names))
+            function_str, callback_str = create_callback_SBML_event(key, SBML_dict, p_ode_problem_names, string.(model_state_names))
             write_callbacks_str *= function_str * "\n"
             write_callbacks_str *= callback_str * "\n"
         end
 
-        _callback_names = vcat([key for key in keys(SBML_dict["boolVariables"])], [key for key in keys(SBML_dict["events"])])
+        _callback_names = vcat([key for key in keys(SBML_dict["ifelse_parameters"])], [key for key in keys(SBML_dict["events"])])
         callback_names = prod(["cb_" * name * ", " for name in _callback_names])[1:end-2]
         # Only relevant for picewise expressions 
-        if !isempty(SBML_dict["boolVariables"])
-            check_activated_t0_names = prod(["is_active_t0_" * key * "!, " for key in keys(SBML_dict["boolVariables"])])[1:end-2]
+        if !isempty(SBML_dict["ifelse_parameters"])
+            check_activated_t0_names = prod(["is_active_t0_" * key * "!, " for key in keys(SBML_dict["ifelse_parameters"])])[1:end-2]
         else
             check_activated_t0_names = ""
         end

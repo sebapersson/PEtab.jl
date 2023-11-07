@@ -1,202 +1,202 @@
 # Function generating callbacksets for time-depedent SBML piecewise expressions, as callbacks are more efficient than
-# using ifelse (e.g better integration stabillity)
-function create_callbacks_for_piecewise(system::ODESystem,
-                                        parameter_map,
-                                        state_map,
-                                        SBML_dict::Dict,
-                                        model_name::String,
-                                        path_yaml::String,
-                                        dir_julia::String;
-                                        custom_parameter_values::Union{Nothing, Dict}=nothing,
-                                        write_to_file::Bool=true)
+# using ifelse (for example better integration stability, faster runtimes etc...)
+function create_callbacks_SBML(system::ODESystem,
+                               parameter_map,
+                               state_map,
+                               SBML_dict::Dict,
+                               model_name::String,
+                               path_yaml::String,
+                               dir_julia::String;
+                               custom_parameter_values::Union{Nothing, Dict}=nothing,
+                               write_to_file::Bool=true)::Tuple{String, String}
 
     p_ode_problem_names = string.(parameters(system))
-    model_state_names = replace.(string.(states(system)), "(t)" => "")
+    model_specie_names = replace.(string.(states(system)), "(t)" => "")
 
     # Compute indices tracking parameters (needed as down the line we need to know if a parameter should be estimated
-    # or not, as if such a parameter triggers a callback we must let it be a continious callback)
+    # or not)
     experimental_conditions, measurements_data, parameters_data, observables_data = read_petab_files(path_yaml)
     parameter_info = process_parameters(parameters_data, custom_parameter_values=custom_parameter_values)
     measurement_info = process_measurements(measurements_data, observables_data)
     θ_indices = compute_θ_indices(parameter_info, measurement_info, system, parameter_map, state_map, experimental_conditions)
 
-    # In case of no-callbacks the function for getting callbacks will be empty, likewise for the function
-    # which compute tstops (callback-times)
+    # Set function names 
     model_name = replace(model_name, "-" => "_")
-    write_callbacks_str = "function getCallbacks_" * model_name * "(foo)\n"
-    write_tstops_str = "\nfunction computeTstops(u::AbstractVector, p::AbstractVector)\n"
+    write_callbacks = "function get_callbacks_" * model_name * "(foo)\n"
+    write_tstops = "\nfunction compute_tstops(u::AbstractVector, p::AbstractVector)\n"
 
-    # In case we do not have any events
-    if isempty(SBML_dict["boolVariables"]) && isempty(SBML_dict["events"])
+    # In case we do not have any SBML related events
+    if isempty(SBML_dict["ifelse_parameters"]) && isempty(SBML_dict["events"])
         callback_names = ""
         check_activated_t0_names = ""
-        write_tstops_str *= "\t return Float64[]\nend\n"
+        write_tstops *= "\t return Float64[]\nend\n"
         convert_tspan = false
     else
-        for key in keys(SBML_dict["boolVariables"])
-            function_str, callback_str =  create_callback(key, SBML_dict, p_ode_problem_names, model_state_names)
-            write_callbacks_str *= function_str * "\n"
-            write_callbacks_str *= callback_str * "\n"
+
+        # For ifelse parameter
+        for parameter in keys(SBML_dict["ifelse_parameters"])
+            function_str, callback_formula =  create_callback_ifelse(parameter, SBML_dict, p_ode_problem_names, model_specie_names)
+            write_callbacks *= function_str * "\n" * callback_formula * "\n"
         end
+        # For classical SBML events 
         for key in keys(SBML_dict["events"])
-            function_str, callback_str = create_callback_event(key, SBML_dict, p_ode_problem_names, model_state_names)
-            write_callbacks_str *= function_str * "\n"
-            write_callbacks_str *= callback_str * "\n"
+            function_str, callback_formula = create_callback_SBML_event(key, SBML_dict, p_ode_problem_names, model_specie_names)
+            write_callbacks *= function_str * "\n" * callback_formula * "\n"
         end
 
-        _callback_names = vcat([key for key in keys(SBML_dict["boolVariables"])], [key for key in keys(SBML_dict["events"])])
-        callback_names = prod(["cb_" * name * ", " for name in _callback_names])[1:end-2]
+        callback_names = get_callback_names(SBML_dict)
+
         # Only relevant for picewise expressions
-        if !isempty(SBML_dict["boolVariables"])
-            check_activated_t0_names = prod(["is_active_t0_" * key * "!, " for key in keys(SBML_dict["boolVariables"])])[1:end-2]
+        if !isempty(SBML_dict["ifelse_parameters"])
+            check_activated_t0_names = prod(["is_active_t0_" * key * "!, " for key in keys(SBML_dict["ifelse_parameters"])])[1:end-2]
         else
             check_activated_t0_names = ""
         end
 
-        _write_tstops_str, convert_tspan = create_tstops_function(SBML_dict, model_state_names, p_ode_problem_names, θ_indices)
-        write_tstops_str *= "\treturn" * _write_tstops_str  * "\n" * "end"
+        _write_tstops, convert_tspan = create_tstops_function(SBML_dict, model_specie_names, p_ode_problem_names, θ_indices)
+        write_tstops *= "\treturn" * _write_tstops  * "\n" * "end"
     end
 
-    write_callbacks_str *= "\treturn CallbackSet(" * callback_names * "), Function[" * check_activated_t0_names * "], " * string(convert_tspan)  * "\nend"
+    # Write callback to file if required, otherwise just return the string for the callback and tstops functions
+    write_callbacks *= "\treturn CallbackSet(" * callback_names * "), Function[" * check_activated_t0_names * "], " * string(convert_tspan)  * "\nend"
     path_save = joinpath(dir_julia, model_name * "_callbacks.jl")
-    if isfile(path_save)
-        rm(path_save)
-    end
+    isfile(path_save) && rm(path_save)
     if write_to_file == true
         io = open(path_save, "w")
-        write(io, write_callbacks_str * "\n\n")
-        write(io, write_tstops_str)
+        write(io, write_callbacks * "\n\n")
+        write(io, write_tstops)
         close(io)
     end
-    return write_callbacks_str, write_tstops_str
+    return write_callbacks, write_tstops
 end
 
 
-function create_callback(callback_name::String,
-                         SBML_dict::Dict,
-                         p_ode_problem_names::Vector{String},
-                         model_state_names::Vector{String})
+function get_callback_names(SBML_dict::Dict)::String
+    _callback_names = vcat([key for key in keys(SBML_dict["ifelse_parameters"])], [key for key in keys(SBML_dict["events"])])
+    callback_names = prod(["cb_" * name * ", " for name in _callback_names])[1:end-2]
+    return callback_names
+end
+
+
+function create_callback_ifelse(parameter_name::String,
+                                SBML_dict::Dict,
+                                p_ode_problem_names::Vector{String},
+                                model_specie_names::Vector{String})::Tuple{String, String}
 
     # Check if the event trigger depend on parameters which are to be i) estimated, or ii) if it depend on models state.
-    # For i) it must be a cont. event in order for us to be able to compute the gradient. For ii) we cannot compute
-    # tstops (the event times) prior to starting to solve the ODE so it most be cont. callback
-    _condition_formula = SBML_dict["boolVariables"][callback_name][1]
-    has_model_states = check_condition_has_states(_condition_formula, model_state_names)
-    discrete_event = has_model_states == true ? false : true
+    # For i) we need to convert tspan. For ii) we cannot compute tstops (the event times) prior to starting to solve 
+    # the ODE so it most be cont. callback
+    _condition, side_activated_with_time = SBML_dict["ifelse_parameters"][parameter_name]
+    discrete_event = !(check_condition_has_states(_condition, model_specie_names))
 
     # Replace any state or parameter with their corresponding index in the ODE system to be comaptible with event
     # syntax
-    for i in eachindex(model_state_names)
-        _condition_formula = replace_variable(_condition_formula, model_state_names[i], "u["*string(i)*"]")
+    for (i, specie_name) in pairs(model_specie_names)
+        _condition = replace_variable(_condition, specie_name, "u["*string(i)*"]")
     end
-    for i in eachindex(p_ode_problem_names)
-        _condition_formula = replace_variable(_condition_formula, p_ode_problem_names[i], "integrator.p["*string(i)*"]")
+    for (i, p_name) in pairs(p_ode_problem_names)
+        _condition = replace_variable(_condition, p_name, "integrator.p["*string(i)*"]")
     end
 
     # Replace inequality with - (root finding cont. event) or with == in case of
     # discrete event
     replace_with = discrete_event == true ? "==" : "-"
-    condition_formula = replace(_condition_formula, "<=" => replace_with)
-    condition_formula = replace(condition_formula, ">=" => replace_with)
-    condition_formula = replace(condition_formula, ">" => replace_with)
-    condition_formula = replace(condition_formula, "<" => replace_with)
+    _condition_for_t0 = deepcopy(_condition) # Needed for checking active at t0 function
+    _condition = replace(_condition, r"<=|>=|>|<" => replace_with)
 
-    # Build the condition statement used in the jl function
-    condition_str = "\n\tfunction condition_" * callback_name * "(u, t, integrator)\n"
-    condition_str *= "\t\t" * condition_formula * "\n\tend\n"
+    # Build the condition function
+    condition_function = "\n\tfunction condition_" * parameter_name * "(u, t, integrator)\n"
+    condition_function *= "\t\t" * _condition * "\n\tend\n"
 
     # Build the affect function
-    which_parameter = findfirst(x -> x == callback_name, p_ode_problem_names)
-    affect_str = "\tfunction affect_" * callback_name * "!(integrator)\n"
-    affect_str *= "\t\tintegrator.p[" * string(which_parameter) * "] = 1.0\n\tend\n"
+    i_ifelse_parameter = findfirst(x -> x == parameter_name, p_ode_problem_names)
+    affect_function = "\tfunction affect_" * parameter_name * "!(integrator)\n"
+    affect_function *= "\t\tintegrator.p[" * string(i_ifelse_parameter) * "] = 1.0\n\tend\n"
 
-    # Build the callback
+    # Build the callback formula
     if discrete_event == false
-        callback_str = "\tcb_" * callback_name * " = ContinuousCallback(" * "condition_" * callback_name * ", " * "affect_" * callback_name * "!, "
+        callback_formula = "\tcb_" * parameter_name * " = ContinuousCallback(" * "condition_" * parameter_name * ", " * "affect_" * parameter_name * "!, "
     else
-        callback_str = "\tcb_" * callback_name * " = DiscreteCallback(" * "condition_" * callback_name * ", " * "affect_" * callback_name * "!, "
+        callback_formula = "\tcb_" * parameter_name * " = DiscreteCallback(" * "condition_" * parameter_name * ", " * "affect_" * parameter_name * "!, "
     end
-    callback_str *= "save_positions=(false, false))\n" # So we do not get problems with saveat in the ODE solver
+    callback_formula *= "save_positions=(false, false))\n" # So we do not get problems with saveat in the ODE solver
 
     # Building a function which check if a callback is activated at time zero (as this is not something Julia will
-    # check for us)
-    side_inequality = SBML_dict["boolVariables"][callback_name][2] == "right" ? "!" : "" # Check if true or false evaluates expression to true
-    active_t0_str = "\tfunction is_active_t0_" * callback_name * "!(u, p)\n"
-    active_t0_str *= "\t\tt = 0.0 # Used to check conditions activated at t0=0\n" * "\t\tp[" * string(which_parameter) * "] = 0.0 # Default to being off\n"
-    condition_formula = replace(_condition_formula, "integrator." => "")
-    condition_formula = replace(condition_formula, "<=" => "≤")
-    condition_formula = replace(condition_formula, ">=" => "≥")
-    active_t0_str *= "\t\tif " * side_inequality *"(" * condition_formula * ")\n" * "\t\t\tp[" * string(which_parameter) * "] = 1.0\n\t\tend\n\tend\n"
+    # check for us so must be done here)
+    side_inequality = side_activated_with_time == "right" ? "!" : "" # Check if true or false evaluates expression to true
+    active_t0_function = "\tfunction is_active_t0_" * parameter_name * "!(u, p)\n"
+    active_t0_function *= "\t\tt = 0.0 # Used to check conditions activated at t0=0\n" * "\t\tp[" * string(i_ifelse_parameter) * "] = 0.0 # Default to being off\n"
+    condition_active_t0 = replace(_condition_for_t0, "integrator." => "")
+    active_t0_function *= "\t\tif " * side_inequality *"(" * condition_active_t0 * ")\n" * "\t\t\tp[" * string(i_ifelse_parameter) * "] = 1.0\n\t\tend\n\tend\n"
 
-    function_str = condition_str * '\n' * affect_str * '\n' * active_t0_str * '\n'
+    # Gather all the functions needed by the callback
+    callback_functions = condition_function * '\n' * affect_function * '\n' * active_t0_function * '\n'
 
-    return function_str, callback_str
+    return callback_functions, callback_formula
 end
 
 
-function create_callback_event(event_name::String,
-                               SBML_dict::Dict,
-                               p_ode_problem_names::Vector{String},
-                               model_state_names::Vector{String})
+function create_callback_SBML_event(event_name::String,
+                                    SBML_dict::Dict,
+                                    p_ode_problem_names::Vector{String},
+                                    model_specie_names::Vector{String})::Tuple{String, String}
 
     event = SBML_dict["events"][event_name]
-    _condition_formula = event.trigger
+    _condition = event.trigger
     affects = event.formulas
     initial_value_cond = event.trigger_initial_value
 
-    has_model_states = check_condition_has_states(_condition_formula, model_state_names)
-    discrete_event = has_model_states == true ? false : true
+    discrete_event = !(check_condition_has_states(_condition, model_specie_names))
 
     # If the event trigger does not contain a model state but fixed parameters it can at a maximum be triggered once.
     if discrete_event == false
         # If we have a trigger on the form a ≤ b then event should only be
         # activated when crossing the condition from left -> right. Reverse
         # holds for ≥
-        affect_neg = occursin("≤", _condition_formula)
+        affect_neg = occursin("≤", _condition)
     else
-        __condition_formula = _condition_formula
-        _condition_formula = "\tcond = " * _condition_formula * " && from_neg[1] == true\n"
-        _condition_formula *= "\t\tfrom_neg[1] = !(" * __condition_formula * ")\n\t\treturn cond"
+        # Build the SBML activation, which has a check to see that the condition crosses from false to 
+        # true, per SBML standard 
+        _condition = "\tcond = " * _condition * " && from_neg[1] == true\n\t\tfrom_neg[1] = !(" * _condition * ")\n\t\treturn cond"
     end
 
-    # TODO : Refactor and merge functionality with above
-    for i in eachindex(model_state_names)
-        _condition_formula = replace_variable(_condition_formula, model_state_names[i], "u["*string(i)*"]")
+    # Replace any state or parameter with their corresponding index in the ODE system to be comaptible with event
+    # syntax
+    for (i, specie_name) in pairs(model_specie_names)
+        _condition = replace_variable(_condition, specie_name, "u["*string(i)*"]")
     end
-    for i in eachindex(p_ode_problem_names)
-        _condition_formula = replace_variable(_condition_formula, p_ode_problem_names[i], "integrator.p["*string(i)*"]")
+    for (i, p_name) in pairs(p_ode_problem_names)
+        _condition = replace_variable(_condition, p_name, "integrator.p["*string(i)*"]")
     end
-
-    # Build the condition statement used in the jl function
+    # Build the condition function used in Julia file, for discrete checking that event indeed is coming from negative 
+    # direction
     if discrete_event == false
-        __condition_formula = replace(_condition_formula, "≤" => "-")
-        __condition_formula = replace(__condition_formula, "≥" => "-")
-        condition_str = "\n\tfunction condition_" * event_name * "(u, t, integrator)\n"
-        condition_str *= "\t\t" * __condition_formula * "\n\tend\n"
+        _condition_at_t0 = deepcopy(_condition)
+        _condition = replace(_condition, r"≤|≥" => "-")
+        condition_function = "\n\tfunction condition_" * event_name * "(u, t, integrator)\n\t\t" * _condition * "\n\tend\n"
     else
-        condition_str = "\n\tfunction _condition_" * event_name * "(u, t, integrator, from_neg)\n"
-        condition_str *= "\t" * _condition_formula * "\n\tend\n"
-        condition_str *= "\n\tcondition_" * event_name * " = let from_neg=" * "[" * string(!initial_value_cond) * "]\n\t\t(u, t, integrator) -> _condition_" * event_name * "(u, t, integrator, from_neg)\n\tend\n"
+        condition_function = "\n\tfunction _condition_" * event_name * "(u, t, integrator, from_neg)\n"
+        condition_function *= "\t" * _condition * "\n\tend\n"
+        condition_function *= "\n\tcondition_" * event_name * " = let from_neg=" * "[" * string(!initial_value_cond) * "]\n\t\t(u, t, integrator) -> _condition_" * event_name * "(u, t, integrator, from_neg)\n\tend\n"
     end
 
-    # Building the affect function (which can act on states and/or parameters)
-    affect_str = "\tfunction affect_" * event_name * "!(integrator)\n"
-    affect_str *= "\t\tu_tmp = similar(integrator.u)\n"
-    affect_str *= "\t\tu_tmp .= integrator.u\n"
-    for i in eachindex(affects)
-        affect_str1, affect_str2 = split(affects[i], "=")
-        for j in eachindex(model_state_names)
-            affect_str1 = replace_variable(affect_str1, model_state_names[j], "integrator.u["*string(j)*"]")
-            affect_str2 = replace_variable(affect_str2, model_state_names[j], "u_tmp["*string(j)*"]")
+    # Building the affect function (which can act on multiple states and/or parameters)
+    affect_function = "\tfunction affect_" * event_name * "!(integrator)\n\t\tu_tmp = similar(integrator.u)\n\t\tu_tmp .= integrator.u\n"
+    for (i, affect) in pairs(affects)
+        # In RHS we use u_tmp to not let order affects, while in assigning LHS we use u
+        affect_function1, affect_function2 = split(affect, "=")
+        for j in eachindex(model_specie_names)
+            affect_function1 = replace_variable(affect_function1, model_specie_names[j], "integrator.u["*string(j)*"]")
+            affect_function2 = replace_variable(affect_function2, model_specie_names[j], "u_tmp["*string(j)*"]")
         end
-        affect_str *= "\t\t" * affect_str1 * " = " * affect_str2 * '\n'
+        affect_function *= "\t\t" * affect_function1 * " = " * affect_function2 * '\n'
     end
-    affect_str *= "\tend"
+    affect_function *= "\tend"
     for i in eachindex(p_ode_problem_names)
-        affect_str = replace_variable(affect_str, p_ode_problem_names[i], "integrator.p["*string(i)*"]")
+        affect_function = replace_variable(affect_function, p_ode_problem_names[i], "integrator.p["*string(i)*"]")
     end
 
-    # In case the event can be activated at time zero,
+    # In case the event can be activated at time zero build an initialisation function
     if discrete_event == true && initial_value_cond == false
         initial_value_str = "\tfunction init_" * event_name * "(c,u,t,integrator)\n"
         initial_value_str *= "\t\tcond = condition_" * event_name * "(u, t, integrator)\n"
@@ -205,7 +205,7 @@ function create_callback_event(event_name::String,
         initial_value_str *= "\tend"
     elseif discrete_event == false && initial_value_cond == false
         initial_value_str = "\tfunction init_" * event_name * "(c,u,t,integrator)\n"
-        initial_value_str *= "\t\tcond = " * _condition_formula * "\n"
+        initial_value_str *= "\t\tcond = " * _condition_at_t0 * "\n" # We need a Bool not minus (-) condition
         initial_value_str *= "\t\tif cond == true\n"
         initial_value_str *= "\t\t\taffect_" * event_name * "!(integrator)\n\t\tend\n"
         initial_value_str *= "\tend"
@@ -213,77 +213,77 @@ function create_callback_event(event_name::String,
         initial_value_str = ""
     end
 
-    # Build the callback
+    # Build the callback, consider initialisation if needed and direction for ContinuousCallback
     if discrete_event == false
         if affect_neg == true
-            callback_str = "\tcb_" * event_name * " = ContinuousCallback(" * "condition_" * event_name * ", nothing, " * "affect_" * event_name * "!,"
+            callback_formula = "\tcb_" * event_name * " = ContinuousCallback(" * "condition_" * event_name * ", nothing, " * "affect_" * event_name * "!,"
         else
-            callback_str = "\tcb_" * event_name * " = ContinuousCallback(" * "condition_" * event_name * ", " * "affect_" * event_name * "!, nothing,"
+            callback_formula = "\tcb_" * event_name * " = ContinuousCallback(" * "condition_" * event_name * ", " * "affect_" * event_name * "!, nothing,"
         end
         if initial_value_cond == false
-            callback_str *= " initialize=init_" * event_name * ", "
+            callback_formula *= " initialize=init_" * event_name * ", "
         end
     elseif discrete_event == true
         if initial_value_cond == false
-            callback_str = "\tcb_" * event_name * " = DiscreteCallback(" * "condition_" * event_name * ", " * "affect_" * event_name * "!, initialize=init_" * event_name * ", "
+            callback_formula = "\tcb_" * event_name * " = DiscreteCallback(" * "condition_" * event_name * ", " * "affect_" * event_name * "!, initialize=init_" * event_name * ", "
         else
-            callback_str = "\tcb_" * event_name * " = DiscreteCallback(" * "condition_" * event_name * ", " * "affect_" * event_name * "!, "
+            callback_formula = "\tcb_" * event_name * " = DiscreteCallback(" * "condition_" * event_name * ", " * "affect_" * event_name * "!, "
         end
     end
-    callback_str *= "save_positions=(false, false))\n" # So we do not get problems with saveat in the ODE solver
+    callback_formula *= "save_positions=(false, false))\n" # So we do not get problems with saveat in the ODE solver
 
-    function_str = condition_str * '\n' * affect_str * '\n' * initial_value_str * '\n'
+    function_str = condition_function * '\n' * affect_function * '\n' * initial_value_str * '\n'
 
-    return function_str, callback_str
+    return function_str, callback_formula
 end
 
 
 # Function computing t-stops (time for events) for piecewise expressions using the symbolics package
 # to symboically solve for where the condition is zero.
 function create_tstops_function(SBML_dict::Dict,
-                                model_state_names::Vector{String},
+                                model_specie_names::Vector{String},
                                 p_ode_problem_names::Vector{String},
-                                θ_indices::Union{ParameterIndices, Nothing})
+                                θ_indices::Union{ParameterIndices, Nothing})::Tuple{String, Bool}
 
-    condition_formulas = string.(vcat([SBML_dict["boolVariables"][key][1] for key in keys(SBML_dict["boolVariables"])], [e.trigger for e in values(SBML_dict["events"])]))
-
-    return _create_tstops_function(condition_formulas, model_state_names, p_ode_problem_names, θ_indices)
+    conditions = string.(vcat([SBML_dict["ifelse_parameters"][key][1] for key in keys(SBML_dict["ifelse_parameters"])], [e.trigger for e in values(SBML_dict["events"])]))
+    return _create_tstops_function(conditions, model_specie_names, p_ode_problem_names, θ_indices)
 end
 function create_tstops_function(events::Vector{T},
                                 system,
                                 θ_indices::Union{ParameterIndices, Nothing}) where T<:PEtabEvent
 
-    model_state_names = replace.(string.(states(system)), "(t)" => "")
+    model_specie_names = replace.(string.(states(system)), "(t)" => "")
     p_ode_problem_names = string.(parameters(system))
-    condition_formulas = [string(event.condition) for event in events]
-    for (i, condition) in pairs(condition_formulas)
+    conditions = [string(event.condition) for event in events]
+    for (i, condition) in pairs(conditions)
         if PEtab.is_number(condition) || condition ∈ p_ode_problem_names
-            condition_formulas[i] = "t == " * condition
+            conditions[i] = "t == " * condition
         end
     end
-    return _create_tstops_function(condition_formulas, model_state_names, p_ode_problem_names, θ_indices)
+    return _create_tstops_function(conditions, model_specie_names, p_ode_problem_names, θ_indices)
 end
 
 
-function _create_tstops_function(condition_formulas::Vector{String},
-                                 model_state_names::Vector{String},
+function _create_tstops_function(conditions::Vector{String},
+                                 model_specie_names::Vector{String},
                                  p_ode_problem_names::Vector{String},
-                                 θ_indices::Union{ParameterIndices, Nothing})
+                                 θ_indices::Union{ParameterIndices, Nothing})::Tuple{String, Bool}
 
-    convert_tspan = false
-    tstops_str = Vector{String}(undef, length(condition_formulas))
-    tstops_str_alt = Vector{String}(undef, length(condition_formulas))
-    i = 1
-    for condition_formula in condition_formulas
+    convert_tspan::Bool = false
+    tstops = Vector{String}(undef, length(conditions))
+    tstops_to_float = Vector{String}(undef, length(conditions))
+    for (i, condition) in pairs(conditions)
+
         # In case the activation formula contains a state we cannot precompute the t-stop time as it depends on
         # the actual ODE solution.
-        if check_condition_has_states(condition_formula, model_state_names)
-            tstops_str[i] = ""
-            tstops_str_alt[i] = ""
-            i += 1
+        if check_condition_has_states(condition, model_specie_names)
+            tstops[i] = ""
+            tstops_to_float[i] = ""
             continue
         end
-        if !isnothing(θ_indices) && check_has_parameter_to_estimate(condition_formula, p_ode_problem_names, θ_indices)
+        # If condition contains parameters to estimate the tspan must not be converted to floats, rather kept as 
+        # Duals (slower, but yields accurate gradients)
+        if !isnothing(θ_indices) && check_has_parameter_to_estimate(condition, p_ode_problem_names, θ_indices)
             convert_tspan = true
         end
         if isnothing(θ_indices)
@@ -292,45 +292,45 @@ function _create_tstops_function(condition_formulas::Vector{String},
 
         # We need to make the parameters and states symbolic in order to solve the condition expression
         # using the Symbolics package.
-        variables_str = "@variables t, "
-        variables_str *= prod(string.(collect(p_ode_problem_names)) .* ", " )[1:end-2] * " "
-        variables_str *= prod(string.(collect(model_state_names)) .* ", " )[1:end-2]
-        variables_symbolic = eval(Meta.parse(variables_str))
+        _variables = "@variables t, "
+        _variables *= prod(string.(collect(p_ode_problem_names)) .* ", " )[1:end-2] * " "
+        _variables *= prod(string.(collect(model_specie_names)) .* ", " )[1:end-2]
+        variables_symbolic = eval(Meta.parse(_variables))
 
         # Note - below order counts (e.g having < first results in ~= incase what actually stands is <=)
-        condition_formula = replace(condition_formula, r"≤|≥|<=|>=|<|>|==" => "~")
-        condition_symbolic = eval(Meta.parse(condition_formula))
+        _condition = replace(condition, r"≤|≥|<=|>=|<|>|==" => "~")
+        condition_symbolic = eval(Meta.parse(_condition))
 
         # Expression for the time at which the condition is triggered
         expression_time = string.(Symbolics.solve_for(condition_symbolic, variables_symbolic[1], simplify=true))
 
         # Make compatible with the PEtab importer syntax
-        for i in eachindex(model_state_names)
-            expression_time = replace_variable(expression_time, model_state_names[i], "u["*string(i)*"]")
+        for (i, specie_name) in pairs(model_specie_names)
+            expression_time = replace_variable(expression_time, specie_name, "u["*string(i)*"]")
         end
-        for i in eachindex(p_ode_problem_names)
-            expression_time = replace_variable(expression_time, p_ode_problem_names[i], "p["*string(i)*"]")
+        for (i, p_name) in pairs(p_ode_problem_names)
+            expression_time = replace_variable(expression_time, p_name, "p["*string(i)*"]")
         end
+
         # dual_to_float is needed as tstops for the integrator cannot be of type Dual
-        tstops_str[i] = "dual_to_float(" * expression_time * ")"
-        tstops_str_alt[i] = expression_time # Used when we convert timespan
+        tstops_to_float[i] = "dual_to_float(" * expression_time * ")"
+        tstops[i] = expression_time # Used when we convert timespan
         i += 1
     end
 
     if convert_tspan == true
-        tstops = "[" * prod([isempty(tstops_str_alt[i]) ? "" : tstops_str_alt[i] * ", " for i in eachindex(tstops_str_alt)])[1:end-2] * "]"
-        return tstops, convert_tspan
+        _tstops = "[" * prod([isempty(_t) ? "" : _t * ", " for _t in tstops])[1:end-2] * "]"
     else
-        tstops = " Float64[" * prod([isempty(tstops_str[i]) ? "" : tstops_str[i] * ", " for i in eachindex(tstops_str)])[1:end-2] * "]"
-        return tstops, convert_tspan
+        _tstops = " Float64[" * prod([isempty(_t) ? "" : _t * ", " for _t  in tstops_to_float])[1:end-2] * "]"
     end
+    return _tstops, convert_tspan
 end
 
 
-function check_condition_has_states(condition_formula::AbstractString, model_state_names::Vector{String})::Bool
-    for i in eachindex(model_state_names)
-        _condition_formula = replace_variable(condition_formula, model_state_names[i], "")
-        if _condition_formula != condition_formula
+function check_condition_has_states(condition::AbstractString, model_specie_names::Vector{String})::Bool
+    for i in eachindex(model_specie_names)
+        _condition = replace_variable(condition, model_specie_names[i], "")
+        if _condition != condition
             return true
         end
     end
@@ -338,7 +338,7 @@ function check_condition_has_states(condition_formula::AbstractString, model_sta
 end
 
 
-function check_has_parameter_to_estimate(condition_formula::AbstractString,
+function check_has_parameter_to_estimate(condition::AbstractString,
                                          p_ode_problem_names::Vector{String},
                                          θ_indices::ParameterIndices)::Bool
 
@@ -347,8 +347,8 @@ function check_has_parameter_to_estimate(condition_formula::AbstractString,
     i_ode_problem_θ_dynamicCondition = reduce(vcat, [θ_indices.maps_conidition_id[i].i_ode_problem_θ_dynamic for i in keys(θ_indices.maps_conidition_id)])
 
     for i in eachindex(p_ode_problem_names)
-        _condition_formula = replace_variable(condition_formula, p_ode_problem_names[i], "integrator.p["*string(i)*"]")
-        if _condition_formula != condition_formula
+        _condition = replace_variable(condition, p_ode_problem_names[i], "integrator.p["*string(i)*"]")
+        if _condition != condition
             if i ∈ i_ode_θ_all_conditions || i ∈ i_ode_problem_θ_dynamicCondition
                 return true
             end
