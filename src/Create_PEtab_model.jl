@@ -315,7 +315,7 @@ function add_parameter_condition_initial_values(model_str::String,
         line_no_whitespace = replace(function_line_by_line[i], r"\s+" => "")
 
         # Check which lines new initial value parameters should be added to the parametersMap
-        if length(line_no_whitespace) ≥ 19 && line_no_whitespace[1:19] == true_parameter_values_name
+        if length(line_no_whitespace) ≥ 13 && line_no_whitespace[1:13] == true_parameter_values_name
             lines_add = (i+1):(i+length(new_parameter_names))
         end
 
@@ -325,7 +325,7 @@ function add_parameter_condition_initial_values(model_str::String,
         end
 
         # Add new parameters in parameterArray
-        if length(line_no_whitespace) ≥ 14 && line_no_whitespace[1:14] == parameter_array_name
+        if length(line_no_whitespace) ≥ 10 && line_no_whitespace[1:10] == parameter_array_name
             function_line_by_line[i] = function_line_by_line[i][1:end-1] * ", " * (" "*prod([str * ", " for str in new_parameter_names]))[1:end-2] * "]"
         end
 
