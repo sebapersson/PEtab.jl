@@ -140,7 +140,7 @@ function PEtabModel(path_yaml::String;
             model_dict, _ = SBML_to_ModellingToolkit(path_SBML, path_model_jl_file, model_name, write_to_file=false, 
                 only_extract_model_dict=true, ifelse_to_event=ifelse_to_event)
         end
-        b_build = @elapsed callback_str, tstops_str = create_callbacks_for_piecewise(ode_system, parameter_map, 
+        b_build = @elapsed callback_str, tstops_str = create_callbacks_SBML(ode_system, parameter_map, 
             state_map, model_dict, model_name, path_yaml, dir_julia, custom_parameter_values=custom_parameter_values, 
             write_to_file=write_to_file)
         verbose == true && @printf(" done. Time = %.1es\n", b_build)
@@ -315,7 +315,7 @@ function add_parameter_condition_initial_values(model_str::String,
         line_no_whitespace = replace(function_line_by_line[i], r"\s+" => "")
 
         # Check which lines new initial value parameters should be added to the parametersMap
-        if length(line_no_whitespace) ≥ 19 && line_no_whitespace[1:19] == true_parameter_values_name
+        if length(line_no_whitespace) ≥ 13 && line_no_whitespace[1:13] == true_parameter_values_name
             lines_add = (i+1):(i+length(new_parameter_names))
         end
 
@@ -325,7 +325,7 @@ function add_parameter_condition_initial_values(model_str::String,
         end
 
         # Add new parameters in parameterArray
-        if length(line_no_whitespace) ≥ 14 && line_no_whitespace[1:14] == parameter_array_name
+        if length(line_no_whitespace) ≥ 10 && line_no_whitespace[1:10] == parameter_array_name
             function_line_by_line[i] = function_line_by_line[i][1:end-1] * ", " * (" "*prod([str * ", " for str in new_parameter_names]))[1:end-2] * "]"
         end
 

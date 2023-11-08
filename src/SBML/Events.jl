@@ -44,7 +44,10 @@ function parse_SBML_events!(model_dict::Dict, model_SBML::SBML.Model)::Nothing
                 event_formulas[i] = compartment_formula *  " * (" * event_formulas[i] * ')'
                 continue
             end
-            if event_assignments[i] ∈ keys(model_SBML.parameters) || event_assignments[i] ∈ model_dict["non_constant_parameters"]
+            if event_assignments[i] ∈ keys(model_SBML.parameters)  
+                continue
+            end
+            if event_assignments[i] ∈ keys(model_SBML.compartments) && model_dict["compartments"][event_assignments[i]].constant == false
                 continue
             end
 

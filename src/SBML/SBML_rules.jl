@@ -13,11 +13,7 @@ function parse_SBML_rules!(model_dict::Dict, model_SBML::SBML.Model)
         end
 
         if rule isa SBML.AlgebraicRule
-            rule_formula = parse_SBML_math(rule.math)
-            rule_formula = replace_variable(rule_formula, "time", "t")
-            rule_formula = SBML_function_to_math(rule_formula, model_dict["SBML_functions"])
-            rule_name = isempty(model_dict["algebraic_rules"]) ? "1" : maximum(keys(model_dict["algebraic_rules"])) * "1" # Need placeholder key 
-            model_dict["algebraic_rules"][rule_name] = "0 ~ " * rule_formula
+            parse_algebraic_rule!(model_dict, rule)
         end
     end    
 end
@@ -36,11 +32,8 @@ function parse_assignment_rule!(model_dict::Dict, rule::SBML.AssignmentRule, mod
     # If piecewise occurs in the rule we need to unnest, rewrite to ifelse, special 
     # case handled separately 
     if occursin("piecewise(", rule_formula)
-        rewrite_piecewise_to_ifelse(rule_formula, rule_variable, model_dict, model_SBML)
-        if rule_variable ∈ keys(model_dict["derivatives"])
-            delete!(model_dict["derivatives"], rule_variable)
-        end
-        return nothing
+        rule_formula = piecewise_to_ifelse(rule_formula, model_dict, model_SBML)
+        push!(model_dict["has_piecewise"], rule_variable)
     end
 
     # Handle reaction ids, and unnest potential SBML functions 
@@ -100,9 +93,8 @@ function parse_rate_rule!(model_dict::Dict, rule::SBML.RateRule, model_SBML::SBM
 
     # Rewrite rule to function if there are not any piecewise, eles rewrite to formula with ifelse
     if occursin("piecewise(", rule_formula)
-        rule_formula = rewrite_piecewise_to_ifelse(rule_formula, rule_variable, model_dict, model_SBML, ret_formula=true)
-    else
-        rule_formula = SBML_function_to_math(rule_formula, model_dict["SBML_functions"])
+        rule_formula = piecewise_to_ifelse(rule_formula, model_dict, model_SBML)
+        push!(model_dict["has_piecewise"], rule_variable)
     end
 
     rule_formula = replace_reactionid_formula(rule_formula, model_SBML)
@@ -148,6 +140,16 @@ function parse_rate_rule!(model_dict::Dict, rule::SBML.RateRule, model_SBML::SBM
                                                       rule_formula, 
                                                       collect(keys(model_SBML.compartments))[1], :Amount, 
                                                       false, false, true, false)
+    return nothing
+end
+
+
+function parse_algebraic_rule!(model_dict::Dict, rule::SBML.AlgebraicRule)::Nothing
+    rule_formula = parse_SBML_math(rule.math)
+    rule_formula = replace_variable(rule_formula, "time", "t")
+    rule_formula = SBML_function_to_math(rule_formula, model_dict["SBML_functions"])
+    rule_name = isempty(model_dict["algebraic_rules"]) ? "1" : maximum(keys(model_dict["algebraic_rules"])) * "1" # Need placeholder key 
+    model_dict["algebraic_rules"][rule_name] = "0 ~ " * rule_formula
     return nothing
 end
 
@@ -227,175 +229,4 @@ function identify_algebraic_rule_variables!(model_dict::Dict)::Nothing
     end
 
     return nothing
-end
-
-
-# Rewrites time-dependent ifElse-statements to depend on a boolean variable. This makes it possible to treat piecewise
-# as events, allowing us to properly handle discontinious. Does not rewrite ifElse if the activation criteria depends
-# on a state.
-function time_dependent_ifelse_to_bool!(model_dict::Dict)
-
-    # Rewrite piecewise using Boolean variables. Due to the abillity of piecewiese statements to be nested
-    # recursion is needed.
-    for key in keys(model_dict["inputFunctions"])
-        formula_with_ifelse = model_dict["inputFunctions"][key]
-        model_dict["inputFunctions"][key] = _time_dependent_ifelse_to_bool(string(formula_with_ifelse), model_dict, key)
-    end
-end
-
-
-function _time_dependent_ifelse_to_bool(formula_with_ifelse::String, model_dict::Dict, key::String)::String
-
-    formula_replaced = formula_with_ifelse
-
-    index_ifelse = get_index_piecewise(formula_with_ifelse)
-    if isempty(index_ifelse)
-        return formula_replaced
-    end
-
-    for i in eachindex(index_ifelse)
-
-        ifelse_formula = formula_with_ifelse[index_ifelse[i]][8:end-1]
-        activationRule, left_side, right_side = split_ifelse(ifelse_formula)
-
-        # Find inequality
-        iLt = findfirst(x -> x == '<', activationRule)
-        iGt = findfirst(x -> x == '>', activationRule)
-        if isnothing(iGt) && !isnothing(iLt)
-            sign_used = "lt"
-            if activationRule[iLt:(iLt+1)] == "<="
-                splitBy = "<="
-            else
-                splitBy = "<"
-            end
-        elseif !isnothing(iGt) && isnothing(iLt)
-            sign_used = "gt"
-            if activationRule[iGt:(iGt+1)] == ">="
-                splitBy = ">="
-            else
-                splitBy = ">"
-            end
-        elseif occursin("!=", activationRule) || occursin("==", activationRule)
-            rewrite_ifelse = false
-            continue
-        else
-            println("Error : Did not find criteria to split ifelse on")
-        end
-        lhsRule, rhsRule = split(activationRule, string(splitBy))
-
-        # Identify which side of ifelse expression is activated with time
-        time_right = check_for_time(string(rhsRule))
-        time_left = check_for_time(string(lhsRule))
-        rewrite_ifelse = true
-        if time_left == false && time_left == false
-            @info "Have ifelse statements which does not contain time. Hence we do not rewrite as event, but rather keep it as an ifelse." maxlog=1
-            rewrite_ifelse = false
-            continue
-        elseif time_left == true
-            sign_time = check_sign_time(string(lhsRule))
-            if (sign_time == 1 && sign_used == "lt") || (sign_time == -1 && sign_used == "gt")
-                side_activated_with_time = "right"
-            elseif (sign_time == 1 && sign_used == "gt") || (sign_time == -1 && sign_used == "lt")
-                side_activated_with_time = "left"
-            end
-        elseif time_right == true
-            sign_time = check_sign_time(string(rhsRule))
-            if (sign_time == 1 && sign_used == "lt") || (sign_time == -1 && sign_used == "gt")
-                side_activated_with_time = "left"
-            elseif (sign_time == 1 && sign_used == "gt") || (sign_time == -1 && sign_used == "lt")
-                side_activated_with_time = "right"
-            end
-        end
-
-        # In case of nested ifelse rewrite left-hand and right-hand side
-        left_side = _time_dependent_ifelse_to_bool(string(left_side), model_dict, key)
-        right_side = _time_dependent_ifelse_to_bool(string(right_side), model_dict, key)
-
-        if rewrite_ifelse == true
-            j = 1
-            local variable_name = ""
-            while true
-                variable_name = string(key) * "_bool" * string(j)
-                if variable_name ∉ keys(model_dict["boolVariables"])
-                    break
-                end
-                j += 1
-            end
-            activated_with_time = side_activated_with_time == "left" ? left_side : right_side
-            deactivated_with_time = side_activated_with_time == "left" ? right_side : left_side
-            formula_in_model = "((1 - " * variable_name * ")*" * "(" * deactivated_with_time *") + " * variable_name * "*(" * activated_with_time * "))"
-            model_dict["parameters"][variable_name] = ParameterSBML(variable_name, true, "0.0", "", false, false, false)
-            formula_replaced = replace(formula_replaced, formula_with_ifelse[index_ifelse[i]] => formula_in_model)
-            model_dict["boolVariables"][variable_name] = [activationRule, side_activated_with_time]
-        end
-    end
-
-    return formula_replaced
-end
-
-
-# Here we assume we receive the arguments to ifelse(a ≤ 1 , b, c) on the form
-# a ≤ 1, b, c and our goal is to return tuple(a ≤ 1, b, c)
-function split_ifelse(str::String)
-    paranthesis_level = 0
-    split, i = 1, 1
-    first_set, second_set, thirdSet = 1, 1, 1
-    while i < length(str)
-
-        if str[i] == '('
-            paranthesis_level += 1
-        elseif str[i] == ')'
-            paranthesis_level -= 1
-        end
-
-        if str[i] == ',' && paranthesis_level == 0
-            if split == 1
-                first_set = 1:(i-1)
-                split += 1
-            elseif split == 2
-                second_set = (first_set[end]+2):(i-1)
-                thirdSet = (second_set[end]+2):length(str)
-                break
-            end
-        end
-        i += 1
-    end
-    return str[first_set], str[second_set], str[thirdSet]
-end
-
-
-function get_index_piecewise(str::String)
-
-    ret = Array{Any, 1}(undef, 0)
-
-    i_start, i_end = 0, 0
-    i = 1
-    while i < length(str)
-
-        if !(length(str) > i+6)
-            break
-        end
-
-        if str[i:(i+5)] == "ifelse"
-            i_start = i
-            paranthesis_level = 1
-            for j in (i+7):length(str)
-                if str[j] == '('
-                    paranthesis_level += 1
-                elseif str[j] == ')'
-                    paranthesis_level -= 1
-                end
-                if paranthesis_level == 0
-                    i_end = j
-                    break
-                end
-            end
-            ret = push!(ret, collect(i_start:i_end))
-            i = i_end + 1
-            continue
-        end
-        i += 1
-    end
-
-    return ret
 end

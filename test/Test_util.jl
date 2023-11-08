@@ -54,7 +54,8 @@ using Test
     u0_test = get_u0(res, petab_problem; condition_id=c_id, retmap=false)
     p_test = get_ps(res, petab_problem; condition_id=c_id, retmap=false)
     @test all(u0_test .== u0)
-    @test all(p[2:end] == p_test[2:end]) # 2:end to account for event variable
+    to_test = Bool[1, 1, 1, 1, 0, 1, 1, 1, 1] # To account for Event variable 
+    @test all(p[to_test] == p_test[to_test]) 
 
     # Brannmark model
     path_yaml = joinpath(@__DIR__, "Test_ll", "Brannmark_JBC2010", "Brannmark_JBC2010.yaml")
