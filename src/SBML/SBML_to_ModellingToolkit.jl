@@ -46,6 +46,8 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
                       "reactions" => Dict{String, ReactionSBML}(), 
                       "algebraic_rules" => Dict{String, String}(), 
                       "generated_ids" => Dict{String, String}(), 
+                      "piecewise_expressions" => Dict{String, String}(),
+                      "ifelse_bool_expressions" => Dict{String, String}(),
                       "assignment_rule_variables" => String[], 
                       "rate_rule_variables" => String[], 
                       "appear_in_reactions" => String[], 

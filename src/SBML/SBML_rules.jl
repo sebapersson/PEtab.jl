@@ -24,6 +24,7 @@ function parse_assignment_rule!(model_dict::Dict, rule::SBML.AssignmentRule, mod
     rule_variable = rule.variable
     rule_formula = parse_SBML_math(rule.math)
     rule_formula = replace_variable(rule_formula, "time", "t")
+    rule_formula = SBML_function_to_math(rule_formula, model_dict["SBML_functions"])
 
     if isempty(rule_formula)
         rule_formula = "0.0"
@@ -90,6 +91,7 @@ function parse_rate_rule!(model_dict::Dict, rule::SBML.RateRule, model_SBML::SBM
     rule_variable = rule.variable
     rule_formula = parse_SBML_math(rule.math)
     rule_formula = replace_variable(rule_formula, "time", "t")    
+    rule_formula = SBML_function_to_math(rule_formula, model_dict["SBML_functions"])
 
     # Rewrite rule to function if there are not any piecewise, eles rewrite to formula with ifelse
     if occursin("piecewise(", rule_formula)

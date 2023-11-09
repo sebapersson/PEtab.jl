@@ -19,7 +19,6 @@ Processes a string formula by inserting SBML functions, rewriting piecewise to i
 function process_SBML_str_formula(formula::T, model_dict::Dict, model_SBML::SBML.Model; check_scaling=false, rate_rule::Bool=false)::T where T<:AbstractString
     
     _formula = SBML_function_to_math(formula, model_dict["SBML_functions"])
-    # TODO: This should not be here but will have to check later
     if occursin("piecewise(", _formula)
         _formula = piecewise_to_ifelse(_formula, model_dict, model_SBML)
     end
