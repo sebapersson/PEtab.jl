@@ -294,7 +294,7 @@ end
 
 Draw `n_samples` from distribituion `dist` truncated at `lower_bound` and `upper_bound`.
 
-Used for generating start-guesses for calibration when the user has provided an initialisation prior.
+Used for generating start-guesses for calibration when the user has provided an git p.
 """
 function sample_from_prior(n_samples::Int64,
                            dist::Distribution{Univariate, Continuous},
