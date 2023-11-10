@@ -21,7 +21,7 @@ parameter values found (`xmin`), smallest objective value (`fmin`), number of it
 the optimizer converged, and optionally, the trace.
 
 !!! note
-    To use Optim optimizers, you must load Optim with `using Optim`. To use Ipopt, you must load Ipopt with `using Ipopt`. 
+    To use Optim optimizers, you must load Optim with `using Optim`. To use Ipopt, you must load Ipopt with `using Ipopt`.
     To use Fides, load PyCall with `using PyCall` and ensure Fides is installed (see documentation for setup).
 
 ## Examples
@@ -41,7 +41,7 @@ res = calibrate_model(petab_problem, p0, Fides(nothing);
 # Perform parameter estimation using Ipopt and save the trace
 using Ipopt
 res = calibrate_model(petab_problem, p0, IpoptOptimiser(false);
-                     options=IpoptOptions(max_iter = 1000), 
+                     options=IpoptOptions(max_iter = 1000),
                      save_trace=true)
 ```
 """
@@ -82,7 +82,7 @@ The results are returned as a `PEtabMultistartOptimisationResult`, which stores 
 smallest objective value (`fmin`), as well as optimization results for each run.
 
 !!! note
-    To use Optim optimizers, you must load Optim with `using Optim`. To use Ipopt, you must load Ipopt with `using Ipopt`. 
+    To use Optim optimizers, you must load Optim with `using Optim`. To use Ipopt, you must load Ipopt with `using Ipopt`.
     To use Fides, load PyCall with `using PyCall` and ensure Fides is installed (see documentation for setup).
 
 ## Examples
@@ -101,12 +101,12 @@ res = calibrate_model_multistart(petab_problem, Fides(nothing), 100, dir_save;
                                options=py"{'maxiter' : 1000}"o)
 ```
 ```julia
-# Perform 100 optimization runs using Ipopt, save results in dir_save. For each 
-# run save the trace 
+# Perform 100 optimization runs using Ipopt, save results in dir_save. For each
+# run save the trace
 using Ipopt
 dir_save = joinpath(@__DIR__, "Results")
 res = calibrate_model_multistart(petab_problem, IpoptOptimiser(false), 100, dir_save;
-                               options=IpoptOptions(max_iter = 1000), 
+                               options=IpoptOptions(max_iter = 1000),
                                save_trace=true)
 ```
 """
@@ -146,13 +146,13 @@ function run_PEtab_select end
 
 Generate `n_multistarts` initial parameter guesses within the parameter bounds in the `petab_problem` with `sampling_method`
 
-Any sampling algorithm from QuasiMonteCarlo is supported, but `LatinHypercubeSample` is recomended as it usually 
+Any sampling algorithm from QuasiMonteCarlo is supported, but `LatinHypercubeSample` is recomended as it usually
 performs well.
 
-If `n_multistarts` is set to 1, a single random vector within the parameter bounds is returned. For 
+If `n_multistarts` is set to 1, a single random vector within the parameter bounds is returned. For
 `n_multistarts > 1`, a matrix is returned, with each column representing a different initial guess.
 
-By default `allow_inf_startguess=false` - only initial guesses that result in finite cost evaluations are returned. 
+By default `allow_inf_startguess=false` - only initial guesses that result in finite cost evaluations are returned.
 If `allow_inf_startguess=true`, initial guesses that result in `Inf` are allowed.
 
 ## Example
@@ -163,7 +163,7 @@ start_guess = generate_startguesses(petab_problem, 1)
 
 ```julia
 # Generate 10 initial guesses using Sobol sampling
-start_guess = generate_startguesses(petab_problem, 10, 
+start_guess = generate_startguesses(petab_problem, 10,
                                     sampling_method=QuasiMonteCarlo.SobolSample())
 ```
 """
@@ -174,15 +174,25 @@ function generate_startguesses(petab_problem::PEtabODEProblem,
                                verbose::Bool=false)::Array{Float64} where T <: QuasiMonteCarlo.SamplingAlgorithm
 
     verbose == true && @info "Generating start-guesses"
+    @unpack prior_info, θ_names, lower_bounds, upper_bounds, = petab_problem
 
     # Nothing prevents the user from sending in a parameter vector with zero parameters
-    if length(petab_problem.lower_bounds) == 0
+    if length(lower_bounds) == 0
         return Vector{Float64}(undef, 0)
     end
 
     if n_multistarts == 1
         while true
-            _p::Vector{Float64} = [rand() * (petab_problem.upper_bounds[j] - petab_problem.lower_bounds[j]) + petab_problem.lower_bounds[j] for j in eachindex(petab_problem.lower_bounds)]
+            _p::Vector{Float64} = [rand() * (upper_bounds[j] - lower_bounds[j]) + lower_bounds[j] for j in eachindex(lower_bounds)]
+            # Account for potential initalisation priors
+            for (θ_name, _dist) in prior_info.initialisation_distribution
+                _i = findfirst(x -> x == θ_name, θ_names)
+                _lb, _ub = get_bounds_prior(θ_name, petab_problem)
+                _prior_samples = sample_from_prior(1, _dist, _lb, _ub)[1]
+                transform_prior_samples!(_prior_samples, θ_name, petab_problem)
+                _p[_i] = _prior_samples[1]
+            end
+
             _cost = petab_problem.compute_cost(_p)
             if allow_inf_for_startguess == true
                 return _p
@@ -192,18 +202,27 @@ function generate_startguesses(petab_problem::PEtabODEProblem,
         end
     end
 
-    startguesses = Matrix{Float64}(undef, length(petab_problem.lower_bounds), n_multistarts)
+    startguesses = Matrix{Float64}(undef, length(lower_bounds), n_multistarts)
     found_starts = 0
     while true
         # QuasiMonteCarlo is deterministic, so for sufficiently few start-guesses we can end up in a never ending
         # loop. To sidestep this if less than 10 starts are left numbers are generated from the uniform distribution
         if n_multistarts - found_starts > 10
-            _samples = QuasiMonteCarlo.sample(n_multistarts - found_starts, petab_problem.lower_bounds, petab_problem.upper_bounds, sampling_method)
+            _samples = QuasiMonteCarlo.sample(n_multistarts - found_starts, lower_bounds, upper_bounds, sampling_method)
         else
-            _samples = Matrix{Float64}(undef, length(petab_problem.lower_bounds), n_multistarts - found_starts)
+            _samples = Matrix{Float64}(undef, length(lower_bounds), n_multistarts - found_starts)
             for i in 1:(n_multistarts - found_starts)
-                _samples[:, i] .= [rand() * (petab_problem.upper_bounds[j] - petab_problem.lower_bounds[j]) + petab_problem.lower_bounds[j] for j in eachindex(petab_problem.lower_bounds)]
+                _samples[:, i] .= [rand() * (upper_bounds[j] - lower_bounds[j]) + lower_bounds[j] for j in eachindex(lower_bounds)]
             end
+        end
+
+        # Account for potential initalisation priors
+        for (θ_name, _dist) in prior_info.initialisation_distribution
+            _i = findfirst(x -> x == θ_name, θ_names)
+            _lb, _ub = get_bounds_prior(θ_name, petab_problem)
+            _prior_samples = sample_from_prior(n_multistarts - found_starts, _dist, _lb, _ub)
+            transform_prior_samples!(_prior_samples, θ_name, petab_problem)
+            _samples[_i, :] .= _prior_samples
         end
 
         for i in 1:size(_samples)[2]
@@ -224,6 +243,68 @@ function generate_startguesses(petab_problem::PEtabODEProblem,
     end
 
     return startguesses
+end
+
+
+function get_bounds_prior(θ_name::Symbol,
+                          petab_problem::PEtabODEProblem)::Vector{Float64}
+
+    @unpack prior_info, lower_bounds, upper_bounds = petab_problem
+    i = findfirst(x -> x == θ_name, petab_problem.θ_names)
+    if prior_info.prior_on_parameter_scale[θ_name] == true
+        return [lower_bounds[i], upper_bounds[i]]
+    end
+
+    # Here the prior is on the linear scale, while the bounds are on parameter
+    # scale so they must be transformed
+    scale = petab_problem.compute_cost.parameter_info.parameter_scale[i]
+    lower_bound = transform_θ_element(lower_bounds[i], scale, reverse_transform=false)
+    upper_bound = transform_θ_element(upper_bounds[i], scale, reverse_transform=false)
+    return [lower_bound, upper_bound]
+end
+
+
+function transform_prior_samples!(samples::Vector{Float64},
+                                  θ_name::Symbol,
+                                  petab_problem::PEtabODEProblem)::Nothing
+
+    @unpack prior_info, lower_bounds, upper_bounds = petab_problem
+    i = findfirst(x -> x == θ_name, petab_problem.θ_names)
+    if prior_info.prior_on_parameter_scale[θ_name] == true
+        return nothing
+    end
+
+    # Here the prior is on the linear scale, while the bounds are on parameter
+    # so the prior samples are linear, thus they must be transformed back to 
+    # parmeter scale for the parameter estimation
+    scale = petab_problem.compute_cost.parameter_info.parameter_scale[i]
+    for i in eachindex(samples)
+        samples[i] = transform_θ_element.(samples[i], scale, reverse_transform=true)
+    end
+
+    return nothing
+end
+
+
+"""
+    sample_from_prior(n_samples::Int64,
+                      dist::Distribution{Univariate, Continuous},
+                      lower_bound::Float64,
+                      upper_bound::Float64)::Vector{Float64}
+
+Draw `n_samples` from distribituion `dist` truncated at `lower_bound` and `upper_bound`.
+
+Used for generating start-guesses for calibration when the user has provided an initialisation prior.
+"""
+function sample_from_prior(n_samples::Int64,
+                           dist::Distribution{Univariate, Continuous},
+                           lower_bound::Float64,
+                           upper_bound::Float64)::Vector{Float64}
+
+    dist_sample = truncated(dist, lower=lower_bound, upper=upper_bound)
+    samples = rand(dist_sample, n_samples)
+    println("samples = ", samples)
+    return samples
 end
 
 

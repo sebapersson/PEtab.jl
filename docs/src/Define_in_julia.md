@@ -97,10 +97,11 @@ If you have prior information about parameters, you can specify a continuous pri
 
 ```@example 1; ansicolor=false
 using Distributions
-_se0 = PEtabParameter(:se0, prior=LogNormal(log(3.1), 0.5), prior_on_linear_scale=true)
+_se0 = PEtabParameter(:se0, prior=LogNormal(log(3.1), 0.5), 
+                      prior_on_linear_scale=true, sample_from_prior=true)
 ```
 
-In this case, `prior_on_linear_scale=true` (default) indicates that the prior is defined on the linear scale, not the default transformed log10 scale used for parameter estimation.
+In this case, `prior_on_linear_scale=true` (default) indicates that the prior is defined on the linear scale, not the default transformed log10 scale used for parameter estimation. Furthermore, when generating start-guesses for parameter estimation, you have the option to generate them from the prior distribution (instead of randomly within the upper and lower bounds) by setting `sample_from_prior=true` (default is false).
 
 Apart from estimating parameters in the reaction system, you can also estimate parameters related to measurement noise or parameters used exclusively in the observable formula (e.g., `scale` and `offset` parameters see above) by defining them as a `PEtabParameter`:
 
@@ -257,7 +258,8 @@ observables = Dict("obs_P" => obs_P,
 
 # Define parameters for estimation
 _c3 = PEtabParameter(:c3, scale=:log10)
-_se0 = PEtabParameter(:c3, prior=LogNormal(1.0, 0.5), prior_on_linear_scale=true)
+_se0 = PEtabParameter(:se0, prior=LogNormal(log(3.1), 0.5), 
+                      prior_on_linear_scale=true, sample_from_prior=true)
 _c2 = PEtabParameter(:c2)
 _sigma = PEtabParameter(:sigma)
 _scale = PEtabParameter(:scale)

@@ -231,9 +231,9 @@ function transformθ(θ::AbstractVector{T},
 end
 
 
-function transform_θ_element(θ_element,
-                           scale::Symbol;
-                           reverse_transform::Bool=false)::Real
+function transform_θ_element(θ_element::T,
+                             scale::Symbol;
+                             reverse_transform::Bool=false)::T where T<:Real
 
     if scale === :lin
         return θ_element

@@ -242,6 +242,16 @@ struct ParameterIndices
 end
 
 
+struct PriorInfo
+    logpdf::Dict{Symbol, Function}
+    distribution::Dict{Symbol, Distribution{Univariate, Continuous}}
+    initialisation_distribution::Dict{Symbol, Distribution{Univariate, Continuous}}
+    prior_on_parameter_scale::Dict{<:Symbol, <:Bool}
+    has_priors::Bool
+end
+
+
+
 """
     PEtabODEProblem
 
@@ -305,6 +315,7 @@ struct PEtabODEProblem{F1<:Function,
     simulation_info::SimulationInfo
     ode_problem::ODEProblem
     split_over_conditions::Bool
+    prior_info::PriorInfo
 end
 
 
@@ -377,13 +388,6 @@ end
 struct PEtabODESolverCache
     p_ode_problem_cache
     u0_cache
-end
-
-
-struct PriorInfo
-    logpdf::Dict{Symbol, Function}
-    prior_on_parameter_scale::Dict{<:Symbol, <:Bool}
-    has_priors::Bool
 end
 
 
@@ -702,7 +706,7 @@ end
 
 
 """
-    PEtabParameter(id::Symbol; <keyword arguments>)
+    PEtabParameter(id::Union{Num, Symbol}; <keyword arguments>)
 
 Represents a parameter to be estimated in a PEtab model calibration problem.
 
@@ -714,6 +718,7 @@ Represents a parameter to be estimated in a PEtab model calibration problem.
 - `ub::Float64=1e-3`: The upper parameter bound in parameter estimation (default: 1e3).
 - `prior=nothing`: An optional continuous prior distribution from the Distributions package.
 - `prior_on_linear_scale::Bool=true`: Specifies whether the prior is on the linear scale (default) or the transformed scale, e.g., log10-scale.
+- `sample_from_prior::Bool=false`: Whether to sample start-guesses from the prior distribution prior when generating startguesses for model calibration.
 
 ## Examples
 ```julia 
@@ -734,6 +739,7 @@ struct PEtabParameter
     prior::Union{Nothing,Distribution{Univariate, Continuous}}
     prior_on_linear_scale::Bool
     scale::Union{Nothing,Symbol} # :log10, :linear and :log supported.
+    sample_from_prior::Bool
 end
 function PEtabParameter(id::Union{Num, Symbol};
                         estimate::Bool=true,
@@ -742,9 +748,10 @@ function PEtabParameter(id::Union{Num, Symbol};
                         ub::Union{Nothing, Float64}=1e3,
                         prior::Union{Nothing,Distribution{Univariate, Continuous}}=nothing,
                         prior_on_linear_scale::Bool=true,
-                        scale::Union{Nothing, Symbol}=:log10)
+                        scale::Union{Nothing, Symbol}=:log10, 
+                        sample_from_prior::Bool=false)
 
-    return PEtabParameter(id, estimate, value, lb, ub, prior, prior_on_linear_scale, scale)
+    return PEtabParameter(id, estimate, value, lb, ub, prior, prior_on_linear_scale, scale, sample_from_prior)
 end
 
 

@@ -146,3 +146,5 @@ using QuasiMonteCarlo
 p0 = generate_startguesses(petab_problem, 10, 
                            sampling_method=SobolSample())
 ```
+
+Additionally, if an initialization prior is specified for a parameter, the start-guesses for that parameter will be sampled from the provided prior clipped by the upper and lower bounds.

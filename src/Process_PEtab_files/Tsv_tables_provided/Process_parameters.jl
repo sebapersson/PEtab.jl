@@ -75,50 +75,69 @@ function process_priors(θ_indices::ParameterIndices, parameters_file::CSV.File)
 
     # In case there are no model priors
     if :objectivePriorType ∉ parameters_file.names
-        return PriorInfo(Dict{Symbol, Function}(), Dict{Symbol, Bool}(), false)
+        return PriorInfo(Dict{Symbol, Function}(), 
+                         Dict{Symbol, Distribution{Univariate, Continuous}}(), 
+                         Dict{Symbol, Distribution{Univariate, Continuous}}(), 
+                         Dict{Symbol, Bool}(), 
+                         false)
     end
 
     prior_logpdf::Dict{Symbol, Function} = Dict()
+    distribution::Dict{Symbol, Distribution{Univariate, Continuous}} = Dict()
+    initialisation_distribution::Dict{Symbol, Distribution{Univariate, Continuous}} = Dict()
     prior_on_parameter_scale::Dict{Symbol, Bool} = Dict()
     for θ_name in θ_indices.θ_names
 
         which_parameter = findfirst(x -> x == string(θ_name), string.(parameters_file[:parameterId]))
         prior = parameters_file[which_parameter][:objectivePriorType]
 
-        # In case the parameter lacks prior
         if ismissing(prior) || isempty(prior)
-            prior_logpdf[θ_name] = no_prior
-            prior_on_parameter_scale[θ_name] = false
+            println("Enters here with θ_name = ", θ_name)
             continue
         end
 
         # In case a Julia prior is provided via Catalyst importer
         if occursin("__Julia__", prior)
             prior_parsed = eval(Meta.parse(parse_prior(prior)))
+            distribution[θ_name] = prior_parsed
             prior_logpdf[θ_name] = (x) -> logpdf(prior_parsed, x)
             prior_on_parameter_scale[θ_name] = !parameters_file[which_parameter][:priorOnLinearScale]
+
+            # Check if the prior should also be on initialisation of parameters 
+            if :initializationPriorType ∈ parameters_file.names
+                initialisation_prior = parameters_file[which_parameter][:initializationPriorType]
+                if ismissing(initialisation_prior) || isempty(initialisation_prior)
+                    continue
+                end
+                initialisation_distribution[θ_name] = distribution[θ_name]
+            end
             continue
         end
 
         # In case there is a prior is has associated parameters
         prior_parameters = parse.(Float64, split(parameters_file[which_parameter][:objectivePriorParameters], ";"))
         if prior == "parameterScaleNormal"
+            distribution[θ_name] = Normal(prior_parameters[1], prior_parameters[2])
             prior_logpdf[θ_name] = (x) -> logpdf(Normal(prior_parameters[1], prior_parameters[2]), x)
             prior_on_parameter_scale[θ_name] = true
 
         elseif prior == "parameterScaleLaplace"
+            distribution[θ_name] = Laplace(prior_parameters[1], prior_parameters[2])
             prior_logpdf[θ_name] = (x) -> logpdf(Laplace(prior_parameters[1], prior_parameters[2]), x)
             prior_on_parameter_scale[θ_name] = true
 
         elseif prior == "normal"
+            distribution[θ_name] = Normal(prior_parameters[1], prior_parameters[2])
             prior_logpdf[θ_name] = (x) -> logpdf(Normal(prior_parameters[1], prior_parameters[2]), x)
             prior_on_parameter_scale[θ_name] = false
 
         elseif prior == "laplace"
+            distribution[θ_name] = Laplace(prior_parameters[1], prior_parameters[2])
             prior_logpdf[θ_name] = (x) -> logpdf(Laplace(prior_parameters[1], prior_parameters[2]), x)
             prior_on_parameter_scale[θ_name] = false
 
         elseif prior == "logNormal"
+            distribution[θ_name] = LogNormal(prior_parameters[1], prior_parameters[2])
             prior_logpdf[θ_name] = (x) -> logpdf(LogNormal(prior_parameters[1], prior_parameters[2]), x)
             prior_on_parameter_scale[θ_name] = false
 
@@ -127,9 +146,18 @@ function process_priors(θ_indices::ParameterIndices, parameters_file::CSV.File)
         else
             @error "Error : PeTab standard does not support a prior of type $priorF"
         end
+
+        # Check if the prior should also be on initialisation of parameters 
+        if :initializationPriorType ∈ parameters_file.names
+            initialisation_prior = parameters_file[which_parameter][:initializationPriorType]
+            if ismissing(initialisation_prior) || isempty(initialisation_prior)
+                continue
+            end
+            initialisation_distribution[θ_name] = distribution[θ_name]
+        end
     end
 
-    return PriorInfo(prior_logpdf, prior_on_parameter_scale, true)
+    return PriorInfo(prior_logpdf, distribution, initialisation_distribution, prior_on_parameter_scale, true)
 end
 # Helper function in case there is not any parameter priors
 function no_prior(p::Real)::Real

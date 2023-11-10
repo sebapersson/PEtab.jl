@@ -106,19 +106,27 @@ function parse_petab_parameters(petab_parameters::Vector{PEtabParameter},
     end
 
     priors = Vector{String}(undef, length(petab_parameters))
+    initialisation_priors = similar(priors)
     prior_on_linear_scale = Vector{Union{Bool, String}}(undef, length(petab_parameters))
     for i in eachindex(priors)
         if isnothing(petab_parameters[i].prior)
             priors[i] = ""
             prior_on_linear_scale[i] = ""
+            initialisation_priors[i] = ""
             continue
         end
 
         priors[i] = "__Julia__" * string(petab_parameters[i].prior)
         prior_on_linear_scale[i] = petab_parameters[i].prior_on_linear_scale
+        if petab_parameters[i].sample_from_prior == true
+            initialisation_priors[i] = priors[i]
+        else
+            initialisation_priors[i] = ""
+        end
     end
     df[!, :objectivePriorType] = priors
     df[!, :priorOnLinearScale] = prior_on_linear_scale
+    df[!, :initializationPriorType] = initialisation_priors
     return df
 end
 
