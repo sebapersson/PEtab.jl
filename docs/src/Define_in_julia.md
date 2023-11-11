@@ -101,7 +101,7 @@ _se0 = PEtabParameter(:se0, prior=LogNormal(log(3.1), 0.5),
                       prior_on_linear_scale=true, sample_from_prior=true)
 ```
 
-In this case, `prior_on_linear_scale=true` (default) indicates that the prior is defined on the linear scale, not the default transformed log10 scale used for parameter estimation. Furthermore, when generating start-guesses for parameter estimation, you have the option to generate them from the prior distribution (instead of randomly within the upper and lower bounds) by setting `sample_from_prior=true` (default is false).
+In this case, `prior_on_linear_scale=true` (default) indicates that the prior is defined on the linear scale, not the default transformed log10 scale used for parameter estimation. Moreover, for parameters with priors, start-guesses for parameter estimation are generated from the prior distribution (instead of randomly within the upper and lower bounds), if you want to disable this for a specific parameter set `sample_from_prior=false` (default is true), more information can be found [here](@ref get_startguesses).
 
 Apart from estimating parameters in the reaction system, you can also estimate parameters related to measurement noise or parameters used exclusively in the observable formula (e.g., `scale` and `offset` parameters see above) by defining them as a `PEtabParameter`:
 

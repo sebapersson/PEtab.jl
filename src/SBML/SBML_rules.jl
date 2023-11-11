@@ -1,9 +1,8 @@
-function parse_SBML_rules!(model_dict::Dict, model_SBML::SBML.Model)
+function parse_SBML_rules!(model_dict::Dict, model_SBML::SBML.Model)::Nothing
 
     for rule in model_SBML.rules
 
         if rule isa SBML.AssignmentRule
-            push!(model_dict["assignment_rule_variables"], rule.variable)
             parse_assignment_rule!(model_dict, rule, model_SBML)
         end
 
@@ -16,6 +15,7 @@ function parse_SBML_rules!(model_dict::Dict, model_SBML::SBML.Model)
             parse_algebraic_rule!(model_dict, rule)
         end
     end    
+    return nothing
 end
 
 

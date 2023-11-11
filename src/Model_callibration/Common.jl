@@ -54,6 +54,7 @@ function calibrate_model end
                              n_multistarts::Signed,
                              dir_save::Union{Nothing, String};
                              sampling_method=QuasiMonteCarlo.LatinHypercubeSample(),
+                             sample_from_prior::Bool=true,
                              options=algOptions,
                              seed=nothing,
                              save_trace::Bool=false)::PEtabMultistartOptimisationResult
@@ -72,7 +73,9 @@ to return parameter and objective trace information, set `save_trace=true`.
 Multistart optimization involves generating multiple starting points for optimization runs. These starting points
 are generated using the specified `sampling_method` from [QuasiMonteCarlo.jl](https://github.com/SciML/QuasiMonteCarlo.jl),
 with the default being LatinHypercubeSample, a method that typically produces better results than random sampling.
-For reproducibility, you can set a random number generator seed using the `seed` parameter.
+If `sample_from_prior=true` (default), for parameters with priors samples are taken from the prior distribution, where the 
+distribution is clipped/truncated by the parameter's lower- and upper bound. For reproducibility, you can set a random 
+number generator seed using the `seed` parameter.
 
 If `dir_save` is provided as `nothing`, results are not written to disk. Otherwise, if a directory path is provided,
 results are written to disk. Writing results to disk is recommended in case the optimization process is terminated
@@ -141,13 +144,15 @@ function run_PEtab_select end
     generate_startguesses(petab_problem::PEtabODEProblem,
                           n_multistarts::Int64;
                           sampling_method::T=QuasiMonteCarlo.LatinHypercubeSample(),
+                          sample_from_prior::Bool=true,
                           allow_inf_for_startguess::Bool=false,
                           verbose::Bool=false)::Array{Float64} where T <: QuasiMonteCarlo.SamplingAlgorithm
 
 Generate `n_multistarts` initial parameter guesses within the parameter bounds in the `petab_problem` with `sampling_method`
 
 Any sampling algorithm from QuasiMonteCarlo is supported, but `LatinHypercubeSample` is recomended as it usually
-performs well.
+performs well. If `sample_from_prior=true` (default), for parameters with priors samples are taken from said prior 
+distribution, where the distribution is clipped/truncated by the parameter's lower- and upper bound.
 
 If `n_multistarts` is set to 1, a single random vector within the parameter bounds is returned. For
 `n_multistarts > 1`, a matrix is returned, with each column representing a different initial guess.
@@ -170,6 +175,7 @@ start_guess = generate_startguesses(petab_problem, 10,
 function generate_startguesses(petab_problem::PEtabODEProblem,
                                n_multistarts::Int64;
                                sampling_method::T=QuasiMonteCarlo.LatinHypercubeSample(),
+                               sample_from_prior::Bool=true,
                                allow_inf_for_startguess::Bool=false,
                                verbose::Bool=false)::Array{Float64} where T <: QuasiMonteCarlo.SamplingAlgorithm
 
@@ -186,6 +192,9 @@ function generate_startguesses(petab_problem::PEtabODEProblem,
             _p::Vector{Float64} = [rand() * (upper_bounds[j] - lower_bounds[j]) + lower_bounds[j] for j in eachindex(lower_bounds)]
             # Account for potential initalisation priors
             for (θ_name, _dist) in prior_info.initialisation_distribution
+                if sample_from_prior == false
+                    continue
+                end
                 _i = findfirst(x -> x == θ_name, θ_names)
                 _lb, _ub = get_bounds_prior(θ_name, petab_problem)
                 _prior_samples = sample_from_prior(1, _dist, _lb, _ub)[1]
@@ -218,6 +227,9 @@ function generate_startguesses(petab_problem::PEtabODEProblem,
 
         # Account for potential initalisation priors
         for (θ_name, _dist) in prior_info.initialisation_distribution
+            if sample_from_prior == false
+                continue
+            end
             _i = findfirst(x -> x == θ_name, θ_names)
             _lb, _ub = get_bounds_prior(θ_name, petab_problem)
             _prior_samples = sample_from_prior(n_multistarts - found_starts, _dist, _lb, _ub)
@@ -342,6 +354,7 @@ function _calibrate_model_multistart(petab_problem::PEtabODEProblem,
                                      dir_save,
                                      sampling_method,
                                      options,
+                                     sample_from_prior::Bool,
                                      save_trace::Bool)::PEtabMultistartOptimisationResult
 
     if isnothing(dir_save)
@@ -366,7 +379,7 @@ function _calibrate_model_multistart(petab_problem::PEtabODEProblem,
         end
     end
 
-    startguesses = generate_startguesses(petab_problem, n_multistarts; sampling_method=sampling_method)
+    startguesses = generate_startguesses(petab_problem, n_multistarts; sampling_method=sampling_method, sample_from_prior=sample_from_prior)
     if !isnothing(path_save_x0)
         startguessesDf = DataFrame(Matrix(startguesses)', petab_problem.θ_names)
         startguessesDf[!, "Start_guess"] = 1:size(startguessesDf)[1]

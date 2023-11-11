@@ -718,7 +718,7 @@ Represents a parameter to be estimated in a PEtab model calibration problem.
 - `ub::Float64=1e-3`: The upper parameter bound in parameter estimation (default: 1e3).
 - `prior=nothing`: An optional continuous prior distribution from the Distributions package.
 - `prior_on_linear_scale::Bool=true`: Specifies whether the prior is on the linear scale (default) or the transformed scale, e.g., log10-scale.
-- `sample_from_prior::Bool=false`: Whether to sample start-guesses from the prior distribution prior when generating startguesses for model calibration.
+- `sample_from_prior::Bool=true`: Whether to sample the parameter from the prior distribution when generating startguesses for model calibration.
 
 ## Examples
 ```julia 
@@ -749,7 +749,7 @@ function PEtabParameter(id::Union{Num, Symbol};
                         prior::Union{Nothing,Distribution{Univariate, Continuous}}=nothing,
                         prior_on_linear_scale::Bool=true,
                         scale::Union{Nothing, Symbol}=:log10, 
-                        sample_from_prior::Bool=false)
+                        sample_from_prior::Bool=true)
 
     return PEtabParameter(id, estimate, value, lb, ub, prior, prior_on_linear_scale, scale, sample_from_prior)
 end
