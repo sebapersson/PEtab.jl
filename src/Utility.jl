@@ -17,7 +17,7 @@ If a parameter vector is provided it must have the parameters in the same order 
 Potential events are accounted for when solving the ODE model. The ODE solver options specified when creating the 
 `petab_problem` are used for solving the model.
 """
-function get_odesol(θ::Vector{Float64},
+function get_odesol(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult, Vector{Float64}},
                     petab_problem::PEtabODEProblem;
                     condition_id::Union{String, Symbol, Nothing}=nothing,
                     pre_eq_id::Union{String, Symbol, Nothing}=nothing)
@@ -33,7 +33,7 @@ function get_odesol(θ::Vector{Float64},
         pre_eq_id = Symbol(pre_eq_id)
     end
 
-    u0, p = _get_fitted_parameters(θ, petab_problem, condition_id, pre_eq_id, false)
+    u0, p = _get_fitted_parameters(res, petab_problem, condition_id, pre_eq_id, false)
     tmax = petab_problem.simulation_info.tmax[condition_id]
     ode_problem = remake(petab_problem.ode_problem, p=p, u0=u0, tspan=(0.0, tmax))
 
@@ -72,7 +72,7 @@ prob, cb, tstops = get_odeproblem(res, petab_problem, condition_id="cond1")
 sol = solve(prob, Rodas5P(), callback=cb, tstops=tstops)
 ```
 """
-function get_odeproblem(θ::Vector{Float64},
+function get_odeproblem(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult, Vector{Float64}},
                         petab_problem::PEtabODEProblem;
                         condition_id::Union{String, Symbol, Nothing}=nothing,
                         pre_eq_id::Union{String, Symbol, Nothing}=nothing)
@@ -82,7 +82,7 @@ function get_odeproblem(θ::Vector{Float64},
         condition_id = simulation_info.simulation_condition_id[1]
     end
 
-    u0, p = _get_fitted_parameters(θ, petab_problem, condition_id, pre_eq_id, false)
+    u0, p = _get_fitted_parameters(res, petab_problem, condition_id, pre_eq_id, false)
     tmax = petab_problem.simulation_info.tmax[condition_id]
     ode_problem = remake(petab_problem.ode_problem, p=p, u0=u0, tspan=(0.0, tmax))
 
@@ -109,9 +109,9 @@ If a parameter vector is provided it must have the parameters in the same order 
 If `retmap=true`, a parameter vector is returned; otherwise, a vector is returned.
 """
 function get_ps(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult, Vector{Float64}}, 
-                       petab_problem::PEtabODEProblem;
-                       condition_id::Union{String, Symbol, Nothing}=nothing,
-                       retmap=true)
+                petab_problem::PEtabODEProblem;
+                condition_id::Union{String, Symbol, Nothing}=nothing,
+                retmap=true)
 
     u0, p = _get_fitted_parameters(res, petab_problem, condition_id, nothing, retmap)
     return p
@@ -139,10 +139,11 @@ If a parameter vector is provided it must have the parameters in the same order 
 If `retmap=true`, a parameter vector is returned; otherwise, a vector is returned.
 """
 function get_u0(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult, Vector{Float64}}, 
-                       petab_problem::PEtabODEProblem;
-                       condition_id::Union{String, Symbol, Nothing}=nothing,
-                       pre_eq_id::Union{String, Symbol, Nothing}=nothing, 
-                       retmap::Bool=true)
+                petab_problem::PEtabODEProblem;
+                condition_id::Union{String, Symbol, Nothing}=nothing,
+                pre_eq_id::Union{String, Symbol, Nothing}=nothing, 
+                retmap::Bool=true)
+
     u0, p = _get_fitted_parameters(res, petab_problem, condition_id, pre_eq_id, retmap)
     return u0
 end

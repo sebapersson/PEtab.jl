@@ -51,3 +51,21 @@ mutable struct ReactionSBML
     const reactants::Vector{String}
     const reactants_stoichiometry::Vector{String}
 end
+
+
+struct ModelSBML
+    species::Dict{String, SpecieSBML}
+    parameters::Dict{String, ParameterSBML}
+    compartments::Dict{String, CompartmentSBML}
+    events::Dict{String, EventSBML}
+    reactions::Dict{String, ReactionSBML}
+    algebraic_rules::Dict{String, String}
+    generated_ids::Dict{String, String}
+    piecewise_expressions::Dict{String, String}
+    ifelse_bool_expressions::Dict{String, String}
+    assignment_rule_variables::Vector{String}
+    ifelse_parameters::Vector{String}
+    rate_rule_variables::Vector{String}
+    appear_in_reactions::Vector{String}
+    has_piecewise::Vector{String}
+end

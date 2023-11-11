@@ -28,8 +28,14 @@ using Test
     @unpack u0, p = petab_problem.simulation_info.ode_sols[c_id].prob
     u0_test = get_u0(res, petab_problem; retmap=false)
     p_test = get_ps(res, petab_problem; retmap=false)
+    odeprob, _, _ = get_odeproblem(res, petab_problem)    
+    sol = get_odesol(res, petab_problem)
     @test all(u0_test .== u0)
-    @test all(p == p_test)
+    @test all(p_test == p)
+    @test all(odeprob.u0 .== u0)
+    @test all(odeprob.p == p)
+    @test all(sol.prob.u0 .== u0)
+    @test all(sol.prob.p == p)
 
     # Beer model
     path_yaml = joinpath(@__DIR__, "Test_ll", "Beer_MolBioSystems2014", "Beer_MolBioSystems2014.yaml")
@@ -76,8 +82,8 @@ using Test
     c_id = :Dose_01
     pre_eq_id = :Dose_0
     @unpack u0, p = petab_problem.simulation_info.ode_sols[:Dose_0Dose_01].prob
-    p_test = get_ps(res, petab_problem; condition_id=c_id, retmap=false)
-    u0_test = get_u0(res, petab_problem; condition_id=c_id, retmap=false, pre_eq_id=pre_eq_id)
+    p_test = get_ps(res.xmin, petab_problem; condition_id=c_id, retmap=false)
+    u0_test = get_u0(res.xmin, petab_problem; condition_id=c_id, retmap=false, pre_eq_id=pre_eq_id)
     @test all(u0_test .== u0)
     @test all(p == p_test)
 end

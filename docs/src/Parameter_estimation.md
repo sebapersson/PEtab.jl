@@ -95,8 +95,8 @@ using Ipopt
 petab_model = PEtabModel(path_yaml)
 petab_problem = PEtabODEProblem(petab_model)
 res = calibrate_model_multistart(petab_problem, IpoptOptimiser(false), 10, dir_save,
-                               save_trace=true,
-                               seed=123)
+                                 save_trace=true,
+                                 seed=123)
 print(res)
 ```
 ```
@@ -114,6 +114,22 @@ In this example, we use `save_trace=true` to enable trace saving and set `seed=1
 res.runs[1].xtrace
 res.runs[1].ftrace
 ```
+
+## [Generating startguesses for parameter estimation](@id get_startguesses)
+
+When you call the `calibrate_model_multistart` function, it uses the `generate_startguesses` function to create initial startguesses for parameter estimation. With `generate_startguesses`, you can generate start-guesses within the bounds of the `PEtabODEProblem` using various sampling methods from [QuasiMonteCarlo](https://github.com/SciML/QuasiMonteCarlo.jl) through the `sampling_method` parameter. For example, to run 10 optimization runs with Sobol sampling, do:
+
+```julia
+using QuasiMonteCarlo
+res = calibrate_model_multistart(petab_problem, IpoptOptimiser(false), 10, dir_save,
+                                 sampling_method=SobolSample(),
+                                 save_trace=true,
+                                 seed=123)
+```
+
+In addition for problems specified directly in Julia, when a parameter has a prior, the start-guesses for said parameter are sampled from the prior distribution, where the prior is clipped/truncated by the parameter's lower and upper bounds. You can disable this for all parameters by setting `sample_from_prior=false`. To disable it for specific parameters, use `sample_from_prior=false` when creating the `PEtabParameter`. For example: `PEtabParameters(:c1, sample_from_prior=false)`.
+
+For problems specified in the PEtab table format, the `initializationPriorType` must be provided to sample initial values from priors. See the [PEtab documentation](https://petab.readthedocs.io/en/latest/documentation_data_format.html#parameter-table) for details.
 
 ## Single-Start Parameter Estimation
 
@@ -138,11 +154,3 @@ Optimiser algorithm   = Ipopt_user_Hessian
 ```
 
 The results are returned as a `PEtabOptimisationResult`, which includes the following information: minimum parameter values found (`xmin`), smallest objective value (`fmin`), number of iterations, runtime, whether the optimizer converged, and optionally, the trace if `save_trace=true`.
-
-Note that `generate_startguesses` can generate several start-guesses within the bounds of the `PEtabODEProblem` with any sampling method from [QuasiMonteCarlo](https://github.com/SciML/QuasiMonteCarlo.jl). For example, to generate 10 start guesses with Sobol sampling do:
-
-```julia
-using QuasiMonteCarlo
-p0 = generate_startguesses(petab_problem, 10, 
-                           sampling_method=SobolSample())
-```

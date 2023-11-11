@@ -7,6 +7,7 @@ function PEtab.calibrate_model_multistart(petab_problem::PEtabODEProblem,
                                           n_multistarts::Signed, 
                                           dir_save::Union{Nothing, String};
                                           sampling_method::T=QuasiMonteCarlo.LatinHypercubeSample(),
+                                          sample_from_prior::Bool=true,
                                           options::Optim.Options=Optim.Options(iterations = 1000,
                                                                                show_trace = false,
                                                                                allow_f_increases=true,
@@ -19,7 +20,7 @@ function PEtab.calibrate_model_multistart(petab_problem::PEtabODEProblem,
     if !isnothing(seed)
         Random.seed!(seed)
     end
-    res = PEtab._calibrate_model_multistart(petab_problem, alg, n_multistarts, dir_save, sampling_method, options, save_trace)
+    res = PEtab._calibrate_model_multistart(petab_problem, alg, n_multistarts, dir_save, sampling_method, options, sample_from_prior, save_trace)
     return res
 end
 

@@ -35,22 +35,21 @@ end
 
 function build_model_dict(model_SBML, ifelse_to_event::Bool)
 
-    # Nested dictionaries to act as intermedidate struct to store relevent 
+    # Nested dictionaries to act as intermedidate struct to store relevent
     # model data
-    model_dict = Dict("species" => Dict{String, SpecieSBML}(), 
-                      "parameters" => Dict{String, ParameterSBML}(), 
-                      "compartments" => Dict{String, CompartmentSBML}(), 
-                      "SBML_functions" => Dict{String, Vector{String}}(), 
-                      "ifelse_parameters" => Dict(), 
-                      "events" => Dict{String, EventSBML}(), 
-                      "reactions" => Dict{String, ReactionSBML}(), 
-                      "algebraic_rules" => Dict{String, String}(), 
-                      "generated_ids" => Dict{String, String}(), 
+    model_dict = Dict("species" => Dict{String, SpecieSBML}(),
+                      "parameters" => Dict{String, ParameterSBML}(),
+                      "compartments" => Dict{String, CompartmentSBML}(),
+                      "SBML_functions" => Dict{String, Vector{String}}(),
+                      "ifelse_parameters" => Dict(),
+                      "events" => Dict{String, EventSBML}(),
+                      "reactions" => Dict{String, ReactionSBML}(),
+                      "algebraic_rules" => Dict{String, String}(),
+                      "generated_ids" => Dict{String, String}(),
                       "piecewise_expressions" => Dict{String, String}(),
                       "ifelse_bool_expressions" => Dict{String, String}(),
-                      "assignment_rule_variables" => String[], 
-                      "rate_rule_variables" => String[], 
-                      "appear_in_reactions" => String[], 
+                      "rate_rule_variables" => String[],
+                      "appear_in_reactions" => String[],
                       "has_piecewise" => String[])
 
     parse_SBML_species!(model_dict, model_SBML)
@@ -87,7 +86,7 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
 
     adjust_conversion_factor!(model_dict, model_SBML)
 
-    # Ensure that event participating parameters and compartments are not simplfied away when calling 
+    # Ensure that event participating parameters and compartments are not simplfied away when calling
     # structurally_simplify
     include_event_parameters_in_model!(model_dict)
 
@@ -241,10 +240,10 @@ function create_ode_model(model_dict, path_jl_file, model_name, write_to_file::B
     end
     # Compartments
     for (compartment_id, compartment) in model_dict["compartments"]
-        if compartment.rate_rule != true 
+        if compartment.rate_rule != true
             continue
         end
-        u0eq = compartment.initial_value        
+        u0eq = compartment.initial_value
         dict_model_str["specie_map"] *= "\t" * compartment_id * " => " * u0eq * ",\n"
     end
     dict_model_str["specie_map"] *= "\t]"

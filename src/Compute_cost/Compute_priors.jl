@@ -2,7 +2,7 @@
 # scale (θT)
 function compute_priors(θ_parameter_scale::AbstractVector,
                         θ_linear_scale::AbstractVector,
-                        n_parameters_estimate::Vector{Symbol},
+                        θ_names::Vector{Symbol},
                         prior_info::PriorInfo)::Real
 
     if prior_info.has_priors == false
@@ -10,12 +10,14 @@ function compute_priors(θ_parameter_scale::AbstractVector,
     end
 
     prior_value = 0.0
-    for (i, θ_name) in pairs(n_parameters_estimate)
-        logpdf = prior_info.logpdf[θ_name]
+    for (θ_name, logpdf) in prior_info.logpdf
+    
+        iθ = findfirst(x -> x == θ_name, θ_names)
+
         if prior_info.prior_on_parameter_scale[θ_name] == true
-            prior_value += logpdf(θ_parameter_scale[i])
+            prior_value += logpdf(θ_parameter_scale[iθ])
         else
-            prior_value += logpdf(θ_linear_scale[i])
+            prior_value += logpdf(θ_linear_scale[iθ])
         end
     end
 
