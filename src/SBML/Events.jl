@@ -53,7 +53,7 @@ function parse_SBML_events!(model_dict::Dict, model_SBML::SBML.Model)::Nothing
 
             model_dict["species"][event_assignments[i]] = SpecieSBML(event_assignments[i], false, false, "1.0", 
                                                                      "", 
-                                                                     collect(keys(model_SBML.compartments))[1], :Amount, 
+                                                                     collect(keys(model_SBML.compartments))[1], "", :Amount, 
                                                                      false, false, false, false)
         end
 

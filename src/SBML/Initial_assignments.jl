@@ -33,7 +33,7 @@ function parse_initial_assignments!(model_dict::Dict, model_SBML::SBML.Model)::N
         else
             model_dict["species"][assign_id] = SpecieSBML(assign_id, false, false, formula,
                                                           "",
-                                                          collect(keys(model_SBML.compartments))[1], :Amount,
+                                                          "1.0", "", :Amount,
                                                           false, false, false, false)
         end
     end
@@ -54,6 +54,24 @@ function parse_initial_assignments!(model_dict::Dict, model_SBML::SBML.Model)::N
             continue
         end
         model_dict["species"][assign_id].initial_value = '(' * model_dict["species"][assign_id].initial_value * ") * " * model_dict["species"][assign_id].compartment
+    end
+
+    # Adjusting for unit, sometimes species might have their initial value multiplied by a 
+    # compartment, that might be given by an assignment rule. This insert the rule-formula 
+    # to ensure correct mapping for simulations
+    for (specie_id, specie) in model_dict["species"]
+        for (compartment_id, compartment) in model_dict["compartments"]
+            if compartment.assignment_rule == false
+                continue
+            end
+            specie.initial_value = replace_variable(specie.initial_value, compartment_id, compartment.formula)
+        end
+        for (parameter_id, parameter) in model_dict["parameters"]
+            if parameter.assignment_rule == false
+                continue
+            end
+            specie.initial_value = replace_variable(specie.initial_value, parameter_id, parameter.formula)
+        end
     end
 end
 

@@ -81,10 +81,11 @@ function build_model_dict(model_SBML, ifelse_to_event::Bool)
 
     identify_algebraic_rule_variables!(model_dict)
 
-    # SBML allows inconstant compartment size, this must be adjusted if a specie is given in concentration
-    adjust_for_dynamic_compartment!(model_dict)
-
     adjust_conversion_factor!(model_dict, model_SBML)
+
+    # SBML allows inconstant compartment size, this must be adjusted if a specie is given in concentration
+    # Must be after conversion factor, as the latter must be correctly handlded in the transformation
+    adjust_for_dynamic_compartment!(model_dict)
 
     # Ensure that event participating parameters and compartments are not simplfied away when calling
     # structurally_simplify
@@ -123,7 +124,7 @@ function create_ode_model(model_dict, path_jl_file, model_name, write_to_file::B
         (isempty(model_dict["parameters"]) || sum([p.rate_rule for p in values(model_dict["parameters"])]) == 0) &&
         (isempty(model_dict["compartments"]) || sum([c.rate_rule for c in values(model_dict["compartments"])]) == 0))
 
-        model_dict["species"]["foo"] = SpecieSBML("foo", false, false, "1.0", "0.0", "1.0", :Amount,
+        model_dict["species"]["foo"] = SpecieSBML("foo", false, false, "1.0", "0.0", "1.0", "", :Amount,
                                                   false, false, false, false)
     end
 

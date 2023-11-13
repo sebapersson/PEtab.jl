@@ -79,7 +79,7 @@ function parse_assignment_rule!(model_dict::Dict, rule::SBML.AssignmentRule, mod
     # Case with new specie 
     model_dict["species"][rule_variable] = SpecieSBML(rule_variable, false, false, rule_formula, 
                                                       rule_formula, 
-                                                      collect(keys(model_SBML.compartments))[1], :Amount, 
+                                                      collect(keys(model_SBML.compartments))[1], "", :Amount, 
                                                       false, true, false, false)
 
     return nothing
@@ -140,7 +140,7 @@ function parse_rate_rule!(model_dict::Dict, rule::SBML.RateRule, model_SBML::SBM
     # special stoichometry        
     model_dict["species"][rule_variable] = SpecieSBML(rule_variable, false, false, "1.0", 
                                                       rule_formula, 
-                                                      collect(keys(model_SBML.compartments))[1], :Amount, 
+                                                      collect(keys(model_SBML.compartments))[1], "", :Amount, 
                                                       false, false, true, false)
     return nothing
 end

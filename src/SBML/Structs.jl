@@ -5,6 +5,7 @@ mutable struct SpecieSBML
     initial_value::String # Can be changed by initial assignment
     formula::String # Is updated over time
     const compartment::String
+    const conversion_factor::String
     const unit::Symbol
     const only_substance_units::Bool
     assignment_rule::Bool
