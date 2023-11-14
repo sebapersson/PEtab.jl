@@ -3,34 +3,34 @@
 =#
 
 
-function parse_SBML_parameters!(model_dict::Dict, model_SBML::SBML.Model)::Nothing
+function parse_SBML_parameters!(model_SBML::ModelSBML, libsbml_model::SBML.Model)::Nothing
 
-    for (parameter_id, parameter) in model_SBML.parameters
+    for (parameter_id, parameter) in libsbml_model.parameters
 
         formula = isnothing(parameter.value) ? "0.0" : string(parameter.value)
-        model_dict["parameters"][parameter_id] = ParameterSBML(parameter_id, parameter.constant, formula, "", false, false, false)
+        model_SBML.parameters[parameter_id] = ParameterSBML(parameter_id, parameter.constant, formula, "", false, false, false)
     end
     return nothing
 end
 
 
-function parse_SBML_compartments!(model_dict::Dict, model_SBML::SBML.Model)::Nothing
+function parse_SBML_compartments!(model_SBML::ModelSBML, libsbml_model::SBML.Model)::Nothing
 
-    for (compartment_id, compartment) in model_SBML.compartments
+    for (compartment_id, compartment) in libsbml_model.compartments
 
         size = isnothing(compartment.size) ? "1.0" : string(compartment.size)
-        model_dict["compartments"][compartment_id] = CompartmentSBML(compartment_id, compartment.constant, size, "", false, false, false)
+        model_SBML.compartments[compartment_id] = CompartmentSBML(compartment_id, compartment.constant, size, "", false, false, false)
     end
     return nothing
 end
 
 
-function include_event_parameters_in_model!(model_dict::Dict)::Nothing
+function include_event_parameters_in_model!(model_SBML::ModelSBML)::Nothing
 
     # Sometimes parameter can be non-constant, but still have a constant rhs and they change value
     # because of event assignments. This must be captured by setting the parameter to have a zero 
     # derivative so it is not simplified away later.
-    for (parameter_id, parameter) in model_dict["parameters"]
+    for (parameter_id, parameter) in model_SBML.parameters
 
         if parameter.algebraic_rule == true || parameter.rate_rule == true || parameter.constant == true
             continue
@@ -48,7 +48,7 @@ function include_event_parameters_in_model!(model_dict::Dict)::Nothing
         parameter.formula = "0.0"
     end
     # Similar holds for compartments 
-    for (compartment_id, compartment) in model_dict["compartments"]
+    for (compartment_id, compartment) in model_SBML.compartments
 
         if compartment.algebraic_rule == true || compartment.rate_rule == true || compartment.constant == true
             continue

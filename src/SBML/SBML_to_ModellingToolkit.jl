@@ -1,181 +1,193 @@
-"""
-    SBML_to_ModellingToolkit(path_SBML::String, model_name::String, dir_model::String)
+function SBML_to_ODESystem(path_SBML::String, 
+                           path_save_model::String, 
+                           model_name::AbstractString; 
+                           ifelse_to_event::Bool=true, 
+                           write_to_file::Bool=true)::String
 
-Convert a SBML file in path_SBML to a Julia ModelingToolkit file and store
-the resulting file in dir_model with name model_name.jl.
+
+    model_SBML = build_SBML_model(path_SBML; ifelse_to_event=ifelse_to_event)                                
+    model_str = odesystem_from_SBML(model_SBML, path_save_model, model_name, write_to_file)
+
+    return model_str
+end
+
+
+
 """
-function SBML_to_ModellingToolkit(path_SBML::String, path_jl_file::String, model_name::AbstractString; only_extract_model_dict::Bool=false,
-                                  ifelse_to_event::Bool=true, write_to_file::Bool=true)
+    build_SBML_model(libsbml_model::SBML.Model; ifelse_to_event::Bool=true)::ModelSBML
+    
+From a libsml SBML model (from readSBML) build an intermediate SBML model struct.
+
+The SBML model struct stores the information needed to create a ODESystem or ReactionSystem
+
+Rewriting ifelse to Boolean callbacks is strongly recomended if possible.
+"""
+function build_SBML_model(libsbml_model::SBML.Model; ifelse_to_event::Bool=true)::ModelSBML
+    return _build_SBML_model(libsbml_model, ifelse_to_event)
+end
+"""
+    build_SBML_model(libsbml_model::SBML.Model; ifelse_to_event::Bool=true)::ModelSBML
+    
+Given the path to a SBML file build an intermediate SBML model struct.
+"""
+function build_SBML_model(path_SBML::String; ifelse_to_event::Bool=true)::ModelSBML
 
     f = open(path_SBML, "r")
     text = read(f, String)
     close(f)
-
     # If stoichiometryMath occurs we need to convert the SBML file to a level 3 file
     # to properly handle the latter
     if occursin("stoichiometryMath", text) == false
-        model_SBML = readSBML(path_SBML)
+        libsbml_model = readSBML(path_SBML)
     else
-        model_SBML = readSBML(path_SBML, doc -> begin
+        libsbml_model = readSBML(path_SBML, doc -> begin
                             set_level_and_version(3, 2)(doc)
                             convert_promotelocals_expandfuns(doc)
                             end)
     end
 
-    model_dict = build_model_dict(model_SBML, ifelse_to_event)
-
-    if only_extract_model_dict == false
-        model_str = create_ode_model(model_dict, path_jl_file, model_name, write_to_file)
-        return model_dict, model_str
-    end
-
-    return model_dict, ""
+    return _build_SBML_model(libsbml_model, ifelse_to_event)
 end
 
 
-function build_model_dict(model_SBML, ifelse_to_event::Bool)
 
-    # Nested dictionaries to act as intermedidate struct to store relevent
-    # model data
-    model_dict = Dict("species" => Dict{String, SpecieSBML}(),
-                      "parameters" => Dict{String, ParameterSBML}(),
-                      "compartments" => Dict{String, CompartmentSBML}(),
-                      "SBML_functions" => Dict{String, Vector{String}}(),
-                      "ifelse_parameters" => Dict(),
-                      "events" => Dict{String, EventSBML}(),
-                      "reactions" => Dict{String, ReactionSBML}(),
-                      "algebraic_rules" => Dict{String, String}(),
-                      "generated_ids" => Dict{String, String}(),
-                      "piecewise_expressions" => Dict{String, String}(),
-                      "ifelse_bool_expressions" => Dict{String, String}(),
-                      "rate_rule_variables" => String[],
-                      "appear_in_reactions" => String[],
-                      "has_piecewise" => String[])
+function _build_SBML_model(libsbml_model::SBML.Model, ifelse_to_event::Bool)::ModelSBML
 
-    parse_SBML_species!(model_dict, model_SBML)
+    # An intermedidate struct storing relevant model informaiton needed for 
+    # formulating an ODESystem and callback functions 
+    model_SBML = ModelSBML(Dict{String, SpecieSBML}(),
+                           Dict{String, ParameterSBML}(),
+                           Dict{String, CompartmentSBML}(),
+                           Dict{String, EventSBML}(),
+                           Dict{String, ReactionSBML}(),
+                           Dict{String, Vector{String}}(), # SBML reactions
+                           Dict{String, String}(), # Algebraic rules
+                           Dict{String, String}(), # Generated id:s
+                           Dict{String, String}(), # Piecewise to ifelse_expressions
+                           Dict{String, String}(), # Ifelse to bool expression
+                           Dict{String, Vector{String}}(), # Ifelse parameters
+                           Vector{String}(undef, 0), # Rate rule variables
+                           Vector{String}(undef, 0), # Species_appearing in reactions
+                           Vector{String}(undef, 0)) # Variables with piecewise
 
-    parse_SBML_parameters!(model_dict, model_SBML)
+    parse_SBML_species!(model_SBML, libsbml_model)
 
-    parse_SBML_compartments!(model_dict, model_SBML)
+    parse_SBML_parameters!(model_SBML, libsbml_model)
 
-    parse_SBML_functions!(model_dict, model_SBML)
+    parse_SBML_compartments!(model_SBML, libsbml_model)
 
-    parse_SBML_rules!(model_dict, model_SBML)
+    parse_SBML_functions!(model_SBML, libsbml_model)
 
-    parse_SBML_events!(model_dict, model_SBML)
+    parse_SBML_rules!(model_SBML, libsbml_model)
+
+    parse_SBML_events!(model_SBML, libsbml_model)
 
     # Positioned after rules since some assignments may include functions
-    parse_initial_assignments!(model_dict, model_SBML)
+    parse_SBML_initial_assignments!(model_SBML, libsbml_model)
 
-    parse_SBML_reactions!(model_dict, model_SBML)
+    parse_SBML_reactions!(model_SBML, libsbml_model)
 
     # Given the SBML standard reaction id can sometimes appear in the reaction
     # formulas, here the correpsonding id is overwritten with a math expression
-    replace_reactionid!(model_dict)
+    replace_reactionid!(model_SBML)
 
     # Rewrite any time-dependent ifelse to boolean statements such that we can express these as events.
     # This is recomended, as it often increases the stabillity when solving the ODE, and decreases run-time
     if ifelse_to_event == true
-        time_dependent_ifelse_to_bool!(model_dict)
+        time_dependent_ifelse_to_bool!(model_SBML)
     end
 
-    identify_algebraic_rule_variables!(model_dict)
+    identify_algebraic_rule_variables!(model_SBML)
 
-    adjust_conversion_factor!(model_dict, model_SBML)
+    adjust_conversion_factor!(model_SBML, libsbml_model)
 
     # SBML allows inconstant compartment size, this must be adjusted if a specie is given in concentration
-    # Must be after conversion factor, as the latter must be correctly handlded in the transformation
-    adjust_for_dynamic_compartment!(model_dict)
+    # Must be after conversion factor, as the latter must be correctly handled in the transformation
+    adjust_for_dynamic_compartment!(model_SBML)
 
     # Ensure that event participating parameters and compartments are not simplfied away when calling
     # structurally_simplify
-    include_event_parameters_in_model!(model_dict)
+    include_event_parameters_in_model!(model_SBML)
 
     # Per level3 rateOf can appear in any formula, and should be replaced with corresponding rate
-    replace_rateOf!(model_dict)
+    replace_rateOf!(model_SBML)
 
-    return model_dict
+    return model_SBML
 end
 
 
-"""
-    create_ode_model(model_dict, path_jl_file, model_name, juliaFile, write_to_file::Bool)
+function odesystem_from_SBML(model_SBML::ModelSBML, 
+                             path_save_model::String, 
+                             model_name::String, 
+                             write_to_file::Bool)::String
 
-Takes a model_dict as defined by build_model_dict
-and creates a Julia ModelingToolkit file and stores
-the resulting file in dir_model with name model_name.jl.
-"""
-function create_ode_model(model_dict, path_jl_file, model_name, write_to_file::Bool)
-
-    dict_model_str = Dict()
-    dict_model_str["variables"] = "\tModelingToolkit.@variables t "
-    dict_model_str["species"] = "\tspecies = ["
-    dict_model_str["parameters_sym"] = "\tModelingToolkit.@parameters "
-    dict_model_str["algebraicVariables"] = ""
-    dict_model_str["parameters"] = "\tparameters = ["
-    dict_model_str["eqs"] = "\teqs = [\n"
-    dict_model_str["ODESystem"] = "\t@named sys = ODESystem(eqs, t, species, parameters)"
-    dict_model_str["specie_map"] = "\tspecie_map = [\n"
-    dict_model_str["parameter_map"] = "\tparameter_map = [\n"
+    _variables_write = "\tModelingToolkit.@variables t "
+    _species_write = "\tspecies = ["
+    _parameters_symbolic_write = "\tModelingToolkit.@parameters "
+    _parameters_write = "\tparameters = ["
+    _eqs_write = "\teqs = [\n"
+    _ODESystem_write = "\t@named sys = ODESystem(eqs, t, species, parameters)"
+    _specie_map_write = "\tspecie_map = [\n"
+    _parameter_map_write = "\tparameter_map = [\n"
 
     # Check if model is empty of derivatives if the case add dummy state to be able to
     # simulate the model
-    if ((isempty(model_dict["species"]) || sum([!s.assignment_rule for s in values(model_dict["species"])]) == 0) &&
-        (isempty(model_dict["parameters"]) || sum([p.rate_rule for p in values(model_dict["parameters"])]) == 0) &&
-        (isempty(model_dict["compartments"]) || sum([c.rate_rule for c in values(model_dict["compartments"])]) == 0))
+    if ((isempty(model_SBML.species) || sum([!s.assignment_rule for s in values(model_SBML.species)]) == 0) &&
+        (isempty(model_SBML.parameters) || sum([p.rate_rule for p in values(model_SBML.parameters)]) == 0) &&
+        (isempty(model_SBML.compartments) || sum([c.rate_rule for c in values(model_SBML.compartments)]) == 0))
 
-        model_dict["species"]["foo"] = SpecieSBML("foo", false, false, "1.0", "0.0", "1.0", "", :Amount,
+        model_SBML.species["foo"] = SpecieSBML("foo", false, false, "1.0", "0.0", "1.0", "", :Amount,
                                                   false, false, false, false)
     end
 
-    for specie_id in keys(model_dict["species"])
-        dict_model_str["variables"] *= specie_id * "(t) "
-        dict_model_str["species"] *= specie_id * ", "
+    for specie_id in keys(model_SBML.species)
+        _variables_write *= specie_id * "(t) "
+        _species_write *= specie_id * ", "
     end
-    for (parameter_id, parameter) in model_dict["parameters"]
+    for (parameter_id, parameter) in model_SBML.parameters
         if parameter.constant == true
             continue
         end
-        dict_model_str["variables"] *= parameter_id * "(t) "
-        dict_model_str["species"] *= parameter_id * ", "
+        _variables_write *= parameter_id * "(t) "
+        _species_write *= parameter_id * ", "
     end
-    for (compartment_id, compartment) in model_dict["compartments"]
+    for (compartment_id, compartment) in model_SBML.compartments
         if compartment.constant == true
             continue
         end
-        dict_model_str["variables"] *= compartment_id * "(t) "
-        dict_model_str["species"] *= compartment_id * ", "
+        _variables_write *= compartment_id * "(t) "
+        _species_write *= compartment_id * ", "
     end
-    dict_model_str["species"] = dict_model_str["species"][1:end-2] * "]" # Ensure correct valid syntax
+    _species_write = _species_write[1:end-2] * "]" # Ensure correct valid syntax
 
-    for (parameter_id, parameter) in model_dict["parameters"]
+    for (parameter_id, parameter) in model_SBML.parameters
         if parameter.constant == false
             continue
         end
-        dict_model_str["parameters_sym"] *= parameter_id * " "
-        dict_model_str["parameters"] *= parameter_id * ", "
+        _parameters_symbolic_write *= parameter_id * " "
+        _parameters_write *= parameter_id * ", "
     end
-    for (compartment_id, compartment) in model_dict["compartments"]
+    for (compartment_id, compartment) in model_SBML.compartments
         if compartment.constant == false
             continue
         end
-        dict_model_str["parameters_sym"] *= compartment_id * " "
-        dict_model_str["parameters"] *= compartment_id * ", "
+        _parameters_symbolic_write *= compartment_id * " "
+        _parameters_write *= compartment_id * ", "
     end
 
     # Special case where we do not have any parameters
-    if length(dict_model_str["parameters_sym"]) == 29
-        dict_model_str["parameters_sym"] = ""
-        dict_model_str["parameters"] *= "]"
+    if length(_parameters_symbolic_write) == 29
+        _parameters_symbolic_write = ""
+        _parameters_write *= "]"
     else
-        dict_model_str["parameters"] = dict_model_str["parameters"][1:end-2] * "]"
+        _parameters_write = _parameters_write[1:end-2] * "]"
     end
 
     #=
         Build the model equations
     =#
     # Species
-    for (specie_id, specie) in model_dict["species"]
+    for (specie_id, specie) in model_SBML.species
 
         if specie.algebraic_rule == true
             continue
@@ -187,10 +199,10 @@ function create_ode_model(model_dict, path_jl_file, model_name, write_to_file::B
         else
             eq = "D(" * specie_id * ") ~ " * formula
         end
-        dict_model_str["eqs"] *= "\t" * eq * ",\n"
+        _eqs_write *= "\t" * eq * ",\n"
     end
     # Parameters
-    for (parameter_id, parameter) in model_dict["parameters"]
+    for (parameter_id, parameter) in model_SBML.parameters
 
         if parameter.constant == true || parameter.algebraic_rule == true
             continue
@@ -201,10 +213,10 @@ function create_ode_model(model_dict, path_jl_file, model_name, write_to_file::B
         else
             eq = "D(" * parameter_id * ") ~ " * parameter.formula
         end
-        dict_model_str["eqs"] *= "\t" * eq * ",\n"
+        _eqs_write *= "\t" * eq * ",\n"
     end
     # Compartments
-    for (compartment_id, compartment) in model_dict["compartments"]
+    for (compartment_id, compartment) in model_SBML.compartments
 
         if compartment.constant == true || compartment.algebraic_rule == true
             continue
@@ -215,58 +227,58 @@ function create_ode_model(model_dict, path_jl_file, model_name, write_to_file::B
         else
             eq = "D(" * compartment_id * ") ~ " * compartment.formula
         end
-        dict_model_str["eqs"] *= "\t" * eq * ",\n"
+        _eqs_write *= "\t" * eq * ",\n"
     end
     # Algebraic rules
-    for rule_formula in values(model_dict["algebraic_rules"])
-        dict_model_str["eqs"] *= "\t" * rule_formula * ",\n"
+    for rule_formula in values(model_SBML.algebraic_rules)
+        _eqs_write *= "\t" * rule_formula * ",\n"
     end
-    dict_model_str["eqs"] *= "\t]"
+    _eqs_write *= "\t]"
 
     #=
         Build the initial value map
     =#
     # Species
-    for (specie_id, specie) in model_dict["species"]
+    for (specie_id, specie) in model_SBML.species
         u0eq = specie.initial_value
-        dict_model_str["specie_map"] *= "\t" * specie_id * " =>" * u0eq * ",\n"
+        _specie_map_write *= "\t" * specie_id * " =>" * u0eq * ",\n"
     end
     # Parameters
-    for (parameter_id, parameter) in model_dict["parameters"]
+    for (parameter_id, parameter) in model_SBML.parameters
         if !(parameter.rate_rule == true || parameter.assignment_rule == true)
             continue
         end
         u0eq = parameter.initial_value
-        dict_model_str["specie_map"] *= "\t" * parameter_id * " => " * u0eq * ",\n"
+        _specie_map_write *= "\t" * parameter_id * " => " * u0eq * ",\n"
     end
     # Compartments
-    for (compartment_id, compartment) in model_dict["compartments"]
+    for (compartment_id, compartment) in model_SBML.compartments
         if compartment.rate_rule != true
             continue
         end
         u0eq = compartment.initial_value
-        dict_model_str["specie_map"] *= "\t" * compartment_id * " => " * u0eq * ",\n"
+        _specie_map_write *= "\t" * compartment_id * " => " * u0eq * ",\n"
     end
-    dict_model_str["specie_map"] *= "\t]"
+    _specie_map_write *= "\t]"
 
     #=
         Build the parameter map
     =#
-    for (parameter_id, parameter) in model_dict["parameters"]
+    for (parameter_id, parameter) in model_SBML.parameters
         if parameter.constant == false
             continue
         end
         peq = parameter.formula
-        dict_model_str["parameter_map"] *= "\t" * parameter_id * " =>" * peq * ",\n"
+        _parameter_map_write *= "\t" * parameter_id * " =>" * peq * ",\n"
     end
-    for (compartment_id, compartment) in model_dict["compartments"]
+    for (compartment_id, compartment) in model_SBML.compartments
         if compartment.constant == false
             continue
         end
         ceq = compartment.formula
-        dict_model_str["parameter_map"] *= "\t" * compartment_id * " =>" * ceq * ",\n"
+        _parameter_map_write *= "\t" * compartment_id * " =>" * ceq * ",\n"
     end
-    dict_model_str["parameter_map"] *= "\t]"
+    _parameter_map_write *= "\t]"
 
     ### Writing to file
     model_name = replace(model_name, "-" => "_")
@@ -275,23 +287,22 @@ function create_ode_model(model_dict, path_jl_file, model_name, write_to_file::B
     println(io, "\t# Model name: " * model_name)
     println(io, "")
 
-    println(io, dict_model_str["variables"])
-    println(io, dict_model_str["algebraicVariables"])
-    println(io, dict_model_str["species"])
+    println(io, _variables_write)
+    println(io, _species_write)
     println(io, "")
-    println(io, dict_model_str["parameters_sym"])
-    println(io, dict_model_str["parameters"])
+    println(io, _parameters_symbolic_write)
+    println(io, _parameters_write)
     println(io, "")
     println(io, "    D = Differential(t)")
     println(io, "")
-    println(io, dict_model_str["eqs"])
+    println(io, _eqs_write)
     println(io, "")
-    println(io, dict_model_str["ODESystem"])
+    println(io, _ODESystem_write)
     println(io, "")
-    println(io, dict_model_str["specie_map"])
+    println(io, _specie_map_write)
     println(io, "")
     println(io, "\t# SBML file parameter values")
-    println(io, dict_model_str["parameter_map"])
+    println(io, _parameter_map_write)
     println(io, "")
     println(io, "    return sys, specie_map, parameter_map")
     println(io, "")
@@ -301,7 +312,7 @@ function create_ode_model(model_dict, path_jl_file, model_name, write_to_file::B
 
     # In case user request file to be written
     if write_to_file == true
-        open(path_jl_file, "w") do f
+        open(path_save_model, "w") do f
             write(f, model_str)
         end
     end

@@ -6,7 +6,7 @@
 
 # Handles piecewise functions that are to be redefined with ifelse speciements in the model
 # equations to allow MKT symbolic calculations.
-function piecewise_to_ifelse(rule_formula, model_dict, model_SBML)
+function piecewise_to_ifelse(rule_formula::String, model_SBML::ModelSBML, libsbml_model::SBML.Model)::String
 
     # To avoid invalid string errors 
     rule_formula = replace(rule_formula, "≤" => "<=")
@@ -18,8 +18,8 @@ function piecewise_to_ifelse(rule_formula, model_dict, model_SBML)
     for (i, piecewise_eq) in pairs(piecewise_eqs)
 
         # Do not re-processes piecewise if already has been done
-        if piecewise_eq ∈ keys(model_dict["piecewise_expressions"])
-            ifelse_eqs[i] = model_dict["piecewise_expressions"][piecewise_eq]
+        if piecewise_eq ∈ keys(model_SBML.piecewise_expressions)
+            ifelse_eqs[i] = model_SBML.piecewise_expressions[piecewise_eq]
             continue
         end
 
@@ -35,16 +35,16 @@ function piecewise_to_ifelse(rule_formula, model_dict, model_SBML)
 
         # Process inactive and active value, apply recursion if nested
         if occursin("piecewise(", values[1])
-            value_active = piecewise_to_ifelse(values[1], model_dict, model_SBML)
-            value_active = process_SBML_str_formula(value_active, model_dict, model_SBML)
+            value_active = piecewise_to_ifelse(values[1], model_SBML, libsbml_model)
+            value_active = process_SBML_str_formula(value_active, model_SBML, libsbml_model)
         else
-            value_active = process_SBML_str_formula(values[1], model_dict, model_SBML)
+            value_active = process_SBML_str_formula(values[1], model_SBML, libsbml_model)
         end
         if occursin("piecewise(", values[end])
-            value_inactive = piecewise_to_ifelse(values[end], model_dict, model_SBML)
-            value_inactive = process_SBML_str_formula(value_inactive, model_dict, model_SBML)
+            value_inactive = piecewise_to_ifelse(values[end], model_SBML, libsbml_model)
+            value_inactive = process_SBML_str_formula(value_inactive, model_SBML, libsbml_model)
         else
-            value_inactive = process_SBML_str_formula(values[end], model_dict, model_SBML)
+            value_inactive = process_SBML_str_formula(values[end], model_SBML, libsbml_model)
         end
 
         # How to formula the ifelse depends on the condition. The condition can be direct (gt, lt...), a gate
@@ -58,8 +58,8 @@ function piecewise_to_ifelse(rule_formula, model_dict, model_SBML)
 
         # Condition can be nested, in this case apply recursion
         elseif length(condition) ≥ 9 && condition[1:9] == "piecewise"
-            _condition = piecewise_to_ifelse(condition, model_dict, model_SBML)
-            _condition = process_SBML_str_formula(_condition, model_dict, model_SBML)
+            _condition = piecewise_to_ifelse(condition, model_SBML, libsbml_model)
+            _condition = process_SBML_str_formula(_condition, model_SBML, libsbml_model)
             ifelse_eqs[i] = parse_piecewise_bool_condition(_condition, value_active, value_inactive)
 
         # This can happen in case piecewise appears in a function
@@ -70,7 +70,7 @@ function piecewise_to_ifelse(rule_formula, model_dict, model_SBML)
             @error "We cannot process the piecewise expression, condition = $condition"
         end
 
-        model_dict["piecewise_expressions"][piecewise_eq] = ifelse_eqs[i]
+        model_SBML.piecewise_expressions[piecewise_eq] = ifelse_eqs[i]
     end
 
     # Finally replace piecewise with ifelese
@@ -249,27 +249,27 @@ end
 =#
 
 
-function time_dependent_ifelse_to_bool!(model_dict::Dict)
+function time_dependent_ifelse_to_bool!(model_SBML::ModelSBML)
 
     # Rewrite piecewise using Boolean variables. Handles nested piecewise (or rather in this case ifelse)
     # via recursion
-    for (specie_id, specie) in model_dict["species"]
+    for (specie_id, specie) in model_SBML.species
         if !occursin("ifelse", specie.formula)
             continue
         end
-        specie.formula = _time_dependent_ifelse_to_bool(specie.formula, model_dict, specie_id)
+        specie.formula = _time_dependent_ifelse_to_bool(specie.formula, model_SBML, specie_id)
     end
-    for (parameter_id, parameter) in model_dict["parameters"]
+    for (parameter_id, parameter) in model_SBML.parameters
         if !occursin("ifelse", parameter.formula)
             continue
         end
-        parameter.formula = _time_dependent_ifelse_to_bool(parameter.formula, model_dict, parameter_id)
+        parameter.formula = _time_dependent_ifelse_to_bool(parameter.formula, model_SBML, parameter_id)
     end
 
 end
 
 
-function _time_dependent_ifelse_to_bool(formula::String, model_dict::Dict, key::String)::String
+function _time_dependent_ifelse_to_bool(formula::String, model_SBML::ModelSBML, key::String)::String
 
     if !occursin("ifelse", formula)
         return formula
@@ -280,8 +280,8 @@ function _time_dependent_ifelse_to_bool(formula::String, model_dict::Dict, key::
     for i in eachindex(indices_ifelse)
 
         ifelse_eq = formula[indices_ifelse[i]]
-        if ifelse_eq ∈ keys(model_dict["ifelse_bool_expressions"])
-            formula_ret = replace(formula_ret, ifelse_eq => model_dict["ifelse_bool_expressions"][ifelse_eq])
+        if ifelse_eq ∈ keys(model_SBML.ifelse_bool_expressions)
+            formula_ret = replace(formula_ret, ifelse_eq => model_SBML.ifelse_bool_expressions[ifelse_eq])
         end
 
         rewrite_ifelse = true
@@ -334,8 +334,8 @@ function _time_dependent_ifelse_to_bool(formula::String, model_dict::Dict, key::
         end
 
         # In case of nested ifelse rewrite left-hand and right-hand side of ifelse
-        left_side = _time_dependent_ifelse_to_bool(left_side, model_dict, key)
-        right_side = _time_dependent_ifelse_to_bool(right_side, model_dict, key)
+        left_side = _time_dependent_ifelse_to_bool(left_side, model_SBML, key)
+        right_side = _time_dependent_ifelse_to_bool(right_side, model_SBML, key)
 
         if rewrite_ifelse == false
             continue
@@ -345,7 +345,7 @@ function _time_dependent_ifelse_to_bool(formula::String, model_dict::Dict, key::
         local j = 1
         while true
             parameter_name = "__parameter_ifelse" * string(j)
-            if parameter_name ∉ keys(model_dict["ifelse_parameters"])
+            if parameter_name ∉ keys(model_SBML.ifelse_parameters)
                 break
             end
             j += 1
@@ -356,14 +356,14 @@ function _time_dependent_ifelse_to_bool(formula::String, model_dict::Dict, key::
         activated_with_time = side_activated_with_time == "left" ? left_side : right_side
         deactivated_with_time = side_activated_with_time == "left" ? right_side : left_side
         _formula = "((1 - " * parameter_name * ")*" * "(" * deactivated_with_time *") + " * parameter_name * "*(" * activated_with_time * "))"
-        model_dict["parameters"][parameter_name] = ParameterSBML(parameter_name, true, "0.0", "", false, false, false)
+        model_SBML.parameters[parameter_name] = ParameterSBML(parameter_name, true, "0.0", "", false, false, false)
         formula_ret = replace(formula_ret, formula[indices_ifelse[i]] => _formula)
 
         # Store ifelse parameters to later handle them correctly in model Callbacks
-        model_dict["ifelse_parameters"][parameter_name] = [condition, side_activated_with_time]
+        model_SBML.ifelse_parameters[parameter_name] = [condition, side_activated_with_time]
 
         # Store ifelse syntax to avoid recomputing it
-        model_dict["ifelse_bool_expressions"][ifelse_eq] = _formula
+        model_SBML.ifelse_bool_expressions[ifelse_eq] = _formula
     end
 
     return formula_ret

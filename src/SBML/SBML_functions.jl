@@ -1,6 +1,6 @@
-function parse_SBML_functions!(model_dict::Dict, model_SBML::SBML.Model)::Nothing
+function parse_SBML_functions!(model_SBML::ModelSBML, libsbml_model::SBML.Model)::Nothing
     
-    for (function_name, SBML_function) in model_SBML.function_definitions
+    for (function_name, SBML_function) in libsbml_model.function_definitions
         
         if isnothing(SBML_function.body)
             continue
@@ -8,7 +8,7 @@ function parse_SBML_functions!(model_dict::Dict, model_SBML::SBML.Model)::Nothin
         
         args = get_SBML_function_args(SBML_function)
         function_formula = parse_SBML_math(SBML_function.body.body, true)
-        model_dict["SBML_functions"][function_name] = [args, function_formula]
+        model_SBML.functions[function_name] = [args, function_formula]
     end
     return nothing
 end

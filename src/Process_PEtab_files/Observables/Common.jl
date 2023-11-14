@@ -243,14 +243,14 @@ end
 
 
 """
-    replace_explicit_variable_rule(formula::String, SBML_dict::Dict)::String
+    replace_explicit_variable_rule(formula::String, model_SBML::ModelSBML)::String
 
 Replace the explicit rule variable with the explicit rule
 """
-function replace_explicit_variable_rule(formula::String, SBML_dict::Dict)::String
+function replace_explicit_variable_rule(formula::String, model_SBML::ModelSBML)::String
     _formula = deepcopy(formula)
     while true
-        for (specie_id, specie) in SBML_dict["species"]
+        for (specie_id, specie) in model_SBML.species
             if specie.assignment_rule == false
                 continue
             end
@@ -260,10 +260,10 @@ function replace_explicit_variable_rule(formula::String, SBML_dict::Dict)::Strin
         formula = deepcopy(_formula)
     end
     while true
-        if "parameters" ∉ keys(SBML_dict)
+        if isempty(model_SBML.parameters)
             break
         end
-        for (parameter_id, parameter) in SBML_dict["parameters"]
+        for (parameter_id, parameter) in model_SBML.parameters
             if parameter.assignment_rule == false
                 continue
             end

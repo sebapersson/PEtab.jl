@@ -1,15 +1,15 @@
-function parse_SBML_events!(model_dict::Dict, model_SBML::SBML.Model)::Nothing
+function parse_SBML_events!(model_SBML::ModelSBML, libsbml_model::SBML.Model)::Nothing
 
     event_index = 1
-    for (event_name, event) in model_SBML.events
+    for (event_name, event) in libsbml_model.events
 
         # Parse the event trigger into proper Julia syntax
         formula_trigger = parse_SBML_math(event.trigger.math)
-        formula_trigger = SBML_function_to_math(formula_trigger, model_dict["SBML_functions"])
+        formula_trigger = SBML_function_to_math(formula_trigger, model_SBML.functions)
         if isempty(formula_trigger)
             continue
         end
-        formula_trigger = parse_event_trigger(formula_trigger, model_dict, model_SBML)
+        formula_trigger = parse_event_trigger(formula_trigger, model_SBML, libsbml_model)
 
         # Parse assignments and assignment formulas 
         event_formulas::Vector{String} = Vector{String}(undef, length(event.event_assignments))
@@ -28,33 +28,33 @@ function parse_SBML_events!(model_dict::Dict, model_SBML::SBML.Model)::Nothing
             # Parse the event formula into the correct Julia syntax 
             event_formulas[i] = parse_SBML_math(event_assignment.math)
             event_formulas[i] = replace_variable(event_formulas[i], "t", "integrator.t")
-            event_formulas[i] = replace_reactionid_formula(event_formulas[i], model_SBML)
-            event_formulas[i] = process_SBML_str_formula(event_formulas[i], model_dict, model_SBML; check_scaling=false)
+            event_formulas[i] = replace_reactionid_formula(event_formulas[i], libsbml_model)
+            event_formulas[i] = process_SBML_str_formula(event_formulas[i], model_SBML, libsbml_model; check_scaling=false)
             
             # Formulas are given in concentration, but species can also be given in amounts. Thus, we must 
             # adjust for compartment for the latter
-            if event_assignments[i] ∈ keys(model_dict["species"])
-                if model_dict["species"][event_assignments[i]].unit == :Concentration
+            if event_assignments[i] ∈ keys(model_SBML.species)
+                if model_SBML.species[event_assignments[i]].unit == :Concentration
                     continue
                 end
                 # If the compartment is an assignment rule it will become simplifed away in later 
                 # stages, thus we need to unnest in this case
-                compartment = model_dict["compartments"][model_dict["species"][event_assignments[i]].compartment]
+                compartment = model_SBML.compartments[model_SBML.species[event_assignments[i]].compartment]
                 compartment_formula = compartment.assignment_rule == true ? compartment.formula : compartment.name
                 event_formulas[i] = compartment_formula *  " * (" * event_formulas[i] * ')'
                 continue
             end
-            if event_assignments[i] ∈ keys(model_SBML.parameters)  
+            if event_assignments[i] ∈ keys(libsbml_model.parameters)  
                 continue
             end
-            if event_assignments[i] ∈ keys(model_SBML.compartments) && model_dict["compartments"][event_assignments[i]].constant == false
+            if event_assignments[i] ∈ keys(libsbml_model.compartments) && model_SBML.compartments[event_assignments[i]].constant == false
                 continue
             end
 
-            model_dict["species"][event_assignments[i]] = SpecieSBML(event_assignments[i], false, false, "1.0", 
-                                                                     "", 
-                                                                     collect(keys(model_SBML.compartments))[1], "", :Amount, 
-                                                                     false, false, false, false)
+            model_SBML.species[event_assignments[i]] = SpecieSBML(event_assignments[i], false, false, "1.0", 
+                                                                  "", 
+                                                                  collect(keys(libsbml_model.compartments))[1], "", :Amount, 
+                                                                  false, false, false, false)
         end
 
         #=
@@ -62,11 +62,11 @@ function parse_SBML_events!(model_dict::Dict, model_SBML::SBML.Model)::Nothing
             compartment must be adjusted via;
             conc_new = conc_old * V_old / V_new
         =#
-        adjust_event_compartment_change!!!(event_formulas, event_assignments, not_skip_assignments, model_dict)
+        adjust_event_compartment_change!!!(event_formulas, event_assignments, not_skip_assignments, model_SBML)
 
         # In case the compartment is given via an assignment rule to ensure nothing is simplified away and cannot 
         # be retreived from the integrator interface in the callback replace the compartment with its corresponding formula 
-        for (compartment_id, compartment) in model_dict["compartments"]
+        for (compartment_id, compartment) in model_SBML.compartments
             if compartment.assignment_rule == false
                 continue
             end
@@ -78,7 +78,7 @@ function parse_SBML_events!(model_dict::Dict, model_SBML::SBML.Model)::Nothing
 
         event_name = isnothing(event_name) || isempty(event_name) ? "event" * string(event_index) : event_name
         formulas = event_assignments[not_skip_assignments] .* " = " .* event_formulas[not_skip_assignments]
-        model_dict["events"][event_name] = EventSBML(event_name, formula_trigger, formulas, event.trigger.initial_value)
+        model_SBML.events[event_name] = EventSBML(event_name, formula_trigger, formulas, event.trigger.initial_value)
         event_index += 1
     end
 
@@ -90,13 +90,13 @@ end
 function adjust_event_compartment_change!!!(event_formulas::Vector{String},
                                             event_assignments::Vector{String}, 
                                             not_skip_assignments::Vector{Bool},
-                                            model_dict::Dict)::Nothing
+                                            model_SBML::ModelSBML)::Nothing
 
     event_assignments_cp = deepcopy(event_assignments)
-    if isempty(model_dict["compartments"])
+    if isempty(model_SBML.compartments)
         return nothing
     end
-    if !any(occursin.(event_assignments_cp[not_skip_assignments], keys(model_dict["compartments"])))
+    if !any(occursin.(event_assignments_cp[not_skip_assignments], keys(model_SBML.compartments)))
         return nothing
     end
 
@@ -104,12 +104,12 @@ function adjust_event_compartment_change!!!(event_formulas::Vector{String},
 
         # Only potentiallt adjust species if a compartment is assigned to in the 
         # event
-        if assign_to ∉ keys(model_dict["compartments"])
+        if assign_to ∉ keys(model_SBML.compartments)
             continue
         end
 
         # Check if a specie given in concentration is being assigned 
-        for (specie_id, specie) in model_dict["species"]
+        for (specie_id, specie) in model_SBML.species
             if specie.compartment != assign_to
                 continue
             end
@@ -137,15 +137,15 @@ end
 
 
 # Rewrites triggers in events to the correct Julia syntax
-function parse_event_trigger(formula_trigger::T, model_dict::Dict, model_SBML::SBML.Model)::T where T<:AbstractString
+function parse_event_trigger(formula_trigger::T, model_SBML::ModelSBML, libsbml_model::SBML.Model)::T where T<:AbstractString
 
     # Stay consistent with t as time :)
     formula_trigger = replace_variable(formula_trigger, "time", "t")
-    formula_trigger = process_SBML_str_formula(formula_trigger, model_dict, model_SBML)
+    formula_trigger = process_SBML_str_formula(formula_trigger, model_SBML, libsbml_model)
     
     # SBML equations are given in conc, need to adapt scale state if said state is given in amounts, 
     # rateOf expressions are handled later
-    for (specie_id, specie) in model_dict["species"]
+    for (specie_id, specie) in model_SBML.species
         if specie.unit == :Concentration
             continue
         end
@@ -158,7 +158,7 @@ function parse_event_trigger(formula_trigger::T, model_dict::Dict, model_SBML::S
 
         # If the compartment is an assignment rule it will become simplifed away in later 
         # stages, thus we need to unnest in this case
-        compartment = model_dict["compartments"][specie.compartment]
+        compartment = model_SBML.compartments[specie.compartment]
         compartment_formula = compartment.assignment_rule == true ? compartment.formula : compartment.name
         formula_trigger = replace_variable(formula_trigger, specie_id, specie_id * '/' * compartment_formula)
     end
@@ -197,8 +197,8 @@ function parse_event_trigger(formula_trigger::T, model_dict::Dict, model_SBML::S
     parts = split_between(_formula_trigger, ',')
 
     # Account for potential reaction-math kinetics making out the trigger 
-    parts[1] = replace_reactionid_formula(parts[1], model_SBML)
-    parts[2] = replace_reactionid_formula(parts[2], model_SBML)
+    parts[1] = replace_reactionid_formula(parts[1], libsbml_model)
+    parts[2] = replace_reactionid_formula(parts[2], libsbml_model)
 
     return "(" * parts[1] * ") " * separator * " (" * parts[2] * ")"
 end

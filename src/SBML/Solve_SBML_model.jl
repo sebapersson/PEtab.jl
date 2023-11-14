@@ -13,6 +13,7 @@ The Julia model files are saved in the same directory as the SBML file, in a sub
 function solve_SBML(path_SBML, solver, tspan; abstol=1e-8, reltol=1e-8, saveat::Vector{Float64}=Float64[], verbose::Bool=true)
 
     @assert isfile(path_SBML) "SBML file does not exist"
+    model_SBML = build_SBML_model(path_SBML, ifelse_to_event=true)
 
     verbose && @info "Building ODE system for file at $path_SBML"
     model_name = splitdir(path_SBML)[2][1:end-4]
@@ -21,12 +22,11 @@ function solve_SBML(path_SBML, solver, tspan; abstol=1e-8, reltol=1e-8, saveat::
         mkdir(dir_save)
     end
     pathODE = joinpath(dir_save, "ODE_" * model_name * ".jl")
-    SBML_dict, _ = SBML_to_ModellingToolkit(path_SBML, pathODE, model_name, ifelse_to_event=true)
 
     verbose && @info "Symbolically processing system"
     _get_ode_system = @RuntimeGeneratedFunction(Meta.parse(get_function_str(pathODE, 1)[1]))
     _ode_system, state_map, parameter_map = _get_ode_system("https://xkcd.com/303/") # Argument needed by @RuntimeGeneratedFunction
-    if isempty(SBML_dict["algebraic_rules"])
+    if isempty(model_SBML.algebraic_rules)
         ode_system = structural_simplify(_ode_system)
     # DAE requires special processing
     else
@@ -42,32 +42,32 @@ function solve_SBML(path_SBML, solver, tspan; abstol=1e-8, reltol=1e-8, saveat::
 
     # In case we do not have any events
     verbose && @info "Building callbacks"
-    if isempty(SBML_dict["ifelse_parameters"]) && isempty(SBML_dict["events"])
+    if isempty(model_SBML.ifelse_parameters) && isempty(model_SBML.events)
         callback_names = ""
         check_activated_t0_names = ""
         write_tstops_str *= "\t return Float64[]\nend\n"
     else
         model_state_names = isempty(model_state_names) ? String[] : model_state_names
-        for key in keys(SBML_dict["ifelse_parameters"])
-            function_str, callback_str =  create_callback_ifelse(key, SBML_dict, p_ode_problem_names, string.(model_state_names))
+        for key in keys(model_SBML.ifelse_parameters)
+            function_str, callback_str =  create_callback_ifelse(key, model_SBML, p_ode_problem_names, string.(model_state_names))
             write_callbacks_str *= function_str * "\n"
             write_callbacks_str *= callback_str * "\n"
         end
-        for key in keys(SBML_dict["events"])
-            function_str, callback_str = create_callback_SBML_event(key, SBML_dict, p_ode_problem_names, string.(model_state_names))
+        for key in keys(model_SBML.events)
+            function_str, callback_str = create_callback_SBML_event(key, model_SBML, p_ode_problem_names, string.(model_state_names))
             write_callbacks_str *= function_str * "\n"
             write_callbacks_str *= callback_str * "\n"
         end
 
-        _callback_names = vcat([key for key in keys(SBML_dict["ifelse_parameters"])], [key for key in keys(SBML_dict["events"])])
+        _callback_names = vcat([key for key in keys(model_SBML.ifelse_parameters)], [key for key in keys(model_SBML.events)])
         callback_names = prod(["cb_" * name * ", " for name in _callback_names])[1:end-2]
         # Only relevant for picewise expressions 
-        if !isempty(SBML_dict["ifelse_parameters"])
-            check_activated_t0_names = prod(["is_active_t0_" * key * "!, " for key in keys(SBML_dict["ifelse_parameters"])])[1:end-2]
+        if !isempty(model_SBML.ifelse_parameters)
+            check_activated_t0_names = prod(["is_active_t0_" * key * "!, " for key in keys(model_SBML.ifelse_parameters)])[1:end-2]
         else
             check_activated_t0_names = ""
         end
-        _write_tstops_str, convert_tspan = create_tstops_function(SBML_dict, model_state_names, p_ode_problem_names, nothing)
+        _write_tstops_str, convert_tspan = create_tstops_function(model_SBML, model_state_names, p_ode_problem_names, nothing)
         write_tstops_str *= "\treturn" * _write_tstops_str * "\n" * "end" * "\n"
     end
     convert_tspan = false

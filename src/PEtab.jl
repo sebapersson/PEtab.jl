@@ -28,6 +28,7 @@ using SpecialFunctions
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
 include("PEtab_structs.jl")
+include(joinpath("SBML", "Structs.jl"))
 
 include("Common.jl")
 
@@ -77,7 +78,6 @@ include("Create_PEtab_model.jl")
 include(joinpath("Process_PEtab_files", "Julia_tables_provided", "Create_PEtab_model.jl"))
 
 # Importing SBML models
-include(joinpath("SBML", "Structs.jl"))
 include(joinpath("SBML", "SBML_to_ModellingToolkit.jl"))
 include(joinpath("SBML", "SBML_parameters.jl"))
 include(joinpath("SBML", "SBML_species.jl"))
@@ -97,6 +97,7 @@ include(joinpath("Utility.jl"))
 # For correct struct printing
 include(joinpath("Show.jl"))
 
+#=
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem
 @setup_workload begin
     path_yaml = joinpath(@__DIR__, "..", "test", "Test_model3", "Test_model3.yaml")
@@ -106,6 +107,7 @@ include(joinpath("Show.jl"))
         petab_problem.compute_cost(petab_problem.θ_nominalT)
     end
 end
+=#
 
 export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel, PEtabODEProblem, remake_PEtab_problem, Fides, solve_SBML, PEtabOptimisationResult, IpoptOptions, IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult, generate_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, PEtabEvent
 
