@@ -1,87 +1,4 @@
 """
-    PEtabModel
-
-A Julia-compatible representation of a PEtab-specified problem.
-
-For constructor see below.
-
-!!! note
-    Most of the functions in `PEtabModel` are not intended to be accessed by the user. For example, `compute_h` 
-    (and similar functions) require indices that are built in the background to efficiently map parameters between 
-    experimental (simulation) conditions. Rather, `PEtabModel` holds all information needed to create a 
-    `PEtabODEProblem`, and in the future, `PEtabSDEProblem`, etc.
-
-# Fields
-- `model_name`: The model name extracted from the PEtab YAML file.
-- `compute_h`: Computes the observable `h` for a specific time point and simulation condition.
-- `compute_u0!`: Computes in-place initial values using `ODEProblem.p` for a simulation condition; `compute_u0!(u0, p)`.
-- `compute_u0`: Computes initial values as above, but not in-place; `u0 = compute_u0(p)`.
-- `compute_σ`: Computes the noise parameter `σ` for a specific time point and simulation condition.
-- `compute_∂h∂u!`: Computes the gradient of `h` with respect to `ODEModel` states (`u`) for a specific time point and simulation condition.
-- `compute_∂σ∂u!`: Computes the gradient of `σ` with respect to `ODEModel` states (`u`) for a specific time point and simulation condition.
-- `compute_∂h∂p!`: Computes the gradient of `h` with respect to `ODEProblem.p`.
-- `compute_∂σ∂p!`: Computes the gradient of `σ` with respect to `ODEProblem.p`.
-- `compute_tstops`: Computes the event times in case the model has `DiscreteCallbacks` (events).
-- `convert_tspan::Bool`: Tracks whether the time span should be converted to `Dual` numbers for `ForwardDiff.jl` gradients, in case the model has `DiscreteCallbacks` and the trigger time is a parameter set to be estimated.
-- `dir_model`: The directory where the model.xml and PEtab files are stored.
-- `dir_julia`: The directory where the Julia-model files created by parsing the PEtab files (e.g., SBML file) are stored.
-- `ode_system`: A `ModellingToolkit.jl` ODE system obtained from parsing the model SBML file.
-- `parameter_map`: A `ModellingToolkit.jl` parameter map for the ODE system.
-- `state_map`: A `ModellingToolkit.jl` state map for the ODE system describing how the initial values are computed, e.g., whether or not certain initial values are computed from parameters in the `parameter_map`.
-- `parameter_names`: The names of the parameters in the `ode_system`.
-- `state_names`: The names of the states in the `ode_system`.
-- `path_measurements`: The path to the PEtab measurements file.
-- `path_conditions`: The path to the PEtab conditions file.
-- `path_observables`: The path to the PEtab observables file.
-- `path_parameters`: The path to the PEtab parameters file.
-- `path_SBML`: The path to the PEtab SBML file.
-- `path_yaml`: The path to the PEtab YAML file.
-- `model_callbacks`: This stores potential model callbacks or events.
-- `check_callback_is_active`: Piecewise SBML statements are transformed to DiscreteCallbacks that are activated at a specific time-point. The piecewise callback has a default value at t0 and is only triggered when reaching t_activation. If t_activation ≤ 0 (never reached when solving the model), this function checks whether the callback should be triggered before solving the model.
-"""
-struct PEtabModel{F1<:Function,
-                  F2<:Function,
-                  F3<:Function,
-                  F4<:Function,
-                  F5<:Function,
-                  F6<:Function,
-                  F7<:Function,
-                  F8<:Function,
-                  F9<:Function,
-                  C<:SciMLBase.DECallback,
-                  FA<:Vector{<:Function}, 
-                  S}
-    model_name::String
-    compute_h::F1
-    compute_u0!::F2
-    compute_u0::F3
-    compute_σ::F4
-    compute_∂h∂u!::F5
-    compute_∂σ∂u!::F6
-    compute_∂h∂p!::F7
-    compute_∂σ∂p!::F8
-    compute_tstops::F9
-    convert_tspan::Bool
-    system::S
-    parameter_map
-    state_map
-    parameter_names
-    state_names
-    dir_model::String
-    dir_julia::String
-    path_measurements::CSV.File
-    path_conditions::CSV.File
-    path_observables::CSV.File
-    path_parameters::CSV.File
-    path_SBML::String
-    path_yaml::String
-    model_callbacks::C
-    check_callback_is_active::FA
-    defined_in_julia::Bool
-end
-
-
-"""
     ODESolver(solver, <keyword arguments>)
 
 ODE-solver options (solver, tolerances, etc...) to use when computing gradient/cost for a PEtabODEProblem.
@@ -251,6 +168,119 @@ struct PriorInfo
 end
 
 
+"""
+    PEtabModel
+
+A Julia-compatible representation of a PEtab-specified problem.
+
+For constructor see below.
+
+!!! note
+    Most of the functions in `PEtabModel` are not intended to be accessed by the user. For example, `compute_h` 
+    (and similar functions) require indices that are built in the background to efficiently map parameters between 
+    experimental (simulation) conditions. Rather, `PEtabModel` holds all information needed to create a 
+    `PEtabODEProblem`, and in the future, `PEtabSDEProblem`, etc.
+
+# Fields
+- `model_name`: The model name extracted from the PEtab YAML file.
+- `compute_h`: Computes the observable `h` for a specific time point and simulation condition.
+- `compute_u0!`: Computes in-place initial values using `ODEProblem.p` for a simulation condition; `compute_u0!(u0, p)`.
+- `compute_u0`: Computes initial values as above, but not in-place; `u0 = compute_u0(p)`.
+- `compute_σ`: Computes the noise parameter `σ` for a specific time point and simulation condition.
+- `compute_∂h∂u!`: Computes the gradient of `h` with respect to `ODEModel` states (`u`) for a specific time point and simulation condition.
+- `compute_∂σ∂u!`: Computes the gradient of `σ` with respect to `ODEModel` states (`u`) for a specific time point and simulation condition.
+- `compute_∂h∂p!`: Computes the gradient of `h` with respect to `ODEProblem.p`.
+- `compute_∂σ∂p!`: Computes the gradient of `σ` with respect to `ODEProblem.p`.
+- `compute_tstops`: Computes the event times in case the model has `DiscreteCallbacks` (events).
+- `convert_tspan::Bool`: Tracks whether the time span should be converted to `Dual` numbers for `ForwardDiff.jl` gradients, in case the model has `DiscreteCallbacks` and the trigger time is a parameter set to be estimated.
+- `dir_model`: The directory where the model.xml and PEtab files are stored.
+- `dir_julia`: The directory where the Julia-model files created by parsing the PEtab files (e.g., SBML file) are stored.
+- `ode_system`: A `ModellingToolkit.jl` ODE system obtained from parsing the model SBML file.
+- `parameter_map`: A `ModellingToolkit.jl` parameter map for the ODE system.
+- `state_map`: A `ModellingToolkit.jl` state map for the ODE system describing how the initial values are computed, e.g., whether or not certain initial values are computed from parameters in the `parameter_map`.
+- `parameter_names`: The names of the parameters in the `ode_system`.
+- `state_names`: The names of the states in the `ode_system`.
+- `path_measurements`: The path to the PEtab measurements file.
+- `path_conditions`: The path to the PEtab conditions file.
+- `path_observables`: The path to the PEtab observables file.
+- `path_parameters`: The path to the PEtab parameters file.
+- `path_SBML`: The path to the PEtab SBML file.
+- `path_yaml`: The path to the PEtab YAML file.
+- `model_callbacks`: This stores potential model callbacks or events.
+- `check_callback_is_active`: Piecewise SBML statements are transformed to DiscreteCallbacks that are activated at a specific time-point. The piecewise callback has a default value at t0 and is only triggered when reaching t_activation. If t_activation ≤ 0 (never reached when solving the model), this function checks whether the callback should be triggered before solving the model.
+
+## Constructor
+
+    PEtabModel(path_yaml::String;
+               build_julia_files::Bool=false,
+               verbose::Bool=true,
+               ifelse_to_event::Bool=true,
+               write_to_file::Bool=true,
+               jlfile_path::String="")::PEtabModel
+
+Create a PEtabModel from a PEtab specified problem with a YAML-file located at `path_yaml`.
+
+When parsing a PEtab problem, several things happen under the hood:
+
+1. The SBML file is translated into `ModelingToolkit.jl` format to allow for symbolic computations of the ODE-model Jacobian. Piecewise and model events are further written into `DifferentialEquations.jl` callbacks.
+2. The observable PEtab table is translated into a Julia file with functions for computing the observable (`h`), noise parameter (`σ`), and initial values (`u0`).
+3. To allow gradients via adjoint sensitivity analysis and/or forward sensitivity equations, the gradients of `h` and `σ` are computed symbolically with respect to the ODE model's states (`u`) and parameters (`ode_problem.p`).
+
+All of this happens automatically, and resulting files are stored under `petab_model.dir_julia` assuming write_to_file=true. To save time, `forceBuildJlFiles=false` by default, which means that Julia files are not rebuilt if they already exist.
+
+# Arguments
+- `path_yaml::String`: Path to the PEtab problem YAML file.
+- `build_julia_files::Bool=false`: If `true`, forces the creation of Julia files for the problem even if they already exist.
+- `verbose::Bool=true`: If `true`, displays verbose output during parsing.
+- `ifelse_to_event::Bool=true`: If `true`, rewrites `if-else` statements in the SBML model as event-based callbacks.
+- `write_to_file::Bool=true`: If `true`, writes built Julia files to disk (recomended)
+
+# Example
+```julia
+petab_model = PEtabModel("path_to_petab_problem_yaml")
+```
+"""
+struct PEtabModel{F1<:Function,
+                  F2<:Function,
+                  F3<:Function,
+                  F4<:Function,
+                  F5<:Function,
+                  F6<:Function,
+                  F7<:Function,
+                  F8<:Function,
+                  F9<:Function,
+                  C<:SciMLBase.DECallback,
+                  FA<:Vector{<:Function}, 
+                  S}
+    model_name::String
+    compute_h::F1
+    compute_u0!::F2
+    compute_u0::F3
+    compute_σ::F4
+    compute_∂h∂u!::F5
+    compute_∂σ∂u!::F6
+    compute_∂h∂p!::F7
+    compute_∂σ∂p!::F8
+    compute_tstops::F9
+    convert_tspan::Bool
+    system::S
+    parameter_map
+    state_map
+    parameter_names
+    state_names
+    dir_model::String
+    dir_julia::String
+    path_measurements::CSV.File
+    path_conditions::CSV.File
+    path_observables::CSV.File
+    path_parameters::CSV.File
+    path_SBML::String
+    path_yaml::String
+    model_callbacks::C
+    check_callback_is_active::FA
+    defined_in_julia::Bool
+end
+
 
 """
     PEtabODEProblem
@@ -282,6 +312,50 @@ For constructor, see below.
 - `petab_model`: The PEtabModel used to construct the PEtabODEProblem.
 - `ode_solver`: The options for the ODE solver specified when creating the PEtabODEProblem.
 - `ode_solver_gradient`: The options for the ODE solver gradient specified when creating the PEtabODEProblem.
+
+## Constructor
+
+    PEtabODEProblem(petab_model::PEtabModel; <keyword arguments>)
+
+Given a `PEtabModel` creates a `PEtabODEProblem` with potential user specified options.
+
+The keyword arguments (described below) allows to choose cost, gradient, and Hessian methods, ODE solver options, 
+and other tuneable options that can potentially make computations more efficient for some "edge-case" models. Please 
+refer to the documentation for guidance on selecting the most efficient options for different types of models. If a 
+keyword argument is not set, a suitable default option is chosen based on the number of model parameters.
+
+Once created, a `PEtabODEProblem` contains everything needed to perform parameter estimtimation (see above)
+
+!!! note
+    Every problem is unique, so even though the default settings often work well they might not be optimal.
+
+# Keyword arguments
+- `ode_solver::ODESolver`: Options for the ODE solver when computing the cost, such as solver and tolerances.
+- `ode_solver_gradient::ODESolver`: Options for the ODE solver when computing the gradient, such as the ODE solver options used in adjoint sensitivity analysis. Defaults to `ode_solver` if not set to nothing.
+- `ss_solver::SteadyStateSolver`: Options for finding steady-state for models with pre-equilibrium. Steady-state can be found via simulation or rootfinding, which can be set using `SteadyStateSolver` (see documentation). If not set, defaults to simulation with `wrms < 1` termination.
+- `ss_solver_gradient::SteadyStateSolver`: Options for finding steady-state for models with pre-equilibrium when computing gradients. Defaults to `ss_solver` value if not set.
+- `cost_method::Symbol=:Standard`: Method for computing the cost (objective). Two options are available: `:Standard`, which is the most efficient, and `:Zygote`, which is less efficient but compatible with the Zygote automatic differentiation library.
+- `gradient_method=nothing`: Method for computing the gradient of the objective. Four options are available:
+    * `:ForwardDiff`: Compute the gradient via forward-mode automatic differentiation using ForwardDiff.jl. Most efficient for models with ≤50 parameters. The number of chunks can be optionally set using `chunksize`.
+    * `:ForwardEquations`: Compute the gradient via the model sensitivities, where `sensealg` specifies how to solve for the sensitivities. Most efficient when the Hessian is approximated using the Gauss-Newton method and when the optimizer can reuse the sensitivities (`reuse_sensitivities`) from gradient computations in Hessian computations (e.g., when the optimizer always computes the gradient before the Hessian).
+    * `:Adjoint`: Compute the gradient via adjoint sensitivity analysis, where `sensealg` specifies which algorithm to use. Most efficient for large models (≥75 parameters).
+    * `:Zygote`: Compute the gradient via the Zygote package, where `sensealg` specifies which sensitivity algorithm to use when solving the ODE model. This is the most inefficient option and not recommended.
+- `hessian_method=nothing`: method for computing the Hessian of the cost. There are three available options:
+    * `:ForwardDiff`: Compute the Hessian via forward-mode automatic differentiation using ForwardDiff.jl. This is often only computationally feasible for models with ≤20 parameters but can greatly improve optimizer convergence.
+    * `:BlockForwardDiff`: Compute the Hessian block approximation via forward-mode automatic differentiation using ForwardDiff.jl. The approximation consists of two block matrices: the first is the Hessian for only the dynamic parameters (parameter part of the ODE system), and the second is for the non-dynamic parameters (e.g., noise parameters). This is computationally feasible for models with ≤20 dynamic parameters and often performs better than BFGS methods.
+    * `:GaussNewton`: Approximate the Hessian via the Gauss-Newton method, which often performs better than the BFGS method. If we can reuse the sensitivities from the gradient in the optimizer (see `reuse_sensitivities`), this method is best paired with `gradient_method=:ForwardEquations`.
+- `sparse_jacobian::Bool=false`: When solving the ODE du/dt=f(u, p, t), whether implicit solvers use a sparse Jacobian. Sparse Jacobian often performs best for large models (≥100 states).
+- `specialize_level=SciMLBase.FullSpecialize`: Specialization level when building the ODE problem. It is not recommended to change this parameter (see https://docs.sciml.ai/SciMLBase/stable/interfaces/Problems/).
+- `sensealg`: Sensitivity algorithm for gradient computations. The available options for each gradient method are:
+    * `:ForwardDiff`: None (as ForwardDiff takes care of all computation steps).
+    * `:ForwardEquations`: `:ForwardDiff` (uses ForwardDiff.jl and typicaly performs best) or `ForwardDiffSensitivity()` and `ForwardSensitivity()` from SciMLSensitivity.jl (https://github.com/SciML/SciMLSensitivity.jl).
+    * `:Adjoint`: `InterpolatingAdjoint()` and `QuadratureAdjoint()` from SciMLSensitivity.jl.
+    * `:Zygote`: All sensealg in SciMLSensitivity.jl.
+- `sensealg_ss=nothing`: Sensitivity algorithm for adjoint gradient computations for steady-state simulations. The available options are `SteadyStateAdjoint()`, `InterpolatingAdjoint()`, and `QuadratureAdjoint()` from SciMLSensitivity.jl. `SteadyStateAdjoint()` is the most efficient but requires a non-singular Jacobian, and in the case of a non-singular Jacobian, the code automatically switches to `InterpolatingAdjoint()`.
+- `chunksize=nothing`: Chunk-size for ForwardDiff.jl when computing the gradient and Hessian via forward-mode automatic differentiation. If nothing is provided, the default value is used. Tuning `chunksize` is non-trivial, and we plan to add automatic functionality for this.
+- `split_over_conditions::Bool=false`: For gradient and Hessian via ForwardDiff.jl, whether or not to split calls to ForwardDiff across experimental (simulation) conditions. This parameter should only be set to true if the model has many parameters specific to an experimental condition; otherwise, the overhead from the calls will increase run time. See the Beer example for a case where this is needed.
+- `reuse_sensitivities::Bool=false` : If set to `true`, reuse the sensitivities computed during gradient computations for the Gauss-Newton Hessian approximation. This option is only applicable when using `hessian_method=:GaussNewton` and `gradient_method=:ForwardEquations`. Note that it should only be used when the optimizer always computes the gradient before the Hessian.
+- `verbose::Bool=true` : If set to `true`, print progress messages while setting up the PEtabODEProblem.
 """
 struct PEtabODEProblem{F1<:Function,
                        F2<:Function,

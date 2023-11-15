@@ -192,7 +192,7 @@ petab_model = PEtabModel(sys, simulation_conditions, observables, measurements,
 petab_problem = PEtabODEProblem(petab_model, verbose=false)
 ```
 
-The `PEtabODEProblem` contains all the necessary information to work with most available optimizers (see [here](@ref import_petab_problem)). Alternatively, if you want to perform parameter estimation using a multi-start approach, you can use the `calibrate_model_multistart` function (see see [Parameter estimation](@ref parameter_estimation)).
+The `PEtabODEProblem` contains all the necessary information to work with most available optimizers (see [here](@ref import_petab_problem)). Alternatively, if you want to perform parameter estimation using a multi-start approach, you can use the `calibrate_model_multistart` function (see [Parameter estimation](@ref parameter_estimation)). When creating the `PEtabODEProblem` good default options are selected based on the problem size, but if you want to set any options, a full list is available [here](@ref API).
 
 !!! note
     If the model does not have multiple simulation conditions (e.g., data is collected under a single condition), you can omit the `simulation_conditions` argument when constructing the `PEtabModel` and the `simulation_id` columns from the measurement data. Simply use the following format: `PEtabModel(sys, observables, measurements, parameters, <keyword arguments>)`.

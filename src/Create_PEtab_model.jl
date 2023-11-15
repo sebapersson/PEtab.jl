@@ -1,33 +1,3 @@
-"""
-    PEtabModel(path_yaml::String;
-               build_julia_files::Bool=false,
-               verbose::Bool=true,
-               ifelse_to_event::Bool=true,
-               write_to_file::Bool=true,
-               jlfile_path::String="")::PEtabModel
-
-Create a PEtabModel from a PEtab specified problem with a YAML-file located at `path_yaml`.
-
-When parsing a PEtab problem, several things happen under the hood:
-
-1. The SBML file is translated into `ModelingToolkit.jl` format to allow for symbolic computations of the ODE-model Jacobian. Piecewise and model events are further written into `DifferentialEquations.jl` callbacks.
-2. The observable PEtab table is translated into a Julia file with functions for computing the observable (`h`), noise parameter (`σ`), and initial values (`u0`).
-3. To allow gradients via adjoint sensitivity analysis and/or forward sensitivity equations, the gradients of `h` and `σ` are computed symbolically with respect to the ODE model's states (`u`) and parameters (`ode_problem.p`).
-
-All of this happens automatically, and resulting files are stored under `petab_model.dir_julia` assuming write_to_file=true. To save time, `forceBuildJlFiles=false` by default, which means that Julia files are not rebuilt if they already exist.
-
-# Arguments
-- `path_yaml::String`: Path to the PEtab problem YAML file.
-- `build_julia_files::Bool=false`: If `true`, forces the creation of Julia files for the problem even if they already exist.
-- `verbose::Bool=true`: If `true`, displays verbose output during parsing.
-- `ifelse_to_event::Bool=true`: If `true`, rewrites `if-else` statements in the SBML model as event-based callbacks.
-- `write_to_file::Bool=true`: If `true`, writes built Julia files to disk (recomended)
-
-# Example
-```julia
-petab_model = PEtabModel("path_to_petab_problem_yaml")
-```
-"""
 function PEtabModel(path_yaml::String;
                     build_julia_files::Bool=false,
                     verbose::Bool=true,
