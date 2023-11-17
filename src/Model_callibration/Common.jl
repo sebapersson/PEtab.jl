@@ -12,6 +12,8 @@ The optimization algorithm `alg` can be one of the following:
 - [IpoptOptimiser](https://coin-or.github.io/Ipopt/) interior-point optimizer
 - [Fides](https://github.com/fides-dev/fides) Newton trust region method
 
+For how to use an OptimizationProblem from Optimization.jl see below.
+
 Each algorithm accepts specific optimizer options in the format of the respective package. For a
 comprehensive list of available options, please refer to the main documentation.
 
@@ -20,9 +22,24 @@ Results are returned as a `PEtabOptimisationResult`, which includes the followin
 parameter values found (`xmin`), smallest objective value (`fmin`), number of iterations, runtime, whether
 the optimizer converged, and optionally, the trace.
 
+    calibrate_model(optimization_problem::OptimizationProblem,
+                    p0::Vector{Float64},
+                    alg;
+                    kwargs...)
+
+Perform parameter estimation for an OptimizationProblem using algorithm `alg` and startguess `p0`.
+
+To create an `OptimizationProblem` from a `PEtabODEProblem`, see PEtab.OptimizationProblem. All algorithms from
+Optimization.jl are supported. However, depending on the algorithm, different options must be specified when creating the
+`OptimizationProblem`.
+
+Solver options are provided via keyword arguments, and a list can be found [here](https://docs.sciml.ai/Optimization/stable/API/solve/).
+To, for example, run calibration with `reltol=1e-8`, use `calibrate_model(prob, p0, alg; reltol=1e-8)`.
+
 !!! note
     To use Optim optimizers, you must load Optim with `using Optim`. To use Ipopt, you must load Ipopt with `using Ipopt`.
-    To use Fides, load PyCall with `using PyCall` and ensure Fides is installed (see documentation for setup).
+    To use Fides, load PyCall with `using PyCall` and ensure Fides is installed (see documentation for setup). To use
+    Optimization load Optimization.jl with `using Optimization`
 
 ## Examples
 ```julia
@@ -44,20 +61,27 @@ res = calibrate_model(petab_problem, p0, IpoptOptimiser(false);
                      options=IpoptOptions(max_iter = 1000),
                      save_trace=true)
 ```
+```julia
+# Perform parameter estimation using Optimization
+using Optimization
+using OptimizationOptimJL
+prob = PEtab.OptimizationProblem(petab_problem, interior_point_alg=true)
+res = calibrate_model(prob, p0, IPNewton())
+```
 """
 function calibrate_model end
 
 
 """
     calibrate_model_multistart(petab_problem::PEtabODEProblem,
-                             alg,
-                             n_multistarts::Signed,
-                             dir_save::Union{Nothing, String};
-                             sampling_method=QuasiMonteCarlo.LatinHypercubeSample(),
-                             sample_from_prior::Bool=true,
-                             options=algOptions,
-                             seed=nothing,
-                             save_trace::Bool=false)::PEtabMultistartOptimisationResult
+                               alg,
+                               n_multistarts::Signed,
+                               dir_save::Union{Nothing, String};
+                               sampling_method=QuasiMonteCarlo.LatinHypercubeSample(),
+                               sample_from_prior::Bool=true,
+                               options=options,
+                               seed=nothing,
+                               save_trace::Bool=false)::PEtabMultistartOptimisationResult
 
 Perform multistart optimization for a PEtabODEProblem using the algorithm `alg`.
 
@@ -73,8 +97,8 @@ to return parameter and objective trace information, set `save_trace=true`.
 Multistart optimization involves generating multiple starting points for optimization runs. These starting points
 are generated using the specified `sampling_method` from [QuasiMonteCarlo.jl](https://github.com/SciML/QuasiMonteCarlo.jl),
 with the default being LatinHypercubeSample, a method that typically produces better results than random sampling.
-If `sample_from_prior=true` (default), for parameters with priors samples are taken from the prior distribution, where the 
-distribution is clipped/truncated by the parameter's lower- and upper bound. For reproducibility, you can set a random 
+If `sample_from_prior=true` (default), for parameters with priors samples are taken from the prior distribution, where the
+distribution is clipped/truncated by the parameter's lower- and upper bound. For reproducibility, you can set a random
 number generator seed using the `seed` parameter.
 
 If `dir_save` is provided as `nothing`, results are not written to disk. Otherwise, if a directory path is provided,
@@ -84,9 +108,28 @@ after a number of optimization runs.
 The results are returned as a `PEtabMultistartOptimisationResult`, which stores the best-found minima (`xmin`),
 smallest objective value (`fmin`), as well as optimization results for each run.
 
+    calibrate_model_multistart(optimization_problem::OptimizationProblem,
+                               alg,
+                               n_multistarts::Signed,
+                               dir_save::Union{Nothing, String};
+                               sampling_method=QuasiMonteCarlo.LatinHypercubeSample(),
+                               sample_from_prior::Bool=true,
+                               seed::Union{Nothing, Integer}=nothing,
+                               kwargs...)::PEtabMultistartOptimisationResult
+
+Perform multistart optimization for a `OptimizationProblem` using the algorithm `alg`.
+
+To create an `OptimizationProblem` from a `PEtabODEProblem`, see PEtab.OptimizationProblem. All algorithms from
+Optimization.jl are supported. However, depending on the algorithm, different options must be specified when creating the
+`OptimizationProblem`.
+
+Solver options are provided via keyword arguments, and a list can be found [here](https://docs.sciml.ai/Optimization/stable/API/solve/).
+To, for example, run calibration with `reltol=1e-8`, use `calibrate_model_multistart(prob, alg, n, dir_save; reltol=1e-8)`.
+
 !!! note
     To use Optim optimizers, you must load Optim with `using Optim`. To use Ipopt, you must load Ipopt with `using Ipopt`.
-    To use Fides, load PyCall with `using PyCall` and ensure Fides is installed (see documentation for setup).
+    To use Fides, load PyCall with `using PyCall` and ensure Fides is installed (see documentation for setup). To use
+    Optimization load Optimization.jl with `using Optimization`
 
 ## Examples
 ```julia
@@ -112,8 +155,48 @@ res = calibrate_model_multistart(petab_problem, IpoptOptimiser(false), 100, dir_
                                options=IpoptOptions(max_iter = 1000),
                                save_trace=true)
 ```
+```julia
+# Perform 100 optimization runs using Optimization with IPNewton, save results in dir_save.
+using Optimization
+using OptimizationOptimJL
+prob = PEtab.OptimizationProblem(petab_problem, interior_point_alg=true)
+res = calibrate_model_multistart(prob, IPNewton(), 100, dir_save;
+                                 reltol=1e-8)
+```
 """
 function calibrate_model_multistart end
+
+
+"""
+    OptimizationProblem(petab_problem::PEtabODEProblem;
+                        interior_point_alg::Bool = false,
+                        box_constraints::Bool = true)
+
+Create an Optimization.jl `OptimizationProblem` from a `PEtabODEProblem`.
+
+To utilize interior-point Newton methods (e.g. Optim `IPNewton` or `Ipopt`), set `interior_point_alg` to true.
+
+To use algorithms not compatible with box-constraints (e.g., `NewtonTrustRegion`), set `box_constraints` to false.
+Note, with this options optimizers may move outside exceed the parameter bounds in the `petab_problem`, which can
+negatively impact performance.
+
+# Examples
+```julia
+# Use IPNewton with startguess u0
+using OptimizationOptimJL
+prob = PEtab.OptimizationProblem(petab_problem, interior_point=true)
+prob.u0 .= u0
+sol = solve(prob, IPNewton())
+```
+```julia
+# Use Optim ParticleSwarm with startguess u0
+using OptimizationOptimJL
+prob = PEtab.OptimizationProblem(petab_problem)
+prob.u0 .= u0
+sol = solve(prob, Optim.ParticleSwarm())
+```
+"""
+function OptimizationProblem end
 
 
 """
@@ -151,7 +234,7 @@ function run_PEtab_select end
 Generate `n_multistarts` initial parameter guesses within the parameter bounds in the `petab_problem` with `sampling_method`
 
 Any sampling algorithm from QuasiMonteCarlo is supported, but `LatinHypercubeSample` is recomended as it usually
-performs well. If `sample_from_prior=true` (default), for parameters with priors samples are taken from said prior 
+performs well. If `sample_from_prior=true` (default), for parameters with priors samples are taken from said prior
 distribution, where the distribution is clipped/truncated by the parameter's lower- and upper bound.
 
 If `n_multistarts` is set to 1, a single random vector within the parameter bounds is returned. For
@@ -287,7 +370,7 @@ function transform_prior_samples!(samples::Vector{Float64},
     end
 
     # Here the prior is on the linear scale, while the bounds are on parameter
-    # so the prior samples are linear, thus they must be transformed back to 
+    # so the prior samples are linear, thus they must be transformed back to
     # parmeter scale for the parameter estimation
     scale = petab_problem.compute_cost.parameter_info.parameter_scale[i]
     for i in eachindex(samples)
