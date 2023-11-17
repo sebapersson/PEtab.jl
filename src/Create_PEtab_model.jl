@@ -34,7 +34,7 @@ function PEtabModel(path_yaml::String;
     # to rewrite the model parameter to correctly compute gradients etc...
     change_model_structure = add_parameters_condition_dependent_u0!(model_SBML, path_conditions, path_parameters)
     if change_model_structure == true
-        model_str = create_ode_model(model_SBML, path_model_jl_file, model_name, write_to_file)
+        model_str = odesystem_from_SBML(model_SBML, path_model_jl_file, model_name, write_to_file)
     end
 
     verbose == true && printstyled("[ Info:", color=123, bold=true)
@@ -73,7 +73,6 @@ function PEtabModel(path_yaml::String;
     compute_u0 = @RuntimeGeneratedFunction(Meta.parse(u0_str))
     compute_σ = @RuntimeGeneratedFunction(Meta.parse(σ_str))
     
-
     path_D_h_sd = joinpath(dir_julia, model_name * "_D_h_sd.jl")
     if !isfile(path_D_h_sd) || build_julia_files == true
         verbose == true && printstyled("[ Info:", color=123, bold=true)
