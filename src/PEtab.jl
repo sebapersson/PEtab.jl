@@ -118,6 +118,7 @@ if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabIpoptExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "PEtabOptimExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "PEtabFidesExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "PEtabOptimizationExtension.jl"))
 end
 if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabSelectExtension.jl"))
