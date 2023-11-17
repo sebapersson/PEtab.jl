@@ -28,6 +28,9 @@ using SpecialFunctions
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
 include("PEtab_structs.jl")
+include(joinpath("SBML", "Structs.jl"))
+include("Create_PEtab_model.jl")
+include(joinpath("Create_PEtabODEProblem", "Create_PEtab_ODEProblem.jl"))
 
 include("Common.jl")
 
@@ -70,14 +73,11 @@ include(joinpath("Process_PEtab_files", "Observables", "Create_u0_h_sigma.jl"))
 # For creating a PEtab ODE problem
 include(joinpath("Create_PEtabODEProblem", "Set_defaults.jl"))
 include(joinpath("Create_PEtabODEProblem", "Remake_PEtabODEProblem.jl"))
-include(joinpath("Create_PEtabODEProblem", "Create_PEtab_ODEProblem.jl"))
 
 # Creating the PEtab model
-include("Create_PEtab_model.jl")
 include(joinpath("Process_PEtab_files", "Julia_tables_provided", "Create_PEtab_model.jl"))
 
 # Importing SBML models
-include(joinpath("SBML", "Structs.jl"))
 include(joinpath("SBML", "SBML_to_ModellingToolkit.jl"))
 include(joinpath("SBML", "SBML_parameters.jl"))
 include(joinpath("SBML", "SBML_species.jl"))

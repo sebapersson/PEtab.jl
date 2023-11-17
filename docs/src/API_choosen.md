@@ -1,4 +1,4 @@
-# API
+# [API](@id API)
 
 ```@docs; canonical=true
 PEtabModel

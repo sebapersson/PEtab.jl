@@ -29,7 +29,7 @@ Generated Julia files are at ...
 
 ## Creating a PEtabODEProblem
 
-Next step is to create a `PEtabODEProblem` from a PEtab model, for which we use the `PEtabODEProblem` constructor. This constructors allows various options (see the API documentation for a full list), where the most important ones are:
+Next step is to create a `PEtabODEProblem` from a PEtab model, for which we use the `PEtabODEProblem` constructor. This constructors allows various options (see [here](@ref API) for a full list), where the most important ones are:
 
 * `ode_solver`: This option lets us choose an ODE solver and set tolerances for the solver. For example, we can choose the `Rodas5P()` solver and set tolerances of `abstol, reltol = 1e-8`. This solver works well for smaller models with up to 15 states.
 * `gradient_method`: This option lets us choose a gradient computation method. For small models like Boehm, forward mode automatic differentiation (AD) is the fastest method, so we choose `:ForwardDiff`.

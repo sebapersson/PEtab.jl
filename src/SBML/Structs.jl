@@ -5,6 +5,7 @@ mutable struct SpecieSBML
     initial_value::String # Can be changed by initial assignment
     formula::String # Is updated over time
     const compartment::String
+    const conversion_factor::String
     const unit::Symbol
     const only_substance_units::Bool
     assignment_rule::Bool
@@ -59,13 +60,30 @@ struct ModelSBML
     compartments::Dict{String, CompartmentSBML}
     events::Dict{String, EventSBML}
     reactions::Dict{String, ReactionSBML}
+    functions::Dict{String, Vector{String}}
     algebraic_rules::Dict{String, String}
     generated_ids::Dict{String, String}
     piecewise_expressions::Dict{String, String}
     ifelse_bool_expressions::Dict{String, String}
-    assignment_rule_variables::Vector{String}
-    ifelse_parameters::Vector{String}
+    ifelse_parameters::Dict{String, Vector{String}}
     rate_rule_variables::Vector{String}
-    appear_in_reactions::Vector{String}
-    has_piecewise::Vector{String}
+    species_in_reactions::Vector{String}
+    variables_with_piecewise::Vector{String}
+end
+function ModelSBML()::ModelSBML
+    model_SBML = ModelSBML(Dict{String, SpecieSBML}(),
+                           Dict{String, ParameterSBML}(),
+                           Dict{String, CompartmentSBML}(),
+                           Dict{String, EventSBML}(),
+                           Dict{String, ReactionSBML}(),
+                           Dict{String, Vector{String}}(), # SBML reactions
+                           Dict{String, String}(), # Algebraic rules
+                           Dict{String, String}(), # Generated id:s
+                           Dict{String, String}(), # Piecewise to ifelse_expressions
+                           Dict{String, String}(), # Ifelse to bool expression
+                           Dict{String, Vector{String}}(), # Ifelse parameters
+                           Vector{String}(undef, 0), # Rate rule variables
+                           Vector{String}(undef, 0), # Species_appearing in reactions
+                           Vector{String}(undef, 0)) # Variables with piecewise
+    return model_SBML                           
 end

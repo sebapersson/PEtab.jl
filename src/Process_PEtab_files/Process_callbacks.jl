@@ -3,7 +3,7 @@
 function create_callbacks_SBML(system::ODESystem,
                                parameter_map,
                                state_map,
-                               SBML_dict::Dict,
+                               model_SBML::ModelSBML,
                                model_name::String,
                                path_yaml::String,
                                dir_julia::String;
@@ -26,7 +26,7 @@ function create_callbacks_SBML(system::ODESystem,
     write_tstops = "\nfunction compute_tstops(u::AbstractVector, p::AbstractVector)\n"
 
     # In case we do not have any SBML related events
-    if isempty(SBML_dict["ifelse_parameters"]) && isempty(SBML_dict["events"])
+    if isempty(model_SBML.ifelse_parameters) && isempty(model_SBML.events)
         callback_names = ""
         check_activated_t0_names = ""
         write_tstops *= "\t return Float64[]\nend\n"
@@ -34,26 +34,26 @@ function create_callbacks_SBML(system::ODESystem,
     else
 
         # For ifelse parameter
-        for parameter in keys(SBML_dict["ifelse_parameters"])
-            function_str, callback_formula =  create_callback_ifelse(parameter, SBML_dict, p_ode_problem_names, model_specie_names)
+        for parameter in keys(model_SBML.ifelse_parameters)
+            function_str, callback_formula =  create_callback_ifelse(parameter, model_SBML, p_ode_problem_names, model_specie_names)
             write_callbacks *= function_str * "\n" * callback_formula * "\n"
         end
         # For classical SBML events 
-        for key in keys(SBML_dict["events"])
-            function_str, callback_formula = create_callback_SBML_event(key, SBML_dict, p_ode_problem_names, model_specie_names)
+        for key in keys(model_SBML.events)
+            function_str, callback_formula = create_callback_SBML_event(key, model_SBML, p_ode_problem_names, model_specie_names)
             write_callbacks *= function_str * "\n" * callback_formula * "\n"
         end
 
-        callback_names = get_callback_names(SBML_dict)
+        callback_names = get_callback_names(model_SBML)
 
         # Only relevant for picewise expressions
-        if !isempty(SBML_dict["ifelse_parameters"])
-            check_activated_t0_names = prod(["is_active_t0_" * key * "!, " for key in keys(SBML_dict["ifelse_parameters"])])[1:end-2]
+        if !isempty(model_SBML.ifelse_parameters)
+            check_activated_t0_names = prod(["is_active_t0_" * key * "!, " for key in keys(model_SBML.ifelse_parameters)])[1:end-2]
         else
             check_activated_t0_names = ""
         end
 
-        _write_tstops, convert_tspan = create_tstops_function(SBML_dict, model_specie_names, p_ode_problem_names, θ_indices)
+        _write_tstops, convert_tspan = create_tstops_function(model_SBML, model_specie_names, p_ode_problem_names, θ_indices)
         write_tstops *= "\treturn" * _write_tstops  * "\n" * "end"
     end
 
@@ -71,22 +71,22 @@ function create_callbacks_SBML(system::ODESystem,
 end
 
 
-function get_callback_names(SBML_dict::Dict)::String
-    _callback_names = vcat([key for key in keys(SBML_dict["ifelse_parameters"])], [key for key in keys(SBML_dict["events"])])
+function get_callback_names(model_SBML::ModelSBML)::String
+    _callback_names = vcat([key for key in keys(model_SBML.ifelse_parameters)], [key for key in keys(model_SBML.events)])
     callback_names = prod(["cb_" * name * ", " for name in _callback_names])[1:end-2]
     return callback_names
 end
 
 
 function create_callback_ifelse(parameter_name::String,
-                                SBML_dict::Dict,
+                                model_SBML::ModelSBML,
                                 p_ode_problem_names::Vector{String},
                                 model_specie_names::Vector{String})::Tuple{String, String}
 
     # Check if the event trigger depend on parameters which are to be i) estimated, or ii) if it depend on models state.
     # For i) we need to convert tspan. For ii) we cannot compute tstops (the event times) prior to starting to solve 
     # the ODE so it most be cont. callback
-    _condition, side_activated_with_time = SBML_dict["ifelse_parameters"][parameter_name]
+    _condition, side_activated_with_time = model_SBML.ifelse_parameters[parameter_name]
     discrete_event = !(check_condition_has_states(_condition, model_specie_names))
 
     # Replace any state or parameter with their corresponding index in the ODE system to be comaptible with event
@@ -137,11 +137,11 @@ end
 
 
 function create_callback_SBML_event(event_name::String,
-                                    SBML_dict::Dict,
+                                    model_SBML::ModelSBML,
                                     p_ode_problem_names::Vector{String},
                                     model_specie_names::Vector{String})::Tuple{String, String}
 
-    event = SBML_dict["events"][event_name]
+    event = model_SBML.events[event_name]
     _condition = event.trigger
     affects = event.formulas
     initial_value_cond = event.trigger_initial_value
@@ -240,12 +240,12 @@ end
 
 # Function computing t-stops (time for events) for piecewise expressions using the symbolics package
 # to symboically solve for where the condition is zero.
-function create_tstops_function(SBML_dict::Dict,
+function create_tstops_function(model_SBML::ModelSBML,
                                 model_specie_names::Vector{String},
                                 p_ode_problem_names::Vector{String},
                                 θ_indices::Union{ParameterIndices, Nothing})::Tuple{String, Bool}
 
-    conditions = string.(vcat([SBML_dict["ifelse_parameters"][key][1] for key in keys(SBML_dict["ifelse_parameters"])], [e.trigger for e in values(SBML_dict["events"])]))
+    conditions = string.(vcat([model_SBML.ifelse_parameters[key][1] for key in keys(model_SBML.ifelse_parameters)], [e.trigger for e in values(model_SBML.events)]))
     return _create_tstops_function(conditions, model_specie_names, p_ode_problem_names, θ_indices)
 end
 function create_tstops_function(events::Vector{T},
@@ -338,9 +338,9 @@ function check_condition_has_states(condition::AbstractString, model_specie_name
 end
 
 
-function check_has_parameter_to_estimate(condition::AbstractString,
+function check_has_parameter_to_estimate(condition::T,
                                          p_ode_problem_names::Vector{String},
-                                         θ_indices::ParameterIndices)::Bool
+                                         θ_indices::ParameterIndices)::Bool where T<:AbstractString
 
     # Parameters which are present for each experimental condition, and condition specific parameters
     i_ode_θ_all_conditions = θ_indices.map_ode_problem.i_ode_problem_θ_dynamic

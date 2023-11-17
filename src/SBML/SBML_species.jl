@@ -3,9 +3,9 @@
 =#
 
 
-function parse_SBML_species!(model_dict::Dict, model_SBML::SBML.Model)::Nothing
+function parse_SBML_species!(model_SBML::ModelSBML, libsbml_model::SBML.Model)::Nothing
 
-    for (state_id, state) in model_SBML.species
+    for (state_id, state) in libsbml_model.species
 
         # If both initial amount and conc are empty use concentration as unit per
         # SBML standard
@@ -24,6 +24,7 @@ function parse_SBML_species!(model_dict::Dict, model_SBML::SBML.Model)::Nothing
         only_substance_units = isnothing(state.only_substance_units) ? false : state.only_substance_units
         boundary_condition = state.boundary_condition
         compartment = state.compartment
+        conversion_factor = isnothing(state.conversion_factor) ? "" : state.conversion_factor
         constant = isnothing(state.constant) ? false : state.constant
 
         # In case being a boundary condition the state can only be changed events, or rate-rules so set
@@ -40,16 +41,16 @@ function parse_SBML_species!(model_dict::Dict, model_SBML::SBML.Model)::Nothing
             initial_value *= " * " * compartment
         end
 
-        model_dict["species"][state_id] = SpecieSBML(state_id, boundary_condition, constant, initial_value,
-                                                     formula, compartment, unit, only_substance_units,
-                                                     false, false, false)
+        model_SBML.species[state_id] = SpecieSBML(state_id, boundary_condition, constant, initial_value,
+                                                     formula, compartment, conversion_factor, unit, 
+                                                     only_substance_units, false, false, false)
     end
     return nothing
 end
 
 
 # Adjust specie equation if compartment is dynamic
-function adjust_for_dynamic_compartment!(model_dict::Dict)::Nothing
+function adjust_for_dynamic_compartment!(model_SBML::ModelSBML)::Nothing
 
     #=
     The volume might change over time but the amount should stay constant, as we have a boundary condition
@@ -57,10 +58,10 @@ function adjust_for_dynamic_compartment!(model_dict::Dict)::Nothing
     are related via the chain rule by:
     dn/dt = d(n/V)/dt*V + n*dV/dt/V
     =#
-    for (specie_id, specie) in model_dict["species"]
+    for (specie_id, specie) in model_SBML.species
 
         # Specie with amount where amount should stay constant
-        compartment = model_dict["compartments"][model_dict["species"][specie_id].compartment]
+        compartment = model_SBML.compartments[model_SBML.species[specie_id].compartment]
         if !(specie.unit == :Amount &&
              specie.rate_rule == true &&
              specie.boundary_condition == true &&
@@ -76,31 +77,37 @@ function adjust_for_dynamic_compartment!(model_dict::Dict)::Nothing
 
         # In this case must add additional variable for the specie concentration, to properly get the amount equation
         specie_conc_id = "__" * specie_id * "__conc__"
-        initial_value_conc = model_dict["species"][specie_id].initial_value * "/" * compartment.name
-        formual_conc = model_dict["species"][specie_id].formula
+        initial_value_conc = model_SBML.species[specie_id].initial_value * "/" * compartment.name
+        formual_conc = model_SBML.species[specie_id].formula
 
         # Formula for amount specie
-        model_dict["species"][specie_id].formula = formual_conc * "*" *  compartment.name * " + " * specie_id * "*" * compartment.formula * " / " * compartment.name
+        model_SBML.species[specie_id].formula = formual_conc * "*" *  compartment.name * " + " * specie_id * "*" * compartment.formula * " / " * compartment.name
 
         # Add new conc. specie to model
-        model_dict["species"][specie_conc_id] = SpecieSBML(specie_conc_id, false, false, initial_value_conc,
-                                                           formual_conc, compartment, :Concentration, false, false, true, false)
+        model_SBML.species[specie_conc_id] = SpecieSBML(specie_conc_id, false, false, initial_value_conc,
+                                                           formual_conc, compartment, specie.conversion_factor,  
+                                                           :Concentration, false, false, true, false)
     end
 
     # When a specie is given in concentration, but the compartment concentration changes
-    for (specie_id, specie) in model_dict["species"]
+    for (specie_id, specie) in model_SBML.species
 
-        compartment = model_dict["compartments"][model_dict["species"][specie_id].compartment]
+        compartment = model_SBML.compartments[model_SBML.species[specie_id].compartment]
+        compartment_name = compartment.name
+        if compartment.assignment_rule == true && compartment.formula ∈ model_SBML.rate_rule_variables
+            compartment = model_SBML.parameters[compartment.formula]
+        end
+
         if !(specie.unit == :Concentration &&
              specie.only_substance_units == false &&
              compartment.constant == false)
             continue
         end
         # Rate rule has priority
-        if specie_id ∈ model_dict["rate_rule_variables"]
+        if specie_id ∈ model_SBML.rate_rule_variables
             continue
         end
-        if !any(occursin.(keys(model_dict["species"]), compartment.formula)) && compartment.rate_rule == false
+        if !any(occursin.(keys(model_SBML.species), compartment.formula)) && compartment.rate_rule == false
             continue
         end
 
@@ -113,34 +120,41 @@ function adjust_for_dynamic_compartment!(model_dict::Dict)::Nothing
         if specie.boundary_condition == true
             formula_amount = "0.0"
         else
-            formula_amount = isempty(specie.formula) ? "0.0" : "(" * specie.formula * ")" * compartment.name 
+            formula_amount = isempty(specie.formula) ? "0.0" : "(" * specie.formula * ")" * compartment_name 
         end
 
         # New formula for conc. specie
-        specie.formula = formula_amount * "/(" * compartment.name * ") - " * specie_amount_id * "/(" * compartment.name * ")^2*" * compartment.formula
+        specie.formula = formula_amount * "/(" * compartment_name * ") - " * specie_amount_id * "/(" * compartment_name * ")^2*" * compartment.formula
 
         # Add new conc. specie to model
-        model_dict["species"][specie_amount_id] = SpecieSBML(specie_amount_id, false, false, initial_value_amount,
-                                                             formula_amount, compartment.name, :Amount, false, false, false, false)
+        model_SBML.species[specie_amount_id] = SpecieSBML(specie_amount_id, false, false, initial_value_amount,
+                                                             formula_amount, compartment_name, specie.conversion_factor, 
+                                                             :Amount, false, false, false, false)
     end
     return nothing
 end
 
 
 # Adjust specie via conversion factor 
-function adjust_conversion_factor!(model_dict::Dict, model_SBML::SBML.Model)::Nothing
+function adjust_conversion_factor!(model_SBML::ModelSBML, libsbml_model::SBML.Model)::Nothing
 
-    if isnothing(model_SBML.conversion_factor)
-        return nothing
-    end
-
-    for (specie_id, specie) in model_dict["species"]
+    for (specie_id, specie) in model_SBML.species
         if specie.assignment_rule == true
             continue
         end
 
-        # TODO: Make stoich cases like these to parameters to avoid this?
-        if specie_id ∉ keys(model_SBML.species)
+        if specie_id ∉ keys(libsbml_model.species)
+            continue
+        end
+
+        # Conversion factors only affect species whose values are changed via reactions, 
+        # but not rate-rules
+        if specie.rate_rule == true
+            continue
+        end
+
+        # Boundary value species are not affected 
+        if specie.boundary_condition == true
             continue
         end
 
@@ -149,6 +163,16 @@ function adjust_conversion_factor!(model_dict::Dict, model_SBML::SBML.Model)::No
             continue
         end
 
-        specie.formula = "(" * specie.formula * ") * " * model_SBML.conversion_factor
+        if !isempty(specie.conversion_factor)
+            conversion_factor = specie.conversion_factor
+        elseif !isnothing(libsbml_model.conversion_factor)
+            conversion_factor = libsbml_model.conversion_factor
+        else
+            return nothing
+        end
+
+        specie.formula = "(" * specie.formula * ") * " * conversion_factor
     end
+    
+    return nothing
 end
