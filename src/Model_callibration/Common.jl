@@ -29,7 +29,7 @@ the optimizer converged, and optionally, the trace.
 
 Perform parameter estimation for an OptimizationProblem using algorithm `alg` and startguess `p0`.
 
-To create an `OptimizationProblem` from a `PEtabODEProblem`, see [PEtab.OptimizationProblem](@ref). All algorithms from
+To create an `OptimizationProblem` from a `PEtabODEProblem`, see PEtab.OptimizationProblem. All algorithms from
 Optimization.jl are supported. However, depending on the algorithm, different options must be specified when creating the
 `OptimizationProblem`.
 
@@ -119,7 +119,7 @@ smallest objective value (`fmin`), as well as optimization results for each run.
 
 Perform multistart optimization for a `OptimizationProblem` using the algorithm `alg`.
 
-To create an `OptimizationProblem` from a `PEtabODEProblem`, see [PEtab.OptimizationProblem](@ref). All algorithms from
+To create an `OptimizationProblem` from a `PEtabODEProblem`, see PEtab.OptimizationProblem. All algorithms from
 Optimization.jl are supported. However, depending on the algorithm, different options must be specified when creating the
 `OptimizationProblem`.
 
@@ -167,10 +167,10 @@ res = calibrate_model_multistart(prob, IPNewton(), 100, dir_save;
 function calibrate_model_multistart end
 
 
-"""@docs
-    PEtab.OptimizationProblem(petab_problem::PEtabODEProblem;
-                              interior_point_alg::Bool = false,
-                              box_constraints::Bool = true)
+"""
+    OptimizationProblem(petab_problem::PEtabODEProblem;
+                        interior_point_alg::Bool = false,
+                        box_constraints::Bool = true)
 
 Create an Optimization.jl `OptimizationProblem` from a `PEtabODEProblem`.
 

@@ -54,7 +54,7 @@ function get_optimization_problem(petab_problem::PEtabODEProblem;
 
     # Build the optimisation problem
     @unpack lower_bounds, upper_bounds = petab_problem
-    u0 = petab_problem.θ_nominalT
+    u0 = deepcopy(petab_problem.θ_nominalT)
     if interior_point == true
         lcons = fill(-Inf, length(petab_problem.θ_names))
         ucons = fill(Inf, length(petab_problem.θ_names))
