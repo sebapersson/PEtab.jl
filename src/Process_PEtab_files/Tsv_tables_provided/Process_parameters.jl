@@ -92,7 +92,6 @@ function process_priors(θ_indices::ParameterIndices, parameters_file::CSV.File)
         prior = parameters_file[which_parameter][:objectivePriorType]
 
         if ismissing(prior) || isempty(prior)
-            println("Enters here with θ_name = ", θ_name)
             continue
         end
 
