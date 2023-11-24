@@ -5,9 +5,11 @@
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://sebapersson.github.io/PEtab.jl/dev/)
 [![Build Status](https://github.com/sebapersson/PEtab.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/sebapersson/PEtab.jl/actions/workflows/CI.yml?query=branch%3Amain)
 
-PEtab.jl is a Julia package to setup ODE parameter estimation problems in Julia. Parameter estimation problems can be directly imported if they are specified in the [PEtab](https://petab.readthedocs.io/en/latest/) standard format, alternatively problems can be directly specifed in Julia where the dynamic model can be provided as a [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) ODE-system or a [Catalyst](https://github.com/SciML/Catalyst.jl) reaction system. Once a problem has been parsed PEtab.jl provides wrappers to Optim, Ipopt, and Fides to perform efficient multi-start parameter estimation.
+PEtab.jl is a Julia package to create ODE parameter estimation problems in Julia. Parameter estimation problems can be directly imported if they are specified in the [PEtab](https://petab.readthedocs.io/en/latest/) standard format, alternatively problems can be directly specifed in Julia where the dynamic model can be provided as a [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) ODE-system or a [Catalyst](https://github.com/SciML/Catalyst.jl) reaction system. Once a problem has been parsed PEtab.jl provides wrappers to Optim, Optimization, Ipopt, and Fides to perform efficient multi-start parameter estimation.
 
-In an extensive benchmark study, PEtab.jl was found to be 2-4 times faster than the [pyPESTO](https://github.com/ICB-DCM/pyPESTO) toolbox that leverages the [AMICI](https://github.com/AMICI-dev/AMICI) interface to the Sundials suite. For installation instructions, refer below. For additional details, the documentation contains a comprehensive list of all options and recommended settings for different model sizes.
+For importing SBML models (when the model is given in the PEtab standard format), [SBMLImporter.jl](https://github.com/sebapersson/SBMLImporter.jl) is used. In case you want to just import and simulate a SBML models, SBMLImporter supports many SBML features for ODE models.
+
+For installation instructions, see below. For additional details, the documentation contains a comprehensive list of all options and recommended settings for different model sizes.
 
 ## Installation
 
@@ -34,7 +36,7 @@ bachmann_model = PEtabModel(yaml_path)
 
 `PEtabModel` translates the SBML ODE model into [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) format, which allows for symbolic computations of the Jacobian. Additionally, it generates functions for computing initial values, observation functions, and events from the PEtab-files.
 
-With a `PEtabModel`, you can create a `PEtabODEProblem` to compute the cost, gradient, and Hessian of the model. For instance, you can solve the model ODE using the [QNDF](https://docs.sciml.ai/DiffEqDocs/stable/solvers/ode_solve/) solver, compute the gradient via [ForwardDiff](https://github.com/JuliaDiff/ForwardDiff.jl), and approximate the Hessian via the Gauss-Newton method with the following code:
+With a `PEtabModel`, you can create a `PEtabODEProblem` to compute the cost, gradient, and Hessian of the model. For instance, you can solve the model ODE using the [QNDF](https://docs.sciml.ai/DiffEqDocs/stable/solvers/ode_solve/) solver, compute the gradient via [ForwardDiff](https://github.com/JuliaDiff/ForwardDiff.jl), and approximate the Hessian via the Gauss-Newton method with:
 
 ```julia
 using OrdinaryDiffEq
@@ -67,8 +69,8 @@ You can explore additional examples and available optimizers for parameter estim
 
 ## Features
 
-* Importing ODE systems specified either by an SBML file.
-* Support for models defined in Julia as ODE-systems or as [Catalyst](https://github.com/SciML/Catalyst.jl) reaction systems.
+* Importing ODE systems specified by a SBML file.
+* Support for models defined in Julia as a [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) ODE-system or as [Catalyst](https://github.com/SciML/Catalyst.jl) reaction systems.
 * Model selection via [PEtab Select](https://github.com/PEtab-dev/petab_select).
 * Symbolic model pre-processing via ModelingToolkit.jl.
 * Support for all ODE solvers in DifferentialEquations.jl.
@@ -81,7 +83,7 @@ You can explore additional examples and available optimizers for parameter estim
     * Forward-mode automatic differentiation with ForwardDiff.jl (exact).
     * Block approach with ForwardDiff.jl (approximate).
     * Gauss-Newton method (approximate and often more performant than (L)-BFGS).
-* Handling pre-equilibration and pre-simulation conditions.
+* Handling off pre-equilibration and pre-simulation conditions.
 * Support for models with discrete events and logical operations.
 
 ## Documentation
