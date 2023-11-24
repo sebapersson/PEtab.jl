@@ -3,7 +3,7 @@
 function create_callbacks_SBML(system::ODESystem,
                                parameter_map,
                                state_map,
-                               model_SBML::ModelSBML,
+                               model_SBML::SBMLImporter.ModelSBML,
                                model_name::String,
                                path_yaml::String,
                                dir_julia::String;
@@ -71,7 +71,7 @@ function create_callbacks_SBML(system::ODESystem,
 end
 
 
-function get_callback_names(model_SBML::ModelSBML)::String
+function get_callback_names(model_SBML::SBMLImporter.ModelSBML)::String
     _callback_names = vcat([key for key in keys(model_SBML.ifelse_parameters)], [key for key in keys(model_SBML.events)])
     callback_names = prod(["cb_" * name * ", " for name in _callback_names])[1:end-2]
     return callback_names
@@ -79,7 +79,7 @@ end
 
 
 function create_callback_ifelse(parameter_name::String,
-                                model_SBML::ModelSBML,
+                                model_SBML::SBMLImporter.ModelSBML,
                                 p_ode_problem_names::Vector{String},
                                 model_specie_names::Vector{String})::Tuple{String, String}
 
@@ -92,10 +92,10 @@ function create_callback_ifelse(parameter_name::String,
     # Replace any state or parameter with their corresponding index in the ODE system to be comaptible with event
     # syntax
     for (i, specie_name) in pairs(model_specie_names)
-        _condition = replace_variable(_condition, specie_name, "u["*string(i)*"]")
+        _condition = SBMLImporter.replace_variable(_condition, specie_name, "u["*string(i)*"]")
     end
     for (i, p_name) in pairs(p_ode_problem_names)
-        _condition = replace_variable(_condition, p_name, "integrator.p["*string(i)*"]")
+        _condition = SBMLImporter.replace_variable(_condition, p_name, "integrator.p["*string(i)*"]")
     end
 
     # Replace inequality with - (root finding cont. event) or with == in case of
@@ -137,7 +137,7 @@ end
 
 
 function create_callback_SBML_event(event_name::String,
-                                    model_SBML::ModelSBML,
+                                    model_SBML::SBMLImporter.ModelSBML,
                                     p_ode_problem_names::Vector{String},
                                     model_specie_names::Vector{String})::Tuple{String, String}
 
@@ -163,10 +163,10 @@ function create_callback_SBML_event(event_name::String,
     # Replace any state or parameter with their corresponding index in the ODE system to be comaptible with event
     # syntax
     for (i, specie_name) in pairs(model_specie_names)
-        _condition = replace_variable(_condition, specie_name, "u["*string(i)*"]")
+        _condition = SBMLImporter.replace_variable(_condition, specie_name, "u["*string(i)*"]")
     end
     for (i, p_name) in pairs(p_ode_problem_names)
-        _condition = replace_variable(_condition, p_name, "integrator.p["*string(i)*"]")
+        _condition = SBMLImporter.replace_variable(_condition, p_name, "integrator.p["*string(i)*"]")
     end
     # Build the condition function used in Julia file, for discrete checking that event indeed is coming from negative 
     # direction
@@ -186,14 +186,14 @@ function create_callback_SBML_event(event_name::String,
         # In RHS we use u_tmp to not let order affects, while in assigning LHS we use u
         affect_function1, affect_function2 = split(affect, "=")
         for j in eachindex(model_specie_names)
-            affect_function1 = replace_variable(affect_function1, model_specie_names[j], "integrator.u["*string(j)*"]")
-            affect_function2 = replace_variable(affect_function2, model_specie_names[j], "u_tmp["*string(j)*"]")
+            affect_function1 = SBMLImporter.replace_variable(affect_function1, model_specie_names[j], "integrator.u["*string(j)*"]")
+            affect_function2 = SBMLImporter.replace_variable(affect_function2, model_specie_names[j], "u_tmp["*string(j)*"]")
         end
         affect_function *= "\t\t" * affect_function1 * " = " * affect_function2 * '\n'
     end
     affect_function *= "\tend"
     for i in eachindex(p_ode_problem_names)
-        affect_function = replace_variable(affect_function, p_ode_problem_names[i], "integrator.p["*string(i)*"]")
+        affect_function = SBMLImporter.replace_variable(affect_function, p_ode_problem_names[i], "integrator.p["*string(i)*"]")
     end
 
     # In case the event can be activated at time zero build an initialisation function
@@ -240,7 +240,7 @@ end
 
 # Function computing t-stops (time for events) for piecewise expressions using the symbolics package
 # to symboically solve for where the condition is zero.
-function create_tstops_function(model_SBML::ModelSBML,
+function create_tstops_function(model_SBML::SBMLImporter.ModelSBML,
                                 model_specie_names::Vector{String},
                                 p_ode_problem_names::Vector{String},
                                 θ_indices::Union{ParameterIndices, Nothing})::Tuple{String, Bool}
@@ -302,14 +302,19 @@ function _create_tstops_function(conditions::Vector{String},
         condition_symbolic = eval(Meta.parse(_condition))
 
         # Expression for the time at which the condition is triggered
-        expression_time = string.(Symbolics.solve_for(condition_symbolic, variables_symbolic[1], simplify=true))
+        local expression_time
+        try
+            expression_time = string.(Symbolics.solve_for(condition_symbolic, variables_symbolic[1], simplify=true))
+        catch
+            throw(SBMLSupport("Not possible to solve for time event is activated"))
+        end
 
         # Make compatible with the PEtab importer syntax
         for (i, specie_name) in pairs(model_specie_names)
-            expression_time = replace_variable(expression_time, specie_name, "u["*string(i)*"]")
+            expression_time = SBMLImporter.replace_variable(expression_time, specie_name, "u["*string(i)*"]")
         end
         for (i, p_name) in pairs(p_ode_problem_names)
-            expression_time = replace_variable(expression_time, p_name, "p["*string(i)*"]")
+            expression_time = SBMLImporter.replace_variable(expression_time, p_name, "p["*string(i)*"]")
         end
 
         # dual_to_float is needed as tstops for the integrator cannot be of type Dual
@@ -329,7 +334,7 @@ end
 
 function check_condition_has_states(condition::AbstractString, model_specie_names::Vector{String})::Bool
     for i in eachindex(model_specie_names)
-        _condition = replace_variable(condition, model_specie_names[i], "")
+        _condition = SBMLImporter.replace_variable(condition, model_specie_names[i], "")
         if _condition != condition
             return true
         end
@@ -347,7 +352,7 @@ function check_has_parameter_to_estimate(condition::T,
     i_ode_problem_θ_dynamicCondition = reduce(vcat, [θ_indices.maps_conidition_id[i].i_ode_problem_θ_dynamic for i in keys(θ_indices.maps_conidition_id)])
 
     for i in eachindex(p_ode_problem_names)
-        _condition = replace_variable(condition, p_ode_problem_names[i], "integrator.p["*string(i)*"]")
+        _condition = SBMLImporter.replace_variable(condition, p_ode_problem_names[i], "integrator.p["*string(i)*"]")
         if _condition != condition
             if i ∈ i_ode_θ_all_conditions || i ∈ i_ode_problem_θ_dynamicCondition
                 return true

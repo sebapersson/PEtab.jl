@@ -538,10 +538,10 @@ function process_petab_event(event::PEtabEvent, event_name, system)::Tuple{Strin
 
     # Building the condition syntax for the event 
     for i in eachindex(state_names)
-        condition = PEtab.replace_variable(condition, state_names[i], "u["*string(i)*"]")
+        condition = PEtab.SBMLImporter.replace_variable(condition, state_names[i], "u["*string(i)*"]")
     end
     for i in eachindex(parameter_names)
-        condition = PEtab.replace_variable(condition, parameter_names[i], "integrator.p["*string(i)*"]")
+        condition = PEtab.SBMLImporter.replace_variable(condition, parameter_names[i], "integrator.p["*string(i)*"]")
     end
     condition_str = "\n\tfunction condition_" * event_name * "(u, t, integrator)\n\t\t" * condition * "\n\tend\n"
 
@@ -554,12 +554,12 @@ function process_petab_event(event::PEtabEvent, event_name, system)::Tuple{Strin
         _affect = targets[i] * " = " * affect
         _affect1, _affect2 = split(_affect, "=")
         for j in eachindex(state_names)
-            _affect1 = PEtab.replace_variable(_affect1, state_names[j], "integrator.u["*string(j)*"]")
-            _affect2 = PEtab.replace_variable(_affect2, state_names[j], "u_tmp["*string(j)*"]")
+            _affect1 = PEtab.SBMLImporter.replace_variable(_affect1, state_names[j], "integrator.u["*string(j)*"]")
+            _affect2 = PEtab.SBMLImporter.replace_variable(_affect2, state_names[j], "u_tmp["*string(j)*"]")
         end
         for j in eachindex(parameter_names)
-            _affect1 = PEtab.replace_variable(_affect1, parameter_names[j], "integrator.p["*string(j)*"]")
-            _affect2 = PEtab.replace_variable(_affect2, parameter_names[j], "p_tmp["*string(j)*"]")
+            _affect1 = PEtab.SBMLImporter.replace_variable(_affect1, parameter_names[j], "integrator.p["*string(j)*"]")
+            _affect2 = PEtab.SBMLImporter.replace_variable(_affect2, parameter_names[j], "p_tmp["*string(j)*"]")
         end
         affect_str *= "\t\t" * _affect1 * " = " * _affect2  * '\n'
     end

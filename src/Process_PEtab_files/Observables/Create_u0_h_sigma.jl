@@ -3,7 +3,7 @@
                        dir_model::String,
                        system::ODESystem,
                        state_map,
-                       model_SBML::ModelSBML;
+                       model_SBML::SBMLImporter.ModelSBML;
                        verbose::Bool=false)
 
     For a PeTab model with name model_name with all PeTab-files in dir_model and associated
@@ -21,7 +21,7 @@ function create_σ_h_u0_file(model_name::String,
                             system::ODESystem,
                             parameter_map,
                             state_map,
-                            model_SBML::ModelSBML;
+                            model_SBML::SBMLImporter.ModelSBML;
                             custom_parameter_values::Union{Nothing, Dict}=nothing, 
                             write_to_file::Bool=true)
 
@@ -91,7 +91,7 @@ end
                       namesParamDyn::Vector{String},
                       namesNonDynParam::Vector{String},
                       observables_data::CSV.File,
-                      model_SBML::ModelSBML)
+                      model_SBML::SBMLImporter.ModelSBML)
 
     For model_name create a function for computing y_model by translating the observables_data
     PeTab-file into Julia syntax.
@@ -103,7 +103,7 @@ function create_h_function(model_name::String,
                            p_ode_problem_names::Vector{String},
                            θ_non_dynamic_names::Vector{String},
                            observables_data::CSV.File,
-                           model_SBML::ModelSBML, 
+                           model_SBML::SBMLImporter.ModelSBML, 
                            write_to_file::Bool)
 
     io = IOBuffer()
@@ -225,7 +225,7 @@ function create_u0_function(model_name::String,
                             p_ode_problem_names::Vector{String},
                             state_map,
                             write_to_file::Bool, 
-                            model_SBML::ModelSBML;
+                            model_SBML::SBMLImporter.ModelSBML;
                             inplace::Bool=true)
 
     path_save = joinpath(dir_model, model_name * "_h_sd_u0.jl")                            
@@ -264,7 +264,7 @@ function create_u0_function(model_name::String,
         _stateExpression = replace(string(state_map[i].second), " " => "")
         stateFormula = petab_formula_to_Julia(_stateExpression, model_state_names, parameter_info, p_ode_problem_names, String[])
         for i in eachindex(p_ode_problem_names)
-            stateFormula = replace_variable(stateFormula, p_ode_problem_names[i], "p_ode_problem["*string(i)*"]")
+            stateFormula = SBMLImporter.replace_variable(stateFormula, p_ode_problem_names[i], "p_ode_problem["*string(i)*"]")
         end
         model_state_str *= "\t" * stateName * " = " * stateFormula * "\n"
     end
@@ -312,7 +312,7 @@ end
                       p_ode_problem_names::Vector{String},
                       θ_non_dynamic_names::Vector{String},
                       observables_data::CSV.File,
-                      model_SBML::ModelSBML)
+                      model_SBML::SBMLImporter.ModelSBML)
 
     For model_name create a function for computing the standard deviation σ by translating the observables_data
     PeTab-file into Julia syntax.
@@ -324,7 +324,7 @@ function create_σ_function(model_name::String,
                            p_ode_problem_names::Vector{String},
                            θ_non_dynamic_names::Vector{String},
                            observables_data::CSV.File,
-                           model_SBML::ModelSBML, 
+                           model_SBML::SBMLImporter.ModelSBML, 
                            write_to_file::Bool)
 
     path_save = joinpath(dir_model, model_name * "_h_sd_u0.jl")
