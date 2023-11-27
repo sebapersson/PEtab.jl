@@ -4,7 +4,7 @@
                        dir_model::String,
                        odeSys::ODESystem,
                        state_map,
-                       model_SBML::ModelSBML)
+                       model_SBML::SBMLImporter.ModelSBML)
 
     For a PeTab model with name model_name with all PeTab-files in dir_model and associated
     ModellingToolkit ODESystem (with its state_map) build a file containing a functions for
@@ -19,7 +19,7 @@ function create_derivative_σ_h_file(model_name::String,
                                     system::ODESystem,
                                     parameter_map,
                                     state_map,
-                                    model_SBML::ModelSBML;
+                                    model_SBML::SBMLImporter.ModelSBML;
                                     custom_parameter_values::Union{Nothing, Dict}=nothing, 
                                     write_to_file::Bool=true)
 
@@ -57,7 +57,7 @@ function create_derivative_σ_h_file(model_name::String,
     θ_indices = PEtab.compute_θ_indices(parameter_info, measurement_info, system, parameter_map, state_map, experimental_conditions)
 
     # Dummary variables to keep PEtab importer happy even as we are not providing any PEtab files
-    model_SBML = ModelSBML()
+    model_SBML = SBMLImporter.ModelSBML()
 
     ∂h∂u_str, ∂h∂p_str = PEtab.create∂h∂_function(model_name, @__DIR__, model_state_names, parameter_info, p_ode_problem_names, string.(θ_indices.θ_non_dynamic_names), observables_data, model_SBML, false)
     ∂σ∂u_str, ∂σ∂p_str = PEtab.create∂σ∂_function(model_name, @__DIR__, parameter_info, model_state_names, p_ode_problem_names, string.(θ_indices.θ_non_dynamic_names), observables_data, model_SBML, false)
@@ -74,7 +74,7 @@ end
                        p_ode_problem_names::Vector{String},
                        θ_non_dynamic_names::Vector{String},
                        observables_data::CSV.File,
-                       model_SBML::ModelSBML)
+                       model_SBML::SBMLImporter.ModelSBML)
 
     For model_name create using Symbolics function for computing ∂h/∂u and ∂h/∂p where
     u = modelStates and p = p_ode_problem (parameters for ODE problem)
@@ -86,7 +86,7 @@ function create∂h∂_function(model_name::String,
                             p_ode_problem_names::Vector{String},
                             θ_non_dynamic_names::Vector{String},
                             observables_data::CSV.File,
-                            model_SBML::ModelSBML, 
+                            model_SBML::SBMLImporter.ModelSBML, 
                             write_to_file::Bool)
 
     path_save = joinpath(dir_model, model_name * "_D_h_sd.jl")
@@ -267,7 +267,7 @@ end
                             p_ode_problem_names::Vector{String},
                             θ_non_dynamic_names::Vector{String},
                             observables_data::CSV.File,
-                            model_SBML::ModelSBML)
+                            model_SBML::SBMLImporter.ModelSBML)
 
     For model_name create a function for computing the standard deviation by translating the observables_data
 """
@@ -278,7 +278,7 @@ function create∂σ∂_function(model_name::String,
                             p_ode_problem_names::Vector{String},
                             θ_non_dynamic_names::Vector{String},
                             observables_data::CSV.File,
-                            model_SBML::ModelSBML, 
+                            model_SBML::SBMLImporter.ModelSBML, 
                             write_to_file::Bool)
 
     path_save = joinpath(dir_model, model_name * "_D_h_sd.jl")

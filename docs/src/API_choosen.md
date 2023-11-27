@@ -17,7 +17,6 @@ calibrate_model
 calibrate_model_multistart
 PEtabMultistartOptimisationResult
 run_PEtab_select
-solve_SBML
 generate_startguesses
 get_ps
 get_u0

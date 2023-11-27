@@ -243,18 +243,18 @@ end
 
 
 """
-    replace_explicit_variable_rule(formula::String, model_SBML::ModelSBML)::String
+    replace_explicit_variable_rule(formula::String, model_SBML::SBMLImporter.ModelSBML)::String
 
 Replace the explicit rule variable with the explicit rule
 """
-function replace_explicit_variable_rule(formula::String, model_SBML::ModelSBML)::String
+function replace_explicit_variable_rule(formula::String, model_SBML::SBMLImporter.ModelSBML)::String
     _formula = deepcopy(formula)
     while true
         for (specie_id, specie) in model_SBML.species
             if specie.assignment_rule == false
                 continue
             end
-            _formula = replace_variable(_formula, specie_id, "(" * specie.formula * ")")
+            _formula = SBMLImporter.replace_variable(_formula, specie_id, "(" * specie.formula * ")")
         end
         _formula == formula && break
         formula = deepcopy(_formula)
@@ -267,7 +267,7 @@ function replace_explicit_variable_rule(formula::String, model_SBML::ModelSBML):
             if parameter.assignment_rule == false
                 continue
             end
-            _formula = replace_variable(_formula, parameter_id, "(" * parameter.formula * ")")
+            _formula = SBMLImporter.replace_variable(_formula, parameter_id, "(" * parameter.formula * ")")
         end
         _formula == formula && break
         formula = deepcopy(_formula)

@@ -10,6 +10,7 @@ using SteadyStateDiffEq
 using ForwardDiff
 using ReverseDiff
 import ChainRulesCore
+using SBMLImporter
 using StatsBase
 using Sundials
 using Random
@@ -21,14 +22,11 @@ using RuntimeGeneratedFunctions
 using PreallocationTools
 using NonlinearSolve
 using PrecompileTools
-using SBML
 using QuasiMonteCarlo
-using SpecialFunctions
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
 include("PEtab_structs.jl")
-include(joinpath("SBML", "Structs.jl"))
 include("Create_PEtab_model.jl")
 include(joinpath("Create_PEtabODEProblem", "Create_PEtab_ODEProblem.jl"))
 
@@ -77,20 +75,6 @@ include(joinpath("Create_PEtabODEProblem", "Remake_PEtabODEProblem.jl"))
 # Creating the PEtab model
 include(joinpath("Process_PEtab_files", "Julia_tables_provided", "Create_PEtab_model.jl"))
 
-# Importing SBML models
-include(joinpath("SBML", "SBML_to_ModellingToolkit.jl"))
-include(joinpath("SBML", "SBML_parameters.jl"))
-include(joinpath("SBML", "SBML_species.jl"))
-include(joinpath("SBML", "SBML_functions.jl"))
-include(joinpath("SBML", "SBML_rules.jl"))
-include(joinpath("SBML", "Common.jl"))
-include(joinpath("SBML", "Piecewise.jl"))
-include(joinpath("SBML", "Events.jl"))
-include(joinpath("SBML", "SBML_math.jl"))
-include(joinpath("SBML", "Initial_assignments.jl"))
-include(joinpath("SBML", "Reactions.jl"))
-include(joinpath("SBML", "Solve_SBML_model.jl"))
-
 # Nice util functions 
 include(joinpath("Utility.jl"))
 
@@ -107,7 +91,7 @@ include(joinpath("Show.jl"))
     end
 end
 
-export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel, PEtabODEProblem, remake_PEtab_problem, Fides, solve_SBML, PEtabOptimisationResult, IpoptOptions, IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult, generate_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, PEtabEvent
+export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel, PEtabODEProblem, remake_PEtab_problem, Fides, PEtabOptimisationResult, IpoptOptions, IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult, generate_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, PEtabEvent
 
 # These are given as extensions, but their docstrings are availble in the 
 # general documentation 

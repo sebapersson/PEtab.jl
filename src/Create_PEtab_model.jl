@@ -8,7 +8,7 @@ function PEtabModel(path_yaml::String;
     path_SBML, path_parameters, path_conditions, path_observables, path_measurements, dir_julia, dir_model, model_name = read_petab_yaml(path_yaml)
 
     verbose == true && @info "Building PEtabModel for $model_name"
-    model_SBML = build_SBML_model(path_SBML, ifelse_to_event=ifelse_to_event)
+    model_SBML = SBMLImporter.build_SBML_model(path_SBML, ifelse_to_callback=ifelse_to_event, model_as_string=false)
 
     path_model_jl_file = joinpath(dir_julia, model_name * ".jl")
     if !isfile(path_model_jl_file) || build_julia_files == true
@@ -16,11 +16,10 @@ function PEtabModel(path_yaml::String;
         verbose == true && build_julia_files && print(" By user option rebuilds Julia ODE model ...")
         verbose == true && !build_julia_files && print(" Building Julia model file as it does not exist ...")
 
-        b_build = @elapsed model_str = SBML_to_ODESystem(path_SBML, 
-                                                         path_model_jl_file, 
-                                                         model_name, 
-                                                         ifelse_to_event=ifelse_to_event, 
-                                                         write_to_file=write_to_file)
+        b_build = @elapsed model_str = SBMLImporter.odesystem_from_SBML(model_SBML, 
+                                                                        path_model_jl_file, 
+                                                                        model_name, 
+                                                                        write_to_file)
         verbose == true && @printf(" done. Time = %.1es\n", b_build)
     end
 
@@ -34,7 +33,7 @@ function PEtabModel(path_yaml::String;
     # to rewrite the model parameter to correctly compute gradients etc...
     change_model_structure = add_parameters_condition_dependent_u0!(model_SBML, path_conditions, path_parameters)
     if change_model_structure == true
-        model_str = odesystem_from_SBML(model_SBML, path_model_jl_file, model_name, write_to_file)
+        model_str = SBMLImporter.odesystem_from_SBML(model_SBML, path_model_jl_file, model_name, write_to_file)
     end
 
     verbose == true && printstyled("[ Info:", color=123, bold=true)
@@ -188,7 +187,7 @@ function get_function_str(file_path::AbstractString, n_functions::Int64)::Vector
 end
 
 
-function add_parameters_condition_dependent_u0!(model_SBML::ModelSBML, 
+function add_parameters_condition_dependent_u0!(model_SBML::SBMLImporter.ModelSBML, 
                                                 path_conditions::String, 
                                                 path_parameters::String)::Bool
 
@@ -215,7 +214,7 @@ function add_parameters_condition_dependent_u0!(model_SBML::ModelSBML,
     for specie in which_species
         _name = "__init__" .* specie .* "__"
         _value = model_SBML.species[specie].initial_value
-        _parameter = ParameterSBML(_name, true, _value, "", false, false, false)
+        _parameter = SBMLImporter.ParameterSBML(_name, true, _value, "", false, false, false)
         model_SBML.parameters[_name] = _parameter
         # Reassign initial value for specie
         model_SBML.species[specie].initial_value = _name
@@ -226,7 +225,7 @@ function add_parameters_condition_dependent_u0!(model_SBML::ModelSBML,
     for parameter in which_parameters
         _name = "__init__" .* parameter .* "__"
         _value = model_SBML.parameters[parameter].initial_value
-        _parameter = ParameterSBML(_name, true, _value, "", false, false, false)
+        _parameter = SBMLImporter.ParameterSBML(_name, true, _value, "", false, false, false)
         model_SBML.parameters[_name] = _parameter
         # Reassign initial value for specie
         model_SBML.parameters[parameter].initial_value = _name
@@ -247,7 +246,7 @@ function add_parameters_condition_dependent_u0!(model_SBML::ModelSBML,
             # Must be a parameter which did not appear in the SBML file - and thus should be added 
             # to the ODE system so it is treated as a dynamic parameter through the simulations 
             elseif row ∈ parameters_file[:parameterId]
-                model_SBML.parameters[row] = ParameterSBML(row, true, "0.0", "", false, false, false) 
+                model_SBML.parameters[row] = SBMLImporter.ParameterSBML(row, true, "0.0", "", false, false, false) 
             else
                 @error "The condition table value $row_value does not correspond to any parameter in the SBML file parameters file"
             end
