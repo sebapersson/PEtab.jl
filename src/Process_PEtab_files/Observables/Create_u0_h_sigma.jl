@@ -68,7 +68,7 @@ function create_σ_h_u0_file(model_name::String,
     θ_indices = PEtab.compute_θ_indices(parameter_info, measurement_info, system, parameter_map, state_map, experimental_conditions)
 
     # Dummary variables to keep PEtab importer happy even as we are not providing any PEtab files
-    model_SBML = ModelSBML()
+    model_SBML = SBMLImporter.ModelSBML()
 
     h_str = PEtab.create_h_function(model_name, @__DIR__, model_state_names, parameter_info, p_ode_problem_names,
                                    string.(θ_indices.θ_non_dynamic_names), observables_data, model_SBML, false)

@@ -214,7 +214,7 @@ function add_parameters_condition_dependent_u0!(model_SBML::SBMLImporter.ModelSB
     for specie in which_species
         _name = "__init__" .* specie .* "__"
         _value = model_SBML.species[specie].initial_value
-        _parameter = ParameterSBML(_name, true, _value, "", false, false, false)
+        _parameter = SBMLImporter.ParameterSBML(_name, true, _value, "", false, false, false)
         model_SBML.parameters[_name] = _parameter
         # Reassign initial value for specie
         model_SBML.species[specie].initial_value = _name
@@ -225,7 +225,7 @@ function add_parameters_condition_dependent_u0!(model_SBML::SBMLImporter.ModelSB
     for parameter in which_parameters
         _name = "__init__" .* parameter .* "__"
         _value = model_SBML.parameters[parameter].initial_value
-        _parameter = ParameterSBML(_name, true, _value, "", false, false, false)
+        _parameter = SBMLImporter.ParameterSBML(_name, true, _value, "", false, false, false)
         model_SBML.parameters[_name] = _parameter
         # Reassign initial value for specie
         model_SBML.parameters[parameter].initial_value = _name
@@ -246,7 +246,7 @@ function add_parameters_condition_dependent_u0!(model_SBML::SBMLImporter.ModelSB
             # Must be a parameter which did not appear in the SBML file - and thus should be added 
             # to the ODE system so it is treated as a dynamic parameter through the simulations 
             elseif row ∈ parameters_file[:parameterId]
-                model_SBML.parameters[row] = ParameterSBML(row, true, "0.0", "", false, false, false) 
+                model_SBML.parameters[row] = SBMLImporter.ParameterSBML(row, true, "0.0", "", false, false, false) 
             else
                 @error "The condition table value $row_value does not correspond to any parameter in the SBML file parameters file"
             end

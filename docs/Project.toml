@@ -6,7 +6,6 @@ Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"
 PEtab = "48d54b35-e43e-4a66-a5a1-dde6b987cf69"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-SBML = "e5567a89-2604-4b09-9718-f5f78e97c3bb"
 
 [compat]
 Catalyst = "13"
@@ -16,4 +15,3 @@ Documenter = "1"
 ModelingToolkit = "8"
 PEtab = "2"
 Plots = "1"
-SBML = "1"
