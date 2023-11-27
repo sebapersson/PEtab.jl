@@ -1,21 +1,23 @@
 # [Parameter Estimation (Model Calibration)](@id parameter_estimation)
 
-PEtab.jl provides interfaces to three optimization packages:
+PEtab.jl provides interfaces to four optimization packages:
 
 - [Optim](https://julianlsolvers.github.io/Optim.jl/stable/): Supports LBFGS, BFGS, or IPNewton methods.
 - [IpoptOptimiser](https://coin-or.github.io/Ipopt/): An interior-point optimizer.
 - [Fides](https://github.com/fides-dev/fides): A Newton trust region method.
+- [Optimization.jl](https://github.com/fides-dev/fides): PEtab provides support for converting a `PEtabODEProblem` into an `OptimizationProblem`, allowing the use of any optimizer from Optimization.jl.
 
-You can find available options for each optimizer in the [Available Optimizers](@ref options_optimizers) section. To help you choose the right optimizer, based on extensive benchmarks we recomend:
+You can find available options for each optimizer in the [Available Optimizers](@ref options_optimizers) section. To help you choose the right optimizer, based on extensive benchmarks we recommend:
 
 - If you have access to a full Hessian matrix, the Interior-point Newton method in [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl) typically outperforms the trust-region method in Fides.py.
 - If you can only provide a Gauss-Newton Hessian approximation (not the full Hessian), the Newton trust-region method in Fides.py is usually more effective than the interior-point method in [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl).
 
-!!! note
-    Keep in mind that each problem is unique, and although the suggested options are generally effective, they may not always be the ideal choice for a particular model.
+The algorithms accessible through PEtab's interfaces to Optim and Ipopt are also available in Optimization.jl. However, we recommend using the wrappers provided in PEtab, as they offer additional features. For example, when employing the Optim.jl LBFGS algorithm, [PEtab's interface](@ref Optim_alg) provides options to save the optimization trace, record extra optimization statistics, which is not as easily available in [Optimization.jl](@ref Optimization_alg). Similar holds true for Ipopt. In cases where the algorithms in Optim, Fides, or Ipopt do not yield optimal results for your specific problem, or if you prefer to employ a global optimizer such as particle swarm, Optimization.jl serves as a good interface.
 
 !!! note
-    To use Optim optimizers, you must load Optim with `using Optim`. To use Ipopt, you must load Ipopt with `using Ipopt`. To use Fides, load PyCall with `using PyCall` and ensure Fides is installed (see documentation for setup).
+    To use Optim optimizers, you must load Optim with `using Optim`. To use Ipopt, you must load Ipopt with `using Ipopt`.
+    To use Fides, load PyCall with `using PyCall` and ensure Fides is installed (see documentation for setup). To use
+    Optimization load Optimization.jl with `using Optimization`
 
 Additionally, the `PEtabODEProblem` contain all the necessary information to use other optimization libraries like [NLopt.jl](https://github.com/JuliaOpt/NLopt.jl).
 
@@ -23,7 +25,7 @@ Additionally, the `PEtabODEProblem` contain all the necessary information to use
 
 A widely adopted and effective approach for model calibration is multi-start local optimization. In this method, a local optimizer is run from a large number (typically 100-1000) of randomly generated initial parameter guesses. These guesses are efficiently generated using techniques like Latin-hypercube sampling to effectively explore the parameter space.
 
-To perform multi-start parameter estimation, you can employ the `calibrate_model_multistart` function. This function requires a `PEtabODEProblem`, the number of multi-starts, one of the available optimizer algorithms, and a directory to save the results. If you provide `dir_save=nothing` as the directory path, the results will not be written to disk. However, as a precaution against premature termination, we strongly recommended to specify a directory.
+To perform multi-start parameter estimation, you can employ the `calibrate_model_multistart` function. This function requires a `PEtabODEProblem` or a `OptimizationProblem`, the number of multi-starts, one of the available optimizer algorithms, and a directory to save the results. If you provide `dir_save=nothing` as the directory path, the results will not be written to disk. However, as a precaution against premature termination, we strongly recommended to specify a directory.
 
 For example, to use the Interior-point Newton method from [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl) to perform parameter estimation on the Boehm model with 10 multi-starts you can write:
 
@@ -35,7 +37,7 @@ dir_save = joinpath(@__DIR__, "Boehm_opt")
 petab_model = PEtabModel(path_to_Boehm_model)
 petab_problem = PEtabODEProblem(petab_model)
 res = calibrate_model_multistart(petab_problem, IPNewton(), 10, dir_save,
-                               options=Optim.Options(iterations = 200))
+                                 options=Optim.Options(iterations = 200))
 print(res)
 ```
 ```
@@ -61,6 +63,22 @@ Parameters esimtated  = 9
 Number of multistarts = 10
 Optimiser algorithm   = Optim_IPNewton
 ```
+
+Alternatively, we can first convert the `PEtabODEProblem` into an `OptimizationProblem`, and perform multi-start optimization with any algorithm in Optimization.jl, such as a particle swarm method:
+
+```julia
+using Optimization
+using OptimizationOptimJL
+
+dir_save = joinpath(@__DIR__, "Boehm_opt")
+petab_model = PEtabModel(path_to_Boehm_model)
+petab_problem = PEtabODEProblem(petab_model)
+optimization_problem = PEtab.OptimizationProblem(petab_problem)
+res = calibrate_model_multistart(optimization_problem, petab_problem, Optim.ParticleSwarm(), 10, dir_save,
+                                 reltol=1e-8)
+```
+
+Here `reltol` is one of many available solver [options](https://docs.sciml.ai/Optimization/stable/API/solve/).
 
 The method for generating initial parameter guesses can also be chosen, as we support any method available in [QuasiMonteCarlo.jl](https://github.com/SciML/QuasiMonteCarlo.jl). For instance, to use Latin-Hypercube sampling (which is the default), and to perform multi-start calibration with Fides, write:
 
@@ -114,6 +132,9 @@ In this example, we use `save_trace=true` to enable trace saving and set `seed=1
 res.runs[1].xtrace
 res.runs[1].ftrace
 ```
+
+!!! note
+    `save_trace` option is not available if using `OptimizationProblem` from Optimization.jl.
 
 ## [Generating startguesses for parameter estimation](@id get_startguesses)
 
