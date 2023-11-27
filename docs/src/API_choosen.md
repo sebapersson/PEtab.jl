@@ -10,6 +10,7 @@ ODESolver
 SteadyStateSolver
 remake_PEtab_problem
 Fides
+PEtab.OptimizationProblem
 IpoptOptions
 IpoptOptimiser
 calibrate_model

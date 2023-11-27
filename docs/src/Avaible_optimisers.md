@@ -1,8 +1,8 @@
 # [Available Optimizers](@id options_optimizers)
 
-PEtab.jl offers an interface to several popular optimization packages such as [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl), [Ipopt.jl](https://github.com/jump-dev/Ipopt.jl), and [Fides.py](https://github.com/fides-dev/fides) for performing parameter estimation. Below, you find the available options for each optimizer.
+PEtab.jl offers an interface to several popular optimization packages such as [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl), [Ipopt.jl](https://github.com/jump-dev/Ipopt.jl), [Fides.py](https://github.com/fides-dev/fides) and [Optimization.jl](https://github.com/fides-dev/fides) for performing parameter estimation. Below, you find the available options for each optimizer.
 
-## Optim
+## [Optim](@id Optim_alg)
 
 PEtab.jl supports three optimization methods from [Optim.jl](https://julianlsolvers.github.io/Optim.jl/stable/): LBFGS, BFGS, and IPNewton (Interior-point Newton). You can further customize the optimization by providing options via `Optim.Options()`. A complete list of available options can be found [here](https://julianlsolvers.github.io/Optim.jl/v0.9.3/user/config/).
 
@@ -118,3 +118,37 @@ res = calibrate_model(petab_problem, p0, Fides(nothing),
 ```
 
 Fides options are specified using a Python dictionary. Available options and their default values can be found in the Fides [documentation](https://fides-optimizer.readthedocs.io/en/latest/generated/fides.constants.html).
+
+## [Optimization.jl](@id Optimization_alg)
+
+[Optimization.jl](https://github.com/fides-dev/fides) provides a unified interface for over 100 optimization algorithms (see their documentation for the complete list). PEtab supports the conversion of a `PEtabODEProblem` into an `OptimizationProblem`, allowing any optimizer from Optimization.jl to be used.
+
+To convert `PEtabODEProblem` into an `OptimizationProblem` do:
+
+```julia
+using Optimization
+prob = PEtab.OptimizationProblem(petab_problem;
+                                 interior_point_alg=true,
+                                 box_constraints=true)
+```
+
+The optional keywords `interior_point_alg` (default `false`) should be set to `true` to use any of Optimization's interior point Newton algorithms (e.g., IPNewton or Ipopt). To use algorithms not compatible with box constraints (e.g., `NewtonTrustRegion`), set `box_constraints` to `false`. Disabling box-constraints might cause optimizers to move outside the parameter bounds in the `petab_problem`, however, potentially negatively impacting performance.
+
+Once you have an `OptimizationProblem` and an initial guess `p0`, performing parameter estimation is straightforward through the Optimization.jl interface. For example, to use the `ParticleSwarm` method from Optim.jl:
+
+```julia
+using Optimization
+using OptimizationOptimJL                                 
+sol = solve(prob, Optim.ParticleSwarm(); reltol=1e-8)
+```
+
+Solver options are set using keywords. Here we set the relative tolerance for terminating the optimization as `reltol=1e-8`. A full list of options can be found [here](https://docs.sciml.ai/Optimization/stable/API/solve/).
+
+It is also possible to run multi-start parameter estimation using an `OptimizationProblem`:
+
+```julia
+res = calibrate_model_multistart(optimization_problem, petab_problem, alg, 
+                                 nstarts, dir_save, reltol=1e-8)
+```
+
+Here, `alg` can be any algorithm available in [Optimization.jl](https://github.com/fides-dev/fides).
