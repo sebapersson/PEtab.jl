@@ -143,9 +143,10 @@ function generate_VJP_ss(simulation_info::PEtab.SimulationInfo,
         ssOdeProblem = SteadyStateProblem(ode_problem)
         ySS, _eval_VJP_ss_i = Zygote.pullback((p) ->    (
                                                       solve(ssOdeProblem,
-                                                            SteadyStateDiffEq.DynamicSS(solver, abstol=ss_solver.abstol, reltol=ss_solver.reltol),
-                                                            abstol=abstol,
-                                                            reltol=reltol,
+                                                            SteadyStateDiffEq.DynamicSS(solver),
+                                                            abstol=ss_solver.abstol,
+                                                            reltol=ss_solver.reltol,
+                                                            odesolve_kwargs = (abstol=abstol, reltol=reltol),
                                                             maxiters=maxiters,
                                                             force_dtmin=force_dtmin,
                                                             p=p,
