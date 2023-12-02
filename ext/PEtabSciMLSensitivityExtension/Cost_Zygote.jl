@@ -100,7 +100,7 @@ function solve_ode_condition_zygote(ode_problem::ODEProblem,
         pUsePre, u0UsePre = changeToExperimentalCondUsePre(ode_problem.p, ode_problem.u0, first_expid, θ_dynamic)
         probUsePre = remake(ode_problem, tspan=(0.0, 1e8), u0 = convert.(eltype(θ_dynamic), u0UsePre), p = convert.(eltype(θ_dynamic), pUsePre))
         ssProb = SteadyStateProblem(probUsePre)
-        solSS = solve(ssProb, DynamicSS(solver, abstol=abstol_ss, reltol=reltol_ss), abstol=absTol, reltol=relTol)
+        solSS = solve(ssProb, DynamicSS(solver), abstol=abstol_ss, reltol=reltol_ss, odesolve_kwargs = (;abstol=absTol, reltol=relTol))
 
         # Terminate if a steady state was not reached in preequilibration simulations
         if solSS.retcode != ReturnCode.Success
