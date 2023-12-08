@@ -7,7 +7,7 @@ using QuasiMonteCarlo
 using Random
 using Printf
 using YAML
-using PEtab 
+using PEtab
 using Optimization
 
 
@@ -16,17 +16,17 @@ function PEtab.OptimizationProblem(petab_problem::PEtabODEProblem;
                                    box_constraints::Bool=true)::Optimization.OptimizationProblem
 
     optimization_problem = get_optimization_problem(petab_problem;
-                                                    interior_point=interior_point_alg, 
+                                                    interior_point=interior_point_alg,
                                                     box_constraints=box_constraints)
     return optimization_problem
 end
 
 
 function get_optimization_problem(petab_problem::PEtabODEProblem;
-                                  interior_point::Bool=false, 
+                                  interior_point::Bool=false,
                                   box_constraints::Bool=true)::Optimization.OptimizationProblem
 
-    # First build the OptimizationFunction with PEtab.jl objective, gradient and Hessian                               
+    # First build the OptimizationFunction with PEtab.jl objective, gradient and Hessian
     _f = (u, p) -> petab_problem.compute_cost(u)
     _∇f = (G, u, p) -> petab_problem.compute_gradient!(G, u)
     _Δf = (H, u, p) -> petab_problem.compute_hessian!(H, u)
@@ -43,12 +43,12 @@ function get_optimization_problem(petab_problem::PEtabODEProblem;
                                                                   hess = _Δf,
                                                                   cons = constraints,
                                                                   cons_j = constraints_J,
-                                                                  cons_h = constraints_H, 
+                                                                  cons_h = constraints_H,
                                                                   syms=petab_problem.θ_names)
     else
         optimization_function = Optimization.OptimizationFunction(_f;
                                                                   grad = _∇f,
-                                                                  hess = _Δf, 
+                                                                  hess = _Δf,
                                                                   syms=petab_problem.θ_names)
     end
 
@@ -116,8 +116,8 @@ end
 
 function PEtab.calibrate_model_multistart(optimization_problem::Optimization.OptimizationProblem,
                                           petab_problem::PEtabODEProblem,
-                                          alg, 
-                                          n_multistarts::Signed, 
+                                          alg,
+                                          n_multistarts::Signed,
                                           dir_save::Union{Nothing, String};
                                           sampling_method::T=QuasiMonteCarlo.LatinHypercubeSample(),
                                           sample_from_prior::Bool=true,

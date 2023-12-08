@@ -6,6 +6,7 @@ function PEtabODEProblem(petab_model::PEtabModel;
                          cost_method::Union{Nothing, Symbol}=:Standard,
                          gradient_method::Union{Nothing, Symbol}=nothing,
                          hessian_method::Union{Nothing, Symbol}=nothing,
+                         FIM_method::Union{Nothing, Symbol}=nothing,
                          sparse_jacobian::Union{Nothing, Bool}=nothing,
                          specialize_level=SciMLBase.FullSpecialize,
                          sensealg=nothing,
@@ -24,9 +25,11 @@ function PEtabODEProblem(petab_model::PEtabModel;
     allowed_cost_methods = [:Standard, :Zygote]
     allowed_gradient_methods = [nothing, :ForwardDiff, :ForwardEquations, :Adjoint, :Zygote]
     allowed_hessian_methods = [nothing, :ForwardDiff, :BlockForwardDiff, :GaussNewton]
+    allowed_FIM_methods = [nothing, :ForwardDiff, :GaussNewton]
     @assert cost_method ∈ allowed_cost_methods "Allowed cost methods are " * string(allowed_cost_methods) * " not " * string(cost_method)
     @assert gradient_method ∈ allowed_gradient_methods "Allowed gradient methods are " * string(allowed_gradient_methods) * " not " * string(gradient_method)
     @assert hessian_method ∈ allowed_hessian_methods "Allowed hessian methods are " * string(allowed_hessian_methods) * " not " * string(hessian_method)
+    @assert FIM_method ∈ allowed_FIM_methods "Allowed FIM methods are " * string(allowed_FIM_methods) * " not " * string(FIM_method)
 
     if gradient_method === :Adjoint
         @assert "SciMLSensitivity" ∈ string.(values(Base.loaded_modules)) "To use adjoint sensitivity analysis SciMLSensitivity must be loaded"
@@ -52,6 +55,15 @@ function PEtabODEProblem(petab_model::PEtabModel;
     else
         model_size = :Large
     end
+    # For FIM 
+    if isnothing(FIM_method) && length(θ_indices.θ_names) ≤ 100
+        _FIM_method = :ForwardDiff
+    elseif isnothing(FIM_method)
+        _FIM_method = :GaussNewton
+    else
+        _FIM_method = FIM_method
+    end
+
     _gradient_method = set_gradient_method(gradient_method, model_size, reuse_sensitivities)
     _hessian_method = set_hessian_method(hessian_method, model_size)
     _sensealg = set_sensealg(sensealg, Val(_gradient_method))
@@ -96,7 +108,7 @@ function PEtabODEProblem(petab_model::PEtabModel;
         jobs, results = nothing, nothing
     end
 
-    petab_ODE_cache = PEtabODEProblemCache(_gradient_method, _hessian_method, petab_model, _sensealg, measurement_info, simulation_info, θ_indices, chunksize)
+    petab_ODE_cache = PEtabODEProblemCache(_gradient_method, _hessian_method, _FIM_method, petab_model, _sensealg, measurement_info, simulation_info, θ_indices, chunksize)
     petab_ODESolver_cache = PEtabODESolverCache(_gradient_method, _hessian_method, petab_model, simulation_info, θ_indices, chunksize)
 
     # To get multiple dispatch to work correctly 
@@ -166,6 +178,18 @@ function PEtabODEProblem(petab_model::PEtabModel;
                             end
     verbose == true && @printf(" done. Time = %.1e\n", b_build)
 
+    # Build FIM matrix 
+    compute_FIM! = create_hessian_function(_FIM_method, _ode_problem, _ode_solver, _ss_solver,
+        petab_ODE_cache, petab_ODESolver_cache, petab_model, simulation_info, θ_indices, measurement_info, parameter_info,
+        prior_info, chunksize, n_processes=n_processes, jobs=jobs, results=results,
+        split_over_conditions=false, reuse_sensitivities=false)
+    # Non-inplace Hessian
+    compute_FIM = (θ) ->    begin
+                                FIM = zeros(Float64, length(θ), length(θ))
+                                compute_FIM!(FIM, θ)
+                                return FIM
+                            end
+
     # Nominal parameter values + parameter bounds on parameter-scale (transformed)
     θ_names = θ_indices.θ_names
     lower_bounds = [parameter_info.lower_bounds[findfirst(x -> x == θ_names[i], parameter_info.parameter_id)] for i in eachindex(θ_names)]
@@ -181,11 +205,14 @@ function PEtabODEProblem(petab_model::PEtabModel;
                                     compute_gradient,
                                     compute_hessian!,
                                     compute_hessian,
+                                    compute_FIM!,
+                                    compute_FIM,
                                     compute_simulated_values,
                                     compute_residuals,
                                     cost_method,
                                     _gradient_method,
                                     Symbol(_hessian_method),
+                                    _FIM_method,
                                     Int64(length(θ_names)),
                                     θ_names,
                                     θ_nominal,
@@ -608,6 +635,7 @@ end
 
 function PEtabODEProblemCache(gradient_method::Symbol,
                               hessian_method::Union{Symbol, Nothing},
+                              FIM_method::Symbol,
                               petab_model::PEtabModel,
                               sensealg,
                               measurement_info::MeasurementsInfo,
@@ -649,7 +677,7 @@ function PEtabODEProblemCache(gradient_method::Symbol,
 
     # For forward sensitivity equations and adjoint sensitivity analysis we need to
     # compute partial derivatives symbolically. Here the helping vectors are pre-allocated
-    if gradient_method ∈ [:Adjoint, :ForwardEquations] || hessian_method ∈ [:GaussNewton]
+    if gradient_method ∈ [:Adjoint, :ForwardEquations] || hessian_method == :GaussNewton || FIM_method == :GaussNewton
         n_model_states = length(states(petab_model.system))
         n_model_parameters = length(parameters(petab_model.system))
         ∂h∂u = zeros(Float64, n_model_states)
@@ -677,7 +705,7 @@ function PEtabODEProblemCache(gradient_method::Symbol,
     # sensitivity matrix all experimental conditions (to efficiently levarage autodiff and handle scenarios are
     # pre-equlibrita model). Here we pre-allocate said matrix and the output matrix from the forward senstivity
     # code
-    if (gradient_method === :ForwardEquations && sensealg === :ForwardDiff) || hessian_method === :GaussNewton
+    if (gradient_method === :ForwardEquations && sensealg === :ForwardDiff) || hessian_method === :GaussNewton || FIM_method == :GaussNewton
         n_model_states = length(states(petab_model.system))
         n_timepoints_save = sum(length(simulation_info.time_observed[experimental_condition_id]) for experimental_condition_id in simulation_info.experimental_condition_id)
         S = zeros(Float64, (n_timepoints_save*n_model_states, length(θ_indices.θ_dynamic_names)))
@@ -687,7 +715,7 @@ function PEtabODEProblemCache(gradient_method::Symbol,
         sol_values = zeros(Float64, (0, 0))
     end
 
-    if hessian_method === :GaussNewton
+    if hessian_method === :GaussNewton || FIM_method === :GaussNewton
         jacobian_gn = zeros(Float64, length(θ_indices.θ_names), length(measurement_info.time))
         residuals_gn = zeros(Float64, length(measurement_info.time))
     else
@@ -695,7 +723,7 @@ function PEtabODEProblemCache(gradient_method::Symbol,
         residuals_gn = zeros(Float64, 0)
     end
 
-    if gradient_method === :ForwardEquations || hessian_method === :GaussNewton
+    if gradient_method === :ForwardEquations || hessian_method === :GaussNewton || FIM_method === :GaussNewton
         _gradient = zeros(Float64, length(θ_indices.iθ_dynamic))
     else
         _gradient = zeros(Float64, 0)

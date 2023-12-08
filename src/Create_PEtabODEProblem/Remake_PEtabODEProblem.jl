@@ -46,6 +46,7 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem, parameters_change:
     _θ_est::Vector{Float64} = similar(petab_problem.lower_bounds)
     _gradient::Vector{Float64} = similar(_θ_est)
     _hessian::Matrix{Float64} = Matrix{Float64}(undef, length(_θ_est), length(_θ_est))
+    _FIM::Matrix{Float64} = Matrix{Float64}(undef, length(_θ_est), length(_θ_est))
 
     # In case we fixate more parameters than there are chunk-size we might only want to evaluate ForwardDiff over a
     # subset of chunks. To this end we here make sure "fixed" parameter are moved to the end of the parameter vector
@@ -161,17 +162,38 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem, parameters_change:
         return hessian
     end
 
+    _compute_FIM! = (FIM, θ_est) -> begin
+                                        __θ_est = convert.(eltype(θ_est), _θ_est)
+                                        __θ_est[i_parameters_fixate] .= parameters_fixated_values
+                                        __θ_est[i_map] .= θ_est
+                                        petab_problem.compute_FIM!(_FIM, __θ_est)
+                                        # Can use double index with first and second
+                                        @inbounds for (i1, i2) in pairs(i_map)
+                                            for (j1, j2) in pairs(i_map)
+                                                FIM[i1, j1] = _FIM[i2, j2]
+                                            end
+                                        end
+                                    end
+    _compute_FIM = (θ) ->   begin
+        FIM = zeros(Float64, length(θ), length(θ))
+        _compute_FIM!(FIM, θ)
+        return FIM
+    end
+
     _petab_problem = PEtabODEProblem(_compute_cost,
                                     _compute_chi2,
                                     _compute_gradient!,
                                     _compute_gradient,
                                     _compute_hessian!,
                                     _compute_hessian,
+                                    _compute_FIM!,
+                                    _compute_FIM,
                                     _compute_simulated_values,
                                     _compute_residuals,
                                     petab_problem.cost_method,
                                     petab_problem.gradient_method,
                                     petab_problem.hessian_method,
+                                    petab_problem.FIM_method,
                                     Int64(length(θ_names)),
                                     θ_names,
                                     θ_nominal,
