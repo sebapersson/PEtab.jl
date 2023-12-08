@@ -67,7 +67,7 @@ function check_gradient_residuals(petab_model::PEtabModel, solverOptions::ODESol
     set_parameters_to_file_values!(petab_model.parameter_map, petab_model.state_map, parameterData)
     prior_info::PriorInfo = process_priors(paramEstIndices, parameterDataFile)
 
-    petab_ODE_cache = PEtabODEProblemCache(:ForwardEquations, :GaussNewton, petab_model, :ForwardDiff, measurementData, simulation_info, paramEstIndices, nothing)
+    petab_ODE_cache = PEtabODEProblemCache(:ForwardEquations, :GaussNewton, :ForwardDiff, petab_model, :ForwardDiff, measurementData, simulation_info, paramEstIndices, nothing)
     petab_ODESolver_cache = PEtabODESolverCache(:ForwardEquations, :GaussNewton, petab_model, simulation_info, paramEstIndices, nothing)
 
     # The time-span 5e3 is overwritten when performing actual forward simulations

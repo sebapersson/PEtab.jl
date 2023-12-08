@@ -7,9 +7,9 @@ using ForwardDiff
 using LinearAlgebra
 
 
-function test_petab_remake(petab_model::PEtabModel, parameters_change, whatCheck)
+function test_petab_remake(petab_model::PEtabModel, parameters_change, what_check)
 
-    if :GradientForwardDiff ∈ whatCheck
+    if :GradientForwardDiff ∈ what_check
         petab_problem1 = PEtabODEProblem(petab_model, ode_solver=ODESolver(Rodas5P()), chunksize=2, verbose=false)
         petab_problem2 = remake_PEtab_problem(petab_problem1, parameters_change)
 
@@ -21,7 +21,7 @@ function test_petab_remake(petab_model::PEtabModel, parameters_change, whatCheck
         @test norm(g1ForwardDiff[iMatch] - g2ForwardDiff) / length(g2ForwardDiff) ≤ 1e-3
     end
 
-    if :GradientForwardEquations ∈ whatCheck
+    if :GradientForwardEquations ∈ what_check
         petab_problem1 = PEtabODEProblem(petab_model, ode_solver=ODESolver(Rodas5P()), chunksize=2, gradient_method=:ForwardEquations, sensealg=:ForwardDiff, verbose=false)
         petab_problem2 = remake_PEtab_problem(petab_problem1, parameters_change)
 
@@ -33,7 +33,7 @@ function test_petab_remake(petab_model::PEtabModel, parameters_change, whatCheck
         @test norm(g1ForwardEq[iMatch] - g2ForwardEq) / length(g2ForwardEq) ≤ 1e-3
     end
 
-    if :GaussNewton ∈ whatCheck
+    if :GaussNewton ∈ what_check
         petab_problem1 = PEtabODEProblem(petab_model, ode_solver=ODESolver(Rodas5P()), chunksize=2, gradient_method=:ForwardDiff, hessian_method=:GaussNewton, sensealg=:ForwardDiff, verbose=false)
         petab_problem2 = remake_PEtab_problem(petab_problem1, parameters_change)
 
@@ -51,7 +51,7 @@ function test_petab_remake(petab_model::PEtabModel, parameters_change, whatCheck
         @test norm(h1GN - h2GN) ≤ 1e-3
     end
 
-    if :Hessian ∈ whatCheck
+    if :Hessian ∈ what_check
         petab_problem1 = PEtabODEProblem(petab_model, ode_solver=ODESolver(Rodas5P()), chunksize=2, hessian_method=:ForwardDiff, verbose=false)
         petab_problem2 = remake_PEtab_problem(petab_problem1, parameters_change)
 
@@ -70,6 +70,25 @@ function test_petab_remake(petab_model::PEtabModel, parameters_change, whatCheck
         @test norm(h1 - h2) ≤ 1e-3
     end
 
+    if :FIM ∈ what_check
+        petab_problem1 = PEtabODEProblem(petab_model, ode_solver=ODESolver(Rodas5P()), chunksize=2, hessian_method=:ForwardDiff, verbose=false)
+        petab_problem2 = remake_PEtab_problem(petab_problem1, parameters_change)
+
+        iMatch = findall(in(petab_problem2.θ_names), petab_problem1.θ_names)
+        _FIM1 = zeros(length(petab_problem1.θ_nominalT), length(petab_problem1.θ_nominalT))
+        FIM1 = zeros(length(petab_problem2.θ_nominalT), length(petab_problem2.θ_nominalT))
+        FIM2 = zeros(length(petab_problem2.θ_nominalT), length(petab_problem2.θ_nominalT))
+        petab_problem1.compute_cost(petab_problem1.θ_nominalT) # ensure to allocate certain objects
+        petab_problem1.compute_FIM!(_FIM1, petab_problem1.θ_nominalT)
+        petab_problem2.compute_FIM!(FIM2, petab_problem2.θ_nominalT)
+        for (i1, i2) in pairs(iMatch)
+            for (j1, j2) in pairs(iMatch)
+                FIM1[i1, j1] = _FIM1[i2, j2]
+            end
+        end
+        @test norm(FIM1 - FIM2) ≤ 1e-3
+    end
+
 end
 
 
@@ -86,10 +105,10 @@ parameters_change3 = Dict(:sd_pSTAT5A_rel => 3.85261197844677)
 parameters_change4 = Dict(:sd_pSTAT5A_rel => 3.85261197844677,
                           :k_exp_homo => 0.006170228086381)
 @testset "Test PEtab remake : Boehm" begin
-    test_petab_remake(petab_model, parameters_change1, [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton, :Hessian])
-    test_petab_remake(petab_model, parameters_change2, [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton, :Hessian])
-    test_petab_remake(petab_model, parameters_change3, [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton, :Hessian])
-    test_petab_remake(petab_model, parameters_change4, [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton, :Hessian])
+    test_petab_remake(petab_model, parameters_change1, [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton, :Hessian, :FIM])
+    test_petab_remake(petab_model, parameters_change2, [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton, :Hessian, :FIM])
+    test_petab_remake(petab_model, parameters_change3, [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton, :Hessian, :FIM])
+    test_petab_remake(petab_model, parameters_change4, [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton, :Hessian, :FIM])
 end
 
 # Test for Brannmark (has steady state simulations)

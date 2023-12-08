@@ -299,10 +299,13 @@ For constructor, see below.
 - `compute_gradient`: For θ computes out-place gradient gradient = compute_gradient(θ)
 - `compute_hessian!`: For θ computes in-place hessian-(approximation) compute_hessian!(hessian, θ)
 - `compute_hessian`: For θ computes out-place hessian-(approximation) hessian = compute_hessian(θ)
+- `compute_FIM!`: For θ computes the empirical Fisher-Information-Matrix (FIM) which is the Hessian of the negative-log-likelihood  compute_FIM!(FIM, θ).
+- `compute_FIM`: For θ computes FIM out of place FIM = compute_FIM(θ).
 - `compute_simulated_values`: For θ compute the corresponding model (simulated) values to the measurements in the same order as in the Measurements PEtab table
 - `compute_residuals`: For θ compute the residuals (h_model - h_observed)^2 / σ^2 in the same order as in the Measurements PEtab table
 - `gradient_method`: The method used to compute the gradient (either :ForwardDiff, :ForwardEquations, :Adjoint, or :Zygote).
 - `hessian_method`: The method used to compute or approximate the Hessian (either :ForwardDiff, :BlocForwardDiff, or :GaussNewton).
+- `FIM_method`: The method used to compute FIM, either :ForwardDiff (full Hessian) or :GaussNewton (only recomended for >100 parameter models)
 - `n_parameters_esimtate`: The number of parameters to estimate.
 - `θ_names`: The names of the parameters in θ.
 - `θ_nominal`: The nominal values of θ as specified in the PEtab parameters file.
@@ -344,6 +347,9 @@ Once created, a `PEtabODEProblem` contains everything needed to perform paramete
     * `:ForwardDiff`: Compute the Hessian via forward-mode automatic differentiation using ForwardDiff.jl. This is often only computationally feasible for models with ≤20 parameters but can greatly improve optimizer convergence.
     * `:BlockForwardDiff`: Compute the Hessian block approximation via forward-mode automatic differentiation using ForwardDiff.jl. The approximation consists of two block matrices: the first is the Hessian for only the dynamic parameters (parameter part of the ODE system), and the second is for the non-dynamic parameters (e.g., noise parameters). This is computationally feasible for models with ≤20 dynamic parameters and often performs better than BFGS methods.
     * `:GaussNewton`: Approximate the Hessian via the Gauss-Newton method, which often performs better than the BFGS method. If we can reuse the sensitivities from the gradient in the optimizer (see `reuse_sensitivities`), this method is best paired with `gradient_method=:ForwardEquations`.
+- `FIM_method=nothing`: Method for computing the empirical Fisher-Information-Matrix (FIM), can be:
+    * `:ForwardDiff` - use ForwardDiff to compute the full Hessian (FIM) matrix, default for model with ≤ 100 parameters 
+    * `:GaussNewton` - approximate the FIM as the Gauss-Newton Hessian approximation (only recomeded when ForwardDiff is computationally infeasible)
 - `sparse_jacobian::Bool=false`: When solving the ODE du/dt=f(u, p, t), whether implicit solvers use a sparse Jacobian. Sparse Jacobian often performs best for large models (≥100 states).
 - `specialize_level=SciMLBase.FullSpecialize`: Specialization level when building the ODE problem. It is not recommended to change this parameter (see https://docs.sciml.ai/SciMLBase/stable/interfaces/Problems/).
 - `sensealg`: Sensitivity algorithm for gradient computations. The available options for each gradient method are:
@@ -361,7 +367,9 @@ struct PEtabODEProblem{F1<:Function,
                        F2<:Function,
                        F3<:Function,
                        F4<:Function,
-                       F5<:Function}
+                       F5<:Function, 
+                       F6<:Function, 
+                       F7<:Function}
 
     compute_cost::F1
     compute_chi2
@@ -369,11 +377,14 @@ struct PEtabODEProblem{F1<:Function,
     compute_gradient::F3
     compute_hessian!::F4
     compute_hessian::F5
+    compute_FIM!::F6
+    compute_FIM::F7
     compute_simulated_values
     compute_residuals
     cost_method::Symbol
     gradient_method::Symbol
     hessian_method::Union{Symbol, Nothing}
+    FIM_method::Symbol
     n_parameters_esimtate::Int64
     θ_names::Vector{Symbol}
     θ_nominal::Vector{Float64}
