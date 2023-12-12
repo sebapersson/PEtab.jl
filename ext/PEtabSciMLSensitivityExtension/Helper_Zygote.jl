@@ -50,8 +50,16 @@ function PEtab.create_gradient_function(::Val{:Zygote},
                                                                        solve_ode_condition,
                                                                        prior_info,
                                                                        petab_ODE_cache)
+
+    compute_gradient = let _compute_gradient! =_compute_gradient!
+        (θ) -> begin
+            gradient = zeros(Float64, length(θ))
+            _compute_gradient!(gradient, θ)
+            return gradient
+        end
+    end                                                                       
     
-    return _compute_gradient!
+    return _compute_gradient!, compute_gradient
 end
 
 

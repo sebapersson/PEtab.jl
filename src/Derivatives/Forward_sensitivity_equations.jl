@@ -26,7 +26,7 @@ function compute_gradient_forward_equations!(gradient::Vector{Float64},
                                              petab_ODE_cache::PEtabODEProblemCache;
                                              exp_id_solve::Vector{Symbol} = [:all],
                                              split_over_conditions::Bool=false,
-                                             isremade::Bool=false)
+                                             isremade::Bool=false)::Nothing
 
     θ_dynamicT = transformθ(θ_dynamic, θ_indices.θ_dynamic_names, θ_indices, :θ_dynamic, petab_ODE_cache)
     θ_sdT = transformθ(θ_sd, θ_indices.θ_sd_names, θ_indices, :θ_sd, petab_ODE_cache)
@@ -35,15 +35,15 @@ function compute_gradient_forward_equations!(gradient::Vector{Float64},
 
     # Solve the expanded ODE system for the sensitivites
     success = solve_sensitivites(ode_problem, simulation_info, θ_indices, petab_model, sensealg, θ_dynamicT,
-                                   _solve_ode_all_conditions!, cfg, petab_ODE_cache, exp_id_solve, split_over_conditions,
-                                   isremade)
+                                 _solve_ode_all_conditions!, cfg, petab_ODE_cache, exp_id_solve, split_over_conditions,
+                                 isremade)
     if success != true
         @warn "Failed to solve sensitivity equations"
         gradient .= 1e8
-        return
+        return nothing
     end
     if isempty(θ_dynamic)
-        return
+        return nothing
     end
 
     gradient .= 0.0
@@ -58,10 +58,12 @@ function compute_gradient_forward_equations!(gradient::Vector{Float64},
         sol = simulation_info.ode_sols_derivatives[experimental_condition_id]
 
         # If we have a callback it needs to be properly handled
-        compute_gradient_forward_equations_condition!(gradient, sol, petab_ODE_cache, sensealg, θ_dynamicT, θ_sdT, 
-            θ_observableT,  θ_non_dynamicT, experimental_condition_id, simulation_condition_id, simulation_info, 
-            petab_model, θ_indices, measurement_info, parameter_info)
+        compute_gradient_forward_equations_condition!(gradient, sol, petab_ODE_cache, sensealg, θ_dynamicT, θ_sdT,
+                                                      θ_observableT,  θ_non_dynamicT, experimental_condition_id, 
+                                                      simulation_condition_id, simulation_info, petab_model, θ_indices, 
+                                                      measurement_info, parameter_info)
     end
+    return nothing
 end
 
 
@@ -76,12 +78,12 @@ function solve_sensitivites(ode_problem::ODEProblem,
                             petab_ODE_cache::PEtabODEProblemCache,
                             exp_id_solve::Vector{Symbol},
                             split_over_conditions::Bool,
-                            isremade::Bool=false)
+                            isremade::Bool=false)::Bool
 
-    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
-    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
-    # retcode we cannot catch these cases                               
-    simulation_info.could_solve[1] = true                              
+    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough.
+    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final
+    # retcode we cannot catch these cases
+    simulation_info.could_solve[1] = true
     petab_ODE_cache.S .= 0.0
     if split_over_conditions == false
 
@@ -158,7 +160,7 @@ function compute_gradient_forward_equations_condition!(gradient::Vector{Float64}
                                                        petab_model::PEtabModel,
                                                        θ_indices::ParameterIndices,
                                                        measurement_info::MeasurementsInfo,
-                                                       parameter_info::ParametersInfo)
+                                                       parameter_info::ParametersInfo)::Nothing
 
     i_per_time_point = simulation_info.i_per_time_point[experimental_condition_id]
     time_observed = simulation_info.time_observed[experimental_condition_id]
@@ -207,6 +209,8 @@ function compute_gradient_forward_equations_condition!(gradient::Vector{Float64}
 
     # Thus far have have computed dY/dθ, but for parameters on the log-scale we want dY/dθ_log. We can adjust via;
     # dY/dθ_log = log(10) * θ * dY/dθ
-    adjust_gradient_θ_Transformed!(gradient, _gradient, ∂G∂p, θ_dynamic, θ_indices,
+    adjust_gradient_θ_transformed!(gradient, _gradient, ∂G∂p, θ_dynamic, θ_indices,
                                          simulation_condition_id, autodiff_sensitivites=true)
+
+    return nothing
 end

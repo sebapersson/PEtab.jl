@@ -16,7 +16,7 @@ function PEtab.create_gradient_function(which_method::Symbol,
                                         n_processes::Int64=1,
                                         jobs=nothing,
                                         results=nothing,
-                                        split_over_conditions::Bool=false)
+                                        split_over_conditions::Bool=false)::Function
 
     _sensealg_ss = isnothing(sensealg_ss) ? InterpolatingAdjoint(autojacvec=ReverseDiffVJP()) : sensealg_ss
     # Fast but numerically unstable method
@@ -25,27 +25,47 @@ function PEtab.create_gradient_function(which_method::Symbol,
     end
 
     iθ_sd, iθ_observable, iθ_non_dynamic, iθ_not_ode = PEtab.get_index_parameters_not_ODE(θ_indices)
-    compute_cost_θ_not_ODE = (x) -> PEtab.compute_cost_not_solve_ODE(x[iθ_sd], x[iθ_observable], x[iθ_non_dynamic],
-        petab_model, simulation_info, θ_indices, measurement_info, parameter_info, petab_ODE_cache, exp_id_solve=[:all],
-        compute_gradient_not_solve_adjoint=true)
+    compute_cost_θ_not_ODE = let iθ_sd=iθ_sd, iθ_observable=iθ_observable, iθ_non_dynamic=iθ_non_dynamic,
+                                 petab_model=petab_model, simulation_info=simulation_info, θ_indices=θ_indices,
+                                 measurement_info=measurement_info, parameter_info=parameter_info, petab_ODE_cache=petab_ODE_cache
 
-    _compute_gradient! = (gradient, θ_est) -> compute_gradient_adjoint!(gradient,
-                                                                        θ_est,
-                                                                        ode_solver,
-                                                                        ss_solver,
-                                                                        compute_cost_θ_not_ODE,
-                                                                        sensealg,
-                                                                        _sensealg_ss,
-                                                                        ode_problem,
+                                (x) -> PEtab.compute_cost_not_solve_ODE(x[iθ_sd],
+                                                                        x[iθ_observable],
+                                                                        x[iθ_non_dynamic],
                                                                         petab_model,
                                                                         simulation_info,
                                                                         θ_indices,
                                                                         measurement_info,
                                                                         parameter_info,
-                                                                        prior_info,
                                                                         petab_ODE_cache,
-                                                                        petab_ODESolver_cache,
-                                                                        exp_id_solve=[:all])
+                                                                        exp_id_solve=[:all],
+                                                                        compute_gradient_not_solve_adjoint=true)
+                             end
+
+    _compute_gradient! = let ode_solver=ode_solver, ss_solver=ss_solver, compute_cost_θ_not_ODE=compute_cost_θ_not_ODE, 
+                             sensealg=sensealg, sensealg_ss=sensealg_ss, ode_problem=ode_problem, petab_model=petab_model, 
+                             simulation_info=simulation_info, θ_indices=θ_indices, measurement_info=measurement_info, 
+                             parameter_info=parameter_info, prior_info=prior_info, petab_ODE_cache=petab_ODE_cache, 
+                             petab_ODESolver_cache=petab_ODESolver_cache
+
+                            (gradient, θ) -> compute_gradient_adjoint!(gradient,
+                                                                       θ,
+                                                                       ode_solver,
+                                                                       ss_solver,
+                                                                       compute_cost_θ_not_ODE,
+                                                                       sensealg,
+                                                                       _sensealg_ss,
+                                                                       ode_problem,
+                                                                       petab_model,
+                                                                       simulation_info,
+                                                                       θ_indices,
+                                                                       measurement_info,
+                                                                       parameter_info,
+                                                                       prior_info,
+                                                                       petab_ODE_cache,
+                                                                       petab_ODESolver_cache,
+                                                                       exp_id_solve=[:all])
+                         end
     
     return _compute_gradient!
 end

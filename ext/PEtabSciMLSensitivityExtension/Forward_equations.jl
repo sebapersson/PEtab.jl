@@ -20,7 +20,7 @@ function PEtab.solve_sensitivites(ode_problem::ODEProblem,
                                   petab_ODE_cache::PEtab.PEtabODEProblemCache,
                                   exp_id_solve::Vector{Symbol},
                                   split_over_conditions::Bool,
-                                  isremade::Bool=false)
+                                  isremade::Bool=false)::Bool
 
     n_model_states = length(petab_model.state_names)
     _ode_problem = remake(ode_problem, p = convert.(eltype(θ_dynamic), ode_problem.p), u0 = convert.(eltype(θ_dynamic), ode_problem.u0))
@@ -44,7 +44,7 @@ function PEtab.compute_gradient_forward_equations_condition!(gradient::Vector{Fl
                                                              petab_model::PEtabModel,
                                                              θ_indices::PEtab.ParameterIndices,
                                                              measurement_info::PEtab.MeasurementsInfo,
-                                                             parameter_info::PEtab.ParametersInfo)
+                                                             parameter_info::PEtab.ParametersInfo)::Nothing
 
     i_per_time_point = simulation_info.i_per_time_point[experimental_condition_id]
     time_observed = simulation_info.time_observed[experimental_condition_id]
@@ -78,6 +78,8 @@ function PEtab.compute_gradient_forward_equations_condition!(gradient::Vector{Fl
 
     # Thus far have have computed dY/dθ, but for parameters on the log-scale we want dY/dθ_log. We can adjust via;
     # dY/dθ_log = log(10) * θ * dY/dθ
-    PEtab.adjust_gradient_θ_Transformed!(gradient, _gradient, ∂G∂p, θ_dynamic, θ_indices,
+    PEtab.adjust_gradient_θ_transformed!(gradient, _gradient, ∂G∂p, θ_dynamic, θ_indices,
                                                simulation_condition_id, autodiff_sensitivites=false)
+
+    return nothing                                               
 end

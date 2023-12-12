@@ -138,7 +138,7 @@ end
 
     Helper function computing the hessian for Ipopt (all correct input arguments). 
     The actual hessian is computed via the evalH function, and this function must 
-    be on the format evalH(hessian, paramVec).
+    be on the format evalH(hessian, param_vec).
 
     Ipopt supports sparse hessians, but at the moment a dense hessian is assumed.
 """

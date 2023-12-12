@@ -149,7 +149,7 @@ struct ParameterIndices
     θ_observable_names::Vector{Symbol}
     θ_sd_names::Vector{Symbol}
     θ_non_dynamic_names::Vector{Symbol}
-    θ_not_odeNames::Vector{Symbol}
+    θ_not_ode_names::Vector{Symbol}
     θ_names::Vector{Symbol}
     θ_scale::Dict{Symbol, Symbol}
     mapθ_observable::Vector{θObsOrSdParameterMap}

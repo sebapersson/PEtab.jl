@@ -27,8 +27,7 @@ using QuasiMonteCarlo
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
 include("PEtab_structs.jl")
-include("Create_PEtab_model.jl")
-include(joinpath("Create_PEtabODEProblem", "Create_PEtab_ODEProblem.jl"))
+include("PEtabModel.jl")
 
 include("Common.jl")
 
@@ -50,9 +49,6 @@ include(joinpath("Solve_ODE", "Helper.jl"))
 include(joinpath("Solve_ODE", "Solve_ode_model.jl"))
 include(joinpath("Solve_ODE", "Solve_for_steady_state.jl"))
 
-# Files related to distributed computing
-include(joinpath("Distributed", "Distributed.jl"))
-
 # Files related to processing PEtab files as tables 
 include(joinpath("Process_PEtab_files", "Tsv_tables_provided", "Process_measurements.jl"))
 include(joinpath("Process_PEtab_files", "Tsv_tables_provided", "Process_parameters.jl"))
@@ -69,8 +65,10 @@ include(joinpath("Process_PEtab_files", "Observables", "Create_h_sigma_derivativ
 include(joinpath("Process_PEtab_files", "Observables", "Create_u0_h_sigma.jl"))
 
 # For creating a PEtab ODE problem
-include(joinpath("Create_PEtabODEProblem", "Set_defaults.jl"))
-include(joinpath("Create_PEtabODEProblem", "Remake_PEtabODEProblem.jl"))
+include(joinpath("PEtabODEProblem", "Set_defaults.jl"))
+include(joinpath("PEtabODEProblem", "Remake.jl"))
+include(joinpath("PEtabODEProblem", "Create_cache.jl"))
+include(joinpath("PEtabODEProblem", "Create.jl"))
 
 # Creating the PEtab model
 include(joinpath("Process_PEtab_files", "Julia_tables_provided", "Create_PEtab_model.jl"))

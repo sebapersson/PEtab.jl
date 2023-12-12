@@ -10,7 +10,7 @@ to those in the PeTab parameters file.
 Used when setting up the PeTab cost function, and when solving the ODE-system
 for the values in the parameters-file.
 """
-function set_parameters_to_file_values!(parameter_map, state_map, parameters_info::ParametersInfo)
+function set_parameters_to_file_values!(parameter_map, state_map, parameters_info::ParametersInfo)::Nothing
 
     parameter_names = string.(parameters_info.parameter_id)
     parameter_names_str = string.([parameter_map[i].first for i in eachindex(parameter_map)])
@@ -30,6 +30,7 @@ function set_parameters_to_file_values!(parameter_map, state_map, parameters_inf
             state_map[i_state] = Pair(state_map[i_state].first, valChangeTo)
         end
     end
+    return nothing
 end
 
 
@@ -47,16 +48,17 @@ end
 
 function splitθ!(θ_est::AbstractVector,
                  θ_indices::ParameterIndices,
-                 petab_ODE_cache::PEtabODEProblemCache)
+                 petab_ODE_cache::PEtabODEProblemCache)::Nothing
 
     @views petab_ODE_cache.θ_dynamic .= θ_est[θ_indices.iθ_dynamic]
     @views petab_ODE_cache.θ_observable .= θ_est[θ_indices.iθ_observable]
     @views petab_ODE_cache.θ_sd .= θ_est[θ_indices.iθ_sd]
     @views petab_ODE_cache.θ_non_dynamic .= θ_est[θ_indices.iθ_non_dynamic]
+    return nothing
 end
 
 
-function computeσ(u::AbstractVector,
+function computeσ(u::AbstractVector{T1},
                   t::Float64,
                   θ_dynamic::AbstractVector,
                   θ_sd::AbstractVector,
@@ -65,7 +67,7 @@ function computeσ(u::AbstractVector,
                   i_measurement::Int64,
                   measurement_info::MeasurementsInfo,
                   θ_indices::ParameterIndices,
-                  parameter_info::ParametersInfo)::Real
+                  parameter_info::ParametersInfo)::Real where T1<:Real
 
     # Compute associated SD-value or extract said number if it is known
     mapθ_sd = θ_indices.mapθ_sd[i_measurement]
@@ -80,7 +82,7 @@ end
 
 
 # Compute observation function h
-function computehT(u::AbstractVector,
+function computehT(u::AbstractVector{T1},
                    t::Float64,
                    θ_dynamic::AbstractVector,
                    θ_observable::AbstractVector,
@@ -89,7 +91,7 @@ function computehT(u::AbstractVector,
                    i_measurement::Int64,
                    measurement_info::MeasurementsInfo,
                    θ_indices::ParameterIndices,
-                   parameter_info::ParametersInfo)::Real
+                   parameter_info::ParametersInfo)::Real where T1<:Real
 
     mapθ_observable = θ_indices.mapθ_observable[i_measurement]
     h = petab_model.compute_h(u, t, θ_dynamic, θ_observable,  θ_non_dynamic, parameter_info, measurement_info.observable_id[i_measurement], mapθ_observable)
@@ -100,7 +102,7 @@ function computehT(u::AbstractVector,
 end
 
 
-function computeh(u::AbstractVector{T},
+function computeh(u::AbstractVector{T1},
                   t::Float64,
                   θ_dynamic::AbstractVector,
                   θ_observable::AbstractVector,
@@ -109,7 +111,7 @@ function computeh(u::AbstractVector{T},
                   i_measurement::Int64,
                   measurement_info::MeasurementsInfo,
                   θ_indices::ParameterIndices,
-                  parameter_info::ParametersInfo)::Real where T
+                  parameter_info::ParametersInfo)::Real where T1<:Real
 
     mapθ_observable = θ_indices.mapθ_observable[i_measurement]
     h = petab_model.compute_h(u, t, θ_dynamic, θ_observable,  θ_non_dynamic, parameter_info, measurement_info.observable_id[i_measurement], mapθ_observable)
@@ -123,7 +125,7 @@ end
 
     Transform val using either :lin (identify), :log10 and :log transforamtions.
 """
-function transform_measurement_or_h(val::T, transform::Symbol)::T where T
+function transform_measurement_or_h(val::T, transform::Symbol)::T where T<:Real
     if transform == :lin
         return val
     elseif transform == :log10
@@ -152,7 +154,7 @@ function get_obs_sd_parameter(θ::AbstractVector, parameter_map::θObsOrSdParame
 
     # In case of no SD/observable parameter exit function
     if parameter_map.n_parameters == 0
-        return
+        return nothing
     end
 
     # In case of single-value return do not have to return an array and think about type
@@ -186,18 +188,19 @@ end
 function transformθ!(θ::AbstractVector,
                      n_parameters_estimate::Vector{Symbol},
                      θ_indices::ParameterIndices;
-                     reverse_transform::Bool=false)
+                     reverse_transform::Bool=false)::Nothing
 
     @inbounds for (i, θ_name) in pairs(n_parameters_estimate)
         θ[i] = transform_θ_element(θ[i], θ_indices.θ_scale[θ_name], reverse_transform=reverse_transform)
     end
+    return nothing
 end
 
 # Transform parameter from log10 scale to normal scale, or reverse transform
-function transformθ(θ::AbstractVector,
+function transformθ(θ::T,
                     n_parameters_estimate::Vector{Symbol},
                     θ_indices::ParameterIndices;
-                    reverse_transform::Bool=false)::AbstractVector
+                    reverse_transform::Bool=false)::T where T<:AbstractVector
 
     if isempty(θ)
         return similar(θ)
@@ -249,7 +252,7 @@ function change_ode_parameters!(p_ode_problem::AbstractVector,
                                 u0::AbstractVector,
                                 θ::AbstractVector,
                                 θ_indices::ParameterIndices,
-                                petab_model::PEtabModel)
+                                petab_model::PEtabModel)::Nothing
 
     map_ode_problem = θ_indices.map_ode_problem
     p_ode_problem[map_ode_problem.i_ode_problem_θ_dynamic] .= θ[map_ode_problem.iθ_dynamic]
@@ -287,8 +290,8 @@ function dual_to_float(x::ForwardDiff.Dual)::Real
     return dual_to_float(x.value)
 end
 """
-    dual_to_float(x::AbstractFloat)::AbstractFloat
+    dual_to_float(x::T)::T where T<:AbstractFloat
 """
-function dual_to_float(x::AbstractFloat)::AbstractFloat
+function dual_to_float(x::T)::T where T<:AbstractFloat
     return x
 end

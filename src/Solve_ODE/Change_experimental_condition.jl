@@ -12,7 +12,7 @@ function _change_simulation_condition!(p_ode_problem::AbstractVector,
                                        θ_dynamic::AbstractVector,
                                        petab_model::PEtabModel,
                                        θ_indices::ParameterIndices;
-                                       compute_forward_sensitivites::Bool=false)
+                                       compute_forward_sensitivites::Bool=false)::Nothing
 
     map_condition_id = θ_indices.maps_conidition_id[condition_id]
 
