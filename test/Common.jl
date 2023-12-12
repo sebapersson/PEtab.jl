@@ -75,12 +75,12 @@ function check_gradient_residuals(petab_model::PEtabModel, ode_solver::ODESolver
     ode_problem = remake(ode_problem, p = convert.(Float64, ode_problem.p), u0 = convert.(Float64, ode_problem.u0))
     ss_options = SteadyStateSolver(:Simulate, abstol=ode_solver.abstol / 100.0, reltol = ode_solver.reltol / 100.0)
     _ss_options = PEtab._get_steady_state_solver(ss_options, ode_problem, ss_options.abstol, ss_options.reltol, ss_options.maxiters)
-    compute_Jacobian = PEtab.create_hessian_function(:GaussNewton, ode_problem, ode_solver, _ss_options, petab_ODE_cache, petab_ODESolver_cache,
+    compute_Jacobian!, _ = PEtab.create_hessian_function(:GaussNewton, ode_problem, ode_solver, _ss_options, petab_ODE_cache, petab_ODESolver_cache,
                                          petab_model, simulation_info, θ_indices, measurement_info,
                                          parameter_info, prior_info, nothing, return_jacobian=true)
     compute_sum_residuals = PEtab.create_cost_function(:Standard, ode_problem, ode_solver, _ss_options, petab_ODE_cache, petab_ODESolver_cache,
                                          petab_model, simulation_info, θ_indices, measurement_info,
-                                         parameter_info, prior_info, nothing, 1, nothing, nothing, true)
+                                         parameter_info, prior_info, nothing, true)
 
     # Extract parameter vector
     θ_names = θ_indices.θ_names
@@ -89,7 +89,7 @@ function check_gradient_residuals(petab_model::PEtabModel, ode_solver::ODESolver
 
     jac_out = zeros(length(param_vec), length(measurement_info.time))
     residual_grad = ForwardDiff.gradient(compute_sum_residuals, param_vec)
-    compute_Jacobian(jac_out, param_vec)
+    compute_Jacobian!(jac_out, param_vec)
     sqdiffResidual = sum((sum(jac_out, dims=2) - residual_grad).^2)
     @test sqdiffResidual ≤ 1e-5
 end
