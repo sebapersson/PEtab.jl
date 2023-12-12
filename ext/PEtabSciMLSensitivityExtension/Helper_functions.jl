@@ -13,10 +13,7 @@ function PEtab.create_gradient_function(which_method::Symbol,
                                         prior_info::PEtab.PriorInfo;
                                         chunksize::Union{Nothing, Int64}=nothing,
                                         sensealg_ss=nothing,
-                                        n_processes::Int64=1,
-                                        jobs=nothing,
-                                        results=nothing,
-                                        split_over_conditions::Bool=false)::Function
+                                        split_over_conditions::Bool=false)
 
     _sensealg_ss = isnothing(sensealg_ss) ? InterpolatingAdjoint(autojacvec=ReverseDiffVJP()) : sensealg_ss
     # Fast but numerically unstable method
@@ -43,7 +40,7 @@ function PEtab.create_gradient_function(which_method::Symbol,
                              end
 
     _compute_gradient! = let ode_solver=ode_solver, ss_solver=ss_solver, compute_cost_θ_not_ODE=compute_cost_θ_not_ODE, 
-                             sensealg=sensealg, sensealg_ss=sensealg_ss, ode_problem=ode_problem, petab_model=petab_model, 
+                             sensealg=sensealg, _sensealg_ss=_sensealg_ss, ode_problem=ode_problem, petab_model=petab_model, 
                              simulation_info=simulation_info, θ_indices=θ_indices, measurement_info=measurement_info, 
                              parameter_info=parameter_info, prior_info=prior_info, petab_ODE_cache=petab_ODE_cache, 
                              petab_ODESolver_cache=petab_ODESolver_cache
@@ -67,7 +64,15 @@ function PEtab.create_gradient_function(which_method::Symbol,
                                                                        exp_id_solve=[:all])
                          end
     
-    return _compute_gradient!
+    compute_gradient = let _compute_gradient! =_compute_gradient!
+        (θ) -> begin
+            gradient = zeros(Float64, length(θ))
+            _compute_gradient!(gradient, θ)
+            return gradient
+        end
+    end                                                                       
+    
+    return _compute_gradient!, compute_gradient
 end
 
 

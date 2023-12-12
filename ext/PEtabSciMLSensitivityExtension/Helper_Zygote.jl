@@ -32,9 +32,6 @@ function PEtab.create_gradient_function(::Val{:Zygote},
                                         prior_info::PEtab.PriorInfo;
                                         chunksize::Union{Nothing, Int64}=nothing,
                                         sensealg_ss=nothing,
-                                        n_processes::Int64=1,
-                                        jobs=nothing,
-                                        results=nothing,
                                         split_over_conditions::Bool=false)
 
     change_simulation_condition = (p_ode_problem, u0, conditionId, θ_dynamic) -> PEtab._change_simulation_condition(p_ode_problem, u0, conditionId, θ_dynamic, petab_model, θ_indices)
@@ -76,9 +73,6 @@ function PEtab.create_cost_function(::Val{:Zygote},
                                     parameter_info::PEtab.ParametersInfo,
                                     prior_info::PEtab.PriorInfo,
                                     sensealg,
-                                    n_processes,
-                                    jobs,
-                                    results,
                                     compute_residuals)
 
     change_simulation_condition = (p_ode_problem, u0, conditionId, θ_dynamic) -> PEtab._change_simulation_condition(p_ode_problem, u0, conditionId, θ_dynamic, petab_model, θ_indices)

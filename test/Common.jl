@@ -3,8 +3,8 @@
 import PEtab: process_priors, change_ode_parameters!, PriorInfo, transformθ, solve_ode_all_conditions!, compute_GaussNewton_hessian!, PEtabODESolverCache, PEtabODESolverCache, PEtabODEProblemCache
 
 
-function _testCostGradientOrHessian(petab_model::PEtabModel,
-                                    solverOptions::ODESolver,
+function _test_cost_gradient_hessian(petab_model::PEtabModel,
+                                    ode_solver::ODESolver,
                                     p::Vector{Float64};
                                     solverGradientOptions=nothing,
                                     compute_cost::Bool=false,
@@ -18,11 +18,11 @@ function _testCostGradientOrHessian(petab_model::PEtabModel,
                                     sensealg_ss=SteadyStateAdjoint())
 
     if isnothing(solverGradientOptions)
-        solverGradientOptions = deepcopy(solverOptions)
+        solverGradientOptions = deepcopy(ode_solver)
     end
 
     petab_problem = PEtabODEProblem(petab_model,
-                                         ode_solver=solverOptions;
+                                         ode_solver=ode_solver;
                                          ode_solver_gradient=solverGradientOptions,
                                          cost_method=cost_method,
                                          gradient_method=gradient_method,
@@ -52,55 +52,55 @@ function _testCostGradientOrHessian(petab_model::PEtabModel,
 end
 
 
-function check_gradient_residuals(petab_model::PEtabModel, solverOptions::ODESolver; verbose::Bool=true, custom_parameter_values=nothing)
+function check_gradient_residuals(petab_model::PEtabModel, ode_solver::ODESolver; verbose::Bool=true, custom_parameter_values=nothing)
 
     # Process PeTab files into type-stable Julia structs
-    experimental_conditions_file, measurementDataFile, parameterDataFile, observables_dataFile = read_petab_files(petab_model)
-    parameterData = process_parameters(parameterDataFile, custom_parameter_values=custom_parameter_values)
-    measurementData = process_measurements(measurementDataFile, observables_dataFile)
-    simulation_info = process_simulationinfo(petab_model, measurementData, sensealg=nothing)
+    experimental_conditions_file, measurements_file, parameters_file, observables_file = read_petab_files(petab_model)
+    parameter_info = process_parameters(parameters_file, custom_parameter_values=custom_parameter_values)
+    measurement_info = process_measurements(measurements_file, observables_file)
+    simulation_info = process_simulationinfo(petab_model, measurement_info, sensealg=nothing)
 
     # Indices for mapping parameter-estimation vector to dynamic, observable and sd parameters correctly when calculating cost
-    paramEstIndices = compute_θ_indices(parameterData, measurementData, petab_model)
+    θ_indices = compute_θ_indices(parameter_info, measurement_info, petab_model)
 
     # Set model parameter values to those in the PeTab parameter data ensuring correct value of constant parameters
-    set_parameters_to_file_values!(petab_model.parameter_map, petab_model.state_map, parameterData)
-    prior_info::PriorInfo = process_priors(paramEstIndices, parameterDataFile)
+    set_parameters_to_file_values!(petab_model.parameter_map, petab_model.state_map, parameter_info)
+    prior_info::PriorInfo = process_priors(θ_indices, parameters_file)
 
-    petab_ODE_cache = PEtabODEProblemCache(:ForwardEquations, :GaussNewton, :ForwardDiff, petab_model, :ForwardDiff, measurementData, simulation_info, paramEstIndices, nothing)
-    petab_ODESolver_cache = PEtabODESolverCache(:ForwardEquations, :GaussNewton, petab_model, simulation_info, paramEstIndices, nothing)
+    petab_ODE_cache = PEtabODEProblemCache(:ForwardEquations, :GaussNewton, :ForwardDiff, petab_model, :ForwardDiff, measurement_info, simulation_info, θ_indices, nothing)
+    petab_ODESolver_cache = PEtabODESolverCache(:ForwardEquations, :GaussNewton, petab_model, simulation_info, θ_indices, nothing)
 
     # The time-span 5e3 is overwritten when performing actual forward simulations
-    odeProb = ODEProblem(petab_model.system, petab_model.state_map, (0.0, 5e3), petab_model.parameter_map, jac=true, sparse=false)
-    odeProb = remake(odeProb, p = convert.(Float64, odeProb.p), u0 = convert.(Float64, odeProb.u0))
-    ss_options = SteadyStateSolver(:Simulate, abstol=solverOptions.abstol / 100.0, reltol = solverOptions.reltol / 100.0)
-    _ss_options = PEtab._get_steady_state_solver(ss_options, odeProb, ss_options.abstol, ss_options.reltol, ss_options.maxiters)
-    computeJacobian = PEtab.create_hessian_function(:GaussNewton, odeProb, solverOptions, _ss_options, petab_ODE_cache, petab_ODESolver_cache,
-                                         petab_model, simulation_info, paramEstIndices, measurementData,
-                                         parameterData, prior_info, nothing, return_jacobian=true)
-    computeSumResiduals = PEtab.create_cost_function(:Standard, odeProb, solverOptions, _ss_options, petab_ODE_cache, petab_ODESolver_cache,
-                                         petab_model, simulation_info, paramEstIndices, measurementData,
-                                         parameterData, prior_info, nothing, 1, nothing, nothing, true)
+    ode_problem = ODEProblem(petab_model.system, petab_model.state_map, (0.0, 5e3), petab_model.parameter_map, jac=true, sparse=false)
+    ode_problem = remake(ode_problem, p = convert.(Float64, ode_problem.p), u0 = convert.(Float64, ode_problem.u0))
+    ss_options = SteadyStateSolver(:Simulate, abstol=ode_solver.abstol / 100.0, reltol = ode_solver.reltol / 100.0)
+    _ss_options = PEtab._get_steady_state_solver(ss_options, ode_problem, ss_options.abstol, ss_options.reltol, ss_options.maxiters)
+    compute_Jacobian = PEtab.create_hessian_function(:GaussNewton, ode_problem, ode_solver, _ss_options, petab_ODE_cache, petab_ODESolver_cache,
+                                         petab_model, simulation_info, θ_indices, measurement_info,
+                                         parameter_info, prior_info, nothing, return_jacobian=true)
+    compute_sum_residuals = PEtab.create_cost_function(:Standard, ode_problem, ode_solver, _ss_options, petab_ODE_cache, petab_ODESolver_cache,
+                                         petab_model, simulation_info, θ_indices, measurement_info,
+                                         parameter_info, prior_info, nothing, 1, nothing, nothing, true)
 
     # Extract parameter vector
-    namesParamEst = paramEstIndices.θ_names
-    paramVecNominal = [parameterData.nominal_value[findfirst(x -> x == namesParamEst[i], parameterData.parameter_id)] for i in eachindex(namesParamEst)]
-    paramVec = transformθ(paramVecNominal, namesParamEst, paramEstIndices, reverse_transform=true)
+    θ_names = θ_indices.θ_names
+    param_vecNominal = [parameter_info.nominal_value[findfirst(x -> x == θ_names[i], parameter_info.parameter_id)] for i in eachindex(θ_names)]
+    param_vec = transformθ(param_vecNominal, θ_names, θ_indices, reverse_transform=true)
 
-    jacOut = zeros(length(paramVec), length(measurementData.time))
-    residualGrad = ForwardDiff.gradient(computeSumResiduals, paramVec)
-    computeJacobian(jacOut, paramVec)
-    sqDiffResidual = sum((sum(jacOut, dims=2) - residualGrad).^2)
-    @test sqDiffResidual ≤ 1e-5
+    jac_out = zeros(length(param_vec), length(measurement_info.time))
+    residual_grad = ForwardDiff.gradient(compute_sum_residuals, param_vec)
+    compute_Jacobian(jac_out, param_vec)
+    sqdiffResidual = sum((sum(jac_out, dims=2) - residual_grad).^2)
+    @test sqdiffResidual ≤ 1e-5
 end
 
 
 function get_file_ode_values(petab_model::PEtabModel)
 
     # Change model parameters
-    experimental_conditions_file, measurementDataFile, parameterDataFile, observables_dataFile = read_petab_files(petab_model)
-    parameter_info = process_parameters(parameterDataFile)
-    measurement_info = process_measurements(measurementDataFile, observables_dataFile)
+    experimental_conditions_file, measurements_file, parameters_file, observables_file = read_petab_files(petab_model)
+    parameter_info = process_parameters(parameters_file)
+    measurement_info = process_measurements(measurements_file, observables_file)
     θ_indices = compute_θ_indices(parameter_info, measurement_info, petab_model)
 
     θ_names = θ_indices.θ_names

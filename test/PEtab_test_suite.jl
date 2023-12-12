@@ -9,33 +9,33 @@ using LinearAlgebra
 using FiniteDifferences
 
 
-function test_reference_case(testCase::String; testGradient=true)
+function test_reference_case(test_case::String; testGradient::Bool=true)
 
-    @info "Test case $testCase"
-    path_yaml = joinpath(@__DIR__, "PEtab_test_suite", testCase, "_" * testCase * ".yaml")
-    pathReferenceValues = joinpath(@__DIR__, "PEtab_test_suite", testCase, "_" * testCase * "_solution.yaml")
+    @info "Test case $test_case"
+    path_yaml = joinpath(@__DIR__, "PEtab_test_suite", test_case, "_" * test_case * ".yaml")
+    path_reference_values = joinpath(@__DIR__, "PEtab_test_suite", test_case, "_" * test_case * "_solution.yaml")
 
     petab_model = PEtabModel(path_yaml, verbose=false, build_julia_files=true)
     petab_problem = PEtabODEProblem(petab_model, verbose=false)
 
     cost = petab_problem.compute_cost(petab_problem.θ_nominalT)
-    chi2 = petab_problem.compute_chi2(petab_problem.θ_nominalT)
+    χ2 = petab_problem.compute_chi2(petab_problem.θ_nominalT)
     simulated_values = petab_problem.compute_simulated_values(petab_problem.θ_nominalT)
 
-    referenceYAML = YAML.load_file(pathReferenceValues)
-    pathSimulations = joinpath(dirname(pathReferenceValues), referenceYAML["simulation_files"][1])
-    costRef, tolCost = -1 * referenceYAML["llh"], referenceYAML["tol_llh"]
-    chi2Ref, tolChi2 = referenceYAML["chi2"], referenceYAML["tol_chi2"]
-    simulated_valuesRef, tolSimulations = CSV.File(pathSimulations)[:simulation], referenceYAML["tol_simulations"]
+    reference_yaml = YAML.load_file(path_reference_values)
+    path_simulations = joinpath(dirname(path_reference_values), reference_yaml["simulation_files"][1])
+    cost_ref, tol_cost = -1 * reference_yaml["llh"], reference_yaml["tol_llh"]
+    χ2_ref, tol_χ2 = reference_yaml["chi2"], reference_yaml["tol_chi2"]
+    simulated_values_ref, tol_simulations = CSV.File(path_simulations)[:simulation], reference_yaml["tol_simulations"]
 
-    @test cost ≈ costRef atol = tolCost
-    @test chi2 ≈ chi2Ref atol = tolChi2
-    @test all(abs.(simulated_values .- simulated_valuesRef) .≤ tolSimulations)
+    @test cost ≈ cost_ref atol = tol_cost
+    @test χ2 ≈ χ2_ref atol = tol_χ2
+    @test all(abs.(simulated_values .- simulated_values_ref) .≤ tol_simulations)
 
     if testGradient == true
-        gRef = FiniteDifferences.grad(central_fdm(5, 1), petab_problem.compute_cost, petab_problem.θ_nominalT)[1]
+        gradient_ref = FiniteDifferences.grad(central_fdm(5, 1), petab_problem.compute_cost, petab_problem.θ_nominalT)[1]
         g = petab_problem.compute_gradient(petab_problem.θ_nominalT)
-        @test norm(g - gRef) ≤ 1e-7
+        @test norm(g - gradient_ref) ≤ 1e-7
     end
 end
 

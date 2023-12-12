@@ -749,7 +749,7 @@ function create_hessian_function(which_method::Symbol,
         end
     end
 
-    if which_method == :GaussNewton && n_processes == 1
+    if which_method == :GaussNewton
 
         if split_over_conditions == false
             _solve_ode_all_conditions! = let petab_ODESolver_cache=petab_ODESolver_cache, sols_derivatives=simulation_info.ode_sols_derivatives,
