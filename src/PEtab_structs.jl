@@ -149,7 +149,7 @@ struct ParameterIndices
     θ_observable_names::Vector{Symbol}
     θ_sd_names::Vector{Symbol}
     θ_non_dynamic_names::Vector{Symbol}
-    θ_not_odeNames::Vector{Symbol}
+    θ_not_ode_names::Vector{Symbol}
     θ_names::Vector{Symbol}
     θ_scale::Dict{Symbol, Symbol}
     mapθ_observable::Vector{θObsOrSdParameterMap}
@@ -282,6 +282,55 @@ struct PEtabModel{F1<:Function,
 end
 
 
+struct ParametersInfo
+    nominal_value::Vector{Float64}
+    lower_bounds::Vector{Float64}
+    upper_bounds::Vector{Float64}
+    parameter_id::Vector{Symbol}
+    parameter_scale::Vector{Symbol}
+    estimate::Vector{Bool}
+    n_parameters_esimtate::Int64
+end
+
+
+struct PEtabODEProblemCache{T1 <: AbstractVector,
+                            T2 <: DiffCache,
+                            T3 <: AbstractVector,
+                            T4 <: AbstractMatrix}
+    θ_dynamic::T1
+    θ_sd::T1
+    θ_observable::T1
+    θ_non_dynamic::T1
+    θ_dynamicT::T2 # T = transformed vector
+    θ_sdT::T2
+    θ_observableT::T2
+    θ_non_dynamicT::T2
+    gradient_θ_dyanmic::T1
+    gradient_θ_not_ode::T1
+    jacobian_gn::T4
+    residuals_gn::T1
+    _gradient::T1
+    _gradient_adjoint::T1
+    S_t0::T4
+    ∂h∂u::T3
+    ∂σ∂u::T3
+    ∂h∂p::T3
+    ∂σ∂p::T3
+    ∂G∂p::T3
+    ∂G∂p_::T3
+    ∂G∂u::T3
+    dp::T1
+    du::T1
+    p::T3
+    u::T3
+    S::T4
+    sol_values::T4
+    θ_dynamic_input_order::Vector{Int64}
+    θ_dynamic_output_order::Vector{Int64}
+    nθ_dynamic::Vector{Int64}
+end
+
+
 """
     PEtabODEProblem
 
@@ -401,17 +450,8 @@ struct PEtabODEProblem{F1<:Function,
     ode_problem::ODEProblem
     split_over_conditions::Bool
     prior_info::PriorInfo
-end
-
-
-struct ParametersInfo
-    nominal_value::Vector{Float64}
-    lower_bounds::Vector{Float64}
-    upper_bounds::Vector{Float64}
-    parameter_id::Vector{Symbol}
-    parameter_scale::Vector{Symbol}
-    estimate::Vector{Bool}
-    n_parameters_esimtate::Int64
+    parameter_info::ParametersInfo
+    petab_ODE_cache::PEtabODEProblemCache
 end
 
 
@@ -431,43 +471,6 @@ struct MeasurementsInfo{T<:Vector{<:Union{<:String, <:AbstractFloat}}}
     observable_parameters::Vector{String}
 end
 
-
-struct PEtabODEProblemCache{T1 <: AbstractVector,
-                            T2 <: DiffCache,
-                            T3 <: AbstractVector,
-                            T4 <: AbstractMatrix}
-    θ_dynamic::T1
-    θ_sd::T1
-    θ_observable::T1
-    θ_non_dynamic::T1
-    θ_dynamicT::T2 # T = transformed vector
-    θ_sdT::T2
-    θ_observableT::T2
-    θ_non_dynamicT::T2
-    gradient_θ_dyanmic::T1
-    gradient_θ_not_ode::T1
-    jacobian_gn::T4
-    residuals_gn::T1
-    _gradient::T1
-    _gradient_adjoint::T1
-    S_t0::T4
-    ∂h∂u::T3
-    ∂σ∂u::T3
-    ∂h∂p::T3
-    ∂σ∂p::T3
-    ∂G∂p::T3
-    ∂G∂p_::T3
-    ∂G∂u::T3
-    dp::T1
-    du::T1
-    p::T3
-    u::T3
-    S::T4
-    sol_values::T4
-    θ_dynamic_input_order::Vector{Int64}
-    θ_dynamic_output_order::Vector{Int64}
-    nθ_dynamic::Vector{Int64}
-end
 
 
 struct PEtabODESolverCache

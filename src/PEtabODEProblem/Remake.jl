@@ -24,7 +24,7 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem, parameters_change:
     parameters_fixated_values = Vector{Float64}(undef, length(parameters_fixate))
     # Ensure we fixate parameter values on the correct scale
     for i in eachindex(i_parameters_fixate)
-        transform = petab_problem.compute_cost.parameter_info.parameter_scale[findfirst(x -> x == parameters_fixate[i], petab_problem.compute_cost.parameter_info.parameter_id)]
+        transform = petab_problem.parameter_info.parameter_scale[findfirst(x -> x == parameters_fixate[i], petab_problem.parameter_info.parameter_id)]
         if transform === :lin
             parameters_fixated_values[i] = parameters_change[parameters_fixate[i]]
         elseif transform === :log
@@ -61,8 +61,8 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem, parameters_change:
             if i ∈ _iθ_dynamic_fixate
                 continue
             end
-            petab_problem.compute_cost.petab_ODE_cache.θ_dynamic_input_order[k] = i
-            petab_problem.compute_cost.petab_ODE_cache.θ_dynamic_output_order[i] = k
+            petab_problem.petab_ODE_cache.θ_dynamic_input_order[k] = i
+            petab_problem.petab_ODE_cache.θ_dynamic_output_order[i] = k
             k += 1
         end
         # Make sure the parameter which are fixated ends up in the end of the parameter
@@ -71,11 +71,11 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem, parameters_change:
             if i ∉ _iθ_dynamic_fixate
                 continue
             end
-            petab_problem.compute_cost.petab_ODE_cache.θ_dynamic_input_order[k] = i
-            petab_problem.compute_cost.petab_ODE_cache.θ_dynamic_output_order[i] = k
+            petab_problem.petab_ODE_cache.θ_dynamic_input_order[k] = i
+            petab_problem.petab_ODE_cache.θ_dynamic_output_order[i] = k
             k += 1
         end
-        petab_problem.compute_cost.petab_ODE_cache.nθ_dynamic[1] = length(petab_problem.θ_indices.θ_dynamic_names) - length(_iθ_dynamic_fixate)
+        petab_problem.petab_ODE_cache.nθ_dynamic[1] = length(petab_problem.θ_indices.θ_dynamic_names) - length(_iθ_dynamic_fixate)
 
         # Aviod  problems with autodiff=true for ODE solvers for computing the gradient
         if typeof(petab_problem.ode_solver_gradient.solver) <: Rodas5P
@@ -90,9 +90,9 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem, parameters_change:
             petab_problem.ode_solver_gradient.solver = Rosenbrock23(autodiff=false)
         end
     else
-        petab_problem.compute_cost.petab_ODE_cache.θ_dynamic_input_order .= 1:length(petab_problem.θ_indices.θ_dynamic_names)
-        petab_problem.compute_cost.petab_ODE_cache.θ_dynamic_output_order .= 1:length(petab_problem.θ_indices.θ_dynamic_names)
-        petab_problem.compute_cost.petab_ODE_cache.nθ_dynamic[1] = length(petab_problem.θ_indices.θ_dynamic_names)
+        petab_problem.petab_ODE_cache.θ_dynamic_input_order .= 1:length(petab_problem.θ_indices.θ_dynamic_names)
+        petab_problem.petab_ODE_cache.θ_dynamic_output_order .= 1:length(petab_problem.θ_indices.θ_dynamic_names)
+        petab_problem.petab_ODE_cache.nθ_dynamic[1] = length(petab_problem.θ_indices.θ_dynamic_names)
     end
 
     # Setup mapping from θ_est to _θ_est
@@ -209,6 +209,8 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem, parameters_change:
                                     petab_problem.simulation_info,
                                     petab_problem.ode_problem,
                                     petab_problem.split_over_conditions, 
-                                    petab_problem.prior_info)
+                                    petab_problem.prior_info, 
+                                    petab_problem.parameter_info, 
+                                    petab_problem.petab_ODE_cache)
     return _petab_problem
 end

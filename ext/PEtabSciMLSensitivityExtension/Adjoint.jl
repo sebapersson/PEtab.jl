@@ -1,7 +1,7 @@
 # Compute gradient via adjoint sensitivity analysis
 function compute_gradient_adjoint!(gradient::Vector{Float64},
                                    θ_est::Vector{Float64},
-                                   solverOptions::ODESolver,
+                                   ode_solver::ODESolver,
                                    ss_solver::SteadyStateSolver,
                                    compute_cost_θ_not_ODE::Function,
                                    sensealg::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
@@ -15,7 +15,7 @@ function compute_gradient_adjoint!(gradient::Vector{Float64},
                                    prior_info::PEtab.PriorInfo,
                                    petab_ODE_cache::PEtab.PEtabODEProblemCache,
                                    petab_ODESolver_cache::PEtab.PEtabODESolverCache;
-                                   exp_id_solve::Vector{Symbol} = [:all])
+                                   exp_id_solve::Vector{Symbol} = [:all])::Nothing
 
     PEtab.splitθ!(θ_est, θ_indices, petab_ODE_cache)
     θ_dynamic = petab_ODE_cache.θ_dynamic
@@ -25,7 +25,7 @@ function compute_gradient_adjoint!(gradient::Vector{Float64},
 
     # Calculate gradient seperately for dynamic and non dynamic parameter.
     compute_gradient_adjoint_θ_dynamic!(petab_ODE_cache.gradient_θ_dyanmic, θ_dynamic, θ_sd, θ_observable,  
-                                        θ_non_dynamic, ode_problem, solverOptions, ss_solver, sensealg, 
+                                        θ_non_dynamic, ode_problem, ode_solver, ss_solver, sensealg, 
                                         petab_model, simulation_info, θ_indices, measurement_info, parameter_info,
                                         petab_ODE_cache, petab_ODESolver_cache; exp_id_solve=exp_id_solve,
                                         sensealg_ss=sensealg_ss)
@@ -34,7 +34,7 @@ function compute_gradient_adjoint!(gradient::Vector{Float64},
     # Happens when at least one forward pass fails and I set the gradient to 1e8
     if !isempty(petab_ODE_cache.gradient_θ_dyanmic) && all(petab_ODE_cache.gradient_θ_dyanmic .== 0.0)
         gradient .= 0.0
-        return
+        return nothing
     end
 
     θ_not_ode = @view θ_est[θ_indices.iθ_not_ode]
@@ -44,6 +44,8 @@ function compute_gradient_adjoint!(gradient::Vector{Float64},
     if prior_info.has_priors == true
         PEtab.compute_gradient_prior!(gradient, θ_est, θ_indices, prior_info)
     end
+
+    return nothing
 end
 
 
@@ -65,7 +67,7 @@ function compute_gradient_adjoint_θ_dynamic!(gradient::Vector{Float64},
                                              petab_ODE_cache::PEtab.PEtabODEProblemCache,
                                              petab_ODESolver_cache::PEtab.PEtabODESolverCache;
                                              sensealg_ss=SteadyStateAdjoint(),
-                                             exp_id_solve::Vector{Symbol} = [:all])
+                                             exp_id_solve::Vector{Symbol} = [:all])::Nothing
 
     θ_dynamicT = PEtab.transformθ(θ_dynamic, θ_indices.θ_dynamic_names, θ_indices, :θ_dynamic, petab_ODE_cache)
     θ_sdT = PEtab.transformθ(θ_sd, θ_indices.θ_sd_names, θ_indices, :θ_sd, petab_ODE_cache)
@@ -77,7 +79,7 @@ function compute_gradient_adjoint_θ_dynamic!(gradient::Vector{Float64},
     success = PEtab.solve_ode_all_conditions!(simulation_info.ode_sols_derivatives, _ode_problem, petab_model, θ_dynamicT, petab_ODESolver_cache, simulation_info, θ_indices, ode_solver, ss_solver, exp_id_solve=exp_id_solve, dense_sol=true, save_at_observed_t=false, track_callback=true)
     if success != true
         gradient .= 1e8
-        return
+        return nothing
     end
 
     # In case of PreEq-critera we need to compute the pullback function at tSS to compute the VJP between
@@ -112,10 +114,10 @@ function compute_gradient_adjoint_θ_dynamic!(gradient::Vector{Float64},
 
         if success == false
             fill!(gradient, 0.0)
-            return
+            return nothing
         end
     end
-    return
+    return nothing
 end
 
 
@@ -205,7 +207,7 @@ function compute_VJP_ss(du::AbstractVector,
                         abstol::Float64,
                         dtmin::Union{Float64, Nothing},
                         force_dtmin::Bool,
-                        maxiters::Int64)
+                        maxiters::Int64)::AbstractVector
 
     adj_prob, rcb = ODEAdjointProblem(_sol, sensealg, odeSolver, [_sol.t[end]], compute_∂g∂u_empty, nothing,
                                       nothing, nothing, nothing, Val(true))
@@ -225,7 +227,7 @@ function compute_VJP_ss(du::AbstractVector,
                         abstol::Float64,
                         dtmin::Union{Float64, Nothing},
                         force_dtmin::Bool,
-                        maxiters::Int64)
+                        maxiters::Int64)::AbstractVector
 
     n_model_states = length(_sol.prob.u0)
     adj_prob, rcb = ODEAdjointProblem(_sol, sensealg, odeSolver, [_sol.t[end]], compute_∂g∂u_empty, nothing,
@@ -240,8 +242,9 @@ function compute_VJP_ss(du::AbstractVector,
 end
 
 
-function compute_∂g∂u_empty(out, u, p, t, i)
+function compute_∂g∂u_empty(out, u, p, t, i)::Nothing
     out .= 0.0
+    return nothing
 end
 
 
@@ -304,7 +307,7 @@ function compute_gradient_adjoint_condition!(gradient::Vector{Float64},
         compute∂G∂u!(du, sol[1], sol.prob.p, 0.0, 1)
         only_obs_at_zero = true
     end
-    # Technically we can pass compute∂G∂p above to dgdp_discrete. However, odeProb.p often contain
+    # Technically we can pass compute∂G∂p above to dgdp_discrete. However, ode_problem.p often contain
     # constant parameters which are not a part ode the parameter estimation problem. Sometimes
     # the gradient for these evaluate to NaN (as they where never thought to be estimated) which
     # results in the entire gradient evaluating to NaN. Hence, we perform this calculation outside
@@ -337,7 +340,7 @@ function compute_gradient_adjoint_condition!(gradient::Vector{Float64},
 
     # Thus far have have computed dY/dθ, but for parameters on the log-scale we want dY/dθ_log. We can adjust via;
     # dY/dθ_log = log(10) * θ * dY/dθ
-    PEtab.adjust_gradient_θ_Transformed!(gradient, _gradient, ∂G∂p, θ_dynamic, θ_indices,
+    PEtab.adjust_gradient_θ_transformed!(gradient, _gradient, ∂G∂p, θ_dynamic, θ_indices,
                                                simulation_condition_id, adjoint=true)
     return true
 end

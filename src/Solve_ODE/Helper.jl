@@ -4,10 +4,10 @@
 
 
 function get_t_saveat(::Val{save_at_observed_t},
-                             simulation_info::SimulationInfo,
-                             condition_id::Symbol,
-                             tmax::Float64,
-                             n_timepoints_save::Int64)::Vector{Float64} where save_at_observed_t
+                      simulation_info::SimulationInfo,
+                      condition_id::Symbol,
+                      tmax::Float64,
+                      n_timepoints_save::Int64)::Vector{Float64} where save_at_observed_t
 
     # Check if we want to only save the ODE at specific time-points
     if save_at_observed_t == true
@@ -20,7 +20,9 @@ function get_t_saveat(::Val{save_at_observed_t},
 end
 
 
-function should_save_dense_sol(::Val{save_at_observed_t}, n_timepoints_save::Int64, dense_sol::Bool)::Bool where save_at_observed_t
+function should_save_dense_sol(::Val{save_at_observed_t}, 
+                               n_timepoints_save::Int64, 
+                               dense_sol::Bool)::Bool where save_at_observed_t
 
     # Check if we want to only save the ODE at specific time-points
     if save_at_observed_t == true
@@ -70,7 +72,9 @@ end
 # Each soluation needs to have a unique vector associated with it such that the gradient
 # is correct computed for non-dynamic parameters (condition specific parameters are mapped
 # correctly) as these computations employ ode_problem.p
-function set_ode_parameters(_ode_problem::ODEProblem, petab_ODESolver_cache::PEtabODESolverCache, condition_id::Symbol)::ODEProblem
+function set_ode_parameters(_ode_problem::ODEProblem, 
+                            petab_ODESolver_cache::PEtabODESolverCache, 
+                            condition_id::Symbol)::ODEProblem
 
     # Ensure parameters constant between conditions are set correctly
     p_ode_problem = get_tmp(petab_ODESolver_cache.p_ode_problem_cache[condition_id], _ode_problem.p)

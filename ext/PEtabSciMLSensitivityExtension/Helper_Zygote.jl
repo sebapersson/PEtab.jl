@@ -32,9 +32,6 @@ function PEtab.create_gradient_function(::Val{:Zygote},
                                         prior_info::PEtab.PriorInfo;
                                         chunksize::Union{Nothing, Int64}=nothing,
                                         sensealg_ss=nothing,
-                                        n_processes::Int64=1,
-                                        jobs=nothing,
-                                        results=nothing,
                                         split_over_conditions::Bool=false)
 
     change_simulation_condition = (p_ode_problem, u0, conditionId, θ_dynamic) -> PEtab._change_simulation_condition(p_ode_problem, u0, conditionId, θ_dynamic, petab_model, θ_indices)
@@ -50,8 +47,16 @@ function PEtab.create_gradient_function(::Val{:Zygote},
                                                                        solve_ode_condition,
                                                                        prior_info,
                                                                        petab_ODE_cache)
+
+    compute_gradient = let _compute_gradient! =_compute_gradient!
+        (θ) -> begin
+            gradient = zeros(Float64, length(θ))
+            _compute_gradient!(gradient, θ)
+            return gradient
+        end
+    end                                                                       
     
-    return _compute_gradient!
+    return _compute_gradient!, compute_gradient
 end
 
 
@@ -68,9 +73,6 @@ function PEtab.create_cost_function(::Val{:Zygote},
                                     parameter_info::PEtab.ParametersInfo,
                                     prior_info::PEtab.PriorInfo,
                                     sensealg,
-                                    n_processes,
-                                    jobs,
-                                    results,
                                     compute_residuals)
 
     change_simulation_condition = (p_ode_problem, u0, conditionId, θ_dynamic) -> PEtab._change_simulation_condition(p_ode_problem, u0, conditionId, θ_dynamic, petab_model, θ_indices)

@@ -91,11 +91,11 @@ end
 
 
 function set_sensealg(sensealg,
-                     ::Val{:ForwardDiff})
+                      ::Val{:ForwardDiff})::Nothing
     return nothing
 end
 function set_sensealg(sensealg,
-                     ::Val{:ForwardEquations})
+                     ::Val{:ForwardEquations})::Symbol
     if !isnothing(sensealg)
         @assert sensealg == :ForwardDiff "For gradient method :ForwardEquations allowed sensealg args are :ForwardDiff, ForwardSensitivity(), ForwardDiffSensitivity() not $sensealg"
         return sensealg

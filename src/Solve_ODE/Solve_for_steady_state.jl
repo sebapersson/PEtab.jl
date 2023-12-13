@@ -112,7 +112,7 @@ function condition_terminate_ss(u, t, integrator,
                                 reltol::Float64,
                                 check_newton::Bool,
                                 compute_jacobian::Function,
-                                jacobian::AbstractMatrix)
+                                jacobian::AbstractMatrix)::Bool
 
     testval = first(get_tmp_cache(integrator))
     DiffEqBase.get_du!(testval, integrator)

@@ -155,7 +155,7 @@ function solve_ode_all_conditions!(sol_values::AbstractMatrix,
                                    dense_sol::Bool=true,
                                    track_callback::Bool=false,
                                    compute_forward_sensitivites::Bool=false,
-                                   compute_forward_sensitivites_ad::Bool=false)
+                                   compute_forward_sensitivites_ad::Bool=false)::Nothing
 
     if compute_forward_sensitivites_ad == true && petab_ODE_cache.nθ_dynamic[1] != length(_θ_dynamic)
         θ_dynamic = _θ_dynamic[petab_ODE_cache.θ_dynamic_output_order]
@@ -186,7 +186,7 @@ function solve_ode_all_conditions!(sol_values::AbstractMatrix,
     # each column is a time-point.
     if sucess != true
         sol_values .= 0.0
-        return
+        return nothing
     end
 
     # i_start and i_end tracks which entries in sol_values we store a specific experimental condition
@@ -199,6 +199,7 @@ function solve_ode_all_conditions!(sol_values::AbstractMatrix,
         end
         i_start = i_end + 1
     end
+    return nothing
 end
 
 

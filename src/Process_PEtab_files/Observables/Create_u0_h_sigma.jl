@@ -87,7 +87,7 @@ end
     create_h_function(model_name::String,
                       dir_model::String,
                       model_state_names::Vector{String},
-                      paramData::ParametersInfo,
+                      parameter_info::ParametersInfo,
                       namesParamDyn::Vector{String},
                       namesNonDynParam::Vector{String},
                       observables_data::CSV.File,
@@ -158,7 +158,7 @@ end
 
 """
     create_top_function_h(model_state_names::Vector{String},
-                          paramData::ParametersInfo,
+                          parameter_info::ParametersInfo,
                           namesParamODEProb::Vector{String},
                           namesNonDynParam::Vector{String})
 
@@ -216,7 +216,7 @@ end
     For model_name create a function for computing initial value by translating the state_map
     into Julia syntax.
 
-    To correctly create the function the name of all parameters, paramData (to get constant parameters)
+    To correctly create the function the name of all parameters, parameter_info (to get constant parameters)
     are required.
 """
 function create_u0_function(model_name::String,
