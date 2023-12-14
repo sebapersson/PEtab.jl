@@ -234,7 +234,7 @@ function variables_to_array_index(formula::String,
 
     for i in eachindex(parameter_info.parameter_id)
         if parameter_info.estimate[i] == false
-            formula = replace_word_number_prefix(formula, string(parameter_info.parameter_id[i]) * "_C", "parameter_info.nominalValue[" * string(i) *"]")
+            formula = replace_word_number_prefix(formula, string(parameter_info.parameter_id[i]) * "_C", "parameter_info.nominal_value[" * string(i) *"]")
         end
     end
 

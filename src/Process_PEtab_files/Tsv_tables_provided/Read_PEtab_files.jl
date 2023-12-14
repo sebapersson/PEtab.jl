@@ -150,7 +150,7 @@ function check_df_columns(df, df_name, columns_check, allowed_types, required_co
                     end
                 end
             else
-                println("Warning : Required column " * column_name * " contains rows with missing values.")
+                println("Warning : Required column " * string(column_name) * " contains rows with missing values.")
             end
         # If column is not required and present the check is skipped.
         elseif !(column_name in required_columns) && !(column_name in string.(df.names))
