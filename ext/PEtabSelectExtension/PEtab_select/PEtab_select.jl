@@ -102,7 +102,7 @@ function PEtab.run_PEtab_select(path_yaml::String,
 
         # Setup dictionary to conveniently storing model parameters
         estimatedParameters = Dict(string(petab_problem.θ_names[i]) => fArg[i] for i in eachindex(fArg))
-        nDataPoints = length(_petab_problem.compute_cost.measurement_info.measurement)
+        nDataPoints = length(_petab_problem.petab_model.path_measurements)
         py"update_model"(select_problem, model, f, estimatedParameters, nDataPoints)
     end
 
@@ -152,7 +152,7 @@ function PEtab.run_PEtab_select(path_yaml::String,
     local best_model
     while true
         # Start the iterative model selction process
-        k == 1 && @info "Model selection round $k with $n_candidates candidates - as the code compiles in this round compiled it takes extra long time https://xkcd.com/303/"
+        k == 1 && @info "Model selection round $k with $n_candidates candidates - as the code compiles in this round it takes extra long time https://xkcd.com/303/"
         k != 1 && @info "Model selection round $k with $n_candidates candidates"
         callibrate_candidate_models(candidate_space, select_problem, n_candidates, _petab_problem, n_multistarts=n_multistarts)
         newly_calibrated_models, calibrated_models = py"update_selection"(newly_calibrated_models, calibrated_models, select_problem,  candidate_space)
