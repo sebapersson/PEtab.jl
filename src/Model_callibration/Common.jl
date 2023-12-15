@@ -471,8 +471,21 @@ function _calibrate_model_multistart(petab_problem::PEtabODEProblem,
 
     _res = Vector{PEtabOptimisationResult}(undef, n_multistarts)
     for i in 1:n_multistarts
-        _p0 = startguesses[:, i]
-        _res[i] = calibrate_model(petab_problem, _p0, alg, save_trace=save_trace, options=options)
+        if !isempty(startguesses)
+            _p0 = startguesses[:, i]
+            _res[i] = calibrate_model(petab_problem, _p0, alg, save_trace=save_trace, options=options)
+        else
+            _res[i] = PEtabOptimisationResult(:alg, 
+                                              Vector{Vector{Float64}}(undef, 0), 
+                                              Vector{Float64}(undef, 0), 
+                                              0, 
+                                              petab_problem.compute_cost(Float64[]), 
+                                              Float64[], 
+                                              Float64[],
+                                              Symbol[], 
+                                              true, 
+                                              0.0)
+        end
         if !isnothing(path_save_res)
             save_partial_results(path_save_res, path_save_parameters, path_save_trace, _res[i], petab_problem.θ_names, i)
         end
