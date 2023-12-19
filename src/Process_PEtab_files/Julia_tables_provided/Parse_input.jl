@@ -441,9 +441,8 @@ function parse_petab_observables(observables::Dict{String, PEtabObservable})::Da
 end
 
 
-function process_petab_events(events::Union{T, Vector{T}}, 
+function process_petab_events(events::Union{T, Vector{T}, Nothing}, 
                               system, 
-                              model_name::String, 
                               θ_indices::ParameterIndices) where T<:PEtabEvent
 
     # Must be a vector for downstream processing 
@@ -451,25 +450,38 @@ function process_petab_events(events::Union{T, Vector{T}},
         events = [events]
     end
 
-    write_callbacks_str = "function getCallbacks_" * model_name * "(foo)\n"
-    write_tstops_str = "\nfunction computeTstops(u::AbstractVector, p::AbstractVector)\n"
-    for (i, event) in pairs(events)
-        event_name = "event" * string(i)
-        function_str, callback_str = process_petab_event(event, event_name, system)
-        write_callbacks_str *= function_str * "\n"
-        write_callbacks_str *= callback_str * "\n"
+    if !isnothing(events)
+        callbacks = Vector{SciMLBase.DECallback}(undef, length(events))
+        write_tstops = "\nfunction computeTstops(u::AbstractVector, p::AbstractVector)\n"
+        for (i, event) in pairs(events)
+            event_name = "event" * string(i)
+            _affect, _condition, _callback = process_petab_event(event, event_name, system)
+            affect! = @RuntimeGeneratedFunction(Meta.parse(_affect))
+            condition = @RuntimeGeneratedFunction(Meta.parse(_condition))
+            callback = @RuntimeGeneratedFunction(Meta.parse(_callback))
+            callbacks[i] = callback(affect!, condition)
+        end
+        _get_cbset = "function get_cbset(cbs)\n\treturn CallbackSet(" * prod("cbs[$i], " for i in 1:length(events))[1:end-2] * ")\nend"
+        get_cbset = @RuntimeGeneratedFunction(Meta.parse(_get_cbset))
+        cbset = get_cbset(callbacks)
+    else
+        cbset = CallbackSet()
     end
-    callback_names = prod(["cb_event" * string(i) * ", " for i in eachindex(events)])[1:end-2]
-    _write_tstops_str, convert_tspan = PEtab.create_tstops_function(events, system, θ_indices)
-    write_tstops_str *= "\treturn" * _write_tstops_str  * "\n" * "end"
 
-    write_callbacks_str *= "\treturn CallbackSet(" * callback_names * "), Function[], " * string(convert_tspan)  * "\nend"
+    write_tstops = "\nfunction computeTstops(u::AbstractVector, p::AbstractVector)\n"
+    if !isnothing(events)
+        _write_tstops, convert_tspan = PEtab.create_tstops_function(events, system, θ_indices)
+    else
+        _write_tstops, convert_tspan = "Float64[]", false
+    end
+    write_tstops *= "\treturn " * _write_tstops  * "\n" * "end"
+    get_tstops = @RuntimeGeneratedFunction(Meta.parse(write_tstops))
 
-    return write_callbacks_str, write_tstops_str
+    return cbset, get_tstops, convert_tspan
 end
 
 
-function process_petab_event(event::PEtabEvent, event_name, system)::Tuple{String, String}
+function process_petab_event(event::PEtabEvent, event_name, system)::Tuple{String, String, String}
     state_names = replace.(string.(states(system)), "(t)" => "")
     parameter_names = string.(parameters(system))
 
@@ -519,7 +531,7 @@ function process_petab_event(event::PEtabEvent, event_name, system)::Tuple{Strin
         end
     end
 
-    condition_has_states = PEtab.check_condition_has_states(condition, state_names)
+    condition_has_states = check_condition_has_states(condition, state_names)
     discrete_event = condition_has_states == false 
 
     if discrete_event == true
@@ -543,12 +555,12 @@ function process_petab_event(event::PEtabEvent, event_name, system)::Tuple{Strin
     for i in eachindex(parameter_names)
         condition = PEtab.SBMLImporter.replace_variable(condition, parameter_names[i], "integrator.p["*string(i)*"]")
     end
-    condition_str = "\n\tfunction condition_" * event_name * "(u, t, integrator)\n\t\t" * condition * "\n\tend\n"
+    condition_str = "\nfunction condition_" * event_name * "(u, t, integrator)\n\t" * condition * "\nend\n"
 
     # Build the affect syntax for the event. Note, a tmp variable is used in case of several affects. For example, if the 
     # event affects u[1] and u[2], then I do not want that a change in u[1] should affect the value for u[2], similar holds 
     # for parameters 
-    affect_str = "\tfunction affect_" * event_name * "!(integrator)\n\t\tu_tmp = similar(integrator.u)\n\t\tu_tmp .= integrator.u\n\t\tp_tmp = similar(integrator.p)\n\t\tp_tmp .= integrator.p\n\n"
+    affect_str = "function affect_" * event_name * "!(integrator)\n\tu_tmp = similar(integrator.u)\n\tu_tmp .= integrator.u\n\tp_tmp = similar(integrator.p)\n\tp_tmp .= integrator.p\n\n"
     affects = replace.(string.(affects), "(t)" => "")
     for (i, affect) in pairs(affects)
         _affect = targets[i] * " = " * affect
@@ -566,21 +578,22 @@ function process_petab_event(event::PEtabEvent, event_name, system)::Tuple{Strin
     affect_str *= '\n' * "\tend"
 
     # Build the callback 
+    callback_str = "function get_callback" * event_name * "(affect!, cond)\n"
     if discrete_event == false
         if affect_equality == true
-            callback_str = "\tcb_" * event_name * " = ContinuousCallback(" * "condition_" * event_name * ", " * "affect_" * event_name * "!, "
+            callback_str *= "\tcb = ContinuousCallback(cond, affect!, "
         elseif affect_neg == true
-            callback_str = "\tcb_" * event_name * " = ContinuousCallback(" * "condition_" * event_name * ", nothing, " * "affect_" * event_name * "!, "
+            callback_str *= "\tcb = ContinuousCallback(cond, nothing, affect!, "
         else
-            callback_str = "\tcb_" * event_name * " = ContinuousCallback(" * "condition_" * event_name * ", " * "affect_" * event_name * "!, nothing, "
+            callback_str *= "\tcb = ContinuousCallback(cond, affect!, nothing, "
         end
     else
-        callback_str = "\tcb_" * event_name * " = DiscreteCallback(" * "condition_" * event_name * ", " * "affect_" * event_name * "!, "
+        callback_str *= "\tcb = DiscreteCallback(cond, affect!, "
     end
     callback_str *= "save_positions=(false, false))\n" # So we do not get problems with saveat in the ODE solver 
-    function_str = condition_str * '\n' * affect_str * '\n' 
+    callback_str *= "\treturn cb\nend\n"
         
-    return function_str, callback_str
+    return affect_str, condition_str, callback_str
 end
 
 
