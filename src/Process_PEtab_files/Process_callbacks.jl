@@ -8,10 +8,13 @@ function create_callbacks_SBML(system::ODESystem,
                                path_yaml::String,
                                dir_julia::String;
                                custom_parameter_values::Union{Nothing, Dict}=nothing,
-                               write_to_file::Bool=true)::String
+                               write_to_file::Bool=true)
 
     p_ode_problem_names = string.(parameters(system))
     model_specie_names = replace.(string.(states(system)), "(t)" => "")
+
+    n_callbacks = length(keys(model_SBML.ifelse_parameters)) + length(keys(model_SBML.events))
+    n_ifelse_events = length(keys(model_SBML.ifelse_parameters))
 
     # Compute indices tracking parameters (needed as down the line we need to know if a parameter should be estimated
     # or not)
@@ -22,60 +25,79 @@ function create_callbacks_SBML(system::ODESystem,
 
     # Set function names
     model_name = replace(model_name, "-" => "_")
-    write_affects_conds = ""
-    write_callbacks = ""
-    write_active_at_t0 = ""
-    write_initial_function = ""
+    callbacks = Vector{SciMLBase.DECallback}(undef, n_callbacks)
+    active_t0_functions = Vector{Function}(undef, n_ifelse_events)
+    callback_str::String = ""
     write_tstops = "\nfunction compute_tstops(u::AbstractVector, p::AbstractVector)\n"
 
     # In case we do not have any SBML related events
     if isempty(model_SBML.ifelse_parameters) && isempty(model_SBML.events)
         write_tstops *= "\t return Float64[]\nend\n"
-        n_callbacks = 0
+        cbset = CallbackSet()
         convert_tspan = false
     else
 
+        k = 1
         # For ifelse parameter
-        n_callbacks = 0
         for parameter in keys(model_SBML.ifelse_parameters)
-            affects_conds, callback, active_t0 = create_callback_ifelse(parameter, model_SBML, p_ode_problem_names, model_specie_names)
-            write_affects_conds *= affects_conds
-            write_callbacks *= callback
-            write_active_at_t0 *= active_t0
-            n_callbacks += 1
+            _affect, _cond, _callback, _active_t0 =  create_callback_ifelse(parameter, model_SBML, p_ode_problem_names, model_specie_names)
+            callback_str *= _affect * _cond * _callback * _active_t0
+            _affect_f = @RuntimeGeneratedFunction(Meta.parse(_affect))
+            _cond_f = @RuntimeGeneratedFunction(Meta.parse(_cond))
+            _get_cb = @RuntimeGeneratedFunction(Meta.parse(_callback))
+            callbacks[k] = _get_cb(_cond_f, _affect_f)
+            active_t0_functions[k] = @RuntimeGeneratedFunction(Meta.parse(_active_t0))
+            k += 1
         end
         # For classical SBML events
         for key in keys(model_SBML.events)
-            affects_conds, callback, initial_function = create_callback_SBML_event(key, model_SBML, p_ode_problem_names, model_specie_names)
-            write_affects_conds *= affects_conds
-            write_callbacks *= callback
-            write_initial_function *= initial_function
-            n_callbacks += 1
-        end
+            _affect, _cond, _callback, _initial_function = create_callback_SBML_event(key, model_SBML, p_ode_problem_names, model_specie_names)
+            callback_str *= _affect * _cond * _callback *  _initial_function
 
-        # Only relevant for picewise expressions
-        if !isempty(model_SBML.ifelse_parameters)
-            check_activated_t0_names = prod(["is_active_t0_" * key * "!, " for key in keys(model_SBML.ifelse_parameters)])[1:end-2]
-        else
-            check_activated_t0_names = ""
+            _affect_f = @RuntimeGeneratedFunction(Meta.parse(_affect))
+            
+            # Condition can only be activated when going from false to true, 
+            # a variable checking this happens must be in the DiscreteCallback 
+            # condition 
+            if occursin("from_neg", _cond)
+                __cond_f = @RuntimeGeneratedFunction(Meta.parse(_cond))
+                _cond_f = let from_neg = [!model_SBML.events[key].trigger_initial_value]
+                    (u, t, integrator) -> __cond_f(u, t, integrator, from_neg)
+                end
+            else
+                _cond_f = @RuntimeGeneratedFunction(Meta.parse(_cond))
+            end
+
+            # Some events can firse at time zero, if there is an _initial_function
+            # ensure this
+            _get_cb = @RuntimeGeneratedFunction(Meta.parse(_callback))
+            if isempty(_initial_function)
+                callbacks[k] = _get_cb(_cond_f, _affect_f)
+            else
+                _init_f = @RuntimeGeneratedFunction(Meta.parse(_initial_function))
+                callbacks[k] = _get_cb(_cond_f, _affect_f, _init_f)
+            end
+            k += 1
         end
 
         _write_tstops, convert_tspan = create_tstops_function(model_SBML, model_specie_names, p_ode_problem_names, θ_indices)
         write_tstops *= "\treturn" * _write_tstops  * "\n" * "end"
+
+        _get_cbset = "function get_cbset(cbs)\n\treturn CallbackSet(" * prod("cbs[$i], " for i in 1:n_callbacks)[1:end-2] * ")\nend"
+        get_cbset = @RuntimeGeneratedFunction(Meta.parse(_get_cbset))
+        cbset = get_cbset(callbacks)
     end
 
     # Function for whether or not timespan should be converted
     write_convert_tspan = "function(foo)\n\treturn $convert_tspan \nend\n"
+    compute_tstops = @RuntimeGeneratedFunction(Meta.parse(write_tstops))
 
     # Write callback to file if required, otherwise just return the string for the callback and tstops functions
     path_save = joinpath(dir_julia, model_name * "_callbacks.jl")
     isfile(path_save) && rm(path_save)
     io = IOBuffer()
     if write_to_file == true
-        write(io, write_affects_conds * "\n\n")
-        write(io, write_callbacks * "\n\n")
-        write(io, write_active_at_t0 * "\n\n")
-        write(io, write_initial_function * "\n\n")
+        write(io, callback_str * "\n\n")
         write(io, write_convert_tspan * "\n\n")
         write(io, write_tstops)
     end
@@ -87,7 +109,7 @@ function create_callbacks_SBML(system::ODESystem,
         end
     end
 
-    return callback_str
+    return cbset, compute_tstops, active_t0_functions, convert_tspan
 end
 
 
@@ -96,78 +118,10 @@ function get_n_callbacks(model_SBML::SBMLImporter.ModelSBML)::Int64
 end
 
 
-function get_callback_functions(callback_str::String,
-                                n_callbacks::Int64,
-                                model_SBML::Union{SBMLImporter.ModelSBML, Nothing})
-
-    if isnothing(model_SBML)
-        n_ifelse_events = 0
-    else
-        n_ifelse_events = length(keys(model_SBML.ifelse_parameters))
-    end
-
-    if n_callbacks == 0
-        cbset = CallbackSet()
-        active_t0 = Function[]
-        _get_tstops = "function compute_tstops(u::AbstractVector, p::AbstractVector)\nreturn Float64[]\nend"
-        get_tstops = @RuntimeGeneratedFunction(Meta.parse(_get_tstops))
-        convert_tspan = false
-
-    else 
-        # Number of events + tstops and convert timespan functions
-        callback_functions = get_function_str(callback_str, n_ifelse_events+n_callbacks*3+2; as_str=true)
-
-        affects = Vector{Function}(undef, n_callbacks)
-        conds = Vector{Function}(undef, n_callbacks)
-        cbs = Vector{SciMLBase.DECallback}(undef, n_callbacks)
-        active_t0 = Vector{Function}(undef, n_ifelse_events)
-        k = 1
-        while k ≤ n_callbacks
-            j = (k-1)*2 + 1
-            affects[k] = @RuntimeGeneratedFunction(Meta.parse(callback_functions[j+1]))
-            # Check if we have event where we need to track from_neg parameter, can happen 
-            # with SBML events, as in order for an event to be triggered we must go form 
-            # false to true
-            println("callback_functions[j] = ", callback_functions[j])
-            if occursin("from_neg", callback_functions[j])
-                event = collect(keys(model_SBML.events))[k - n_ifelse_events]
-                _cond = @RuntimeGeneratedFunction(Meta.parse(callback_functions[j]))
-                conds[k] = let from_neg = [!model_SBML.events[event].trigger_initial_value]
-                    (u, t, integrator) -> _cond(u, t, integrator, from_neg)
-                end
-                println("Got here")
-            else
-                println("Here instead")
-                conds[k] = @RuntimeGeneratedFunction(Meta.parse(callback_functions[j]))
-            end
-            k += 1
-        end
-        k = 1
-        for i in (n_callbacks*2+1):(n_callbacks*3)
-            _cb = @RuntimeGeneratedFunction(Meta.parse(callback_functions[i]))
-            cbs[k] = _cb(affects[k], conds[k])
-            k += 1
-        end
-        for i in eachindex(active_t0)
-            j = n_callbacks*3 + i
-            active_t0[i] = @RuntimeGeneratedFunction(Meta.parse(callback_functions[j]))
-        end
-        _get_cbset = "function get_cbset(cbs)\n\treturn CallbackSet(" * prod("cbs[$i], " for i in 1:n_callbacks)[1:end-2] * ")\nend"
-        get_cbset = @RuntimeGeneratedFunction(Meta.parse(_get_cbset))
-        cbset = get_cbset(cbs)
-        get_tstops = @RuntimeGeneratedFunction(Meta.parse(callback_functions[end]))
-        get_convert_tspan = @RuntimeGeneratedFunction(Meta.parse(callback_functions[end-1]))
-        convert_tspan = get_convert_tspan("https://xkcd.com/2694/")
-    end
-    
-    return cbset, get_tstops, convert_tspan, active_t0
-end
-
-
 function create_callback_ifelse(parameter_name::String,
                                 model_SBML::SBMLImporter.ModelSBML,
                                 p_ode_problem_names::Vector{String},
-                                model_specie_names::Vector{String})::Tuple{String, String, String}
+                                model_specie_names::Vector{String})::Tuple{String, String, String, String}
 
     # Check if the event trigger depend on parameters which are to be i) estimated, or ii) if it depend on models state.
     # For i) we need to convert tspan. For ii) we cannot compute tstops (the event times) prior to starting to solve
@@ -200,7 +154,7 @@ function create_callback_ifelse(parameter_name::String,
     affect_function *= "\tintegrator.p[" * string(i_ifelse_parameter) * "] = 1.0\nend\n"
 
     # Build the callback formula
-    callback_formula = "function get_callback" * parameter_name * "(affect!, cond)\n"
+    callback_formula = "function get_callback" * parameter_name * "(cond, affect!)\n"
     if discrete_event == false
         callback_formula *= "\tcb = ContinuousCallback(cond, affect!, "
     else
@@ -217,17 +171,14 @@ function create_callback_ifelse(parameter_name::String,
     condition_active_t0 = replace(_condition_for_t0, "integrator." => "")
     active_t0_function *= "\tif " * side_inequality *"(" * condition_active_t0 * ")\n" * "\t\tp[" * string(i_ifelse_parameter) * "] = 1.0\n\tend\nend\n"
 
-    # Gather all the functions needed by the callback
-    callback_functions = condition_function * '\n' * affect_function * '\n'
-
-    return callback_functions, callback_formula, active_t0_function
+    return affect_function, condition_function, callback_formula, active_t0_function
 end
 
 
 function create_callback_SBML_event(event_name::String,
                                     model_SBML::SBMLImporter.ModelSBML,
                                     p_ode_problem_names::Vector{String},
-                                    model_specie_names::Vector{String})::Tuple{String, String, String}
+                                    model_specie_names::Vector{String})::Tuple{String, String, String, String}
 
     event = model_SBML.events[event_name]
     _condition = event.trigger
@@ -242,35 +193,37 @@ function create_callback_SBML_event(event_name::String,
         # activated when crossing the condition from left -> right. Reverse
         # holds for ≥
         affect_neg = occursin("≤", _condition)
-    
-    elseif discrete_event == true
-        # Build the SBML activation, which has a check to see that the condition crosses from false to
-        # true, per SBML standard
-        _condition = "\tcond = " * _condition * " && from_neg[1] == true\n\tfrom_neg[1] = !(" * _condition * ")\n\treturn cond"
+    else
+        # Build the SBML activation, which has a check to see that the condition crosses from false to 
+        # true, per SBML standard 
+        _condition = "\tcond = " * _condition * " && from_neg[1] == true\n\t\tfrom_neg[1] = !(" * _condition * ")\n\t\treturn cond"
     end
 
     # Replace any state or parameter with their corresponding index in the ODE system to be comaptible with event
     # syntax
+    _condition_at_t0 = event.trigger
     for (i, specie_name) in pairs(model_specie_names)
         _condition = SBMLImporter.replace_variable(_condition, specie_name, "u["*string(i)*"]")
+        _condition_at_t0 = SBMLImporter.replace_variable(_condition_at_t0, specie_name, "u["*string(i)*"]")
     end
     for (i, p_name) in pairs(p_ode_problem_names)
         _condition = SBMLImporter.replace_variable(_condition, p_name, "integrator.p["*string(i)*"]")
+        _condition_at_t0 = SBMLImporter.replace_variable(_condition_at_t0, p_name, "integrator.p["*string(i)*"]")
     end
-    # Build the condition function used in Julia file, for discrete checking that event indeed is coming from negative
+    # Build the condition function used in Julia file, for discrete checking that event indeed is coming from negative 
     # direction
     if discrete_event == false
-        _condition_at_t0 = deepcopy(_condition)
         _condition = replace(_condition, r"≤|≥" => "-")
         condition_function = "\nfunction condition_" * event_name * "(u, t, integrator)\n\t" * _condition * "\nend\n"
-        
+    
     elseif discrete_event == true
         condition_function = "\nfunction _condition_" * event_name * "(u, t, integrator, from_neg)\n"
-        condition_function *= "\t" * _condition * "\nend\n"
+        condition_function *= _condition * "\nend\n"
     end
 
     # Building the affect function (which can act on multiple states and/or parameters)
     affect_function = "function affect_" * event_name * "!(integrator)\n\tu_tmp = similar(integrator.u)\n\tu_tmp .= integrator.u\n"
+    affect_function_body = "\tu_tmp = similar(integrator.u)\n\tu_tmp .= integrator.u\n"
     for (i, affect) in pairs(affects)
         # In RHS we use u_tmp to not let order affects, while in assigning LHS we use u
         affect_function1, affect_function2 = split(affect, "=")
@@ -279,46 +232,58 @@ function create_callback_SBML_event(event_name::String,
             affect_function2 = SBMLImporter.replace_variable(affect_function2, model_specie_names[j], "u_tmp["*string(j)*"]")
         end
         affect_function *= "\t" * affect_function1 * " = " * affect_function2 * '\n'
+        affect_function_body *= "\t" * affect_function1 * " = " * affect_function2 * '\n' # For t0 events
     end
     affect_function *= "end"
     for i in eachindex(p_ode_problem_names)
         affect_function = SBMLImporter.replace_variable(affect_function, p_ode_problem_names[i], "integrator.p["*string(i)*"]")
+        affect_function_body = SBMLImporter.replace_variable(affect_function_body, p_ode_problem_names[i], "integrator.p["*string(i)*"]")
     end
 
     # In case the event can be activated at time zero build an initialisation function
     if discrete_event == true && initial_value_cond == false
         initial_value_str = "function init_" * event_name * "(c,u,t,integrator)\n"
-        initial_value_str *= "\tcond = condition_" * event_name * "(u, t, integrator)\n"
+        initial_value_str *= "\tcond = " * _condition_at_t0 * "\n"
         initial_value_str *= "\tif cond == true\n"
-        initial_value_str *= "\taffect_" * event_name * "!(integrator)\n\tend\n"
+        #initial_value_str *= "\t" * affect_function_body * "\n\tend\n"
+        initial_value_str *= "\t" * "" * "\n\tend\n"
         initial_value_str *= "end"
     elseif discrete_event == false && initial_value_cond == false
         initial_value_str = "function init_" * event_name * "(c,u,t,integrator)\n"
         initial_value_str *= "\tcond = " * _condition_at_t0 * "\n" # We need a Bool not minus (-) condition
         initial_value_str *= "\tif cond == true\n"
-        initial_value_str *= "\taffect_" * event_name * "!(integrator)\n\tend\n"
+        initial_value_str *= "\t" * affect_function_body * "\n\tend\n"
         initial_value_str *= "end"
     else
         initial_value_str = ""
     end
-    if !isempty(initial_value_str)
-        throw(PEtabFileError("SBML events firing at time zero are  not supported"))
-    end
 
     # Build the callback, consider initialisation if needed and direction for ContinuousCallback
-    callback_formula = "function get_callback" * event_name * "(affect!, cond)\n"
+    if initial_value_str == ""
+        callback_formula = "function get_callback_" * event_name * "(cond, affect!)\n"
+    else
+        callback_formula = "function get_callback_" * event_name * "(cond, affect!, init)\n"
+    end
     if discrete_event == false
         if affect_neg == true
             callback_formula *= "\tcb = ContinuousCallback(cond, nothing, affect!, "
         else
             callback_formula *= "\tcb = ContinuousCallback(cond, affect!, nothing, "
         end
+        if initial_value_cond == false
+            callback_formula *= "initialize=init, "
+        end
     elseif discrete_event == true
-        callback_formula *= "\tcb = DiscreteCallback(cond, affect!, "
+        if initial_value_cond == false
+            callback_formula *= "\tcb = DiscreteCallback(cond, affect!, initialize=init, "
+        else
+            callback_formula *= "\tcb = DiscreteCallback(cond, affect!, "
+        end
     end
-    callback_formula *= "save_positions=(false, false))\n\treturn cb\nend\n" 
+    callback_formula *= "save_positions=(false, false))\n" # So we do not get problems with saveat in the ODE solver
+    callback_formula *= "\treturn cb\nend\n"
 
-    return condition_function * affect_function, callback_formula, initial_value_str
+    return affect_function, condition_function, callback_formula, initial_value_str
 end
 
 

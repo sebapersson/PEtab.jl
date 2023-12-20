@@ -94,26 +94,16 @@ function PEtabModel(path_yaml::String;
     compute_∂σ∂σu! = @RuntimeGeneratedFunction(Meta.parse(∂σ∂u_str))
     compute_∂σ∂σp! = @RuntimeGeneratedFunction(Meta.parse(∂σ∂p_str))
 
-    path_callback = joinpath(dir_julia, model_name * "_callbacks.jl")
-    if !isfile(path_callback) || build_julia_files == true
-        verbose == true && printstyled("[ Info:", color=123, bold=true)
-        verbose == true && !isfile(path_callback) && print(" Building callback file as it does not exist ...")
-        verbose == true && isfile(path_callback) && print(" By user option rebuilds callback file ...")
-        b_build = @elapsed callback_str = create_callbacks_SBML(ode_system, parameter_map, state_map, model_SBML, 
-                                                                model_name, path_yaml, dir_julia, 
-                                                                custom_parameter_values=custom_parameter_values, 
-                                                                write_to_file=write_to_file)
-        verbose == true && @printf(" done. Time = %.1es\n", b_build)
-    else
-        verbose == true && printstyled("[ Info:", color=123, bold=true)
-        verbose == true && print(" Callback file exists and will not be rebuilt\n")
-        f = open(path_callback, "r")
-        callback_str = read(f, String)
-        close(f)
+    verbose == true && printstyled("[ Info:", color=123, bold=true)
+    verbose == true && print(" Building model callbacks ...")
+    b_build = @elapsed begin 
+        cbset, compute_tstops, check_cb_active, convert_tspan = create_callbacks_SBML(ode_system, parameter_map, 
+                                                                                      state_map, model_SBML, 
+                                                                                      model_name, path_yaml, dir_julia, 
+                                                                                      custom_parameter_values=custom_parameter_values, 
+                                                                                      write_to_file=write_to_file)
     end
-    n_callbacks = get_n_callbacks(model_SBML)
-    cbset, compute_tstops, convert_tspan, check_cb_active = get_callback_functions(callback_str, n_callbacks, 
-                                                                                   model_SBML)
+    verbose == true && @printf(" done. Time = %.1es\n", b_build)
 
     petab_model = PEtabModel(model_name,
                              compute_h,
