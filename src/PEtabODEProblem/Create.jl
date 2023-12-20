@@ -856,12 +856,10 @@ function create_hessian_function(which_method::Symbol,
                            end
     end
 
-        compute_hessian = (θ) -> let _compute_hessian! =_compute_hessian!
-                            (θ) -> begin
-                                    hessian = zeros(Float64, length(θ), length(θ))
-                                    _compute_hessian!(hessian, θ)
-                                    return hessian
-                                end
+        compute_hessian = (θ) -> begin
+                                hessian = zeros(Float64, length(θ), length(θ))
+                                _compute_hessian!(hessian, θ)
+                                return hessian
                             end
 
     return _compute_hessian!, compute_hessian
