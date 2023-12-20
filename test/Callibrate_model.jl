@@ -52,15 +52,15 @@ using OptimizationOptimJL
     # Test Optimization.jl
     # Interior-point Newton
     optimization_problem = PEtab.OptimizationProblem(petab_problem; interior_point_alg=true)
-    res = PEtab.calibrate_model(optimization_problem, p0, IPNewton(); abstol=1e-8)
+    res = PEtab.calibrate_model(optimization_problem, petab_problem, p0, IPNewton(); abstol=1e-8)
     @test all(abs.(res.xmin - petab_problem.θ_nominalT) .< 1e-2)
     # Particle swarm
     optimization_problem = PEtab.OptimizationProblem(petab_problem; interior_point_alg=false)
-    res = PEtab.calibrate_model(optimization_problem, p0, Optim.ParticleSwarm(); abstol=1e-8)
+    res = PEtab.calibrate_model(optimization_problem, petab_problem, p0, Optim.ParticleSwarm(); abstol=1e-8)
     @test all(abs.(res.xmin - petab_problem.θ_nominalT) .< 1e-2)
     # TrustRegionNewton
     optimization_problem = PEtab.OptimizationProblem(petab_problem; interior_point_alg=false, box_constraints=false)
-    res = PEtab.calibrate_model(optimization_problem, p0, NewtonTrustRegion(); abstol=1e-8)
+    res = PEtab.calibrate_model(optimization_problem, petab_problem, p0, NewtonTrustRegion(); abstol=1e-8)
     @test all(abs.(res.xmin - petab_problem.θ_nominalT) .< 1e-2)
     # Test Optimization.jl multistart
     optimization_problem = PEtab.OptimizationProblem(petab_problem; interior_point_alg=true)

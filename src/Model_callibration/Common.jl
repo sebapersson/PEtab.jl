@@ -23,6 +23,7 @@ parameter values found (`xmin`), smallest objective value (`fmin`), number of it
 the optimizer converged, and optionally, the trace.
 
     calibrate_model(optimization_problem::OptimizationProblem,
+                    petab_problem::PEtabODEProblem,
                     p0::Vector{Float64},
                     alg;
                     kwargs...)
@@ -66,7 +67,7 @@ res = calibrate_model(petab_problem, p0, IpoptOptimiser(false);
 using Optimization
 using OptimizationOptimJL
 prob = PEtab.OptimizationProblem(petab_problem, interior_point_alg=true)
-res = calibrate_model(prob, p0, IPNewton())
+res = calibrate_model(prob, petab_problem, p0, IPNewton())
 ```
 """
 function calibrate_model end
