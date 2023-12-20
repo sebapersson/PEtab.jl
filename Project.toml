@@ -1,7 +1,7 @@
 name = "PEtab"
 uuid = "48d54b35-e43e-4a66-a5a1-dde6b987cf69"
 authors = ["Viktor Hasselgren", "Sebastian Persson", "Rafael Arutjunjan", "Damiano Ognissanti"]
-version = "2.5.3"
+version = "2.6.0"
 
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
@@ -84,7 +84,7 @@ QuasiMonteCarlo = "0.2, 0.3"
 Random = "1"
 ReverseDiff = "1"
 RuntimeGeneratedFunctions = "0.4, 0.5"
-SBMLImporter = "0.1"
+SBMLImporter = "0.2"
 SciMLBase = "2"
 SciMLSensitivity = "6 - 7"
 StatsBase = "0.33, 0.34"

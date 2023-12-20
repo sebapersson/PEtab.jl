@@ -43,13 +43,11 @@ function get_optimization_problem(petab_problem::PEtabODEProblem;
                                                                   hess = _Δf,
                                                                   cons = constraints,
                                                                   cons_j = constraints_J,
-                                                                  cons_h = constraints_H,
-                                                                  syms=petab_problem.θ_names)
+                                                                  cons_h = constraints_H)
     else
         optimization_function = Optimization.OptimizationFunction(_f;
                                                                   grad = _∇f,
-                                                                  hess = _Δf,
-                                                                  syms=petab_problem.θ_names)
+                                                                  hess = _Δf)
     end
 
     # Build the optimisation problem
@@ -74,6 +72,7 @@ end
 
 
 function PEtab.calibrate_model(optimization_problem::Optimization.OptimizationProblem,
+                               petab_problem::PEtab.PEtabODEProblem,
                                p0::Vector{Float64},
                                alg;
                                kwargs...)::PEtab.PEtabOptimisationResult
@@ -108,7 +107,7 @@ function PEtab.calibrate_model(optimization_problem::Optimization.OptimizationPr
                                    fmin,
                                    deepcopy(p0),
                                    xmin,
-                                   optimization_problem.f.syms,
+                                   petab_problem.θ_names,
                                    converged,
                                    runtime)
 end
@@ -159,7 +158,7 @@ function PEtab.calibrate_model_multistart(optimization_problem::Optimization.Opt
     _res = Vector{PEtabOptimisationResult}(undef, n_multistarts)
     for i in 1:n_multistarts
         _p0 = startguesses[:, i]
-        _res[i] = calibrate_model(optimization_problem, _p0, alg; kwargs...)
+        _res[i] = calibrate_model(optimization_problem, petab_problem, _p0, alg; kwargs...)
         if !isnothing(path_save_res)
             save_partial_results(path_save_res, path_save_parameters, path_save_trace, _res[i], petab_problem.θ_names, i)
         end
@@ -170,7 +169,7 @@ function PEtab.calibrate_model_multistart(optimization_problem::Optimization.Opt
     xmin = res_best.xmin
     sampling_method_str = string(sampling_method)[1:findfirst(x -> x == '(', string(sampling_method))][1:end-1]
     results = PEtabMultistartOptimisationResult(xmin,
-                                                optimization_problem.f.syms,
+                                                petab_problem.θ_names,
                                                 fmin,
                                                 n_multistarts,
                                                 res_best.alg,

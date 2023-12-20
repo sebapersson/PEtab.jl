@@ -94,23 +94,16 @@ function PEtabModel(path_yaml::String;
     compute_∂σ∂σu! = @RuntimeGeneratedFunction(Meta.parse(∂σ∂u_str))
     compute_∂σ∂σp! = @RuntimeGeneratedFunction(Meta.parse(∂σ∂p_str))
 
-    path_callback = joinpath(dir_julia, model_name * "_callbacks.jl")
-    if !isfile(path_callback) || build_julia_files == true
-        verbose == true && printstyled("[ Info:", color=123, bold=true)
-        verbose == true && !isfile(path_callback) && print(" Building callback file as it does not exist ...")
-        verbose == true && isfile(path_callback) && print(" By user option rebuilds callback file ...")
-        b_build = @elapsed callback_str, tstops_str = create_callbacks_SBML(ode_system, parameter_map, 
-            state_map, model_SBML, model_name, path_yaml, dir_julia, custom_parameter_values=custom_parameter_values, 
-            write_to_file=write_to_file)
-        verbose == true && @printf(" done. Time = %.1es\n", b_build)
-    else
-        verbose == true && printstyled("[ Info:", color=123, bold=true)
-        verbose == true && print(" Callback file exists and will not be rebuilt\n")
-        callback_str, tstops_str = get_function_str(path_callback, 2)
+    verbose == true && printstyled("[ Info:", color=123, bold=true)
+    verbose == true && print(" Building model callbacks ...")
+    b_build = @elapsed begin 
+        cbset, compute_tstops, check_cb_active, convert_tspan = create_callbacks_SBML(ode_system, parameter_map, 
+                                                                                      state_map, model_SBML, 
+                                                                                      model_name, path_yaml, dir_julia, 
+                                                                                      custom_parameter_values=custom_parameter_values, 
+                                                                                      write_to_file=write_to_file)
     end
-    get_callback_function = @RuntimeGeneratedFunction(Meta.parse(callback_str))
-    cbset, check_cb_active, convert_tspan = get_callback_function("https://xkcd.com/2694/") # Argument needed by @RuntimeGeneratedFunction
-    compute_tstops = @RuntimeGeneratedFunction(Meta.parse(tstops_str))
+    verbose == true && @printf(" done. Time = %.1es\n", b_build)
 
     petab_model = PEtabModel(model_name,
                              compute_h,
@@ -146,16 +139,26 @@ end
 
 # For reading the run-time generated PEtab-related functions which via Meta.parse are passed
 # on to @RuntimeGeneratedFunction to build the PEtab related functions without world-problems.
-function get_function_str(file_path::AbstractString, n_functions::Int64)::Vector{String}
+function get_function_str(file_path::AbstractString, n_functions::Int64; as_str::Bool=false)::Vector{String}
 
     f_start, f_end = zeros(Int64, n_functions), zeros(Int64, n_functions)
     i_function = 1
     in_function::Bool = false
-    n_lines = open(file_path, "r") do f countlines(f) end
+    if as_str == false
+        n_lines = open(file_path, "r") do f countlines(f) end
+    else
+        n_lines = length(split(file_path, '\n'))
+    end
     body_str = Vector{String}(undef, n_lines)
 
-    f = open(file_path, "r")
-    for (i_line, line) in pairs(readlines(f))
+    if as_str == false
+        f = open(file_path, "r")
+        lines = readlines(f)
+    else
+        lines = split(file_path, '\n')
+    end
+
+    for (i_line, line) in pairs(lines)
 
         if length(line) ≥ 8 && line[1:8] == "function"
             f_start[i_function] = i_line
@@ -170,7 +173,7 @@ function get_function_str(file_path::AbstractString, n_functions::Int64)::Vector
 
         body_str[i_line] = string(line)
     end
-    close(f)
+    as_str == false && close(f)
 
     out = Vector{String}(undef, n_functions)
     for i in eachindex(out)

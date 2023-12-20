@@ -198,20 +198,10 @@ function _PEtabModel(system,
 
     # For Callbacks. These function are needed by SBML generated PEtab-files, as for those we as an example rewrite
     # piecewise expressions into events
-    if isnothing(events)
-        write_callbacks_str = "function getCallbacks_" * model_name * "(foo)\n"
-        write_tstops_str = "\nfunction compute_tstops(u::AbstractVector, p::AbstractVector)\n"
-        write_tstops_str *= "\t return Float64[]\nend\n"
-        write_callbacks_str *= "\treturn CallbackSet(), Function[], false\nend"
-    else
-        parameter_info = process_parameters(parameters_data)
-        measurement_info = process_measurements(measurements_data, observables_data)
-        θ_indices = compute_θ_indices(parameter_info, measurement_info, system, _parameter_map, _state_map, experimental_conditions)
-        write_callbacks_str, write_tstops_str = process_petab_events(events, system, model_name, θ_indices)
-    end
-    get_callback_function = @RuntimeGeneratedFunction(Meta.parse(write_callbacks_str))
-    cbset, check_cb_active, convert_tspan = get_callback_function("https://xkcd.com/2694/") # Argument needed by @RuntimeGeneratedFunction
-    compute_tstops = @RuntimeGeneratedFunction(Meta.parse(write_tstops_str))
+    parameter_info = process_parameters(parameters_data)
+    measurement_info = process_measurements(measurements_data, observables_data)
+    θ_indices = compute_θ_indices(parameter_info, measurement_info, system, _parameter_map, _state_map, experimental_conditions)
+    cbset, compute_tstops, convert_tspan = process_petab_events(events, system, θ_indices)
 
     petab_model = PEtabModel(model_name,
                              compute_h,
@@ -238,7 +228,7 @@ function _PEtabModel(system,
                              "",
                              "",
                              cbset,
-                             check_cb_active, 
+                             Function[], 
                              true)
     return petab_model
 end
