@@ -113,17 +113,17 @@ end
 
 # Test for Brannmark (has steady state simulations)
 @info "Testing remake for Brannmark model"
-petab_model = PEtabModel(joinpath(@__DIR__, "Test_ll", "Brannmark_JBC2010", "Brannmark_JBC2010.yaml"), build_julia_files=false, verbose=false)
+petab_model = PEtabModel(joinpath(@__DIR__, "Test_ll", "Brannmark_JBC2010", "Brannmark_JBC2010.yaml"), build_julia_files=true, verbose=false)
 parameters_change1 = Dict(:k1a => 0.177219477727669,
-                        :k22 => 666.8355739795,
-                        :km2 => 1.15970741690448)
+                          :k22 => 666.8355739795,
+                          :km2 => 1.15970741690448)
 parameters_change2 = Dict(:k1a => "estimate",
-                        :k22 => 666.8355739795,
-                        :km2 => "estimate")
+                          :k22 => 666.8355739795,
+                          :km2 => "estimate")
 parameters_change3 = Dict(:sigmaY2Step => 5.15364156671777)
 parameters_change4 = Dict(:sigmaY2Step => 5.15364156671777,
-                         :k22 => 666.8355739795)
-@testset "Test PEtab remake : BrannmarkBoehm" begin
+                          :k22 => 666.8355739795)
+@testset "Test PEtab remake : Brannmark" begin
     test_petab_remake(petab_model, parameters_change1, [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton])
     test_petab_remake(petab_model, parameters_change2, [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton])
     test_petab_remake(petab_model, parameters_change3, [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton])
