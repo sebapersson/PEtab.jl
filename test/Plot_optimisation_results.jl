@@ -1,9 +1,14 @@
 # Tests the plotting recipes for PEtabOptimisationResult and PEtabMultistartOptimisationResult.
 # Written by Torkel Loman.
-# Comment: I am only aware of how to load PEtabMultistartOptimisationResult from folders (and not PEtabOptimisationResult), hence I am only testing on teh former (as I don't want to actually run an optimiser within these tests).
+# Comment: I am only aware of how to load PEtabMultistartOptimisationResult from folders (and not PEtabOptimisationResult),
+# hence I am only testing on teh former (as I don't want to actually run an optimiser within these tests).
 
 
 # Fetch packages.
+using DataFrames
+using Catalyst
+using OrdinaryDiffEq
+using Optim
 using PEtab
 using Plots
 using Test
@@ -75,12 +80,6 @@ end
 
 # Tests the plots comparing the fitted solution to the measurements.
 let 
-    # Fetch packages.
-    using Catalyst
-    using DataFrames
-    using OrdinaryDiffEq
-    using Optim
-
     # Declare model
     rn = @reaction_network begin
         kB, S + E --> SE
@@ -174,7 +173,7 @@ let
     @test sol_c2[:P] == c2_P_plt.series_list[2].plotattributes[:y] == c2_E_P_plt.series_list[4].plotattributes[:y]
 
     @test c1_E == c1_E_plt.series_list[1].plotattributes[:y] == c1_E_P_plt.series_list[1].plotattributes[:y]
-    @test c2_E == c1_E_plt.series_list[1].plotattributes[:y] == c1_E_P_plt.series_list[1].plotattributes[:y]
     @test c1_P == c1_P_plt.series_list[1].plotattributes[:y] == c1_E_P_plt.series_list[3].plotattributes[:y]
-    @test c2_P == c1_P_plt.series_list[1].plotattributes[:y] == c1_E_P_plt.series_list[3].plotattributes[:y]
+    @test c2_E == c2_E_plt.series_list[1].plotattributes[:y] == c2_E_P_plt.series_list[1].plotattributes[:y]
+    @test c2_P == c2_P_plt.series_list[1].plotattributes[:y] == c2_E_P_plt.series_list[3].plotattributes[:y]
 end
