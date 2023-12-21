@@ -137,6 +137,7 @@ nothing #hide
 ```
 Next we plot the fitted solution for $P$, for the first condition (`"c1"``):
 ```@example 2
+using Plots
 plot(res, petab_problem; observable_ids=["obs_P"], condition_id="c1")
 ```
 If we instead wish to, for the second condition, plot both observables, we use the following command:
