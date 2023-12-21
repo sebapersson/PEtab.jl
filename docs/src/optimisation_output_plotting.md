@@ -142,7 +142,7 @@ plot(res, petab_problem; observable_ids=["obs_P"], condition_id="c1")
 ```
 If we instead wish to, for the second condition, plot both observables, we use the following command:
 ```@example 2
-plot(res, petab_problem; observable_ids=["obs_E", "obs_P"] condition_id="c2")
+plot(res, petab_problem; observable_ids=["obs_E", "obs_P"], condition_id="c2")
 ```
 (in this example, the `observable_ids` option is technically not required, as plotting all observables is the default behaviour)
 
