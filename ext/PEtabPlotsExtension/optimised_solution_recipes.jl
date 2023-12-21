@@ -2,7 +2,7 @@
 @recipe function f(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult}, 
                    petab_problem::PEtabODEProblem; 
                    observable_ids = [obs.observableId for obs in petab_problem.petab_model.path_observables], 
-                   condition_id = [cond.conditionId for cond in petab_problem.petab_model.path_conditions][1]) where {T,F1,F2,F3,F4,F5,F6,F7,F8,F9,C,FA,S}
+                   condition_id = [cond.conditionId for cond in petab_problem.petab_model.path_conditions][1])
 
     # Computes required stuff.
     observable_formulas = [Symbol(obs.observableFormula) for obs in filter(obs -> obs.observableId in observable_ids, petab_problem.petab_model.path_observables)]
@@ -40,7 +40,7 @@ end
 Generates plots comparing the fitted solution to the data. The output is a dict, which contain one entry for each condition_id. Each of these entries contain another dict, each with one entry for each observables_id. Each of these entries contain the output of `plot(res, petab_model; observable_ids=[observable_id], condition_id=condition_id, kwargs...)` for the corresponding condition and observables ids.
 """
 function get_obs_comparison_plots(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult}, 
-                                  petab_problem::PEtabODEProblem; kwargs...) where {T,F1,F2,F3,F4,F5,F6,F7,F8,F9,C,FA,S}
+                                  petab_problem::PEtabODEProblem; kwargs...)
     comparison_dict = Dict()
     for condition_id in [cond.conditionId for cond in petab_problem.petab_model.path_conditions]
         comparison_dict[condition_id] = Dict()

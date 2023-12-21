@@ -131,7 +131,6 @@ petab_model = PEtabModel(rn, simulation_conditions , observables, measurements, 
 petab_problem = PEtabODEProblem(petab_model)
 
 using Optim
-p0 = generate_startguesses(petab_problem, 1)
 res = calibrate_model_multistart(petab_problem, IPNewton(), 50, nothing)
 nothing #hide
 ```
