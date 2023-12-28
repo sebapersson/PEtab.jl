@@ -16,10 +16,9 @@ function PEtabModel(path_yaml::String;
         verbose == true && build_julia_files && print(" By user option rebuilds Julia ODE model ...")
         verbose == true && !build_julia_files && print(" Building Julia model file as it does not exist ...")
 
-        b_build = @elapsed model_str = SBMLImporter.odesystem_from_SBML(model_SBML, 
-                                                                        path_model_jl_file, 
-                                                                        model_name, 
-                                                                        write_to_file)
+        b_build = @elapsed model_str = SBMLImporter.reactionsystem_from_SBML(model_SBML, 
+                                                                             path_model_jl_file, 
+                                                                             write_to_file)
         verbose == true && @printf(" done. Time = %.1es\n", b_build)
     end
 
@@ -33,14 +32,16 @@ function PEtabModel(path_yaml::String;
     # to rewrite the model parameter to correctly compute gradients etc...
     change_model_structure = add_parameters_condition_dependent_u0!(model_SBML, path_conditions, path_parameters)
     if change_model_structure == true
-        model_str = SBMLImporter.odesystem_from_SBML(model_SBML, path_model_jl_file, model_name, write_to_file)
+        model_str = SBMLImporter.reactionsystem_from_SBML(model_SBML, path_model_jl_file, 
+                                                          write_to_file)
     end
 
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Symbolically processes ODE-system ...")
     timeTake = @elapsed begin
-        _get_ode_system = @RuntimeGeneratedFunction(Meta.parse(model_str))
-        _ode_system, state_map, parameter_map = _get_ode_system("https://xkcd.com/303/") # Argument needed by @RuntimeGeneratedFunction
+        _get_rn = @RuntimeGeneratedFunction(Meta.parse(model_str))
+        _rn, state_map, parameter_map = _get_rn("https://xkcd.com/303/") # Argument needed by @RuntimeGeneratedFunction
+        _ode_system = convert(ODESystem, _rn)
         if isempty(model_SBML.algebraic_rules)
             ode_system = structural_simplify(_ode_system)
         # DAE requires special processing
@@ -233,7 +234,6 @@ function add_parameters_condition_dependent_u0!(model_SBML::SBMLImporter.ModelSB
         # Reassign initial value for specie
         model_SBML.parameters[parameter].initial_value = _name
     end
-
 
     # Check if the columns for which the species in conditions file map to parameters 
     # that are not a part of the SBML model as these parameters must then be added to 
