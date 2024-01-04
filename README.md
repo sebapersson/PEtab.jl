@@ -25,7 +25,7 @@ or enter
 julia> using Pkg; Pkg.add("PEtab")
 ```
 
-PEtab.jl is compatible with Julia version 1.6 and above. However, for best performance, we strongly recommend using Julia version 1.9.
+PEtab.jl is compatible with Julia version 1.6 and above. However, for best performance, we strongly recommend using Julia version 1.10.
 
 ## Quick start
 

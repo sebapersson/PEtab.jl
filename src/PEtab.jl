@@ -4,6 +4,7 @@ using ModelingToolkit
 using CSV
 using SciMLBase
 using OrdinaryDiffEq
+using Catalyst
 using DiffEqCallbacks
 using DataFrames
 using SteadyStateDiffEq
