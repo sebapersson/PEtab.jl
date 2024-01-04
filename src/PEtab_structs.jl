@@ -331,6 +331,23 @@ struct PEtabODEProblemCache{T1 <: AbstractVector,
 end
 
 
+struct MeasurementsInfo{T<:Vector{<:Union{<:String, <:AbstractFloat}}}
+
+    measurement::Vector{Float64}
+    measurementT::Vector{Float64}
+    simulated_values::Vector{Float64}
+    chi2_values::Vector{Float64}
+    residuals::Vector{Float64}
+    measurement_transformation::Vector{Symbol}
+    time::Vector{Float64}
+    observable_id::Vector{Symbol}
+    pre_equilibration_condition_id::Vector{Symbol}
+    simulation_condition_id::Vector{Symbol}
+    noise_parameters::T
+    observable_parameters::Vector{String}
+end
+
+
 """
     PEtabODEProblem
 
@@ -452,25 +469,8 @@ struct PEtabODEProblem{F1<:Function,
     prior_info::PriorInfo
     parameter_info::ParametersInfo
     petab_ODE_cache::PEtabODEProblemCache
+    measurement_info::MeasurementsInfo
 end
-
-
-struct MeasurementsInfo{T<:Vector{<:Union{<:String, <:AbstractFloat}}}
-
-    measurement::Vector{Float64}
-    measurementT::Vector{Float64}
-    simulated_values::Vector{Float64}
-    chi2_values::Vector{Float64}
-    residuals::Vector{Float64}
-    measurement_transformation::Vector{Symbol}
-    time::Vector{Float64}
-    observable_id::Vector{Symbol}
-    pre_equilibration_condition_id::Vector{Symbol}
-    simulation_condition_id::Vector{Symbol}
-    noise_parameters::T
-    observable_parameters::Vector{String}
-end
-
 
 
 struct PEtabODESolverCache
