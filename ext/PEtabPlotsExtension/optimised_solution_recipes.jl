@@ -4,31 +4,43 @@
                    observable_ids = [obs.observableId for obs in petab_problem.petab_model.path_observables], 
                    condition_id = [cond.conditionId for cond in petab_problem.petab_model.path_conditions][1])
 
-    # Computes required stuff.
-    observable_formulas = [Symbol(obs.observableFormula) for obs in filter(obs -> obs.observableId in observable_ids, petab_problem.petab_model.path_observables)]
-    sol = get_odesol(res, petab_problem; condition_id)
-    n_obs = length(observable_ids)
-
     # Get plot options.
     title --> condition_id
     ylabel --> "Concentration"
-    seriestype --> reshape([st for _ in 1:n_obs for st in [:scatter :line]], 1, 2n_obs)
-    color --> reshape([idx for idx in 1:n_obs for _ in 1:2], 1, 2n_obs)
-    label --> reshape(["$(observable_formulas[idx]) ($type)" for idx in 1:n_obs for type in ["measured", "fitted"]], 1, 2n_obs)
 
-    # Get x and y values.
+    # Prepares empty vectors with required plot inputs.
+    seriestype = []
+    color = []
+    label = []
     x_vals = []
     y_vals = []
-    for (obs, obs_formula) in zip(observable_ids, observable_formulas)
-        # Measurements.
-        measurements = filter(m -> (m.simulationConditionId==condition_id) && (m.observableId==obs), petab_problem.petab_model.path_measurements)
-        push!(x_vals, [m.time for m in measurements])
-        push!(y_vals, [m.measurement for m in measurements])
 
-        # Fitted.
-        push!(x_vals, sol.t)
-        push!(y_vals, sol[obs_formula])
+    # Loops through all observables, computing the required plot inputs.
+    all_obs = petab_problem.petab_model.path_observables
+    for (obs_idx, obs_id) in enumerate(observable_ids)
+        t_observed, h_observed, label_observed, t_model, h_model, label_model, smooth_sol = 
+                                    _get_observable(res.xmin, petab_problem, condition_id, obs_id)
+
+        # Plot args.
+        append!(seriestype, [:scatter, smooth_sol ? :line : :scatter])
+        append!(color, [obs_idx, obs_idx])
+        obs_formula = all_obs[all_obs.observableId .== observable_ids[1], :][1,1].observableFormula
+        append!(label, ["$(obs_formula) ($type)" for type in ["measured", "fitted"]])
+
+        # Measured plot values.
+        push!(x_vals, t_observed)
+        push!(y_vals, h_observed)
+
+        # Fitted plot values.
+        push!(x_vals, t_model)
+        push!(y_vals, h_model)
     end
+
+    # Set reshaped plot arguments
+    n_obs = length(observable_ids)
+    seriestype --> reshape(seriestype, 1, 2n_obs)
+    color --> reshape(color, 1, 2n_obs)
+    label --> reshape(label, 1, 2n_obs)
 
     # Return output.
     x_vals, y_vals
@@ -69,7 +81,7 @@ different pre-equilibrium ids.
 - `t_model::Vector{Float64}`: Time points for the model data (x-axis).
 - `h_model::Vector{Float64}`: Model's predicted values corresponding to these time points.
 - `label_model::Vector{String}`: Model labels denoting the condition id, considering any pre-equilibrium scenarios.
-- `smooth_sol::Vector{String}`: Indicates whether the returned solution is smooth, i.e., there are no 
+- `smooth_sol::Bool`: Indicates whether the returned solution is smooth, i.e., there are no 
     observable parameters.
 """
 function _get_observable(θ::Vector{Float64}, petab_problem::PEtabODEProblem,
@@ -89,9 +101,9 @@ function _get_observable(θ::Vector{Float64}, petab_problem::PEtabODEProblem,
         return Float64[], Float64[], String[], Float64[], Float64[], String[], true
     end
 
-    # Extract measurment value and observered time for the data. Alongside create an id-tag.
+    # Extract measurement value and observed time for the data. Alongside create an id-tag.
     # Notice that an observable_id for a condition_id can have in a sense different simulation
-    # values due to a potential pre-eq id, different pre-eq should be labeled accordingly in
+    # values due to a potential pre-eq id, different pre-eq should be labelled accordingly in
     # the plot
     pre_eq_ids = petab_problem.measurement_info.pre_equilibration_condition_id[idata]
     t_observed = measurement_data[idata, :time]
@@ -124,7 +136,7 @@ function _get_observable(θ::Vector{Float64}, petab_problem::PEtabODEProblem,
             θ_non_dynamicT = PEtab.transformθ(θ_non_dynamic, θ_indices.θ_non_dynamic_names, θ_indices, :θ_non_dynamic, petab_ODE_cache)
             i_measurement = _idata[1]
             _h_model = similar(sol.t)
-            for i in eachindex(h_model)
+            for i in eachindex(_h_model)
                 u = sol[:, i]
                 _h_model[i] = PEtab.computeh(u, sol.t[i], sol.prob.p, θ_observableT,  θ_non_dynamicT, petab_model,
                                             i_measurement, measurement_info, θ_indices, parameter_info)

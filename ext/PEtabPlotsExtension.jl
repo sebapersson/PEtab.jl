@@ -1,6 +1,8 @@
 module PEtabPlotsExtension
 
-import PEtab: PEtabOptimisationResult, PEtabMultistartOptimisationResult, PEtabODEProblem, get_odesol, get_obs_comparison_plots
+import ModelingToolkit: @unpack
+using DataFrames
+using PEtab
 using Plots
 using RuntimeGeneratedFunctions
 
