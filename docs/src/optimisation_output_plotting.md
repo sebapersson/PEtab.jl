@@ -154,6 +154,3 @@ Here `comp_dict` contain one entry for each condition (with keys corresponding t
 ```@example 2
 comp_dict["c1"]["obs_E"]
 ```
-
-!!! note
-    This functionality currently only support observables that are either species or observables of the original model system (in this case `rn`). If you wish to use it with non trivial observables (e.g. $S + SE$) you will have to declare these as an observable of the model system (how to do this is described e.g. in Catalyst.jl's documentation).
