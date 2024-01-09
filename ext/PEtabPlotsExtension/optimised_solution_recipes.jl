@@ -51,7 +51,7 @@ end
 
 Generates plots comparing the fitted solution to the data. The output is a dict, which contain one entry for each condition_id. Each of these entries contain another dict, each with one entry for each observables_id. Each of these entries contain the output of `plot(res, petab_model; observable_ids=[observable_id], condition_id=condition_id, kwargs...)` for the corresponding condition and observables ids.
 """
-function get_obs_comparison_plots(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult}, 
+function PEtab.get_obs_comparison_plots(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult}, 
                                   petab_problem::PEtabODEProblem; kwargs...)
     comparison_dict = Dict()
     for condition_id in [cond.conditionId for cond in petab_problem.petab_model.path_conditions]
