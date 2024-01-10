@@ -74,7 +74,7 @@ When plotting a multi start output using the `:objective`, `:best_objective`, or
 For the `:waterfall`, `:runtime_eval` plot types, by default all runs are plotted. However, if desired, the `best_idxs_n` and `idxs` arguments can be used for these plot types as well.
 
 ## Plots comparing the fitted model to the measurements
-After the model has been fitted, it can be useful to compare it to the measurements. This is possible by supplying both the optimisation solution, and the `PEtabModel` used, to the plot command. By default, it will plot, for the first condition, the output solution for all observables. However, any subset of observables can be selected (using the `observable_ids` option). It is also possible to select the condition using the `condition_id` option.
+After the model has been fitted, it can be useful to compare it to the measurements. This is possible by supplying both the optimisation solution, and the `PEtabModel` used, to the plot command. By default, it will plot, for the first simulation condition, the output solution for all observables. However, any subset of observables can be selected (using the `observable_ids` option). It is also possible to select the condition using the `condition_id` option.
 
 Here, we first fit a simple model (with two observables and two conditions) to simulated data. Next, we will show various ways to plot the fitted solution.
 
@@ -127,19 +127,20 @@ m_c2_E = DataFrame(simulation_id="c2", obs_id="obs_E", time=c2_t, measurement=c2
 m_c2_P = DataFrame(simulation_id="c2", obs_id="obs_P", time=c2_t, measurement=c2_P)
 measurements = vcat(m_c1_E, m_c1_P, m_c2_E, m_c2_P)
 
-petab_model = PEtabModel(rn, simulation_conditions , observables, measurements, params; state_map=u0)
-petab_problem = PEtabODEProblem(petab_model)
+petab_model = PEtabModel(rn, simulation_conditions , observables, measurements, params; 
+                         state_map=u0, verbose=false)
+petab_problem = PEtabODEProblem(petab_model; verbose=false)
 
 using Optim
 res = calibrate_model_multistart(petab_problem, IPNewton(), 50, nothing)
 nothing #hide
 ```
-Next we plot the fitted solution for $P$, for the first condition (`"c1"``):
+Next we plot the fitted solution for $P$, for the first simulation condition (`"c1"``):
 ```@example 2
 using Plots
 plot(res, petab_problem; observable_ids=["obs_P"], condition_id="c1")
 ```
-If we instead wish to, for the second condition, plot both observables, we use the following command:
+If we instead wish to, for the second simulation condition, plot both observables, we use the following command:
 ```@example 2
 plot(res, petab_problem; observable_ids=["obs_E", "obs_P"], condition_id="c2")
 ```
