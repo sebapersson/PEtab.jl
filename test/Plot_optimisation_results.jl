@@ -1,9 +1,14 @@
 # Tests the plotting recipes for PEtabOptimisationResult and PEtabMultistartOptimisationResult.
 # Written by Torkel Loman.
-# Comment: I am only aware of how to load PEtabMultistartOptimisationResult from folders (and not PEtabOptimisationResult), hence I am only testing on teh former (as I don't want to actually run an optimiser within these tests).
+# Comment: I am only aware of how to load PEtabMultistartOptimisationResult from folders (and not PEtabOptimisationResult),
+# hence I am only testing on teh former (as I don't want to actually run an optimiser within these tests).
 
 
 # Fetch packages.
+using DataFrames
+using Catalyst
+using OrdinaryDiffEq
+using Optim
 using PEtab
 using Plots
 using Test
@@ -73,4 +78,102 @@ let
     p_parallel_coord.series_list[1].plotattributes[:y] == 1:length(petab_ms_res.xnames)
 end
 
+# Tests the plots comparing the fitted solution to the measurements.
+let 
+    # Declare model
+    rn = @reaction_network begin
+        kB, S + E --> SE
+        kD, SE --> S + E
+        kP, SE --> P + E
+    end
 
+    u0 = [:E => 1.0, :SE => 0.0, :P => 0.0]
+    p_true = [:kB => 1.0, :kD => 0.1, :kP => 0.5]
+
+    # Simulate data.
+    # Condition 1.
+    oprob_true_c1 = ODEProblem(rn,  [:S => 1.0; u0], (0.0, 10.0), p_true)
+    true_sol_c1 = solve(oprob_true_c1, Tsit5())
+    data_sol_c1 = solve(oprob_true_c1, Tsit5(); saveat=1.0)
+    c1_t, c1_E, c1_P = data_sol_c1.t[2:end], (0.8 .+ 0.4*rand(10)) .* data_sol_c1[:E][2:end], (0.8 .+ 0.4*rand(10)) .* data_sol_c1[:P][2:end]
+
+    # Condition 2.
+    oprob_true_c2 = ODEProblem(rn,  [:S => 0.5; u0], (0.0, 10.0), p_true)
+    true_sol_c2 = solve(oprob_true_c2, Tsit5())
+    data_sol_c2 = solve(oprob_true_c2, Tsit5(); saveat=1.0)
+    c2_t, c2_E, c2_P = data_sol_c2.t[2:end], (0.8 .+ 0.4*rand(10)) .* data_sol_c2[:E][2:end], (0.8 .+ 0.4*rand(10)) .* data_sol_c2[:P][2:end]
+
+    # Make PETab problem.
+    @unpack E,P = rn
+    obs_E = PEtabObservable(E, 0.5)
+    obs_P = PEtabObservable(P, 0.5)
+    observables = Dict("obs_E" => obs_E, "obs_P" => obs_P)
+
+    par_kB = PEtabParameter(:kB)
+    par_kD = PEtabParameter(:kD)
+    par_kP = PEtabParameter(:kP)
+    params = [par_kB, par_kD, par_kP]
+
+    c1 = Dict(:S => 1.0)
+    c2 = Dict(:S => 0.5)
+    simulation_conditions = Dict("c1" => c1, "c2" => c2)
+
+    m_c1_E = DataFrame(simulation_id="c1", obs_id="obs_E", time=c1_t, measurement=c1_E)
+    m_c1_P = DataFrame(simulation_id="c1", obs_id="obs_P", time=c1_t, measurement=c1_P)
+    m_c2_E = DataFrame(simulation_id="c2", obs_id="obs_E", time=c2_t, measurement=c2_E)
+    m_c2_P = DataFrame(simulation_id="c2", obs_id="obs_P", time=c2_t, measurement=c2_P)
+    measurements = vcat(m_c1_E, m_c1_P, m_c2_E, m_c2_P)
+
+    # Fit solution
+    petab_model = PEtabModel(rn, simulation_conditions , observables, measurements, params; state_map=u0)
+    petab_problem = PEtabODEProblem(petab_model)
+    res = calibrate_model_multistart(petab_problem, IPNewton(), 5, "simple_enzyme_model")
+
+    # Check comparison dictionary.
+    comp_dict = get_obs_comparison_plots(res, petab_problem)
+    issetequal(keys(comp_dict), ["c1", "c2"])
+    issetequal(keys(comp_dict["c1"]), ["obs_E", "obs_P"])
+    issetequal(keys(comp_dict["c2"]), ["obs_E", "obs_P"])
+
+    # Make plots
+    c1_E_plt = plot(res, petab_problem; observable_ids=["obs_E"], condition_id="c1")
+    c1_P_plt = plot(res, petab_problem; observable_ids=["obs_P"], condition_id="c1")
+    c1_E_P_plt = plot(res, petab_problem; condition_id="c1")
+
+    c2_E_plt = plot(res, petab_problem; observable_ids=["obs_E"], condition_id="c2")
+    c2_P_plt = plot(res, petab_problem; observable_ids=["obs_P"], condition_id="c2")
+    c2_E_P_plt = plot(res, petab_problem; condition_id="c2")
+
+    # Fetch sols.
+    sol_c1 = get_odesol(res, petab_problem; condition_id="c1")
+    sol_c2 = get_odesol(res, petab_problem; condition_id="c2")
+
+    # Test plots.
+    for i in 1:2
+        @test comp_dict["c1"]["obs_E"].series_list[i].plotattributes[:x] == c1_E_plt.series_list[i].plotattributes[:x]
+        @test comp_dict["c1"]["obs_E"].series_list[i].plotattributes[:y] == c1_E_plt.series_list[i].plotattributes[:y]
+        @test comp_dict["c1"]["obs_P"].series_list[i].plotattributes[:x] == c1_P_plt.series_list[i].plotattributes[:x]
+        @test comp_dict["c1"]["obs_P"].series_list[i].plotattributes[:y] == c1_P_plt.series_list[i].plotattributes[:y]
+        @test comp_dict["c2"]["obs_E"].series_list[i].plotattributes[:x] == c2_E_plt.series_list[i].plotattributes[:x]
+        @test comp_dict["c2"]["obs_E"].series_list[i].plotattributes[:y] == c2_E_plt.series_list[i].plotattributes[:y]
+        @test comp_dict["c2"]["obs_P"].series_list[i].plotattributes[:x] == c2_P_plt.series_list[i].plotattributes[:x]
+        @test comp_dict["c2"]["obs_P"].series_list[i].plotattributes[:y] == c2_P_plt.series_list[i].plotattributes[:y]
+    end
+
+    @test sol_c1.t == c1_E_plt.series_list[2].plotattributes[:x]
+    @test sol_c1.t == c1_P_plt.series_list[2].plotattributes[:x]
+    @test sol_c1.t == c1_E_P_plt.series_list[2].plotattributes[:x]
+    @test sol_c2.t == c2_E_plt.series_list[2].plotattributes[:x]
+    @test sol_c2.t == c2_P_plt.series_list[2].plotattributes[:x]
+    @test sol_c2.t == c2_E_P_plt.series_list[2].plotattributes[:x]
+
+    @test sol_c1[:E] == c1_E_plt.series_list[2].plotattributes[:y] == c1_E_P_plt.series_list[2].plotattributes[:y]
+    @test sol_c1[:P] == c1_P_plt.series_list[2].plotattributes[:y] == c1_E_P_plt.series_list[4].plotattributes[:y]
+    @test sol_c2[:E] == c2_E_plt.series_list[2].plotattributes[:y] == c2_E_P_plt.series_list[2].plotattributes[:y]
+    @test sol_c2[:P] == c2_P_plt.series_list[2].plotattributes[:y] == c2_E_P_plt.series_list[4].plotattributes[:y]
+
+    @test c1_E == c1_E_plt.series_list[1].plotattributes[:y] == c1_E_P_plt.series_list[1].plotattributes[:y]
+    @test c1_P == c1_P_plt.series_list[1].plotattributes[:y] == c1_E_P_plt.series_list[3].plotattributes[:y]
+    @test c2_E == c2_E_plt.series_list[1].plotattributes[:y] == c2_E_P_plt.series_list[1].plotattributes[:y]
+    @test c2_P == c2_P_plt.series_list[1].plotattributes[:y] == c2_E_P_plt.series_list[3].plotattributes[:y]
+end

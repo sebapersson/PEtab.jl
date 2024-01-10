@@ -32,9 +32,14 @@ function get_odesol(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisat
     if !isnothing(pre_eq_id) && pre_eq_id isa String
         pre_eq_id = Symbol(pre_eq_id)
     end
+    if !isnothing(pre_eq_id)
+        tmax_id = Symbol(string(pre_eq_id) * string(condition_id))
+    else
+        tmax_id = condition_id
+    end
 
     u0, p = _get_fitted_parameters(res, petab_problem, condition_id, pre_eq_id, false)
-    tmax = petab_problem.simulation_info.tmax[condition_id]
+    tmax = petab_problem.simulation_info.tmax[tmax_id]
     ode_problem = remake(petab_problem.ode_problem, p=p, u0=u0, tspan=(0.0, tmax))
 
     cbset = petab_problem.petab_model.model_callbacks

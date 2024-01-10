@@ -226,7 +226,8 @@ function PEtabODEProblem(petab_model::PEtabModel;
                                     split_over_conditions,
                                     prior_info, 
                                     parameter_info, 
-                                    petab_ODE_cache)
+                                    petab_ODE_cache, 
+                                    measurement_info)
     return petab_problem
 end
 

@@ -72,3 +72,85 @@ When using the `calibrate_model_multistart` function to fit a parameter set, sev
 When plotting a multi start output using the `:objective`, `:best_objective`, or `:parallel_coordinates` plot types, if the number of runs are large, it can sometimes be hard to distinguish information from the plot. Hence, for these plot types, only the `10` runs with the best final objective values are plotted. This can be modified through the `best_idxs_n` optional argument. This is an `Int64`, what number of runs to add to the plot (starting with the best one). Alternatively, the `idxs` optional argument can be used to give the indexes of the runs to plot.
 
 For the `:waterfall`, `:runtime_eval` plot types, by default all runs are plotted. However, if desired, the `best_idxs_n` and `idxs` arguments can be used for these plot types as well.
+
+## Plots comparing the fitted model to the measurements
+After the model has been fitted, it can be useful to compare it to the measurements. This is possible by supplying both the optimisation solution, and the `PEtabModel` used, to the plot command. By default, it will plot, for the first condition, the output solution for all observables. However, any subset of observables can be selected (using the `observable_ids` option). It is also possible to select the condition using the `condition_id` option.
+
+Here, we first fit a simple model (with two observables and two conditions) to simulated data. Next, we will show various ways to plot the fitted solution.
+
+```@example 2
+# Prepare model
+using Catalyst
+rn = @reaction_network begin
+    kB, S + E --> SE
+    kD, SE --> S + E
+    kP, SE --> P + E
+end
+
+u0 = [:E => 1.0, :SE => 0.0, :P => 0.0]
+p_true = [:kB => 1.0, :kD => 0.1, :kP => 0.5]
+
+# Simulate data.
+using OrdinaryDiffEq
+# Condition 1.
+oprob_true_c1 = ODEProblem(rn,  [:S => 1.0; u0], (0.0, 10.0), p_true)
+true_sol_c1 = solve(oprob_true_c1, Tsit5())
+data_sol_c1 = solve(oprob_true_c1, Tsit5(); saveat=1.0)
+c1_t, c1_E, c1_P = data_sol_c1.t[2:end], (0.8 .+ 0.4*rand(10)) .* data_sol_c1[:E][2:end], (0.8 .+ 0.4*rand(10)) .* data_sol_c1[:P][2:end]
+
+# Condition 2.
+oprob_true_c2 = ODEProblem(rn,  [:S => 0.5; u0], (0.0, 10.0), p_true)
+true_sol_c2 = solve(oprob_true_c2, Tsit5())
+data_sol_c2 = solve(oprob_true_c2, Tsit5(); saveat=1.0)
+c2_t, c2_E, c2_P = data_sol_c2.t[2:end], (0.8 .+ 0.4*rand(10)) .* data_sol_c2[:E][2:end], (0.8 .+ 0.4*rand(10)) .* data_sol_c2[:P][2:end]
+
+# Make PETab problem.
+using PEtab
+@unpack E,P = rn
+obs_E = PEtabObservable(E, 0.5)
+obs_P = PEtabObservable(P, 0.5)
+observables = Dict("obs_E" => obs_E, "obs_P" => obs_P)
+
+par_kB = PEtabParameter(:kB)
+par_kD = PEtabParameter(:kD)
+par_kP = PEtabParameter(:kP)
+params = [par_kB, par_kD, par_kP]
+
+c1 = Dict(:S => 1.0)
+c2 = Dict(:S => 0.5)
+simulation_conditions = Dict("c1" => c1, "c2" => c2)
+
+using DataFrames
+m_c1_E = DataFrame(simulation_id="c1", obs_id="obs_E", time=c1_t, measurement=c1_E)
+m_c1_P = DataFrame(simulation_id="c1", obs_id="obs_P", time=c1_t, measurement=c1_P)
+m_c2_E = DataFrame(simulation_id="c2", obs_id="obs_E", time=c2_t, measurement=c2_E)
+m_c2_P = DataFrame(simulation_id="c2", obs_id="obs_P", time=c2_t, measurement=c2_P)
+measurements = vcat(m_c1_E, m_c1_P, m_c2_E, m_c2_P)
+
+petab_model = PEtabModel(rn, simulation_conditions , observables, measurements, params; state_map=u0)
+petab_problem = PEtabODEProblem(petab_model)
+
+using Optim
+res = calibrate_model_multistart(petab_problem, IPNewton(), 50, nothing)
+nothing #hide
+```
+Next we plot the fitted solution for $P$, for the first condition (`"c1"``):
+```@example 2
+using Plots
+plot(res, petab_problem; observable_ids=["obs_P"], condition_id="c1")
+```
+If we instead wish to, for the second condition, plot both observables, we use the following command:
+```@example 2
+plot(res, petab_problem; observable_ids=["obs_E", "obs_P"], condition_id="c2")
+```
+(in this example, the `observable_ids` option is technically not required, as plotting all observables is the default behaviour)
+
+Finally, it is possible to retrieve a dictionary containing plots for all combinations of observables and conditions using:
+```@example 2
+comp_dict = get_obs_comparison_plots(res, petab_problem)
+nothing # hide
+```
+Here `comp_dict` contain one entry for each condition (with keys corresponding to their condition ids). These are all dictionaries, which in turn contain one entry for each observable (with keys corresponding to their observable ids). To retrieve the plot for $E$ and `"c1"`` we use:
+```@example 2
+comp_dict["c1"]["obs_E"]
+```
