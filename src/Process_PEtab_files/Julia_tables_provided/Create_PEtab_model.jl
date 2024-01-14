@@ -6,7 +6,7 @@
                petab_parameters::Vector{PEtabParameter};
                state_map::Union{Nothing, Vector{Pair}=nothing,
                parameter_map::Union{Nothing, Vector{Pair}=nothing,
-               events::Union{Nothing, PEtabEvent, Vector{PEtabEvent}}=nothing,
+               events::Union{Nothing, PEtabEvent, AbstractVector}=nothing,
                verbose::Bool=false)::PEtabModel
 
 Create a PEtabModel directly in Julia from a Catalyst reaction system or MTK ODESystem.
@@ -75,14 +75,14 @@ petab_model = PEtabModel(
 ```
 """
 function PEtabModel(system::ODESystem,
-                    simulation_conditions::Dict{String, T},
-                    observables::Dict{String, PEtab.PEtabObservable},
+                    simulation_conditions::Dict,
+                    observables::Dict,
                     measurements::DataFrame,
                     petab_parameters::Vector{PEtab.PEtabParameter};
-                    state_map::Union{Nothing, Vector{Pair{T1, Float64}}}=nothing,
-                    parameter_map::Union{Nothing, Vector{Pair{T2, Float64}}}=nothing,
-                    events::Union{T3, Vector{T3}, Nothing}=nothing,
-                    verbose::Bool=false)::PEtab.PEtabModel where {T1<:Union{Symbol, Any}, T2<:Union{Symbol, Any}, T<:Dict, T3<:PEtabEvent}
+                    state_map::Union{Nothing, AbstractVector}=nothing,
+                    parameter_map::Union{Nothing, AbstractVector}=nothing,
+                    events::Union{PEtabEvent, AbstractVector, Nothing}=nothing,
+                    verbose::Bool=false)::PEtab.PEtabModel
 
     model_name = "ODESystemModel"                          
     return _PEtabModel(system, model_name, simulation_conditions, observables, measurements, 
@@ -95,7 +95,7 @@ end
                petab_parameters::Vector{PEtabParameter};
                state_map::Union{Nothing, Vector{Pair}=nothing,
                parameter_map::Union{Nothing, Vector{Pair}=nothing,
-               events::Union{Nothing, PEtabEvent, Vector{PEtabEvent}}=nothing,
+               events::Union{Nothing, PEtabEvent, AbstractVector}=nothing,
                verbose::Bool=false)::PEtabModel
 
 Create a PEtabModel directly in Julia from a Catalyst ReactionSystem or MTK ODESystem without simulation conditions.
@@ -103,13 +103,13 @@ Create a PEtabModel directly in Julia from a Catalyst ReactionSystem or MTK ODES
 In case of simulation conditions, and for all arguments, see above.
 """
 function PEtabModel(system::ODESystem,
-                    observables::Dict{String, PEtab.PEtabObservable},
+                    observables::Dict,
                     measurements::DataFrame,
                     petab_parameters::Vector{PEtab.PEtabParameter};
-                    state_map::Union{Nothing, Vector{Pair{T1, Float64}}}=nothing,
-                    parameter_map::Union{Nothing, Vector{Pair{T2, Float64}}}=nothing,
-                    events::Union{T3, Vector{T3}, Nothing}=nothing,
-                    verbose::Bool=false)::PEtab.PEtabModel where {T1<:Union{Symbol, Any}, T2<:Union{Symbol, Any},  T3<:PEtabEvent}
+                    state_map::Union{Nothing, AbstractVector}=nothing,
+                    parameter_map::Union{Nothing, AbstractVector}=nothing,
+                    events::Union{PEtabEvent, AbstractVector, Nothing}=nothing,
+                    verbose::Bool=false)::PEtab.PEtabModel
 
     simulation_conditions = Dict("__c0__" => Dict())                        
     model_name = "ODESystemModel"                          
@@ -117,27 +117,27 @@ function PEtabModel(system::ODESystem,
                        petab_parameters, state_map, parameter_map, events, verbose)
 end
 function PEtabModel(system::ReactionSystem,
-                    simulation_conditions::Dict{String, T},
-                    observables::Dict{String, PEtab.PEtabObservable},
+                    simulation_conditions::Dict,
+                    observables::Dict,
                     measurements::DataFrame,
                     petab_parameters::Vector{PEtab.PEtabParameter};
-                    state_map::Union{Nothing, Vector{Pair{T1, Float64}}}=nothing,
-                    parameter_map::Union{Nothing, Vector{Pair{T2, Float64}}}=nothing,
-                    events::Union{T3, Vector{T3}, Nothing}=nothing,
-                    verbose::Bool=false)::PEtab.PEtabModel where {T1<:Union{Symbol, Any}, T2<:Union{Symbol, Any}, T<:Dict, T3<:PEtabEvent}
+                    state_map::Union{Nothing, AbstractVector}=nothing,
+                    parameter_map::Union{Nothing, AbstractVector}=nothing,
+                    events::Union{PEtabEvent, AbstractVector, Nothing}=nothing,
+                    verbose::Bool=false)::PEtab.PEtabModel
 
     model_name = "ReactionSystemModel"                          
     return PEtab._PEtabModel(system, model_name, simulation_conditions, observables, measurements, 
                              petab_parameters, state_map, parameter_map, events, verbose)
 end
 function PEtabModel(system::ReactionSystem,
-                    observables::Dict{String, PEtab.PEtabObservable},
+                    observables::Dict,
                     measurements::DataFrame,
                     petab_parameters::Vector{PEtab.PEtabParameter};
-                    state_map::Union{Nothing, Vector{Pair{T1, Float64}}}=nothing,
-                    parameter_map::Union{Nothing, Vector{Pair{T2, Float64}}}=nothing,
-                    events::Union{T3, Vector{T3}, Nothing}=nothing,
-                    verbose::Bool=false)::PEtab.PEtabModel where {T1<:Union{Symbol, Any}, T2<:Union{Symbol, Any}, T3<:PEtabEvent}
+                    state_map::Union{Nothing, AbstractVector}=nothing,
+                    parameter_map::Union{Nothing, AbstractVector}=nothing,
+                    events::Union{PEtabEvent, AbstractVector, Nothing}=nothing,
+                    verbose::Bool=false)::PEtab.PEtabModel
 
     simulation_conditions = Dict("__c0__" => Dict())                        
     model_name = "ReactionSystemModel"                          
@@ -148,14 +148,14 @@ end
 
 function _PEtabModel(system,
                      model_name::String,
-                     simulation_conditions::Dict{String, T},
-                     observables::Dict{String, PEtab.PEtabObservable},
+                     simulation_conditions::Dict,
+                     observables::Dict,
                      measurements::DataFrame,
                      petab_parameters::Vector{PEtab.PEtabParameter},
-                     state_map::Union{Nothing, Vector{Pair{T1, Float64}}},
-                     parameter_map::Union{Nothing, Vector{Pair{T2, Float64}}},
-                     events::Union{T3, Vector{T3}, Nothing},
-                     verbose::Bool)::PEtab.PEtabModel where {T1<:Union{Symbol, Any}, T2<:Union{Symbol, Any}, T<:Dict, T3<:PEtabEvent}
+                     state_map::Union{Nothing, AbstractVector},
+                     parameter_map::Union{Nothing, AbstractVector},
+                     events::Union{PEtabEvent, AbstractVector, Nothing},
+                     verbose::Bool)::PEtab.PEtabModel
 
     verbose == true && @info "Building PEtabModel for $model_name"
 

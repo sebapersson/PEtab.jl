@@ -2,23 +2,26 @@ function PEtabModel(path_yaml::String;
                     build_julia_files::Bool=false,
                     verbose::Bool=true,
                     ifelse_to_event::Bool=true,
-                    custom_parameter_values::Union{Nothing, Dict}=nothing, 
+                    custom_parameter_values::Union{Nothing, Dict}=nothing,
                     write_to_file::Bool=true)::PEtabModel
 
     path_SBML, path_parameters, path_conditions, path_observables, path_measurements, dir_julia, dir_model, model_name = read_petab_yaml(path_yaml)
 
     verbose == true && @info "Building PEtabModel for $model_name"
-    model_SBML = SBMLImporter.build_SBML_model(path_SBML, ifelse_to_callback=ifelse_to_event, model_as_string=false)
-
+    model_SBML = SBMLImporter.build_SBML_model(path_SBML, ifelse_to_callback=ifelse_to_event, model_as_string=false,
+                                               inline_assignment_rules=false)
+    
     path_model_jl_file = joinpath(dir_julia, model_name * ".jl")
     if !isfile(path_model_jl_file) || build_julia_files == true
         verbose == true && printstyled("[ Info:", color=123, bold=true)
         verbose == true && build_julia_files && print(" By user option rebuilds Julia ODE model ...")
         verbose == true && !build_julia_files && print(" Building Julia model file as it does not exist ...")
 
-        b_build = @elapsed model_str = SBMLImporter.reactionsystem_from_SBML(model_SBML, 
-                                                                             path_model_jl_file, 
-                                                                             write_to_file)
+        b_build = @elapsed begin
+            parsed_model_SBML = SBMLImporter._reactionsystem_from_SBML(model_SBML)
+            model_str = SBMLImporter.reactionsystem_to_string(parsed_model_SBML, write_to_file, 
+                                                              path_model_jl_file, model_SBML)
+        end
         verbose == true && @printf(" done. Time = %.1es\n", b_build)
     end
 
@@ -28,12 +31,13 @@ function PEtabModel(path_yaml::String;
         model_str = get_function_str(path_model_jl_file, 1)[1]
     end
 
-    # Check if in order to capture PEtab condition file directly mapping to initial values we have 
+    # Check if in order to capture PEtab condition file directly mapping to initial values we have
     # to rewrite the model parameter to correctly compute gradients etc...
     change_model_structure = add_parameters_condition_dependent_u0!(model_SBML, path_conditions, path_parameters)
     if change_model_structure == true
-        model_str = SBMLImporter.reactionsystem_from_SBML(model_SBML, path_model_jl_file, 
-                                                          write_to_file)
+        parsed_model_SBML = SBMLImporter._reactionsystem_from_SBML(model_SBML)
+        model_str = SBMLImporter.reactionsystem_to_string(parsed_model_SBML, write_to_file, 
+                                                          path_model_jl_file, model_SBML)
     end
 
     verbose == true && printstyled("[ Info:", color=123, bold=true)
@@ -58,9 +62,9 @@ function PEtabModel(path_yaml::String;
         verbose == true && printstyled("[ Info:", color=123, bold=true)
         verbose == true && !isfile(path_u0_h_sigma) && print(" Building u0, h and σ file as it does not exist ...")
         verbose == true && isfile(path_u0_h_sigma) && print(" By user option rebuilds u0, h and σ file ...")
-        b_build = @elapsed h_str, u0!_str, u0_str, σ_str = create_σ_h_u0_file(model_name, path_yaml, dir_julia, ode_system, 
-                                                                              parameter_map, state_map, model_SBML, 
-                                                                              custom_parameter_values=custom_parameter_values, 
+        b_build = @elapsed h_str, u0!_str, u0_str, σ_str = create_σ_h_u0_file(model_name, path_yaml, dir_julia, ode_system,
+                                                                              parameter_map, state_map, model_SBML,
+                                                                              custom_parameter_values=custom_parameter_values,
                                                                               write_to_file=write_to_file)
         verbose == true && @printf(" done. Time = %.1es\n", b_build)
     else
@@ -72,17 +76,17 @@ function PEtabModel(path_yaml::String;
     compute_u0! = @RuntimeGeneratedFunction(Meta.parse(u0!_str))
     compute_u0 = @RuntimeGeneratedFunction(Meta.parse(u0_str))
     compute_σ = @RuntimeGeneratedFunction(Meta.parse(σ_str))
-    
+
     path_D_h_sd = joinpath(dir_julia, model_name * "_D_h_sd.jl")
     if !isfile(path_D_h_sd) || build_julia_files == true
         verbose == true && printstyled("[ Info:", color=123, bold=true)
         verbose == true && !isfile(path_u0_h_sigma) && print(" Building ∂h∂p, ∂h∂u, ∂σ∂p and ∂σ∂u file as it does not exist ...")
         verbose == true && isfile(path_u0_h_sigma) && print(" By user option rebuilds ∂h∂p, ∂h∂u, ∂σ∂p and ∂σ∂u file ...")
-        b_build = @elapsed ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str = create_derivative_σ_h_file(model_name, path_yaml, 
-                                                                                          dir_julia, ode_system, 
-                                                                                          parameter_map, state_map, 
-                                                                                          model_SBML, 
-                                                                                          custom_parameter_values=custom_parameter_values, 
+        b_build = @elapsed ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str = create_derivative_σ_h_file(model_name, path_yaml,
+                                                                                          dir_julia, ode_system,
+                                                                                          parameter_map, state_map,
+                                                                                          model_SBML,
+                                                                                          custom_parameter_values=custom_parameter_values,
                                                                                           write_to_file=write_to_file)
         verbose == true && @printf(" done. Time = %.1es\n", b_build)
     else verbose == true
@@ -97,11 +101,11 @@ function PEtabModel(path_yaml::String;
 
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Building model callbacks ...")
-    b_build = @elapsed begin 
-        cbset, compute_tstops, check_cb_active, convert_tspan = create_callbacks_SBML(ode_system, parameter_map, 
-                                                                                      state_map, model_SBML, 
-                                                                                      model_name, path_yaml, dir_julia, 
-                                                                                      custom_parameter_values=custom_parameter_values, 
+    b_build = @elapsed begin
+        cbset, compute_tstops, check_cb_active, convert_tspan = create_callbacks_SBML(ode_system, parameter_map,
+                                                                                      state_map, model_SBML,
+                                                                                      model_name, path_yaml, dir_julia,
+                                                                                      custom_parameter_values=custom_parameter_values,
                                                                                       write_to_file=write_to_file)
     end
     verbose == true && @printf(" done. Time = %.1es\n", b_build)
@@ -131,7 +135,7 @@ function PEtabModel(path_yaml::String;
                              path_SBML,
                              path_yaml,
                              cbset,
-                             check_cb_active, 
+                             check_cb_active,
                              false)
 
     return petab_model
@@ -191,8 +195,8 @@ function get_function_str(file_path::AbstractString, n_functions::Int64; as_str:
 end
 
 
-function add_parameters_condition_dependent_u0!(model_SBML::SBMLImporter.ModelSBML, 
-                                                path_conditions::String, 
+function add_parameters_condition_dependent_u0!(model_SBML::SBMLImporter.ModelSBML,
+                                                path_conditions::String,
                                                 path_parameters::String)::Bool
 
     # Load necessary data
@@ -205,7 +209,7 @@ function add_parameters_condition_dependent_u0!(model_SBML::SBMLImporter.ModelSB
     # Check if the condition table contains states to map initial values
     condition_variables = string.(experimental_conditions_file.names)
     if length(condition_variables) == 1
-        return false # Model file is not modified 
+        return false # Model file is not modified
     end
     i_start = condition_variables[2] == "conditionName" ? 3 : 2 # Sometimes PEtab file does not include column conditionName
     if any(name -> name ∈ specie_names, condition_variables[i_start:end]) == false
@@ -235,9 +239,9 @@ function add_parameters_condition_dependent_u0!(model_SBML::SBMLImporter.ModelSB
         model_SBML.parameters[parameter].initial_value = _name
     end
 
-    # Check if the columns for which the species in conditions file map to parameters 
-    # that are not a part of the SBML model as these parameters must then be added to 
-    # the model as they should be treated as dynamic parameters 
+    # Check if the columns for which the species in conditions file map to parameters
+    # that are not a part of the SBML model as these parameters must then be added to
+    # the model as they should be treated as dynamic parameters
     for specie in vcat(which_species, which_parameters)
         for row in experimental_conditions_file[Symbol(specie)]
             if typeof(row) <: Real
@@ -246,10 +250,10 @@ function add_parameters_condition_dependent_u0!(model_SBML::SBMLImporter.ModelSB
                 continue
             elseif is_number(row) == true || string(row) ∈ parameter_names
                 continue
-            # Must be a parameter which did not appear in the SBML file - and thus should be added 
-            # to the ODE system so it is treated as a dynamic parameter through the simulations 
+            # Must be a parameter which did not appear in the SBML file - and thus should be added
+            # to the ODE system so it is treated as a dynamic parameter through the simulations
             elseif row ∈ parameters_file[:parameterId]
-                model_SBML.parameters[row] = SBMLImporter.ParameterSBML(row, true, "0.0", "", false, false, false) 
+                model_SBML.parameters[row] = SBMLImporter.ParameterSBML(row, true, "0.0", "", false, false, false)
             else
                 @error "The condition table value $row_value does not correspond to any parameter in the SBML file parameters file"
             end
