@@ -3,11 +3,11 @@
 # for a specific row.
 function parse_petab_parameters(petab_parameters::Vector{PEtabParameter},
                                 system,
-                                simulation_conditions::Dict{String, T},
-                                observables::Dict{String, PEtabObservable},
+                                simulation_conditions::Dict,
+                                observables::Dict,
                                 measurements::DataFrame, 
                                 state_map, 
-                                parameter_map)::DataFrame where T<:Dict
+                                parameter_map)::DataFrame
 
     # Extract any parameter that appears in the model or in simulation_conditions
     model_parameters = string.(parameters(system))
@@ -133,10 +133,10 @@ end
 
 # Parse PEtabExperimentalCondition into PEtab conditions file. A lot of work is going to be needed
 # here to make sure that the user does not provide any bad values.
-function parse_petab_conditions(simulation_conditions::Dict{String, T},
+function parse_petab_conditions(simulation_conditions::Dict,
                                 petab_parameters::Vector{PEtabParameter},
-                                observables::Dict{String, PEtabObservable},
-                                system)::DataFrame where {T<:Dict}
+                                observables::Dict,
+                                system)::DataFrame
 
     # Sanity check that parameters/states set for a specific experimental condition correspond
     # to states or parameters that appear in the model
@@ -245,7 +245,7 @@ end
 
 # The measurements will be rewritten into a DataFrame which follows the correct format
 function parse_petab_measurements(petab_measurements::DataFrame,
-                                  observables::Dict{String,PEtabObservable},
+                                  observables::Dict,
                                   simulation_conditions,
                                   petab_parameters::Vector{PEtabParameter})::DataFrame
 
@@ -318,7 +318,7 @@ end
 function check_measurement_column(measurements::DataFrame,
                                     column_name::String,
                                     simulation_conditions,
-                                    observables::Dict{String,PEtabObservable},
+                                    observables::Dict,
                                     petab_parameters::Vector{PEtabParameter})::Bool
 
     if column_name == "time" || column_name == "measurement"
@@ -419,7 +419,7 @@ function check_measurement_column(measurements::DataFrame,
 end
 
 
-function parse_petab_observables(observables::Dict{String, PEtabObservable})::DataFrame
+function parse_petab_observables(observables::Dict)::DataFrame
     df = DataFrame()
 
     for (observableId, observable) in observables
@@ -441,9 +441,9 @@ function parse_petab_observables(observables::Dict{String, PEtabObservable})::Da
 end
 
 
-function process_petab_events(events::Union{T, Vector{T}, Nothing}, 
+function process_petab_events(events::Union{PEtabEvent, AbstractVector, Nothing}, 
                               system, 
-                              θ_indices::ParameterIndices) where T<:PEtabEvent
+                              θ_indices::ParameterIndices)
 
     # Must be a vector for downstream processing 
     if events isa PEtabEvent

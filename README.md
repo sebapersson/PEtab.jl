@@ -4,6 +4,7 @@
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://sebapersson.github.io/PEtab.jl/stable/)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://sebapersson.github.io/PEtab.jl/dev/)
 [![Build Status](https://github.com/sebapersson/PEtab.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/sebapersson/PEtab.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 
 PEtab.jl is a Julia package to create ODE parameter estimation problems in Julia. Parameter estimation problems can be directly imported if they are specified in the [PEtab](https://petab.readthedocs.io/en/latest/) standard format, alternatively problems can be directly specified in Julia where the dynamic model can be provided as a [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) `ODESystem` or a [Catalyst](https://github.com/SciML/Catalyst.jl) `ReactionSystem`. Once a problem has been parsed PEtab.jl provides wrappers to Optim, Optimization, Ipopt, and Fides to perform efficient multi-start parameter estimation.
 

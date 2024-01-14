@@ -781,14 +781,15 @@ PEtabObservable((X + Y) / X, sigma)
 PEtabObservable(X, noiseParameter1 * X)
 ```
 """
-struct PEtabObservable
-    obs::Any
+struct PEtabObservable{T1<:Any, 
+                       T2<:Any}
+    obs::T1
     transformation::Union{Nothing, Symbol}
-    noise_formula::Union{Nothing, Any}
+    noise_formula::T2
 end
 function PEtabObservable(obs::Any, 
-                         noise_formula::Union{Nothing, Num, T};
-                         transformation::Symbol=:lin)::PEtabObservable where T<:Real
+                         noise_formula::Any;
+                         transformation::Symbol=:lin)::PEtabObservable
     return PEtabObservable(obs, transformation, noise_formula)
 end
 
