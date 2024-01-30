@@ -104,6 +104,12 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem, parameters_change:
                                     __θ_est[i_map] .= θ_est
                                     return petab_problem.compute_cost(__θ_est)
                                 end
+    _compute_nllh = (θ_est) ->   begin
+                                    __θ_est = convert.(eltype(θ_est), _θ_est)
+                                    __θ_est[i_parameters_fixate] .= parameters_fixated_values
+                                    __θ_est[i_map] .= θ_est
+                                    return petab_problem.compute_nllh(__θ_est)
+                                end                                
     _compute_simulated_values = (θ_est; as_array=false) -> begin
         __θ_est = convert.(eltype(θ_est), _θ_est)
         __θ_est[i_parameters_fixate] .= parameters_fixated_values
@@ -135,10 +141,27 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem, parameters_change:
                                                     gradient .= _gradient[i_map]
                                                 end
     _compute_gradient = (θ) -> begin
-        gradient = zeros(Float64, length(θ))
+        gradient = similar(θ)
         _compute_gradient!(gradient, θ)
         return gradient
     end
+
+    _compute_gradient_nllh! = (gradient, θ_est) ->  begin
+                                                    __θ_est = convert.(eltype(θ_est), _θ_est)
+                                                    __θ_est[i_parameters_fixate] .= parameters_fixated_values
+                                                    __θ_est[i_map] .= θ_est
+                                                    if (petab_problem.gradient_method === :ForwardDiff || petab_problem.gradient_method === :ForwardEquations) && petab_problem.split_over_conditions == false
+                                                        petab_problem.compute_gradient_nllh!(_gradient, __θ_est; isremade=true)
+                                                    else
+                                                        petab_problem.compute_gradient_nllh!(_gradient, __θ_est)
+                                                    end
+                                                    gradient .= _gradient[i_map]
+                                                end
+    _compute_gradient_nllh = (θ) -> begin
+        gradient = similar(θ)
+        _compute_gradient_nllh!(gradient, θ)
+        return gradient
+    end    
 
     _compute_hessian! = (hessian, θ_est) ->  begin
                                                 __θ_est = convert.(eltype(θ_est), _θ_est)
@@ -181,9 +204,12 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem, parameters_change:
     end
 
     _petab_problem = PEtabODEProblem(_compute_cost,
+                                    _compute_nllh,
                                     _compute_chi2,
                                     _compute_gradient!,
                                     _compute_gradient,
+                                    _compute_gradient_nllh!, 
+                                    _compute_gradient_nllh,
                                     _compute_hessian!,
                                     _compute_hessian,
                                     _compute_FIM!,

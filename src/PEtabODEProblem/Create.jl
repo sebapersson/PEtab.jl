@@ -44,6 +44,9 @@ function PEtabODEProblem(petab_model::PEtabModel;
     measurement_info = process_measurements(measurements_data, observables_data)
     θ_indices = compute_θ_indices(parameter_info, measurement_info, petab_model)
     prior_info = process_priors(θ_indices, parameters_data)
+    # For computing nllh an empty PriorInfo set is assumed
+    prior_info_empty = PriorInfo(Dict{Symbol, Function}(), Dict{Symbol, Distribution{Univariate, Continuous}}(),
+                                 Dict{Symbol, Distribution{Univariate, Continuous}}(), Dict{Symbol, Bool}(), false)
 
     # In case not specified by the user set ODE, gradient and Hessian options
     nODEs = length(states(petab_model.system))
@@ -64,7 +67,7 @@ function PEtabODEProblem(petab_model::PEtabModel;
         _FIM_method = FIM_method
     end
 
-    # In case the user has not provided input, set default values 
+    # In case the user has not provided input, set default values
     _gradient_method = set_gradient_method(gradient_method, model_size, reuse_sensitivities)
     _hessian_method = set_hessian_method(hessian_method, model_size)
     _sensealg = set_sensealg(sensealg, Val(_gradient_method))
@@ -84,16 +87,16 @@ function PEtabODEProblem(petab_model::PEtabModel;
         # Set model parameter values to those in the PeTab parameter to ensure correct constant parameters
         set_parameters_to_file_values!(petab_model.parameter_map, petab_model.state_map, parameter_info)
         if petab_model.system isa ODESystem && petab_model.defined_in_julia == false
-            __ode_problem = ODEProblem{true, specialize_level}(petab_model.system, petab_model.state_map, 
-                                                               [0.0, 5e3], petab_model.parameter_map, jac=true, 
+            __ode_problem = ODEProblem{true, specialize_level}(petab_model.system, petab_model.state_map,
+                                                               [0.0, 5e3], petab_model.parameter_map, jac=true,
                                                                sparse=_sparse_jacobian)
         else
             # For reaction systems this bugs out if I try to set specialize_level (specifially state-map and parameter-map are not
             # made into vectors)
-            __ode_problem = ODEProblem(petab_model.system, zeros(Float64, length(petab_model.state_map)), 
+            __ode_problem = ODEProblem(petab_model.system, zeros(Float64, length(petab_model.state_map)),
                                        [0.0, 5e3], petab_model.parameter_map, jac=true, sparse=_sparse_jacobian)
         end
-        _ode_problem = remake(__ode_problem, p = convert.(Float64, __ode_problem.p), 
+        _ode_problem = remake(__ode_problem, p = convert.(Float64, __ode_problem.p),
                               u0 = convert.(Float64, __ode_problem.u0))
     end
     verbose == true && @printf(" done. Time = %.1e\n", time_take)
@@ -102,10 +105,10 @@ function PEtabODEProblem(petab_model::PEtabModel;
     _ss_solver = _get_steady_state_solver(__ss_solver, _ode_problem, _ode_solver.abstol*100, _ode_solver.reltol*100, _ode_solver.maxiters)
     _ss_solver_gradient = _get_steady_state_solver(__ss_solver_gradient, _ode_problem, _ode_solver_gradient.abstol*100, _ode_solver_gradient.reltol*100, _ode_solver_gradient.maxiters)
 
-    # Cache to avoid to many allocations 
-    petab_ODE_cache = PEtabODEProblemCache(_gradient_method, _hessian_method, _FIM_method, petab_model, 
+    # Cache to avoid to many allocations
+    petab_ODE_cache = PEtabODEProblemCache(_gradient_method, _hessian_method, _FIM_method, petab_model,
                                            _sensealg, measurement_info, simulation_info, θ_indices, chunksize)
-    petab_ODESolver_cache = PEtabODESolverCache(_gradient_method, _hessian_method, petab_model, simulation_info, 
+    petab_ODESolver_cache = PEtabODESolverCache(_gradient_method, _hessian_method, petab_model, simulation_info,
                                                 θ_indices, chunksize)
 
     # To get multiple dispatch to work correctly when choosing cost and or gradient methods with extensions
@@ -121,8 +124,12 @@ function PEtabODEProblem(petab_model::PEtabModel;
                                             petab_ODE_cache, petab_ODESolver_cache, petab_model,
                                             simulation_info, θ_indices, measurement_info, parameter_info,
                                             prior_info, _sensealg, false)
+        compute_nllh = create_cost_function(_cost_method, _ode_problem, _ode_solver, _ss_solver,
+                                            petab_ODE_cache, petab_ODESolver_cache, petab_model,
+                                            simulation_info, θ_indices, measurement_info, parameter_info,
+                                            prior_info_empty, _sensealg, false)
                         end
-    verbose == true && @printf(" done. Time = %.1e\n", b_build)                        
+    verbose == true && @printf(" done. Time = %.1e\n", b_build)
 
     # The gradient can either be computed via autodiff, forward sensitivity equations, adjoint
     # sensitivity equations and Zygote
@@ -138,7 +145,15 @@ function PEtabODEProblem(petab_model::PEtabModel;
                                                                        prior_info, chunksize=chunksize,
                                                                        split_over_conditions=split_over_conditions,
                                                                        sensealg_ss=sensealg_ss)
-                        end
+        compute_gradient_nllh!, compute_gradient_nllh = create_gradient_function(__gradient_method, _ode_problemGradient,
+                                                                       _ode_solver_gradient, _ss_solver_gradient,
+                                                                       petab_ODE_cache, petab_ODESolver_cache,
+                                                                       petab_model, simulation_info, θ_indices,
+                                                                       measurement_info, parameter_info, _sensealg,
+                                                                       prior_info_empty, chunksize=chunksize,
+                                                                       split_over_conditions=split_over_conditions,
+                                                                       sensealg_ss=sensealg_ss)
+                        end                        
     verbose == true && @printf(" done. Time = %.1e\n", b_build)
 
     # The Hessian can either be computed via automatic differentation, or approximated via a block approximation or the
@@ -196,9 +211,12 @@ function PEtabODEProblem(petab_model::PEtabModel;
     θ_nominalT = transformθ(θ_nominal, θ_names, θ_indices, reverse_transform=true)
 
     petab_problem = PEtabODEProblem(compute_cost,
+                                    compute_nllh,
                                     compute_chi2,
                                     compute_gradient!,
                                     compute_gradient,
+                                    compute_gradient_nllh!,
+                                    compute_gradient_nllh,
                                     compute_hessian!,
                                     compute_hessian,
                                     compute_FIM!,
@@ -224,9 +242,9 @@ function PEtabODEProblem(petab_model::PEtabModel;
                                     simulation_info,
                                     _ode_problem,
                                     split_over_conditions,
-                                    prior_info, 
-                                    parameter_info, 
-                                    petab_ODE_cache, 
+                                    prior_info,
+                                    parameter_info,
+                                    petab_ODE_cache,
                                     measurement_info)
     return petab_problem
 end
