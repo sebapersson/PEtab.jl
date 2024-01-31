@@ -201,6 +201,13 @@ function PEtabODEProblem(petab_model::PEtabModel;
         return measurement_info.simulated_values
     end
 
+    # Computing nllh along with the gradient is needed for efficient Bayesian 
+    # inference, as for example AdvancedHMC.jl needs both nllh and gradient 
+    # in its evaluations.
+    compute_nllh_and_gradient = create_nllh_gradient_function(_gradient_method, compute_gradient_nllh,
+                                                              petab_ODE_cache, petab_model, simulation_info,
+                                                              θ_indices, measurement_info, parameter_info)
+
     # Extract bounds and nominal parameter values
     θ_names = θ_indices.θ_names
     lower_bounds = [parameter_info.lower_bounds[findfirst(x -> x == θ_names[i], parameter_info.parameter_id)] for i in eachindex(θ_names)]
@@ -221,6 +228,7 @@ function PEtabODEProblem(petab_model::PEtabModel;
                                     compute_hessian,
                                     compute_FIM!,
                                     compute_FIM,
+                                    compute_nllh_and_gradient,
                                     compute_simulated_values,
                                     compute_residuals,
                                     cost_method,
@@ -882,6 +890,52 @@ function create_hessian_function(which_method::Symbol,
                             end
 
     return _compute_hessian!, compute_hessian
+end
+
+
+function create_nllh_gradient_function(gradient_method::Symbol,
+                                       compute_gradient::Function,
+                                       petab_ODE_cache::PEtabODEProblemCache,
+                                       petab_model::PEtabModel,
+                                       simulation_info::SimulationInfo,
+                                       θ_indices::ParameterIndices,
+                                       measurement_info::MeasurementsInfo,
+                                       parameter_info::ParametersInfo)
+
+    :ForwardDiff, :ForwardEquations, :Adjoint, :Zygote                                      
+    if gradient_method === :ForwardDiff
+        compute_gradient_not_solve_autodiff = true
+    else
+        compute_gradient_not_solve_autodiff = false
+    end
+    if gradient_method === :ForwardEquations
+        compute_gradient_not_solve_forward = true
+    else
+        compute_gradient_not_solve_forward = false
+    end
+    if gradient_method === :Adjoint
+        compute_gradient_not_solve_adjoint = true
+    else
+        compute_gradient_not_solve_adjoint = false
+    end
+
+    _compute_cost = (θ) -> begin
+        θ_dynamic, θ_observable, θ_sd, θ_non_dynamic = splitθ(θ, θ_indices)
+        return compute_cost_not_solve_ODE(θ_sd, θ_observable, θ_non_dynamic, petab_model, 
+                                          simulation_info, θ_indices, measurement_info, 
+                                          parameter_info, petab_ODE_cache;
+                                          compute_gradient_not_solve_autodiff=compute_gradient_not_solve_autodiff, 
+                                          compute_gradient_not_solve_forward=compute_gradient_not_solve_forward, 
+                                          compute_gradient_not_solve_adjoint=compute_gradient_not_solve_adjoint)
+    end
+
+    compute_nllh_and_gradient = (θ) -> begin
+        grad_nllh = compute_gradient(θ)
+        nllh = _compute_cost(θ)
+        return nllh, grad_nllh
+    end
+
+    return compute_nllh_and_gradient
 end
 
 

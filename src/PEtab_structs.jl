@@ -436,7 +436,8 @@ struct PEtabODEProblem{F1<:Function,
                        F5<:Function, 
                        F6<:Function, 
                        F7<:Function, 
-                       F8<:Function}
+                       F8<:Function, 
+                       F9<:Function}
 
     compute_cost::F1
     compute_nllh::F2
@@ -449,6 +450,7 @@ struct PEtabODEProblem{F1<:Function,
     compute_hessian::F8
     compute_FIM!
     compute_FIM
+    compute_nllh_and_gradient::F9
     compute_simulated_values
     compute_residuals
     cost_method::Symbol

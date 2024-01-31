@@ -216,6 +216,7 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem, parameters_change:
                                     _compute_FIM,
                                     _compute_simulated_values,
                                     _compute_residuals,
+                                    petab_proble.compute_nllh_and_gradient, # TODO: Fix and test!!
                                     petab_problem.cost_method,
                                     petab_problem.gradient_method,
                                     petab_problem.hessian_method,
