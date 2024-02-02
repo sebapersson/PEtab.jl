@@ -109,7 +109,7 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem, parameters_change:
                                     __θ_est[i_parameters_fixate] .= parameters_fixated_values
                                     __θ_est[i_map] .= θ_est
                                     return petab_problem.compute_nllh(__θ_est)
-                                end                                
+                                end
     _compute_simulated_values = (θ_est; as_array=false) -> begin
         __θ_est = convert.(eltype(θ_est), _θ_est)
         __θ_est[i_parameters_fixate] .= parameters_fixated_values
@@ -161,7 +161,7 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem, parameters_change:
         gradient = similar(θ)
         _compute_gradient_nllh!(gradient, θ)
         return gradient
-    end    
+    end
 
     _compute_hessian! = (hessian, θ_est) ->  begin
                                                 __θ_est = convert.(eltype(θ_est), _θ_est)
@@ -208,7 +208,7 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem, parameters_change:
                                     _compute_chi2,
                                     _compute_gradient!,
                                     _compute_gradient,
-                                    _compute_gradient_nllh!, 
+                                    _compute_gradient_nllh!,
                                     _compute_gradient_nllh,
                                     _compute_hessian!,
                                     _compute_hessian,
@@ -216,7 +216,7 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem, parameters_change:
                                     _compute_FIM,
                                     _compute_simulated_values,
                                     _compute_residuals,
-                                    petab_proble.compute_nllh_and_gradient, # TODO: Fix and test!!
+                                    petab_problem.compute_nllh_and_gradient, # TODO: Fix and test!!
                                     petab_problem.cost_method,
                                     petab_problem.gradient_method,
                                     petab_problem.hessian_method,
@@ -235,10 +235,10 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem, parameters_change:
                                     petab_problem.θ_indices,
                                     petab_problem.simulation_info,
                                     petab_problem.ode_problem,
-                                    petab_problem.split_over_conditions, 
-                                    petab_problem.prior_info, 
-                                    petab_problem.parameter_info, 
-                                    petab_problem.petab_ODE_cache, 
+                                    petab_problem.split_over_conditions,
+                                    petab_problem.prior_info,
+                                    petab_problem.parameter_info,
+                                    petab_problem.petab_ODE_cache,
                                     petab_problem.measurement_info)
     return _petab_problem
 end
