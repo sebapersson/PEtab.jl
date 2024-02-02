@@ -157,22 +157,23 @@ function _PEtabModel(system,
                      events::Union{PEtabEvent, AbstractVector, Nothing},
                      verbose::Bool)::PEtab.PEtabModel
 
+    system_mutated = deepcopy(system)                     
     verbose == true && @info "Building PEtabModel for $model_name"
 
     # Extract model parameters and names
-    parameter_names = parameters(system)
-    state_names = states(system)
+    parameter_names = parameters(system_mutated)
+    state_names = states(system_mutated)
 
     # Extract relevant PEtab-files, convert to CSV.File
     measurements_data = PEtab.parse_petab_measurements(measurements, observables, simulation_conditions, petab_parameters) |> PEtab.dataframe_to_CSVFile
     observables_data = PEtab.parse_petab_observables(observables) |> PEtab.dataframe_to_CSVFile
         
-    # Build the initial value map (initial values as parameters are set in the reaction system)
-    default_values = get_default_values(system)
-    _state_map = [Symbol(replace(string(S), "(t)" => "")) => S ∈ keys(default_values) ? string(default_values[S]) : "0.0" for S in states(system)]
-    add_parameter_inital_values!(system, _state_map)
-    experimental_conditions = PEtab.parse_petab_conditions(simulation_conditions, petab_parameters, observables, system) |> PEtab.dataframe_to_CSVFile
-    state_map = PEtab.update_state_map(state_map, system, experimental_conditions) # Parameters in condition table
+    # Build the initial value map (initial values as parameters are set in the reaction system_mutated)
+    default_values = get_default_values(system_mutated)
+    _state_map = [Symbol(replace(string(S), "(t)" => "")) => S ∈ keys(default_values) ? string(default_values[S]) : "0.0" for S in states(system_mutated)]
+    add_parameter_inital_values!(system_mutated, _state_map)
+    experimental_conditions = PEtab.parse_petab_conditions(simulation_conditions, petab_parameters, observables, system_mutated) |> PEtab.dataframe_to_CSVFile
+    state_map = PEtab.update_state_map(state_map, system_mutated, experimental_conditions) # Parameters in condition table
     if !isnothing(state_map)
         state_map_names = [Symbol(_S.first) for _S in state_map]
         for (i, S) in pairs(_state_map)
@@ -183,13 +184,13 @@ function _PEtabModel(system,
         end
     end
 
-    # Once all potential parameters have been added to the system PEtab parameters can be parsed 
-    parameters_data = PEtab.parse_petab_parameters(petab_parameters, system, simulation_conditions, observables, measurements, state_map, parameter_map) |> PEtab.dataframe_to_CSVFile
+    # Once all potential parameters have been added to the system_mutated PEtab parameters can be parsed 
+    parameters_data = PEtab.parse_petab_parameters(petab_parameters, system_mutated, simulation_conditions, observables, measurements, state_map, parameter_map) |> PEtab.dataframe_to_CSVFile
 
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Building u0, h and σ functions ...")
     time_taken = @elapsed begin
-    h_str, u0!_str, u0_str, σ_str = PEtab.create_σ_h_u0_file(model_name, system, experimental_conditions, measurements_data,
+    h_str, u0!_str, u0_str, σ_str = PEtab.create_σ_h_u0_file(model_name, system_mutated, experimental_conditions, measurements_data,
                                                                 parameters_data, observables_data, _state_map)
     compute_h = @RuntimeGeneratedFunction(Meta.parse(h_str))
     compute_u0! = @RuntimeGeneratedFunction(Meta.parse(u0!_str))
@@ -201,7 +202,7 @@ function _PEtabModel(system,
     verbose == true && printstyled("[ Info:", color=123, bold=true)
     verbose == true && print(" Building ∂h∂p, ∂h∂u, ∂σ∂p and ∂σ∂u functions ...")
     time_taken = @elapsed begin
-    ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str = PEtab.create_derivative_σ_h_file(model_name, system, experimental_conditions,
+    ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str = PEtab.create_derivative_σ_h_file(model_name, system_mutated, experimental_conditions,
                                                                             measurements_data, parameters_data, observables_data,
                                                                             _state_map)
     compute_∂h∂u! = @RuntimeGeneratedFunction(Meta.parse(∂h∂u_str))
@@ -211,7 +212,7 @@ function _PEtabModel(system,
     end
     verbose == true && @printf(" done. Time = %.1e\n", time_taken)
 
-    _parameter_map = [Num(p) => 0.0 for p in parameters(system)]
+    _parameter_map = [Num(p) => 0.0 for p in parameters(system_mutated)]
     for i in eachindex(_parameter_map)
         if isnothing(parameter_map)
             continue
@@ -228,8 +229,8 @@ function _PEtabModel(system,
     # piecewise expressions into events
     parameter_info = process_parameters(parameters_data)
     measurement_info = process_measurements(measurements_data, observables_data)
-    θ_indices = compute_θ_indices(parameter_info, measurement_info, system, _parameter_map, _state_map, experimental_conditions)
-    cbset, compute_tstops, convert_tspan = process_petab_events(events, system, θ_indices)
+    θ_indices = compute_θ_indices(parameter_info, measurement_info, system_mutated, _parameter_map, _state_map, experimental_conditions)
+    cbset, compute_tstops, convert_tspan = process_petab_events(events, system_mutated, θ_indices)
 
     petab_model = PEtabModel(model_name,
                              compute_h,
@@ -243,6 +244,7 @@ function _PEtabModel(system,
                              compute_tstops,
                              convert_tspan,
                              system,
+                             system_mutated,
                              _parameter_map,
                              _state_map,
                              parameter_names,

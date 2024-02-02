@@ -263,7 +263,8 @@ struct PEtabModel{F1<:Function,
     compute_∂σ∂p!::F8
     compute_tstops::F9
     convert_tspan::Bool
-    system::S
+    system
+    system_mutated::S
     parameter_map
     state_map
     parameter_names

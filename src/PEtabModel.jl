@@ -36,8 +36,8 @@ function PEtabModel(path_yaml::String;
     change_model_structure = add_parameters_condition_dependent_u0!(model_SBML, path_conditions, path_parameters)
     if change_model_structure == true
         parsed_model_SBML = SBMLImporter._reactionsystem_from_SBML(model_SBML)
-        model_str = SBMLImporter.reactionsystem_to_string(parsed_model_SBML, write_to_file, 
-                                                          path_model_jl_file, model_SBML)
+        model_str_mutated = SBMLImporter.reactionsystem_to_string(parsed_model_SBML, write_to_file, 
+                                                                  path_model_jl_file, model_SBML)
     end
 
     verbose == true && printstyled("[ Info:", color=123, bold=true)
@@ -122,6 +122,7 @@ function PEtabModel(path_yaml::String;
                              compute_tstops,
                              convert_tspan,
                              ode_system,
+                             deepcopy(ode_system),
                              parameter_map,
                              state_map,
                              parameter_names,

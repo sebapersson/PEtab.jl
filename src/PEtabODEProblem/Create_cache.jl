@@ -43,8 +43,8 @@ function PEtabODEProblemCache(gradient_method::Symbol,
     # For forward sensitivity equations and adjoint sensitivity analysis we need to
     # compute partial derivatives symbolically. Here the helping vectors are pre-allocated
     if gradient_method ∈ [:Adjoint, :ForwardEquations] || hessian_method == :GaussNewton || FIM_method == :GaussNewton
-        n_model_states = length(states(petab_model.system))
-        n_model_parameters = length(parameters(petab_model.system))
+        n_model_states = length(states(petab_model.system_mutated))
+        n_model_parameters = length(parameters(petab_model.system_mutated))
         ∂h∂u = zeros(Float64, n_model_states)
         ∂σ∂u = zeros(Float64, n_model_states)
         ∂h∂p = zeros(Float64, n_model_parameters)
@@ -71,7 +71,7 @@ function PEtabODEProblemCache(gradient_method::Symbol,
     # pre-equlibrita model). Here we pre-allocate said matrix and the output matrix from the forward senstivity
     # code
     if (gradient_method === :ForwardEquations && sensealg === :ForwardDiff) || hessian_method === :GaussNewton || FIM_method == :GaussNewton
-        n_model_states = length(states(petab_model.system))
+        n_model_states = length(states(petab_model.system_mutated))
         n_timepoints_save = sum(length(simulation_info.time_observed[experimental_condition_id]) for experimental_condition_id in simulation_info.experimental_condition_id)
         S = zeros(Float64, (n_timepoints_save*n_model_states, length(θ_indices.θ_dynamic_names)))
         sol_values = zeros(Float64, n_model_states, n_timepoints_save)
@@ -95,8 +95,8 @@ function PEtabODEProblemCache(gradient_method::Symbol,
     end
 
     if gradient_method === :Adjoint
-        n_model_states = length(states(petab_model.system))
-        n_model_parameters = length(parameters(petab_model.system))
+        n_model_states = length(states(petab_model.system_mutated))
+        n_model_parameters = length(parameters(petab_model.system_mutated))
         du = zeros(Float64, n_model_states)
         dp = zeros(Float64, n_model_parameters)
         _gradient_adjoint = zeros(Float64, n_model_parameters)
@@ -158,8 +158,8 @@ function PEtabODESolverCache(gradient_method::Symbol,
                              θ_indices::ParameterIndices,
                              _chunksize)::PEtabODESolverCache
 
-    n_model_states = length(states(petab_model.system))
-    n_model_parameters = length(parameters(petab_model.system))
+    n_model_states = length(states(petab_model.system_mutated))
+    n_model_parameters = length(parameters(petab_model.system_mutated))
 
     level_cache = 0
     if hessian_method ∈ [:ForwardDiff, :BlockForwardDiff, :GaussNewton]

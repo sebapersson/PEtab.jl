@@ -37,7 +37,7 @@ include(joinpath(@__DIR__, "Common.jl"))
 function get_algebraic_ss(petab_model::PEtabModel, solver, tol::Float64, a::T1, b::T1, c::T1, d::T1) where T1<:Real
 
     # ODE solution with algebraically computed initial values (instead of ss pre-simulation)
-    ode_problem = ODEProblem(petab_model.system, petab_model.state_map, (0.0, 9.7), petab_model.parameter_map, jac=true)
+    ode_problem = ODEProblem(petab_model.system_mutated, petab_model.state_map, (0.0, 9.7), petab_model.parameter_map, jac=true)
     ode_problem = remake(ode_problem, p = convert.(eltype(a), ode_problem.p), u0 = convert.(eltype(a), ode_problem.u0))
     sol_array = Array{ODESolution, 1}(undef, 2)
 
@@ -108,7 +108,7 @@ function test_ode_solver_test_model3(petab_model::PEtabModel, ode_solver::ODESol
         petab_model.parameter_map[4] = Pair(petab_model.parameter_map[4].first, a)
         petab_model.parameter_map[5] = Pair(petab_model.parameter_map[5].first, d)
 
-        prob = ODEProblem(petab_model.system, petab_model.state_map, (0.0, 9.7), petab_model.parameter_map, jac=true)
+        prob = ODEProblem(petab_model.system_mutated, petab_model.state_map, (0.0, 9.7), petab_model.parameter_map, jac=true)
         prob = remake(prob, p = convert.(Float64, prob.p), u0 = convert.(Float64, prob.u0))
         θ_dynamic = get_file_ode_values(petab_model)[1:4]
         petab_ODESolver_cache = PEtabODESolverCache(:nothing, :nothing, petab_model, simulation_info, θ_indices, nothing)

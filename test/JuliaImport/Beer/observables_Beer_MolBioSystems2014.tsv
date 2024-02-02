@@ -1,3 +1,0 @@
-observableId	observableName	observableFormula	noiseFormula	observableTransformation	noiseDistribution
-Bacnorm		Bac	noiseParameter1_Bacnorm	lin	normal
-IndconcNormRange		Ind	noiseParameter1_IndconcNormRange	lin	normal

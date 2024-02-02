@@ -135,6 +135,9 @@ test_loglikelihood(petab_model, -53.08377736998929, ODESolver(Rodas4P(), abstol=
 path_yaml = joinpath(@__DIR__, "Test_ll", "Isensee_JCB2018", "Isensee_JCB2018.yaml")
 petab_model = PEtabModel(path_yaml, verbose=true, build_julia_files=true)
 test_loglikelihood(petab_model, 3949.375966548649 + 4.45299970460275, ODESolver(Rodas4P(), abstol=1e-12, reltol=1e-12), check_Zygote=false)
+# Extrat test for nllh function as the model as a prior 
+petab_problem = PEtabODEProblem(petab_model; verbose=false)
+@test petab_problem.compute_nllh(petab_problem.θ_nominalT) ≈ 3949.375966548649 atol=1e-3
 
 # Sneyd model - Test against World problem by wrapping inside function
 function test_Sneyd()

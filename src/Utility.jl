@@ -38,13 +38,7 @@ function get_odesol(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisat
         tmax_id = condition_id
     end
 
-    u0, p = _get_fitted_parameters(res, petab_problem, condition_id, pre_eq_id, false)
-    tmax = petab_problem.simulation_info.tmax[tmax_id]
-    ode_problem = remake(petab_problem.ode_problem, p=p, u0=u0, tspan=(0.0, tmax))
-
-    cbset = petab_problem.petab_model.model_callbacks
-    tstops = petab_problem.petab_model.compute_tstops(u0, p)
-
+    ode_problem, cbset, tstops = get_odeproblem(res, petab_problem; condition_id=condition_id, pre_eq_id=pre_eq_id)
     @unpack solver, abstol, reltol = ode_solver
     return solve(ode_problem, solver, abstol=abstol, reltol=reltol, callback=cbset, tstops=tstops)
 end
@@ -82,14 +76,14 @@ function get_odeproblem(res::Union{PEtabOptimisationResult, PEtabMultistartOptim
                         condition_id::Union{String, Symbol, Nothing}=nothing,
                         pre_eq_id::Union{String, Symbol, Nothing}=nothing)
 
-    @unpack simulation_info, ode_solver = petab_problem
+    @unpack simulation_info, ode_solver, petab_model = petab_problem
     if isnothing(condition_id)
         condition_id = simulation_info.simulation_condition_id[1]
     end
 
     u0, p = _get_fitted_parameters(res, petab_problem, condition_id, pre_eq_id, false)
     tmax = petab_problem.simulation_info.tmax[condition_id]
-    ode_problem = remake(petab_problem.ode_problem, p=p, u0=u0, tspan=(0.0, tmax))
+    ode_problem = ODEProblem(petab_model.system, u0, [0.0, tmax], p, jac=true)
 
     cbset = petab_problem.petab_model.model_callbacks
     tstops = petab_problem.petab_model.compute_tstops(u0, p)
@@ -196,7 +190,9 @@ function _get_fitted_parameters(res::Union{PEtabOptimisationResult, PEtabMultist
         _change_simulation_condition!(p, u0, _c_id, θ_dynamic, petab_model, θ_indices)
         _u0 = retmap ? Pair.(u0s, u0) : u0
         _p = retmap ? Pair.(ps, p) : p
-        return _u0, _p
+        println("ps = ", ps)
+        ip = findall(x -> !occursin("__init__", x), string.(ps))
+        return _u0, _p[ip]
     end
 
     # For models with pre-eq in order to correctly return the initial values the model 
@@ -228,7 +224,12 @@ function _get_fitted_parameters(res::Union{PEtabOptimisationResult, PEtabMultist
     # by change_simulation_condition!. These cases are marked as NaN
     u0[isnan.(ode_problem.u0)] .= u_ss[isnan.(u0)]
 
+    # Filter out any potential __init__ parameters as ps is returned for the non mutated system, specifically 
+    # to easily compute Jacobians if the intial value for a specie is set as a simulation condition we mutate 
+    # the system to easily compute Jacobians 
+    ip = findall(x -> !occursin("__init__", x), string.(ps))
+
     _u0 = retmap ? Pair.(u0s, u0) : u0
     _p = retmap ? Pair.(ps, p) : p
-    return _u0, _p
+    return _u0, _p[ipret]
 end

@@ -49,7 +49,7 @@ function PEtabODEProblem(petab_model::PEtabModel;
                                  Dict{Symbol, Distribution{Univariate, Continuous}}(), Dict{Symbol, Bool}(), false)
 
     # In case not specified by the user set ODE, gradient and Hessian options
-    nODEs = length(states(petab_model.system))
+    nODEs = length(states(petab_model.system_mutated))
     if nODEs ≤ 15 && length(θ_indices.θ_dynamic_names) ≤ 20
         model_size = :Small
     elseif nODEs ≤ 50 && length(θ_indices.θ_dynamic_names) ≤ 69
@@ -86,14 +86,14 @@ function PEtabODEProblem(petab_model::PEtabModel;
     time_take = @elapsed begin
         # Set model parameter values to those in the PeTab parameter to ensure correct constant parameters
         set_parameters_to_file_values!(petab_model.parameter_map, petab_model.state_map, parameter_info)
-        if petab_model.system isa ODESystem && petab_model.defined_in_julia == false
-            __ode_problem = ODEProblem{true, specialize_level}(petab_model.system, petab_model.state_map,
+        if petab_model.system_mutated isa ODESystem && petab_model.defined_in_julia == false
+            __ode_problem = ODEProblem{true, specialize_level}(petab_model.system_mutated, petab_model.state_map,
                                                                [0.0, 5e3], petab_model.parameter_map, jac=true,
                                                                sparse=_sparse_jacobian)
         else
             # For reaction systems this bugs out if I try to set specialize_level (specifially state-map and parameter-map are not
             # made into vectors)
-            __ode_problem = ODEProblem(petab_model.system, zeros(Float64, length(petab_model.state_map)),
+            __ode_problem = ODEProblem(petab_model.system_mutated, zeros(Float64, length(petab_model.state_map)),
                                        [0.0, 5e3], petab_model.parameter_map, jac=true, sparse=_sparse_jacobian)
         end
         _ode_problem = remake(__ode_problem, p = convert.(Float64, __ode_problem.p),
