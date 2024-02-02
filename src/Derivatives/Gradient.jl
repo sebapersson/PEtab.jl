@@ -197,9 +197,9 @@ end
 
 # Compute prior contribution to log-likelihood
 function compute_gradient_prior!(gradient::Vector{Float64},
-                                 θ::Vector{T},
+                                 θ::Vector{Real},
                                  θ_indices::ParameterIndices,
-                                 prior_info::PriorInfo)::Nothing where T<:Real
+                                 prior_info::PriorInfo)::Nothing
 
     _evalPriors = (θ_est) -> begin
                                 θ_estT = transformθ(θ_est, θ_indices.θ_names, θ_indices)

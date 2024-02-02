@@ -19,6 +19,11 @@ function test_petab_remake(petab_model::PEtabModel, parameters_change, what_chec
         petab_problem1.compute_gradient!(g1ForwardDiff, petab_problem1.θ_nominalT)
         petab_problem2.compute_gradient!(g2ForwardDiff, petab_problem2.θ_nominalT)
         @test norm(g1ForwardDiff[iMatch] - g2ForwardDiff) / length(g2ForwardDiff) ≤ 1e-3
+
+        # Also test the nllh gradient 
+        petab_problem1.compute_gradient_nllh!(g1ForwardDiff, petab_problem1.θ_nominalT)
+        petab_problem2.compute_gradient_nllh!(g2ForwardDiff, petab_problem2.θ_nominalT)
+        @test norm(g1ForwardDiff[iMatch] - g2ForwardDiff) / length(g2ForwardDiff) ≤ 1e-3
     end
 
     if :GradientForwardEquations ∈ what_check

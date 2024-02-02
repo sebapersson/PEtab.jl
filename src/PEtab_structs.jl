@@ -263,7 +263,8 @@ struct PEtabModel{F1<:Function,
     compute_∂σ∂p!::F8
     compute_tstops::F9
     convert_tspan::Bool
-    system::S
+    system
+    system_mutated::S
     parameter_map
     state_map
     parameter_names
@@ -435,16 +436,22 @@ struct PEtabODEProblem{F1<:Function,
                        F4<:Function,
                        F5<:Function, 
                        F6<:Function, 
-                       F7<:Function}
+                       F7<:Function, 
+                       F8<:Function, 
+                       F9<:Function}
 
     compute_cost::F1
+    compute_nllh::F2
     compute_chi2
-    compute_gradient!::F2
-    compute_gradient::F3
-    compute_hessian!::F4
-    compute_hessian::F5
-    compute_FIM!::F6
-    compute_FIM::F7
+    compute_gradient!::F3
+    compute_gradient::F4
+    compute_gradient_nllh!::F5
+    compute_gradient_nllh::F6
+    compute_hessian!::F7
+    compute_hessian::F8
+    compute_FIM!
+    compute_FIM
+    compute_nllh_and_gradient::F9
     compute_simulated_values
     compute_residuals
     cost_method::Symbol

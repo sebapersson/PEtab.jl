@@ -10,7 +10,7 @@ function compute_θ_indices(parameter_info::ParametersInfo,
                            petab_model::PEtabModel)::ParameterIndices
 
     experimental_conditions_file = petab_model.path_conditions
-    return compute_θ_indices(parameter_info, measurements_info, petab_model.system, petab_model.parameter_map, petab_model.state_map, experimental_conditions_file)
+    return compute_θ_indices(parameter_info, measurements_info, petab_model.system_mutated, petab_model.parameter_map, petab_model.state_map, experimental_conditions_file)
 
 end
 function compute_θ_indices(parameter_info::ParametersInfo,
