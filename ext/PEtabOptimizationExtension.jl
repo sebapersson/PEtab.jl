@@ -10,21 +10,18 @@ using YAML
 using PEtab
 using Optimization
 
-
 function PEtab.OptimizationProblem(petab_problem::PEtabODEProblem;
-                                   interior_point_alg::Bool=false,
-                                   box_constraints::Bool=true)::Optimization.OptimizationProblem
-
+                                   interior_point_alg::Bool = false,
+                                   box_constraints::Bool = true)::Optimization.OptimizationProblem
     optimization_problem = get_optimization_problem(petab_problem;
-                                                    interior_point=interior_point_alg,
-                                                    box_constraints=box_constraints)
+                                                    interior_point = interior_point_alg,
+                                                    box_constraints = box_constraints)
     return optimization_problem
 end
 
-
 function get_optimization_problem(petab_problem::PEtabODEProblem;
-                                  interior_point::Bool=false,
-                                  box_constraints::Bool=true)::Optimization.OptimizationProblem
+                                  interior_point::Bool = false,
+                                  box_constraints::Bool = true)::Optimization.OptimizationProblem
 
     # First build the OptimizationFunction with PEtab.jl objective, gradient and Hessian
     _f = (u, p) -> petab_problem.compute_cost(u)
@@ -64,19 +61,18 @@ function get_optimization_problem(petab_problem::PEtabODEProblem;
         lower_bounds, upper_bounds = nothing, nothing
     end
     optimization_problem = Optimization.OptimizationProblem(optimization_function, u0,
-                                                            lb=lower_bounds, ub=upper_bounds,
-                                                            lcons=lcons, ucons=ucons)
+                                                            lb = lower_bounds,
+                                                            ub = upper_bounds,
+                                                            lcons = lcons, ucons = ucons)
 
     return optimization_problem
 end
-
 
 function PEtab.calibrate_model(optimization_problem::Optimization.OptimizationProblem,
                                petab_problem::PEtab.PEtabODEProblem,
                                p0::Vector{Float64},
                                alg;
                                kwargs...)::PEtab.PEtabOptimisationResult
-
     optimization_problem.u0 .= deepcopy(p0)
 
     # save_trace not availble option
@@ -112,16 +108,18 @@ function PEtab.calibrate_model(optimization_problem::Optimization.OptimizationPr
                                    runtime)
 end
 
-
 function PEtab.calibrate_model_multistart(optimization_problem::Optimization.OptimizationProblem,
                                           petab_problem::PEtabODEProblem,
                                           alg,
                                           n_multistarts::Signed,
                                           dir_save::Union{Nothing, String};
-                                          sampling_method::T=QuasiMonteCarlo.LatinHypercubeSample(),
-                                          sample_from_prior::Bool=true,
-                                          seed::Union{Nothing, Integer}=nothing,
-                                          kwargs...)::PEtab.PEtabMultistartOptimisationResult where T <: QuasiMonteCarlo.SamplingAlgorithm
+                                          sampling_method::T = QuasiMonteCarlo.LatinHypercubeSample(),
+                                          sample_from_prior::Bool = true,
+                                          seed::Union{Nothing, Integer} = nothing,
+                                          kwargs...)::PEtab.PEtabMultistartOptimisationResult where {
+                                                                                                     T <:
+                                                                                                     QuasiMonteCarlo.SamplingAlgorithm
+                                                                                                     }
     if !isnothing(seed)
         Random.seed!(seed)
     end
@@ -148,7 +146,9 @@ function PEtab.calibrate_model_multistart(optimization_problem::Optimization.Opt
         end
     end
 
-    startguesses = generate_startguesses(petab_problem, n_multistarts; sampling_method=sampling_method, sample_from_prior=sample_from_prior)
+    startguesses = generate_startguesses(petab_problem, n_multistarts;
+                                         sampling_method = sampling_method,
+                                         sample_from_prior = sample_from_prior)
     if !isnothing(path_save_x0)
         startguessesDf = DataFrame(Matrix(startguesses)', petab_problem.θ_names)
         startguessesDf[!, "Start_guess"] = 1:size(startguessesDf)[1]
@@ -160,14 +160,17 @@ function PEtab.calibrate_model_multistart(optimization_problem::Optimization.Opt
         _p0 = startguesses[:, i]
         _res[i] = calibrate_model(optimization_problem, petab_problem, _p0, alg; kwargs...)
         if !isnothing(path_save_res)
-            save_partial_results(path_save_res, path_save_parameters, path_save_trace, _res[i], petab_problem.θ_names, i)
+            save_partial_results(path_save_res, path_save_parameters, path_save_trace,
+                                 _res[i], petab_problem.θ_names, i)
         end
     end
 
-    res_best = _res[argmin([isnan(_res[i].fmin) ? Inf : _res[i].fmin for i in eachindex(_res)])]
+    res_best = _res[argmin([isnan(_res[i].fmin) ? Inf : _res[i].fmin
+                            for i in eachindex(_res)])]
     fmin = res_best.fmin
     xmin = res_best.xmin
-    sampling_method_str = string(sampling_method)[1:findfirst(x -> x == '(', string(sampling_method))][1:end-1]
+    sampling_method_str = string(sampling_method)[1:findfirst(x -> x == '(',
+                                                              string(sampling_method))][1:(end - 1)]
     results = PEtabMultistartOptimisationResult(xmin,
                                                 petab_problem.θ_names,
                                                 fmin,

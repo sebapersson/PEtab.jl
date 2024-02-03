@@ -1,0 +1,3 @@
+fmin,alg,n_iterations,run_time,converged,Start_guess
+1221.9662404939995,Fides,66,9.479756021,true,1
+2.5621066108462983e12,Fides,2,0.146467266,false,2

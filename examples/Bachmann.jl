@@ -23,7 +23,7 @@ using Printf
 
 # Create the PEtabModel
 path_yaml = joinpath(@__DIR__, "Bachmann", "Bachmann_MSB2011.yaml") # @__DIR__ = file directory
-petab_model = PEtabModel(path_yaml, verbose=true)
+petab_model = PEtabModel(path_yaml, verbose = true)
 
 #=
     --- Adjoint sensitivity analysis ---
@@ -46,16 +46,19 @@ petab_model = PEtabModel(path_yaml, verbose=true)
     Note3 - below we use QNDF for the cost which often is one of the best Julia solvers for larger models.
 =#
 petab_problem = PEtabODEProblem(petab_model,
-                                ode_solver=ODESolver(QNDF(), abstol=1e-8, reltol=1e-8),
-                                ode_solver_gradient = ODESolver(CVODE_BDF(), abstol=1e-8, reltol=1e-8),
-                                gradient_method=:Adjoint,
-                                sensealg=InterpolatingAdjoint(autojacvec=EnzymeVJP())) # EnzymeVJP is fastest when applicble
+                                ode_solver = ODESolver(QNDF(), abstol = 1e-8,
+                                                       reltol = 1e-8),
+                                ode_solver_gradient = ODESolver(CVODE_BDF(), abstol = 1e-8,
+                                                                reltol = 1e-8),
+                                gradient_method = :Adjoint,
+                                sensealg = InterpolatingAdjoint(autojacvec = EnzymeVJP())) # EnzymeVJP is fastest when applicble
 p = petab_problem.θ_nominalT # Parameter values in the PEtab file on log-scale
 gradient = zeros(length(p)) # In-place gradients
 cost = petab_problem.compute_cost(p)
 petab_problem.compute_gradient!(gradient, p)
 @printf("Cost for Bachmann = %.2f\n", cost)
-@printf("First element in the gradient for Bachmann adjoint sensitivity analysis = %.2e\n", gradient[1])
+@printf("First element in the gradient for Bachmann adjoint sensitivity analysis = %.2e\n",
+        gradient[1])
 
 #=
     --- Forward sensitivity equations and Gauss-Newton ---
@@ -77,11 +80,12 @@ petab_problem.compute_gradient!(gradient, p)
        Note - this approach requires that sensealg=:ForwardDiff for the gradient.
 =#
 petab_problem = PEtabODEProblem(petab_model,
-                                ode_solver=ODESolver(QNDF(), abstol=1e-8, reltol=1e-8),
-                                gradient_method=:ForwardEquations,
-                                hessian_method=:GaussNewton,
-                                sensealg=:ForwardDiff, # Fastest by far for computing the sensitivity matrix
-                                reuse_sensitivities=true)
+                                ode_solver = ODESolver(QNDF(), abstol = 1e-8,
+                                                       reltol = 1e-8),
+                                gradient_method = :ForwardEquations,
+                                hessian_method = :GaussNewton,
+                                sensealg = :ForwardDiff, # Fastest by far for computing the sensitivity matrix
+                                reuse_sensitivities = true)
 p = petab_problem.θ_nominalT # Parameter values in the PEtab file on log-scale
 gradient = zeros(length(p)) # In-place gradients
 hessian = zeros(length(p), length(p)) # In-place hessians
@@ -89,5 +93,6 @@ cost = petab_problem.compute_cost(p)
 petab_problem.compute_gradient!(gradient, p)
 petab_problem.compute_hessian!(hessian, p)
 @printf("Cost for Bachmann = %.2f\n", cost)
-@printf("First element in the gradient for Bachmann forward sensitivity equations = %.2e\n", gradient[1])
+@printf("First element in the gradient for Bachmann forward sensitivity equations = %.2e\n",
+        gradient[1])
 @printf("First element in the Gauss-Newton hessian for Bachmann = %.2f\n", hessian[1, 1])

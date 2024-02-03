@@ -1,6 +1,6 @@
 #= 
     In this example we setup the PEtab problem with the best options for a small model (≤20 states and ≤ 20 parameters). 
-    
+
     Further examples include;
     Bachmann.jl - here we show how to set the best options for a medium sized model (20 ≤ states ≤ 50, 20 ≤ parameters ≤ 75), 
         and how to compute gradients via adjoint sensitivity analysis.
@@ -21,17 +21,17 @@ using Printf
        noise parameter (σ) and initial values (u0). 
     3) To be able to compute gradients via adjoint sensitivity analysis and/or forward sensitivity equations 
        of h and σ are computed symbolically with respect to the ODE-models states (u) and parameters. 
-    
+
     All these files are created automatically, and and you can find the resulting files in dirIfYamlFile/Julia_files/. 
     To save time the fucntion PEtabModel has the default forceBuildJlFiles=false meaning that the Julia files 
     are not rebuilt in case they already exist.
-=#    
+=#
 path_yaml = joinpath(@__DIR__, "Boehm", "Boehm_JProteomeRes2014.yaml") # @__DIR__ = file directory
-petab_model = PEtabModel(path_yaml, verbose=true)
+petab_model = PEtabModel(path_yaml, verbose = true)
 
 #=
     Given a PEtab model we can create a PEtabODEProblem (in the future we plan to add surrogate, SDE, etc... problems). 
-    
+
     There are several user options availble when creating the PEtab ODE-problem (full list in documentation), main are: 
     1) ODE-solver options - Which ODE solver and which solver tolerances (abstol and reltol). Below we use the ODE solver
        Rodas5P() (works well for smaller models ≤ 15 states), and we use the default abstol=reltol=1e-8. 
@@ -44,14 +44,15 @@ petab_model = PEtabModel(path_yaml, verbose=true)
     Note - For :ForwardDiff the user can set the Chunk-size (see https://juliadiff.org/ForwardDiff.jl/stable/). This can improve performance, 
     and we plan to add automatic tuning of it.
 =#
-petab_problem = PEtabODEProblem(petab_model, 
-                                ode_solver=ODESolver(Rodas5P(), abstol=1e-8, reltol=1e-8), 
-                                gradient_method=:ForwardDiff, 
-                                hessian_method=:ForwardDiff)
+petab_problem = PEtabODEProblem(petab_model,
+                                ode_solver = ODESolver(Rodas5P(), abstol = 1e-8,
+                                                       reltol = 1e-8),
+                                gradient_method = :ForwardDiff,
+                                hessian_method = :ForwardDiff)
 
 #=   
     ODESolverThe PEtabODEProblem has everything needed to set up an optimization problem with most availble optimizers. 
-    
+
     The main fields are;
     1) petabODEProblem.compute_cost - Given a parameter vector θ computes the cost (objective function). 
     2) petabODEProblem.compute_gradient!- Given a parameter vector θ computes the gradient using the choosen method

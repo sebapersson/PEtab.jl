@@ -2,7 +2,7 @@
     In this example we setup the PEtab problem with the best options for a small ODE-model (≤20 states, ≤20 parameters) but with 
     many parameters to estimate (≈70) because several parameter are specific to experimental condition. For example, in 
     cond1 we have τ_cond1 and in cond2 we have τ_cond2, and both map to the ODE-system parameter τ. 
-    
+
     Besides this in the example folder we also have:
     Boehm.jl - here we show how to best handle small models (states ≤ 20, parameters ≤ 20). We further cover more details 
         about the important PEtabModel and PEtabODEProblem functions. Recommended to checkout before looking at
@@ -17,7 +17,7 @@ using OrdinaryDiffEq
 using Printf
 
 path_yaml = joinpath(@__DIR__, "Beer", "Beer_MolBioSystems2014.yaml") # @__DIR__ = file directory
-petab_model = PEtabModel(path_yaml, verbose=true)
+petab_model = PEtabModel(path_yaml, verbose = true)
 
 #=
     Given a PEtab model we can create a PEtabODEProblem. For a small ODE-system like Beer the most efficient gradient 
@@ -26,7 +26,7 @@ petab_model = PEtabModel(path_yaml, verbose=true)
     have to do as many forward-passes (solve the ODE model) as there are model-parameters even though majority of the 
     parameters are not present for most conditions. Too force several ForwardDiff calls we can use the option 
     split_over_conditions=true. Overall, the most important options to set are;
-    
+
     1) ODE-solver options - Which ODE solver and which solver tolerances (abstol and reltol). Below we use the ODE solver
        Rodas5P() (works well for smaller models ≤ 15 states), and we use the default abstol=reltol=1e-8. 
     2) Gradient option - Which gradient option to use (full list in documentation). For small models like Beer forward 
@@ -40,13 +40,15 @@ petab_model = PEtabModel(path_yaml, verbose=true)
     Note - For :ForwardDiff the user can set the Chunk-size (see https://juliadiff.org/ForwardDiff.jl/stable/). This can improve performance, 
     and we plan to add automatic tuning of it.
 =#
-petab_problem = PEtabODEProblem(petab_model, 
-                                ode_solver=ODESolver(Rodas5P(), abstol=1e-8, reltol=1e-8), 
-                                ode_solver_gradient=ODESolver(Rodas5P(), abstol=1e-8, reltol=1e-8),
-                                gradient_method=:ForwardDiff, 
-                                hessian_method=:ForwardDiff, 
-                                split_over_conditions=true, 
-                                sparse_jacobian=false)
+petab_problem = PEtabODEProblem(petab_model,
+                                ode_solver = ODESolver(Rodas5P(), abstol = 1e-8,
+                                                       reltol = 1e-8),
+                                ode_solver_gradient = ODESolver(Rodas5P(), abstol = 1e-8,
+                                                                reltol = 1e-8),
+                                gradient_method = :ForwardDiff,
+                                hessian_method = :ForwardDiff,
+                                split_over_conditions = true,
+                                sparse_jacobian = false)
 
 p = petab_problem.θ_nominalT # Parameter values in the PEtab file on log-scale
 gradient = zeros(length(p))
