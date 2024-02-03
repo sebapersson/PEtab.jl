@@ -27,14 +27,15 @@ using QuasiMonteCarlo
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
-include("PEtab_structs.jl")
-include("PEtabModel.jl")
+include("Structs.jl")
+include(joinpath("PEtabModel", "Table_input.jl"))
+include(joinpath("PEtabModel", "Julia_input.jl"))
 
 include("Common.jl")
 
 # Files related to computing the cost (likelihood)
-include(joinpath("Compute_cost", "Compute_priors.jl"))
-include(joinpath("Compute_cost", "Compute_cost.jl"))
+include(joinpath("Objective", "Priors.jl"))
+include(joinpath("Objective", "Objective.jl"))
 
 # Files related to computing derivatives
 include(joinpath("Derivatives", "Hessian.jl"))
@@ -42,39 +43,34 @@ include(joinpath("Derivatives", "Gradient.jl"))
 include(joinpath("Derivatives", "Forward_sensitivity_equations.jl"))
 include(joinpath("Derivatives", "Gauss_newton.jl"))
 include(joinpath("Derivatives", "Common.jl"))
-include(joinpath("Derivatives", "ForwardDiff_run_over_chunks.jl"))
+include(joinpath("Derivatives", "ForwardDiff_chunks.jl"))
 
 # Files related to solving the ODE-system
-include(joinpath("Solve_ODE", "Change_experimental_condition.jl"))
-include(joinpath("Solve_ODE", "Helper.jl"))
-include(joinpath("Solve_ODE", "Solve_ode_model.jl"))
-include(joinpath("Solve_ODE", "Solve_for_steady_state.jl"))
+include(joinpath("Solve_ODE", "Switch_condition.jl"))
+include(joinpath("Solve_ODE", "Common.jl"))
+include(joinpath("Solve_ODE", "Solve.jl"))
+include(joinpath("Solve_ODE", "Steady_state.jl"))
 
-# Files related to processing PEtab files as tables 
-include(joinpath("Process_PEtab_files", "Tsv_tables_provided", "Process_measurements.jl"))
-include(joinpath("Process_PEtab_files", "Tsv_tables_provided", "Process_parameters.jl"))
-include(joinpath("Process_PEtab_files", "Tsv_tables_provided", "Read_PEtab_files.jl"))
-# Process a PEtab model when files are provided in Julia (without tsv-tables)
-include(joinpath("Process_PEtab_files", "Julia_tables_provided", "Parse_input.jl"))
-# Common functionality independent of how model is provided 
-include(joinpath("Process_PEtab_files", "Common.jl"))
-include(joinpath("Process_PEtab_files", "Get_simulation_info.jl"))
-include(joinpath("Process_PEtab_files", "Get_parameter_indices.jl"))
-include(joinpath("Process_PEtab_files", "Process_callbacks.jl"))
-include(joinpath("Process_PEtab_files", "Observables", "Common.jl"))
-include(joinpath("Process_PEtab_files", "Observables", "Create_h_sigma_derivatives.jl"))
-include(joinpath("Process_PEtab_files", "Observables", "Create_u0_h_sigma.jl"))
+# Files related to processing user input
+include(joinpath("Process_input", "Table_input", "Measurements.jl"))
+include(joinpath("Process_input", "Table_input", "Parameters.jl"))
+include(joinpath("Process_input", "Table_input", "Read_tables.jl"))
+include(joinpath("Process_input", "Julia_input.jl"))
+include(joinpath("Process_input", "Common.jl"))
+include(joinpath("Process_input", "Simulation_info.jl"))
+include(joinpath("Process_input", "Parameter_indices.jl"))
+include(joinpath("Process_input", "Callbacks.jl"))
+include(joinpath("Process_input", "Observables", "Common.jl"))
+include(joinpath("Process_input", "Observables", "h_sigma_derivatives.jl"))
+include(joinpath("Process_input", "Observables", "u0_h_sigma.jl"))
 
 # For creating a PEtab ODE problem
-include(joinpath("PEtabODEProblem", "Set_defaults.jl"))
+include(joinpath("PEtabODEProblem", "Defaults.jl"))
 include(joinpath("PEtabODEProblem", "Remake.jl"))
-include(joinpath("PEtabODEProblem", "Create_cache.jl"))
+include(joinpath("PEtabODEProblem", "Cache.jl"))
 include(joinpath("PEtabODEProblem", "Create.jl"))
 
-# Creating the PEtab model
-include(joinpath("Process_PEtab_files", "Julia_tables_provided", "Create_PEtab_model.jl"))
-
-# Nice util functions 
+# Nice util functions
 include(joinpath("Utility.jl"))
 
 # For correct struct printing
@@ -84,17 +80,21 @@ include(joinpath("Show.jl"))
 @setup_workload begin
     path_yaml = joinpath(@__DIR__, "..", "test", "Test_model3", "Test_model3.yaml")
     @compile_workload begin
-        petab_model = PEtabModel(path_yaml, verbose=false, build_julia_files=true, write_to_file=false)
-        petab_problem = PEtabODEProblem(petab_model, verbose=false)
+        petab_model = PEtabModel(path_yaml, verbose = false, build_julia_files = true,
+                                 write_to_file = false)
+        petab_problem = PEtabODEProblem(petab_model, verbose = false)
         petab_problem.compute_cost(petab_problem.θ_nominalT)
     end
 end
 
-export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel, PEtabODEProblem, remake_PEtab_problem, Fides, PEtabOptimisationResult, IpoptOptions, IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult, generate_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, PEtabEvent
+export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
+       PEtabODEProblem, remake_PEtab_problem, Fides, PEtabOptimisationResult, IpoptOptions,
+       IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult,
+       generate_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, PEtabEvent
 
-# These are given as extensions, but their docstrings are availble in the 
-# general documentation 
-include(joinpath("Model_callibration", "Common.jl"))
+# These are given as extensions, but their docstrings are availble in the
+# general documentation
+include(joinpath("Calibrate", "Common.jl"))
 export calibrate_model, calibrate_model_multistart, run_PEtab_select
 
 if !isdefined(Base, :get_extension)
@@ -106,7 +106,7 @@ end
 if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabSelectExtension.jl"))
 end
-if !isdefined(Base, :get_extension)    
+if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabSciMLSensitivityExtension.jl"))
 end
 if !isdefined(Base, :get_extension)

@@ -6,7 +6,7 @@
         2) Rootfinding
 
     In this example we setup the PEtab problem with the best options for upto a medium sized model (≤ 75 states).
-    
+
     Further examples include;
     Boehm.jl - here we show how to best handle small models (states ≤ 20, parameters ≤ 20). We further cover more details 
         about the important PEtabModel and PEtabODEProblem functions. Recommended to checkout before looking at
@@ -22,8 +22,7 @@ using Printf
 
 # Create the PEtabModel 
 path_yaml = joinpath(@__DIR__, "Brannmark", "Brannmark_JBC2010.yaml") # @__DIR__ = file directory
-petab_model = PEtabModel(path_yaml, verbose=true)
-
+petab_model = PEtabModel(path_yaml, verbose = true)
 
 #=
     --- Preequilibration  ---
@@ -46,11 +45,12 @@ petab_model = PEtabModel(path_yaml, verbose=true)
     Note3 - All gradient and hessian options are compatible with :Simulate. :Rootfinding is only compatible 
             with approaches using Forward-mode automatic differentiation.
 =#
-ss_options = SteadyStateSolver(:Simulate, check_simulation_steady_state=:wrms)
-petab_problem = PEtabODEProblem(petab_model, 
-                                ode_solver=ODESolver(Rodas5P(), abstol=1e-8, reltol=1e-8), 
-                                ss_solver=ss_options,
-                                gradient_method=:ForwardDiff) 
+ss_options = SteadyStateSolver(:Simulate, check_simulation_steady_state = :wrms)
+petab_problem = PEtabODEProblem(petab_model,
+                                ode_solver = ODESolver(Rodas5P(), abstol = 1e-8,
+                                                       reltol = 1e-8),
+                                ss_solver = ss_options,
+                                gradient_method = :ForwardDiff)
 p = petab_problem.θ_nominalT # Parameter values in the PEtab file on log-scale
 gradient = zeros(length(p)) # In-place gradients 
 cost = petab_problem.compute_cost(p)

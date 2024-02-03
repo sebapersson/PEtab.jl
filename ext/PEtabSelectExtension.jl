@@ -7,7 +7,7 @@ using QuasiMonteCarlo
 using Random
 using Printf
 using YAML
-using PEtab 
+using PEtab
 
 include(joinpath(@__DIR__, "PEtabSelectExtension", "PEtab_select", "PEtab_select.jl"))
 
