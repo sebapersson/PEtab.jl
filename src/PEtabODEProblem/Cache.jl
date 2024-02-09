@@ -23,6 +23,7 @@ function PEtabODEProblemCache(gradient_method::Symbol,
 
     # This ensures that the chunksize is not to small when computing Hessians
     chunksize = length(θ_indices.θ_names) * 2 + length(θ_indices.θ_names)^2
+    chunksize = chunksize > 100 ? 100 : chunksize
 
     _θ_dynamicT = zeros(Float64, length(θ_indices.iθ_dynamic))
     _θ_observableT = zeros(Float64, length(θ_indices.iθ_observable))
@@ -171,6 +172,7 @@ function PEtabODESolverCache(gradient_method::Symbol,
     end
 
     chunksize = length(θ_indices.θ_names) * 2 + length(θ_indices.θ_names)^2
+    chunksize = chunksize > 100 ? 100 : chunksize
 
     if simulation_info.has_pre_equilibration_condition_id == true
         conditions_simulate_over = unique(vcat(simulation_info.pre_equilibration_condition_id,
