@@ -19,23 +19,31 @@ jobs:
       matrix:
         version:
           - '1.10'
+        python: [3.10]
         os:
           - ubuntu-latest
         arch:
           - x64
-    env:
-      PYTHON: python3
     steps:
       - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python }} 
+     - name: Set ENV Variables for Python
+        run: echo ENV["PYTHON"] = "${{ env.pythonLocation }}/bin/python" >> $GITHUB_ENV
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install fides petab-select
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
-      - run: >
-          sudo apt-get install --no-install-recommends gfortran python3-setuptools python3-wheel
-          && pip3 install numpy scipy && pip3 install fides petab-select
       - uses: julia-actions/cache@v1
       - uses: julia-actions/julia-buildpkg@v1
+        env:
+          PYTHON : "${{ env.pythonLocation }}/bin/python"
       - uses: julia-actions/julia-runtest@v1
         continue-on-error: ${{ matrix.version == 'nightly' }}
   docs:
