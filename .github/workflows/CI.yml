@@ -30,7 +30,7 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python }} 
-     - name: Set ENV Variables for Python
+      - name: Set ENV Variables for Python
         run: echo ENV["PYTHON"] = "${{ env.pythonLocation }}/bin/python" >> $GITHUB_ENV
       - name: Install Python dependencies
         run: |
