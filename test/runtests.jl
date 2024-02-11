@@ -1,7 +1,13 @@
 using SafeTestsets
 
+
 @safetestset "Aqua Quality Check" begin
   include("Aqua.jl")
+end
+
+
+@safetestset "PEtab-select" begin
+  include("PEtab_select.jl")
 end
 
 @safetestset "Test model 2" begin
