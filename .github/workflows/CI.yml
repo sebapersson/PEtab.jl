@@ -31,6 +31,9 @@ jobs:
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
+      - run: >
+          sudo apt-get install --no-install-recommends gfortran python3-setuptools python3-wheel
+          && pip3 install fides petab-select
       - uses: julia-actions/cache@v1
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
