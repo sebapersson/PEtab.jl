@@ -1,3 +1,3 @@
 style = "sciml"
 yas_style_nesting=true
-ignore = ["test", "docs"]
+ignore = ["test", "docs", "examples"]
