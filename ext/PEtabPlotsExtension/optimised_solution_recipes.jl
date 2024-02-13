@@ -66,9 +66,7 @@ function PEtab.get_obs_comparison_plots(res::Union{PEtabOptimisationResult,
         for observable_id in [obs.observableId
                               for obs in petab_problem.petab_model.path_observables]
             comparison_dict[condition_id][observable_id] = plot(res, petab_problem;
-                                                                observable_ids = [
-                                                                    observable_id,
-                                                                ],
+                                                                observable_ids = [observable_id],
                                                                 condition_id = condition_id,
                                                                 kwargs...)
         end
