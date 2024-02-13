@@ -75,16 +75,14 @@ function check_petab_files(experimental_conditions::CSV.File, measurements_data,
     transformation_types = ["lin", "log", "log10"]
     distribution_types = ["laplace", "normal"]
     estimateTypes = [0, 1]
-    priorParameterTypes = [
-        "uniform",
-        "normal",
-        "laplace",
-        "logNormal",
-        "logLaplace",
-        "parameterScaleUniform",
-        "parameterScaleNormal",
-        "parameterScaleLaplace",
-    ]
+    priorParameterTypes = ["uniform",
+                           "normal",
+                           "laplace",
+                           "logNormal",
+                           "logLaplace",
+                           "parameterScaleUniform",
+                           "parameterScaleNormal",
+                           "parameterScaleLaplace"]
 
     # Check experimental_conditions
     columns_check = ["conditionId", "conditionName"]
@@ -108,88 +106,74 @@ function check_petab_files(experimental_conditions::CSV.File, measurements_data,
     end
 
     # Check measurements_data
-    columns_check = [
-        "observableId",
-        "simulationConditionId",
-        "measurement",
-        "time",
-        "preequilibrationConditionId",
-        "observableParameters",
-        "noiseParameters",
-        "datasetId",
-        "replicateId",
-    ]
-    allowed_types = [
-        string_types,
-        string_types,
-        number_types,
-        number_types,
-        string_types,
-        string_number_types,
-        string_number_types,
-        string_number_types,
-        string_number_types,
-    ]
+    columns_check = ["observableId",
+                     "simulationConditionId",
+                     "measurement",
+                     "time",
+                     "preequilibrationConditionId",
+                     "observableParameters",
+                     "noiseParameters",
+                     "datasetId",
+                     "replicateId"]
+    allowed_types = [string_types,
+                     string_types,
+                     number_types,
+                     number_types,
+                     string_types,
+                     string_number_types,
+                     string_number_types,
+                     string_number_types,
+                     string_number_types]
     required_columns = ["observableId", "simulationConditionId", "measurement", "time"]
     check_df_columns(measurements_data, "measurements_data", columns_check, allowed_types,
                      required_columns)
 
     # Check parameters_data
-    columns_check = [
-        "parameterId",
-        "parameterScale",
-        "lowerBound",
-        "upperBound",
-        "nominalValue",
-        "estimate",
-        "parameterName",
-        "initializationPriorType",
-        "initializationPriorParameters",
-        "objectivePriorType",
-        "objectivePriorParameters",
-    ]
+    columns_check = ["parameterId",
+                     "parameterScale",
+                     "lowerBound",
+                     "upperBound",
+                     "nominalValue",
+                     "estimate",
+                     "parameterName",
+                     "initializationPriorType",
+                     "initializationPriorParameters",
+                     "objectivePriorType",
+                     "objectivePriorParameters"]
     # Some models have missing parameters in their bounds even though it's mandatory, so we add Missing as an allowed DataType for these columns.
-    allowed_types = [
-        string_types,
-        transformation_types,
-        number_types,
-        number_types,
-        number_types,
-        estimateTypes,
-        string_types,
-        priorParameterTypes,
-        string_types,
-        priorParameterTypes,
-        string_types,
-    ]
-    required_columns = [
-        "parameterId",
-        "parameterScale",
-        "lowerBound",
-        "upperBound",
-        "nominalValue",
-        "estimate",
-    ]
+    allowed_types = [string_types,
+                     transformation_types,
+                     number_types,
+                     number_types,
+                     number_types,
+                     estimateTypes,
+                     string_types,
+                     priorParameterTypes,
+                     string_types,
+                     priorParameterTypes,
+                     string_types]
+    required_columns = ["parameterId",
+                        "parameterScale",
+                        "lowerBound",
+                        "upperBound",
+                        "nominalValue",
+                        "estimate"]
     check_df_columns(parameters_data, "parameters_data", columns_check, allowed_types,
                      required_columns)
 
     # Check observables_data
-    columns_check = [
-        "observableId",
-        "observableFormula",
-        "noiseFormula",
-        "observableName",
-        "observableTransformation",
-        "noiseDistribution",
-    ]
-    allowed_types = [
-        string_types,
-        string_types,
-        string_number_types,
-        string_types,
-        transformation_types,
-        distribution_types,
-    ]
+    columns_check = ["observableId",
+                     "observableFormula",
+                     "noiseFormula",
+                     "observableName",
+                     "observableTransformation",
+                     "noiseDistribution"]
+    allowed_types = [string_types,
+                     string_types,
+                     string_number_types,
+                     string_types,
+                     transformation_types,
+                     distribution_types]
     required_columns = ["observableId", "observableFormula", "noiseFormula"]
     check_df_columns(observables_data, "observables_data", columns_check, allowed_types,
                      required_columns)
