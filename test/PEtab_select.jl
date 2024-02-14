@@ -44,7 +44,7 @@ using Test
 
     path_yaml = joinpath(@__DIR__, "petab_select", "0006", "petab_select_problem.yaml")
     path_exepected = joinpath(@__DIR__, "petab_select", "0006", "expected.yaml")
-    path_save = run_PEtab_select(path_yaml, Fides(:BFGS, verbose=false), n_multistarts=10)
+    path_save = run_PEtab_select(path_yaml, IPNewton(), n_multistarts=20)
     expected_res = YAML.load_file(path_exepected)
     data_res = YAML.load_file(path_save)
     @test expected_res["criteria"]["NLLH"] ≈ data_res["criteria"]["NLLH"] atol=1e-3
