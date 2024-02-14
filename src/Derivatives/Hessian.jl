@@ -11,9 +11,9 @@ function compute_hessian!(hessian::Matrix{Float64},
                           θ_indices::ParameterIndices,
                           prior_info::PriorInfo)::Nothing
 
-    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
-    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
-    # retcode we cannot catch these cases 
+    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough.
+    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final
+    # retcode we cannot catch these cases
     simulation_info.could_solve[1] = true
     if all([simulation_info.ode_sols[id].retcode == ReturnCode.Success ||
             simulation_info.ode_sols[id].retcode == ReturnCode.Terminated
@@ -51,9 +51,9 @@ function compute_hessian_split!(hessian::Matrix{Float64},
                                 prior_info::PriorInfo,
                                 exp_id_solve::Vector{Symbol} = [:all])::Nothing
 
-    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
-    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
-    # retcode we cannot catch these cases                                             
+    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough.
+    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final
+    # retcode we cannot catch these cases
     simulation_info.could_solve[1] = true
 
     hessian .= 0.0
@@ -107,9 +107,9 @@ function compute_hessian_block!(hessian::Matrix{Float64},
                                 prior_info::PriorInfo;
                                 exp_id_solve::Vector{Symbol} = [:all])::Nothing
 
-    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
-    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
-    # retcode we cannot catch these cases                                            
+    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough.
+    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final
+    # retcode we cannot catch these cases
     simulation_info.could_solve[1] = true
 
     # Avoid incorrect non-zero values
@@ -158,9 +158,9 @@ function compute_hessian_block_split!(hessian::Matrix{Float64},
                                       prior_info::PriorInfo;
                                       exp_id_solve::Vector{Symbol} = [:all])::Nothing
 
-    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
-    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
-    # retcode we cannot catch these cases                                                               
+    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough.
+    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final
+    # retcode we cannot catch these cases
     simulation_info.could_solve[1] = true
 
     # Avoid incorrect non-zero values
@@ -279,9 +279,9 @@ end
 
 # Compute prior contribution to log-likelihood, note θ in on the parameter scale (e.g might be on log-scale)
 function compute_hessian_prior!(hessian::Matrix{Float64},
-                                θ::Vector{T},
+                                θ::Vector{<:Real},
                                 θ_indices::ParameterIndices,
-                                prior_info::PriorInfo)::Nothing where {T <: Real}
+                                prior_info::PriorInfo)::Nothing
     _evalPriors = (θ_est) -> begin
         θ_estT = transformθ(θ_est, θ_indices.θ_names, θ_indices)
         return -1.0 * compute_priors(θ_est, θ_estT, θ_indices.θ_names, prior_info) # We work with -loglik

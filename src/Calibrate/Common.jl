@@ -417,7 +417,7 @@ function save_partial_results(path_save_res::String,
     CSV.write(path_save_parameters, df_save_parameters,
               append = isfile(path_save_parameters))
 
-    if !isnothing(path_save_trace)
+    if !isnothing(path_save_trace) && !isnothing(res.ftrace) && !isempty(res.ftrace)
         df_save_trace = DataFrame(Matrix(reduce(vcat, res.xtrace')), θ_names)
         df_save_trace[!, "f_trace"] = res.ftrace
         df_save_trace[!, "Start_guess"] = repeat([i], length(res.ftrace))
