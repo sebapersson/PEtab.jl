@@ -1,12 +1,10 @@
 # The possible types of plots avaiable for PEtabOptimisationResult.
 const plot_types = [:objective, :best_objective]
-const plot_types_ms = [
-    :objective,
-    :best_objective,
-    :waterfall,
-    :runtime_eval,
-    :parallel_coordinates,
-]
+const plot_types_ms = [:objective,
+                       :best_objective,
+                       :waterfall,
+                       :runtime_eval,
+                       :parallel_coordinates]
 
 # Plots the objective function progression for a PEtabOptimisationResult.
 @recipe function f(res::PEtabOptimisationResult{T}; plot_type = :best_objective) where {T}
