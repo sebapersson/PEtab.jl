@@ -1,0 +1,7 @@
+format_version: beta_1
+criterion: AICc
+method: backward
+model_space_files:
+- model_space.tsv
+constraint_files:
+- constraints.tsv
