@@ -83,7 +83,7 @@ function check_petab_files(experimental_conditions::CSV.File, measurements_data,
         "logLaplace",
         "parameterScaleUniform",
         "parameterScaleNormal",
-        "parameterScaleLaplace",
+        "parameterScaleLaplace"
     ]
 
     # Check experimental_conditions
@@ -117,7 +117,7 @@ function check_petab_files(experimental_conditions::CSV.File, measurements_data,
         "observableParameters",
         "noiseParameters",
         "datasetId",
-        "replicateId",
+        "replicateId"
     ]
     allowed_types = [
         string_types,
@@ -128,7 +128,7 @@ function check_petab_files(experimental_conditions::CSV.File, measurements_data,
         string_number_types,
         string_number_types,
         string_number_types,
-        string_number_types,
+        string_number_types
     ]
     required_columns = ["observableId", "simulationConditionId", "measurement", "time"]
     check_df_columns(measurements_data, "measurements_data", columns_check, allowed_types,
@@ -146,7 +146,7 @@ function check_petab_files(experimental_conditions::CSV.File, measurements_data,
         "initializationPriorType",
         "initializationPriorParameters",
         "objectivePriorType",
-        "objectivePriorParameters",
+        "objectivePriorParameters"
     ]
     # Some models have missing parameters in their bounds even though it's mandatory, so we add Missing as an allowed DataType for these columns.
     allowed_types = [
@@ -160,7 +160,7 @@ function check_petab_files(experimental_conditions::CSV.File, measurements_data,
         priorParameterTypes,
         string_types,
         priorParameterTypes,
-        string_types,
+        string_types
     ]
     required_columns = [
         "parameterId",
@@ -168,7 +168,7 @@ function check_petab_files(experimental_conditions::CSV.File, measurements_data,
         "lowerBound",
         "upperBound",
         "nominalValue",
-        "estimate",
+        "estimate"
     ]
     check_df_columns(parameters_data, "parameters_data", columns_check, allowed_types,
                      required_columns)
@@ -180,7 +180,7 @@ function check_petab_files(experimental_conditions::CSV.File, measurements_data,
         "noiseFormula",
         "observableName",
         "observableTransformation",
-        "noiseDistribution",
+        "noiseDistribution"
     ]
     allowed_types = [
         string_types,
@@ -188,7 +188,7 @@ function check_petab_files(experimental_conditions::CSV.File, measurements_data,
         string_number_types,
         string_types,
         transformation_types,
-        distribution_types,
+        distribution_types
     ]
     required_columns = ["observableId", "observableFormula", "noiseFormula"]
     check_df_columns(observables_data, "observables_data", columns_check, allowed_types,

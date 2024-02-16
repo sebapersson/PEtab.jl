@@ -19,9 +19,9 @@ function compute_gradient_autodiff!(gradient::Vector{Float64},
                                     isremade::Bool = false)::Nothing
     fill!(gradient, 0.0)
     splitθ!(θ_est, θ_indices, petab_ODE_cache)
-    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
-    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
-    # retcode we cannot catch these cases 
+    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough.
+    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final
+    # retcode we cannot catch these cases
     simulation_info.could_solve[1] = true
 
     # Case where based on the original PEtab file read into Julia we do not have any parameter vectors fixated.
@@ -100,9 +100,9 @@ function compute_gradient_autodiff_split!(gradient::Vector{Float64},
                                           prior_info::PriorInfo,
                                           exp_id_solve = [:all])::Nothing
 
-    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
-    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
-    # retcode we cannot catch these cases                                                         
+    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough.
+    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final
+    # retcode we cannot catch these cases
     simulation_info.could_solve[1] = true
 
     splitθ!(θ_est, θ_indices, petab_ODE_cache)
@@ -171,9 +171,9 @@ function compute_gradient_forward_equations!(gradient::Vector{Float64},
                                              exp_id_solve::Vector{Symbol} = [:all],
                                              isremade::Bool = false)::Nothing
 
-    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough. 
-    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final 
-    # retcode we cannot catch these cases                                             
+    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough.
+    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final
+    # retcode we cannot catch these cases
     simulation_info.could_solve[1] = true
 
     splitθ!(θ_est, θ_indices, petab_ODE_cache)
@@ -210,12 +210,13 @@ end
 
 # Compute prior contribution to log-likelihood
 function compute_gradient_prior!(gradient::Vector{Float64},
-                                 θ::Vector{Real},
+                                 θ::Vector{<:Real},
                                  θ_indices::ParameterIndices,
                                  prior_info::PriorInfo)::Nothing
-    _evalPriors = (θ_est) -> begin
+    _eval_priors = (θ_est) -> begin
         θ_estT = transformθ(θ_est, θ_indices.θ_names, θ_indices)
         return -1.0 * compute_priors(θ_est, θ_estT, θ_indices.θ_names, prior_info) # We work with -loglik
     end
-    gradient .+= ForwardDiff.gradient(_evalPriors, θ)
+    gradient .+= ForwardDiff.gradient(_eval_priors, θ)
+    return nothing
 end

@@ -11,7 +11,7 @@
 using PEtab
 using Test
 using OrdinaryDiffEq
-using Zygote 
+using Zygote
 using SciMLSensitivity
 using CSV
 using ForwardDiff
@@ -112,6 +112,12 @@ function test_cost_gradient_hessian_test_model2(petab_model::PEtabModel, ode_sol
     # Cube with random parameter values for testing
     cube = CSV.File(joinpath(@__DIR__, "Test_model2", "Julia_model_files", "CubeTest_model2.csv"))
 
+    # For testing block Hessian approach
+    prob1 = PEtabODEProblem(petab_model, hessian_method=:BlockForwardDiff,
+                            ode_solver=ODESolver(Vern9(), abstol=1e-9, reltol=1e-9))
+    prob2 = PEtabODEProblem(petab_model, hessian_method=:ForwardDiff,
+                            ode_solver=ODESolver(Vern9(), abstol=1e-9, reltol=1e-9))
+
     for i in 1:1
 
         p = Float64.(collect(cube[i]))
@@ -140,6 +146,14 @@ function test_cost_gradient_hessian_test_model2(petab_model::PEtabModel, ode_sol
         # Testing "exact" hessian via autodiff
         hessian = _test_cost_gradient_hessian(petab_model, ode_solver, p, compute_hessian=true, gradient_method=:ForwardDiff, hessian_method=:ForwardDiff)
         @test norm(hessian - reference_hessian) ≤ 1e-2
+
+        # Testing block-hessian
+        _ = prob1.compute_cost(p)
+        _ = prob2.compute_cost(p)
+        H1 = prob1.compute_hessian(p)
+        H2 = prob2.compute_hessian(p)
+        @test norm(H1[1:2] - H2[1:2]) < 1e-2
+        @test norm(H1[3:4] - H2[3:4]) < 1e-2
     end
 end
 

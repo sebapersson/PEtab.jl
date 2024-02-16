@@ -5,7 +5,7 @@ const plot_types_ms = [
     :best_objective,
     :waterfall,
     :runtime_eval,
-    :parallel_coordinates,
+    :parallel_coordinates
 ]
 
 # Plots the objective function progression for a PEtabOptimisationResult.

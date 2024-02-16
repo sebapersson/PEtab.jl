@@ -265,8 +265,8 @@ function PEtabODEProblem(petab_model::PEtabModel;
         return measurement_info.simulated_values
     end
 
-    # Computing nllh along with the gradient is needed for efficient Bayesian 
-    # inference, as for example AdvancedHMC.jl needs both nllh and gradient 
+    # Computing nllh along with the gradient is needed for efficient Bayesian
+    # inference, as for example AdvancedHMC.jl needs both nllh and gradient
     # in its evaluations.
     compute_nllh_and_gradient = create_nllh_gradient_function(_gradient_method,
                                                               compute_gradient_nllh,
@@ -632,7 +632,7 @@ function create_gradient_function(which_method::Symbol,
                                                                             cfg,
                                                                             petab_ODE_cache,
                                                                             exp_id_solve = [
-                                                                                :all,
+                                                                                :all
                                                                             ],
                                                                             split_over_conditions = split_over_conditions,
                                                                             isremade = isremade)
@@ -812,8 +812,7 @@ function create_hessian_function(which_method::Symbol,
 
             _chunksize = isnothing(chunksize) ? ForwardDiff.Chunk(θ_dynamic) :
                          ForwardDiff.Chunk(chunksize)
-            cfg = ForwardDiff.HessianConfig(compute_cost_θ_dynamic, θ_dynamic,
-                                            ForwardDiff.Chunk(chunksize))
+            cfg = ForwardDiff.HessianConfig(compute_cost_θ_dynamic, θ_dynamic, _chunksize)
 
             _compute_hessian! = let compute_cost_θ_not_ODE = compute_cost_θ_not_ODE,
                 compute_cost_θ_dynamic = compute_cost_θ_dynamic,
@@ -993,7 +992,7 @@ function create_hessian_function(which_method::Symbol,
                                                                            cfg_not_solve_ode,
                                                                            petab_ODE_cache,
                                                                            exp_id_solve = [
-                                                                               :all,
+                                                                               :all
                                                                            ],
                                                                            reuse_sensitivities = reuse_sensitivities,
                                                                            return_jacobian = return_jacobian,

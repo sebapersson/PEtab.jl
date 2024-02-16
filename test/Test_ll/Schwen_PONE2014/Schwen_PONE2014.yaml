@@ -1,0 +1,13 @@
+format_version: 1
+parameter_file: parameters_Schwen_PONE2014.tsv
+problems:
+- condition_files:
+  - experimentalCondition_Schwen_PONE2014.tsv
+  measurement_files:
+  - measurementData_Schwen_PONE2014.tsv
+  observable_files:
+  - observables_Schwen_PONE2014.tsv
+  sbml_files:
+  - model_Schwen_PONE2014.xml
+  visualization_files:
+  - visualizationSpecification_Schwen_PONE2014.tsv

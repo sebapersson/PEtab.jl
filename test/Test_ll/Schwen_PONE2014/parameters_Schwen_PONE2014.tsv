@@ -1,0 +1,31 @@
+parameterId	parameterName	parameterScale	lowerBound	upperBound	nominalValue	estimate	objectivePriorType	objectivePriorParameters
+IR_obs_std	IR_{obs,std}	log10	1E-05	0.056234132519035	0.04718566713256	1
+fragments	fragments	lin	0	1	0.999999072086866	1
+ini_R1	ini_{R1}	log10	1E-05	1000	58.8503656504712	1	parameterScaleNormal	1.809765366817905;3
+ini_R2fold	ini_{R2fold}	log10	1E-05	1000	15.6091614910056	1	parameterScaleNormal	1.196922192866968;3
+ka1	ka1	log10	1E-05	1000	0.003799559577141	1	parameterScaleNormal	-4.006774320046476;3
+ka2fold	ka2fold	log10	1E-05	1000	4.90235664339923	1	parameterScaleNormal	-0.018613892336092;3
+kd1	kd1	log10	1E-05	1000	9.1452569352756	1	parameterScaleNormal	-0.917792647716124;3
+kd2fold	kd2fold	log10	1E-05	1000	6.94256361634239	1	parameterScaleNormal	-0.105608820817629;3
+kin	kin	log10	1E-05	1000	0.371867742056691	1
+kin2	kin2	log10	1E-05	1000	0.538281644062314	1
+km_nExpID1	km_{nExpID1}	log10	1000	100000000	99999998.6188564	1
+km_nExpID2	km_{nExpID2}	log10	1000	100000000	99999999.9262277	1
+km_nExpID3	km_{nExpID3}	log10	1000	100000000	99999999.4830626	1
+km_nExpID4	km_{nExpID4}	log10	1000	100000000	99999999.7688987	1
+koff_unspec	koff_{unspec}	log10	1E-05	1000	10.0574365310404	1
+kon_unspec	kon_{unspec}	log10	1E-05	1000	20.2497851212426	1
+kout	kout	log10	1E-05	1000	0.045075006384889	1
+kout2	kout2	log10	1E-05	1000	0.035429930979713	1
+kout_frag	kout_{frag}	log10	1E-05	1000	0.011016106452567	1
+offset	offset	log10	1E-05	1000	14.6162752309182	1
+offset_nExpID1	offset_{nExpID1}	log10	1E-05	100000	0.025125178785146	1
+offset_nExpID2	offset_{nExpID2}	log10	1E-05	100000	0.021744798213588	1
+offset_nExpID3	offset_{nExpID3}	log10	1E-05	100000	0.007316811299973	1
+offset_nExpID4	offset_{nExpID4}	log10	1E-05	100000	1.56710171943085	1
+scale	scale	log10	1E-05	1000	0.131806990818741	1
+scaleElisa_nExpID1	scaleElisa_{nExpID1}	lin	0.1	1	0.538009450729947	1
+scaleElisa_nExpID2	scaleElisa_{nExpID2}	lin	0.1	1	0.569911881220408	1
+scaleElisa_nExpID3	scaleElisa_{nExpID3}	lin	0.1	1	0.100000000170598	1
+scaleElisa_nExpID4	scaleElisa_{nExpID4}	lin	0.1	1	0.999999999951202	1
+std	std	log10	1E-05	1000	0.24832414992796	1
