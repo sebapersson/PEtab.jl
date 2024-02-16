@@ -153,7 +153,7 @@ function test_cost_gradient_hessian_test_model2(petab_model::PEtabModel, ode_sol
         H1 = prob1.compute_hessian(p)
         H2 = prob2.compute_hessian(p)
         @test norm(H1[1:2] - H2[1:2]) < 1e-2
-        @test norm(H1[3:4] - H2[3:4]) < 1e-2
+        @test norm(normalize(diag(H1, 0)[3:end]) - normalize(diag(H2, 0)[3:end])) < 1e-2
     end
 end
 

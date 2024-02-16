@@ -63,16 +63,16 @@ petab_model_rn = PEtabModel(rn, simulation_conditions, observables, measurements
 petab_problem_rn = PEtabODEProblem(petab_model_rn, verbose=false)
 
 # Compute gradient + hessian for nllh and prior
-prior_val = _compute_prior(petab_problem_sys.θ_nominalT)
-prior_grad = ForwardDiff.gradient(_compute_prior, petab_problem_sys.θ_nominalT)
-prior_hess = ForwardDiff.hessian(_compute_prior, petab_problem_sys.θ_nominalT)
-nllh = petab_problem_rn.compute_nllh(petab_problem_sys.θ_nominalT)
-nllh_grad = ForwardDiff.gradient(petab_problem_rn.compute_nllh, petab_problem_sys.θ_nominalT)
-nllh_hess = ForwardDiff.hessian(petab_problem_rn.compute_nllh, petab_problem_sys.θ_nominalT)
+prior_val = _compute_prior(petab_problem_rn.θ_nominalT)
+prior_grad = ForwardDiff.gradient(_compute_prior, petab_problem_rn.θ_nominalT)
+prior_hess = ForwardDiff.hessian(_compute_prior, petab_problem_rn.θ_nominalT)
+nllh = petab_problem_rn.compute_nllh(petab_problem_rn.θ_nominalT)
+nllh_grad = ForwardDiff.gradient(petab_problem_rn.compute_nllh, petab_problem_rn.θ_nominalT)
+nllh_hess = ForwardDiff.hessian(petab_problem_rn.compute_nllh, petab_problem_rn.θ_nominalT)
 # Compute petab objective gradient and hessian
-obj = petab_problem_rn.compute_cost(petab_problem_sys.θ_nominalT)
-grad = petab_problem_rn.compute_gradient(petab_problem_sys.θ_nominalT)
-hess = petab_problem_rn.compute_hessian(petab_problem_sys.θ_nominalT)
+obj = petab_problem_rn.compute_cost(petab_problem_rn.θ_nominalT)
+grad = petab_problem_rn.compute_gradient(petab_problem_rn.θ_nominalT)
+hess = petab_problem_rn.compute_hessian(petab_problem_rn.θ_nominalT)
 # Test it all adds up
 @test obj ≈ prior_val + nllh
 @test norm(grad - (nllh_grad + prior_grad)) < 1e-8
@@ -80,12 +80,13 @@ hess = petab_problem_rn.compute_hessian(petab_problem_sys.θ_nominalT)
 
 # The same test but for the Blockhessian approximation, and another gradient method
 petab_problem_rn = PEtabODEProblem(petab_model_rn, verbose=false, hessian_method=:BlockForwardDiff, gradient_method=:ForwardEquations)
-nllh = petab_problem_rn.compute_nllh(petab_problem_sys.θ_nominalT)
-nllh_grad = ForwardDiff.gradient(petab_problem_rn.compute_nllh, petab_problem_sys.θ_nominalT)
-nllh_hess = ForwardDiff.hessian(petab_problem_rn.compute_nllh, petab_problem_sys.θ_nominalT)
-obj = petab_problem_rn.compute_cost(petab_problem_sys.θ_nominalT)
-grad = petab_problem_rn.compute_gradient(petab_problem_sys.θ_nominalT)
-hess = petab_problem_rn.compute_hessian(petab_problem_sys.θ_nominalT)
+nllh = petab_problem_rn.compute_nllh(petab_problem_rn.θ_nominalT)
+nllh_grad = ForwardDiff.gradient(petab_problem_rn.compute_nllh, petab_problem_rn.θ_nominalT)
+nllh_hess = ForwardDiff.hessian(petab_problem_rn.compute_nllh, petab_problem_rn.θ_nominalT)
+obj = petab_problem_rn.compute_cost(petab_problem_rn.θ_nominalT)
+grad = petab_problem_rn.compute_gradient(petab_problem_rn.θ_nominalT)
+hess = petab_problem_rn.compute_hessian(petab_problem_rn.θ_nominalT)
 @test obj ≈ prior_val + nllh
 @test norm(grad - (nllh_grad + prior_grad)) < 1e-8
-@test norm(hess - (nllh_hess + prior_hess)) < 1e-8
+@test norm(hess[1:4, 1:4] - (nllh_hess[1:4, 1:4] + prior_hess[1:4, 1:4])) < 1e-8
+@test norm(hess[5, 5] - (nllh_hess[5, 5] + prior_hess[5, 5])) < 1e-8

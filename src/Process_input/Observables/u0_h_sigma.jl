@@ -75,7 +75,7 @@ function create_σ_h_u0_file(model_name::String,
                                         parameter_map, state_map, experimental_conditions)
 
     # Dummary variables to keep PEtab importer happy even as we are not providing any PEtab files
-    model_SBML = SBMLImporter.ModelSBML()
+    model_SBML = SBMLImporter.ModelSBML("")
 
     h_str = PEtab.create_h_function(model_name, @__DIR__, model_state_names, parameter_info,
                                     p_ode_problem_names,
@@ -227,7 +227,7 @@ end
                        dir_model::String,
                        parameter_info::ParametersInfo,
                        p_ode_problem_names::Vector{String},
-                       state_map, 
+                       state_map,
                        model_SBML;
                        inplace::Bool=true)
 
@@ -270,7 +270,7 @@ function create_u0_function(model_name::String,
     # Write the formula for each initial condition to file
     _model_state_names = [replace.(string.(state_map[i].first), "(t)" => "")
                           for i in eachindex(state_map)]
-    # If we create from Julia model (e.g.) Catalyst this is not applicable and step is skipped 
+    # If we create from Julia model (e.g.) Catalyst this is not applicable and step is skipped
     if !isempty(model_SBML.parameters)
         model_state_names1 = filter(x -> x ∈ keys(model_SBML.species) &&
                                         model_SBML.species[x].assignment_rule == false,
