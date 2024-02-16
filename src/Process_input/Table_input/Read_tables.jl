@@ -108,6 +108,7 @@ function check_petab_files(experimental_conditions::CSV.File, measurements_data,
     end
 
     # Check measurements_data
+
     columns_check = [
         "observableId",
         "simulationConditionId",
