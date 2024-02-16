@@ -267,6 +267,8 @@ function PEtabODEProblem(petab_model::PEtabModel;
 
     # Computing nllh along with the gradient is needed for efficient Bayesian
     # inference, as for example AdvancedHMC.jl needs both nllh and gradient
+    # Computing nllh along with the gradient is needed for efficient Bayesian
+    # inference, as for example AdvancedHMC.jl needs both nllh and gradient
     # in its evaluations.
     compute_nllh_and_gradient = create_nllh_gradient_function(_gradient_method,
                                                               compute_gradient_nllh,

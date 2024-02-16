@@ -318,8 +318,7 @@ function generate_startguesses(petab_problem::PEtabODEProblem,
             end
             _i = findfirst(x -> x == θ_name, θ_names)
             _lb, _ub = get_bounds_prior(θ_name, petab_problem)
-            _prior_samples = sample_from_prior(n_multistarts - found_starts, _dist, _lb,
-                                               _ub)
+            _prior_samples = _sample_prior(n_multistarts - found_starts, _dist, _lb, _ub)
             transform_prior_samples!(_prior_samples, θ_name, petab_problem)
             _samples[_i, :] .= _prior_samples
         end
@@ -355,7 +354,7 @@ function get_bounds_prior(θ_name::Symbol,
 
     # Here the prior is on the linear scale, while the bounds are on parameter
     # scale so they must be transformed
-    scale = petab_problem.compute_cost.parameter_info.parameter_scale[i]
+    scale = petab_problem.parameter_info.parameter_scale[i]
     lower_bound = transform_θ_element(lower_bounds[i], scale, reverse_transform = false)
     upper_bound = transform_θ_element(upper_bounds[i], scale, reverse_transform = false)
     return [lower_bound, upper_bound]
@@ -373,7 +372,7 @@ function transform_prior_samples!(samples::Vector{Float64},
     # Here the prior is on the linear scale, while the bounds are on parameter
     # so the prior samples are linear, thus they must be transformed back to
     # parmeter scale for the parameter estimation
-    scale = petab_problem.compute_cost.parameter_info.parameter_scale[i]
+    scale = petab_problem.parameter_info.parameter_scale[i]
     for i in eachindex(samples)
         samples[i] = transform_θ_element.(samples[i], scale, reverse_transform = true)
     end
@@ -382,22 +381,21 @@ function transform_prior_samples!(samples::Vector{Float64},
 end
 
 """
-    sample_from_prior(n_samples::Int64,
-                      dist::Distribution{Univariate, Continuous},
-                      lower_bound::Float64,
-                      upper_bound::Float64)::Vector{Float64}
+    _sample_prior(n_samples::Int64,
+                  dist::Distribution{Univariate, Continuous},
+                  lower_bound::Float64,
+                  upper_bound::Float64)::Vector{Float64}
 
 Draw `n_samples` from distribituion `dist` truncated at `lower_bound` and `upper_bound`.
 
 Used for generating start-guesses for calibration when the user has provided an git p.
 """
-function sample_from_prior(n_samples::Int64,
-                           dist::Distribution{Univariate, Continuous},
-                           lower_bound::Float64,
-                           upper_bound::Float64)::Vector{Float64}
+function _sample_prior(n_samples::Int64,
+                       dist::Distribution{Univariate, Continuous},
+                       lower_bound::Float64,
+                       upper_bound::Float64)::Vector{Float64}
     dist_sample = truncated(dist, lower = lower_bound, upper = upper_bound)
     samples = rand(dist_sample, n_samples)
-    println("samples = ", samples)
     return samples
 end
 
@@ -419,7 +417,7 @@ function save_partial_results(path_save_res::String,
     CSV.write(path_save_parameters, df_save_parameters,
               append = isfile(path_save_parameters))
 
-    if !isnothing(path_save_trace)
+    if !isnothing(path_save_trace) && !isnothing(res.ftrace) && !isempty(res.ftrace)
         df_save_trace = DataFrame(Matrix(reduce(vcat, res.xtrace')), θ_names)
         df_save_trace[!, "f_trace"] = res.ftrace
         df_save_trace[!, "Start_guess"] = repeat([i], length(res.ftrace))

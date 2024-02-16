@@ -22,6 +22,9 @@ function compute_gradient_autodiff!(gradient::Vector{Float64},
     # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough.
     # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final
     # retcode we cannot catch these cases
+    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough.
+    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final
+    # retcode we cannot catch these cases
     simulation_info.could_solve[1] = true
 
     # Case where based on the original PEtab file read into Julia we do not have any parameter vectors fixated.

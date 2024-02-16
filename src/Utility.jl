@@ -189,7 +189,6 @@ function _get_fitted_parameters(res::Union{PEtabOptimisationResult,
         _change_simulation_condition!(p, u0, _c_id, θ_dynamic, petab_model, θ_indices)
         _u0 = retmap ? Pair.(u0s, u0) : u0
         _p = retmap ? Pair.(ps, p) : p
-        println("ps = ", ps)
         ip = findall(x -> !occursin("__init__", x), string.(ps))
         return _u0, _p[ip]
     end

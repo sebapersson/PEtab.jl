@@ -279,9 +279,9 @@ end
 
 # Compute prior contribution to log-likelihood, note θ in on the parameter scale (e.g might be on log-scale)
 function compute_hessian_prior!(hessian::Matrix{Float64},
-                                θ::Vector{T},
+                                θ::Vector{<:Real},
                                 θ_indices::ParameterIndices,
-                                prior_info::PriorInfo)::Nothing where {T <: Real}
+                                prior_info::PriorInfo)::Nothing
     _evalPriors = (θ_est) -> begin
         θ_estT = transformθ(θ_est, θ_indices.θ_names, θ_indices)
         return -1.0 * compute_priors(θ_est, θ_estT, θ_indices.θ_names, prior_info) # We work with -loglik
