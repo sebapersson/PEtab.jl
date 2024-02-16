@@ -4,10 +4,6 @@ function compute_priors(θ_parameter_scale::Vector{T},
                         θ_linear_scale::Vector{T},
                         θ_names::Vector{Symbol},
                         prior_info::PriorInfo)::T where {T <: Real}
-    if prior_info.has_priors == false
-        return 0.0
-    end
-
     prior_value = 0.0
     for (θ_name, logpdf) in prior_info.logpdf
         iθ = findfirst(x -> x == θ_name, θ_names)
@@ -18,6 +14,5 @@ function compute_priors(θ_parameter_scale::Vector{T},
             prior_value += logpdf(θ_linear_scale[iθ])
         end
     end
-
     return prior_value
 end

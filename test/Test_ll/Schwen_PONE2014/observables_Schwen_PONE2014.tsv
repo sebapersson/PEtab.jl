@@ -1,0 +1,5 @@
+observableId	observableName	observableFormula	noiseFormula	observableTransformation	noiseDistribution
+observable_IR1		observableParameter2_observable_IR1 * (IR1 + IR1in + observableParameter1_observable_IR1)	noiseParameter1_observable_IR1	log10	normal
+observable_IR2		observableParameter2_observable_IR2 * (IR2 + IR2in + observableParameter1_observable_IR2)	noiseParameter1_observable_IR2	log10	normal
+observable_IRsum		observableParameter2_observable_IRsum * (0.605 * IR1 + 0.395 * IR2 + 0.605 * IR1in + 0.395 * IR2in + observableParameter1_observable_IRsum)	noiseParameter1_observable_IRsum	log10	normal
+observable_Insulin		observableParameter1_observable_Insulin + observableParameter2_observable_Insulin * (Ins + InsulinFragments * observableParameter3_observable_Insulin) / ((Ins + InsulinFragments * observableParameter3_observable_Insulin) / observableParameter4_observable_Insulin + 1)	noiseParameter1_observable_Insulin	log10	normal

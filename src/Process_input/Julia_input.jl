@@ -257,8 +257,8 @@ function parse_petab_measurements(petab_measurements::DataFrame,
                                   simulation_conditions,
                                   petab_parameters::Vector{PEtabParameter})::DataFrame
     allowed_names = ["time", "obs_id", "observable_id", "noise_parameters", "measurement",
-                     "simulation_id", "pre_equilibration_id", "pre_eq_id",
-                     "observable_parameters"]
+        "simulation_id", "pre_equilibration_id", "pre_eq_id",
+        "observable_parameters"]
     column_names = names(petab_measurements)
     for name in column_names
         if name ∈ allowed_names

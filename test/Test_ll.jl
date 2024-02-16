@@ -7,7 +7,7 @@
 using PEtab
 using Test
 using OrdinaryDiffEq
-using Zygote 
+using Zygote
 using SciMLSensitivity
 using CSV
 using ForwardDiff
@@ -56,7 +56,7 @@ function test_gradient_finite_differences(petab_model::PEtabModel, ode_solver;
                                      gradient_method=:ForwardDiff,
                                      split_over_conditions=split_over_conditions,
                                      ss_solver=ss_options,
-                                     verbose=false, 
+                                     verbose=false,
                                      sparse_jacobian=false)
     θ_use = petab_problem1.θ_nominalT
     gradient_finite = FiniteDifferences.grad(central_fdm(5, 1), petab_problem1.compute_cost, θ_use)[1]
@@ -68,7 +68,7 @@ function test_gradient_finite_differences(petab_model::PEtabModel, ode_solver;
         petab_problem1 = PEtabODEProblem(petab_model, ode_solver=ode_solver,
                                          gradient_method=:ForwardEquations, sensealg=:ForwardDiff,
                                          ss_solver=ss_options,
-                                         verbose=false, 
+                                         verbose=false,
                                          sparse_jacobian=false)
         gradient_forwardequations1 = zeros(length(θ_use))
         petab_problem1.compute_gradient!(gradient_forwardequations1, θ_use)
@@ -78,7 +78,7 @@ function test_gradient_finite_differences(petab_model::PEtabModel, ode_solver;
             petab_problem2 = PEtabODEProblem(petab_model, ode_solver=ode_solver, ode_solver_gradient=ode_solver_gradient,
                                              gradient_method=:ForwardEquations, sensealg=ForwardSensitivity(),
                                              ss_solver=ss_options,
-                                             verbose=false, 
+                                             verbose=false,
                                              sparse_jacobian=false)
             gradient_forwardequations2 = zeros(length(θ_use))
             petab_problem2.compute_gradient!(gradient_forwardequations2, θ_use)
@@ -91,7 +91,7 @@ function test_gradient_finite_differences(petab_model::PEtabModel, ode_solver;
                                              gradient_method=:Adjoint, sensealg=sensealg_adjoint, sensealg_ss=sensealg_ss,
                                              split_over_conditions=split_over_conditions,
                                              ss_solver=ss_options,
-                                             verbose=false, 
+                                             verbose=false,
                                              sparse_jacobian=false)
         gradient_adjoint = zeros(length(θ_use))
         petab_problem1.compute_gradient!(gradient_adjoint, θ_use)
@@ -135,7 +135,7 @@ test_loglikelihood(petab_model, -53.08377736998929, ODESolver(Rodas4P(), abstol=
 path_yaml = joinpath(@__DIR__, "Test_ll", "Isensee_JCB2018", "Isensee_JCB2018.yaml")
 petab_model = PEtabModel(path_yaml, verbose=true, build_julia_files=true)
 test_loglikelihood(petab_model, 3949.375966548649 + 4.45299970460275, ODESolver(Rodas4P(), abstol=1e-12, reltol=1e-12), check_Zygote=false)
-# Extrat test for nllh function as the model as a prior 
+# Extrat test for nllh function as the model as a prior
 petab_problem = PEtabODEProblem(petab_model; verbose=false)
 @test petab_problem.compute_nllh(petab_problem.θ_nominalT) ≈ 3949.375966548649 atol=1e-3
 
@@ -147,7 +147,13 @@ function test_Sneyd()
 end
 test_Sneyd()
 
-# Zheng - has SBML functions 
+# Zheng - has SBML functions
 path_yaml = joinpath(@__DIR__, "Test_ll", "Zheng_PNAS2012", "Zheng_PNAS2012.yaml")
 petab_model = PEtabModel(path_yaml, verbose=false, build_julia_files=true)
 test_loglikelihood(petab_model, -278.33353271001477, ODESolver(Rodas4P(), abstol=1e-12, reltol=1e-12))
+
+# Schwen - has priors and is of reasonable size
+path_yaml = joinpath(@__DIR__, "Test_ll", "Schwen_PONE2014", "Schwen_PONE2014.yaml")
+petab_model = PEtabModel(path_yaml, verbose=false, build_julia_files=true)
+test_loglikelihood(petab_model, 943.9992988598723+12.519137073132825, ODESolver(Rodas4P(), abstol=1e-12, reltol=1e-12), check_Zygote=false)
+test_gradient_finite_differences(petab_model, ODESolver(Rodas5(), abstol=1e-8, reltol=1e-8), only_check_autodiff=true, check_forward_equations=true)

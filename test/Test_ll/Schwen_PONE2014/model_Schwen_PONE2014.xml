@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sbml xmlns="http://www.sbml.org/sbml/level2/version4" level="2" version="4">
+  <model id="Schwen_PONE2014" name="Schwen_PONE2014">
+    <notes>
+      <body xmlns="http://www.w3.org/1999/xhtml">
+        <pre>PEtab implementation of the model from Schwen et al. (2015), PLoS One, 10, e0133653</pre>
+      </body>
+    </notes>
+    <annotation>
+      <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:vCard="http://www.w3.org/2001/vcard-rdf/3.0#" xmlns:bqbiol="http://biomodels.net/biology-qualifiers/" xmlns:bqmodel="http://biomodels.net/model-qualifiers/">
+        <rdf:Description rdf:about="#arFramework3">
+          <dc:creator>
+            <rdf:Bag>
+              <rdf:li rdf:parseType="Resource">
+                <vCard:N rdf:parseType="Resource">
+                  <vCard:Family>Schwen</vCard:Family>
+                  <vCard:Given>Lars Ole</vCard:Given>
+                </vCard:N>
+              </rdf:li>
+            </rdf:Bag>
+          </dc:creator>
+          <dcterms:created rdf:parseType="Resource">
+            <dcterms:W3CDTF>2019-11-29T09:41:48Z</dcterms:W3CDTF>
+          </dcterms:created>
+          <dcterms:modified rdf:parseType="Resource">
+            <dcterms:W3CDTF>2019-11-29T09:41:48Z</dcterms:W3CDTF>
+          </dcterms:modified>
+          <bqbiol:isDescribedBy>
+            <rdf:Bag>
+              <rdf:li rdf:resource="http://identifiers.org/doi/10.1371/journal.pone.0133653"/>
+            </rdf:Bag>
+          </bqbiol:isDescribedBy>
+        </rdf:Description>
+      </rdf:RDF>
+    </annotation>
+    <listOfUnitDefinitions>
+      <unitDefinition id="time" name="time">
+        <listOfUnits>
+          <unit kind="second" exponent="1" scale="0" multiplier="60"/>
+        </listOfUnits>
+      </unitDefinition>
+    </listOfUnitDefinitions>
+    <listOfCompartments>
+      <compartment id="ExtracellularMedium" spatialDimensions="3" size="1" constant="true"/>
+    </listOfCompartments>
+    <listOfSpecies>
+      <species id="Ins" name="Insulin" compartment="ExtracellularMedium" initialConcentration="0" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="Rec1" name="Receptors_low" compartment="ExtracellularMedium" initialConcentration="1" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="Rec2" name="Receptors_high" compartment="ExtracellularMedium" initialConcentration="1" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="IR1" name="IR_low" compartment="ExtracellularMedium" initialConcentration="0" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="IR2" name="IR_high" compartment="ExtracellularMedium" initialConcentration="0" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="IR1in" name="IR_low_internalized" compartment="ExtracellularMedium" initialConcentration="0" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="IR2in" name="IR_high_internalized" compartment="ExtracellularMedium" initialConcentration="0" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="Uptake1" name="Uptake1" compartment="ExtracellularMedium" initialConcentration="0" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="Uptake2" name="Uptake2" compartment="ExtracellularMedium" initialConcentration="0" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="InsulinFragments" name="InsulinFragments" compartment="ExtracellularMedium" initialConcentration="0" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="BoundUnspec" name="BoundUnspec" compartment="ExtracellularMedium" initialConcentration="0" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+    </listOfSpecies>
+    <listOfParameters>
+      <parameter id="ini_R1" value="47.2370172820096" constant="true"/>
+      <parameter id="init_Ins" value="0" constant="true"/>
+      <parameter id="ini_R2fold" value="16.457631927604" constant="true"/>
+      <parameter id="ka1" value="0.00937980436663883" constant="true"/>
+      <parameter id="ka2fold" value="2.0907692381484" constant="true"/>
+      <parameter id="kd1" value="6.72269169161034" constant="true"/>
+      <parameter id="kd2fold" value="9.61850107655493" constant="true"/>
+      <parameter id="kin" value="3.75654890101743" constant="true"/>
+      <parameter id="kin2" value="0.545304029714509" constant="true"/>
+      <parameter id="koff_unspec" value="9.6457882009227" constant="true"/>
+      <parameter id="kon_unspec" value="19.941427249128" constant="true"/>
+      <parameter id="kout" value="324.725838145278" constant="true"/>
+      <parameter id="kout2" value="0.0529079560976487" constant="true"/>
+      <parameter id="kout_frag" value="0.0100421669378689" constant="true"/>
+    </listOfParameters>
+    <listOfInitialAssignments>
+      <initialAssignment symbol="Rec1">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <ci> ini_R1 </ci>
+        </math>
+      </initialAssignment>
+      <initialAssignment symbol="Ins">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <ci> init_Ins </ci>
+        </math>
+      </initialAssignment>
+      <initialAssignment symbol="Rec2">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <times/>
+            <ci> ini_R1 </ci>
+            <ci> ini_R2fold </ci>
+          </apply>
+        </math>
+      </initialAssignment>
+    </listOfInitialAssignments>
+    <listOfReactions>
+      <reaction id="v1_ka1" name="ka1" reversible="false">
+        <listOfReactants>
+          <speciesReference species="Ins" stoichiometry="1"/>
+          <speciesReference species="Rec1" stoichiometry="1"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="IR1" stoichiometry="1"/>
+        </listOfProducts>
+        <kineticLaw>
+          <math xmlns="http://www.w3.org/1998/Math/MathML">
+            <apply>
+              <times/>
+              <ci> ExtracellularMedium </ci>
+              <ci> Ins </ci>
+              <ci> Rec1 </ci>
+              <ci> ka1 </ci>
+            </apply>
+          </math>
+        </kineticLaw>
+      </reaction>
+      <reaction id="v2_ka2fold" name="ka2fold" reversible="false">
+        <listOfReactants>
+          <speciesReference species="Ins" stoichiometry="1"/>
+          <speciesReference species="Rec2" stoichiometry="1"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="IR2" stoichiometry="1"/>
+        </listOfProducts>
+        <kineticLaw>
+          <math xmlns="http://www.w3.org/1998/Math/MathML">
+            <apply>
+              <times/>
+              <ci> ExtracellularMedium </ci>
+              <ci> Ins </ci>
+              <ci> Rec2 </ci>
+              <ci> ka1 </ci>
+              <ci> ka2fold </ci>
+            </apply>
+          </math>
+        </kineticLaw>
+      </reaction>
+      <reaction id="v3_v_2" name="v_2" reversible="false">
+        <listOfReactants>
+          <speciesReference species="Ins" stoichiometry="1"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="BoundUnspec" stoichiometry="1"/>
+        </listOfProducts>
+        <kineticLaw>
+          <math xmlns="http://www.w3.org/1998/Math/MathML">
+            <apply>
+              <times/>
+              <ci> ExtracellularMedium </ci>
+              <ci> Ins </ci>
+              <ci> kon_unspec </ci>
+            </apply>
+          </math>
+        </kineticLaw>
+      </reaction>
+      <reaction id="v4_v_3" name="v_3" reversible="false">
+        <listOfReactants>
+          <speciesReference species="BoundUnspec" stoichiometry="1"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="Ins" stoichiometry="1"/>
+        </listOfProducts>
+        <kineticLaw>
+          <math xmlns="http://www.w3.org/1998/Math/MathML">
+            <apply>
+              <times/>
+              <ci> ExtracellularMedium </ci>
+              <ci> BoundUnspec </ci>
+              <ci> koff_unspec </ci>
+            </apply>
+          </math>
+        </kineticLaw>
+      </reaction>
+      <reaction id="v5_kd1" name="kd1" reversible="false">
+        <listOfReactants>
+          <speciesReference species="IR1" stoichiometry="1"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="Ins" stoichiometry="1"/>
+          <speciesReference species="Rec1" stoichiometry="1"/>
+        </listOfProducts>
+        <kineticLaw>
+          <math xmlns="http://www.w3.org/1998/Math/MathML">
+            <apply>
+              <times/>
+              <ci> ExtracellularMedium </ci>
+              <ci> IR1 </ci>
+              <ci> kd1 </ci>
+            </apply>
+          </math>
+        </kineticLaw>
+      </reaction>
+      <reaction id="v6_kd2fold" name="kd2fold" reversible="false">
+        <listOfReactants>
+          <speciesReference species="IR2" stoichiometry="1"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="Ins" stoichiometry="1"/>
+          <speciesReference species="Rec2" stoichiometry="1"/>
+        </listOfProducts>
+        <kineticLaw>
+          <math xmlns="http://www.w3.org/1998/Math/MathML">
+            <apply>
+              <times/>
+              <ci> ExtracellularMedium </ci>
+              <ci> IR2 </ci>
+              <ci> kd1 </ci>
+              <ci> kd2fold </ci>
+            </apply>
+          </math>
+        </kineticLaw>
+      </reaction>
+      <reaction id="v7_v_6" name="v_6" reversible="false">
+        <listOfReactants>
+          <speciesReference species="IR1" stoichiometry="1"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="IR1in" stoichiometry="1"/>
+        </listOfProducts>
+        <kineticLaw>
+          <math xmlns="http://www.w3.org/1998/Math/MathML">
+            <apply>
+              <times/>
+              <ci> ExtracellularMedium </ci>
+              <ci> IR1 </ci>
+              <ci> kin </ci>
+            </apply>
+          </math>
+        </kineticLaw>
+      </reaction>
+      <reaction id="v8_v_7" name="v_7" reversible="false">
+        <listOfReactants>
+          <speciesReference species="IR2" stoichiometry="1"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="IR2in" stoichiometry="1"/>
+        </listOfProducts>
+        <kineticLaw>
+          <math xmlns="http://www.w3.org/1998/Math/MathML">
+            <apply>
+              <times/>
+              <ci> ExtracellularMedium </ci>
+              <ci> IR2 </ci>
+              <ci> kin2 </ci>
+            </apply>
+          </math>
+        </kineticLaw>
+      </reaction>
+      <reaction id="v9_v_8" name="v_8" reversible="false">
+        <listOfReactants>
+          <speciesReference species="IR1in" stoichiometry="1"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="IR1" stoichiometry="1"/>
+        </listOfProducts>
+        <kineticLaw>
+          <math xmlns="http://www.w3.org/1998/Math/MathML">
+            <apply>
+              <times/>
+              <ci> ExtracellularMedium </ci>
+              <ci> IR1in </ci>
+              <ci> kout </ci>
+            </apply>
+          </math>
+        </kineticLaw>
+      </reaction>
+      <reaction id="v10_v_9" name="v_9" reversible="false">
+        <listOfReactants>
+          <speciesReference species="IR2in" stoichiometry="1"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="IR2" stoichiometry="1"/>
+        </listOfProducts>
+        <kineticLaw>
+          <math xmlns="http://www.w3.org/1998/Math/MathML">
+            <apply>
+              <times/>
+              <ci> ExtracellularMedium </ci>
+              <ci> IR2in </ci>
+              <ci> kout2 </ci>
+            </apply>
+          </math>
+        </kineticLaw>
+      </reaction>
+      <reaction id="v11_v_10" name="v_10" reversible="false">
+        <listOfReactants>
+          <speciesReference species="IR1in" stoichiometry="1"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="Rec1" stoichiometry="1"/>
+          <speciesReference species="InsulinFragments" stoichiometry="1"/>
+        </listOfProducts>
+        <kineticLaw>
+          <math xmlns="http://www.w3.org/1998/Math/MathML">
+            <apply>
+              <times/>
+              <ci> ExtracellularMedium </ci>
+              <ci> IR1in </ci>
+              <ci> kout_frag </ci>
+            </apply>
+          </math>
+        </kineticLaw>
+      </reaction>
+      <reaction id="v12_v_11" name="v_11" reversible="false">
+        <listOfReactants>
+          <speciesReference species="IR2in" stoichiometry="1"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="Rec2" stoichiometry="1"/>
+          <speciesReference species="InsulinFragments" stoichiometry="1"/>
+        </listOfProducts>
+        <kineticLaw>
+          <math xmlns="http://www.w3.org/1998/Math/MathML">
+            <apply>
+              <times/>
+              <ci> ExtracellularMedium </ci>
+              <ci> IR2in </ci>
+              <ci> kout_frag </ci>
+            </apply>
+          </math>
+        </kineticLaw>
+      </reaction>
+      <reaction id="v13_v_12" name="v_12" reversible="false">
+        <listOfProducts>
+          <speciesReference species="Uptake1" stoichiometry="1"/>
+        </listOfProducts>
+        <listOfModifiers>
+          <modifierSpeciesReference species="IR1"/>
+          <modifierSpeciesReference species="Ins"/>
+          <modifierSpeciesReference species="Rec1"/>
+        </listOfModifiers>
+        <kineticLaw>
+          <math xmlns="http://www.w3.org/1998/Math/MathML">
+            <apply>
+              <times/>
+              <ci> ExtracellularMedium </ci>
+              <apply>
+                <minus/>
+                <apply>
+                  <times/>
+                  <ci> Ins </ci>
+                  <ci> Rec1 </ci>
+                  <ci> ka1 </ci>
+                </apply>
+                <apply>
+                  <times/>
+                  <ci> IR1 </ci>
+                  <ci> kd1 </ci>
+                </apply>
+              </apply>
+            </apply>
+          </math>
+        </kineticLaw>
+      </reaction>
+      <reaction id="v14_v_13" name="v_13" reversible="false">
+        <listOfProducts>
+          <speciesReference species="Uptake2" stoichiometry="1"/>
+        </listOfProducts>
+        <listOfModifiers>
+          <modifierSpeciesReference species="IR2"/>
+          <modifierSpeciesReference species="Ins"/>
+          <modifierSpeciesReference species="Rec2"/>
+        </listOfModifiers>
+        <kineticLaw>
+          <math xmlns="http://www.w3.org/1998/Math/MathML">
+            <apply>
+              <times/>
+              <ci> ExtracellularMedium </ci>
+              <apply>
+                <minus/>
+                <apply>
+                  <times/>
+                  <ci> Ins </ci>
+                  <ci> Rec2 </ci>
+                  <ci> ka1 </ci>
+                  <ci> ka2fold </ci>
+                </apply>
+                <apply>
+                  <times/>
+                  <ci> IR2 </ci>
+                  <ci> kd1 </ci>
+                  <ci> kd2fold </ci>
+                </apply>
+              </apply>
+            </apply>
+          </math>
+        </kineticLaw>
+      </reaction>
+    </listOfReactions>
+  </model>
+</sbml>

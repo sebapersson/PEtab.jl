@@ -64,7 +64,7 @@ function create_derivative_σ_h_file(model_name::String,
                                         parameter_map, state_map, experimental_conditions)
 
     # Dummary variables to keep PEtab importer happy even as we are not providing any PEtab files
-    model_SBML = SBMLImporter.ModelSBML()
+    model_SBML = SBMLImporter.ModelSBML("")
 
     ∂h∂u_str, ∂h∂p_str = PEtab.create∂h∂_function(model_name, @__DIR__, model_state_names,
                                                   parameter_info, p_ode_problem_names,

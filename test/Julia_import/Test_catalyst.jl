@@ -1,13 +1,15 @@
 using Test
 using Distributions
-using PEtab 
+using PEtab
 using CSV
 using DataFrames
 using ModelingToolkit
 using Catalyst
+using LinearAlgebra
+using ForwardDiff
 
-# Case 5 and 12 rely on SBML features and have no direct correspondence to 
-# ODESystem or Catalyst 
+# Case 5 and 12 rely on SBML features and have no direct correspondence to
+# ODESystem or Catalyst
 @testset "Catalyst integration" begin
     include(joinpath(@__DIR__, "Case001.jl"))
     include(joinpath(@__DIR__, "Case002.jl"))
