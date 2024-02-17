@@ -66,7 +66,7 @@ end
                    clustering_function = objective_value_clustering)
 
     # Checks if any values were recorded.
-    if isempty(res_ms.runs[1].ftrace)
+    if plot_type in [:objective, :best_objective] && isempty(res_ms.runs[1].ftrace)
         error("No function evaluations where recorded in the calibration run, was save_trace=true?")
     end
 
