@@ -236,18 +236,18 @@ end
 # TODO : Add interface for SteadyStateAdjoint
 function compute_VJP_ss(du::AbstractVector,
                         _sol::ODESolution,
-                        odeSolver::SciMLAlgorithm,
+                        solver::SciMLAlgorithm,
                         sensealg::QuadratureAdjoint,
                         reltol::Float64,
                         abstol::Float64,
                         dtmin::Union{Float64, Nothing},
                         force_dtmin::Bool,
                         maxiters::Int64)::AbstractVector
-    adj_prob, rcb = ODEAdjointProblem(_sol, sensealg, odeSolver, [_sol.t[end]],
+    adj_prob, rcb = ODEAdjointProblem(_sol, sensealg, solver, [_sol.t[end]],
                                       compute_∂g∂u_empty, nothing,
                                       nothing, nothing, nothing, Val(true))
     adj_prob.u0 .= du
-    adj_sol = solve(adj_prob, odeSolver; abstol = abstol, reltol = reltol,
+    adj_sol = solve(adj_prob, solver; abstol = abstol, reltol = reltol,
                     force_dtmin = force_dtmin, maxiters = maxiters,
                     save_everystep = true, save_start = true)
     integrand = AdjointSensitivityIntegrand(_sol, adj_sol, sensealg, nothing)
@@ -257,7 +257,7 @@ function compute_VJP_ss(du::AbstractVector,
 end
 function compute_VJP_ss(du::AbstractVector,
                         _sol::ODESolution,
-                        odeSolver::SciMLAlgorithm,
+                        solver::SciMLAlgorithm,
                         sensealg::InterpolatingAdjoint,
                         reltol::Float64,
                         abstol::Float64,
@@ -265,13 +265,13 @@ function compute_VJP_ss(du::AbstractVector,
                         force_dtmin::Bool,
                         maxiters::Int64)::AbstractVector
     n_model_states = length(_sol.prob.u0)
-    adj_prob, rcb = ODEAdjointProblem(_sol, sensealg, odeSolver, [_sol.t[end]],
+    adj_prob, rcb = ODEAdjointProblem(_sol, sensealg, solver, [_sol.t[end]],
                                       compute_∂g∂u_empty, nothing,
                                       nothing, nothing, nothing, Val(true))
 
     adj_prob.u0[1:n_model_states] .= du[1:n_model_states]
 
-    adj_sol = solve(adj_prob, odeSolver; abstol = abstol, reltol = reltol,
+    adj_sol = solve(adj_prob, solver; abstol = abstol, reltol = reltol,
                     force_dtmin = force_dtmin, maxiters = maxiters,
                     save_everystep = true, save_start = true)
     out = adj_sol[end][(n_model_states + 1):end]
@@ -342,9 +342,8 @@ function compute_gradient_adjoint_condition!(gradient::Vector{Float64},
     dp = petab_ODE_cache.dp
     if !(length(time_observed) == 1 && time_observed[1] == 0.0)
         status = __adjoint_sensitivities!(du, dp, sol, sensealg, time_observed, solver,
-                                          abstol, reltol,
-                                          force_dtmin, dtmin, maxiters, callback,
-                                          compute∂G∂u!)
+                                          abstol, reltol, callback, compute∂G∂u!;
+                                          maxiters = maxiters, force_dtmin = force_dtmin)
         status == false && return false
     else
         compute∂G∂u!(du, sol[1], sol.prob.p, 0.0, 1)
@@ -395,35 +394,23 @@ function __adjoint_sensitivities!(_du::AbstractVector,
                                   sol::ODESolution,
                                   sensealg::InterpolatingAdjoint,
                                   t::Vector{Float64},
-                                  odeSolver::SciMLAlgorithm,
+                                  solver::SciMLAlgorithm,
                                   abstol::Float64,
                                   reltol::Float64,
-                                  force_dtmin::Bool,
-                                  dtmin::Union{Float64, Nothing},
-                                  maxiters::Int64,
                                   callback::SciMLBase.DECallback,
-                                  compute_∂G∂u::F)::Bool where {F}
+                                  compute_∂G∂u::F;
+                                  kwargs...)::Bool where {F}
     rcb = nothing
-    adjProb, rcb = ODEAdjointProblem(sol, sensealg, odeSolver, t,
-                                     compute_∂G∂u, nothing, nothing, nothing, nothing,
-                                     Val(true);
-                                     abstol = abstol, reltol = reltol, callback = callback)
+    adj_prob, rcb = ODEAdjointProblem(sol, sensealg, solver, t, compute_∂G∂u,
+                                      nothing, nothing, nothing, nothing, Val(true);
+                                      abstol = abstol, reltol = reltol, callback = callback)
 
     tstops = SciMLSensitivity.ischeckpointing(sensealg, sol) ? checkpoints :
              similar(sol.t, 0)
-    if isnothing(dtmin)
-        adj_sol = solve(adjProb, odeSolver; abstol = abstol, reltol = reltol,
-                        force_dtmin = force_dtmin, maxiters = maxiters,
-                        save_everystep = false, save_start = false,
-                        saveat = eltype(sol[1])[],
-                        tstops = tstops)
-    else
-        adj_sol = solve(adjProb, odeSolver; abstol = abstol, reltol = reltol,
-                        force_dtmin = force_dtmin, maxiters = maxiters,
-                        save_everystep = false, save_start = false,
-                        saveat = eltype(sol[1])[],
-                        tstops = tstops, dtmin = dtmin)
-    end
+    adj_sol = solve(adj_prob, solver; save_everystep = false, save_start = false,
+                    saveat = eltype(sol.u[1])[], tstops = tstops, abstol = abstol,
+                    reltol = reltol)
+
     if adj_sol.retcode != ReturnCode.Success
         _du .= 0.0
         _dp .= 0.0
@@ -432,14 +419,14 @@ function __adjoint_sensitivities!(_du::AbstractVector,
 
     p = sol.prob.p
     l = p === nothing || p === DiffEqBase.NullParameters() ? 0 : length(sol.prob.p)
-    du0 = adj_sol[end][1:length(sol.prob.u0)]
+    du0 = adj_sol.u[end][1:length(sol.prob.u0)]
 
-    if eltype(sol.prob.p) <: real(eltype(adj_sol[end]))
-        dp = real.(adj_sol[end][(1:l) .+ length(sol.prob.u0)])'
+    if eltype(sol.prob.p) <: real(eltype(adj_sol.u[end]))
+        dp = real.(adj_sol.u[end][(1:l) .+ length(sol.prob.u0)])'
     elseif p === nothing || p === DiffEqBase.NullParameters()
         dp = nothing
     else
-        dp = adj_sol[end][(1:l) .+ length(sol.prob.u0)]'
+        dp = adj_sol.u[end][(1:l) .+ length(sol.prob.u0)]'
     end
 
     if rcb !== nothing && !isempty(rcb.Δλas)
@@ -466,26 +453,16 @@ function __adjoint_sensitivities!(_du::AbstractVector,
                                   sol::ODESolution,
                                   sensealg::QuadratureAdjoint,
                                   t::Vector{Float64},
-                                  odeSolver::SciMLAlgorithm,
+                                  solver::SciMLAlgorithm,
                                   abstol::Float64,
                                   reltol::Float64,
-                                  force_dtmin::Bool,
-                                  dtmin::Union{Float64, Nothing},
-                                  maxiters::Int64,
                                   callback::SciMLBase.DECallback,
-                                  compute_∂G∂u::F)::Bool where {F}
-    adj_prob, rcb = ODEAdjointProblem(sol, sensealg, odeSolver, t, compute_∂G∂u, nothing,
-                                      nothing, nothing, nothing, Val(true);
-                                      callback)
-    if isnothing(dtmin)
-        adj_sol = solve(adj_prob, odeSolver; abstol = abstol, reltol = reltol,
-                        force_dtmin = force_dtmin, maxiters = maxiters,
-                        save_everystep = true, save_start = true)
-    else
-        adj_sol = solve(adj_prob, odeSolver; abstol = abstol, reltol = reltol,
-                        force_dtmin = force_dtmin, maxiters = maxiters,
-                        save_everystep = true, save_start = true, dtmin = dtmin)
-    end
+                                  compute_∂G∂u::F;
+                                  kwargs...)::Bool where {F}
+    adj_prob, rcb = ODEAdjointProblem(sol, sensealg, solver, t, compute_∂G∂u, nothing,
+                                      nothing, nothing, nothing, Val(true); callback)
+    adj_sol = solve(adj_prob, solver; abstol = abstol, reltol = reltol,
+                    save_everystep = true, save_start = true, kwargs...)
 
     if adj_sol.retcode != ReturnCode.Success
         _du .= 0.0
@@ -496,7 +473,7 @@ function __adjoint_sensitivities!(_du::AbstractVector,
     p = sol.prob.p
     if p === nothing || p === DiffEqBase.NullParameters()
         _du .= adj_sol[end]
-        return true
+        _dp .= 0.0
     else
         integrand = AdjointSensitivityIntegrand(sol, adj_sol, sensealg, nothing)
         if t === nothing
@@ -528,17 +505,19 @@ function __adjoint_sensitivities!(_du::AbstractVector,
             end
 
             for i in (length(t) - 1):-1:1
-                res .+= SciMLSensitivity.quadgk(integrand, t[i], t[i + 1],
-                                                atol = abstol, rtol = reltol)[1]
+                if ArrayInterface.ismutable(res)
+                    res .+= SciMLSensitivity.quadgk(integrand, t[i], t[i + 1],
+                                                    atol = abstol, rtol = reltol)[1]
+                else
+                    res += SciMLSensitivity.quadgk(integrand, t[i], t[i + 1],
+                                                   atol = abstol, rtol = reltol)[1]
+                end
                 if t[i] == t[i + 1]
-                    integrand = SciMLSensitivity.update_integrand_and_dgrad(res, sensealg,
-                                                                            callback,
-                                                                            integrand,
-                                                                            adj_prob, sol,
-                                                                            compute_∂G∂u,
-                                                                            nothing, dλ,
-                                                                            dgrad, t[i],
-                                                                            cur_time)
+                    integrand = update_integrand_and_dgrad(res, sensealg, callback,
+                                                           integrand,
+                                                           adj_prob, sol, compute_∂G∂u,
+                                                           nothing, dλ, dgrad, t[i],
+                                                           cur_time)
                 end
                 (callback !== nothing || dgdp_discrete !== nothing) &&
                     (cur_time -= one(cur_time))
@@ -549,23 +528,79 @@ function __adjoint_sensitivities!(_du::AbstractVector,
                                                 atol = abstol, rtol = reltol)[1]
             end
         end
+        if rcb !== nothing && !isempty(rcb.Δλas)
+            iλ = zero(rcb.λ)
+            out = zero(res')
+            yy = similar(rcb.y)
+            for (Δλa, tt) in rcb.Δλas
+                @unpack algevar_idxs = rcb.diffcache
+                iλ[algevar_idxs] .= Δλa
+                sol(yy, tt)
+                vec_pjac!(out, iλ, yy, tt, integrand)
+                res .+= out'
+                iλ .= zero(eltype(iλ))
+            end
+        end
     end
+
+    _du .= adj_sol[end]
+    _dp .= res'
+    return true
+end
+function __adjoint_sensitivities!(_du::AbstractVector,
+                                  _dp::AbstractVector,
+                                  sol::ODESolution,
+                                  sensealg::GaussAdjoint,
+                                  t::Vector{Float64},
+                                  solver::SciMLAlgorithm,
+                                  abstol::Float64,
+                                  reltol::Float64,
+                                  callback::SciMLBase.DECallback,
+                                  compute_∂G∂u::F;
+                                  kwargs...)::Bool where {F}
+    checkpoints = sol.t
+    integrand = SciMLSensitivity.GaussIntegrand(sol, sensealg, checkpoints, nothing)
+    integrand_values = DiffEqCallbacks.IntegrandValuesSum(SciMLSensitivity.allocate_zeros(sol.prob.p))
+    cb = DiffEqCallbacks.IntegratingSumCallback((out, u, t, integrator) -> integrand(out, t,
+                                                                                     u),
+                                                integrand_values,
+                                                SciMLSensitivity.allocate_vjp(sol.prob.p))
+    rcb = nothing
+    cb2 = nothing
+    adj_prob = nothing
+
+    adj_prob, cb2, rcb = ODEAdjointProblem(sol, sensealg, solver, integrand, t,
+                                           compute_∂G∂u,
+                                           nothing, nothing, nothing, nothing, Val(true);
+                                           checkpoints = checkpoints,
+                                           callback = callback, abstol = abstol,
+                                           reltol = reltol)
+
+    tstops = SciMLSensitivity.ischeckpointing(sensealg, sol) ? checkpoints :
+             similar(sol.t, 0)
+
+    adj_sol = solve(adj_prob, solver; abstol = abstol, reltol = reltol,
+                    save_everystep = false,
+                    save_start = false, save_end = true, saveat = eltype(sol.u[1])[],
+                    tstops = tstops,
+                    callback = CallbackSet(cb, cb2), kwargs...)
+    res = integrand_values.integrand
 
     if rcb !== nothing && !isempty(rcb.Δλas)
         iλ = zero(rcb.λ)
-        out = zero(res')
+        out = zero(res)
         yy = similar(rcb.y)
         for (Δλa, tt) in rcb.Δλas
             @unpack algevar_idxs = rcb.diffcache
             iλ[algevar_idxs] .= Δλa
             sol(yy, tt)
             vec_pjac!(out, iλ, yy, tt, integrand)
-            res .+= out'
+            res .+= out
             iλ .= zero(eltype(iλ))
         end
     end
 
     _du .= adj_sol[end]
-    _dp .= res'
+    _dp .= SciMLSensitivity.__maybe_adjoint(res)'
     return true
 end

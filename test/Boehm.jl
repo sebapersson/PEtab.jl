@@ -43,8 +43,10 @@ function compare_Boehm_pyPESTO(petab_model::PEtabModel, ode_solver::ODESolver)
         @test norm(gradient_forwarddiff - reference_gradient) ≤ 1e-2
         gradient_zygote = _test_cost_gradient_hessian(petab_model, ode_solver, p, compute_gradient=true, gradient_method=:Zygote, sensealg=ForwardDiffSensitivity())
         @test norm(gradient_zygote - reference_gradient) ≤ 1e-2
-        gradient_adjoint = _test_cost_gradient_hessian(petab_model, ode_solver, p, compute_gradient=true, gradient_method=:Adjoint, sensealg=InterpolatingAdjoint(autojacvec=ReverseDiffVJP(false)))
+        gradient_adjoint = _test_cost_gradient_hessian(petab_model, ode_solver, p, compute_gradient=true, gradient_method=:Adjoint, sensealg=InterpolatingAdjoint(autojacvec=ReverseDiffVJP(true)))
         @test norm(normalize(gradient_adjoint) - normalize((reference_gradient))) ≤ 1e-2
+        gradient_adjoint_gauss = _test_cost_gradient_hessian(petab_model, ode_solver, p, compute_gradient=true, gradient_method=:Adjoint, sensealg=GaussAdjoint(autojacvec=ReverseDiffVJP(true)))
+        @test norm(normalize(gradient_adjoint_gauss) - normalize((reference_gradient))) ≤ 1e-2
         gradient_forward1 = _test_cost_gradient_hessian(petab_model, ode_solver, p, compute_gradient=true, gradient_method=:ForwardEquations, sensealg=:ForwardDiff)
         @test norm(gradient_forward1 - reference_gradient) ≤ 1e-2
         gradient_forward2 = _test_cost_gradient_hessian(petab_model, ODESolver(CVODE_BDF(), abstol=1e-9, reltol=1e-9), p, compute_gradient=true, gradient_method=:ForwardEquations, sensealg=ForwardSensitivity())

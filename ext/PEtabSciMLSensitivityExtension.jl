@@ -11,6 +11,7 @@ using ReverseDiff
 using Zygote
 using SciMLSensitivity
 using PEtab
+import ArrayInterface
 
 include(joinpath(@__DIR__, "PEtabSciMLSensitivityExtension", "Common.jl"))
 include(joinpath(@__DIR__, "PEtabSciMLSensitivityExtension", "Adjoint.jl"))
