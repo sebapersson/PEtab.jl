@@ -10,7 +10,8 @@ function PEtab.create_gradient_function(which_method::Symbol,
                                         measurement_info::PEtab.MeasurementsInfo,
                                         parameter_info::PEtab.ParametersInfo,
                                         sensealg::Union{InterpolatingAdjoint,
-                                                        QuadratureAdjoint},
+                                                        QuadratureAdjoint,
+                                                        GaussAdjoint},
                                         prior_info::PEtab.PriorInfo;
                                         chunksize::Union{Nothing, Int64} = nothing,
                                         sensealg_ss = nothing,
@@ -85,7 +86,8 @@ end
 
 function PEtab.set_sensealg(sensealg, ::Val{:Adjoint})
     if !isnothing(sensealg)
-        @assert any(typeof(sensealg) .<: [InterpolatingAdjoint, QuadratureAdjoint]) "For gradient method :Adjoint allowed sensealg args are InterpolatingAdjoint, QuadratureAdjoint not $sensealg"
+        @assert any(typeof(sensealg) .<:
+                    [InterpolatingAdjoint, QuadratureAdjoint, GaussAdjoint]) "For gradient method :Adjoint allowed sensealg args are InterpolatingAdjoint, GaussAdjoint, QuadratureAdjoint not $sensealg"
         return sensealg
     end
 
@@ -99,7 +101,8 @@ end
 function PEtab.get_callbackset(ode_problem::ODEProblem,
                                simulation_info::PEtab.SimulationInfo,
                                simulation_condition_id::Symbol,
-                               sensealg::Union{InterpolatingAdjoint, QuadratureAdjoint})::SciMLBase.DECallback
+                               sensealg::Union{InterpolatingAdjoint, QuadratureAdjoint,
+                                               GaussAdjoint})::SciMLBase.DECallback
     cbset = SciMLSensitivity.track_callbacks(simulation_info.callbacks[simulation_condition_id],
                                              ode_problem.tspan[1],
                                              ode_problem.u0, ode_problem.p, sensealg)

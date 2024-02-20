@@ -1,9 +1,10 @@
 name = "PEtab"
 uuid = "48d54b35-e43e-4a66-a5a1-dde6b987cf69"
 authors = ["Viktor Hasselgren", "Sebastian Persson", "Rafael Arutjunjan", "Damiano Ognissanti"]
-version = "2.10.6"
+version = "2.11.0"
 
 [deps]
+ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 Catalyst = "479239e8-5488-4da2-87a7-35f2df7eef83"
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
@@ -49,6 +50,7 @@ PEtabSelectExtension = ["PyCall"]
 
 [compat]
 Aqua = "0.8"
+ArrayInterface = "7.7"
 CSV = "0.10"
 Catalyst = "13"
 ChainRulesCore = "1"
@@ -77,7 +79,7 @@ RuntimeGeneratedFunctions = "0.5"
 SBMLImporter = "1.0.2"
 SafeTestsets = "0.1"
 SciMLBase = "2"
-SciMLSensitivity = "7"
+SciMLSensitivity = "7.55"
 StatsBase = "0.34"
 SteadyStateDiffEq = "2"
 Sundials = "4"
