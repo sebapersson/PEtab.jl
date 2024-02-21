@@ -16,21 +16,32 @@ More information about the available options and solvers can be found in the doc
 """
 mutable struct ODESolver
     solver::SciMLAlgorithm
+    solver_adj::SciMLAlgorithm
     abstol::Float64
     reltol::Float64
+    abstol_adj::Float64
+    reltol_adj::Float64
     force_dtmin::Bool
     dtmin::Union{Float64, Nothing}
     maxiters::Int64
     verbose::Bool
 end
-function ODESolver(solver::T1;
+function ODESolver(solver::SciMLAlgorithm;
                    abstol::Float64 = 1e-8,
                    reltol::Float64 = 1e-8,
+                   solver_adj::Union{Nothing, SciMLAlgorithm} = nothing,
+                   abstol_adj::Union{Nothing, Float64} = nothing,
+                   reltol_adj::Union{Nothing, Float64} = nothing,
                    force_dtmin::Bool = false,
                    dtmin::Union{Float64, Nothing} = nothing,
                    maxiters::Int64 = Int64(1e4),
-                   verbose::Bool = true) where {T1 <: SciMLAlgorithm}
-    return ODESolver(solver, abstol, reltol, force_dtmin, dtmin, maxiters, verbose)
+                   verbose::Bool = true)
+    _solver_adj = isnothing(solver_adj) ? solver : solver_adj
+    _abstol_adj = isnothing(abstol_adj) ? abstol : abstol_adj
+    _reltol_adj = isnothing(reltol_adj) ? reltol : reltol_adj
+
+    return ODESolver(solver, _solver_adj, abstol, reltol, _abstol_adj, _reltol_adj,
+                     force_dtmin, dtmin, maxiters, verbose)
 end
 
 """
