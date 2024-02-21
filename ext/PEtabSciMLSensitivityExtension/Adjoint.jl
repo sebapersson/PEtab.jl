@@ -325,12 +325,7 @@ function compute_gradient_adjoint_condition!(gradient::Vector{Float64},
                           petab_ODE_cache.∂h∂p, petab_ODE_cache.∂σ∂p, compute∂G∂U = false)
     end
 
-    solver, abstol, reltol, force_dtmin, dtmin, maxiters = ode_solver.solver,
-                                                           ode_solver.abstol,
-                                                           ode_solver.reltol,
-                                                           ode_solver.force_dtmin,
-                                                           ode_solver.dtmin,
-                                                           ode_solver.maxiters
+    @unpack solver_adj, abstol_adj, reltol_adj, maxiters, force_dtmin = ode_solver
 
     # The standard allow cases where we only observe data at t0, that is we do not solve the ODE. Here adjoint_sensitivities fails (naturally). In this case we compute the gradient
     # via ∇G_p = dp + du*J(u(t_0)) where du is the cost function differentiated with respect to the states at time zero,
@@ -341,8 +336,8 @@ function compute_gradient_adjoint_condition!(gradient::Vector{Float64},
     du = petab_ODE_cache.du
     dp = petab_ODE_cache.dp
     if !(length(time_observed) == 1 && time_observed[1] == 0.0)
-        status = __adjoint_sensitivities!(du, dp, sol, sensealg, time_observed, solver,
-                                          abstol, reltol, callback, compute∂G∂u!;
+        status = __adjoint_sensitivities!(du, dp, sol, sensealg, time_observed, solver_adj,
+                                          abstol_adj, reltol_adj, callback, compute∂G∂u!;
                                           maxiters = maxiters, force_dtmin = force_dtmin)
         status == false && return false
     else
@@ -380,8 +375,7 @@ function compute_gradient_adjoint_condition!(gradient::Vector{Float64},
         @views _gradient .= dp .+ eval_VJP_ss(du)
     end
 
-    # Thus far have have computed dY/dθ, but for parameters on the log-scale we want dY/dθ_log. We can adjust via;
-    # dY/dθ_log = log(10) * θ * dY/dθ
+    # Thus far have have computed dY/dθ, but for parameters on the log-scale we want dY/dθ_log.
     PEtab.adjust_gradient_θ_transformed!(gradient, _gradient, ∂G∂p, θ_dynamic, θ_indices,
                                          simulation_condition_id, adjoint = true)
     return true
