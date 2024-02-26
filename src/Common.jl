@@ -13,15 +13,15 @@ function set_parameters_to_file_values!(parameter_map, state_map,
                                         parameters_info::ParametersInfo)::Nothing
     parameter_names = string.(parameters_info.parameter_id)
     parameter_names_str = string.([parameter_map[i].first for i in eachindex(parameter_map)])
-    state_namesStr = replace.(string.([state_map[i].first for i in eachindex(state_map)]),
-                              "(t)" => "")
+    state_names_str = replace.(string.([state_map[i].first for i in eachindex(state_map)]),
+                               "(t)" => "")
     for i in eachindex(parameter_names)
         parameter_name = parameter_names[i]
         valChangeTo = parameters_info.nominal_value[i]
 
         # Check for value to change to in parameter file
         i_param = findfirst(x -> x == parameter_name, parameter_names_str)
-        i_state = findfirst(x -> x == parameter_name, state_namesStr)
+        i_state = findfirst(x -> x == parameter_name, state_names_str)
 
         if !isnothing(i_param)
             parameter_map[i_param] = Pair(parameter_map[i_param].first, valChangeTo)

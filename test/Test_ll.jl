@@ -157,3 +157,10 @@ path_yaml = joinpath(@__DIR__, "Test_ll", "Schwen_PONE2014", "Schwen_PONE2014.ya
 petab_model = PEtabModel(path_yaml, verbose=false, build_julia_files=true)
 test_loglikelihood(petab_model, 943.9992988598723+12.519137073132825, ODESolver(Rodas4P(), abstol=1e-12, reltol=1e-12), check_Zygote=false)
 test_gradient_finite_differences(petab_model, ODESolver(Rodas5(), abstol=1e-8, reltol=1e-8), only_check_autodiff=true, check_forward_equations=true)
+
+# Smith - large and tricky model to import in SBML
+path_yaml = joinpath(@__DIR__, "Test_ll", "Smith_BMCSystBiol2013", "Smith_BMCSystBiol2013.yaml")
+petab_model = PEtabModel(path_yaml, verbose=false, build_julia_files=true, write_to_file=true)
+petab_problem = PEtabODEProblem(petab_model, ode_solver=ODESolver(CVODE_BDF(), abstol=1e-10, reltol=1e-10))
+cost = petab_problem.compute_cost(petab_problem.θ_nominalT)
+@test cost ≈ 343830.6310470444 atol=1e-1

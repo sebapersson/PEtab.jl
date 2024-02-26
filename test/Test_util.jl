@@ -30,7 +30,7 @@ using DataFrames
     @unpack u0, p = petab_problem.simulation_info.ode_sols[c_id].prob
     u0_test = get_u0(res, petab_problem; retmap=false)
     p_test = get_ps(res, petab_problem; retmap=false)
-    odeprob, _, _ = get_odeproblem(res, petab_problem)    
+    odeprob, _, _ = get_odeproblem(res, petab_problem)
     sol = get_odesol(res, petab_problem)
     @test all(u0_test .== u0)
     @test all(p_test == p)
@@ -42,8 +42,8 @@ using DataFrames
     # Beer model
     path_yaml = joinpath(@__DIR__, "Test_ll", "Beer_MolBioSystems2014", "Beer_MolBioSystems2014.yaml")
     petab_model = PEtabModel(path_yaml, verbose=false, build_julia_files=true)
-    petab_problem = PEtabODEProblem(petab_model, verbose=false, 
-                                    ode_solver=ODESolver(Rodas5P()),
+    petab_problem = PEtabODEProblem(petab_model, verbose=false,
+                                    ode_solver=ODESolver(Rodas5P(), abstol=1e-10, reltol=1e-10),
                                     sparse_jacobian=false)
     θ = petab_problem.θ_nominalT .* 0.9
     cost = petab_problem.compute_cost(θ)
@@ -62,10 +62,23 @@ using DataFrames
     u0_test = get_u0(res, petab_problem; condition_id=c_id, retmap=false)
     p_test = get_ps(res, petab_problem; condition_id=c_id, retmap=false)
     @test all(u0_test .== u0)
-    to_test = Bool[1, 1, 1, 1, 0, 1, 1, 1, 1] # To account for Event variable 
-    @test all(p[to_test] == p_test[to_test]) 
+    to_test = Bool[1, 1, 1, 1, 0, 1, 1, 1, 1] # To account for Event variable
+    @test all(p[to_test] == p_test[to_test])
 
-    # Brannmark model
+    # Test solve all conditions
+    θ = petab_problem.θ_nominalT[:]
+    odesols_test, could_solve = PEtab.solve_all_conditions(θ, petab_problem, Rodas5P(); save_at_observed_t=false, abstol=1e-10, reltol=1e-10)
+    petab_problem.compute_cost(θ)
+    odesols_ref = petab_problem.simulation_info.ode_sols
+    for id in keys(odesols_ref)
+        diff = abs.(odesols_test[id][:, end] - odesols_ref[id][:, end])
+        @test all(diff .< 1e-12)
+    end
+    odesols_test, could_solve = PEtab.solve_all_conditions(θ, petab_problem, Rodas5P(); n_timepoints_save=100)
+    for id in keys(odesols_ref)
+        @test length(odesols_test[id].t) == 100
+    end
+
     path_yaml = joinpath(@__DIR__, "Test_ll", "Brannmark_JBC2010", "Brannmark_JBC2010.yaml")
     petab_model = PEtabModel(path_yaml, verbose=false)
     petab_problem = PEtabODEProblem(petab_model, verbose=false)
@@ -88,11 +101,20 @@ using DataFrames
     u0_test = get_u0(res.xmin, petab_problem; condition_id=c_id, retmap=false, pre_eq_id=pre_eq_id)
     @test all(u0_test .== u0)
     @test all(p == p_test)
+    # Test solve all conditions for model with pre-eq
+    θ = petab_problem.θ_nominalT[:]
+    odesols_test, could_solve = PEtab.solve_all_conditions(θ, petab_problem, Rodas5P(); save_at_observed_t=true)
+    petab_problem.compute_cost(θ)
+    odesols_ref = petab_problem.simulation_info.ode_sols
+    for id in keys(odesols_ref)
+        diff = abs.(odesols_test[id][:, end] - odesols_ref[id][:, end])
+        @test all(diff .< 1e-12)
+    end
 
-    # Case where the system is mutated as we have a initial value set in condition. However, get_odeproblem 
+    # Case where the system is mutated as we have a initial value set in condition. However, get_odeproblem
     # and its functions should return for the non-mutated input system
     rs = @reaction_network begin
-        (k1, k2), X1 <--> X2 
+        (k1, k2), X1 <--> X2
     end
     u0 = [:X1 => 1.0]
     @unpack X1 = rs

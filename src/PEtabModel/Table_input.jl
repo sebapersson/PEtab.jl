@@ -21,7 +21,8 @@ function PEtabModel(path_yaml::String;
             print(" Building Julia model file as it does not exist ...")
 
         b_build = @elapsed begin
-            parsed_model_SBML = SBMLImporter._reactionsystem_from_SBML(model_SBML)
+            parsed_model_SBML = SBMLImporter._reactionsystem_from_SBML(model_SBML;
+                                                                       check_massaction = false)
             model_str = SBMLImporter.reactionsystem_to_string(parsed_model_SBML,
                                                               write_to_file,
                                                               path_model_jl_file,
@@ -42,7 +43,8 @@ function PEtabModel(path_yaml::String;
                                                                     path_conditions,
                                                                     path_parameters)
     if change_model_structure == true
-        parsed_model_SBML = SBMLImporter._reactionsystem_from_SBML(model_SBML)
+        parsed_model_SBML = SBMLImporter._reactionsystem_from_SBML(model_SBML;
+                                                                   check_massaction = false)
         model_str = SBMLImporter.reactionsystem_to_string(parsed_model_SBML, write_to_file,
                                                           path_model_jl_file, model_SBML)
     end
@@ -64,6 +66,21 @@ function PEtabModel(path_yaml::String;
     end
     verbose == true && @printf(" done. Time = %.1es\n", timeTake)
 
+    # Ensure state_map matches system
+    states_system = states(ode_system)
+    nspecies = length(states_system)
+    _state_map = deepcopy(state_map)
+    k = 1
+    for i in eachindex(_state_map)
+        istate = findfirst(x -> x == string(state_map[i].first), string.(states_system))
+        if isnothing(istate)
+            _state_map[k + nspecies] = state_map[i].first => state_map[i].second
+            k += 1
+        else
+            _state_map[istate] = state_map[i].first => state_map[i].second
+        end
+    end
+
     path_u0_h_sigma = joinpath(dir_julia, model_name * "_h_sd_u0.jl")
     if !isfile(path_u0_h_sigma) || build_julia_files == true
         verbose == true && printstyled("[ Info:", color = 123, bold = true)
@@ -76,7 +93,7 @@ function PEtabModel(path_yaml::String;
                                                                               dir_julia,
                                                                               ode_system,
                                                                               parameter_map,
-                                                                              state_map,
+                                                                              _state_map,
                                                                               model_SBML,
                                                                               custom_parameter_values = custom_parameter_values,
                                                                               write_to_file = write_to_file)
@@ -103,7 +120,7 @@ function PEtabModel(path_yaml::String;
                                                                                                dir_julia,
                                                                                                ode_system,
                                                                                                parameter_map,
-                                                                                               state_map,
+                                                                                               _state_map,
                                                                                                model_SBML,
                                                                                                custom_parameter_values = custom_parameter_values,
                                                                                                write_to_file = write_to_file)
@@ -125,7 +142,7 @@ function PEtabModel(path_yaml::String;
     b_build = @elapsed begin
         cbset, compute_tstops, check_cb_active, convert_tspan = create_callbacks_SBML(ode_system,
                                                                                       parameter_map,
-                                                                                      state_map,
+                                                                                      _state_map,
                                                                                       model_SBML,
                                                                                       model_name,
                                                                                       path_yaml,
@@ -149,7 +166,7 @@ function PEtabModel(path_yaml::String;
                              ode_system,
                              deepcopy(ode_system),
                              parameter_map,
-                             state_map,
+                             _state_map,
                              parameter_names,
                              state_names,
                              dir_model,

@@ -236,3 +236,28 @@ function _get_fitted_parameters(res::Union{PEtabOptimisationResult,
     _p = retmap ? Pair.(ps, p) : p
     return _u0, _p[ip]
 end
+
+function solve_all_conditions(xpetab, petab_problem::PEtabODEProblem, solver; abstol = 1e-8,
+                              reltol = 1e-8, maxiters = nothing, n_timepoints_save = 0,
+                              save_at_observed_t = false)
+    @unpack ode_problem, petab_model, simulation_info, θ_indices = petab_problem
+    @unpack ode_solver, ss_solver, petab_ODESolver_cache = petab_problem
+    _ode_solver = deepcopy(ode_solver)
+    _ode_solver.abstol = abstol
+    _ode_solver.reltol = reltol
+    _ode_solver.solver = solver
+    if !isnothing(maxiters)
+        _ode_solver.maxiters = maxiters
+    end
+
+    θ_dynamic, θ_observable, θ_sd, θ_non_dynamic = splitθ(xpetab, θ_indices)
+    θ_dynamicT = transformθ(θ_dynamic, θ_indices.θ_dynamic_names, θ_indices,
+                            :θ_dynamic, petab_problem.petab_ODE_cache)
+
+    odesols, could_solve = solve_ODE_all_conditions(ode_problem, petab_model, θ_dynamicT,
+                                                    petab_ODESolver_cache, simulation_info,
+                                                    θ_indices, _ode_solver, ss_solver;
+                                                    save_at_observed_t = save_at_observed_t,
+                                                    n_timepoints_save = n_timepoints_save)
+    return odesols, could_solve
+end
