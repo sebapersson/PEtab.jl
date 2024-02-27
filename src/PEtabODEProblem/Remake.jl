@@ -254,6 +254,7 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem,
                                      petab_problem.prior_info,
                                      petab_problem.parameter_info,
                                      petab_problem.petab_ODE_cache,
-                                     petab_problem.measurement_info)
+                                     petab_problem.measurement_info,
+                                     petab_problem.petab_ODESolver_cache)
     return _petab_problem
 end

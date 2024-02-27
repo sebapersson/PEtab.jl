@@ -393,6 +393,11 @@ struct MeasurementsInfo{T <: Vector{<:Union{<:String, <:AbstractFloat}}}
     observable_parameters::Vector{String}
 end
 
+struct PEtabODESolverCache
+    p_ode_problem_cache::Any
+    u0_cache::Any
+end
+
 """
     PEtabODEProblem
 
@@ -520,11 +525,7 @@ struct PEtabODEProblem{F1 <: Function,
     parameter_info::ParametersInfo
     petab_ODE_cache::PEtabODEProblemCache
     measurement_info::MeasurementsInfo
-end
-
-struct PEtabODESolverCache
-    p_ode_problem_cache::Any
-    u0_cache::Any
+    petab_ODESolver_cache::PEtabODESolverCache
 end
 
 """

@@ -328,7 +328,8 @@ function PEtabODEProblem(petab_model::PEtabModel;
                                     prior_info,
                                     parameter_info,
                                     petab_ODE_cache,
-                                    measurement_info)
+                                    measurement_info,
+                                    petab_ODESolver_cache)
     return petab_problem
 end
 
