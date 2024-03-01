@@ -1,14 +1,3 @@
-module PEtabFidesExtension
-
-using CSV
-using PyCall
-using SciMLBase
-using QuasiMonteCarlo
-using Random
-using Printf
-using YAML
-using PEtab
-
 function PEtab.calibrate_model_multistart(petab_problem::PEtab.PEtabODEProblem,
                                           alg::PEtab.Fides,
                                           n_multistarts::Signed,
@@ -210,6 +199,4 @@ function fides_obj_hessian_approximation(p, compute_cost::Function,
     f = compute_cost(p)
     ∇f = compute_gradient(p)
     return (f, ∇f)
-end
-
 end
