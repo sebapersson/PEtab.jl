@@ -90,7 +90,8 @@ end
 export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
        PEtabODEProblem, remake_PEtab_problem, Fides, PEtabOptimisationResult, IpoptOptions,
        IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult,
-       generate_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, PEtabEvent
+       generate_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, PEtabEvent,
+       PEtabLogDensity
 
 # These are given as extensions, but their docstrings are availble in the
 # general documentation
@@ -100,24 +101,17 @@ export calibrate_model, calibrate_model_multistart, run_PEtab_select
 if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabIpoptExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "PEtabOptimExtension.jl"))
-    include(joinpath(@__DIR__, "..", "ext", "PEtabFidesExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "PEtabPyCallExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "PEtabOptimizationExtension.jl"))
-end
-if !isdefined(Base, :get_extension)
-    include(joinpath(@__DIR__, "..", "ext", "PEtabSelectExtension.jl"))
-end
-if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabSciMLSensitivityExtension.jl"))
-end
-if !isdefined(Base, :get_extension)
-    include(joinpath(@__DIR__, "..", "ext", "PEtabCatalystExtension.jl"))
-end
-
-# Plot extension.
-if !isdefined(Base, :get_extension)
+    include(joinpath(@__DIR__, "..", "ext", "PEtabLogDensityProblemsExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "PEtabPlotsExtension.jl"))
 end
+
 function get_obs_comparison_plots end
 export get_obs_comparison_plots
+
+function compute_llh end
+function correct_gradient! end
 
 end

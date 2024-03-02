@@ -202,3 +202,7 @@ function show(io::IO, a::PEtabEvent)
     @printf(io, ": condition %s, affect %s = %s", condition, string(a.target),
             string(a.affect))
 end
+function show(io::IO, target::PEtabLogDensity)
+    printstyled(io, "PEtabLogDensity", color = 116)
+    print(io, " with ", target.dim, " parameters to infer.")
+end
