@@ -64,7 +64,7 @@ include(joinpath("Process_input", "Observables", "Common.jl"))
 include(joinpath("Process_input", "Observables", "h_sigma_derivatives.jl"))
 include(joinpath("Process_input", "Observables", "u0_h_sigma.jl"))
 
-# For creating a PEtab ODE problem
+# For creating a PEtabODEProblem
 include(joinpath("PEtabODEProblem", "Defaults.jl"))
 include(joinpath("PEtabODEProblem", "Remake.jl"))
 include(joinpath("PEtabODEProblem", "Cache.jl"))
@@ -97,6 +97,42 @@ export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
 # general documentation
 include(joinpath("Calibrate", "Common.jl"))
 export calibrate_model, calibrate_model_multistart, run_PEtab_select
+function get_obs_comparison_plots end
+export get_obs_comparison_plots
+
+function compute_llh end
+function correct_gradient! end
+
+"""
+    to_prior_scale(xpetab, target::PEtabLogDensity)::AbstractVector
+
+Transforms parameter `xpetab` from the PEtab problem scale to the prior scale.
+
+This conversion is essential for Bayesian inference, as in PEtab.jl Bayesian inference
+is performed on the prior scale.
+
+!!! note
+    To use this function Bijectors, LogDensityProblems, LogDensityProblemsAD must be loaded;
+    `using Bijectors, LogDensityProblems, LogDensityProblemsAD`
+"""
+function to_prior_scale end
+
+"""
+    to_chains(res, target::PEtabLogDensity; start_time=nothing, end_time=nothing)::MCMCChains
+
+Converts Bayesian inference results obtained with `PEtabLogDensity` into a `MCMCChains`.
+
+`res` can be the inference results from AdvancedHMC.jl, AdaptiveMCMC.jl, or Pigeon.jl.
+The out chain has the inferred parameters on the prior scale.
+
+# Keyword Arguments
+- `start_time`: Optional starting time for the inference, obtained with `now()`.
+- `end_time`: Optional ending time for the inference, obtained with `now()`.
+
+!!! note
+    To use this function MCMCChains must be loaded; `using MCMCChains`
+"""
+function to_chains end
 
 if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabIpoptExtension.jl"))
@@ -108,10 +144,6 @@ if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabPlotsExtension.jl"))
 end
 
-function get_obs_comparison_plots end
-export get_obs_comparison_plots
-
-function compute_llh end
-function correct_gradient! end
+export to_chains, to_prior_scale
 
 end

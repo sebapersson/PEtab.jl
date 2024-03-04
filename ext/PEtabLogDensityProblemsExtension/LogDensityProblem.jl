@@ -9,7 +9,7 @@ LogDensityProblems.logdensity_and_gradient(p::PEtabLogDensity, x) = p.logtarget_
 function _logtarget(x_inference::AbstractVector{T}, compute_nllh::Function,
                     inference_info::PEtab.InferenceInfo)::T where {T <: Real}
     # Logposterior with Jacobian correction for transformed parameters
-    logtarget = compute_llh(x_inference, compute_nllh, inference_info)
+    logtarget = PEtab.compute_llh(x_inference, compute_nllh, inference_info)
     logtarget += compute_prior(x_inference, inference_info)
     logtarget += Bijectors.logabsdetjac(inference_info.inv_bijectors, x_inference)
     return logtarget
@@ -28,7 +28,7 @@ function _logtarget_gradient(x_inference::AbstractVector{T}, _nllh_gradient::Fun
     logtarget += Bijectors.logabsdetjac(inference_info.inv_bijectors, x_inference)
 
     # Gradient with transformation correction
-    correct_gradient!(logtarget_grad, x_inference, x_nllh, inference_info)
+    PEtab.correct_gradient!(logtarget_grad, x_inference, x_nllh, inference_info)
     logtarget_grad .+= ForwardDiff.gradient(_prior_correction, x_inference)
 
     return logtarget, logtarget_grad

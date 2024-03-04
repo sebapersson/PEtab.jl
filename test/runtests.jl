@@ -5,6 +5,14 @@ using SafeTestsets
   include("Aqua.jl")
 end
 
+@safetestset "Bijectors" begin
+  include(joinpath(@__DIR__, "Bijectors.jl"))
+end
+
+@safetestset "Inference" begin
+  include(joinpath(@__DIR__, "Inference.jl"))
+end
+
 @safetestset "PEtab-select" begin
   include("PEtab_select.jl")
 end
@@ -31,10 +39,6 @@ end
 
 @safetestset "Utility functions" begin
   include(joinpath(@__DIR__, "Test_util.jl"))
-end
-
-@safetestset "Bijectors" begin
-  include(joinpath(@__DIR__, "Bijectors.jl"))
 end
 
 @safetestset "PEtab test suite" begin
