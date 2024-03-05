@@ -13,6 +13,7 @@ DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DiffEqCallbacks = "459566f4-90b8-5000-8ac3-15dfb0a30def"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+JuliaFormatter = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LogDensityProblems = "6fdf6af0-433a-55f7-b3ed-c6c6e0b8df7c"
 LogDensityProblemsAD = "996a588d-648d-4e1f-a8f0-a84b347e47b1"
@@ -123,7 +124,4 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["Aqua", "Bijectors", "Test", "SafeTestsets", "SciMLSensitivity", "Zygote", 
-        "Ipopt", "Optim", "Plots", "Optimization", "OptimizationOptimJL", 
-        "FiniteDifferences", "PyCall", "LogDensityProblems", "LogDensityProblemsAD", 
-        "AdaptiveMCMC", "AdvancedHMC", "MCMCChains"]
+test = ["Aqua", "Bijectors", "Test", "SafeTestsets", "SciMLSensitivity", "Zygote", "Ipopt", "Optim", "Plots", "Optimization", "OptimizationOptimJL", "FiniteDifferences", "PyCall", "LogDensityProblems", "LogDensityProblemsAD", "AdaptiveMCMC", "AdvancedHMC", "MCMCChains"]
