@@ -3,7 +3,8 @@ module PEtabMCMCChainsExtension
 using MCMCChains
 using PEtab
 
-function PEtab.to_chains(res, target::PEtab.PEtabLogDensity; start_time=nothing, end_time=nothing)
+function PEtab.to_chains(res, target::PEtab.PEtabLogDensity; start_time = nothing,
+                         end_time = nothing)
 
     # Dependent on method
     n_samples = length(res)
@@ -18,10 +19,11 @@ function PEtab.to_chains(res, target::PEtab.PEtabLogDensity; start_time=nothing,
         return MCMCChains.Chains(out, inference_info.parameters_id)
     else
         _chain = MCMCChains.Chains(out, inference_info.parameters_id)
-        return MCMCChains.setinfo(_chain, (start_time=start_time, stop_time=end_time))
+        return MCMCChains.setinfo(_chain, (start_time = start_time, stop_time = end_time))
     end
 end
-function PEtab.to_chains(res::NamedTuple, target::PEtab.PEtabLogDensity; start_time=nothing, end_time=nothing)
+function PEtab.to_chains(res::NamedTuple, target::PEtab.PEtabLogDensity;
+                         start_time = nothing, end_time = nothing)
 
     # Dependent on method
     n_samples = size(res.X)[2]
@@ -36,7 +38,7 @@ function PEtab.to_chains(res::NamedTuple, target::PEtab.PEtabLogDensity; start_t
         return MCMCChains.Chains(out, inference_info.parameters_id)
     else
         _chain = MCMCChains.Chains(out, inference_info.parameters_id)
-        return MCMCChains.setinfo(_chain, (start_time=start_time, stop_time=end_time))
+        return MCMCChains.setinfo(_chain, (start_time = start_time, stop_time = end_time))
     end
 end
 
