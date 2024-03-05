@@ -64,7 +64,7 @@ include(joinpath("Process_input", "Observables", "Common.jl"))
 include(joinpath("Process_input", "Observables", "h_sigma_derivatives.jl"))
 include(joinpath("Process_input", "Observables", "u0_h_sigma.jl"))
 
-# For creating a PEtab ODE problem
+# For creating a PEtabODEProblem
 include(joinpath("PEtabODEProblem", "Defaults.jl"))
 include(joinpath("PEtabODEProblem", "Remake.jl"))
 include(joinpath("PEtabODEProblem", "Cache.jl"))
@@ -90,34 +90,60 @@ end
 export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
        PEtabODEProblem, remake_PEtab_problem, Fides, PEtabOptimisationResult, IpoptOptions,
        IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult,
-       generate_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, PEtabEvent
+       generate_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, PEtabEvent,
+       PEtabLogDensity
 
 # These are given as extensions, but their docstrings are availble in the
 # general documentation
 include(joinpath("Calibrate", "Common.jl"))
 export calibrate_model, calibrate_model_multistart, run_PEtab_select
+function get_obs_comparison_plots end
+export get_obs_comparison_plots
+
+function compute_llh end
+function correct_gradient! end
+
+"""
+    to_prior_scale(xpetab, target::PEtabLogDensity)::AbstractVector
+
+Transforms parameter `xpetab` from the PEtab problem scale to the prior scale.
+
+This conversion is essential for Bayesian inference, as in PEtab.jl Bayesian inference
+is performed on the prior scale.
+
+!!! note
+    To use this function Bijectors, LogDensityProblems, LogDensityProblemsAD must be loaded;
+    `using Bijectors, LogDensityProblems, LogDensityProblemsAD`
+"""
+function to_prior_scale end
+
+"""
+    to_chains(res, target::PEtabLogDensity; start_time=nothing, end_time=nothing)::MCMCChains
+
+Converts Bayesian inference results obtained with `PEtabLogDensity` into a `MCMCChains`.
+
+`res` can be the inference results from AdvancedHMC.jl, AdaptiveMCMC.jl, or Pigeon.jl.
+The out chain has the inferred parameters on the prior scale.
+
+# Keyword Arguments
+- `start_time`: Optional starting time for the inference, obtained with `now()`.
+- `end_time`: Optional ending time for the inference, obtained with `now()`.
+
+!!! note
+    To use this function MCMCChains must be loaded; `using MCMCChains`
+"""
+function to_chains end
 
 if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabIpoptExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "PEtabOptimExtension.jl"))
-    include(joinpath(@__DIR__, "..", "ext", "PEtabFidesExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "PEtabPyCallExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "PEtabOptimizationExtension.jl"))
-end
-if !isdefined(Base, :get_extension)
-    include(joinpath(@__DIR__, "..", "ext", "PEtabSelectExtension.jl"))
-end
-if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabSciMLSensitivityExtension.jl"))
-end
-if !isdefined(Base, :get_extension)
-    include(joinpath(@__DIR__, "..", "ext", "PEtabCatalystExtension.jl"))
-end
-
-# Plot extension.
-if !isdefined(Base, :get_extension)
+    include(joinpath(@__DIR__, "..", "ext", "PEtabLogDensityProblemsExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "PEtabPlotsExtension.jl"))
 end
-function get_obs_comparison_plots end
-export get_obs_comparison_plots
+
+export to_chains, to_prior_scale
 
 end

@@ -22,4 +22,7 @@ get_ps
 get_u0
 get_odeproblem
 get_odesol
+PEtabLogDensity
+to_prior_scale
+to_chains
 ```

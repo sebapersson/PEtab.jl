@@ -15,8 +15,7 @@ makedocs(;
                                   canonical = "https://sebapersson.github.io/PEtab.jl",
                                   edit_link = "main",
                                   assets = String[],),
-         pages = [
-             "Home" => "index.md",
+         pages = ["Home" => "index.md",
              "Importing problems in PEtab standard format" => "Boehm.md",
              "Defining a PEtab problem in Julia" => Any["Defining parameter estimation problems in Julia" => "Define_in_julia.md",
                                                         "Pre-equilibration (steady-state simulations)" => "Julia_steady_state.md",
@@ -30,10 +29,10 @@ makedocs(;
                                            "Available optimisers" => "Avaible_optimisers.md",
                                            "Model selection (PEtab select)" => "Model_selection.md",
                                            "Plots evaluating parameter estimation" => "optimisation_output_plotting.md"],
+             "Bayesian inference" => "HMC.md",
              "Supported gradient and hessian methods" => "Gradient_hessian_support.md",
              "Choosing the best options for a PEtab problem" => "Best_options.md",
-             "API" => "API_choosen.md",
-         ],)
+             "API" => "API_choosen.md"],)
 
 deploydocs(;
            repo = "github.com/sebapersson/PEtab.jl.git",
