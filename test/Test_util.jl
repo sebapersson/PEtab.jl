@@ -38,6 +38,12 @@ using DataFrames
     @test all(odeprob.p == p)
     @test all(sol.prob.u0 .== u0)
     @test all(sol.prob.p == p)
+    # Test runtime and accuracy
+    time1, acc1 = compute_runtime_accuracy(θ, petab_problem, Rodas5())
+    time2, acc2 = compute_runtime_accuracy(θ, petab_problem, KenCarp4())
+    @test acc1 < acc2
+    @test time1 < 1.0
+    @test time2 < 1.0
 
     # Beer model
     path_yaml = joinpath(@__DIR__, "Test_ll", "Beer_MolBioSystems2014", "Beer_MolBioSystems2014.yaml")
@@ -67,7 +73,7 @@ using DataFrames
 
     # Test solve all conditions
     θ = petab_problem.θ_nominalT[:]
-    odesols_test, could_solve = PEtab.solve_all_conditions(θ, petab_problem, Rodas5P(); save_at_observed_t=false, abstol=1e-10, reltol=1e-10)
+    odesols_test, could_solve = solve_all_conditions(θ, petab_problem, Rodas5P(); save_at_observed_t=false, abstol=1e-10, reltol=1e-10)
     petab_problem.compute_cost(θ)
     odesols_ref = petab_problem.simulation_info.ode_sols
     for id in keys(odesols_ref)
