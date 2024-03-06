@@ -39,6 +39,7 @@ dist = Normal(0.0, 0.03)
 _sol = solve(oprob, Rodas4(), abstol=1e-12, reltol=1e-12, saveat=tsave, tstops=tsave)
 # Normal measurement noise with σ = 0.03
 obs = _sol[:x] .+ rand(Normal(0.0, 0.03), length(tsave))
+default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm) # hide
 plot(_sol.t, obs, seriestype=:scatter, title = "Observed data")
 ```
 
