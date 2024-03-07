@@ -332,7 +332,7 @@ function compute_runtime_accuracy(xpetab, petab_problem, solver; abstol = 1e-8,
         if could_solve == true
             acc = 0.0
             for id in keys(sols)
-                acc += sum((sols[id][:, :] - sols_highacc[id][:, :]) .^ 2)
+                acc += sum((Array(sols[id]) - Array(sols_highacc[id])) .^ 2)
             end
         end
     else
