@@ -91,7 +91,7 @@ export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
        PEtabODEProblem, remake_PEtab_problem, Fides, PEtabOptimisationResult, IpoptOptions,
        IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult,
        generate_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, PEtabEvent,
-       PEtabLogDensity
+       PEtabLogDensity, solve_all_conditions, compute_runtime_accuracy
 
 # These are given as extensions, but their docstrings are availble in the
 # general documentation

@@ -22,6 +22,8 @@ get_ps
 get_u0
 get_odeproblem
 get_odesol
+solve_all_conditions
+compute_runtime_accuracy
 PEtabLogDensity
 to_prior_scale
 to_chains

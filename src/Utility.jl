@@ -237,6 +237,28 @@ function _get_fitted_parameters(res::Union{PEtabOptimisationResult,
     return _u0, _p[ip]
 end
 
+"""
+    solve_all_conditions(xpetab, petab_problem::PEtabODEProblem, solver; <keyword arguments>)
+
+Simulates the ODE model for all simulation conditions using the provided ODE solver and parameter vector `xpetab`.
+
+The parameter vector `xpetab` should be provided on the PEtab scale (default log10).
+
+# Keyword Arguments
+- `abstol=1e-8`: Absolute tolerance for the ODE solver.
+- `reltol=1e-8`: Relative tolerance for the ODE solver.
+- `maxiters=1e4`: Maximum iterations for the ODE solver.
+- `n_timepoints_save=0`: Specifies the number of time points at which to save the ODE
+    solution for each condition. A value of 0 means the solution is saved at the solvers
+    default time points.
+- `save_at_observed_t=false`: When set to true, this option overrides `n_timepoints_save`
+    and saves the ODE solution only at the time points where measurement data are available.
+
+# Returns
+- `odesols`: A dictionary containing the `ODESolution` for each condition.
+- `could_solve`: A boolean value indicating whether the model was successfully solved for
+    all conditions.
+"""
 function solve_all_conditions(xpetab, petab_problem::PEtabODEProblem, solver; abstol = 1e-8,
                               reltol = 1e-8, maxiters = nothing, n_timepoints_save = 0,
                               save_at_observed_t = false)
@@ -260,4 +282,80 @@ function solve_all_conditions(xpetab, petab_problem::PEtabODEProblem, solver; ab
                                                     save_at_observed_t = save_at_observed_t,
                                                     n_timepoints_save = n_timepoints_save)
     return odesols, could_solve
+end
+
+"""
+    compute_runtime_accuracy(xpetab, petab_problem, solver; <keyword arguments>)
+
+Get runtime and accuracy for an ODE solver when simulating a model across all simulation conditions with parameter vector `xpetab`.
+
+The parameter vector `xpetab` should be provided on the PEtab scale (default log10).
+
+# Keyword Arguments
+- `abstol=1e-8`: Absolute tolerance for the ODE solver.
+- `reltol=1e-8`: Relative tolerance for the ODE solver.
+- `solver_high_acc=Rodas4P()`: The ODE solver used to generate a high accuracy solution,
+    which is used as reference when computing the high accuracy soluation.
+- `abstol_highacc=1e-12`: Absolute tolerance for the high accuracy ODE solver.
+- `reltol_highacc=1e-12`: Relative tolerance for the high accuracy ODE solver.
+- `compute_acc=true`: If set to `false`, accuracy is not evaluated (returned a 0).
+- `ntimes_solve=5`: Number times to simulated the model to determine the average runtime.
+
+# Returns
+- `runtime`: The average time taken to solve the model across all conditions, in seconds.
+- `acc`: The solver's accuracy, determined by comparison with the high accuracy ODE solver.
+"""
+function compute_runtime_accuracy(xpetab, petab_problem, solver; abstol = 1e-8,
+                                  reltol = 1e-8, solver_high_acc = Rodas4P(),
+                                  abstol_highacc = 1e-12, reltol_highacc = 1e-12,
+                                  compute_acc::Bool = true, ntimes_solve = 5)
+    local sols_highacc, could_solve_highacc
+    if compute_acc == true
+        sols_highacc, could_solve_highacc = PEtab.solve_all_conditions(xpetab,
+                                                                       petab_problem,
+                                                                       solver_high_acc;
+                                                                       abstol = abstol_highacc,
+                                                                       reltol = reltol_highacc,
+                                                                       n_timepoints_save = 100)
+        if could_solve_highacc == false
+            @error "Could not solve high accuracy solution. Consider changing solver_high_acc"
+        end
+    else
+        sols_highacc, could_solve_highacc = nothing, nothing
+    end
+
+    # Get accuracy
+    if !isnothing(sols_highacc)
+        sols, could_solve = PEtab.solve_all_conditions(xpetab, petab_problem, solver;
+                                                       abstol = abstol, reltol = reltol,
+                                                       n_timepoints_save = 100)
+        if could_solve == true
+            acc = 0.0
+            for id in keys(sols)
+                acc += sum((Array(sols[id]) - Array(sols_highacc[id])) .^ 2)
+            end
+        end
+    else
+        # Check if we can solve the ODE
+        acc = nothing
+        _, could_solve = PEtab.solve_all_conditions(xpetab, petab_problem, solver;
+                                                    abstol = abstol, reltol = reltol,
+                                                    n_timepoints_save = 100)
+    end
+
+    if could_solve == false
+        @warn "Could not solve ODE. Runtime and accuracy are returned as Inf" maxlog=10
+        return Inf, Inf
+    end
+
+    # Get runtime
+    runtime = 0.0
+    for i in 1:ntimes_solve
+        runtime += @elapsed _, _ = PEtab.solve_all_conditions(xpetab, petab_problem, solver;
+                                                              abstol = abstol,
+                                                              reltol = reltol)
+    end
+    runtime /= ntimes_solve
+
+    return runtime, acc
 end
