@@ -2,15 +2,16 @@
 
 When fitting a model with PEtab.jl the unknown model parameters are estimated within a frequentist framework, and the goal is to find the maximum likelihood estimate. When prior knowledge about the parameters is available, Bayesian inference is an alternative approach to fitting the model to data. The aim with Bayesian inference is to infer the posterior distribution of unknown parameters given the data, ``p(\theta | y)`` by running Markov chain Monte Carlo (MCMC) algorithm that samples from the Posterior.
 
-PEtab.jl supports Bayesian inference via two packages:
+PEtab.jl supports Bayesian inference via three packages:
 
 - **Adaptive Metropolis Hastings Samplers** available in [AdaptiveMCMC.jl](https://github.com/mvihola/AdaptiveMCMC.jl)
 - **Hamiltonian Monte Carlo (HMC) Samplers**: available in [AdvancedHMC.jl](https://github.com/TuringLang/AdvancedHMC.jl). Here the default choice is the NUTS sampler, which is used by [Turing.jl](https://github.com/TuringLang/Turing.jl), and is also the default in Stan. HMC samplers are often more efficient than other methods.
+- **Adaptive Parallel Tempering Samplers**: available in [Pigeons.jl](https://github.com/Julia-Tempering/Pigeons.jl). Parallel tempering is most suitable for multi-modal (it can jump modes) or non-identifiable posteriors.
 
-This document covers how to create a `PEtabODEProblem` with priors, and how to use both [AdaptiveMCMC.jl](https://github.com/mvihola/AdaptiveMCMC.jl) and [AdvancedHMC.jl](https://github.com/TuringLang/AdvancedHMC.jl) for Bayesian inference.
+This document covers how to create a `PEtabODEProblem` with priors, and how to use [AdaptiveMCMC.jl](https://github.com/mvihola/AdaptiveMCMC.jl), [AdvancedHMC.jl](https://github.com/TuringLang/AdvancedHMC.jl), and [Pigeons.jl](https://github.com/Julia-Tempering/Pigeons.jl) for Bayesian inference.
 
 !!! note
-    To use the Bayesian inference functionality in PEtab.jl, the Bijectors, LogDensityProblems, and LogDensityProblemsAD packages must be loaded.
+    To use the Bayesian inference functionality in PEtab.jl, the Bijectors, LogDensityProblems, and LogDensityProblemsAD packages must be loaded. For parallel tempering Pigeons and MCMCChains must also be loaded.
 
 ## Setting up a Bayesian inference problems
 
@@ -147,7 +148,7 @@ plot(chain_hmc)
 !!! note
     When converting the output to a `MCMCChains` the parameters are transformed to the prior-scale (inference scale).
 
-## Bayesian inference with AdaptiveMCMC.jl (NUTS)
+## Bayesian inference with AdaptiveMCMC.jl
 
 Given a starting point we can run the robust adaptive MCMC sampler with $200 \, 000$ by:
 
@@ -167,3 +168,34 @@ plot(chain_adapt)
 ```
 
 Any other algorithm found in AdaptiveMCMC.jl [documentation](https://github.com/mvihola/AdaptiveMCMC.jl) can also be used.
+
+## Bayesian inference with Pigeons.jl
+
+When using a parallel tempering algorithm an easy to sample from reference distribution that covers a wide range of parameter space is needed to, for example, jump between modes. For a `PEtabODEProblem`, this reference is the prior distribution, and to set it up do:
+
+```@example 1; ansicolor=false
+reference = PEtabPigeonReference(petab_problem)
+nothing #hide
+```
+
+Given a starting point we can now take $2^{10}$ adaptive parallel tempering samples by:
+
+```@example 1; ansicolor=false
+using Pigeons
+Random.seed!(123)
+target.initial_value .= xinference
+pt = pigeons(target = target,
+             reference = reference,
+             n_rounds=10, # 2^10 samples
+             record = [traces; record_default()])
+nothing #hide
+```
+
+and we can convert the output to a `MCMCChains`
+
+```@example 1; ansicolor=false
+pt_chain = to_chains(pt, target)
+plot(pt_chain)
+```
+
+Here we used the default `SliceSampler` as local explorer. Alternative explorers, such as an adaptive MALA, can be used instead by setting `explorer=AutoMALA()` in the `pigeons` function call. More information can be found in Pigeons.jl [documentation](https://pigeons.run/dev/).

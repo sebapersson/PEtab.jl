@@ -25,6 +25,7 @@ get_odesol
 solve_all_conditions
 compute_runtime_accuracy
 PEtabLogDensity
+PEtabPigeonReference
 to_prior_scale
 to_chains
 ```
