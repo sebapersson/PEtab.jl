@@ -927,3 +927,33 @@ struct PEtabLogDensity{T <: InferenceInfo,
     initial_value::Vector{T2}
     dim::I
 end
+function (logpotential::PEtab.PEtabLogDensity)(x)
+    return logpotential.logtarget(x)
+end
+
+"""
+    PEtabPigeonReference(prob::PEtabODEProblem)
+
+Construct a reference distribution (prior) for parallell tempering with Pigeon.jl
+
+This LogDensityProblem method defines everything needed to perform Bayesian inference
+with libraries such as `AdvancedHMC.jl` (which includes algorithms like NUTS, used by `Turing.jl`),
+`AdaptiveMCMC.jl` for adaptive Markov Chain Monte Carlo methods, and `Pigeon.jl` for parallel tempering
+methods. For examples on how to perform inference, see the documentation.
+"""
+struct PEtabPigeonReference{T<:InferenceInfo,
+                            I<:Integer}
+    inference_info::T
+    dim::I
+end
+function PEtabPigeonReference(petab_problem::PEtabODEProblem)
+    inference_info = InferenceInfo(petab_problem)
+    return PEtabPigeonReference(inference_info, petab_problem.n_parameters_esimtate)
+end
+function (logreference::PEtab.PEtabPigeonReference)(x)
+    # Correction must occur in Prior as in the Prior/reference the value is not
+    # scaled by a temperatur
+    logprior = PEtab.compute_prior(x, logreference.inference_info)
+    correction = get_correction(logreference, x)
+    return logprior + correction
+end

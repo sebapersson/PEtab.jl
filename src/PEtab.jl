@@ -91,7 +91,7 @@ export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
        PEtabODEProblem, remake_PEtab_problem, Fides, PEtabOptimisationResult, IpoptOptions,
        IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult,
        generate_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, PEtabEvent,
-       PEtabLogDensity, solve_all_conditions, compute_runtime_accuracy
+       PEtabLogDensity, solve_all_conditions, compute_runtime_accuracy, PEtabPigeonReference
 
 # These are given as extensions, but their docstrings are availble in the
 # general documentation
@@ -100,7 +100,10 @@ export calibrate_model, calibrate_model_multistart, run_PEtab_select
 function get_obs_comparison_plots end
 export get_obs_comparison_plots
 
+# Functions that only appear in extension
 function compute_llh end
+function compute_prior end
+function get_correction end
 function correct_gradient! end
 
 """
@@ -142,6 +145,7 @@ if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabSciMLSensitivityExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "PEtabLogDensityProblemsExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "PEtabPlotsExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "PEtabPigeonsExtension.jl"))
 end
 
 export to_chains, to_prior_scale
