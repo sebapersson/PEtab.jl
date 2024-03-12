@@ -941,8 +941,8 @@ with libraries such as `AdvancedHMC.jl` (which includes algorithms like NUTS, us
 `AdaptiveMCMC.jl` for adaptive Markov Chain Monte Carlo methods, and `Pigeon.jl` for parallel tempering
 methods. For examples on how to perform inference, see the documentation.
 """
-struct PEtabPigeonReference{T<:InferenceInfo,
-                            I<:Integer}
+struct PEtabPigeonReference{T <: InferenceInfo,
+                            I <: Integer}
     inference_info::T
     dim::I
 end
