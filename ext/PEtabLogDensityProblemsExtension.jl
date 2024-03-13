@@ -12,6 +12,7 @@ include(joinpath(@__DIR__, "PEtabLogDensityProblemsExtension", "Common.jl"))
 include(joinpath(@__DIR__, "PEtabLogDensityProblemsExtension", "Init_structs.jl"))
 include(joinpath(@__DIR__, "PEtabLogDensityProblemsExtension", "Likelihood.jl"))
 include(joinpath(@__DIR__, "PEtabLogDensityProblemsExtension", "LogDensityProblem.jl"))
+include(joinpath(@__DIR__, "PEtabLogDensityProblemsExtension", "Pigeons.jl"))
 include(joinpath(@__DIR__, "PEtabLogDensityProblemsExtension", "Prior.jl"))
 
 end

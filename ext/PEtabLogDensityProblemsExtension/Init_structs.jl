@@ -4,7 +4,7 @@ function PEtab.PEtabLogDensity(petab_problem::PEtabODEProblem)::PEtab.PEtabLogDe
 
     # For via autodiff compute the gradient of the prior and Jacobian correction
     _prior_correction = (x_inference) -> let inference_info = inference_info
-        prior = compute_prior(x_inference, inference_info)
+        prior = PEtab.compute_prior(x_inference, inference_info)
         correction = Bijectors.logabsdetjac(inference_info.inv_bijectors, x_inference)
         return prior + correction
     end

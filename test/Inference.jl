@@ -1,6 +1,7 @@
 using PEtab, OrdinaryDiffEq, ModelingToolkit, Distributions, Random, DataFrames, CSV
 using Bijectors, LogDensityProblems, LogDensityProblemsAD, MCMCChains
 using AdaptiveMCMC, AdvancedHMC
+using Pigeons
 
 function get_reference_stats(path_data)
     # Reference chain 10000 samples via Turing of HMC
@@ -97,6 +98,38 @@ end
         @test reference_stats.nt.std[2] ≈ adaptive_stats.nt.std[2] atol=1e-2
         @test reference_stats.nt.std[3] ≈ adaptive_stats.nt.std[3] atol=1e-2
     end
+
+    # Parallell tempering (with AutoMALA the slowest)
+    # Setup with Pigeon.jl
+    Random.seed!(123)
+    log_potential = PEtabLogDensity(petab_problem)
+    log_potential.initial_value .= xinference
+    reference_potential = PEtabPigeonReference(petab_problem)
+    pt = pigeons(target = log_potential,
+                 reference = reference_potential,
+                 n_rounds=10,
+                 record = [traces; record_default()])
+    pt_chain = to_chains(pt, log_potential)
+    pt_stats = summarystats(pt_chain)
+    @testset "Parallell tempering" begin
+        @test reference_stats.nt.mean[1] ≈ pt_stats.nt.mean[1] atol=2e-1
+        @test reference_stats.nt.mean[2] ≈ pt_stats.nt.mean[2] atol=2e-1
+        @test reference_stats.nt.mean[3] ≈ pt_stats.nt.mean[3] atol=1e-2
+        @test reference_stats.nt.std[1] ≈ pt_stats.nt.std[1] atol=5e-1
+        @test reference_stats.nt.std[2] ≈ pt_stats.nt.std[2] atol=1e-2
+        @test reference_stats.nt.std[3] ≈ pt_stats.nt.std[3] atol=1e-2
+    end
+
+    # Check AutoMALA runs
+    Random.seed!(123)
+    pt = pigeons(target = log_potential,
+                 reference = reference_potential,
+                 explorer=AutoMALA(),
+                 n_rounds=6,
+                 record = [traces; record_default()])
+    pt_chain = to_chains(pt, log_potential)
+    pt_stats = summarystats(pt_chain)
+    @test reference_stats.nt.mean[3] ≈ pt_stats.nt.mean[3] atol=1e-2
 end
 
 @testset "Check inference transformed parameters" begin

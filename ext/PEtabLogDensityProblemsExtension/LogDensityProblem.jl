@@ -10,7 +10,7 @@ function _logtarget(x_inference::AbstractVector{T}, compute_nllh::Function,
                     inference_info::PEtab.InferenceInfo)::T where {T <: Real}
     # Logposterior with Jacobian correction for transformed parameters
     logtarget = PEtab.compute_llh(x_inference, compute_nllh, inference_info)
-    logtarget += compute_prior(x_inference, inference_info)
+    logtarget += PEtab.compute_prior(x_inference, inference_info)
     logtarget += Bijectors.logabsdetjac(inference_info.inv_bijectors, x_inference)
     return logtarget
 end
@@ -24,7 +24,7 @@ function _logtarget_gradient(x_inference::AbstractVector{T}, _nllh_gradient::Fun
     nllh, logtarget_grad = _nllh_gradient(x_nllh)
 
     # Logposterior with Jacobian correction for transformed parameters
-    logtarget = nllh * -1 + compute_prior(x_inference, inference_info)
+    logtarget = nllh * -1 + PEtab.compute_prior(x_inference, inference_info)
     logtarget += Bijectors.logabsdetjac(inference_info.inv_bijectors, x_inference)
 
     # Gradient with transformation correction
