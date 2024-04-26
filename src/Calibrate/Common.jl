@@ -280,7 +280,7 @@ function generate_startguesses(petab_problem::PEtabODEProblem,
                 end
                 _i = findfirst(x -> x == θ_name, θ_names)
                 _lb, _ub = get_bounds_prior(θ_name, petab_problem)
-                _prior_samples = sample_from_prior(1, _dist, _lb, _ub)[1]
+                _prior_samples = _sample_prior(1, _dist, _lb, _ub)
                 transform_prior_samples!(_prior_samples, θ_name, petab_problem)
                 _p[_i] = _prior_samples[1]
             end

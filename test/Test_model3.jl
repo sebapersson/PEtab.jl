@@ -20,12 +20,13 @@
 using PEtab
 using Test
 using OrdinaryDiffEq
-using Zygote 
+using Zygote
 using SciMLSensitivity
 using CSV
 using ForwardDiff
 using LinearAlgebra
 using Sundials
+using Printf
 
 import PEtab: read_petab_files, process_measurements, process_parameters, compute_θ_indices, process_simulationinfo, set_parameters_to_file_values!
 import PEtab: _change_simulation_condition!, solve_ODE_all_conditions, _get_steady_state_solver
@@ -157,12 +158,20 @@ function test_cost_gradient_hessian_test_model3(petab_model::PEtabModel, ode_sol
         @test norm(gradient_forwarddiff - reference_gradient) ≤ 1e-2
         gradient_zygote = _test_cost_gradient_hessian(petab_model, ode_solver, p, compute_gradient=true, gradient_method=:Zygote, sensealg=ForwardDiffSensitivity(), ss_options=ss_options)
         @test norm(gradient_zygote - reference_gradient) ≤ 1e-2
-        gradient_adjoint = _test_cost_gradient_hessian(petab_model, ode_solver, p, compute_gradient=true, gradient_method=:Adjoint, sensealg=QuadratureAdjoint(autojacvec=ReverseDiffVJP(false)), ss_options=ss_options)
-        @test norm(normalize(gradient_adjoint) - normalize((reference_gradient))) ≤ 1e-2
         gradient_forward1 = _test_cost_gradient_hessian(petab_model, ode_solver, p, compute_gradient=true, gradient_method=:ForwardEquations, sensealg=:ForwardDiff, ss_options=ss_options)
         @test norm(gradient_forward1 - reference_gradient) ≤ 1e-2
         gradient_forward2 = _test_cost_gradient_hessian(petab_model, ODESolver(CVODE_BDF(), abstol=1e-12, reltol=1e-12), p, compute_gradient=true, gradient_method=:ForwardEquations, sensealg=ForwardSensitivity(), ss_options=ss_options)
         @test norm(gradient_forward2 - reference_gradient) ≤ 1e-2
+
+        # Must test different adjoints
+        gradient_adjoint = _test_cost_gradient_hessian(petab_model, ode_solver, p, compute_gradient=true, gradient_method=:Adjoint, sensealg=QuadratureAdjoint(autojacvec=ReverseDiffVJP(false)), ss_options=ss_options)
+        @test norm(normalize(gradient_adjoint) - normalize((reference_gradient))) ≤ 1e-2
+        gradient_adjoint = _test_cost_gradient_hessian(petab_model, ode_solver, p, compute_gradient=true, gradient_method=:Adjoint, sensealg=GaussAdjoint(autojacvec=ReverseDiffVJP(false)), ss_options=ss_options)
+        @test norm(normalize(gradient_adjoint) - normalize((reference_gradient))) ≤ 1e-2
+        gradient_adjoint = _test_cost_gradient_hessian(petab_model, ode_solver, p, compute_gradient=true, gradient_method=:Adjoint, sensealg=InterpolatingAdjoint(autojacvec=ReverseDiffVJP(false)), ss_options=ss_options)
+        @test norm(normalize(gradient_adjoint) - normalize((reference_gradient))) ≤ 1e-2
+        gradient_adjoint = _test_cost_gradient_hessian(petab_model, ode_solver, p, compute_gradient=true, gradient_method=:Adjoint, sensealg=InterpolatingAdjoint(autojacvec=ReverseDiffVJP(false)), ss_options=ss_options, sensealg_ss=SteadyStateAdjoint())
+        @test norm(normalize(gradient_adjoint) - normalize((reference_gradient))) ≤ 1e-2
 
         # Testing "exact" hessian via autodiff
         hessian = _test_cost_gradient_hessian(petab_model, ode_solver, p, compute_hessian=true, hessian_method=:ForwardDiff, ss_options=ss_options)
@@ -193,3 +202,12 @@ end
 @testset "Gradient of residuals" begin
     check_gradient_residuals(petab_model, ODESolver(Rodas4P(), abstol=1e-9, reltol=1e-9))
 end
+
+# As the model has a steady-state this can be used to test the show function
+odesolver = @sprintf("%s", ODESolver(QNDF(), abstol=1e-5, reltol=1e-8))
+@test odesolver == "ODESolver with ODE solver QNDF. Options (abstol, reltol, maxiters) = (1.0e-05, 1.0e-08, 1.0e+04)"
+ssopt = @sprintf("%s", SteadyStateSolver(:Simulate))
+model = @sprintf("%s", PEtabModel(joinpath(@__DIR__, "Test_model3", "Test_model3.yaml"), build_julia_files=true, write_to_file=false))
+@test model[1:75] == "PEtabModel for model Test_model3. ODE-system has 2 states and 6 parameters."
+prob = @sprintf("%s", PEtabODEProblem(petab_model, verbose=false))
+@test prob == "PEtabODEProblem for Test_model3. ODE-states: 2. Parameters to estimate: 4 where 4 are dynamic.\n---------- Problem settings ----------\nGradient method : ForwardDiff\nHessian method : ForwardDiff\n--------- ODE-solver settings --------\nCost Rodas5P. Options (abstol, reltol, maxiters) = (1.0e-08, 1.0e-08, 1.0e+04)\nGradient Rodas5P. Options (abstol, reltol, maxiters) = (1.0e-08, 1.0e-08, 1.0e+04)\n--------- SS solver settings ---------\nCost Simulate. Option wrms with (abstol, reltol) = (1.0e-10, 1.0e-10)\nGradient Simulate. Options wrms with (abstol, reltol) = (1.0e-10, 1.0e-10)"

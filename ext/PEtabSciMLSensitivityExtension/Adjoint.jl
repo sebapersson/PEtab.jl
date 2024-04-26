@@ -189,7 +189,8 @@ function generate_VJP_ss(simulation_info::PEtab.SimulationInfo,
     return NamedTuple{Tuple(name for name in pre_equilibration_condition_id)}(eval_VJP_ss)
 end
 function generate_VJP_ss(simulation_info::PEtab.SimulationInfo,
-                         sensealg_ss::Union{QuadratureAdjoint, InterpolatingAdjoint},
+                         sensealg_ss::Union{QuadratureAdjoint, InterpolatingAdjoint,
+                                            GaussAdjoint},
                          ode_solver::ODESolver,
                          ss_solver::SteadyStateSolver,
                          exp_id_solve::Vector{Symbol})::NamedTuple
@@ -206,12 +207,7 @@ function generate_VJP_ss(simulation_info::PEtab.SimulationInfo,
     end
 
     _eval_VJP_ss = Vector{Function}(undef, length(pre_equilibration_condition_id))
-    solver, abstol, reltol, force_dtmin, dtmin, maxiters = ode_solver.solver,
-                                                           ode_solver.abstol,
-                                                           ode_solver.reltol,
-                                                           ode_solver.force_dtmin,
-                                                           ode_solver.dtmin,
-                                                           ode_solver.maxiters
+    @unpack solver, abstol, reltol, force_dtmin, dtmin, maxiters = ode_solver
     for i in eachindex(pre_equilibration_condition_id)
 
         # Sets up a function which takes du and solves the Adjoint ODE system with du
@@ -220,7 +216,7 @@ function generate_VJP_ss(simulation_info::PEtab.SimulationInfo,
         _sol = simulation_info.ode_sols_pre_equlibrium[pre_equilibration_condition_id[i]]
         _prob = remake(_sol.prob, tspan = (0.0, _sol.t[end]))
         sol = solve(_prob, solver, abstol = abstol, reltol = reltol,
-                    force_dtmin = force_dtmin, sensealg_ss, maxiters = maxiters)
+                    force_dtmin = force_dtmin, maxiters = maxiters)
 
         _eval_VJP_ss_i = (du) -> compute_VJP_ss(du, sol, solver, sensealg_ss, reltol,
                                                 abstol, dtmin, force_dtmin, maxiters)
@@ -244,12 +240,12 @@ function compute_VJP_ss(du::AbstractVector,
                         force_dtmin::Bool,
                         maxiters::Int64)::AbstractVector
     adj_prob, rcb = ODEAdjointProblem(_sol, sensealg, solver, [_sol.t[end]],
-                                      compute_∂g∂u_empty, nothing,
-                                      nothing, nothing, nothing, Val(true))
+                                      compute_∂g∂u_empty, nothing, nothing, nothing,
+                                      nothing, Val(true))
     adj_prob.u0 .= du
     adj_sol = solve(adj_prob, solver; abstol = abstol, reltol = reltol,
-                    force_dtmin = force_dtmin, maxiters = maxiters,
-                    save_everystep = true, save_start = true)
+                    force_dtmin = force_dtmin, maxiters = maxiters, save_everystep = true,
+                    save_start = true)
     integrand = AdjointSensitivityIntegrand(_sol, adj_sol, sensealg, nothing)
     res, err = SciMLSensitivity.quadgk(integrand, _sol.prob.tspan[1], _sol.t[end],
                                        atol = abstol, rtol = reltol)
@@ -266,8 +262,8 @@ function compute_VJP_ss(du::AbstractVector,
                         maxiters::Int64)::AbstractVector
     n_model_states = length(_sol.prob.u0)
     adj_prob, rcb = ODEAdjointProblem(_sol, sensealg, solver, [_sol.t[end]],
-                                      compute_∂g∂u_empty, nothing,
-                                      nothing, nothing, nothing, Val(true))
+                                      compute_∂g∂u_empty, nothing, nothing, nothing,
+                                      nothing, Val(true))
 
     adj_prob.u0[1:n_model_states] .= du[1:n_model_states]
 
@@ -423,21 +419,6 @@ function __adjoint_sensitivities!(_du::AbstractVector,
         dp = adj_sol.u[end][(1:l) .+ length(sol.prob.u0)]'
     end
 
-    if rcb !== nothing && !isempty(rcb.Δλas)
-        S = adj_prob.f.f
-        iλ = similar(rcb.λ, length(first(sol.u)))
-        out = zero(dp')
-        yy = similar(rcb.y)
-        for (Δλa, tt) in rcb.Δλas
-            iλ .= zero(eltype(iλ))
-            @unpack algevar_idxs = rcb.diffcache
-            iλ[algevar_idxs] .= Δλa
-            sol(yy, tt)
-            vecjacobian!(nothing, yy, iλ, sol.prob.p, tt, S, dgrad = out)
-            dp .+= out'
-        end
-    end
-
     _du .= du0
     _dp .= dp'
     return true
@@ -522,19 +503,6 @@ function __adjoint_sensitivities!(_du::AbstractVector,
                                                 atol = abstol, rtol = reltol)[1]
             end
         end
-        if rcb !== nothing && !isempty(rcb.Δλas)
-            iλ = zero(rcb.λ)
-            out = zero(res')
-            yy = similar(rcb.y)
-            for (Δλa, tt) in rcb.Δλas
-                @unpack algevar_idxs = rcb.diffcache
-                iλ[algevar_idxs] .= Δλa
-                sol(yy, tt)
-                vec_pjac!(out, iλ, yy, tt, integrand)
-                res .+= out'
-                iλ .= zero(eltype(iλ))
-            end
-        end
     end
 
     _du .= adj_sol[end]
@@ -579,20 +547,6 @@ function __adjoint_sensitivities!(_du::AbstractVector,
                     tstops = tstops,
                     callback = CallbackSet(cb, cb2), kwargs...)
     res = integrand_values.integrand
-
-    if rcb !== nothing && !isempty(rcb.Δλas)
-        iλ = zero(rcb.λ)
-        out = zero(res)
-        yy = similar(rcb.y)
-        for (Δλa, tt) in rcb.Δλas
-            @unpack algevar_idxs = rcb.diffcache
-            iλ[algevar_idxs] .= Δλa
-            sol(yy, tt)
-            vec_pjac!(out, iλ, yy, tt, integrand)
-            res .+= out
-            iλ .= zero(eltype(iλ))
-        end
-    end
 
     _du .= adj_sol[end]
     _dp .= SciMLSensitivity.__maybe_adjoint(res)'

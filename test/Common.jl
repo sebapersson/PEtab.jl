@@ -15,7 +15,7 @@ function _test_cost_gradient_hessian(petab_model::PEtabModel,
                                     hessian_method::Symbol=:ForwardDiff,
                                     ss_options=nothing,
                                     sensealg=InterpolatingAdjoint(autojacvec=ReverseDiffVJP(false)),
-                                    sensealg_ss=SteadyStateAdjoint())
+                                    sensealg_ss=nothing)
 
     if isnothing(solverGradientOptions)
         solverGradientOptions = deepcopy(ode_solver)

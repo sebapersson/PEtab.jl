@@ -6,12 +6,7 @@ import Base.show
 
 # Helper function for printing ODE-solver options
 function get_ode_solver_str(a::ODESolver)
-    solverStr = string(a.solver)
-    i_end = findfirst(x -> x == '{', solverStr)
-    if isnothing(i_end)
-        i_end = findfirst(x -> x == '(', solverStr)
-    end
-    solver_str = solverStr[1:(i_end - 1)] * "()"
+    solver_str = string(a.solver)[1:(findfirst('(', string(a.solver)) - 1)]
     options_str = @sprintf("(abstol, reltol, maxiters) = (%.1e, %.1e, %.1e)", a.abstol,
                            a.reltol, a.maxiters)
     return solver_str, options_str

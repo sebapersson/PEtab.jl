@@ -16,12 +16,17 @@ function PEtab.create_gradient_function(which_method::Symbol,
                                         chunksize::Union{Nothing, Int64} = nothing,
                                         sensealg_ss = nothing,
                                         split_over_conditions::Bool = false)
-    _sensealg_ss = isnothing(sensealg_ss) ?
-                   InterpolatingAdjoint(autojacvec = ReverseDiffVJP()) : sensealg_ss
     # Fast but numerically unstable method
     if simulation_info.has_pre_equilibration_condition_id == true &&
-       typeof(_sensealg_ss) <: SteadyStateAdjoint
+       typeof(sensealg_ss) <: SteadyStateAdjoint
         @warn "If using adjoint sensitivity analysis for a model with PreEq-criteria the most the most efficient sensealg_ss is as provided SteadyStateAdjoint. However, SteadyStateAdjoint fails if the Jacobian is singular hence we recomend you check that the Jacobian is non-singular."
+    end
+    _sensealg_ss = isnothing(sensealg_ss) ? sensealg : sensealg_ss
+    # If sensealg_ss = GaussAdjoint as we do not actually have any observations during the
+    # pre-eq simulations, there is no difference between using Guass and Interpolating
+    # adjoint. Hence, to keep the size of the code-base smaller we use Gauss-adjoint
+    if _sensealg_ss isa GaussAdjoint
+        _sensealg_ss = InterpolatingAdjoint(autojacvec = _sensealg_ss.autojacvec)
     end
 
     iθ_sd, iθ_observable, iθ_non_dynamic, iθ_not_ode = PEtab.get_index_parameters_not_ODE(θ_indices)
