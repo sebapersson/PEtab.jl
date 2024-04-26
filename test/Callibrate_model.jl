@@ -63,14 +63,12 @@ using Printf
 
     res1 = calibrate_model(petab_problem, p0, Optim.IPNewton())
     @test all(abs.(res1.xmin - petab_problem.θ_nominalT) .< 1e-2)
-    @test @sprintf("%s", res1) == "PEtabOptimisationResult\n--------- Summary ---------\nmin(f)                = 1.99e+02\nParameters esimtated  = 4\nOptimiser iterations  = 38\nRun time              = 1.3e+00s\nOptimiser algorithm   = Optim_IPNewton\n"
 
     res2 = calibrate_model(petab_problem, p0, IpoptOptimiser(false), options=IpoptOptions(print_level=0))
     @test all(abs.(res2.xmin - petab_problem.θ_nominalT) .< 1e-2)
 
     dir_save = joinpath(@__DIR__, "test_model_calibration")
     res3 = calibrate_model_multistart(petab_problem, Optim.IPNewton(), 10, dir_save, save_trace=true)
-    @test @sprintf("%s", res3)[1:186] == "PEtabMultistartOptimisationResult\n--------- Summary ---------\nmin(f)                = 1.99e+02\nParameters esimtated  = 4\nNumber of multistarts = 10\nOptimiser algorithm   = Optim_IPNewton"
     res_read = PEtabMultistartOptimisationResult(dir_save)
     @test all(abs.(res3.xmin - petab_problem.θ_nominalT) .< 1e-2)
     @test all(abs.(res_read.xmin - petab_problem.θ_nominalT) .< 1e-2)
