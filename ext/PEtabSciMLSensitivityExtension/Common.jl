@@ -26,7 +26,7 @@ function PEtab.create_gradient_function(which_method::Symbol,
     # pre-eq simulations, there is no difference between using Guass and Interpolating
     # adjoint. Hence, to keep the size of the code-base smaller we use Gauss-adjoint
     if _sensealg_ss isa GaussAdjoint
-        _sensealg_ss = InterpolatingAdjoint(autojacvec=_sensealg_ss.autojacvec)
+        _sensealg_ss = InterpolatingAdjoint(autojacvec = _sensealg_ss.autojacvec)
     end
 
     iθ_sd, iθ_observable, iθ_non_dynamic, iθ_not_ode = PEtab.get_index_parameters_not_ODE(θ_indices)
