@@ -26,6 +26,7 @@ using CSV
 using ForwardDiff
 using LinearAlgebra
 using Sundials
+using Printf
 
 import PEtab: read_petab_files, process_measurements, process_parameters, compute_θ_indices, process_simulationinfo, set_parameters_to_file_values!
 import PEtab: _change_simulation_condition!, solve_ODE_all_conditions, _get_steady_state_solver
@@ -201,3 +202,12 @@ end
 @testset "Gradient of residuals" begin
     check_gradient_residuals(petab_model, ODESolver(Rodas4P(), abstol=1e-9, reltol=1e-9))
 end
+
+# As the model has a steady-state this can be used to test the show function
+odesolver = @sprintf("%s", ODESolver(QNDF(), abstol=1e-5, reltol=1e-8))
+@test odesolver == "ODESolver with ODE solver QNDF. Options (abstol, reltol, maxiters) = (1.0e-05, 1.0e-08, 1.0e+04)"
+ssopt = @sprintf("%s", SteadyStateSolver(:Simulate))
+model = @sprintf("%s", PEtabModel(joinpath(@__DIR__, "Test_model3", "Test_model3.yaml"), build_julia_files=true, write_to_file=false))
+@test model[1:75] == "PEtabModel for model Test_model3. ODE-system has 2 states and 6 parameters."
+prob = @sprintf("%s", PEtabODEProblem(petab_model, verbose=false))
+@test prob == "PEtabODEProblem for Test_model3. ODE-states: 2. Parameters to estimate: 4 where 4 are dynamic.\n---------- Problem settings ----------\nGradient method : ForwardDiff\nHessian method : ForwardDiff\n--------- ODE-solver settings --------\nCost Rodas5P. Options (abstol, reltol, maxiters) = (1.0e-08, 1.0e-08, 1.0e+04)\nGradient Rodas5P. Options (abstol, reltol, maxiters) = (1.0e-08, 1.0e-08, 1.0e+04)\n--------- SS solver settings ---------\nCost Simulate. Option wrms with (abstol, reltol) = (1.0e-10, 1.0e-10)\nGradient Simulate. Options wrms with (abstol, reltol) = (1.0e-10, 1.0e-10)"

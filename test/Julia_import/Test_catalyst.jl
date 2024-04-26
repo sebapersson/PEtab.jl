@@ -31,4 +31,5 @@ using ForwardDiff
     include(joinpath(@__DIR__, "Priors.jl"))
     include(joinpath(@__DIR__, "PEtab_events.jl"))
     include(joinpath(@__DIR__, "Input_format.jl"))
+    include(joinpath(@__DIR__, "Show.jl"))
 end
