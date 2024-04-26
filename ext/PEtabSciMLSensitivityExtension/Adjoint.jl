@@ -189,7 +189,7 @@ function generate_VJP_ss(simulation_info::PEtab.SimulationInfo,
     return NamedTuple{Tuple(name for name in pre_equilibration_condition_id)}(eval_VJP_ss)
 end
 function generate_VJP_ss(simulation_info::PEtab.SimulationInfo,
-                         sensealg_ss::Union{QuadratureAdjoint, InterpolatingAdjoint},
+                         sensealg_ss::Union{QuadratureAdjoint, InterpolatingAdjoint, GaussAdjoint},
                          ode_solver::ODESolver,
                          ss_solver::SteadyStateSolver,
                          exp_id_solve::Vector{Symbol})::NamedTuple
@@ -206,12 +206,7 @@ function generate_VJP_ss(simulation_info::PEtab.SimulationInfo,
     end
 
     _eval_VJP_ss = Vector{Function}(undef, length(pre_equilibration_condition_id))
-    solver, abstol, reltol, force_dtmin, dtmin, maxiters = ode_solver.solver,
-                                                           ode_solver.abstol,
-                                                           ode_solver.reltol,
-                                                           ode_solver.force_dtmin,
-                                                           ode_solver.dtmin,
-                                                           ode_solver.maxiters
+    @unpack solver, abstol, reltol, force_dtmin, dtmin, maxiters = ode_solver
     for i in eachindex(pre_equilibration_condition_id)
 
         # Sets up a function which takes du and solves the Adjoint ODE system with du
@@ -220,7 +215,7 @@ function generate_VJP_ss(simulation_info::PEtab.SimulationInfo,
         _sol = simulation_info.ode_sols_pre_equlibrium[pre_equilibration_condition_id[i]]
         _prob = remake(_sol.prob, tspan = (0.0, _sol.t[end]))
         sol = solve(_prob, solver, abstol = abstol, reltol = reltol,
-                    force_dtmin = force_dtmin, sensealg_ss, maxiters = maxiters)
+                    force_dtmin = force_dtmin, maxiters = maxiters)
 
         _eval_VJP_ss_i = (du) -> compute_VJP_ss(du, sol, solver, sensealg_ss, reltol,
                                                 abstol, dtmin, force_dtmin, maxiters)
@@ -264,6 +259,7 @@ function compute_VJP_ss(du::AbstractVector,
                         dtmin::Union{Float64, Nothing},
                         force_dtmin::Bool,
                         maxiters::Int64)::AbstractVector
+
     n_model_states = length(_sol.prob.u0)
     adj_prob, rcb = ODEAdjointProblem(_sol, sensealg, solver, [_sol.t[end]],
                                       compute_∂g∂u_empty, nothing,
