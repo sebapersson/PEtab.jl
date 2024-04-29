@@ -725,7 +725,7 @@ function create_hessian_function(which_method::Symbol,
                 ss_solver = ss_solver, petab_model = petab_model,
                 simulation_info = simulation_info, θ_indices = θ_indices,
                 measurement_info = measurement_info,
-                parameter_info = parameter_info, prior_info,
+                parameter_info = parameter_info, prior_info = prior_info,
                 petab_ODE_cache = petab_ODE_cache,
                 petab_ODESolver_cache = petab_ODESolver_cache,
                 petab_ODE_cache = petab_ODE_cache
@@ -753,7 +753,7 @@ function create_hessian_function(which_method::Symbol,
                 θ_indices = θ_indices, prior_info = prior_info
 
                 (hessian, θ_est) -> compute_hessian_split!(hessian,
-                                                           θ,
+                                                           θ_est,
                                                            _eval_hessian,
                                                            simulation_info,
                                                            θ_indices,
@@ -867,7 +867,7 @@ function create_hessian_function(which_method::Symbol,
             _compute_hessian! = let compute_cost_θ_not_ODE = compute_cost_θ_not_ODE,
                 compute_cost_θ_dynamic = compute_cost_θ_dynamic,
                 petab_ODE_cache = petab_ODE_cache, simulation_info = simulation_info,
-                θ_indices, prior_info = prior_info
+                θ_indices = θ_indices, prior_info = prior_info
 
                 (hessian, θ_est) -> compute_hessian_block_split!(hessian,
                                                                  θ_est,

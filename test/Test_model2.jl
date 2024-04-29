@@ -157,7 +157,6 @@ function test_cost_gradient_hessian_test_model2(petab_model::PEtabModel, ode_sol
     end
 end
 
-
 # Used to check against world-age problem
 function create_model_inside_function()
     _petab_model = PEtabModel(joinpath(@__DIR__, "Test_model2", "Test_model2.yaml"), build_julia_files=true, verbose=true)
@@ -175,4 +174,8 @@ end
 
 @testset "Gradient of residuals" begin
     check_gradient_residuals(petab_model, ODESolver(Rodas5P(), abstol=1e-9, reltol=1e-9))
+end
+
+@testset "Split over conditions" begin
+    test_split_conditions(petab_model)
 end
