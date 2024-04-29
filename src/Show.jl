@@ -125,27 +125,25 @@ function show(io::IO, a::SteadyStateSolver)
             @printf(io,
                     "\nSimulation terminated if Newton-step Δu fulfill;\n√(∑((Δu ./ (reltol * u .+ abstol)).^2) / length(u)) < 1\n")
         end
-        if isnothing(a.abstol)
-            @printf(io, "with (abstol, reltol) = default values.")
-        else
-            @printf(io, "with (abstol, reltol) = (%.1e, %.1e)", a.abstol, a.reltol)
-        end
     end
 
     if a.method === :Rootfinding
         print(io, " with method ")
         printstyled(io, ":Rootfinding", color = 116)
         print(io, " to solve du = f(u, p, t) ≈ 0.")
-        if isnothing(a.rootfindingAlgorithm)
+        if isnothing(a.rootfinding_alg)
             @printf(io, "\nAlgorithm : NonlinearSolve's heruistic. Options ")
         else
-            algStr = string(a.rootfindingAlgorithm)
-            i_end = findfirst(x -> x == '{', algStr)
+            algStr = string(a.rootfinding_alg)
+            i_end = findfirst(x -> x == '(', algStr)
             algStr = algStr[1:(i_end - 1)] * "()"
             @printf(io, "\nAlgorithm : %s. Options ", algStr)
         end
-        @printf(io, "(abstol, reltol, maxiters) = (%.1e, %.1e, %d)", a.abstol, a.reltol,
-                a.maxiters)
+    end
+    if isnothing(a.abstol)
+        @printf(io, "with (abstol, reltol) = default values.")
+    else
+        @printf(io, "with (abstol, reltol) = (%.1e, %.1e)", a.abstol, a.reltol)
     end
 end
 function show(io::IO, a::PEtabOptimisationResult)
