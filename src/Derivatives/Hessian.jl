@@ -78,8 +78,9 @@ function compute_hessian_split!(hessian::Matrix{Float64},
         end
         @inbounds for i in eachindex(iθ_experimental_condition)
             @inbounds for j in eachindex(iθ_experimental_condition)
-                hessian[iθ_experimental_condition[i], iθ_experimental_condition[j]] += h_tmp[i,
-                                                                                             j]
+                _i = iθ_experimental_condition[i]
+                _j = iθ_experimental_condition[j]
+                hessian[_i, _j] += h_tmp[i, j]
             end
         end
     end

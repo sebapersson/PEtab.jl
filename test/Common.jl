@@ -108,3 +108,34 @@ function get_file_ode_values(petab_model::PEtabModel)
 
     return θ_est[θ_indices.iθ_dynamic]
 end
+
+function test_split_conditions(petab_model)
+    prob1 = PEtabODEProblem(petab_model, hessian_method=:ForwardDiff, split_over_conditions=false,
+                            verbose=false)
+    prob2 = PEtabODEProblem(petab_model, gradient_method=:ForwardEquations, sensealg=:ForwardDiff,
+                            hessian_method=:ForwardDiff, split_over_conditions=true,
+                            verbose=false)
+    prob3 = PEtabODEProblem(petab_model, hessian_method=:BlockForwardDiff, split_over_conditions=false,
+                            verbose=false)
+    prob4 = PEtabODEProblem(petab_model, hessian_method=:BlockForwardDiff, split_over_conditions=true,
+                            verbose=false)
+    x = prob1.θ_nominalT
+    _ = prob1.compute_cost(x)
+    _ = prob2.compute_cost(x)
+    _ = prob3.compute_cost(x)
+    _ = prob4.compute_cost(x)
+    # Test split for full-hessian and Forward-equations
+    g1 = prob1.compute_gradient(x)
+    g2 = prob2.compute_gradient(x)
+    h1 = prob1.compute_hessian(x)
+    h2 = prob2.compute_hessian(x)
+    @test norm(g1 - g2) ≤ 1e-10
+    @test norm(h1 - h2) ≤ 1e-10
+
+    # Test split for block-hessian
+    h3 = prob3.compute_hessian(x)
+    h4 = prob4.compute_hessian(x)
+    @test norm(h3 - h4) ≤ 1e-10
+
+    return nothing
+end
