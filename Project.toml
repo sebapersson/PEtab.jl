@@ -65,7 +65,7 @@ Aqua = "0.8"
 ArrayInterface = "7.7"
 Bijectors = "0.13"
 CSV = "0.10"
-Catalyst = "13"
+Catalyst = "13, 14"
 ChainRulesCore = "1"
 DataFrames = "1"
 DiffEqCallbacks = "2"
@@ -83,8 +83,8 @@ Optim = "1"
 Optimization = "3"
 OptimizationOptimJL = "0.2"
 OrdinaryDiffEq = "6"
-Plots = "1"
 Pigeons = "0.4"
+Plots = "1"
 PreallocationTools = "0.4"
 PrecompileTools = "1"
 Printf = "1"
@@ -126,7 +126,4 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["Aqua", "Bijectors", "Test", "SafeTestsets", "SciMLSensitivity", 
-        "Zygote", "Ipopt", "Optim", "Plots", "Optimization", "OptimizationOptimJL", 
-        "FiniteDifferences", "PyCall", "LogDensityProblems", "LogDensityProblemsAD", 
-        "AdaptiveMCMC", "AdvancedHMC", "MCMCChains", "Pigeons"]
+test = ["Aqua", "Bijectors", "Test", "SafeTestsets", "SciMLSensitivity", "Zygote", "Ipopt", "Optim", "Plots", "Optimization", "OptimizationOptimJL", "FiniteDifferences", "PyCall", "LogDensityProblems", "LogDensityProblemsAD", "AdaptiveMCMC", "AdvancedHMC", "MCMCChains", "Pigeons"]
