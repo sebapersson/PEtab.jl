@@ -83,8 +83,8 @@ Optim = "1"
 Optimization = "3"
 OptimizationOptimJL = "0.2"
 OrdinaryDiffEq = "6"
-Plots = "1"
 Pigeons = "0.4"
+Plots = "1"
 PreallocationTools = "0.4"
 PrecompileTools = "1"
 Printf = "1"
@@ -93,7 +93,7 @@ QuasiMonteCarlo = "0.3"
 Random = "1"
 ReverseDiff = "1"
 RuntimeGeneratedFunctions = "0.5"
-SBMLImporter = "1.0.3"
+SBMLImporter = "1.0.3, 2"
 SafeTestsets = "0.1"
 SciMLBase = "2"
 SciMLSensitivity = "7.55"
@@ -126,7 +126,4 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["Aqua", "Bijectors", "Test", "SafeTestsets", "SciMLSensitivity", 
-        "Zygote", "Ipopt", "Optim", "Plots", "Optimization", "OptimizationOptimJL", 
-        "FiniteDifferences", "PyCall", "LogDensityProblems", "LogDensityProblemsAD", 
-        "AdaptiveMCMC", "AdvancedHMC", "MCMCChains", "Pigeons"]
+test = ["Aqua", "Bijectors", "Test", "SafeTestsets", "SciMLSensitivity", "Zygote", "Ipopt", "Optim", "Plots", "Optimization", "OptimizationOptimJL", "FiniteDifferences", "PyCall", "LogDensityProblems", "LogDensityProblemsAD", "AdaptiveMCMC", "AdvancedHMC", "MCMCChains", "Pigeons"]
