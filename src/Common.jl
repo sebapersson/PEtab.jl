@@ -1,5 +1,12 @@
 # Functions used by both the ODE-solvers and PeTab importer.
 
+function _get_state_ids(system)::Vector{String}
+    ids = states(system)
+    ids = string.(ids)
+    ids = replace.(ids, "(t)" => "")
+    return ids
+end
+
 """
     set_parameters_to_file_values!(parameter_map, state_map, parameters_info::ParamData)
 
@@ -32,25 +39,21 @@ function set_parameters_to_file_values!(parameter_map, state_map,
     return nothing
 end
 
-function splitθ(θ_est::AbstractVector{T},
-                θ_indices::ParameterIndices)::Tuple{AbstractVector{T}, AbstractVector{T},
-                                                    AbstractVector{T},
-                                                    AbstractVector{T}} where {T}
-    θ_dynamic = @view θ_est[θ_indices.iθ_dynamic]
-    θ_observable = @view θ_est[θ_indices.iθ_observable]
-    θ_sd = @view θ_est[θ_indices.iθ_sd]
-    θ_non_dynamic = @view θ_est[θ_indices.iθ_non_dynamic]
-
+function splitθ(θ_est::AbstractVector, θ_indices::ParameterIndices)
+    @unpack xindices = θ_indices
+    θ_dynamic = @view θ_est[xindices[:dynamic]]
+    θ_observable = @view θ_est[xindices[:observable]]
+    θ_sd = @view θ_est[xindices[:noise]]
+    θ_non_dynamic = @view θ_est[xindices[:nondynamic]]
     return θ_dynamic, θ_observable, θ_sd, θ_non_dynamic
 end
 
-function splitθ!(θ_est::AbstractVector,
-                 θ_indices::ParameterIndices,
-                 petab_ODE_cache::PEtabODEProblemCache)::Nothing
-    @views petab_ODE_cache.θ_dynamic .= θ_est[θ_indices.iθ_dynamic]
-    @views petab_ODE_cache.θ_observable .= θ_est[θ_indices.iθ_observable]
-    @views petab_ODE_cache.θ_sd .= θ_est[θ_indices.iθ_sd]
-    @views petab_ODE_cache.θ_non_dynamic .= θ_est[θ_indices.iθ_non_dynamic]
+function splitθ!(θ_est::AbstractVector, θ_indices::ParameterIndices, petab_ODE_cache::PEtabODEProblemCache)::Nothing
+    @unpack xindices = θ_indices
+    @views petab_ODE_cache.θ_dynamic .= θ_est[xindices[:dynamic]]
+    @views petab_ODE_cache.θ_observable .= θ_est[xindices[:observable]]
+    @views petab_ODE_cache.θ_sd .= θ_est[xindices[:noise]]
+    @views petab_ODE_cache.θ_non_dynamic .= θ_est[xindices[:nondynamic]]
     return nothing
 end
 
@@ -76,6 +79,7 @@ function computeσ(u::AbstractVector{T1},
 
     return σ
 end
+
 
 # Compute observation function h
 function computehT(u::AbstractVector{T1},
@@ -248,7 +252,7 @@ function change_ode_parameters!(p_ode_problem::AbstractVector,
                                 θ_indices::ParameterIndices,
                                 petab_model::PEtabModel)::Nothing
     map_ode_problem = θ_indices.map_ode_problem
-    p_ode_problem[map_ode_problem.i_ode_problem_θ_dynamic] .= θ[map_ode_problem.iθ_dynamic]
+    p_ode_problem[map_ode_problem.dynamic_to_sys] .= θ[map_ode_problem.sys_to_dynamic]
     petab_model.compute_u0!(u0, p_ode_problem)
 
     return nothing
@@ -260,13 +264,13 @@ function change_ode_parameters(p_ode_problem::AbstractVector,
                                petab_model::PEtabModel)
 
     # Helper function to not-inplace map parameters
-    function mapParamToEst(j::Integer, mapDynParam::Map_ode_problem)
-        which_index = findfirst(x -> x == j, mapDynParam.i_ode_problem_θ_dynamic)
-        return map_ode_problem.iθ_dynamic[which_index]
+    function mapParamToEst(j::Integer, mapDynParam::MapODEProblem)
+        which_index = findfirst(x -> x == j, mapDynParam.dynamic_to_sys)
+        return map_ode_problem.sys_to_dynamic[which_index]
     end
 
     map_ode_problem = θ_indices.map_ode_problem
-    outp_ode_problem = [i ∈ map_ode_problem.i_ode_problem_θ_dynamic ?
+    outp_ode_problem = [i ∈ map_ode_problem.dynamic_to_sys ?
                         θ[mapParamToEst(i, map_ode_problem)] : p_ode_problem[i]
                         for i in eachindex(p_ode_problem)]
     outu0 = petab_model.compute_u0(outp_ode_problem)

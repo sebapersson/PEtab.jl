@@ -41,7 +41,7 @@ function show(io::IO, a::PEtabODEProblem)
     n_odes = length(a.petab_model.state_names)
     n_parameters_est = length(a.θ_names)
     θ_indices = a.θ_indices
-    n_dynamic_parameters = length(intersect(θ_indices.θ_dynamic_names, a.θ_names))
+    n_dynamic_parameters = length(intersect(θ_indices.xids[:dynamic], a.θ_names))
 
     solver_str, options_str = get_ode_solver_str(a.ode_solver)
     solver_gradient_str, options_gradient_str = get_ode_solver_str(a.ode_solver_gradient)

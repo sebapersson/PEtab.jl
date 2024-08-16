@@ -159,7 +159,7 @@ function _PEtabModel(system,
     # piecewise expressions into events
     parameter_info = parse_parameters(parameters_data)
     measurement_info = parse_measurements(measurements_data, observables_data)
-    θ_indices = compute_θ_indices(parameter_info, measurement_info, system_mutated,
+    θ_indices = parse_conditions(parameter_info, measurement_info, system_mutated,
                                   _parameter_map, _state_map, experimental_conditions)
     cbset, compute_tstops, convert_tspan = process_petab_events(events, system_mutated,
                                                                 θ_indices)

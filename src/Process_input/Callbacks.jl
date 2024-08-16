@@ -22,7 +22,7 @@ function create_callbacks_SBML(system::ODESystem,
     parameter_info = parse_parameters(parameters_data,
                                         custom_values = custom_values)
     measurement_info = parse_measurements(measurements_data, observables_data)
-    θ_indices = compute_θ_indices(parameter_info, measurement_info, system, parameter_map,
+    θ_indices = parse_conditions(parameter_info, measurement_info, system, parameter_map,
                                   state_map, experimental_conditions)
 
     # Set function names
@@ -446,7 +446,7 @@ function check_has_parameter_to_estimate(condition::T,
                                                                                    }
 
     # Parameters which are present for each experimental condition, and condition specific parameters
-    i_ode_θ_all_conditions = θ_indices.map_ode_problem.i_ode_problem_θ_dynamic
+    i_ode_θ_all_conditions = θ_indices.map_ode_problem.dynamic_to_sys
     i_ode_problem_θ_dynamicCondition = reduce(vcat,
                                               [θ_indices.maps_conidition_id[i].i_ode_problem_θ_dynamic
                                                for i in keys(θ_indices.maps_conidition_id)])

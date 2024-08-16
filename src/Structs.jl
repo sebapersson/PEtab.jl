@@ -139,27 +139,19 @@ struct MapConditionId
     i_ode_problem_θ_dynamic::Vector{Int64}
 end
 
-struct Map_ode_problem
-    iθ_dynamic::Vector{Int64}
-    i_ode_problem_θ_dynamic::Vector{Int64}
+struct MapODEProblem
+    sys_to_dynamic::Vector{Int64}
+    dynamic_to_sys::Vector{Int64}
 end
 
+
 struct ParameterIndices
-    iθ_dynamic::Vector{Int64}
-    iθ_observable::Vector{Int64}
-    iθ_sd::Vector{Int64}
-    iθ_non_dynamic::Vector{Int64}
-    iθ_not_ode::Vector{Int64}
-    θ_dynamic_names::Vector{Symbol}
-    θ_observable_names::Vector{Symbol}
-    θ_sd_names::Vector{Symbol}
-    θ_non_dynamic_names::Vector{Symbol}
-    θ_not_ode_names::Vector{Symbol}
-    θ_names::Vector{Symbol}
+    xindices::Dict{Symbol, Vector{Int32}}
+    xids::Dict{Symbol, Vector{Symbol}}
     θ_scale::Dict{Symbol, Symbol}
     mapθ_observable::Vector{θObsOrSdParameterMap}
     mapθ_sd::Vector{θObsOrSdParameterMap}
-    map_ode_problem::Map_ode_problem
+    map_ode_problem::MapODEProblem
     maps_conidition_id::Dict{<:Symbol, <:MapConditionId}
 end
 

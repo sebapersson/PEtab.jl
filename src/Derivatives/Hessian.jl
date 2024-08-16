@@ -59,9 +59,9 @@ function compute_hessian_split!(hessian::Matrix{Float64},
     hessian .= 0.0
     for conditionId in simulation_info.experimental_condition_id
         map_condition_id = θ_indices.maps_conidition_id[conditionId]
-        iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.iθ_dynamic,
+        iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.sys_to_dynamic,
                                                 map_condition_id.iθ_dynamic,
-                                                θ_indices.iθ_not_ode))
+                                                θ_indices.xindices[:not_system]))
         θ_input = θ_est[iθ_experimental_condition]
         h_tmp = zeros(length(θ_input), length(θ_input))
         eval_hessian = (θ_arg) -> begin
@@ -120,8 +120,8 @@ function compute_hessian_block!(hessian::Matrix{Float64},
     θ_dynamic = petab_ODE_cache.θ_dynamic
 
     try
-        if !isempty(θ_indices.iθ_dynamic)
-            @views ForwardDiff.hessian!(hessian[θ_indices.iθ_dynamic, θ_indices.iθ_dynamic],
+        if !isempty(θ_indices.xindices[:dynamic])
+            @views ForwardDiff.hessian!(hessian[θ_indices.xindices[:dynamic], θ_indices.xindices[:dynamic]],
                                         compute_cost_θ_dynamic, θ_dynamic, cfg)
         else
             compute_cost_θ_dynamic(θ_dynamic)
@@ -137,7 +137,7 @@ function compute_hessian_block!(hessian::Matrix{Float64},
         return nothing
     end
 
-    iθ_not_ode = θ_indices.iθ_not_ode
+    iθ_not_ode = θ_indices.xindices[:not_system]
     @views ForwardDiff.hessian!(hessian[iθ_not_ode, iθ_not_ode], compute_cost_θ_not_ODE,
                                 θ_est[iθ_not_ode])
 
@@ -172,7 +172,7 @@ function compute_hessian_block_split!(hessian::Matrix{Float64},
 
     for conditionId in simulation_info.experimental_condition_id
         map_condition_id = θ_indices.maps_conidition_id[conditionId]
-        iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.iθ_dynamic,
+        iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.sys_to_dynamic,
                                                 map_condition_id.iθ_dynamic))
         θ_input = θ_dynamic[iθ_experimental_condition]
         h_tmp = zeros(length(θ_input), length(θ_input))
@@ -201,7 +201,7 @@ function compute_hessian_block_split!(hessian::Matrix{Float64},
         return nothing
     end
 
-    iθ_not_ode = θ_indices.iθ_not_ode
+    iθ_not_ode = θ_indices.xindices[:not_system]
     @views ForwardDiff.hessian!(hessian[iθ_not_ode, iθ_not_ode], compute_cost_θ_not_ODE,
                                 θ_est[iθ_not_ode])
 
@@ -242,7 +242,7 @@ function compute_GaussNewton_hessian!(out::Matrix{Float64},
     fill!(jacobian_gn, 0.0)
 
     # Calculate gradient seperately for dynamic and non dynamic parameter.
-    compute_jacobian_residuals_θ_dynamic!((@view jacobian_gn[θ_indices.iθ_dynamic, :]),
+    compute_jacobian_residuals_θ_dynamic!((@view jacobian_gn[θ_indices.xindices[:dynamic], :]),
                                           θ_dynamic, θ_sd,
                                           θ_observable, θ_non_dynamic, petab_model,
                                           ode_problem,
@@ -255,13 +255,13 @@ function compute_GaussNewton_hessian!(out::Matrix{Float64},
                                           isremade = isremade)
 
     # Happens when at least one forward pass fails
-    if !isempty(θ_dynamic) && all(jacobian_gn[θ_indices.iθ_dynamic, :] .== 1e8)
+    if !isempty(θ_dynamic) && all(jacobian_gn[θ_indices.xindices[:dynamic], :] .== 1e8)
         out .= 0.0
         return nothing
     end
-    @views ForwardDiff.jacobian!(jacobian_gn[θ_indices.iθ_not_ode, :]',
+    @views ForwardDiff.jacobian!(jacobian_gn[θ_indices.xindices[:not_system], :]',
                                  compute_residuals_not_solve_ode!,
-                                 petab_ODE_cache.residuals_gn, θ_est[θ_indices.iθ_not_ode],
+                                 petab_ODE_cache.residuals_gn, θ_est[θ_indices.xindices[:not_system]],
                                  cfg_not_solve_ode)
 
     # In case of testing we might want to return the jacobian, else we are interested in the Guass-Newton approximaiton.
@@ -284,8 +284,8 @@ function compute_hessian_prior!(hessian::Matrix{Float64},
                                 θ_indices::ParameterIndices,
                                 prior_info::PriorInfo)::Nothing
     _evalPriors = (θ_est) -> begin
-        θ_estT = transformθ(θ_est, θ_indices.θ_names, θ_indices)
-        return -1.0 * compute_priors(θ_est, θ_estT, θ_indices.θ_names, prior_info) # We work with -loglik
+        θ_estT = transformθ(θ_est, θ_indices.xids[:estimate], θ_indices)
+        return -1.0 * compute_priors(θ_est, θ_estT, θ_indices.xids[:estimate], prior_info) # We work with -loglik
     end
     hessian .+= ForwardDiff.hessian(_evalPriors, θ)
     return nothing

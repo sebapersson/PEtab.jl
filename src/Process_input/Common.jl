@@ -16,3 +16,6 @@ function is_number(x::SubString{String})::Bool
     re2 = r"^[+-]?([0-9]+([.][0-9]*)?|[.][0-9]+)$"
     return (occursin(re1, x) || occursin(re2, x))
 end
+function is_number(x::Symbol)::Bool
+    is_number(x |> string)
+end

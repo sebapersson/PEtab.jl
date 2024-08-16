@@ -50,7 +50,7 @@ function PEtabODEProblem(petab_model::PEtabModel;
     parameter_info = parse_parameters(parameters_df,
                                         custom_values = custom_values)
     measurement_info = parse_measurements(measurements_df, observables_df)
-    θ_indices = compute_θ_indices(parameter_info, measurement_info, petab_model)
+    θ_indices = parse_conditions(parameter_info, measurement_info, petab_model)
     prior_info = process_priors(θ_indices, parameters_df)
     # For computing nllh an empty PriorInfo set is assumed
     prior_info_empty = PriorInfo(Dict{Symbol, Function}(),
@@ -60,16 +60,16 @@ function PEtabODEProblem(petab_model::PEtabModel;
 
     # In case not specified by the user set ODE, gradient and Hessian options
     nODEs = length(states(petab_model.system_mutated))
-    if nODEs ≤ 15 && length(θ_indices.θ_dynamic_names) ≤ 20
+    if nODEs ≤ 15 && length(θ_indices.xids[:dynamic]) ≤ 20
         model_size = :Small
-    elseif nODEs ≤ 50 && length(θ_indices.θ_dynamic_names) ≤ 69
+    elseif nODEs ≤ 50 && length(θ_indices.xids[:dynamic]) ≤ 69
         model_size = :Medium
     else
         model_size = :Large
     end
 
     # Select methods for computing Fisher-Information-Matrix (FIM)
-    if isnothing(FIM_method) && length(θ_indices.θ_names) ≤ 100
+    if isnothing(FIM_method) && length(θ_indices.xids[:estimate]) ≤ 100
         _FIM_method = :ForwardDiff
     elseif isnothing(FIM_method)
         _FIM_method = :GaussNewton
@@ -278,7 +278,7 @@ function PEtabODEProblem(petab_model::PEtabModel;
                                                               parameter_info)
 
     # Extract bounds and nominal parameter values
-    θ_names = θ_indices.θ_names
+    θ_names = θ_indices.xids[:estimate]
     lower_bounds = [parameter_info.lower_bounds[findfirst(x -> x == θ_names[i],
                                                           parameter_info.parameter_id)]
                     for i in eachindex(θ_names)]
@@ -701,9 +701,9 @@ function create_hessian_function(which_method::Symbol,
             end
 
             _chunksize = isnothing(chunksize) ?
-                         ForwardDiff.Chunk(zeros(length(θ_indices.θ_names))) :
+                         ForwardDiff.Chunk(zeros(length(θ_indices.xids[:estimate]))) :
                          ForwardDiff.Chunk(chunksize)
-            cfg = ForwardDiff.HessianConfig(_eval_hessian, zeros(length(θ_indices.θ_names)),
+            cfg = ForwardDiff.HessianConfig(_eval_hessian, zeros(length(θ_indices.xids[:estimate])),
                                             _chunksize)
 
             _compute_hessian! = let _eval_hessian = _eval_hessian, cfg = cfg,

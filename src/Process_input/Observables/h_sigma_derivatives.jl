@@ -31,16 +31,16 @@ function create_derivative_σ_h_file(model_name::String,
     measurement_info = parse_measurements(measurements_data, observables_data)
 
     # Indices for keeping track of parameters in θ
-    θ_indices = compute_θ_indices(parameter_info, measurement_info, system, parameter_map,
+    θ_indices = parse_conditions(parameter_info, measurement_info, system, parameter_map,
                                   state_map, experimental_conditions)
 
     ∂h∂u_str, ∂h∂p_str = create∂h∂_function(model_name, dir_julia, model_state_names,
                                             parameter_info, p_ode_problem_names,
-                                            string.(θ_indices.θ_non_dynamic_names),
+                                            string.(θ_indices.xids[:nondynamic]),
                                             observables_data, model_SBML, write_to_file)
     ∂σ∂u_str, ∂σ∂p_str = create∂σ∂_function(model_name, dir_julia, parameter_info,
                                             model_state_names, p_ode_problem_names,
-                                            string.(θ_indices.θ_non_dynamic_names),
+                                            string.(θ_indices.xids[:nondynamic]),
                                             observables_data, model_SBML, write_to_file)
 
     return ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str
@@ -60,7 +60,7 @@ function create_derivative_σ_h_file(model_name::String,
     measurement_info = PEtab.parse_measurements(measurements_data, observables_data)
 
     # Indices for keeping track of parameters in θ
-    θ_indices = PEtab.compute_θ_indices(parameter_info, measurement_info, system,
+    θ_indices = PEtab.parse_conditions(parameter_info, measurement_info, system,
                                         parameter_map, state_map, experimental_conditions)
 
     # Dummary variables to keep PEtab importer happy even as we are not providing any PEtab files
@@ -68,11 +68,11 @@ function create_derivative_σ_h_file(model_name::String,
 
     ∂h∂u_str, ∂h∂p_str = PEtab.create∂h∂_function(model_name, @__DIR__, model_state_names,
                                                   parameter_info, p_ode_problem_names,
-                                                  string.(θ_indices.θ_non_dynamic_names),
+                                                  string.(θ_indices.xids[:nondynamic]),
                                                   observables_data, model_SBML, false)
     ∂σ∂u_str, ∂σ∂p_str = PEtab.create∂σ∂_function(model_name, @__DIR__, parameter_info,
                                                   model_state_names, p_ode_problem_names,
-                                                  string.(θ_indices.θ_non_dynamic_names),
+                                                  string.(θ_indices.xids[:nondynamic]),
                                                   observables_data, model_SBML, false)
 
     return ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str

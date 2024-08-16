@@ -7,10 +7,10 @@ function PEtabODEProblemCache(gradient_method::Symbol,
                               simulation_info::SimulationInfo,
                               θ_indices::ParameterIndices,
                               _chunksize)::PEtabODEProblemCache
-    θ_dynamic = zeros(Float64, length(θ_indices.iθ_dynamic))
-    θ_observable = zeros(Float64, length(θ_indices.iθ_observable))
-    θ_sd = zeros(Float64, length(θ_indices.iθ_sd))
-    θ_non_dynamic = zeros(Float64, length(θ_indices.iθ_non_dynamic))
+    θ_dynamic = zeros(Float64, length(θ_indices.xindices[:dynamic]))
+    θ_observable = zeros(Float64, length(θ_indices.xindices[:observable]))
+    θ_sd = zeros(Float64, length(θ_indices.xindices[:noise]))
+    θ_non_dynamic = zeros(Float64, length(θ_indices.xindices[:nondynamic]))
 
     level_cache = 0
     if hessian_method ∈ [:ForwardDiff, :BlockForwardDiff, :GaussNewton]
@@ -22,20 +22,20 @@ function PEtabODEProblemCache(gradient_method::Symbol,
     end
 
     # This ensures that the chunksize is not to small when computing Hessians
-    chunksize = length(θ_indices.θ_names) * 2 + length(θ_indices.θ_names)^2
+    chunksize = length(θ_indices.xids[:estimate]) * 2 + length(θ_indices.xids[:estimate])^2
     chunksize = chunksize > 100 ? 100 : chunksize
 
-    _θ_dynamicT = zeros(Float64, length(θ_indices.iθ_dynamic))
-    _θ_observableT = zeros(Float64, length(θ_indices.iθ_observable))
-    _θ_sdT = zeros(Float64, length(θ_indices.iθ_sd))
-    _θ_non_dynamicT = zeros(Float64, length(θ_indices.iθ_non_dynamic))
+    _θ_dynamicT = zeros(Float64, length(θ_indices.xindices[:dynamic]))
+    _θ_observableT = zeros(Float64, length(θ_indices.xindices[:observable]))
+    _θ_sdT = zeros(Float64, length(θ_indices.xindices[:noise]))
+    _θ_non_dynamicT = zeros(Float64, length(θ_indices.xindices[:nondynamic]))
     θ_dynamicT = DiffCache(_θ_dynamicT, chunksize, levels = level_cache)
     θ_observableT = DiffCache(_θ_observableT, chunksize, levels = level_cache)
     θ_sdT = DiffCache(_θ_sdT, chunksize, levels = level_cache)
     θ_non_dynamicT = DiffCache(_θ_non_dynamicT, chunksize, levels = level_cache)
 
     gradient_θ_dyanmic = zeros(Float64, length(θ_dynamic))
-    gradient_θ_not_ode = zeros(Float64, length(θ_indices.iθ_not_ode))
+    gradient_θ_not_ode = zeros(Float64, length(θ_indices.xids[:not_system]))
 
     # For forward sensitivity equations and adjoint sensitivity analysis we need to
     # compute partial derivatives symbolically. Here the helping vectors are pre-allocated
@@ -74,7 +74,7 @@ function PEtabODEProblemCache(gradient_method::Symbol,
         n_timepoints_save = sum(length(simulation_info.time_observed[experimental_condition_id])
                                 for experimental_condition_id in simulation_info.experimental_condition_id)
         S = zeros(Float64,
-                  (n_timepoints_save * n_model_states, length(θ_indices.θ_dynamic_names)))
+                  (n_timepoints_save * n_model_states, length(θ_indices.xids[:dynamic])))
         sol_values = zeros(Float64, n_model_states, n_timepoints_save)
     else
         S = zeros(Float64, (0, 0))
@@ -82,7 +82,7 @@ function PEtabODEProblemCache(gradient_method::Symbol,
     end
 
     if hessian_method === :GaussNewton || FIM_method === :GaussNewton
-        jacobian_gn = zeros(Float64, length(θ_indices.θ_names),
+        jacobian_gn = zeros(Float64, length(θ_indices.xids[:estimate]),
                             length(measurement_info.time))
         residuals_gn = zeros(Float64, length(measurement_info.time))
     else
@@ -92,7 +92,7 @@ function PEtabODEProblemCache(gradient_method::Symbol,
 
     if gradient_method === :ForwardEquations || hessian_method === :GaussNewton ||
        FIM_method === :GaussNewton
-        _gradient = zeros(Float64, length(θ_indices.iθ_dynamic))
+        _gradient = zeros(Float64, length(θ_indices.xindices[:dynamic]))
     else
         _gradient = zeros(Float64, 0)
     end
@@ -171,7 +171,7 @@ function PEtabODESolverCache(gradient_method::Symbol,
         level_cache = 0
     end
 
-    chunksize = length(θ_indices.θ_names) * 2 + length(θ_indices.θ_names)^2
+    chunksize = length(θ_indices.xids[:estimate]) * 2 + length(θ_indices.xids[:estimate])^2
     chunksize = chunksize > 100 ? 100 : chunksize
 
     if simulation_info.has_pre_equilibration_condition_id == true

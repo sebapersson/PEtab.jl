@@ -4,204 +4,160 @@
     indices for mapping parameters between ode_problem.p and θ_est for parameters which are constant
     constant accross experimental conditions, and parameters specific to experimental conditions.
 =#
+# ParameterIndices = ParameterMappings
+# ParametersInfo = PEtabParameters
+# MeasurementsInfo = PEtabMeasurements
 
-function compute_θ_indices(parameter_info::ParametersInfo,
-                           measurements_info::MeasurementsInfo,
-                           petab_model::PEtabModel)::ParameterIndices
+"""
+        parse_conditions
+
+Parse conditions and build parameter maps.
+
+There are four type of parameters in a PEtab problem
+1. Dynamic (appear in ODE)
+2. Noise (appear in noiseParameters columns of measurement table)
+3. Observable (appear in observableParameters of measurement table)
+4. NonDynamic (do not correspond to any above)
+These parameter types need to be treated separately for computing efficient gradients.
+This function extracts which parameter is what type, and builds maps for correctly mapping
+the parameter during likelihood computations.
+"""
+function parse_conditions(parameter_info::ParametersInfo, measurements_info::MeasurementsInfo, petab_model::PEtabModel)::ParameterIndices
     conditions_df = petab_model.conditions_df
-    return compute_θ_indices(parameter_info, measurements_info, petab_model.system_mutated,
-                             petab_model.parameter_map, petab_model.state_map,
-                             conditions_df)
+    return parse_conditions(parameter_info, measurements_info, petab_model.system_mutated, petab_model.parameter_map, petab_model.state_map, conditions_df)
 end
-function compute_θ_indices(parameter_info::ParametersInfo,
-                           measurements_info::MeasurementsInfo,
-                           system,
-                           parameter_map,
-                           state_map,
-                           conditions_df::DataFrame)::ParameterIndices
-    θ_observable_names, θ_sd_names, θ_non_dynamic_names, θ_dynamic_names = compute_θ_names(parameter_info,
-                                                                                           measurements_info,
-                                                                                           system,
-                                                                                           conditions_df)
-    # When computing the gradient tracking parameters not part of ODE system is helpful
-    iθ_not_ode_names::Vector{Symbol} = Symbol.(unique(vcat(θ_sd_names, θ_observable_names,
-                                                           θ_non_dynamic_names)))
-    # Names in the big θ_est vector
-    θ_names::Vector{Symbol} = Symbol.(vcat(θ_dynamic_names, iθ_not_ode_names))
+function parse_conditions(parameter_info::ParametersInfo, measurements_info::MeasurementsInfo, sys, parameter_map, state_map, conditions_df::DataFrame)::ParameterIndices
+    xids = _get_xids(parameter_info, measurements_info, sys, conditions_df)
 
-    # Indices for each parameter in the big θ_est vector
-    iθ_dynamic::Vector{Int64} = [findfirst(x -> x == θ_dynamic_names[i], θ_names)
-                                 for i in eachindex(θ_dynamic_names)]
-    iθ_sd::Vector{Int64} = [findfirst(x -> x == θ_sd_names[i], θ_names)
-                            for i in eachindex(θ_sd_names)]
-    iθ_observable::Vector{Int64} = [findfirst(x -> x == θ_observable_names[i], θ_names)
-                                    for i in eachindex(θ_observable_names)]
-    iθ_non_dynamic::Vector{Int64} = [findfirst(x -> x == θ_non_dynamic_names[i], θ_names)
-                                     for i in eachindex(θ_non_dynamic_names)]
-    iθ_not_ode::Vector{Int64} = [findfirst(x -> x == iθ_not_ode_names[i], θ_names)
-                                 for i in eachindex(iθ_not_ode_names)]
+    # xindices for mapping parameters from xest -> xdynamic, etc..
+    xindices = _get_xindices(xids)
+    mapθ_observable = build_θ_sd_observable_map(xids[:observable], measurements_info, parameter_info, buildθ_observable = true)
+    mapθ_sd = build_θ_sd_observable_map(xids[:noise], measurements_info, parameter_info, buildθ_observable = false)
 
-    # When extracting observable or sd parameter for computing the cost we use a pre-computed map to efficently
-    # extract correct parameters
-    mapθ_observable = build_θ_sd_observable_map(θ_observable_names, measurements_info,
-                                                parameter_info, buildθ_observable = true)
-    mapθ_sd = build_θ_sd_observable_map(θ_sd_names, measurements_info, parameter_info,
-                                        buildθ_observable = false)
-
-    # Compute a map to map parameters between θ_dynamic and ode_problem.p
-    name_parameters_ode = Symbol.(string.(parameters(system)))
-    _iθ_dynamic::Vector{Int64} = findall(x -> x ∈ name_parameters_ode, θ_dynamic_names)
-    i_ode_problem_θ_dynamic::Vector{Int64} = [findfirst(x -> x == θ_dynamic_names[i],
-                                                        name_parameters_ode)
-                                              for i in _iθ_dynamic]
-    map_ode_problem::Map_ode_problem = Map_ode_problem(_iθ_dynamic, i_ode_problem_θ_dynamic)
+    # TODO: SII is going to make this much easier (but the reverse will be harder)
+    # Compute a map to map parameters between dynamic and system parameters
+    sys_to_dynamic = findall(x -> x in xids[:sys], xids[:dynamic]) |> Vector{Int64}
+    dynamic_to_sys = Int64[findfirst(x -> x == id, xids[:sys]) for id in xids[:dynamic][sys_to_dynamic]]
+    map_ode_problem::MapODEProblem = MapODEProblem(sys_to_dynamic, dynamic_to_sys)
 
     # Set up a map for changing between experimental conditions
-    maps_condition_id::Dict{Symbol, MapConditionId} = compute_maps_condition(system,
+    maps_condition_id::Dict{Symbol, MapConditionId} = compute_maps_condition(sys,
                                                                              parameter_map,
                                                                              state_map,
                                                                              parameter_info,
                                                                              conditions_df,
-                                                                             θ_dynamic_names)
-
-    # Set up a named tuple tracking the transformation of each parameter
-    _θ_scale = [parameter_info.parameter_scale[findfirst(x -> x == θ_name,
-                                                         parameter_info.parameter_id)]
-                for θ_name in θ_names]
-    θ_scale::Dict{Symbol, Symbol} = Dict([(θ_names[i], _θ_scale[i])
-                                          for i in eachindex(θ_names)])
-
-    θ_indices = ParameterIndices(iθ_dynamic,
-                                 iθ_observable,
-                                 iθ_sd,
-                                 iθ_non_dynamic,
-                                 iθ_not_ode,
-                                 θ_dynamic_names,
-                                 θ_observable_names,
-                                 θ_sd_names,
-                                 θ_non_dynamic_names,
-                                 iθ_not_ode_names,
-                                 θ_names,
-                                 θ_scale,
-                                 mapθ_observable,
-                                 mapθ_sd,
-                                 map_ode_problem,
-                                 maps_condition_id)
-
+                                                                             xids[:dynamic])
+    θ_scale = _get_xscales(xids, parameter_info)
+    θ_indices = ParameterIndices(xindices, xids, θ_scale, mapθ_observable, mapθ_sd, map_ode_problem, maps_condition_id)
     return θ_indices
 end
 
-function compute_θ_names(parameter_info::ParametersInfo,
-                         measurements_info::MeasurementsInfo,
-                         system,
-                         conditions_df::DataFrame)::Tuple{Vector{Symbol},
-                                                                        Vector{Symbol},
-                                                                        Vector{Symbol},
-                                                                        Vector{Symbol}}
+function _get_xids(parameter_info::ParametersInfo, measurements_info::MeasurementsInfo, sys, conditions_df::DataFrame)::Dict{Symbol, Vector{Symbol}}
+    @unpack observable_parameters, noise_parameters = measurements_info
 
-    # Extract the name of all parameter types
-    θ_observable_names::Vector{Symbol} = compute_names_obs_sd_parameters(measurements_info.observable_parameters,
-                                                                         parameter_info)
-    isθ_observable::Vector{Bool} = [parameter_info.parameter_id[i] in θ_observable_names
-                                    for i in eachindex(parameter_info.parameter_id)]
+    xids_observable = _get_xids_observable_noise(observable_parameters, parameter_info)
+    xids_noise = _get_xids_observable_noise(noise_parameters, parameter_info)
+    # Non-dynamic parameters are those that only appear in the observable and noise
+    # functions, but are not defined noise or observable column of the measurement file.
+    # Need to be tracked separately for efficient gradient computations
+    xids_nondynamic = _get_xids_nondynamic(xids_observable, xids_noise, sys, parameter_info, conditions_df)
+    xids_dynamic = _get_xids_dynamic(xids_observable, xids_noise, xids_nondynamic, parameter_info)
+    xids_sys = parameters(sys) .|> Symbol
+    xids_not_system = unique(vcat(xids_observable, xids_noise, xids_nondynamic))
+    xids_estimate = vcat(xids_dynamic, xids_not_system)
 
-    θ_sd_names::Vector{Symbol} = compute_names_obs_sd_parameters(measurements_info.noise_parameters,
-                                                                 parameter_info)
-    isθ_sd::Vector{Bool} = [parameter_info.parameter_id[i] in θ_sd_names
-                            for i in eachindex(parameter_info.parameter_id)]
-
-    # Non-dynamic parameters. This are parameters not entering the ODE system (or initial values), are not
-    # noise-parameter or observable parameters, but appear in SD and/or OBS functions. We need to track these
-    # as non-dynamic parameters since  want to compute gradients for these given a fixed ODE solution.
-    # Non-dynamic parameters not allowed to be observable or sd parameters
-    _isθ_non_dynamic = (parameter_info.estimate .&& .!isθ_observable .&& .!isθ_sd)
-    _θ_non_dynamic_names = parameter_info.parameter_id[_isθ_non_dynamic]
-    # Non-dynamic parameters not allowed to be part of the ODE-system
-    _θ_non_dynamic_names = _θ_non_dynamic_names[findall(x -> x ∉
-                                                             Symbol.(string.(parameters(system))),
-                                                        _θ_non_dynamic_names)]
-    # Non-dynamic parameters not allowed to be experimental condition specific parameters
-    conditions_specific_θ_dynamic = identify_cond_specific_θ_dynamic(system, parameter_info,
-                                                                     conditions_df)
-    θ_non_dynamic_names::Vector{Symbol} = _θ_non_dynamic_names[findall(x -> x ∉
-                                                                            conditions_specific_θ_dynamic,
-                                                                       _θ_non_dynamic_names)]
-    isθ_non_dynamic = [parameter_info.parameter_id[i] in θ_non_dynamic_names
-                       for i in eachindex(parameter_info.parameter_id)]
-
-    isθ_dynamic::Vector{Bool} = (parameter_info.estimate .&& .!isθ_non_dynamic .&&
-                                 .!isθ_sd .&& .!isθ_observable)
-    θ_dynamic_names::Vector{Symbol} = parameter_info.parameter_id[isθ_dynamic]
-
-    return θ_observable_names, θ_sd_names, θ_non_dynamic_names, θ_dynamic_names
+    return Dict(:dynamic => xids_dynamic, :noise => xids_noise, :observable => xids_observable, :nondynamic => xids_nondynamic, :not_system => xids_not_system, :sys => xids_sys, :estimate => xids_estimate)
 end
 
-# Helper function for extracting ID:s for observable and noise parameters from the noise- and observable column
-# in the PEtab file.
-function compute_names_obs_sd_parameters(noise_obs_column::T1,
-                                         parameter_info::ParametersInfo) where {
-                                                                                T1 <:
-                                                                                Vector{<:Union{<:String,
-                                                                                               <:AbstractFloat}}
-                                                                                }
-    θ_names = Symbol[]
-    for i in eachindex(noise_obs_column)
-        if isempty(noise_obs_column[i]) || is_number(string(noise_obs_column[i]))
+function _get_xindices(xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, Vector{Int32}}
+    xids_est = xids[:estimate]
+    xi_dynamic = Int32[findfirst(x -> x == id, xids_est) for id in xids[:dynamic]]
+    xi_noise = Int32[findfirst(x -> x == id, xids_est) for id in xids[:noise]]
+    xi_observable = Int32[findfirst(x -> x == id, xids_est) for id in xids[:observable]]
+    xi_nondynamic = Int32[findfirst(x -> x == id, xids_est) for id in xids[:nondynamic]]
+    xi_not_system = Int32[findfirst(x -> x == id, xids_est) for id in xids[:not_system]]
+    return Dict(:dynamic => xi_dynamic, :noise => xi_noise, :observable => xi_observable, :nondynamic => xi_nondynamic, :not_system => xi_not_system)
+end
+
+function _get_xscales(xids::Dict{T, Vector{T}}, parameter_info::ParametersInfo)::Dict{T, T} where T<:Symbol
+    @unpack parameter_scale, parameter_id = parameter_info
+    s = [parameter_scale[findfirst(x -> x == id, parameter_id)] for id in xids[:estimate]]
+    return Dict(xids[:estimate] .=> s)
+end
+
+function _get_xids_dynamic(observable_ids::T, noise_ids::T, xids_nondynamic::T, parameter_info::ParametersInfo)::T where T<:Vector{Symbol}
+    dynamics_xids = Symbol[]
+    for id in parameter_info.parameter_id
+        if _estimate_parameter(id, parameter_info) == false
             continue
         end
-
-        parameters_rowi = split(noise_obs_column[i], ';')
-        for _parameter in parameters_rowi
-            parameter = Symbol(_parameter)
-            # Disregard Id if parameters should not be estimated, or
-            i_parameter = findfirst(x -> x == parameter, parameter_info.parameter_id)
-            if is_number(_parameter) || parameter in θ_names ||
-               parameter_info.estimate[i_parameter] == false
-                continue
-            elseif isnothing(i_parameter)
-                @error "Parameter $parameter could not be found in parameter file"
-            end
-
-            θ_names = vcat(θ_names, parameter)
+        if id in Iterators.flatten((observable_ids, noise_ids, xids_nondynamic))
+            continue
         end
+        push!(dynamics_xids, id)
     end
-
-    return θ_names
+    return dynamics_xids
 end
 
-# Identifaying dynamic parameters to estimate, where the dynamic parameters are only used for some specific
-# experimental conditions.
-function identify_cond_specific_θ_dynamic(system,
-                                          parameter_info::ParametersInfo,
-                                          conditions_df::DataFrame)::Vector{Symbol}
-    all_parameters_ode = string.(parameters(system))
-    model_state_names = string.(states(system))
-    model_state_names = replace.(model_state_names, "(t)" => "")
-    parameters_estimate = parameter_info.parameter_id[parameter_info.estimate]
-
-    # List of parameters which have specific values for specific experimental conditions, these can be extracted
-    # from the rows of the conditions_df (where the column is the name of the parameter in the ODE-system,
-    # and the rows are the corresponding names of the parameter value to estimate)
-    conditions_specific_θ_dynamic = Vector{Symbol}(undef, 0)
-    column_names = names(conditions_df)
-    length(column_names) == 1 && return conditions_specific_θ_dynamic
-    i_start = column_names[2] == "conditionName" ? 3 : 2 # Sometimes PEtab file does not include column conditionName
-    for i in i_start:length(names(conditions_df))
-        if column_names[i] ∉ all_parameters_ode && column_names[i] ∉ model_state_names
-            @error "Problem : Parameter ", column_names[i],
-                   " should be in the ODE model as it dicates an experimental condition"
-        end
-
-        for j in 1:nrow(conditions_df)
-            if (_parameter = Symbol(string(conditions_df[j, i]))) ∈
-               parameters_estimate
-                conditions_specific_θ_dynamic = vcat(conditions_specific_θ_dynamic,
-                                                     _parameter)
+function _get_xids_observable_noise(values, parameter_info::ParametersInfo)::Vector{Symbol}
+    ids = Symbol[]
+    for value in values
+        isempty(value) && continue
+        is_number(value) && continue
+        # Multiple ids are split by ; in the PEtab table
+        for id in Symbol.(split(value, ';'))
+            is_number(id) && continue
+            if !(id in parameter_info.parameter_id)
+                throw(PEtabFileError("Parameter $id in measurement file does not appear " *
+                                     "in the PEtab parameters table."))
             end
+            id in ids && continue
+            if _estimate_parameter(id, parameter_info) == false
+                continue
+            end
+            push!(ids, id)
         end
     end
+    return ids
+end
 
-    return unique(conditions_specific_θ_dynamic)
+function _get_xids_nondynamic(xids_observable::T, xids_noise::T, sys, parameter_info::ParametersInfo, conditions_df::DataFrame)::T where T<:Vector{Symbol}
+    xids_condition = _get_xids_condition(sys, parameter_info, conditions_df)
+    xids_sys = parameters(sys) .|> Symbol
+    xids_nondynamic = Symbol[]
+    for id in parameter_info.parameter_id
+        if _estimate_parameter(id, parameter_info) == false
+            continue
+        end
+        if id in Iterators.flatten((xids_sys, xids_condition, xids_observable, xids_noise))
+            continue
+        end
+        push!(xids_nondynamic, id)
+    end
+    return xids_nondynamic
+end
+
+function _get_xids_condition(sys, parameter_info::ParametersInfo, conditions_df::DataFrame)::Vector{Symbol}
+    xids_sys = parameters(sys) .|> string
+    species_sys = _get_state_ids(sys)
+    xids_condition = Symbol[]
+    for colname in names(conditions_df)
+        colname in ["conditionName", "conditionId"] && continue
+        if !(colname in Iterators.flatten((xids_sys, species_sys)))
+            throw(PEtabFileError("Parameter $colname that dictates an experimental " *
+                                 "condition does not appear among the model variables"))
+        end
+        for condition_variable in Symbol.(conditions_df[!, colname])
+            is_number(condition_variable) && continue
+            condition_variable == :missing && continue
+            if _estimate_parameter(condition_variable, parameter_info) == false
+                continue
+            end
+            condition_variable in xids_condition && continue
+            push!(xids_condition, condition_variable)
+        end
+    end
+    return xids_condition
 end
 
 # For each observation build a map that correctly from either θ_observable or θ_sd map extract the correct value
@@ -292,7 +248,7 @@ function build_θ_sd_observable_map(n_parameters_estimate::Vector{Symbol},
 end
 
 # A map to accurately map parameters for a specific experimental conditionId to the ODE-problem
-function compute_maps_condition(system,
+function compute_maps_condition(sys,
                                 parameter_map,
                                 state_map,
                                 parameter_info::ParametersInfo,
@@ -301,9 +257,9 @@ function compute_maps_condition(system,
                                                                         MapConditionId}
     θ_dynamic_names = string.(_θ_dynamic_names)
     n_conditions = nrow(conditions_df)
-    model_state_names = string.(states(system))
+    model_state_names = string.(states(sys))
     model_state_names = replace.(model_state_names, "(t)" => "")
-    all_parameters_ode = string.(parameters(system))
+    all_parameters_ode = string.(parameters(sys))
 
     i_start = "conditionName" in names(conditions_df) ? 3 : 2
     condition_specific_variables = string.(names(conditions_df)[i_start:end])
@@ -323,7 +279,7 @@ function compute_maps_condition(system,
         rowi = string.(collect(conditions_df[i, i_start:end]))
         for j in eachindex(rowi)
 
-            # In case a condition specific ode-system parameter is mapped to constant number
+            # In case a condition specific ode-sys parameter is mapped to constant number
             if is_number(rowi[j]) && condition_specific_variables[j] ∈ all_parameters_ode
                 constant_parameters = vcat(constant_parameters, parse(Float64, rowi[j]))
                 i_ode_constant_parameters = vcat(i_ode_constant_parameters,

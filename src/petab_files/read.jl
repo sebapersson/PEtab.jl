@@ -1,13 +1,9 @@
 function read_tables(path_yaml::String)::Tuple{DataFrame, DataFrame, DataFrame, DataFrame}
     paths = _get_petab_paths(path_yaml)
-    conditions_df = CSV.read(paths[:conditions], DataFrame; stringtype=String)
-    _check_table(conditions_df, :conditions)
-    measurements_df = CSV.read(paths[:measurements], DataFrame; stringtype=String)
-    _check_table(measurements_df, :measurements)
-    parameters_df = CSV.read(paths[:parameters], DataFrame; stringtype=String)
-    _check_table(parameters_df, :parameters)
-    observables_df = CSV.read(paths[:observables], DataFrame; stringtype=String)
-    _check_table(observables_df, :observables)
+    conditions_df = _read_table(paths[:conditions], :conditions)
+    measurements_df = _read_table(paths[:measurements], :measurements)
+    parameters_df = _read_table(paths[:parameters], :parameters)
+    observables_df = _read_table(paths[:observables], :observables)
     return conditions_df, measurements_df, parameters_df, observables_df
 end
 
@@ -17,15 +13,21 @@ function _get_petab_paths(path_yaml::AbstractString)::NamedTuple
     end
     yaml_file = YAML.load_file(path_yaml)
     dirmodel = dirname(path_yaml)
-    path_SBML = _read_file(yaml_file, dirmodel, "sbml_files")
-    path_measurements = _read_file(yaml_file, dirmodel, "measurement_files")
-    path_observables = _read_file(yaml_file, dirmodel, "observable_files")
-    path_conditions = _read_file(yaml_file, dirmodel, "condition_files")
-    path_parameters = _read_file(yaml_file, dirmodel, "parameter_file")
+    path_SBML = _get_path(yaml_file, dirmodel, "sbml_files")
+    path_measurements = _get_path(yaml_file, dirmodel, "measurement_files")
+    path_observables = _get_path(yaml_file, dirmodel, "observable_files")
+    path_conditions = _get_path(yaml_file, dirmodel, "condition_files")
+    path_parameters = _get_path(yaml_file, dirmodel, "parameter_file")
     return (SBML=path_SBML, parameters=path_parameters, conditions=path_conditions, observables=path_observables, measurements=path_measurements)
 end
 
-function _read_file(yaml_file, dirmodel::String, file::String)::String
+function _read_table(path::String, file::Symbol)::DataFrame
+    df = CSV.read(path, DataFrame; stringtype=String)
+    _check_table(df, file)
+    return df
+end
+
+function _get_path(yaml_file, dirmodel::String, file::String)::String
     if file != "parameter_file"
         path = joinpath(dirmodel, yaml_file["problems"][1][file][1])
     else
@@ -83,11 +85,10 @@ end
 
 function _check_column_types(df::DataFrame, column_name::String, valid_types, table::Symbol)::Nothing
     for val in df[!, column_name]
-        if !(typeof(val) <: valid_types)
-            throw(PEtabFileError("Column $column_name in $table table has invalid type " *
-                                 "invalid type $(typeof(val)) for entry $val. Allowed " *
-                                 "types are $valid_types"))
-        end
+        typeof(val) <: valid_types && continue
+        throw(PEtabFileError("Column $column_name in $table table has invalid type " *
+                             "invalid type $(typeof(val)) for entry $val. Valid " *
+                             "types are $valid_types"))
     end
     return nothing
 end

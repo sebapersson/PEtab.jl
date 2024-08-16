@@ -15,7 +15,6 @@ function compute_cost(θ_est::Vector{T},
                       compute_hessian::Bool,
                       compute_residuals::Bool)::T where {T <: Real}
     θ_dynamic, θ_observable, θ_sd, θ_non_dynamic = splitθ(θ_est, θ_indices)
-
     cost = compute_cost_solve_ODE(θ_dynamic, θ_sd, θ_observable, θ_non_dynamic, ode_problem,
                                   ode_solver, ss_solver, petab_model,
                                   simulation_info, θ_indices, measurement_info,
@@ -26,8 +25,8 @@ function compute_cost(θ_est::Vector{T},
                                   exp_id_solve = exp_id_solve)
 
     if prior_info.has_priors == true && compute_hessian == false
-        θ_estT = transformθ(θ_est, θ_indices.θ_names, θ_indices)
-        cost -= compute_priors(θ_est, θ_estT, θ_indices.θ_names, prior_info) # We work with -loglik
+        θ_estT = transformθ(θ_est, θ_indices.xids[:estimate], θ_indices)
+        cost -= compute_priors(θ_est, θ_estT, θ_indices.xids[:estimate], prior_info) # We work with -loglik
     end
 
     return cost
@@ -60,17 +59,16 @@ function compute_cost_solve_ODE(θ_dynamic::T1,
     if compute_gradient_θ_dynamic == true &&
        petab_ODE_cache.nθ_dynamic[1] != length(θ_dynamic)
         _θ_dynamic = θ_dynamic[petab_ODE_cache.θ_dynamic_output_order]
-        θ_dynamicT = transformθ(_θ_dynamic, θ_indices.θ_dynamic_names, θ_indices,
+        θ_dynamicT = transformθ(_θ_dynamic, θ_indices.xids[:dynamic], θ_indices,
                                 :θ_dynamic, petab_ODE_cache)
     else
-        θ_dynamicT = transformθ(θ_dynamic, θ_indices.θ_dynamic_names, θ_indices, :θ_dynamic,
+        θ_dynamicT = transformθ(θ_dynamic, θ_indices.xids[:dynamic], θ_indices, :θ_dynamic,
                                 petab_ODE_cache)
     end
-
-    θ_sdT = transformθ(θ_sd, θ_indices.θ_sd_names, θ_indices, :θ_sd, petab_ODE_cache)
-    θ_observableT = transformθ(θ_observable, θ_indices.θ_observable_names, θ_indices,
+    θ_sdT = transformθ(θ_sd, θ_indices.xids[:noise], θ_indices, :θ_sd, petab_ODE_cache)
+    θ_observableT = transformθ(θ_observable, θ_indices.xids[:observable], θ_indices,
                                :θ_observable, petab_ODE_cache)
-    θ_non_dynamicT = transformθ(θ_non_dynamic, θ_indices.θ_non_dynamic_names, θ_indices,
+    θ_non_dynamicT = transformθ(θ_non_dynamic, θ_indices.xids[:nondynamic], θ_indices,
                                 :θ_non_dynamic, petab_ODE_cache)
 
     _ode_problem = remake(ode_problem, p = convert.(eltype(θ_dynamicT), ode_problem.p),
@@ -130,10 +128,10 @@ function compute_cost_not_solve_ODE(θ_sd::T1,
 
     # To be able to use ReverseDiff sdParamEstUse and obsParamEstUse cannot be overwritten.
     # Hence new vectors have to be created. Minimal overhead.
-    θ_sdT = transformθ(θ_sd, θ_indices.θ_sd_names, θ_indices, :θ_sd, petab_ODE_cache)
-    θ_observableT = transformθ(θ_observable, θ_indices.θ_observable_names, θ_indices,
+    θ_sdT = transformθ(θ_sd, θ_indices.xids[:noise], θ_indices, :θ_sd, petab_ODE_cache)
+    θ_observableT = transformθ(θ_observable, θ_indices.xids[:observable], θ_indices,
                                :θ_observable, petab_ODE_cache)
-    θ_non_dynamicT = transformθ(θ_non_dynamic, θ_indices.θ_non_dynamic_names, θ_indices,
+    θ_non_dynamicT = transformθ(θ_non_dynamic, θ_indices.xids[:nondynamic], θ_indices,
                                 :θ_non_dynamic, petab_ODE_cache)
 
     cost = _compute_cost(θ_sdT, θ_observableT, θ_non_dynamicT, petab_model, simulation_info,

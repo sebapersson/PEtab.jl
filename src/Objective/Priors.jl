@@ -33,7 +33,7 @@ function process_priors(θ_indices::ParameterIndices, parameters_df::DataFrame):
     distribution::Dict{Symbol, Distribution{Univariate, Continuous}} = Dict()
     initialisation_distribution::Dict{Symbol, Distribution{Univariate, Continuous}} = Dict()
     prior_on_parameter_scale::Dict{Symbol, Bool} = Dict()
-    for θ_name in θ_indices.θ_names
+    for θ_name in θ_indices.xids[:estimate]
         which_parameter = findfirst(x -> x == string(θ_name),
                                     string.(parameters_df[!, :parameterId]))
         prior = parameters_df[which_parameter, :objectivePriorType]

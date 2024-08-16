@@ -27,12 +27,12 @@ function compute_gradient_forward_equations!(gradient::Vector{Float64},
                                              exp_id_solve::Vector{Symbol} = [:all],
                                              split_over_conditions::Bool = false,
                                              isremade::Bool = false)::Nothing
-    θ_dynamicT = transformθ(θ_dynamic, θ_indices.θ_dynamic_names, θ_indices, :θ_dynamic,
+    θ_dynamicT = transformθ(θ_dynamic, θ_indices.xids[:dynamic], θ_indices, :θ_dynamic,
                             petab_ODE_cache)
-    θ_sdT = transformθ(θ_sd, θ_indices.θ_sd_names, θ_indices, :θ_sd, petab_ODE_cache)
-    θ_observableT = transformθ(θ_observable, θ_indices.θ_observable_names, θ_indices,
+    θ_sdT = transformθ(θ_sd, θ_indices.xids[:noise], θ_indices, :θ_sd, petab_ODE_cache)
+    θ_observableT = transformθ(θ_observable, θ_indices.xids[:observable], θ_indices,
                                :θ_observable, petab_ODE_cache)
-    θ_non_dynamicT = transformθ(θ_non_dynamic, θ_indices.θ_non_dynamic_names, θ_indices,
+    θ_non_dynamicT = transformθ(θ_non_dynamic, θ_indices.xids[:nondynamic], θ_indices,
                                 :θ_non_dynamic, petab_ODE_cache)
 
     # Solve the expanded ODE system for the sensitivites
@@ -143,7 +143,7 @@ function solve_sensitivites(ode_problem::ODEProblem,
         S_tmp = similar(petab_ODE_cache.S)
         for condition_id in simulation_info.experimental_condition_id
             map_condition_id = θ_indices.maps_conidition_id[condition_id]
-            iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.iθ_dynamic,
+            iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.sys_to_dynamic,
                                                     map_condition_id.iθ_dynamic))
             θ_input = θ_dynamic[iθ_experimental_condition]
             compute_sensitivities_condition! = (sol_values, θ_arg) -> begin
@@ -201,7 +201,7 @@ function compute_gradient_forward_equations_condition!(gradient::Vector{Float64}
     map_condition_id = θ_indices.maps_conidition_id[simulation_condition_id]
     # Unique is needed to account for condition specific parameters which maps to potentially several
     # parameters in ODEProblem.p
-    iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.iθ_dynamic,
+    iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.sys_to_dynamic,
                                             map_condition_id.iθ_dynamic))
 
     # Loop through solution and extract sensitivites

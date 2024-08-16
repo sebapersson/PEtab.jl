@@ -16,12 +16,12 @@ function compute_jacobian_residuals_θ_dynamic!(jacobian::Union{Matrix{Float64},
                                                reuse_sensitivities::Bool = false,
                                                split_over_conditions::Bool = false,
                                                isremade::Bool = false)::Nothing
-    θ_dynamicT = transformθ(θ_dynamic, θ_indices.θ_dynamic_names, θ_indices, :θ_dynamic,
+    θ_dynamicT = transformθ(θ_dynamic, θ_indices.xids[:dynamic], θ_indices, :θ_dynamic,
                             petab_ODE_cache)
-    θ_sdT = transformθ(θ_sd, θ_indices.θ_sd_names, θ_indices, :θ_sd, petab_ODE_cache)
-    θ_observableT = transformθ(θ_observable, θ_indices.θ_observable_names, θ_indices,
+    θ_sdT = transformθ(θ_sd, θ_indices.xids[:noise], θ_indices, :θ_sd, petab_ODE_cache)
+    θ_observableT = transformθ(θ_observable, θ_indices.xids[:observable], θ_indices,
                                :θ_observable, petab_ODE_cache)
-    θ_non_dynamicT = transformθ(θ_non_dynamic, θ_indices.θ_non_dynamic_names, θ_indices,
+    θ_non_dynamicT = transformθ(θ_non_dynamic, θ_indices.xids[:nondynamic], θ_indices,
                                 :θ_non_dynamic, petab_ODE_cache)
 
     if reuse_sensitivities == false
@@ -106,7 +106,7 @@ function compute_jacobian_residuals_condition!(jacobian::M,
 
     # Extract relevant parameters for the experimental conditions
     map_condition_id = θ_indices.maps_conidition_id[simulation_condition_id]
-    iθ_experimental_condition = vcat(θ_indices.map_ode_problem.iθ_dynamic,
+    iθ_experimental_condition = vcat(θ_indices.map_ode_problem.sys_to_dynamic,
                                      map_condition_id.iθ_dynamic)
 
     # Loop through solution and extract sensitivites
@@ -159,10 +159,10 @@ function compute_residuals_not_solve_ode!(residuals::T1,
 
     # To be able to use ReverseDiff sdParamEstUse and obsParamEstUse cannot be overwritten.
     # Hence new vectors have to be created.
-    θ_sdT = transformθ(θ_sd, θ_indices.θ_sd_names, θ_indices, :θ_sd, petab_ODE_cache)
-    θ_observableT = transformθ(θ_observable, θ_indices.θ_observable_names, θ_indices,
+    θ_sdT = transformθ(θ_sd, θ_indices.xids[:noise], θ_indices, :θ_sd, petab_ODE_cache)
+    θ_observableT = transformθ(θ_observable, θ_indices.xids[:observable], θ_indices,
                                :θ_observable, petab_ODE_cache)
-    θ_non_dynamicT = transformθ(θ_non_dynamic, θ_indices.θ_non_dynamic_names, θ_indices,
+    θ_non_dynamicT = transformθ(θ_non_dynamic, θ_indices.xids[:nondynamic], θ_indices,
                                 :θ_non_dynamic, petab_ODE_cache)
 
     # Compute residuals per experimental conditions

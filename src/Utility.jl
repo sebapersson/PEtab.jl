@@ -174,9 +174,9 @@ function _get_fitted_parameters(res::Union{PEtabOptimisationResult,
     u0, u0s = ode_problem.u0[:], first.(petab_model.state_map)
 
     if res isa Vector{Float64}
-        θT = transformθ(res, θ_indices.θ_names, θ_indices)
+        θT = transformθ(res, θ_indices.xids[:estimate], θ_indices)
     else
-        θT = transformθ(res.xmin, θ_indices.θ_names, θ_indices)
+        θT = transformθ(res.xmin, θ_indices.xids[:estimate], θ_indices)
     end
     θ_dynamic, θ_observable, θ_sd, θ_non_dynamic = splitθ(θT, θ_indices)
 
@@ -273,7 +273,7 @@ function solve_all_conditions(xpetab, petab_problem::PEtabODEProblem, solver; ab
     end
 
     θ_dynamic, θ_observable, θ_sd, θ_non_dynamic = splitθ(xpetab, θ_indices)
-    θ_dynamicT = transformθ(θ_dynamic, θ_indices.θ_dynamic_names, θ_indices,
+    θ_dynamicT = transformθ(θ_dynamic, θ_indices.xids[:dynamic], θ_indices,
                             :θ_dynamic, petab_problem.petab_ODE_cache)
 
     odesols, could_solve = solve_ODE_all_conditions(ode_problem, petab_model, θ_dynamicT,

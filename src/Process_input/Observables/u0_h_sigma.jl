@@ -33,12 +33,12 @@ function create_σ_h_u0_file(model_name::String,
     measurement_info = parse_measurements(measurements_data, observables_data)
 
     # Indices for keeping track of parameters in θ
-    θ_indices = compute_θ_indices(parameter_info, measurement_info, system, parameter_map,
+    θ_indices = parse_conditions(parameter_info, measurement_info, system, parameter_map,
                                   state_map, experimental_conditions)
 
     h_str = create_h_function(model_name, dir_julia, model_state_names, parameter_info,
                               p_ode_problem_names,
-                              string.(θ_indices.θ_non_dynamic_names), observables_data,
+                              string.(θ_indices.xids[:nondynamic]), observables_data,
                               model_SBML, write_to_file)
 
     u0!_str = create_u0_function(model_name, dir_julia, parameter_info, p_ode_problem_names,
@@ -48,7 +48,7 @@ function create_σ_h_u0_file(model_name::String,
                                 state_map, write_to_file, model_SBML, inplace = false)
 
     σ_str = create_σ_function(model_name, dir_julia, parameter_info, model_state_names,
-                              p_ode_problem_names, string.(θ_indices.θ_non_dynamic_names),
+                              p_ode_problem_names, string.(θ_indices.xids[:nondynamic]),
                               observables_data, model_SBML, write_to_file)
 
     return h_str, u0!_str, u0_str, σ_str
@@ -71,7 +71,7 @@ function create_σ_h_u0_file(model_name::String,
     measurement_info = PEtab.parse_measurements(measurements_data, observables_data)
 
     # Indices for keeping track of parameters in θ
-    θ_indices = PEtab.compute_θ_indices(parameter_info, measurement_info, system,
+    θ_indices = PEtab.parse_conditions(parameter_info, measurement_info, system,
                                         parameter_map, state_map, experimental_conditions)
 
     # Dummary variables to keep PEtab importer happy even as we are not providing any PEtab files
@@ -79,7 +79,7 @@ function create_σ_h_u0_file(model_name::String,
 
     h_str = PEtab.create_h_function(model_name, @__DIR__, model_state_names, parameter_info,
                                     p_ode_problem_names,
-                                    string.(θ_indices.θ_non_dynamic_names),
+                                    string.(θ_indices.xids[:nondynamic]),
                                     observables_data, model_SBML, false)
     u0!_str = PEtab.create_u0_function(model_name, @__DIR__, parameter_info,
                                        p_ode_problem_names, state_map, false,
@@ -89,7 +89,7 @@ function create_σ_h_u0_file(model_name::String,
                                       model_SBML, inplace = false)
     σ_str = PEtab.create_σ_function(model_name, @__DIR__, parameter_info, model_state_names,
                                     p_ode_problem_names,
-                                    string.(θ_indices.θ_non_dynamic_names),
+                                    string.(θ_indices.xids[:nondynamic]),
                                     observables_data, model_SBML, false)
 
     return h_str, u0!_str, u0_str, σ_str

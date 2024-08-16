@@ -39,7 +39,7 @@ function compute_gradient_autodiff!(gradient::Vector{Float64},
                 ForwardDiff.gradient!(petab_ODE_cache.gradient_θ_dyanmic,
                                       compute_cost_θ_dynamic, petab_ODE_cache.θ_dynamic,
                                       cfg)
-                @views gradient[θ_indices.iθ_dynamic] .= petab_ODE_cache.gradient_θ_dyanmic
+                @views gradient[θ_indices.xindices[:dynamic]] .= petab_ODE_cache.gradient_θ_dyanmic
             else
                 compute_cost_θ_dynamic(petab_ODE_cache.θ_dynamic)
             end
@@ -62,7 +62,7 @@ function compute_gradient_autodiff!(gradient::Vector{Float64},
                                             petab_ODE_cache.gradient_θ_dyanmic, __θ_dynamic,
                                             ForwardDiff.Chunk(C);
                                             n_forward_passes = n_forward_passes)
-                @views gradient[θ_indices.iθ_dynamic] .= petab_ODE_cache.gradient_θ_dyanmic[petab_ODE_cache.θ_dynamic_output_order]
+                @views gradient[θ_indices.xindices[:dynamic]] .= petab_ODE_cache.gradient_θ_dyanmic[petab_ODE_cache.θ_dynamic_output_order]
             else
                 compute_cost_θ_dynamic(petab_ODE_cache.θ_dynamic)
             end
@@ -78,10 +78,10 @@ function compute_gradient_autodiff!(gradient::Vector{Float64},
         return nothing
     end
 
-    θ_not_ode = @view θ_est[θ_indices.iθ_not_ode]
+    θ_not_ode = @view θ_est[θ_indices.xindices[:not_system]]
     ForwardDiff.gradient!(petab_ODE_cache.gradient_θ_not_ode, compute_cost_θ_not_ODE,
                           θ_not_ode)
-    @views gradient[θ_indices.iθ_not_ode] .= petab_ODE_cache.gradient_θ_not_ode
+    @views gradient[θ_indices.xindices[:not_system]] .= petab_ODE_cache.gradient_θ_not_ode
 
     # If we have prior contribution its gradient is computed via autodiff for all parameters
     if prior_info.has_priors == true
@@ -114,7 +114,7 @@ function compute_gradient_autodiff_split!(gradient::Vector{Float64},
 
     for conditionId in simulation_info.experimental_condition_id
         map_condition_id = θ_indices.maps_conidition_id[conditionId]
-        iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.iθ_dynamic,
+        iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.sys_to_dynamic,
                                                 map_condition_id.iθ_dynamic))
         θ_input = θ_dynamic[iθ_experimental_condition]
         compute_cost_θ_dynamic = (θ_arg) -> begin
@@ -140,12 +140,12 @@ function compute_gradient_autodiff_split!(gradient::Vector{Float64},
         gradient .= 0.0
         return nothing
     end
-    @views gradient[θ_indices.iθ_dynamic] .= petab_ODE_cache.gradient_θ_dyanmic
+    @views gradient[θ_indices.xindices[:dynamic]] .= petab_ODE_cache.gradient_θ_dyanmic
 
-    θ_not_ode = @view θ_est[θ_indices.iθ_not_ode]
+    θ_not_ode = @view θ_est[θ_indices.xindices[:not_system]]
     ForwardDiff.gradient!(petab_ODE_cache.gradient_θ_not_ode, compute_cost_θ_not_ODE,
                           θ_not_ode)
-    @views gradient[θ_indices.iθ_not_ode] .= petab_ODE_cache.gradient_θ_not_ode
+    @views gradient[θ_indices.xindices[:not_system]] .= petab_ODE_cache.gradient_θ_not_ode
 
     # If we have prior contribution its gradient is computed via autodiff for all parameters
     if prior_info.has_priors == true
@@ -191,7 +191,7 @@ function compute_gradient_forward_equations!(gradient::Vector{Float64},
                                         exp_id_solve = exp_id_solve,
                                         split_over_conditions = split_over_conditions,
                                         isremade = isremade)
-    @views gradient[θ_indices.iθ_dynamic] .= petab_ODE_cache.gradient_θ_dyanmic
+    @views gradient[θ_indices.xindices[:dynamic]] .= petab_ODE_cache.gradient_θ_dyanmic
 
     # Happens when at least one forward pass fails and I set the gradient to 1e8
     if !isempty(petab_ODE_cache.gradient_θ_dyanmic) &&
@@ -200,10 +200,10 @@ function compute_gradient_forward_equations!(gradient::Vector{Float64},
         return nothing
     end
 
-    θ_not_ode = @view θ_est[θ_indices.iθ_not_ode]
+    θ_not_ode = @view θ_est[θ_indices.xindices[:not_system]]
     ReverseDiff.gradient!(petab_ODE_cache.gradient_θ_not_ode, compute_cost_θ_not_ODE,
                           θ_not_ode)
-    @views gradient[θ_indices.iθ_not_ode] .= petab_ODE_cache.gradient_θ_not_ode
+    @views gradient[θ_indices.xindices[:not_system]] .= petab_ODE_cache.gradient_θ_not_ode
 
     if prior_info.has_priors == true
         compute_gradient_prior!(gradient, θ_est, θ_indices, prior_info)
@@ -217,8 +217,8 @@ function compute_gradient_prior!(gradient::Vector{Float64},
                                  θ_indices::ParameterIndices,
                                  prior_info::PriorInfo)::Nothing
     _eval_priors = (θ_est) -> begin
-        θ_estT = transformθ(θ_est, θ_indices.θ_names, θ_indices)
-        return -1.0 * compute_priors(θ_est, θ_estT, θ_indices.θ_names, prior_info) # We work with -loglik
+        θ_estT = transformθ(θ_est, θ_indices.xids[:estimate], θ_indices)
+        return -1.0 * compute_priors(θ_est, θ_estT, θ_indices.xids[:estimate], prior_info) # We work with -loglik
     end
     gradient .+= ForwardDiff.gradient(_eval_priors, θ)
     return nothing
