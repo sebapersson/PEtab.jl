@@ -2,12 +2,18 @@ function PEtabModel(path_yaml::String;
                     build_julia_files::Bool = false,
                     verbose::Bool = true,
                     ifelse_to_event::Bool = true,
-                    custom_parameter_values::Union{Nothing, Dict} = nothing,
+                    custom_values::Union{Nothing, Dict} = nothing,
                     write_to_file::Bool = true)::PEtabModel
-    path_SBML, path_parameters, path_conditions, path_observables, path_measurements, dir_julia, dir_model, model_name = read_petab_yaml(path_yaml)
+    paths = _get_petab_paths(path_yaml)
+    dir_model = dirname(path_yaml)
+    model_name = splitdir(dir_model)[end]
+    dir_julia = joinpath(dir_model, "Julia_model_files")
+    !isdir(dir_julia) && mkdir(dir_julia)
+
+    conditions_df, measurements_df, parameters_df, observables_df = read_tables(path_yaml)
 
     verbose == true && @info "Building PEtabModel for $model_name"
-    model_SBML = SBMLImporter.build_SBML_model(path_SBML,
+    model_SBML = SBMLImporter.build_SBML_model(paths[:SBML],
                                                ifelse_to_callback = ifelse_to_event,
                                                model_as_string = false,
                                                inline_assignment_rules = false)
@@ -21,8 +27,7 @@ function PEtabModel(path_yaml::String;
             print(" Building Julia model file as it does not exist ...")
 
         b_build = @elapsed begin
-            parsed_model_SBML = SBMLImporter._reactionsystem_from_SBML(model_SBML;
-                                                                       check_massaction = false)
+            parsed_model_SBML = SBMLImporter._reactionsystem_from_SBML(model_SBML; check_massaction=false)
             model_str = SBMLImporter.reactionsystem_to_string(parsed_model_SBML,
                                                               write_to_file,
                                                               path_model_jl_file,
@@ -40,11 +45,10 @@ function PEtabModel(path_yaml::String;
     # Check if in order to capture PEtab condition file directly mapping to initial values we have
     # to rewrite the model parameter to correctly compute gradients etc...
     change_model_structure = add_parameters_condition_dependent_u0!(model_SBML,
-                                                                    path_conditions,
-                                                                    path_parameters)
+                                                                    conditions_df,
+                                                                    parameters_df)
     if change_model_structure == true
-        parsed_model_SBML = SBMLImporter._reactionsystem_from_SBML(model_SBML;
-                                                                   check_massaction = false)
+        parsed_model_SBML = SBMLImporter._reactionsystem_from_SBML(model_SBML; check_massaction=false)
         model_str = SBMLImporter.reactionsystem_to_string(parsed_model_SBML, write_to_file,
                                                           path_model_jl_file, model_SBML)
     end
@@ -95,7 +99,7 @@ function PEtabModel(path_yaml::String;
                                                                               parameter_map,
                                                                               _state_map,
                                                                               model_SBML,
-                                                                              custom_parameter_values = custom_parameter_values,
+                                                                              custom_values = custom_values,
                                                                               write_to_file = write_to_file)
         verbose == true && @printf(" done. Time = %.1es\n", b_build)
     else
@@ -122,7 +126,7 @@ function PEtabModel(path_yaml::String;
                                                                                                parameter_map,
                                                                                                _state_map,
                                                                                                model_SBML,
-                                                                                               custom_parameter_values = custom_parameter_values,
+                                                                                               custom_values = custom_values,
                                                                                                write_to_file = write_to_file)
         verbose == true && @printf(" done. Time = %.1es\n", b_build)
     else
@@ -147,7 +151,7 @@ function PEtabModel(path_yaml::String;
                                                                                       model_name,
                                                                                       path_yaml,
                                                                                       dir_julia,
-                                                                                      custom_parameter_values = custom_parameter_values,
+                                                                                      custom_values = custom_values,
                                                                                       write_to_file = write_to_file)
     end
     verbose == true && @printf(" done. Time = %.1es\n", b_build)
@@ -171,11 +175,11 @@ function PEtabModel(path_yaml::String;
                              state_names,
                              dir_model,
                              dir_julia,
-                             CSV.File(path_measurements, stringtype = String),
-                             CSV.File(path_conditions, stringtype = String),
-                             CSV.File(path_observables, stringtype = String),
-                             CSV.File(path_parameters, stringtype = String),
-                             path_SBML,
+                             measurements_df,
+                             conditions_df,
+                             observables_df,
+                             parameters_df,
+                             paths[:SBML],
                              path_yaml,
                              cbset,
                              check_cb_active,
@@ -238,18 +242,14 @@ function get_function_str(file_path::AbstractString, n_functions::Int64;
 end
 
 function add_parameters_condition_dependent_u0!(model_SBML::SBMLImporter.ModelSBML,
-                                                path_conditions::String,
-                                                path_parameters::String)::Bool
-
-    # Load necessary data
-    experimental_conditions_file = CSV.File(path_conditions)
-    parameters_file = CSV.File(path_parameters)
+                                                conditions_df::DataFrame,
+                                                parameters_df::DataFrame)::Bool
 
     parameter_names = [p for p in keys(model_SBML.parameters)]
     specie_names = [s for s in keys(model_SBML.species)]
 
     # Check if the condition table contains states to map initial values
-    condition_variables = string.(experimental_conditions_file.names)
+    condition_variables = names(conditions_df)
     if length(condition_variables) == 1
         return false # Model file is not modified
     end
@@ -292,7 +292,7 @@ function add_parameters_condition_dependent_u0!(model_SBML::SBMLImporter.ModelSB
     # that are not a part of the SBML model as these parameters must then be added to
     # the model as they should be treated as dynamic parameters
     for specie in vcat(which_species, which_parameters)
-        for row in experimental_conditions_file[Symbol(specie)]
+        for row in conditions_df[!, Symbol(specie)]
             if typeof(row) <: Real
                 continue
             elseif ismissing(row)
@@ -301,7 +301,7 @@ function add_parameters_condition_dependent_u0!(model_SBML::SBMLImporter.ModelSB
                 continue
                 # Must be a parameter which did not appear in the SBML file - and thus should be added
                 # to the ODE system so it is treated as a dynamic parameter through the simulations
-            elseif row ∈ parameters_file[:parameterId]
+            elseif row ∈ parameters_df[!, :parameterId]
                 model_SBML.parameters[row] = SBMLImporter.ParameterSBML(row, true, "0.0",
                                                                         "", false, false,
                                                                         false)

@@ -33,6 +33,12 @@ include(joinpath("PEtabModel", "Julia_input.jl"))
 
 include("Common.jl")
 
+include(joinpath("petab_files", "table_info.jl"))
+include(joinpath("petab_files", "read.jl"))
+include(joinpath("petab_files", "parameters.jl"))
+include(joinpath("petab_files", "measurements.jl"))
+include(joinpath("petab_files", "common.jl"))
+
 # Files related to computing the cost (likelihood)
 include(joinpath("Objective", "Priors.jl"))
 include(joinpath("Objective", "Objective.jl"))
@@ -52,9 +58,6 @@ include(joinpath("Solve_ODE", "Solve.jl"))
 include(joinpath("Solve_ODE", "Steady_state.jl"))
 
 # Files related to processing user input
-include(joinpath("Process_input", "Table_input", "Measurements.jl"))
-include(joinpath("Process_input", "Table_input", "Parameters.jl"))
-include(joinpath("Process_input", "Table_input", "Read_tables.jl"))
 include(joinpath("Process_input", "Julia_input.jl"))
 include(joinpath("Process_input", "Common.jl"))
 include(joinpath("Process_input", "Simulation_info.jl"))
@@ -76,6 +79,7 @@ include(joinpath("Utility.jl"))
 # For correct struct printing
 include(joinpath("Show.jl"))
 
+#=
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem
 @setup_workload begin
     path_yaml = joinpath(@__DIR__, "..", "test", "Test_model3", "Test_model3.yaml")
@@ -86,6 +90,7 @@ include(joinpath("Show.jl"))
         petab_problem.compute_cost(petab_problem.θ_nominalT)
     end
 end
+=#
 
 export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
        PEtabODEProblem, remake_PEtab_problem, Fides, PEtabOptimisationResult, IpoptOptions,

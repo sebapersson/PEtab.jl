@@ -8,21 +8,21 @@
 function compute_θ_indices(parameter_info::ParametersInfo,
                            measurements_info::MeasurementsInfo,
                            petab_model::PEtabModel)::ParameterIndices
-    experimental_conditions_file = petab_model.path_conditions
+    conditions_df = petab_model.conditions_df
     return compute_θ_indices(parameter_info, measurements_info, petab_model.system_mutated,
                              petab_model.parameter_map, petab_model.state_map,
-                             experimental_conditions_file)
+                             conditions_df)
 end
 function compute_θ_indices(parameter_info::ParametersInfo,
                            measurements_info::MeasurementsInfo,
                            system,
                            parameter_map,
                            state_map,
-                           experimental_conditions_file::CSV.File)::ParameterIndices
+                           conditions_df::DataFrame)::ParameterIndices
     θ_observable_names, θ_sd_names, θ_non_dynamic_names, θ_dynamic_names = compute_θ_names(parameter_info,
                                                                                            measurements_info,
                                                                                            system,
-                                                                                           experimental_conditions_file)
+                                                                                           conditions_df)
     # When computing the gradient tracking parameters not part of ODE system is helpful
     iθ_not_ode_names::Vector{Symbol} = Symbol.(unique(vcat(θ_sd_names, θ_observable_names,
                                                            θ_non_dynamic_names)))
@@ -61,7 +61,7 @@ function compute_θ_indices(parameter_info::ParametersInfo,
                                                                              parameter_map,
                                                                              state_map,
                                                                              parameter_info,
-                                                                             experimental_conditions_file,
+                                                                             conditions_df,
                                                                              θ_dynamic_names)
 
     # Set up a named tuple tracking the transformation of each parameter
@@ -94,7 +94,7 @@ end
 function compute_θ_names(parameter_info::ParametersInfo,
                          measurements_info::MeasurementsInfo,
                          system,
-                         experimental_conditions_file::CSV.File)::Tuple{Vector{Symbol},
+                         conditions_df::DataFrame)::Tuple{Vector{Symbol},
                                                                         Vector{Symbol},
                                                                         Vector{Symbol},
                                                                         Vector{Symbol}}
@@ -122,7 +122,7 @@ function compute_θ_names(parameter_info::ParametersInfo,
                                                         _θ_non_dynamic_names)]
     # Non-dynamic parameters not allowed to be experimental condition specific parameters
     conditions_specific_θ_dynamic = identify_cond_specific_θ_dynamic(system, parameter_info,
-                                                                     experimental_conditions_file)
+                                                                     conditions_df)
     θ_non_dynamic_names::Vector{Symbol} = _θ_non_dynamic_names[findall(x -> x ∉
                                                                             conditions_specific_θ_dynamic,
                                                                        _θ_non_dynamic_names)]
@@ -173,27 +173,27 @@ end
 # experimental conditions.
 function identify_cond_specific_θ_dynamic(system,
                                           parameter_info::ParametersInfo,
-                                          experimental_conditions_file::CSV.File)::Vector{Symbol}
+                                          conditions_df::DataFrame)::Vector{Symbol}
     all_parameters_ode = string.(parameters(system))
     model_state_names = string.(states(system))
     model_state_names = replace.(model_state_names, "(t)" => "")
     parameters_estimate = parameter_info.parameter_id[parameter_info.estimate]
 
     # List of parameters which have specific values for specific experimental conditions, these can be extracted
-    # from the rows of the experimental_conditions_file (where the column is the name of the parameter in the ODE-system,
+    # from the rows of the conditions_df (where the column is the name of the parameter in the ODE-system,
     # and the rows are the corresponding names of the parameter value to estimate)
     conditions_specific_θ_dynamic = Vector{Symbol}(undef, 0)
-    column_names = string.(experimental_conditions_file.names)
+    column_names = names(conditions_df)
     length(column_names) == 1 && return conditions_specific_θ_dynamic
     i_start = column_names[2] == "conditionName" ? 3 : 2 # Sometimes PEtab file does not include column conditionName
-    for i in i_start:length(experimental_conditions_file.names)
+    for i in i_start:length(names(conditions_df))
         if column_names[i] ∉ all_parameters_ode && column_names[i] ∉ model_state_names
             @error "Problem : Parameter ", column_names[i],
                    " should be in the ODE model as it dicates an experimental condition"
         end
 
-        for j in eachindex(experimental_conditions_file)
-            if (_parameter = Symbol(string(experimental_conditions_file[j][i]))) ∈
+        for j in 1:nrow(conditions_df)
+            if (_parameter = Symbol(string(conditions_df[j, i]))) ∈
                parameters_estimate
                 conditions_specific_θ_dynamic = vcat(conditions_specific_θ_dynamic,
                                                      _parameter)
@@ -261,7 +261,7 @@ function build_θ_sd_observable_map(n_parameters_estimate::Vector{Symbol},
 
                 # In case observable parameter in paramsRet[j] is constant save its constant value.
                 # The constant value can be found either directly in the measurements_infoFile, or in
-                # in the parameters_file.
+                # in the parameters_df.
                 should_estimate[j] = false
                 # Hard coded in Measurement data file
                 if is_number(parameters_in_expression[j])
@@ -296,17 +296,17 @@ function compute_maps_condition(system,
                                 parameter_map,
                                 state_map,
                                 parameter_info::ParametersInfo,
-                                experimental_conditions_file::CSV.File,
+                                conditions_df::DataFrame,
                                 _θ_dynamic_names::Vector{Symbol})::Dict{Symbol,
                                                                         MapConditionId}
     θ_dynamic_names = string.(_θ_dynamic_names)
-    n_conditions = length(experimental_conditions_file)
+    n_conditions = nrow(conditions_df)
     model_state_names = string.(states(system))
     model_state_names = replace.(model_state_names, "(t)" => "")
     all_parameters_ode = string.(parameters(system))
 
-    i_start = :conditionName in experimental_conditions_file.names ? 3 : 2 # conditionName is optional in PEtab file
-    condition_specific_variables = string.(experimental_conditions_file.names[i_start:end])
+    i_start = "conditionName" in names(conditions_df) ? 3 : 2
+    condition_specific_variables = string.(names(conditions_df)[i_start:end])
 
     maps_condition_id::Dict{Symbol, MapConditionId} = Dict()
 
@@ -318,9 +318,9 @@ function compute_maps_condition(system,
         iθ_dynamic::Vector{Int64} = Vector{Int64}(undef, 0)
         i_ode_problem_θ_dynamic::Vector{Int64} = Vector{Int64}(undef, 0)
 
-        condition_id_name = Symbol(string(experimental_conditions_file[i][1]))
+        condition_id_name = Symbol(string(conditions_df[i, 1]))
 
-        rowi = string.(collect(experimental_conditions_file[i])[i_start:end])
+        rowi = string.(collect(conditions_df[i, i_start:end]))
         for j in eachindex(rowi)
 
             # In case a condition specific ode-system parameter is mapped to constant number

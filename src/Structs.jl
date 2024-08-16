@@ -320,10 +320,10 @@ struct PEtabModel{F1 <: Function,
     state_names::Any
     dir_model::String
     dir_julia::String
-    path_measurements::CSV.File
-    path_conditions::CSV.File
-    path_observables::CSV.File
-    path_parameters::CSV.File
+    measurements_df::DataFrame
+    conditions_df::DataFrame
+    observables_df::DataFrame
+    parameters_df::DataFrame
     path_SBML::String
     path_yaml::String
     model_callbacks::C

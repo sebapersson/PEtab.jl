@@ -15,7 +15,7 @@ function PEtabODEProblem(petab_model::PEtabModel;
                          split_over_conditions::Bool = false,
                          reuse_sensitivities::Bool = false,
                          verbose::Bool = true,
-                         custom_parameter_values::Union{Nothing, Dict} = nothing)::PEtabODEProblem
+                         custom_values::Union{Nothing, Dict} = nothing)::PEtabODEProblem
     verbose == true && printstyled("[ Info:", color = 123, bold = true)
     verbose == true && @printf(" Building PEtabODEProblem for %s\n", petab_model.model_name)
 
@@ -46,12 +46,12 @@ function PEtabODEProblem(petab_model::PEtabModel;
     end
 
     # Structs to bookep parameters, measurements, observations etc...
-    experimental_conditions, measurements_data, parameters_data, observables_data = read_petab_files(petab_model)
-    parameter_info = process_parameters(parameters_data,
-                                        custom_parameter_values = custom_parameter_values)
-    measurement_info = process_measurements(measurements_data, observables_data)
+    @unpack conditions_df, measurements_df, parameters_df, observables_df = petab_model
+    parameter_info = parse_parameters(parameters_df,
+                                        custom_values = custom_values)
+    measurement_info = parse_measurements(measurements_df, observables_df)
     θ_indices = compute_θ_indices(parameter_info, measurement_info, petab_model)
-    prior_info = process_priors(θ_indices, parameters_data)
+    prior_info = process_priors(θ_indices, parameters_df)
     # For computing nllh an empty PriorInfo set is assumed
     prior_info_empty = PriorInfo(Dict{Symbol, Function}(),
                                  Dict{Symbol, Distribution{Univariate, Continuous}}(),

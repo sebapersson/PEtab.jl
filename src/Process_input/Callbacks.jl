@@ -7,7 +7,7 @@ function create_callbacks_SBML(system::ODESystem,
                                model_name::String,
                                path_yaml::String,
                                dir_julia::String;
-                               custom_parameter_values::Union{Nothing, Dict} = nothing,
+                               custom_values::Union{Nothing, Dict} = nothing,
                                write_to_file::Bool = true)
     p_ode_problem_names = string.(parameters(system))
     model_specie_names = replace.(string.(states(system)), "(t)" => "")
@@ -18,10 +18,10 @@ function create_callbacks_SBML(system::ODESystem,
 
     # Compute indices tracking parameters (needed as down the line we need to know if a parameter should be estimated
     # or not)
-    experimental_conditions, measurements_data, parameters_data, observables_data = read_petab_files(path_yaml)
-    parameter_info = process_parameters(parameters_data,
-                                        custom_parameter_values = custom_parameter_values)
-    measurement_info = process_measurements(measurements_data, observables_data)
+    experimental_conditions, measurements_data, parameters_data, observables_data = read_tables(path_yaml)
+    parameter_info = parse_parameters(parameters_data,
+                                        custom_values = custom_values)
+    measurement_info = parse_measurements(measurements_data, observables_data)
     θ_indices = compute_θ_indices(parameter_info, measurement_info, system, parameter_map,
                                   state_map, experimental_conditions)
 
@@ -63,9 +63,9 @@ function create_callbacks_SBML(system::ODESystem,
 
             _affect_f = @RuntimeGeneratedFunction(Meta.parse(_affect))
 
-            # Condition can only be activated when going from false to true, 
-            # a variable checking this happens must be in the DiscreteCallback 
-            # condition 
+            # Condition can only be activated when going from false to true,
+            # a variable checking this happens must be in the DiscreteCallback
+            # condition
             if occursin("from_neg", _cond)
                 __cond_f = @RuntimeGeneratedFunction(Meta.parse(_cond))
                 _cond_f = let from_neg = [!model_SBML.events[key].trigger_initial_value]
@@ -210,8 +210,8 @@ function create_callback_SBML_event(event_name::String,
         # holds for ≥
         affect_neg = occursin("≤", _condition)
     else
-        # Build the SBML activation, which has a check to see that the condition crosses from false to 
-        # true, per SBML standard 
+        # Build the SBML activation, which has a check to see that the condition crosses from false to
+        # true, per SBML standard
         _condition = "\tcond = " * _condition *
                      " && from_neg[1] == true\n\t\tfrom_neg[1] = !(" * _condition *
                      ")\n\t\treturn cond"
@@ -232,7 +232,7 @@ function create_callback_SBML_event(event_name::String,
         _condition_at_t0 = SBMLImporter.replace_variable(_condition_at_t0, p_name,
                                                          "integrator.p[" * string(i) * "]")
     end
-    # Build the condition function used in Julia file, for discrete checking that event indeed is coming from negative 
+    # Build the condition function used in Julia file, for discrete checking that event indeed is coming from negative
     # direction
     if discrete_event == false
         _condition = replace(_condition, r"≤|≥" => "-")

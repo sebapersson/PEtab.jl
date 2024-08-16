@@ -70,13 +70,13 @@ function _PEtabModel(system,
     parameter_names = parameters(system_mutated)
     state_names = states(system_mutated)
 
-    # Extract relevant PEtab-files, convert to CSV.File
+    # Extract relevant PEtab-files, convert to DataFrame
     measurements_data = PEtab.parse_petab_measurements(measurements, observables,
                                                        simulation_conditions,
                                                        petab_parameters) |>
-                        PEtab.dataframe_to_CSVFile
+                        DataFrame
     observables_data = PEtab.parse_petab_observables(observables) |>
-                       PEtab.dataframe_to_CSVFile
+                       DataFrame
 
     # Build the initial value map (initial values as parameters are set in the reaction system_mutated)
     default_values = get_default_values(system_mutated)
@@ -88,7 +88,7 @@ function _PEtabModel(system,
     experimental_conditions = PEtab.parse_petab_conditions(simulation_conditions,
                                                            petab_parameters, observables,
                                                            system_mutated) |>
-                              PEtab.dataframe_to_CSVFile
+                              DataFrame
     state_map = PEtab.update_state_map(state_map, system_mutated, experimental_conditions) # Parameters in condition table
     if !isnothing(state_map)
         state_map_names = [Symbol(_S.first) for _S in state_map]
@@ -107,7 +107,7 @@ function _PEtabModel(system,
                                                    simulation_conditions, observables,
                                                    measurements, state_map,
                                                    parameter_map) |>
-                      PEtab.dataframe_to_CSVFile
+                      DataFrame
 
     verbose == true && printstyled("[ Info:", color = 123, bold = true)
     verbose == true && print(" Building u0, h and σ functions ...")
@@ -157,8 +157,8 @@ function _PEtabModel(system,
 
     # For Callbacks. These function are needed by SBML generated PEtab-files, as for those we as an example rewrite
     # piecewise expressions into events
-    parameter_info = process_parameters(parameters_data)
-    measurement_info = process_measurements(measurements_data, observables_data)
+    parameter_info = parse_parameters(parameters_data)
+    measurement_info = parse_measurements(measurements_data, observables_data)
     θ_indices = compute_θ_indices(parameter_info, measurement_info, system_mutated,
                                   _parameter_map, _state_map, experimental_conditions)
     cbset, compute_tstops, convert_tspan = process_petab_events(events, system_mutated,

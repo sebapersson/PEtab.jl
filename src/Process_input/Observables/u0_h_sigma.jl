@@ -22,15 +22,15 @@ function create_σ_h_u0_file(model_name::String,
                             parameter_map,
                             state_map,
                             model_SBML::SBMLImporter.ModelSBML;
-                            custom_parameter_values::Union{Nothing, Dict} = nothing,
+                            custom_values::Union{Nothing, Dict} = nothing,
                             write_to_file::Bool = true)
     p_ode_problem_names = string.(parameters(system))
     model_state_names = replace.(string.(states(system)), "(t)" => "")
 
-    experimental_conditions, measurements_data, parameters_data, observables_data = read_petab_files(path_yaml)
-    parameter_info = process_parameters(parameters_data,
-                                        custom_parameter_values = custom_parameter_values)
-    measurement_info = process_measurements(measurements_data, observables_data)
+    experimental_conditions, measurements_data, parameters_data, observables_data = read_tables(path_yaml)
+    parameter_info = parse_parameters(parameters_data,
+                                        custom_values = custom_values)
+    measurement_info = parse_measurements(measurements_data, observables_data)
 
     # Indices for keeping track of parameters in θ
     θ_indices = compute_θ_indices(parameter_info, measurement_info, system, parameter_map,
@@ -58,17 +58,17 @@ end
 """
 function create_σ_h_u0_file(model_name::String,
                             system,
-                            experimental_conditions::CSV.File,
-                            measurements_data::CSV.File,
-                            parameters_data::CSV.File,
-                            observables_data::CSV.File,
+                            experimental_conditions::DataFrame,
+                            measurements_data::DataFrame,
+                            parameters_data::DataFrame,
+                            observables_data::DataFrame,
                             state_map)::NTuple{4, String}
     p_ode_problem_names = string.(parameters(system))
     model_state_names = replace.(string.(states(system)), "(t)" => "")
     parameter_map = [p => 0.0 for p in parameters(system)]
 
-    parameter_info = PEtab.process_parameters(parameters_data)
-    measurement_info = PEtab.process_measurements(measurements_data, observables_data)
+    parameter_info = PEtab.parse_parameters(parameters_data)
+    measurement_info = PEtab.parse_measurements(measurements_data, observables_data)
 
     # Indices for keeping track of parameters in θ
     θ_indices = PEtab.compute_θ_indices(parameter_info, measurement_info, system,
@@ -102,7 +102,7 @@ end
                       parameter_info::ParametersInfo,
                       namesParamDyn::Vector{String},
                       namesNonDynParam::Vector{String},
-                      observables_data::CSV.File,
+                      observables_data::DataFrame,
                       model_SBML::SBMLImporter.ModelSBML)
 
     For model_name create a function for computing y_model by translating the observables_data
@@ -114,7 +114,7 @@ function create_h_function(model_name::String,
                            parameter_info::ParametersInfo,
                            p_ode_problem_names::Vector{String},
                            θ_non_dynamic_names::Vector{String},
-                           observables_data::CSV.File,
+                           observables_data::DataFrame,
                            model_SBML::SBMLImporter.ModelSBML,
                            write_to_file::Bool)
     io = IOBuffer()
@@ -125,10 +125,10 @@ function create_h_function(model_name::String,
                                                                                                        θ_non_dynamic_names)
 
     # Write the formula for each observable in Julia syntax
-    observable_ids = string.(observables_data[:observableId])
+    observable_ids = string.(observables_data[!, :observableId])
     observable_str = ""
     for i in eachindex(observable_ids)
-        _formula = filter(x -> !isspace(x), string(observables_data[:observableFormula][i]))
+        _formula = filter(x -> !isspace(x), string(observables_data[!, :observableFormula][i]))
         observable_parameters = get_observable_parameters(_formula)
         observable_str *= "\tif observableId === " * ":" * observable_ids[i] * " \n"
         if !isempty(observable_parameters)
@@ -337,7 +337,7 @@ end
                       model_state_names::Vector{String},
                       p_ode_problem_names::Vector{String},
                       θ_non_dynamic_names::Vector{String},
-                      observables_data::CSV.File,
+                      observables_data::DataFrame,
                       model_SBML::SBMLImporter.ModelSBML)
 
     For model_name create a function for computing the standard deviation σ by translating the observables_data
@@ -349,17 +349,17 @@ function create_σ_function(model_name::String,
                            model_state_names::Vector{String},
                            p_ode_problem_names::Vector{String},
                            θ_non_dynamic_names::Vector{String},
-                           observables_data::CSV.File,
+                           observables_data::DataFrame,
                            model_SBML::SBMLImporter.ModelSBML,
                            write_to_file::Bool)
     path_save = joinpath(dir_model, model_name * "_h_sd_u0.jl")
     io = IOBuffer()
 
     # Write the formula for standard deviations to file
-    observable_ids = string.(observables_data[:observableId])
+    observable_ids = string.(observables_data[!, :observableId])
     observable_str = ""
     for i in eachindex(observable_ids)
-        _formula = filter(x -> !isspace(x), string(observables_data[:noiseFormula][i]))
+        _formula = filter(x -> !isspace(x), string(observables_data[!, :noiseFormula][i]))
         noise_parameters = get_noise_parameters(_formula)
         observable_str *= "\tif observableId === " * ":" * observable_ids[i] * " \n"
         if !isempty(noise_parameters)

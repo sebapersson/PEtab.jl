@@ -93,7 +93,7 @@ function parse_petab_parameters(petab_parameters::Vector{PEtabParameter},
         append!(df, row)
     end
 
-    # Sanity check if all model have been defined anywhere 
+    # Sanity check if all model have been defined anywhere
     for model_parameter in model_parameters
         cond1 = model_parameter ∉ df[!, :parameterId]
         cond2 = model_parameter ∉ condition_parameters
@@ -232,7 +232,7 @@ function add_model_parameter!(system, new_parameter)
     return nothing
 end
 
-function update_state_map(state_map, system, experimental_conditions::CSV.File)
+function update_state_map(state_map, system, experimental_conditions::DataFrame)
 
     # Check if initial value is set in condition table (must then add a parameter to the reaction-system
     # to correctly compute gradients)
@@ -281,7 +281,7 @@ function parse_petab_measurements(petab_measurements::DataFrame,
                              petab_parameters)
     df[!, "time"] = petab_measurements[!, "time"]
 
-    # Parse optionally provided simulation conditions 
+    # Parse optionally provided simulation conditions
     conditions_provided = !(length(simulation_conditions) == 1 &&
                             collect(keys(simulation_conditions))[1] == "__c0__")
     if "simulation_id" ∈ names(petab_measurements) && conditions_provided == false
@@ -462,7 +462,7 @@ function process_petab_events(events::Union{PEtabEvent, AbstractVector, Nothing}
                               system,
                               θ_indices::ParameterIndices)
 
-    # Must be a vector for downstream processing 
+    # Must be a vector for downstream processing
     if events isa PEtabEvent
         events = [events]
     end
@@ -504,7 +504,7 @@ function process_petab_event(event::PEtabEvent, event_name,
     state_names = replace.(string.(states(system)), "(t)" => "")
     parameter_names = string.(parameters(system))
 
-    # Sanity check input, trigger 
+    # Sanity check input, trigger
     condition = replace(string(event.condition), "(t)" => "")
     if PEtab.is_number(condition) || condition ∈ parameter_names
         condition = "t == " * condition
@@ -531,7 +531,7 @@ function process_petab_event(event::PEtabEvent, event_name,
         targets = [event.target]
     end
 
-    # Sanity check affect 
+    # Sanity check affect
     if typeof(event.affect) <: Vector{<:Any}
         if !(typeof(event.target) <: Vector{<:Any}) ||
            length(event.target) != length(event.affect)
@@ -556,12 +556,12 @@ function process_petab_event(event::PEtabEvent, event_name,
     discrete_event = condition_has_states == false
 
     if discrete_event == true
-        # Only for time-triggered events, here we can help the user to replace any 
-        # in-equality signs used 
+        # Only for time-triggered events, here we can help the user to replace any
+        # in-equality signs used
         condition = replace(condition, r"≤|≥|<=|>=|<|>" => "==")
 
     elseif discrete_event == false
-        # If we have a trigger on the form a ≤ b then event should only be 
+        # If we have a trigger on the form a ≤ b then event should only be
         # activated when crossing the condition from left -> right. Reverse
         # holds for ≥
         affect_neg = any(occursin.(["≤", "<", "=<"], condition))
@@ -569,7 +569,7 @@ function process_petab_event(event::PEtabEvent, event_name,
         condition = replace(condition, r"≤|≥|<=|>=|<|>|==" => "-")
     end
 
-    # Building the condition syntax for the event 
+    # Building the condition syntax for the event
     for i in eachindex(state_names)
         condition = PEtab.SBMLImporter.replace_variable(condition, state_names[i],
                                                         "u[" * string(i) * "]")
@@ -581,9 +581,9 @@ function process_petab_event(event::PEtabEvent, event_name,
     condition_str = "\nfunction condition_" * event_name * "(u, t, integrator)\n\t" *
                     condition * "\nend\n"
 
-    # Build the affect syntax for the event. Note, a tmp variable is used in case of several affects. For example, if the 
-    # event affects u[1] and u[2], then I do not want that a change in u[1] should affect the value for u[2], similar holds 
-    # for parameters 
+    # Build the affect syntax for the event. Note, a tmp variable is used in case of several affects. For example, if the
+    # event affects u[1] and u[2], then I do not want that a change in u[1] should affect the value for u[2], similar holds
+    # for parameters
     affect_str = "function affect_" * event_name *
                  "!(integrator)\n\tu_tmp = similar(integrator.u)\n\tu_tmp .= integrator.u\n\tp_tmp = similar(integrator.p)\n\tp_tmp .= integrator.p\n\n"
     affects = replace.(string.(affects), "(t)" => "")
@@ -608,7 +608,7 @@ function process_petab_event(event::PEtabEvent, event_name,
     end
     affect_str *= '\n' * "\tend"
 
-    # Build the callback 
+    # Build the callback
     callback_str = "function get_callback" * event_name * "(affect!, cond)\n"
     if discrete_event == false
         if affect_equality == true
@@ -621,7 +621,7 @@ function process_petab_event(event::PEtabEvent, event_name,
     else
         callback_str *= "\tcb = DiscreteCallback(cond, affect!, "
     end
-    callback_str *= "save_positions=(false, false))\n" # So we do not get problems with saveat in the ODE solver 
+    callback_str *= "save_positions=(false, false))\n" # So we do not get problems with saveat in the ODE solver
     callback_str *= "\treturn cb\nend\n"
 
     return affect_str, condition_str, callback_str
@@ -631,5 +631,5 @@ function dataframe_to_CSVFile(df::DataFrame)
     io = IOBuffer()
     io = CSV.write(io, df)
     str = String(take!(io))
-    return CSV.File(IOBuffer(str), stringtype = String)
+    return DataFrame(IOBuffer(str), stringtype = String)
 end
