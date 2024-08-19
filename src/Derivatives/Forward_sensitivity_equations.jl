@@ -144,7 +144,7 @@ function solve_sensitivites(ode_problem::ODEProblem,
         for condition_id in simulation_info.experimental_condition_id
             map_condition_id = θ_indices.maps_conidition_id[condition_id]
             iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.sys_to_dynamic,
-                                                    map_condition_id.iθ_dynamic))
+                                                    map_condition_id.ix_dynamic))
             θ_input = θ_dynamic[iθ_experimental_condition]
             compute_sensitivities_condition! = (sol_values, θ_arg) -> begin
                 _θ_dynamic = convert.(eltype(θ_arg), θ_dynamic)
@@ -202,7 +202,7 @@ function compute_gradient_forward_equations_condition!(gradient::Vector{Float64}
     # Unique is needed to account for condition specific parameters which maps to potentially several
     # parameters in ODEProblem.p
     iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.sys_to_dynamic,
-                                            map_condition_id.iθ_dynamic))
+                                            map_condition_id.ix_dynamic))
 
     # Loop through solution and extract sensitivites
     n_model_states = length(petab_model.state_names)

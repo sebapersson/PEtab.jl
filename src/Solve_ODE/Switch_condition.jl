@@ -15,10 +15,10 @@ function _change_simulation_condition!(p_ode_problem::AbstractVector,
     map_condition_id = θ_indices.maps_conidition_id[condition_id]
 
     # Constant parameters
-    p_ode_problem[map_condition_id.i_ode_constant_parameters] .= map_condition_id.constant_parameters
+    p_ode_problem[map_condition_id.isys_constant_values] .= map_condition_id.constant_values
 
     # Parameters to estimate
-    p_ode_problem[map_condition_id.i_ode_problem_θ_dynamic] .= θ_dynamic[map_condition_id.iθ_dynamic]
+    p_ode_problem[map_condition_id.ix_sys] .= θ_dynamic[map_condition_id.ix_dynamic]
 
     # Given changes in parameters initial values might have to be re-evaluated
     n_model_states = length(petab_model.state_names)
@@ -27,11 +27,6 @@ function _change_simulation_condition!(p_ode_problem::AbstractVector,
     # Account for any potential events (callbacks) which are active at time zero
     for f! in petab_model.check_callback_is_active
         f!(u0, p_ode_problem)
-    end
-
-    # In case an experimental condition maps directly to the initial value of a state.
-    if !isempty(map_condition_id.i_ode_constant_states)
-        u0[map_condition_id.i_ode_constant_states] .= map_condition_id.constant_states
     end
 
     # In case we solve the forward sensitivity equations we must adjust the initial sensitives
@@ -56,22 +51,22 @@ function _change_simulation_condition(p_ode_problem::AbstractVector,
 
     # For a non-mutating way of mapping constant parameters
     function i_constant_param(i_use::Integer)
-        which_index = findfirst(x -> x == i_use, map_condition_id.i_ode_constant_parameters)
+        which_index = findfirst(x -> x == i_use, map_condition_id.isys_constant_values)
         return which_index
     end
     # For a non-mutating mapping of parameters to estimate
     function i_parameters_est(i_use::Integer)
-        which_index = findfirst(x -> x == i_use, map_condition_id.i_ode_problem_θ_dynamic)
-        return map_condition_id.iθ_dynamic[which_index]
+        which_index = findfirst(x -> x == i_use, map_condition_id.ix_sys)
+        return map_condition_id.ix_dynamic[which_index]
     end
 
     # Constant parameters
-    _p_ode_problem = [i ∈ map_condition_id.i_ode_constant_parameters ?
-                      map_condition_id.constant_parameters[i_constant_param(i)] :
+    _p_ode_problem = [i ∈ map_condition_id.isys_constant_values ?
+                      map_condition_id.constant_values[i_constant_param(i)] :
                       p_ode_problem[i] for i in eachindex(p_ode_problem)]
 
     # Parameters to estimate
-    __p_ode_problem = [i ∈ map_condition_id.i_ode_problem_θ_dynamic ?
+    __p_ode_problem = [i ∈ map_condition_id.ix_sys ?
                        θ_dynamic[i_parameters_est(i)] : _p_ode_problem[i]
                        for i in eachindex(_p_ode_problem)]
 

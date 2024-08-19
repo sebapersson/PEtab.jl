@@ -24,7 +24,7 @@ function compute_gradient_zygote!(gradient::Vector{Float64},
                                                                      measurement_info,
                                                                      parameter_info,
                                                                      solve_ode_condition)
-    gradient[θ_indices.iθ_dynamic] .= Zygote.gradient(compute_gradient_zygote_θ_dynamic!,
+    gradient[θ_indices.xindices[:dynamic]] .= Zygote.gradient(compute_gradient_zygote_θ_dynamic!,
                                                       θ_dynamic)[1]
 
     # Compute gradient for parameters which are not in ODE-system. Important to keep in mind that Sd- and observable

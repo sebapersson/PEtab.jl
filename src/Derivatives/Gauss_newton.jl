@@ -107,7 +107,7 @@ function compute_jacobian_residuals_condition!(jacobian::M,
     # Extract relevant parameters for the experimental conditions
     map_condition_id = θ_indices.maps_conidition_id[simulation_condition_id]
     iθ_experimental_condition = vcat(θ_indices.map_ode_problem.sys_to_dynamic,
-                                     map_condition_id.iθ_dynamic)
+                                     map_condition_id.ix_dynamic)
 
     # Loop through solution and extract sensitivites
     n_model_states = length(petab_model.state_names)

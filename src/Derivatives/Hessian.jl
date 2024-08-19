@@ -60,7 +60,7 @@ function compute_hessian_split!(hessian::Matrix{Float64},
     for conditionId in simulation_info.experimental_condition_id
         map_condition_id = θ_indices.maps_conidition_id[conditionId]
         iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.sys_to_dynamic,
-                                                map_condition_id.iθ_dynamic,
+                                                map_condition_id.ix_dynamic,
                                                 θ_indices.xindices[:not_system]))
         θ_input = θ_est[iθ_experimental_condition]
         h_tmp = zeros(length(θ_input), length(θ_input))
@@ -173,7 +173,7 @@ function compute_hessian_block_split!(hessian::Matrix{Float64},
     for conditionId in simulation_info.experimental_condition_id
         map_condition_id = θ_indices.maps_conidition_id[conditionId]
         iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.sys_to_dynamic,
-                                                map_condition_id.iθ_dynamic))
+                                                map_condition_id.ix_dynamic))
         θ_input = θ_dynamic[iθ_experimental_condition]
         h_tmp = zeros(length(θ_input), length(θ_input))
         compute_cost_θ_dynamic = (θ_arg) -> begin

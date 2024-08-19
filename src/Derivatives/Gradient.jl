@@ -115,7 +115,7 @@ function compute_gradient_autodiff_split!(gradient::Vector{Float64},
     for conditionId in simulation_info.experimental_condition_id
         map_condition_id = θ_indices.maps_conidition_id[conditionId]
         iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.sys_to_dynamic,
-                                                map_condition_id.iθ_dynamic))
+                                                map_condition_id.ix_dynamic))
         θ_input = θ_dynamic[iθ_experimental_condition]
         compute_cost_θ_dynamic = (θ_arg) -> begin
             _θ_dynamic = convert.(eltype(θ_arg), θ_dynamic)

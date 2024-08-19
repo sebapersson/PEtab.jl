@@ -1,69 +1,50 @@
-#=
-    Functions for creating the ParameterIndices struct. This index struct contains maps for how to
-    split the θ_est into the dynamic, non-dynamic, sd and observable parameters. There are also
-    indices for mapping parameters between ode_problem.p and θ_est for parameters which are constant
-    constant accross experimental conditions, and parameters specific to experimental conditions.
-=#
-# ParameterIndices = ParameterMappings
-# ParametersInfo = PEtabParameters
-# MeasurementsInfo = PEtabMeasurements
-
 """
         parse_conditions
 
-Parse conditions and build parameter maps.
+Parse conditions and build parameter maps for the different parameter types.
 
 There are four type of parameters in a PEtab problem
 1. Dynamic (appear in ODE)
 2. Noise (appear in noiseParameters columns of measurement table)
 3. Observable (appear in observableParameters of measurement table)
 4. NonDynamic (do not correspond to any above)
+
 These parameter types need to be treated separately for computing efficient gradients.
 This function extracts which parameter is what type, and builds maps for correctly mapping
-the parameter during likelihood computations.
+the parameter during likelihood computations. It further accounts for parameters potentially
+only appearing in a certain simulation condition.
 """
 function parse_conditions(parameter_info::ParametersInfo, measurements_info::MeasurementsInfo, petab_model::PEtabModel)::ParameterIndices
-    conditions_df = petab_model.conditions_df
-    return parse_conditions(parameter_info, measurements_info, petab_model.system_mutated, petab_model.parameter_map, petab_model.state_map, conditions_df)
+    @unpack state_map, parameter_map, system_mutated, conditions_df = petab_model
+    return parse_conditions(parameter_info, measurements_info, system_mutated, parameter_map, state_map, conditions_df)
 end
 function parse_conditions(parameter_info::ParametersInfo, measurements_info::MeasurementsInfo, sys, parameter_map, state_map, conditions_df::DataFrame)::ParameterIndices
     xids = _get_xids(parameter_info, measurements_info, sys, conditions_df)
 
     # indices for mapping parameters correctly, e.g. from xest -> xdynamic etc...
-    xindices = _get_xindices(xids)
-    # For each time-point build a map which stores if i) noise/obserable parameters are
-    # are constants, ii) should be estimated, iii) and corresponding index in parameter
-    # vector if they should be estimated, to correctly extract these parameters when
-    # computing observable values
-    xobservable_map = _get_map_observable_noise(xids[:observable], measurements_info, parameter_info; observable = true)
-    xnoise_map = _get_map_observable_noise(xids[:noise], measurements_info, parameter_info; observable = false)
-
     # TODO: SII is going to make this much easier (but the reverse will be harder)
-    # Compute a map to map parameters between dynamic and system parameters
-    sys_to_dynamic = findall(x -> x in xids[:sys], xids[:dynamic]) |> Vector{Int64}
-    dynamic_to_sys = Int64[findfirst(x -> x == id, xids[:sys]) for id in xids[:dynamic][sys_to_dynamic]]
-    map_ode_problem::MapODEProblem = MapODEProblem(sys_to_dynamic, dynamic_to_sys)
+    xindices = _get_xindices(xids)
+    odeproblem_map = _get_odeproblem_map(xids)
+    condition_maps = _get_condition_maps(sys, parameter_map, state_map, parameter_info, conditions_df, xids)
+    # For each time-point we must build a map that stores if i) noise/obserable parameters
+    # are constants, ii) should be estimated, iii) and corresponding index in parameter
+    # vector if they should be estimated
+    xobservable_maps = _get_map_observable_noise(xids[:observable], measurements_info, parameter_info; observable = true)
+    xnoise_maps = _get_map_observable_noise(xids[:noise], measurements_info, parameter_info; observable = false)
 
-    # Set up a map for changing between experimental conditions
-    maps_condition_id::Dict{Symbol, MapConditionId} = compute_maps_condition(sys,
-                                                                             parameter_map,
-                                                                             state_map,
-                                                                             parameter_info,
-                                                                             conditions_df,
-                                                                             xids[:dynamic])
+    # TODO: Uncertain this should live here
     θ_scale = _get_xscales(xids, parameter_info)
-    θ_indices = ParameterIndices(xindices, xids, θ_scale, xobservable_map, xnoise_map, map_ode_problem, maps_condition_id)
-    return θ_indices
+    return ParameterIndices(xindices, xids, θ_scale, xobservable_maps, xnoise_maps, odeproblem_map, condition_maps)
 end
 
 function _get_xids(parameter_info::ParametersInfo, measurements_info::MeasurementsInfo, sys, conditions_df::DataFrame)::Dict{Symbol, Vector{Symbol}}
     @unpack observable_parameters, noise_parameters = measurements_info
 
-    xids_observable = _get_xids_observable_noise(observable_parameters, parameter_info)
-    xids_noise = _get_xids_observable_noise(noise_parameters, parameter_info)
     # Non-dynamic parameters are those that only appear in the observable and noise
     # functions, but are not defined noise or observable column of the measurement file.
     # Need to be tracked separately for efficient gradient computations
+    xids_observable = _get_xids_observable_noise(observable_parameters, parameter_info)
+    xids_noise = _get_xids_observable_noise(noise_parameters, parameter_info)
     xids_nondynamic = _get_xids_nondynamic(xids_observable, xids_noise, sys, parameter_info, conditions_df)
     xids_dynamic = _get_xids_dynamic(xids_observable, xids_noise, xids_nondynamic, parameter_info)
     xids_sys = parameters(sys) .|> Symbol
@@ -212,179 +193,109 @@ function _get_map_observable_noise(xids::Vector{Symbol}, measurements_info::Meas
     return maps
 end
 
+function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}})::MapODEProblem
+    sys_to_dynamic = findall(x -> x in xids[:sys], xids[:dynamic]) |> Vector{Int64}
+    ids = xids[:dynamic][sys_to_dynamic]
+    dynamic_to_sys = Int64[findfirst(x -> x == id, xids[:sys]) for id in ids]
+    return MapODEProblem(sys_to_dynamic, dynamic_to_sys)
+end
 
-# A map to accurately map parameters for a specific experimental conditionId to the ODE-problem
-function compute_maps_condition(sys,
-                                parameter_map,
-                                state_map,
-                                parameter_info::ParametersInfo,
-                                conditions_df::DataFrame,
-                                _θ_dynamic_names::Vector{Symbol})::Dict{Symbol,
-                                                                        MapConditionId}
-    θ_dynamic_names = string.(_θ_dynamic_names)
-    n_conditions = nrow(conditions_df)
-    model_state_names = string.(states(sys))
-    model_state_names = replace.(model_state_names, "(t)" => "")
-    all_parameters_ode = string.(parameters(sys))
+function _get_condition_maps(sys, parameter_map, state_map, parameter_info::ParametersInfo, conditions_df::DataFrame, xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, ConditionMap}
+    species_sys = _get_state_ids(sys) .|> string
+    xids_sys, xids_dynamic = xids[:sys] .|> string, xids[:dynamic] .|> string
+    xids_model = Iterators.flatten((xids_sys, species_sys))
 
-    i_start = "conditionName" in names(conditions_df) ? 3 : 2
-    condition_specific_variables = string.(names(conditions_df)[i_start:end])
+    nconditions = nrow(conditions_df)
+    maps = Dict{Symbol, ConditionMap}()
+    for i in 1:nconditions
+        conditionid = conditions_df[i, :conditionId] |> Symbol
+        constant_values, isys_constant_values = Float64[], Int32[]
+        ix_dynamic, ix_sys = Int32[], Int32[]
+        for variable in names(conditions_df)
+            variable in ["conditionName", "conditionId"] && continue
+            value = conditions_df[i, variable]
 
-    maps_condition_id::Dict{Symbol, MapConditionId} = Dict()
-
-    for i in 1:n_conditions
-        constant_parameters::Vector{Float64} = Vector{Float64}(undef, 0)
-        i_ode_constant_parameters::Vector{Int64} = Vector{Int64}(undef, 0)
-        constant_states::Vector{Float64} = Vector{Float64}(undef, 0)
-        i_ode_constant_states::Vector{Int64} = Vector{Int64}(undef, 0)
-        iθ_dynamic::Vector{Int64} = Vector{Int64}(undef, 0)
-        i_ode_problem_θ_dynamic::Vector{Int64} = Vector{Int64}(undef, 0)
-
-        condition_id_name = Symbol(string(conditions_df[i, 1]))
-
-        rowi = string.(collect(conditions_df[i, i_start:end]))
-        for j in eachindex(rowi)
-
-            # In case a condition specific ode-sys parameter is mapped to constant number
-            if is_number(rowi[j]) && condition_specific_variables[j] ∈ all_parameters_ode
-                constant_parameters = vcat(constant_parameters, parse(Float64, rowi[j]))
-                i_ode_constant_parameters = vcat(i_ode_constant_parameters,
-                                                 findfirst(x -> x ==
-                                                                condition_specific_variables[j],
-                                                           all_parameters_ode))
-                continue
-            end
-            if is_number(rowi[j]) && condition_specific_variables[j] ∈ model_state_names
-                constant_parameters = vcat(constant_parameters, parse(Float64, rowi[j]))
-                i_ode_constant_parameters = vcat(i_ode_constant_parameters,
-                                                 findfirst(x -> x ==
-                                                                "__init__" *
-                                                                condition_specific_variables[j] *
-                                                                "__", all_parameters_ode))
-                continue
-            end
-            is_number(rowi[j]) &&
-                @error "Error : Cannot build map for experimental condition variable",
-                       condition_specific_variables[j]
-
-            # In case we are trying to change one the θ_dynamic parameters we are estimating
-            if rowi[j] ∈ θ_dynamic_names &&
-               condition_specific_variables[j] ∈ all_parameters_ode
-                iθ_dynamic = vcat(iθ_dynamic, findfirst(x -> x == rowi[j], θ_dynamic_names))
-                i_ode_problem_θ_dynamic = vcat(i_ode_problem_θ_dynamic,
-                                               findfirst(x -> x ==
-                                                              condition_specific_variables[j],
-                                                         all_parameters_ode))
-                continue
-            end
-            if rowi[j] ∈ θ_dynamic_names &&
-               condition_specific_variables[j] ∈ model_state_names
-                iθ_dynamic = vcat(iθ_dynamic, findfirst(x -> x == rowi[j], θ_dynamic_names))
-                i_ode_problem_θ_dynamic = vcat(i_ode_problem_θ_dynamic,
-                                               findfirst(x -> x ==
-                                                              "__init__" *
-                                                              condition_specific_variables[j] *
-                                                              "__", all_parameters_ode))
-                continue
-            end
-            rowi[j] ∈ θ_dynamic_names &&
-                @error "Could not map " * string(condition_specific_variables[j]) *
-                       " when building condition map"
-
-            # In case rowi is a parameter but we do not estimate said parameter
-            if rowi[j] ∈ string.(parameter_info.parameter_id)
-                i_value = findfirst(x -> x == rowi[j], string.(parameter_info.parameter_id))
-                constant_parameters = vcat(constant_parameters,
-                                           parameter_info.nominal_value[i_value])
-                i_ode_constant_parameters = vcat(i_ode_constant_parameters,
-                                                 findfirst(x -> x ==
-                                                                condition_specific_variables[j],
-                                                           all_parameters_ode))
+            # When the value in the condidtion table maps to a numeric value
+            if value isa Real && variable in xids_model
+                push!(constant_values, value |> Float64)
+                _add_ix_sys!(isys_constant_values, variable, xids_sys)
                 continue
             end
 
-            # In case rowi is missing (specifically NaN) the default SBML-file value should be used. To this end we need to
-            # have access to the parameter and state map to handle both states and parameters. Then must fix such that
-            # __init__ parameters  take on the correct value.
-            if rowi[j] == "missing" && condition_specific_variables[j] ∈ all_parameters_ode
-                valueDefault = get_default_values_maps(string(condition_specific_variables[j]),
-                                                       parameter_map, state_map)
-                constant_parameters = vcat(constant_parameters, valueDefault)
-                i_ode_constant_parameters = vcat(i_ode_constant_parameters,
-                                                 findfirst(x -> x ==
-                                                                condition_specific_variables[j],
-                                                           all_parameters_ode))
-                continue
-            end
-            if rowi[j] == "missing" && condition_specific_variables[j] ∈ model_state_names
-                valueDefault = get_default_values_maps(string(condition_specific_variables[j]),
-                                                       parameter_map, state_map)
-                constant_parameters = vcat(constant_parameters, valueDefault)
-                i_ode_constant_parameters = vcat(i_ode_constant_parameters,
-                                                 findfirst(x -> x ==
-                                                                "__init__" *
-                                                                condition_specific_variables[j] *
-                                                                "__", all_parameters_ode))
+            # If value is missing the default SBML values should be used. These are encoded
+            # in the parameter- and state-maps
+            if ismissing(value) && variable in xids_model
+                default_value = _get_default_map_value(variable, parameter_map, state_map)
+                push!(constant_values, default_value)
+                _add_ix_sys!(isys_constant_values, variable, xids_sys)
                 continue
             end
 
-            # NaN can only applie for states
-            if rowi[j] == "NaN" && condition_specific_variables[j] ∈ model_state_names
-                constant_parameters = vcat(constant_parameters, NaN)
-                i_ode_constant_parameters = vcat(i_ode_constant_parameters,
-                                                 findfirst(x -> x ==
-                                                                "__init__" *
-                                                                condition_specific_variables[j] *
-                                                                "__", all_parameters_ode))
+            # When the value in the condtitions table maps to a parameter to estimate
+            if value in xids_dynamic && variable in xids_model
+                push!(ix_dynamic, findfirst(x -> x == value, xids_dynamic))
+                _add_ix_sys!(ix_sys, variable, xids_sys)
                 continue
-            else
-                str_write = "If a row in conditions file is NaN then the column header must be a state"
-                throw(PEtabFileError(str_write))
             end
 
-            # If we reach this far something is off and an error must be thrown
-            str_write = "Could not map parameters for condition " *
-                        string(condition_id_name) * " for parameter " * string(rowi[j])
-            throw(PEtabFileError(str_write))
+            # When the value in the conditions table maps to a constant parameter
+            if Symbol(value) in parameter_info.parameter_id && variable in xids_model
+                iconstant = findfirst(x -> x == Symbol(value), parameter_info.parameter_id)
+                push!(constant_values, parameter_info.nominal_values[iconstant])
+                _add_ix_sys!(isys_constant_values, variable, xids_sys)
+                continue
+            end
+
+            # NaN values are relevant for pre-equilibration and denotes a controll variable
+            # should use the value obtained from the forward simulation
+            if isnan(value) && variable in species_sys
+                push!(constant_values, NaN)
+                _add_ix_sys!(isys_constant_values, variable, xids_sys)
+                continue
+            elseif isnan(value)
+                throw(PEtabFileError("If a row in conditions file is NaN then the column " *
+                                     "header must be a state"))
+            end
+            throw(PEtabFileError("Could not map parameters for condition $conditionid " *
+                                 "for variable $variable"))
         end
-
-        maps_condition_id[condition_id_name] = MapConditionId(constant_parameters,
-                                                              i_ode_constant_parameters,
-                                                              constant_states,
-                                                              i_ode_constant_states,
-                                                              iθ_dynamic,
-                                                              i_ode_problem_θ_dynamic)
+        maps[conditionid] = ConditionMap(constant_values, isys_constant_values, ix_dynamic, ix_sys)
     end
+    return maps
+end
 
-    return maps_condition_id
+function _add_ix_sys!(ix::Vector{Int32}, variable::String, xids_sys::Vector{String})::Nothing
+    # When a species initial value is set in the condition table, a new parameter
+    # is introduced that sets the initial value. This is required to be able to
+    # correctly compute gradients. Hence special handling if variable is not in parameter
+    # ids (xid_sys)
+    if variable in xids_sys
+        push!(ix, findfirst(x -> x == variable, xids_sys))
+    else
+        state_parameter = "__init__" * variable * "__"
+        push!(ix, findfirst(x -> x == state_parameter, xids_sys))
+    end
+    return nothing
 end
 
 # Extract default parameter value from state, or parameter map
-function get_default_values_maps(which_parameter_state, parameter_map, state_map)
-    parameter_map_names = string.([parameter_map[i].first for i in eachindex(parameter_map)])
-    state_map_names = replace.(string.([state_map[i].first for i in eachindex(state_map)]),
-                               "(t)" => "")
+function _get_default_map_value(variable::String, parameter_map, state_map)::Float64
+    species_sys = first.(state_map) .|> string
+    species_sys = replace.(species_sys, "(t)" => "")
+    xids_sys = first.(parameter_map) .|> string
 
-    # Parameters are only allowed to map to concrete values
-    if which_parameter_state ∈ parameter_map_names
-        which_index = findfirst(x -> x == which_parameter_state, parameter_map_names)
-        return parse(Float64, string(parameter_map[which_index].second))
+    if variable in xids_sys
+        ix = findfirst(x -> x == variable, xids_sys)
+        return parameter_map[ix].second |> Float64
     end
 
-    # States can by default map to a parameter by one level of recursion
-    @assert which_parameter_state ∈ state_map_names
-    which_index = findfirst(x -> x == which_parameter_state, state_map_names)
-    value_map_to = string(state_map[which_index].second)
-    if value_map_to ∈ parameter_map_names
-        which_index_parameter = findfirst(x -> x == value_map_to, parameter_map_names)
-        _value_map_to = string(parameter_map[which_index_parameter].second)
-        if _value_map_to ∈ parameter_map_names
-            _which_index_parameter = findfirst(x -> x == _value_map_to, parameter_map_names)
-            return parse(Float64, string.(parameter_map[_which_index_parameter].second))
-        else
-            return parse(Float64, _value_map_to)
-        end
+    # States can have 1 level of allowed recursion (map to a parameter)
+    ix = findfirst(x -> x == variable, species_sys)
+    value = state_map[ix].second |> string
+    if value in xids_sys
+        ix = findfirst(x -> x == value, xids_sys)
+        return parameter_map[ix].second |> Float64
+    else
+        return parse(Float64, value)
     end
-
-    return parse(Float64, string(state_map[which_index].second))
 end

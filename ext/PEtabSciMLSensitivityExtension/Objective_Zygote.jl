@@ -33,11 +33,11 @@ function _compute_cost_zygote(θ_dynamic,
                               measurement_info::PEtab.MeasurementsInfo,
                               parameter_info::PEtab.ParametersInfo,
                               solve_ode_condition::Function)::Real
-    θ_dynamicT = transformθ_zygote(θ_dynamic, θ_indices.θ_dynamic_names, parameter_info)
-    θ_sdT = transformθ_zygote(θ_sd, θ_indices.θ_sd_names, parameter_info)
-    θ_observableT = transformθ_zygote(θ_observable, θ_indices.θ_observable_names,
+    θ_dynamicT = transformθ_zygote(θ_dynamic, θ_indices.xids[:dynamic], parameter_info)
+    θ_sdT = transformθ_zygote(θ_sd, θ_indices.xids[:noise], parameter_info)
+    θ_observableT = transformθ_zygote(θ_observable, θ_indices.xids[:observable],
                                       parameter_info)
-    θ_non_dynamicT = transformθ_zygote(θ_non_dynamic, θ_indices.θ_non_dynamic_names,
+    θ_non_dynamicT = transformθ_zygote(θ_non_dynamic, θ_indices.xids[:nondynamic],
                                        parameter_info)
 
     _p, _u0 = PEtab.change_ode_parameters(ode_problem.p, θ_dynamicT, θ_indices, petab_model)

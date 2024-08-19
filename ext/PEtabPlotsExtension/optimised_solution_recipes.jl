@@ -2,9 +2,9 @@
 @recipe function f(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult},
                    petab_problem::PEtabODEProblem;
                    observable_ids = [obs.observableId
-                                     for obs in petab_problem.petab_model.path_observables],
+                                     for obs in petab_problem.petab_model.observables_df],
                    condition_id = [cond.conditionId
-                                   for cond in petab_problem.petab_model.path_conditions][1])
+                                   for cond in petab_problem.petab_model.conditions_df][1])
 
     # Get plot options.
     title --> condition_id
@@ -18,7 +18,7 @@
     y_vals = []
 
     # Loops through all observables, computing the required plot inputs.
-    all_obs = petab_problem.petab_model.path_observables
+    all_obs = petab_problem.petab_model.observables_df
     for (obs_idx, obs_id) in enumerate(observable_ids)
         t_observed, h_observed, label_observed, t_model, h_model, label_model, smooth_sol = _get_observable(res.xmin,
                                                                                                             petab_problem,
@@ -61,10 +61,10 @@ function PEtab.get_obs_comparison_plots(res::Union{PEtabOptimisationResult,
                                         petab_problem::PEtabODEProblem; kwargs...)
     comparison_dict = Dict()
     for condition_id in [cond.conditionId
-                         for cond in petab_problem.petab_model.path_conditions]
+                         for cond in petab_problem.petab_model.conditions_df]
         comparison_dict[condition_id] = Dict()
         for observable_id in [obs.observableId
-                              for obs in petab_problem.petab_model.path_observables]
+                              for obs in petab_problem.petab_model.observables_df]
             comparison_dict[condition_id][observable_id] = plot(res, petab_problem;
                                                                 observable_ids = [observable_id],
                                                                 condition_id = condition_id,
@@ -75,30 +75,30 @@ function PEtab.get_obs_comparison_plots(res::Union{PEtabOptimisationResult,
 end
 
 """
-    _get_observable(θ::Vector{Float64}, petab_problem::PEtabODEProblem, 
+    _get_observable(θ::Vector{Float64}, petab_problem::PEtabODEProblem,
                     condition_id::String, observable_id::String)
 
 Return the model values for a given observable_id and condition_id using the parameter vector θ.
 
-This function is primarily used for plotting purposes. It is important to note that for a single condition_id and 
-observable_id, the function may return simulation results corresponding to multiple conditions if the model has 
+This function is primarily used for plotting purposes. It is important to note that for a single condition_id and
+observable_id, the function may return simulation results corresponding to multiple conditions if the model has
 different pre-equilibrium ids.
 
-# Returns 
+# Returns
 - `t_observed::Vector{Float64}`: Time points for the observed data (x-axis).
 - `h_observed::Vector{Float64}`: Observed data values corresponding to these time points.
 - `label_observed::Vector{String}`: Labels denoting the condition id, considering any pre-equilibrium scenarios.
 - `t_model::Vector{Float64}`: Time points for the model data (x-axis).
 - `h_model::Vector{Float64}`: Model's predicted values corresponding to these time points.
 - `label_model::Vector{String}`: Model labels denoting the condition id, considering any pre-equilibrium scenarios.
-- `smooth_sol::Bool`: Indicates whether the returned solution is smooth, i.e., there are no 
+- `smooth_sol::Bool`: Indicates whether the returned solution is smooth, i.e., there are no
     observable parameters.
 """
 function _get_observable(θ::Vector{Float64}, petab_problem::PEtabODEProblem,
                          condition_id::String, observable_id::String)
 
-    # All measurment data is stored in petab_problem.petab_model.path_measurements
-    measurement_data = petab_problem.petab_model.path_measurements |> DataFrame
+    # All measurment data is stored in petab_problem.petab_model.measurements_df
+    measurement_data = petab_problem.petab_model.measurements_df |> DataFrame
     condition_ids = measurement_data[!, :simulationConditionId]
     observable_ids = measurement_data[!, :observableId]
 
@@ -145,9 +145,9 @@ function _get_observable(θ::Vector{Float64}, petab_problem::PEtabODEProblem,
         if smooth_sol == true
             @unpack θ_indices, petab_ODE_cache, measurement_info, parameter_info, petab_model = petab_problem
             θ_dynamic, θ_observable, θ_sd, θ_non_dynamic = PEtab.splitθ(θ, θ_indices)
-            θ_observableT = PEtab.transformθ(θ_observable, θ_indices.θ_observable_names,
+            θ_observableT = PEtab.transformθ(θ_observable, θ_indices.xids[:observable],
                                              θ_indices, :θ_observable, petab_ODE_cache)
-            θ_non_dynamicT = PEtab.transformθ(θ_non_dynamic, θ_indices.θ_non_dynamic_names,
+            θ_non_dynamicT = PEtab.transformθ(θ_non_dynamic, θ_indices.xids[:nondynamic],
                                               θ_indices, :θ_non_dynamic, petab_ODE_cache)
             i_measurement = _idata[1]
             _h_model = similar(sol.t)

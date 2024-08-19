@@ -130,13 +130,11 @@ struct ObservableNoiseMap
     single_constant::Bool
 end
 
-struct MapConditionId
-    constant_parameters::Vector{Float64}
-    i_ode_constant_parameters::Vector{Int64}
-    constant_states::Vector{Float64}
-    i_ode_constant_states::Vector{Int64}
-    iθ_dynamic::Vector{Int64}
-    i_ode_problem_θ_dynamic::Vector{Int64}
+struct ConditionMap
+    constant_values::Vector{Float64}
+    isys_constant_values::Vector{Int32}
+    ix_dynamic::Vector{Int32}
+    ix_sys::Vector{Int32}
 end
 
 struct MapODEProblem
@@ -152,7 +150,7 @@ struct ParameterIndices
     mapθ_observable::Vector{ObservableNoiseMap}
     mapθ_sd::Vector{ObservableNoiseMap}
     map_ode_problem::MapODEProblem
-    maps_conidition_id::Dict{<:Symbol, <:MapConditionId}
+    maps_conidition_id::Dict{Symbol, ConditionMap}
 end
 
 struct PriorInfo

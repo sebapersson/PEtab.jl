@@ -32,7 +32,7 @@ function compute_gradient_adjoint!(gradient::Vector{Float64},
                                         petab_ODE_cache, petab_ODESolver_cache;
                                         exp_id_solve = exp_id_solve,
                                         sensealg_ss = sensealg_ss)
-    @views gradient[θ_indices.iθ_dynamic] .= petab_ODE_cache.gradient_θ_dyanmic
+    @views gradient[θ_indices.xindices[:dynamic]] .= petab_ODE_cache.gradient_θ_dyanmic
 
     # Happens when at least one forward pass fails and I set the gradient to 1e8
     if !isempty(petab_ODE_cache.gradient_θ_dyanmic) &&
@@ -41,10 +41,10 @@ function compute_gradient_adjoint!(gradient::Vector{Float64},
         return nothing
     end
 
-    θ_not_ode = @view θ_est[θ_indices.iθ_not_ode]
+    θ_not_ode = @view θ_est[θ_indices.xindices[:not_system]]
     ReverseDiff.gradient!(petab_ODE_cache.gradient_θ_not_ode, compute_cost_θ_not_ODE,
                           θ_not_ode)
-    @views gradient[θ_indices.iθ_not_ode] .= petab_ODE_cache.gradient_θ_not_ode
+    @views gradient[θ_indices.xindices[:not_system]] .= petab_ODE_cache.gradient_θ_not_ode
 
     if prior_info.has_priors == true
         PEtab.compute_gradient_prior!(gradient, θ_est, θ_indices, prior_info)
@@ -72,12 +72,12 @@ function compute_gradient_adjoint_θ_dynamic!(gradient::Vector{Float64},
                                              petab_ODESolver_cache::PEtab.PEtabODESolverCache;
                                              sensealg_ss = SteadyStateAdjoint(),
                                              exp_id_solve::Vector{Symbol} = [:all])::Nothing
-    θ_dynamicT = PEtab.transformθ(θ_dynamic, θ_indices.θ_dynamic_names, θ_indices,
+    θ_dynamicT = PEtab.transformθ(θ_dynamic, θ_indices.xids[:dynamic], θ_indices,
                                   :θ_dynamic, petab_ODE_cache)
-    θ_sdT = PEtab.transformθ(θ_sd, θ_indices.θ_sd_names, θ_indices, :θ_sd, petab_ODE_cache)
-    θ_observableT = PEtab.transformθ(θ_observable, θ_indices.θ_observable_names, θ_indices,
+    θ_sdT = PEtab.transformθ(θ_sd, θ_indices.xids[:noise], θ_indices, :θ_sd, petab_ODE_cache)
+    θ_observableT = PEtab.transformθ(θ_observable, θ_indices.xids[:observable], θ_indices,
                                      :θ_observable, petab_ODE_cache)
-    θ_non_dynamicT = PEtab.transformθ(θ_non_dynamic, θ_indices.θ_non_dynamic_names,
+    θ_non_dynamicT = PEtab.transformθ(θ_non_dynamic, θ_indices.xids[:nondynamic],
                                       θ_indices, :θ_non_dynamic, petab_ODE_cache)
 
     _ode_problem = remake(ode_problem, p = convert.(eltype(θ_dynamicT), ode_problem.p),

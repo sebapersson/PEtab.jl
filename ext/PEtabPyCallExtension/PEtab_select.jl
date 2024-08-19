@@ -109,7 +109,7 @@ function PEtab.run_PEtab_select(path_yaml::String,
         # Setup dictionary to conveniently storing model parameters
         estimatedParameters = Dict(string(petab_problem.θ_names[i]) => fArg[i]
                                    for i in eachindex(fArg))
-        nDataPoints = length(_petab_problem.petab_model.path_measurements)
+        nDataPoints = length(_petab_problem.petab_model.measurements_df)
         py"update_model"(select_problem, model, f, estimatedParameters, nDataPoints)
     end
 
@@ -127,11 +127,11 @@ function PEtab.run_PEtab_select(path_yaml::String,
     # thus when we compare different models we do not have to pre-compile the model
     dir_model = splitdir(path_yaml)[1]
     file_yaml = YAML.load_file(path_yaml)
-    modelSpaceFile = CSV.File(joinpath(dir_model, file_yaml["model_space_files"][1]),
+    modelSpaceFile = DataFrame(joinpath(dir_model, file_yaml["model_space_files"][1]),
                               stringtype = String)
     parametersToChange = Symbol.(propertynames(modelSpaceFile)[3:end])
-    _custom_parameter_values = Dict()
-    [_custom_parameter_values[parametersToChange[i]] = "estimate"
+    _custom_values = Dict()
+    [_custom_values[parametersToChange[i]] = "estimate"
      for i in eachindex(parametersToChange)]
     _petab_model = PEtabModel(joinpath(dir_model, modelSpaceFile[1][:petab_yaml]),
                               build_julia_files = true, verbose = false)
@@ -149,7 +149,7 @@ function PEtab.run_PEtab_select(path_yaml::String,
                                      split_over_conditions = split_over_conditions,
                                      reuse_sensitivities = reuse_sensitivities,
                                      verbose = false,
-                                     custom_parameter_values = _custom_parameter_values)
+                                     custom_values = _custom_values)
 
     calibrated_models, newly_calibrated_models = py"setup_tracking"()
 

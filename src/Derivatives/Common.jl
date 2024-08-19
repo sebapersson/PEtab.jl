@@ -112,30 +112,30 @@ function adjust_gradient_θ_transformed!(gradient::Union{AbstractVector, SubArra
     # parameters mapping to several ode_problem.p parameters the sensitivity matrix part and
     # ∂G∂p must be treated seperately.
     if autodiff_sensitivites == true
-        _iθ_dynamic = unique(map_condition_id.iθ_dynamic)
+        _iθ_dynamic = unique(map_condition_id.ix_dynamic)
         gradient[_iθ_dynamic] .+= _adjust_gradient_θ_transformed(_gradient[_iθ_dynamic],
                                                                  θ_dynamic[_iθ_dynamic],
                                                                  θ_indices.xids[:dynamic][_iθ_dynamic],
                                                                  θ_indices)
-        out = _adjust_gradient_θ_transformed(∂G∂p[map_condition_id.i_ode_problem_θ_dynamic],
-                                             θ_dynamic[map_condition_id.iθ_dynamic],
-                                             θ_indices.xids[:dynamic][map_condition_id.iθ_dynamic],
+        out = _adjust_gradient_θ_transformed(∂G∂p[map_condition_id.ix_sys],
+                                             θ_dynamic[map_condition_id.ix_dynamic],
+                                             θ_indices.xids[:dynamic][map_condition_id.ix_dynamic],
                                              θ_indices)
-        @inbounds for i in eachindex(map_condition_id.i_ode_problem_θ_dynamic)
-            gradient[map_condition_id.iθ_dynamic[i]] += out[i]
+        @inbounds for i in eachindex(map_condition_id.ix_sys)
+            gradient[map_condition_id.ix_dynamic[i]] += out[i]
         end
     end
 
     # Here both ∂G∂p and _gradient are on the same scale a ode_problem.p. One condition specific parameter
     # can map to several parameters in ode_problem.p
     if adjoint == true || autodiff_sensitivites == false
-        out = _adjust_gradient_θ_transformed(_gradient[map_condition_id.i_ode_problem_θ_dynamic] .+
-                                             ∂G∂p[map_condition_id.i_ode_problem_θ_dynamic],
-                                             θ_dynamic[map_condition_id.iθ_dynamic],
-                                             θ_indices.xids[:dynamic][map_condition_id.iθ_dynamic],
+        out = _adjust_gradient_θ_transformed(_gradient[map_condition_id.ix_sys] .+
+                                             ∂G∂p[map_condition_id.ix_sys],
+                                             θ_dynamic[map_condition_id.ix_dynamic],
+                                             θ_indices.xids[:dynamic][map_condition_id.ix_dynamic],
                                              θ_indices)
-        @inbounds for i in eachindex(map_condition_id.i_ode_problem_θ_dynamic)
-            gradient[map_condition_id.iθ_dynamic[i]] += out[i]
+        @inbounds for i in eachindex(map_condition_id.ix_sys)
+            gradient[map_condition_id.ix_dynamic[i]] += out[i]
         end
     end
 
