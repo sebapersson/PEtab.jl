@@ -29,10 +29,14 @@ end
 function parse_conditions(parameter_info::ParametersInfo, measurements_info::MeasurementsInfo, sys, parameter_map, state_map, conditions_df::DataFrame)::ParameterIndices
     xids = _get_xids(parameter_info, measurements_info, sys, conditions_df)
 
-    # xindices for mapping parameters from xest -> xdynamic, etc..
+    # indices for mapping parameters correctly, e.g. from xest -> xdynamic etc...
     xindices = _get_xindices(xids)
-    mapθ_observable = build_θ_sd_observable_map(xids[:observable], measurements_info, parameter_info, buildθ_observable = true)
-    mapθ_sd = build_θ_sd_observable_map(xids[:noise], measurements_info, parameter_info, buildθ_observable = false)
+    # For each time-point build a map which stores if i) noise/obserable parameters are
+    # are constants, ii) should be estimated, iii) and corresponding index in parameter
+    # vector if they should be estimated, to correctly extract these parameters when
+    # computing observable values
+    xobservable_map = _get_map_observable_noise(xids[:observable], measurements_info, parameter_info; observable = true)
+    xnoise_map = _get_map_observable_noise(xids[:noise], measurements_info, parameter_info; observable = false)
 
     # TODO: SII is going to make this much easier (but the reverse will be harder)
     # Compute a map to map parameters between dynamic and system parameters
@@ -48,7 +52,7 @@ function parse_conditions(parameter_info::ParametersInfo, measurements_info::Mea
                                                                              conditions_df,
                                                                              xids[:dynamic])
     θ_scale = _get_xscales(xids, parameter_info)
-    θ_indices = ParameterIndices(xindices, xids, θ_scale, mapθ_observable, mapθ_sd, map_ode_problem, maps_condition_id)
+    θ_indices = ParameterIndices(xindices, xids, θ_scale, xobservable_map, xnoise_map, map_ode_problem, maps_condition_id)
     return θ_indices
 end
 
@@ -160,92 +164,54 @@ function _get_xids_condition(sys, parameter_info::ParametersInfo, conditions_df:
     return xids_condition
 end
 
-# For each observation build a map that correctly from either θ_observable or θ_sd map extract the correct value
-# for the time-point specific observable and noise parameters when compuing σ or h (observable) value.
-function build_θ_sd_observable_map(n_parameters_estimate::Vector{Symbol},
-                                   measurements_info::MeasurementsInfo,
-                                   parameter_info::ParametersInfo;
-                                   buildθ_observable = true)
-    parameter_map::Vector{θObsOrSdParameterMap} = Vector{θObsOrSdParameterMap}(undef,
-                                                                               length(measurements_info.time))
-    if buildθ_observable == true
-        timepoint_values = measurements_info.observable_parameters
+function _get_map_observable_noise(xids::Vector{Symbol}, measurements_info::MeasurementsInfo, parameter_info::ParametersInfo; observable::Bool)::Vector{ObservableNoiseMap}
+    if observable == true
+        parameter_rows = measurements_info.observable_parameters
     else
-        timepoint_values = measurements_info.noise_parameters
+        parameter_rows = measurements_info.noise_parameters
     end
-
-    # For each time-point build an associated map which stores if i) noise/obserable parameters are constants, ii) should
-    # be estimated, iii) and corresponding index in parameter vector
-    for i in eachindex(parameter_map)
-        # In case we do not have any noise/obserable parameter
-        if isempty(timepoint_values[i])
-            parameter_map[i] = θObsOrSdParameterMap(Vector{Bool}(undef, 0),
-                                                    Vector{Int64}(undef, 0),
-                                                    Vector{Float64}(undef, 0), Int64(0),
-                                                    false)
+    maps = Vector{ObservableNoiseMap}(undef, length(parameter_rows))
+    for (i, parameter_row) in pairs(parameter_rows)
+        # No observable/noise parameter for observation i
+        if isempty(parameter_row)
+            maps[i] = ObservableNoiseMap(Bool[], Int32[], Float64[], Int32(0), false)
+            continue
         end
-
-        # In case of a constant noise/obserable parameter encoded as a Float in the PEtab file.
-        if typeof(timepoint_values[i]) <: Real
-            parameter_map[i] = θObsOrSdParameterMap(Vector{Bool}(undef, 0),
-                                                    Vector{Int64}(undef, 0),
-                                                    Float64[timepoint_values[i]], Int64(0),
-                                                    true)
-        end
-
-        # In case observable or noise parameter maps to a parameter
-        if !isempty(timepoint_values[i]) && !(typeof(timepoint_values[i]) <: Real)
-
-            # Parameter are delimited by ; in the PEtab files and they can be constant, or they can
-            # be in the vector to estimate θ
-            parameters_in_expression = split(timepoint_values[i], ';')
-            n_parameters::Int = length(parameters_in_expression)
-            should_estimate::Vector{Bool} = Vector{Bool}(undef, n_parameters)
-            index_in_θ::Vector{Int64} = Vector{Int64}(undef, n_parameters)
-            constant_values::Array{Float64, 1} = Vector{Float64}(undef, n_parameters)
-
-            for j in eachindex(parameters_in_expression)
-                # In case observable parameter in paramsRet[j] should be estimated save which index
-                # it has in the θ vector
-                if Symbol(parameters_in_expression[j]) ∈ n_parameters_estimate
-                    should_estimate[j] = true
-                    index_in_θ[j] = Int64(findfirst(x -> x ==
-                                                         Symbol(parameters_in_expression[j]),
-                                                    n_parameters_estimate))
-                    continue
-                end
-
-                # In case observable parameter in paramsRet[j] is constant save its constant value.
-                # The constant value can be found either directly in the measurements_infoFile, or in
-                # in the parameters_df.
-                should_estimate[j] = false
-                # Hard coded in Measurement data file
-                if is_number(parameters_in_expression[j])
-                    constant_values[j] = parse(Float64, parameters_in_expression[j])
-                    continue
-                end
-                # Hard coded in Parameters file
-                if Symbol(parameters_in_expression[j]) in parameter_info.parameter_id
-                    constant_values[j] = parameter_info.nominal_value[findfirst(x -> x ==
-                                                                                     Symbol(parameters_in_expression[j]),
-                                                                                parameter_info.parameter_id)]
-                    continue
-                end
-
-                @error "Cannot find matching for parameter ", parameters_in_expression[j],
-                       " when building map."
+        # Multiple parameters in PEtab table are separated by ;. These multiple parameters
+        # can be constant (hard-coded values), constant parameters, or parameters to
+        # according to the PEtab standard
+        nvalues_row = count(';', parameter_row) + 1
+        estimate = fill(false, nvalues_row)
+        constant_values = zeros(Float64, nvalues_row)
+        xindices = zeros(Int32, nvalues_row)
+        for (j, value) in pairs(split(parameter_row, ';'))
+            if is_number(value)
+                constant_values[j] = parse(Float64, value)
+                continue
             end
-
-            parameter_map[i] = θObsOrSdParameterMap(should_estimate,
-                                                    index_in_θ[should_estimate],
-                                                    constant_values[.!should_estimate],
-                                                    Int64(length(parameters_in_expression)),
-                                                    false)
+            # Must be a parameter
+            value = Symbol(value)
+            if value in xids
+                estimate[j] = true
+                xindices[j] = findfirst(x -> x == value, xids)
+                continue
+            end
+            # If a constant parameter defined in the PEtab files
+            if value in parameter_info.parameter_id
+                ix = findfirst(x -> x == value, parameter_info.parameter_id)
+                constant_values[j] = parameter_info.nominal_value[ix]
+                continue
+            end
+            throw(PEtabFileError("Id $value in noise or observable column in measurement " *
+                                 "file does not correspond to any id in the parameters " *
+                                 "table"))
         end
+        single_constant = nvalues_row == 1 && estimate[1] == false
+        maps[i] = ObservableNoiseMap(estimate, xindices, constant_values, nvalues_row, single_constant)
     end
-
-    return parameter_map
+    return maps
 end
+
 
 # A map to accurately map parameters for a specific experimental conditionId to the ODE-problem
 function compute_maps_condition(sys,

@@ -70,13 +70,12 @@ function computeσ(u::AbstractVector{T1},
 
     # Compute associated SD-value or extract said number if it is known
     mapθ_sd = θ_indices.mapθ_sd[i_measurement]
-    if mapθ_sd.is_single_constant == true
+    if mapθ_sd.single_constant == true
         σ = mapθ_sd.constant_values[1]
     else
         σ = petab_model.compute_σ(u, t, θ_sd, θ_dynamic, θ_non_dynamic, parameter_info,
                                   measurement_info.observable_id[i_measurement], mapθ_sd)
     end
-
     return σ
 end
 
@@ -138,50 +137,27 @@ function transform_measurement_or_h(val::T, transform::Symbol)::T where {T <: Re
 end
 
 # Function to extract observable or noise parameters when computing h or σ
-function get_obs_sd_parameter(θ::AbstractVector, parameter_map::θObsOrSdParameterMap)
+function get_obs_sd_parameter(x::AbstractVector, map::ObservableNoiseMap)
+    map.nparameters == 0 && return nothing
 
-    # Helper function to map SD or obs-parameters in non-mutating way
-    function map1Tmp(i_value)
-        whichI = sum(parameter_map.should_estimate[1:i_value])
-        return parameter_map.index_in_θ[whichI]
-    end
-    function map2Tmp(i_value)
-        whichI = sum(.!parameter_map.should_estimate[1:i_value])
-        return whichI
-    end
-
-    # In case of no SD/observable parameter exit function
-    if parameter_map.n_parameters == 0
-        return nothing
-    end
-
-    # In case of single-value return do not have to return an array and think about type
-    if parameter_map.n_parameters == 1
-        if parameter_map.should_estimate[1] == true
-            return θ[parameter_map.index_in_θ][1]
-        else
-            return parameter_map.constant_values[1]
+    nestimate = sum(map.estimate)
+    if nestimate == map.nparameters
+        out = x[map.xindices]
+    elseif nestimate == 0
+        out = map.constant_values
+    else
+        out = similar(x, map.nparameters)
+        for i in eachindex(out)
+            if map.estimate[i] == true
+                out[i] = x[map.xindices[i]]
+            else
+                out[i] = map.constant_values[i]
+            end
         end
     end
-
-    n_parameters_estimate = sum(parameter_map.should_estimate)
-    if n_parameters_estimate == parameter_map.n_parameters
-        return θ[parameter_map.index_in_θ]
-
-    elseif n_parameters_estimate == 0
-        return parameter_map.constant_values
-
-        # Computaionally most demanding case. Here a subset of the parameters
-        # are to be estimated. This code must be non-mutating to support Zygote which
-        # negatively affects performance
-    elseif n_parameters_estimate > 0
-        _values = [parameter_map.should_estimate[i] == true ? θ[map1Tmp(i)] : 0.0
-                   for i in 1:(parameter_map.n_parameters)]
-        values = [parameter_map.should_estimate[i] == false ?
-                  parameter_map.constant_values[map2Tmp(i)] : _values[i]
-                  for i in 1:(parameter_map.n_parameters)]
-        return values
-    end
+    # TODO: Should be fixable when building observable function so that consistently a
+    # vector can be returned
+    return length(out) == 1 ? out[1] : out
 end
 
 # Transform parameter from log10 scale to normal scale, or reverse transform

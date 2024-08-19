@@ -158,7 +158,7 @@ function create_h_function(model_name::String,
     write(io,
           "function compute_h(u::AbstractVector, t::Real, p_ode_problem::AbstractVector, θ_observable::AbstractVector,
                θ_non_dynamic::AbstractVector, parameter_info::ParametersInfo, observableId::Symbol,
-                  parameter_map::θObsOrSdParameterMap)::Real \n")
+                  parameter_map::ObservableNoiseMap)::Real \n")
     write(io, observable_str)
     write(io, "end")
     h_str = String(take!(io))
@@ -380,7 +380,7 @@ function create_σ_function(model_name::String,
 
     write(io,
           "function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, p_ode_problem::AbstractVector,  θ_non_dynamic::AbstractVector,
-               parameter_info::ParametersInfo, observableId::Symbol, parameter_map::θObsOrSdParameterMap)::Real \n")
+               parameter_info::ParametersInfo, observableId::Symbol, parameter_map::ObservableNoiseMap)::Real \n")
     write(io, observable_str)
     write(io, "\nend")
     σ_str = String(take!(io))

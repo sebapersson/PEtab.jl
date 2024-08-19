@@ -181,7 +181,7 @@ function create∂h∂_function(model_name::String,
     end
     write(io1,
           "function compute_∂h∂u!(u, t::Real, p_ode_problem::AbstractVector, θ_observable::AbstractVector,
-                  θ_non_dynamic::AbstractVector, observableId::Symbol, parameter_map::θObsOrSdParameterMap, out) \n")
+                  θ_non_dynamic::AbstractVector, observableId::Symbol, parameter_map::ObservableNoiseMap, out) \n")
     write(io1, u_observeble_str)
     write(io1, "end")
     ∂h∂u_str = String(take!(io1))
@@ -194,7 +194,7 @@ function create∂h∂_function(model_name::String,
 
     write(io2,
           "function compute_∂h∂p!(u, t::Real, p_ode_problem::AbstractVector, θ_observable::AbstractVector,
-                  θ_non_dynamic::AbstractVector, observableId::Symbol, parameter_map::θObsOrSdParameterMap, out) \n")
+                  θ_non_dynamic::AbstractVector, observableId::Symbol, parameter_map::ObservableNoiseMap, out) \n")
     write(io2, p_observeble_str)
     write(io2, "end")
     ∂h∂p_str = String(take!(io2))
@@ -369,7 +369,7 @@ function create∂σ∂_function(model_name::String,
 
     write(io1,
           "function compute_∂σ∂σu!(u, t::Real, θ_sd::AbstractVector, p_ode_problem::AbstractVector,  θ_non_dynamic::AbstractVector,
-                   parameter_info::ParametersInfo, observableId::Symbol, parameter_map::θObsOrSdParameterMap, out) \n")
+                   parameter_info::ParametersInfo, observableId::Symbol, parameter_map::ObservableNoiseMap, out) \n")
     write(io1, u_observeble_str)
     write(io1, "end")
     ∂σ∂σuStr = String(take!(io1))
@@ -382,7 +382,7 @@ function create∂σ∂_function(model_name::String,
 
     write(io2,
           "function compute_∂σ∂σp!(u, t::Real, θ_sd::AbstractVector, p_ode_problem::AbstractVector,  θ_non_dynamic::AbstractVector,
-                   parameter_info::ParametersInfo, observableId::Symbol, parameter_map::θObsOrSdParameterMap, out) \n")
+                   parameter_info::ParametersInfo, observableId::Symbol, parameter_map::ObservableNoiseMap, out) \n")
     write(io2, p_observeble_str)
     write(io2, "end")
     ∂σ∂σpStr = String(take!(io2))

@@ -122,12 +122,12 @@ struct SimulationInfo{T1 <: Dict{<:Symbol, <:SciMLBase.DECallback},
     sensealg::Any
 end
 
-struct θObsOrSdParameterMap
-    should_estimate::Array{Bool, 1}
-    index_in_θ::Array{Int64, 1}
+struct ObservableNoiseMap
+    estimate::Vector{Bool}
+    xindices::Vector{Int32}
     constant_values::Vector{Float64}
-    n_parameters::Int64
-    is_single_constant::Bool
+    nparameters::Int32
+    single_constant::Bool
 end
 
 struct MapConditionId
@@ -149,8 +149,8 @@ struct ParameterIndices
     xindices::Dict{Symbol, Vector{Int32}}
     xids::Dict{Symbol, Vector{Symbol}}
     θ_scale::Dict{Symbol, Symbol}
-    mapθ_observable::Vector{θObsOrSdParameterMap}
-    mapθ_sd::Vector{θObsOrSdParameterMap}
+    mapθ_observable::Vector{ObservableNoiseMap}
+    mapθ_sd::Vector{ObservableNoiseMap}
     map_ode_problem::MapODEProblem
     maps_conidition_id::Dict{<:Symbol, <:MapConditionId}
 end
