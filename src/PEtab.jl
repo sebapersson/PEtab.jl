@@ -24,22 +24,24 @@ using PreallocationTools
 using NonlinearSolve
 using PrecompileTools
 using QuasiMonteCarlo
+using StyledStrings
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
 include("Structs.jl")
-include(joinpath("PEtabModel", "Table_input.jl"))
 include(joinpath("PEtabModel", "Julia_input.jl"))
 
 include("Common.jl")
+include("logging.jl")
 
+include(joinpath("petab_files", "common.jl"))
 include(joinpath("petab_files", "table_info.jl"))
 include(joinpath("petab_files", "read.jl"))
 include(joinpath("petab_files", "parameters.jl"))
 include(joinpath("petab_files", "measurements.jl"))
 include(joinpath("petab_files", "conditions.jl"))
 include(joinpath("petab_files", "simulations.jl"))
-include(joinpath("petab_files", "common.jl"))
+include(joinpath("petab_files", "petab_model.jl"))
 
 # Files related to computing the cost (likelihood)
 include(joinpath("Objective", "Priors.jl"))

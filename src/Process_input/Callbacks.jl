@@ -6,7 +6,7 @@ function create_callbacks_SBML(system::ODESystem,
                                model_SBML::SBMLImporter.ModelSBML,
                                model_name::String,
                                path_yaml::String,
-                               dir_julia::String;
+                               dirjulia::String;
                                custom_values::Union{Nothing, Dict} = nothing,
                                write_to_file::Bool = true)
     p_ode_problem_names = string.(parameters(system))
@@ -104,7 +104,7 @@ function create_callbacks_SBML(system::ODESystem,
     compute_tstops = @RuntimeGeneratedFunction(Meta.parse(write_tstops))
 
     # Write callback to file if required, otherwise just return the string for the callback and tstops functions
-    path_save = joinpath(dir_julia, model_name * "_callbacks.jl")
+    path_save = joinpath(dirjulia, model_name * "_callbacks.jl")
     isfile(path_save) && rm(path_save)
     io = IOBuffer()
     if write_to_file == true

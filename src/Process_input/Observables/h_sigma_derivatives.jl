@@ -1,21 +1,21 @@
 
 """
     createFileDYmodSdU0(model_name::String,
-                       dir_model::String,
+                       dirmodel::String,
                        odeSys::ODESystem,
                        state_map,
                        model_SBML::SBMLImporter.ModelSBML)
 
-    For a PeTab model with name model_name with all PeTab-files in dir_model and associated
+    For a PeTab model with name model_name with all PeTab-files in dirmodel and associated
     ModellingToolkit ODESystem (with its state_map) build a file containing a functions for
     i) computing the observable model value (y_model) ii) compute the initial value u0 (by using the
     state_map) and iii) computing the standard error (sd) for each observableFormula in the
     observables PeTab file.
     Note - The produced Julia file will go via the JIT-compiler.
 """
-function create_derivative_σ_h_file(model_name::String,
+function create_∂_h_σ_file(model_name::String,
                                     path_yaml::String,
-                                    dir_julia::String,
+                                    dirjulia::String,
                                     system::ODESystem,
                                     parameter_map,
                                     state_map,
@@ -34,18 +34,18 @@ function create_derivative_σ_h_file(model_name::String,
     θ_indices = parse_conditions(parameter_info, measurement_info, system, parameter_map,
                                   state_map, experimental_conditions)
 
-    ∂h∂u_str, ∂h∂p_str = create∂h∂_function(model_name, dir_julia, model_state_names,
+    ∂h∂u_str, ∂h∂p_str = create∂h∂_function(model_name, dirjulia, model_state_names,
                                             parameter_info, p_ode_problem_names,
                                             string.(θ_indices.xids[:nondynamic]),
                                             observables_data, model_SBML, write_to_file)
-    ∂σ∂u_str, ∂σ∂p_str = create∂σ∂_function(model_name, dir_julia, parameter_info,
+    ∂σ∂u_str, ∂σ∂p_str = create∂σ∂_function(model_name, dirjulia, parameter_info,
                                             model_state_names, p_ode_problem_names,
                                             string.(θ_indices.xids[:nondynamic]),
                                             observables_data, model_SBML, write_to_file)
 
     return ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str
 end
-function create_derivative_σ_h_file(model_name::String,
+function create_∂_h_σ_file(model_name::String,
                                     system,
                                     experimental_conditions::DataFrame,
                                     measurements_data::DataFrame,
@@ -80,7 +80,7 @@ end
 
 """
     create∂h∂_function(model_name::String,
-                       dir_model::String,
+                       dirmodel::String,
                        model_state_names::Vector{String},
                        parameter_info::ParametersInfo,
                        p_ode_problem_names::Vector{String},
@@ -92,7 +92,7 @@ end
     u = modelStates and p = p_ode_problem (parameters for ODE problem)
 """
 function create∂h∂_function(model_name::String,
-                            dir_model::String,
+                            dirmodel::String,
                             model_state_names::Vector{String},
                             parameter_info::ParametersInfo,
                             p_ode_problem_names::Vector{String},
@@ -100,7 +100,7 @@ function create∂h∂_function(model_name::String,
                             observables_data::DataFrame,
                             model_SBML::SBMLImporter.ModelSBML,
                             write_to_file::Bool)
-    path_save = joinpath(dir_model, model_name * "_D_h_sd.jl")
+    path_save = joinpath(dirmodel, model_name * "_D_h_sd.jl")
     io1 = IOBuffer()
     io2 = IOBuffer()
 
@@ -284,7 +284,7 @@ end
 
 """
     create∂σ∂_function(model_name::String,
-                            dir_model::String,
+                            dirmodel::String,
                             parameter_info::ParametersInfo,
                             model_state_names::Vector{String},
                             p_ode_problem_names::Vector{String},
@@ -295,7 +295,7 @@ end
     For model_name create a function for computing the standard deviation by translating the observables_data
 """
 function create∂σ∂_function(model_name::String,
-                            dir_model::String,
+                            dirmodel::String,
                             parameter_info::ParametersInfo,
                             model_state_names::Vector{String},
                             p_ode_problem_names::Vector{String},
@@ -303,7 +303,7 @@ function create∂σ∂_function(model_name::String,
                             observables_data::DataFrame,
                             model_SBML::SBMLImporter.ModelSBML,
                             write_to_file::Bool)
-    path_save = joinpath(dir_model, model_name * "_D_h_sd.jl")
+    path_save = joinpath(dirmodel, model_name * "_D_h_sd.jl")
     io1 = IOBuffer()
     io2 = IOBuffer()
 

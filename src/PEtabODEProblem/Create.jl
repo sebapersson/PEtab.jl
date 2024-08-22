@@ -17,7 +17,7 @@ function PEtabODEProblem(petab_model::PEtabModel;
                          verbose::Bool = true,
                          custom_values::Union{Nothing, Dict} = nothing)::PEtabODEProblem
     verbose == true && printstyled("[ Info:", color = 123, bold = true)
-    verbose == true && @printf(" Building PEtabODEProblem for %s\n", petab_model.model_name)
+    verbose == true && @printf(" Building PEtabODEProblem for %s\n", petab_model.modelname)
 
     # Sanity check user provided methods
     allowed_cost_methods = [:Standard, :Zygote]

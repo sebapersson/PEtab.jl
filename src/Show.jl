@@ -13,7 +13,7 @@ function get_ode_solver_str(a::ODESolver)
 end
 
 function show(io::IO, a::PEtabModel)
-    model_name = @sprintf("%s", a.model_name)
+    model_name = @sprintf("%s", a.modelname)
     n_odes = @sprintf("%d", length(a.state_names))
     n_ode_parameters = @sprintf("%d", length(a.parameter_names))
 
@@ -24,8 +24,8 @@ function show(io::IO, a::PEtabModel)
     printstyled(io, n_odes * " states", color = 116)
     print(io, " and ")
     printstyled(io, n_ode_parameters * " parameters.", color = 116)
-    if !isempty(a.dir_julia)
-        @printf(io, "\nGenerated Julia files are at %s", a.dir_julia)
+    if !isempty(a.dirjulia)
+        @printf(io, "\nGenerated Julia files are at %s", a.dirjulia)
     end
 end
 function show(io::IO, a::ODESolver)
@@ -37,7 +37,7 @@ function show(io::IO, a::ODESolver)
     @printf(io, ". Options %s", options_str)
 end
 function show(io::IO, a::PEtabODEProblem)
-    model_name = a.petab_model.model_name
+    model_name = a.petab_model.modelname
     n_odes = length(a.petab_model.state_names)
     n_parameters_est = length(a.θ_names)
     θ_indices = a.θ_indices

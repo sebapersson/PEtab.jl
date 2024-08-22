@@ -18,7 +18,7 @@ function _get_petab_paths(path_yaml::AbstractString)::NamedTuple
     path_observables = _get_path(yaml_file, dirmodel, "observable_files")
     path_conditions = _get_path(yaml_file, dirmodel, "condition_files")
     path_parameters = _get_path(yaml_file, dirmodel, "parameter_file")
-    return (SBML=path_SBML, parameters=path_parameters, conditions=path_conditions, observables=path_observables, measurements=path_measurements)
+    return (SBML=path_SBML, parameters=path_parameters, conditions=path_conditions, observables=path_observables, measurements=path_measurements, dirmodel=dirmodel)
 end
 
 function _read_table(path::String, file::Symbol)::DataFrame

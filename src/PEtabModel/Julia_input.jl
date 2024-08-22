@@ -112,7 +112,7 @@ function _PEtabModel(system,
     verbose == true && printstyled("[ Info:", color = 123, bold = true)
     verbose == true && print(" Building u0, h and σ functions ...")
     time_taken = @elapsed begin
-        h_str, u0!_str, u0_str, σ_str = PEtab.create_σ_h_u0_file(model_name, system_mutated,
+        h_str, u0!_str, u0_str, σ_str = PEtab.create_u0_h_σ_file(model_name, system_mutated,
                                                                  experimental_conditions,
                                                                  measurements_data,
                                                                  parameters_data,
@@ -128,7 +128,7 @@ function _PEtabModel(system,
     verbose == true && printstyled("[ Info:", color = 123, bold = true)
     verbose == true && print(" Building ∂h∂p, ∂h∂u, ∂σ∂p and ∂σ∂u functions ...")
     time_taken = @elapsed begin
-        ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str = PEtab.create_derivative_σ_h_file(model_name,
+        ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str = PEtab.create_∂_h_σ_file(model_name,
                                                                                   system_mutated,
                                                                                   experimental_conditions,
                                                                                   measurements_data,

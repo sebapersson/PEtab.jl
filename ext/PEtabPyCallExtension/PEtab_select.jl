@@ -125,15 +125,15 @@ function PEtab.run_PEtab_select(path_yaml::String,
 
     # First we use the model-space file to build (from parameter viewpoint) the biggest possible PEtab model. Then remake is called on the "big" petabproblem,
     # thus when we compare different models we do not have to pre-compile the model
-    dir_model = splitdir(path_yaml)[1]
+    dirmodel = splitdir(path_yaml)[1]
     file_yaml = YAML.load_file(path_yaml)
-    modelSpaceFile = DataFrame(joinpath(dir_model, file_yaml["model_space_files"][1]),
+    modelSpaceFile = DataFrame(joinpath(dirmodel, file_yaml["model_space_files"][1]),
                               stringtype = String)
     parametersToChange = Symbol.(propertynames(modelSpaceFile)[3:end])
     _custom_values = Dict()
     [_custom_values[parametersToChange[i]] = "estimate"
      for i in eachindex(parametersToChange)]
-    _petab_model = PEtabModel(joinpath(dir_model, modelSpaceFile[1][:petab_yaml]),
+    _petab_model = PEtabModel(joinpath(dirmodel, modelSpaceFile[1][:petab_yaml]),
                               build_julia_files = true, verbose = false)
     _petab_problem = PEtabODEProblem(_petab_model,
                                      ode_solver = ode_solver,

@@ -173,7 +173,7 @@ When parsing a PEtab problem, several things happen under the hood:
 2. The observable PEtab table is translated into a Julia file with functions for computing the observable (`h`), noise parameter (`σ`), and initial values (`u0`).
 3. To allow gradients via adjoint sensitivity analysis and/or forward sensitivity equations, the gradients of `h` and `σ` are computed symbolically with respect to the ODE model's states (`u`) and parameters (`ode_problem.p`).
 
-All of this happens automatically, and resulting files are stored under `petab_model.dir_julia` assuming write_to_file=true. To save time, `forceBuildJlFiles=false` by default, which means that Julia files are not rebuilt if they already exist.
+All of this happens automatically, and resulting files are stored under `petab_model.dirjulia` assuming write_to_file=true. To save time, `forceBuildJlFiles=false` by default, which means that Julia files are not rebuilt if they already exist.
 
 # Arguments
 - `path_yaml::String`: Path to the PEtab problem YAML file.
@@ -275,45 +275,34 @@ Create a PEtabModel directly in Julia from a Catalyst ReactionSystem or MTK ODES
 
 In case of simulation conditions, and for all arguments, see above.
 """
-struct PEtabModel{F1 <: Function,
-                  F2 <: Function,
-                  F3 <: Function,
-                  F4 <: Function,
-                  F5 <: Function,
-                  F6 <: Function,
-                  F7 <: Function,
-                  F8 <: Function,
-                  F9 <: Function,
-                  C <: SciMLBase.DECallback,
-                  FA <: Vector{<:Function},
-                  S}
-    model_name::String
-    compute_h::F1
-    compute_u0!::F2
-    compute_u0::F3
-    compute_σ::F4
-    compute_∂h∂u!::F5
-    compute_∂σ∂u!::F6
-    compute_∂h∂p!::F7
-    compute_∂σ∂p!::F8
-    compute_tstops::F9
+struct PEtabModel
+    modelname::String
+    compute_h::Function
+    compute_u0!::Function
+    compute_u0::Function
+    compute_σ::Function
+    compute_∂h∂u!::Function
+    compute_∂σ∂u!::Function
+    compute_∂h∂p!::Function
+    compute_∂σ∂p!::Function
+    compute_tstops::Function
     convert_tspan::Bool
     system::Any
-    system_mutated::S
+    system_mutated::Any
     parameter_map::Any
     state_map::Any
     parameter_names::Any
     state_names::Any
-    dir_model::String
-    dir_julia::String
+    dirmodel::String
+    dirjulia::String
     measurements_df::DataFrame
     conditions_df::DataFrame
     observables_df::DataFrame
     parameters_df::DataFrame
     path_SBML::String
     path_yaml::String
-    model_callbacks::C
-    check_callback_is_active::FA
+    model_callbacks::SciMLBase.DECallback
+    check_callback_is_active::Vector{Function}
     defined_in_julia::Bool
 end
 
