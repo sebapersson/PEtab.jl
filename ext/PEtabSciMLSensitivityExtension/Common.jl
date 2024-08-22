@@ -17,7 +17,7 @@ function PEtab.create_gradient_function(which_method::Symbol,
                                         sensealg_ss = nothing,
                                         split_over_conditions::Bool = false)
     # Fast but numerically unstable method
-    if simulation_info.has_pre_equilibration_condition_id == true &&
+    if simulation_info.has_pre_equilibration == true &&
        typeof(sensealg_ss) <: SteadyStateAdjoint
         @warn "If using adjoint sensitivity analysis for a model with PreEq-criteria the most the most efficient sensealg_ss is as provided SteadyStateAdjoint. However, SteadyStateAdjoint fails if the Jacobian is singular hence we recomend you check that the Jacobian is non-singular."
     end

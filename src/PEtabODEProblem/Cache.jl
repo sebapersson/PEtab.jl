@@ -71,8 +71,8 @@ function PEtabODEProblemCache(gradient_method::Symbol,
     if (gradient_method === :ForwardEquations && sensealg === :ForwardDiff) ||
        hessian_method === :GaussNewton || FIM_method == :GaussNewton
         n_model_states = length(states(petab_model.system_mutated))
-        n_timepoints_save = sum(length(simulation_info.time_observed[experimental_condition_id])
-                                for experimental_condition_id in simulation_info.experimental_condition_id)
+        n_timepoints_save = sum(length(simulation_info.tsaves[experimental_condition_id])
+                                for experimental_condition_id in simulation_info.conditionids[:experiment])
         S = zeros(Float64,
                   (n_timepoints_save * n_model_states, length(θ_indices.xids[:dynamic])))
         sol_values = zeros(Float64, n_model_states, n_timepoints_save)
@@ -174,11 +174,11 @@ function PEtabODESolverCache(gradient_method::Symbol,
     chunksize = length(θ_indices.xids[:estimate]) * 2 + length(θ_indices.xids[:estimate])^2
     chunksize = chunksize > 100 ? 100 : chunksize
 
-    if simulation_info.has_pre_equilibration_condition_id == true
-        conditions_simulate_over = unique(vcat(simulation_info.pre_equilibration_condition_id,
-                                               simulation_info.experimental_condition_id))
+    if simulation_info.has_pre_equilibration == true
+        conditions_simulate_over = unique(vcat(simulation_info.conditionids[:pre_equilibration],
+                                               simulation_info.conditionids[:experiment]))
     else
-        conditions_simulate_over = unique(simulation_info.experimental_condition_id)
+        conditions_simulate_over = unique(simulation_info.conditionids[:experiment])
     end
 
     _p_ode_problem_cache = Tuple(DiffCache(zeros(Float64, n_model_parameters), chunksize,

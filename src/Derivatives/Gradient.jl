@@ -112,7 +112,7 @@ function compute_gradient_autodiff_split!(gradient::Vector{Float64},
     θ_dynamic = petab_ODE_cache.θ_dynamic
     fill!(petab_ODE_cache.gradient_θ_dyanmic, 0.0)
 
-    for conditionId in simulation_info.experimental_condition_id
+    for conditionId in simulation_info.conditionids[:experiment]
         map_condition_id = θ_indices.maps_conidition_id[conditionId]
         iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.sys_to_dynamic,
                                                 map_condition_id.ix_dynamic))

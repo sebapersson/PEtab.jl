@@ -17,7 +17,7 @@ function compute∂G∂_(∂G∂_,
                      p::Vector{Float64}, # ode_problem.p
                      t::Float64,
                      i::Integer,
-                     i_per_time_point::Vector{Vector{Int64}},
+                     imeasurements_t::Vector{Vector{Int64}},
                      measurement_info::MeasurementsInfo,
                      parameter_info::ParametersInfo,
                      θ_indices::ParameterIndices,
@@ -30,7 +30,7 @@ function compute∂G∂_(∂G∂_,
                      compute∂G∂U::Bool = true,
                      compute_residuals::Bool = false)::Nothing
     fill!(∂G∂_, 0.0)
-    for i_measurement_data in i_per_time_point[i]
+    for i_measurement_data in imeasurements_t[i]
         fill!(∂h∂_, 0.0)
         fill!(∂σ∂_, 0.0)
 

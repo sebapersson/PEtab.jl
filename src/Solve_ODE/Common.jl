@@ -10,7 +10,7 @@ function get_t_saveat(::Val{save_at_observed_t},
 
     # Check if we want to only save the ODE at specific time-points
     if save_at_observed_t == true
-        return simulation_info.time_observed[condition_id]
+        return simulation_info.tsaves[condition_id]
     elseif n_timepoints_save > 0
         return collect(LinRange(0.0, tmax, n_timepoints_save))
     else

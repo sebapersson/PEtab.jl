@@ -79,14 +79,14 @@ function compute_cost_solve_ODE(θ_dynamic::T1,
     # If computing hessian or gradient store ODE solution in arrary with dual numbers, else use
     # solution array with floats
     if compute_hessian == true || compute_gradient_θ_dynamic == true
-        success = solve_ode_all_conditions!(simulation_info.ode_sols_derivatives,
+        success = solve_ode_all_conditions!(simulation_info.odesols_derivatives,
                                             _ode_problem, petab_model, θ_dynamicT,
                                             petab_ODESolver_cache, simulation_info,
                                             θ_indices, ode_solver, ss_solver,
                                             exp_id_solve = exp_id_solve, dense_sol = false,
                                             save_at_observed_t = true)
     elseif compute_cost == true
-        success = solve_ode_all_conditions!(simulation_info.ode_sols, _ode_problem,
+        success = solve_ode_all_conditions!(simulation_info.odesols, _ode_problem,
                                             petab_model, θ_dynamicT, petab_ODESolver_cache,
                                             simulation_info, θ_indices, ode_solver,
                                             ss_solver, exp_id_solve = exp_id_solve,
@@ -166,13 +166,13 @@ function _compute_cost(θ_sd::T1,
        compute_gradient_not_solve_adjoint == true ||
        compute_gradient_not_solve_forward == true ||
        compute_gradient_not_solve_autodiff == true
-        ode_sols = simulation_info.ode_sols_derivatives
+        ode_sols = simulation_info.odesols_derivatives
     else
-        ode_sols = simulation_info.ode_sols
+        ode_sols = simulation_info.odesols
     end
 
     cost = 0.0
-    for experimental_condition_id in simulation_info.experimental_condition_id
+    for experimental_condition_id in simulation_info.conditionids[:experiment]
         if exp_id_solve[1] != :all && experimental_condition_id ∉ exp_id_solve
             continue
         end
@@ -223,7 +223,7 @@ function compute_cost_condition(ode_sol::ODESolution,
     end
 
     cost = 0.0
-    for i_measurement in simulation_info.i_measurements[experimental_condition_id]
+    for i_measurement in simulation_info.imeasurements[experimental_condition_id]
         t = measurement_info.time[i_measurement]
 
         # In these cases we only save the ODE at observed time-points and we do not want
@@ -232,7 +232,7 @@ function compute_cost_condition(ode_sol::ODESolution,
            compute_gradient_not_solve_autodiff == true
             n_model_states = length(petab_model.state_names)
             u = dual_to_float.(ode_sol[1:n_model_states,
-                                       simulation_info.i_time_ode_sol[i_measurement]])
+                                       simulation_info.imeasurements_t_sol[i_measurement]])
             p = dual_to_float.(ode_sol.prob.p)
             # For adjoint sensitivity analysis we have a dense-ode solution
         elseif compute_gradient_not_solve_adjoint == true
@@ -241,12 +241,12 @@ function compute_cost_condition(ode_sol::ODESolution,
             p = ode_sol.prob.p
 
         elseif compute_gradient_θ_dynamic_zygote == true
-            u = ode_sol.u[simulation_info.i_time_ode_sol[i_measurement], :][1]
+            u = ode_sol.u[simulation_info.imeasurements_t_sol[i_measurement], :][1]
             p = p_ode_problem_zygote
 
             # When we want to extract dual number from the ODE solution
         else
-            u = ode_sol[:, simulation_info.i_time_ode_sol[i_measurement]]
+            u = ode_sol[:, simulation_info.imeasurements_t_sol[i_measurement]]
             p = ode_sol.prob.p
         end
 

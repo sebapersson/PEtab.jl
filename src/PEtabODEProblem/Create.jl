@@ -90,7 +90,7 @@ function PEtabODEProblem(petab_model::PEtabModel;
     _sparse_jacobian = !isnothing(sparse_jacobian) ? sparse_jacobian :
                        (model_size === :Large ? true : false)
 
-    simulation_info = process_simulationinfo(petab_model, measurement_info,
+    simulation_info = SimulationInfo(petab_model.model_callbacks, measurement_info,
                                              sensealg = _sensealg)
 
     # The time-span 5e3 is overwritten when performing forward simulations. As we solve an expanded system with the forward
@@ -516,7 +516,7 @@ function create_gradient_function(which_method::Symbol,
                      ForwardDiff.Chunk(chunksize)
         if sensealg === :ForwardDiff && split_over_conditions == false
             _solve_ode_all_conditions! = let petab_ODESolver_cache = petab_ODESolver_cache,
-                sol_derivative = simulation_info.ode_sols_derivatives,
+                sol_derivative = simulation_info.odesols_derivatives,
                 ode_problem = ode_problem, petab_model = petab_model,
                 simulation_info = simulation_info, ode_solver = ode_solver,
                 ss_solver = ss_solver, θ_indices = θ_indices,
@@ -544,7 +544,7 @@ function create_gradient_function(which_method::Symbol,
 
         if sensealg === :ForwardDiff && split_over_conditions == true
             _solve_ode_all_conditions! = let petab_ODESolver_cache = petab_ODESolver_cache,
-                sol_derivative = simulation_info.ode_sols_derivatives,
+                sol_derivative = simulation_info.odesols_derivatives,
                 ode_problem = ode_problem, petab_model = petab_model,
                 simulation_info = simulation_info, ode_solver = ode_solver,
                 ss_solver = ss_solver, θ_indices = θ_indices,
@@ -885,7 +885,7 @@ function create_hessian_function(which_method::Symbol,
     if which_method == :GaussNewton
         if split_over_conditions == false
             _solve_ode_all_conditions! = let petab_ODESolver_cache = petab_ODESolver_cache,
-                sols_derivatives = simulation_info.ode_sols_derivatives,
+                sols_derivatives = simulation_info.odesols_derivatives,
                 ode_problem = ode_problem, simulation_info = simulation_info,
                 ode_solver = ode_solver,
                 ss_solver = ss_solver, θ_indices = θ_indices,
@@ -908,7 +908,7 @@ function create_hessian_function(which_method::Symbol,
             end
         else
             _solve_ode_all_conditions! = let petab_ODESolver_cache = petab_ODESolver_cache,
-                sols_derivatives = simulation_info.ode_sols_derivatives,
+                sols_derivatives = simulation_info.odesols_derivatives,
                 ode_problem = ode_problem, simulation_info = simulation_info,
                 ode_solver = ode_solver,
                 ss_solver = ss_solver, θ_indices = θ_indices,

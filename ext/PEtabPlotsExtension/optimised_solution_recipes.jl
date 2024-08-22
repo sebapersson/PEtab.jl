@@ -115,7 +115,7 @@ function _get_observable(θ::Vector{Float64}, petab_problem::PEtabODEProblem,
     # Notice that an observable_id for a condition_id can have in a sense different simulation
     # values due to a potential pre-eq id, different pre-eq should be labelled accordingly in
     # the plot
-    pre_eq_ids = petab_problem.measurement_info.pre_equilibration_condition_id[idata]
+    pre_eq_ids = petab_problem.measurement_info.conditionids[:pre_equilibration][idata]
     t_observed = measurement_data[idata, :time]
     h_observed = measurement_data[idata, :measurement]
     label_observed = [pre_eq_id == :None ? condition_id :

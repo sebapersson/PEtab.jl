@@ -201,7 +201,7 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}})::MapODEProblem
 end
 
 function _get_condition_maps(sys, parameter_map, state_map, parameter_info::ParametersInfo, conditions_df::DataFrame, xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, ConditionMap}
-    species_sys = _get_state_ids(sys) .|> string
+    species_sys = _get_state_ids(sys)
     xids_sys, xids_dynamic = xids[:sys] .|> string, xids[:dynamic] .|> string
     xids_model = Iterators.flatten((xids_sys, species_sys))
 

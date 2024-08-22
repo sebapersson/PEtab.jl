@@ -100,25 +100,21 @@ function SteadyStateSolver(method::Symbol;
     end
 end
 
-struct SimulationInfo{T1 <: Dict{<:Symbol, <:SciMLBase.DECallback},
-                      T2 <: Dict{<:Symbol, <:SciMLBase.DECallback}}
-    pre_equilibration_condition_id::Vector{Symbol}
-    simulation_condition_id::Vector{Symbol}
-    experimental_condition_id::Vector{Symbol}
-    has_pre_equilibration_condition_id::Bool
-    ode_sols::Dict{Symbol, Union{Nothing, ODESolution}}
-    ode_sols_derivatives::Dict{Symbol, Union{Nothing, ODESolution}}
-    ode_sols_pre_equlibrium::Dict{Symbol,
-                                  Union{Nothing, ODESolution, SciMLBase.NonlinearSolution}}
+struct SimulationInfo
+    conditionids::Dict{Symbol, Vector{Symbol}}
+    has_pre_equilibration::Bool
+    tmaxs::Dict{Symbol, Float64}
+    tsaves::Dict{Symbol, Vector{Float64}}
+    imeasurements::Dict{Symbol, Vector{Int64}}
+    imeasurements_t::Dict{Symbol, Vector{Vector{Int64}}}
+    imeasurements_t_sol::Vector{Int64}
+    smatrixindices::Dict{Symbol, UnitRange{Int64}}
+    odesols::Dict{Symbol, ODESolution}
+    odesols_derivatives::Dict{Symbol, ODESolution}
+    odesols_preeq::Dict{Symbol, Union{ODESolution, SciMLBase.NonlinearSolution}}
     could_solve::Vector{Bool}
-    tmax::Dict{Symbol, Float64}
-    time_observed::Dict{Symbol, Vector{Float64}}
-    i_measurements::Dict{Symbol, Vector{Int64}}
-    i_time_ode_sol::Vector{Int64}
-    i_per_time_point::Dict{Symbol, Vector{Vector{Int64}}}
-    time_position_ode_sol::Dict{Symbol, UnitRange{Int64}}
-    callbacks::T1
-    tracked_callbacks::T2
+    callbacks::Dict{Symbol, SciMLBase.DECallback}
+    tracked_callbacks::Dict{Symbol, SciMLBase.DECallback}
     sensealg::Any
 end
 

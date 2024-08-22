@@ -3,7 +3,7 @@
     and there is functionallity for computing the sensitivity matrix.
 =#
 
-function solve_ode_all_conditions!(ode_sols::Dict{Symbol, Union{Nothing, ODESolution}},
+function solve_ode_all_conditions!(ode_sols::Dict{Symbol, ODESolution},
                                    ode_problem::ODEProblem,
                                    petab_model::PEtabModel,
                                    θ_dynamic::AbstractVector,
@@ -26,17 +26,17 @@ function solve_ode_all_conditions!(ode_sols::Dict{Symbol, Union{Nothing, ODESolu
                                                                                                      θ_indices,
                                                                                                      compute_forward_sensitivites = compute_forward_sensitivites)
     # In case the model is first simulated to a steady state
-    if simulation_info.has_pre_equilibration_condition_id == true
+    if simulation_info.has_pre_equilibration == true
 
         # Extract all unique Pre-equlibrium conditions. If the code is run in parallell
         # (exp_id_solve != [["all]]) the number of preEq cond. might be smaller than the
         # total number of preEq cond.
         if exp_id_solve[1] == :all
-            pre_equilibration_id = unique(simulation_info.pre_equilibration_condition_id)
+            pre_equilibration_id = unique(simulation_info.conditionids[:pre_equilibration])
         else
-            which_id = findall(x -> x ∈ simulation_info.experimental_condition_id,
+            which_id = findall(x -> x ∈ simulation_info.conditionids[:experiment],
                                exp_id_solve)
-            pre_equilibration_id = unique(simulation_info.pre_equilibration_condition_id[which_id])
+            pre_equilibration_id = unique(simulation_info.conditionids[:pre_equilibration][which_id])
         end
 
         # Arrays to store steady state (pre-eq) values.
@@ -53,7 +53,7 @@ function solve_ode_all_conditions!(ode_sols::Dict{Symbol, Union{Nothing, ODESolu
             # Sometimes due to strongly ill-conditioned Jacobian the linear-solve runs
             # into a domain error or bounds error. This is treated as integration error.
             try
-                _ode_sols = simulation_info.ode_sols_pre_equlibrium
+                _ode_sols = simulation_info.odesols_preeq
                 _ode_sols[pre_equilibration_id[i]] = solve_ode_pre_equlibrium!((@view u_ss[:,
                                                                                            i]),
                                                                                (@view u_t0[:,
@@ -69,7 +69,7 @@ function solve_ode_all_conditions!(ode_sols::Dict{Symbol, Union{Nothing, ODESolu
                 simulation_info.could_solve[1] = false
                 return false
             end
-            if simulation_info.ode_sols_pre_equlibrium[pre_equilibration_id[i]].retcode !=
+            if simulation_info.odesols_preeq[pre_equilibration_id[i]].retcode !=
                ReturnCode.Terminated
                 simulation_info.could_solve[1] = false
                 return false
@@ -77,8 +77,8 @@ function solve_ode_all_conditions!(ode_sols::Dict{Symbol, Union{Nothing, ODESolu
         end
     end
 
-    @inbounds for i in eachindex(simulation_info.experimental_condition_id)
-        experimental_id = simulation_info.experimental_condition_id[i]
+    @inbounds for i in eachindex(simulation_info.conditionids[:experiment])
+        experimental_id = simulation_info.conditionids[:experiment][i]
 
         if exp_id_solve[1] != :all && experimental_id ∉ exp_id_solve
             continue
@@ -86,7 +86,7 @@ function solve_ode_all_conditions!(ode_sols::Dict{Symbol, Union{Nothing, ODESolu
 
         # In case save_at_observed_t=true all other options are overridden and we only save the data
         # at observed time points.
-        _tmax = simulation_info.tmax[experimental_id]
+        _tmax = simulation_info.tmaxs[experimental_id]
         _t_save = get_t_saveat(Val(save_at_observed_t), simulation_info, experimental_id,
                                _tmax, n_timepoints_save)
         _dense_sol = should_save_dense_sol(Val(save_at_observed_t), n_timepoints_save,
@@ -95,9 +95,9 @@ function solve_ode_all_conditions!(ode_sols::Dict{Symbol, Union{Nothing, ODESolu
                                           experimental_id)
 
         # In case we have a simulation with PreEqulibrium
-        if simulation_info.pre_equilibration_condition_id[i] != :None
+        if simulation_info.conditionids[:pre_equilibration][i] != :None
             which_index = findfirst(x -> x ==
-                                         simulation_info.pre_equilibration_condition_id[i],
+                                         simulation_info.conditionids[:pre_equilibration][i],
                                     pre_equilibration_id)
             # See comment above on domain error
             try
@@ -108,7 +108,7 @@ function solve_ode_all_conditions!(ode_sols::Dict{Symbol, Union{Nothing, ODESolu
                                                                                   which_index]),
                                                                       change_simulation_condition!,
                                                                       simulation_info,
-                                                                      simulation_info.simulation_condition_id[i],
+                                                                      simulation_info.conditionids[:simulation][i],
                                                                       experimental_id,
                                                                       _tmax,
                                                                       ode_solver,
@@ -133,7 +133,7 @@ function solve_ode_all_conditions!(ode_sols::Dict{Symbol, Union{Nothing, ODESolu
                 ode_sols[experimental_id] = solve_ode_no_pre_equlibrium(_ode_problem,
                                                                         change_simulation_condition!,
                                                                         simulation_info,
-                                                                        simulation_info.simulation_condition_id[i],
+                                                                        simulation_info.conditionids[:simulation][i],
                                                                         ode_solver,
                                                                         _tmax,
                                                                         petab_model.compute_tstops,
@@ -159,7 +159,7 @@ end
 function solve_ode_all_conditions!(sol_values::AbstractMatrix,
                                    _θ_dynamic::AbstractVector,
                                    petab_ODESolver_cache::PEtabODESolverCache,
-                                   ode_sols::Dict{Symbol, Union{Nothing, ODESolution}},
+                                   ode_sols::Dict{Symbol, ODESolution},
                                    ode_problem::ODEProblem,
                                    petab_model::PEtabModel,
                                    simulation_info::SimulationInfo,
@@ -211,11 +211,11 @@ function solve_ode_all_conditions!(sol_values::AbstractMatrix,
 
     # i_start and i_end tracks which entries in sol_values we store a specific experimental condition
     i_start, i_end = 1, 0
-    for i in eachindex(simulation_info.experimental_condition_id)
-        experimental_id = simulation_info.experimental_condition_id[i]
-        i_end += length(simulation_info.time_observed[experimental_id])
+    for i in eachindex(simulation_info.conditionids[:experiment])
+        experimental_id = simulation_info.conditionids[:experiment][i]
+        i_end += length(simulation_info.tsaves[experimental_id])
         if exp_id_solve[1] == :all ||
-           simulation_info.experimental_condition_id[i] ∈ exp_id_solve
+           simulation_info.conditionids[:experiment][i] ∈ exp_id_solve
             @views sol_values[:, i_start:i_end] .= Array(ode_sols[experimental_id])
         end
         i_start = i_end + 1
@@ -236,11 +236,8 @@ function solve_ODE_all_conditions(ode_problem::ODEProblem,
                                   save_at_observed_t::Bool = false,
                                   dense_sol::Bool = true,
                                   track_callback::Bool = false,
-                                  compute_forward_sensitivites::Bool = false)::Tuple{Dict{Symbol,
-                                                                                          Union{Nothing,
-                                                                                                ODESolution}},
-                                                                                     Bool}
-    ode_sols = deepcopy(simulation_info.ode_sols)
+                                  compute_forward_sensitivites::Bool = false)::Tuple{Dict{Symbol, ODESolution}, Bool}
+    ode_sols = deepcopy(simulation_info.odesols)
     success = solve_ode_all_conditions!(ode_sols,
                                         ode_problem,
                                         petab_model,

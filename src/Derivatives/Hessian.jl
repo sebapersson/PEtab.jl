@@ -15,9 +15,9 @@ function compute_hessian!(hessian::Matrix{Float64},
     # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final
     # retcode we cannot catch these cases
     simulation_info.could_solve[1] = true
-    if all([simulation_info.ode_sols[id].retcode == ReturnCode.Success ||
-            simulation_info.ode_sols[id].retcode == ReturnCode.Terminated
-            for id in simulation_info.experimental_condition_id])
+    if all([simulation_info.odesols[id].retcode == ReturnCode.Success ||
+            simulation_info.odesols[id].retcode == ReturnCode.Terminated
+            for id in simulation_info.conditionids[:experiment]])
         try
             ForwardDiff.hessian!(hessian, _eval_hessian, θ_est, cfg)
             @views hessian .= Symmetric(hessian)
@@ -57,7 +57,7 @@ function compute_hessian_split!(hessian::Matrix{Float64},
     simulation_info.could_solve[1] = true
 
     hessian .= 0.0
-    for conditionId in simulation_info.experimental_condition_id
+    for conditionId in simulation_info.conditionids[:experiment]
         map_condition_id = θ_indices.maps_conidition_id[conditionId]
         iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.sys_to_dynamic,
                                                 map_condition_id.ix_dynamic,
@@ -170,7 +170,7 @@ function compute_hessian_block_split!(hessian::Matrix{Float64},
     splitθ!(θ_est, θ_indices, petab_ODE_cache)
     θ_dynamic = petab_ODE_cache.θ_dynamic
 
-    for conditionId in simulation_info.experimental_condition_id
+    for conditionId in simulation_info.conditionids[:experiment]
         map_condition_id = θ_indices.maps_conidition_id[conditionId]
         iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.sys_to_dynamic,
                                                 map_condition_id.ix_dynamic))

@@ -44,15 +44,15 @@ function compute_jacobian_residuals_θ_dynamic!(jacobian::Union{Matrix{Float64},
     end
 
     # Compute the gradient by looping through all experimental conditions.
-    for i in eachindex(simulation_info.experimental_condition_id)
-        experimental_condition_id = simulation_info.experimental_condition_id[i]
-        simulation_condition_id = simulation_info.simulation_condition_id[i]
+    for i in eachindex(simulation_info.conditionids[:experiment])
+        experimental_condition_id = simulation_info.conditionids[:experiment][i]
+        simulation_condition_id = simulation_info.conditionids[:simulation][i]
 
         if exp_id_solve[1] != :all && experimental_condition_id ∉ exp_id_solve
             continue
         end
 
-        sol = simulation_info.ode_sols_derivatives[experimental_condition_id]
+        sol = simulation_info.odesols_derivatives[experimental_condition_id]
 
         # If we have a callback it needs to be properly handled
         compute_jacobian_residuals_condition!(jacobian, sol, petab_ODE_cache, θ_dynamicT,
@@ -82,9 +82,9 @@ function compute_jacobian_residuals_condition!(jacobian::M,
                                                                                                M <:
                                                                                                AbstractMatrix
                                                                                                }
-    i_per_time_point = simulation_info.i_per_time_point[experimental_condition_id]
-    time_observed = simulation_info.time_observed[experimental_condition_id]
-    time_position_ode_sol = simulation_info.time_position_ode_sol[experimental_condition_id]
+    imeasurements_t = simulation_info.imeasurements_t[experimental_condition_id]
+    time_observed = simulation_info.tsaves[experimental_condition_id]
+    time_position_ode_sol = simulation_info.smatrixindices[experimental_condition_id]
 
     # To compute
     compute∂G∂u = (out, u, p, t, i, it) -> begin
@@ -123,7 +123,7 @@ function compute_jacobian_residuals_condition!(jacobian::M,
         i_start, i_end = (time_position_ode_sol[i] - 1) * n_model_states + 1,
                          (time_position_ode_sol[i] - 1) * n_model_states + n_model_states
         _S = @view petab_ODE_cache.S[i_start:i_end, iθ_experimental_condition]
-        for i_measurement in i_per_time_point[i]
+        for i_measurement in imeasurements_t[i]
             compute∂G∂u(∂G∂u, u, p, t, 1, [[i_measurement]])
             compute∂G∂p(∂G∂p, u, p, t, 1, [[i_measurement]])
             @views _gradient[iθ_experimental_condition] .= transpose(_S) * ∂G∂u
@@ -166,12 +166,12 @@ function compute_residuals_not_solve_ode!(residuals::T1,
                                 :θ_non_dynamic, petab_ODE_cache)
 
     # Compute residuals per experimental conditions
-    for experimental_condition_id in simulation_info.experimental_condition_id
+    for experimental_condition_id in simulation_info.conditionids[:experiment]
         if exp_id_solve[1] != :all && experimental_condition_id ∉ exp_id_solve
             continue
         end
 
-        ode_sol = simulation_info.ode_sols_derivatives[experimental_condition_id]
+        ode_sol = simulation_info.odesols_derivatives[experimental_condition_id]
         sucess = compute_residuals_condition!(residuals, ode_sol, θ_sdT, θ_observableT,
                                               θ_non_dynamicT,
                                               petab_model, experimental_condition_id,
@@ -211,10 +211,10 @@ function compute_residuals_condition!(residuals::T1,
 
     @unpack u, p = petab_ODE_cache
     # Compute y_model and sd for all observations having id conditionID
-    for i_measurement in simulation_info.i_measurements[experimental_condition_id]
+    for i_measurement in simulation_info.imeasurements[experimental_condition_id]
         t = measurement_info.time[i_measurement]
         u .= dual_to_float.((@view ode_sol[:,
-                                           simulation_info.i_time_ode_sol[i_measurement]]))
+                                           simulation_info.imeasurements_t_sol[i_measurement]]))
         p .= dual_to_float.(ode_sol.prob.p)
         hT = computehT(u, t, p, θ_observable, θ_non_dynamic, petab_model, i_measurement,
                        measurement_info, θ_indices, parameter_info)

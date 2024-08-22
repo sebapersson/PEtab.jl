@@ -68,7 +68,7 @@ function show(io::IO, a::PEtabODEProblem)
     printstyled(io, solver_gradient_str, color = 116)
     @printf(io, ". Options %s", options_gradient_str)
 
-    if a.simulation_info.has_pre_equilibration_condition_id == true
+    if a.simulation_info.has_pre_equilibration == true
         print(io, "\n--------- SS solver settings ---------")
         # Print cost steady state solver
         print(io, "\nCost ")

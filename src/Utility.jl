@@ -24,7 +24,7 @@ function get_odesol(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisat
                     pre_eq_id::Union{String, Symbol, Nothing} = nothing)
     @unpack simulation_info, ode_solver = petab_problem
     if isnothing(condition_id)
-        condition_id = simulation_info.simulation_condition_id[1]
+        condition_id = simulation_info.conditionids[:simulation][1]
     end
     if condition_id isa String
         condition_id = Symbol(condition_id)
@@ -80,11 +80,11 @@ function get_odeproblem(res::Union{PEtabOptimisationResult,
                         pre_eq_id::Union{String, Symbol, Nothing} = nothing)
     @unpack simulation_info, ode_solver, petab_model = petab_problem
     if isnothing(condition_id)
-        condition_id = simulation_info.simulation_condition_id[1]
+        condition_id = simulation_info.conditionids[:simulation][1]
     end
 
     u0, p = _get_fitted_parameters(res, petab_problem, condition_id, pre_eq_id, false)
-    tmax = petab_problem.simulation_info.tmax[condition_id]
+    tmax = petab_problem.simulation_info.tmaxs[condition_id]
     ode_problem = ODEProblem(petab_model.system, u0, [0.0, tmax], p, jac = true)
 
     cbset = petab_problem.petab_model.model_callbacks
@@ -158,14 +158,14 @@ function _get_fitted_parameters(res::Union{PEtabOptimisationResult,
 
     # Sanity check input
     if isnothing(condition_id)
-        _c_id = simulation_info.simulation_condition_id[1]
+        _c_id = simulation_info.conditionids[:simulation][1]
     else
         _c_id = Symbol(condition_id)
-        @assert _c_id ∈ simulation_info.simulation_condition_id "A simulation condition id was given that could not be found in among the petab model conditions."
+        @assert _c_id ∈ simulation_info.conditionids[:simulation] "A simulation condition id was given that could not be found in among the petab model conditions."
     end
     if !isnothing(pre_eq_id)
         _pre_eq_id = Symbol(pre_eq_id)
-        @assert _pre_eq_id ∈ simulation_info.pre_equilibration_condition_id "A pre-equilbration simulation condition id was given that could not be found in among the petab model conditions."
+        @assert _pre_eq_id ∈ simulation_info.conditionids[:pre_equilibration] "A pre-equilbration simulation condition id was given that could not be found in among the petab model conditions."
     else
         _pre_eq_id = nothing
     end

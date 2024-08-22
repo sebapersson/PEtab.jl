@@ -26,7 +26,7 @@ function PEtab.solve_sensitivites(ode_problem::ODEProblem,
                           u0 = convert.(eltype(θ_dynamic), ode_problem.u0))
     PEtab.change_ode_parameters!(_ode_problem.p, (@view _ode_problem.u0[1:n_model_states]),
                                  θ_dynamic, θ_indices, petab_model)
-    success = _solve_ode_all_conditions!(simulation_info.ode_sols_derivatives, _ode_problem,
+    success = _solve_ode_all_conditions!(simulation_info.odesols_derivatives, _ode_problem,
                                          θ_dynamic, exp_id_solve)
     return success
 end
@@ -46,19 +46,19 @@ function PEtab.compute_gradient_forward_equations_condition!(gradient::Vector{Fl
                                                              θ_indices::PEtab.ParameterIndices,
                                                              measurement_info::PEtab.MeasurementsInfo,
                                                              parameter_info::PEtab.ParametersInfo)::Nothing
-    i_per_time_point = simulation_info.i_per_time_point[experimental_condition_id]
-    time_observed = simulation_info.time_observed[experimental_condition_id]
+    imeasurements_t = simulation_info.imeasurements_t[experimental_condition_id]
+    time_observed = simulation_info.tsaves[experimental_condition_id]
 
     # To compute
     compute∂G∂u = (out, u, p, t, i) -> begin
-        PEtab.compute∂G∂_(out, u, p, t, i, i_per_time_point,
+        PEtab.compute∂G∂_(out, u, p, t, i, imeasurements_t,
                           measurement_info, parameter_info,
                           θ_indices, petab_model,
                           θ_sd, θ_observable, θ_non_dynamic,
                           petab_ODE_cache.∂h∂u, petab_ODE_cache.∂σ∂u, compute∂G∂U = true)
     end
     compute∂G∂p = (out, u, p, t, i) -> begin
-        PEtab.compute∂G∂_(out, u, p, t, i, i_per_time_point,
+        PEtab.compute∂G∂_(out, u, p, t, i, imeasurements_t,
                           measurement_info, parameter_info,
                           θ_indices, petab_model,
                           θ_sd, θ_observable, θ_non_dynamic,

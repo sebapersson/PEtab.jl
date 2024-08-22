@@ -46,8 +46,8 @@ function _compute_cost_zygote(θ_dynamic,
     # Compute y_model and sd-val by looping through all experimental conditons. At the end
     # update the likelihood
     cost = 0.0
-    for experimental_condition_id in simulation_info.experimental_condition_id
-        tmax = simulation_info.tmax[experimental_condition_id]
+    for experimental_condition_id in simulation_info.conditionids[:experiment]
+        tmax = simulation_info.tmaxs[experimental_condition_id]
         ode_sol, success = solve_ode_condition(_ode_problem, experimental_condition_id,
                                                θ_dynamicT, tmax)
         if success != true
@@ -88,14 +88,14 @@ function solve_ode_condition_zygote(ode_problem::ODEProblem,
 
     # For storing ODE solution (required for split gradient computations)
     whichCondID = findfirst(x -> x == experimental_id,
-                            simulation_info.experimental_condition_id)
+                            simulation_info.conditionids[:experiment])
 
     # In case the model is first simulated to a steady state
     local success = true
-    if simulation_info.has_pre_equilibration_condition_id == true
-        first_expid = simulation_info.pre_equilibration_condition_id[whichCondID]
-        shift_expid = simulation_info.simulation_condition_id[whichCondID]
-        t_save = simulation_info.time_observed[experimental_id]
+    if simulation_info.has_pre_equilibration == true
+        first_expid = simulation_info.conditionids[:pre_equilibration][whichCondID]
+        shift_expid = simulation_info.conditionids[:simulation][whichCondID]
+        t_save = simulation_info.tsaves[experimental_id]
 
         u0_pre = ode_problem.u0[:]
         pUsePre, u0UsePre = changeToExperimentalCondUsePre(ode_problem.p, ode_problem.u0,
@@ -140,16 +140,16 @@ function solve_ode_condition_zygote(ode_problem::ODEProblem,
                     callback = simulation_info.callbacks[experimental_id],
                     tstops = tstops)
 
-        ChainRulesCore.@ignore_derivatives simulation_info.ode_sols[experimental_id] = sol
+        ChainRulesCore.@ignore_derivatives simulation_info.odesols[experimental_id] = sol
 
         if sol.retcode != ReturnCode.Success
             sucess = false
         end
 
         # In case the model is not first simulated to a steady state
-    elseif simulation_info.has_pre_equilibration_condition_id == false
-        first_expid = simulation_info.simulation_condition_id[whichCondID]
-        t_save = simulation_info.time_observed[experimental_id]
+    elseif simulation_info.has_pre_equilibration == false
+        first_expid = simulation_info.conditionids[:simulation][whichCondID]
+        t_save = simulation_info.tsaves[experimental_id]
         t_max_use = isinf(t_max) ? 1e8 : t_max
 
         pUse, u0Use = changeToExperimentalCondUsePre(ode_problem.p, ode_problem.u0,
@@ -176,7 +176,7 @@ function solve_ode_condition_zygote(ode_problem::ODEProblem,
             println("Error : Solver option does not exist")
         end
 
-        ChainRulesCore.@ignore_derivatives simulation_info.ode_sols[experimental_id] = sol
+        ChainRulesCore.@ignore_derivatives simulation_info.odesols[experimental_id] = sol
 
         if typeof(sol) <: ODESolution &&
            !(sol.retcode == ReturnCode.Success || sol.retcode == ReturnCode.Terminated)

@@ -51,15 +51,15 @@ function compute_gradient_forward_equations!(gradient::Vector{Float64},
     end
 
     gradient .= 0.0
-    for i in eachindex(simulation_info.experimental_condition_id)
-        experimental_condition_id = simulation_info.experimental_condition_id[i]
-        simulation_condition_id = simulation_info.simulation_condition_id[i]
+    for i in eachindex(simulation_info.conditionids[:experiment])
+        experimental_condition_id = simulation_info.conditionids[:experiment][i]
+        simulation_condition_id = simulation_info.conditionids[:simulation][i]
 
         if exp_id_solve[1] != :all && experimental_condition_id ∉ exp_id_solve
             continue
         end
 
-        sol = simulation_info.ode_sols_derivatives[experimental_condition_id]
+        sol = simulation_info.odesols_derivatives[experimental_condition_id]
 
         # If we have a callback it needs to be properly handled
         compute_gradient_forward_equations_condition!(gradient, sol, petab_ODE_cache,
@@ -141,7 +141,7 @@ function solve_sensitivites(ode_problem::ODEProblem,
     if split_over_conditions == true
         petab_ODE_cache.S .= 0.0
         S_tmp = similar(petab_ODE_cache.S)
-        for condition_id in simulation_info.experimental_condition_id
+        for condition_id in simulation_info.conditionids[:experiment]
             map_condition_id = θ_indices.maps_conidition_id[condition_id]
             iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.sys_to_dynamic,
                                                     map_condition_id.ix_dynamic))
@@ -177,20 +177,20 @@ function compute_gradient_forward_equations_condition!(gradient::Vector{Float64}
                                                        θ_indices::ParameterIndices,
                                                        measurement_info::MeasurementsInfo,
                                                        parameter_info::ParametersInfo)::Nothing
-    i_per_time_point = simulation_info.i_per_time_point[experimental_condition_id]
-    time_observed = simulation_info.time_observed[experimental_condition_id]
-    time_position_ode_sol = simulation_info.time_position_ode_sol[experimental_condition_id]
+    imeasurements_t = simulation_info.imeasurements_t[experimental_condition_id]
+    time_observed = simulation_info.tsaves[experimental_condition_id]
+    time_position_ode_sol = simulation_info.smatrixindices[experimental_condition_id]
 
     # To compute
     compute∂G∂u! = (out, u, p, t, i) -> begin
-        compute∂G∂_(out, u, p, t, i, i_per_time_point,
+        compute∂G∂_(out, u, p, t, i, imeasurements_t,
                     measurement_info, parameter_info,
                     θ_indices, petab_model,
                     θ_sd, θ_observable, θ_non_dynamic,
                     petab_ODE_cache.∂h∂u, petab_ODE_cache.∂σ∂u, compute∂G∂U = true)
     end
     compute∂G∂p! = (out, u, p, t, i) -> begin
-        compute∂G∂_(out, u, p, t, i, i_per_time_point,
+        compute∂G∂_(out, u, p, t, i, imeasurements_t,
                     measurement_info, parameter_info,
                     θ_indices, petab_model,
                     θ_sd, θ_observable, θ_non_dynamic,

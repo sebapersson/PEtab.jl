@@ -84,7 +84,7 @@ function compute_gradient_adjoint_θ_dynamic!(gradient::Vector{Float64},
                           u0 = convert.(eltype(θ_dynamicT), ode_problem.u0))
     PEtab.change_ode_parameters!(_ode_problem.p, _ode_problem.u0, θ_dynamicT, θ_indices,
                                  petab_model)
-    success = PEtab.solve_ode_all_conditions!(simulation_info.ode_sols_derivatives,
+    success = PEtab.solve_ode_all_conditions!(simulation_info.odesols_derivatives,
                                               _ode_problem, petab_model, θ_dynamicT,
                                               petab_ODESolver_cache, simulation_info,
                                               θ_indices, ode_solver, ss_solver,
@@ -98,30 +98,30 @@ function compute_gradient_adjoint_θ_dynamic!(gradient::Vector{Float64},
 
     # In case of PreEq-critera we need to compute the pullback function at tSS to compute the VJP between
     # λ_t0 and the sensitivites at steady state time
-    if simulation_info.has_pre_equilibration_condition_id == true
+    if simulation_info.has_pre_equilibration == true
         _eval_VJP_ss = generate_VJP_ss(simulation_info, sensealg_ss, ode_solver, ss_solver,
                                        exp_id_solve)
     end
 
     fill!(gradient, 0.0)
     # Compute the gradient by looping through all experimental conditions.
-    for i in eachindex(simulation_info.experimental_condition_id)
-        experimental_condition_id = simulation_info.experimental_condition_id[i]
-        simulation_condition_id = simulation_info.simulation_condition_id[i]
+    for i in eachindex(simulation_info.conditionids[:experiment])
+        experimental_condition_id = simulation_info.conditionids[:experiment][i]
+        simulation_condition_id = simulation_info.conditionids[:simulation][i]
 
         if exp_id_solve[1] != :all && experimental_condition_id ∉ exp_id_solve
             continue
         end
 
-        if simulation_info.has_pre_equilibration_condition_id == true
-            eval_VJP_ss = _eval_VJP_ss[simulation_info.pre_equilibration_condition_id[i]]
+        if simulation_info.has_pre_equilibration == true
+            eval_VJP_ss = _eval_VJP_ss[simulation_info.conditionids[:pre_equilibration][i]]
         else
             eval_VJP_ss = identity
         end
 
         # In case the model is simulated first to a steady state we need to keep track of the post-equlibrium experimental
         # condition Id to identify parameters specific to an experimental condition.
-        sol = simulation_info.ode_sols_derivatives[experimental_condition_id]
+        sol = simulation_info.odesols_derivatives[experimental_condition_id]
         success = compute_gradient_adjoint_condition!(gradient, sol, petab_ODE_cache,
                                                       sensealg, ode_solver,
                                                       θ_dynamicT, θ_sdT, θ_observableT,
@@ -151,11 +151,11 @@ function generate_VJP_ss(simulation_info::PEtab.SimulationInfo,
     # (exp_id_solve != [["all]]) the number of preEq cond. might be smaller than the
     # total number of preEq cond.
     if exp_id_solve[1] == :all
-        pre_equilibration_condition_id = unique(simulation_info.pre_equilibration_condition_id)
+        pre_equilibration_condition_id = unique(simulation_info.conditionids[:pre_equilibration])
     else
-        which_ids = findall(x -> x ∈ simulation_info.experimental_condition_id,
+        which_ids = findall(x -> x ∈ simulation_info.conditionids[:experiment],
                             exp_id_solve)
-        pre_equilibration_condition_id = unique(simulation_info.pre_equilibration_condition_id[which_ids])
+        pre_equilibration_condition_id = unique(simulation_info.conditionids[:pre_equilibration][which_ids])
     end
 
     _eval_VJP_ss = Vector{Function}(undef, length(pre_equilibration_condition_id))
@@ -166,7 +166,7 @@ function generate_VJP_ss(simulation_info::PEtab.SimulationInfo,
                                                            ode_solver.dtmin,
                                                            ode_solver.maxiters
     for i in eachindex(pre_equilibration_condition_id)
-        ode_problem = simulation_info.ode_sols_pre_equlibrium[pre_equilibration_condition_id[i]].prob
+        ode_problem = simulation_info.odesols_preeq[pre_equilibration_condition_id[i]].prob
         ssOdeProblem = SteadyStateProblem(ode_problem)
         ySS, _eval_VJP_ss_i = Zygote.pullback((p) -> (solve(ssOdeProblem,
                                                             SteadyStateDiffEq.DynamicSS(solver),
@@ -199,11 +199,11 @@ function generate_VJP_ss(simulation_info::PEtab.SimulationInfo,
     # (exp_id_solve != [["all]]) the number of preEq cond. might be smaller than the
     # total number of preEq cond.
     if exp_id_solve[1] == :all
-        pre_equilibration_condition_id = unique(simulation_info.pre_equilibration_condition_id)
+        pre_equilibration_condition_id = unique(simulation_info.conditionids[:pre_equilibration])
     else
-        which_ids = findall(x -> x ∈ simulation_info.experimental_condition_id,
+        which_ids = findall(x -> x ∈ simulation_info.conditionids[:experiment],
                             exp_id_solve)
-        pre_equilibration_condition_id = unique(simulation_info.pre_equilibration_condition_id[which_ids])
+        pre_equilibration_condition_id = unique(simulation_info.conditionids[:pre_equilibration][which_ids])
     end
 
     _eval_VJP_ss = Vector{Function}(undef, length(pre_equilibration_condition_id))
@@ -213,7 +213,7 @@ function generate_VJP_ss(simulation_info::PEtab.SimulationInfo,
         # Sets up a function which takes du and solves the Adjoint ODE system with du
         # as starting point. This is a temporary ugly solution as there are some problems
         # with retcode Terminated and using CVODE_BDF
-        _sol = simulation_info.ode_sols_pre_equlibrium[pre_equilibration_condition_id[i]]
+        _sol = simulation_info.odesols_preeq[pre_equilibration_condition_id[i]]
         _prob = remake(_sol.prob, tspan = (0.0, _sol.t[end]))
         sol = solve(_prob, solver, abstol = abstol, reltol = reltol,
                     force_dtmin = force_dtmin, maxiters = maxiters)
@@ -302,19 +302,19 @@ function compute_gradient_adjoint_condition!(gradient::Vector{Float64},
 
     # Extract experimetnalCondition specific parameter required to solve the
     # adjoitn ODE
-    i_per_time_point = simulation_info.i_per_time_point[experimental_condition_id]
-    time_observed = simulation_info.time_observed[experimental_condition_id]
+    imeasurements_t = simulation_info.imeasurements_t[experimental_condition_id]
+    time_observed = simulation_info.tsaves[experimental_condition_id]
     callback = simulation_info.tracked_callbacks[experimental_condition_id]
 
     compute∂G∂u! = (out, u, p, t, i) -> begin
-        PEtab.compute∂G∂_(out, u, p, t, i, i_per_time_point,
+        PEtab.compute∂G∂_(out, u, p, t, i, imeasurements_t,
                           measurement_info, parameter_info,
                           θ_indices, petab_model,
                           θ_sd, θ_observable, θ_non_dynamic,
                           petab_ODE_cache.∂h∂u, petab_ODE_cache.∂σ∂u, compute∂G∂U = true)
     end
     compute∂G∂p! = (out, u, p, t, i) -> begin
-        PEtab.compute∂G∂_(out, u, p, t, i, i_per_time_point,
+        PEtab.compute∂G∂_(out, u, p, t, i, imeasurements_t,
                           measurement_info, parameter_info,
                           θ_indices, petab_model,
                           θ_sd, θ_observable, θ_non_dynamic,
@@ -357,7 +357,7 @@ function compute_gradient_adjoint_condition!(gradient::Vector{Float64},
     end
 
     _gradient = petab_ODE_cache._gradient_adjoint
-    if simulation_info.has_pre_equilibration_condition_id == false
+    if simulation_info.has_pre_equilibration == false
         # In case we do not simulate the ODE for a steady state first we can compute
         # the initial sensitivites easily via automatic differantitatiom
         S_t0 = petab_ODE_cache.S_t0
