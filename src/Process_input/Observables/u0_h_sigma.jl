@@ -1,15 +1,17 @@
+# TODO: Write check to test a non-dynamic variable appears in observable or noise  formula
+
 """
     create_u0_h_σ_file(model_name::String,
                        dirmodel::String,
                        system::ODESystem,
-                       state_map,
+                       statemap,
                        model_SBML::SBMLImporter.ModelSBML;
                        verbose::Bool=false)
 
     For a PeTab model with name model_name with all PeTab-files in dirmodel and associated
-    ModellingToolkit ODESystem (with its state_map) build a file containing a functions for
+    ModellingToolkit ODESystem (with its statemap) build a file containing a functions for
     i) computing the observable model value (h) ii) compute the initial value u0 (by using the
-    state_map) and iii) computing the standard error (σ) for each observableFormula in the
+    statemap) and iii) computing the standard error (σ) for each observableFormula in the
     observables PeTab file.
 
     Note - The produced Julia file will go via the JIT-compiler. The SBML-dict is needed as
@@ -19,8 +21,8 @@ function create_u0_h_σ_file(model_name::String,
                             path_yaml::String,
                             dirjulia::String,
                             system::ODESystem,
-                            parameter_map,
-                            state_map,
+                            parametermap,
+                            statemap,
                             model_SBML::SBMLImporter.ModelSBML;
                             custom_values::Union{Nothing, Dict} = nothing,
                             write_to_file::Bool = true)
@@ -33,8 +35,8 @@ function create_u0_h_σ_file(model_name::String,
     measurement_info = parse_measurements(measurements_data, observables_data)
 
     # Indices for keeping track of parameters in θ
-    θ_indices = parse_conditions(parameter_info, measurement_info, system, parameter_map,
-                                  state_map, experimental_conditions)
+    θ_indices = parse_conditions(parameter_info, measurement_info, system, parametermap,
+                                  statemap, experimental_conditions)
 
     h_str = create_h_function(model_name, dirjulia, model_state_names, parameter_info,
                               p_ode_problem_names,
@@ -42,10 +44,10 @@ function create_u0_h_σ_file(model_name::String,
                               model_SBML, write_to_file)
 
     u0!_str = create_u0_function(model_name, dirjulia, parameter_info, p_ode_problem_names,
-                                 state_map, write_to_file, model_SBML, inplace = true)
+                                 statemap, write_to_file, model_SBML, inplace = true)
 
     u0_str = create_u0_function(model_name, dirjulia, parameter_info, p_ode_problem_names,
-                                state_map, write_to_file, model_SBML, inplace = false)
+                                statemap, write_to_file, model_SBML, inplace = false)
 
     σ_str = create_σ_function(model_name, dirjulia, parameter_info, model_state_names,
                               p_ode_problem_names, string.(θ_indices.xids[:nondynamic]),
@@ -62,17 +64,17 @@ function create_u0_h_σ_file(model_name::String,
                             measurements_data::DataFrame,
                             parameters_data::DataFrame,
                             observables_data::DataFrame,
-                            state_map)::NTuple{4, String}
+                            statemap)::NTuple{4, String}
     p_ode_problem_names = string.(parameters(system))
     model_state_names = replace.(string.(states(system)), "(t)" => "")
-    parameter_map = [p => 0.0 for p in parameters(system)]
+    parametermap = [p => 0.0 for p in parameters(system)]
 
     parameter_info = PEtab.parse_parameters(parameters_data)
     measurement_info = PEtab.parse_measurements(measurements_data, observables_data)
 
     # Indices for keeping track of parameters in θ
     θ_indices = PEtab.parse_conditions(parameter_info, measurement_info, system,
-                                        parameter_map, state_map, experimental_conditions)
+                                        parametermap, statemap, experimental_conditions)
 
     # Dummary variables to keep PEtab importer happy even as we are not providing any PEtab files
     model_SBML = SBMLImporter.ModelSBML("")
@@ -82,10 +84,10 @@ function create_u0_h_σ_file(model_name::String,
                                     string.(θ_indices.xids[:nondynamic]),
                                     observables_data, model_SBML, false)
     u0!_str = PEtab.create_u0_function(model_name, @__DIR__, parameter_info,
-                                       p_ode_problem_names, state_map, false,
+                                       p_ode_problem_names, statemap, false,
                                        model_SBML, inplace = true)
     u0_str = PEtab.create_u0_function(model_name, @__DIR__, parameter_info,
-                                      p_ode_problem_names, state_map, false,
+                                      p_ode_problem_names, statemap, false,
                                       model_SBML, inplace = false)
     σ_str = PEtab.create_σ_function(model_name, @__DIR__, parameter_info, model_state_names,
                                     p_ode_problem_names,
@@ -133,7 +135,7 @@ function create_h_function(model_name::String,
         observable_str *= "\tif observableId === " * ":" * observable_ids[i] * " \n"
         if !isempty(observable_parameters)
             observable_str *= "\t\t" * observable_parameters *
-                              " = get_obs_sd_parameter(θ_observable, parameter_map)\n"
+                              " = get_obs_sd_parameter(θ_observable, parametermap)\n"
         end
 
         formula = replace_explicit_variable_rule(_formula, model_SBML)
@@ -158,7 +160,7 @@ function create_h_function(model_name::String,
     write(io,
           "function compute_h(u::AbstractVector, t::Real, p_ode_problem::AbstractVector, θ_observable::AbstractVector,
                θ_non_dynamic::AbstractVector, parameter_info::ParametersInfo, observableId::Symbol,
-                  parameter_map::ObservableNoiseMap)::Real \n")
+                  parametermap::ObservableNoiseMap)::Real \n")
     write(io, observable_str)
     write(io, "end")
     h_str = String(take!(io))
@@ -227,11 +229,11 @@ end
                        dirmodel::String,
                        parameter_info::ParametersInfo,
                        p_ode_problem_names::Vector{String},
-                       state_map,
+                       statemap,
                        model_SBML;
                        inplace::Bool=true)
 
-    For model_name create a function for computing initial value by translating the state_map
+    For model_name create a function for computing initial value by translating the statemap
     into Julia syntax.
 
     To correctly create the function the name of all parameters, parameter_info (to get constant parameters)
@@ -241,7 +243,7 @@ function create_u0_function(model_name::String,
                             dirmodel::String,
                             parameter_info::ParametersInfo,
                             p_ode_problem_names::Vector{String},
-                            state_map,
+                            statemap,
                             write_to_file::Bool,
                             model_SBML::SBMLImporter.ModelSBML;
                             inplace::Bool = true)
@@ -268,8 +270,8 @@ function create_u0_function(model_name::String,
     write(io, "\tt = 0.0 # u at time zero\n\n")
 
     # Write the formula for each initial condition to file
-    _model_state_names = [replace.(string.(state_map[i].first), "(t)" => "")
-                          for i in eachindex(state_map)]
+    _model_state_names = [replace.(string.(statemap[i].first), "(t)" => "")
+                          for i in eachindex(statemap)]
     # If we create from Julia model (e.g.) Catalyst this is not applicable and step is skipped
     if !isempty(model_SBML.parameters)
         model_state_names1 = filter(x -> x ∈ keys(model_SBML.species) &&
@@ -285,7 +287,7 @@ function create_u0_function(model_name::String,
     model_state_str = ""
     for i in eachindex(model_state_names)
         stateName = model_state_names[i]
-        _stateExpression = replace(string(state_map[i].second), " " => "")
+        _stateExpression = replace(string(statemap[i].second), " " => "")
         stateFormula = petab_formula_to_Julia(_stateExpression, model_state_names,
                                               parameter_info, p_ode_problem_names, String[])
         for i in eachindex(p_ode_problem_names)
@@ -364,7 +366,7 @@ function create_σ_function(model_name::String,
         observable_str *= "\tif observableId === " * ":" * observable_ids[i] * " \n"
         if !isempty(noise_parameters)
             observable_str *= "\t\t" * noise_parameters *
-                              " = get_obs_sd_parameter(θ_sd, parameter_map)\n"
+                              " = get_obs_sd_parameter(θ_sd, parametermap)\n"
         end
 
         formula = replace_explicit_variable_rule(_formula, model_SBML)
@@ -380,7 +382,7 @@ function create_σ_function(model_name::String,
 
     write(io,
           "function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, p_ode_problem::AbstractVector,  θ_non_dynamic::AbstractVector,
-               parameter_info::ParametersInfo, observableId::Symbol, parameter_map::ObservableNoiseMap)::Real \n")
+               parameter_info::ParametersInfo, observableId::Symbol, parametermap::ObservableNoiseMap)::Real \n")
     write(io, observable_str)
     write(io, "\nend")
     σ_str = String(take!(io))

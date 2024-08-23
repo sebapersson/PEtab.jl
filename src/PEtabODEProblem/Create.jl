@@ -99,21 +99,21 @@ function PEtabODEProblem(petab_model::PEtabModel;
     verbose == true && @printf(" Building ODEProblem from ODESystem ...")
     time_take = @elapsed begin
         # Set model parameter values to those in the PeTab parameter to ensure correct constant parameters
-        set_parameters_to_file_values!(petab_model.parameter_map, petab_model.state_map,
+        set_parameters_to_file_values!(petab_model.parametermap, petab_model.statemap,
                                        parameter_info)
         if petab_model.system_mutated isa ODESystem && petab_model.defined_in_julia == false
             __ode_problem = ODEProblem{true, specialize_level}(petab_model.system_mutated,
-                                                               petab_model.state_map,
+                                                               petab_model.statemap,
                                                                [0.0, 5e3],
-                                                               petab_model.parameter_map,
+                                                               petab_model.parametermap,
                                                                jac = true,
                                                                sparse = _sparse_jacobian)
         else
             # For reaction systems this bugs out if I try to set specialize_level (specifially state-map and parameter-map are not
             # made into vectors)
             __ode_problem = ODEProblem(petab_model.system_mutated,
-                                       zeros(Float64, length(petab_model.state_map)),
-                                       [0.0, 5e3], petab_model.parameter_map, jac = true,
+                                       zeros(Float64, length(petab_model.statemap)),
+                                       [0.0, 5e3], petab_model.parametermap, jac = true,
                                        sparse = _sparse_jacobian)
         end
         _ode_problem = remake(__ode_problem, p = convert.(Float64, __ode_problem.p),

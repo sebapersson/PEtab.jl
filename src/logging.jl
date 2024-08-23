@@ -53,7 +53,7 @@ function _logging(whatlog::Symbol, verbose::Bool; time=nothing, name::String="",
         end
     end
     if whatlog == :Build_callbacks
-        str = styled"{blue:{bold:Info:}} Builds {magenta:callback} functions ... "
+        str = styled"{blue:{bold:Info:}} Builds {magenta:callback} (events) functions ... "
     end
     print(str)
     return nothing

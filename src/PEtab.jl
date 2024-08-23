@@ -29,7 +29,6 @@ using StyledStrings
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
 include("Structs.jl")
-include(joinpath("PEtabModel", "Julia_input.jl"))
 
 include("Common.jl")
 include("logging.jl")
@@ -42,6 +41,11 @@ include(joinpath("petab_files", "measurements.jl"))
 include(joinpath("petab_files", "conditions.jl"))
 include(joinpath("petab_files", "simulations.jl"))
 include(joinpath("petab_files", "petab_model.jl"))
+
+include(joinpath("julia_input", "to_tables.jl"))
+include(joinpath("julia_input", "events.jl"))
+include(joinpath("julia_input", "maps.jl"))
+include(joinpath("julia_input", "petab_model.jl"))
 
 # Files related to computing the cost (likelihood)
 include(joinpath("Objective", "Priors.jl"))
@@ -62,8 +66,6 @@ include(joinpath("Solve_ODE", "Solve.jl"))
 include(joinpath("Solve_ODE", "Steady_state.jl"))
 
 # Files related to processing user input
-include(joinpath("Process_input", "Julia_input.jl"))
-include(joinpath("Process_input", "Common.jl"))
 include(joinpath("Process_input", "Callbacks.jl"))
 include(joinpath("Process_input", "Observables", "Common.jl"))
 include(joinpath("Process_input", "Observables", "h_sigma_derivatives.jl"))

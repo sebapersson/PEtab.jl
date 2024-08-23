@@ -15,17 +15,18 @@ the parameter during likelihood computations. It further accounts for parameters
 only appearing in a certain simulation condition.
 """
 function parse_conditions(parameter_info::ParametersInfo, measurements_info::MeasurementsInfo, petab_model::PEtabModel)::ParameterIndices
-    @unpack state_map, parameter_map, system_mutated, conditions_df = petab_model
-    return parse_conditions(parameter_info, measurements_info, system_mutated, parameter_map, state_map, conditions_df)
+    @unpack statemap, parametermap, system_mutated, conditions_df = petab_model
+    return parse_conditions(parameter_info, measurements_info, system_mutated, parametermap, statemap, conditions_df)
 end
-function parse_conditions(parameter_info::ParametersInfo, measurements_info::MeasurementsInfo, sys, parameter_map, state_map, conditions_df::DataFrame)::ParameterIndices
+function parse_conditions(parameter_info::ParametersInfo, measurements_info::MeasurementsInfo, sys, parametermap, statemap, conditions_df::DataFrame)::ParameterIndices
+    _check_conditionids(conditions_df, measurements_info)
     xids = _get_xids(parameter_info, measurements_info, sys, conditions_df)
 
     # indices for mapping parameters correctly, e.g. from xest -> xdynamic etc...
     # TODO: SII is going to make this much easier (but the reverse will be harder)
     xindices = _get_xindices(xids)
     odeproblem_map = _get_odeproblem_map(xids)
-    condition_maps = _get_condition_maps(sys, parameter_map, state_map, parameter_info, conditions_df, xids)
+    condition_maps = _get_condition_maps(sys, parametermap, statemap, parameter_info, conditions_df, xids)
     # For each time-point we must build a map that stores if i) noise/obserable parameters
     # are constants, ii) should be estimated, iii) and corresponding index in parameter
     # vector if they should be estimated
@@ -200,7 +201,7 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}})::MapODEProblem
     return MapODEProblem(sys_to_dynamic, dynamic_to_sys)
 end
 
-function _get_condition_maps(sys, parameter_map, state_map, parameter_info::ParametersInfo, conditions_df::DataFrame, xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, ConditionMap}
+function _get_condition_maps(sys, parametermap, statemap, parameter_info::ParametersInfo, conditions_df::DataFrame, xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, ConditionMap}
     species_sys = _get_state_ids(sys)
     xids_sys, xids_dynamic = xids[:sys] .|> string, xids[:dynamic] .|> string
     xids_model = Iterators.flatten((xids_sys, species_sys))
@@ -214,6 +215,11 @@ function _get_condition_maps(sys, parameter_map, state_map, parameter_info::Para
         for variable in names(conditions_df)
             variable in ["conditionName", "conditionId"] && continue
             value = conditions_df[i, variable]
+            # Sometimes value can be parsed as string even though it is a Number due to
+            # how DataFrames parses columns
+            if value isa String && is_number(value)
+                value = parse(Float64, value)
+            end
 
             # When the value in the condidtion table maps to a numeric value
             if value isa Real && variable in xids_model
@@ -225,7 +231,7 @@ function _get_condition_maps(sys, parameter_map, state_map, parameter_info::Para
             # If value is missing the default SBML values should be used. These are encoded
             # in the parameter- and state-maps
             if ismissing(value) && variable in xids_model
-                default_value = _get_default_map_value(variable, parameter_map, state_map)
+                default_value = _get_default_map_value(variable, parametermap, statemap)
                 push!(constant_values, default_value)
                 _add_ix_sys!(isys_constant_values, variable, xids_sys)
                 continue
@@ -248,16 +254,18 @@ function _get_condition_maps(sys, parameter_map, state_map, parameter_info::Para
 
             # NaN values are relevant for pre-equilibration and denotes a controll variable
             # should use the value obtained from the forward simulation
-            if isnan(value) && variable in species_sys
+            if value isa Real && isnan(value) && variable in species_sys
                 push!(constant_values, NaN)
                 _add_ix_sys!(isys_constant_values, variable, xids_sys)
                 continue
-            elseif isnan(value)
+            elseif value isa Real && isnan(value) && variable in xids_model
                 throw(PEtabFileError("If a row in conditions file is NaN then the column " *
                                      "header must be a state"))
             end
-            throw(PEtabFileError("Could not map parameters for condition $conditionid " *
-                                 "for variable $variable"))
+            throw(PEtabFileError("For condition $conditionid, the value of $variable, " *
+                                 "$value, does not correspond to any model parameter, " *
+                                 "species, or PEtab parameter. The condition variable " *
+                                 "must be a valid model id or a numeric value"))
         end
         maps[conditionid] = ConditionMap(constant_values, isys_constant_values, ix_dynamic, ix_sys)
     end
@@ -279,23 +287,35 @@ function _add_ix_sys!(ix::Vector{Int32}, variable::String, xids_sys::Vector{Stri
 end
 
 # Extract default parameter value from state, or parameter map
-function _get_default_map_value(variable::String, parameter_map, state_map)::Float64
-    species_sys = first.(state_map) .|> string
+function _get_default_map_value(variable::String, parametermap, statemap)::Float64
+    species_sys = first.(statemap) .|> string
     species_sys = replace.(species_sys, "(t)" => "")
-    xids_sys = first.(parameter_map) .|> string
+    xids_sys = first.(parametermap) .|> string
 
     if variable in xids_sys
         ix = findfirst(x -> x == variable, xids_sys)
-        return parameter_map[ix].second |> Float64
+        return parametermap[ix].second |> Float64
     end
 
     # States can have 1 level of allowed recursion (map to a parameter)
     ix = findfirst(x -> x == variable, species_sys)
-    value = state_map[ix].second |> string
+    value = statemap[ix].second |> string
     if value in xids_sys
         ix = findfirst(x -> x == value, xids_sys)
-        return parameter_map[ix].second |> Float64
+        return parametermap[ix].second |> Float64
     else
         return parse(Float64, value)
     end
+end
+
+function _check_conditionids(conditions_df::DataFrame, measurements_info::MeasurementsInfo)::Nothing
+    ncol(conditions_df) == 1 && return nothing
+    @unpack pre_equilibration_condition_id, simulation_condition_id = measurements_info
+    measurementids = unique(vcat(pre_equilibration_condition_id, simulation_condition_id))
+    for conditionid in (conditions_df[!, :conditionId] .|> Symbol)
+        conditionid in measurementids && continue
+        @warn "Simulation condition id $conditionid does not appear in the measurements " *
+              "table. Therefore no measurement corresponds to this id."
+    end
+    return nothing
 end

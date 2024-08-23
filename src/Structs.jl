@@ -189,11 +189,11 @@ petab_model = PEtabModel("path_to_petab_problem_yaml")
 
     PEtabModel(system::Union{ReactionSystem, ODESystem},
                simulation_conditions::Dict{String, Dict},
-               observables::Dict{String, PEtabObservable},
+               observables::Dict{String, <:PEtabObservable},
                measurements::DataFrame,
                petab_parameters::Vector{PEtabParameter};
-               state_map::Union{Nothing, Vector{Pair}=nothing,
-               parameter_map::Union{Nothing, Vector{Pair}=nothing,
+               statemap::Union{Nothing, Vector{Pair}=nothing,
+               parametermap::Union{Nothing, Vector{Pair}=nothing,
                events::Union{Nothing, PEtabEvent, AbstractVector}=nothing,
                verbose::Bool=false)::PEtabModel
 
@@ -207,8 +207,8 @@ For additional information on the input format, see the main documentation.
 - `observables::Dict{String, PEtab.PEtabObservable}`: A dictionary specifying the observable and noise formulas linking the model to data.
 - `measurements::DataFrame`: Measurement data to calibrate the model against.
 - `petab_parameters::Vector{PEtab.PEtabParameter}`: Parameters to estimate in PEtabParameter format.
-- `state_map=nothing`: An optional state-map to set initial species values to be constant across all simulation conditions.
-- `parameter_map=nothing`: An optional state-map to set parameter values to be constant across all simulation conditions.
+- `statemap=nothing`: An optional state-map to set initial species values to be constant across all simulation conditions.
+- `parametermap=nothing`: An optional state-map to set parameter values to be constant across all simulation conditions.
 - `events=nothing`: Potential model event (callbacks) defined via `PEtabEvent`. In case of several events provide a vector of `PEtabEvent`.
 - `verbose::Bool=false`: Whether to print progress when building the model.
 
@@ -263,11 +263,11 @@ petab_model = PEtabModel(
 ```
 
     PEtabModel(system::Union{ReactionSystem, ODESystem},
-               observables::Dict{String, PEtabObservable},
+               observables::Dict{String, <:PEtabObservable},
                measurements::DataFrame,
                petab_parameters::Vector{PEtabParameter};
-               state_map::Union{Nothing, Vector{Pair}=nothing,
-               parameter_map::Union{Nothing, Vector{Pair}=nothing,
+               statemap::Union{Nothing, Vector{Pair}=nothing,
+               parametermap::Union{Nothing, Vector{Pair}=nothing,
                events::Union{Nothing, PEtabEvent, AbstractVector}=nothing,
                verbose::Bool=false)::PEtabModel
 
@@ -289,8 +289,8 @@ struct PEtabModel
     convert_tspan::Bool
     system::Any
     system_mutated::Any
-    parameter_map::Any
-    state_map::Any
+    parametermap::Any
+    statemap::Any
     parameter_names::Any
     state_names::Any
     dirmodel::String

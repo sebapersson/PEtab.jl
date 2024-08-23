@@ -170,8 +170,8 @@ function _get_fitted_parameters(res::Union{PEtabOptimisationResult,
         _pre_eq_id = nothing
     end
 
-    p, ps = ode_problem.p[:], first.(petab_model.parameter_map)
-    u0, u0s = ode_problem.u0[:], first.(petab_model.state_map)
+    p, ps = ode_problem.p[:], first.(petab_model.parametermap)
+    u0, u0s = ode_problem.u0[:], first.(petab_model.statemap)
 
     if res isa Vector{Float64}
         θT = transformθ(res, θ_indices.xids[:estimate], θ_indices)

@@ -32,7 +32,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false, verbose:
     btime = @elapsed begin
         get_rn = @RuntimeGeneratedFunction(Meta.parse(modelstr))
         # Argument needed by @RuntimeGeneratedFunction
-        rn, statemap, parameter_map = get_rn("https://xkcd.com/303/")
+        rn, statemap, parametermap = get_rn("https://xkcd.com/303/")
         _odesystem = convert(ODESystem, rn)
         # DAE requires special processing
         if isempty(model_SBML.algebraic_rules)
@@ -54,7 +54,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false, verbose:
     if !exist || build_julia_files == true
         # TODO: Change after refactoring observable file
         btime = @elapsed begin
-            h_str, u0!_str, u0_str, σ_str = create_u0_h_σ_file(modelname, path_yaml, dirjulia, odesystem, parameter_map, statemap, model_SBML, custom_values = custom_values, write_to_file = write_to_file)
+            h_str, u0!_str, u0_str, σ_str = create_u0_h_σ_file(modelname, path_yaml, dirjulia, odesystem, parametermap, statemap, model_SBML, custom_values = custom_values, write_to_file = write_to_file)
         end
         _logging(:Build_u0_h_σ, verbose; time = btime)
     else
@@ -70,7 +70,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false, verbose:
     _logging(:Build_∂_h_σ, verbose; buildfiles = build_julia_files, exist = exist)
     if !exist || build_julia_files == true
         btime = @elapsed begin
-            ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str = create_∂_h_σ_file(modelname, path_yaml, dirjulia, odesystem, parameter_map, statemap, model_SBML, custom_values = custom_values, write_to_file = write_to_file)
+            ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str = create_∂_h_σ_file(modelname, path_yaml, dirjulia, odesystem, parametermap, statemap, model_SBML, custom_values = custom_values, write_to_file = write_to_file)
         end
         _logging(:Build_∂_h_σ, verbose; time = btime)
     else
@@ -85,7 +85,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false, verbose:
     _logging(:Build_callbacks, verbose)
     btime = @elapsed begin
         cbset, compute_tstops, check_cb_active, convert_tspan = create_callbacks_SBML(odesystem,
-                                                                                      parameter_map,
+                                                                                      parametermap,
                                                                                       statemap,
                                                                                       model_SBML,
                                                                                       modelname,
@@ -109,7 +109,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false, verbose:
                              convert_tspan,
                              odesystem,
                              deepcopy(odesystem),
-                             parameter_map,
+                             parametermap,
                              statemap,
                              parameter_names,
                              state_names,

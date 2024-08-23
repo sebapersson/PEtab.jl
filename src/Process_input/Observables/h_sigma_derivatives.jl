@@ -3,13 +3,13 @@
     createFileDYmodSdU0(model_name::String,
                        dirmodel::String,
                        odeSys::ODESystem,
-                       state_map,
+                       statemap,
                        model_SBML::SBMLImporter.ModelSBML)
 
     For a PeTab model with name model_name with all PeTab-files in dirmodel and associated
-    ModellingToolkit ODESystem (with its state_map) build a file containing a functions for
+    ModellingToolkit ODESystem (with its statemap) build a file containing a functions for
     i) computing the observable model value (y_model) ii) compute the initial value u0 (by using the
-    state_map) and iii) computing the standard error (sd) for each observableFormula in the
+    statemap) and iii) computing the standard error (sd) for each observableFormula in the
     observables PeTab file.
     Note - The produced Julia file will go via the JIT-compiler.
 """
@@ -17,8 +17,8 @@ function create_∂_h_σ_file(model_name::String,
                                     path_yaml::String,
                                     dirjulia::String,
                                     system::ODESystem,
-                                    parameter_map,
-                                    state_map,
+                                    parametermap,
+                                    statemap,
                                     model_SBML::SBMLImporter.ModelSBML;
                                     custom_values::Union{Nothing, Dict} = nothing,
                                     write_to_file::Bool = true)
@@ -31,8 +31,8 @@ function create_∂_h_σ_file(model_name::String,
     measurement_info = parse_measurements(measurements_data, observables_data)
 
     # Indices for keeping track of parameters in θ
-    θ_indices = parse_conditions(parameter_info, measurement_info, system, parameter_map,
-                                  state_map, experimental_conditions)
+    θ_indices = parse_conditions(parameter_info, measurement_info, system, parametermap,
+                                  statemap, experimental_conditions)
 
     ∂h∂u_str, ∂h∂p_str = create∂h∂_function(model_name, dirjulia, model_state_names,
                                             parameter_info, p_ode_problem_names,
@@ -51,17 +51,17 @@ function create_∂_h_σ_file(model_name::String,
                                     measurements_data::DataFrame,
                                     parameters_data::DataFrame,
                                     observables_data::DataFrame,
-                                    state_map)
+                                    statemap)
     p_ode_problem_names = string.(parameters(system))
     model_state_names = replace.(string.(states(system)), "(t)" => "")
-    parameter_map = [p => 0.0 for p in parameters(system)]
+    parametermap = [p => 0.0 for p in parameters(system)]
 
     parameter_info = PEtab.parse_parameters(parameters_data)
     measurement_info = PEtab.parse_measurements(measurements_data, observables_data)
 
     # Indices for keeping track of parameters in θ
     θ_indices = PEtab.parse_conditions(parameter_info, measurement_info, system,
-                                        parameter_map, state_map, experimental_conditions)
+                                        parametermap, statemap, experimental_conditions)
 
     # Dummary variables to keep PEtab importer happy even as we are not providing any PEtab files
     model_SBML = SBMLImporter.ModelSBML("")
@@ -131,7 +131,7 @@ function create∂h∂_function(model_name::String,
                 observable_parameters = get_observable_parameters(formula)
                 if !isempty(observable_parameters) && enter_observable == true
                     u_observeble_str *= "\t\t" * observable_parameters *
-                                        " = get_obs_sd_parameter(θ_observable, parameter_map)\n"
+                                        " = get_obs_sd_parameter(θ_observable, parametermap)\n"
                     enter_observable = false
                 end
 
@@ -154,7 +154,7 @@ function create∂h∂_function(model_name::String,
                 observable_parameters = get_observable_parameters(formula)
                 if !isempty(observable_parameters) && enter_observable == true
                     p_observeble_str *= "\t\t" * observable_parameters *
-                                        " = get_obs_sd_parameter(θ_observable, parameter_map)\n"
+                                        " = get_obs_sd_parameter(θ_observable, parametermap)\n"
                     enter_observable = false
                 end
 
@@ -181,7 +181,7 @@ function create∂h∂_function(model_name::String,
     end
     write(io1,
           "function compute_∂h∂u!(u, t::Real, p_ode_problem::AbstractVector, θ_observable::AbstractVector,
-                  θ_non_dynamic::AbstractVector, observableId::Symbol, parameter_map::ObservableNoiseMap, out) \n")
+                  θ_non_dynamic::AbstractVector, observableId::Symbol, parametermap::ObservableNoiseMap, out) \n")
     write(io1, u_observeble_str)
     write(io1, "end")
     ∂h∂u_str = String(take!(io1))
@@ -194,7 +194,7 @@ function create∂h∂_function(model_name::String,
 
     write(io2,
           "function compute_∂h∂p!(u, t::Real, p_ode_problem::AbstractVector, θ_observable::AbstractVector,
-                  θ_non_dynamic::AbstractVector, observableId::Symbol, parameter_map::ObservableNoiseMap, out) \n")
+                  θ_non_dynamic::AbstractVector, observableId::Symbol, parametermap::ObservableNoiseMap, out) \n")
     write(io2, p_observeble_str)
     write(io2, "end")
     ∂h∂p_str = String(take!(io2))
@@ -327,7 +327,7 @@ function create∂σ∂_function(model_name::String,
                 noise_parameters = get_noise_parameters(formula)
                 if !isempty(noise_parameters) && enter_observable == true
                     u_observeble_str *= "\t\t" * noise_parameters *
-                                        " = get_obs_sd_parameter(θ_sd, parameter_map)\n"
+                                        " = get_obs_sd_parameter(θ_sd, parametermap)\n"
                     enter_observable = false
                 end
 
@@ -348,7 +348,7 @@ function create∂σ∂_function(model_name::String,
                 noise_parameters = get_noise_parameters(formula)
                 if !isempty(noise_parameters) && enter_observable == true
                     p_observeble_str *= "\t\t" * noise_parameters *
-                                        " = get_obs_sd_parameter(θ_sd, parameter_map)\n"
+                                        " = get_obs_sd_parameter(θ_sd, parametermap)\n"
                     enter_observable = false
                 end
 
@@ -369,7 +369,7 @@ function create∂σ∂_function(model_name::String,
 
     write(io1,
           "function compute_∂σ∂σu!(u, t::Real, θ_sd::AbstractVector, p_ode_problem::AbstractVector,  θ_non_dynamic::AbstractVector,
-                   parameter_info::ParametersInfo, observableId::Symbol, parameter_map::ObservableNoiseMap, out) \n")
+                   parameter_info::ParametersInfo, observableId::Symbol, parametermap::ObservableNoiseMap, out) \n")
     write(io1, u_observeble_str)
     write(io1, "end")
     ∂σ∂σuStr = String(take!(io1))
@@ -382,7 +382,7 @@ function create∂σ∂_function(model_name::String,
 
     write(io2,
           "function compute_∂σ∂σp!(u, t::Real, θ_sd::AbstractVector, p_ode_problem::AbstractVector,  θ_non_dynamic::AbstractVector,
-                   parameter_info::ParametersInfo, observableId::Symbol, parameter_map::ObservableNoiseMap, out) \n")
+                   parameter_info::ParametersInfo, observableId::Symbol, parametermap::ObservableNoiseMap, out) \n")
     write(io2, p_observeble_str)
     write(io2, "end")
     ∂σ∂σpStr = String(take!(io2))

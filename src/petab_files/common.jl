@@ -19,7 +19,8 @@ end
 
 function _estimate_parameter(id::Symbol, parameter_info::ParametersInfo)::Bool
     @unpack estimate, parameter_id = parameter_info
-    return estimate[findfirst(x -> x == id, parameter_id)]
+    ip = findfirst(x -> x == id, parameter_id)
+    return isnothing(ip) ? false : estimate[ip]
 end
 
 function _get_functions_as_str(path::String, nfunctions::Int64; asstr::Bool = false)::Vector{String}

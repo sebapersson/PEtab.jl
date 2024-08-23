@@ -1,8 +1,8 @@
 # Function generating callbacksets for time-depedent SBML piecewise expressions, as callbacks are more efficient than
 # using ifelse (for example better integration stability, faster runtimes etc...)
 function create_callbacks_SBML(system::ODESystem,
-                               parameter_map,
-                               state_map,
+                               parametermap,
+                               statemap,
                                model_SBML::SBMLImporter.ModelSBML,
                                model_name::String,
                                path_yaml::String,
@@ -22,8 +22,8 @@ function create_callbacks_SBML(system::ODESystem,
     parameter_info = parse_parameters(parameters_data,
                                         custom_values = custom_values)
     measurement_info = parse_measurements(measurements_data, observables_data)
-    θ_indices = parse_conditions(parameter_info, measurement_info, system, parameter_map,
-                                  state_map, experimental_conditions)
+    θ_indices = parse_conditions(parameter_info, measurement_info, system, parametermap,
+                                  statemap, experimental_conditions)
 
     # Set function names
     model_name = replace(model_name, "-" => "_")

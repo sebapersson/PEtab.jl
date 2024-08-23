@@ -8,19 +8,19 @@ function _get_state_ids(system)::Vector{String}
 end
 
 """
-    set_parameters_to_file_values!(parameter_map, state_map, parameters_info::ParamData)
+    set_parameters_to_file_values!(parametermap, statemap, parameters_info::ParamData)
 
-Function that sets the parameter and state values in parameter_map and state_map
+Function that sets the parameter and state values in parametermap and statemap
 to those in the PeTab parameters file.
 
 Used when setting up the PeTab cost function, and when solving the ODE-system
 for the values in the parameters-file.
 """
-function set_parameters_to_file_values!(parameter_map, state_map,
+function set_parameters_to_file_values!(parametermap, statemap,
                                         parameters_info::ParametersInfo)::Nothing
     parameter_names = string.(parameters_info.parameter_id)
-    parameter_names_str = string.([parameter_map[i].first for i in eachindex(parameter_map)])
-    state_names_str = replace.(string.([state_map[i].first for i in eachindex(state_map)]),
+    parameter_names_str = string.([parametermap[i].first for i in eachindex(parametermap)])
+    state_names_str = replace.(string.([statemap[i].first for i in eachindex(statemap)]),
                                "(t)" => "")
     for i in eachindex(parameter_names)
         parameter_name = parameter_names[i]
@@ -31,9 +31,9 @@ function set_parameters_to_file_values!(parameter_map, state_map,
         i_state = findfirst(x -> x == parameter_name, state_names_str)
 
         if !isnothing(i_param)
-            parameter_map[i_param] = Pair(parameter_map[i_param].first, valChangeTo)
+            parametermap[i_param] = Pair(parametermap[i_param].first, valChangeTo)
         elseif !isnothing(i_state)
-            state_map[i_state] = Pair(state_map[i_state].first, valChangeTo)
+            statemap[i_state] = Pair(statemap[i_state].first, valChangeTo)
         end
     end
     return nothing
@@ -267,4 +267,19 @@ end
 """
 function dual_to_float(x::T)::T where {T <: AbstractFloat}
     return x
+end
+
+"""
+    is_number(x::String)::Bool
+
+    Check if a string x is a number (Float) taking sciencetific notation into account.
+"""
+function is_number(x::Union{AbstractString, SubString{String}})::Bool
+    x == "NaN" && return true
+    re1 = r"^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)$" # Picks up scientific notation
+    re2 = r"^[+-]?([0-9]+([.][0-9]*)?|[.][0-9]+)$"
+    return (occursin(re1, x) || occursin(re2, x))
+end
+function is_number(x::Symbol)::Bool
+    is_number(x |> string)
 end
