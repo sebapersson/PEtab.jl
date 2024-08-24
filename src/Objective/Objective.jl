@@ -230,7 +230,7 @@ function compute_cost_condition(ode_sol::ODESolution,
         # to extract Dual ODE solution
         if compute_gradient_not_solve_forward == true ||
            compute_gradient_not_solve_autodiff == true
-            n_model_states = length(petab_model.state_names)
+            n_model_states = length(states(petab_model.sys_mutated))
             u = dual_to_float.(ode_sol[1:n_model_states,
                                        simulation_info.imeasurements_t_sol[i_measurement]])
             p = dual_to_float.(ode_sol.prob.p)

@@ -1,9 +1,9 @@
 function PEtabModel(path_yaml::String; build_julia_files::Bool = false, verbose::Bool = true, ifelse_to_event::Bool = true, custom_values::Union{Nothing, Dict} = nothing, write_to_file::Bool = true)::PEtabModel
     paths = _get_petab_paths(path_yaml)
-    conditions_df, measurements_df, parameters_df, observables_df = read_tables(path_yaml)
+    petab_tables = read_tables(path_yaml)
     modelname = splitdir(paths[:dirmodel])[end]
-    dirjulia = joinpath(paths[:dirmodel], "Julia_model_files")
-    !isdir(dirjulia) && write_to_file && mkdir(dirjulia)
+
+    write_to_file && !isdir(paths[:dirjulia]) && mkdir(paths[:dirjulia])
     _logging(:Build_PEtabModel, verbose; name=modelname)
 
     # Import SBML model with SBMLImporter
@@ -11,8 +11,8 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false, verbose:
     # the SBML model must be mutated to add an iniitial value parameter to correctly
     # compute gradients
     model_SBML = SBMLImporter.build_SBML_model(paths[:SBML]; model_as_string = false, ifelse_to_callback = ifelse_to_event, inline_assignment_rules = false)
-    _addu0_parameters!(model_SBML, conditions_df, parameters_df)
-    pathmodel = joinpath(dirjulia, modelname * ".jl")
+    _addu0_parameters!(model_SBML, petab_tables[:conditions], petab_tables[:parameters])
+    pathmodel = joinpath(paths[:dirjulia], modelname * ".jl")
     exist = isfile(pathmodel)
     _logging(:Build_SBML, verbose; buildfiles = build_julia_files, exist = exist)
     if !exist || build_julia_files == true
@@ -40,21 +40,19 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false, verbose:
         else
             odesystem = structural_simplify(dae_index_lowering(_odesystem))
         end
-        parameter_names = parameters(odesystem)
-        state_names = states(odesystem)
     end
     # The state-map is not in the same order as states(system) so the former is reorded
     # to make it easier to build the u0 function
     _reorder_statemap!(statemap, odesystem)
     _logging(:Build_ODESystem, verbose; time = btime)
 
-    path_u0_h_σ = joinpath(dirjulia, modelname * "_u0_h_sd.jl")
+    path_u0_h_σ = joinpath(paths[:dirjulia], modelname * "_u0_h_sd.jl")
     exist = isfile(path_u0_h_σ)
     _logging(:Build_u0_h_σ, verbose; buildfiles = build_julia_files, exist = exist)
     if !exist || build_julia_files == true
         # TODO: Change after refactoring observable file
         btime = @elapsed begin
-            h_str, u0!_str, u0_str, σ_str = create_u0_h_σ_file(modelname, path_yaml, dirjulia, odesystem, parametermap, statemap, model_SBML, custom_values = custom_values, write_to_file = write_to_file)
+            h_str, u0!_str, u0_str, σ_str = create_u0_h_σ_file(modelname, path_yaml, paths[:dirjulia], odesystem, parametermap, statemap, model_SBML, custom_values = custom_values, write_to_file = write_to_file)
         end
         _logging(:Build_u0_h_σ, verbose; time = btime)
     else
@@ -65,12 +63,12 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false, verbose:
     compute_u0 = @RuntimeGeneratedFunction(Meta.parse(u0_str))
     compute_σ = @RuntimeGeneratedFunction(Meta.parse(σ_str))
 
-    path_∂_h_σ = joinpath(dirjulia, modelname * "_d_h_sd.jl")
+    path_∂_h_σ = joinpath(paths[:dirjulia], modelname * "_d_h_sd.jl")
     exist = isfile(path_∂_h_σ)
     _logging(:Build_∂_h_σ, verbose; buildfiles = build_julia_files, exist = exist)
     if !exist || build_julia_files == true
         btime = @elapsed begin
-            ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str = create_∂_h_σ_file(modelname, path_yaml, dirjulia, odesystem, parametermap, statemap, model_SBML, custom_values = custom_values, write_to_file = write_to_file)
+            ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str = create_∂_h_σ_file(modelname, path_yaml, paths[:dirjulia], odesystem, parametermap, statemap, model_SBML, custom_values = custom_values, write_to_file = write_to_file)
         end
         _logging(:Build_∂_h_σ, verbose; time = btime)
     else
@@ -90,7 +88,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false, verbose:
                                                                                       model_SBML,
                                                                                       modelname,
                                                                                       path_yaml,
-                                                                                      dirjulia,
+                                                                                      paths[:dirjulia],
                                                                                       custom_values = custom_values,
                                                                                       write_to_file = write_to_file)
     end
@@ -107,20 +105,12 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false, verbose:
                              compute_∂σ∂σp!,
                              compute_tstops,
                              convert_tspan,
+                             paths,
                              odesystem,
                              deepcopy(odesystem),
                              parametermap,
                              statemap,
-                             parameter_names,
-                             state_names,
-                             paths[:dirmodel],
-                             dirjulia,
-                             measurements_df,
-                             conditions_df,
-                             observables_df,
-                             parameters_df,
-                             paths[:SBML],
-                             path_yaml,
+                             petab_tables,
                              cbset,
                              check_cb_active,
                              false)

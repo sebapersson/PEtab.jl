@@ -2,9 +2,9 @@
 @recipe function f(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult},
                    petab_problem::PEtabODEProblem;
                    observable_ids = [obs.observableId
-                                     for obs in petab_problem.petab_model.observables_df],
+                                     for obs in petab_problem.petab_model.petab_tables[:observables]],
                    condition_id = [cond.conditionId
-                                   for cond in petab_problem.petab_model.conditions_df][1])
+                                   for cond in petab_problem.petab_model.petab_tables[:conditions]][1])
 
     # Get plot options.
     title --> condition_id
@@ -18,7 +18,7 @@
     y_vals = []
 
     # Loops through all observables, computing the required plot inputs.
-    all_obs = petab_problem.petab_model.observables_df
+    all_obs = petab_problem.petab_model.petab_tables[:observables]
     for (obs_idx, obs_id) in enumerate(observable_ids)
         t_observed, h_observed, label_observed, t_model, h_model, label_model, smooth_sol = _get_observable(res.xmin,
                                                                                                             petab_problem,
@@ -61,10 +61,10 @@ function PEtab.get_obs_comparison_plots(res::Union{PEtabOptimisationResult,
                                         petab_problem::PEtabODEProblem; kwargs...)
     comparison_dict = Dict()
     for condition_id in [cond.conditionId
-                         for cond in petab_problem.petab_model.conditions_df]
+                         for cond in petab_problem.petab_model.petab_tables[:conditions]]
         comparison_dict[condition_id] = Dict()
         for observable_id in [obs.observableId
-                              for obs in petab_problem.petab_model.observables_df]
+                              for obs in petab_problem.petab_model.petab_tables[:observables]]
             comparison_dict[condition_id][observable_id] = plot(res, petab_problem;
                                                                 observable_ids = [observable_id],
                                                                 condition_id = condition_id,
@@ -97,8 +97,8 @@ different pre-equilibrium ids.
 function _get_observable(θ::Vector{Float64}, petab_problem::PEtabODEProblem,
                          condition_id::String, observable_id::String)
 
-    # All measurment data is stored in petab_problem.petab_model.measurements_df
-    measurement_data = petab_problem.petab_model.measurements_df |> DataFrame
+    # All measurment data is stored in petab_problem.petab_model.petab_tables[:measurements]
+    measurement_data = petab_problem.petab_model.petab_tables[:measurements] |> DataFrame
     condition_ids = measurement_data[!, :simulationConditionId]
     observable_ids = measurement_data[!, :observableId]
 

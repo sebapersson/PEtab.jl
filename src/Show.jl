@@ -14,8 +14,8 @@ end
 
 function show(io::IO, a::PEtabModel)
     model_name = @sprintf("%s", a.modelname)
-    n_odes = @sprintf("%d", length(a.state_names))
-    n_ode_parameters = @sprintf("%d", length(a.parameter_names))
+    n_odes = @sprintf("%d", length(states(a.sys_mutated)))
+    n_ode_parameters = @sprintf("%d", length(parameters(a.sys_mutated)))
 
     printstyled(io, "PEtabModel", color = 116)
     print(io, " for model ")
@@ -24,8 +24,8 @@ function show(io::IO, a::PEtabModel)
     printstyled(io, n_odes * " states", color = 116)
     print(io, " and ")
     printstyled(io, n_ode_parameters * " parameters.", color = 116)
-    if !isempty(a.dirjulia)
-        @printf(io, "\nGenerated Julia files are at %s", a.dirjulia)
+    if !isempty(a.paths[:dirjulia])
+        @printf(io, "\nGenerated Julia files are at %s", a.paths[:dirjulia])
     end
 end
 function show(io::IO, a::ODESolver)
@@ -38,7 +38,7 @@ function show(io::IO, a::ODESolver)
 end
 function show(io::IO, a::PEtabODEProblem)
     model_name = a.petab_model.modelname
-    n_odes = length(a.petab_model.state_names)
+    n_odes = length(states(a.petab_model.sys_mutated))
     n_parameters_est = length(a.θ_names)
     θ_indices = a.θ_indices
     n_dynamic_parameters = length(intersect(θ_indices.xids[:dynamic], a.θ_names))

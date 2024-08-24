@@ -173,7 +173,7 @@ When parsing a PEtab problem, several things happen under the hood:
 2. The observable PEtab table is translated into a Julia file with functions for computing the observable (`h`), noise parameter (`σ`), and initial values (`u0`).
 3. To allow gradients via adjoint sensitivity analysis and/or forward sensitivity equations, the gradients of `h` and `σ` are computed symbolically with respect to the ODE model's states (`u`) and parameters (`ode_problem.p`).
 
-All of this happens automatically, and resulting files are stored under `petab_model.dirjulia` assuming write_to_file=true. To save time, `forceBuildJlFiles=false` by default, which means that Julia files are not rebuilt if they already exist.
+All of this happens automatically, and resulting files are stored under `petab_model.paths[:julia_files]` assuming write_to_file=true. To save time, `forceBuildJlFiles=false` by default, which means that Julia files are not rebuilt if they already exist.
 
 # Arguments
 - `path_yaml::String`: Path to the PEtab problem YAML file.
@@ -287,20 +287,12 @@ struct PEtabModel
     compute_∂σ∂p!::Function
     compute_tstops::Function
     convert_tspan::Bool
-    system::Any
-    system_mutated::Any
+    paths::Dict{Symbol, String}
+    sys::Any
+    sys_mutated::Any
     parametermap::Any
     statemap::Any
-    parameter_names::Any
-    state_names::Any
-    dirmodel::String
-    dirjulia::String
-    measurements_df::DataFrame
-    conditions_df::DataFrame
-    observables_df::DataFrame
-    parameters_df::DataFrame
-    path_SBML::String
-    path_yaml::String
+    petab_tables::Dict{Symbol, DataFrame}
     model_callbacks::SciMLBase.DECallback
     check_callback_is_active::Vector{Function}
     defined_in_julia::Bool

@@ -18,7 +18,8 @@ function create_callbacks_SBML(system::ODESystem,
 
     # Compute indices tracking parameters (needed as down the line we need to know if a parameter should be estimated
     # or not)
-    experimental_conditions, measurements_data, parameters_data, observables_data = read_tables(path_yaml)
+    petab_tables = read_tables(path_yaml)
+    measurements_data, observables_data, parameters_data, experimental_conditions, = collect(values(petab_tables))
     parameter_info = parse_parameters(parameters_data,
                                         custom_values = custom_values)
     measurement_info = parse_measurements(measurements_data, observables_data)

@@ -8,15 +8,7 @@ function PEtabModel(sys::Union{ReactionSystem, ODESystem}, observables::Dict{Str
                        petab_parameters, statemap, parametermap, events, verbose)
 end
 
-function _PEtabModel(sys::Union{ReactionSystem, ODESystem},
-                     simulation_conditions::Dict,
-                     observables::Dict{String, <:PEtabObservable},
-                     measurements::DataFrame,
-                     petab_parameters::Vector{PEtabParameter},
-                     statemap::Union{Nothing, AbstractVector},
-                     parametermap::Union{Nothing, AbstractVector},
-                     events::Union{PEtabEvent, AbstractVector, Nothing},
-                     verbose::Bool)::PEtabModel
+function _PEtabModel(sys::Union{ReactionSystem, ODESystem}, simulation_conditions::Dict, observables::Dict{String, <:PEtabObservable}, measurements::DataFrame, petab_parameters::Vector{PEtabParameter}, statemap::Union{Nothing, AbstractVector}, parametermap::Union{Nothing, AbstractVector}, events::Union{PEtabEvent, AbstractVector, Nothing}, verbose::Bool)::PEtabModel
     if sys isa ODESystem
         modelname = "ODESystemModel"
     else
@@ -29,11 +21,11 @@ function _PEtabModel(sys::Union{ReactionSystem, ODESystem},
     observables_df = parse_observables_to_table(observables)
     conditions_df = parse_conditions_to_table(simulation_conditions)
     parameters_df = parse_parameters_to_table(petab_parameters)
+    petab_tables = Dict(:parameters => parameters_df, :conditions => conditions_df,
+                        :observables => observables_df, :measurements => measurements_df)
 
     # Build the initial value map (initial values as parameters are set in the reaction sys_mutated)
     sys_mutated = deepcopy(sys)
-    parameter_names = parameters(sys_mutated)
-    state_names = states(sys_mutated)
     statemap_use = _get_statemap(sys_mutated, conditions_df, statemap)
     parametermap_use = _get_parametermap(sys_mutated, parametermap)
     # Warn user if any variable is unassigned (and defaults to zero)
@@ -74,6 +66,8 @@ function _PEtabModel(sys::Union{ReactionSystem, ODESystem},
     end
     _logging(:Build_callbacks, verbose; time=btime)
 
+    # Path only applies when PEtab tables are provided
+    paths = Dict{Symbol, String}()
     petab_model = PEtabModel(modelname,
                              compute_h,
                              compute_u0!,
@@ -85,20 +79,12 @@ function _PEtabModel(sys::Union{ReactionSystem, ODESystem},
                              compute_∂σ∂σp!,
                              compute_tstops,
                              convert_tspan,
+                             paths,
                              sys,
                              sys_mutated,
                              parametermap_use,
                              statemap_use,
-                             parameter_names,
-                             state_names,
-                             "",
-                             "",
-                             measurements_df,
-                             conditions_df,
-                             observables_df,
-                             parameters_df,
-                             "",
-                             "",
+                             petab_tables,
                              cbset,
                              Function[],
                              true)

@@ -205,7 +205,7 @@ function compute_gradient_forward_equations_condition!(gradient::Vector{Float64}
                                             map_condition_id.ix_dynamic))
 
     # Loop through solution and extract sensitivites
-    n_model_states = length(petab_model.state_names)
+    n_model_states = length(states(petab_model.sys_mutated))
     petab_ODE_cache.p .= dual_to_float.(sol.prob.p)
     p = petab_ODE_cache.p
     u = petab_ODE_cache.u

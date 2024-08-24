@@ -15,8 +15,8 @@ the parameter during likelihood computations. It further accounts for parameters
 only appearing in a certain simulation condition.
 """
 function parse_conditions(parameter_info::ParametersInfo, measurements_info::MeasurementsInfo, petab_model::PEtabModel)::ParameterIndices
-    @unpack statemap, parametermap, system_mutated, conditions_df = petab_model
-    return parse_conditions(parameter_info, measurements_info, system_mutated, parametermap, statemap, conditions_df)
+    @unpack statemap, parametermap, sys_mutated, petab_tables = petab_model
+    return parse_conditions(parameter_info, measurements_info, sys_mutated, parametermap, statemap, petab_tables[:conditions])
 end
 function parse_conditions(parameter_info::ParametersInfo, measurements_info::MeasurementsInfo, sys, parametermap, statemap, conditions_df::DataFrame)::ParameterIndices
     _check_conditionids(conditions_df, measurements_info)

@@ -1,24 +1,25 @@
-function read_tables(path_yaml::String)::Tuple{DataFrame, DataFrame, DataFrame, DataFrame}
+function read_tables(path_yaml::String)::Dict{Symbol, DataFrame}
     paths = _get_petab_paths(path_yaml)
-    conditions_df = _read_table(paths[:conditions], :conditions)
-    measurements_df = _read_table(paths[:measurements], :measurements)
     parameters_df = _read_table(paths[:parameters], :parameters)
+    conditions_df = _read_table(paths[:conditions], :conditions)
     observables_df = _read_table(paths[:observables], :observables)
-    return conditions_df, measurements_df, parameters_df, observables_df
+    measurements_df = _read_table(paths[:measurements], :measurements)
+    return Dict(:parameters => parameters_df, :conditions => conditions_df, :observables => observables_df, :measurements => measurements_df)
 end
 
-function _get_petab_paths(path_yaml::AbstractString)::NamedTuple
+function _get_petab_paths(path_yaml::AbstractString)::Dict{Symbol, String}
     if !isfile(path_yaml)
         throw(PEtabFileError("yaml file $(path_yaml) does not exist"))
     end
     yaml_file = YAML.load_file(path_yaml)
     dirmodel = dirname(path_yaml)
+    dirjulia = joinpath(dirmodel, "Julia_model_files")
     path_SBML = _get_path(yaml_file, dirmodel, "sbml_files")
     path_measurements = _get_path(yaml_file, dirmodel, "measurement_files")
     path_observables = _get_path(yaml_file, dirmodel, "observable_files")
     path_conditions = _get_path(yaml_file, dirmodel, "condition_files")
     path_parameters = _get_path(yaml_file, dirmodel, "parameter_file")
-    return (SBML=path_SBML, parameters=path_parameters, conditions=path_conditions, observables=path_observables, measurements=path_measurements, dirmodel=dirmodel)
+    return Dict(:SBML => path_SBML, :parameters => path_parameters, :conditions => path_conditions, :observables => path_observables, :measurements => path_measurements, :dirmodel => dirmodel, :dirjulia => dirjulia)
 end
 
 function _read_table(path::String, file::Symbol)::DataFrame

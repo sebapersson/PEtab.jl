@@ -80,12 +80,10 @@ function set_hessian_method(hessian_method::Union{Symbol, Nothing},
     end
 end
 
-function set_sensealg(sensealg,
-                      ::Val{:ForwardDiff})::Nothing
+function set_sensealg(sensealg, ::Val{:ForwardDiff})::Nothing
     return nothing
 end
-function set_sensealg(sensealg,
-                      ::Val{:ForwardEquations})::Symbol
+function set_sensealg(sensealg, ::Val{:ForwardEquations})::Symbol
     if !isnothing(sensealg)
         @assert sensealg==:ForwardDiff "For gradient method :ForwardEquations allowed sensealg args are :ForwardDiff, ForwardSensitivity(), ForwardDiffSensitivity() not $sensealg"
         return sensealg

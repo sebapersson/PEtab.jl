@@ -1,3 +1,9 @@
+# TODO: Create two "super" structs
+# 1. Model info (parameter info, callbacks, computeh ...)
+# 2. ODEInfo, ODESolver, steady-state solver, gradient + Hessian methods, cache
+# Both live in PEtabODEProblem. This should ensure less is sent to the specific
+# functions. Very breaking change, fix Monday.
+# Also remove Zygote, and will purge any functions used by Zygote.
 function PEtabODEProblem(petab_model::PEtabModel;
                          ode_solver::Union{Nothing, ODESolver} = nothing,
                          ode_solver_gradient::Union{Nothing, ODESolver} = nothing,
@@ -46,12 +52,11 @@ function PEtabODEProblem(petab_model::PEtabModel;
     end
 
     # Structs to bookep parameters, measurements, observations etc...
-    @unpack conditions_df, measurements_df, parameters_df, observables_df = petab_model
-    parameter_info = parse_parameters(parameters_df,
-                                        custom_values = custom_values)
-    measurement_info = parse_measurements(measurements_df, observables_df)
+    tables = petab_model.petab_tables
+    measurement_info = parse_measurements(tables[:measurements], tables[:observables])
+    parameter_info = parse_parameters(tables[:parameters], custom_values = custom_values)
     θ_indices = parse_conditions(parameter_info, measurement_info, petab_model)
-    prior_info = process_priors(θ_indices, parameters_df)
+    prior_info = process_priors(θ_indices, tables[:parameters])
     # For computing nllh an empty PriorInfo set is assumed
     prior_info_empty = PriorInfo(Dict{Symbol, Function}(),
                                  Dict{Symbol, Distribution{Univariate, Continuous}}(),
@@ -59,7 +64,7 @@ function PEtabODEProblem(petab_model::PEtabModel;
                                  Dict{Symbol, Bool}(), false)
 
     # In case not specified by the user set ODE, gradient and Hessian options
-    nODEs = length(states(petab_model.system_mutated))
+    nODEs = length(states(petab_model.sys_mutated))
     if nODEs ≤ 15 && length(θ_indices.xids[:dynamic]) ≤ 20
         model_size = :Small
     elseif nODEs ≤ 50 && length(θ_indices.xids[:dynamic]) ≤ 69
@@ -101,8 +106,8 @@ function PEtabODEProblem(petab_model::PEtabModel;
         # Set model parameter values to those in the PeTab parameter to ensure correct constant parameters
         set_parameters_to_file_values!(petab_model.parametermap, petab_model.statemap,
                                        parameter_info)
-        if petab_model.system_mutated isa ODESystem && petab_model.defined_in_julia == false
-            __ode_problem = ODEProblem{true, specialize_level}(petab_model.system_mutated,
+        if petab_model.sys_mutated isa ODESystem && petab_model.defined_in_julia == false
+            __ode_problem = ODEProblem{true, specialize_level}(petab_model.sys_mutated,
                                                                petab_model.statemap,
                                                                [0.0, 5e3],
                                                                petab_model.parametermap,
@@ -111,7 +116,7 @@ function PEtabODEProblem(petab_model::PEtabModel;
         else
             # For reaction systems this bugs out if I try to set specialize_level (specifially state-map and parameter-map are not
             # made into vectors)
-            __ode_problem = ODEProblem(petab_model.system_mutated,
+            __ode_problem = ODEProblem(petab_model.sys_mutated,
                                        zeros(Float64, length(petab_model.statemap)),
                                        [0.0, 5e3], petab_model.parametermap, jac = true,
                                        sparse = _sparse_jacobian)

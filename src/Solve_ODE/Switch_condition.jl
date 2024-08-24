@@ -21,7 +21,7 @@ function _change_simulation_condition!(p_ode_problem::AbstractVector,
     p_ode_problem[map_condition_id.ix_sys] .= θ_dynamic[map_condition_id.ix_dynamic]
 
     # Given changes in parameters initial values might have to be re-evaluated
-    n_model_states = length(petab_model.state_names)
+    n_model_states = length(states(petab_model.sys_mutated))
     petab_model.compute_u0!((@view u0[1:n_model_states]), p_ode_problem)
 
     # Account for any potential events (callbacks) which are active at time zero

@@ -21,7 +21,7 @@ function PEtab.solve_sensitivites(ode_problem::ODEProblem,
                                   exp_id_solve::Vector{Symbol},
                                   split_over_conditions::Bool,
                                   isremade::Bool = false)::Bool
-    n_model_states = length(petab_model.state_names)
+    n_model_states = length(states(petab_model.sys_mutated))
     _ode_problem = remake(ode_problem, p = convert.(eltype(θ_dynamic), ode_problem.p),
                           u0 = convert.(eltype(θ_dynamic), ode_problem.u0))
     PEtab.change_ode_parameters!(_ode_problem.p, (@view _ode_problem.u0[1:n_model_states]),
@@ -68,7 +68,7 @@ function PEtab.compute_gradient_forward_equations_condition!(gradient::Vector{Fl
     # Loop through solution and extract sensitivites
     p = sol.prob.p
     ∂G∂p, ∂G∂p_ = zeros(Float64, length(p)), zeros(Float64, length(p))
-    ∂G∂u = zeros(Float64, length(petab_model.state_names))
+    ∂G∂u = zeros(Float64, length(states(petab_model.sys_mutated)))
     _gradient = zeros(Float64, length(p))
     for i in eachindex(time_observed)
         u, _S = extract_local_sensitivities(sol, i, true)

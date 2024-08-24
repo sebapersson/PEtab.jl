@@ -85,7 +85,7 @@ function get_odeproblem(res::Union{PEtabOptimisationResult,
 
     u0, p = _get_fitted_parameters(res, petab_problem, condition_id, pre_eq_id, false)
     tmax = petab_problem.simulation_info.tmaxs[condition_id]
-    ode_problem = ODEProblem(petab_model.system, u0, [0.0, tmax], p, jac = true)
+    ode_problem = ODEProblem(petab_model.sys, u0, [0.0, tmax], p, jac = true)
 
     cbset = petab_problem.petab_model.model_callbacks
     tstops = petab_problem.petab_model.compute_tstops(u0, p)

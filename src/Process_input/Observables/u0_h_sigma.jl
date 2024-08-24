@@ -29,9 +29,9 @@ function create_u0_h_σ_file(model_name::String,
     p_ode_problem_names = string.(parameters(system))
     model_state_names = replace.(string.(states(system)), "(t)" => "")
 
-    experimental_conditions, measurements_data, parameters_data, observables_data = read_tables(path_yaml)
-    parameter_info = parse_parameters(parameters_data,
-                                        custom_values = custom_values)
+    petab_tables = read_tables(path_yaml)
+    measurements_data, observables_data, parameters_data, experimental_conditions, = collect(values(petab_tables))
+    parameter_info = parse_parameters(parameters_data, custom_values = custom_values)
     measurement_info = parse_measurements(measurements_data, observables_data)
 
     # Indices for keeping track of parameters in θ
