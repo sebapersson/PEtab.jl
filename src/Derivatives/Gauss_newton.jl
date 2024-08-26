@@ -144,19 +144,12 @@ function compute_residuals_not_solve_ode!(residuals::T1,
                                           θ_sd::T2,
                                           θ_observable::T2,
                                           θ_non_dynamic::T2,
-                                          petab_model::PEtabModel,
-                                          simulation_info::SimulationInfo,
-                                          θ_indices::ParameterIndices,
-                                          measurement_info::MeasurementsInfo,
-                                          parameter_info::ParametersInfo,
-                                          petab_ODE_cache::PEtabODEProblemCache;
-                                          exp_id_solve::Vector{Symbol} = [:all])::T1 where {
-                                                                                            T1 <:
-                                                                                            AbstractVector,
-                                                                                            T2 <:
-                                                                                            AbstractVector
-                                                                                            }
-
+                                          probleminfo::PEtabODEProblemInfo,
+                                          model_info::ModelInfo;
+                                          exp_id_solve::Vector{Symbol} = [:all])::T1 where {T1 <: AbstractVector,
+                                                                                            T2 <: AbstractVector}
+    @unpack petab_model, simulation_info, θ_indices, measurement_info, parameter_info = model_info
+    @unpack petab_ODE_cache = probleminfo
     # To be able to use ReverseDiff sdParamEstUse and obsParamEstUse cannot be overwritten.
     # Hence new vectors have to be created.
     θ_sdT = transformθ(θ_sd, θ_indices.xids[:noise], θ_indices, :θ_sd, petab_ODE_cache)

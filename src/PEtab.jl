@@ -76,6 +76,7 @@ include(joinpath("PEtabODEProblem", "Defaults.jl"))
 include(joinpath("PEtabODEProblem", "Remake.jl"))
 include(joinpath("PEtabODEProblem", "Cache.jl"))
 include(joinpath("PEtabODEProblem", "Create.jl"))
+include(joinpath("PEtabODEProblem", "problem_info.jl"))
 
 # Nice util functions
 include(joinpath("Utility.jl"))

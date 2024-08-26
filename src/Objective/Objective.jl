@@ -1,63 +1,31 @@
 function compute_cost(θ_est::Vector{T},
-                      ode_problem::ODEProblem,
-                      ode_solver::ODESolver,
-                      ss_solver::SteadyStateSolver,
-                      petab_model::PEtabModel,
-                      simulation_info::SimulationInfo,
-                      θ_indices::ParameterIndices,
-                      measurement_info::MeasurementsInfo,
-                      parameter_info::ParametersInfo,
-                      prior_info::PriorInfo,
-                      petab_ODE_cache::PEtabODEProblemCache,
-                      petab_ODESolver_cache::PEtabODESolverCache,
+                      probleminfo::PEtabODEProblemInfo,
+                      model_info::ModelInfo,
                       exp_id_solve::Vector{Symbol},
                       compute_cost::Bool,
                       compute_hessian::Bool,
                       compute_residuals::Bool)::T where {T <: Real}
-    θ_dynamic, θ_observable, θ_sd, θ_non_dynamic = splitθ(θ_est, θ_indices)
-    cost = compute_cost_solve_ODE(θ_dynamic, θ_sd, θ_observable, θ_non_dynamic, ode_problem,
-                                  ode_solver, ss_solver, petab_model,
-                                  simulation_info, θ_indices, measurement_info,
-                                  parameter_info, petab_ODE_cache, petab_ODESolver_cache,
-                                  compute_cost = compute_cost,
-                                  compute_hessian = compute_hessian,
-                                  compute_residuals = compute_residuals,
-                                  exp_id_solve = exp_id_solve)
+    @unpack θ_indices, prior_info = model_info
+    θ_dynamic, θ_observable, θ_sd, θ_non_dynamic = splitθ(θ_est, model_info.θ_indices)
+    cost = compute_cost_solve_ODE(θ_dynamic, θ_sd, θ_observable, θ_non_dynamic, probleminfo, model_info; compute_cost = compute_cost, compute_hessian = compute_hessian, compute_residuals = compute_residuals, exp_id_solve = exp_id_solve)
 
     if prior_info.has_priors == true && compute_hessian == false
         θ_estT = transformθ(θ_est, θ_indices.xids[:estimate], θ_indices)
         cost -= compute_priors(θ_est, θ_estT, θ_indices.xids[:estimate], prior_info) # We work with -loglik
     end
-
     return cost
 end
 
-function compute_cost_solve_ODE(θ_dynamic::T1,
-                                θ_sd::T2,
-                                θ_observable::T2,
-                                θ_non_dynamic::T2,
-                                ode_problem::ODEProblem,
-                                ode_solver::ODESolver,
-                                ss_solver::SteadyStateSolver,
-                                petab_model::PEtabModel,
-                                simulation_info::SimulationInfo,
-                                θ_indices::ParameterIndices,
-                                measurement_info::MeasurementsInfo,
-                                parameter_info::ParametersInfo,
-                                petab_ODE_cache::PEtabODEProblemCache,
-                                petab_ODESolver_cache::PEtabODESolverCache;
-                                compute_cost::Bool = false,
-                                compute_hessian::Bool = false,
+function compute_cost_solve_ODE(θ_dynamic::T1, θ_sd::T2, θ_observable::T2, θ_non_dynamic::T2,
+                                probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
+                                compute_cost::Bool = false, compute_hessian::Bool = false,
                                 compute_gradient_θ_dynamic::Bool = false,
                                 compute_residuals::Bool = false,
-                                exp_id_solve::Vector{Symbol} = [:all])::Real where {
-                                                                                    T1 <:
-                                                                                    AbstractVector,
-                                                                                    T2 <:
-                                                                                    AbstractVector
-                                                                                    }
-    if compute_gradient_θ_dynamic == true &&
-       petab_ODE_cache.nθ_dynamic[1] != length(θ_dynamic)
+                                exp_id_solve::Vector{Symbol} = [:all])::Real where {T1 <: AbstractVector,
+                                                                                    T2 <: AbstractVector}
+    @unpack θ_indices, simulation_info = model_info
+    @unpack petab_ODE_cache = probleminfo
+    if compute_gradient_θ_dynamic == true && petab_ODE_cache.nθ_dynamic[1] != length(θ_dynamic)
         _θ_dynamic = θ_dynamic[petab_ODE_cache.θ_dynamic_output_order]
         θ_dynamicT = transformθ(_θ_dynamic, θ_indices.xids[:dynamic], θ_indices,
                                 :θ_dynamic, petab_ODE_cache)
@@ -71,27 +39,12 @@ function compute_cost_solve_ODE(θ_dynamic::T1,
     θ_non_dynamicT = transformθ(θ_non_dynamic, θ_indices.xids[:nondynamic], θ_indices,
                                 :θ_non_dynamic, petab_ODE_cache)
 
-    _ode_problem = remake(ode_problem, p = convert.(eltype(θ_dynamicT), ode_problem.p),
-                          u0 = convert.(eltype(θ_dynamicT), ode_problem.u0))
-    change_ode_parameters!(_ode_problem.p, _ode_problem.u0, θ_dynamicT, θ_indices,
-                           petab_model)
-
     # If computing hessian or gradient store ODE solution in arrary with dual numbers, else use
     # solution array with floats
-    if compute_hessian == true || compute_gradient_θ_dynamic == true
-        success = solve_ode_all_conditions!(simulation_info.odesols_derivatives,
-                                            _ode_problem, petab_model, θ_dynamicT,
-                                            petab_ODESolver_cache, simulation_info,
-                                            θ_indices, ode_solver, ss_solver,
-                                            exp_id_solve = exp_id_solve, dense_sol = false,
-                                            save_at_observed_t = true)
-    elseif compute_cost == true
-        success = solve_ode_all_conditions!(simulation_info.odesols, _ode_problem,
-                                            petab_model, θ_dynamicT, petab_ODESolver_cache,
-                                            simulation_info, θ_indices, ode_solver,
-                                            ss_solver, exp_id_solve = exp_id_solve,
-                                            dense_sol = false, save_at_observed_t = true)
-    end
+    derivative = compute_hessian == true || compute_gradient_θ_dynamic == true
+    success = solve_ode_all_conditions!(model_info, θ_dynamicT, probleminfo,
+                                        exp_id_solve = exp_id_solve, dense_sol = false,
+                                        save_at_observed_t = true, derivative = derivative)
     if success != true
         if ode_solver.verbose == true
             @warn "Failed to solve ODE model"
@@ -99,9 +52,7 @@ function compute_cost_solve_ODE(θ_dynamic::T1,
         return Inf
     end
 
-    cost = _compute_cost(θ_sdT, θ_observableT, θ_non_dynamicT, petab_model, simulation_info,
-                         θ_indices, measurement_info,
-                         parameter_info, exp_id_solve,
+    cost = _compute_cost(θ_sdT, θ_observableT, θ_non_dynamicT, model_info, exp_id_solve;
                          compute_hessian = compute_hessian,
                          compute_gradient_θ_dynamic = compute_gradient_θ_dynamic,
                          compute_residuals = compute_residuals)
@@ -112,20 +63,14 @@ end
 function compute_cost_not_solve_ODE(θ_sd::T1,
                                     θ_observable::T1,
                                     θ_non_dynamic::T1,
-                                    petab_model::PEtabModel,
-                                    simulation_info::SimulationInfo,
-                                    θ_indices::ParameterIndices,
-                                    measurement_info::MeasurementsInfo,
-                                    parameter_info::ParametersInfo,
-                                    petab_ODE_cache::PEtabODEProblemCache;
+                                    probleminfo::PEtabODEProblemInfo,
+                                    model_info::ModelInfo;
                                     compute_gradient_not_solve_autodiff::Bool = false,
                                     compute_gradient_not_solve_adjoint::Bool = false,
                                     compute_gradient_not_solve_forward::Bool = false,
-                                    exp_id_solve::Vector{Symbol} = [:all])::Real where {
-                                                                                        T1 <:
-                                                                                        AbstractVector
-                                                                                        }
-
+                                    exp_id_solve::Vector{Symbol} = [:all])::Real where {T1 <: AbstractVector}
+    @unpack θ_indices = model_info
+    @unpack petab_ODE_cache = probleminfo
     # To be able to use ReverseDiff sdParamEstUse and obsParamEstUse cannot be overwritten.
     # Hence new vectors have to be created. Minimal overhead.
     θ_sdT = transformθ(θ_sd, θ_indices.xids[:noise], θ_indices, :θ_sd, petab_ODE_cache)
@@ -134,9 +79,7 @@ function compute_cost_not_solve_ODE(θ_sd::T1,
     θ_non_dynamicT = transformθ(θ_non_dynamic, θ_indices.xids[:nondynamic], θ_indices,
                                 :θ_non_dynamic, petab_ODE_cache)
 
-    cost = _compute_cost(θ_sdT, θ_observableT, θ_non_dynamicT, petab_model, simulation_info,
-                         θ_indices,
-                         measurement_info, parameter_info, exp_id_solve,
+    cost = _compute_cost(θ_sdT, θ_observableT, θ_non_dynamicT, model_info, exp_id_solve,
                          compute_gradient_not_solve_autodiff = compute_gradient_not_solve_autodiff,
                          compute_gradient_not_solve_adjoint = compute_gradient_not_solve_adjoint,
                          compute_gradient_not_solve_forward = compute_gradient_not_solve_forward)
@@ -147,21 +90,15 @@ end
 function _compute_cost(θ_sd::T1,
                        θ_observable::T1,
                        θ_non_dynamic::T1,
-                       petab_model::PEtabModel,
-                       simulation_info::SimulationInfo,
-                       θ_indices::ParameterIndices,
-                       measurement_info::MeasurementsInfo,
-                       parameter_info::ParametersInfo,
+                       model_info::ModelInfo,
                        exp_id_solve::Vector{Symbol} = [:all];
                        compute_hessian::Bool = false,
                        compute_gradient_θ_dynamic::Bool = false,
                        compute_residuals::Bool = false,
                        compute_gradient_not_solve_adjoint::Bool = false,
                        compute_gradient_not_solve_forward::Bool = false,
-                       compute_gradient_not_solve_autodiff::Bool = false)::Real where {
-                                                                                       T1 <:
-                                                                                       AbstractVector
-                                                                                       }
+                       compute_gradient_not_solve_autodiff::Bool = false)::Real where {T1 <: AbstractVector}
+    @unpack simulation_info = model_info
     if compute_hessian == true || compute_gradient_θ_dynamic == true ||
        compute_gradient_not_solve_adjoint == true ||
        compute_gradient_not_solve_forward == true ||
@@ -179,11 +116,7 @@ function _compute_cost(θ_sd::T1,
 
         # Extract the ODE-solution for specific condition ID
         ode_sol = ode_sols[experimental_condition_id]
-        cost += compute_cost_condition(ode_sol, Float64[], θ_sd, θ_observable,
-                                       θ_non_dynamic, petab_model,
-                                       experimental_condition_id, θ_indices,
-                                       measurement_info, parameter_info,
-                                       simulation_info,
+        cost += compute_cost_condition(ode_sol, θ_sd, θ_observable, θ_non_dynamic, experimental_condition_id, model_info,
                                        compute_residuals = compute_residuals,
                                        compute_gradient_not_solve_adjoint = compute_gradient_not_solve_adjoint,
                                        compute_gradient_not_solve_forward = compute_gradient_not_solve_forward,
@@ -198,26 +131,16 @@ function _compute_cost(θ_sd::T1,
 end
 
 function compute_cost_condition(ode_sol::ODESolution,
-                                p_ode_problem_zygote::T1,
-                                θ_sd::T2,
+                                θ_sd::AbstractVector,
                                 θ_observable::AbstractVector,
                                 θ_non_dynamic::AbstractVector,
-                                petab_model::PEtabModel,
                                 experimental_condition_id::Symbol,
-                                θ_indices::ParameterIndices,
-                                measurement_info::MeasurementsInfo,
-                                parameter_info::ParametersInfo,
-                                simulation_info::SimulationInfo;
+                                model_info::ModelInfo;
                                 compute_residuals::Bool = false,
                                 compute_gradient_not_solve_adjoint::Bool = false,
                                 compute_gradient_not_solve_forward::Bool = false,
-                                compute_gradient_not_solve_autodiff::Bool = false,
-                                compute_gradient_θ_dynamic_zygote::Bool = false)::Real where {
-                                                                                              T1 <:
-                                                                                              AbstractVector,
-                                                                                              T2 <:
-                                                                                              AbstractVector
-                                                                                              }
+                                compute_gradient_not_solve_autodiff::Bool = false)::Real
+    @unpack θ_indices, simulation_info, measurement_info, parameter_info, petab_model = model_info
     if !(ode_sol.retcode == ReturnCode.Success || ode_sol.retcode == ReturnCode.Terminated)
         return Inf
     end
@@ -239,12 +162,6 @@ function compute_cost_condition(ode_sol::ODESolution,
             # In case we only have sol.t = 0.0 (or similar) interpolation does not work
             u = length(ode_sol.t) > 1 ? ode_sol(t) : ode_sol[1]
             p = ode_sol.prob.p
-
-        elseif compute_gradient_θ_dynamic_zygote == true
-            u = ode_sol.u[simulation_info.imeasurements_t_sol[i_measurement], :][1]
-            p = p_ode_problem_zygote
-
-            # When we want to extract dual number from the ODE solution
         else
             u = ode_sol[:, simulation_info.imeasurements_t_sol[i_measurement]]
             p = ode_sol.prob.p

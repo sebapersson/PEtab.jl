@@ -16,8 +16,9 @@ to those in the PeTab parameters file.
 Used when setting up the PeTab cost function, and when solving the ODE-system
 for the values in the parameters-file.
 """
-function set_parameters_to_file_values!(parametermap, statemap,
-                                        parameters_info::ParametersInfo)::Nothing
+function _set_constant_ode_parameters!(petab_model::PEtabModel, parameters_info::ParametersInfo)::Nothing
+    # TODO: Refactor
+    @unpack statemap, parametermap = petab_model
     parameter_names = string.(parameters_info.parameter_id)
     parameter_names_str = string.([parametermap[i].first for i in eachindex(parametermap)])
     state_names_str = replace.(string.([statemap[i].first for i in eachindex(statemap)]),
@@ -227,10 +228,12 @@ function change_ode_parameters!(p_ode_problem::AbstractVector,
                                 θ::AbstractVector,
                                 θ_indices::ParameterIndices,
                                 petab_model::PEtabModel)::Nothing
+    n_model_states = states(petab_model.sys_mutated) |> length
     map_ode_problem = θ_indices.map_ode_problem
     p_ode_problem[map_ode_problem.dynamic_to_sys] .= θ[map_ode_problem.sys_to_dynamic]
-    petab_model.compute_u0!(u0, p_ode_problem)
-
+    u0change = @view u0[1:n_model_states]
+    # TODO: Appearent I must refactor
+    petab_model.compute_u0!(u0change, p_ode_problem)
     return nothing
 end
 

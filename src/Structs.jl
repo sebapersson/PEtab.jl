@@ -156,6 +156,10 @@ struct PriorInfo
     prior_on_parameter_scale::Dict{<:Symbol, <:Bool}
     has_priors::Bool
 end
+function PriorInfo()
+    # In case the models does not have priors
+    return PriorInfo(Dict{Symbol, Function}(), Dict{Symbol, Distribution{Univariate, Continuous}}(), Dict{Symbol, Distribution{Univariate, Continuous}}(), Dict{Symbol, Bool}(), false)
+end
 
 """
     PEtabModel(path_yaml::String;
@@ -365,6 +369,26 @@ struct PEtabODESolverCache
     u0_cache::Any
 end
 
+struct PEtabODEProblemInfo{S1 <: ODESolver, S2 <: ODESolver}
+    odeproblem::ODEProblem
+    odeproblem_gradient::ODEProblem
+    solver::S1
+    solver_gradient::S2
+    ss_solver::SteadyStateSolver
+    ss_solver_gradient::SteadyStateSolver
+    gradient_method::Symbol
+    hessian_method::Symbol
+    FIM_method::Symbol
+    reuse_sensitivities::Bool
+    sparse_jacobian::Bool
+    sensealg
+    sensealg_ss
+    petab_ODE_cache::PEtabODEProblemCache
+    petab_ODESolver_cache::PEtabODESolverCache
+    split_over_conditions::Bool
+    chunksize::Int64
+end
+
 """
     PEtabODEProblem
 
@@ -493,6 +517,24 @@ struct PEtabODEProblem{F1 <: Function,
     petab_ODE_cache::PEtabODEProblemCache
     measurement_info::MeasurementsInfo
     petab_ODESolver_cache::PEtabODESolverCache
+end
+
+struct ModelInfo
+    measurement_info::MeasurementsInfo
+    parameter_info::ParametersInfo
+    θ_indices::ParameterIndices
+    simulation_info::SimulationInfo
+    prior_info::PriorInfo
+    petab_model::PEtabModel
+end
+function ModelInfo(petab_model::PEtabModel, sensealg, custom_values)::ModelInfo
+    tables, cbs = petab_model.petab_tables, petab_model.model_callbacks
+    measurement_info = parse_measurements(tables[:measurements], tables[:observables])
+    parameter_info = parse_parameters(tables[:parameters], custom_values = custom_values)
+    θ_indices = parse_conditions(parameter_info, measurement_info, petab_model)
+    simulation_info = SimulationInfo(cbs, measurement_info, sensealg = sensealg)
+    prior_info = process_priors(θ_indices, tables[:parameters])
+    return ModelInfo(measurement_info, parameter_info, θ_indices, simulation_info, prior_info, petab_model)
 end
 
 """
@@ -859,6 +901,9 @@ struct PEtabFileError <: Exception
     var::String
 end
 struct PEtabFormatError <: Exception
+    var::String
+end
+struct PEtabInputError <: Exception
     var::String
 end
 

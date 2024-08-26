@@ -10,13 +10,13 @@ function compute_gradient_autodiff!(gradient::Vector{Float64},
                                     θ_est::Vector{Float64},
                                     compute_cost_θ_not_ODE::Function,
                                     compute_cost_θ_dynamic::Function,
-                                    petab_ODE_cache::PEtabODEProblemCache,
                                     cfg::ForwardDiff.GradientConfig,
-                                    simulation_info::SimulationInfo,
-                                    θ_indices::ParameterIndices,
-                                    prior_info::PriorInfo,
-                                    exp_id_solve::Vector{Symbol} = [:all];
+                                    model_info::ModelInfo,
+                                    probleminfo::PEtabODEProblemInfo;
+                                    exp_id_solve::Vector{Symbol} = [:all],
                                     isremade::Bool = false)::Nothing
+    @unpack simulation_info, θ_indices, prior_info = model_info
+    @unpack petab_ODE_cache = probleminfo
     fill!(gradient, 0.0)
     splitθ!(θ_est, θ_indices, petab_ODE_cache)
     # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough.
@@ -28,8 +28,7 @@ function compute_gradient_autodiff!(gradient::Vector{Float64},
     simulation_info.could_solve[1] = true
 
     # Case where based on the original PEtab file read into Julia we do not have any parameter vectors fixated.
-    if isremade == false ||
-       length(petab_ODE_cache.gradient_θ_dyanmic) == petab_ODE_cache.nθ_dynamic[1]
+    if isremade == false || length(petab_ODE_cache.gradient_θ_dyanmic) == petab_ODE_cache.nθ_dynamic[1]
         tmp = petab_ODE_cache.nθ_dynamic[1]
         petab_ODE_cache.nθ_dynamic[1] = length(petab_ODE_cache.θ_dynamic)
         try
@@ -158,22 +157,16 @@ end
 function compute_gradient_forward_equations!(gradient::Vector{Float64},
                                              θ_est::Vector{Float64},
                                              compute_cost_θ_not_ODE::Function,
-                                             petab_model::PEtabModel,
-                                             ode_problem::ODEProblem,
-                                             sensealg,
-                                             simulation_info::SimulationInfo,
-                                             θ_indices::ParameterIndices,
-                                             measurement_info::MeasurementsInfo,
-                                             parameter_info::ParametersInfo,
                                              _solve_ode_all_conditions!::Function,
-                                             prior_info::PriorInfo,
-                                             cfg::Union{ForwardDiff.JacobianConfig,
-                                                        Nothing},
-                                             petab_ODE_cache::PEtabODEProblemCache;
-                                             split_over_conditions::Bool = false,
+                                             probleminfo::PEtabODEProblemInfo,
+                                             model_info::ModelInfo,
+                                             cfg::Union{ForwardDiff.JacobianConfig, Nothing};
                                              exp_id_solve::Vector{Symbol} = [:all],
                                              isremade::Bool = false)::Nothing
-
+    @unpack sensealg, petab_ODE_cache, split_over_conditions = probleminfo
+    @unpack simulation_info, petab_model, simulation_info, θ_indices = model_info
+    @unpack parameter_info, prior_info, measurement_info = model_info
+    ode_problem = probleminfo.odeproblem_gradient
     # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough.
     # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final
     # retcode we cannot catch these cases

@@ -3,21 +3,34 @@
     and there is functionallity for computing the sensitivity matrix.
 =#
 
-function solve_ode_all_conditions!(ode_sols::Dict{Symbol, ODESolution},
-                                   ode_problem::ODEProblem,
-                                   petab_model::PEtabModel,
+function solve_ode_all_conditions!(model_info::ModelInfo,
                                    θ_dynamic::AbstractVector,
-                                   petab_ODESolver_cache::PEtabODESolverCache,
-                                   simulation_info::SimulationInfo,
-                                   θ_indices::ParameterIndices,
-                                   ode_solver::ODESolver,
-                                   ss_solver::SteadyStateSolver;
+                                   probleminfo::PEtabODEProblemInfo;
                                    exp_id_solve::Vector{Symbol} = [:all],
                                    n_timepoints_save::Int64 = 0,
                                    save_at_observed_t::Bool = false,
                                    dense_sol::Bool = true,
                                    track_callback::Bool = false,
-                                   compute_forward_sensitivites::Bool = false)::Bool # Required for adjoint sensitivity analysis
+                                   compute_forward_sensitivites::Bool = false,
+                                   derivative::Bool = false)::Bool
+    @unpack simulation_info, petab_model, θ_indices = model_info
+    @unpack petab_ODESolver_cache = probleminfo
+    if derivative == true || compute_forward_sensitivites == true || track_callback == true
+        ode_sols = simulation_info.odesols_derivatives
+        ss_solver = probleminfo.ss_solver_gradient
+        ode_solver = probleminfo.solver_gradient
+        oprob = probleminfo.odeproblem_gradient
+    else
+        ode_sols = simulation_info.odesols
+        ss_solver = probleminfo.ss_solver
+        ode_solver = probleminfo.solver
+        oprob = probleminfo.odeproblem
+    end
+
+    ode_problem = remake(oprob, p = convert.(eltype(θ_dynamic), oprob.p),
+    u0 = convert.(eltype(θ_dynamic), oprob.u0))
+    change_ode_parameters!(ode_problem.p, ode_problem.u0, θ_dynamic, θ_indices, petab_model)
+
     change_simulation_condition! = (p_ode_problem, u0, conditionId) -> _change_simulation_condition!(p_ode_problem,
                                                                                                      u0,
                                                                                                      conditionId,
@@ -158,15 +171,8 @@ function solve_ode_all_conditions!(ode_sols::Dict{Symbol, ODESolution},
 end
 function solve_ode_all_conditions!(sol_values::AbstractMatrix,
                                    _θ_dynamic::AbstractVector,
-                                   petab_ODESolver_cache::PEtabODESolverCache,
-                                   ode_sols::Dict{Symbol, ODESolution},
-                                   ode_problem::ODEProblem,
-                                   petab_model::PEtabModel,
-                                   simulation_info::SimulationInfo,
-                                   ode_solver::ODESolver,
-                                   ss_solver::SteadyStateSolver,
-                                   θ_indices::ParameterIndices,
-                                   petab_ODE_cache::PEtabODEProblemCache;
+                                   probleminfo::PEtabODEProblemInfo,
+                                   model_info::ModelInfo;
                                    exp_id_solve::Vector{Symbol} = [:all],
                                    n_timepoints_save::Int64 = 0,
                                    save_at_observed_t::Bool = false,
@@ -174,33 +180,24 @@ function solve_ode_all_conditions!(sol_values::AbstractMatrix,
                                    track_callback::Bool = false,
                                    compute_forward_sensitivites::Bool = false,
                                    compute_forward_sensitivites_ad::Bool = false)::Nothing
+    @unpack petab_ODE_cache = probleminfo
+    @unpack simulation_info = model_info
     if compute_forward_sensitivites_ad == true &&
        petab_ODE_cache.nθ_dynamic[1] != length(_θ_dynamic)
         θ_dynamic = _θ_dynamic[petab_ODE_cache.θ_dynamic_output_order]
     else
         θ_dynamic = _θ_dynamic
     end
+    derivative = compute_forward_sensitivites_ad || compute_forward_sensitivites
 
-    _ode_problem = remake(ode_problem, p = convert.(eltype(θ_dynamic), ode_problem.p),
-                          u0 = convert.(eltype(θ_dynamic), ode_problem.u0))
-    change_ode_parameters!(_ode_problem.p, _ode_problem.u0, θ_dynamic, θ_indices,
-                           petab_model)
-
-    sucess = solve_ode_all_conditions!(ode_sols,
-                                       _ode_problem,
-                                       petab_model,
-                                       θ_dynamic,
-                                       petab_ODESolver_cache,
-                                       simulation_info,
-                                       θ_indices,
-                                       ode_solver,
-                                       ss_solver,
+    sucess = solve_ode_all_conditions!(model_info, θ_dynamic, probleminfo;
                                        exp_id_solve = exp_id_solve,
                                        n_timepoints_save = n_timepoints_save,
                                        save_at_observed_t = save_at_observed_t,
                                        dense_sol = dense_sol,
                                        track_callback = track_callback,
-                                       compute_forward_sensitivites = compute_forward_sensitivites)
+                                       compute_forward_sensitivites = compute_forward_sensitivites,
+                                       derivative = derivative)
 
     # Effectively we return a big-array with the ODE-solutions accross all experimental conditions, where
     # each column is a time-point.
@@ -208,6 +205,7 @@ function solve_ode_all_conditions!(sol_values::AbstractMatrix,
         sol_values .= 0.0
         return nothing
     end
+    ode_sols = simulation_info.odesols_derivatives
 
     # i_start and i_end tracks which entries in sol_values we store a specific experimental condition
     i_start, i_end = 1, 0

@@ -1,12 +1,9 @@
 function PEtabODEProblemCache(gradient_method::Symbol,
                               hessian_method::Union{Symbol, Nothing},
                               FIM_method::Symbol,
-                              petab_model::PEtabModel,
                               sensealg,
-                              measurement_info::MeasurementsInfo,
-                              simulation_info::SimulationInfo,
-                              θ_indices::ParameterIndices,
-                              _chunksize)::PEtabODEProblemCache
+                              model_info::ModelInfo)::PEtabODEProblemCache
+    @unpack θ_indices, petab_model, simulation_info, measurement_info = model_info
     θ_dynamic = zeros(Float64, length(θ_indices.xindices[:dynamic]))
     θ_observable = zeros(Float64, length(θ_indices.xindices[:observable]))
     θ_sd = zeros(Float64, length(θ_indices.xindices[:noise]))
@@ -153,12 +150,8 @@ function PEtabODEProblemCache(gradient_method::Symbol,
     return petab_ODE_cache
 end
 
-function PEtabODESolverCache(gradient_method::Symbol,
-                             hessian_method::Union{Symbol, Nothing},
-                             petab_model::PEtabModel,
-                             simulation_info::SimulationInfo,
-                             θ_indices::ParameterIndices,
-                             _chunksize)::PEtabODESolverCache
+function PEtabODESolverCache(gradient_method::Symbol, hessian_method::Symbol, model_info::ModelInfo)::PEtabODESolverCache
+    @unpack θ_indices, petab_model, simulation_info = model_info
     n_model_states = length(states(petab_model.sys_mutated))
     n_model_parameters = length(parameters(petab_model.sys_mutated))
 

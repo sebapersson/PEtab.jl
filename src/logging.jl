@@ -1,4 +1,4 @@
-function _logging(whatlog::Symbol, verbose::Bool; time=nothing, name::String="", buildfiles::Bool=false, exist::Bool=false)::Nothing
+function _logging(whatlog::Symbol, verbose::Bool; time=nothing, name::String="", buildfiles::Bool=false, exist::Bool=false, method::Union{Symbol, String}="")::Nothing
     verbose == false && return nothing
 
     if !isnothing(time)
@@ -7,6 +7,7 @@ function _logging(whatlog::Symbol, verbose::Bool; time=nothing, name::String="",
         return nothing
     end
 
+    # For PEtabModel
     if whatlog == :Build_PEtabModel
         str = styled"{blue:{bold:Info:}} Building {magenta:PEtabModel} for model $(name)\n"
     end
@@ -55,6 +56,24 @@ function _logging(whatlog::Symbol, verbose::Bool; time=nothing, name::String="",
     if whatlog == :Build_callbacks
         str = styled"{blue:{bold:Info:}} Builds {magenta:callback} (events) functions ... "
     end
+
+    # For PEtabODEProblem
+    if whatlog == :Build_PEtabODEProblem
+        str = styled"{blue:{bold:Info:}} Building {magenta:PEtabODEProblem} for model $(name)\n"
+    end
+    if whatlog == :Build_ODEProblem
+        str = styled"{blue:{bold:Info:}} Building {magenta:ODEProblem} from model system ... "
+    end
+    if whatlog == :Build_nllh
+        str = styled"{blue:{bold:Info:}} Building {magenta:nllh} (negative log-likelihood) function ... "
+    end
+    if whatlog == :Build_gradient
+        str = styled"{blue:{bold:Info:}} Building {magenta:gradient} nllh function for method $(method) ... "
+    end
+    if whatlog == :Build_hessian
+        str = styled"{blue:{bold:Info:}} Building {magenta:Hessian} nllh function for method $(method) ... "
+    end
+
     print(str)
     return nothing
 end

@@ -1,21 +1,17 @@
 # Compute gradient via adjoint sensitivity analysis
 function compute_gradient_adjoint!(gradient::Vector{Float64},
                                    θ_est::Vector{Float64},
-                                   ode_solver::ODESolver,
-                                   ss_solver::SteadyStateSolver,
                                    compute_cost_θ_not_ODE::Function,
-                                   sensealg::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
-                                   sensealg_ss::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
-                                   ode_problem::ODEProblem,
-                                   petab_model::PEtab.PEtabModel,
-                                   simulation_info::PEtab.SimulationInfo,
-                                   θ_indices::PEtab.ParameterIndices,
-                                   measurement_info::PEtab.MeasurementsInfo,
-                                   parameter_info::PEtab.ParametersInfo,
-                                   prior_info::PEtab.PriorInfo,
-                                   petab_ODE_cache::PEtab.PEtabODEProblemCache,
-                                   petab_ODESolver_cache::PEtab.PEtabODESolverCache;
+                                   probleminfo::PEtab.PEtabODEProblemInfo,
+                                   model_info::PEtab.ModelInfo;
                                    exp_id_solve::Vector{Symbol} = [:all])::Nothing
+    @unpack petab_ODESolver_cache, petab_ODE_cache, sensealg, sensealg_ss = probleminfo
+    @unpack simulation_info, petab_model, simulation_info, θ_indices = model_info
+    @unpack measurement_info, parameter_info, prior_info = model_info
+    ss_solver = probleminfo.ss_solver_gradient
+    ode_solver = probleminfo.solver_gradient
+    ode_problem = probleminfo.odeproblem_gradient
+
     PEtab.splitθ!(θ_est, θ_indices, petab_ODE_cache)
     θ_dynamic = petab_ODE_cache.θ_dynamic
     θ_observable = petab_ODE_cache.θ_observable
@@ -24,9 +20,8 @@ function compute_gradient_adjoint!(gradient::Vector{Float64},
 
     # Calculate gradient seperately for dynamic and non dynamic parameter.
     compute_gradient_adjoint_θ_dynamic!(petab_ODE_cache.gradient_θ_dyanmic, θ_dynamic, θ_sd,
-                                        θ_observable,
-                                        θ_non_dynamic, ode_problem, ode_solver, ss_solver,
-                                        sensealg,
+                                        θ_observable, θ_non_dynamic, model_info, probleminfo,
+                                        ode_problem, ode_solver, ss_solver, sensealg,
                                         petab_model, simulation_info, θ_indices,
                                         measurement_info, parameter_info,
                                         petab_ODE_cache, petab_ODESolver_cache;
@@ -59,6 +54,8 @@ function compute_gradient_adjoint_θ_dynamic!(gradient::Vector{Float64},
                                              θ_sd::Vector{Float64},
                                              θ_observable::Vector{Float64},
                                              θ_non_dynamic::Vector{Float64},
+                                             model_info::PEtab.ModelInfo,
+                                             probleminfo::PEtab.PEtabODEProblemInfo,
                                              ode_problem::ODEProblem,
                                              ode_solver::ODESolver,
                                              ss_solver::SteadyStateSolver,
@@ -84,10 +81,7 @@ function compute_gradient_adjoint_θ_dynamic!(gradient::Vector{Float64},
                           u0 = convert.(eltype(θ_dynamicT), ode_problem.u0))
     PEtab.change_ode_parameters!(_ode_problem.p, _ode_problem.u0, θ_dynamicT, θ_indices,
                                  petab_model)
-    success = PEtab.solve_ode_all_conditions!(simulation_info.odesols_derivatives,
-                                              _ode_problem, petab_model, θ_dynamicT,
-                                              petab_ODESolver_cache, simulation_info,
-                                              θ_indices, ode_solver, ss_solver,
+    success = PEtab.solve_ode_all_conditions!(model_info, θ_dynamicT, probleminfo;
                                               exp_id_solve = exp_id_solve, dense_sol = true,
                                               save_at_observed_t = false,
                                               track_callback = true)

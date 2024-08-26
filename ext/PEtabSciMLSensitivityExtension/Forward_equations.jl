@@ -2,10 +2,8 @@
     Functions for computing forward-sensitivities with SciMLSensitivity
 =#
 
-function PEtab.get_ODE_forward_equations(ode_problem::ODEProblem,
-                                         sensealg_forward_equations::SciMLSensitivity.AbstractForwardSensitivityAlgorithm)::ODEProblem
-    return ODEForwardSensitivityProblem(ode_problem.f, ode_problem.u0, ode_problem.tspan,
-                                        ode_problem.p,
+function PEtab._get_odeproblem_gradient(ode_problem::ODEProblem, gradient_method::Symbol, sensealg_forward_equations::SciMLSensitivity.AbstractForwardSensitivityAlgorithm)::ODEProblem
+    return ODEForwardSensitivityProblem(ode_problem.f, ode_problem.u0, ode_problem.tspan, ode_problem.p,
                                         sensealg = sensealg_forward_equations)
 end
 
@@ -21,13 +19,7 @@ function PEtab.solve_sensitivites(ode_problem::ODEProblem,
                                   exp_id_solve::Vector{Symbol},
                                   split_over_conditions::Bool,
                                   isremade::Bool = false)::Bool
-    n_model_states = length(states(petab_model.sys_mutated))
-    _ode_problem = remake(ode_problem, p = convert.(eltype(θ_dynamic), ode_problem.p),
-                          u0 = convert.(eltype(θ_dynamic), ode_problem.u0))
-    PEtab.change_ode_parameters!(_ode_problem.p, (@view _ode_problem.u0[1:n_model_states]),
-                                 θ_dynamic, θ_indices, petab_model)
-    success = _solve_ode_all_conditions!(simulation_info.odesols_derivatives, _ode_problem,
-                                         θ_dynamic, exp_id_solve)
+    success = _solve_ode_all_conditions!(θ_dynamic, exp_id_solve)
     return success
 end
 

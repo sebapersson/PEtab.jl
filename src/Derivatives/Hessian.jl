@@ -7,10 +7,8 @@ function compute_hessian!(hessian::Matrix{Float64},
                           θ_est::Vector{Float64},
                           _eval_hessian::Function,
                           cfg::ForwardDiff.HessianConfig,
-                          simulation_info::SimulationInfo,
-                          θ_indices::ParameterIndices,
-                          prior_info::PriorInfo)::Nothing
-
+                          model_info::ModelInfo)::Nothing
+    @unpack prior_info, θ_indices, simulation_info = model_info
     # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough.
     # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final
     # retcode we cannot catch these cases
@@ -215,23 +213,19 @@ end
 
 function compute_GaussNewton_hessian!(out::Matrix{Float64},
                                       θ_est::Vector{Float64},
-                                      ode_problem::ODEProblem,
                                       compute_residuals_not_solve_ode!::Function,
-                                      petab_model::PEtabModel,
-                                      simulation_info::SimulationInfo,
-                                      θ_indices::ParameterIndices,
-                                      measurement_info::MeasurementsInfo,
-                                      parameter_info::ParametersInfo,
                                       _solve_ode_all_conditions!::Function,
-                                      prior_info::PriorInfo,
+                                      probleminfo::PEtabODEProblemInfo,
+                                      model_info::ModelInfo,
                                       cfg::ForwardDiff.JacobianConfig,
-                                      cfg_not_solve_ode::ForwardDiff.JacobianConfig,
-                                      petab_ODE_cache::PEtabODEProblemCache;
-                                      reuse_sensitivities::Bool = false,
-                                      split_over_conditions::Bool = false,
+                                      cfg_not_solve_ode::ForwardDiff.JacobianConfig;
                                       return_jacobian::Bool = false,
                                       exp_id_solve::Vector{Symbol} = [:all],
                                       isremade::Bool = false)::Nothing
+    @unpack sensealg, petab_ODE_cache, split_over_conditions, reuse_sensitivities = probleminfo
+    @unpack simulation_info, petab_model, simulation_info, θ_indices = model_info
+    @unpack parameter_info, prior_info, measurement_info = model_info
+    ode_problem = probleminfo.odeproblem_gradient
 
     # Avoid incorrect non-zero values
     fill!(out, 0.0)
