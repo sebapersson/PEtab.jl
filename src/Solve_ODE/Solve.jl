@@ -67,10 +67,8 @@ function solve_ode_all_conditions!(model_info::ModelInfo,
             # into a domain error or bounds error. This is treated as integration error.
             try
                 _ode_sols = simulation_info.odesols_preeq
-                _ode_sols[pre_equilibration_id[i]] = solve_ode_pre_equlibrium!((@view u_ss[:,
-                                                                                           i]),
-                                                                               (@view u_t0[:,
-                                                                                           i]),
+                _ode_sols[pre_equilibration_id[i]] = solve_ode_pre_equlibrium!((@view u_ss[:, i]),
+                                                                               (@view u_t0[:, i]),
                                                                                _ode_problem,
                                                                                change_simulation_condition!,
                                                                                pre_equilibration_id[i],
@@ -82,8 +80,7 @@ function solve_ode_all_conditions!(model_info::ModelInfo,
                 simulation_info.could_solve[1] = false
                 return false
             end
-            if simulation_info.odesols_preeq[pre_equilibration_id[i]].retcode !=
-               ReturnCode.Terminated
+            if simulation_info.odesols_preeq[pre_equilibration_id[i]].retcode != ReturnCode.Terminated
                 simulation_info.could_solve[1] = false
                 return false
             end

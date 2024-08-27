@@ -46,7 +46,7 @@ function compute_cost_solve_ODE(θ_dynamic::T1, θ_sd::T2, θ_observable::T2, θ
                                         exp_id_solve = exp_id_solve, dense_sol = false,
                                         save_at_observed_t = true, derivative = derivative)
     if success != true
-        if ode_solver.verbose == true
+        if probleminfo.solver.verbose == true
             @warn "Failed to solve ODE model"
         end
         return Inf

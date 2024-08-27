@@ -23,21 +23,15 @@ function _get_steady_state_solver(rootfinding_alg::Union{Nothing,
                              maxiters, nothing, nothing)
 end
 function _get_steady_state_solver(ss_solver::SteadyStateSolver,
-                                  ode_problem::ODEProblem,
-                                  abstol::Float64,
-                                  reltol::Float64,
-                                  maxiters)::SteadyStateSolver
-    _abstol = isnothing(ss_solver.abstol) ? abstol : ss_solver.abstol
-    _reltol = isnothing(ss_solver.reltol) ? reltol : ss_solver.reltol
-    _maxiters = isnothing(ss_solver.reltol) ? maxiters : ss_solver.maxiters
-
+                                  ode_problem::ODEProblem)::SteadyStateSolver
+    @unpack abstol, reltol, maxiters = ss_solver
     if ss_solver.method === :Simulate
         if ss_solver.check_simulation_steady_state === :Newton
             jacobian = zeros(Float64, length(ode_problem.u0), length(ode_problem.u0))
             condition_ss_callback = (u, t, integrator) -> condition_terminate_ss(u, t,
                                                                                  integrator,
-                                                                                 _abstol,
-                                                                                 _reltol,
+                                                                                 abstol,
+                                                                                 reltol,
                                                                                  true,
                                                                                  ode_problem.f.jac,
                                                                                  jacobian)
@@ -45,8 +39,8 @@ function _get_steady_state_solver(ss_solver::SteadyStateSolver,
             jacobian = zeros(Float64, 0, 0)
             condition_ss_callback = (u, t, integrator) -> condition_terminate_ss(u, t,
                                                                                  integrator,
-                                                                                 _abstol,
-                                                                                 _reltol,
+                                                                                 abstol,
+                                                                                 reltol,
                                                                                  false,
                                                                                  ode_problem.f.jac,
                                                                                  jacobian)
@@ -63,9 +57,9 @@ function _get_steady_state_solver(ss_solver::SteadyStateSolver,
     return SteadyStateSolver(ss_solver.method,
                              ss_solver.rootfinding_alg,
                              ss_solver.check_simulation_steady_state,
-                             _abstol,
-                             _reltol,
-                             _maxiters,
+                             abstol,
+                             reltol,
+                             maxiters,
                              callback_ss,
                              NonlinearProblem(ode_problem))
 end

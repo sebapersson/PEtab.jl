@@ -96,12 +96,11 @@ function compute_gradient_autodiff_split!(gradient::Vector{Float64},
                                           θ_est::Vector{Float64},
                                           compute_cost_θ_not_ODE::Function,
                                           _compute_cost_θ_dynamic::Function,
-                                          petab_ODE_cache::PEtabODEProblemCache,
-                                          simulation_info::SimulationInfo,
-                                          θ_indices::ParameterIndices,
-                                          prior_info::PriorInfo,
+                                          probleminfo::PEtabODEProblemInfo,
+                                          model_info::ModelInfo;
                                           exp_id_solve = [:all])::Nothing
-
+    @unpack petab_ODE_cache = probleminfo
+    @unpack simulation_info, θ_indices, prior_info = model_info
     # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough.
     # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final
     # retcode we cannot catch these cases

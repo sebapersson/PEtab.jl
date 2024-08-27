@@ -17,7 +17,7 @@ function _check_method(method::Symbol, whatcheck::Symbol)::Nothing
     end
 end
 
-function _get_model_size(sys::ODESystem, model_info::ModelInfo)::Symbol
+function _get_model_size(sys::Union{ReactionSystem, ODESystem}, model_info::ModelInfo)::Symbol
     nODEs = length(states(sys))
     nps = length(model_info.θ_indices.xids[:dynamic])
     if nODEs ≤ 15 && nps ≤ 20
@@ -82,8 +82,8 @@ end
 
 function _get_ss_solver(ss_solver::Union{SteadyStateSolver, Nothing}, odesolver::ODESolver)::SteadyStateSolver
     !isnothing(ss_solver) && return ss_solver
-    @unpack abstol, reltol = odesolver
-    return SteadyStateSolver(:Simulate, abstol = abstol * 100, reltol = reltol * 100)
+    @unpack abstol, reltol, maxiters = odesolver
+    return SteadyStateSolver(:Simulate, abstol = abstol * 100, reltol = reltol * 100, maxiters = maxiters)
 end
 
 function _get_sparse_jacobian(sparse::Union{Bool, Nothing}, model_size::Symbol)::Bool
@@ -101,6 +101,10 @@ function _get_sensealg(sensealg, ::Val{:ForwardEquations})::Symbol
                               "methods SciMLSensitivity must be loaded."))
     end
     return :ForwardDiff
+end
+
+function _get_sensealg_ss(sensealg_ss, sensealg, ::ModelInfo, gradient_method)::Nothing
+    return nothing
 end
 
 function _get_odeproblem_gradient(odeproblem::ODEProblem, gradient_method::Symbol, sensealg)::ODEProblem

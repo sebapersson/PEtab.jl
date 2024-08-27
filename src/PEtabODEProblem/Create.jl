@@ -329,6 +329,7 @@ function PEtabODEProblemInfo(petab_model::PEtabModel, model_info::ModelInfo, ode
     hessian_method_use = _get_hessian_method(hessian_method, model_size)
     FIM_method_use = _get_hessian_method(FIM_method, model_size)
     sensealg_use = _get_sensealg(sensealg, Val(gradient_method_use))
+    sensealg_ss_use = _get_sensealg_ss(sensealg_ss, sensealg_use, model_info, Val(gradient_method_use))
 
     _check_method(gradient_method_use, :gradient)
     _check_method(hessian_method_use, :Hessian)
@@ -336,8 +337,8 @@ function PEtabODEProblemInfo(petab_model::PEtabModel, model_info::ModelInfo, ode
 
     odesolver_use = _get_odesolver(odesolver, model_size, gradient_method_use)
     odesolver_gradient_use = _get_odesolver(odesolver_gradient, model_size, gradient_method_use; default_solver = odesolver_use)
-    ss_solver_use = _get_ss_solver(ss_solver, odesolver_use)
-    ss_solver_gradient_use = _get_ss_solver(ss_solver_gradient, odesolver_gradient_use)
+    _ss_solver = _get_ss_solver(ss_solver, odesolver_use)
+    _ss_solver_gradient = _get_ss_solver(ss_solver_gradient, odesolver_gradient_use)
     sparse_jacobian_use = _get_sparse_jacobian(sparse_jacobian, model_size)
     chunksize_use = isnothing(chunksize) ? 0 : chunksize
 
@@ -364,5 +365,10 @@ function PEtabODEProblemInfo(petab_model::PEtabModel, model_info::ModelInfo, ode
     end
     _logging(:Build_ODEProblem, verbose; time = btime)
 
-    return PEtabODEProblemInfo(oprob, oprob_gradient, odesolver_use, odesolver_gradient_use, ss_solver_use, ss_solver_gradient_use, gradient_method_use, hessian_method_use, FIM_method_use, reuse_sensitivities, sparse_jacobian_use, sensealg_use, sensealg_ss, petab_ODE_cache, petab_ODESolver_cache, split_over_conditions, chunksize_use)
+    # To build the steady-state solvers the ODEProblem (specifically its Jacobian)
+    # is needed (which is the same for oprob and oprob_gradient)
+    ss_solver_use = _get_steady_state_solver(_ss_solver, oprob)
+    ss_solver_gradient_use = _get_steady_state_solver(_ss_solver_gradient, oprob)
+
+    return PEtabODEProblemInfo(oprob, oprob_gradient, odesolver_use, odesolver_gradient_use, ss_solver_use, ss_solver_gradient_use, gradient_method_use, hessian_method_use, FIM_method_use, reuse_sensitivities, sparse_jacobian_use, sensealg_use, sensealg_ss_use, petab_ODE_cache, petab_ODESolver_cache, split_over_conditions, chunksize_use)
 end
