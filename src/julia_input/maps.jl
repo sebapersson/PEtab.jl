@@ -1,4 +1,5 @@
-function _get_statemap(sys::Union{ODESystem, ReactionSystem}, conditions_df::DataFrame, statemap_input)
+function _get_statemap(sys::Union{ODESystem, ReactionSystem}, conditions_df::DataFrame,
+                       statemap_input)
     specie_ids = _get_state_ids(sys)
     default_values = ModelingToolkit.get_defaults(sys) |> _keys_to_string
     statemap = Vector{Pair}(undef, 0)
@@ -51,7 +52,9 @@ function _get_parametermap(sys::Union{ODESystem, ReactionSystem}, parametermap_i
     return parametermap
 end
 
-function _check_unassigned_variables(variablemap, whichmap::Symbol, parameters_df::DataFrame, conditions_df::DataFrame)::Nothing
+function _check_unassigned_variables(variablemap, whichmap::Symbol,
+                                     parameters_df::DataFrame,
+                                     conditions_df::DataFrame)::Nothing
     for (variableid, value) in variablemap
         value = value |> string
         value != "0.0" && continue
@@ -102,7 +105,7 @@ end
 function _add_parameter!(sys::ODESystem, parameter)
     eval(Meta.parse("@parameters $parameter"))
     push!(ModelingToolkit.get_ps(sys),
-    eval(Meta.parse("ModelingToolkit.value($parameter)")))
+          eval(Meta.parse("ModelingToolkit.value($parameter)")))
 end
 
 function _keys_to_string(d::Dict)::Dict

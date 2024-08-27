@@ -14,26 +14,26 @@
     Note - The produced Julia file will go via the JIT-compiler.
 """
 function create_∂_h_σ_file(model_name::String,
-                                    path_yaml::String,
-                                    dirjulia::String,
-                                    system::ODESystem,
-                                    parametermap,
-                                    statemap,
-                                    model_SBML::SBMLImporter.ModelSBML;
-                                    custom_values::Union{Nothing, Dict} = nothing,
-                                    write_to_file::Bool = true)
+                           path_yaml::String,
+                           dirjulia::String,
+                           system::ODESystem,
+                           parametermap,
+                           statemap,
+                           model_SBML::SBMLImporter.ModelSBML;
+                           custom_values::Union{Nothing, Dict} = nothing,
+                           write_to_file::Bool = true)
     p_ode_problem_names = string.(parameters(system))
     model_state_names = replace.(string.(states(system)), "(t)" => "")
 
     petab_tables = read_tables(path_yaml)
     measurements_data, observables_data, parameters_data, experimental_conditions, = collect(values(petab_tables))
     parameter_info = parse_parameters(parameters_data,
-                                        custom_values = custom_values)
+                                      custom_values = custom_values)
     measurement_info = parse_measurements(measurements_data, observables_data)
 
     # Indices for keeping track of parameters in θ
     θ_indices = parse_conditions(parameter_info, measurement_info, system, parametermap,
-                                  statemap, experimental_conditions)
+                                 statemap, experimental_conditions)
 
     ∂h∂u_str, ∂h∂p_str = create∂h∂_function(model_name, dirjulia, model_state_names,
                                             parameter_info, p_ode_problem_names,
@@ -47,12 +47,12 @@ function create_∂_h_σ_file(model_name::String,
     return ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str
 end
 function create_∂_h_σ_file(model_name::String,
-                                    system,
-                                    experimental_conditions::DataFrame,
-                                    measurements_data::DataFrame,
-                                    parameters_data::DataFrame,
-                                    observables_data::DataFrame,
-                                    statemap)
+                           system,
+                           experimental_conditions::DataFrame,
+                           measurements_data::DataFrame,
+                           parameters_data::DataFrame,
+                           observables_data::DataFrame,
+                           statemap)
     p_ode_problem_names = string.(parameters(system))
     model_state_names = replace.(string.(states(system)), "(t)" => "")
     parametermap = [p => 0.0 for p in parameters(system)]
@@ -62,7 +62,7 @@ function create_∂_h_σ_file(model_name::String,
 
     # Indices for keeping track of parameters in θ
     θ_indices = PEtab.parse_conditions(parameter_info, measurement_info, system,
-                                        parametermap, statemap, experimental_conditions)
+                                       parametermap, statemap, experimental_conditions)
 
     # Dummary variables to keep PEtab importer happy even as we are not providing any PEtab files
     model_SBML = SBMLImporter.ModelSBML("")
@@ -120,7 +120,8 @@ function create∂h∂_function(model_name::String,
         p_observeble_str *= "\tif observableId == " * ":" * observable_ids[i] * "" * " \n"
         u_observeble_str *= "\tif observableId == " * ":" * observable_ids[i] * "" * " \n"
 
-        _formula = filter(x -> !isspace(x), string(observables_data[!, :observableFormula][i]))
+        _formula = filter(x -> !isspace(x),
+                          string(observables_data[!, :observableFormula][i]))
         formula = replace_explicit_variable_rule(_formula, model_SBML)
         julia_formula = petab_formula_to_Julia(formula, model_state_names, parameter_info,
                                                p_ode_problem_names, θ_non_dynamic_names)
@@ -262,7 +263,8 @@ function create_top_∂h∂_function(model_state_names::Vector{String},
     for i in eachindex(observable_ids)
 
         # Extract observable parameters
-        _formula = filter(x -> !isspace(x), string(observables_data[!, :observableFormula][i]))
+        _formula = filter(x -> !isspace(x),
+                          string(observables_data[!, :observableFormula][i]))
         observable_parameters = get_observable_parameters(_formula)
         if !isempty(observable_parameters)
             variables_str *= observable_parameters * ", "

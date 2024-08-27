@@ -3,9 +3,11 @@
 
     Process the PEtab measurements table into a type-stable Julia struct.
 """
-function parse_measurements(measurements_df::DataFrame, observables_df::DataFrame)::MeasurementsInfo
+function parse_measurements(measurements_df::DataFrame,
+                            observables_df::DataFrame)::MeasurementsInfo
     if :observableTransformation in propertynames(observables_df)
-        _check_values_column(observables_df, VALID_SCALES, :observableTransformation, "observables")
+        _check_values_column(observables_df, VALID_SCALES, :observableTransformation,
+                             "observables")
     end
 
     nmeasurements = nrow(measurements_df)
@@ -55,5 +57,8 @@ function parse_measurements(measurements_df::DataFrame, observables_df::DataFram
     simulated_values = zeros(Float64, nmeasurements)
     residuals = zeros(Float64, nmeasurements)
 
-    return MeasurementsInfo(measurements, measurements_t, simulated_values, chi2_values, residuals, transformations, time, observable_ids, pre_equilibration_ids, condition_ids, noise_parameters, observable_parameters)
+    return MeasurementsInfo(measurements, measurements_t, simulated_values, chi2_values,
+                            residuals, transformations, time, observable_ids,
+                            pre_equilibration_ids, condition_ids, noise_parameters,
+                            observable_parameters)
 end

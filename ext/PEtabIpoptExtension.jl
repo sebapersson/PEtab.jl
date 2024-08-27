@@ -71,7 +71,7 @@ function PEtab.calibrate_model(petab_problem::PEtabODEProblem,
                                    fmin,
                                    _p0,
                                    xmin,
-                                   petab_problem.θ_names,
+                                   petab_problem.xnames,
                                    converged,
                                    runtime)
 end
@@ -93,11 +93,11 @@ function create_ipopt_problem(petab_problem::PEtabODEProblem,
                                                                                   lambda,
                                                                                   values,
                                                                                   n_parameters,
-                                                                                  petab_problem.compute_hessian!)
+                                                                                  petab_problem.hess!)
     end
 
     n_parameters = length(lower_bounds)
-    eval_gradient! = (xArg, grad) -> petab_problem.compute_gradient!(grad, xArg)
+    eval_gradient! = (xArg, grad) -> petab_problem.grad!(grad, xArg)
 
     m = 0
     n_parameters_hessian = Int(n_parameters * (n_parameters + 1) / 2)
@@ -112,7 +112,7 @@ function create_ipopt_problem(petab_problem::PEtabODEProblem,
                                     g_U, # No constraints
                                     0, # No constraints
                                     n_parameters_hessian,
-                                    petab_problem.compute_cost,
+                                    petab_problem.cost,
                                     eval_g, # No constraints
                                     eval_gradient!,
                                     eval_jac_g,

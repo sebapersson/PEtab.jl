@@ -8,7 +8,8 @@ function _parse_table_column!(out::AbstractVector, dfcol, type)::Nothing
     return nothing
 end
 
-function _check_values_column(df::DataFrame, valid_values, colname::Symbol, table::String)::Nothing
+function _check_values_column(df::DataFrame, valid_values, colname::Symbol,
+                              table::String)::Nothing
     for val in df[!, colname]
         val in valid_values && continue
         throw(PEtabFileError("Invalid value $val in $colname column in the $table table. " *
@@ -23,7 +24,8 @@ function _estimate_parameter(id::Symbol, parameter_info::ParametersInfo)::Bool
     return isnothing(ip) ? false : estimate[ip]
 end
 
-function _get_functions_as_str(path::String, nfunctions::Int64; asstr::Bool = false)::Vector{String}
+function _get_functions_as_str(path::String, nfunctions::Int64;
+                               asstr::Bool = false)::Vector{String}
     functions = fill("", nfunctions)
     if asstr == false
         bodyfile = open(path, "r") do f

@@ -15,14 +15,14 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem,
     # Only keep which parameters should be fixed
     for key in keys(parameters_change)
         if parameters_change[key] == "estimate"
-            key ∉ petab_problem.θ_names &&
+            key ∉ petab_problem.xnames &&
                 @error "When remaking an PEtab problem we cannot set new parameters in addition to those in the PEtab-file to be estimated"
             delete!(parameters_change, key)
         end
     end
 
     parameters_fixate = collect(keys(parameters_change))
-    i_parameters_fixate = [findfirst(x -> x == parameter_fixate, petab_problem.θ_names)
+    i_parameters_fixate = [findfirst(x -> x == parameter_fixate, petab_problem.xnames)
                            for parameter_fixate in parameters_fixate]
     parameters_fixated_values = Vector{Float64}(undef, length(parameters_fixate))
     # Ensure we fixate parameter values on the correct scale
@@ -40,12 +40,12 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem,
     end
 
     # Setup parameters for new problem of lower dimension
-    i_use = findall(x -> x ∉ parameters_fixate, petab_problem.θ_names)
+    i_use = findall(x -> x ∉ parameters_fixate, petab_problem.xnames)
     lower_bounds = petab_problem.lower_bounds[i_use]
     upper_bounds = petab_problem.upper_bounds[i_use]
-    θ_names = petab_problem.θ_names[i_use]
-    θ_nominal = petab_problem.θ_nominal[i_use]
-    θ_nominalT = petab_problem.θ_nominalT[i_use]
+    θ_names = petab_problem.xnames[i_use]
+    θ_nominal = petab_problem.xnominal[i_use]
+    θ_nominalT = petab_problem.xnominal_transformed[i_use]
 
     # Gradient place-holders for the underlaying functions
     _θ_est::Vector{Float64} = similar(petab_problem.lower_bounds)
@@ -105,14 +105,14 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem,
     end
 
     # Setup mapping from θ_est to _θ_est
-    i_map = [findfirst(x -> x == θ_names[i], petab_problem.θ_names)
+    i_map = [findfirst(x -> x == θ_names[i], petab_problem.xnames)
              for i in eachindex(θ_names)]
 
     _compute_cost = (θ_est) -> begin
         __θ_est = convert.(eltype(θ_est), _θ_est)
         __θ_est[i_parameters_fixate] .= parameters_fixated_values
         __θ_est[i_map] .= θ_est
-        return petab_problem.compute_cost(__θ_est)
+        return petab_problem.cost(__θ_est)
     end
     _compute_nllh = (θ_est) -> begin
         __θ_est = convert.(eltype(θ_est), _θ_est)
@@ -146,9 +146,9 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem,
         if (petab_problem.gradient_method === :ForwardDiff ||
             petab_problem.gradient_method === :ForwardEquations) &&
            petab_problem.split_over_conditions == false
-            petab_problem.compute_gradient!(_gradient, __θ_est; isremade = true)
+            petab_problem.grad!(_gradient, __θ_est; isremade = true)
         else
-            petab_problem.compute_gradient!(_gradient, __θ_est)
+            petab_problem.grad!(_gradient, __θ_est)
         end
         gradient .= _gradient[i_map]
     end
@@ -165,9 +165,9 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem,
         if (petab_problem.gradient_method === :ForwardDiff ||
             petab_problem.gradient_method === :ForwardEquations) &&
            petab_problem.split_over_conditions == false
-            petab_problem.compute_gradient_nllh!(_gradient, __θ_est; isremade = true)
+            petab_problem.grad_nllh!(_gradient, __θ_est; isremade = true)
         else
-            petab_problem.compute_gradient_nllh!(_gradient, __θ_est)
+            petab_problem.grad_nllh!(_gradient, __θ_est)
         end
         gradient .= _gradient[i_map]
     end
@@ -183,9 +183,9 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem,
         __θ_est[i_map] .= θ_est
         if (petab_problem.gradient_method === :GaussNewton) &&
            petab_problem.split_over_conditions == false
-            petab_problem.compute_hessian!(_hessian, __θ_est; isremade = true)
+            petab_problem.hess!(_hessian, __θ_est; isremade = true)
         else
-            petab_problem.compute_hessian!(_hessian, __θ_est)
+            petab_problem.hess!(_hessian, __θ_est)
         end
         # Can use double index with first and second
         @inbounds for (i1, i2) in pairs(i_map)

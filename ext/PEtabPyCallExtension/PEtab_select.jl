@@ -107,7 +107,7 @@ function PEtab.run_PEtab_select(path_yaml::String,
         fArg = _res.xmin
 
         # Setup dictionary to conveniently storing model parameters
-        estimatedParameters = Dict(string(petab_problem.θ_names[i]) => fArg[i]
+        estimatedParameters = Dict(string(petab_problem.xnames[i]) => fArg[i]
                                    for i in eachindex(fArg))
         nDataPoints = length(_petab_problem.petab_model.petab_tables[:measurements])
         py"update_model"(select_problem, model, f, estimatedParameters, nDataPoints)
@@ -128,7 +128,7 @@ function PEtab.run_PEtab_select(path_yaml::String,
     dirmodel = splitdir(path_yaml)[1]
     file_yaml = YAML.load_file(path_yaml)
     modelSpaceFile = DataFrame(joinpath(dirmodel, file_yaml["model_space_files"][1]),
-                              stringtype = String)
+                               stringtype = String)
     parametersToChange = Symbol.(propertynames(modelSpaceFile)[3:end])
     _custom_values = Dict()
     [_custom_values[parametersToChange[i]] = "estimate"

@@ -72,7 +72,7 @@ include(joinpath("Process_input", "Observables", "h_sigma_derivatives.jl"))
 include(joinpath("Process_input", "Observables", "u0_h_sigma.jl"))
 
 # For creating a PEtabODEProblem
-include(joinpath("PEtabODEProblem", "Defaults.jl"))
+include(joinpath("PEtabODEProblem", "defaults.jl"))
 include(joinpath("PEtabODEProblem", "Remake.jl"))
 include(joinpath("PEtabODEProblem", "Cache.jl"))
 include(joinpath("PEtabODEProblem", "Create.jl"))
@@ -92,7 +92,7 @@ include(joinpath("Show.jl"))
         petab_model = PEtabModel(path_yaml, verbose = false, build_julia_files = true,
                                  write_to_file = false)
         petab_problem = PEtabODEProblem(petab_model, verbose = false)
-        petab_problem.compute_cost(petab_problem.θ_nominalT)
+        petab_problem.cost(petab_problem.xnominal_transformed)
     end
 end
 =#

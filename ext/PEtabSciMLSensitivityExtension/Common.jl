@@ -1,11 +1,14 @@
-function PEtab.get_grad_f(method::Val{:Adjoint}, probleminfo::PEtab.PEtabODEProblemInfo, model_info::PEtab.ModelInfo)::Tuple{Function, Function}
+function PEtab._get_grad_f(method::Val{:Adjoint}, probleminfo::PEtab.PEtabODEProblemInfo,
+                           model_info::PEtab.ModelInfo)::Tuple{Function, Function}
     @unpack gradient_method, sensealg, sensealg_ss, petab_ODE_cache = probleminfo
     @unpack simulation_info = model_info
     @unpack θ_dynamic = petab_ODE_cache
 
-    _nllh_not_solve = PEtab._get_nllh_not_solve(probleminfo, model_info; compute_gradient_not_solve_adjoint = true)
-    _compute_gradient! = let pinfo = probleminfo, minfo = model_info, _nllh_not_solve = _nllh_not_solve
-        (g, x) -> compute_gradient_adjoint!(g, x, _nllh_not_solve, pinfo, minfo; exp_id_solve = [:all])
+    _nllh_not_solve = PEtab._get_nllh_not_solveode(probleminfo, model_info; compute_gradient_not_solve_adjoint = true)
+    _compute_gradient! = let pinfo = probleminfo, minfo = model_info,
+        _nllh_not_solve = _nllh_not_solve
+        (g, x) -> compute_gradient_adjoint!(g, x, _nllh_not_solve, pinfo, minfo;
+                                            exp_id_solve = [:all])
     end
 
     _compute_gradient = let _compute_gradient! = _compute_gradient!
@@ -26,11 +29,13 @@ function PEtab._get_sensealg(sensealg, ::Val{:Adjoint})
     end
     return InterpolatingAdjoint(autojacvec = ReverseDiffVJP())
 end
-function PEtab._get_sensealg(sensealg::Union{ForwardSensitivity, ForwardDiffSensitivity}, ::Val{:ForwardEquations})
+function PEtab._get_sensealg(sensealg::Union{ForwardSensitivity, ForwardDiffSensitivity},
+                             ::Val{:ForwardEquations})
     return sensealg
 end
 
-function PEtab._get_sensealg_ss(sensealg_ss, sensealg, model_info::PEtab.ModelInfo, ::Val{:Adjoint})
+function PEtab._get_sensealg_ss(sensealg_ss, sensealg, model_info::PEtab.ModelInfo,
+                                ::Val{:Adjoint})
     model_info.simulation_info.has_pre_equilibration == false && return nothing
     # Fast but numerically unstable method
     if sensealg_ss isa SteadyStateAdjoint
@@ -48,7 +53,6 @@ function PEtab._get_sensealg_ss(sensealg_ss, sensealg, model_info::PEtab.ModelIn
     end
     return sensealg_ss_use
 end
-
 
 function PEtab.get_callbackset(ode_problem::ODEProblem,
                                simulation_info::PEtab.SimulationInfo,

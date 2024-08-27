@@ -5,8 +5,10 @@ function get_index_parameters_not_ODE(θ_indices::ParameterIndices)::Tuple{Vecto
     @unpack xids, xindices = θ_indices
     xids_not_system = xids[:not_system]
     iθ_sd = Int64[findfirst(x -> x == id, xids_not_system) for id in xids[:noise]]
-    iθ_observable = Int64[findfirst(x -> x == id, xids_not_system) for id in xids[:observable]]
-    iθ_non_dynamic = Int64[findfirst(x -> x == id, xids_not_system) for id in xids[:nondynamic]]
+    iθ_observable = Int64[findfirst(x -> x == id, xids_not_system)
+                          for id in xids[:observable]]
+    iθ_non_dynamic = Int64[findfirst(x -> x == id, xids_not_system)
+                           for id in xids[:nondynamic]]
     iθ_not_ode::Vector{Int64} = xindices[:not_system]
     return iθ_sd, iθ_observable, iθ_non_dynamic, iθ_not_ode
 end

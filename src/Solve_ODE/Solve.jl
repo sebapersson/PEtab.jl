@@ -28,7 +28,7 @@ function solve_ode_all_conditions!(model_info::ModelInfo,
     end
 
     ode_problem = remake(oprob, p = convert.(eltype(θ_dynamic), oprob.p),
-    u0 = convert.(eltype(θ_dynamic), oprob.u0))
+                         u0 = convert.(eltype(θ_dynamic), oprob.u0))
     change_ode_parameters!(ode_problem.p, ode_problem.u0, θ_dynamic, θ_indices, petab_model)
 
     change_simulation_condition! = (p_ode_problem, u0, conditionId) -> _change_simulation_condition!(p_ode_problem,
@@ -67,8 +67,10 @@ function solve_ode_all_conditions!(model_info::ModelInfo,
             # into a domain error or bounds error. This is treated as integration error.
             try
                 _ode_sols = simulation_info.odesols_preeq
-                _ode_sols[pre_equilibration_id[i]] = solve_ode_pre_equlibrium!((@view u_ss[:, i]),
-                                                                               (@view u_t0[:, i]),
+                _ode_sols[pre_equilibration_id[i]] = solve_ode_pre_equlibrium!((@view u_ss[:,
+                                                                                           i]),
+                                                                               (@view u_t0[:,
+                                                                                           i]),
                                                                                _ode_problem,
                                                                                change_simulation_condition!,
                                                                                pre_equilibration_id[i],
@@ -80,7 +82,8 @@ function solve_ode_all_conditions!(model_info::ModelInfo,
                 simulation_info.could_solve[1] = false
                 return false
             end
-            if simulation_info.odesols_preeq[pre_equilibration_id[i]].retcode != ReturnCode.Terminated
+            if simulation_info.odesols_preeq[pre_equilibration_id[i]].retcode !=
+               ReturnCode.Terminated
                 simulation_info.could_solve[1] = false
                 return false
             end
@@ -231,7 +234,9 @@ function solve_ODE_all_conditions(ode_problem::ODEProblem,
                                   save_at_observed_t::Bool = false,
                                   dense_sol::Bool = true,
                                   track_callback::Bool = false,
-                                  compute_forward_sensitivites::Bool = false)::Tuple{Dict{Symbol, ODESolution}, Bool}
+                                  compute_forward_sensitivites::Bool = false)::Tuple{Dict{Symbol,
+                                                                                          ODESolution},
+                                                                                     Bool}
     ode_sols = deepcopy(simulation_info.odesols)
     success = solve_ode_all_conditions!(ode_sols,
                                         ode_problem,

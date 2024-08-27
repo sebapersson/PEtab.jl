@@ -28,7 +28,8 @@ function compute_gradient_autodiff!(gradient::Vector{Float64},
     simulation_info.could_solve[1] = true
 
     # Case where based on the original PEtab file read into Julia we do not have any parameter vectors fixated.
-    if isremade == false || length(petab_ODE_cache.gradient_θ_dyanmic) == petab_ODE_cache.nθ_dynamic[1]
+    if isremade == false ||
+       length(petab_ODE_cache.gradient_θ_dyanmic) == petab_ODE_cache.nθ_dynamic[1]
         tmp = petab_ODE_cache.nθ_dynamic[1]
         petab_ODE_cache.nθ_dynamic[1] = length(petab_ODE_cache.θ_dynamic)
         try
@@ -159,7 +160,8 @@ function compute_gradient_forward_equations!(gradient::Vector{Float64},
                                              _solve_ode_all_conditions!::Function,
                                              probleminfo::PEtabODEProblemInfo,
                                              model_info::ModelInfo,
-                                             cfg::Union{ForwardDiff.JacobianConfig, Nothing};
+                                             cfg::Union{ForwardDiff.JacobianConfig,
+                                                        Nothing};
                                              exp_id_solve::Vector{Symbol} = [:all],
                                              isremade::Bool = false)::Nothing
     @unpack sensealg, petab_ODE_cache, split_over_conditions = probleminfo

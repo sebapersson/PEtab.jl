@@ -14,8 +14,8 @@ function compute_cost_zygote(θ_est,
                                 parameter_info, solve_ode_condition)
 
     if prior_info.has_priors == true
-        θ_estT = transformθ_zygote(θ_est, θ_indices.θ_names, parameter_info)
-        cost -= compute_priors(θ_est, θ_estT, θ_indices.θ_names, prior_info)
+        θ_estT = transformθ_zygote(θ_est, θ_indices.xnames, parameter_info)
+        cost -= compute_priors(θ_est, θ_estT, θ_indices.xnames, prior_info)
     end
 
     return cost
@@ -54,7 +54,7 @@ function _compute_cost_zygote(θ_dynamic,
             return Inf
         end
 
-        cost += PEtab.compute_cost_condition(ode_sol, _p, θ_sdT, θ_observableT,
+        cost += PEtab.cost_condition(ode_sol, _p, θ_sdT, θ_observableT,
                                              θ_non_dynamicT, petab_model,
                                              experimental_condition_id, θ_indices,
                                              measurement_info, parameter_info,

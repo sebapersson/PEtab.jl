@@ -58,7 +58,7 @@ function PEtab.calibrate_model(petab_problem::PEtabODEProblem,
                                    fmin,
                                    _p0,
                                    xmin,
-                                   petab_problem.θ_names,
+                                   petab_problem.xnames,
                                    converged,
                                    runtime)
 end
@@ -75,20 +75,20 @@ function create_fides_problem(petab_problem::PEtabODEProblem,
         # Put hessian function into acceptable Fides format
         approximate_hessian = false
         hessian = zeros(Float64, (n_parameters, n_parameters))
-        compute_hessian! = (p) -> eval_ad_hessian(p, petab_problem.compute_hessian!,
+        compute_hessian! = (p) -> eval_ad_hessian(p, petab_problem.hess!,
                                                   hessian)
     end
 
     gradient = zeros(Float64, n_parameters)
-    compute_gradient! = (p) -> eval_ad_gradient(p, petab_problem.compute_gradient!,
+    compute_gradient! = (p) -> eval_ad_gradient(p, petab_problem.grad!,
                                                 gradient)
 
     # Fides objective funciton
     if approximate_hessian == false
-        fidesFunc = (p) -> fides_obj_hessian(p, petab_problem.compute_cost,
+        fidesFunc = (p) -> fides_obj_hessian(p, petab_problem.cost,
                                              compute_gradient!, compute_hessian!)
     else
-        fidesFunc = (p) -> fides_obj_hessian_approximation(p, petab_problem.compute_cost,
+        fidesFunc = (p) -> fides_obj_hessian_approximation(p, petab_problem.cost,
                                                            compute_gradient!)
     end
 

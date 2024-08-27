@@ -25,12 +25,12 @@ function compute_gradient_zygote!(gradient::Vector{Float64},
                                                                      parameter_info,
                                                                      solve_ode_condition)
     gradient[θ_indices.xindices[:dynamic]] .= Zygote.gradient(compute_gradient_zygote_θ_dynamic!,
-                                                      θ_dynamic)[1]
+                                                              θ_dynamic)[1]
 
     # Compute gradient for parameters which are not in ODE-system. Important to keep in mind that Sd- and observable
     # parameters can overlap in θ_est.
     iθ_sd, iθ_observable, iθ_non_dynamic, iθ_not_ode = PEtab.get_index_parameters_not_ODE(θ_indices)
-    compute_cost_θ_not_ODE = (x) -> PEtab.compute_cost_not_solve_ODE(x[iθ_sd],
+    compute_cost_θ_not_ODE = (x) -> PEtab.cost_not_solve_ODE(x[iθ_sd],
                                                                      x[iθ_observable],
                                                                      x[iθ_non_dynamic],
                                                                      petab_model,

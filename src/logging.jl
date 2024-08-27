@@ -1,4 +1,6 @@
-function _logging(whatlog::Symbol, verbose::Bool; time=nothing, name::String="", buildfiles::Bool=false, exist::Bool=false, method::Union{Symbol, String}="")::Nothing
+function _logging(whatlog::Symbol, verbose::Bool; time = nothing, name::String = "",
+                  buildfiles::Bool = false, exist::Bool = false,
+                  method::Union{Symbol, String} = "")::Nothing
     verbose == false && return nothing
 
     if !isnothing(time)

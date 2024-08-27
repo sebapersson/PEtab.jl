@@ -1,4 +1,5 @@
-function parse_parameters(parameters_df::DataFrame; custom_values::Union{Nothing, Dict} = nothing)::ParametersInfo
+function parse_parameters(parameters_df::DataFrame;
+                          custom_values::Union{Nothing, Dict} = nothing)::ParametersInfo
     _check_values_column(parameters_df, VALID_SCALES, :parameterScale, "parameters")
     _check_values_column(parameters_df, [0, 1], :estimate, "parameters")
 
@@ -36,5 +37,6 @@ function parse_parameters(parameters_df::DataFrame; custom_values::Union{Nothing
         end
     end
 
-    return ParametersInfo(nominal_values, lower_bounds, upper_bounds, parameter_ids, paramter_scales, estimate, nparameters_esimtate)
+    return ParametersInfo(nominal_values, lower_bounds, upper_bounds, parameter_ids,
+                          paramter_scales, estimate, nparameters_esimtate)
 end

@@ -150,7 +150,8 @@ function PEtabODEProblemCache(gradient_method::Symbol,
     return petab_ODE_cache
 end
 
-function PEtabODESolverCache(gradient_method::Symbol, hessian_method::Symbol, model_info::ModelInfo)::PEtabODESolverCache
+function PEtabODESolverCache(gradient_method::Symbol, hessian_method::Symbol,
+                             model_info::ModelInfo)::PEtabODESolverCache
     @unpack θ_indices, petab_model, simulation_info = model_info
     n_model_states = length(states(petab_model.sys_mutated))
     n_model_parameters = length(parameters(petab_model.sys_mutated))

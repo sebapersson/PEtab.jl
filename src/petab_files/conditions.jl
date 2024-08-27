@@ -14,11 +14,16 @@ This function extracts which parameter is what type, and builds maps for correct
 the parameter during likelihood computations. It further accounts for parameters potentially
 only appearing in a certain simulation condition.
 """
-function parse_conditions(parameter_info::ParametersInfo, measurements_info::MeasurementsInfo, petab_model::PEtabModel)::ParameterIndices
+function parse_conditions(parameter_info::ParametersInfo,
+                          measurements_info::MeasurementsInfo,
+                          petab_model::PEtabModel)::ParameterIndices
     @unpack statemap, parametermap, sys_mutated, petab_tables = petab_model
-    return parse_conditions(parameter_info, measurements_info, sys_mutated, parametermap, statemap, petab_tables[:conditions])
+    return parse_conditions(parameter_info, measurements_info, sys_mutated, parametermap,
+                            statemap, petab_tables[:conditions])
 end
-function parse_conditions(parameter_info::ParametersInfo, measurements_info::MeasurementsInfo, sys, parametermap, statemap, conditions_df::DataFrame)::ParameterIndices
+function parse_conditions(parameter_info::ParametersInfo,
+                          measurements_info::MeasurementsInfo, sys, parametermap, statemap,
+                          conditions_df::DataFrame)::ParameterIndices
     _check_conditionids(conditions_df, measurements_info)
     xids = _get_xids(parameter_info, measurements_info, sys, conditions_df)
 
@@ -26,19 +31,24 @@ function parse_conditions(parameter_info::ParametersInfo, measurements_info::Mea
     # TODO: SII is going to make this much easier (but the reverse will be harder)
     xindices = _get_xindices(xids)
     odeproblem_map = _get_odeproblem_map(xids)
-    condition_maps = _get_condition_maps(sys, parametermap, statemap, parameter_info, conditions_df, xids)
+    condition_maps = _get_condition_maps(sys, parametermap, statemap, parameter_info,
+                                         conditions_df, xids)
     # For each time-point we must build a map that stores if i) noise/obserable parameters
     # are constants, ii) should be estimated, iii) and corresponding index in parameter
     # vector if they should be estimated
-    xobservable_maps = _get_map_observable_noise(xids[:observable], measurements_info, parameter_info; observable = true)
-    xnoise_maps = _get_map_observable_noise(xids[:noise], measurements_info, parameter_info; observable = false)
+    xobservable_maps = _get_map_observable_noise(xids[:observable], measurements_info,
+                                                 parameter_info; observable = true)
+    xnoise_maps = _get_map_observable_noise(xids[:noise], measurements_info, parameter_info;
+                                            observable = false)
 
     # TODO: Uncertain this should live here
     θ_scale = _get_xscales(xids, parameter_info)
-    return ParameterIndices(xindices, xids, θ_scale, xobservable_maps, xnoise_maps, odeproblem_map, condition_maps)
+    return ParameterIndices(xindices, xids, θ_scale, xobservable_maps, xnoise_maps,
+                            odeproblem_map, condition_maps)
 end
 
-function _get_xids(parameter_info::ParametersInfo, measurements_info::MeasurementsInfo, sys, conditions_df::DataFrame)::Dict{Symbol, Vector{Symbol}}
+function _get_xids(parameter_info::ParametersInfo, measurements_info::MeasurementsInfo, sys,
+                   conditions_df::DataFrame)::Dict{Symbol, Vector{Symbol}}
     @unpack observable_parameters, noise_parameters = measurements_info
 
     # Non-dynamic parameters are those that only appear in the observable and noise
@@ -46,13 +56,18 @@ function _get_xids(parameter_info::ParametersInfo, measurements_info::Measuremen
     # Need to be tracked separately for efficient gradient computations
     xids_observable = _get_xids_observable_noise(observable_parameters, parameter_info)
     xids_noise = _get_xids_observable_noise(noise_parameters, parameter_info)
-    xids_nondynamic = _get_xids_nondynamic(xids_observable, xids_noise, sys, parameter_info, conditions_df)
-    xids_dynamic = _get_xids_dynamic(xids_observable, xids_noise, xids_nondynamic, parameter_info)
+    xids_nondynamic = _get_xids_nondynamic(xids_observable, xids_noise, sys, parameter_info,
+                                           conditions_df)
+    xids_dynamic = _get_xids_dynamic(xids_observable, xids_noise, xids_nondynamic,
+                                     parameter_info)
     xids_sys = parameters(sys) .|> Symbol
     xids_not_system = unique(vcat(xids_observable, xids_noise, xids_nondynamic))
     xids_estimate = vcat(xids_dynamic, xids_not_system)
 
-    return Dict(:dynamic => xids_dynamic, :noise => xids_noise, :observable => xids_observable, :nondynamic => xids_nondynamic, :not_system => xids_not_system, :sys => xids_sys, :estimate => xids_estimate)
+    return Dict(:dynamic => xids_dynamic, :noise => xids_noise,
+                :observable => xids_observable, :nondynamic => xids_nondynamic,
+                :not_system => xids_not_system, :sys => xids_sys,
+                :estimate => xids_estimate)
 end
 
 function _get_xindices(xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, Vector{Int32}}
@@ -62,16 +77,19 @@ function _get_xindices(xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, Vector{
     xi_observable = Int32[findfirst(x -> x == id, xids_est) for id in xids[:observable]]
     xi_nondynamic = Int32[findfirst(x -> x == id, xids_est) for id in xids[:nondynamic]]
     xi_not_system = Int32[findfirst(x -> x == id, xids_est) for id in xids[:not_system]]
-    return Dict(:dynamic => xi_dynamic, :noise => xi_noise, :observable => xi_observable, :nondynamic => xi_nondynamic, :not_system => xi_not_system)
+    return Dict(:dynamic => xi_dynamic, :noise => xi_noise, :observable => xi_observable,
+                :nondynamic => xi_nondynamic, :not_system => xi_not_system)
 end
 
-function _get_xscales(xids::Dict{T, Vector{T}}, parameter_info::ParametersInfo)::Dict{T, T} where T<:Symbol
+function _get_xscales(xids::Dict{T, Vector{T}},
+                      parameter_info::ParametersInfo)::Dict{T, T} where {T <: Symbol}
     @unpack parameter_scale, parameter_id = parameter_info
     s = [parameter_scale[findfirst(x -> x == id, parameter_id)] for id in xids[:estimate]]
     return Dict(xids[:estimate] .=> s)
 end
 
-function _get_xids_dynamic(observable_ids::T, noise_ids::T, xids_nondynamic::T, parameter_info::ParametersInfo)::T where T<:Vector{Symbol}
+function _get_xids_dynamic(observable_ids::T, noise_ids::T, xids_nondynamic::T,
+                           parameter_info::ParametersInfo)::T where {T <: Vector{Symbol}}
     dynamics_xids = Symbol[]
     for id in parameter_info.parameter_id
         if _estimate_parameter(id, parameter_info) == false
@@ -107,7 +125,9 @@ function _get_xids_observable_noise(values, parameter_info::ParametersInfo)::Vec
     return ids
 end
 
-function _get_xids_nondynamic(xids_observable::T, xids_noise::T, sys, parameter_info::ParametersInfo, conditions_df::DataFrame)::T where T<:Vector{Symbol}
+function _get_xids_nondynamic(xids_observable::T, xids_noise::T, sys,
+                              parameter_info::ParametersInfo,
+                              conditions_df::DataFrame)::T where {T <: Vector{Symbol}}
     xids_condition = _get_xids_condition(sys, parameter_info, conditions_df)
     xids_sys = parameters(sys) .|> Symbol
     xids_nondynamic = Symbol[]
@@ -123,7 +143,8 @@ function _get_xids_nondynamic(xids_observable::T, xids_noise::T, sys, parameter_
     return xids_nondynamic
 end
 
-function _get_xids_condition(sys, parameter_info::ParametersInfo, conditions_df::DataFrame)::Vector{Symbol}
+function _get_xids_condition(sys, parameter_info::ParametersInfo,
+                             conditions_df::DataFrame)::Vector{Symbol}
     xids_sys = parameters(sys) .|> string
     species_sys = _get_state_ids(sys)
     xids_condition = Symbol[]
@@ -146,7 +167,10 @@ function _get_xids_condition(sys, parameter_info::ParametersInfo, conditions_df:
     return xids_condition
 end
 
-function _get_map_observable_noise(xids::Vector{Symbol}, measurements_info::MeasurementsInfo, parameter_info::ParametersInfo; observable::Bool)::Vector{ObservableNoiseMap}
+function _get_map_observable_noise(xids::Vector{Symbol},
+                                   measurements_info::MeasurementsInfo,
+                                   parameter_info::ParametersInfo;
+                                   observable::Bool)::Vector{ObservableNoiseMap}
     if observable == true
         parameter_rows = measurements_info.observable_parameters
     else
@@ -189,7 +213,8 @@ function _get_map_observable_noise(xids::Vector{Symbol}, measurements_info::Meas
                                  "table"))
         end
         single_constant = nvalues_row == 1 && estimate[1] == false
-        maps[i] = ObservableNoiseMap(estimate, xindices, constant_values, nvalues_row, single_constant)
+        maps[i] = ObservableNoiseMap(estimate, xindices, constant_values, nvalues_row,
+                                     single_constant)
     end
     return maps
 end
@@ -201,7 +226,9 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}})::MapODEProblem
     return MapODEProblem(sys_to_dynamic, dynamic_to_sys)
 end
 
-function _get_condition_maps(sys, parametermap, statemap, parameter_info::ParametersInfo, conditions_df::DataFrame, xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, ConditionMap}
+function _get_condition_maps(sys, parametermap, statemap, parameter_info::ParametersInfo,
+                             conditions_df::DataFrame,
+                             xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, ConditionMap}
     species_sys = _get_state_ids(sys)
     xids_sys, xids_dynamic = xids[:sys] .|> string, xids[:dynamic] .|> string
     xids_model = Iterators.flatten((xids_sys, species_sys))
@@ -267,12 +294,14 @@ function _get_condition_maps(sys, parametermap, statemap, parameter_info::Parame
                                  "species, or PEtab parameter. The condition variable " *
                                  "must be a valid model id or a numeric value"))
         end
-        maps[conditionid] = ConditionMap(constant_values, isys_constant_values, ix_dynamic, ix_sys)
+        maps[conditionid] = ConditionMap(constant_values, isys_constant_values, ix_dynamic,
+                                         ix_sys)
     end
     return maps
 end
 
-function _add_ix_sys!(ix::Vector{Int32}, variable::String, xids_sys::Vector{String})::Nothing
+function _add_ix_sys!(ix::Vector{Int32}, variable::String,
+                      xids_sys::Vector{String})::Nothing
     # When a species initial value is set in the condition table, a new parameter
     # is introduced that sets the initial value. This is required to be able to
     # correctly compute gradients. Hence special handling if variable is not in parameter
@@ -308,7 +337,8 @@ function _get_default_map_value(variable::String, parametermap, statemap)::Float
     end
 end
 
-function _check_conditionids(conditions_df::DataFrame, measurements_info::MeasurementsInfo)::Nothing
+function _check_conditionids(conditions_df::DataFrame,
+                             measurements_info::MeasurementsInfo)::Nothing
     ncol(conditions_df) == 1 && return nothing
     @unpack pre_equilibration_condition_id, simulation_condition_id = measurements_info
     measurementids = unique(vcat(pre_equilibration_condition_id, simulation_condition_id))

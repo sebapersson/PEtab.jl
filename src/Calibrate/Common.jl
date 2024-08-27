@@ -285,7 +285,7 @@ function generate_startguesses(petab_problem::PEtabODEProblem,
                 _p[_i] = _prior_samples[1]
             end
 
-            _cost = petab_problem.compute_cost(_p)
+            _cost = petab_problem.cost(_p)
             if allow_inf_for_startguess == true
                 return _p
             elseif !isinf(_cost)
@@ -325,7 +325,7 @@ function generate_startguesses(petab_problem::PEtabODEProblem,
 
         for i in 1:size(_samples)[2]
             _p = _samples[:, i]
-            _cost = petab_problem.compute_cost(_p)
+            _cost = petab_problem.cost(_p)
             if allow_inf_for_startguess == true
                 found_starts += 1
                 startguesses[:, found_starts] .= _p
@@ -347,7 +347,7 @@ end
 function get_bounds_prior(θ_name::Symbol,
                           petab_problem::PEtabODEProblem)::Vector{Float64}
     @unpack prior_info, lower_bounds, upper_bounds = petab_problem
-    i = findfirst(x -> x == θ_name, petab_problem.θ_names)
+    i = findfirst(x -> x == θ_name, petab_problem.xnames)
     if prior_info.prior_on_parameter_scale[θ_name] == true
         return [lower_bounds[i], upper_bounds[i]]
     end
@@ -364,7 +364,7 @@ function transform_prior_samples!(samples::Vector{Float64},
                                   θ_name::Symbol,
                                   petab_problem::PEtabODEProblem)::Nothing
     @unpack prior_info, lower_bounds, upper_bounds = petab_problem
-    i = findfirst(x -> x == θ_name, petab_problem.θ_names)
+    i = findfirst(x -> x == θ_name, petab_problem.xnames)
     if prior_info.prior_on_parameter_scale[θ_name] == true
         return nothing
     end
@@ -460,7 +460,7 @@ function _calibrate_model_multistart(petab_problem::PEtabODEProblem,
                                          sampling_method = sampling_method,
                                          sample_from_prior = sample_from_prior)
     if !isnothing(path_save_x0)
-        startguessesDf = DataFrame(Matrix(startguesses)', petab_problem.θ_names)
+        startguessesDf = DataFrame(Matrix(startguesses)', petab_problem.xnames)
         startguessesDf[!, "Start_guess"] = 1:size(startguessesDf)[1]
         CSV.write(path_save_x0, startguessesDf)
     end
@@ -476,7 +476,7 @@ function _calibrate_model_multistart(petab_problem::PEtabODEProblem,
                                               Vector{Vector{Float64}}(undef, 0),
                                               Vector{Float64}(undef, 0),
                                               0,
-                                              petab_problem.compute_cost(Float64[]),
+                                              petab_problem.cost(Float64[]),
                                               Float64[],
                                               Float64[],
                                               Symbol[],
@@ -485,7 +485,7 @@ function _calibrate_model_multistart(petab_problem::PEtabODEProblem,
         end
         if !isnothing(path_save_res)
             save_partial_results(path_save_res, path_save_parameters, path_save_trace,
-                                 _res[i], petab_problem.θ_names, i)
+                                 _res[i], petab_problem.xnames, i)
         end
     end
 
@@ -496,7 +496,7 @@ function _calibrate_model_multistart(petab_problem::PEtabODEProblem,
     sampling_method_str = string(sampling_method)[1:findfirst(x -> x == '(',
                                                               string(sampling_method))][1:(end - 1)]
     results = PEtabMultistartOptimisationResult(xmin,
-                                                petab_problem.θ_names,
+                                                petab_problem.xnames,
                                                 fmin,
                                                 n_multistarts,
                                                 res_best.alg,

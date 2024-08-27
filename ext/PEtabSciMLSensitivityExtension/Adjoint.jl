@@ -20,7 +20,8 @@ function compute_gradient_adjoint!(gradient::Vector{Float64},
 
     # Calculate gradient seperately for dynamic and non dynamic parameter.
     compute_gradient_adjoint_θ_dynamic!(petab_ODE_cache.gradient_θ_dyanmic, θ_dynamic, θ_sd,
-                                        θ_observable, θ_non_dynamic, model_info, probleminfo,
+                                        θ_observable, θ_non_dynamic, model_info,
+                                        probleminfo,
                                         ode_problem, ode_solver, ss_solver, sensealg,
                                         petab_model, simulation_info, θ_indices,
                                         measurement_info, parameter_info,
@@ -42,7 +43,7 @@ function compute_gradient_adjoint!(gradient::Vector{Float64},
     @views gradient[θ_indices.xindices[:not_system]] .= petab_ODE_cache.gradient_θ_not_ode
 
     if prior_info.has_priors == true
-        PEtab.compute_gradient_prior!(gradient, θ_est, θ_indices, prior_info)
+        PEtab.grad_prior!(gradient, θ_est, θ_indices, prior_info)
     end
 
     return nothing
@@ -71,7 +72,8 @@ function compute_gradient_adjoint_θ_dynamic!(gradient::Vector{Float64},
                                              exp_id_solve::Vector{Symbol} = [:all])::Nothing
     θ_dynamicT = PEtab.transformθ(θ_dynamic, θ_indices.xids[:dynamic], θ_indices,
                                   :θ_dynamic, petab_ODE_cache)
-    θ_sdT = PEtab.transformθ(θ_sd, θ_indices.xids[:noise], θ_indices, :θ_sd, petab_ODE_cache)
+    θ_sdT = PEtab.transformθ(θ_sd, θ_indices.xids[:noise], θ_indices, :θ_sd,
+                             petab_ODE_cache)
     θ_observableT = PEtab.transformθ(θ_observable, θ_indices.xids[:observable], θ_indices,
                                      :θ_observable, petab_ODE_cache)
     θ_non_dynamicT = PEtab.transformθ(θ_non_dynamic, θ_indices.xids[:nondynamic],

@@ -16,7 +16,8 @@ to those in the PeTab parameters file.
 Used when setting up the PeTab cost function, and when solving the ODE-system
 for the values in the parameters-file.
 """
-function _set_constant_ode_parameters!(petab_model::PEtabModel, parameters_info::ParametersInfo)::Nothing
+function _set_constant_ode_parameters!(petab_model::PEtabModel,
+                                       parameters_info::ParametersInfo)::Nothing
     # TODO: Refactor
     @unpack statemap, parametermap = petab_model
     parameter_names = string.(parameters_info.parameter_id)
@@ -49,7 +50,8 @@ function splitθ(θ_est::AbstractVector, θ_indices::ParameterIndices)
     return θ_dynamic, θ_observable, θ_sd, θ_non_dynamic
 end
 
-function splitθ!(θ_est::AbstractVector, θ_indices::ParameterIndices, petab_ODE_cache::PEtabODEProblemCache)::Nothing
+function splitθ!(θ_est::AbstractVector, θ_indices::ParameterIndices,
+                 petab_ODE_cache::PEtabODEProblemCache)::Nothing
     @unpack xindices = θ_indices
     @views petab_ODE_cache.θ_dynamic .= θ_est[xindices[:dynamic]]
     @views petab_ODE_cache.θ_observable .= θ_est[xindices[:observable]]
@@ -79,7 +81,6 @@ function computeσ(u::AbstractVector{T1},
     end
     return σ
 end
-
 
 # Compute observation function h
 function computehT(u::AbstractVector{T1},

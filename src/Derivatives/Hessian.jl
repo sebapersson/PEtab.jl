@@ -116,7 +116,8 @@ function compute_hessian_block!(hessian::Matrix{Float64},
 
     try
         if !isempty(θ_indices.xindices[:dynamic])
-            @views ForwardDiff.hessian!(hessian[θ_indices.xindices[:dynamic], θ_indices.xindices[:dynamic]],
+            @views ForwardDiff.hessian!(hessian[θ_indices.xindices[:dynamic],
+                                                θ_indices.xindices[:dynamic]],
                                         compute_cost_θ_dynamic, θ_dynamic, cfg)
         else
             compute_cost_θ_dynamic(θ_dynamic)
@@ -232,7 +233,8 @@ function compute_GaussNewton_hessian!(out::Matrix{Float64},
     fill!(jacobian_gn, 0.0)
 
     # Calculate gradient seperately for dynamic and non dynamic parameter.
-    compute_jacobian_residuals_θ_dynamic!((@view jacobian_gn[θ_indices.xindices[:dynamic], :]),
+    compute_jacobian_residuals_θ_dynamic!((@view jacobian_gn[θ_indices.xindices[:dynamic],
+                                                             :]),
                                           θ_dynamic, θ_sd,
                                           θ_observable, θ_non_dynamic, petab_model,
                                           ode_problem,
@@ -251,7 +253,8 @@ function compute_GaussNewton_hessian!(out::Matrix{Float64},
     end
     @views ForwardDiff.jacobian!(jacobian_gn[θ_indices.xindices[:not_system], :]',
                                  compute_residuals_not_solve_ode!,
-                                 petab_ODE_cache.residuals_gn, θ_est[θ_indices.xindices[:not_system]],
+                                 petab_ODE_cache.residuals_gn,
+                                 θ_est[θ_indices.xindices[:not_system]],
                                  cfg_not_solve_ode)
 
     # In case of testing we might want to return the jacobian, else we are interested in the Guass-Newton approximaiton.

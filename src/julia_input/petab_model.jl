@@ -1,26 +1,44 @@
-function PEtabModel(sys::Union{ReactionSystem, ODESystem}, simulation_conditions::Dict, observables::Dict{String, <:PEtabObservable}, measurements::DataFrame, petab_parameters::Vector{PEtabParameter}; statemap::Union{Nothing, AbstractVector} = nothing, parametermap::Union{Nothing, AbstractVector} = nothing, events::Union{PEtabEvent, AbstractVector, Nothing} = nothing, verbose::Bool = false)::PEtabModel
+function PEtabModel(sys::Union{ReactionSystem, ODESystem}, simulation_conditions::Dict,
+                    observables::Dict{String, <:PEtabObservable}, measurements::DataFrame,
+                    petab_parameters::Vector{PEtabParameter};
+                    statemap::Union{Nothing, AbstractVector} = nothing,
+                    parametermap::Union{Nothing, AbstractVector} = nothing,
+                    events::Union{PEtabEvent, AbstractVector, Nothing} = nothing,
+                    verbose::Bool = false)::PEtabModel
     return _PEtabModel(sys, simulation_conditions, observables, measurements,
                        petab_parameters, statemap, parametermap, events, verbose)
 end
-function PEtabModel(sys::Union{ReactionSystem, ODESystem}, observables::Dict{String, <:PEtabObservable}, measurements::DataFrame, petab_parameters::Vector{PEtabParameter}; statemap::Union{Nothing, AbstractVector} = nothing, parametermap::Union{Nothing, AbstractVector} = nothing, events::Union{PEtabEvent, AbstractVector, Nothing} = nothing, verbose::Bool = false)::PEtabModel
+function PEtabModel(sys::Union{ReactionSystem, ODESystem},
+                    observables::Dict{String, <:PEtabObservable}, measurements::DataFrame,
+                    petab_parameters::Vector{PEtabParameter};
+                    statemap::Union{Nothing, AbstractVector} = nothing,
+                    parametermap::Union{Nothing, AbstractVector} = nothing,
+                    events::Union{PEtabEvent, AbstractVector, Nothing} = nothing,
+                    verbose::Bool = false)::PEtabModel
     simulation_conditions = Dict("__c0__" => Dict())
     return _PEtabModel(sys, simulation_conditions, observables, measurements,
                        petab_parameters, statemap, parametermap, events, verbose)
 end
 
-function _PEtabModel(sys::Union{ReactionSystem, ODESystem}, simulation_conditions::Dict, observables::Dict{String, <:PEtabObservable}, measurements::DataFrame, petab_parameters::Vector{PEtabParameter}, statemap::Union{Nothing, AbstractVector}, parametermap::Union{Nothing, AbstractVector}, events::Union{PEtabEvent, AbstractVector, Nothing}, verbose::Bool)::PEtabModel
+function _PEtabModel(sys::Union{ReactionSystem, ODESystem}, simulation_conditions::Dict,
+                     observables::Dict{String, <:PEtabObservable}, measurements::DataFrame,
+                     petab_parameters::Vector{PEtabParameter},
+                     statemap::Union{Nothing, AbstractVector},
+                     parametermap::Union{Nothing, AbstractVector},
+                     events::Union{PEtabEvent, AbstractVector, Nothing},
+                     verbose::Bool)::PEtabModel
     if sys isa ODESystem
         modelname = "ODESystemModel"
     else
         modelname = "ReactionSystemModel"
     end
-    _logging(:Build_PEtabModel, verbose; name=modelname)
+    _logging(:Build_PEtabModel, verbose; name = modelname)
 
     # Convert the input to valid PEtab tables
-    measurements_df = parse_measurements_to_table(measurements, simulation_conditions)
-    observables_df = parse_observables_to_table(observables)
-    conditions_df = parse_conditions_to_table(simulation_conditions)
-    parameters_df = parse_parameters_to_table(petab_parameters)
+    measurements_df = _measurements_to_table(measurements, simulation_conditions)
+    observables_df = _observables_to_table(observables)
+    conditions_df = _conditions_to_table(simulation_conditions)
+    parameters_df = _parameters_to_table(petab_parameters)
     petab_tables = Dict(:parameters => parameters_df, :conditions => conditions_df,
                         :observables => observables_df, :measurements => measurements_df)
 
@@ -34,7 +52,10 @@ function _PEtabModel(sys::Union{ReactionSystem, ODESystem}, simulation_condition
 
     _logging(:Build_u0_h_σ, verbose; exist = false)
     btime = @elapsed begin
-        h_str, u0!_str, u0_str, σ_str = create_u0_h_σ_file(modelname, sys_mutated, conditions_df, measurements_df, parameters_df, observables_df, statemap_use)
+        h_str, u0!_str, u0_str, σ_str = create_u0_h_σ_file(modelname, sys_mutated,
+                                                           conditions_df, measurements_df,
+                                                           parameters_df, observables_df,
+                                                           statemap_use)
         compute_h = @RuntimeGeneratedFunction(Meta.parse(h_str))
         compute_u0! = @RuntimeGeneratedFunction(Meta.parse(u0!_str))
         compute_u0 = @RuntimeGeneratedFunction(Meta.parse(u0_str))
@@ -44,7 +65,12 @@ function _PEtabModel(sys::Union{ReactionSystem, ODESystem}, simulation_condition
 
     _logging(:Build_∂_h_σ, verbose; exist = false)
     btime = @elapsed begin
-        ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str = create_∂_h_σ_file(modelname, sys_mutated, conditions_df, measurements_df, parameters_df, observables_df, statemap_use)
+        ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str = create_∂_h_σ_file(modelname, sys_mutated,
+                                                                   conditions_df,
+                                                                   measurements_df,
+                                                                   parameters_df,
+                                                                   observables_df,
+                                                                   statemap_use)
         compute_∂h∂u! = @RuntimeGeneratedFunction(Meta.parse(∂h∂u_str))
         compute_∂h∂p! = @RuntimeGeneratedFunction(Meta.parse(∂h∂p_str))
         compute_∂σ∂σu! = @RuntimeGeneratedFunction(Meta.parse(∂σ∂u_str))
@@ -60,11 +86,11 @@ function _PEtabModel(sys::Union{ReactionSystem, ODESystem}, simulation_condition
         parameter_info = parse_parameters(parameters_df)
         measurement_info = parse_measurements(measurements_df, observables_df)
         θ_indices = parse_conditions(parameter_info, measurement_info, sys_mutated,
-                                    parametermap_use, statemap_use, conditions_df)
+                                     parametermap_use, statemap_use, conditions_df)
         cbset, compute_tstops, convert_tspan = process_petab_events(events, sys_mutated,
                                                                     θ_indices)
     end
-    _logging(:Build_callbacks, verbose; time=btime)
+    _logging(:Build_callbacks, verbose; time = btime)
 
     # Path only applies when PEtab tables are provided
     paths = Dict{Symbol, String}()

@@ -138,7 +138,6 @@ struct MapODEProblem
     dynamic_to_sys::Vector{Int64}
 end
 
-
 struct ParameterIndices
     xindices::Dict{Symbol, Vector{Int32}}
     xids::Dict{Symbol, Vector{Symbol}}
@@ -158,7 +157,10 @@ struct PriorInfo
 end
 function PriorInfo()
     # In case the models does not have priors
-    return PriorInfo(Dict{Symbol, Function}(), Dict{Symbol, Distribution{Univariate, Continuous}}(), Dict{Symbol, Distribution{Univariate, Continuous}}(), Dict{Symbol, Bool}(), false)
+    return PriorInfo(Dict{Symbol, Function}(),
+                     Dict{Symbol, Distribution{Univariate, Continuous}}(),
+                     Dict{Symbol, Distribution{Univariate, Continuous}}(),
+                     Dict{Symbol, Bool}(), false)
 end
 
 """
@@ -381,12 +383,31 @@ struct PEtabODEProblemInfo{S1 <: ODESolver, S2 <: ODESolver}
     FIM_method::Symbol
     reuse_sensitivities::Bool
     sparse_jacobian::Bool
-    sensealg
-    sensealg_ss
+    sensealg::Any
+    sensealg_ss::Any
     petab_ODE_cache::PEtabODEProblemCache
     petab_ODESolver_cache::PEtabODESolverCache
     split_over_conditions::Bool
     chunksize::Int64
+end
+
+struct ModelInfo
+    measurement_info::MeasurementsInfo
+    parameter_info::ParametersInfo
+    θ_indices::ParameterIndices
+    simulation_info::SimulationInfo
+    prior_info::PriorInfo
+    petab_model::PEtabModel
+end
+function ModelInfo(petab_model::PEtabModel, sensealg, custom_values)::ModelInfo
+    tables, cbs = petab_model.petab_tables, petab_model.model_callbacks
+    measurement_info = parse_measurements(tables[:measurements], tables[:observables])
+    parameter_info = parse_parameters(tables[:parameters], custom_values = custom_values)
+    θ_indices = parse_conditions(parameter_info, measurement_info, petab_model)
+    simulation_info = SimulationInfo(cbs, measurement_info, sensealg = sensealg)
+    prior_info = process_priors(θ_indices, tables[:parameters])
+    return ModelInfo(measurement_info, parameter_info, θ_indices, simulation_info,
+                     prior_info, petab_model)
 end
 
 """
@@ -402,8 +423,8 @@ For constructor, see below.
 ## Fields
 - `compute_cost`: For θ computes the negative likelihood (objective to minimize)
 - `compute_chi2`: For θ compute χ2 value
-- `compute_gradient!`: For θ computes in-place gradient compute_gradient!(gradient, θ)
-- `compute_gradient`: For θ computes out-place gradient gradient = compute_gradient(θ)
+- `grad!`: For θ computes in-place gradient grad!(gradient, θ)
+- `grad`: For θ computes out-place gradient gradient = grad(θ)
 - `compute_hessian!`: For θ computes in-place hessian-(approximation) compute_hessian!(hessian, θ)
 - `compute_hessian`: For θ computes out-place hessian-(approximation) hessian = compute_hessian(θ)
 - `compute_FIM!`: For θ computes the empirical Fisher-Information-Matrix (FIM) which is the Hessian of the negative-log-likelihood  compute_FIM!(FIM, θ).
@@ -470,71 +491,31 @@ Once created, a `PEtabODEProblem` contains everything needed to perform paramete
 - `reuse_sensitivities::Bool=false` : If set to `true`, reuse the sensitivities computed during gradient computations for the Gauss-Newton Hessian approximation. This option is only applicable when using `hessian_method=:GaussNewton` and `gradient_method=:ForwardEquations`. Note that it should only be used when the optimizer always computes the gradient before the Hessian.
 - `verbose::Bool=true` : If set to `true`, print progress messages while setting up the PEtabODEProblem.
 """
-struct PEtabODEProblem{F1 <: Function,
-                       F2 <: Function,
-                       F3 <: Function,
-                       F4 <: Function,
-                       F5 <: Function,
-                       F6 <: Function,
-                       F7 <: Function,
-                       F8 <: Function,
+struct PEtabODEProblem{F1 <: Function, F2 <: Function, F3 <: Function, F4 <: Function,
+                       F5 <: Function, F6 <: Function, F7 <: Function, F8 <: Function,
                        F9 <: Function}
-    compute_cost::F1
-    compute_nllh::F2
-    compute_chi2::Any
-    compute_gradient!::F3
-    compute_gradient::F4
-    compute_gradient_nllh!::F5
-    compute_gradient_nllh::F6
-    compute_hessian!::F7
-    compute_hessian::F8
-    compute_FIM!::Any
-    compute_FIM::Any
-    compute_nllh_and_gradient::F9
+    cost::F1
+    nllh::F2
+    chi2::Any
+    grad!::F3
+    grad::F4
+    grad_nllh!::F5
+    grad_nllh::F6
+    hess!::F7
+    hess::F8
+    FIM!::Any
+    FIM::Any
+    nllh_grad::F9
     compute_simulated_values::Any
     compute_residuals::Any
-    cost_method::Symbol
-    gradient_method::Symbol
-    hessian_method::Union{Symbol, Nothing}
-    FIM_method::Symbol
+    probleminfo::PEtabODEProblemInfo
+    model_info::ModelInfo
     n_parameters_esimtate::Int64
-    θ_names::Vector{Symbol}
-    θ_nominal::Vector{Float64}
-    θ_nominalT::Vector{Float64}
+    xnames::Vector{Symbol}
+    xnominal::Vector{Float64}
+    xnominal_transformed::Vector{Float64}
     lower_bounds::Vector{Float64}
     upper_bounds::Vector{Float64}
-    petab_model::PEtabModel
-    ode_solver::ODESolver
-    ode_solver_gradient::ODESolver
-    ss_solver::SteadyStateSolver
-    ss_solver_gradient::SteadyStateSolver
-    θ_indices::ParameterIndices
-    simulation_info::SimulationInfo
-    ode_problem::ODEProblem
-    split_over_conditions::Bool
-    prior_info::PriorInfo
-    parameter_info::ParametersInfo
-    petab_ODE_cache::PEtabODEProblemCache
-    measurement_info::MeasurementsInfo
-    petab_ODESolver_cache::PEtabODESolverCache
-end
-
-struct ModelInfo
-    measurement_info::MeasurementsInfo
-    parameter_info::ParametersInfo
-    θ_indices::ParameterIndices
-    simulation_info::SimulationInfo
-    prior_info::PriorInfo
-    petab_model::PEtabModel
-end
-function ModelInfo(petab_model::PEtabModel, sensealg, custom_values)::ModelInfo
-    tables, cbs = petab_model.petab_tables, petab_model.model_callbacks
-    measurement_info = parse_measurements(tables[:measurements], tables[:observables])
-    parameter_info = parse_parameters(tables[:parameters], custom_values = custom_values)
-    θ_indices = parse_conditions(parameter_info, measurement_info, petab_model)
-    simulation_info = SimulationInfo(cbs, measurement_info, sensealg = sensealg)
-    prior_info = process_priors(θ_indices, tables[:parameters])
-    return ModelInfo(measurement_info, parameter_info, θ_indices, simulation_info, prior_info, petab_model)
 end
 
 """

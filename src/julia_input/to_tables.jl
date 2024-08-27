@@ -1,4 +1,4 @@
-function parse_parameters_to_table(petab_parameters::Vector{PEtabParameter})::DataFrame
+function _parameters_to_table(petab_parameters::Vector{PEtabParameter})::DataFrame
     # Most validity check occurs later during table parsing
     parameters_df = DataFrame()
     for petab_paramter in petab_parameters
@@ -49,7 +49,7 @@ function parse_parameters_to_table(petab_parameters::Vector{PEtabParameter})::Da
     return parameters_df
 end
 
-function parse_observables_to_table(observables::Dict{String, <:PEtabObservable})::DataFrame
+function _observables_to_table(observables::Dict{String, <:PEtabObservable})::DataFrame
     observables_df = DataFrame()
     for (id, observable) in observables
         @unpack transformation, obs, noise_formula = observable
@@ -70,7 +70,7 @@ function parse_observables_to_table(observables::Dict{String, <:PEtabObservable}
     return observables_df
 end
 
-function parse_conditions_to_table(conditions::Dict)::DataFrame
+function _conditions_to_table(conditions::Dict)::DataFrame
     # Check that for each condition the same states/parameters are assigned values.
     # Required by the PEtab standard to avoid default values problems. Other checks
     # like validating conditions are assigned to model paramters are handled later after
@@ -104,7 +104,7 @@ function parse_conditions_to_table(conditions::Dict)::DataFrame
     return conditions_df
 end
 
-function parse_measurements_to_table(measurements::DataFrame, conditions::Dict)::DataFrame
+function _measurements_to_table(measurements::DataFrame, conditions::Dict)::DataFrame
     measurements_df = deepcopy(measurements)
     # Reformat column names to follow PEtab standard
     if "pre_eq_id" in names(measurements_df)

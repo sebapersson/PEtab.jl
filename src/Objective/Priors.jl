@@ -17,7 +17,6 @@ function compute_priors(θ_parameter_scale::Vector{T},
     return prior_value
 end
 
-
 function process_priors(θ_indices::ParameterIndices, parameters_df::DataFrame)::PriorInfo
 
     # In case there are no model priors
@@ -47,11 +46,13 @@ function process_priors(θ_indices::ParameterIndices, parameters_df::DataFrame):
             prior_parsed = eval(Meta.parse(parse_prior(prior)))
             distribution[θ_name] = prior_parsed
             prior_logpdf[θ_name] = (x) -> logpdf(prior_parsed, x)
-            prior_on_parameter_scale[θ_name] = !parameters_df[which_parameter, :priorOnLinearScale]
+            prior_on_parameter_scale[θ_name] = !parameters_df[which_parameter,
+                                                              :priorOnLinearScale]
 
             # Check if the prior should also be on initialisation of parameters
             if :initializationPriorType ∈ propertynames(parameters_df)
-                initialisation_prior = parameters_df[which_parameter, :initializationPriorType]
+                initialisation_prior = parameters_df[which_parameter,
+                                                     :initializationPriorType]
                 if ismissing(initialisation_prior) || isempty(initialisation_prior)
                     continue
                 end
@@ -62,7 +63,8 @@ function process_priors(θ_indices::ParameterIndices, parameters_df::DataFrame):
 
         # In case there is a prior is has associated parameters
         prior_parameters = parse.(Float64,
-                                  split(parameters_df[which_parameter, :objectivePriorParameters],
+                                  split(parameters_df[which_parameter,
+                                                      :objectivePriorParameters],
                                         ";"))
         if prior == "parameterScaleNormal"
             distribution[θ_name] = Normal(prior_parameters[1], prior_parameters[2])

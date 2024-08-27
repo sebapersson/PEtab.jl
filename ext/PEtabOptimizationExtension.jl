@@ -24,9 +24,9 @@ function get_optimization_problem(petab_problem::PEtabODEProblem;
                                   box_constraints::Bool = true)::Optimization.OptimizationProblem
 
     # First build the OptimizationFunction with PEtab.jl objective, gradient and Hessian
-    _f = (u, p) -> petab_problem.compute_cost(u)
-    _∇f = (G, u, p) -> petab_problem.compute_gradient!(G, u)
-    _Δf = (H, u, p) -> petab_problem.compute_hessian!(H, u)
+    _f = (u, p) -> petab_problem.cost(u)
+    _∇f = (G, u, p) -> petab_problem.grad!(G, u)
+    _Δf = (H, u, p) -> petab_problem.hess!(H, u)
     constraints = (res, x, p) -> res .= 0.0
     constraints_J = (res, x, p) -> res .= 0
     constraints_H = (res, x, p) -> begin
@@ -49,10 +49,10 @@ function get_optimization_problem(petab_problem::PEtabODEProblem;
 
     # Build the optimisation problem
     @unpack lower_bounds, upper_bounds = petab_problem
-    u0 = deepcopy(petab_problem.θ_nominalT)
+    u0 = deepcopy(petab_problem.xnominal_transformed)
     if interior_point == true
-        lcons = fill(-Inf, length(petab_problem.θ_names))
-        ucons = fill(Inf, length(petab_problem.θ_names))
+        lcons = fill(-Inf, length(petab_problem.xnames))
+        ucons = fill(Inf, length(petab_problem.xnames))
     else
         lcons, ucons = nothing, nothing
     end
@@ -103,7 +103,7 @@ function PEtab.calibrate_model(optimization_problem::Optimization.OptimizationPr
                                    fmin,
                                    deepcopy(p0),
                                    xmin,
-                                   petab_problem.θ_names,
+                                   petab_problem.xnames,
                                    converged,
                                    runtime)
 end
@@ -150,7 +150,7 @@ function PEtab.calibrate_model_multistart(optimization_problem::Optimization.Opt
                                          sampling_method = sampling_method,
                                          sample_from_prior = sample_from_prior)
     if !isnothing(path_save_x0)
-        startguessesDf = DataFrame(Matrix(startguesses)', petab_problem.θ_names)
+        startguessesDf = DataFrame(Matrix(startguesses)', petab_problem.xnames)
         startguessesDf[!, "Start_guess"] = 1:size(startguessesDf)[1]
         CSV.write(path_save_x0, startguessesDf)
     end
@@ -161,7 +161,7 @@ function PEtab.calibrate_model_multistart(optimization_problem::Optimization.Opt
         _res[i] = calibrate_model(optimization_problem, petab_problem, _p0, alg; kwargs...)
         if !isnothing(path_save_res)
             save_partial_results(path_save_res, path_save_parameters, path_save_trace,
-                                 _res[i], petab_problem.θ_names, i)
+                                 _res[i], petab_problem.xnames, i)
         end
     end
 
@@ -172,7 +172,7 @@ function PEtab.calibrate_model_multistart(optimization_problem::Optimization.Opt
     sampling_method_str = string(sampling_method)[1:findfirst(x -> x == '(',
                                                               string(sampling_method))][1:(end - 1)]
     results = PEtabMultistartOptimisationResult(xmin,
-                                                petab_problem.θ_names,
+                                                petab_problem.xnames,
                                                 fmin,
                                                 n_multistarts,
                                                 res_best.alg,

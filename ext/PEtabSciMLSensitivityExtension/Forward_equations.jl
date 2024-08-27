@@ -2,8 +2,10 @@
     Functions for computing forward-sensitivities with SciMLSensitivity
 =#
 
-function PEtab._get_odeproblem_gradient(ode_problem::ODEProblem, gradient_method::Symbol, sensealg_forward_equations::SciMLSensitivity.AbstractForwardSensitivityAlgorithm)::ODEProblem
-    return ODEForwardSensitivityProblem(ode_problem.f, ode_problem.u0, ode_problem.tspan, ode_problem.p,
+function PEtab._get_odeproblem_gradient(ode_problem::ODEProblem, gradient_method::Symbol,
+                                        sensealg_forward_equations::SciMLSensitivity.AbstractForwardSensitivityAlgorithm)::ODEProblem
+    return ODEForwardSensitivityProblem(ode_problem.f, ode_problem.u0, ode_problem.tspan,
+                                        ode_problem.p,
                                         sensealg = sensealg_forward_equations)
 end
 

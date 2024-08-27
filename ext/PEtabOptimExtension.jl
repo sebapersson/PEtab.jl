@@ -122,7 +122,7 @@ function PEtab.calibrate_model(petab_problem::PEtabODEProblem,
                                    fmin,
                                    _p0,
                                    xmin,
-                                   petab_problem.θ_names,
+                                   petab_problem.xnames,
                                    converged,
                                    runtime)
 end
@@ -165,8 +165,8 @@ function create_optim_IPNewton(petab_problem::PEtabODEProblem,
 
     n_parameters = length(lower_bounds)
     x0 = zeros(Float64, n_parameters)
-    df = TwiceDifferentiable(petab_problem.compute_cost, petab_problem.compute_gradient!,
-                             petab_problem.compute_hessian!, x0)
+    df = TwiceDifferentiable(petab_problem.cost, petab_problem.grad!,
+                             petab_problem.hess!, x0)
     dfc = TwiceDifferentiableConstraints(lower_bounds, upper_bounds)
 
     run_optim = (p0) -> begin
@@ -192,8 +192,8 @@ function create_optim_fminbox(petab_problem::PEtabODEProblem,
     lower_bounds = petab_problem.lower_bounds
     upper_bounds = petab_problem.upper_bounds
 
-    run_optim = (p0) -> Optim.optimize(petab_problem.compute_cost,
-                                       petab_problem.compute_gradient!,
+    run_optim = (p0) -> Optim.optimize(petab_problem.cost,
+                                       petab_problem.grad!,
                                        lower_bounds,
                                        upper_bounds,
                                        p0,

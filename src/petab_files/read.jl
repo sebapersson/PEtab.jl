@@ -4,7 +4,8 @@ function read_tables(path_yaml::String)::Dict{Symbol, DataFrame}
     conditions_df = _read_table(paths[:conditions], :conditions)
     observables_df = _read_table(paths[:observables], :observables)
     measurements_df = _read_table(paths[:measurements], :measurements)
-    return Dict(:parameters => parameters_df, :conditions => conditions_df, :observables => observables_df, :measurements => measurements_df)
+    return Dict(:parameters => parameters_df, :conditions => conditions_df,
+                :observables => observables_df, :measurements => measurements_df)
 end
 
 function _get_petab_paths(path_yaml::AbstractString)::Dict{Symbol, String}
@@ -19,11 +20,14 @@ function _get_petab_paths(path_yaml::AbstractString)::Dict{Symbol, String}
     path_observables = _get_path(yaml_file, dirmodel, "observable_files")
     path_conditions = _get_path(yaml_file, dirmodel, "condition_files")
     path_parameters = _get_path(yaml_file, dirmodel, "parameter_file")
-    return Dict(:SBML => path_SBML, :parameters => path_parameters, :conditions => path_conditions, :observables => path_observables, :measurements => path_measurements, :dirmodel => dirmodel, :dirjulia => dirjulia)
+    return Dict(:SBML => path_SBML, :parameters => path_parameters,
+                :conditions => path_conditions, :observables => path_observables,
+                :measurements => path_measurements, :dirmodel => dirmodel,
+                :dirjulia => dirjulia)
 end
 
 function _read_table(path::String, file::Symbol)::DataFrame
-    df = CSV.read(path, DataFrame; stringtype=String)
+    df = CSV.read(path, DataFrame; stringtype = String)
     _check_table(df, file)
     return df
 end
@@ -84,7 +88,8 @@ function _check_has_column(df::DataFrame, column_name::String, table::Symbol)::N
     return nothing
 end
 
-function _check_column_types(df::DataFrame, column_name::String, valid_types, table::Symbol)::Nothing
+function _check_column_types(df::DataFrame, column_name::String, valid_types,
+                             table::Symbol)::Nothing
     for val in df[!, column_name]
         typeof(val) <: valid_types && continue
         throw(PEtabFileError("Column $column_name in $table table has invalid type " *

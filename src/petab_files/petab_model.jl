@@ -1,27 +1,33 @@
-function PEtabModel(path_yaml::String; build_julia_files::Bool = false, verbose::Bool = true, ifelse_to_event::Bool = true, custom_values::Union{Nothing, Dict} = nothing, write_to_file::Bool = true)::PEtabModel
+function PEtabModel(path_yaml::String; build_julia_files::Bool = false,
+                    verbose::Bool = true, ifelse_to_event::Bool = true,
+                    custom_values::Union{Nothing, Dict} = nothing,
+                    write_to_file::Bool = true)::PEtabModel
     paths = _get_petab_paths(path_yaml)
     petab_tables = read_tables(path_yaml)
     modelname = splitdir(paths[:dirmodel])[end]
 
     write_to_file && !isdir(paths[:dirjulia]) && mkdir(paths[:dirjulia])
-    _logging(:Build_PEtabModel, verbose; name=modelname)
+    _logging(:Build_PEtabModel, verbose; name = modelname)
 
     # Import SBML model with SBMLImporter
     # In case one of the conditions in the PEtab table assigns an initial specie value,
     # the SBML model must be mutated to add an iniitial value parameter to correctly
     # compute gradients
-    model_SBML = SBMLImporter.build_SBML_model(paths[:SBML]; model_as_string = false, ifelse_to_callback = ifelse_to_event, inline_assignment_rules = false)
+    model_SBML = SBMLImporter.build_SBML_model(paths[:SBML]; model_as_string = false,
+                                               ifelse_to_callback = ifelse_to_event,
+                                               inline_assignment_rules = false)
     _addu0_parameters!(model_SBML, petab_tables[:conditions], petab_tables[:parameters])
     pathmodel = joinpath(paths[:dirjulia], modelname * ".jl")
     exist = isfile(pathmodel)
     _logging(:Build_SBML, verbose; buildfiles = build_julia_files, exist = exist)
     if !exist || build_julia_files == true
         btime = @elapsed begin
-            parsed_model_SBML = SBMLImporter._reactionsystem_from_SBML(model_SBML; check_massaction=false)
+            parsed_model_SBML = SBMLImporter._reactionsystem_from_SBML(model_SBML;
+                                                                       check_massaction = false)
             modelstr = SBMLImporter.reactionsystem_to_string(parsed_model_SBML,
-                                                              write_to_file,
-                                                              pathmodel,
-                                                              model_SBML)
+                                                             write_to_file,
+                                                             pathmodel,
+                                                             model_SBML)
         end
         _logging(:Build_SBML, verbose; time = btime)
     else
@@ -52,7 +58,12 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false, verbose:
     if !exist || build_julia_files == true
         # TODO: Change after refactoring observable file
         btime = @elapsed begin
-            h_str, u0!_str, u0_str, σ_str = create_u0_h_σ_file(modelname, path_yaml, paths[:dirjulia], odesystem, parametermap, statemap, model_SBML, custom_values = custom_values, write_to_file = write_to_file)
+            h_str, u0!_str, u0_str, σ_str = create_u0_h_σ_file(modelname, path_yaml,
+                                                               paths[:dirjulia], odesystem,
+                                                               parametermap, statemap,
+                                                               model_SBML,
+                                                               custom_values = custom_values,
+                                                               write_to_file = write_to_file)
         end
         _logging(:Build_u0_h_σ, verbose; time = btime)
     else
@@ -68,7 +79,13 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false, verbose:
     _logging(:Build_∂_h_σ, verbose; buildfiles = build_julia_files, exist = exist)
     if !exist || build_julia_files == true
         btime = @elapsed begin
-            ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str = create_∂_h_σ_file(modelname, path_yaml, paths[:dirjulia], odesystem, parametermap, statemap, model_SBML, custom_values = custom_values, write_to_file = write_to_file)
+            ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str = create_∂_h_σ_file(modelname, path_yaml,
+                                                                       paths[:dirjulia],
+                                                                       odesystem,
+                                                                       parametermap,
+                                                                       statemap, model_SBML,
+                                                                       custom_values = custom_values,
+                                                                       write_to_file = write_to_file)
         end
         _logging(:Build_∂_h_σ, verbose; time = btime)
     else
@@ -117,7 +134,8 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false, verbose:
     return petab_model
 end
 
-function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, conditions_df::DataFrame, parameters_df::DataFrame)::Nothing
+function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, conditions_df::DataFrame,
+                            parameters_df::DataFrame)::Nothing
     specieids = keys(model_SBML.species)
     rateruleids = model_SBML.rate_rule_variables
     sbml_variables = Iterators.flatten((specieids, rateruleids)) |> unique
@@ -137,7 +155,8 @@ function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, conditions_df::D
         end
         u0name = "__init__" .* sbml_variable.name .* "__"
         value = sbml_variable.initial_value
-        u0parameter = SBMLImporter.ParameterSBML(u0name, true, value, "", false, false, false)
+        u0parameter = SBMLImporter.ParameterSBML(u0name, true, value, "", false, false,
+                                                 false)
         model_SBML.parameters[u0name] = u0parameter
         sbml_variable.initial_value = u0name
 
@@ -153,7 +172,8 @@ function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, conditions_df::D
                                       correspond to any parameter in the SBML file
                                       parameters file"))
             end
-            parameter = SBMLImporter.ParameterSBML(condition_value, true, "0.0", "", false, false, false)
+            parameter = SBMLImporter.ParameterSBML(condition_value, true, "0.0", "", false,
+                                                   false, false)
             model_SBML.parameters[condition_value] = parameter
         end
     end

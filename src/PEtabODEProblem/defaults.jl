@@ -3,7 +3,7 @@ function _check_method(method::Symbol, whatcheck::Symbol)::Nothing
         allowed_methods = GRADIENT_METHODS
         if method == :Adjoint
             @assert "SciMLSensitivity" ∈ string.(values(Base.loaded_modules)) "To use " *
-                    "adjoint sensitivity analysis SciMLSensitivity must be loaded"
+            "adjoint sensitivity analysis SciMLSensitivity must be loaded"
         end
     elseif whatcheck == :Hessian
         allowed_methods = HESSIAN_METHODS
@@ -17,7 +17,8 @@ function _check_method(method::Symbol, whatcheck::Symbol)::Nothing
     end
 end
 
-function _get_model_size(sys::Union{ReactionSystem, ODESystem}, model_info::ModelInfo)::Symbol
+function _get_model_size(sys::Union{ReactionSystem, ODESystem},
+                         model_info::ModelInfo)::Symbol
     nODEs = length(states(sys))
     nps = length(model_info.θ_indices.xids[:dynamic])
     if nODEs ≤ 15 && nps ≤ 20
@@ -29,7 +30,8 @@ function _get_model_size(sys::Union{ReactionSystem, ODESystem}, model_info::Mode
     end
 end
 
-function _get_gradient_method(method::Union{Symbol, Nothing}, model_size::Symbol, reuse_sensitivities::Bool)::Symbol
+function _get_gradient_method(method::Union{Symbol, Nothing}, model_size::Symbol,
+                              reuse_sensitivities::Bool)::Symbol
     !isnothing(method) && return method
     if model_size == :Small
         return :ForwardDiff
@@ -58,7 +60,8 @@ function _get_hessian_method(method::Union{Symbol, Nothing}, model_size::Symbol)
     end
 end
 
-function _get_odesolver(solver::Union{ODESolver, Nothing}, model_size::Symbol, gradient_method::Symbol; default_solver::Union{Nothing, ODESolver}=nothing)::ODESolver
+function _get_odesolver(solver::Union{ODESolver, Nothing}, model_size::Symbol,
+                        gradient_method::Symbol; default_solver = nothing)::ODESolver
     !isnothing(solver) && return solver
     !isnothing(default_solver) && return default_solver
 
@@ -80,10 +83,12 @@ function _get_odesolver(solver::Union{ODESolver, Nothing}, model_size::Symbol, g
     end
 end
 
-function _get_ss_solver(ss_solver::Union{SteadyStateSolver, Nothing}, odesolver::ODESolver)::SteadyStateSolver
+function _get_ss_solver(ss_solver::Union{SteadyStateSolver, Nothing},
+                        odesolver::ODESolver)::SteadyStateSolver
     !isnothing(ss_solver) && return ss_solver
     @unpack abstol, reltol, maxiters = odesolver
-    return SteadyStateSolver(:Simulate, abstol = abstol * 100, reltol = reltol * 100, maxiters = maxiters)
+    return SteadyStateSolver(:Simulate, abstol = abstol * 100, reltol = reltol * 100,
+                             maxiters = maxiters)
 end
 
 function _get_sparse_jacobian(sparse::Union{Bool, Nothing}, model_size::Symbol)::Bool
@@ -107,7 +112,8 @@ function _get_sensealg_ss(sensealg_ss, sensealg, ::ModelInfo, gradient_method)::
     return nothing
 end
 
-function _get_odeproblem_gradient(odeproblem::ODEProblem, gradient_method::Symbol, sensealg)::ODEProblem
+function _get_odeproblem_gradient(odeproblem::ODEProblem, gradient_method::Symbol,
+                                  sensealg)::ODEProblem
     # This is only relevant when sensealg is from SciMLSensitivity, but the code cannot
     # reach this point with sensealg ForwardSensitivity() or ForwardDiffSensitivity()
     # with SciMLSensitivity loaded, and if SciMLSensitivity is not loaded _get_sensealg

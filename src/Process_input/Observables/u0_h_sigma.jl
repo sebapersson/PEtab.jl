@@ -36,7 +36,7 @@ function create_u0_h_σ_file(model_name::String,
 
     # Indices for keeping track of parameters in θ
     θ_indices = parse_conditions(parameter_info, measurement_info, system, parametermap,
-                                  statemap, experimental_conditions)
+                                 statemap, experimental_conditions)
 
     h_str = create_h_function(model_name, dirjulia, model_state_names, parameter_info,
                               p_ode_problem_names,
@@ -74,7 +74,7 @@ function create_u0_h_σ_file(model_name::String,
 
     # Indices for keeping track of parameters in θ
     θ_indices = PEtab.parse_conditions(parameter_info, measurement_info, system,
-                                        parametermap, statemap, experimental_conditions)
+                                       parametermap, statemap, experimental_conditions)
 
     # Dummary variables to keep PEtab importer happy even as we are not providing any PEtab files
     model_SBML = SBMLImporter.ModelSBML("")
@@ -130,7 +130,8 @@ function create_h_function(model_name::String,
     observable_ids = string.(observables_data[!, :observableId])
     observable_str = ""
     for i in eachindex(observable_ids)
-        _formula = filter(x -> !isspace(x), string(observables_data[!, :observableFormula][i]))
+        _formula = filter(x -> !isspace(x),
+                          string(observables_data[!, :observableFormula][i]))
         observable_parameters = get_observable_parameters(_formula)
         observable_str *= "\tif observableId === " * ":" * observable_ids[i] * " \n"
         if !isempty(observable_parameters)

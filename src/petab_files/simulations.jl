@@ -1,4 +1,5 @@
-function SimulationInfo(model_callbacks::SciMLBase.DECallback, measurement_info::MeasurementsInfo; sensealg)::SimulationInfo
+function SimulationInfo(model_callbacks::SciMLBase.DECallback,
+                        measurement_info::MeasurementsInfo; sensealg)::SimulationInfo
     conditionids = _get_conditionids(measurement_info)
     has_pre_equilibration = !all(conditionids[:pre_equilibration] .== :None)
 
@@ -38,7 +39,10 @@ function SimulationInfo(model_callbacks::SciMLBase.DECallback, measurement_info:
     end
 
     could_solve = [true]
-    return SimulationInfo(conditionids, has_pre_equilibration, tmaxs, tsaves, imeasurements, imeasurements_t, imeasurements_t_sol, smatrixindices, odesols, odesols_derivative, odesols_preeq, could_solve, callbacks, tracked_callbacks, sensealg)
+    return SimulationInfo(conditionids, has_pre_equilibration, tmaxs, tsaves, imeasurements,
+                          imeasurements_t, imeasurements_t_sol, smatrixindices, odesols,
+                          odesols_derivative, odesols_preeq, could_solve, callbacks,
+                          tracked_callbacks, sensealg)
 end
 
 function _get_conditionids(measurement_info::MeasurementsInfo)::Dict{Symbol, Vector{Symbol}}
@@ -63,16 +67,18 @@ function _get_conditionids(measurement_info::MeasurementsInfo)::Dict{Symbol, Vec
 
         # In case of pre-equilibration
         measurement_exp_id = prod(string.([measurement_preeq_id, measurement_sim_id])) |>
-            Symbol
+                             Symbol
         measurement_exp_id in experiment_ids && continue
         push!(pre_equilibration_ids, measurement_preeq_id)
         push!(simulation_ids, measurement_sim_id)
         push!(experiment_ids, measurement_exp_id)
     end
-    return Dict(:pre_equilibration => pre_equilibration_ids, :simulation => simulation_ids, :experiment => experiment_ids)
+    return Dict(:pre_equilibration => pre_equilibration_ids, :simulation => simulation_ids,
+                :experiment => experiment_ids)
 end
 
-function _get_tsaves(conditionids::Dict{Symbol, Vector{Symbol}}, measurement_info::MeasurementsInfo)::Dict{Symbol, Vector{Float64}}
+function _get_tsaves(conditionids::Dict{Symbol, Vector{Symbol}},
+                     measurement_info::MeasurementsInfo)::Dict{Symbol, Vector{Float64}}
     tsave = Dict{Symbol, Vector{Float64}}()
     for (i, experiment_id) in pairs(conditionids[:experiment])
         preeqids, cids = conditionids[:pre_equilibration][i], conditionids[:simulation][i]
@@ -82,7 +88,8 @@ function _get_tsaves(conditionids::Dict{Symbol, Vector{Symbol}}, measurement_inf
     return tsave
 end
 
-function _get_tmaxs(conditionids::Dict{Symbol, Vector{Symbol}}, measurement_info::MeasurementsInfo)::Dict{Symbol, Float64}
+function _get_tmaxs(conditionids::Dict{Symbol, Vector{Symbol}},
+                    measurement_info::MeasurementsInfo)::Dict{Symbol, Float64}
     tmaxs = Dict{Symbol, Float64}()
     for (i, experiment_id) in pairs(conditionids[:experiment])
         preeqids, cids = conditionids[:pre_equilibration][i], conditionids[:simulation][i]
@@ -92,7 +99,8 @@ function _get_tmaxs(conditionids::Dict{Symbol, Vector{Symbol}}, measurement_info
     return tmaxs
 end
 
-function _get_imeasurements(conditionids::Dict{Symbol, Vector{Symbol}}, measurement_info::MeasurementsInfo)::Dict{Symbol, Vector{Int64}}
+function _get_imeasurements(conditionids::Dict{Symbol, Vector{Symbol}},
+                            measurement_info::MeasurementsInfo)::Dict{Symbol, Vector{Int64}}
     imeasurements = Dict{Symbol, Vector{Int64}}()
     for (i, experiment_id) in pairs(conditionids[:experiment])
         preeqids, cids = conditionids[:pre_equilibration][i], conditionids[:simulation][i]
@@ -102,14 +110,16 @@ function _get_imeasurements(conditionids::Dict{Symbol, Vector{Symbol}}, measurem
     return imeasurements
 end
 
-function _get_tindices(pre_equilibration_id::Symbol, simulation_id::Symbol, measurement_info::MeasurementsInfo)::Vector{Int64}
+function _get_tindices(pre_equilibration_id::Symbol, simulation_id::Symbol,
+                       measurement_info::MeasurementsInfo)::Vector{Int64}
     @unpack pre_equilibration_condition_id, simulation_condition_id = measurement_info
     ipreeq = findall(x -> x == pre_equilibration_id, pre_equilibration_condition_id)
     isim = findall(x -> x == simulation_id, simulation_condition_id)
     return intersect(ipreeq, isim)
 end
 
-function _get_imeasurements_t_sol(imeasurements::Dict{Symbol, Vector{Int64}}, measurement_info::MeasurementsInfo)::Vector{Int64}
+function _get_imeasurements_t_sol(imeasurements::Dict{Symbol, Vector{Int64}},
+                                  measurement_info::MeasurementsInfo)::Vector{Int64}
     time = measurement_info.time
     imeasurements_t_sol = zeros(Int64, length(time))
     for i in eachindex(time)
@@ -125,7 +135,9 @@ function _get_imeasurements_t_sol(imeasurements::Dict{Symbol, Vector{Int64}}, me
     return imeasurements_t_sol
 end
 
-function _get_imeasurements_t(imeasurements::Dict{Symbol, Vector{Int64}}, measurement_info::MeasurementsInfo)::Dict{Symbol, Vector{Vector{Int64}}}
+function _get_imeasurements_t(imeasurements::Dict{Symbol, Vector{Int64}},
+                              measurement_info::MeasurementsInfo)::Dict{Symbol,
+                                                                        Vector{Vector{Int64}}}
     time = measurement_info.time
     imeasurements_t = Dict{Symbol, Vector{Vector{Int64}}}()
     for (id, ims) in imeasurements
@@ -140,7 +152,9 @@ function _get_imeasurements_t(imeasurements::Dict{Symbol, Vector{Int64}}, measur
     return imeasurements_t
 end
 
-function _get_smatrixindices(experiment_ids::Vector{Symbol}, tsaves::Dict{Symbol, Vector{Float64}})::Dict{Symbol, UnitRange{Int64}}
+function _get_smatrixindices(experiment_ids::Vector{Symbol},
+                             tsaves::Dict{Symbol, Vector{Float64}})::Dict{Symbol,
+                                                                          UnitRange{Int64}}
     istart = 1
     smatrixindices = Dict{Symbol, UnitRange{Int64}}()
     for experiment_id in experiment_ids

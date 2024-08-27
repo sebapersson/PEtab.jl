@@ -21,10 +21,10 @@ function create_callbacks_SBML(system::ODESystem,
     petab_tables = read_tables(path_yaml)
     measurements_data, observables_data, parameters_data, experimental_conditions, = collect(values(petab_tables))
     parameter_info = parse_parameters(parameters_data,
-                                        custom_values = custom_values)
+                                      custom_values = custom_values)
     measurement_info = parse_measurements(measurements_data, observables_data)
     θ_indices = parse_conditions(parameter_info, measurement_info, system, parametermap,
-                                  statemap, experimental_conditions)
+                                 statemap, experimental_conditions)
 
     # Set function names
     model_name = replace(model_name, "-" => "_")

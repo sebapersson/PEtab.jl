@@ -12,7 +12,7 @@ parameters for the first (default) simulation condition are returned.
 If a `pre_eq_id` is provided, the initial values are taken from the pre-equilibration simulation corresponding to
 `pre_eq_id`.
 
-If a parameter vector is provided it must have the parameters in the same order as `petab_problem.θ_names`.
+If a parameter vector is provided it must have the parameters in the same order as `petab_problem.xnames`.
 
 Potential events are accounted for when solving the ODE model. The ODE solver options specified when creating the
 `petab_problem` are used for solving the model.
@@ -60,7 +60,7 @@ parameters for the first (default) simulation condition are returned.
 If a `pre_eq_id` is provided, the initial values are taken from the pre-equilibration simulation corresponding to
 `pre_eq_id`.
 
-If a parameter vector is provided it must have the parameters in the same order as `petab_problem.θ_names`.
+If a parameter vector is provided it must have the parameters in the same order as `petab_problem.xnames`.
 
 Potential events are returned as second argument, and potential time of events (`tstops`) are returned as
 third argument.
@@ -104,7 +104,7 @@ From a fitted PEtab model or parameter vector retrieve the ODE parameters to sim
 If `condition_id` is provided, the parameters are extracted for that specific simulation condition. If not provided,
 parameters for the first (default) simulation condition are returned.
 
-If a parameter vector is provided it must have the parameters in the same order as `petab_problem.θ_names`.
+If a parameter vector is provided it must have the parameters in the same order as `petab_problem.xnames`.
 
 If `retmap=true`, a parameter vector is returned; otherwise, a vector is returned.
 """
@@ -133,7 +133,7 @@ If a `pre_eq_id` is provided, the initial values are taken from the pre-equilibr
 `pre_eq_id`. If there are potential overrides of initial values in the simulation conditions, they take priority over
 the pre-equilibrium simulation.
 
-If a parameter vector is provided it must have the parameters in the same order as `petab_problem.θ_names`.
+If a parameter vector is provided it must have the parameters in the same order as `petab_problem.xnames`.
 
 If `retmap=true`, a parameter vector is returned; otherwise, a vector is returned.
 """

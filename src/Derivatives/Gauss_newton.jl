@@ -146,8 +146,12 @@ function compute_residuals_not_solve_ode!(residuals::T1,
                                           θ_non_dynamic::T2,
                                           probleminfo::PEtabODEProblemInfo,
                                           model_info::ModelInfo;
-                                          exp_id_solve::Vector{Symbol} = [:all])::T1 where {T1 <: AbstractVector,
-                                                                                            T2 <: AbstractVector}
+                                          exp_id_solve::Vector{Symbol} = [:all])::T1 where {
+                                                                                            T1 <:
+                                                                                            AbstractVector,
+                                                                                            T2 <:
+                                                                                            AbstractVector
+                                                                                            }
     @unpack petab_model, simulation_info, θ_indices, measurement_info, parameter_info = model_info
     @unpack petab_ODE_cache = probleminfo
     # To be able to use ReverseDiff sdParamEstUse and obsParamEstUse cannot be overwritten.
