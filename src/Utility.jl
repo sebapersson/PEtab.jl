@@ -180,7 +180,7 @@ function _get_fitted_parameters(res::Union{PEtabOptimisationResult,
     else
         θT = transform_x(res.xmin, θ_indices.xids[:estimate], θ_indices)
     end
-    xdynamic, xobservable, xnoise, xnondynamic = splitθ(θT, θ_indices)
+    xdynamic, xobservable, xnoise, xnondynamic = split_x(θT, θ_indices)
 
     # Set constant model parameters
     change_ode_parameters!(p, u0, xdynamic, θ_indices, petab_model)
@@ -274,7 +274,7 @@ function solve_all_conditions(xpetab, petab_problem::PEtabODEProblem, solver; ab
         _ode_solver.maxiters = maxiters
     end
 
-    xdynamic, xobservable, xnoise, xnondynamic = splitθ(xpetab, θ_indices)
+    xdynamic, xobservable, xnoise, xnondynamic = split_x(xpetab, θ_indices)
     xdynamic_ps = transform_x(xdynamic, θ_indices.xids[:dynamic], θ_indices,
                             :xdynamic, petab_problem.cache)
 

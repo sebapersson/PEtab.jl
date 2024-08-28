@@ -20,15 +20,15 @@ function compute_hessian!(hessian::Matrix{Float64},
             ForwardDiff.hessian!(hessian, _eval_hessian, θ_est, cfg)
             @views hessian .= Symmetric(hessian)
         catch
-            hessian .= 0.0
+            fill!(hessian, 0.0)
         end
     else
-        hessian .= 0.0
+        fill!(hessian, 0.0)
     end
 
     # Check if we could solve the ODE (first), and if Inf was returned (second)
     if simulation_info.could_solve[1] != true
-        hessian .= 0.0
+        fill!(hessian, 0.0)
         return nothing
     end
 
@@ -111,7 +111,7 @@ function compute_hessian_block!(hessian::Matrix{Float64},
     # Avoid incorrect non-zero values
     hessian .= 0.0
 
-    splitθ!(θ_est, θ_indices, cache)
+    split_x!(θ_est, θ_indices, cache)
     xdynamic = cache.xdynamic
 
     try
@@ -162,7 +162,7 @@ function compute_hessian_block_split!(hessian::Matrix{Float64},
     # Avoid incorrect non-zero values
     hessian .= 0.0
 
-    splitθ!(θ_est, θ_indices, cache)
+    split_x!(θ_est, θ_indices, cache)
     xdynamic = cache.xdynamic
 
     for conditionId in simulation_info.conditionids[:experiment]
@@ -227,7 +227,7 @@ function compute_GaussNewton_hessian!(out::Matrix{Float64},
     # Avoid incorrect non-zero values
     fill!(out, 0.0)
 
-    splitθ!(θ_est, θ_indices, cache)
+    split_x!(θ_est, θ_indices, cache)
     @unpack xdynamic, xobservable, xnoise, xnondynamic = cache
     jacobian_gn = cache.jacobian_gn
     fill!(jacobian_gn, 0.0)

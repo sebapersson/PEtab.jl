@@ -60,13 +60,13 @@ function compute∂G∂_(∂G∂_,
                                       mapxnoise, ∂σ∂_)
         end
 
-        if measurement_info.measurement_transformation[i_measurement_data] === :log10
+        if measurement_info.measurement_transform[i_measurement_data] === :log10
             y_obs = measurement_info.measurementT[i_measurement_data]
             ∂h∂_ .*= 1 / (log(10) * exp10(hT))
-        elseif measurement_info.measurement_transformation[i_measurement_data] === :log
+        elseif measurement_info.measurement_transform[i_measurement_data] === :log
             y_obs = measurement_info.measurementT[i_measurement_data]
             ∂h∂_ .*= 1 / exp(hT)
-        elseif measurement_info.measurement_transformation[i_measurement_data] === :lin
+        elseif measurement_info.measurement_transform[i_measurement_data] === :lin
             y_obs = measurement_info.measurement[i_measurement_data]
         end
 

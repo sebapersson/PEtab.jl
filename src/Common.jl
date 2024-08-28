@@ -41,7 +41,7 @@ function _set_constant_ode_parameters!(petab_model::PEtabModel,
     return nothing
 end
 
-function splitθ(θ_est::AbstractVector, θ_indices::ParameterIndices)
+function split_x(θ_est::AbstractVector, θ_indices::ParameterIndices)
     @unpack xindices = θ_indices
     xdynamic = @view θ_est[xindices[:dynamic]]
     xobservable = @view θ_est[xindices[:observable]]
@@ -50,9 +50,8 @@ function splitθ(θ_est::AbstractVector, θ_indices::ParameterIndices)
     return xdynamic, xobservable, xnoise, xnondynamic
 end
 
-function splitθ!(x::AbstractVector, θ_indices::ParameterIndices,
-                 cache::PEtabODEProblemCache)::Nothing
-    @unpack xindices = θ_indices
+function split_x!(x::AbstractVector, θ_indices::ParameterIndices, cache::PEtabODEProblemCache)::Nothing
+    xindices = θ_indices.xindices
     @views cache.xdynamic .= x[xindices[:dynamic]]
     @views cache.xobservable .= x[xindices[:observable]]
     @views cache.xnoise .= x[xindices[:noise]]
@@ -99,7 +98,7 @@ function computehT(u::AbstractVector{T1},
                               mapxobservable)
     # Transform y_model is necessary
     hT = transform_measurement_or_h(h,
-                                    measurement_info.measurement_transformation[i_measurement])
+                                    measurement_info.measurement_transform[i_measurement])
 
     return hT
 end
@@ -163,18 +162,34 @@ function get_obs_sd_parameter(x::AbstractVector, map::ObservableNoiseMap)
 end
 
 # Transform parameter from log10 scale to normal scale, or reverse transform
-function transform_x!(θ::AbstractVector,
-                     n_parameters_estimate::Vector{Symbol},
-                     θ_indices::ParameterIndices;
-                     reverse_transform::Bool = false)::Nothing
-    @inbounds for (i, θ_name) in pairs(n_parameters_estimate)
-        θ[i] = transform_θ_element(θ[i], θ_indices.θ_scale[θ_name],
-                                   reverse_transform = reverse_transform)
+function transform_x!(x::AbstractVector, xids::Vector{Symbol}, θ_indices::ParameterIndices; reverse_transform::Bool = false)::Nothing
+    @inbounds for (i, xid) in pairs(xids)
+        x[i] = transform_θ_element(x[i], θ_indices.θ_scale[xid], reverse_transform = reverse_transform)
     end
     return nothing
 end
 
-# Transform parameter from log10 scale to normal scale, or reverse transform
+function transform_x(x::AbstractVector, θ_indices::ParameterIndices, whichx::Symbol, cache::PEtabODEProblemCache; reverse_transform::Bool = false)::AbstractVector
+    if whichx === :xdynamic
+        xids = θ_indices.xids[:dynamic]
+        x_ps = get_tmp(cache.xdynamic_ps, x)
+    elseif whichx === :xnoise
+        xids = θ_indices.xids[:noise]
+        x_ps = get_tmp(cache.xnoise_ps, x)
+    elseif whichx === :xnondynamic
+        xids = θ_indices.xids[:nondynamic]
+        x_ps = get_tmp(cache.xnondynamic_ps, x)
+    elseif whichx === :xobservable
+        xids = θ_indices.xids[:observable]
+        x_ps = get_tmp(cache.xobservable_ps, x)
+    end
+
+    for (i, xid) in pairs(xids)
+        x_ps[i] = transform_θ_element(x[i], θ_indices.θ_scale[xid],
+                                      reverse_transform = reverse_transform)
+    end
+    return x_ps
+end
 function transform_x(θ::T,
                     n_parameters_estimate::Vector{Symbol},
                     θ_indices::ParameterIndices;
@@ -188,39 +203,14 @@ function transform_x(θ::T,
         return out
     end
 end
-function transform_x(θ::AbstractVector{T},
-                    n_parameters_estimate::Vector{Symbol},
-                    θ_indices::ParameterIndices,
-                    whichθ::Symbol,
-                    cache::PEtabODEProblemCache;
-                    reverse_transform::Bool = false)::AbstractVector{T} where {T}
-    if whichθ === :xdynamic
-        θ_out = get_tmp(cache.xdynamic_ps, θ)
-    elseif whichθ === :xnoise
-        θ_out = get_tmp(cache.xnoise_ps, θ)
-    elseif whichθ === :xnondynamic
-        θ_out = get_tmp(cache.xnondynamic_ps, θ)
-    elseif whichθ === :xobservable
-        θ_out = get_tmp(cache.xobservable_ps, θ)
-    end
 
-    @inbounds for (i, θ_name) in pairs(n_parameters_estimate)
-        θ_out[i] = transform_θ_element(θ[i], θ_indices.θ_scale[θ_name],
-                                       reverse_transform = reverse_transform)
-    end
-
-    return θ_out
-end
-
-function transform_θ_element(θ_element::T,
-                             scale::Symbol;
-                             reverse_transform::Bool = false)::T where {T <: Real}
+function transform_θ_element(x::T, scale::Symbol; reverse_transform::Bool = false)::T where {T <: Real}
     if scale === :lin
-        return θ_element
+        return x
     elseif scale === :log10
-        return reverse_transform == true ? log10(θ_element) : exp10(θ_element)
+        return reverse_transform == true ? log10(x) : exp10(x)
     elseif scale === :log
-        return reverse_transform == true ? log(θ_element) : exp(θ_element)
+        return reverse_transform == true ? log(x) : exp(x)
     end
 end
 

@@ -12,7 +12,7 @@ function compute_gradient_adjoint!(gradient::Vector{Float64},
     ode_solver = probleminfo.solver_gradient
     ode_problem = probleminfo.odeproblem_gradient
 
-    PEtab.splitθ!(θ_est, θ_indices, cache)
+    PEtab.split_x!(θ_est, θ_indices, cache)
     xdynamic = cache.xdynamic
     xobservable = cache.xobservable
     xnoise = cache.xnoise
@@ -66,14 +66,10 @@ function compute_gradient_adjoint_xdynamic!(gradient::Vector{Float64},
                                              cache::PEtab.PEtabODEProblemCache;
                                              sensealg_ss = SteadyStateAdjoint(),
                                              exp_id_solve::Vector{Symbol} = [:all])::Nothing
-    xdynamic_ps = PEtab.transform_x(xdynamic, θ_indices.xids[:dynamic], θ_indices,
-                                  :xdynamic, cache)
-    xnoise_ps = PEtab.transform_x(xnoise, θ_indices.xids[:noise], θ_indices, :xnoise,
-                             cache)
-    xobservable_ps = PEtab.transform_x(xobservable, θ_indices.xids[:observable], θ_indices,
-                                     :xobservable, cache)
-    xnondynamic_ps = PEtab.transform_x(xnondynamic, θ_indices.xids[:nondynamic],
-                                      θ_indices, :xnondynamic, cache)
+    xnoise_ps = PEtab.transform_x(xnoise, θ_indices, :xnoise, cache)
+    xobservable_ps = PEtab.transform_x(xobservable, θ_indices, :xobservable, cache)
+    xnondynamic_ps = PEtab.transform_x(xnondynamic, θ_indices, :xnondynamic, cache)
+    xdynamic_ps = PEtab.transform_x(xdynamic, θ_indices, :xdynamic, cache)
 
     _ode_problem = remake(ode_problem, p = convert.(eltype(xdynamic_ps), ode_problem.p),
                           u0 = convert.(eltype(xdynamic_ps), ode_problem.u0))

@@ -16,13 +16,10 @@ function compute_jacobian_residuals_xdynamic!(jacobian::Union{Matrix{Float64}, S
                                                reuse_sensitivities::Bool = false,
                                                split_over_conditions::Bool = false,
                                                isremade::Bool = false)::Nothing
-    xdynamic_ps = transform_x(xdynamic, θ_indices.xids[:dynamic], θ_indices, :xdynamic,
-                            cache)
-    xnoise_ps = transform_x(xnoise, θ_indices.xids[:noise], θ_indices, :xnoise, cache)
-    xobservable_ps = transform_x(xobservable, θ_indices.xids[:observable], θ_indices,
-                               :xobservable, cache)
-    xnondynamic_ps = transform_x(xnondynamic, θ_indices.xids[:nondynamic], θ_indices,
-                                :xnondynamic, cache)
+    xnoise_ps = PEtab.transform_x(xnoise, θ_indices, :xnoise, cache)
+    xobservable_ps = PEtab.transform_x(xobservable, θ_indices, :xobservable, cache)
+    xnondynamic_ps = PEtab.transform_x(xnondynamic, θ_indices, :xnondynamic, cache)
+    xdynamic_ps = PEtab.transform_x(xdynamic, θ_indices, :xdynamic, cache)
 
     if reuse_sensitivities == false
         # Solve the expanded ODE system for the sensitivites
@@ -156,11 +153,9 @@ function compute_residuals_not_solve_ode!(residuals::T1,
     @unpack cache = probleminfo
     # To be able to use ReverseDiff sdParamEstUse and obsParamEstUse cannot be overwritten.
     # Hence new vectors have to be created.
-    xnoise_ps = transform_x(xnoise, θ_indices.xids[:noise], θ_indices, :xnoise, cache)
-    xobservable_ps = transform_x(xobservable, θ_indices.xids[:observable], θ_indices,
-                               :xobservable, cache)
-    xnondynamic_ps = transform_x(xnondynamic, θ_indices.xids[:nondynamic], θ_indices,
-                                :xnondynamic, cache)
+    xnoise_ps = PEtab.transform_x(xnoise, θ_indices, :xnoise, cache)
+    xobservable_ps = PEtab.transform_x(xobservable, θ_indices, :xobservable, cache)
+    xnondynamic_ps = PEtab.transform_x(xnondynamic, θ_indices, :xnondynamic, cache)
 
     # Compute residuals per experimental conditions
     for experimental_condition_id in simulation_info.conditionids[:experiment]
@@ -225,18 +220,18 @@ function compute_residuals_condition!(residuals::T1,
             return false
         end
 
-        if measurement_info.measurement_transformation[i_measurement] == :lin
+        if measurement_info.measurement_transform[i_measurement] == :lin
             residuals[i_measurement] = (hT - measurement_info.measurement[i_measurement]) /
                                        σ
-        elseif measurement_info.measurement_transformation[i_measurement] == :log10
+        elseif measurement_info.measurement_transform[i_measurement] == :log10
             residuals[i_measurement] = (hT - measurement_info.measurementT[i_measurement]) /
                                        σ
-        elseif measurement_info.measurement_transformation[i_measurement] == :log
+        elseif measurement_info.measurement_transform[i_measurement] == :log
             residuals[i_measurement] = (hT - measurement_info.measurementT[i_measurement]) /
                                        σ
         else
             @error "Transformation ",
-                   measurement_info.measurement_transformation[i_measurement],
+                   measurement_info.measurement_transform[i_measurement],
                    " not yet supported."
         end
     end

@@ -4,7 +4,7 @@ function PEtab._get_grad_f(method::Val{:Adjoint}, probleminfo::PEtab.PEtabODEPro
     @unpack simulation_info = model_info
     @unpack xdynamic = cache
 
-    _nllh_not_solve = PEtab._get_nllh_not_solveode(probleminfo, model_info; compute_gradient_not_solve_adjoint = true)
+    _nllh_not_solve = PEtab._get_nllh_not_solveode(probleminfo, model_info; grad_adjoint = true)
     _compute_gradient! = let pinfo = probleminfo, minfo = model_info,
         _nllh_not_solve = _nllh_not_solve
         (g, x) -> compute_gradient_adjoint!(g, x, _nllh_not_solve, pinfo, minfo;

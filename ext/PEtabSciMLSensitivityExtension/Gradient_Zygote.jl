@@ -12,7 +12,7 @@ function compute_gradient_zygote!(gradient::Vector{Float64},
                                   cache::PEtab.PEtabODEProblemCache)
 
     # Split input into observeble and dynamic parameters
-    xdynamic, xobservable, xnoise, xnondynamic = PEtab.splitθ(θ_est, θ_indices)
+    xdynamic, xobservable, xnoise, xnondynamic = PEtab.split_x(θ_est, θ_indices)
 
     # For Zygote the code must be out-of place. Hence a special likelihood funciton is needed.
     compute_gradient_zygote_xdynamic! = (x) -> _compute_cost_zygote(x, xnoise, xobservable,

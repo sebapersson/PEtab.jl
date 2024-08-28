@@ -7,7 +7,7 @@ function compute_cost_zygote(θ_est,
                              parameter_info::PEtab.ParametersInfo,
                              solve_ode_condition::Function,
                              prior_info::PEtab.PriorInfo)
-    xdynamic, xobservable, xnoise, xnondynamic = PEtab.splitθ(θ_est, θ_indices)
+    xdynamic, xobservable, xnoise, xnondynamic = PEtab.split_x(θ_est, θ_indices)
 
     cost = _compute_cost_zygote(xdynamic, xnoise, xobservable, xnondynamic, ode_problem,
                                 petab_model, simulation_info, θ_indices, measurement_info,
@@ -59,7 +59,7 @@ function _compute_cost_zygote(xdynamic,
                                              experimental_condition_id, θ_indices,
                                              measurement_info, parameter_info,
                                              simulation_info,
-                                             compute_gradient_xdynamic_zygote = true)
+                                             grad_xdynamic_zygote = true)
 
         if isinf(cost)
             return cost

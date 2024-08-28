@@ -144,7 +144,7 @@ function _get_observable(θ::Vector{Float64}, petab_problem::PEtabODEProblem,
         # For smooth trajectory must solve ODE and compute the observable function
         if smooth_sol == true
             @unpack θ_indices, cache, measurement_info, parameter_info, petab_model = petab_problem
-            xdynamic, xobservable, xnoise, xnondynamic = PEtab.splitθ(θ, θ_indices)
+            xdynamic, xobservable, xnoise, xnondynamic = PEtab.split_x(θ, θ_indices)
             xobservable_ps = PEtab.transform_x(xobservable, θ_indices.xids[:observable],
                                              θ_indices, :xobservable, cache)
             xnondynamic_ps = PEtab.transform_x(xnondynamic, θ_indices.xids[:nondynamic],

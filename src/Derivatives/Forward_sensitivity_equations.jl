@@ -27,13 +27,10 @@ function compute_gradient_forward_equations!(gradient::Vector{Float64},
                                              exp_id_solve::Vector{Symbol} = [:all],
                                              split_over_conditions::Bool = false,
                                              isremade::Bool = false)::Nothing
-    xdynamic_ps = transform_x(xdynamic, θ_indices.xids[:dynamic], θ_indices, :xdynamic,
-                            cache)
-    xnoise_ps = transform_x(xnoise, θ_indices.xids[:noise], θ_indices, :xnoise, cache)
-    xobservable_ps = transform_x(xobservable, θ_indices.xids[:observable], θ_indices,
-                               :xobservable, cache)
-    xnondynamic_ps = transform_x(xnondynamic, θ_indices.xids[:nondynamic], θ_indices,
-                                :xnondynamic, cache)
+    xnoise_ps = PEtab.transform_x(xnoise, θ_indices, :xnoise, cache)
+    xobservable_ps = PEtab.transform_x(xobservable, θ_indices, :xobservable, cache)
+    xnondynamic_ps = PEtab.transform_x(xnondynamic, θ_indices, :xnondynamic, cache)
+    xdynamic_ps = PEtab.transform_x(xdynamic, θ_indices, :xdynamic, cache)
 
     # Solve the expanded ODE system for the sensitivites
     success = solve_sensitivites(ode_problem, simulation_info, θ_indices, petab_model,

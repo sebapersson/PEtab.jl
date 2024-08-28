@@ -18,7 +18,7 @@ function compute_gradient_autodiff!(gradient::Vector{Float64},
     @unpack simulation_info, θ_indices, prior_info = model_info
     @unpack cache = probleminfo
     fill!(gradient, 0.0)
-    splitθ!(θ_est, θ_indices, cache)
+    split_x!(θ_est, θ_indices, cache)
     # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough.
     # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final
     # retcode we cannot catch these cases
@@ -107,7 +107,7 @@ function compute_gradient_autodiff_split!(gradient::Vector{Float64},
     # retcode we cannot catch these cases
     simulation_info.could_solve[1] = true
 
-    splitθ!(θ_est, θ_indices, cache)
+    split_x!(θ_est, θ_indices, cache)
     xdynamic = cache.xdynamic
     fill!(cache.xdynamic_grad, 0.0)
 
@@ -173,7 +173,7 @@ function compute_gradient_forward_equations!(gradient::Vector{Float64},
     # retcode we cannot catch these cases
     simulation_info.could_solve[1] = true
 
-    splitθ!(θ_est, θ_indices, cache)
+    split_x!(θ_est, θ_indices, cache)
     @unpack xdynamic, xobservable, xnoise, xnondynamic = cache
 
     # Calculate gradient seperately for dynamic and non dynamic parameter.
