@@ -56,35 +56,35 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem,
     # In case we fixate more parameters than there are chunk-size we might only want to evaluate ForwardDiff over a
     # subset of chunks. To this end we here make sure "fixed" parameter are moved to the end of the parameter vector
     # allowing us to take the chunks across the first parameters
-    __iθ_dynamic_fixate = [findfirst(x -> x == parameter_fixate,
+    __ixdynamic_fixate = [findfirst(x -> x == parameter_fixate,
                                      petab_problem.θ_indices.xids[:dynamic])
                            for parameter_fixate in parameters_fixate]
-    _iθ_dynamic_fixate = __iθ_dynamic_fixate[findall(x -> !isnothing(x),
-                                                     __iθ_dynamic_fixate)]
-    if !isempty(_iθ_dynamic_fixate)
+    _ixdynamic_fixate = __ixdynamic_fixate[findall(x -> !isnothing(x),
+                                                     __ixdynamic_fixate)]
+    if !isempty(_ixdynamic_fixate)
         k = 1
         # Make sure the parameter which are to be "estimated" end up in the from
         # of the parameter vector when running ForwardDiff
         for i in eachindex(petab_problem.θ_indices.xids[:dynamic])
-            if i ∈ _iθ_dynamic_fixate
+            if i ∈ _ixdynamic_fixate
                 continue
             end
-            petab_problem.petab_ODE_cache.θ_dynamic_input_order[k] = i
-            petab_problem.petab_ODE_cache.θ_dynamic_output_order[i] = k
+            petab_problem.cache.xdynamic_input_order[k] = i
+            petab_problem.cache.xdynamic_output_order[i] = k
             k += 1
         end
         # Make sure the parameter which are fixated ends up in the end of the parameter
         # vector when running ForwardDiff
         for i in eachindex(petab_problem.θ_indices.xids[:dynamic])
-            if i ∉ _iθ_dynamic_fixate
+            if i ∉ _ixdynamic_fixate
                 continue
             end
-            petab_problem.petab_ODE_cache.θ_dynamic_input_order[k] = i
-            petab_problem.petab_ODE_cache.θ_dynamic_output_order[i] = k
+            petab_problem.cache.xdynamic_input_order[k] = i
+            petab_problem.cache.xdynamic_output_order[i] = k
             k += 1
         end
-        petab_problem.petab_ODE_cache.nθ_dynamic[1] = length(petab_problem.θ_indices.xids[:dynamic]) -
-                                                      length(_iθ_dynamic_fixate)
+        petab_problem.cache.nxdynamic[1] = length(petab_problem.θ_indices.xids[:dynamic]) -
+                                                      length(_ixdynamic_fixate)
 
         # Aviod  problems with autodiff=true for ODE solvers for computing the gradient
         if typeof(petab_problem.ode_solver_gradient.solver) <: Rodas5P
@@ -99,9 +99,9 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem,
             petab_problem.ode_solver_gradient.solver = Rosenbrock23(autodiff = false)
         end
     else
-        petab_problem.petab_ODE_cache.θ_dynamic_input_order .= 1:length(petab_problem.θ_indices.xids[:dynamic])
-        petab_problem.petab_ODE_cache.θ_dynamic_output_order .= 1:length(petab_problem.θ_indices.xids[:dynamic])
-        petab_problem.petab_ODE_cache.nθ_dynamic[1] = length(petab_problem.θ_indices.xids[:dynamic])
+        petab_problem.cache.xdynamic_input_order .= 1:length(petab_problem.θ_indices.xids[:dynamic])
+        petab_problem.cache.xdynamic_output_order .= 1:length(petab_problem.θ_indices.xids[:dynamic])
+        petab_problem.cache.nxdynamic[1] = length(petab_problem.θ_indices.xids[:dynamic])
     end
 
     # Setup mapping from θ_est to _θ_est
@@ -253,7 +253,7 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem,
                                      petab_problem.split_over_conditions,
                                      petab_problem.prior_info,
                                      petab_problem.parameter_info,
-                                     petab_problem.petab_ODE_cache,
+                                     petab_problem.cache,
                                      petab_problem.measurement_info,
                                      petab_problem.petab_ODESolver_cache)
     return _petab_problem

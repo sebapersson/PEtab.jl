@@ -85,7 +85,7 @@ end
                        model_state_names::Vector{String},
                        parameter_info::ParametersInfo,
                        p_ode_problem_names::Vector{String},
-                       θ_non_dynamic_names::Vector{String},
+                       xnondynamic_names::Vector{String},
                        observables_data::DataFrame,
                        model_SBML::SBMLImporter.ModelSBML)
 
@@ -97,7 +97,7 @@ function create∂h∂_function(model_name::String,
                             model_state_names::Vector{String},
                             parameter_info::ParametersInfo,
                             p_ode_problem_names::Vector{String},
-                            θ_non_dynamic_names::Vector{String},
+                            xnondynamic_names::Vector{String},
                             observables_data::DataFrame,
                             model_SBML::SBMLImporter.ModelSBML,
                             write_to_file::Bool)
@@ -105,9 +105,9 @@ function create∂h∂_function(model_name::String,
     io1 = IOBuffer()
     io2 = IOBuffer()
 
-    model_state_str, p_ode_problem_str, θ_non_dynamic_str = create_top_∂h∂_function(model_state_names,
+    model_state_str, p_ode_problem_str, xnondynamic_str = create_top_∂h∂_function(model_state_names,
                                                                                     p_ode_problem_names,
-                                                                                    θ_non_dynamic_names,
+                                                                                    xnondynamic_names,
                                                                                     observables_data)
 
     # Store the formula of each observable in string
@@ -124,7 +124,7 @@ function create∂h∂_function(model_name::String,
                           string(observables_data[!, :observableFormula][i]))
         formula = replace_explicit_variable_rule(_formula, model_SBML)
         julia_formula = petab_formula_to_Julia(formula, model_state_names, parameter_info,
-                                               p_ode_problem_names, θ_non_dynamic_names)
+                                               p_ode_problem_names, xnondynamic_names)
 
         enter_observable = true # Only extract observable parameter once
         for iState in eachindex(model_state_names)
@@ -133,7 +133,7 @@ function create∂h∂_function(model_name::String,
                 observable_parameters = get_observable_parameters(formula)
                 if !isempty(observable_parameters) && enter_observable == true
                     u_observeble_str *= "\t\t" * observable_parameters *
-                                        " = get_obs_sd_parameter(θ_observable, parametermap)\n"
+                                        " = get_obs_sd_parameter(xobservable, parametermap)\n"
                     enter_observable = false
                 end
 
@@ -142,7 +142,7 @@ function create∂h∂_function(model_name::String,
                 _∂h∂ui = string(Symbolics.derivative(julia_formula_symbolic, ui_symbolic;
                                                      simplify = true))
                 ∂h∂ui = variables_to_array_index(_∂h∂ui, model_state_names, parameter_info,
-                                                 p_ode_problem_names, θ_non_dynamic_names,
+                                                 p_ode_problem_names, xnondynamic_names,
                                                  p_ode_problem = true)
 
                 u_observeble_str *= "\t\tout[" * string(iState) * "] = " * ∂h∂ui * "\n"
@@ -156,7 +156,7 @@ function create∂h∂_function(model_name::String,
                 observable_parameters = get_observable_parameters(formula)
                 if !isempty(observable_parameters) && enter_observable == true
                     p_observeble_str *= "\t\t" * observable_parameters *
-                                        " = get_obs_sd_parameter(θ_observable, parametermap)\n"
+                                        " = get_obs_sd_parameter(xobservable, parametermap)\n"
                     enter_observable = false
                 end
 
@@ -165,7 +165,7 @@ function create∂h∂_function(model_name::String,
                 _∂h∂pi = string(Symbolics.derivative(julia_formula_symbolic, pi_symbolic;
                                                      simplify = true))
                 ∂h∂pi = variables_to_array_index(_∂h∂pi, model_state_names, parameter_info,
-                                                 p_ode_problem_names, θ_non_dynamic_names,
+                                                 p_ode_problem_names, xnondynamic_names,
                                                  p_ode_problem = true)
                 p_observeble_str *= "\t\tout[" * string(ip) * "] = " * ∂h∂pi * "\n"
             end
@@ -178,12 +178,12 @@ function create∂h∂_function(model_name::String,
     if write_to_file == true
         write(io1, model_state_str)
         write(io1, p_ode_problem_str)
-        write(io1, θ_non_dynamic_str)
+        write(io1, xnondynamic_str)
         write(io1, "\n")
     end
     write(io1,
-          "function compute_∂h∂u!(u, t::Real, p_ode_problem::AbstractVector, θ_observable::AbstractVector,
-                  θ_non_dynamic::AbstractVector, observableId::Symbol, parametermap::ObservableNoiseMap, out) \n")
+          "function compute_∂h∂u!(u, t::Real, p_ode_problem::AbstractVector, xobservable::AbstractVector,
+                  xnondynamic::AbstractVector, observableId::Symbol, parametermap::ObservableNoiseMap, out) \n")
     write(io1, u_observeble_str)
     write(io1, "end")
     ∂h∂u_str = String(take!(io1))
@@ -195,8 +195,8 @@ function create∂h∂_function(model_name::String,
     end
 
     write(io2,
-          "function compute_∂h∂p!(u, t::Real, p_ode_problem::AbstractVector, θ_observable::AbstractVector,
-                  θ_non_dynamic::AbstractVector, observableId::Symbol, parametermap::ObservableNoiseMap, out) \n")
+          "function compute_∂h∂p!(u, t::Real, p_ode_problem::AbstractVector, xobservable::AbstractVector,
+                  xnondynamic::AbstractVector, observableId::Symbol, parametermap::ObservableNoiseMap, out) \n")
     write(io2, p_observeble_str)
     write(io2, "end")
     ∂h∂p_str = String(take!(io2))
@@ -215,14 +215,14 @@ end
 """
     create_top_∂h∂_function(model_state_names::Vector{String},
                             p_ode_problem_names::Vector{String},
-                            θ_non_dynamic_names::Vector{String},
+                            xnondynamic_names::Vector{String},
                             observables_data::DataFrame)
 
     Extracts all variables needed for the functions and add them as variables for Symbolics.
 """
 function create_top_∂h∂_function(model_state_names::Vector{String},
                                  p_ode_problem_names::Vector{String},
-                                 θ_non_dynamic_names::Vector{String},
+                                 xnondynamic_names::Vector{String},
                                  observables_data::DataFrame)
 
     # We formulate the string in a format accepatble for symbolics so that we later
@@ -247,15 +247,15 @@ function create_top_∂h∂_function(model_state_names::Vector{String},
     p_ode_problem_str = p_ode_problem_str[1:(end - 2)]
     p_ode_problem_str *= "\n"
 
-    θ_non_dynamic_str = "#"
-    if !isempty(θ_non_dynamic_names)
-        for i in eachindex(θ_non_dynamic_names)
-            θ_non_dynamic_str *= "θ_non_dynamic[" * string(i) * "] = " *
-                                 θ_non_dynamic_names[i] * ", "
-            variables_str *= θ_non_dynamic_names[i] * ", "
+    xnondynamic_str = "#"
+    if !isempty(xnondynamic_names)
+        for i in eachindex(xnondynamic_names)
+            xnondynamic_str *= "xnondynamic[" * string(i) * "] = " *
+                                 xnondynamic_names[i] * ", "
+            variables_str *= xnondynamic_names[i] * ", "
         end
-        θ_non_dynamic_str = θ_non_dynamic_str[1:(end - 2)] # Remove last non needed ", "
-        θ_non_dynamic_str *= "\n"
+        xnondynamic_str = xnondynamic_str[1:(end - 2)] # Remove last non needed ", "
+        xnondynamic_str *= "\n"
     end
 
     # Extracts all observable- and noise-parameters to add them to the symbolics variable string
@@ -282,7 +282,7 @@ function create_top_∂h∂_function(model_state_names::Vector{String},
     variables_str = variables_str[1:(end - 2)]
     eval(Meta.parse(variables_str))
 
-    return model_state_str, p_ode_problem_str, θ_non_dynamic_str
+    return model_state_str, p_ode_problem_str, xnondynamic_str
 end
 
 """
@@ -291,7 +291,7 @@ end
                             parameter_info::ParametersInfo,
                             model_state_names::Vector{String},
                             p_ode_problem_names::Vector{String},
-                            θ_non_dynamic_names::Vector{String},
+                            xnondynamic_names::Vector{String},
                             observables_data::DataFrame,
                             model_SBML::SBMLImporter.ModelSBML)
 
@@ -302,7 +302,7 @@ function create∂σ∂_function(model_name::String,
                             parameter_info::ParametersInfo,
                             model_state_names::Vector{String},
                             p_ode_problem_names::Vector{String},
-                            θ_non_dynamic_names::Vector{String},
+                            xnondynamic_names::Vector{String},
                             observables_data::DataFrame,
                             model_SBML::SBMLImporter.ModelSBML,
                             write_to_file::Bool)
@@ -322,7 +322,7 @@ function create∂σ∂_function(model_name::String,
         _formula = filter(x -> !isspace(x), string(observables_data[!, :noiseFormula][i]))
         formula = replace_explicit_variable_rule(_formula, model_SBML)
         julia_formula = petab_formula_to_Julia(formula, model_state_names, parameter_info,
-                                               p_ode_problem_names, θ_non_dynamic_names)
+                                               p_ode_problem_names, xnondynamic_names)
 
         enter_observable = true
         for iState in eachindex(model_state_names)
@@ -330,7 +330,7 @@ function create∂σ∂_function(model_name::String,
                 noise_parameters = get_noise_parameters(formula)
                 if !isempty(noise_parameters) && enter_observable == true
                     u_observeble_str *= "\t\t" * noise_parameters *
-                                        " = get_obs_sd_parameter(θ_sd, parametermap)\n"
+                                        " = get_obs_sd_parameter(xnoise, parametermap)\n"
                     enter_observable = false
                 end
 
@@ -339,7 +339,7 @@ function create∂σ∂_function(model_name::String,
                 _∂σ∂ui = string(Symbolics.derivative(julia_formula_symbolic, ui_symbolic;
                                                      simplify = true))
                 ∂σ∂ui = variables_to_array_index(_∂σ∂ui, model_state_names, parameter_info,
-                                                 p_ode_problem_names, θ_non_dynamic_names,
+                                                 p_ode_problem_names, xnondynamic_names,
                                                  p_ode_problem = true)
                 u_observeble_str *= "\t\tout[" * string(iState) * "] = " * ∂σ∂ui * "\n"
             end
@@ -351,7 +351,7 @@ function create∂σ∂_function(model_name::String,
                 noise_parameters = get_noise_parameters(formula)
                 if !isempty(noise_parameters) && enter_observable == true
                     p_observeble_str *= "\t\t" * noise_parameters *
-                                        " = get_obs_sd_parameter(θ_sd, parametermap)\n"
+                                        " = get_obs_sd_parameter(xnoise, parametermap)\n"
                     enter_observable = false
                 end
 
@@ -360,7 +360,7 @@ function create∂σ∂_function(model_name::String,
                 _∂σ∂pi = string(Symbolics.derivative(julia_formula_symbolic, pi_symbolic;
                                                      simplify = true))
                 ∂σ∂pi = variables_to_array_index(_∂σ∂pi, model_state_names, parameter_info,
-                                                 p_ode_problem_names, θ_non_dynamic_names,
+                                                 p_ode_problem_names, xnondynamic_names,
                                                  p_ode_problem = true)
                 p_observeble_str *= "\t\tout[" * string(ip) * "] = " * ∂σ∂pi * "\n"
             end
@@ -371,7 +371,7 @@ function create∂σ∂_function(model_name::String,
     end
 
     write(io1,
-          "function compute_∂σ∂σu!(u, t::Real, θ_sd::AbstractVector, p_ode_problem::AbstractVector,  θ_non_dynamic::AbstractVector,
+          "function compute_∂σ∂σu!(u, t::Real, xnoise::AbstractVector, p_ode_problem::AbstractVector,  xnondynamic::AbstractVector,
                    parameter_info::ParametersInfo, observableId::Symbol, parametermap::ObservableNoiseMap, out) \n")
     write(io1, u_observeble_str)
     write(io1, "end")
@@ -384,7 +384,7 @@ function create∂σ∂_function(model_name::String,
     end
 
     write(io2,
-          "function compute_∂σ∂σp!(u, t::Real, θ_sd::AbstractVector, p_ode_problem::AbstractVector,  θ_non_dynamic::AbstractVector,
+          "function compute_∂σ∂σp!(u, t::Real, xnoise::AbstractVector, p_ode_problem::AbstractVector,  xnondynamic::AbstractVector,
                    parameter_info::ParametersInfo, observableId::Symbol, parametermap::ObservableNoiseMap, out) \n")
     write(io2, p_observeble_str)
     write(io2, "end")

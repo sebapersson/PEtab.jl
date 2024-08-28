@@ -115,16 +115,16 @@ function create_h_function(model_name::String,
                            model_state_names::Vector{String},
                            parameter_info::ParametersInfo,
                            p_ode_problem_names::Vector{String},
-                           θ_non_dynamic_names::Vector{String},
+                           xnondynamic_names::Vector{String},
                            observables_data::DataFrame,
                            model_SBML::SBMLImporter.ModelSBML,
                            write_to_file::Bool)
     io = IOBuffer()
     path_save = joinpath(dirmodel, model_name * "_h_sd_u0.jl")
-    model_state_str, θ_dynamic_str, θ_non_dynamic_str, constant_parameters_str = create_top_function_h(model_state_names,
+    model_state_str, xdynamic_str, xnondynamic_str, constant_parameters_str = create_top_function_h(model_state_names,
                                                                                                        parameter_info,
                                                                                                        p_ode_problem_names,
-                                                                                                       θ_non_dynamic_names)
+                                                                                                       xnondynamic_names)
 
     # Write the formula for each observable in Julia syntax
     observable_ids = string.(observables_data[!, :observableId])
@@ -136,31 +136,31 @@ function create_h_function(model_name::String,
         observable_str *= "\tif observableId === " * ":" * observable_ids[i] * " \n"
         if !isempty(observable_parameters)
             observable_str *= "\t\t" * observable_parameters *
-                              " = get_obs_sd_parameter(θ_observable, parametermap)\n"
+                              " = get_obs_sd_parameter(xobservable, parametermap)\n"
         end
 
         formula = replace_explicit_variable_rule(_formula, model_SBML)
 
         # Translate the formula for the observable to Julia syntax
         _julia_formula = petab_formula_to_Julia(formula, model_state_names, parameter_info,
-                                                p_ode_problem_names, θ_non_dynamic_names)
+                                                p_ode_problem_names, xnondynamic_names)
         julia_formula = variables_to_array_index(_julia_formula, model_state_names,
                                                  parameter_info, p_ode_problem_names,
-                                                 θ_non_dynamic_names, p_ode_problem = true)
+                                                 xnondynamic_names, p_ode_problem = true)
         observable_str *= "\t\t" * "return " * julia_formula * "\n" * "\tend\n\n"
     end
 
     # Create h function
     if write_to_file == true
         write(io, model_state_str)
-        write(io, θ_dynamic_str)
-        write(io, θ_non_dynamic_str)
+        write(io, xdynamic_str)
+        write(io, xnondynamic_str)
         write(io, constant_parameters_str)
         write(io, "\n")
     end
     write(io,
-          "function compute_h(u::AbstractVector, t::Real, p_ode_problem::AbstractVector, θ_observable::AbstractVector,
-               θ_non_dynamic::AbstractVector, parameter_info::ParametersInfo, observableId::Symbol,
+          "function compute_h(u::AbstractVector, t::Real, p_ode_problem::AbstractVector, xobservable::AbstractVector,
+               xnondynamic::AbstractVector, parameter_info::ParametersInfo, observableId::Symbol,
                   parametermap::ObservableNoiseMap)::Real \n")
     write(io, observable_str)
     write(io, "end")
@@ -186,7 +186,7 @@ end
 function create_top_function_h(model_state_names::Vector{String},
                                parameter_info::ParametersInfo,
                                p_ode_problem_names::Vector{String},
-                               θ_non_dynamic_names::Vector{String})
+                               xnondynamic_names::Vector{String})
     model_state_str = "#"
     for i in eachindex(model_state_names)
         model_state_str *= "u[" * string(i) * "] = " * model_state_names[i] * ", "
@@ -194,22 +194,22 @@ function create_top_function_h(model_state_names::Vector{String},
     model_state_str = model_state_str[1:(end - 2)] # Remove last non needed ", "
     model_state_str *= "\n"
 
-    θ_dynamic_str = "#"
+    xdynamic_str = "#"
     for i in eachindex(p_ode_problem_names)
-        θ_dynamic_str *= "p_ode_problem_names[" * string(i) * "] = " *
+        xdynamic_str *= "p_ode_problem_names[" * string(i) * "] = " *
                          p_ode_problem_names[i] * ", "
     end
-    θ_dynamic_str = θ_dynamic_str[1:(end - 2)] # Remove last non needed ", "
-    θ_dynamic_str *= "\n"
+    xdynamic_str = xdynamic_str[1:(end - 2)] # Remove last non needed ", "
+    xdynamic_str *= "\n"
 
-    θ_non_dynamic_str = "#"
-    if !isempty(θ_non_dynamic_names)
-        for i in eachindex(θ_non_dynamic_names)
-            θ_non_dynamic_str *= "θ_non_dynamic[" * string(i) * "] = " *
-                                 θ_non_dynamic_names[i] * ", "
+    xnondynamic_str = "#"
+    if !isempty(xnondynamic_names)
+        for i in eachindex(xnondynamic_names)
+            xnondynamic_str *= "xnondynamic[" * string(i) * "] = " *
+                                 xnondynamic_names[i] * ", "
         end
-        θ_non_dynamic_str = θ_non_dynamic_str[1:(end - 2)] # Remove last non needed ", "
-        θ_non_dynamic_str *= "\n"
+        xnondynamic_str = xnondynamic_str[1:(end - 2)] # Remove last non needed ", "
+        xnondynamic_str *= "\n"
     end
 
     constant_parameters_str = ""
@@ -222,7 +222,7 @@ function create_top_function_h(model_state_names::Vector{String},
     end
     constant_parameters_str *= "\n"
 
-    return model_state_str, θ_dynamic_str, θ_non_dynamic_str, constant_parameters_str
+    return model_state_str, xdynamic_str, xnondynamic_str, constant_parameters_str
 end
 
 """
@@ -339,7 +339,7 @@ end
                       parameter_info::ParametersInfo,
                       model_state_names::Vector{String},
                       p_ode_problem_names::Vector{String},
-                      θ_non_dynamic_names::Vector{String},
+                      xnondynamic_names::Vector{String},
                       observables_data::DataFrame,
                       model_SBML::SBMLImporter.ModelSBML)
 
@@ -351,7 +351,7 @@ function create_σ_function(model_name::String,
                            parameter_info::ParametersInfo,
                            model_state_names::Vector{String},
                            p_ode_problem_names::Vector{String},
-                           θ_non_dynamic_names::Vector{String},
+                           xnondynamic_names::Vector{String},
                            observables_data::DataFrame,
                            model_SBML::SBMLImporter.ModelSBML,
                            write_to_file::Bool)
@@ -367,22 +367,22 @@ function create_σ_function(model_name::String,
         observable_str *= "\tif observableId === " * ":" * observable_ids[i] * " \n"
         if !isempty(noise_parameters)
             observable_str *= "\t\t" * noise_parameters *
-                              " = get_obs_sd_parameter(θ_sd, parametermap)\n"
+                              " = get_obs_sd_parameter(xnoise, parametermap)\n"
         end
 
         formula = replace_explicit_variable_rule(_formula, model_SBML)
 
         # Translate the formula for the observable to Julia syntax
         _julia_formula = petab_formula_to_Julia(formula, model_state_names, parameter_info,
-                                                p_ode_problem_names, θ_non_dynamic_names)
+                                                p_ode_problem_names, xnondynamic_names)
         julia_formula = variables_to_array_index(_julia_formula, model_state_names,
                                                  parameter_info, p_ode_problem_names,
-                                                 θ_non_dynamic_names, p_ode_problem = true)
+                                                 xnondynamic_names, p_ode_problem = true)
         observable_str *= "\t\t" * "return " * julia_formula * "\n" * "\tend\n\n"
     end
 
     write(io,
-          "function compute_σ(u::AbstractVector, t::Real, θ_sd::AbstractVector, p_ode_problem::AbstractVector,  θ_non_dynamic::AbstractVector,
+          "function compute_σ(u::AbstractVector, t::Real, xnoise::AbstractVector, p_ode_problem::AbstractVector,  xnondynamic::AbstractVector,
                parameter_info::ParametersInfo, observableId::Symbol, parametermap::ObservableNoiseMap)::Real \n")
     write(io, observable_str)
     write(io, "\nend")

@@ -115,10 +115,8 @@ function PEtabODEProblemInfo(petab_model::PEtabModel, model_info::ModelInfo, ode
     chunksize_use = isnothing(chunksize) ? 0 : chunksize
 
     # Cache to avoid allocations to as large degree as possible. TODO: Refactor into single
-    petab_ODE_cache = PEtabODEProblemCache(gradient_method_use, hessian_method_use,
-                                           FIM_method_use, sensealg_use, model_info)
-    petab_ODESolver_cache = PEtabODESolverCache(gradient_method_use, hessian_method_use,
-                                                model_info)
+    cache = PEtabODEProblemCache(gradient_method_use, hessian_method_use, FIM_method_use,
+                                 sensealg_use, model_info)
 
     _logging(:Build_ODEProblem, verbose)
     btime = @elapsed begin
@@ -150,8 +148,7 @@ function PEtabODEProblemInfo(petab_model::PEtabModel, model_info::ModelInfo, ode
                                ss_solver_use, ss_solver_gradient_use, gradient_method_use,
                                hessian_method_use, FIM_method_use, reuse_sensitivities,
                                sparse_jacobian_use, sensealg_use, sensealg_ss_use,
-                               petab_ODE_cache, petab_ODESolver_cache,
-                               split_over_conditions, chunksize_use)
+                               cache, split_over_conditions, chunksize_use)
 end
 
 function _get_nllh_f(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo,
@@ -185,8 +182,8 @@ end
 function _get_hess_f(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
                      return_jacobian::Bool = false,
                      FIM::Bool = false)::Tuple{Function, Function}
-    @unpack hessian_method, split_over_conditions, chunksize, petab_ODE_cache = probleminfo
-    @unpack θ_dynamic = petab_ODE_cache
+    @unpack hessian_method, split_over_conditions, chunksize, cache = probleminfo
+    @unpack xdynamic = cache
     if FIM == true
         hessian_method = probleminfo.FIM_method
     end
@@ -221,14 +218,14 @@ function _get_hess_f(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
 
         if split_over_conditions == false
             _nllh_solveode = let pinfo = probleminfo, minfo = model_info
-                @unpack θ_sd, θ_observable, θ_non_dynamic = pinfo.petab_ODE_cache
-                (x) -> compute_cost_solve_ODE(x, θ_sd, θ_observable, θ_non_dynamic, pinfo,
-                                              minfo; compute_gradient_θ_dynamic = true,
+                @unpack xnoise, xobservable, xnondynamic = pinfo.cache
+                (x) -> compute_cost_solve_ODE(x, xnoise, xobservable, xnondynamic, pinfo,
+                                              minfo; compute_gradient_xdynamic = true,
                                               exp_id_solve = [:all])
             end
 
-            chunksize_use = _get_chunksize(chunksize, θ_dynamic)
-            cfg = ForwardDiff.HessianConfig(_nllh_solveode, θ_dynamic, chunksize_use)
+            chunksize_use = _get_chunksize(chunksize, xdynamic)
+            cfg = ForwardDiff.HessianConfig(_nllh_solveode, xdynamic, chunksize_use)
             _compute_hessian! = let _nllh_solveode = _nllh_solveode,
                 _nllh_not_solveode = _nllh_not_solveode, pinfo = probleminfo, minfo = model_info,
                 cfg = cfg
@@ -240,10 +237,10 @@ function _get_hess_f(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
 
         if split_over_conditions == true
             _nllh_solveode = let pinfo = probleminfo, minfo = model_info
-                @unpack θ_sd, θ_observable, θ_non_dynamic = pinfo.petab_ODE_cache
-                (x, eid) -> compute_cost_solve_ODE(x, θ_sd, θ_observable, θ_non_dynamic,
+                @unpack xnoise, xobservable, xnondynamic = pinfo.cache
+                (x, eid) -> compute_cost_solve_ODE(x, xnoise, xobservable, xnondynamic,
                                                    pinfo, minfo,
-                                                   compute_gradient_θ_dynamic = true,
+                                                   compute_gradient_xdynamic = true,
                                                    exp_id_solve = eid)
             end
 
@@ -273,23 +270,23 @@ function _get_hess_f(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
                                                             compute_forward_sensitivites_ad = true)
             end
         end
-        chunksize_use = _get_chunksize(chunksize, θ_dynamic)
+        chunksize_use = _get_chunksize(chunksize, xdynamic)
         cfg = cfg = ForwardDiff.JacobianConfig(_solve_conditions!,
-                                               petab_ODE_cache.sol_values,
-                                               petab_ODE_cache.θ_dynamic, chunksize_use)
+                                               cache.odesols,
+                                               cache.xdynamic, chunksize_use)
 
         _residuals_not_solve! = let pinfo = probleminfo, minfo = model_info
-            iθ_sd, iθ_observable, iθ_non_dynamic, _ = get_index_parameters_not_ODE(model_info.θ_indices)
+            ixnoise, ixobservable, ixnondynamic, _ = get_index_parameters_not_ODE(model_info.θ_indices)
             (residuals, x) -> begin
-                compute_residuals_not_solve_ode!(residuals, x[iθ_sd], x[iθ_observable],
-                                                 x[iθ_non_dynamic], pinfo, minfo;
+                compute_residuals_not_solve_ode!(residuals, x[ixnoise], x[ixobservable],
+                                                 x[ixnondynamic], pinfo, minfo;
                                                  exp_id_solve = [:all])
             end
         end
 
         xnot_ode = zeros(Float64, length(model_info.θ_indices.xids[:not_system]))
         cfg_notsolve = ForwardDiff.JacobianConfig(_residuals_not_solve!,
-                                                  petab_ODE_cache.residuals_gn, xnot_ode,
+                                                  cache.residuals_gn, xnot_ode,
                                                   ForwardDiff.Chunk(xnot_ode))
         _compute_hessian! = let _residuals_not_solve! = _residuals_not_solve!,
             pinfo = probleminfo, minfo = model_info, cfg = cfg, cfg_notsolve = cfg_notsolve,
@@ -337,8 +334,8 @@ function _get_nllh_not_solveode(probleminfo::PEtabODEProblemInfo, model_info::Mo
                                 compute_gradient_not_solve_adjoint::Bool = false)::Function
     _nllh_not_solveode = let pinfo = probleminfo, minfo = model_info
         # TODO: Precompute!
-        iθ_sd, iθ_observable, iθ_non_dynamic, _ = get_index_parameters_not_ODE(minfo.θ_indices)
-        (x) -> compute_cost_not_solve_ODE(x[iθ_sd], x[iθ_observable], x[iθ_non_dynamic],
+        ixnoise, ixobservable, ixnondynamic, _ = get_index_parameters_not_ODE(minfo.θ_indices)
+        (x) -> compute_cost_not_solve_ODE(x[ixnoise], x[ixobservable], x[ixnondynamic],
                                           pinfo, minfo; exp_id_solve = [:all],
                                           compute_gradient_not_solve_autodiff = compute_gradient_not_solve_autodiff,
                                           compute_gradient_not_solve_forward = compute_gradient_not_solve_forward,
@@ -348,17 +345,17 @@ function _get_nllh_not_solveode(probleminfo::PEtabODEProblemInfo, model_info::Mo
 end
 
 function _get_nllh_solveode(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
-                            compute_gradient_θ_dynamic::Bool = false,
+                            compute_gradient_xdynamic::Bool = false,
                             eid::Bool = false)
     if eid == false
         _nllh_solveode = let pinfo = probleminfo, minfo = model_info
-            @unpack θ_sd, θ_observable, θ_non_dynamic = pinfo.petab_ODE_cache
-            (x) -> compute_cost_solve_ODE(x, θ_sd, θ_observable, θ_non_dynamic, pinfo, minfo; compute_gradient_θ_dynamic = compute_gradient_θ_dynamic, exp_id_solve = [:all])
+            @unpack xnoise, xobservable, xnondynamic = pinfo.cache
+            (x) -> compute_cost_solve_ODE(x, xnoise, xobservable, xnondynamic, pinfo, minfo; compute_gradient_xdynamic = compute_gradient_xdynamic, exp_id_solve = [:all])
         end
     else
         _nllh_solveode = let pinfo = probleminfo, minfo = model_info
-            @unpack θ_sd, θ_observable, θ_non_dynamic = pinfo.petab_ODE_cache
-            (x, _eid) -> compute_cost_solve_ODE(x, θ_sd, θ_observable, θ_non_dynamic, pinfo, minfo; compute_gradient_θ_dynamic = compute_gradient_θ_dynamic, exp_id_solve = _eid)
+            @unpack xnoise, xobservable, xnondynamic = pinfo.cache
+            (x, _eid) -> compute_cost_solve_ODE(x, xnoise, xobservable, xnondynamic, pinfo, minfo; compute_gradient_xdynamic = compute_gradient_xdynamic, exp_id_solve = _eid)
         end
     end
     return _nllh_solveode
@@ -366,22 +363,22 @@ end
 
 function _get_grad_forward_AD(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo)::Function
     @unpack split_over_conditions, gradient_method, chunksize = probleminfo
-    @unpack sensealg, petab_ODE_cache = probleminfo
+    @unpack sensealg, cache = probleminfo
     _nllh_not_solveode = _get_nllh_not_solveode(probleminfo, model_info; compute_gradient_not_solve_autodiff = true)
 
     if split_over_conditions == false
-        _nllh_solveode = _get_nllh_solveode(probleminfo, model_info; compute_gradient_θ_dynamic = true)
+        _nllh_solveode = _get_nllh_solveode(probleminfo, model_info; compute_gradient_xdynamic = true)
 
-        @unpack θ_dynamic = petab_ODE_cache
-        chunksize_use = _get_chunksize(chunksize, θ_dynamic)
-        cfg = ForwardDiff.GradientConfig(_nllh_solveode, θ_dynamic, chunksize_use)
+        @unpack xdynamic = cache
+        chunksize_use = _get_chunksize(chunksize, xdynamic)
+        cfg = ForwardDiff.GradientConfig(_nllh_solveode, xdynamic, chunksize_use)
         _grad! = let _nllh_not_solveode = _nllh_not_solveode, _nllh_solveode = _nllh_solveode, cfg = cfg, minfo = model_info, pinfo = probleminfo
             (grad, x; isremade = false) -> compute_gradient_autodiff!(grad, x, _nllh_not_solveode, _nllh_solveode, cfg, minfo, pinfo; isremade = isremade)
         end
     end
 
     if split_over_conditions == true
-        _nllh_solveode = _get_nllh_solveode(probleminfo, model_info; eid = true, compute_gradient_θ_dynamic = true)
+        _nllh_solveode = _get_nllh_solveode(probleminfo, model_info; eid = true, compute_gradient_xdynamic = true)
 
         _grad! = let _nllh_not_solveode = _nllh_not_solveode, _nllh_solveode = _nllh_solveode, minfo = model_info, pinfo = probleminfo
             (g, θ) -> compute_gradient_autodiff_split!(g, θ, _nllh_not_solveode, _nllh_solveode, pinfo, minfo)
@@ -392,22 +389,22 @@ end
 
 function _get_grad_forward_eqs(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo)::Function
     @unpack split_over_conditions, gradient_method, chunksize = probleminfo
-    @unpack sensealg, petab_ODE_cache = probleminfo
-    @unpack θ_dynamic, sol_values = petab_ODE_cache
-    chunksize_use = _get_chunksize(chunksize, θ_dynamic)
+    @unpack sensealg, cache = probleminfo
+    @unpack xdynamic, odesols = cache
+    chunksize_use = _get_chunksize(chunksize, xdynamic)
 
     if sensealg == :ForwardDiff && split_over_conditions == false
         _solve_conditions! = let pinfo = probleminfo, minfo = model_info
             (sols, x) -> solve_ode_all_conditions!(sols, x, pinfo, minfo; save_at_observed_t = true,  compute_forward_sensitivites_ad = true)
         end
-        cfg = ForwardDiff.JacobianConfig(_solve_conditions!, sol_values, θ_dynamic, chunksize_use)
+        cfg = ForwardDiff.JacobianConfig(_solve_conditions!, odesols, xdynamic, chunksize_use)
     end
 
     if sensealg == :ForwardDiff && split_over_conditions == true
         _solve_conditions! = let pinfo = probleminfo, minfo = model_info
             (sols, x, eid) -> solve_ode_all_conditions!(sols, x, pinfo, minfo; save_at_observed_t = true, exp_id_solve = eid, compute_forward_sensitivites_ad = true)
         end
-        cfg = ForwardDiff.JacobianConfig(_solve_conditions!, sol_values, θ_dynamic, chunksize_use)
+        cfg = ForwardDiff.JacobianConfig(_solve_conditions!, odesols, xdynamic, chunksize_use)
     end
 
     if sensealg != :ForwardDiff
@@ -440,7 +437,7 @@ function _get_bounds(model_info::ModelInfo, xnames::Vector{Symbol},
     else
         bounds = parameter_info.upper_bounds[ix]
     end
-    transformθ!(bounds, xnames, θ_indices, reverse_transform = true)
+    transform_x!(bounds, xnames, θ_indices, reverse_transform = true)
     return bounds
 end
 
@@ -450,7 +447,7 @@ function _get_xnominal(model_info::ModelInfo, xnames::Vector{Symbol},
     ix = [findfirst(x -> x == id, parameter_info.parameter_id) for id in xnames]
     xnominal = parameter_info.nominal_value[ix]
     if transform == true
-        transformθ!(xnominal, xnames, θ_indices, reverse_transform = true)
+        transform_x!(xnominal, xnames, θ_indices, reverse_transform = true)
     end
     return xnominal
 end

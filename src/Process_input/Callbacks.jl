@@ -448,7 +448,7 @@ function check_has_parameter_to_estimate(condition::T,
 
     # Parameters which are present for each experimental condition, and condition specific parameters
     i_ode_θ_all_conditions = θ_indices.map_ode_problem.dynamic_to_sys
-    i_ode_problem_θ_dynamicCondition = reduce(vcat,
+    i_ode_problem_xdynamicCondition = reduce(vcat,
                                               [θ_indices.maps_conidition_id[i].ix_sys
                                                for i in keys(θ_indices.maps_conidition_id)])
 
@@ -456,7 +456,7 @@ function check_has_parameter_to_estimate(condition::T,
         _condition = SBMLImporter.replace_variable(condition, p_ode_problem_names[i],
                                                    "integrator.p[" * string(i) * "]")
         if _condition != condition
-            if i ∈ i_ode_θ_all_conditions || i ∈ i_ode_problem_θ_dynamicCondition
+            if i ∈ i_ode_θ_all_conditions || i ∈ i_ode_problem_xdynamicCondition
                 return true
             end
         end

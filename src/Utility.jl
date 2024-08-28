@@ -22,7 +22,8 @@ function get_odesol(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisat
                     petab_problem::PEtabODEProblem;
                     condition_id::Union{String, Symbol, Nothing} = nothing,
                     pre_eq_id::Union{String, Symbol, Nothing} = nothing)
-    @unpack simulation_info, ode_solver = petab_problem
+    ode_solver = petab_problem.probleminfo.solver
+    simulation_info = petab_problem.model_info.simulation_info
     if isnothing(condition_id)
         condition_id = simulation_info.conditionids[:simulation][1]
     end
@@ -78,17 +79,18 @@ function get_odeproblem(res::Union{PEtabOptimisationResult,
                         petab_problem::PEtabODEProblem;
                         condition_id::Union{String, Symbol, Nothing} = nothing,
                         pre_eq_id::Union{String, Symbol, Nothing} = nothing)
-    @unpack simulation_info, ode_solver, petab_model = petab_problem
+    ode_solver = petab_problem.probleminfo.solver
+    @unpack simulation_info, petab_model = petab_problem.model_info
     if isnothing(condition_id)
         condition_id = simulation_info.conditionids[:simulation][1]
     end
 
     u0, p = _get_fitted_parameters(res, petab_problem, condition_id, pre_eq_id, false)
-    tmax = petab_problem.simulation_info.tmaxs[condition_id]
+    tmax = simulation_info.tmaxs[condition_id]
     ode_problem = ODEProblem(petab_model.sys, u0, [0.0, tmax], p, jac = true)
 
-    cbset = petab_problem.petab_model.model_callbacks
-    tstops = petab_problem.petab_model.compute_tstops(u0, p)
+    cbset = petab_model.model_callbacks
+    tstops = petab_model.compute_tstops(u0, p)
 
     return ode_problem, cbset, tstops
 end
@@ -154,8 +156,8 @@ function _get_fitted_parameters(res::Union{PEtabOptimisationResult,
                                 condition_id::Union{String, Symbol, Nothing},
                                 pre_eq_id::Union{String, Symbol, Nothing},
                                 retmap::Bool = true)
-    @unpack θ_indices, petab_model, simulation_info, ode_problem = petab_problem
-
+    ode_problem = petab_problem.probleminfo.odeproblem
+    @unpack θ_indices, petab_model, simulation_info = petab_problem.model_info
     # Sanity check input
     if isnothing(condition_id)
         _c_id = simulation_info.conditionids[:simulation][1]
@@ -174,19 +176,19 @@ function _get_fitted_parameters(res::Union{PEtabOptimisationResult,
     u0, u0s = ode_problem.u0[:], first.(petab_model.statemap)
 
     if res isa Vector{Float64}
-        θT = transformθ(res, θ_indices.xids[:estimate], θ_indices)
+        θT = transform_x(res, θ_indices.xids[:estimate], θ_indices)
     else
-        θT = transformθ(res.xmin, θ_indices.xids[:estimate], θ_indices)
+        θT = transform_x(res.xmin, θ_indices.xids[:estimate], θ_indices)
     end
-    θ_dynamic, θ_observable, θ_sd, θ_non_dynamic = splitθ(θT, θ_indices)
+    xdynamic, xobservable, xnoise, xnondynamic = splitθ(θT, θ_indices)
 
     # Set constant model parameters
-    change_ode_parameters!(p, u0, θ_dynamic, θ_indices, petab_model)
+    change_ode_parameters!(p, u0, xdynamic, θ_indices, petab_model)
 
     # In case of no pre-eq condition we are done after changing to the condition s
     # Condition specific parameters
     if isnothing(pre_eq_id)
-        _change_simulation_condition!(p, u0, _c_id, θ_dynamic, petab_model, θ_indices)
+        _change_simulation_condition!(p, u0, _c_id, xdynamic, petab_model, θ_indices)
         _u0 = retmap ? Pair.(u0s, u0) : u0
         _p = retmap ? Pair.(ps, p) : p
         ip = findall(x -> !occursin("__init__", x), string.(ps))
@@ -201,7 +203,7 @@ function _get_fitted_parameters(res::Union{PEtabOptimisationResult,
     change_simulation_condition! = (p_ode_problem, u0, conditionId) -> _change_simulation_condition!(p_ode_problem,
                                                                                                      u0,
                                                                                                      conditionId,
-                                                                                                     θ_dynamic,
+                                                                                                     xdynamic,
                                                                                                      petab_model,
                                                                                                      θ_indices)
 
@@ -272,11 +274,11 @@ function solve_all_conditions(xpetab, petab_problem::PEtabODEProblem, solver; ab
         _ode_solver.maxiters = maxiters
     end
 
-    θ_dynamic, θ_observable, θ_sd, θ_non_dynamic = splitθ(xpetab, θ_indices)
-    θ_dynamicT = transformθ(θ_dynamic, θ_indices.xids[:dynamic], θ_indices,
-                            :θ_dynamic, petab_problem.petab_ODE_cache)
+    xdynamic, xobservable, xnoise, xnondynamic = splitθ(xpetab, θ_indices)
+    xdynamic_ps = transform_x(xdynamic, θ_indices.xids[:dynamic], θ_indices,
+                            :xdynamic, petab_problem.cache)
 
-    odesols, could_solve = solve_ODE_all_conditions(ode_problem, petab_model, θ_dynamicT,
+    odesols, could_solve = solve_ODE_all_conditions(ode_problem, petab_model, xdynamic_ps,
                                                     petab_ODESolver_cache, simulation_info,
                                                     θ_indices, _ode_solver, ss_solver;
                                                     save_at_observed_t = save_at_observed_t,

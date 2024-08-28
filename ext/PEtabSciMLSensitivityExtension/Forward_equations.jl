@@ -14,25 +14,25 @@ function PEtab.solve_sensitivites(ode_problem::ODEProblem,
                                   θ_indices::PEtab.ParameterIndices,
                                   petab_model::PEtabModel,
                                   sensealg::SciMLSensitivity.AbstractForwardSensitivityAlgorithm,
-                                  θ_dynamic::AbstractVector,
+                                  xdynamic::AbstractVector,
                                   _solve_ode_all_conditions!::Function,
                                   cfg::Nothing,
-                                  petab_ODE_cache::PEtab.PEtabODEProblemCache,
+                                  cache::PEtab.PEtabODEProblemCache,
                                   exp_id_solve::Vector{Symbol},
                                   split_over_conditions::Bool,
                                   isremade::Bool = false)::Bool
-    success = _solve_ode_all_conditions!(θ_dynamic, exp_id_solve)
+    success = _solve_ode_all_conditions!(xdynamic, exp_id_solve)
     return success
 end
 
 function PEtab.compute_gradient_forward_equations_condition!(gradient::Vector{Float64},
                                                              sol::ODESolution,
-                                                             petab_ODE_cache::PEtab.PEtabODEProblemCache,
+                                                             cache::PEtab.PEtabODEProblemCache,
                                                              sensealg::SciMLSensitivity.AbstractForwardSensitivityAlgorithm,
-                                                             θ_dynamic::Vector{Float64},
-                                                             θ_sd::Vector{Float64},
-                                                             θ_observable::Vector{Float64},
-                                                             θ_non_dynamic::Vector{Float64},
+                                                             xdynamic::Vector{Float64},
+                                                             xnoise::Vector{Float64},
+                                                             xobservable::Vector{Float64},
+                                                             xnondynamic::Vector{Float64},
                                                              experimental_condition_id::Symbol,
                                                              simulation_condition_id::Symbol,
                                                              simulation_info::PEtab.SimulationInfo,
@@ -48,15 +48,15 @@ function PEtab.compute_gradient_forward_equations_condition!(gradient::Vector{Fl
         PEtab.compute∂G∂_(out, u, p, t, i, imeasurements_t,
                           measurement_info, parameter_info,
                           θ_indices, petab_model,
-                          θ_sd, θ_observable, θ_non_dynamic,
-                          petab_ODE_cache.∂h∂u, petab_ODE_cache.∂σ∂u, compute∂G∂U = true)
+                          xnoise, xobservable, xnondynamic,
+                          cache.∂h∂u, cache.∂σ∂u, compute∂G∂U = true)
     end
     compute∂G∂p = (out, u, p, t, i) -> begin
         PEtab.compute∂G∂_(out, u, p, t, i, imeasurements_t,
                           measurement_info, parameter_info,
                           θ_indices, petab_model,
-                          θ_sd, θ_observable, θ_non_dynamic,
-                          petab_ODE_cache.∂h∂p, petab_ODE_cache.∂σ∂p, compute∂G∂U = false)
+                          xnoise, xobservable, xnondynamic,
+                          cache.∂h∂p, cache.∂σ∂p, compute∂G∂U = false)
     end
 
     # Loop through solution and extract sensitivites
@@ -74,7 +74,7 @@ function PEtab.compute_gradient_forward_equations_condition!(gradient::Vector{Fl
 
     # Thus far have have computed dY/dθ, but for parameters on the log-scale we want dY/dθ_log. We can adjust via;
     # dY/dθ_log = log(10) * θ * dY/dθ
-    PEtab.adjust_gradient_θ_transformed!(gradient, _gradient, ∂G∂p, θ_dynamic, θ_indices,
+    PEtab.adjust_gradient_θ_transformed!(gradient, _gradient, ∂G∂p, xdynamic, θ_indices,
                                          simulation_condition_id,
                                          autodiff_sensitivites = false)
 

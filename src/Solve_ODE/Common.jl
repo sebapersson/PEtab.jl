@@ -66,13 +66,12 @@ end
 # is correct computed for non-dynamic parameters (condition specific parameters are mapped
 # correctly) as these computations employ ode_problem.p
 function set_ode_parameters(_ode_problem::ODEProblem,
-                            petab_ODESolver_cache::PEtabODESolverCache,
+                            probcache::PEtabODEProblemCache,
                             condition_id::Symbol)::ODEProblem
 
     # Ensure parameters constant between conditions are set correctly
-    p_ode_problem = get_tmp(petab_ODESolver_cache.p_ode_problem_cache[condition_id],
-                            _ode_problem.p)
-    u0 = get_tmp(petab_ODESolver_cache.u0_cache[condition_id], _ode_problem.p)
+    p_ode_problem = get_tmp(probcache.pode[condition_id], _ode_problem.p)
+    u0 = get_tmp(probcache.u0ode[condition_id], _ode_problem.p)
     p_ode_problem .= _ode_problem.p
     @views u0 .= _ode_problem.u0[1:length(u0)]
 

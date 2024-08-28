@@ -1,8 +1,8 @@
 function PEtab._get_grad_f(method::Val{:Adjoint}, probleminfo::PEtab.PEtabODEProblemInfo,
                            model_info::PEtab.ModelInfo)::Tuple{Function, Function}
-    @unpack gradient_method, sensealg, sensealg_ss, petab_ODE_cache = probleminfo
+    @unpack gradient_method, sensealg, sensealg_ss, cache = probleminfo
     @unpack simulation_info = model_info
-    @unpack θ_dynamic = petab_ODE_cache
+    @unpack xdynamic = cache
 
     _nllh_not_solve = PEtab._get_nllh_not_solveode(probleminfo, model_info; compute_gradient_not_solve_adjoint = true)
     _compute_gradient! = let pinfo = probleminfo, minfo = model_info,

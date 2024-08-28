@@ -7,14 +7,14 @@ function compute_cost_zygote(θ_est,
                              parameter_info::PEtab.ParametersInfo,
                              solve_ode_condition::Function,
                              prior_info::PEtab.PriorInfo)
-    θ_dynamic, θ_observable, θ_sd, θ_non_dynamic = PEtab.splitθ(θ_est, θ_indices)
+    xdynamic, xobservable, xnoise, xnondynamic = PEtab.splitθ(θ_est, θ_indices)
 
-    cost = _compute_cost_zygote(θ_dynamic, θ_sd, θ_observable, θ_non_dynamic, ode_problem,
+    cost = _compute_cost_zygote(xdynamic, xnoise, xobservable, xnondynamic, ode_problem,
                                 petab_model, simulation_info, θ_indices, measurement_info,
                                 parameter_info, solve_ode_condition)
 
     if prior_info.has_priors == true
-        θ_estT = transformθ_zygote(θ_est, θ_indices.xnames, parameter_info)
+        θ_estT = transform_x_zygote(θ_est, θ_indices.xnames, parameter_info)
         cost -= compute_priors(θ_est, θ_estT, θ_indices.xnames, prior_info)
     end
 
@@ -22,10 +22,10 @@ function compute_cost_zygote(θ_est,
 end
 
 # Computes the likelihood in such a in a Zygote compatible way, which mainly means that no arrays are mutated.
-function _compute_cost_zygote(θ_dynamic,
-                              θ_sd,
-                              θ_observable,
-                              θ_non_dynamic,
+function _compute_cost_zygote(xdynamic,
+                              xnoise,
+                              xobservable,
+                              xnondynamic,
                               ode_problem::ODEProblem,
                               petab_model::PEtabModel,
                               simulation_info::PEtab.SimulationInfo,
@@ -33,14 +33,14 @@ function _compute_cost_zygote(θ_dynamic,
                               measurement_info::PEtab.MeasurementsInfo,
                               parameter_info::PEtab.ParametersInfo,
                               solve_ode_condition::Function)::Real
-    θ_dynamicT = transformθ_zygote(θ_dynamic, θ_indices.xids[:dynamic], parameter_info)
-    θ_sdT = transformθ_zygote(θ_sd, θ_indices.xids[:noise], parameter_info)
-    θ_observableT = transformθ_zygote(θ_observable, θ_indices.xids[:observable],
+    xdynamic_ps = transform_x_zygote(xdynamic, θ_indices.xids[:dynamic], parameter_info)
+    xnoise_ps = transform_x_zygote(xnoise, θ_indices.xids[:noise], parameter_info)
+    xobservable_ps = transform_x_zygote(xobservable, θ_indices.xids[:observable],
                                       parameter_info)
-    θ_non_dynamicT = transformθ_zygote(θ_non_dynamic, θ_indices.xids[:nondynamic],
+    xnondynamic_ps = transform_x_zygote(xnondynamic, θ_indices.xids[:nondynamic],
                                        parameter_info)
 
-    _p, _u0 = PEtab.change_ode_parameters(ode_problem.p, θ_dynamicT, θ_indices, petab_model)
+    _p, _u0 = PEtab.change_ode_parameters(ode_problem.p, xdynamic_ps, θ_indices, petab_model)
     _ode_problem = remake(ode_problem, p = _p, u0 = _u0)
 
     # Compute y_model and sd-val by looping through all experimental conditons. At the end
@@ -49,17 +49,17 @@ function _compute_cost_zygote(θ_dynamic,
     for experimental_condition_id in simulation_info.conditionids[:experiment]
         tmax = simulation_info.tmaxs[experimental_condition_id]
         ode_sol, success = solve_ode_condition(_ode_problem, experimental_condition_id,
-                                               θ_dynamicT, tmax)
+                                               xdynamic_ps, tmax)
         if success != true
             return Inf
         end
 
-        cost += PEtab.cost_condition(ode_sol, _p, θ_sdT, θ_observableT,
-                                             θ_non_dynamicT, petab_model,
+        cost += PEtab.cost_condition(ode_sol, _p, xnoise_ps, xobservable_ps,
+                                             xnondynamic_ps, petab_model,
                                              experimental_condition_id, θ_indices,
                                              measurement_info, parameter_info,
                                              simulation_info,
-                                             compute_gradient_θ_dynamic_zygote = true)
+                                             compute_gradient_xdynamic_zygote = true)
 
         if isinf(cost)
             return cost
@@ -73,7 +73,7 @@ end
 # full support because Zygote code is currently the slowest (by far)
 function solve_ode_condition_zygote(ode_problem::ODEProblem,
                                     experimental_id::Symbol,
-                                    θ_dynamic,
+                                    xdynamic,
                                     t_max,
                                     changeToExperimentalCondUsePre::Function,
                                     measurement_info::PEtab.MeasurementsInfo,
@@ -99,10 +99,10 @@ function solve_ode_condition_zygote(ode_problem::ODEProblem,
 
         u0_pre = ode_problem.u0[:]
         pUsePre, u0UsePre = changeToExperimentalCondUsePre(ode_problem.p, ode_problem.u0,
-                                                           first_expid, θ_dynamic)
+                                                           first_expid, xdynamic)
         probUsePre = remake(ode_problem, tspan = (0.0, 1e8),
-                            u0 = convert.(eltype(θ_dynamic), u0UsePre),
-                            p = convert.(eltype(θ_dynamic), pUsePre))
+                            u0 = convert.(eltype(xdynamic), u0UsePre),
+                            p = convert.(eltype(xdynamic), pUsePre))
         ssProb = SteadyStateProblem(probUsePre)
         solSS = solve(ssProb, DynamicSS(solver), abstol = abstol_ss, reltol = reltol_ss,
                       odesolve_kwargs = (; abstol = absTol, reltol = relTol))
@@ -115,7 +115,7 @@ function solve_ode_condition_zygote(ode_problem::ODEProblem,
         # Change to parameters for the post steady state parameters
         pUsePost, u0UsePostTmp = changeToExperimentalCondUsePre(ode_problem.p,
                                                                 ode_problem.u0, shift_expid,
-                                                                θ_dynamic)
+                                                                xdynamic)
 
         # Given the standard the experimentaCondition-file can change the initial values for a state
         # whose value was changed in the preequilibration-simulation. The experimentalCondition
@@ -125,8 +125,8 @@ function solve_ode_condition_zygote(ode_problem::ODEProblem,
         u0UsePost = [has_not_changed[i] == true ? solSS[i] : u0UsePostTmp[i]
                      for i in eachindex(u0UsePostTmp)]
         probUsePost = remake(ode_problem, tspan = (0.0, t_max),
-                             u0 = convert.(eltype(θ_dynamic), u0UsePost),
-                             p = convert.(eltype(θ_dynamic), pUsePost))
+                             u0 = convert.(eltype(xdynamic), u0UsePost),
+                             p = convert.(eltype(xdynamic), pUsePost))
 
         # Different funcion calls to solve are required if a solver or a Alg-hint are provided.
         # The preequilibration simulations are terminated upon a steady state using the TerminateSteadyState callback.
@@ -153,7 +153,7 @@ function solve_ode_condition_zygote(ode_problem::ODEProblem,
         t_max_use = isinf(t_max) ? 1e8 : t_max
 
         pUse, u0Use = changeToExperimentalCondUsePre(ode_problem.p, ode_problem.u0,
-                                                     first_expid, θ_dynamic)
+                                                     first_expid, xdynamic)
         probUse = remake(ode_problem, tspan = (0.0, t_max_use))
 
         # Different funcion calls to solve are required if a solver or a Alg-hint are provided.

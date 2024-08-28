@@ -43,28 +43,28 @@ end
 
 function splitθ(θ_est::AbstractVector, θ_indices::ParameterIndices)
     @unpack xindices = θ_indices
-    θ_dynamic = @view θ_est[xindices[:dynamic]]
-    θ_observable = @view θ_est[xindices[:observable]]
-    θ_sd = @view θ_est[xindices[:noise]]
-    θ_non_dynamic = @view θ_est[xindices[:nondynamic]]
-    return θ_dynamic, θ_observable, θ_sd, θ_non_dynamic
+    xdynamic = @view θ_est[xindices[:dynamic]]
+    xobservable = @view θ_est[xindices[:observable]]
+    xnoise = @view θ_est[xindices[:noise]]
+    xnondynamic = @view θ_est[xindices[:nondynamic]]
+    return xdynamic, xobservable, xnoise, xnondynamic
 end
 
-function splitθ!(θ_est::AbstractVector, θ_indices::ParameterIndices,
-                 petab_ODE_cache::PEtabODEProblemCache)::Nothing
+function splitθ!(x::AbstractVector, θ_indices::ParameterIndices,
+                 cache::PEtabODEProblemCache)::Nothing
     @unpack xindices = θ_indices
-    @views petab_ODE_cache.θ_dynamic .= θ_est[xindices[:dynamic]]
-    @views petab_ODE_cache.θ_observable .= θ_est[xindices[:observable]]
-    @views petab_ODE_cache.θ_sd .= θ_est[xindices[:noise]]
-    @views petab_ODE_cache.θ_non_dynamic .= θ_est[xindices[:nondynamic]]
+    @views cache.xdynamic .= x[xindices[:dynamic]]
+    @views cache.xobservable .= x[xindices[:observable]]
+    @views cache.xnoise .= x[xindices[:noise]]
+    @views cache.xnondynamic .= x[xindices[:nondynamic]]
     return nothing
 end
 
 function computeσ(u::AbstractVector{T1},
                   t::Float64,
-                  θ_dynamic::AbstractVector,
-                  θ_sd::AbstractVector,
-                  θ_non_dynamic::AbstractVector,
+                  xdynamic::AbstractVector,
+                  xnoise::AbstractVector,
+                  xnondynamic::AbstractVector,
                   petab_model::PEtabModel,
                   i_measurement::Int64,
                   measurement_info::MeasurementsInfo,
@@ -72,12 +72,12 @@ function computeσ(u::AbstractVector{T1},
                   parameter_info::ParametersInfo)::Real where {T1 <: Real}
 
     # Compute associated SD-value or extract said number if it is known
-    mapθ_sd = θ_indices.mapθ_sd[i_measurement]
-    if mapθ_sd.single_constant == true
-        σ = mapθ_sd.constant_values[1]
+    mapxnoise = θ_indices.mapxnoise[i_measurement]
+    if mapxnoise.single_constant == true
+        σ = mapxnoise.constant_values[1]
     else
-        σ = petab_model.compute_σ(u, t, θ_sd, θ_dynamic, θ_non_dynamic, parameter_info,
-                                  measurement_info.observable_id[i_measurement], mapθ_sd)
+        σ = petab_model.compute_σ(u, t, xnoise, xdynamic, xnondynamic, parameter_info,
+                                  measurement_info.observable_id[i_measurement], mapxnoise)
     end
     return σ
 end
@@ -85,18 +85,18 @@ end
 # Compute observation function h
 function computehT(u::AbstractVector{T1},
                    t::Float64,
-                   θ_dynamic::AbstractVector,
-                   θ_observable::AbstractVector,
-                   θ_non_dynamic::AbstractVector,
+                   xdynamic::AbstractVector,
+                   xobservable::AbstractVector,
+                   xnondynamic::AbstractVector,
                    petab_model::PEtabModel,
                    i_measurement::Int64,
                    measurement_info::MeasurementsInfo,
                    θ_indices::ParameterIndices,
                    parameter_info::ParametersInfo)::Real where {T1 <: Real}
-    mapθ_observable = θ_indices.mapθ_observable[i_measurement]
-    h = petab_model.compute_h(u, t, θ_dynamic, θ_observable, θ_non_dynamic, parameter_info,
+    mapxobservable = θ_indices.mapxobservable[i_measurement]
+    h = petab_model.compute_h(u, t, xdynamic, xobservable, xnondynamic, parameter_info,
                               measurement_info.observable_id[i_measurement],
-                              mapθ_observable)
+                              mapxobservable)
     # Transform y_model is necessary
     hT = transform_measurement_or_h(h,
                                     measurement_info.measurement_transformation[i_measurement])
@@ -106,18 +106,18 @@ end
 
 function computeh(u::AbstractVector{T1},
                   t::Float64,
-                  θ_dynamic::AbstractVector,
-                  θ_observable::AbstractVector,
-                  θ_non_dynamic::AbstractVector,
+                  xdynamic::AbstractVector,
+                  xobservable::AbstractVector,
+                  xnondynamic::AbstractVector,
                   petab_model::PEtabModel,
                   i_measurement::Int64,
                   measurement_info::MeasurementsInfo,
                   θ_indices::ParameterIndices,
                   parameter_info::ParametersInfo)::Real where {T1 <: Real}
-    mapθ_observable = θ_indices.mapθ_observable[i_measurement]
-    h = petab_model.compute_h(u, t, θ_dynamic, θ_observable, θ_non_dynamic, parameter_info,
+    mapxobservable = θ_indices.mapxobservable[i_measurement]
+    h = petab_model.compute_h(u, t, xdynamic, xobservable, xnondynamic, parameter_info,
                               measurement_info.observable_id[i_measurement],
-                              mapθ_observable)
+                              mapxobservable)
     return h
 end
 
@@ -163,7 +163,7 @@ function get_obs_sd_parameter(x::AbstractVector, map::ObservableNoiseMap)
 end
 
 # Transform parameter from log10 scale to normal scale, or reverse transform
-function transformθ!(θ::AbstractVector,
+function transform_x!(θ::AbstractVector,
                      n_parameters_estimate::Vector{Symbol},
                      θ_indices::ParameterIndices;
                      reverse_transform::Bool = false)::Nothing
@@ -175,7 +175,7 @@ function transformθ!(θ::AbstractVector,
 end
 
 # Transform parameter from log10 scale to normal scale, or reverse transform
-function transformθ(θ::T,
+function transform_x(θ::T,
                     n_parameters_estimate::Vector{Symbol},
                     θ_indices::ParameterIndices;
                     reverse_transform::Bool = false)::T where {T <: AbstractVector}
@@ -188,20 +188,20 @@ function transformθ(θ::T,
         return out
     end
 end
-function transformθ(θ::AbstractVector{T},
+function transform_x(θ::AbstractVector{T},
                     n_parameters_estimate::Vector{Symbol},
                     θ_indices::ParameterIndices,
                     whichθ::Symbol,
-                    petab_ODE_cache::PEtabODEProblemCache;
+                    cache::PEtabODEProblemCache;
                     reverse_transform::Bool = false)::AbstractVector{T} where {T}
-    if whichθ === :θ_dynamic
-        θ_out = get_tmp(petab_ODE_cache.θ_dynamicT, θ)
-    elseif whichθ === :θ_sd
-        θ_out = get_tmp(petab_ODE_cache.θ_sdT, θ)
-    elseif whichθ === :θ_non_dynamic
-        θ_out = get_tmp(petab_ODE_cache.θ_non_dynamicT, θ)
-    elseif whichθ === :θ_observable
-        θ_out = get_tmp(petab_ODE_cache.θ_observableT, θ)
+    if whichθ === :xdynamic
+        θ_out = get_tmp(cache.xdynamic_ps, θ)
+    elseif whichθ === :xnoise
+        θ_out = get_tmp(cache.xnoise_ps, θ)
+    elseif whichθ === :xnondynamic
+        θ_out = get_tmp(cache.xnondynamic_ps, θ)
+    elseif whichθ === :xobservable
+        θ_out = get_tmp(cache.xobservable_ps, θ)
     end
 
     @inbounds for (i, θ_name) in pairs(n_parameters_estimate)

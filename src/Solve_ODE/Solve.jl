@@ -4,7 +4,7 @@
 =#
 
 function solve_ode_all_conditions!(model_info::ModelInfo,
-                                   θ_dynamic::AbstractVector,
+                                   xdynamic::AbstractVector,
                                    probleminfo::PEtabODEProblemInfo;
                                    exp_id_solve::Vector{Symbol} = [:all],
                                    n_timepoints_save::Int64 = 0,
@@ -14,7 +14,7 @@ function solve_ode_all_conditions!(model_info::ModelInfo,
                                    compute_forward_sensitivites::Bool = false,
                                    derivative::Bool = false)::Bool
     @unpack simulation_info, petab_model, θ_indices = model_info
-    @unpack petab_ODESolver_cache = probleminfo
+    @unpack cache = probleminfo
     if derivative == true || compute_forward_sensitivites == true || track_callback == true
         ode_sols = simulation_info.odesols_derivatives
         ss_solver = probleminfo.ss_solver_gradient
@@ -27,14 +27,14 @@ function solve_ode_all_conditions!(model_info::ModelInfo,
         oprob = probleminfo.odeproblem
     end
 
-    ode_problem = remake(oprob, p = convert.(eltype(θ_dynamic), oprob.p),
-                         u0 = convert.(eltype(θ_dynamic), oprob.u0))
-    change_ode_parameters!(ode_problem.p, ode_problem.u0, θ_dynamic, θ_indices, petab_model)
+    ode_problem = remake(oprob, p = convert.(eltype(xdynamic), oprob.p),
+                         u0 = convert.(eltype(xdynamic), oprob.u0))
+    change_ode_parameters!(ode_problem.p, ode_problem.u0, xdynamic, θ_indices, petab_model)
 
     change_simulation_condition! = (p_ode_problem, u0, conditionId) -> _change_simulation_condition!(p_ode_problem,
                                                                                                      u0,
                                                                                                      conditionId,
-                                                                                                     θ_dynamic,
+                                                                                                     xdynamic,
                                                                                                      petab_model,
                                                                                                      θ_indices,
                                                                                                      compute_forward_sensitivites = compute_forward_sensitivites)
@@ -53,16 +53,15 @@ function solve_ode_all_conditions!(model_info::ModelInfo,
         end
 
         # Arrays to store steady state (pre-eq) values.
-        u_ss = Matrix{eltype(θ_dynamic)}(undef,
+        u_ss = Matrix{eltype(xdynamic)}(undef,
                                          (length(ode_problem.u0),
                                           length(pre_equilibration_id)))
-        u_t0 = Matrix{eltype(θ_dynamic)}(undef,
+        u_t0 = Matrix{eltype(xdynamic)}(undef,
                                          (length(ode_problem.u0),
                                           length(pre_equilibration_id)))
 
         for i in eachindex(pre_equilibration_id)
-            _ode_problem = set_ode_parameters(ode_problem, petab_ODESolver_cache,
-                                              pre_equilibration_id[i])
+            _ode_problem = set_ode_parameters(ode_problem, cache, pre_equilibration_id[i])
             # Sometimes due to strongly ill-conditioned Jacobian the linear-solve runs
             # into a domain error or bounds error. This is treated as integration error.
             try
@@ -104,8 +103,7 @@ function solve_ode_all_conditions!(model_info::ModelInfo,
                                _tmax, n_timepoints_save)
         _dense_sol = should_save_dense_sol(Val(save_at_observed_t), n_timepoints_save,
                                            dense_sol)
-        _ode_problem = set_ode_parameters(ode_problem, petab_ODESolver_cache,
-                                          experimental_id)
+        _ode_problem = set_ode_parameters(ode_problem, cache, experimental_id)
 
         # In case we have a simulation with PreEqulibrium
         if simulation_info.conditionids[:pre_equilibration][i] != :None
@@ -170,7 +168,7 @@ function solve_ode_all_conditions!(model_info::ModelInfo,
     return true
 end
 function solve_ode_all_conditions!(sol_values::AbstractMatrix,
-                                   _θ_dynamic::AbstractVector,
+                                   _xdynamic::AbstractVector,
                                    probleminfo::PEtabODEProblemInfo,
                                    model_info::ModelInfo;
                                    exp_id_solve::Vector{Symbol} = [:all],
@@ -180,17 +178,17 @@ function solve_ode_all_conditions!(sol_values::AbstractMatrix,
                                    track_callback::Bool = false,
                                    compute_forward_sensitivites::Bool = false,
                                    compute_forward_sensitivites_ad::Bool = false)::Nothing
-    @unpack petab_ODE_cache = probleminfo
+    @unpack cache = probleminfo
     @unpack simulation_info = model_info
     if compute_forward_sensitivites_ad == true &&
-       petab_ODE_cache.nθ_dynamic[1] != length(_θ_dynamic)
-        θ_dynamic = _θ_dynamic[petab_ODE_cache.θ_dynamic_output_order]
+       cache.nxdynamic[1] != length(_xdynamic)
+        xdynamic = _xdynamic[cache.xdynamic_output_order]
     else
-        θ_dynamic = _θ_dynamic
+        xdynamic = _xdynamic
     end
     derivative = compute_forward_sensitivites_ad || compute_forward_sensitivites
 
-    sucess = solve_ode_all_conditions!(model_info, θ_dynamic, probleminfo;
+    sucess = solve_ode_all_conditions!(model_info, xdynamic, probleminfo;
                                        exp_id_solve = exp_id_solve,
                                        n_timepoints_save = n_timepoints_save,
                                        save_at_observed_t = save_at_observed_t,
@@ -223,8 +221,8 @@ end
 
 function solve_ODE_all_conditions(ode_problem::ODEProblem,
                                   petab_model::PEtabModel,
-                                  θ_dynamic::AbstractVector,
-                                  petab_ODESolver_cache::PEtabODESolverCache,
+                                  xdynamic::AbstractVector,
+                                  petab_ODESolver_cache,
                                   simulation_info::SimulationInfo,
                                   θ_indices::ParameterIndices,
                                   ode_solver::ODESolver,
@@ -241,7 +239,7 @@ function solve_ODE_all_conditions(ode_problem::ODEProblem,
     success = solve_ode_all_conditions!(ode_sols,
                                         ode_problem,
                                         petab_model,
-                                        θ_dynamic,
+                                        xdynamic,
                                         petab_ODESolver_cache,
                                         simulation_info,
                                         θ_indices,

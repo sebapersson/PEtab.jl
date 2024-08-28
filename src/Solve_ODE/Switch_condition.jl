@@ -8,7 +8,7 @@
 function _change_simulation_condition!(p_ode_problem::AbstractVector,
                                        u0::AbstractVector,
                                        condition_id::Symbol,
-                                       θ_dynamic::AbstractVector,
+                                       xdynamic::AbstractVector,
                                        petab_model::PEtabModel,
                                        θ_indices::ParameterIndices;
                                        compute_forward_sensitivites::Bool = false)::Nothing
@@ -18,7 +18,7 @@ function _change_simulation_condition!(p_ode_problem::AbstractVector,
     p_ode_problem[map_condition_id.isys_constant_values] .= map_condition_id.constant_values
 
     # Parameters to estimate
-    p_ode_problem[map_condition_id.ix_sys] .= θ_dynamic[map_condition_id.ix_dynamic]
+    p_ode_problem[map_condition_id.ix_sys] .= xdynamic[map_condition_id.ix_dynamic]
 
     # Given changes in parameters initial values might have to be re-evaluated
     n_model_states = length(states(petab_model.sys_mutated))
@@ -32,10 +32,10 @@ function _change_simulation_condition!(p_ode_problem::AbstractVector,
     # In case we solve the forward sensitivity equations we must adjust the initial sensitives
     # by computing the jacobian at t0
     if compute_forward_sensitivites == true
-        S_t0::Matrix{Float64} = Matrix{Float64}(undef,
+        St0::Matrix{Float64} = Matrix{Float64}(undef,
                                                 (n_model_states, length(p_ode_problem)))
-        ForwardDiff.jacobian!(S_t0, petab_model.compute_u0, p_ode_problem)
-        u0[(n_model_states + 1):end] .= vec(S_t0)
+        ForwardDiff.jacobian!(St0, petab_model.compute_u0, p_ode_problem)
+        u0[(n_model_states + 1):end] .= vec(St0)
     end
 
     return nothing
@@ -44,7 +44,7 @@ end
 function _change_simulation_condition(p_ode_problem::AbstractVector,
                                       u0::AbstractVector,
                                       condition_id::Symbol,
-                                      θ_dynamic::AbstractVector,
+                                      xdynamic::AbstractVector,
                                       petab_model::PEtabModel,
                                       θ_indices::ParameterIndices)
     map_condition_id = θ_indices.maps_conidition_id[condition_id]
@@ -67,7 +67,7 @@ function _change_simulation_condition(p_ode_problem::AbstractVector,
 
     # Parameters to estimate
     __p_ode_problem = [i ∈ map_condition_id.ix_sys ?
-                       θ_dynamic[i_parameters_est(i)] : _p_ode_problem[i]
+                       xdynamic[i_parameters_est(i)] : _p_ode_problem[i]
                        for i in eachindex(_p_ode_problem)]
 
     # When using AD as Zygote we must use the non-mutating version of evalU0

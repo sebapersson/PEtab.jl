@@ -4,13 +4,13 @@ function get_index_parameters_not_ODE(θ_indices::ParameterIndices)::Tuple{Vecto
                                                                           Vector{Int64}}
     @unpack xids, xindices = θ_indices
     xids_not_system = xids[:not_system]
-    iθ_sd = Int64[findfirst(x -> x == id, xids_not_system) for id in xids[:noise]]
-    iθ_observable = Int64[findfirst(x -> x == id, xids_not_system)
+    ixnoise = Int64[findfirst(x -> x == id, xids_not_system) for id in xids[:noise]]
+    ixobservable = Int64[findfirst(x -> x == id, xids_not_system)
                           for id in xids[:observable]]
-    iθ_non_dynamic = Int64[findfirst(x -> x == id, xids_not_system)
+    ixnondynamic = Int64[findfirst(x -> x == id, xids_not_system)
                            for id in xids[:nondynamic]]
     iθ_not_ode::Vector{Int64} = xindices[:not_system]
-    return iθ_sd, iθ_observable, iθ_non_dynamic, iθ_not_ode
+    return ixnoise, ixobservable, ixnondynamic, iθ_not_ode
 end
 
 # Function to compute ∂G∂u and ∂G∂p for an observation assuming a fixed ODE-solution
@@ -24,9 +24,9 @@ function compute∂G∂_(∂G∂_,
                      parameter_info::ParametersInfo,
                      θ_indices::ParameterIndices,
                      petab_model::PEtabModel,
-                     θ_sd::Vector{Float64},
-                     θ_observable::Vector{Float64},
-                     θ_non_dynamic::Vector{Float64},
+                     xnoise::Vector{Float64},
+                     xobservable::Vector{Float64},
+                     xnondynamic::Vector{Float64},
                      ∂h∂_::Vector{Float64},
                      ∂σ∂_::Vector{Float64};
                      compute∂G∂U::Bool = true,
@@ -36,28 +36,28 @@ function compute∂G∂_(∂G∂_,
         fill!(∂h∂_, 0.0)
         fill!(∂σ∂_, 0.0)
 
-        hT = computehT(u, t, p, θ_observable, θ_non_dynamic, petab_model,
+        hT = computehT(u, t, p, xobservable, xnondynamic, petab_model,
                        i_measurement_data, measurement_info, θ_indices, parameter_info)
-        σ = computeσ(u, t, p, θ_sd, θ_non_dynamic, petab_model, i_measurement_data,
+        σ = computeσ(u, t, p, xnoise, xnondynamic, petab_model, i_measurement_data,
                      measurement_info, θ_indices, parameter_info)
 
         # Maps needed to correctly extract the right SD and observable parameters
-        mapθ_sd = θ_indices.mapθ_sd[i_measurement_data]
-        mapθ_observable = θ_indices.mapθ_observable[i_measurement_data]
+        mapxnoise = θ_indices.mapxnoise[i_measurement_data]
+        mapxobservable = θ_indices.mapxobservable[i_measurement_data]
         if compute∂G∂U == true
-            petab_model.compute_∂h∂u!(u, t, p, θ_observable, θ_non_dynamic,
+            petab_model.compute_∂h∂u!(u, t, p, xobservable, xnondynamic,
                                       measurement_info.observable_id[i_measurement_data],
-                                      mapθ_observable, ∂h∂_)
-            petab_model.compute_∂σ∂u!(u, t, θ_sd, p, θ_non_dynamic, parameter_info,
+                                      mapxobservable, ∂h∂_)
+            petab_model.compute_∂σ∂u!(u, t, xnoise, p, xnondynamic, parameter_info,
                                       measurement_info.observable_id[i_measurement_data],
-                                      mapθ_sd, ∂σ∂_)
+                                      mapxnoise, ∂σ∂_)
         else
-            petab_model.compute_∂h∂p!(u, t, p, θ_observable, θ_non_dynamic,
+            petab_model.compute_∂h∂p!(u, t, p, xobservable, xnondynamic,
                                       measurement_info.observable_id[i_measurement_data],
-                                      mapθ_observable, ∂h∂_)
-            petab_model.compute_∂σ∂p!(u, t, θ_sd, p, θ_non_dynamic, parameter_info,
+                                      mapxobservable, ∂h∂_)
+            petab_model.compute_∂σ∂p!(u, t, xnoise, p, xnondynamic, parameter_info,
                                       measurement_info.observable_id[i_measurement_data],
-                                      mapθ_sd, ∂σ∂_)
+                                      mapxnoise, ∂σ∂_)
         end
 
         if measurement_info.measurement_transformation[i_measurement_data] === :log10
@@ -87,7 +87,7 @@ end
 function adjust_gradient_θ_transformed!(gradient::Union{AbstractVector, SubArray},
                                         _gradient::AbstractVector,
                                         ∂G∂p::AbstractVector,
-                                        θ_dynamic::Vector{Float64},
+                                        xdynamic::Vector{Float64},
                                         θ_indices::ParameterIndices,
                                         simulation_condition_id::Symbol;
                                         autodiff_sensitivites::Bool = false,
@@ -105,22 +105,22 @@ function adjust_gradient_θ_transformed!(gradient::Union{AbstractVector, SubArra
                     ∂G∂p[map_ode_problem.dynamic_to_sys]
     end
     @views gradient[i_change] .+= _adjust_gradient_θ_transformed(gradient1,
-                                                                 θ_dynamic[map_ode_problem.sys_to_dynamic],
+                                                                 xdynamic[map_ode_problem.sys_to_dynamic],
                                                                  θ_indices.xids[:dynamic][map_ode_problem.sys_to_dynamic],
                                                                  θ_indices)
 
     # For forward sensitives via autodiff ∂G∂p is on the same scale as ode_problem.p, while
-    # S-matrix is on the same scale as θ_dynamic. To be able to handle condition specific
+    # S-matrix is on the same scale as xdynamic. To be able to handle condition specific
     # parameters mapping to several ode_problem.p parameters the sensitivity matrix part and
     # ∂G∂p must be treated seperately.
     if autodiff_sensitivites == true
-        _iθ_dynamic = unique(map_condition_id.ix_dynamic)
-        gradient[_iθ_dynamic] .+= _adjust_gradient_θ_transformed(_gradient[_iθ_dynamic],
-                                                                 θ_dynamic[_iθ_dynamic],
-                                                                 θ_indices.xids[:dynamic][_iθ_dynamic],
+        _ixdynamic = unique(map_condition_id.ix_dynamic)
+        gradient[_ixdynamic] .+= _adjust_gradient_θ_transformed(_gradient[_ixdynamic],
+                                                                 xdynamic[_ixdynamic],
+                                                                 θ_indices.xids[:dynamic][_ixdynamic],
                                                                  θ_indices)
         out = _adjust_gradient_θ_transformed(∂G∂p[map_condition_id.ix_sys],
-                                             θ_dynamic[map_condition_id.ix_dynamic],
+                                             xdynamic[map_condition_id.ix_dynamic],
                                              θ_indices.xids[:dynamic][map_condition_id.ix_dynamic],
                                              θ_indices)
         @inbounds for i in eachindex(map_condition_id.ix_sys)
@@ -133,7 +133,7 @@ function adjust_gradient_θ_transformed!(gradient::Union{AbstractVector, SubArra
     if adjoint == true || autodiff_sensitivites == false
         out = _adjust_gradient_θ_transformed(_gradient[map_condition_id.ix_sys] .+
                                              ∂G∂p[map_condition_id.ix_sys],
-                                             θ_dynamic[map_condition_id.ix_dynamic],
+                                             xdynamic[map_condition_id.ix_dynamic],
                                              θ_indices.xids[:dynamic][map_condition_id.ix_dynamic],
                                              θ_indices)
         @inbounds for i in eachindex(map_condition_id.ix_sys)

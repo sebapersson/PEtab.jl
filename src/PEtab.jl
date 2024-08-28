@@ -74,7 +74,7 @@ include(joinpath("Process_input", "Observables", "u0_h_sigma.jl"))
 # For creating a PEtabODEProblem
 include(joinpath("PEtabODEProblem", "defaults.jl"))
 include(joinpath("PEtabODEProblem", "Remake.jl"))
-include(joinpath("PEtabODEProblem", "Cache.jl"))
+include(joinpath("PEtabODEProblem", "cache.jl"))
 include(joinpath("PEtabODEProblem", "Create.jl"))
 include(joinpath("PEtabODEProblem", "problem_info.jl"))
 

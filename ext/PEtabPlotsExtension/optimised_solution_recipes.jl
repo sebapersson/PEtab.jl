@@ -139,22 +139,22 @@ function _get_observable(θ::Vector{Float64}, petab_problem::PEtabODEProblem,
         # If number of observable parameters is non-zero it does not make sense to return a
         # a smooth trajectory, but if they are zero returning a smooth trajectory is preferred
         # as it looks better
-        mapθ_observables = petab_problem.θ_indices.mapθ_observable[_idata]
-        smooth_sol = all([map.n_parameters == 0 for map in mapθ_observables])
+        mapxobservables = petab_problem.θ_indices.mapxobservable[_idata]
+        smooth_sol = all([map.n_parameters == 0 for map in mapxobservables])
         # For smooth trajectory must solve ODE and compute the observable function
         if smooth_sol == true
-            @unpack θ_indices, petab_ODE_cache, measurement_info, parameter_info, petab_model = petab_problem
-            θ_dynamic, θ_observable, θ_sd, θ_non_dynamic = PEtab.splitθ(θ, θ_indices)
-            θ_observableT = PEtab.transformθ(θ_observable, θ_indices.xids[:observable],
-                                             θ_indices, :θ_observable, petab_ODE_cache)
-            θ_non_dynamicT = PEtab.transformθ(θ_non_dynamic, θ_indices.xids[:nondynamic],
-                                              θ_indices, :θ_non_dynamic, petab_ODE_cache)
+            @unpack θ_indices, cache, measurement_info, parameter_info, petab_model = petab_problem
+            xdynamic, xobservable, xnoise, xnondynamic = PEtab.splitθ(θ, θ_indices)
+            xobservable_ps = PEtab.transform_x(xobservable, θ_indices.xids[:observable],
+                                             θ_indices, :xobservable, cache)
+            xnondynamic_ps = PEtab.transform_x(xnondynamic, θ_indices.xids[:nondynamic],
+                                              θ_indices, :xnondynamic, cache)
             i_measurement = _idata[1]
             _h_model = similar(sol.t)
             for i in eachindex(_h_model)
                 u = sol[:, i]
-                _h_model[i] = PEtab.computeh(u, sol.t[i], sol.prob.p, θ_observableT,
-                                             θ_non_dynamicT, petab_model,
+                _h_model[i] = PEtab.computeh(u, sol.t[i], sol.prob.p, xobservable_ps,
+                                             xnondynamic_ps, petab_model,
                                              i_measurement, measurement_info, θ_indices,
                                              parameter_info)
             end

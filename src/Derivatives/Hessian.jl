@@ -96,12 +96,12 @@ end
 function compute_hessian_block!(hessian::Matrix{Float64},
                                 θ_est::Vector{Float64},
                                 compute_cost_θ_not_ODE::Function,
-                                compute_cost_θ_dynamic::Function,
+                                compute_cost_xdynamic::Function,
                                 probleminfo::PEtabODEProblemInfo,
                                 model_info::ModelInfo,
                                 cfg::ForwardDiff.HessianConfig;
                                 exp_id_solve::Vector{Symbol} = [:all])::Nothing
-    @unpack petab_ODE_cache = probleminfo
+    @unpack cache = probleminfo
     @unpack simulation_info, θ_indices, prior_info = model_info
     # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough.
     # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final
@@ -111,16 +111,16 @@ function compute_hessian_block!(hessian::Matrix{Float64},
     # Avoid incorrect non-zero values
     hessian .= 0.0
 
-    splitθ!(θ_est, θ_indices, petab_ODE_cache)
-    θ_dynamic = petab_ODE_cache.θ_dynamic
+    splitθ!(θ_est, θ_indices, cache)
+    xdynamic = cache.xdynamic
 
     try
         if !isempty(θ_indices.xindices[:dynamic])
             @views ForwardDiff.hessian!(hessian[θ_indices.xindices[:dynamic],
                                                 θ_indices.xindices[:dynamic]],
-                                        compute_cost_θ_dynamic, θ_dynamic, cfg)
+                                        compute_cost_xdynamic, xdynamic, cfg)
         else
-            compute_cost_θ_dynamic(θ_dynamic)
+            compute_cost_xdynamic(xdynamic)
         end
     catch
         hessian .= 0.0
@@ -148,12 +148,12 @@ end
 function compute_hessian_block_split!(hessian::Matrix{Float64},
                                       θ_est::Vector{Float64},
                                       compute_cost_θ_not_ODE::Function,
-                                      _compute_cost_θ_dynamic::Function,
+                                      _compute_cost_xdynamic::Function,
                                       probleminfo::PEtabODEProblemInfo,
                                       model_info::ModelInfo;
                                       exp_id_solve::Vector{Symbol} = [:all])::Nothing
     @unpack simulation_info, θ_indices, prior_info = model_info
-    @unpack petab_ODE_cache = probleminfo
+    @unpack cache = probleminfo
     # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough.
     # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final
     # retcode we cannot catch these cases
@@ -162,22 +162,22 @@ function compute_hessian_block_split!(hessian::Matrix{Float64},
     # Avoid incorrect non-zero values
     hessian .= 0.0
 
-    splitθ!(θ_est, θ_indices, petab_ODE_cache)
-    θ_dynamic = petab_ODE_cache.θ_dynamic
+    splitθ!(θ_est, θ_indices, cache)
+    xdynamic = cache.xdynamic
 
     for conditionId in simulation_info.conditionids[:experiment]
         map_condition_id = θ_indices.maps_conidition_id[conditionId]
         iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.sys_to_dynamic,
                                                 map_condition_id.ix_dynamic))
-        θ_input = θ_dynamic[iθ_experimental_condition]
+        θ_input = xdynamic[iθ_experimental_condition]
         h_tmp = zeros(length(θ_input), length(θ_input))
-        compute_cost_θ_dynamic = (θ_arg) -> begin
-            _θ_dynamic = convert.(eltype(θ_arg), θ_dynamic)
-            @views _θ_dynamic[iθ_experimental_condition] .= θ_arg
-            return _compute_cost_θ_dynamic(_θ_dynamic, [conditionId])
+        compute_cost_xdynamic = (θ_arg) -> begin
+            _xdynamic = convert.(eltype(θ_arg), xdynamic)
+            @views _xdynamic[iθ_experimental_condition] .= θ_arg
+            return _compute_cost_xdynamic(_xdynamic, [conditionId])
         end
         try
-            ForwardDiff.hessian!(h_tmp, compute_cost_θ_dynamic, θ_input)
+            ForwardDiff.hessian!(h_tmp, compute_cost_xdynamic, θ_input)
         catch
             hessian .= 0.0
             return nothing
@@ -219,7 +219,7 @@ function compute_GaussNewton_hessian!(out::Matrix{Float64},
                                       return_jacobian::Bool = false,
                                       exp_id_solve::Vector{Symbol} = [:all],
                                       isremade::Bool = false)::Nothing
-    @unpack sensealg, petab_ODE_cache, split_over_conditions, reuse_sensitivities = probleminfo
+    @unpack sensealg, cache, split_over_conditions, reuse_sensitivities = probleminfo
     @unpack simulation_info, petab_model, simulation_info, θ_indices = model_info
     @unpack parameter_info, prior_info, measurement_info = model_info
     ode_problem = probleminfo.odeproblem_gradient
@@ -227,33 +227,33 @@ function compute_GaussNewton_hessian!(out::Matrix{Float64},
     # Avoid incorrect non-zero values
     fill!(out, 0.0)
 
-    splitθ!(θ_est, θ_indices, petab_ODE_cache)
-    @unpack θ_dynamic, θ_observable, θ_sd, θ_non_dynamic = petab_ODE_cache
-    jacobian_gn = petab_ODE_cache.jacobian_gn
+    splitθ!(θ_est, θ_indices, cache)
+    @unpack xdynamic, xobservable, xnoise, xnondynamic = cache
+    jacobian_gn = cache.jacobian_gn
     fill!(jacobian_gn, 0.0)
 
     # Calculate gradient seperately for dynamic and non dynamic parameter.
-    compute_jacobian_residuals_θ_dynamic!((@view jacobian_gn[θ_indices.xindices[:dynamic],
+    compute_jacobian_residuals_xdynamic!((@view jacobian_gn[θ_indices.xindices[:dynamic],
                                                              :]),
-                                          θ_dynamic, θ_sd,
-                                          θ_observable, θ_non_dynamic, petab_model,
+                                          xdynamic, xnoise,
+                                          xobservable, xnondynamic, petab_model,
                                           ode_problem,
                                           simulation_info, θ_indices, measurement_info,
                                           parameter_info,
-                                          _solve_ode_all_conditions!, cfg, petab_ODE_cache;
+                                          _solve_ode_all_conditions!, cfg, cache;
                                           exp_id_solve = exp_id_solve,
                                           reuse_sensitivities = reuse_sensitivities,
                                           split_over_conditions = split_over_conditions,
                                           isremade = isremade)
 
     # Happens when at least one forward pass fails
-    if !isempty(θ_dynamic) && all(jacobian_gn[θ_indices.xindices[:dynamic], :] .== 1e8)
+    if !isempty(xdynamic) && all(jacobian_gn[θ_indices.xindices[:dynamic], :] .== 1e8)
         out .= 0.0
         return nothing
     end
     @views ForwardDiff.jacobian!(jacobian_gn[θ_indices.xindices[:not_system], :]',
                                  compute_residuals_not_solve_ode!,
-                                 petab_ODE_cache.residuals_gn,
+                                 cache.residuals_gn,
                                  θ_est[θ_indices.xindices[:not_system]],
                                  cfg_not_solve_ode)
 
@@ -277,7 +277,7 @@ function compute_hessian_prior!(hessian::Matrix{Float64},
                                 θ_indices::ParameterIndices,
                                 prior_info::PriorInfo)::Nothing
     _evalPriors = (θ_est) -> begin
-        θ_estT = transformθ(θ_est, θ_indices.xids[:estimate], θ_indices)
+        θ_estT = transform_x(θ_est, θ_indices.xids[:estimate], θ_indices)
         return -1.0 * compute_priors(θ_est, θ_estT, θ_indices.xids[:estimate], prior_info) # We work with -loglik
     end
     hessian .+= ForwardDiff.hessian(_evalPriors, θ)

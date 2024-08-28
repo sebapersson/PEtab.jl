@@ -8,8 +8,8 @@
 function petab_formula_to_Julia(formula::String,
                                 model_state_names::Vector{String},
                                 parameter_info::ParametersInfo,
-                                θ_dynamic_names::Vector{String},
-                                θ_non_dynamic_names::Vector{String})::String
+                                xdynamic_names::Vector{String},
+                                xnondynamic_names::Vector{String})::String
 
     # Characters directly translate to Julia and characters that also are assumed to terminate a word (e.g state
     # and parameter)
@@ -29,7 +29,7 @@ function petab_formula_to_Julia(formula::String,
             word, i_new = get_word(formula, i, char_directly_translate)
             # Translate word to Julia syntax
             julia_formula *= word_to_julia(word, model_state_names, parameter_info,
-                                           θ_dynamic_names, θ_non_dynamic_names)
+                                           xdynamic_names, xnondynamic_names)
             i = i_new
 
             # Special case where we have multiplication
@@ -101,8 +101,8 @@ end
 function word_to_julia(word_translate::String,
                        model_state_names::Vector{String},
                        parameter_info::ParametersInfo,
-                       θ_dynamic_names::Vector{String},
-                       θ_non_dynamic_names::Vector{String})::String
+                       xdynamic_names::Vector{String},
+                       xnondynamic_names::Vector{String})::String
 
     # List of mathemathical operations that are accpeted and will be translated
     # into Julia syntax (t is assumed to be time)
@@ -111,16 +111,16 @@ function word_to_julia(word_translate::String,
     word_julia = ""
     # If word_translate is a constant parameter
     if word_translate ∈ string.(parameter_info.parameter_id) &&
-       word_translate ∉ θ_dynamic_names && word_translate ∉ θ_non_dynamic_names
+       word_translate ∉ xdynamic_names && word_translate ∉ xnondynamic_names
         # Constant parameters get a _C appended to tell them apart
         word_julia *= word_translate * "_C"
     end
 
-    if word_translate ∈ θ_dynamic_names
+    if word_translate ∈ xdynamic_names
         word_julia *= word_translate
     end
 
-    if word_translate ∈ θ_non_dynamic_names
+    if word_translate ∈ xnondynamic_names
         word_julia *= word_translate
     end
 
@@ -135,7 +135,7 @@ function word_to_julia(word_translate::String,
 
     if word_translate in list_operations
         word_julia *= list_operations[word_translate .== list_operations][1]
-        return word_julia # Not allowed to follow with a space 
+        return word_julia # Not allowed to follow with a space
     end
 
     if length(word_translate) >= 19 && word_translate[1:19] == "observableParameter"
@@ -211,7 +211,7 @@ function variables_to_array_index(formula::String,
                                   model_state_names::Vector{String},
                                   parameter_info::ParametersInfo,
                                   pNames::Vector{String},
-                                  θ_non_dynamic_names::Vector{String};
+                                  xnondynamic_names::Vector{String};
                                   p_ode_problem::Bool = false)::String
     for (i, stateName) in pairs(model_state_names)
         formula = replace_word_number_prefix(formula, stateName, "u[" * string(i) * "]")
@@ -225,13 +225,13 @@ function variables_to_array_index(formula::String,
     else
         for (i, pName) in pairs(pNames)
             formula = replace_word_number_prefix(formula, pName,
-                                                 "θ_dynamic[" * string(i) * "]")
+                                                 "xdynamic[" * string(i) * "]")
         end
     end
 
-    for (i, θ_non_dynamicName) in pairs(θ_non_dynamic_names)
-        formula = replace_word_number_prefix(formula, θ_non_dynamicName,
-                                             "θ_non_dynamic[" * string(i) * "]")
+    for (i, xnondynamicName) in pairs(xnondynamic_names)
+        formula = replace_word_number_prefix(formula, xnondynamicName,
+                                             "xnondynamic[" * string(i) * "]")
     end
 
     for i in eachindex(parameter_info.parameter_id)
@@ -287,8 +287,8 @@ end
 """
     replace_word_number_prefix(formula, from, to)::String
 
-Replaces variables that can be prefixed with numbers, e.g., 
-replace_word_number_prefix("4STAT5 + 100.0STAT5 + RE*STAT5 + STAT5","STAT5","u[1]") 
+Replaces variables that can be prefixed with numbers, e.g.,
+replace_word_number_prefix("4STAT5 + 100.0STAT5 + RE*STAT5 + STAT5","STAT5","u[1]")
 gives 4u[1] + 100.0u[1] + RE*u[1] + u[1]
 """
 function replace_word_number_prefix(old_str, replace_from, replace_to)

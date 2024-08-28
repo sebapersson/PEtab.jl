@@ -9,10 +9,10 @@
 =#
 
 function compute_gradient_forward_equations!(gradient::Vector{Float64},
-                                             θ_dynamic::Vector{Float64},
-                                             θ_sd::Vector{Float64},
-                                             θ_observable::Vector{Float64},
-                                             θ_non_dynamic::Vector{Float64},
+                                             xdynamic::Vector{Float64},
+                                             xnoise::Vector{Float64},
+                                             xobservable::Vector{Float64},
+                                             xnondynamic::Vector{Float64},
                                              petab_model::PEtabModel,
                                              sensealg,
                                              ode_problem::ODEProblem,
@@ -23,22 +23,22 @@ function compute_gradient_forward_equations!(gradient::Vector{Float64},
                                              _solve_ode_all_conditions!::Function,
                                              cfg::Union{ForwardDiff.JacobianConfig,
                                                         Nothing},
-                                             petab_ODE_cache::PEtabODEProblemCache;
+                                             cache::PEtabODEProblemCache;
                                              exp_id_solve::Vector{Symbol} = [:all],
                                              split_over_conditions::Bool = false,
                                              isremade::Bool = false)::Nothing
-    θ_dynamicT = transformθ(θ_dynamic, θ_indices.xids[:dynamic], θ_indices, :θ_dynamic,
-                            petab_ODE_cache)
-    θ_sdT = transformθ(θ_sd, θ_indices.xids[:noise], θ_indices, :θ_sd, petab_ODE_cache)
-    θ_observableT = transformθ(θ_observable, θ_indices.xids[:observable], θ_indices,
-                               :θ_observable, petab_ODE_cache)
-    θ_non_dynamicT = transformθ(θ_non_dynamic, θ_indices.xids[:nondynamic], θ_indices,
-                                :θ_non_dynamic, petab_ODE_cache)
+    xdynamic_ps = transform_x(xdynamic, θ_indices.xids[:dynamic], θ_indices, :xdynamic,
+                            cache)
+    xnoise_ps = transform_x(xnoise, θ_indices.xids[:noise], θ_indices, :xnoise, cache)
+    xobservable_ps = transform_x(xobservable, θ_indices.xids[:observable], θ_indices,
+                               :xobservable, cache)
+    xnondynamic_ps = transform_x(xnondynamic, θ_indices.xids[:nondynamic], θ_indices,
+                                :xnondynamic, cache)
 
     # Solve the expanded ODE system for the sensitivites
     success = solve_sensitivites(ode_problem, simulation_info, θ_indices, petab_model,
-                                 sensealg, θ_dynamicT,
-                                 _solve_ode_all_conditions!, cfg, petab_ODE_cache,
+                                 sensealg, xdynamic_ps,
+                                 _solve_ode_all_conditions!, cfg, cache,
                                  exp_id_solve, split_over_conditions,
                                  isremade)
     if success != true
@@ -46,7 +46,7 @@ function compute_gradient_forward_equations!(gradient::Vector{Float64},
         gradient .= 1e8
         return nothing
     end
-    if isempty(θ_dynamic)
+    if isempty(xdynamic)
         return nothing
     end
 
@@ -62,9 +62,9 @@ function compute_gradient_forward_equations!(gradient::Vector{Float64},
         sol = simulation_info.odesols_derivatives[experimental_condition_id]
 
         # If we have a callback it needs to be properly handled
-        compute_gradient_forward_equations_condition!(gradient, sol, petab_ODE_cache,
-                                                      sensealg, θ_dynamicT, θ_sdT,
-                                                      θ_observableT, θ_non_dynamicT,
+        compute_gradient_forward_equations_condition!(gradient, sol, cache,
+                                                      sensealg, xdynamic_ps, xnoise_ps,
+                                                      xobservable_ps, xnondynamic_ps,
                                                       experimental_condition_id,
                                                       simulation_condition_id,
                                                       simulation_info, petab_model,
@@ -79,10 +79,10 @@ function solve_sensitivites(ode_problem::ODEProblem,
                             θ_indices::ParameterIndices,
                             petab_model::PEtabModel,
                             sensealg::Symbol,
-                            θ_dynamic::AbstractVector,
+                            xdynamic::AbstractVector,
                             _solve_ode_all_conditions!::Function,
                             cfg::ForwardDiff.JacobianConfig,
-                            petab_ODE_cache::PEtabODEProblemCache,
+                            cache::PEtabODEProblemCache,
                             exp_id_solve::Vector{Symbol},
                             split_over_conditions::Bool,
                             isremade::Bool = false)::Bool
@@ -91,70 +91,70 @@ function solve_sensitivites(ode_problem::ODEProblem,
     # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final
     # retcode we cannot catch these cases
     simulation_info.could_solve[1] = true
-    petab_ODE_cache.S .= 0.0
+    cache.S .= 0.0
     if split_over_conditions == false
 
         # Case where based on the original PEtab file read into Julia we do not have any parameter vectors fixated.
         if isremade == false ||
-           length(petab_ODE_cache.gradient_θ_dyanmic) == petab_ODE_cache.nθ_dynamic[1]
+           length(cache.xdynamic_grad) == cache.nxdynamic[1]
 
             # Allow correct mapping to sensitivity matrix
-            tmp = petab_ODE_cache.nθ_dynamic[1]
-            petab_ODE_cache.nθ_dynamic[1] = length(θ_dynamic)
+            tmp = cache.nxdynamic[1]
+            cache.nxdynamic[1] = length(xdynamic)
 
-            if isempty(θ_dynamic)
-                _solve_ode_all_conditions!(petab_ODE_cache.sol_values, θ_dynamic)
-                petab_ODE_cache.S .= 0.0
+            if isempty(xdynamic)
+                _solve_ode_all_conditions!(cache.odesols, xdynamic)
+                cache.S .= 0.0
             end
 
-            if !isempty(θ_dynamic)
-                ForwardDiff.jacobian!(petab_ODE_cache.S, _solve_ode_all_conditions!,
-                                      petab_ODE_cache.sol_values, θ_dynamic, cfg)
+            if !isempty(xdynamic)
+                ForwardDiff.jacobian!(cache.S, _solve_ode_all_conditions!,
+                                      cache.odesols, xdynamic, cfg)
             end
 
-            petab_ODE_cache.nθ_dynamic[1] = tmp
+            cache.nxdynamic[1] = tmp
         end
 
         # Case when we have dynamic parameters fixed. Here it is not always worth to move accross all chunks
         if !(isremade == false ||
-             length(petab_ODE_cache.gradient_θ_dyanmic) == petab_ODE_cache.nθ_dynamic[1])
-            if petab_ODE_cache.nθ_dynamic[1] != 0
+             length(cache.xdynamic_grad) == cache.nxdynamic[1])
+            if cache.nxdynamic[1] != 0
                 C = length(cfg.seeds)
-                n_forward_passes = Int64(ceil(petab_ODE_cache.nθ_dynamic[1] / C))
-                __θ_dynamic = θ_dynamic[petab_ODE_cache.θ_dynamic_input_order]
+                n_forward_passes = Int64(ceil(cache.nxdynamic[1] / C))
+                __xdynamic = xdynamic[cache.xdynamic_input_order]
                 forwarddiff_jacobian_chunks(_solve_ode_all_conditions!,
-                                            petab_ODE_cache.sol_values, petab_ODE_cache.S,
-                                            __θ_dynamic, ForwardDiff.Chunk(C);
+                                            cache.odesols, cache.S,
+                                            __xdynamic, ForwardDiff.Chunk(C);
                                             n_forward_passes = n_forward_passes)
-                @views petab_ODE_cache.S .= petab_ODE_cache.S[:,
-                                                              petab_ODE_cache.θ_dynamic_output_order]
+                @views cache.S .= cache.S[:,
+                                                              cache.xdynamic_output_order]
             end
 
-            if petab_ODE_cache.nθ_dynamic[1] == 0
-                _solve_ode_all_conditions!(petab_ODE_cache.sol_values, θ_dynamic)
-                petab_ODE_cache.S .= 0.0
+            if cache.nxdynamic[1] == 0
+                _solve_ode_all_conditions!(cache.odesols, xdynamic)
+                cache.S .= 0.0
             end
         end
     end
 
     # Slower option, but more efficient if there are several parameters unique to an experimental condition
     if split_over_conditions == true
-        petab_ODE_cache.S .= 0.0
-        S_tmp = similar(petab_ODE_cache.S)
+        cache.S .= 0.0
+        S_tmp = similar(cache.S)
         for condition_id in simulation_info.conditionids[:experiment]
             map_condition_id = θ_indices.maps_conidition_id[condition_id]
             iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.sys_to_dynamic,
                                                     map_condition_id.ix_dynamic))
-            θ_input = θ_dynamic[iθ_experimental_condition]
-            compute_sensitivities_condition! = (sol_values, θ_arg) -> begin
-                _θ_dynamic = convert.(eltype(θ_arg), θ_dynamic)
-                _θ_dynamic[iθ_experimental_condition] .= θ_arg
-                _solve_ode_all_conditions!(sol_values, _θ_dynamic, [condition_id])
+            θ_input = xdynamic[iθ_experimental_condition]
+            compute_sensitivities_condition! = (odesols, θ_arg) -> begin
+                _xdynamic = convert.(eltype(θ_arg), xdynamic)
+                _xdynamic[iθ_experimental_condition] .= θ_arg
+                _solve_ode_all_conditions!(odesols, _xdynamic, [condition_id])
             end
             @views ForwardDiff.jacobian!(S_tmp[:, iθ_experimental_condition],
                                          compute_sensitivities_condition!,
-                                         petab_ODE_cache.sol_values, θ_input)
-            @views petab_ODE_cache.S[:, iθ_experimental_condition] .+= S_tmp[:,
+                                         cache.odesols, θ_input)
+            @views cache.S[:, iθ_experimental_condition] .+= S_tmp[:,
                                                                              iθ_experimental_condition]
         end
     end
@@ -164,12 +164,12 @@ end
 
 function compute_gradient_forward_equations_condition!(gradient::Vector{Float64},
                                                        sol::ODESolution,
-                                                       petab_ODE_cache::PEtabODEProblemCache,
+                                                       cache::PEtabODEProblemCache,
                                                        sensealg::Symbol,
-                                                       θ_dynamic::Vector{Float64},
-                                                       θ_sd::Vector{Float64},
-                                                       θ_observable::Vector{Float64},
-                                                       θ_non_dynamic::Vector{Float64},
+                                                       xdynamic::Vector{Float64},
+                                                       xnoise::Vector{Float64},
+                                                       xobservable::Vector{Float64},
+                                                       xnondynamic::Vector{Float64},
                                                        experimental_condition_id::Symbol,
                                                        simulation_condition_id::Symbol,
                                                        simulation_info::SimulationInfo,
@@ -186,15 +186,15 @@ function compute_gradient_forward_equations_condition!(gradient::Vector{Float64}
         compute∂G∂_(out, u, p, t, i, imeasurements_t,
                     measurement_info, parameter_info,
                     θ_indices, petab_model,
-                    θ_sd, θ_observable, θ_non_dynamic,
-                    petab_ODE_cache.∂h∂u, petab_ODE_cache.∂σ∂u, compute∂G∂U = true)
+                    xnoise, xobservable, xnondynamic,
+                    cache.∂h∂u, cache.∂σ∂u, compute∂G∂U = true)
     end
     compute∂G∂p! = (out, u, p, t, i) -> begin
         compute∂G∂_(out, u, p, t, i, imeasurements_t,
                     measurement_info, parameter_info,
                     θ_indices, petab_model,
-                    θ_sd, θ_observable, θ_non_dynamic,
-                    petab_ODE_cache.∂h∂p, petab_ODE_cache.∂σ∂p, compute∂G∂U = false)
+                    xnoise, xobservable, xnondynamic,
+                    cache.∂h∂p, cache.∂σ∂p, compute∂G∂U = false)
     end
 
     # Extract which parameters we compute gradient for in this specific experimental condition
@@ -206,11 +206,11 @@ function compute_gradient_forward_equations_condition!(gradient::Vector{Float64}
 
     # Loop through solution and extract sensitivites
     n_model_states = length(states(petab_model.sys_mutated))
-    petab_ODE_cache.p .= dual_to_float.(sol.prob.p)
-    p = petab_ODE_cache.p
-    u = petab_ODE_cache.u
-    ∂G∂p, ∂G∂p_, ∂G∂u = petab_ODE_cache.∂G∂p, petab_ODE_cache.∂G∂p_, petab_ODE_cache.∂G∂u
-    _gradient = petab_ODE_cache._gradient
+    cache.p .= dual_to_float.(sol.prob.p)
+    p = cache.p
+    u = cache.u
+    ∂G∂p, ∂G∂p_, ∂G∂u = cache.∂G∂p, cache.∂G∂p_, cache.∂G∂u
+    _gradient = cache.forward_eqs_grad
     fill!(_gradient, 0.0)
     fill!(∂G∂p, 0.0)
     for i in eachindex(time_observed)
@@ -221,14 +221,14 @@ function compute_gradient_forward_equations_condition!(gradient::Vector{Float64}
         # point). Overall, positions are precomputed in time_position_ode_sol
         i_start, i_end = (time_position_ode_sol[i] - 1) * n_model_states + 1,
                          (time_position_ode_sol[i] - 1) * n_model_states + n_model_states
-        _S = @view petab_ODE_cache.S[i_start:i_end, iθ_experimental_condition]
+        _S = @view cache.S[i_start:i_end, iθ_experimental_condition]
         @views _gradient[iθ_experimental_condition] .+= transpose(_S) * ∂G∂u
         ∂G∂p .+= ∂G∂p_
     end
 
     # Thus far have have computed dY/dθ, but for parameters on the log-scale we want dY/dθ_log. We can adjust via;
     # dY/dθ_log = log(10) * θ * dY/dθ
-    adjust_gradient_θ_transformed!(gradient, _gradient, ∂G∂p, θ_dynamic, θ_indices,
+    adjust_gradient_θ_transformed!(gradient, _gradient, ∂G∂p, xdynamic, θ_indices,
                                    simulation_condition_id, autodiff_sensitivites = true)
 
     return nothing

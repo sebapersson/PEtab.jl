@@ -142,8 +142,8 @@ struct ParameterIndices
     xindices::Dict{Symbol, Vector{Int32}}
     xids::Dict{Symbol, Vector{Symbol}}
     θ_scale::Dict{Symbol, Symbol}
-    mapθ_observable::Vector{ObservableNoiseMap}
-    mapθ_sd::Vector{ObservableNoiseMap}
+    mapxobservable::Vector{ObservableNoiseMap}
+    mapxnoise::Vector{ObservableNoiseMap}
     map_ode_problem::MapODEProblem
     maps_conidition_id::Dict{Symbol, ConditionMap}
 end
@@ -314,25 +314,27 @@ struct ParametersInfo
     n_parameters_esimtate::Int64
 end
 
-struct PEtabODEProblemCache{T1 <: AbstractVector,
+struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
                             T2 <: DiffCache,
-                            T3 <: AbstractVector,
-                            T4 <: AbstractMatrix}
-    θ_dynamic::T1
-    θ_sd::T1
-    θ_observable::T1
-    θ_non_dynamic::T1
-    θ_dynamicT::T2 # T = transformed vector
-    θ_sdT::T2
-    θ_observableT::T2
-    θ_non_dynamicT::T2
-    gradient_θ_dyanmic::T1
-    gradient_θ_not_ode::T1
+                            T3 <: Vector{<:AbstractFloat},
+                            T4 <: Matrix{<:AbstractFloat},
+                            T5 <: Dict,
+                            T6 <: Dict}
+    xdynamic::T1
+    xnoise::T1
+    xobservable::T1
+    xnondynamic::T1
+    xdynamic_ps::T2
+    xnoise_ps::T2
+    xobservable_ps::T2
+    xnondynamic_ps::T2
+    xdynamic_grad::T1
+    xnotode_grad::T1
     jacobian_gn::T4
     residuals_gn::T1
-    _gradient::T1
-    _gradient_adjoint::T1
-    S_t0::T4
+    forward_eqs_grad::T1
+    adjoint_grad::T1
+    St0::T4
     ∂h∂u::T3
     ∂σ∂u::T3
     ∂h∂p::T3
@@ -345,10 +347,12 @@ struct PEtabODEProblemCache{T1 <: AbstractVector,
     p::T3
     u::T3
     S::T4
-    sol_values::T4
-    θ_dynamic_input_order::Vector{Int64}
-    θ_dynamic_output_order::Vector{Int64}
-    nθ_dynamic::Vector{Int64}
+    odesols::T4
+    pode::T5
+    u0ode::T6
+    xdynamic_input_order::Vector{Int64}
+    xdynamic_output_order::Vector{Int64}
+    nxdynamic::Vector{Int64}
 end
 
 struct MeasurementsInfo{T <: Vector{<:Union{<:String, <:AbstractFloat}}}
@@ -366,12 +370,7 @@ struct MeasurementsInfo{T <: Vector{<:Union{<:String, <:AbstractFloat}}}
     observable_parameters::Vector{String}
 end
 
-struct PEtabODESolverCache
-    p_ode_problem_cache::Any
-    u0_cache::Any
-end
-
-struct PEtabODEProblemInfo{S1 <: ODESolver, S2 <: ODESolver}
+struct PEtabODEProblemInfo{S1 <: ODESolver, S2 <: ODESolver, C <: PEtabODEProblemCache}
     odeproblem::ODEProblem
     odeproblem_gradient::ODEProblem
     solver::S1
@@ -385,8 +384,7 @@ struct PEtabODEProblemInfo{S1 <: ODESolver, S2 <: ODESolver}
     sparse_jacobian::Bool
     sensealg::Any
     sensealg_ss::Any
-    petab_ODE_cache::PEtabODEProblemCache
-    petab_ODESolver_cache::PEtabODESolverCache
+    cache::C
     split_over_conditions::Bool
     chunksize::Int64
 end

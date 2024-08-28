@@ -1,8 +1,8 @@
-function compute_jacobian_residuals_θ_dynamic!(jacobian::Union{Matrix{Float64}, SubArray},
-                                               θ_dynamic::Vector{Float64},
-                                               θ_sd::Vector{Float64},
-                                               θ_observable::Vector{Float64},
-                                               θ_non_dynamic::Vector{Float64},
+function compute_jacobian_residuals_xdynamic!(jacobian::Union{Matrix{Float64}, SubArray},
+                                               xdynamic::Vector{Float64},
+                                               xnoise::Vector{Float64},
+                                               xobservable::Vector{Float64},
+                                               xnondynamic::Vector{Float64},
                                                petab_model::PEtabModel,
                                                ode_problem::ODEProblem,
                                                simulation_info::SimulationInfo,
@@ -11,24 +11,24 @@ function compute_jacobian_residuals_θ_dynamic!(jacobian::Union{Matrix{Float64},
                                                parameter_info::ParametersInfo,
                                                _solve_ode_all_conditions!::Function,
                                                cfg::ForwardDiff.JacobianConfig,
-                                               petab_ODE_cache::PEtabODEProblemCache;
+                                               cache::PEtabODEProblemCache;
                                                exp_id_solve::Vector{Symbol} = [:all],
                                                reuse_sensitivities::Bool = false,
                                                split_over_conditions::Bool = false,
                                                isremade::Bool = false)::Nothing
-    θ_dynamicT = transformθ(θ_dynamic, θ_indices.xids[:dynamic], θ_indices, :θ_dynamic,
-                            petab_ODE_cache)
-    θ_sdT = transformθ(θ_sd, θ_indices.xids[:noise], θ_indices, :θ_sd, petab_ODE_cache)
-    θ_observableT = transformθ(θ_observable, θ_indices.xids[:observable], θ_indices,
-                               :θ_observable, petab_ODE_cache)
-    θ_non_dynamicT = transformθ(θ_non_dynamic, θ_indices.xids[:nondynamic], θ_indices,
-                                :θ_non_dynamic, petab_ODE_cache)
+    xdynamic_ps = transform_x(xdynamic, θ_indices.xids[:dynamic], θ_indices, :xdynamic,
+                            cache)
+    xnoise_ps = transform_x(xnoise, θ_indices.xids[:noise], θ_indices, :xnoise, cache)
+    xobservable_ps = transform_x(xobservable, θ_indices.xids[:observable], θ_indices,
+                               :xobservable, cache)
+    xnondynamic_ps = transform_x(xnondynamic, θ_indices.xids[:nondynamic], θ_indices,
+                                :xnondynamic, cache)
 
     if reuse_sensitivities == false
         # Solve the expanded ODE system for the sensitivites
         success = solve_sensitivites(ode_problem, simulation_info, θ_indices, petab_model,
-                                     :ForwardDiff, θ_dynamicT,
-                                     _solve_ode_all_conditions!, cfg, petab_ODE_cache,
+                                     :ForwardDiff, xdynamic_ps,
+                                     _solve_ode_all_conditions!, cfg, cache,
                                      exp_id_solve, split_over_conditions,
                                      isremade)
 
@@ -38,7 +38,7 @@ function compute_jacobian_residuals_θ_dynamic!(jacobian::Union{Matrix{Float64},
             return nothing
         end
     end
-    if isempty(θ_dynamic)
+    if isempty(xdynamic)
         jacobian .= 0.0
         return nothing
     end
@@ -55,9 +55,9 @@ function compute_jacobian_residuals_θ_dynamic!(jacobian::Union{Matrix{Float64},
         sol = simulation_info.odesols_derivatives[experimental_condition_id]
 
         # If we have a callback it needs to be properly handled
-        compute_jacobian_residuals_condition!(jacobian, sol, petab_ODE_cache, θ_dynamicT,
-                                              θ_sdT, θ_observableT,
-                                              θ_non_dynamicT, experimental_condition_id,
+        compute_jacobian_residuals_condition!(jacobian, sol, cache, xdynamic_ps,
+                                              xnoise_ps, xobservable_ps,
+                                              xnondynamic_ps, experimental_condition_id,
                                               simulation_condition_id, simulation_info,
                                               petab_model, θ_indices,
                                               measurement_info, parameter_info)
@@ -67,11 +67,11 @@ end
 
 function compute_jacobian_residuals_condition!(jacobian::M,
                                                sol::ODESolution,
-                                               petab_ODE_cache::PEtabODEProblemCache,
-                                               θ_dynamic::Vector{Float64},
-                                               θ_sd::Vector{Float64},
-                                               θ_observable::Vector{Float64},
-                                               θ_non_dynamic::Vector{Float64},
+                                               cache::PEtabODEProblemCache,
+                                               xdynamic::Vector{Float64},
+                                               xnoise::Vector{Float64},
+                                               xobservable::Vector{Float64},
+                                               xnondynamic::Vector{Float64},
                                                experimental_condition_id::Symbol,
                                                simulation_condition_id::Symbol,
                                                simulation_info::SimulationInfo,
@@ -91,16 +91,16 @@ function compute_jacobian_residuals_condition!(jacobian::M,
         compute∂G∂_(out, u, p, t, i, it,
                     measurement_info, parameter_info,
                     θ_indices, petab_model,
-                    θ_sd, θ_observable, θ_non_dynamic,
-                    petab_ODE_cache.∂h∂u, petab_ODE_cache.∂σ∂u, compute∂G∂U = true,
+                    xnoise, xobservable, xnondynamic,
+                    cache.∂h∂u, cache.∂σ∂u, compute∂G∂U = true,
                     compute_residuals = true)
     end
     compute∂G∂p = (out, u, p, t, i, it) -> begin
         compute∂G∂_(out, u, p, t, i, it,
                     measurement_info, parameter_info,
                     θ_indices, petab_model,
-                    θ_sd, θ_observable, θ_non_dynamic,
-                    petab_ODE_cache.∂h∂p, petab_ODE_cache.∂σ∂p, compute∂G∂U = false,
+                    xnoise, xobservable, xnondynamic,
+                    cache.∂h∂p, cache.∂σ∂p, compute∂G∂U = false,
                     compute_residuals = true)
     end
 
@@ -111,18 +111,18 @@ function compute_jacobian_residuals_condition!(jacobian::M,
 
     # Loop through solution and extract sensitivites
     n_model_states = length(states(petab_model.sys_mutated))
-    petab_ODE_cache.p .= dual_to_float.(sol.prob.p)
-    p = petab_ODE_cache.p
-    u = petab_ODE_cache.u
-    ∂G∂p = petab_ODE_cache.∂G∂p
-    ∂G∂u = petab_ODE_cache.∂G∂u
-    _gradient = petab_ODE_cache._gradient
+    cache.p .= dual_to_float.(sol.prob.p)
+    p = cache.p
+    u = cache.u
+    ∂G∂p = cache.∂G∂p
+    ∂G∂u = cache.∂G∂u
+    _gradient = cache.forward_eqs_grad
     for i in eachindex(time_observed)
         u .= dual_to_float.((@view sol[:, i]))
         t = time_observed[i]
         i_start, i_end = (time_position_ode_sol[i] - 1) * n_model_states + 1,
                          (time_position_ode_sol[i] - 1) * n_model_states + n_model_states
-        _S = @view petab_ODE_cache.S[i_start:i_end, iθ_experimental_condition]
+        _S = @view cache.S[i_start:i_end, iθ_experimental_condition]
         for i_measurement in imeasurements_t[i]
             compute∂G∂u(∂G∂u, u, p, t, 1, [[i_measurement]])
             compute∂G∂p(∂G∂p, u, p, t, 1, [[i_measurement]])
@@ -131,7 +131,7 @@ function compute_jacobian_residuals_condition!(jacobian::M,
             # Thus far have have computed dY/dθ for the residuals, but for parameters on the log-scale we want dY/dθ_log.
             # We can adjust via; dY/dθ_log = log(10) * θ * dY/dθ
             adjust_gradient_θ_transformed!((@view jacobian[:, i_measurement]), _gradient,
-                                           ∂G∂p, θ_dynamic, θ_indices,
+                                           ∂G∂p, xdynamic, θ_indices,
                                            simulation_condition_id,
                                            autodiff_sensitivites = true)
         end
@@ -141,9 +141,9 @@ end
 
 # To compute the gradient for non-dynamic parameters
 function compute_residuals_not_solve_ode!(residuals::T1,
-                                          θ_sd::T2,
-                                          θ_observable::T2,
-                                          θ_non_dynamic::T2,
+                                          xnoise::T2,
+                                          xobservable::T2,
+                                          xnondynamic::T2,
                                           probleminfo::PEtabODEProblemInfo,
                                           model_info::ModelInfo;
                                           exp_id_solve::Vector{Symbol} = [:all])::T1 where {
@@ -153,14 +153,14 @@ function compute_residuals_not_solve_ode!(residuals::T1,
                                                                                             AbstractVector
                                                                                             }
     @unpack petab_model, simulation_info, θ_indices, measurement_info, parameter_info = model_info
-    @unpack petab_ODE_cache = probleminfo
+    @unpack cache = probleminfo
     # To be able to use ReverseDiff sdParamEstUse and obsParamEstUse cannot be overwritten.
     # Hence new vectors have to be created.
-    θ_sdT = transformθ(θ_sd, θ_indices.xids[:noise], θ_indices, :θ_sd, petab_ODE_cache)
-    θ_observableT = transformθ(θ_observable, θ_indices.xids[:observable], θ_indices,
-                               :θ_observable, petab_ODE_cache)
-    θ_non_dynamicT = transformθ(θ_non_dynamic, θ_indices.xids[:nondynamic], θ_indices,
-                                :θ_non_dynamic, petab_ODE_cache)
+    xnoise_ps = transform_x(xnoise, θ_indices.xids[:noise], θ_indices, :xnoise, cache)
+    xobservable_ps = transform_x(xobservable, θ_indices.xids[:observable], θ_indices,
+                               :xobservable, cache)
+    xnondynamic_ps = transform_x(xnondynamic, θ_indices.xids[:nondynamic], θ_indices,
+                                :xnondynamic, cache)
 
     # Compute residuals per experimental conditions
     for experimental_condition_id in simulation_info.conditionids[:experiment]
@@ -169,12 +169,12 @@ function compute_residuals_not_solve_ode!(residuals::T1,
         end
 
         ode_sol = simulation_info.odesols_derivatives[experimental_condition_id]
-        sucess = compute_residuals_condition!(residuals, ode_sol, θ_sdT, θ_observableT,
-                                              θ_non_dynamicT,
+        sucess = compute_residuals_condition!(residuals, ode_sol, xnoise_ps, xobservable_ps,
+                                              xnondynamic_ps,
                                               petab_model, experimental_condition_id,
                                               simulation_info, θ_indices,
                                               measurement_info, parameter_info,
-                                              petab_ODE_cache)
+                                              cache)
         if sucess == false
             residuals .= Inf
             break
@@ -187,16 +187,16 @@ end
 # For an experimental condition compute residuals
 function compute_residuals_condition!(residuals::T1,
                                       ode_sol::ODESolution,
-                                      θ_sd::T2,
-                                      θ_observable::T2,
-                                      θ_non_dynamic::T2,
+                                      xnoise::T2,
+                                      xobservable::T2,
+                                      xnondynamic::T2,
                                       petab_model::PEtabModel,
                                       experimental_condition_id::Symbol,
                                       simulation_info::SimulationInfo,
                                       θ_indices::ParameterIndices,
                                       measurement_info::MeasurementsInfo,
                                       parameter_info::ParametersInfo,
-                                      petab_ODE_cache::PEtabODEProblemCache)::Bool where {
+                                      cache::PEtabODEProblemCache)::Bool where {
                                                                                           T1 <:
                                                                                           AbstractVector,
                                                                                           T2 <:
@@ -206,16 +206,16 @@ function compute_residuals_condition!(residuals::T1,
         return false
     end
 
-    @unpack u, p = petab_ODE_cache
+    @unpack u, p = cache
     # Compute y_model and sd for all observations having id conditionID
     for i_measurement in simulation_info.imeasurements[experimental_condition_id]
         t = measurement_info.time[i_measurement]
         u .= dual_to_float.((@view ode_sol[:,
                                            simulation_info.imeasurements_t_sol[i_measurement]]))
         p .= dual_to_float.(ode_sol.prob.p)
-        hT = computehT(u, t, p, θ_observable, θ_non_dynamic, petab_model, i_measurement,
+        hT = computehT(u, t, p, xobservable, xnondynamic, petab_model, i_measurement,
                        measurement_info, θ_indices, parameter_info)
-        σ = computeσ(u, t, p, θ_sd, θ_non_dynamic, petab_model, i_measurement,
+        σ = computeσ(u, t, p, xnoise, xnondynamic, petab_model, i_measurement,
                      measurement_info, θ_indices, parameter_info)
 
         # By default a positive ODE solution is not enforced (even though the user can provide it as option).

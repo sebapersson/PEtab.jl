@@ -5,42 +5,39 @@ function compute_gradient_adjoint!(gradient::Vector{Float64},
                                    probleminfo::PEtab.PEtabODEProblemInfo,
                                    model_info::PEtab.ModelInfo;
                                    exp_id_solve::Vector{Symbol} = [:all])::Nothing
-    @unpack petab_ODESolver_cache, petab_ODE_cache, sensealg, sensealg_ss = probleminfo
+    @unpack cache, sensealg, sensealg_ss = probleminfo
     @unpack simulation_info, petab_model, simulation_info, θ_indices = model_info
     @unpack measurement_info, parameter_info, prior_info = model_info
     ss_solver = probleminfo.ss_solver_gradient
     ode_solver = probleminfo.solver_gradient
     ode_problem = probleminfo.odeproblem_gradient
 
-    PEtab.splitθ!(θ_est, θ_indices, petab_ODE_cache)
-    θ_dynamic = petab_ODE_cache.θ_dynamic
-    θ_observable = petab_ODE_cache.θ_observable
-    θ_sd = petab_ODE_cache.θ_sd
-    θ_non_dynamic = petab_ODE_cache.θ_non_dynamic
+    PEtab.splitθ!(θ_est, θ_indices, cache)
+    xdynamic = cache.xdynamic
+    xobservable = cache.xobservable
+    xnoise = cache.xnoise
+    xnondynamic = cache.xnondynamic
 
     # Calculate gradient seperately for dynamic and non dynamic parameter.
-    compute_gradient_adjoint_θ_dynamic!(petab_ODE_cache.gradient_θ_dyanmic, θ_dynamic, θ_sd,
-                                        θ_observable, θ_non_dynamic, model_info,
-                                        probleminfo,
-                                        ode_problem, ode_solver, ss_solver, sensealg,
-                                        petab_model, simulation_info, θ_indices,
-                                        measurement_info, parameter_info,
-                                        petab_ODE_cache, petab_ODESolver_cache;
-                                        exp_id_solve = exp_id_solve,
-                                        sensealg_ss = sensealg_ss)
-    @views gradient[θ_indices.xindices[:dynamic]] .= petab_ODE_cache.gradient_θ_dyanmic
+    compute_gradient_adjoint_xdynamic!(cache.xdynamic_grad, xdynamic, xnoise, xobservable,
+                                       xnondynamic, model_info, probleminfo, ode_problem,
+                                       ode_solver, ss_solver, sensealg, petab_model,
+                                       simulation_info, θ_indices, measurement_info,
+                                       parameter_info, cache; exp_id_solve = exp_id_solve,
+                                       sensealg_ss = sensealg_ss)
+    @views gradient[θ_indices.xindices[:dynamic]] .= cache.xdynamic_grad
 
     # Happens when at least one forward pass fails and I set the gradient to 1e8
-    if !isempty(petab_ODE_cache.gradient_θ_dyanmic) &&
-       all(petab_ODE_cache.gradient_θ_dyanmic .== 0.0)
+    if !isempty(cache.xdynamic_grad) &&
+       all(cache.xdynamic_grad .== 0.0)
         gradient .= 0.0
         return nothing
     end
 
     θ_not_ode = @view θ_est[θ_indices.xindices[:not_system]]
-    ReverseDiff.gradient!(petab_ODE_cache.gradient_θ_not_ode, compute_cost_θ_not_ODE,
+    ReverseDiff.gradient!(cache.xnotode_grad, compute_cost_θ_not_ODE,
                           θ_not_ode)
-    @views gradient[θ_indices.xindices[:not_system]] .= petab_ODE_cache.gradient_θ_not_ode
+    @views gradient[θ_indices.xindices[:not_system]] .= cache.xnotode_grad
 
     if prior_info.has_priors == true
         PEtab.grad_prior!(gradient, θ_est, θ_indices, prior_info)
@@ -50,11 +47,11 @@ function compute_gradient_adjoint!(gradient::Vector{Float64},
 end
 
 # Compute the adjoint gradient across all experimental conditions
-function compute_gradient_adjoint_θ_dynamic!(gradient::Vector{Float64},
-                                             θ_dynamic::Vector{Float64},
-                                             θ_sd::Vector{Float64},
-                                             θ_observable::Vector{Float64},
-                                             θ_non_dynamic::Vector{Float64},
+function compute_gradient_adjoint_xdynamic!(gradient::Vector{Float64},
+                                             xdynamic::Vector{Float64},
+                                             xnoise::Vector{Float64},
+                                             xobservable::Vector{Float64},
+                                             xnondynamic::Vector{Float64},
                                              model_info::PEtab.ModelInfo,
                                              probleminfo::PEtab.PEtabODEProblemInfo,
                                              ode_problem::ODEProblem,
@@ -66,24 +63,23 @@ function compute_gradient_adjoint_θ_dynamic!(gradient::Vector{Float64},
                                              θ_indices::PEtab.ParameterIndices,
                                              measurement_info::PEtab.MeasurementsInfo,
                                              parameter_info::PEtab.ParametersInfo,
-                                             petab_ODE_cache::PEtab.PEtabODEProblemCache,
-                                             petab_ODESolver_cache::PEtab.PEtabODESolverCache;
+                                             cache::PEtab.PEtabODEProblemCache;
                                              sensealg_ss = SteadyStateAdjoint(),
                                              exp_id_solve::Vector{Symbol} = [:all])::Nothing
-    θ_dynamicT = PEtab.transformθ(θ_dynamic, θ_indices.xids[:dynamic], θ_indices,
-                                  :θ_dynamic, petab_ODE_cache)
-    θ_sdT = PEtab.transformθ(θ_sd, θ_indices.xids[:noise], θ_indices, :θ_sd,
-                             petab_ODE_cache)
-    θ_observableT = PEtab.transformθ(θ_observable, θ_indices.xids[:observable], θ_indices,
-                                     :θ_observable, petab_ODE_cache)
-    θ_non_dynamicT = PEtab.transformθ(θ_non_dynamic, θ_indices.xids[:nondynamic],
-                                      θ_indices, :θ_non_dynamic, petab_ODE_cache)
+    xdynamic_ps = PEtab.transform_x(xdynamic, θ_indices.xids[:dynamic], θ_indices,
+                                  :xdynamic, cache)
+    xnoise_ps = PEtab.transform_x(xnoise, θ_indices.xids[:noise], θ_indices, :xnoise,
+                             cache)
+    xobservable_ps = PEtab.transform_x(xobservable, θ_indices.xids[:observable], θ_indices,
+                                     :xobservable, cache)
+    xnondynamic_ps = PEtab.transform_x(xnondynamic, θ_indices.xids[:nondynamic],
+                                      θ_indices, :xnondynamic, cache)
 
-    _ode_problem = remake(ode_problem, p = convert.(eltype(θ_dynamicT), ode_problem.p),
-                          u0 = convert.(eltype(θ_dynamicT), ode_problem.u0))
-    PEtab.change_ode_parameters!(_ode_problem.p, _ode_problem.u0, θ_dynamicT, θ_indices,
+    _ode_problem = remake(ode_problem, p = convert.(eltype(xdynamic_ps), ode_problem.p),
+                          u0 = convert.(eltype(xdynamic_ps), ode_problem.u0))
+    PEtab.change_ode_parameters!(_ode_problem.p, _ode_problem.u0, xdynamic_ps, θ_indices,
                                  petab_model)
-    success = PEtab.solve_ode_all_conditions!(model_info, θ_dynamicT, probleminfo;
+    success = PEtab.solve_ode_all_conditions!(model_info, xdynamic_ps, probleminfo;
                                               exp_id_solve = exp_id_solve, dense_sol = true,
                                               save_at_observed_t = false,
                                               track_callback = true)
@@ -118,10 +114,10 @@ function compute_gradient_adjoint_θ_dynamic!(gradient::Vector{Float64},
         # In case the model is simulated first to a steady state we need to keep track of the post-equlibrium experimental
         # condition Id to identify parameters specific to an experimental condition.
         sol = simulation_info.odesols_derivatives[experimental_condition_id]
-        success = compute_gradient_adjoint_condition!(gradient, sol, petab_ODE_cache,
+        success = compute_gradient_adjoint_condition!(gradient, sol, cache,
                                                       sensealg, ode_solver,
-                                                      θ_dynamicT, θ_sdT, θ_observableT,
-                                                      θ_non_dynamicT,
+                                                      xdynamic_ps, xnoise_ps, xobservable_ps,
+                                                      xnondynamic_ps,
                                                       experimental_condition_id,
                                                       simulation_condition_id,
                                                       simulation_info,
@@ -280,13 +276,13 @@ end
 # TODO : Important function - improve documentation.
 function compute_gradient_adjoint_condition!(gradient::Vector{Float64},
                                              sol::ODESolution,
-                                             petab_ODE_cache::PEtab.PEtabODEProblemCache,
+                                             cache::PEtab.PEtabODEProblemCache,
                                              sensealg::SciMLSensitivity.AbstractAdjointSensitivityAlgorithm,
                                              ode_solver::ODESolver,
-                                             θ_dynamic::Vector{Float64},
-                                             θ_sd::Vector{Float64},
-                                             θ_observable::Vector{Float64},
-                                             θ_non_dynamic::Vector{Float64},
+                                             xdynamic::Vector{Float64},
+                                             xnoise::Vector{Float64},
+                                             xobservable::Vector{Float64},
+                                             xnondynamic::Vector{Float64},
                                              experimental_condition_id::Symbol,
                                              simulation_condition_id::Symbol,
                                              simulation_info::PEtab.SimulationInfo,
@@ -306,15 +302,15 @@ function compute_gradient_adjoint_condition!(gradient::Vector{Float64},
         PEtab.compute∂G∂_(out, u, p, t, i, imeasurements_t,
                           measurement_info, parameter_info,
                           θ_indices, petab_model,
-                          θ_sd, θ_observable, θ_non_dynamic,
-                          petab_ODE_cache.∂h∂u, petab_ODE_cache.∂σ∂u, compute∂G∂U = true)
+                          xnoise, xobservable, xnondynamic,
+                          cache.∂h∂u, cache.∂σ∂u, compute∂G∂U = true)
     end
     compute∂G∂p! = (out, u, p, t, i) -> begin
         PEtab.compute∂G∂_(out, u, p, t, i, imeasurements_t,
                           measurement_info, parameter_info,
                           θ_indices, petab_model,
-                          θ_sd, θ_observable, θ_non_dynamic,
-                          petab_ODE_cache.∂h∂p, petab_ODE_cache.∂σ∂p, compute∂G∂U = false)
+                          xnoise, xobservable, xnondynamic,
+                          cache.∂h∂p, cache.∂σ∂p, compute∂G∂U = false)
     end
 
     @unpack solver_adj, abstol_adj, reltol_adj, maxiters, force_dtmin = ode_solver
@@ -325,8 +321,8 @@ function compute_gradient_adjoint_condition!(gradient::Vector{Float64},
     # zero. Overall, the only workflow that changes below is that we compute du outside of the adjoint interface
     # and use sol[:] as we no longer can interpolate from the forward solution.
     only_obs_at_zero::Bool = false
-    du = petab_ODE_cache.du
-    dp = petab_ODE_cache.dp
+    du = cache.du
+    dp = cache.dp
     if !(length(time_observed) == 1 && time_observed[1] == 0.0)
         status = __adjoint_sensitivities!(du, dp, sol, sensealg, time_observed, solver_adj,
                                           abstol_adj, reltol_adj, callback, compute∂G∂u!;
@@ -341,7 +337,7 @@ function compute_gradient_adjoint_condition!(gradient::Vector{Float64},
     # the gradient for these evaluate to NaN (as they where never thought to be estimated) which
     # results in the entire gradient evaluating to NaN. Hence, we perform this calculation outside
     # of the lower level interface.
-    ∂G∂p, ∂G∂p_ = petab_ODE_cache.∂G∂p_, petab_ODE_cache.∂G∂p
+    ∂G∂p, ∂G∂p_ = cache.∂G∂p_, cache.∂G∂p
     fill!(∂G∂p, 0.0)
     for i in eachindex(time_observed)
         if only_obs_at_zero == false
@@ -352,13 +348,13 @@ function compute_gradient_adjoint_condition!(gradient::Vector{Float64},
         ∂G∂p .+= ∂G∂p_
     end
 
-    _gradient = petab_ODE_cache._gradient_adjoint
+    _gradient = cache.adjoint_grad
     if simulation_info.has_pre_equilibration == false
         # In case we do not simulate the ODE for a steady state first we can compute
         # the initial sensitivites easily via automatic differantitatiom
-        S_t0 = petab_ODE_cache.S_t0
-        ForwardDiff.jacobian!(S_t0, petab_model.compute_u0!, sol.prob.u0, sol.prob.p)
-        _gradient .= dp .+ transpose(S_t0) * du
+        St0 = cache.St0
+        ForwardDiff.jacobian!(St0, petab_model.compute_u0!, sol.prob.u0, sol.prob.p)
+        _gradient .= dp .+ transpose(St0) * du
 
     else
         # In case we simulate to a stady state we need to compute a VJP. We use
@@ -368,7 +364,7 @@ function compute_gradient_adjoint_condition!(gradient::Vector{Float64},
     end
 
     # Thus far have have computed dY/dθ, but for parameters on the log-scale we want dY/dθ_log.
-    PEtab.adjust_gradient_θ_transformed!(gradient, _gradient, ∂G∂p, θ_dynamic, θ_indices,
+    PEtab.adjust_gradient_θ_transformed!(gradient, _gradient, ∂G∂p, xdynamic, θ_indices,
                                          simulation_condition_id, adjoint = true)
     return true
 end
