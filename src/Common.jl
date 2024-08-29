@@ -98,7 +98,7 @@ function computehT(u::AbstractVector{T1},
                               mapxobservable)
     # Transform y_model is necessary
     hT = transform_measurement_or_h(h,
-                                    measurement_info.measurement_transform[i_measurement])
+                                    measurement_info.measurement_transforms[i_measurement])
 
     return hT
 end

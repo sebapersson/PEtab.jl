@@ -42,7 +42,6 @@ function nllh_solveode(xdynamic::T1, xnoise::T2, xobservable::T2, xnondynamic::T
         end
         return Inf
     end
-
     return _nllh(xnoise_ps, xobservable_ps, xnondynamic_ps, model_info, cids; hess = hess, grad_xdynamic = grad_xdynamic, residuals = residuals)
 end
 
@@ -98,7 +97,7 @@ function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic::T,
         return Inf
     end
 
-    @unpack time, measurement_transform = measurement_info
+    @unpack time, measurement_transforms = measurement_info
     ys_transformed = measurement_info.measurementT
     @unpack imeasurements, imeasurements_t_sol = simulation_info
     # TODO: Should live in PEtabModel
@@ -129,7 +128,7 @@ function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic::T,
         y_transformed = ys_transformed[imeasurement]
         h = computeh(u, t, p, xobservable, xnondynamic, petab_model, imeasurement,
                        measurement_info, θ_indices, parameter_info)
-        h_transformed = transform_measurement_or_h(h, measurement_transform[imeasurement])
+        h_transformed = transform_measurement_or_h(h, measurement_transforms[imeasurement])
         σ = computeσ(u, t, p, xnoise, xnondynamic, petab_model, imeasurement,
                      measurement_info, θ_indices, parameter_info)
         residual = (h_transformed - y_transformed) / σ
@@ -152,14 +151,14 @@ function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic::T,
 
         # For residuals == true we only care about residuals
         if residuals == false
-            if measurement_transform[imeasurement] === :lin
-                nllh += log(σ) + 0.5 * log(2 * pi) + 0.5 * residual^2
-            elseif measurement_transform[imeasurement] === :log10
-                nllh += log(σ) + 0.5 * log(2 * pi) + log(log(10)) + log(10) * y_transformed + 0.5 * residual^2
-            elseif measurement_transform[imeasurement] === :log
-                nllh += log(σ) + 0.5 * log(2 * pi) + y_transformed + 0.5 * residual^2
+            if measurement_transforms[imeasurement] === :lin
+                nllh += log(σ) + 0.5 * log(2π) + 0.5 * residual^2
+            elseif measurement_transforms[imeasurement] === :log10
+                nllh += log(σ) + 0.5 * log(2π) + log(log(10)) + log(10) * y_transformed + 0.5 * residual^2
+            elseif measurement_transforms[imeasurement] === :log
+                nllh += log(σ) + 0.5 * log(2π) + y_transformed + 0.5 * residual^2
             end
-        elseif compute_residuals == true
+        else
             nllh += residual
         end
     end

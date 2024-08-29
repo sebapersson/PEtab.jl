@@ -5,87 +5,73 @@
     Due to it slow speed Zygote does not have full support for all models, e.g, models with priors and pre-eq criteria.
 =#
 
-# Compute the gradient via forward mode automatic differentitation
-function compute_gradient_autodiff!(gradient::Vector{Float64},
-                                    θ_est::Vector{Float64},
-                                    compute_cost_θ_not_ODE::Function,
-                                    compute_cost_xdynamic::Function,
-                                    cfg::ForwardDiff.GradientConfig,
-                                    model_info::ModelInfo,
-                                    probleminfo::PEtabODEProblemInfo;
-                                    exp_id_solve::Vector{Symbol} = [:all],
-                                    isremade::Bool = false)::Nothing
+function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Function,
+                          _nllh_solveode::Function, cfg::ForwardDiff.GradientConfig,
+                          probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
+                          cids::Vector{Symbol} = [:all], isremade::Bool = false)::Nothing where T <: AbstractFloat
+    cache = probleminfo.cache
     @unpack simulation_info, θ_indices, prior_info = model_info
-    @unpack cache = probleminfo
-    fill!(gradient, 0.0)
-    split_x!(θ_est, θ_indices, cache)
-    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough.
-    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final
-    # retcode we cannot catch these cases
-    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough.
-    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final
-    # retcode we cannot catch these cases
+    @unpack xdynamic_grad, xnotode_grad, xdynamic, nxdynamic = cache
+
+
+    # As a subset of ForwardDiff chunks might fail, return code status is checked via
+    # simulation info
     simulation_info.could_solve[1] = true
 
-    # Case where based on the original PEtab file read into Julia we do not have any parameter vectors fixated.
-    if isremade == false ||
-       length(cache.xdynamic_grad) == cache.nxdynamic[1]
-        tmp = cache.nxdynamic[1]
-        cache.nxdynamic[1] = length(cache.xdynamic)
+    # When remaking the problem order of parameters a subset of xdynamic is fixed which
+    # must be accounted for in gradient computations
+    fill!(grad, 0.0)
+    split_x!(x, θ_indices, cache)
+    if isremade == false || length(xdynamic) == nxdynamic[1]
+        tmp = nxdynamic[1]
+        nxdynamic[1] = length(xdynamic)
         try
-            # In case of no dynamic parameters we still need to solve the ODE in order to obtain the gradient for
-            # non-dynamic parameters
-            if length(cache.xdynamic_grad) > 0
-                ForwardDiff.gradient!(cache.xdynamic_grad,
-                                      compute_cost_xdynamic, cache.xdynamic,
-                                      cfg)
-                @views gradient[θ_indices.xindices[:dynamic]] .= cache.xdynamic_grad
+            # In case of no length(xdynamic) = 0 the ODE must still be solved to get
+            # the gradient of nondynamic parameters
+            if length(xdynamic_grad) != 0
+                ForwardDiff.gradient!(xdynamic_grad, _nllh_solveode, xdynamic, cfg)
+                @views grad[θ_indices.xindices[:dynamic]] .= xdynamic_grad
             else
-                compute_cost_xdynamic(cache.xdynamic)
+                _ = _nllh_solveode(xdynamic)
             end
         catch
-            gradient .= 0.0
+            fill!(grad, 0.0)
             return nothing
         end
-        cache.nxdynamic[1] = tmp
-    end
-
-    # Case when we have dynamic parameters fixed. Here it is not always worth to move accross all chunks
-    if !(isremade == false ||
-         length(cache.xdynamic_grad) == cache.nxdynamic[1])
+        nxdynamic[1] = tmp
+    else
         try
-            if cache.nxdynamic[1] != 0
+            if nxdynamic[1] != 0
                 C = length(cfg.seeds)
-                n_forward_passes = Int64(ceil(cache.nxdynamic[1] / C))
-                __xdynamic = cache.xdynamic[cache.xdynamic_input_order]
-                forwarddiff_gradient_chunks(compute_cost_xdynamic,
-                                            cache.xdynamic_grad, __xdynamic,
-                                            ForwardDiff.Chunk(C);
-                                            n_forward_passes = n_forward_passes)
-                @views gradient[θ_indices.xindices[:dynamic]] .= cache.xdynamic_grad[cache.xdynamic_output_order]
+                chunk = ForwardDiff.Chunk(C)
+                nforward_passes = ceil(nxdynamic[1] / C) |> Int64
+                _xdynamic = xdynamic[cache.xdynamic_input_order]
+                forwarddiff_gradient_chunks(_nllh_solveode, xdynamic_grad, _xdynamic,
+                                            chunk; n_forward_passes = nforward_passes)
+                @views grad[θ_indices.xindices[:dynamic]] .= xdynamic_grad[cache.xdynamic_output_order]
             else
-                compute_cost_xdynamic(cache.xdynamic)
+                _ = _nllh_solveode(xdynamic)
             end
         catch
-            gradient .= 0.0
+            fill!(grad, 0.0)
             return nothing
         end
     end
 
-    # Check if we could solve the ODE (first), and if Inf was returned (second)
+    # In case ODE could not be solved return zero gradient
     if simulation_info.could_solve[1] != true
-        gradient .= 0.0
+        fill!(grad, 0.0)
         return nothing
     end
 
-    θ_not_ode = @view θ_est[θ_indices.xindices[:not_system]]
-    ForwardDiff.gradient!(cache.xnotode_grad, compute_cost_θ_not_ODE,
-                          θ_not_ode)
-    @views gradient[θ_indices.xindices[:not_system]] .= cache.xnotode_grad
+    # Not dynamic parameter not part of ODE (only need an ODE solution for gradient)
+    x_notode = @view x[θ_indices.xindices[:not_system]]
+    ForwardDiff.gradient!(xnotode_grad, _nllh_not_solveode, x_notode)
+    @views grad[θ_indices.xindices[:not_system]] .= xnotode_grad
 
-    # If we have prior contribution its gradient is computed via autodiff for all parameters
+    # TODO: Refactor prior later
     if prior_info.has_priors == true
-        compute_gradient_prior!(gradient, θ_est, θ_indices, prior_info)
+        compute_gradient_prior!(grad, x, θ_indices, prior_info)
     end
     return nothing
 end
@@ -94,7 +80,7 @@ end
 # n ForwardDiff-calls accross all experimental condtions. The most efficient approach for models with many
 # parameters which are unique to each experimental condition.
 function compute_gradient_autodiff_split!(gradient::Vector{Float64},
-                                          θ_est::Vector{Float64},
+                                          x::Vector{Float64},
                                           compute_cost_θ_not_ODE::Function,
                                           _compute_cost_xdynamic::Function,
                                           probleminfo::PEtabODEProblemInfo,
@@ -107,7 +93,7 @@ function compute_gradient_autodiff_split!(gradient::Vector{Float64},
     # retcode we cannot catch these cases
     simulation_info.could_solve[1] = true
 
-    split_x!(θ_est, θ_indices, cache)
+    split_x!(x, θ_indices, cache)
     xdynamic = cache.xdynamic
     fill!(cache.xdynamic_grad, 0.0)
 
@@ -136,26 +122,26 @@ function compute_gradient_autodiff_split!(gradient::Vector{Float64},
 
     # Check if we could solve the ODE (first), and if Inf was returned (second)
     if simulation_info.could_solve[1] != true
-        gradient .= 0.0
+        fill!(gradient, 0.0)
         return nothing
     end
     @views gradient[θ_indices.xindices[:dynamic]] .= cache.xdynamic_grad
 
-    θ_not_ode = @view θ_est[θ_indices.xindices[:not_system]]
+    θ_not_ode = @view x[θ_indices.xindices[:not_system]]
     ForwardDiff.gradient!(cache.xnotode_grad, compute_cost_θ_not_ODE,
                           θ_not_ode)
     @views gradient[θ_indices.xindices[:not_system]] .= cache.xnotode_grad
 
     # If we have prior contribution its gradient is computed via autodiff for all parameters
     if prior_info.has_priors == true
-        compute_gradient_prior!(gradient, θ_est, θ_indices, prior_info)
+        compute_gradient_prior!(gradient, x, θ_indices, prior_info)
     end
     return nothing
 end
 
 # Compute the gradient via forward sensitivity equations
 function compute_gradient_forward_equations!(gradient::Vector{Float64},
-                                             θ_est::Vector{Float64},
+                                             x::Vector{Float64},
                                              compute_cost_θ_not_ODE::Function,
                                              _solve_ode_all_conditions!::Function,
                                              probleminfo::PEtabODEProblemInfo,
@@ -173,7 +159,7 @@ function compute_gradient_forward_equations!(gradient::Vector{Float64},
     # retcode we cannot catch these cases
     simulation_info.could_solve[1] = true
 
-    split_x!(θ_est, θ_indices, cache)
+    split_x!(x, θ_indices, cache)
     @unpack xdynamic, xobservable, xnoise, xnondynamic = cache
 
     # Calculate gradient seperately for dynamic and non dynamic parameter.
@@ -190,17 +176,17 @@ function compute_gradient_forward_equations!(gradient::Vector{Float64},
     # Happens when at least one forward pass fails and I set the gradient to 1e8
     if !isempty(cache.xdynamic_grad) &&
        all(cache.xdynamic_grad .== 0.0)
-        gradient .= 0.0
+        fill!(gradient, 0.0)
         return nothing
     end
 
-    θ_not_ode = @view θ_est[θ_indices.xindices[:not_system]]
+    θ_not_ode = @view x[θ_indices.xindices[:not_system]]
     ReverseDiff.gradient!(cache.xnotode_grad, compute_cost_θ_not_ODE,
                           θ_not_ode)
     @views gradient[θ_indices.xindices[:not_system]] .= cache.xnotode_grad
 
     if prior_info.has_priors == true
-        compute_gradient_prior!(gradient, θ_est, θ_indices, prior_info)
+        compute_gradient_prior!(gradient, x, θ_indices, prior_info)
     end
     return nothing
 end
@@ -210,9 +196,9 @@ function compute_gradient_prior!(gradient::Vector{Float64},
                                  θ::Vector{<:Real},
                                  θ_indices::ParameterIndices,
                                  prior_info::PriorInfo)::Nothing
-    _eval_priors = (θ_est) -> begin
-        θ_estT = transform_x(θ_est, θ_indices.xids[:estimate], θ_indices)
-        return -1.0 * compute_priors(θ_est, θ_estT, θ_indices.xids[:estimate], prior_info) # We work with -loglik
+    _eval_priors = (x) -> begin
+        xT = transform_x(x, θ_indices.xids[:estimate], θ_indices)
+        return -1.0 * compute_priors(x, xT, θ_indices.xids[:estimate], prior_info) # We work with -loglik
     end
     gradient .+= ForwardDiff.gradient(_eval_priors, θ)
     return nothing

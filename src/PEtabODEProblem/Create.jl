@@ -203,7 +203,7 @@ function _get_hess_f(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
 
         if split_over_conditions == true
             _nllh = let pinfo = probleminfo, minfo = model_info
-                (x, eid) -> nllh(x, pinfo, minfo, eid, false, true, false)
+                (x, eid) -> nllh(x, pinfo, minfo, eid, true, false)
             end
 
             _compute_hessian! = let _nllh = _nllh, minfo = model_info
@@ -370,7 +370,7 @@ function _get_grad_forward_AD(probleminfo::PEtabODEProblemInfo, model_info::Mode
         chunksize_use = _get_chunksize(chunksize, xdynamic)
         cfg = ForwardDiff.GradientConfig(_nllh_solveode, xdynamic, chunksize_use)
         _grad! = let _nllh_not_solveode = _nllh_not_solveode, _nllh_solveode = _nllh_solveode, cfg = cfg, minfo = model_info, pinfo = probleminfo
-            (grad, x; isremade = false) -> compute_gradient_autodiff!(grad, x, _nllh_not_solveode, _nllh_solveode, cfg, minfo, pinfo; isremade = isremade)
+            (grad, x; isremade = false) -> grad_forward_AD!(grad, x, _nllh_not_solveode, _nllh_solveode, cfg, pinfo, minfo; isremade = isremade)
         end
     end
 

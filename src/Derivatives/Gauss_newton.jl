@@ -220,18 +220,18 @@ function compute_residuals_condition!(residuals::T1,
             return false
         end
 
-        if measurement_info.measurement_transform[i_measurement] == :lin
+        if measurement_info.measurement_transforms[i_measurement] == :lin
             residuals[i_measurement] = (hT - measurement_info.measurement[i_measurement]) /
                                        σ
-        elseif measurement_info.measurement_transform[i_measurement] == :log10
+        elseif measurement_info.measurement_transforms[i_measurement] == :log10
             residuals[i_measurement] = (hT - measurement_info.measurementT[i_measurement]) /
                                        σ
-        elseif measurement_info.measurement_transform[i_measurement] == :log
+        elseif measurement_info.measurement_transforms[i_measurement] == :log
             residuals[i_measurement] = (hT - measurement_info.measurementT[i_measurement]) /
                                        σ
         else
             @error "Transformation ",
-                   measurement_info.measurement_transform[i_measurement],
+                   measurement_info.measurement_transforms[i_measurement],
                    " not yet supported."
         end
     end
