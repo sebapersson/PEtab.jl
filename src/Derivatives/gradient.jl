@@ -1,10 +1,3 @@
-#=
-    The top-level functions for computing the gradient via i) exactly via forward-mode autodiff, ii) forward sensitivty
-    eqations, iii) adjoint sensitivity analysis and iv) Zygote interface.
-
-    Due to it slow speed Zygote does not have full support for all models, e.g, models with priors and pre-eq criteria.
-=#
-
 function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Function,
                           _nllh_solveode::Function, cfg::ForwardDiff.GradientConfig,
                           probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
@@ -76,61 +69,48 @@ function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fun
     return nothing
 end
 
-# Compute the gradient via forward mode automatic differentitation where the final gradient is computed via
-# n ForwardDiff-calls accross all experimental condtions. The most efficient approach for models with many
-# parameters which are unique to each experimental condition.
-function compute_gradient_autodiff_split!(gradient::Vector{Float64},
-                                          x::Vector{Float64},
-                                          compute_cost_θ_not_ODE::Function,
-                                          _compute_cost_xdynamic::Function,
-                                          probleminfo::PEtabODEProblemInfo,
-                                          model_info::ModelInfo;
-                                          exp_id_solve = [:all])::Nothing
-    @unpack cache = probleminfo
+function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Function,
+                                _nllh_solveode::Function, probleminfo::PEtabODEProblemInfo,
+                                model_info::ModelInfo; cids = [:all])::Nothing where T <: AbstractFloat
     @unpack simulation_info, θ_indices, prior_info = model_info
-    # We need to track a variable if ODE system could be solve as checking retcode on solution array it not enough.
-    # This is because for ForwardDiff some chunks can solve the ODE, but other fail, and thus if we check the final
-    # retcode we cannot catch these cases
-    simulation_info.could_solve[1] = true
-
+    cache = probleminfo.cache
     split_x!(x, θ_indices, cache)
-    xdynamic = cache.xdynamic
-    fill!(cache.xdynamic_grad, 0.0)
+    @unpack xdynamic, xdynamic_grad, xnotode_grad = cache
 
-    for conditionId in simulation_info.conditionids[:experiment]
-        map_condition_id = θ_indices.maps_conidition_id[conditionId]
-        iθ_experimental_condition = unique(vcat(θ_indices.map_ode_problem.sys_to_dynamic,
-                                                map_condition_id.ix_dynamic))
-        θ_input = xdynamic[iθ_experimental_condition]
-        compute_cost_xdynamic = (θ_arg) -> begin
-            _xdynamic = convert.(eltype(θ_arg), xdynamic)
-            @views _xdynamic[iθ_experimental_condition] .= θ_arg
-            return _compute_cost_xdynamic(_xdynamic, [conditionId])
+    # A gradient is computed for each condition-id, only using parameter present for
+    # said condition
+    fill!(xdynamic_grad, 0.0)
+    for cid in simulation_info.conditionids[:experiment]
+        simid = simulation_info.conditionids[:simulation][i]
+        ixdynamic_simid = _get_ixdynamic_simid(simid, θ_indices)
+        xinput = x[ixdynamic_simid]
+
+        _nllh = (_xinput) -> begin
+            _xdynamic = convert.(eltype(_xinput), xdynamic)
+            @views _xdynamic[ixdynamic_simid] .= xinput
+            return _nllh_solveode(_xdynamic, [cid])
         end
         try
-            if length(θ_input) ≥ 1
-                @views cache.xdynamic_grad[iθ_experimental_condition] .+= ForwardDiff.gradient(compute_cost_xdynamic,
-                                                                                                              θ_input)::Vector{Float64}
+            # The ODE must be solved to get the gradient of the other parameters
+            if !isempty(xdynamic)
+                _grad = ForwardDiff.gradient(_nllh, xinput)
+                xdynamic_grad[ixdynamic_simid] .+= _grad
             else
-                compute_cost_xdynamic(θ_input)
+                _nllh(xinput)
             end
         catch
-            gradient .= 1e8
-            return nothing
+            fill!(grad, 0.0)
         end
     end
-
-    # Check if we could solve the ODE (first), and if Inf was returned (second)
     if simulation_info.could_solve[1] != true
-        fill!(gradient, 0.0)
+        fill!(grad, 0.0)
         return nothing
     end
-    @views gradient[θ_indices.xindices[:dynamic]] .= cache.xdynamic_grad
+    @views grad[θ_indices.xindices[:dynamic]] .= xdynamic_grad
 
-    θ_not_ode = @view x[θ_indices.xindices[:not_system]]
-    ForwardDiff.gradient!(cache.xnotode_grad, compute_cost_θ_not_ODE,
-                          θ_not_ode)
-    @views gradient[θ_indices.xindices[:not_system]] .= cache.xnotode_grad
+    x_notode = @view x[θ_indices.xindices[:not_system]]
+    ForwardDiff.gradient!(xnotode_grad, _nllh_not_solveode, x_notode)
+    @views grad[θ_indices.xindices[:not_system]] .= xnotode_grad
 
     # If we have prior contribution its gradient is computed via autodiff for all parameters
     if prior_info.has_priors == true

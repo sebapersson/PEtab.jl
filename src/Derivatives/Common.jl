@@ -164,3 +164,13 @@ function _adjust_gradient_θ_transformed(_gradient::AbstractVector{T},
 
     return out
 end
+
+function _could_solveode_nllh(simulation_info::SimulationInfo)::Bool
+    for cid in simulation_info.conditionids[:experiment]
+        sol = simulation_info.odesols[cid]
+        if !(sol.retcode in [ReturnCode.Success, ReturnCode.Terminated])
+            return false
+        end
+    end
+    return true
+end

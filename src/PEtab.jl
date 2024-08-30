@@ -52,8 +52,8 @@ include(joinpath("Objective", "Priors.jl"))
 include(joinpath("Objective", "Objective.jl"))
 
 # Files related to computing derivatives
-include(joinpath("Derivatives", "Hessian.jl"))
-include(joinpath("Derivatives", "Gradient.jl"))
+include(joinpath("Derivatives", "hessian.jl"))
+include(joinpath("Derivatives", "gradient.jl"))
 include(joinpath("Derivatives", "forward_eqs.jl"))
 include(joinpath("Derivatives", "gauss_newton.jl"))
 include(joinpath("Derivatives", "Common.jl"))

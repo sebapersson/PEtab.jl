@@ -195,8 +195,8 @@ function _get_hess_f(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
             nestimate = length(model_info.θ_indices.xids[:estimate])
             chunksize_use = _get_chunksize(chunksize, zeros(nestimate))
             cfg = ForwardDiff.HessianConfig(_nllh, zeros(nestimate), chunksize_use)
-            _compute_hessian! = let _nllh = _nllh, cfg = cfg, minfo = model_info
-                (H, x) -> compute_hessian!(H, x, _nllh, cfg, minfo)
+            _hess! = let _nllh = _nllh, cfg = cfg, minfo = model_info
+                (H, x) -> hess!(H, x, _nllh, minfo, cfg)
             end
         end
 
@@ -205,8 +205,8 @@ function _get_hess_f(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
                 (x, eid) -> nllh(x, pinfo, minfo, eid, true, false)
             end
 
-            _compute_hessian! = let _nllh = _nllh, minfo = model_info
-                (H, x) -> compute_hessian_split!(H, x, _nllh, minfo)
+            _hess! = let _nllh = _nllh, minfo = model_info
+                (H, x) -> hess_split!(H, x, _nllh, minfo)
             end
         end
     end
@@ -217,19 +217,18 @@ function _get_hess_f(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
         if split_over_conditions == false
             _nllh_solveode = let pinfo = probleminfo, minfo = model_info
                 @unpack xnoise, xobservable, xnondynamic = pinfo.cache
-                (x) -> nllh_solveode(x, xnoise, xobservable, xnondynamic, pinfo,
-                                              minfo; grad_xdynamic = true,
-                                              cids = [:all])
+                (x) -> nllh_solveode(x, xnoise, xobservable, xnondynamic, pinfo, minfo;
+                                     grad_xdynamic = true, cids = [:all])
             end
 
             chunksize_use = _get_chunksize(chunksize, xdynamic)
             cfg = ForwardDiff.HessianConfig(_nllh_solveode, xdynamic, chunksize_use)
-            _compute_hessian! = let _nllh_solveode = _nllh_solveode,
+            _hess! = let _nllh_solveode = _nllh_solveode,
                 _nllh_not_solveode = _nllh_not_solveode, pinfo = probleminfo, minfo = model_info,
                 cfg = cfg
 
-                (H, x) -> compute_hessian_block!(H, x, _nllh_not_solveode, _nllh_solveode, pinfo,
-                                                 minfo, cfg; exp_id_solve = [:all])
+                (H, x) -> hess_block!(H, x, _nllh_not_solveode, _nllh_solveode, pinfo,
+                                      minfo, cfg; cids = [:all])
             end
         end
 
@@ -242,11 +241,10 @@ function _get_hess_f(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
                                                    cids = eid)
             end
 
-            _compute_hessian! = let _nllh_solveode = _nllh_solveode,
+            _hess! = let _nllh_solveode = _nllh_solveode,
                 _nllh_not_solveode = _nllh_not_solveode, pinfo = probleminfo, minfo = model_info
-
-                (H, x) -> compute_hessian_block_split!(H, x, _nllh_not_solveode, _nllh_solveode,
-                                                       pinfo, minfo; exp_id_solve = [:all])
+                (H, x) -> hess_block_split!(H, x, _nllh_not_solveode, _nllh_solveode,
+                                            pinfo, minfo; cids = [:all])
             end
         end
     end
@@ -285,7 +283,7 @@ function _get_hess_f(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
         cfg_notsolve = ForwardDiff.JacobianConfig(_residuals_not_solveode,
                                                   cache.residuals_gn, xnot_ode,
                                                   ForwardDiff.Chunk(xnot_ode))
-        _compute_hessian! = let _residuals_not_solveode = _residuals_not_solveode,
+        _hess! = let _residuals_not_solveode = _residuals_not_solveode,
             pinfo = probleminfo, minfo = model_info, cfg = cfg, cfg_notsolve = cfg_notsolve,
             ret_jacobian = ret_jacobian, _solve_conditions! = _solve_conditions!
 
@@ -297,12 +295,12 @@ function _get_hess_f(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
         end
     end
 
-    _compute_hessian = (x) -> begin
-        hessian = zeros(Float64, length(x), length(x))
-        _compute_hessian!(hessian, x)
-        return hessian
+    _hess = (x) -> begin
+        H = zeros(eltype(x), length(x), length(x))
+        _hess!(H, x)
+        return H
     end
-    return _compute_hessian!, _compute_hessian
+    return _hess!, _hess
 end
 
 function _get_nllh_grad_f(gradient_method::Symbol, compute_grad::Function,

@@ -278,8 +278,14 @@ function is_number(x::Symbol)::Bool
     is_number(x |> string)
 end
 
-function _get_ixdynamic_simid(simid::Symbol, θ_indices::ParameterIndices)::Vector{Integer}
+function _get_ixdynamic_simid(simid::Symbol, θ_indices::ParameterIndices;
+                              full_x::Bool = false)::Vector{Integer}
     xmap_simid = θ_indices.maps_conidition_id[simid]
-    ixdynamic = vcat(θ_indices.map_ode_problem.sys_to_dynamic, xmap_simid.ix_dynamic)
+    if full_x == false
+        ixdynamic = vcat(θ_indices.map_ode_problem.sys_to_dynamic, xmap_simid.ix_dynamic)
+    else
+        ixdynamic = vcat(θ_indices.map_ode_problem.sys_to_dynamic, xmap_simid.ix_dynamic,
+                         θ_indices.xindices[:not_system])
+    end
     return unique(ixdynamic)
 end
