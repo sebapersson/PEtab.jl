@@ -208,62 +208,39 @@ function compute_hessian_block_split!(hessian::Matrix{Float64},
     return nothing
 end
 
-function compute_GaussNewton_hessian!(out::Matrix{Float64},
-                                      θ_est::Vector{Float64},
-                                      compute_residuals_not_solve_ode!::Function,
-                                      _solve_ode_all_conditions!::Function,
-                                      probleminfo::PEtabODEProblemInfo,
-                                      model_info::ModelInfo,
-                                      cfg::ForwardDiff.JacobianConfig,
-                                      cfg_not_solve_ode::ForwardDiff.JacobianConfig;
-                                      return_jacobian::Bool = false,
-                                      exp_id_solve::Vector{Symbol} = [:all],
-                                      isremade::Bool = false)::Nothing
-    @unpack sensealg, cache, split_over_conditions, reuse_sensitivities = probleminfo
-    @unpack simulation_info, petab_model, simulation_info, θ_indices = model_info
-    @unpack parameter_info, prior_info, measurement_info = model_info
-    ode_problem = probleminfo.odeproblem_gradient
+function hess_GN!(out::Matrix{T}, x::Vector{T}, _residuals_not_solveode::Function,
+                  _solve_conditions!::Function, probleminfo::PEtabODEProblemInfo,
+                  model_info::ModelInfo, cfg::ForwardDiff.JacobianConfig,
+                  cfg_not_solve_ode::ForwardDiff.JacobianConfig; ret_jacobian::Bool = false,
+                  cids::Vector{Symbol} = [:all], isremade::Bool = false)::Nothing where T <: AbstractFloat
+    @unpack θ_indices, prior_info = model_info
+    cache = probleminfo.cache
+    @unpack jacobian_gn, residuals_gn = cache
 
-    # Avoid incorrect non-zero values
     fill!(out, 0.0)
-
-    split_x!(θ_est, θ_indices, cache)
-    @unpack xdynamic, xobservable, xnoise, xnondynamic = cache
-    jacobian_gn = cache.jacobian_gn
     fill!(jacobian_gn, 0.0)
-
-    # Calculate gradient seperately for dynamic and non dynamic parameter.
-    compute_jacobian_residuals_xdynamic!((@view jacobian_gn[θ_indices.xindices[:dynamic],
-                                                             :]),
-                                          xdynamic, xnoise,
-                                          xobservable, xnondynamic, petab_model,
-                                          ode_problem,
-                                          simulation_info, θ_indices, measurement_info,
-                                          parameter_info,
-                                          _solve_ode_all_conditions!, cfg, cache;
-                                          exp_id_solve = exp_id_solve,
-                                          reuse_sensitivities = reuse_sensitivities,
-                                          split_over_conditions = split_over_conditions,
-                                          isremade = isremade)
-
+    split_x!(x, θ_indices, cache)
+    _jac = @view jacobian_gn[θ_indices.xindices[:dynamic], :]
+    _jac_residuals_xdynamic!(_jac, _solve_conditions!, probleminfo, model_info, cfg;
+                             cids = cids, isremade = isremade)
     # Happens when at least one forward pass fails
-    if !isempty(xdynamic) && all(jacobian_gn[θ_indices.xindices[:dynamic], :] .== 1e8)
-        out .= 0.0
+    if !isempty(cache.xdynamic) && all(_jac .== 0.0)
         return nothing
     end
+
+    x_notode = @view x[θ_indices.xindices[:not_system]]
     @views ForwardDiff.jacobian!(jacobian_gn[θ_indices.xindices[:not_system], :]',
-                                 compute_residuals_not_solve_ode!,
-                                 cache.residuals_gn,
-                                 θ_est[θ_indices.xindices[:not_system]],
+                                 _residuals_not_solveode, residuals_gn, x_notode,
                                  cfg_not_solve_ode)
 
-    # In case of testing we might want to return the jacobian, else we are interested in the Guass-Newton approximaiton.
-    if return_jacobian == false
+    # In case of testing we might want to return the jacobian, else we are interested
+    # in the Guass-Newton approximaiton.
+    if ret_jacobian == false
         out .= jacobian_gn * transpose(jacobian_gn)
     else
         out .= jacobian_gn
-        # Even though this is a hessian approximation, due to ease of implementation and low run-time we compute the
-        # full hessian for the priors
+        # Even though this is a hessian approximation, due to ease of implementation
+        # and low run-time we compute the full hessian for the priors
         if prior_info.has_priors == true
             compute_hessian_prior!(out, θ_est, θ_indices, prior_info)
         end

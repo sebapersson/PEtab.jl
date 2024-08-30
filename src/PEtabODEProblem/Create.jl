@@ -179,8 +179,7 @@ function _get_grad_f(method, probleminfo::PEtabODEProblemInfo,
 end
 
 function _get_hess_f(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
-                     return_jacobian::Bool = false,
-                     FIM::Bool = false)::Tuple{Function, Function}
+                     ret_jacobian::Bool = false, FIM::Bool = false)::Tuple{Function, Function}
     @unpack hessian_method, split_over_conditions, chunksize, cache = probleminfo
     @unpack xdynamic = cache
     if FIM == true
@@ -274,31 +273,27 @@ function _get_hess_f(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
                                                cache.odesols,
                                                cache.xdynamic, chunksize_use)
 
-        _residuals_not_solve! = let pinfo = probleminfo, minfo = model_info
+        _residuals_not_solveode = let pinfo = probleminfo, minfo = model_info
             ixnoise, ixobservable, ixnondynamic, _ = get_index_parameters_not_ODE(model_info.θ_indices)
             (residuals, x) -> begin
-                compute_residuals_not_solve_ode!(residuals, x[ixnoise], x[ixobservable],
-                                                 x[ixnondynamic], pinfo, minfo;
-                                                 exp_id_solve = [:all])
+                residuals_not_solveode(residuals, x[ixnoise], x[ixobservable],
+                                       x[ixnondynamic], pinfo, minfo; cids = [:all])
             end
         end
 
         xnot_ode = zeros(Float64, length(model_info.θ_indices.xids[:not_system]))
-        cfg_notsolve = ForwardDiff.JacobianConfig(_residuals_not_solve!,
+        cfg_notsolve = ForwardDiff.JacobianConfig(_residuals_not_solveode,
                                                   cache.residuals_gn, xnot_ode,
                                                   ForwardDiff.Chunk(xnot_ode))
-        _compute_hessian! = let _residuals_not_solve! = _residuals_not_solve!,
+        _compute_hessian! = let _residuals_not_solveode = _residuals_not_solveode,
             pinfo = probleminfo, minfo = model_info, cfg = cfg, cfg_notsolve = cfg_notsolve,
-            return_jacobian = return_jacobian, _solve_conditions! = _solve_conditions!
+            ret_jacobian = ret_jacobian, _solve_conditions! = _solve_conditions!
 
-            (H, x; isremade = false) -> compute_GaussNewton_hessian!(H, x,
-                                                                     _residuals_not_solve!,
-                                                                     _solve_conditions!,
-                                                                     pinfo, minfo, cfg,
-                                                                     cfg_notsolve;
-                                                                     exp_id_solve = [:all],
-                                                                     isremade = isremade,
-                                                                     return_jacobian = return_jacobian)
+            (H, x; isremade = false) -> hess_GN!(H, x, _residuals_not_solveode,
+                                                 _solve_conditions!, pinfo, minfo, cfg,
+                                                 cfg_notsolve; cids = [:all],
+                                                 isremade = isremade,
+                                                 ret_jacobian = ret_jacobian)
         end
     end
 
@@ -414,13 +409,9 @@ function _get_grad_forward_eqs(probleminfo::PEtabODEProblemInfo, model_info::Mod
     _nllh_not_solveode = _get_nllh_not_solveode(probleminfo, model_info; grad_forward_eqs = true)
 
     _grad! = let _nllh_not_solveode = _nllh_not_solveode, _solve_conditions! = _solve_conditions!, minfo = model_info, pinfo = probleminfo, cfg = cfg
-            (g, θ; isremade = false) -> compute_gradient_forward_equations!(g, θ,
-                                                                            _nllh_not_solveode,
-                                                                            _solve_conditions!,
-                                                                            pinfo, minfo,
-                                                                            cfg;
-                                                                            exp_id_solve = [:all],
-                                                                            isremade = isremade)
+            (g, x; isremade = false) -> grad_forward_eqs!(g, x, _nllh_not_solveode,
+                                                          _solve_conditions!, pinfo, minfo,
+                                                          cfg; cids = [:all], isremade = isremade)
     end
     return _grad!
 end
