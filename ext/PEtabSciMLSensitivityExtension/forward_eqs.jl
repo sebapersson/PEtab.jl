@@ -3,17 +3,17 @@
 =#
 
 function PEtab._get_odeproblem_gradient(odeproblem::ODEProblem, gradient_method::Symbol,
-                                        sensealg::SciMLSensitivity.AbstractForwardSensitivityAlgorithm)::ODEProblem
+                                        sensealg::ForwardAlg)::ODEProblem
     return ODEForwardSensitivityProblem(odeproblem.f, odeproblem.u0, odeproblem.tspan,
                                         odeproblem.p, sensealg = sensealg)
 end
 
-function PEtab.solve_sensitivites!(model_info::PEtab.ModelInfo, _solve_conditions!::Function, xdynamic::Vector{<:AbstractFloat}, sensealg::SciMLSensitivity.AbstractForwardSensitivityAlgorithm, probleminfo::PEtab.PEtabODEProblemInfo, cids::Vector{Symbol}, cfg::Nothing, isremade::Bool = false)::Bool
+function PEtab.solve_sensitivites!(model_info::PEtab.ModelInfo, _solve_conditions!::Function, xdynamic::Vector{<:AbstractFloat}, sensealg::ForwardAlg, probleminfo::PEtab.PEtabODEProblemInfo, cids::Vector{Symbol}, cfg::Nothing, isremade::Bool = false)::Bool
     success = _solve_conditions!(xdynamic, cids)
     return success
 end
 
-function PEtab._grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic::Vector{T}, icid::Int64, sensealg::SciMLSensitivity.AbstractForwardSensitivityAlgorithm, probleminfo::PEtab.PEtabODEProblemInfo, model_info::PEtab.ModelInfo)::Nothing where T <: AbstractFloat
+function PEtab._grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic::Vector{T}, icid::Int64, sensealg::ForwardAlg, probleminfo::PEtab.PEtabODEProblemInfo, model_info::PEtab.ModelInfo)::Nothing where T <: AbstractFloat
     @unpack θ_indices, simulation_info, petab_model = model_info
     @unpack parameter_info, measurement_info = model_info
     @unpack imeasurements_t, tsaves = simulation_info

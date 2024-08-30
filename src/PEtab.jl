@@ -57,7 +57,7 @@ include(joinpath("Derivatives", "gradient.jl"))
 include(joinpath("Derivatives", "forward_eqs.jl"))
 include(joinpath("Derivatives", "gauss_newton.jl"))
 include(joinpath("Derivatives", "Common.jl"))
-include(joinpath("Derivatives", "ForwardDiff_chunks.jl"))
+include(joinpath("Derivatives", "forward_ad_chunks.jl"))
 
 # Files related to solving the ODE-system
 include(joinpath("Solve_ODE", "Switch_condition.jl"))
