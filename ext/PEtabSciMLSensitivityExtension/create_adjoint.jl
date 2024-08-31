@@ -5,18 +5,18 @@ function PEtab._get_grad_f(method::Val{:Adjoint}, probleminfo::PEtab.PEtabODEPro
     @unpack xdynamic = cache
 
     _nllh_not_solve = PEtab._get_nllh_not_solveode(probleminfo, model_info; grad_adjoint = true)
-    _compute_gradient! = let pinfo = probleminfo, minfo = model_info, _nllh_not_solve = _nllh_not_solve
+    _grad! = let pinfo = probleminfo, minfo = model_info, _nllh_not_solve = _nllh_not_solve
         (g, x) -> grad_adjoint!(g, x, _nllh_not_solve, pinfo, minfo; cids = [:all])
     end
 
-    _compute_gradient = let _compute_gradient! = _compute_gradient!
+    _grad = let _grad! = _grad!
         (x) -> begin
-            gradient = zeros(Float64, length(x))
-            _compute_gradient!(gradient, x)
-            return gradient
+            g = zeros(eltype(x), length(x))
+            _grad!(g, x)
+            return g
         end
     end
-    return _compute_gradient!, _compute_gradient
+    return _grad!, _grad
 end
 
 function PEtab._get_sensealg(sensealg, ::Val{:Adjoint})

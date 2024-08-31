@@ -7,7 +7,6 @@ function grad_adjoint!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode!::Funct
     PEtab.split_x!(x, θ_indices, cache)
     @unpack xdynamic_grad, xnotode_grad = cache
 
-    # Calculate gradient seperately for dynamic and non dynamic parameter.
     _grad_adjoint_xdynamic!(xdynamic_grad, probleminfo, model_info; cids = cids)
     @views grad[θ_indices.xindices[:dynamic]] .= xdynamic_grad
 
@@ -28,7 +27,6 @@ function grad_adjoint!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode!::Funct
     return nothing
 end
 
-# Compute the adjoint gradient across all experimental conditions
 function _grad_adjoint_xdynamic!(grad::Vector{<:AbstractFloat},
                                  probleminfo::PEtab.PEtabODEProblemInfo,
                                  model_info::PEtab.ModelInfo;
@@ -56,7 +54,6 @@ function _grad_adjoint_xdynamic!(grad::Vector{<:AbstractFloat},
     end
 
     fill!(grad, 0.0)
-    # Compute the gradient by looping through all experimental conditions.
     for icid in eachindex(simulation_info.conditionids[:experiment])
         if cids[1] != :all && !(imulation_info.conditionids[:experiment][cid] in cids)
             continue
@@ -111,8 +108,6 @@ function _get_vjps_ss(probleminfo::PEtab.PEtabODEProblemInfo, simulation_info::P
     return vjps_ss
 end
 
-# Compute the adjoint VJP for steady state simulated models via QuadratureAdjoint and InterpolatingAdjoint
-# by, given du as initial values, solve the adjoint integral.
 # TODO : Add interface for SteadyStateAdjoint
 function VJP_ss(du::AbstractVector, _sol::ODESolution, solver::SciMLAlgorithm,
                 sensealg::QuadratureAdjoint, reltol::Float64, abstol::Float64,
@@ -184,7 +179,7 @@ function _grad_adjoint_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vecto
     # and use sol[:] as we no longer can interpolate from the forward solution.
     only_obs_at_zero::Bool = false
     @unpack du, dp, ∂G∂p, ∂G∂p_, adjoint_grad, St0 = cache
-    if length(tsaves[cid]) == 1 && tsave[cid][1] == 0.0
+    if length(tsaves[cid]) == 1 && tsaves[cid][1] == 0.0
         compute∂G∂u!(du, sol[1], sol.prob.p, 0.0, 1)
         only_obs_at_zero = true
     else

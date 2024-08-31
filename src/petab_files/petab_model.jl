@@ -167,10 +167,10 @@ function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, conditions_df::D
             condition_value isa Real && continue
             ismissing(condition_value) && continue
             condition_value in keys(model_SBML.parameters) && continue
-            if !(condition_variable in parameters_df[!, :parameterId])
-                throw(PEtabFileError("The condition table value $condition_variable does not
-                                      correspond to any parameter in the SBML file
-                                      parameters file"))
+            if !(condition_value in parameters_df[!, :parameterId])
+                throw(PEtabFileError("The condition table value $condition_variable does " *
+                                     "not correspond to any parameter in the SBML file " *
+                                     "parameters file"))
             end
             parameter = SBMLImporter.ParameterSBML(condition_value, true, "0.0", "", false,
                                                    false, false)

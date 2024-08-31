@@ -74,7 +74,7 @@ function show(io::IO, prob::PEtabODEProblem)
         print(io, "\n--------- SS solver settings ---------")
         # Print cost steady state solver
         print(io, "\nCost ")
-        printstyled(io, string(a.ss_solver.method), color = 116)
+        printstyled(io, string(probleminfo.ss_solver.method), color = 116)
         if probleminfo.ss_solver.method === :Simulate &&
            probleminfo.ss_solver.check_simulation_steady_state === :wrms
             @printf(io, ". Option wrms with (abstol, reltol) = (%.1e, %.1e)",

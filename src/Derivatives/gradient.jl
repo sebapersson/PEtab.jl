@@ -80,14 +80,14 @@ function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveod
     # A gradient is computed for each condition-id, only using parameter present for
     # said condition
     fill!(xdynamic_grad, 0.0)
-    for cid in simulation_info.conditionids[:experiment]
+    for (i, cid) in pairs(simulation_info.conditionids[:experiment])
         simid = simulation_info.conditionids[:simulation][i]
         ixdynamic_simid = _get_ixdynamic_simid(simid, θ_indices)
         xinput = x[ixdynamic_simid]
 
         _nllh = (_xinput) -> begin
             _xdynamic = convert.(eltype(_xinput), xdynamic)
-            @views _xdynamic[ixdynamic_simid] .= xinput
+            @views _xdynamic[ixdynamic_simid] .= _xinput
             return _nllh_solveode(_xdynamic, [cid])
         end
         try

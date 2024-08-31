@@ -371,7 +371,7 @@ function _get_grad_forward_AD(probleminfo::PEtabODEProblemInfo, model_info::Mode
         _nllh_solveode = _get_nllh_solveode(probleminfo, model_info; eid = true, grad_xdynamic = true)
 
         _grad! = let _nllh_not_solveode = _nllh_not_solveode, _nllh_solveode = _nllh_solveode, minfo = model_info, pinfo = probleminfo
-            (g, θ) -> compute_gradient_autodiff_split!(g, θ, _nllh_not_solveode, _nllh_solveode, pinfo, minfo)
+            (g, θ) -> grad_forward_AD_split!(g, θ, _nllh_not_solveode, _nllh_solveode, pinfo, minfo)
         end
     end
     return _grad!
