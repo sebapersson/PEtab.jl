@@ -447,7 +447,7 @@ function check_has_parameter_to_estimate(condition::T,
                                                                                    }
 
     # Parameters which are present for each experimental condition, and condition specific parameters
-    i_ode_θ_all_conditions = θ_indices.map_ode_problem.dynamic_to_sys
+    i_ode_θ_all_conditions = θ_indices.map_odeproblem.dynamic_to_sys
     i_ode_problem_xdynamicCondition = reduce(vcat,
                                               [θ_indices.maps_conidition_id[i].ix_sys
                                                for i in keys(θ_indices.maps_conidition_id)])

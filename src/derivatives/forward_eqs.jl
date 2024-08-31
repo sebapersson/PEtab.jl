@@ -138,7 +138,7 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::V
 
     # Adjust if gradient is non-linear scale (e.g. log and log10). TODO: Refactor
     # this function later
-    adjust_gradient_θ_transformed!(grad, forward_eqs_grad, ∂G∂p, xdynamic, θ_indices,
-                                   simid, autodiff_sensitivites = true)
+    grad_to_xscale!(grad, forward_eqs_grad, ∂G∂p, xdynamic, θ_indices, simid,
+                    sensitivites_AD = true)
     return nothing
 end

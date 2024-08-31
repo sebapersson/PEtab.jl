@@ -51,13 +51,12 @@ include(joinpath("julia_input", "petab_model.jl"))
 include(joinpath("Objective", "Priors.jl"))
 include(joinpath("Objective", "Objective.jl"))
 
-# Files related to computing derivatives
-include(joinpath("Derivatives", "hessian.jl"))
-include(joinpath("Derivatives", "gradient.jl"))
-include(joinpath("Derivatives", "forward_eqs.jl"))
-include(joinpath("Derivatives", "gauss_newton.jl"))
-include(joinpath("Derivatives", "Common.jl"))
-include(joinpath("Derivatives", "forward_ad_chunks.jl"))
+include(joinpath("derivatives", "common.jl"))
+include(joinpath("derivatives", "forward_eqs.jl"))
+include(joinpath("derivatives", "forward_ad_chunks.jl"))
+include(joinpath("derivatives", "gauss_newton.jl"))
+include(joinpath("derivatives", "gradient.jl"))
+include(joinpath("derivatives", "hessian.jl"))
 
 # Files related to solving the ODE-system
 include(joinpath("Solve_ODE", "Switch_condition.jl"))

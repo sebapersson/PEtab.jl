@@ -79,85 +79,80 @@ function _get_∂G∂_!(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo,
     return ∂G∂u!, ∂G∂p!
 end
 
-function adjust_gradient_θ_transformed!(gradient::Union{AbstractVector, SubArray},
-                                        _gradient::AbstractVector,
-                                        ∂G∂p::AbstractVector,
-                                        xdynamic::Vector{Float64},
-                                        θ_indices::ParameterIndices,
-                                        simulation_condition_id::Symbol;
-                                        autodiff_sensitivites::Bool = false,
-                                        adjoint::Bool = false)::Nothing
-    map_condition_id = θ_indices.maps_conidition_id[simulation_condition_id]
-    map_ode_problem = θ_indices.map_ode_problem
-
-    # Transform gradient parameter that for each experimental condition appear in the ODE system
-    i_change = θ_indices.map_ode_problem.sys_to_dynamic
-    if autodiff_sensitivites == true
-        gradient1 = _gradient[map_ode_problem.sys_to_dynamic] .+
-                    ∂G∂p[map_ode_problem.dynamic_to_sys]
+# Adjust the gradient from linear scale to current scale for x-vector
+function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector{T},
+                          xdynamic::Vector{T}, θ_indices::ParameterIndices, simid::Symbol;
+                          sensitivites_AD::Bool = false, adjoint::Bool = false)::Nothing where T <: AbstractFloat
+    @unpack dynamic_to_sys, sys_to_dynamic  = θ_indices.map_odeproblem
+    @unpack xids, xscale = θ_indices
+    @unpack ix_sys, ix_dynamic = θ_indices.maps_conidition_id[simid]
+    # Adjust for parameters that appear in each simulation condition (not unique to simid).
+    # Note that ∂G∂p is on the scale of ODEProblem.p which might not be the same scale
+    # as parameters appear in the gradient on linear-scale
+    if sensitivites_AD == true
+        grad_p1 = grad_linscale[sys_to_dynamic] .+ ∂G∂p[dynamic_to_sys]
     else
-        gradient1 = _gradient[map_ode_problem.dynamic_to_sys] .+
-                    ∂G∂p[map_ode_problem.dynamic_to_sys]
+        grad_p1 = grad_linscale[dynamic_to_sys] .+ ∂G∂p[dynamic_to_sys]
     end
-    @views gradient[i_change] .+= _adjust_gradient_θ_transformed(gradient1,
-                                                                 xdynamic[map_ode_problem.sys_to_dynamic],
-                                                                 θ_indices.xids[:dynamic][map_ode_problem.sys_to_dynamic],
-                                                                 θ_indices)
+    @views _grad_to_xscale!(grad_xscale[sys_to_dynamic], grad_p1, xdynamic[sys_to_dynamic],
+                            xids[:dynamic][sys_to_dynamic], xscale)
 
     # For forward sensitives via autodiff ∂G∂p is on the same scale as ode_problem.p, while
     # S-matrix is on the same scale as xdynamic. To be able to handle condition specific
-    # parameters mapping to several ode_problem.p parameters the sensitivity matrix part and
-    # ∂G∂p must be treated seperately.
-    if autodiff_sensitivites == true
-        _ixdynamic = unique(map_condition_id.ix_dynamic)
-        gradient[_ixdynamic] .+= _adjust_gradient_θ_transformed(_gradient[_ixdynamic],
-                                                                 xdynamic[_ixdynamic],
-                                                                 θ_indices.xids[:dynamic][_ixdynamic],
-                                                                 θ_indices)
-        out = _adjust_gradient_θ_transformed(∂G∂p[map_condition_id.ix_sys],
-                                             xdynamic[map_condition_id.ix_dynamic],
-                                             θ_indices.xids[:dynamic][map_condition_id.ix_dynamic],
-                                             θ_indices)
-        @inbounds for i in eachindex(map_condition_id.ix_sys)
-            gradient[map_condition_id.ix_dynamic[i]] += out[i]
+    # parameters mapping to several ode_problem.p parameters the sensitivity matrix part
+    # and ∂G∂p must be treated seperately. Further, as condition specific variables can map
+    # to several parameters in the ODESystem, the for-loop is needed
+    if sensitivites_AD == true
+        ix = unique(ix_dynamic)
+        @views _grad_to_xscale!(grad_xscale[ix], grad_linscale[ix], xdynamic[ix],
+                                xids[:dynamic][ix], xscale)
+        @views out = _grad_to_xscale(∂G∂p[ix_sys], xdynamic[ix_dynamic],
+                                     xids[:dynamic][ix_dynamic], xscale)
+        for (i, imap) in pairs(ix_sys)
+            grad_xscale[imap] += out[i]
         end
     end
 
-    # Here both ∂G∂p and _gradient are on the same scale a ode_problem.p. One condition specific parameter
-    # can map to several parameters in ode_problem.p
-    if adjoint == true || autodiff_sensitivites == false
-        out = _adjust_gradient_θ_transformed(_gradient[map_condition_id.ix_sys] .+
-                                             ∂G∂p[map_condition_id.ix_sys],
-                                             xdynamic[map_condition_id.ix_dynamic],
-                                             θ_indices.xids[:dynamic][map_condition_id.ix_dynamic],
-                                             θ_indices)
-        @inbounds for i in eachindex(map_condition_id.ix_sys)
-            gradient[map_condition_id.ix_dynamic[i]] += out[i]
+    # Here both ∂G∂p and grad_linscale are on the same scale a ODEProblem.p. Again
+    # condition specific variables can map to several parameters in the ODESystem,
+    # thus the for-loop
+    if adjoint == true || sensitivites_AD == false
+        @views _grad_to_xscale!(grad_xscale[ix_sys], grad_linscale[ix_sys],
+                                xdynamic[ix_dynamic], xids[:dynamic][ix_dynamic], xscale)
+        @views out = _grad_to_xscale(grad_linscale[ix_sys] .+ ∂G∂p[ix_sys],  xdynamic[ix_dynamic],
+                                     xids[:dynamic][ix_dynamic], xscale)
+        for (i, imap) in pairs(ix_sys)
+            grad_xscale[imap] += out[i]
         end
     end
-
     return nothing
 end
 
-function _adjust_gradient_θ_transformed(_gradient::AbstractVector{T},
-                                        θ::AbstractVector{T},
-                                        n_parameters_estimate::AbstractVector{Symbol},
-                                        θ_indices::ParameterIndices)::Vector{T} where {
-                                                                                       T <:
-                                                                                       Real}
-    out = similar(_gradient)
-    @inbounds for (i, θ_name) in pairs(n_parameters_estimate)
-        θ_scale = θ_indices.θ_scale[θ_name]
-        if θ_scale === :log10
-            out[i] = log(10) * _gradient[i] * θ[i]
-        elseif θ_scale === :log
-            out[i] = _gradient[i] * θ[i]
-        elseif θ_scale === :lin
-            out[i] = _gradient[i]
-        end
+function _grad_to_xscale!(grad_xscale::AbstractVector{T}, grad_linscale::AbstractVector{T},
+                          x::AbstractVector{T}, xids::AbstractVector{Symbol},
+                          xscale::Dict{Symbol, Symbol})::Nothing where T <: AbstractFloat
+    for (i, xid) in pairs(xids)
+        grad_xscale[i] += _grad_to_xscale(grad_linscale[i], x[i], xscale[xid])
     end
+    return nothing
+end
 
-    return out
+function _grad_to_xscale(grad_linscale::AbstractVector{T}, x::AbstractVector{T},
+                         xids::AbstractVector{Symbol}, xscale::Dict{Symbol, Symbol})::Vector{T} where T <: AbstractFloat
+    grad_xscale = similar(grad_linscale)
+    for (i, xid) in pairs(xids)
+        grad_xscale[i] = _grad_to_xscale(grad_linscale[i], x[i], xscale[xid])
+    end
+    return grad_xscale
+end
+function _grad_to_xscale(grad_linscale_val::T, x_val::T, xscale::Symbol)::T where T <: AbstractFloat
+    if xscale === :log10
+        return log(10) * grad_linscale_val * x_val
+    elseif xscale === :log
+        return grad_linscale_val * x_val
+    elseif xscale === :lin
+        return grad_linscale_val
+    end
 end
 
 function _could_solveode_nllh(simulation_info::SimulationInfo)::Bool

@@ -164,7 +164,7 @@ end
 # Transform parameter from log10 scale to normal scale, or reverse transform
 function transform_x!(x::AbstractVector, xids::Vector{Symbol}, θ_indices::ParameterIndices; reverse_transform::Bool = false)::Nothing
     @inbounds for (i, xid) in pairs(xids)
-        x[i] = transform_θ_element(x[i], θ_indices.θ_scale[xid], reverse_transform = reverse_transform)
+        x[i] = transform_θ_element(x[i], θ_indices.xscale[xid], reverse_transform = reverse_transform)
     end
     return nothing
 end
@@ -185,7 +185,7 @@ function transform_x(x::AbstractVector, θ_indices::ParameterIndices, whichx::Sy
     end
 
     for (i, xid) in pairs(xids)
-        x_ps[i] = transform_θ_element(x[i], θ_indices.θ_scale[xid],
+        x_ps[i] = transform_θ_element(x[i], θ_indices.xscale[xid],
                                       reverse_transform = reverse_transform)
     end
     return x_ps
@@ -197,7 +197,7 @@ function transform_x(θ::T,
     if isempty(θ)
         return similar(θ)
     else
-        out = [transform_θ_element(θ[i], θ_indices.θ_scale[θ_name],
+        out = [transform_θ_element(θ[i], θ_indices.xscale[θ_name],
                                    reverse_transform = reverse_transform)
                for (i, θ_name) in pairs(n_parameters_estimate)]
         return out
@@ -220,8 +220,8 @@ function change_ode_parameters!(p_ode_problem::AbstractVector,
                                 θ_indices::ParameterIndices,
                                 petab_model::PEtabModel)::Nothing
     n_model_states = states(petab_model.sys_mutated) |> length
-    map_ode_problem = θ_indices.map_ode_problem
-    p_ode_problem[map_ode_problem.dynamic_to_sys] .= θ[map_ode_problem.sys_to_dynamic]
+    map_odeproblem = θ_indices.map_odeproblem
+    p_ode_problem[map_odeproblem.dynamic_to_sys] .= θ[map_odeproblem.sys_to_dynamic]
     u0change = @view u0[1:n_model_states]
     # TODO: Appearent I must refactor
     petab_model.compute_u0!(u0change, p_ode_problem)
@@ -236,12 +236,12 @@ function change_ode_parameters(p_ode_problem::AbstractVector,
     # Helper function to not-inplace map parameters
     function mapParamToEst(j::Integer, mapDynParam::MapODEProblem)
         which_index = findfirst(x -> x == j, mapDynParam.dynamic_to_sys)
-        return map_ode_problem.sys_to_dynamic[which_index]
+        return map_odeproblem.sys_to_dynamic[which_index]
     end
 
-    map_ode_problem = θ_indices.map_ode_problem
-    outp_ode_problem = [i ∈ map_ode_problem.dynamic_to_sys ?
-                        θ[mapParamToEst(i, map_ode_problem)] : p_ode_problem[i]
+    map_odeproblem = θ_indices.map_odeproblem
+    outp_ode_problem = [i ∈ map_odeproblem.dynamic_to_sys ?
+                        θ[mapParamToEst(i, map_odeproblem)] : p_ode_problem[i]
                         for i in eachindex(p_ode_problem)]
     outu0 = petab_model.compute_u0(outp_ode_problem)
 
@@ -282,9 +282,9 @@ function _get_ixdynamic_simid(simid::Symbol, θ_indices::ParameterIndices;
                               full_x::Bool = false)::Vector{Integer}
     xmap_simid = θ_indices.maps_conidition_id[simid]
     if full_x == false
-        ixdynamic = vcat(θ_indices.map_ode_problem.sys_to_dynamic, xmap_simid.ix_dynamic)
+        ixdynamic = vcat(θ_indices.map_odeproblem.sys_to_dynamic, xmap_simid.ix_dynamic)
     else
-        ixdynamic = vcat(θ_indices.map_ode_problem.sys_to_dynamic, xmap_simid.ix_dynamic,
+        ixdynamic = vcat(θ_indices.map_odeproblem.sys_to_dynamic, xmap_simid.ix_dynamic,
                          θ_indices.xindices[:not_system])
     end
     return unique(ixdynamic)

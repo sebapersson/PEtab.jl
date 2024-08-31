@@ -69,8 +69,8 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic::Vector{T}, xnois
             ∂G∂p!(∂G∂p, u, p, tsave, 1, [[imeasurement]])
             @views forward_eqs_grad[ixdynamic_simid] .= transpose(_S) * ∂G∂u
             _jac = @view jac[:, imeasurement]
-            adjust_gradient_θ_transformed!(_jac, forward_eqs_grad, ∂G∂p, xdynamic,
-                                           θ_indices, simid, autodiff_sensitivites = true)
+            grad_to_xscale!(_jac, forward_eqs_grad, ∂G∂p, xdynamic, θ_indices, simid,
+                            sensitivites_AD = true)
         end
     end
     return nothing
