@@ -24,17 +24,9 @@ function PEtab._grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xno
     simid = simulation_info.conditionids[:simulation][icid]
     sol = simulation_info.odesols_derivatives[cid]
 
-    # Partial derivatives needed for the gradient functions
-    compute∂G∂u! = (out, u, p, t, i) -> begin
-        PEtab.compute∂G∂_(out, u, p, t, i, imeasurements_t[cid], measurement_info,
-                          parameter_info, θ_indices, petab_model, xnoise, xobservable,
-                          xnondynamic, cache.∂h∂u, cache.∂σ∂u, compute∂G∂U = true)
-    end
-    compute∂G∂p! = (out, u, p, t, i) -> begin
-        PEtab.compute∂G∂_(out, u, p, t, i, imeasurements_t[cid], measurement_info,
-                          parameter_info, θ_indices, petab_model, xnoise, xobservable,
-                          xnondynamic, cache.∂h∂p, cache.∂σ∂p, compute∂G∂U = false)
-    end
+    # Partial derivatives needed for computing the gradient (derived from the chain-rule)
+    ∂G∂u!, ∂G∂p! = PEtab._get_∂G∂_!(probleminfo, model_info, cid, xnoise, xobservable,
+                                    xnondynamic)
 
     p = sol.prob.p
     ∂G∂p, ∂G∂p_ = zeros(Float64, length(p)), zeros(Float64, length(p))
@@ -42,8 +34,8 @@ function PEtab._grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xno
     _grad = zeros(Float64, length(p))
     for (it, tsave) in pairs(tsaves[cid])
         u, _S = extract_local_sensitivities(sol, it, true)
-        compute∂G∂u!(∂G∂u, u, p, tsave, it)
-        compute∂G∂p!(∂G∂p_, u, p, tsave, it)
+        ∂G∂u!(∂G∂u, u, p, tsave, it)
+        ∂G∂p!(∂G∂p_, u, p, tsave, it)
         _grad .+= transpose(_S) * ∂G∂u
         ∂G∂p .+= ∂G∂p_
     end

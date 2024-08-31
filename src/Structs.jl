@@ -141,6 +141,7 @@ end
 struct ParameterIndices
     xindices::Dict{Symbol, Vector{Int32}}
     xids::Dict{Symbol, Vector{Symbol}}
+    xindices_notsys::Dict{Symbol, Vector{Int32}}
     θ_scale::Dict{Symbol, Symbol}
     mapxobservable::Vector{ObservableNoiseMap}
     mapxnoise::Vector{ObservableNoiseMap}

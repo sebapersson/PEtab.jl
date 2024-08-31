@@ -272,7 +272,9 @@ function _get_hess_f(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
                                                cache.xdynamic, chunksize_use)
 
         _residuals_not_solveode = let pinfo = probleminfo, minfo = model_info
-            ixnoise, ixobservable, ixnondynamic, _ = get_index_parameters_not_ODE(model_info.θ_indices)
+            ixnoise = minfo.θ_indices.xindices_notsys[:noise]
+            ixobservable = minfo.θ_indices.xindices_notsys[:observable]
+            ixnondynamic = minfo.θ_indices.xindices_notsys[:nondynamic]
             (residuals, x) -> begin
                 residuals_not_solveode(residuals, x[ixnoise], x[ixobservable],
                                        x[ixnondynamic], pinfo, minfo; cids = [:all])
@@ -326,7 +328,9 @@ function _get_nllh_not_solveode(probleminfo::PEtabODEProblemInfo, model_info::Mo
                                 grad_forward_eqs::Bool = false)::Function
     _nllh_not_solveode = let pinfo = probleminfo, minfo = model_info
         # TODO: Precompute!
-        ixnoise, ixobservable, ixnondynamic, _ = get_index_parameters_not_ODE(minfo.θ_indices)
+        ixnoise = minfo.θ_indices.xindices_notsys[:noise]
+        ixobservable = minfo.θ_indices.xindices_notsys[:observable]
+        ixnondynamic = minfo.θ_indices.xindices_notsys[:nondynamic]
         (x) -> nllh_not_solveode(x[ixnoise], x[ixobservable], x[ixnondynamic], pinfo, minfo;
                                  cids = [:all], grad_forward_AD = grad_forward_AD,
                                  grad_forward_eqs = grad_forward_eqs,

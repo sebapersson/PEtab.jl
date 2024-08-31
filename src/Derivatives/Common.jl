@@ -1,87 +1,82 @@
-function get_index_parameters_not_ODE(θ_indices::ParameterIndices)::Tuple{Vector{Int64},
-                                                                          Vector{Int64},
-                                                                          Vector{Int64},
-                                                                          Vector{Int64}}
-    @unpack xids, xindices = θ_indices
-    xids_not_system = xids[:not_system]
-    ixnoise = Int64[findfirst(x -> x == id, xids_not_system) for id in xids[:noise]]
-    ixobservable = Int64[findfirst(x -> x == id, xids_not_system)
-                          for id in xids[:observable]]
-    ixnondynamic = Int64[findfirst(x -> x == id, xids_not_system)
-                           for id in xids[:nondynamic]]
-    iθ_not_ode::Vector{Int64} = xindices[:not_system]
-    return ixnoise, ixobservable, ixnondynamic, iθ_not_ode
-end
-
 # Function to compute ∂G∂u and ∂G∂p for an observation assuming a fixed ODE-solution
-function compute∂G∂_(∂G∂_,
-                     u::AbstractVector,
-                     p::Vector{Float64}, # ode_problem.p
-                     t::Float64,
-                     i::Integer,
-                     imeasurements_t::Vector{Vector{Int64}},
-                     measurement_info::MeasurementsInfo,
-                     parameter_info::ParametersInfo,
-                     θ_indices::ParameterIndices,
-                     petab_model::PEtabModel,
-                     xnoise::Vector{Float64},
-                     xobservable::Vector{Float64},
-                     xnondynamic::Vector{Float64},
-                     ∂h∂_::Vector{Float64},
-                     ∂σ∂_::Vector{Float64};
-                     compute∂G∂U::Bool = true,
-                     compute_residuals::Bool = false)::Nothing
+function ∂G∂_!(∂G∂_::AbstractVector, u::AbstractVector, p::Vector{T}, t::T, i::Integer,
+               imeasurements_t_cid::Vector{Vector{Int64}}, model_info::ModelInfo,
+               xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic::Vector{T},
+               ∂h∂_::Vector{T}, ∂σ∂_::Vector{T}; ∂G∂U::Bool = true,
+               residuals::Bool = false)::Nothing where T <: AbstractFloat
+    @unpack measurement_info, θ_indices, parameter_info, petab_model = model_info
+    @unpack measurement_transforms, observable_id = measurement_info
     fill!(∂G∂_, 0.0)
-    for i_measurement_data in imeasurements_t[i]
+    for imeasurement in imeasurements_t_cid[i]
         fill!(∂h∂_, 0.0)
         fill!(∂σ∂_, 0.0)
 
-        hT = computehT(u, t, p, xobservable, xnondynamic, petab_model,
-                       i_measurement_data, measurement_info, θ_indices, parameter_info)
-        σ = computeσ(u, t, p, xnoise, xnondynamic, petab_model, i_measurement_data,
+        h_transformed = computehT(u, t, p, xobservable, xnondynamic, petab_model,
+                                  imeasurement, measurement_info, θ_indices, parameter_info)
+        σ = computeσ(u, t, p, xnoise, xnondynamic, petab_model, imeasurement,
                      measurement_info, θ_indices, parameter_info)
 
-        # Maps needed to correctly extract the right SD and observable parameters
-        mapxnoise = θ_indices.mapxnoise[i_measurement_data]
-        mapxobservable = θ_indices.mapxobservable[i_measurement_data]
-        if compute∂G∂U == true
+        mapxnoise = θ_indices.mapxnoise[imeasurement]
+        mapxobservable = θ_indices.mapxobservable[imeasurement]
+        if ∂G∂U == true
             petab_model.compute_∂h∂u!(u, t, p, xobservable, xnondynamic,
-                                      measurement_info.observable_id[i_measurement_data],
-                                      mapxobservable, ∂h∂_)
+                                      observable_id[imeasurement], mapxobservable, ∂h∂_)
             petab_model.compute_∂σ∂u!(u, t, xnoise, p, xnondynamic, parameter_info,
-                                      measurement_info.observable_id[i_measurement_data],
-                                      mapxnoise, ∂σ∂_)
+                                      observable_id[imeasurement], mapxnoise, ∂σ∂_)
         else
             petab_model.compute_∂h∂p!(u, t, p, xobservable, xnondynamic,
-                                      measurement_info.observable_id[i_measurement_data],
-                                      mapxobservable, ∂h∂_)
+                                      observable_id[imeasurement], mapxobservable, ∂h∂_)
             petab_model.compute_∂σ∂p!(u, t, xnoise, p, xnondynamic, parameter_info,
-                                      measurement_info.observable_id[i_measurement_data],
-                                      mapxnoise, ∂σ∂_)
+                                      observable_id[imeasurement], mapxnoise, ∂σ∂_)
         end
 
-        if measurement_info.measurement_transforms[i_measurement_data] === :log10
-            y_obs = measurement_info.measurementT[i_measurement_data]
-            ∂h∂_ .*= 1 / (log(10) * exp10(hT))
-        elseif measurement_info.measurement_transforms[i_measurement_data] === :log
-            y_obs = measurement_info.measurementT[i_measurement_data]
-            ∂h∂_ .*= 1 / exp(hT)
-        elseif measurement_info.measurement_transforms[i_measurement_data] === :lin
-            y_obs = measurement_info.measurement[i_measurement_data]
+        measurement_transform = measurement_transforms[imeasurement]
+        if measurement_transform == :log10
+            ∂h∂_ .*= 1 / (log(10) * exp10(h_transformed))
+        elseif measurement_transform == :log
+            ∂h∂_ .*= 1 / exp(h_transformed)
         end
 
-        # In case of Guass Newton approximation we target the residuals (y_mod - y_obs)/σ
-        if compute_residuals == false
-            ∂G∂h = (hT - y_obs) / σ^2
-            ∂G∂σ = 1 / σ - ((hT - y_obs)^2 / σ^3)
+        # In case of Guass Newton approximation we target the
+        # residuals = (h_transformed - y_transformed) / σ
+        y_transformed = measurement_info.measurementT[imeasurement]
+        if residuals == false
+            ∂G∂h = (h_transformed - y_transformed) / σ^2
+            ∂G∂σ = 1 / σ - ((h_transformed - y_transformed)^2 / σ^3)
         else
             ∂G∂h = 1.0 / σ
-            ∂G∂σ = -(hT - y_obs) / σ^2
+            ∂G∂σ = -(h_transformed - y_transformed) / σ^2
         end
-
         @views ∂G∂_ .+= (∂G∂h * ∂h∂_ .+ ∂G∂σ * ∂σ∂_)[:]
     end
     return nothing
+end
+
+function _get_∂G∂_!(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo, cid::Symbol,
+                    xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic::Vector{T};
+                    residuals::Bool = false)::Tuple{Function, Function} where T <: AbstractFloat
+    cache = probleminfo.cache
+    if residuals == false
+        it = model_info.simulation_info.imeasurements_t[cid]
+        ∂G∂u! = (out, u, p, t, i) -> begin
+            ∂G∂_!(out, u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic,
+                  cache.∂h∂u, cache.∂σ∂u; ∂G∂U = true, residuals = residuals)
+        end
+        ∂G∂p! = (out, u, p, t, i) -> begin
+            ∂G∂_!(out, u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic,
+                  cache.∂h∂p, cache.∂σ∂p; ∂G∂U = false, residuals = residuals)
+        end
+    else
+        ∂G∂u! = (out, u, p, t, i, it) -> begin
+            ∂G∂_!(out, u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic,
+                  cache.∂h∂u, cache.∂σ∂u; ∂G∂U = true, residuals = residuals)
+        end
+        ∂G∂p! = (out, u, p, t, i, it) -> begin
+            ∂G∂_!(out, u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic,
+                  cache.∂h∂p, cache.∂σ∂p; ∂G∂U = false, residuals = residuals)
+        end
+    end
+    return ∂G∂u!, ∂G∂p!
 end
 
 function adjust_gradient_θ_transformed!(gradient::Union{AbstractVector, SubArray},

@@ -113,17 +113,9 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::V
     ixdynamic_simid = _get_ixdynamic_simid(simid, θ_indices)
     sol = simulation_info.odesols_derivatives[cid]
 
-    # Partial derivatives needed for the gradient functions
-    compute∂G∂u! = (out, u, p, t, i) -> begin
-        compute∂G∂_(out, u, p, t, i, imeasurements_t[cid], measurement_info, parameter_info,
-                    θ_indices, petab_model, xnoise, xobservable, xnondynamic, cache.∂h∂u,
-                    cache.∂σ∂u, compute∂G∂U = true)
-    end
-    compute∂G∂p! = (out, u, p, t, i) -> begin
-        compute∂G∂_(out, u, p, t, i, imeasurements_t[cid], measurement_info, parameter_info,
-                    θ_indices, petab_model, xnoise, xobservable, xnondynamic, cache.∂h∂p,
-                    cache.∂σ∂p, compute∂G∂U = false)
-    end
+    # Partial derivatives needed for computing the gradient (derived from the chain-rule)
+    ∂G∂u!, ∂G∂p! = _get_∂G∂_!(probleminfo, model_info, cid, xnoise, xobservable,
+                              xnondynamic)
 
     nstates = length(states(petab_model.sys_mutated))
     cache.p .= sol.prob.p .|> dual_to_float
@@ -132,8 +124,8 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::V
     fill!(∂G∂p, 0.0)
     for (it, tsave) in pairs(tsaves[cid])
         u .= sol[:, it] .|> dual_to_float
-        compute∂G∂u!(∂G∂u, u, p, tsave, it)
-        compute∂G∂p!(∂G∂p_, u, p, tsave, it)
+        ∂G∂u!(∂G∂u, u, p, tsave, it)
+        ∂G∂p!(∂G∂p_, u, p, tsave, it)
         # Computations generate a big sensitivity matrix across all conditions, where each
         # row is an observation at a specific time point. Positions are precomputed in
         # smatrixindices_cid

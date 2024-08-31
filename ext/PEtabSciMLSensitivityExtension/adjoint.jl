@@ -157,18 +157,9 @@ function _grad_adjoint_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vecto
     sol = simulation_info.odesols_derivatives[cid]
     callback = tracked_callbacks[cid]
 
-    # Partial derivatives needed for the gradient functions
-    compute∂G∂u! = (out, u, p, t, i) -> begin
-        PEtab.compute∂G∂_(out, u, p, t, i, imeasurements_t[cid], measurement_info,
-                          parameter_info, θ_indices, petab_model, xnoise, xobservable,
-                          xnondynamic, cache.∂h∂u, cache.∂σ∂u, compute∂G∂U = true)
-    end
-    compute∂G∂p! = (out, u, p, t, i) -> begin
-        PEtab.compute∂G∂_(out, u, p, t, i, imeasurements_t[cid], measurement_info,
-                          parameter_info, θ_indices, petab_model, xnoise, xobservable,
-                          xnondynamic, cache.∂h∂p, cache.∂σ∂p, compute∂G∂U = false)
-    end
-
+    # Partial derivatives needed for computing the gradient (derived from the chain-rule)
+    ∂G∂u!, ∂G∂p! = PEtab._get_∂G∂_!(probleminfo, model_info, cid, xnoise, xobservable,
+                                    xnondynamic)
 
     # The PEtab standard allow cases where we only observe data at t0, that is we do not
     # solve the ODE. Here adjoint_sensitivities fails (naturally). In this case we compute
@@ -180,11 +171,11 @@ function _grad_adjoint_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vecto
     only_obs_at_zero::Bool = false
     @unpack du, dp, ∂G∂p, ∂G∂p_, adjoint_grad, St0 = cache
     if length(tsaves[cid]) == 1 && tsaves[cid][1] == 0.0
-        compute∂G∂u!(du, sol[1], sol.prob.p, 0.0, 1)
+        ∂G∂u!(du, sol[1], sol.prob.p, 0.0, 1)
         only_obs_at_zero = true
     else
         status = __adjoint_sensitivities!(du, dp, sol, sensealg, tsaves[cid], solver_adj,
-                                          abstol_adj, reltol_adj, callback, compute∂G∂u!;
+                                          abstol_adj, reltol_adj, callback, ∂G∂u!;
                                           maxiters = maxiters, force_dtmin = force_dtmin)
         status == false && return status
     end
@@ -196,9 +187,9 @@ function _grad_adjoint_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vecto
     fill!(∂G∂p, 0.0)
     for (it, tsave) in pairs(tsaves[cid])
         if only_obs_at_zero == false
-            compute∂G∂p!(∂G∂p_, sol(tsave), sol.prob.p, tsave, it)
+            ∂G∂p!(∂G∂p_, sol(tsave), sol.prob.p, tsave, it)
         else
-            compute∂G∂p!(∂G∂p_, sol[1], sol.prob.p, tsave, it)
+            ∂G∂p!(∂G∂p_, sol[1], sol.prob.p, tsave, it)
         end
         ∂G∂p .+= ∂G∂p_
     end

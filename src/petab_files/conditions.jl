@@ -30,6 +30,7 @@ function parse_conditions(parameter_info::ParametersInfo,
     # indices for mapping parameters correctly, e.g. from xest -> xdynamic etc...
     # TODO: SII is going to make this much easier (but the reverse will be harder)
     xindices = _get_xindices(xids)
+    xindices_notsys = _get_xindices_notsys(xids)
     odeproblem_map = _get_odeproblem_map(xids)
     condition_maps = _get_condition_maps(sys, parametermap, statemap, parameter_info,
                                          conditions_df, xids)
@@ -42,9 +43,9 @@ function parse_conditions(parameter_info::ParametersInfo,
                                             observable = false)
 
     # TODO: Uncertain this should live here
-    θ_scale = _get_xscales(xids, parameter_info)
-    return ParameterIndices(xindices, xids, θ_scale, xobservable_maps, xnoise_maps,
-                            odeproblem_map, condition_maps)
+    xscale = _get_xscales(xids, parameter_info)
+    return ParameterIndices(xindices, xids, xindices_notsys, xscale, xobservable_maps,
+                            xnoise_maps, odeproblem_map, condition_maps)
 end
 
 function _get_xids(parameter_info::ParametersInfo, measurements_info::MeasurementsInfo, sys,
@@ -79,6 +80,15 @@ function _get_xindices(xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, Vector{
     xi_not_system = Int32[findfirst(x -> x == id, xids_est) for id in xids[:not_system]]
     return Dict(:dynamic => xi_dynamic, :noise => xi_noise, :observable => xi_observable,
                 :nondynamic => xi_nondynamic, :not_system => xi_not_system)
+end
+
+function _get_xindices_notsys(xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, Vector{Int32}}
+    ins = xids[:not_system]
+    ixnoise = Int32[findfirst(x -> x == id, ins) for id in xids[:noise]]
+    ixobservable = Int32[findfirst(x -> x == id, ins) for id in xids[:observable]]
+    ixnondynamic = Int32[findfirst(x -> x == id, ins) for id in xids[:nondynamic]]
+    return Dict(:noise => ixnoise, :observable => ixobservable,
+                :nondynamic => ixnondynamic)
 end
 
 function _get_xscales(xids::Dict{T, Vector{T}},

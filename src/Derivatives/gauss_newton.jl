@@ -50,17 +50,9 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic::Vector{T}, xnois
     ixdynamic_simid = _get_ixdynamic_simid(simid, θ_indices)
     sol = simulation_info.odesols_derivatives[cid]
 
-    # Partial derivatives needed for the gradient functions
-    compute∂G∂u! = (out, u, p, t, i, it) -> begin
-        compute∂G∂_(out, u, p, t, i, it, measurement_info, parameter_info, θ_indices,
-                    petab_model, xnoise, xobservable, xnondynamic, cache.∂h∂u, cache.∂σ∂u,
-                    compute∂G∂U = true, compute_residuals = true)
-    end
-    compute∂G∂p! = (out, u, p, t, i, it) -> begin
-        compute∂G∂_(out, u, p, t, i, it, measurement_info, parameter_info, θ_indices,
-                    petab_model, xnoise, xobservable, xnondynamic, cache.∂h∂p, cache.∂σ∂p,
-                    compute∂G∂U = false, compute_residuals = true)
-    end
+    # Partial derivatives needed for computing the gradient (derived from the chain-rule)
+    ∂G∂u!, ∂G∂p! = _get_∂G∂_!(probleminfo, model_info, cid, xnoise, xobservable,
+                              xnondynamic; residuals = true)
 
     nstates = length(states(petab_model.sys_mutated))
     cache.p .= sol.prob.p .|> dual_to_float
@@ -73,8 +65,8 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic::Vector{T}, xnois
         iend = istart + nstates - 1
         _S = @view cache.S[istart:iend, ixdynamic_simid]
         for imeasurement in imeasurements_t[cid][it]
-            compute∂G∂u!(∂G∂u, u, p, tsave, 1, [[imeasurement]])
-            compute∂G∂p!(∂G∂p, u, p, tsave, 1, [[imeasurement]])
+            ∂G∂u!(∂G∂u, u, p, tsave, 1, [[imeasurement]])
+            ∂G∂p!(∂G∂p, u, p, tsave, 1, [[imeasurement]])
             @views forward_eqs_grad[ixdynamic_simid] .= transpose(_S) * ∂G∂u
             _jac = @view jac[:, imeasurement]
             adjust_gradient_θ_transformed!(_jac, forward_eqs_grad, ∂G∂p, xdynamic,
