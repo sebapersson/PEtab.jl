@@ -157,6 +157,8 @@ function _get_fitted_parameters(res::Union{PEtabOptimisationResult,
                                 pre_eq_id::Union{String, Symbol, Nothing},
                                 retmap::Bool = true)
     ode_problem = petab_problem.probleminfo.odeproblem
+    cache = petab_problem.probleminfo.cache
+    model_info = petab_problem.model_info
     @unpack θ_indices, petab_model, simulation_info = petab_problem.model_info
     # Sanity check input
     if isnothing(condition_id)
@@ -183,12 +185,16 @@ function _get_fitted_parameters(res::Union{PEtabOptimisationResult,
     xdynamic, xobservable, xnoise, xnondynamic = split_x(θT, θ_indices)
 
     # Set constant model parameters
-    change_ode_parameters!(p, u0, xdynamic, θ_indices, petab_model)
+    _set_cond_const_parameters!(p, xdynamic, θ_indices)
+    ode_problem.p .= p
+    ode_problem.u0 .= u0
 
     # In case of no pre-eq condition we are done after changing to the condition s
     # Condition specific parameters
     if isnothing(pre_eq_id)
-        _change_simulation_condition!(p, u0, _c_id, xdynamic, petab_model, θ_indices)
+        oprob = _switch_condition(ode_problem, _c_id, xdynamic, model_info, cache)
+        u0 = oprob.u0 |> deepcopy
+        p = oprob.p |> deepcopy
         _u0 = retmap ? Pair.(u0s, u0) : u0
         _p = retmap ? Pair.(ps, p) : p
         ip = findall(x -> !occursin("__init__", x), string.(ps))
@@ -265,7 +271,7 @@ function solve_all_conditions(xpetab, petab_problem::PEtabODEProblem, solver; ab
                               reltol = 1e-8, maxiters = nothing, ntimepoints_save = 0,
                               save_observed_t = false)
     @unpack ode_problem, petab_model, simulation_info, θ_indices = petab_problem
-    @unpack ode_solver, ss_solver, petab_ODESolver_cache = petab_problem
+    @unpack ode_solver, ss_solver, cache = petab_problem
     _ode_solver = deepcopy(ode_solver)
     _ode_solver.abstol = abstol
     _ode_solver.reltol = reltol
@@ -279,7 +285,7 @@ function solve_all_conditions(xpetab, petab_problem::PEtabODEProblem, solver; ab
                             :xdynamic, petab_problem.cache)
 
     odesols, could_solve = solve_ODE_all_conditions(ode_problem, petab_model, xdynamic_ps,
-                                                    petab_ODESolver_cache, simulation_info,
+                                                    cache, simulation_info,
                                                     θ_indices, _ode_solver, ss_solver;
                                                     save_observed_t = save_observed_t,
                                                     ntimepoints_save = ntimepoints_save)

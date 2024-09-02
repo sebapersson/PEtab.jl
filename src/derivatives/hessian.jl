@@ -18,10 +18,6 @@ function hess!(hess::Matrix{T}, x::Vector{T}, _nllh::Function, model_info::Model
         fill!(hess, 0.0)
         return nothing
     end
-
-    if prior_info.has_priors == true
-        compute_hessian_prior!(hess, x, θ_indices, prior_info)
-    end
     return nothing
 end
 
@@ -60,10 +56,6 @@ function hess_split!(hess::Matrix{T}, x::Vector{T}, _nllh::Function, model_info:
         fill!(hess, 0.0)
         return nothing
     end
-
-    if prior_info.has_priors == true
-        compute_hessian_prior!(hessian, x, θ_indices, prior_info)
-    end
     return nothing
 end
 
@@ -100,12 +92,6 @@ function hess_block!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Function
     ix_notode = θ_indices.xindices[:not_system]
     x_notode = @view x[ix_notode]
     @views ForwardDiff.hessian!(hess[ix_notode, ix_notode], _nllh_not_solveode, x_notode)
-
-    # Even though this is a hessian approximation, due to small runtime exact Hessian prior
-    # is computed
-    if prior_info.has_priors == true
-        compute_hessian_prior!(hess, x, θ_indices, prior_info)
-    end
     return nothing
 end
 
@@ -152,12 +138,6 @@ function hess_block_split!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Fu
     ix_notode = θ_indices.xindices[:not_system]
     x_notode = @view x[ix_notode]
     @views ForwardDiff.hessian!(hess[ix_notode, ix_notode], _nllh_not_solveode, x_notode)
-
-    # Even though this is a hessian approximation, due to small runtime exact Hessian prior
-    # is computed
-    if prior_info.has_priors == true
-        compute_hessian_prior!(hess, x, θ_indices, prior_info)
-    end
     return nothing
 end
 
@@ -192,24 +172,6 @@ function hess_GN!(out::Matrix{T}, x::Vector{T}, _residuals_not_solveode::Functio
         out .= jacobian_gn * transpose(jacobian_gn)
     else
         out .= jacobian_gn
-        # Even though this is a hessian approximation, due to ease of implementation
-        # and low run-time we compute the full hessian for the priors
-        if prior_info.has_priors == true
-            compute_hessian_prior!(out, x, θ_indices, prior_info)
-        end
     end
-    return nothing
-end
-
-# Compute prior contribution to log-likelihood, note θ in on the parameter scale (e.g might be on log-scale)
-function compute_hessian_prior!(hessian::Matrix{Float64},
-                                θ::Vector{<:Real},
-                                θ_indices::ParameterIndices,
-                                prior_info::PriorInfo)::Nothing
-    _evalPriors = (x) -> begin
-        xT = transform_x(x, θ_indices.xids[:estimate], θ_indices)
-        return -1.0 * compute_priors(x, xT, θ_indices.xids[:estimate], prior_info) # We work with -loglik
-    end
-    hessian .+= ForwardDiff.hessian(_evalPriors, θ)
     return nothing
 end

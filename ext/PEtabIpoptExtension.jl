@@ -112,7 +112,7 @@ function create_ipopt_problem(petab_problem::PEtabODEProblem,
                                     g_U, # No constraints
                                     0, # No constraints
                                     n_parameters_hessian,
-                                    petab_problem.cost,
+                                    petab_problem.nllh,
                                     eval_g, # No constraints
                                     eval_gradient!,
                                     eval_jac_g,

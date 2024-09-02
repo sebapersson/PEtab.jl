@@ -405,7 +405,7 @@ function ModelInfo(petab_model::PEtabModel, sensealg, custom_values)::ModelInfo
     parameter_info = parse_parameters(tables[:parameters], custom_values = custom_values)
     θ_indices = parse_conditions(parameter_info, measurement_info, petab_model)
     simulation_info = SimulationInfo(cbs, measurement_info, sensealg = sensealg)
-    prior_info = process_priors(θ_indices, tables[:parameters])
+    prior_info = parse_priors(θ_indices, tables[:parameters])
     nstates = length(states(petab_model.sys_mutated)) |> Int32
     return ModelInfo(measurement_info, parameter_info, θ_indices, simulation_info,
                      prior_info, petab_model, nstates)
@@ -493,20 +493,19 @@ Once created, a `PEtabODEProblem` contains everything needed to perform paramete
 - `verbose::Bool=true` : If set to `true`, print progress messages while setting up the PEtabODEProblem.
 """
 struct PEtabODEProblem{F1 <: Function, F2 <: Function, F3 <: Function, F4 <: Function,
-                       F5 <: Function, F6 <: Function, F7 <: Function, F8 <: Function,
-                       F9 <: Function}
-    cost::F1
-    nllh::F2
+                       F5 <: Function, F6 <: Function}
+    nllh::F1
     chi2::Any
-    grad!::F3
-    grad::F4
-    grad_nllh!::F5
-    grad_nllh::F6
-    hess!::F7
-    hess::F8
+    grad!::F2
+    grad::F3
+    hess!::F4
+    hess::F5
     FIM!::Any
     FIM::Any
-    nllh_grad::F9
+    nllh_grad::F6
+    prior::Function
+    grad_prior::Function
+    hess_prior::Function
     compute_simulated_values::Any
     compute_residuals::Any
     probleminfo::PEtabODEProblemInfo

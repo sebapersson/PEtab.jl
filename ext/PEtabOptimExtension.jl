@@ -165,7 +165,7 @@ function create_optim_IPNewton(petab_problem::PEtabODEProblem,
 
     n_parameters = length(lower_bounds)
     x0 = zeros(Float64, n_parameters)
-    df = TwiceDifferentiable(petab_problem.cost, petab_problem.grad!,
+    df = TwiceDifferentiable(petab_problem.nllh, petab_problem.grad!,
                              petab_problem.hess!, x0)
     dfc = TwiceDifferentiableConstraints(lower_bounds, upper_bounds)
 
@@ -192,7 +192,7 @@ function create_optim_fminbox(petab_problem::PEtabODEProblem,
     lower_bounds = petab_problem.lower_bounds
     upper_bounds = petab_problem.upper_bounds
 
-    run_optim = (p0) -> Optim.optimize(petab_problem.cost,
+    run_optim = (p0) -> Optim.optimize(petab_problem.nllh,
                                        petab_problem.grad!,
                                        lower_bounds,
                                        upper_bounds,

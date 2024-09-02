@@ -20,10 +20,6 @@ function grad_adjoint!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode!::Funct
     x_notode = @view x[θ_indices.xindices[:not_system]]
     ReverseDiff.gradient!(xnotode_grad, _nllh_not_solveode!, x_notode)
     @views grad[θ_indices.xindices[:not_system]] .= xnotode_grad
-
-    if prior_info.has_priors == true
-        PEtab.grad_prior!(grad, x, θ_indices, prior_info)
-    end
     return nothing
 end
 

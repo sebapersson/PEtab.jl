@@ -24,7 +24,7 @@ function get_optimization_problem(petab_problem::PEtabODEProblem;
                                   box_constraints::Bool = true)::Optimization.OptimizationProblem
 
     # First build the OptimizationFunction with PEtab.jl objective, gradient and Hessian
-    _f = (u, p) -> petab_problem.cost(u)
+    _f = (u, p) -> petab_problem.nllh(u)
     _∇f = (G, u, p) -> petab_problem.grad!(G, u)
     _Δf = (H, u, p) -> petab_problem.hess!(H, u)
     constraints = (res, x, p) -> res .= 0.0

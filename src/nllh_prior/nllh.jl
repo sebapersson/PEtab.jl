@@ -1,16 +1,8 @@
 function nllh(x::Vector{T}, probleminfo::PEtabODEProblemInfo, model_info::ModelInfo,
               cids::Vector{Symbol}, hess::Bool, residuals::Bool)::T where {T <: Real}
-    # TODO: Use DiffCache for highest level
     xdynamic, xobservable, xnoise, xnondynamic = split_x(x, model_info.θ_indices)
     nllh = nllh_solveode(xdynamic, xnoise, xobservable, xnondynamic, probleminfo,
                          model_info; hess = hess, residuals = residuals, cids = cids)
-
-    # TODO : Must refactor prior handling
-    @unpack θ_indices, prior_info = model_info
-    if prior_info.has_priors == true && hess == false
-        x_ps = transform_x(x, θ_indices.xids[:estimate], θ_indices)
-        nllh -= compute_priors(x, x_ps, θ_indices.xids[:estimate], prior_info) # We work with -loglik
-    end
     return nllh
 end
 

@@ -47,9 +47,8 @@ include(joinpath("julia_input", "events.jl"))
 include(joinpath("julia_input", "maps.jl"))
 include(joinpath("julia_input", "petab_model.jl"))
 
-# Files related to computing the cost (likelihood)
-include(joinpath("Objective", "Priors.jl"))
-include(joinpath("Objective", "Objective.jl"))
+include(joinpath("nllh_prior", "nllh.jl"))
+include(joinpath("nllh_prior", "prior.jl"))
 
 include(joinpath("derivatives", "common.jl"))
 include(joinpath("derivatives", "forward_eqs.jl"))
@@ -90,7 +89,7 @@ include(joinpath("Show.jl"))
         petab_model = PEtabModel(path_yaml, verbose = false, build_julia_files = true,
                                  write_to_file = false)
         petab_problem = PEtabODEProblem(petab_model, verbose = false)
-        petab_problem.cost(petab_problem.xnominal_transformed)
+        petab_problem.nllh(petab_problem.xnominal_transformed)
     end
 end
 =#

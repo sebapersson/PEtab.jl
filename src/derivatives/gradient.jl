@@ -60,11 +60,6 @@ function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fun
     x_notode = @view x[θ_indices.xindices[:not_system]]
     ForwardDiff.gradient!(xnotode_grad, _nllh_not_solveode, x_notode)
     @views grad[θ_indices.xindices[:not_system]] .= xnotode_grad
-
-    # TODO: Refactor prior later
-    if prior_info.has_priors == true
-        compute_gradient_prior!(grad, x, θ_indices, prior_info)
-    end
     return nothing
 end
 
@@ -110,11 +105,6 @@ function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveod
     x_notode = @view x[θ_indices.xindices[:not_system]]
     ForwardDiff.gradient!(xnotode_grad, _nllh_not_solveode, x_notode)
     @views grad[θ_indices.xindices[:not_system]] .= xnotode_grad
-
-    # If we have prior contribution its gradient is computed via autodiff for all parameters
-    if prior_info.has_priors == true
-        compute_gradient_prior!(gradient, x, θ_indices, prior_info)
-    end
     return nothing
 end
 
@@ -142,22 +132,5 @@ function grad_forward_eqs!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fu
     x_notode = @view x[θ_indices.xindices[:not_system]]
     ForwardDiff.gradient!(cache.xnotode_grad, _nllh_not_solveode, x_notode)
     @views grad[θ_indices.xindices[:not_system]] .= cache.xnotode_grad
-
-    if prior_info.has_priors == true
-        compute_gradient_prior!(grad, x, θ_indices, prior_info)
-    end
-    return nothing
-end
-
-# Compute prior contribution to log-likelihood
-function compute_gradient_prior!(gradient::Vector{Float64},
-                                 θ::Vector{<:Real},
-                                 θ_indices::ParameterIndices,
-                                 prior_info::PriorInfo)::Nothing
-    _eval_priors = (x) -> begin
-        xT = transform_x(x, θ_indices.xids[:estimate], θ_indices)
-        return -1.0 * compute_priors(x, xT, θ_indices.xids[:estimate], prior_info) # We work with -loglik
-    end
-    gradient .+= ForwardDiff.gradient(_eval_priors, θ)
     return nothing
 end

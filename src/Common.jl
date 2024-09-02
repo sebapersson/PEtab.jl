@@ -190,18 +190,16 @@ function transform_x(x::AbstractVector, θ_indices::ParameterIndices, whichx::Sy
     end
     return x_ps
 end
-function transform_x(θ::T,
-                    n_parameters_estimate::Vector{Symbol},
-                    θ_indices::ParameterIndices;
-                    reverse_transform::Bool = false)::T where {T <: AbstractVector}
-    if isempty(θ)
-        return similar(θ)
-    else
-        out = [transform_θ_element(θ[i], θ_indices.xscale[θ_name],
-                                   reverse_transform = reverse_transform)
-               for (i, θ_name) in pairs(n_parameters_estimate)]
-        return out
+function transform_x(x::T, xnames::Vector{Symbol}, θ_indices::ParameterIndices;
+                     reverse_transform::Bool = false)::T where {T <: AbstractVector}
+    out = similar(x)
+    isempty(x) && return out
+
+    for (i, xname) in pairs(xnames)
+        out[i] = transform_θ_element(x[i], θ_indices.xscale[xname],
+                                     reverse_transform = reverse_transform)
     end
+    return out
 end
 
 function transform_θ_element(x::T, scale::Symbol; reverse_transform::Bool = false)::T where {T <: Real}

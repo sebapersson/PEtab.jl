@@ -285,7 +285,7 @@ function generate_startguesses(petab_problem::PEtabODEProblem,
                 _p[_i] = _prior_samples[1]
             end
 
-            _cost = petab_problem.cost(_p)
+            _cost = petab_problem.nllh(_p)
             if allow_inf_for_startguess == true
                 return _p
             elseif !isinf(_cost)
@@ -325,7 +325,7 @@ function generate_startguesses(petab_problem::PEtabODEProblem,
 
         for i in 1:size(_samples)[2]
             _p = _samples[:, i]
-            _cost = petab_problem.cost(_p)
+            _cost = petab_problem.nllh(_p)
             if allow_inf_for_startguess == true
                 found_starts += 1
                 startguesses[:, found_starts] .= _p
@@ -476,7 +476,7 @@ function _calibrate_model_multistart(petab_problem::PEtabODEProblem,
                                               Vector{Vector{Float64}}(undef, 0),
                                               Vector{Float64}(undef, 0),
                                               0,
-                                              petab_problem.cost(Float64[]),
+                                              petab_problem.nllh(Float64[]),
                                               Float64[],
                                               Float64[],
                                               Symbol[],

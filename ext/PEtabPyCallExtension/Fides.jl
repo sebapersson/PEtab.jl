@@ -85,10 +85,10 @@ function create_fides_problem(petab_problem::PEtabODEProblem,
 
     # Fides objective funciton
     if approximate_hessian == false
-        fidesFunc = (p) -> fides_obj_hessian(p, petab_problem.cost,
+        fidesFunc = (p) -> fides_obj_hessian(p, petab_problem.nllh,
                                              compute_gradient!, compute_hessian!)
     else
-        fidesFunc = (p) -> fides_obj_hessian_approximation(p, petab_problem.cost,
+        fidesFunc = (p) -> fides_obj_hessian_approximation(p, petab_problem.nllh,
                                                            compute_gradient!)
     end
 

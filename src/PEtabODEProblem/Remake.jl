@@ -112,7 +112,7 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem,
         __θ_est = convert.(eltype(θ_est), _θ_est)
         __θ_est[i_parameters_fixate] .= parameters_fixated_values
         __θ_est[i_map] .= θ_est
-        return petab_problem.cost(__θ_est)
+        return petab_problem.nllh(__θ_est)
     end
     _compute_nllh = (θ_est) -> begin
         __θ_est = convert.(eltype(θ_est), _θ_est)
@@ -232,7 +232,7 @@ function remake_PEtab_problem(petab_problem::PEtabODEProblem,
                                      _compute_simulated_values,
                                      _compute_residuals,
                                      petab_problem.compute_nllh_and_gradient, # TODO: Fix and test!!
-                                     petab_problem.cost_method,
+                                     petab_problem.nllh_method,
                                      petab_problem.gradient_method,
                                      petab_problem.hessian_method,
                                      petab_problem.FIM_method,
