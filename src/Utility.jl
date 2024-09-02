@@ -250,10 +250,10 @@ The parameter vector `xpetab` should be provided on the PEtab scale (default log
 - `abstol=1e-8`: Absolute tolerance for the ODE solver.
 - `reltol=1e-8`: Relative tolerance for the ODE solver.
 - `maxiters=1e4`: Maximum iterations for the ODE solver.
-- `n_timepoints_save=0`: Specifies the number of time points at which to save the ODE
+- `ntimepoints_save=0`: Specifies the number of time points at which to save the ODE
     solution for each condition. A value of 0 means the solution is saved at the solvers
     default time points.
-- `save_at_observed_t=false`: When set to true, this option overrides `n_timepoints_save`
+- `save_observed_t=false`: When set to true, this option overrides `ntimepoints_save`
     and saves the ODE solution only at the time points where measurement data are available.
 
 # Returns
@@ -262,8 +262,8 @@ The parameter vector `xpetab` should be provided on the PEtab scale (default log
     all conditions.
 """
 function solve_all_conditions(xpetab, petab_problem::PEtabODEProblem, solver; abstol = 1e-8,
-                              reltol = 1e-8, maxiters = nothing, n_timepoints_save = 0,
-                              save_at_observed_t = false)
+                              reltol = 1e-8, maxiters = nothing, ntimepoints_save = 0,
+                              save_observed_t = false)
     @unpack ode_problem, petab_model, simulation_info, θ_indices = petab_problem
     @unpack ode_solver, ss_solver, petab_ODESolver_cache = petab_problem
     _ode_solver = deepcopy(ode_solver)
@@ -281,8 +281,8 @@ function solve_all_conditions(xpetab, petab_problem::PEtabODEProblem, solver; ab
     odesols, could_solve = solve_ODE_all_conditions(ode_problem, petab_model, xdynamic_ps,
                                                     petab_ODESolver_cache, simulation_info,
                                                     θ_indices, _ode_solver, ss_solver;
-                                                    save_at_observed_t = save_at_observed_t,
-                                                    n_timepoints_save = n_timepoints_save)
+                                                    save_observed_t = save_observed_t,
+                                                    ntimepoints_save = ntimepoints_save)
     return odesols, could_solve
 end
 
@@ -318,7 +318,7 @@ function compute_runtime_accuracy(xpetab, petab_problem, solver; abstol = 1e-8,
                                                                        solver_high_acc;
                                                                        abstol = abstol_highacc,
                                                                        reltol = reltol_highacc,
-                                                                       n_timepoints_save = 100)
+                                                                       ntimepoints_save = 100)
         if could_solve_highacc == false
             @error "Could not solve high accuracy solution. Consider changing solver_high_acc"
         end
@@ -330,7 +330,7 @@ function compute_runtime_accuracy(xpetab, petab_problem, solver; abstol = 1e-8,
     if !isnothing(sols_highacc)
         sols, could_solve = PEtab.solve_all_conditions(xpetab, petab_problem, solver;
                                                        abstol = abstol, reltol = reltol,
-                                                       n_timepoints_save = 100)
+                                                       ntimepoints_save = 100)
         if could_solve == true
             acc = 0.0
             for id in keys(sols)
@@ -342,7 +342,7 @@ function compute_runtime_accuracy(xpetab, petab_problem, solver; abstol = 1e-8,
         acc = nothing
         _, could_solve = PEtab.solve_all_conditions(xpetab, petab_problem, solver;
                                                     abstol = abstol, reltol = reltol,
-                                                    n_timepoints_save = 100)
+                                                    ntimepoints_save = 100)
     end
 
     if could_solve == false

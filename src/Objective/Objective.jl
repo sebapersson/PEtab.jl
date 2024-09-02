@@ -33,9 +33,9 @@ function nllh_solveode(xdynamic::T1, xnoise::T2, xobservable::T2, xnondynamic::T
     xnondynamic_ps = transform_x(xnondynamic, θ_indices, :xnondynamic, cache)
 
     derivative = hess || grad_xdynamic
-    success = solve_ode_all_conditions!(model_info, xdynamic_ps, probleminfo;
-                                        exp_id_solve = cids, dense_sol = false,
-                                        save_at_observed_t = true, derivative = derivative)
+    success = solve_conditions!(model_info, xdynamic_ps, probleminfo; cids = cids,
+                                dense_sol = false, save_observed_t = true,
+                                derivative = derivative)
     if success != true
         if probleminfo.solver.verbose == true
             @warn "Failed to solve ODE model."

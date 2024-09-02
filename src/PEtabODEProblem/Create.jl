@@ -202,7 +202,7 @@ function _get_hess_f(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
 
         if split_over_conditions == true
             _nllh = let pinfo = probleminfo, minfo = model_info
-                (x, eid) -> nllh(x, pinfo, minfo, eid, true, false)
+                (x, cid) -> nllh(x, pinfo, minfo, cid, true, false)
             end
 
             _hess! = let _nllh = _nllh, minfo = model_info
@@ -235,10 +235,10 @@ function _get_hess_f(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
         if split_over_conditions == true
             _nllh_solveode = let pinfo = probleminfo, minfo = model_info
                 @unpack xnoise, xobservable, xnondynamic = pinfo.cache
-                (x, eid) -> nllh_solveode(x, xnoise, xobservable, xnondynamic,
+                (x, cid) -> nllh_solveode(x, xnoise, xobservable, xnondynamic,
                                                    pinfo, minfo,
                                                    grad_xdynamic = true,
-                                                   cids = eid)
+                                                   cids = cid)
             end
 
             _hess! = let _nllh_solveode = _nllh_solveode,
@@ -252,18 +252,14 @@ function _get_hess_f(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
     if hessian_method == :GaussNewton
         if split_over_conditions == false
             _solve_conditions! = let pinfo = probleminfo, minfo = model_info
-                (sols, x) -> solve_ode_all_conditions!(sols, x, pinfo, minfo;
-                                                       save_at_observed_t = true,
-                                                       exp_id_solve = [:all],
-                                                       compute_forward_sensitivites_ad = true)
+                (sols, x) -> solve_conditions!(sols, x, pinfo, minfo; cids = [:all],
+                                               sensitivites_AD = true)
             end
         end
         if split_over_conditions == true
             _solve_conditions! = let pinfo = probleminfo, minfo = model_info
-                (sols, x, eid) -> solve_ode_all_conditions!(sols, x, pinfo, minfo;
-                                                            save_at_observed_t = true,
-                                                            exp_id_solve = eid,
-                                                            compute_forward_sensitivites_ad = true)
+                (sols, x, cid) -> solve_conditions!(sols, x, pinfo, minfo; cids = cid,
+                                                    sensitivites_AD = true)
             end
         end
         chunksize_use = _get_chunksize(chunksize, xdynamic)
@@ -340,8 +336,8 @@ function _get_nllh_not_solveode(probleminfo::PEtabODEProblemInfo, model_info::Mo
 end
 
 function _get_nllh_solveode(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
-                            grad_xdynamic::Bool = false, eid::Bool = false)
-    if eid == false
+                            grad_xdynamic::Bool = false, cid::Bool = false)
+    if cid == false
         _nllh_solveode = let pinfo = probleminfo, minfo = model_info
             @unpack xnoise, xobservable, xnondynamic = pinfo.cache
             (x) -> nllh_solveode(x, xnoise, xobservable, xnondynamic, pinfo, minfo; grad_xdynamic = grad_xdynamic, cids = [:all])
@@ -349,7 +345,7 @@ function _get_nllh_solveode(probleminfo::PEtabODEProblemInfo, model_info::ModelI
     else
         _nllh_solveode = let pinfo = probleminfo, minfo = model_info
             @unpack xnoise, xobservable, xnondynamic = pinfo.cache
-            (x, _eid) -> nllh_solveode(x, xnoise, xobservable, xnondynamic, pinfo, minfo; grad_xdynamic = grad_xdynamic, cids = _eid)
+            (x, _cid) -> nllh_solveode(x, xnoise, xobservable, xnondynamic, pinfo, minfo; grad_xdynamic = grad_xdynamic, cids = _cid)
         end
     end
     return _nllh_solveode
@@ -372,7 +368,7 @@ function _get_grad_forward_AD(probleminfo::PEtabODEProblemInfo, model_info::Mode
     end
 
     if split_over_conditions == true
-        _nllh_solveode = _get_nllh_solveode(probleminfo, model_info; eid = true, grad_xdynamic = true)
+        _nllh_solveode = _get_nllh_solveode(probleminfo, model_info; cid = true, grad_xdynamic = true)
 
         _grad! = let _nllh_not_solveode = _nllh_not_solveode, _nllh_solveode = _nllh_solveode, minfo = model_info, pinfo = probleminfo
             (g, θ) -> grad_forward_AD_split!(g, θ, _nllh_not_solveode, _nllh_solveode, pinfo, minfo)
@@ -389,21 +385,21 @@ function _get_grad_forward_eqs(probleminfo::PEtabODEProblemInfo, model_info::Mod
 
     if sensealg == :ForwardDiff && split_over_conditions == false
         _solve_conditions! = let pinfo = probleminfo, minfo = model_info
-            (sols, x) -> solve_ode_all_conditions!(sols, x, pinfo, minfo; save_at_observed_t = true,  compute_forward_sensitivites_ad = true)
+            (sols, x) -> solve_conditions!(sols, x, pinfo, minfo;  sensitivites_AD = true)
         end
         cfg = ForwardDiff.JacobianConfig(_solve_conditions!, odesols, xdynamic, chunksize_use)
     end
 
     if sensealg == :ForwardDiff && split_over_conditions == true
         _solve_conditions! = let pinfo = probleminfo, minfo = model_info
-            (sols, x, eid) -> solve_ode_all_conditions!(sols, x, pinfo, minfo; save_at_observed_t = true, exp_id_solve = eid, compute_forward_sensitivites_ad = true)
+            (sols, x, cid) -> solve_conditions!(sols, x, pinfo, minfo; cids = cid, sensitivites_AD = true)
         end
         cfg = ForwardDiff.JacobianConfig(_solve_conditions!, odesols, xdynamic, chunksize_use)
     end
 
     if sensealg != :ForwardDiff
         _solve_conditions! = let pinfo = probleminfo, minfo = model_info
-            (x, eid) -> solve_ode_all_conditions!(minfo, x, pinfo; save_at_observed_t = true, exp_id_solve = eid, compute_forward_sensitivites = true)
+            (x, cid) -> solve_conditions!(minfo, x, pinfo; cids = cid, sensitivites = true)
         end
         cfg = nothing
     end

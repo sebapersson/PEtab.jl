@@ -55,7 +55,7 @@ function solve_sensitivites!(model_info::ModelInfo, _solve_conditions!::Function
             if !isempty(xdynamic)
                 ForwardDiff.jacobian!(S, _solve_conditions!, odesols, xdynamic, cfg)
             else
-                _solve_ode_all_conditions!(cache.odesols, xdynamic)
+                _solve_conditions!(cache.odesols, xdynamic)
             end
             cache.nxdynamic[1] = tmp
         end

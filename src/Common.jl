@@ -214,40 +214,6 @@ function transform_θ_element(x::T, scale::Symbol; reverse_transform::Bool = fal
     end
 end
 
-function change_ode_parameters!(p_ode_problem::AbstractVector,
-                                u0::AbstractVector,
-                                θ::AbstractVector,
-                                θ_indices::ParameterIndices,
-                                petab_model::PEtabModel)::Nothing
-    n_model_states = states(petab_model.sys_mutated) |> length
-    map_odeproblem = θ_indices.map_odeproblem
-    p_ode_problem[map_odeproblem.dynamic_to_sys] .= θ[map_odeproblem.sys_to_dynamic]
-    u0change = @view u0[1:n_model_states]
-    # TODO: Appearent I must refactor
-    petab_model.compute_u0!(u0change, p_ode_problem)
-    return nothing
-end
-
-function change_ode_parameters(p_ode_problem::AbstractVector,
-                               θ::AbstractVector,
-                               θ_indices::ParameterIndices,
-                               petab_model::PEtabModel)
-
-    # Helper function to not-inplace map parameters
-    function mapParamToEst(j::Integer, mapDynParam::MapODEProblem)
-        which_index = findfirst(x -> x == j, mapDynParam.dynamic_to_sys)
-        return map_odeproblem.sys_to_dynamic[which_index]
-    end
-
-    map_odeproblem = θ_indices.map_odeproblem
-    outp_ode_problem = [i ∈ map_odeproblem.dynamic_to_sys ?
-                        θ[mapParamToEst(i, map_odeproblem)] : p_ode_problem[i]
-                        for i in eachindex(p_ode_problem)]
-    outu0 = petab_model.compute_u0(outp_ode_problem)
-
-    return outp_ode_problem, outu0
-end
-
 """
     dual_to_float(x::ForwardDiff.Dual)::Real
 

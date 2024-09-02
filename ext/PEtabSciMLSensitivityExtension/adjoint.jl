@@ -38,10 +38,9 @@ function _grad_adjoint_xdynamic!(grad::Vector{<:AbstractFloat},
     xnondynamic_ps = PEtab.transform_x(cache.xnondynamic, θ_indices, :xnondynamic, cache)
     xdynamic_ps = PEtab.transform_x(cache.xdynamic, θ_indices, :xdynamic, cache)
 
-    success = PEtab.solve_ode_all_conditions!(model_info, xdynamic_ps, probleminfo;
-                                              exp_id_solve = cids, dense_sol = true,
-                                              save_at_observed_t = false,
-                                              track_callback = true)
+    success = PEtab.solve_conditions!(model_info, xdynamic_ps, probleminfo; cids = cids,
+                                      dense_sol = true, save_observed_t = false,
+                                      track_callback = true)
     if success == false
         fill!(grad, 0.0)
         return nothing
@@ -385,8 +384,8 @@ function ∂g∂u_empty!(out, u, p, t, i)::Nothing
     return nothing
 end
 
-function PEtab.get_callbackset(odeproblem::ODEProblem, simulation_info::PEtab.SimulationInfo,
-                               simid::Symbol, sensealg::AdjointAlg)::SciMLBase.DECallback
+function PEtab._get_cbs(odeproblem::ODEProblem, simulation_info::PEtab.SimulationInfo,
+                        simid::Symbol, sensealg::AdjointAlg)::SciMLBase.DECallback
     cbset = SciMLSensitivity.track_callbacks(simulation_info.callbacks[simid],
                                              odeproblem.tspan[1], odeproblem.u0,
                                              odeproblem.p, sensealg)

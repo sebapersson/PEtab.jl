@@ -6,7 +6,6 @@ function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fun
     @unpack simulation_info, θ_indices, prior_info = model_info
     @unpack xdynamic_grad, xnotode_grad, xdynamic, nxdynamic = cache
 
-
     # As a subset of ForwardDiff chunks might fail, return code status is checked via
     # simulation info
     simulation_info.could_solve[1] = true

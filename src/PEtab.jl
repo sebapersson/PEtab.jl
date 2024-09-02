@@ -59,9 +59,8 @@ include(joinpath("derivatives", "gradient.jl"))
 include(joinpath("derivatives", "hessian.jl"))
 
 # Files related to solving the ODE-system
-include(joinpath("Solve_ODE", "Switch_condition.jl"))
-include(joinpath("Solve_ODE", "Common.jl"))
-include(joinpath("Solve_ODE", "Solve.jl"))
+include(joinpath("Solve_ODE", "helper.jl"))
+include(joinpath("Solve_ODE", "solve.jl"))
 include(joinpath("Solve_ODE", "Steady_state.jl"))
 
 # Files related to processing user input
