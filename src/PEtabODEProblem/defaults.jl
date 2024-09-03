@@ -19,7 +19,7 @@ end
 
 function _get_model_size(sys::Union{ReactionSystem, ODESystem},
                          model_info::ModelInfo)::Symbol
-    nODEs = length(states(sys))
+    nODEs = length(unknowns(sys))
     nps = length(model_info.θ_indices.xids[:dynamic])
     if nODEs ≤ 15 && nps ≤ 20
         return :Small

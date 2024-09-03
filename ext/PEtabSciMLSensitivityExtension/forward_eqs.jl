@@ -30,7 +30,7 @@ function PEtab._grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xno
 
     p = sol.prob.p
     ∂G∂p, ∂G∂p_ = zeros(Float64, length(p)), zeros(Float64, length(p))
-    ∂G∂u = zeros(Float64, length(states(petab_model.sys_mutated)))
+    ∂G∂u = zeros(Float64, length(unknowns(petab_model.sys_mutated)))
     _grad = zeros(Float64, length(p))
     for (it, tsave) in pairs(tsaves[cid])
         u, _S = extract_local_sensitivities(sol, it, true)

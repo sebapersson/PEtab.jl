@@ -406,7 +406,7 @@ function ModelInfo(petab_model::PEtabModel, sensealg, custom_values)::ModelInfo
     θ_indices = parse_conditions(parameter_info, measurement_info, petab_model)
     simulation_info = SimulationInfo(cbs, measurement_info, sensealg = sensealg)
     prior_info = parse_priors(θ_indices, tables[:parameters])
-    nstates = length(states(petab_model.sys_mutated)) |> Int32
+    nstates = length(unknowns(petab_model.sys_mutated)) |> Int32
     return ModelInfo(measurement_info, parameter_info, θ_indices, simulation_info,
                      prior_info, petab_model, nstates)
 end

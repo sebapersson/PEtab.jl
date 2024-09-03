@@ -22,8 +22,8 @@ function create_∂_h_σ_file(model_name::String,
                            model_SBML::SBMLImporter.ModelSBML;
                            custom_values::Union{Nothing, Dict} = nothing,
                            write_to_file::Bool = true)
-    p_ode_problem_names = string.(parameters(system))
-    model_state_names = replace.(string.(states(system)), "(t)" => "")
+    p_ode_problem_names = _get_sys_parameters(system, statemap, parametermap) .|> string
+    model_state_names = replace.(string.(unknowns(system)), "(t)" => "")
 
     petab_tables = read_tables(path_yaml)
     measurements_data, observables_data, parameters_data, experimental_conditions, = collect(values(petab_tables))
@@ -53,9 +53,9 @@ function create_∂_h_σ_file(model_name::String,
                            parameters_data::DataFrame,
                            observables_data::DataFrame,
                            statemap)
-    p_ode_problem_names = string.(parameters(system))
-    model_state_names = replace.(string.(states(system)), "(t)" => "")
+    model_state_names = replace.(string.(unknowns(system)), "(t)" => "")
     parametermap = [p => 0.0 for p in parameters(system)]
+    p_ode_problem_names = _get_sys_parameters(system, statemap, parametermap) .|> string
 
     parameter_info = PEtab.parse_parameters(parameters_data)
     measurement_info = PEtab.parse_measurements(measurements_data, observables_data)

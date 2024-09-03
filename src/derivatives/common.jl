@@ -90,12 +90,12 @@ function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector
     # Note that ∂G∂p is on the scale of ODEProblem.p which might not be the same scale
     # as parameters appear in the gradient on linear-scale
     if sensitivites_AD == true
-        grad_p1 = grad_linscale[sys_to_dynamic] .+ ∂G∂p[dynamic_to_sys]
+        grad_p1 = grad_linscale[dynamic_to_sys] .+ ∂G∂p[sys_to_dynamic]
     else
-        grad_p1 = grad_linscale[dynamic_to_sys] .+ ∂G∂p[dynamic_to_sys]
+        grad_p1 = grad_linscale[sys_to_dynamic] .+ ∂G∂p[sys_to_dynamic]
     end
-    @views _grad_to_xscale!(grad_xscale[sys_to_dynamic], grad_p1, xdynamic[sys_to_dynamic],
-                            xids[:dynamic][sys_to_dynamic], xscale)
+    @views _grad_to_xscale!(grad_xscale[dynamic_to_sys], grad_p1, xdynamic[dynamic_to_sys],
+                            xids[:dynamic][dynamic_to_sys], xscale)
 
     # For forward sensitives via autodiff ∂G∂p is on the same scale as ode_problem.p, while
     # S-matrix is on the same scale as xdynamic. To be able to handle condition specific

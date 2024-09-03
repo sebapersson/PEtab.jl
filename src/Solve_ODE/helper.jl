@@ -101,6 +101,6 @@ end
 function _set_cond_const_parameters!(p::AbstractVector, xdynamic::AbstractVector,
                                      θ_indices::ParameterIndices)::Nothing
     map_oprob = θ_indices.map_odeproblem
-    @views p[map_oprob.dynamic_to_sys] .= xdynamic[map_oprob.sys_to_dynamic]
+    @views p[map_oprob.sys_to_dynamic] .= xdynamic[map_oprob.dynamic_to_sys]
     return nothing
 end

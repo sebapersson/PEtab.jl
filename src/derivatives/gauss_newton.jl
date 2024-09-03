@@ -54,7 +54,7 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic::Vector{T}, xnois
     ∂G∂u!, ∂G∂p! = _get_∂G∂_!(probleminfo, model_info, cid, xnoise, xobservable,
                               xnondynamic; residuals = true)
 
-    nstates = length(states(petab_model.sys_mutated))
+    nstates = length(unknowns(petab_model.sys_mutated))
     cache.p .= sol.prob.p .|> dual_to_float
     @unpack p, u, ∂G∂p, ∂G∂p_, ∂G∂u, S, forward_eqs_grad = cache
     fill!(forward_eqs_grad, 0.0)

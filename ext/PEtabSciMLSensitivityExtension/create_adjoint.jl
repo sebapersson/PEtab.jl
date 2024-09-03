@@ -16,6 +16,7 @@ function PEtab._get_grad_f(method::Val{:Adjoint}, probleminfo::PEtab.PEtabODEPro
                 # nllh -> negative prior
                 g .+= grad_prior(x) .* -1
             end
+            return nothing
         end
     end
     _grad = let _grad! = _grad!

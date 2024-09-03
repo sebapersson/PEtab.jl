@@ -41,7 +41,7 @@ end
 
 function process_petab_event(event::PEtabEvent, event_name,
                              system)::Tuple{String, String, String}
-    state_names = replace.(string.(states(system)), "(t)" => "")
+    state_names = replace.(string.(unknowns(system)), "(t)" => "")
     parameter_names = string.(parameters(system))
 
     # Sanity check input, trigger
@@ -111,11 +111,11 @@ function process_petab_event(event::PEtabEvent, event_name,
 
     # Building the condition syntax for the event
     for i in eachindex(state_names)
-        condition = PEtab.SBMLImporter.replace_variable(condition, state_names[i],
+        condition = PEtab.SBMLImporter._replace_variable(condition, state_names[i],
                                                         "u[" * string(i) * "]")
     end
     for i in eachindex(parameter_names)
-        condition = PEtab.SBMLImporter.replace_variable(condition, parameter_names[i],
+        condition = PEtab.SBMLImporter._replace_variable(condition, parameter_names[i],
                                                         "integrator.p[" * string(i) * "]")
     end
     condition_str = "\nfunction condition_" * event_name * "(u, t, integrator)\n\t" *
@@ -131,17 +131,17 @@ function process_petab_event(event::PEtabEvent, event_name,
         _affect = targets[i] * " = " * affect
         _affect1, _affect2 = split(_affect, "=")
         for j in eachindex(state_names)
-            _affect1 = PEtab.SBMLImporter.replace_variable(_affect1, state_names[j],
+            _affect1 = PEtab.SBMLImporter._replace_variable(_affect1, state_names[j],
                                                            "integrator.u[" * string(j) *
                                                            "]")
-            _affect2 = PEtab.SBMLImporter.replace_variable(_affect2, state_names[j],
+            _affect2 = PEtab.SBMLImporter._replace_variable(_affect2, state_names[j],
                                                            "u_tmp[" * string(j) * "]")
         end
         for j in eachindex(parameter_names)
-            _affect1 = PEtab.SBMLImporter.replace_variable(_affect1, parameter_names[j],
+            _affect1 = PEtab.SBMLImporter._replace_variable(_affect1, parameter_names[j],
                                                            "integrator.p[" * string(j) *
                                                            "]")
-            _affect2 = PEtab.SBMLImporter.replace_variable(_affect2, parameter_names[j],
+            _affect2 = PEtab.SBMLImporter._replace_variable(_affect2, parameter_names[j],
                                                            "p_tmp[" * string(j) * "]")
         end
         affect_str *= "\t\t" * _affect1 * " = " * _affect2 * '\n'

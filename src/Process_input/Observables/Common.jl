@@ -13,14 +13,14 @@ function petab_formula_to_Julia(formula::String,
 
     # Characters directly translate to Julia and characters that also are assumed to terminate a word (e.g state
     # and parameter)
-    char_directly_translate = ['(', ')', '+', '-', '/', '*', '^']
+    char_directly_translate = ['(', ')', '+', '-', '/', '*', '^', ',']
     len_formula = length(formula)
 
     i, julia_formula = 1, ""
     while i <= len_formula
         # In case character i of the string can be translated directly
         if formula[i] in char_directly_translate
-            julia_formula *= formula[i] * " "
+            julia_formula *= formula[i]
             i += 1
 
             # In case character i cannot be translated directly (is part of a word)
@@ -34,7 +34,7 @@ function petab_formula_to_Julia(formula::String,
 
             # Special case where we have multiplication
             if is_number(word) && i <= len_formula && isletter(formula[i])
-                julia_formula *= "* "
+                julia_formula *= "*"
             end
         end
     end
@@ -260,7 +260,7 @@ function replace_explicit_variable_rule(formula::String,
             if specie.assignment_rule == false
                 continue
             end
-            _formula = SBMLImporter.replace_variable(_formula, specie_id,
+            _formula = SBMLImporter._replace_variable(_formula, specie_id,
                                                      "(" * specie.formula * ")")
         end
         _formula == formula && break
@@ -274,7 +274,7 @@ function replace_explicit_variable_rule(formula::String,
             if parameter.assignment_rule == false
                 continue
             end
-            _formula = SBMLImporter.replace_variable(_formula, parameter_id,
+            _formula = SBMLImporter._replace_variable(_formula, parameter_id,
                                                      "(" * parameter.formula * ")")
         end
         _formula == formula && break

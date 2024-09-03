@@ -1,7 +1,7 @@
 # Functions used by both the ODE-solvers and PeTab importer.
 
 function _get_state_ids(system)::Vector{String}
-    ids = states(system)
+    ids = unknowns(system)
     ids = string.(ids)
     ids = replace.(ids, "(t)" => "")
     return ids
@@ -246,9 +246,9 @@ function _get_ixdynamic_simid(simid::Symbol, θ_indices::ParameterIndices;
                               full_x::Bool = false)::Vector{Integer}
     xmap_simid = θ_indices.maps_conidition_id[simid]
     if full_x == false
-        ixdynamic = vcat(θ_indices.map_odeproblem.sys_to_dynamic, xmap_simid.ix_dynamic)
+        ixdynamic = vcat(θ_indices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic)
     else
-        ixdynamic = vcat(θ_indices.map_odeproblem.sys_to_dynamic, xmap_simid.ix_dynamic,
+        ixdynamic = vcat(θ_indices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic,
                          θ_indices.xindices[:not_system])
     end
     return unique(ixdynamic)

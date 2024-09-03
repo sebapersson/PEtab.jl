@@ -93,7 +93,7 @@ function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic::T,
     ys_transformed = measurement_info.measurementT
     @unpack imeasurements, imeasurements_t_sol = simulation_info
     # TODO: Should live in PEtabModel
-    nstates = length(states(petab_model.sys_mutated))
+    nstates = length(unknowns(petab_model.sys_mutated))
     nllh = 0.0
     for imeasurement in imeasurements[cid]
         t = time[imeasurement]

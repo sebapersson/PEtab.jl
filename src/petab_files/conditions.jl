@@ -25,7 +25,8 @@ function parse_conditions(parameter_info::ParametersInfo,
                           measurements_info::MeasurementsInfo, sys, parametermap, statemap,
                           conditions_df::DataFrame)::ParameterIndices
     _check_conditionids(conditions_df, measurements_info)
-    xids = _get_xids(parameter_info, measurements_info, sys, conditions_df)
+    xids = _get_xids(parameter_info, measurements_info, sys, conditions_df, statemap,
+                     parametermap)
 
     # indices for mapping parameters correctly, e.g. from xest -> xdynamic etc...
     # TODO: SII is going to make this much easier (but the reverse will be harder)
@@ -48,8 +49,9 @@ function parse_conditions(parameter_info::ParametersInfo,
                             xnoise_maps, odeproblem_map, condition_maps)
 end
 
-function _get_xids(parameter_info::ParametersInfo, measurements_info::MeasurementsInfo, sys,
-                   conditions_df::DataFrame)::Dict{Symbol, Vector{Symbol}}
+function _get_xids(parameter_info::ParametersInfo, measurements_info::MeasurementsInfo,
+                   sys::Union{ODESystem, ReactionSystem}, conditions_df::DataFrame,
+                   statemap, parametermap)::Dict{Symbol, Vector{Symbol}}
     @unpack observable_parameters, noise_parameters = measurements_info
 
     # Non-dynamic parameters are those that only appear in the observable and noise
@@ -61,7 +63,7 @@ function _get_xids(parameter_info::ParametersInfo, measurements_info::Measuremen
                                            conditions_df)
     xids_dynamic = _get_xids_dynamic(xids_observable, xids_noise, xids_nondynamic,
                                      parameter_info)
-    xids_sys = parameters(sys) .|> Symbol
+    xids_sys = _get_sys_parameters(sys, statemap, parametermap)
     xids_not_system = unique(vcat(xids_observable, xids_noise, xids_nondynamic))
     xids_estimate = vcat(xids_dynamic, xids_not_system)
 
@@ -230,9 +232,9 @@ function _get_map_observable_noise(xids::Vector{Symbol},
 end
 
 function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}})::MapODEProblem
-    sys_to_dynamic = findall(x -> x in xids[:sys], xids[:dynamic]) |> Vector{Int64}
-    ids = xids[:dynamic][sys_to_dynamic]
-    dynamic_to_sys = Int64[findfirst(x -> x == id, xids[:sys]) for id in ids]
+    dynamic_to_sys = findall(x -> x in xids[:sys], xids[:dynamic]) |> Vector{Int64}
+    ids = xids[:dynamic][dynamic_to_sys]
+    sys_to_dynamic = Int64[findfirst(x -> x == id, xids[:sys]) for id in ids]
     return MapODEProblem(sys_to_dynamic, dynamic_to_sys)
 end
 
@@ -358,4 +360,19 @@ function _check_conditionids(conditions_df::DataFrame,
               "table. Therefore no measurement corresponds to this id."
     end
     return nothing
+end
+
+function _get_sys_parameters(sys::Union{ODESystem, ReactionSystem}, statemap,
+                             parametermap)::Vector{Symbol}
+    # This is a hack untill SciMLSensitivity integrates with the SciMLStructures interface.
+    # Basically allows the parameters in the system to be retreived in the order they
+    # appear in the ODESystem later on
+    _p = parameters(sys)
+    out = similar(_p)
+    oprob = ODEProblem(sys, statemap, [0.0, 5e3], parametermap; jac = true, sparse = false)
+    maps = ModelingToolkit.getp(oprob, _p)
+    for (i, map) in pairs(maps.getters)
+        out[map.idx.idx] = _p[i]
+    end
+    return out .|> Symbol
 end

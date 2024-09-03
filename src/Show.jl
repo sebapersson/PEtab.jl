@@ -14,7 +14,7 @@ end
 
 function show(io::IO, a::PEtabModel)
     model_name = @sprintf("%s", a.modelname)
-    n_odes = @sprintf("%d", length(states(a.sys_mutated)))
+    n_odes = @sprintf("%d", length(unknowns(a.sys_mutated)))
     n_ode_parameters = @sprintf("%d", length(parameters(a.sys_mutated)))
 
     printstyled(io, "PEtabModel", color = 116)
@@ -41,7 +41,7 @@ function show(io::IO, prob::PEtabODEProblem)
     model = model_info.petab_model
     model_name = model.modelname
 
-    n_odes = length(states(model.sys_mutated))
+    n_odes = length(unknowns(model.sys_mutated))
     n_parameters_est = length(prob.xnames)
     n_dynamic_parameters = length(model_info.θ_indices.xids[:dynamic])
 

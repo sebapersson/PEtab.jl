@@ -136,8 +136,15 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
             _oprob = ODEProblem(sys_mutated, u0map_tmp, [0.0, 5e3], parametermap;
                                 jac = true, sparse = sparse_jacobian_use)
         end
-        # Ensure correct types for further computations
-        oprob = remake(_oprob, p = Float64.(_oprob.p), u0 = Float64.(_oprob.u0))
+        # Ensure correct types for further computations. Long-term we plan to here
+        # transition to the SciMLStructures interface, but that has to wait for
+        # SciMLSensitivity
+        if _oprob.p isa ModelingToolkit.MTKParameters
+            _p = _oprob.p.tunable .|> Float64
+            oprob = remake(_oprob, p = _p, u0 = Float64.(_oprob.u0))
+        else
+            oprob = remake(_oprob, p = Float64.(_oprob.p), u0 = Float64.(_oprob.u0))
+        end
         oprob_gradient = _get_odeproblem_gradient(oprob, gradient_method_use, sensealg_use)
     end
     _logging(:Build_ODEProblem, verbose; time = btime)
@@ -186,6 +193,7 @@ function _get_grad_f(method, probleminfo::PEtabODEProblemInfo, model_info::Model
                 # nllh -> negative prior
                 g .+= grad_prior(x) .* -1
             end
+            return nothing
         end
     end
     _grad = let _grad! = _grad!
@@ -321,6 +329,7 @@ function _get_hess_f(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo,
                 # nllh -> negative prior
                 H .+= hess_prior(x) .* -1
             end
+            return nothing
         end
     end
     _hess = (x; prior = true) -> begin

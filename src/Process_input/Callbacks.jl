@@ -9,12 +9,11 @@ function create_callbacks_SBML(system::ODESystem,
                                dirjulia::String;
                                custom_values::Union{Nothing, Dict} = nothing,
                                write_to_file::Bool = true)
-    p_ode_problem_names = string.(parameters(system))
-    model_specie_names = replace.(string.(states(system)), "(t)" => "")
+    p_ode_problem_names = _get_sys_parameters(system, statemap, parametermap) .|> string
+    model_specie_names = replace.(string.(unknowns(system)), "(t)" => "")
 
-    n_callbacks = length(keys(model_SBML.ifelse_parameters)) +
-                  length(keys(model_SBML.events))
-    n_ifelse_events = length(keys(model_SBML.ifelse_parameters))
+    n_callbacks = length(keys(model_SBML.events))
+    n_ifelse_events = 0
 
     # Compute indices tracking parameters (needed as down the line we need to know if a parameter should be estimated
     # or not)
@@ -34,26 +33,12 @@ function create_callbacks_SBML(system::ODESystem,
     write_tstops = "\nfunction compute_tstops(u::AbstractVector, p::AbstractVector)\n"
 
     # In case we do not have any SBML related events
-    if isempty(model_SBML.ifelse_parameters) && isempty(model_SBML.events)
+    if isempty(model_SBML.events)
         write_tstops *= "\t return Float64[]\nend\n"
         cbset = CallbackSet()
         convert_tspan = false
     else
         k = 1
-        # For ifelse parameter
-        for parameter in keys(model_SBML.ifelse_parameters)
-            _affect, _cond, _callback, _active_t0 = create_callback_ifelse(parameter,
-                                                                           model_SBML,
-                                                                           p_ode_problem_names,
-                                                                           model_specie_names)
-            callback_str *= _affect * _cond * _callback * _active_t0
-            _affect_f = @RuntimeGeneratedFunction(Meta.parse(_affect))
-            _cond_f = @RuntimeGeneratedFunction(Meta.parse(_cond))
-            _get_cb = @RuntimeGeneratedFunction(Meta.parse(_callback))
-            callbacks[k] = _get_cb(_cond_f, _affect_f)
-            active_t0_functions[k] = @RuntimeGeneratedFunction(Meta.parse(_active_t0))
-            k += 1
-        end
         # For classical SBML events
         for key in keys(model_SBML.events)
             _affect, _cond, _callback, _initial_function = create_callback_SBML_event(key,
@@ -138,16 +123,16 @@ function create_callback_ifelse(parameter_name::String,
     # For i) we need to convert tspan. For ii) we cannot compute tstops (the event times) prior to starting to solve
     # the ODE so it most be cont. callback
     _condition, side_activated_with_time = model_SBML.ifelse_parameters[parameter_name]
-    discrete_event = !(check_condition_has_states(_condition, model_specie_names))
+    discrete_event = !(check_condition_has_unknowns(_condition, model_specie_names))
 
     # Replace any state or parameter with their corresponding index in the ODE system to be comaptible with event
     # syntax
     for (i, specie_name) in pairs(model_specie_names)
-        _condition = SBMLImporter.replace_variable(_condition, specie_name,
+        _condition = SBMLImporter._replace_variable(_condition, specie_name,
                                                    "u[" * string(i) * "]")
     end
     for (i, p_name) in pairs(p_ode_problem_names)
-        _condition = SBMLImporter.replace_variable(_condition, p_name,
+        _condition = SBMLImporter._replace_variable(_condition, p_name,
                                                    "integrator.p[" * string(i) * "]")
     end
 
@@ -202,7 +187,7 @@ function create_callback_SBML_event(event_name::String,
     affects = event.formulas
     initial_value_cond = event.trigger_initial_value
 
-    discrete_event = !(check_condition_has_states(_condition, model_specie_names))
+    discrete_event = !(check_condition_has_unknowns(_condition, model_specie_names))
 
     # If the event trigger does not contain a model state but fixed parameters it can at a maximum be triggered once.
     if discrete_event == false
@@ -222,15 +207,15 @@ function create_callback_SBML_event(event_name::String,
     # syntax
     _condition_at_t0 = event.trigger
     for (i, specie_name) in pairs(model_specie_names)
-        _condition = SBMLImporter.replace_variable(_condition, specie_name,
+        _condition = SBMLImporter._replace_variable(_condition, specie_name,
                                                    "u[" * string(i) * "]")
-        _condition_at_t0 = SBMLImporter.replace_variable(_condition_at_t0, specie_name,
+        _condition_at_t0 = SBMLImporter._replace_variable(_condition_at_t0, specie_name,
                                                          "u[" * string(i) * "]")
     end
     for (i, p_name) in pairs(p_ode_problem_names)
-        _condition = SBMLImporter.replace_variable(_condition, p_name,
+        _condition = SBMLImporter._replace_variable(_condition, p_name,
                                                    "integrator.p[" * string(i) * "]")
-        _condition_at_t0 = SBMLImporter.replace_variable(_condition_at_t0, p_name,
+        _condition_at_t0 = SBMLImporter._replace_variable(_condition_at_t0, p_name,
                                                          "integrator.p[" * string(i) * "]")
     end
     # Build the condition function used in Julia file, for discrete checking that event indeed is coming from negative
@@ -254,11 +239,11 @@ function create_callback_SBML_event(event_name::String,
         # In RHS we use u_tmp to not let order affects, while in assigning LHS we use u
         affect_function1, affect_function2 = split(affect, "=")
         for j in eachindex(model_specie_names)
-            affect_function1 = SBMLImporter.replace_variable(affect_function1,
+            affect_function1 = SBMLImporter._replace_variable(affect_function1,
                                                              model_specie_names[j],
                                                              "integrator.u[" * string(j) *
                                                              "]")
-            affect_function2 = SBMLImporter.replace_variable(affect_function2,
+            affect_function2 = SBMLImporter._replace_variable(affect_function2,
                                                              model_specie_names[j],
                                                              "u_tmp[" * string(j) * "]")
         end
@@ -267,10 +252,10 @@ function create_callback_SBML_event(event_name::String,
     end
     affect_function *= "end"
     for i in eachindex(p_ode_problem_names)
-        affect_function = SBMLImporter.replace_variable(affect_function,
+        affect_function = SBMLImporter._replace_variable(affect_function,
                                                         p_ode_problem_names[i],
                                                         "integrator.p[" * string(i) * "]")
-        affect_function_body = SBMLImporter.replace_variable(affect_function_body,
+        affect_function_body = SBMLImporter._replace_variable(affect_function_body,
                                                              p_ode_problem_names[i],
                                                              "integrator.p[" * string(i) *
                                                              "]")
@@ -329,20 +314,18 @@ function create_tstops_function(model_SBML::SBMLImporter.ModelSBML,
                                 p_ode_problem_names::Vector{String},
                                 θ_indices::Union{ParameterIndices, Nothing})::Tuple{String,
                                                                                     Bool}
-    conditions = string.(vcat([model_SBML.ifelse_parameters[key][1]
-                               for key in keys(model_SBML.ifelse_parameters)],
-                              [e.trigger for e in values(model_SBML.events)]))
+    conditions = string.([e.trigger for e in values(model_SBML.events)])
     return _create_tstops_function(conditions, model_specie_names, p_ode_problem_names,
                                    θ_indices)
 end
 function create_tstops_function(events::Vector{T},
                                 system,
+                                p_ode_problem_names::Vector{String},
                                 θ_indices::Union{ParameterIndices, Nothing}) where {
                                                                                     T <:
                                                                                     PEtabEvent
                                                                                     }
-    model_specie_names = replace.(string.(states(system)), "(t)" => "")
-    p_ode_problem_names = string.(parameters(system))
+    model_specie_names = replace.(string.(unknowns(system)), "(t)" => "")
     conditions = [string(event.condition) for event in events]
     for (i, condition) in pairs(conditions)
         if PEtab.is_number(condition) || condition ∈ p_ode_problem_names
@@ -365,7 +348,7 @@ function _create_tstops_function(conditions::Vector{String},
 
         # In case the activation formula contains a state we cannot precompute the t-stop time as it depends on
         # the actual ODE solution.
-        if check_condition_has_states(condition, model_specie_names)
+        if check_condition_has_unknowns(condition, model_specie_names)
             tstops[i] = ""
             tstops_to_float[i] = ""
             continue
@@ -403,11 +386,11 @@ function _create_tstops_function(conditions::Vector{String},
 
         # Make compatible with the PEtab importer syntax
         for (i, specie_name) in pairs(model_specie_names)
-            expression_time = SBMLImporter.replace_variable(expression_time, specie_name,
+            expression_time = SBMLImporter._replace_variable(expression_time, specie_name,
                                                             "u[" * string(i) * "]")
         end
         for (i, p_name) in pairs(p_ode_problem_names)
-            expression_time = SBMLImporter.replace_variable(expression_time, p_name,
+            expression_time = SBMLImporter._replace_variable(expression_time, p_name,
                                                             "p[" * string(i) * "]")
         end
 
@@ -428,10 +411,10 @@ function _create_tstops_function(conditions::Vector{String},
     return _tstops, convert_tspan
 end
 
-function check_condition_has_states(condition::AbstractString,
-                                    model_specie_names::Vector{String})::Bool
+function check_condition_has_unknowns(condition::AbstractString,
+                                      model_specie_names::Vector{String})::Bool
     for i in eachindex(model_specie_names)
-        _condition = SBMLImporter.replace_variable(condition, model_specie_names[i], "")
+        _condition = SBMLImporter._replace_variable(condition, model_specie_names[i], "")
         if _condition != condition
             return true
         end
@@ -453,7 +436,7 @@ function check_has_parameter_to_estimate(condition::T,
                                                for i in keys(θ_indices.maps_conidition_id)])
 
     for i in eachindex(p_ode_problem_names)
-        _condition = SBMLImporter.replace_variable(condition, p_ode_problem_names[i],
+        _condition = SBMLImporter._replace_variable(condition, p_ode_problem_names[i],
                                                    "integrator.p[" * string(i) * "]")
         if _condition != condition
             if i ∈ i_ode_θ_all_conditions || i ∈ i_ode_problem_xdynamicCondition
