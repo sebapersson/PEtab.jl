@@ -64,9 +64,9 @@ function _get_steady_state_solver(ss_solver::SteadyStateSolver,
                              NonlinearProblem(oprob))
 end
 
-function solve_pre_equlibrium!(u_ss::T, u_t0::T, @nospecialize(oprob::ODEProblem), osolver::ODESolver, ss_solver::SteadyStateSolver, convert_tspan::Bool)::Union{ODESolution, SciMLBase.NonlinearSolution} where T <: AbstractVector
+function solve_pre_equlibrium!(u_ss::T, u_t0::T, @nospecialize(oprob::ODEProblem), osolver::ODESolver, ss_solver::SteadyStateSolver, float_tspan::Bool)::Union{ODESolution, SciMLBase.NonlinearSolution} where T <: AbstractVector
     if ss_solver.method === :Simulate
-        sol = simulate_to_ss(oprob, osolver, ss_solver, convert_tspan)
+        sol = simulate_to_ss(oprob, osolver, ss_solver, float_tspan)
         if sol.retcode == ReturnCode.Terminated || sol.retcode == ReturnCode.Success
             u_ss .= sol.u[end]
             u_t0 .= sol.prob.u0
@@ -87,9 +87,9 @@ function solve_pre_equlibrium!(u_ss::T, u_t0::T, @nospecialize(oprob::ODEProblem
 end
 
 function simulate_to_ss(@nospecialize(oprob::ODEProblem), osolver::ODESolver,
-                        ss_solver::SteadyStateSolver, convert_tspan::Bool)::ODESolution
+                        ss_solver::SteadyStateSolver, float_tspan::Bool)::ODESolution
     @unpack abstol, reltol, maxiters, force_dtmin, verbose, solver = osolver
-    _oprob = _get_tspan(oprob, Inf, solver, convert_tspan)
+    _oprob = _get_tspan(oprob, Inf, solver, float_tspan)
     return solve(_oprob, solver, abstol = abstol, reltol = reltol, maxiters = maxiters,
                  dense = false, callback = ss_solver.callback_ss, verbose = verbose)
 end
@@ -108,8 +108,8 @@ function condition_terminate_ss(u, t, integrator,
     local Δu
 
     if check_newton == true
-        compute_jacobian(jacobian, dual_to_float.(u), dual_to_float.(integrator.p),
-                         dual_to_float(t))
+        compute_jacobian(jacobian, SBMLImporter._to_float.(u), SBMLImporter._to_float.(integrator.p),
+                         SBMLImporter._to_float(t))
         # In case Jacobian is non-invertible default wrms
         try
             Δu = jacobian \ testval

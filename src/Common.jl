@@ -213,21 +213,6 @@ function transform_θ_element(x::T, scale::Symbol; reverse_transform::Bool = fal
 end
 
 """
-    dual_to_float(x::ForwardDiff.Dual)::Real
-
-Via recursion convert a Dual to a Float.
-"""
-function dual_to_float(x::ForwardDiff.Dual)::Real
-    return dual_to_float(x.value)
-end
-"""
-    dual_to_float(x::T)::T where T<:AbstractFloat
-"""
-function dual_to_float(x::T)::T where {T <: AbstractFloat}
-    return x
-end
-
-"""
     is_number(x::String)::Bool
 
     Check if a string x is a number (Float) taking sciencetific notation into account.

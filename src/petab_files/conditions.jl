@@ -14,6 +14,14 @@ This function extracts which parameter is what type, and builds maps for correct
 the parameter during likelihood computations. It further accounts for parameters potentially
 only appearing in a certain simulation condition.
 """
+function parse_conditions(petab_tables::Dict{Symbol, DataFrame}, sys, parametermap,
+                          statemap)::ParameterIndices
+    parameter_info = parse_parameters(petab_tables[:parameters])
+    measurement_info = parse_measurements(petab_tables[:measurements],
+                                          petab_tables[:observables])
+    return parse_conditions(parameter_info, measurement_info, sys, parametermap, statemap,
+                            petab_tables[:conditions])
+end
 function parse_conditions(parameter_info::ParametersInfo,
                           measurements_info::MeasurementsInfo,
                           petab_model::PEtabModel)::ParameterIndices
@@ -375,4 +383,35 @@ function _get_sys_parameters(sys::Union{ODESystem, ReactionSystem}, statemap,
         out[map.idx.idx] = _p[i]
     end
     return out .|> Symbol
+end
+
+function _xdynamic_in_event_cond(model_SBML::SBMLImporter.ModelSBML, θ_indices::ParameterIndices, petab_tables::Dict{Symbol, DataFrame})::Bool
+    xids_sys_in_xdynamic = _get_xids_sys_in_xdynamic(θ_indices, petab_tables[:conditions])
+    for event in values(model_SBML.events)
+        for xid in xids_sys_in_xdynamic
+            trigger_alt = SBMLImporter._replace_variable(event.trigger, xid, "")
+            if trigger_alt != event.trigger
+                return true
+            end
+        end
+    end
+    return false
+end
+
+function _get_xids_sys_in_xdynamic(θ_indices::ParameterIndices, conditions_df::DataFrame)::Vector{String}
+    xids_sys = θ_indices.xids[:sys]
+    xids_sys_in_xdynamic = filter(x -> x in xids_sys, θ_indices.xids[:dynamic])
+    # Extract sys parameters where an xdynamic via the condition table maps to a parameter
+    # in the ODE
+    xids_condition = filter(x -> !(x in xids_sys), θ_indices.xids[:dynamic])
+    for variable in propertynames(conditions_df)
+        !(variable in xids_sys) && continue
+        for xid_condition in string.(xids_condition)
+            if xid_condition in conditions_df[!, variable]
+                push!(xids_sys_in_xdynamic, variable)
+            end
+        end
+    end
+    unique!(xids_sys_in_xdynamic)
+    return xids_sys_in_xdynamic .|> string
 end

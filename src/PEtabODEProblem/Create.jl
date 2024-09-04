@@ -95,6 +95,7 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
                              sensealg_ss, reuse_sensitivities::Bool, sparse_jacobian,
                              specialize_level, chunksize, split_over_conditions::Bool,
                              verbose::Bool)::PEtabODEProblemInfo
+    _logging(:Build_ODEProblem, verbose)
     model_size = _get_model_size(model.sys_mutated, model_info)
     gradient_method_use = _get_gradient_method(gradient_method, model_size,
                                                reuse_sensitivities)
@@ -121,7 +122,6 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
     cache = PEtabODEProblemCache(gradient_method_use, hessian_method_use, FIM_method_use,
                                  sensealg_use, model_info)
 
-    _logging(:Build_ODEProblem, verbose)
     btime = @elapsed begin
         _set_constant_ode_parameters!(model, model_info.parameter_info)
         @unpack sys_mutated, statemap, parametermap, defined_in_julia = model

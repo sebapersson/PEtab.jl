@@ -292,8 +292,7 @@ struct PEtabModel
     compute_∂σ∂u!::Function
     compute_∂h∂p!::Function
     compute_∂σ∂p!::Function
-    compute_tstops::Function
-    convert_tspan::Bool
+    float_tspan::Bool
     paths::Dict{Symbol, String}
     sys::Any
     sys_mutated::Any
@@ -301,7 +300,6 @@ struct PEtabModel
     statemap::Any
     petab_tables::Dict{Symbol, DataFrame}
     model_callbacks::SciMLBase.DECallback
-    check_callback_is_active::Vector{Function}
     defined_in_julia::Bool
 end
 

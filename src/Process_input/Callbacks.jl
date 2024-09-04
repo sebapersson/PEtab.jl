@@ -394,8 +394,8 @@ function _create_tstops_function(conditions::Vector{String},
                                                             "p[" * string(i) * "]")
         end
 
-        # dual_to_float is needed as tstops for the integrator cannot be of type Dual
-        tstops_to_float[i] = "dual_to_float(" * expression_time * ")"
+        # SBMLImporter._to_float is needed as tstops for the integrator cannot be of type Dual
+        tstops_to_float[i] = "SBMLImporter._to_float(" * expression_time * ")"
         tstops[i] = expression_time # Used when we convert timespan
         i += 1
     end
@@ -417,31 +417,6 @@ function check_condition_has_unknowns(condition::AbstractString,
         _condition = SBMLImporter._replace_variable(condition, model_specie_names[i], "")
         if _condition != condition
             return true
-        end
-    end
-    return false
-end
-
-function check_has_parameter_to_estimate(condition::T,
-                                         p_ode_problem_names::Vector{String},
-                                         θ_indices::ParameterIndices)::Bool where {
-                                                                                   T <:
-                                                                                   AbstractString
-                                                                                   }
-
-    # Parameters which are present for each experimental condition, and condition specific parameters
-    i_ode_θ_all_conditions = θ_indices.map_odeproblem.dynamic_to_sys
-    i_ode_problem_xdynamicCondition = reduce(vcat,
-                                              [θ_indices.maps_conidition_id[i].ix_sys
-                                               for i in keys(θ_indices.maps_conidition_id)])
-
-    for i in eachindex(p_ode_problem_names)
-        _condition = SBMLImporter._replace_variable(condition, p_ode_problem_names[i],
-                                                   "integrator.p[" * string(i) * "]")
-        if _condition != condition
-            if i ∈ i_ode_θ_all_conditions || i ∈ i_ode_problem_xdynamicCondition
-                return true
-            end
         end
     end
     return false

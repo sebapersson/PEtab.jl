@@ -47,7 +47,14 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false,
     # The state-map is not in the same order as unknowns(system) so the former is reorded
     # to make it easier to build the u0 function
     _reorder_statemap!(statemap, odesystem)
+
+    # Indices for mapping parameters and tracking which parameter to estimate, useful
+    # when building the comig PEtab functions
+    θ_indices = parse_conditions(petab_tables, odesystem, parametermap, statemap)
+
     _logging(:Build_ODESystem, verbose; time = btime)
+
+
 
     path_u0_h_σ = joinpath(paths[:dirjulia], modelname * "_u0_h_sd.jl")
     exist = isfile(path_u0_h_σ)
@@ -93,18 +100,16 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false,
     compute_∂σ∂σu! = @RuntimeGeneratedFunction(Meta.parse(∂σ∂u_str))
     compute_∂σ∂σp! = @RuntimeGeneratedFunction(Meta.parse(∂σ∂p_str))
 
-    # TODO: Refactor later to only use SBMLImporter functionality here
+    # SBMLImporter holds the callback building functionality. However, currently it needs
+    # to know the ODESystem parameter order (psys), and whether or not any parameters
+    # which are estimated are present in the event condition. For the latter, timespan
+    # should not be converted to floats in case dual numbers (for gradients) are propegated
     _logging(:Build_callbacks, verbose)
     btime = @elapsed begin
-        cbset, compute_tstops, check_cb_active, convert_tspan = create_callbacks_SBML(odesystem,
-                                                                                      parametermap,
-                                                                                      statemap,
-                                                                                      model_SBML,
-                                                                                      modelname,
-                                                                                      path_yaml,
-                                                                                      paths[:dirjulia],
-                                                                                      custom_values = custom_values,
-                                                                                      write_to_file = write_to_file)
+        float_tspan = _xdynamic_in_event_cond(model_SBML, θ_indices, petab_tables) |> !
+        psys = _get_sys_parameters(odesystem, statemap, parametermap) .|> string
+        cbset = SBMLImporter.create_callbacks(odesystem, model_SBML, modelname;
+                                              p_PEtab = psys, float_tspan = float_tspan)
     end
     _logging(:Build_callbacks, verbose; time = btime)
 
@@ -117,8 +122,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false,
                              compute_∂σ∂σu!,
                              compute_∂h∂p!,
                              compute_∂σ∂σp!,
-                             compute_tstops,
-                             convert_tspan,
+                             float_tspan,
                              paths,
                              odesystem,
                              deepcopy(odesystem),
@@ -126,7 +130,6 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false,
                              statemap,
                              petab_tables,
                              cbset,
-                             check_cb_active,
                              false)
     return petab_model
 end

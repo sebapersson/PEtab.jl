@@ -18,12 +18,6 @@ function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::T, model_in
     # Initial state can depend on condition specific parameters
     petab_model.compute_u0!((@view u0[1:nstates]), p)
 
-    # Account for any potential events (callbacks) which are active at time zero
-    # TODO: Refactor away when SBMLImporter takes over event handling
-    for f! in petab_model.check_callback_is_active
-        f!(u0, p)
-    end
-
     _oprob = remake(oprob, p = p, u0 = u0)
     # In case we solve the forward sensitivity equations we must adjust the initial
     # sensitives by computing the jacobian at t0, and note we have larger than usual
@@ -65,7 +59,7 @@ function _get_cbs(oprob::ODEProblem, simulation_info::SimulationInfo, cid::Symbo
 end
 
 function _get_tspan(oprob::ODEProblem, tmax::Float64, solver::SciMLAlgorithm,
-                    convert_tspan::Bool)::ODEProblem
+                    float_tspan::Bool)::ODEProblem
     # When tmax=Inf and a multistep BDF Julia method, e.g. QNDF, is used tmax must be inf,
     # else if it is a large number such as 1e8 the dt_min is set to a large value making
     # the solver fail. Sundials solvers on the other hand are not compatible with
@@ -73,7 +67,7 @@ function _get_tspan(oprob::ODEProblem, tmax::Float64, solver::SciMLAlgorithm,
     # u0tmp needed as remake resets sensitivity initial values to zero
     u0tmp = oprob.u0 |> deepcopy
     tmax = _get_tmax(tmax, solver)
-    if convert_tspan == false
+    if float_tspan == true
         _oprob = remake(oprob, tspan = (0.0, tmax))
     else
         _oprob = remake(oprob, tspan = convert.(eltype(oprob.p), (0.0, tmax)))

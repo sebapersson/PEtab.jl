@@ -55,12 +55,12 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic::Vector{T}, xnois
                               xnondynamic; residuals = true)
 
     nstates = length(unknowns(petab_model.sys_mutated))
-    cache.p .= sol.prob.p .|> dual_to_float
+    cache.p .= sol.prob.p .|> SBMLImporter._to_float
     @unpack p, u, ∂G∂p, ∂G∂p_, ∂G∂u, S, forward_eqs_grad = cache
     fill!(forward_eqs_grad, 0.0)
     fill!(∂G∂p, 0.0)
     for (it, tsave) in pairs(tsaves[cid])
-        u .= sol[:, it] .|> dual_to_float
+        u .= sol[:, it] .|> SBMLImporter._to_float
         istart = (smatrixindices_cid[it] - 1) * nstates + 1
         iend = istart + nstates - 1
         _S = @view cache.S[istart:iend, ixdynamic_simid]
@@ -116,8 +116,8 @@ function _residuals_cond!(residuals::T1, xnoise::T2, xobservable::T2, xnondynami
     @unpack imeasurements, imeasurements_t_sol = simulation_info
     for imeasurement in imeasurements[cid]
         t = time[imeasurement]
-        u = sol[:, imeasurements_t_sol[imeasurement]] .|> dual_to_float
-        p = sol.prob.p .|> dual_to_float
+        u = sol[:, imeasurements_t_sol[imeasurement]] .|> SBMLImporter._to_float
+        p = sol.prob.p .|> SBMLImporter._to_float
 
         y_transformed = ys_transformed[imeasurement]
         h = computeh(u, t, p, xobservable, xnondynamic, petab_model, imeasurement,

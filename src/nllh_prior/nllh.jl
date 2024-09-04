@@ -102,8 +102,8 @@ function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic::T,
         # only the ODESolution is required as Float, hence any dual must be converted
         if grad_forward_eqs || grad_forward_AD
             it = imeasurements_t_sol[imeasurement]
-            u = sol[1:nstates, it] .|> dual_to_float
-            p = sol.prob.p .|> dual_to_float
+            u = sol[1:nstates, it] .|> SBMLImporter._to_float
+            p = sol.prob.p .|> SBMLImporter._to_float
         # For adjoint sensitivity analysis the ODESolution is dense
         elseif grad_adjoint == true
             # In case we only have sol.t = 0.0 (or similar) interpolation does not work

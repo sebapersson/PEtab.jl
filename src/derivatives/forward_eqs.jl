@@ -118,12 +118,12 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::V
                               xnondynamic)
 
     nstates = length(unknowns(petab_model.sys_mutated))
-    cache.p .= sol.prob.p .|> dual_to_float
+    cache.p .= sol.prob.p .|> SBMLImporter._to_float
     @unpack p, u, ∂G∂p, ∂G∂p_, ∂G∂u, S, forward_eqs_grad = cache
     fill!(forward_eqs_grad, 0.0)
     fill!(∂G∂p, 0.0)
     for (it, tsave) in pairs(tsaves[cid])
-        u .= sol[:, it] .|> dual_to_float
+        u .= sol[:, it] .|> SBMLImporter._to_float
         ∂G∂u!(∂G∂u, u, p, tsave, it)
         ∂G∂p!(∂G∂p_, u, p, tsave, it)
         # Computations generate a big sensitivity matrix across all conditions, where each
