@@ -103,7 +103,11 @@ function parse_priors(θ_indices::ParameterIndices, parameters_df::DataFrame)::P
         _add_initialisation_prior!(initialisation_dists, priors, id, parameters_df)
     end
 
-    return PriorInfo(prior_logpdfs, priors, initialisation_dists, on_parameter_scale, true)
+    # For remake it is useful if we can flag certain parameters to be skipped when computing
+    # the prior
+    skip = Symbol[]
+    return PriorInfo(prior_logpdfs, priors, initialisation_dists, on_parameter_scale, true,
+                     skip)
 end
 
 function _add_initialisation_prior!(initialisation_dists::T, priors::T, id::Symbol,

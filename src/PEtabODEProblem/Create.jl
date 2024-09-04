@@ -187,8 +187,8 @@ function _get_grad_f(method, probleminfo::PEtabODEProblemInfo, model_info::Model
     end
 
     _grad! = let _grad_nllh! = _grad_nllh!, grad_prior = grad_prior
-        (g, x; prior = true) -> begin
-            _grad_nllh!(g, x)
+        (g, x; prior = true, isremade = false) -> begin
+            _grad_nllh!(g, x; isremade = isremade)
             if prior
                 # nllh -> negative prior
                 g .+= grad_prior(x) .* -1
@@ -323,8 +323,12 @@ function _get_hess_f(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo,
     end
 
     _hess! = let _hess_nllh! = _hess_nllh!, hess_prior = hess_prior
-        (H, x; prior = true) -> begin
-            _hess_nllh!(H, x)
+        (H, x; prior = true, isremade = false) -> begin
+            if hessian_method == :GassNewton
+                _hess_nllh!(H, x; isremade = isremade)
+            else
+                _hess_nllh!(H, x)
+            end
             if prior
                 # nllh -> negative prior
                 H .+= hess_prior(x) .* -1
@@ -429,7 +433,7 @@ function _get_grad_forward_AD(probleminfo::PEtabODEProblemInfo, model_info::Mode
         _nllh_solveode = _get_nllh_solveode(probleminfo, model_info; cid = true, grad_xdynamic = true)
 
         _grad! = let _nllh_not_solveode = _nllh_not_solveode, _nllh_solveode = _nllh_solveode, minfo = model_info, pinfo = probleminfo
-            (g, θ) -> grad_forward_AD_split!(g, θ, _nllh_not_solveode, _nllh_solveode, pinfo, minfo)
+            (g, x; isremade = false) -> grad_forward_AD_split!(g, x, _nllh_not_solveode, _nllh_solveode, pinfo, minfo)
         end
     end
     return _grad!

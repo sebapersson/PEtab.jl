@@ -155,13 +155,14 @@ struct PriorInfo
     initialisation_distribution::Dict{Symbol, Distribution{Univariate, Continuous}}
     prior_on_parameter_scale::Dict{<:Symbol, <:Bool}
     has_priors::Bool
+    skip::Vector{Symbol}
 end
 function PriorInfo()
     # In case the models does not have priors
     return PriorInfo(Dict{Symbol, Function}(),
                      Dict{Symbol, Distribution{Univariate, Continuous}}(),
                      Dict{Symbol, Distribution{Univariate, Continuous}}(),
-                     Dict{Symbol, Bool}(), false)
+                     Dict{Symbol, Bool}(), false, Symbol[])
 end
 
 """

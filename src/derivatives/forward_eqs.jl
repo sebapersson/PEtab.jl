@@ -69,7 +69,7 @@ function solve_sensitivites!(model_info::ModelInfo, _solve_conditions!::Function
                 nforward_passes = Int64(ceil(cache.nxdynamic[1] / C))
                 _xdynamic = xdynamic[cache.xdynamic_input_order]
                 forwarddiff_jacobian_chunks(_solve_conditions!, odesols, S, _xdynamic,
-                                            chunk; n_forward_passes = nforward_passes)
+                                            chunk; nforward_passes = nforward_passes)
                 @views S .= cache.S[:, cache.xdynamic_output_order]
             else
                 _solve_conditions!(cache.odesols, xdynamic)

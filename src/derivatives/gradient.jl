@@ -39,7 +39,7 @@ function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fun
                 nforward_passes = ceil(nxdynamic[1] / C) |> Int64
                 _xdynamic = xdynamic[cache.xdynamic_input_order]
                 forwarddiff_gradient_chunks(_nllh_solveode, xdynamic_grad, _xdynamic,
-                                            chunk; n_forward_passes = nforward_passes)
+                                            chunk; nforward_passes = nforward_passes)
                 @views grad[θ_indices.xindices[:dynamic]] .= xdynamic_grad[cache.xdynamic_output_order]
             else
                 _ = _nllh_solveode(xdynamic)
@@ -65,7 +65,8 @@ end
 
 function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Function,
                                 _nllh_solveode::Function, probleminfo::PEtabODEProblemInfo,
-                                model_info::ModelInfo; cids = [:all])::Nothing where T <: AbstractFloat
+                                model_info::ModelInfo; cids = [:all],
+                                isremade::Bool = false)::Nothing where T <: AbstractFloat
     @unpack simulation_info, θ_indices, prior_info = model_info
     cache = probleminfo.cache
     split_x!(x, θ_indices, cache)

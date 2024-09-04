@@ -7,6 +7,7 @@ function prior(x::Vector{T}, xnames::Vector{Symbol}, prior_info::PriorInfo,
     x_linear = transform_x(x, xnames, θ_indices, reverse_transform = false)
     prior_val = 0.0
     for (xname, _logpdf) in prior_info.logpdf
+        xname in prior_info.skip && continue
         ix = findfirst(x -> x == xname, xnames)
         if prior_info.prior_on_parameter_scale[xname] == true
             prior_val += _logpdf(x[ix])

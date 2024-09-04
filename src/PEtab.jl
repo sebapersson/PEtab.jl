@@ -25,6 +25,7 @@ using NonlinearSolve
 using PrecompileTools
 using QuasiMonteCarlo
 using StyledStrings
+import SciMLBase.remake
 
 const ModelSystem = Union{ODESystem, ReactionSystem}
 
@@ -65,14 +66,13 @@ include(joinpath("Solve_ODE", "solve.jl"))
 include(joinpath("Solve_ODE", "Steady_state.jl"))
 
 # Files related to processing user input
-include(joinpath("Process_input", "Callbacks.jl"))
 include(joinpath("Process_input", "Observables", "Common.jl"))
 include(joinpath("Process_input", "Observables", "h_sigma_derivatives.jl"))
 include(joinpath("Process_input", "Observables", "u0_h_sigma.jl"))
 
 # For creating a PEtabODEProblem
 include(joinpath("PEtabODEProblem", "defaults.jl"))
-include(joinpath("PEtabODEProblem", "Remake.jl"))
+include(joinpath("PEtabODEProblem", "remake.jl"))
 include(joinpath("PEtabODEProblem", "cache.jl"))
 include(joinpath("PEtabODEProblem", "Create.jl"))
 include(joinpath("PEtabODEProblem", "problem_info.jl"))
@@ -97,7 +97,7 @@ end
 =#
 
 export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
-       PEtabODEProblem, remake_PEtab_problem, Fides, PEtabOptimisationResult, IpoptOptions,
+       PEtabODEProblem, remake, Fides, PEtabOptimisationResult, IpoptOptions,
        IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult,
        generate_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, PEtabEvent,
        PEtabLogDensity, solve_all_conditions, compute_runtime_accuracy, PEtabPigeonReference
