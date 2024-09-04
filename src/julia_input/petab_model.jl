@@ -78,17 +78,19 @@ function _PEtabModel(sys::Union{ReactionSystem, ODESystem}, simulation_condition
     end
     _logging(:Build_∂_h_σ, verbose; time = btime)
 
-    # For Callbacks. TODO: This functionality should live in SBMLImporter, basically
-    # should rewrite PEtabEvent to SBMLEvent to not reuse code. Must be done after
-    # updating SBMLImporter
+    # The callback parsing is part of SBMLImporter. Basically, PEtabEvents are rewritten
+    # to SBMLImporter.EventSBML, which then via a dummy ModelSBML (tmp) is parsed into
+    # callback
     _logging(:Build_callbacks, verbose)
     btime = @elapsed begin
-        parameter_info = parse_parameters(parameters_df)
-        measurement_info = parse_measurements(measurements_df, observables_df)
-        θ_indices = parse_conditions(parameter_info, measurement_info, sys_mutated,
-                                     parametermap_use, statemap_use, conditions_df)
-        cbset, compute_tstops, convert_tspan = process_petab_events(events, sys_mutated,
-                                                                    θ_indices)
+        θ_indices = parse_conditions(petab_tables, sys_mutated, parametermap_use,
+                                     statemap_use)
+        sbml_events = parse_events(events, sys_mutated)
+        model_SBML = SBMLImporter.ModelSBML(modelname; events = sbml_events)
+        float_tspan = _xdynamic_in_event_cond(model_SBML, θ_indices, petab_tables) |> !
+        psys = _get_sys_parameters(sys_mutated, statemap_use, parametermap_use) .|> string
+        cbset = SBMLImporter.create_callbacks(sys_mutated, model_SBML, modelname;
+                                              p_PEtab = psys, float_tspan = float_tspan)
     end
     _logging(:Build_callbacks, verbose; time = btime)
 
@@ -103,8 +105,7 @@ function _PEtabModel(sys::Union{ReactionSystem, ODESystem}, simulation_condition
                              compute_∂σ∂σu!,
                              compute_∂h∂p!,
                              compute_∂σ∂σp!,
-                             compute_tstops,
-                             convert_tspan,
+                             float_tspan,
                              paths,
                              sys,
                              sys_mutated,
@@ -112,7 +113,6 @@ function _PEtabModel(sys::Union{ReactionSystem, ODESystem}, simulation_condition
                              statemap_use,
                              petab_tables,
                              cbset,
-                             Function[],
                              true)
     return petab_model
 end

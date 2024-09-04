@@ -39,12 +39,10 @@ function get_odesol(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisat
         tmax_id = condition_id
     end
 
-    ode_problem, cbset, tstops = get_odeproblem(res, petab_problem;
-                                                condition_id = condition_id,
-                                                pre_eq_id = pre_eq_id)
+    ode_problem, cbset = get_odeproblem(res, petab_problem; condition_id = condition_id,
+                                         pre_eq_id = pre_eq_id)
     @unpack solver, abstol, reltol = ode_solver
-    return solve(ode_problem, solver, abstol = abstol, reltol = reltol, callback = cbset,
-                 tstops = tstops)
+    return solve(ode_problem, solver, abstol = abstol, reltol = reltol, callback = cbset)
 end
 
 """
@@ -79,20 +77,16 @@ function get_odeproblem(res::Union{PEtabOptimisationResult,
                         petab_problem::PEtabODEProblem;
                         condition_id::Union{String, Symbol, Nothing} = nothing,
                         pre_eq_id::Union{String, Symbol, Nothing} = nothing)
-    ode_solver = petab_problem.probleminfo.solver
     @unpack simulation_info, petab_model = petab_problem.model_info
     if isnothing(condition_id)
         condition_id = simulation_info.conditionids[:simulation][1]
     end
-
-    u0, p = _get_fitted_parameters(res, petab_problem, condition_id, pre_eq_id, false)
+    u0, p = _get_fitted_parameters(res, petab_problem, condition_id, pre_eq_id, true)
     tmax = simulation_info.tmaxs[condition_id]
     ode_problem = ODEProblem(petab_model.sys, u0, [0.0, tmax], p, jac = true)
-
+    ode_problem = remake(ode_problem, p = ode_problem.p.tunable)
     cbset = petab_model.model_callbacks
-    tstops = petab_model.compute_tstops(u0, p)
-
-    return ode_problem, cbset, tstops
+    return ode_problem, cbset
 end
 
 """
@@ -174,7 +168,7 @@ function _get_fitted_parameters(res::Union{PEtabOptimisationResult,
         _pre_eq_id = nothing
     end
 
-    p, ps = ode_problem.p[:], first.(petab_model.parametermap)
+    p, ps = ode_problem.p[:], θ_indices.xids[:sys]
     u0, u0s = ode_problem.u0[:], first.(petab_model.statemap)
 
     if res isa Vector{Float64}

@@ -26,6 +26,8 @@ using PrecompileTools
 using QuasiMonteCarlo
 using StyledStrings
 
+const ModelSystem = Union{ODESystem, ReactionSystem}
+
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
 include("Structs.jl")
