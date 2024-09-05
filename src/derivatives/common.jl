@@ -52,10 +52,10 @@ function ∂G∂_!(∂G∂_::AbstractVector, u::AbstractVector, p::Vector{T}, t:
     return nothing
 end
 
-function _get_∂G∂_!(probleminfo::PEtabODEProblemInfo, model_info::ModelInfo, cid::Symbol,
+function _get_∂G∂_!(probinfo::PEtabODEProblemInfo, model_info::ModelInfo, cid::Symbol,
                     xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic::Vector{T};
                     residuals::Bool = false)::Tuple{Function, Function} where T <: AbstractFloat
-    cache = probleminfo.cache
+    cache = probinfo.cache
     if residuals == false
         it = model_info.simulation_info.imeasurements_t[cid]
         ∂G∂u! = (out, u, p, t, i) -> begin
@@ -81,8 +81,8 @@ end
 
 # Adjust the gradient from linear scale to current scale for x-vector
 function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector{T},
-                          xdynamic::Vector{T}, θ_indices::ParameterIndices, simid::Symbol;
-                          sensitivites_AD::Bool = false, adjoint::Bool = false)::Nothing where T <: AbstractFloat
+                         xdynamic::Vector{T}, θ_indices::ParameterIndices, simid::Symbol;
+                         sensitivites_AD::Bool = false, adjoint::Bool = false)::Nothing where T <: AbstractFloat
     @unpack dynamic_to_sys, sys_to_dynamic  = θ_indices.map_odeproblem
     @unpack xids, xscale = θ_indices
     @unpack ix_sys, ix_dynamic = θ_indices.maps_conidition_id[simid]

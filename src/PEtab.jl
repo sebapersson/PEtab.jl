@@ -45,10 +45,10 @@ include(joinpath("petab_files", "conditions.jl"))
 include(joinpath("petab_files", "simulations.jl"))
 include(joinpath("petab_files", "petab_model.jl"))
 
-include(joinpath("julia_input", "to_tables.jl"))
 include(joinpath("julia_input", "events.jl"))
 include(joinpath("julia_input", "maps.jl"))
 include(joinpath("julia_input", "petab_model.jl"))
+include(joinpath("julia_input", "to_tables.jl"))
 
 include(joinpath("nllh_prior", "nllh.jl"))
 include(joinpath("nllh_prior", "prior.jl"))
@@ -60,22 +60,22 @@ include(joinpath("derivatives", "gauss_newton.jl"))
 include(joinpath("derivatives", "gradient.jl"))
 include(joinpath("derivatives", "hessian.jl"))
 
-# Files related to solving the ODE-system
-include(joinpath("Solve_ODE", "helper.jl"))
-include(joinpath("Solve_ODE", "solve.jl"))
-include(joinpath("Solve_ODE", "Steady_state.jl"))
+include(joinpath("solve", "helper.jl"))
+include(joinpath("solve", "solve.jl"))
+include(joinpath("solve", "steady_state.jl"))
 
 # Files related to processing user input
 include(joinpath("Process_input", "Observables", "Common.jl"))
 include(joinpath("Process_input", "Observables", "h_sigma_derivatives.jl"))
 include(joinpath("Process_input", "Observables", "u0_h_sigma.jl"))
 
-# For creating a PEtabODEProblem
-include(joinpath("PEtabODEProblem", "defaults.jl"))
-include(joinpath("PEtabODEProblem", "remake.jl"))
-include(joinpath("PEtabODEProblem", "cache.jl"))
-include(joinpath("PEtabODEProblem", "Create.jl"))
-include(joinpath("PEtabODEProblem", "problem_info.jl"))
+include(joinpath("petab_odeproblem", "cache.jl"))
+include(joinpath("petab_odeproblem", "create.jl"))
+include(joinpath("petab_odeproblem", "defaults.jl"))
+include(joinpath("petab_odeproblem", "derivative_functions.jl"))
+include(joinpath("petab_odeproblem", "problem_info.jl"))
+include(joinpath("petab_odeproblem", "remake.jl"))
+include(joinpath("petab_odeproblem", "ss_solver.jl"))
 
 # Nice util functions
 include(joinpath("Utility.jl"))

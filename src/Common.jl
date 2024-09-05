@@ -194,7 +194,6 @@ function transform_x(x::T, xnames::Vector{Symbol}, θ_indices::ParameterIndices;
                      reverse_transform::Bool = false)::T where {T <: AbstractVector}
     out = similar(x)
     isempty(x) && return out
-
     for (i, xname) in pairs(xnames)
         out[i] = transform_θ_element(x[i], θ_indices.xscale[xname],
                                      reverse_transform = reverse_transform)
@@ -213,7 +212,7 @@ function transform_θ_element(x::T, scale::Symbol; reverse_transform::Bool = fal
 end
 
 """
-    is_number(x::String)::Bool
+    is_number(x)::Bool
 
     Check if a string x is a number (Float) taking sciencetific notation into account.
 """

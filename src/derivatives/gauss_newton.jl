@@ -1,9 +1,9 @@
 # TODO: A lot similar with Sense equation
 function _jac_residuals_xdynamic!(jac::AbstractMatrix, _solve_conditions!::Function,
-                                  probleminfo::PEtabODEProblemInfo,
+                                  probinfo::PEtabODEProblemInfo,
                                   model_info::ModelInfo, cfg::ForwardDiff.JacobianConfig;
                                   cids::Vector{Symbol} = [:all], isremade::Bool = false)::Nothing
-    @unpack cache, sensealg, reuse_sensitivities = probleminfo
+    @unpack cache, sensealg, reuse_sensitivities = probinfo
     @unpack θ_indices, simulation_info = model_info
     xnoise_ps = transform_x(cache.xnoise, θ_indices, :xnoise, cache)
     xobservable_ps = transform_x(cache.xobservable, θ_indices, :xobservable, cache)
@@ -12,7 +12,7 @@ function _jac_residuals_xdynamic!(jac::AbstractMatrix, _solve_conditions!::Funct
 
     if reuse_sensitivities == false
         success = solve_sensitivites!(model_info, _solve_conditions!, xdynamic_ps,
-                                      :ForwardDiff, probleminfo, cids, cfg, isremade)
+                                      :ForwardDiff, probinfo, cids, cfg, isremade)
         if success != true
             @warn "Failed to solve sensitivity equations"
             fill!(jac, 0.0)
@@ -30,18 +30,18 @@ function _jac_residuals_xdynamic!(jac::AbstractMatrix, _solve_conditions!::Funct
             continue
         end
         _jac_residuals_cond!(jac, xdynamic_ps, xnoise_ps, xobservable_ps, xnondynamic_ps,
-                             icid, probleminfo, model_info)
+                             icid, probinfo, model_info)
     end
     return nothing
 end
 
 function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic::Vector{T}, xnoise::Vector{T},
                               xobservable::Vector{T}, xnondynamic::Vector{T}, icid::Int64,
-                              probleminfo::PEtabODEProblemInfo, model_info::ModelInfo) where T <: AbstractFloat
+                              probinfo::PEtabODEProblemInfo, model_info::ModelInfo) where T <: AbstractFloat
     @unpack θ_indices, simulation_info, petab_model = model_info
     @unpack parameter_info, measurement_info = model_info
     @unpack imeasurements_t, tsaves, smatrixindices = simulation_info
-    cache = probleminfo.cache
+    cache = probinfo.cache
 
     # Simulation ids
     cid = simulation_info.conditionids[:experiment][icid]
@@ -51,7 +51,7 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic::Vector{T}, xnois
     sol = simulation_info.odesols_derivatives[cid]
 
     # Partial derivatives needed for computing the gradient (derived from the chain-rule)
-    ∂G∂u!, ∂G∂p! = _get_∂G∂_!(probleminfo, model_info, cid, xnoise, xobservable,
+    ∂G∂u!, ∂G∂p! = _get_∂G∂_!(probinfo, model_info, cid, xnoise, xobservable,
                               xnondynamic; residuals = true)
 
     nstates = length(unknowns(petab_model.sys_mutated))
@@ -78,11 +78,11 @@ end
 
 # To compute the gradient for non-dynamic parameters
 function residuals_not_solveode(residuals::T1, xnoise::T2, xobservable::T2, xnondynamic::T2,
-                                probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
+                                probinfo::PEtabODEProblemInfo, model_info::ModelInfo;
                                 cids::Vector{Symbol} = [:all])::T1 where {T1 <: AbstractVector,
                                                                           T2 <: AbstractVector}
     @unpack θ_indices, simulation_info = model_info
-    cache = probleminfo.cache
+    cache = probinfo.cache
     xnoise_ps = transform_x(xnoise, θ_indices, :xnoise, cache)
     xobservable_ps = transform_x(xobservable, θ_indices, :xobservable, cache)
     xnondynamic_ps = transform_x(xnondynamic, θ_indices, :xnondynamic, cache)

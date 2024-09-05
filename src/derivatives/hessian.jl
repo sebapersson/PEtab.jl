@@ -60,11 +60,11 @@ function hess_split!(hess::Matrix{T}, x::Vector{T}, _nllh::Function, model_info:
 end
 
 function hess_block!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Function,
-                     _nllh_solveode::Function, probleminfo::PEtabODEProblemInfo,
+                     _nllh_solveode::Function, probinfo::PEtabODEProblemInfo,
                      model_info::ModelInfo, cfg::ForwardDiff.HessianConfig;
                      cids::Vector{Symbol} = [:all])::Nothing where T <: AbstractFloat
     @unpack simulation_info, θ_indices, prior_info = model_info
-    cache = probleminfo.cache
+    cache = probinfo.cache
     split_x!(x, θ_indices, cache)
     xdynamic = cache.xdynamic
 
@@ -96,10 +96,10 @@ function hess_block!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Function
 end
 
 function hess_block_split!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Function,
-                           _nllh_solveode::Function, probleminfo::PEtabODEProblemInfo,
+                           _nllh_solveode::Function, probinfo::PEtabODEProblemInfo,
                            model_info::ModelInfo; cids::Vector{Symbol} = [:all])::Nothing where T <: AbstractFloat
     @unpack simulation_info, θ_indices, prior_info = model_info
-    cache = probleminfo.cache
+    cache = probinfo.cache
     split_x!(x, θ_indices, cache)
     xdynamic = cache.xdynamic
 
@@ -142,19 +142,19 @@ function hess_block_split!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Fu
 end
 
 function hess_GN!(out::Matrix{T}, x::Vector{T}, _residuals_not_solveode::Function,
-                  _solve_conditions!::Function, probleminfo::PEtabODEProblemInfo,
+                  _solve_conditions!::Function, probinfo::PEtabODEProblemInfo,
                   model_info::ModelInfo, cfg::ForwardDiff.JacobianConfig,
                   cfg_not_solve_ode::ForwardDiff.JacobianConfig; ret_jacobian::Bool = false,
                   cids::Vector{Symbol} = [:all], isremade::Bool = false)::Nothing where T <: AbstractFloat
     @unpack θ_indices, prior_info = model_info
-    cache = probleminfo.cache
+    cache = probinfo.cache
     @unpack jacobian_gn, residuals_gn = cache
 
     fill!(out, 0.0)
     fill!(jacobian_gn, 0.0)
     split_x!(x, θ_indices, cache)
     _jac = @view jacobian_gn[θ_indices.xindices[:dynamic], :]
-    _jac_residuals_xdynamic!(_jac, _solve_conditions!, probleminfo, model_info, cfg;
+    _jac_residuals_xdynamic!(_jac, _solve_conditions!, probinfo, model_info, cfg;
                              cids = cids, isremade = isremade)
     # Happens when at least one forward pass fails
     if !isempty(cache.xdynamic) && all(_jac .== 0.0)

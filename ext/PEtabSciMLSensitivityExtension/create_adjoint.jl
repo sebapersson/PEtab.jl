@@ -1,11 +1,11 @@
-function PEtab._get_grad_f(method::Val{:Adjoint}, probleminfo::PEtab.PEtabODEProblemInfo,
-                           model_info::PEtab.ModelInfo, grad_prior::Function)::Tuple{Function, Function}
-    @unpack gradient_method, sensealg, sensealg_ss, cache = probleminfo
+function PEtab._get_grad(method::Val{:Adjoint}, probinfo::PEtab.PEtabODEProblemInfo,
+                         model_info::PEtab.ModelInfo, grad_prior::Function)::Tuple{Function, Function}
+    @unpack gradient_method, sensealg, sensealg_ss, cache = probinfo
     @unpack simulation_info = model_info
     @unpack xdynamic = cache
 
-    _nllh_not_solve = PEtab._get_nllh_not_solveode(probleminfo, model_info; grad_adjoint = true)
-    _grad_nllh! = let pinfo = probleminfo, minfo = model_info, _nllh_not_solve = _nllh_not_solve
+    _nllh_not_solve = PEtab._get_nllh_not_solveode(probinfo, model_info; grad_adjoint = true)
+    _grad_nllh! = let pinfo = probinfo, minfo = model_info, _nllh_not_solve = _nllh_not_solve
         (g, x) -> grad_adjoint!(g, x, _nllh_not_solve, pinfo, minfo; cids = [:all])
     end
 

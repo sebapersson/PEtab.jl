@@ -26,8 +26,8 @@ function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
 
     # Map the fixated values to the parameter scale (they are assumed to be on the linear)
     # scale (e.g. not log10 which might be needed by the PEtab-problem)
-    @unpack model_info, probleminfo = prob
-    split_over_conditions = probleminfo.split_over_conditions
+    @unpack model_info, probinfo = prob
+    split_over_conditions = probinfo.split_over_conditions
     xids_fixate = keys(xchange) |> collect
     x_fixate = zeros(Float64, length(xids_fixate))
     for (i, xid) in pairs(xids_fixate)
@@ -52,35 +52,35 @@ function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
         # parameter vector when running ForwardDiff
         for i in eachindex(xids_dynamic)
             i in ixdynamic_fixate && continue
-            probleminfo.cache.xdynamic_input_order[k] = i
-            probleminfo.cache.xdynamic_output_order[i] = k
+            probinfo.cache.xdynamic_input_order[k] = i
+            probinfo.cache.xdynamic_output_order[i] = k
             k += 1
         end
         # Make sure the parameter which are fixated ends up in the end of the parameter
         # vector for ForwardDiff
         for i in eachindex(xids_dynamic)
             !(i in ixdynamic_fixate) && continue
-            probleminfo.cache.xdynamic_input_order[k] = i
-            probleminfo.cache.xdynamic_output_order[i] = k
+            probinfo.cache.xdynamic_input_order[k] = i
+            probinfo.cache.xdynamic_output_order[i] = k
             k += 1
         end
-        probleminfo.cache.nxdynamic[1] = length(xids_dynamic) - length(ixdynamic_fixate)
+        probinfo.cache.nxdynamic[1] = length(xids_dynamic) - length(ixdynamic_fixate)
 
         # Aviod  problems with autodiff=true for ODE solvers when computing gradient
-        solver_gradient = probleminfo.solver_gradient.solver
+        solver_gradient = probinfo.solver_gradient.solver
         if solver_gradient isa Rodas5P
-            probleminfo.solver_gradient.solver = Rodas5P(autodiff = false)
+            probinfo.solver_gradient.solver = Rodas5P(autodiff = false)
         elseif solver_gradient isa Rodas5
-            probleminfo.solver_gradient.solver = Rodas5(autodiff = false)
+            probinfo.solver_gradient.solver = Rodas5(autodiff = false)
         elseif solver_gradient isa Rodas4
-            probleminfo.solver_gradient.solver = Rodas4(autodiff = false)
+            probinfo.solver_gradient.solver = Rodas4(autodiff = false)
         elseif solver_gradient isa Rodas4P
-            probleminfo.solver_gradient.solver = Rodas4P(autodiff = false)
+            probinfo.solver_gradient.solver = Rodas4P(autodiff = false)
         end
     else
-        probleminfo.cache.xdynamic_input_order .= 1:length(xids_dynamic)
-        probleminfo.cache.xdynamic_output_order .= 1:length(xids_dynamic)
-        probleminfo.cache.nxdynamic[1] = length(xids_dynamic)
+        probinfo.cache.xdynamic_input_order .= 1:length(xids_dynamic)
+        probinfo.cache.xdynamic_output_order .= 1:length(xids_dynamic)
+        probinfo.cache.nxdynamic[1] = length(xids_dynamic)
     end
 
     # Parameters and other things for the remade problem
@@ -147,7 +147,7 @@ function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
     end
     _grad! = (g, x) -> begin
         xest_full = _set_xest(_xest_full, x, ix_fixate, x_fixate, imap)
-        if (probleminfo.gradient_method in [:ForwardDiff, :ForwardEquations])
+        if (probinfo.gradient_method in [:ForwardDiff, :ForwardEquations])
             prob.grad!(_grad_full, xest_full; isremade = true)
         else
             prob.grad!(_grad_full, xest_full)
@@ -162,7 +162,7 @@ function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
     end
     _hess! = (H, x) -> begin
         xest_full = _set_xest(_xest_full, x, ix_fixate, x_fixate, imap)
-        if (probleminfo.hessian_method == :GaussNewton) && split_over_conditions == false
+        if (probinfo.hessian_method == :GaussNewton) && split_over_conditions == false
             prob.hess!(_hess_full, xest_full; isremade = true)
         else
             prob.hess!(_hess_full, xest_full)
@@ -199,7 +199,7 @@ function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
 
     return PEtabODEProblem(_nllh, _compute_chi2, _grad!, _grad, _hess!, _hess, _FIM!, _FIM,
                            prob.nllh_grad, _prior, _grad_prior, _hess_prior,
-                           _compute_simulated_values, _compute_residuals, prob.probleminfo,
+                           _compute_simulated_values, _compute_residuals, prob.probinfo,
                            prob.model_info, nestimate, xnames, xnominal,
                            xnominal_transformed, lb, ub)
 end

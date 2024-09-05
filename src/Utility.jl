@@ -22,7 +22,7 @@ function get_odesol(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisat
                     petab_problem::PEtabODEProblem;
                     condition_id::Union{String, Symbol, Nothing} = nothing,
                     pre_eq_id::Union{String, Symbol, Nothing} = nothing)
-    ode_solver = petab_problem.probleminfo.solver
+    ode_solver = petab_problem.probinfo.solver
     simulation_info = petab_problem.model_info.simulation_info
     if isnothing(condition_id)
         condition_id = simulation_info.conditionids[:simulation][1]
@@ -150,8 +150,8 @@ function _get_fitted_parameters(res::Union{PEtabOptimisationResult,
                                 condition_id::Union{String, Symbol, Nothing},
                                 pre_eq_id::Union{String, Symbol, Nothing},
                                 retmap::Bool = true)
-    ode_problem = petab_problem.probleminfo.odeproblem
-    cache = petab_problem.probleminfo.cache
+    ode_problem = petab_problem.probinfo.odeproblem
+    cache = petab_problem.probinfo.cache
     model_info = petab_problem.model_info
     @unpack θ_indices, petab_model, simulation_info = petab_problem.model_info
     # Sanity check input

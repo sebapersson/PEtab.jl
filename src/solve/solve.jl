@@ -1,21 +1,21 @@
 function solve_conditions!(model_info::ModelInfo, xdynamic::AbstractVector,
-                           probleminfo::PEtabODEProblemInfo; cids::Vector{Symbol} = [:all],
+                           probinfo::PEtabODEProblemInfo; cids::Vector{Symbol} = [:all],
                            ntimepoints_save::Int64 = 0, save_observed_t::Bool = true,
                            dense_sol::Bool = false, track_callback::Bool = false,
                            sensitivites::Bool = false, derivative::Bool = false)::Bool
     @unpack simulation_info, petab_model, θ_indices = model_info
     @unpack float_tspan = petab_model
-    cache = probleminfo.cache
+    cache = probinfo.cache
     if derivative == true || sensitivites == true || track_callback == true
         odesols = simulation_info.odesols_derivatives
-        ss_solver = probleminfo.ss_solver_gradient
-        osolver = probleminfo.solver_gradient
-        _oprob = probleminfo.odeproblem_gradient
+        ss_solver = probinfo.ss_solver_gradient
+        osolver = probinfo.solver_gradient
+        _oprob = probinfo.odeproblem_gradient
     else
         odesols = simulation_info.odesols
-        ss_solver = probleminfo.ss_solver
-        osolver = probleminfo.solver
-        _oprob = probleminfo.odeproblem
+        ss_solver = probinfo.ss_solver
+        osolver = probinfo.solver
+        _oprob = probinfo.odeproblem
     end
 
     oprob = remake(_oprob, p = convert.(eltype(xdynamic), _oprob.p),
@@ -102,19 +102,19 @@ function solve_conditions!(model_info::ModelInfo, xdynamic::AbstractVector,
     return true
 end
 function solve_conditions!(sols::AbstractMatrix, xdynamic::AbstractVector,
-                           probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
+                           probinfo::PEtabODEProblemInfo, model_info::ModelInfo;
                            cids::Vector{Symbol} = [:all], ntimepoints_save::Int64 = 0,
                            save_observed_t::Bool = true, dense_sol::Bool = false,
                            track_callback::Bool = false, sensitivites::Bool = false,
                            sensitivites_AD::Bool = false)::Nothing
-    cache = probleminfo.cache
+    cache = probinfo.cache
     if sensitivites_AD == true && cache.nxdynamic[1] != length(xdynamic)
         _xdynamic = xdynamic[cache.xdynamic_output_order]
     else
         _xdynamic = xdynamic
     end
     derivative = sensitivites_AD || sensitivites
-    sucess = solve_conditions!(model_info, _xdynamic, probleminfo; cids = cids,
+    sucess = solve_conditions!(model_info, _xdynamic, probinfo; cids = cids,
                                ntimepoints_save = ntimepoints_save, dense_sol = dense_sol,
                                save_observed_t = save_observed_t, derivative = derivative,
                                sensitivites = sensitivites, track_callback = track_callback)

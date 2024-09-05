@@ -1,8 +1,8 @@
 function _grad_forward_eqs!(grad::Vector{T}, _solve_conditions!::Function,
-                            probleminfo::PEtabODEProblemInfo, model_info::ModelInfo,
+                            probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
                             cfg::Union{ForwardDiff.JacobianConfig, Nothing};
                             cids::Vector{Symbol} = [:all], isremade::Bool = false)::Nothing where T <: AbstractFloat
-    @unpack cache, sensealg = probleminfo
+    @unpack cache, sensealg = probinfo
     @unpack θ_indices, simulation_info = model_info
     xnoise_ps = transform_x(cache.xnoise, θ_indices, :xnoise, cache)
     xobservable_ps = transform_x(cache.xobservable, θ_indices, :xobservable, cache)
@@ -11,7 +11,7 @@ function _grad_forward_eqs!(grad::Vector{T}, _solve_conditions!::Function,
 
     # Solve the expanded ODE system for the sensitivites
     success = solve_sensitivites!(model_info, _solve_conditions!, xdynamic_ps, sensealg,
-                                  probleminfo, cids, cfg, isremade)
+                                  probinfo, cids, cfg, isremade)
     if success != true
         @warn "Failed to solve sensitivity equations"
         fill!(grad, 0.0)
@@ -27,16 +27,16 @@ function _grad_forward_eqs!(grad::Vector{T}, _solve_conditions!::Function,
             continue
         end
         _grad_forward_eqs_cond!(grad, xdynamic_ps, xnoise_ps, xobservable_ps, xnondynamic_ps,
-                                icid, sensealg, probleminfo, model_info)
+                                icid, sensealg, probinfo, model_info)
     end
     return nothing
 end
 
 function solve_sensitivites!(model_info::ModelInfo, _solve_conditions!::Function,
                              xdynamic::Vector{<:AbstractFloat}, sensealg::Symbol,
-                             probleminfo::PEtabODEProblemInfo, cids::Vector{Symbol},
+                             probinfo::PEtabODEProblemInfo, cids::Vector{Symbol},
                              cfg::ForwardDiff.JacobianConfig, isremade::Bool = false)::Bool
-    @unpack split_over_conditions, cache = probleminfo
+    @unpack split_over_conditions, cache = probinfo
     @unpack simulation_info, θ_indices = model_info
 
     # Need to track for each condition and ForwardDiff chunk if the ODE could be solved
@@ -99,12 +99,12 @@ end
 
 function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vector{T},
                                  xobservable::Vector{T}, xnondynamic::Vector{T},
-                                 icid::Int64, sensealg::Symbol, probleminfo::PEtabODEProblemInfo,
+                                 icid::Int64, sensealg::Symbol, probinfo::PEtabODEProblemInfo,
                                  model_info::ModelInfo)::Nothing where T <: AbstractFloat
     @unpack θ_indices, simulation_info, petab_model = model_info
     @unpack parameter_info, measurement_info = model_info
     @unpack imeasurements_t, tsaves, smatrixindices = simulation_info
-    cache = probleminfo.cache
+    cache = probinfo.cache
 
     # Simulation ids
     cid = simulation_info.conditionids[:experiment][icid]
@@ -114,7 +114,7 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::V
     sol = simulation_info.odesols_derivatives[cid]
 
     # Partial derivatives needed for computing the gradient (derived from the chain-rule)
-    ∂G∂u!, ∂G∂p! = _get_∂G∂_!(probleminfo, model_info, cid, xnoise, xobservable,
+    ∂G∂u!, ∂G∂p! = _get_∂G∂_!(probinfo, model_info, cid, xnoise, xobservable,
                               xnondynamic)
 
     nstates = length(unknowns(petab_model.sys_mutated))

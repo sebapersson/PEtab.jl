@@ -1,8 +1,8 @@
 function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Function,
                           _nllh_solveode::Function, cfg::ForwardDiff.GradientConfig,
-                          probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
+                          probinfo::PEtabODEProblemInfo, model_info::ModelInfo;
                           cids::Vector{Symbol} = [:all], isremade::Bool = false)::Nothing where T <: AbstractFloat
-    cache = probleminfo.cache
+    cache = probinfo.cache
     @unpack simulation_info, θ_indices, prior_info = model_info
     @unpack xdynamic_grad, xnotode_grad, xdynamic, nxdynamic = cache
 
@@ -64,11 +64,11 @@ function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fun
 end
 
 function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Function,
-                                _nllh_solveode::Function, probleminfo::PEtabODEProblemInfo,
+                                _nllh_solveode::Function, probinfo::PEtabODEProblemInfo,
                                 model_info::ModelInfo; cids = [:all],
                                 isremade::Bool = false)::Nothing where T <: AbstractFloat
     @unpack simulation_info, θ_indices, prior_info = model_info
-    cache = probleminfo.cache
+    cache = probinfo.cache
     split_x!(x, θ_indices, cache)
     @unpack xdynamic, xdynamic_grad, xnotode_grad = cache
 
@@ -111,15 +111,15 @@ end
 
 # Compute the gradient via forward sensitivity equations
 function grad_forward_eqs!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Function,
-                           _solve_conditions!::Function, probleminfo::PEtabODEProblemInfo,
+                           _solve_conditions!::Function, probinfo::PEtabODEProblemInfo,
                            model_info::ModelInfo, cfg::Union{ForwardDiff.JacobianConfig, Nothing};
                            cids::Vector{Symbol} = [:all], isremade::Bool = false)::Nothing where T <: AbstractFloat
-    @unpack sensealg, cache, split_over_conditions = probleminfo
+    @unpack sensealg, cache, split_over_conditions = probinfo
     @unpack prior_info, θ_indices = model_info
     @unpack parameter_info, prior_info, measurement_info = model_info
     split_x!(x, θ_indices, cache)
 
-    _grad_forward_eqs!(cache.xdynamic_grad, _solve_conditions!, probleminfo, model_info,
+    _grad_forward_eqs!(cache.xdynamic_grad, _solve_conditions!, probinfo, model_info,
                        cfg; cids = cids, isremade = isremade)
     @views grad[θ_indices.xindices[:dynamic]] .= cache.xdynamic_grad
 

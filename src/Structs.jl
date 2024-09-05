@@ -45,11 +45,8 @@ function ODESolver(solver::SciMLAlgorithm;
 end
 
 """
-    SteadyStateSolver(method::Symbol;
-                      check_simulation_steady_state::Symbol=:wrms,
-                      rootfinding_alg=nothing,
-                      abstol=nothing,
-                      reltol=nothing,
+    SteadyStateSolver(method::Symbol; termination_check::Symbol=:wrms,
+                      rootfinding_alg=nothing, abstol=nothing, reltol=nothing,
                       maxiters=nothing)
 
 Setup options for finding steady-state via either `method=:Rootfinding` or `method=:Simulate`.
@@ -59,7 +56,7 @@ For `method=:Rootfinding`, the steady-state `u*` is found by solving the problem
 provided algorithm in [NonlinearSolve.jl](https://github.com/SciML/NonlinearSolve.jl).
 
 For `method=:Simulate`, the steady-state `u*` is found by simulating the ODE system until `du = f(u, p, t) ≈ 0`.
-Two options are available for `check_simulation_steady_state`:
+Two options are available for `termination_check`:
 - `:wrms` : Weighted root-mean square √(∑((du ./ (reltol * u .+ abstol)).^2) / length(u)) < 1
 - `:Newton` : If Newton-step `Δu` is sufficiently small √(∑((Δu ./ (reltol * u .+ abstol)).^2) / length(u)) < 1.
         - Newton often performs better but requires an invertible Jacobian. In case it's not fulfilled, the code
@@ -68,36 +65,47 @@ Two options are available for `check_simulation_steady_state`:
 `maxiters` refers to either the maximum number of rootfinding steps or the maximum number of integration steps,
 depending on the chosen method.
 """
-struct SteadyStateSolver{T1 <:
-                         Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm},
+struct SteadyStateSolver{T1 <: Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm},
                          T2 <: Union{Nothing, AbstractFloat},
                          T3 <: Union{Nothing, NonlinearProblem},
                          CA <: Union{Nothing, SciMLBase.DECallback},
                          T4 <: Union{Nothing, Integer}}
     method::Symbol
     rootfinding_alg::T1
-    check_simulation_steady_state::Symbol
+    termination_check::Symbol
     abstol::T2
     reltol::T2
     maxiters::T4
     callback_ss::CA
-    nonlinearsolve_problem::T3
+    nprob::T3
+    pseudoinverse::Bool
 end
-function SteadyStateSolver(method::Symbol;
-                           check_simulation_steady_state::Symbol = :wrms,
-                           rootfinding_alg::Union{Nothing,
-                                                  NonlinearSolve.AbstractNonlinearSolveAlgorithm} = nothing,
-                           abstol = nothing,
-                           reltol = nothing,
-                           maxiters::Union{Nothing, Int64} = nothing)::SteadyStateSolver
-    @assert method ∈ [:Rootfinding, :Simulate] "Method used to find steady state can either be :Rootfinding or :Simulate not $method"
-
-    if method === :Simulate
-        return _get_steady_state_solver(check_simulation_steady_state, abstol, reltol,
-                                        maxiters)
-    else
-        return _get_steady_state_solver(rootfinding_alg, abstol, reltol, maxiters)
+function SteadyStateSolver(method::Symbol; termination_check::Symbol = :wrms, rootfinding_alg::Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm} = nothing,
+                           abstol = nothing, reltol = nothing, maxiters::Union{Nothing, Int64} = nothing, pseudoinverse::Bool = false)::SteadyStateSolver
+    if !(method in [:Rootfinding, :Simulate])
+        throw(PEtabInputError("Allowed methods for computing steady state are :Rootfinding " *
+                              ":Simulate not $method"))
     end
+    if method === :Simulate
+        return SteadyStateSolver(termination_check, abstol, reltol, maxiters, pseudoinverse)
+    else
+        return SteadyStateSolver(rootfinding_alg, abstol, reltol, maxiters)
+    end
+end
+function SteadyStateSolver(termination_check::Symbol, abstol, reltol, maxiters, pseudoinverse::Bool)::SteadyStateSolver
+    if !(termination_check in [:Newton, :wrms])
+        throw(PEtabInputError("When steady states are computed via simulations " *
+                              "allowed termination methods are :Newton or :wrms not " *
+                              "$check_termination"))
+    end
+    return SteadyStateSolver(:Simulate, nothing, termination_check, abstol, reltol,
+                             maxiters, nothing, nothing, pseudoinverse)
+end
+function SteadyStateSolver(alg::Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm},
+                           abstol, reltol, maxiters)::SteadyStateSolver
+    _alg = isnothing(alg) ? NonlinearSolve.TrustRegion() : alg
+    return SteadyStateSolver(:Rootfinding, _alg, :nothing, abstol, reltol, maxiters,
+                             nothing, nothing, false)
 end
 
 struct SimulationInfo
@@ -507,7 +515,7 @@ struct PEtabODEProblem{F1 <: Function, F2 <: Function, F3 <: Function, F4 <: Fun
     hess_prior::Function
     compute_simulated_values::Any
     compute_residuals::Any
-    probleminfo::PEtabODEProblemInfo
+    probinfo::PEtabODEProblemInfo
     model_info::ModelInfo
     n_parameters_esimtate::Int64
     xnames::Vector{Symbol}

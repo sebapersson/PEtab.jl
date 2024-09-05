@@ -1,13 +1,13 @@
 # Compute gradient via adjoint sensitivity analysis
 function grad_adjoint!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode!::Function,
-                       probleminfo::PEtab.PEtabODEProblemInfo, model_info::PEtab.ModelInfo;
+                       probinfo::PEtab.PEtabODEProblemInfo, model_info::PEtab.ModelInfo;
                        cids::Vector{Symbol} = [:all])::Nothing where T <: AbstractFloat
     @unpack simulation_info, simulation_info, θ_indices, prior_info = model_info
-    @unpack cache = probleminfo
+    @unpack cache = probinfo
     PEtab.split_x!(x, θ_indices, cache)
     @unpack xdynamic_grad, xnotode_grad = cache
 
-    _grad_adjoint_xdynamic!(xdynamic_grad, probleminfo, model_info; cids = cids)
+    _grad_adjoint_xdynamic!(xdynamic_grad, probinfo, model_info; cids = cids)
     @views grad[θ_indices.xindices[:dynamic]] .= xdynamic_grad
 
     # Happens when at least one forward pass fails and I set the gradient to 1e8
@@ -24,17 +24,17 @@ function grad_adjoint!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode!::Funct
 end
 
 function _grad_adjoint_xdynamic!(grad::Vector{<:AbstractFloat},
-                                 probleminfo::PEtab.PEtabODEProblemInfo,
+                                 probinfo::PEtab.PEtabODEProblemInfo,
                                  model_info::PEtab.ModelInfo;
                                  cids::Vector{Symbol} = [:all])::Nothing
-    @unpack cache, sensealg, sensealg_ss = probleminfo
+    @unpack cache, sensealg, sensealg_ss = probinfo
     @unpack simulation_info, θ_indices = model_info
     xnoise_ps = PEtab.transform_x(cache.xnoise, θ_indices, :xnoise, cache)
     xobservable_ps = PEtab.transform_x(cache.xobservable, θ_indices, :xobservable, cache)
     xnondynamic_ps = PEtab.transform_x(cache.xnondynamic, θ_indices, :xnondynamic, cache)
     xdynamic_ps = PEtab.transform_x(cache.xdynamic, θ_indices, :xdynamic, cache)
 
-    success = PEtab.solve_conditions!(model_info, xdynamic_ps, probleminfo; cids = cids,
+    success = PEtab.solve_conditions!(model_info, xdynamic_ps, probinfo; cids = cids,
                                       dense_sol = true, save_observed_t = false,
                                       track_callback = true)
     if success == false
@@ -45,7 +45,7 @@ function _grad_adjoint_xdynamic!(grad::Vector{<:AbstractFloat},
     # In case of pre-equilibration a VJP between λt0 and the sensitivites at steady state
     # must be computed.
     if simulation_info.has_pre_equilibration == true
-        vjps_ss = _get_vjps_ss(probleminfo, simulation_info, sensealg_ss, cids)
+        vjps_ss = _get_vjps_ss(probinfo, simulation_info, sensealg_ss, cids)
     end
 
     fill!(grad, 0.0)
@@ -61,7 +61,7 @@ function _grad_adjoint_xdynamic!(grad::Vector{<:AbstractFloat},
         end
 
         success = _grad_adjoint_cond!(grad, xdynamic_ps, xnoise_ps, xobservable_ps,
-                                      xnondynamic_ps, icid, probleminfo, model_info,
+                                      xnondynamic_ps, icid, probinfo, model_info,
                                       vjp_cid_ss)
         if success == false
             fill!(grad, 0.0)
@@ -73,7 +73,7 @@ end
 
 # TODO: Figure out how to get the math behind SteadyStateAdjoint working, should really
 # be easy as it boils down to a single Matrix operation given Jacobian
-function _get_vjps_ss(probleminfo::PEtab.PEtabODEProblemInfo, simulation_info::PEtab.SimulationInfo,
+function _get_vjps_ss(probinfo::PEtab.PEtabODEProblemInfo, simulation_info::PEtab.SimulationInfo,
                       sensealg_ss::AdjointAlg, cids::Vector{Symbol})::Dict{Symbol, Function}
     if cids[1] == :all
         preeq_ids = unique(simulation_info.conditionids[:pre_equilibration])
@@ -86,7 +86,7 @@ function _get_vjps_ss(probleminfo::PEtab.PEtabODEProblemInfo, simulation_info::P
     # starting point. The only drawback with this approach computationally is that
     # recomputation is needed for each du.
     vjps_ss = Dict{Symbol, Function}()
-    @unpack solver, abstol, reltol, force_dtmin, maxiters = probleminfo.solver_gradient
+    @unpack solver, abstol, reltol, force_dtmin, maxiters = probinfo.solver_gradient
     for preeq_id in preeq_ids
         # The current solution below with resolving forward is not needed, but as
         # CVODE does not work with retcode = Terminated it is currently used.
@@ -138,12 +138,12 @@ end
 
 function _grad_adjoint_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vector{T},
                              xobservable::Vector{T}, xnondynamic::Vector{T}, icid::Int64,
-                             probleminfo::PEtab.PEtabODEProblemInfo, model_info::PEtab.ModelInfo,
+                             probinfo::PEtab.PEtabODEProblemInfo, model_info::PEtab.ModelInfo,
                              vjp_ss_cid::Function)::Bool where T <: AbstractFloat
     @unpack θ_indices, simulation_info, petab_model = model_info
     @unpack parameter_info, measurement_info = model_info
     @unpack imeasurements_t, tsaves, smatrixindices, tracked_callbacks = simulation_info
-    @unpack sensealg, cache, solver_gradient = probleminfo
+    @unpack sensealg, cache, solver_gradient = probinfo
     @unpack solver_adj, abstol_adj, reltol_adj, maxiters, force_dtmin = solver_gradient
 
     # Simulation ids
@@ -153,7 +153,7 @@ function _grad_adjoint_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vecto
     callback = tracked_callbacks[cid]
 
     # Partial derivatives needed for computing the gradient (derived from the chain-rule)
-    ∂G∂u!, ∂G∂p! = PEtab._get_∂G∂_!(probleminfo, model_info, cid, xnoise, xobservable,
+    ∂G∂u!, ∂G∂p! = PEtab._get_∂G∂_!(probinfo, model_info, cid, xnoise, xobservable,
                                     xnondynamic)
 
     # The PEtab standard allow cases where we only observe data at t0, that is we do not

@@ -1,17 +1,17 @@
-function nllh(x::Vector{T}, probleminfo::PEtabODEProblemInfo, model_info::ModelInfo,
+function nllh(x::Vector{T}, probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
               cids::Vector{Symbol}, hess::Bool, residuals::Bool)::T where {T <: Real}
     xdynamic, xobservable, xnoise, xnondynamic = split_x(x, model_info.θ_indices)
-    nllh = nllh_solveode(xdynamic, xnoise, xobservable, xnondynamic, probleminfo,
+    nllh = nllh_solveode(xdynamic, xnoise, xobservable, xnondynamic, probinfo,
                          model_info; hess = hess, residuals = residuals, cids = cids)
     return nllh
 end
 
 function nllh_solveode(xdynamic::T1, xnoise::T2, xobservable::T2, xnondynamic::T2,
-                       probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
+                       probinfo::PEtabODEProblemInfo, model_info::ModelInfo;
                        hess::Bool = false, residuals::Bool = false, cids = [:all],
                        grad_xdynamic::Bool = false)::Real where {T1 <: AbstractVector,
                                                                  T2 <: AbstractVector}
-    θ_indices, cache = model_info.θ_indices, probleminfo.cache
+    θ_indices, cache = model_info.θ_indices, probinfo.cache
     # If the problem has been remade (e.g. for PEtab-select) the parameter order in
     # xdynamic must be corrected
     if grad_xdynamic == true && cache.nxdynamic[1] != length(xdynamic)
@@ -25,11 +25,11 @@ function nllh_solveode(xdynamic::T1, xnoise::T2, xobservable::T2, xnondynamic::T
     xnondynamic_ps = transform_x(xnondynamic, θ_indices, :xnondynamic, cache)
 
     derivative = hess || grad_xdynamic
-    success = solve_conditions!(model_info, xdynamic_ps, probleminfo; cids = cids,
+    success = solve_conditions!(model_info, xdynamic_ps, probinfo; cids = cids,
                                 dense_sol = false, save_observed_t = true,
                                 derivative = derivative)
     if success != true
-        if probleminfo.solver.verbose == true
+        if probinfo.solver.verbose == true
             @warn "Failed to solve ODE model."
         end
         return Inf
@@ -38,10 +38,10 @@ function nllh_solveode(xdynamic::T1, xnoise::T2, xobservable::T2, xnondynamic::T
 end
 
 function nllh_not_solveode(xnoise::T1, xobservable::T1, xnondynamic::T1,
-                           probleminfo::PEtabODEProblemInfo, model_info::ModelInfo;
+                           probinfo::PEtabODEProblemInfo, model_info::ModelInfo;
                            grad_forward_AD::Bool = false, grad_adjoint::Bool = false,
                            grad_forward_eqs::Bool = false, cids = [:all])::Real where T1 <: AbstractVector
-    θ_indices, cache = model_info.θ_indices, probleminfo.cache
+    θ_indices, cache = model_info.θ_indices, probinfo.cache
     xnoise_ps = transform_x(xnoise, θ_indices, :xnoise, cache)
     xobservable_ps = transform_x(xobservable, θ_indices, :xobservable, cache)
     xnondynamic_ps = transform_x(xnondynamic, θ_indices, :xnondynamic, cache)

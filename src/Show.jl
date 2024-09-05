@@ -37,7 +37,7 @@ function show(io::IO, a::ODESolver)
     @printf(io, ". Options %s", options_str)
 end
 function show(io::IO, prob::PEtabODEProblem)
-    @unpack probleminfo, model_info = prob
+    @unpack probinfo, model_info = prob
     model = model_info.petab_model
     model_name = model.modelname
 
@@ -45,11 +45,11 @@ function show(io::IO, prob::PEtabODEProblem)
     n_parameters_est = length(prob.xnames)
     n_dynamic_parameters = length(model_info.θ_indices.xids[:dynamic])
 
-    solver_str, options_str = get_ode_solver_str(probleminfo.solver)
-    solver_gradient_str, options_gradient_str = get_ode_solver_str(probleminfo.solver_gradient)
+    solver_str, options_str = get_ode_solver_str(probinfo.solver)
+    solver_gradient_str, options_gradient_str = get_ode_solver_str(probinfo.solver_gradient)
 
-    gradient_method = string(probleminfo.gradient_method)
-    hessian_method = string(probleminfo.hessian_method)
+    gradient_method = string(probinfo.gradient_method)
+    hessian_method = string(probinfo.hessian_method)
 
     printstyled(io, "PEtabODEProblem", color = 116)
     print(io, " for ")
@@ -74,43 +74,43 @@ function show(io::IO, prob::PEtabODEProblem)
         print(io, "\n--------- SS solver settings ---------")
         # Print cost steady state solver
         print(io, "\nCost ")
-        printstyled(io, string(probleminfo.ss_solver.method), color = 116)
-        if probleminfo.ss_solver.method === :Simulate &&
-           probleminfo.ss_solver.check_simulation_steady_state === :wrms
+        printstyled(io, string(probinfo.ss_solver.method), color = 116)
+        if probinfo.ss_solver.method === :Simulate &&
+           probinfo.ss_solver.termination_check === :wrms
             @printf(io, ". Option wrms with (abstol, reltol) = (%.1e, %.1e)",
-                    probleminfo.ss_solver.abstol, probleminfo.ss_solver.reltol)
-        elseif probleminfo.ss_solver.method === :Simulate &&
-               probleminfo.ss_solver.check_simulation_steady_state === :Newton
+                    probinfo.ss_solver.abstol, probinfo.ss_solver.reltol)
+        elseif probinfo.ss_solver.method === :Simulate &&
+               probinfo.ss_solver.termination_check === :Newton
             @printf(io, ". Option small Newton-step with (abstol, reltol) = (%.1e, %.1e)",
-                    probleminfo.ss_solver.abstol, probleminfo.ss_solver.reltol)
-        elseif probleminfo.ss_solver.method === :Rootfinding
+                    probinfo.ss_solver.abstol, probinfo.ss_solver.reltol)
+        elseif probinfo.ss_solver.method === :Rootfinding
             algStr = string(a.ss_solver.rootfindingAlgorithm)
             i_end = findfirst(x -> x == '{', algStr)
             algStr = algStr[1:(i_end - 1)] * "()"
             @printf(io,
                     ". Algorithm %s with (abstol, reltol, maxiters) = (%.1e, %.1e, %.1e)",
-                    algStr, probleminfo.ss_solver.abstol, probleminfo.ss_solver.reltol, probleminfo.ss_solver.maxiters)
+                    algStr, probinfo.ss_solver.abstol, probinfo.ss_solver.reltol, probinfo.ss_solver.maxiters)
         end
 
         # Print gradient steady state solver
         print(io, "\nGradient ")
-        printstyled(io, string(probleminfo.ss_solver_gradient.method), color = 116)
-        if probleminfo.ss_solver_gradient.method === :Simulate &&
-           probleminfo.ss_solver_gradient.check_simulation_steady_state === :wrms
+        printstyled(io, string(probinfo.ss_solver_gradient.method), color = 116)
+        if probinfo.ss_solver_gradient.method === :Simulate &&
+           probinfo.ss_solver_gradient.termination_check === :wrms
             @printf(io, ". Options wrms with (abstol, reltol) = (%.1e, %.1e)",
-                    probleminfo.ss_solver_gradient.abstol, probleminfo.ss_solver_gradient.reltol)
-        elseif probleminfo.ss_solver_gradient.method === :Simulate &&
-               probleminfo.ss_solver_gradient.check_simulation_steady_state === :Newton
+                    probinfo.ss_solver_gradient.abstol, probinfo.ss_solver_gradient.reltol)
+        elseif probinfo.ss_solver_gradient.method === :Simulate &&
+               probinfo.ss_solver_gradient.termination_check === :Newton
             @printf(io, ". Option small Newton-step with (abstol, reltol) = (%.1e, %.1e)",
-                    probleminfo.ss_solver_gradient.abstol, probleminfo.ss_solver_gradient.reltol)
-        elseif probleminfo.ss_solver_gradient.method === :Rootfinding
-            algStr = string(probleminfo.ss_solver_gradient.rootfindingAlgorithm)
+                    probinfo.ss_solver_gradient.abstol, probinfo.ss_solver_gradient.reltol)
+        elseif probinfo.ss_solver_gradient.method === :Rootfinding
+            algStr = string(probinfo.ss_solver_gradient.rootfindingAlgorithm)
             i_end = findfirst(x -> x == '{', algStr)
             algStr = algStr[1:(i_end - 1)] * "()"
             @printf(io,
                     ". Algorithm %s with (abstol, reltol, maxiters) = (%.1e, %.1e, %.1e)",
-                    algStr, probleminfo.ss_solver_gradient.abstol, probleminfo.ss_solver_gradient.reltol,
-                    probleminfo.ss_solver_gradient.maxiters)
+                    algStr, probinfo.ss_solver_gradient.abstol, probinfo.ss_solver_gradient.reltol,
+                    probinfo.ss_solver_gradient.maxiters)
         end
     end
 end
@@ -120,7 +120,7 @@ function show(io::IO, a::SteadyStateSolver)
         print(io, " with method ")
         printstyled(io, ":Simulate", color = 116)
         print(io, " ODE-model until du = f(u, p, t) ≈ 0.")
-        if a.check_simulation_steady_state === :wrms
+        if a.termination_check === :wrms
             @printf(io,
                     "\nSimulation terminated if wrms fulfill;\n√(∑((du ./ (reltol * u .+ abstol)).^2) / length(u)) < 1\n")
         else

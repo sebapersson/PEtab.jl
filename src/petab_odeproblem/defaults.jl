@@ -83,12 +83,9 @@ function _get_odesolver(solver::Union{ODESolver, Nothing}, model_size::Symbol,
     end
 end
 
-function _get_ss_solver(ss_solver::Union{SteadyStateSolver, Nothing},
-                        odesolver::ODESolver)::SteadyStateSolver
+function _get_ss_solver(ss_solver::Union{SteadyStateSolver, Nothing})::SteadyStateSolver
     !isnothing(ss_solver) && return ss_solver
-    @unpack abstol, reltol, maxiters = odesolver
-    return SteadyStateSolver(:Simulate, abstol = abstol * 100, reltol = reltol * 100,
-                             maxiters = maxiters)
+    return SteadyStateSolver(:Simulate)
 end
 
 function _get_sparse_jacobian(sparse::Union{Bool, Nothing}, model_size::Symbol)::Bool
