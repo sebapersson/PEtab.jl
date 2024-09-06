@@ -32,7 +32,7 @@ function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
     x_fixate = zeros(Float64, length(xids_fixate))
     for (i, xid) in pairs(xids_fixate)
         scale = model_info.θ_indices.xscale[xid]
-        x_fixate[i] = transform_θ_element(xchange[xid], scale; reverse_transform = true)
+        x_fixate[i] = transform_x(xchange[xid], scale; to_xscale = true)
     end
 
     # In case we fixate more parameters than there are chunks we might only want to

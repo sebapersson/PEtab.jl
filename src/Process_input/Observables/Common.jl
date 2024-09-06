@@ -239,7 +239,7 @@ function variables_to_array_index(formula::String,
             formula = replace_word_number_prefix(formula,
                                                  string(parameter_info.parameter_id[i]) *
                                                  "_C",
-                                                 "parameter_info.nominal_value[" *
+                                                 "nominal_value[" *
                                                  string(i) * "]")
         end
     end

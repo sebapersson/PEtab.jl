@@ -3,10 +3,10 @@ function PEtabODEProblemCache(gradient_method::Symbol,
                               FIM_method::Symbol,
                               sensealg,
                               model_info::ModelInfo)::PEtabODEProblemCache
-    @unpack θ_indices, petab_model, simulation_info, measurement_info = model_info
+    @unpack θ_indices, model, simulation_info, measurement_info = model_info
     nxestimate = length(θ_indices.xids[:estimate])
-    nstates = unknowns(petab_model.sys_mutated) |> length
-    nxode = parameters(petab_model.sys_mutated) |> length
+    nstates = model_info.nstates
+    nxode = parameters(model.sys_mutated) |> length
 
     # Parameters for DiffCache
     chunksize = nxestimate + nxestimate^2

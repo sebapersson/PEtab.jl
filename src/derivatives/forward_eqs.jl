@@ -101,7 +101,7 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::V
                                  xobservable::Vector{T}, xnondynamic::Vector{T},
                                  icid::Int64, sensealg::Symbol, probinfo::PEtabODEProblemInfo,
                                  model_info::ModelInfo)::Nothing where T <: AbstractFloat
-    @unpack θ_indices, simulation_info, petab_model = model_info
+    @unpack θ_indices, simulation_info, model = model_info
     @unpack parameter_info, measurement_info = model_info
     @unpack imeasurements_t, tsaves, smatrixindices = simulation_info
     cache = probinfo.cache
@@ -117,7 +117,7 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::V
     ∂G∂u!, ∂G∂p! = _get_∂G∂_!(probinfo, model_info, cid, xnoise, xobservable,
                               xnondynamic)
 
-    nstates = length(unknowns(petab_model.sys_mutated))
+    nstates = model_info.nstates
     cache.p .= sol.prob.p .|> SBMLImporter._to_float
     @unpack p, u, ∂G∂p, ∂G∂p_, ∂G∂u, S, forward_eqs_grad = cache
     fill!(forward_eqs_grad, 0.0)

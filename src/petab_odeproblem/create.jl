@@ -15,7 +15,7 @@ function PEtabODEProblem(model::PEtabModel;
                          reuse_sensitivities::Bool = false,
                          verbose::Bool = true,
                          custom_values::Union{Nothing, Dict} = nothing)::PEtabODEProblem
-    _logging(:Build_PEtabODEProblem, verbose; name = model.modelname)
+    _logging(:Build_PEtabODEProblem, verbose; name = model.name)
 
     # To bookeep parameters, measurements, etc...
     model_info = ModelInfo(model, sensealg, custom_values)
@@ -142,7 +142,7 @@ function _get_grad(method, probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
         end
     end
     _grad = let _grad! = _grad!
-        (x; prior = true, isremade = isremade) -> begin
+        (x; prior = true, isremade = false) -> begin
             gradient = zeros(Float64, length(x))
             _grad!(gradient, x; prior = prior, isremade = isremade)
             return gradient
@@ -220,7 +220,7 @@ function _get_bounds(model_info::ModelInfo, xnames::Vector{Symbol},
     else
         bounds = parameter_info.upper_bounds[ix]
     end
-    transform_x!(bounds, xnames, θ_indices, reverse_transform = true)
+    transform_x!(bounds, xnames, θ_indices, to_xscale = true)
     return bounds
 end
 
@@ -230,7 +230,7 @@ function _get_xnominal(model_info::ModelInfo, xnames::Vector{Symbol},
     ix = [findfirst(x -> x == id, parameter_info.parameter_id) for id in xnames]
     xnominal = parameter_info.nominal_value[ix]
     if transform == true
-        transform_x!(xnominal, xnames, θ_indices, reverse_transform = true)
+        transform_x!(xnominal, xnames, θ_indices, to_xscale = true)
     end
     return xnominal
 end

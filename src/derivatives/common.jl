@@ -4,30 +4,31 @@ function ∂G∂_!(∂G∂_::AbstractVector, u::AbstractVector, p::Vector{T}, t:
                xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic::Vector{T},
                ∂h∂_::Vector{T}, ∂σ∂_::Vector{T}; ∂G∂U::Bool = true,
                residuals::Bool = false)::Nothing where T <: AbstractFloat
-    @unpack measurement_info, θ_indices, parameter_info, petab_model = model_info
+    @unpack measurement_info, θ_indices, parameter_info, model = model_info
     @unpack measurement_transforms, observable_id = measurement_info
+    nominal_values = parameter_info.nominal_value
     fill!(∂G∂_, 0.0)
     for imeasurement in imeasurements_t_cid[i]
+        obsid = observable_id[imeasurement]
         fill!(∂h∂_, 0.0)
         fill!(∂σ∂_, 0.0)
 
-        h_transformed = computehT(u, t, p, xobservable, xnondynamic, petab_model,
-                                  imeasurement, measurement_info, θ_indices, parameter_info)
-        σ = computeσ(u, t, p, xnoise, xnondynamic, petab_model, imeasurement,
-                     measurement_info, θ_indices, parameter_info)
-
         mapxnoise = θ_indices.mapxnoise[imeasurement]
         mapxobservable = θ_indices.mapxobservable[imeasurement]
+        h = _h(u, t, p, xobservable, xnondynamic, model.h, mapxobservable, obsid,
+               nominal_values)
+        h_transformed = transform_observable(h, measurement_transforms[imeasurement])
+        σ = _sd(u, t, p, xnoise, xnondynamic, model.sd, mapxnoise, obsid,
+                nominal_values)
+
         if ∂G∂U == true
-            petab_model.compute_∂h∂u!(u, t, p, xobservable, xnondynamic,
-                                      observable_id[imeasurement], mapxobservable, ∂h∂_)
-            petab_model.compute_∂σ∂u!(u, t, xnoise, p, xnondynamic, parameter_info,
-                                      observable_id[imeasurement], mapxnoise, ∂σ∂_)
+            model.∂h∂u!(u, t, p, xobservable, xnondynamic, obsid, mapxobservable, ∂h∂_)
+            model.∂σ∂u!(u, t, xnoise, p, xnondynamic, nominal_values, obsid, mapxnoise,
+                        ∂σ∂_)
         else
-            petab_model.compute_∂h∂p!(u, t, p, xobservable, xnondynamic,
-                                      observable_id[imeasurement], mapxobservable, ∂h∂_)
-            petab_model.compute_∂σ∂p!(u, t, xnoise, p, xnondynamic, parameter_info,
-                                      observable_id[imeasurement], mapxnoise, ∂σ∂_)
+            model.∂h∂p!(u, t, p, xobservable, xnondynamic, obsid, mapxobservable, ∂h∂_)
+            model.∂σ∂p!(u, t, xnoise, p, xnondynamic, nominal_values, obsid, mapxnoise,
+                        ∂σ∂_)
         end
 
         measurement_transform = measurement_transforms[imeasurement]
@@ -39,7 +40,7 @@ function ∂G∂_!(∂G∂_::AbstractVector, u::AbstractVector, p::Vector{T}, t:
 
         # In case of Guass Newton approximation we target the
         # residuals = (h_transformed - y_transformed) / σ
-        y_transformed = measurement_info.measurementT[imeasurement]
+        y_transformed = measurement_info.measurement_transformed[imeasurement]
         if residuals == false
             ∂G∂h = (h_transformed - y_transformed) / σ^2
             ∂G∂σ = 1 / σ - ((h_transformed - y_transformed)^2 / σ^3)

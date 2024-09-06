@@ -48,7 +48,7 @@ function parse_measurements(measurements_df::DataFrame,
     # To avoid computing the transformed measurment values, they are pre-computed
     measurements_t = similar(measurements)
     for (i, val) in pairs(measurements)
-        measurements_t[i] = transform_measurement_or_h(val, transformations[i])
+        measurements_t[i] = transform_observable(val, transformations[i])
     end
 
     # Values associated with the measurement values

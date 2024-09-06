@@ -189,7 +189,7 @@ When parsing a PEtab problem, several things happen under the hood:
 2. The observable PEtab table is translated into a Julia file with functions for computing the observable (`h`), noise parameter (`σ`), and initial values (`u0`).
 3. To allow gradients via adjoint sensitivity analysis and/or forward sensitivity equations, the gradients of `h` and `σ` are computed symbolically with respect to the ODE model's states (`u`) and parameters (`ode_problem.p`).
 
-All of this happens automatically, and resulting files are stored under `petab_model.paths[:julia_files]` assuming write_to_file=true. To save time, `forceBuildJlFiles=false` by default, which means that Julia files are not rebuilt if they already exist.
+All of this happens automatically, and resulting files are stored under `model.paths[:julia_files]` assuming write_to_file=true. To save time, `forceBuildJlFiles=false` by default, which means that Julia files are not rebuilt if they already exist.
 
 # Arguments
 - `path_yaml::String`: Path to the PEtab problem YAML file.
@@ -200,7 +200,7 @@ All of this happens automatically, and resulting files are stored under `petab_m
 
 # Example
 ```julia
-petab_model = PEtabModel("path_to_petab_problem_yaml")
+model = PEtabModel("path_to_petab_problem_yaml")
 ```
 
     PEtabModel(system::Union{ReactionSystem, ODESystem},
@@ -272,7 +272,7 @@ petab_parameters = [
 observables = Dict("obs_a" => PEtabObservable(A, 0.5))
 
 # Create a PEtabODEProblem
-petab_model = PEtabModel(
+model = PEtabModel(
     rn, simulation_conditions, observables, measurements,
     petab_parameters, verbose=false
 )
@@ -292,15 +292,15 @@ Create a PEtabModel directly in Julia from a Catalyst ReactionSystem or MTK ODES
 In case of simulation conditions, and for all arguments, see above.
 """
 struct PEtabModel
-    modelname::String
-    compute_h::Function
-    compute_u0!::Function
-    compute_u0::Function
-    compute_σ::Function
-    compute_∂h∂u!::Function
-    compute_∂σ∂u!::Function
-    compute_∂h∂p!::Function
-    compute_∂σ∂p!::Function
+    name::String
+    h::Function
+    u0!::Function
+    u0::Function
+    sd::Function
+    ∂h∂u!::Function
+    ∂σ∂u!::Function
+    ∂h∂p!::Function
+    ∂σ∂p!::Function
     float_tspan::Bool
     paths::Dict{Symbol, String}
     sys::Any
@@ -308,7 +308,7 @@ struct PEtabModel
     parametermap::Any
     statemap::Any
     petab_tables::Dict{Symbol, DataFrame}
-    model_callbacks::SciMLBase.DECallback
+    callbacks::SciMLBase.DECallback
     defined_in_julia::Bool
 end
 
@@ -365,7 +365,7 @@ end
 
 struct MeasurementsInfo{T <: Vector{<:Union{<:String, <:AbstractFloat}}}
     measurement::Vector{Float64}
-    measurementT::Vector{Float64}
+    measurement_transformed::Vector{Float64}
     simulated_values::Vector{Float64}
     chi2_values::Vector{Float64}
     residuals::Vector{Float64}
@@ -403,19 +403,19 @@ struct ModelInfo
     θ_indices::ParameterIndices
     simulation_info::SimulationInfo
     prior_info::PriorInfo
-    petab_model::PEtabModel
+    model::PEtabModel
     nstates::Int32
 end
-function ModelInfo(petab_model::PEtabModel, sensealg, custom_values)::ModelInfo
-    tables, cbs = petab_model.petab_tables, petab_model.model_callbacks
+function ModelInfo(model::PEtabModel, sensealg, custom_values)::ModelInfo
+    tables, cbs = model.petab_tables, model.callbacks
     measurement_info = parse_measurements(tables[:measurements], tables[:observables])
     parameter_info = parse_parameters(tables[:parameters], custom_values = custom_values)
-    θ_indices = parse_conditions(parameter_info, measurement_info, petab_model)
+    θ_indices = parse_conditions(parameter_info, measurement_info, model)
     simulation_info = SimulationInfo(cbs, measurement_info, sensealg = sensealg)
     prior_info = parse_priors(θ_indices, tables[:parameters])
-    nstates = length(unknowns(petab_model.sys_mutated)) |> Int32
+    nstates = length(unknowns(model.sys_mutated)) |> Int32
     return ModelInfo(measurement_info, parameter_info, θ_indices, simulation_info,
-                     prior_info, petab_model, nstates)
+                     prior_info, model, nstates)
 end
 
 """
@@ -448,13 +448,13 @@ For constructor, see below.
 - `θ_nominalT`: The nominal values of θ on the parameter scale (e.g., log) as specified in the PEtab parameters file.
 - `lower_bounds`: The lower parameter bounds on the parameter scale for θ as specified in the PEtab parameters file.
 - `upper_bounds`: The upper parameter bounds on the parameter scale for θ as specified in the PEtab parameters file.
-- `petab_model`: The PEtabModel used to construct the PEtabODEProblem.
+- `model`: The PEtabModel used to construct the PEtabODEProblem.
 - `ode_solver`: The options for the ODE solver specified when creating the PEtabODEProblem.
 - `ode_solver_gradient`: The options for the ODE solver gradient specified when creating the PEtabODEProblem.
 
 ## Constructor
 
-    PEtabODEProblem(petab_model::PEtabModel; <keyword arguments>)
+    PEtabODEProblem(model::PEtabModel; <keyword arguments>)
 
 Given a `PEtabModel` creates a `PEtabODEProblem` with potential user specified options.
 

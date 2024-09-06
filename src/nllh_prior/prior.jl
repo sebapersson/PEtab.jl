@@ -4,7 +4,7 @@ function prior(x::Vector{T}, xnames::Vector{Symbol}, prior_info::PriorInfo,
         return 0.0
     end
 
-    x_linear = transform_x(x, xnames, θ_indices, reverse_transform = false)
+    x_linear = transform_x(x, xnames, θ_indices, to_xscale = false)
     prior_val = 0.0
     for (xname, _logpdf) in prior_info.logpdf
         xname in prior_info.skip && continue

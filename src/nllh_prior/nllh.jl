@@ -84,25 +84,23 @@ function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic::T,
                     cid::Symbol, model_info::ModelInfo; residuals::Bool = false,
                     grad_forward_AD::Bool = false, grad_adjoint::Bool = false,
                     grad_forward_eqs::Bool = false)::Real where T <: AbstractVector
-    @unpack θ_indices, simulation_info, measurement_info, parameter_info, petab_model = model_info
+    @unpack θ_indices, simulation_info, measurement_info, parameter_info, model = model_info
     if !(sol.retcode == ReturnCode.Success || sol.retcode == ReturnCode.Terminated)
         return Inf
     end
 
-    @unpack time, measurement_transforms = measurement_info
-    ys_transformed = measurement_info.measurementT
+    @unpack time, measurement_transforms, observable_id, measurement_transformed = measurement_info
     @unpack imeasurements, imeasurements_t_sol = simulation_info
-    # TODO: Should live in PEtabModel
-    nstates = length(unknowns(petab_model.sys_mutated))
+    nominal_values = parameter_info.nominal_value
     nllh = 0.0
     for imeasurement in imeasurements[cid]
-        t = time[imeasurement]
+        t, obsid = time[imeasurement], observable_id[imeasurement]
         # grad_forward_eqs and grad_forward_AD are only true when we compute the gradient
         # via the nllh_not_solve (gradient for not ODE-system parameters), in this setting
         # only the ODESolution is required as Float, hence any dual must be converted
         if grad_forward_eqs || grad_forward_AD
             it = imeasurements_t_sol[imeasurement]
-            u = sol[1:nstates, it] .|> SBMLImporter._to_float
+            u = sol[1:model_info.nstates, it] .|> SBMLImporter._to_float
             p = sol.prob.p .|> SBMLImporter._to_float
         # For adjoint sensitivity analysis the ODESolution is dense
         elseif grad_adjoint == true
@@ -116,16 +114,17 @@ function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic::T,
             p = sol.prob.p
         end
 
-        # TODO Ideally refactor when get to computeh
-        y_transformed = ys_transformed[imeasurement]
-        h = computeh(u, t, p, xobservable, xnondynamic, petab_model, imeasurement,
-                       measurement_info, θ_indices, parameter_info)
-        h_transformed = transform_measurement_or_h(h, measurement_transforms[imeasurement])
-        σ = computeσ(u, t, p, xnoise, xnondynamic, petab_model, imeasurement,
-                     measurement_info, θ_indices, parameter_info)
-        residual = (h_transformed - y_transformed) / σ
+        # Model observable and noise
+        mapxnoise = θ_indices.mapxnoise[imeasurement]
+        mapxobservable = θ_indices.mapxobservable[imeasurement]
+        h = _h(u, t, p, xobservable, xnondynamic, model.h, mapxobservable, obsid,
+               nominal_values)
+        h_transformed = transform_observable(h, measurement_transforms[imeasurement])
+        σ = _sd(u, t, p, xnoise, xnondynamic, model.sd, mapxnoise, obsid,
+                nominal_values)
 
-        # TODO: Should not belong here, but refactor later
+        y_transformed = measurement_transformed[imeasurement]
+        residual = (h_transformed - y_transformed) / σ
         update_measurement_info!(measurement_info, h, h_transformed, σ, residual, imeasurement)
 
         # By default a positive ODE solution is not enforced. Therefore it is possible
@@ -161,7 +160,7 @@ function update_measurement_info!(measurement_info::MeasurementsInfo, h::T, hT::
                                   res::T, imeasurement::Integer)::Nothing where {T <: AbstractFloat}
     ChainRulesCore.@ignore_derivatives begin
         measurement_info.simulated_values[imeasurement] = h
-        mT = measurement_info.measurementT
+        mT = measurement_info.measurement_transformed
         measurement_info.chi2_values[imeasurement] = (hT - mT[imeasurement])^2 / σ^2
         measurement_info.residuals[imeasurement] = res
     end

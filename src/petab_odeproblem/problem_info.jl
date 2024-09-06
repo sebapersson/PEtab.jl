@@ -36,7 +36,7 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
                                  sensealg_use, model_info)
 
     btime = @elapsed begin
-        _set_constant_ode_parameters!(model, model_info.parameter_info)
+        _set_const_parameters!(model, model_info.parameter_info)
         @unpack sys_mutated, statemap, parametermap, defined_in_julia = model
         if sys_mutated isa ODESystem && defined_in_julia == false
             SL = specialize_level

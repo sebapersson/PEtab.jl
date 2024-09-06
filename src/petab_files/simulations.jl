@@ -1,5 +1,5 @@
-function SimulationInfo(model_callbacks::SciMLBase.DECallback,
-                        measurement_info::MeasurementsInfo; sensealg)::SimulationInfo
+function SimulationInfo(callbacks::SciMLBase.DECallback, measurement_info::MeasurementsInfo;
+                        sensealg)::SimulationInfo
     conditionids = _get_conditionids(measurement_info)
     has_pre_equilibration = !all(conditionids[:pre_equilibration] .== :None)
 
@@ -32,16 +32,16 @@ function SimulationInfo(model_callbacks::SciMLBase.DECallback,
     # Some models, e.g those with time dependent piecewise statements, have callbacks
     # encoded. For adjoint sensitivity analysis these most be tracked
     # sensitivity analysis we need to track these callbacks, hence they must be stored in simulation_info.
-    callbacks = Dict{Symbol, SciMLBase.DECallback}()
+    callbacks_use = Dict{Symbol, SciMLBase.DECallback}()
     tracked_callbacks = Dict{Symbol, SciMLBase.DECallback}()
     for id in conditionids[:experiment]
-        callbacks[id] = deepcopy(model_callbacks)
+        callbacks_use[id] = deepcopy(callbacks)
     end
 
     could_solve = [true]
     return SimulationInfo(conditionids, has_pre_equilibration, tmaxs, tsaves, imeasurements,
                           imeasurements_t, imeasurements_t_sol, smatrixindices, odesols,
-                          odesols_derivative, odesols_preeq, could_solve, callbacks,
+                          odesols_derivative, odesols_preeq, could_solve, callbacks_use,
                           tracked_callbacks, sensealg)
 end
 

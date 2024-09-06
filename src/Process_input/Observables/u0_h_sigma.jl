@@ -160,7 +160,7 @@ function create_h_function(model_name::String,
     end
     write(io,
           "function compute_h(u::AbstractVector, t::Real, p_ode_problem::AbstractVector, xobservable::AbstractVector,
-               xnondynamic::AbstractVector, parameter_info::ParametersInfo, observableId::Symbol,
+               xnondynamic::AbstractVector, nominal_values::Vector{Float64}, observableId::Symbol,
                   parametermap::ObservableNoiseMap)::Real \n")
     write(io, observable_str)
     write(io, "end")
@@ -253,9 +253,9 @@ function create_u0_function(model_name::String,
 
     if inplace == true
         write(io,
-              "function compute_u0!(u0::AbstractVector, p_ode_problem::AbstractVector) \n\n")
+              "function u0!(u0::AbstractVector, p_ode_problem::AbstractVector) \n\n")
     else
-        write(io, "function compute_u0(p_ode_problem::AbstractVector)::AbstractVector \n\n")
+        write(io, "function u0(p_ode_problem::AbstractVector)::AbstractVector \n\n")
     end
 
     # Write named list of parameter to file
@@ -383,7 +383,7 @@ function create_σ_function(model_name::String,
 
     write(io,
           "function compute_σ(u::AbstractVector, t::Real, xnoise::AbstractVector, p_ode_problem::AbstractVector,  xnondynamic::AbstractVector,
-               parameter_info::ParametersInfo, observableId::Symbol, parametermap::ObservableNoiseMap)::Real \n")
+               nominal_values::Vector{Float64}, observableId::Symbol, parametermap::ObservableNoiseMap)::Real \n")
     write(io, observable_str)
     write(io, "\nend")
     σ_str = String(take!(io))

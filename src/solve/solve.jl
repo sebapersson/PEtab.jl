@@ -3,8 +3,8 @@ function solve_conditions!(model_info::ModelInfo, xdynamic::AbstractVector,
                            ntimepoints_save::Int64 = 0, save_observed_t::Bool = true,
                            dense_sol::Bool = false, track_callback::Bool = false,
                            sensitivites::Bool = false, derivative::Bool = false)::Bool
-    @unpack simulation_info, petab_model, θ_indices = model_info
-    @unpack float_tspan = petab_model
+    @unpack simulation_info, model, θ_indices = model_info
+    @unpack float_tspan = model
     cache = probinfo.cache
     if derivative == true || sensitivites == true || track_callback == true
         odesols = simulation_info.odesols_derivatives
@@ -143,7 +143,7 @@ function solve_conditions!(sols::AbstractMatrix, xdynamic::AbstractVector,
 end
 
 function solve_ODE_all_conditions(oprob::ODEProblem,
-                                  petab_model::PEtabModel,
+                                  model::PEtabModel,
                                   xdynamic::AbstractVector,
                                   petab_ODESolver_cache,
                                   simulation_info::SimulationInfo,
@@ -159,7 +159,7 @@ function solve_ODE_all_conditions(oprob::ODEProblem,
     odesols = deepcopy(simulation_info.odesols)
     success = solve_conditions!(odesols,
                                         oprob,
-                                        petab_model,
+                                        model,
                                         xdynamic,
                                         petab_ODESolver_cache,
                                         simulation_info,
@@ -197,12 +197,18 @@ function solve_post_equlibrium(@nospecialize(oprob::ODEProblem), u_ss::T, u_t0::
     # This results in NaNs in _oprob.u0
     @views _oprob.u0[isnan.(_oprob.u0)] .= u_ss[isnan.(_oprob.u0)]
 
+    # Following the PEtab standard (point above) some initial states can be NaN, however,
+    # via the change condition function this ends up in some parameters in oprob.p being
+    # potentially NaN. This is not allowed, as it causes a StackOverFlow in OrdinaryDiffEq
+    # (only took 1h to figure out...)
+    @views _oprob.p[isnan.(_oprob.p)] .= 0.0
+
     # If case of adjoint sensitivity analysis we need to track the callback to get correct
     # gradients, hence sensealg
     cbs = _get_cbs(_oprob, simulation_info, cid, simulation_info.sensealg)
-    # TODO: Need to add SS option for post-eq
-    return _solve(_oprob, solver, tsave, abstol, reltol, abstol, reltol, dense, maxiters,
-                  force_dtmin, verbose, cbs)
+    sol = _solve(_oprob, solver, tsave, abstol, reltol, abstol, reltol, dense, maxiters,
+                 force_dtmin, verbose, cbs)
+    return sol
 end
 
 # Without @nospecialize stackoverflow in type inference due to large ODE-system

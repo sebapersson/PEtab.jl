@@ -1,20 +1,22 @@
+# TODO: Need to make sure consistent type in the statemap (use same as in unknowns)
 function _get_statemap(sys::Union{ODESystem, ReactionSystem}, conditions_df::DataFrame,
                        statemap_input)
     specie_ids = _get_state_ids(sys)
+    sys_unknowns = unknowns(sys)
     default_values = ModelingToolkit.get_defaults(sys) |> _keys_to_string
     statemap = Vector{Pair}(undef, 0)
-    for specieid in specie_ids
-        value = haskey(default_values, specieid) ? default_values[specieid] : "0.0"
-        push!(statemap, Symbol(specieid) => value)
+    for (i, specieid) in pairs(specie_ids)
+        value = haskey(default_values, specieid) ? default_values[specieid] : 0.0
+        push!(statemap, sys_unknowns[i] => value)
     end
 
     # Default values as statemap_input might only set values for subset of species
     if !isnothing(statemap_input)
         for (specie_id, value) in statemap_input
-            id = replace(string(specie_id), "(t)" => "") |> Symbol
-            !(id in first.(statemap)) && continue
-            is = findfirst(x -> x == id, first.(statemap))
-            statemap[is] = id => string(value)
+            id = replace(string(specie_id), "(t)" => "")
+            !(id in specie_ids) && continue
+            is = findfirst(x -> x == id, specie_ids)
+            statemap[is] = first(statemap[is]) => value
         end
     end
 
@@ -22,21 +24,35 @@ function _get_statemap(sys::Union{ODESystem, ReactionSystem}, conditions_df::Dat
     # be done for SBML models)
     for condition_variable in names(conditions_df)
         !(condition_variable in specie_ids) && continue
-        parameterid = "__init__" * string(condition_variable) * "__"
-        _add_parameter!(sys, parameterid)
-        condition_variable = Symbol(condition_variable)
-        is = findfirst(x -> x == condition_variable, first.(statemap))
-        statemap[is] = condition_variable => parameterid
+        pid = "__init__" * string(condition_variable) * "__"
+        sys = _add_parameter(sys, pid)
+        is = findfirst(x -> x == condition_variable, specie_ids)
+        statemap[is] = first(statemap[is]) => eval(Meta.parse("@parameters $pid"))[1]
     end
 
     # For an ODESystem parameter only appearing in the initial conditions are not a part of
     # the ODESystem parameters. For correct gradient they must be added to the system
-    add_u0_parameters!(sys, statemap)
-    return statemap
+    sys = add_u0_parameters(sys, statemap)
+    return sys, statemap
 end
 
 function _get_parametermap(sys::Union{ODESystem, ReactionSystem}, parametermap_input)
     parametermap = [Num(p) => 0.0 for p in parameters(sys)]
+
+    # User are allowed to specify default numerical values in the system
+    default_values = ModelingToolkit.get_defaults(sys)
+    for (i, pid) in pairs(first.(parametermap))
+        !haskey(default_values, pid) && continue
+        value = default_values[pid]
+        if !(value isa Real)
+            throw(PEtabInuptError("When setting a parameter to a fixed value in the " *
+                                  "model system it must be set to a constant " *
+                                  "numberic value. This does not hold for $pid " *
+                                  "which is set to $value"))
+        end
+        parametermap[i] = first(parametermap[i]) => value
+    end
+
     if isnothing(parametermap_input)
         return parametermap
     end
@@ -72,10 +88,10 @@ function _check_unassigned_variables(variablemap, whichmap::Symbol,
     end
 end
 
-function add_u0_parameters!(sys::ReactionSystem, statemap)::Nothing
-    return nothing
+function add_u0_parameters(sys::ReactionSystem, statemap)::ReactionSystem
+    return sys
 end
-function add_u0_parameters!(sys::ODESystem, statemap)::Nothing
+function add_u0_parameters(sys::ODESystem, statemap)::ODESystem
     parameter_ids = parameters(sys) .|> string
     specie_ids = _get_state_ids(sys)
     for (id, value) in statemap
@@ -92,23 +108,41 @@ function add_u0_parameters!(sys::ODESystem, statemap)::Nothing
                 throw(PEtabFormatError("Initial value for specie $id cannot depend on " *
                                        "another specie (in this case $variable"))
             end
-            _add_parameter!(sys, variable)
+            sys = _add_parameter(sys, variable)
         end
     end
-    return nothing
+    return sys
 end
 
-function _add_parameter!(sys::ReactionSystem, parameter)
-    eval(Meta.parse("@parameters " * parameter))
-    Catalyst.addparam!(sys, eval(Meta.parse(parameter)))
+function _add_parameter(sys::ReactionSystem, parameter)
+    _p = Symbol(parameter)
+    addparam!(sys, only(@parameters($_p)))
+    return sys
 end
-function _add_parameter!(sys::ODESystem, parameter)
-    eval(Meta.parse("@parameters $parameter"))
-    push!(ModelingToolkit.get_ps(sys),
-          eval(Meta.parse("ModelingToolkit.value($parameter)")))
+function _add_parameter(sys::ODESystem, parameter)
+    # Mutating an ODESystem is ill-advised, therefore a new system is built with additional
+    # parameter
+    p = parameter |> Symbol
+    pnew = vcat(parameters(sys), only(@parameters($p)))
+    @named de = ODESystem(equations(sys), Catalyst.default_t(), unknowns(sys), pnew)
+    return complete(de)
 end
 
 function _keys_to_string(d::Dict)::Dict
     keysnew = replace.(keys(d) |> collect .|> string, "(t)" => "")
     return Dict(keysnew .=> values(d))
+end
+
+# They removed this function from Catalyst, so I copied it here
+function addparam!(rn::ReactionSystem, p; disablechecks = false)
+    Catalyst.reset_networkproperties!(rn)
+    curidx = disablechecks ? nothing : findfirst(S -> isequal(S, p), ModelingToolkit.get_ps(rn))
+    if curidx === nothing
+        push!(ModelingToolkit.get_ps(rn), p)
+        ModelingToolkit.process_variables!(ModelingToolkit.get_var_to_name(rn),
+                                           ModelingToolkit.get_defaults(rn), [p])
+        return length(ModelingToolkit.get_ps(rn))
+    else
+        return curidx
+    end
 end

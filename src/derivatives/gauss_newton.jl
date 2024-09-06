@@ -38,7 +38,7 @@ end
 function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic::Vector{T}, xnoise::Vector{T},
                               xobservable::Vector{T}, xnondynamic::Vector{T}, icid::Int64,
                               probinfo::PEtabODEProblemInfo, model_info::ModelInfo) where T <: AbstractFloat
-    @unpack θ_indices, simulation_info, petab_model = model_info
+    @unpack θ_indices, simulation_info, model = model_info
     @unpack parameter_info, measurement_info = model_info
     @unpack imeasurements_t, tsaves, smatrixindices = simulation_info
     cache = probinfo.cache
@@ -54,7 +54,7 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic::Vector{T}, xnois
     ∂G∂u!, ∂G∂p! = _get_∂G∂_!(probinfo, model_info, cid, xnoise, xobservable,
                               xnondynamic; residuals = true)
 
-    nstates = length(unknowns(petab_model.sys_mutated))
+    nstates = model_info.nstates
     cache.p .= sol.prob.p .|> SBMLImporter._to_float
     @unpack p, u, ∂G∂p, ∂G∂p_, ∂G∂u, S, forward_eqs_grad = cache
     fill!(forward_eqs_grad, 0.0)
@@ -105,26 +105,30 @@ end
 function _residuals_cond!(residuals::T1, xnoise::T2, xobservable::T2, xnondynamic::T2,
                           cid::Symbol, model_info::ModelInfo)::Bool where {T1 <: AbstractVector,
                                                                            T2 <: AbstractVector}
-    @unpack θ_indices, simulation_info, measurement_info, parameter_info, petab_model = model_info
+    @unpack θ_indices, simulation_info, measurement_info, parameter_info, model = model_info
     sol = simulation_info.odesols_derivatives[cid]
     if !(sol.retcode == ReturnCode.Success || sol.retcode == ReturnCode.Terminated)
         return false
     end
 
-    @unpack time, measurement_transforms = measurement_info
-    ys_transformed = measurement_info.measurementT
+    @unpack time, measurement_transforms, measurement_transformed, observable_id = measurement_info
     @unpack imeasurements, imeasurements_t_sol = simulation_info
+    nominal_values = parameter_info.nominal_value
     for imeasurement in imeasurements[cid]
-        t = time[imeasurement]
+        t, obsid = time[imeasurement], observable_id[imeasurement]
         u = sol[:, imeasurements_t_sol[imeasurement]] .|> SBMLImporter._to_float
         p = sol.prob.p .|> SBMLImporter._to_float
 
-        y_transformed = ys_transformed[imeasurement]
-        h = computeh(u, t, p, xobservable, xnondynamic, petab_model, imeasurement,
-                       measurement_info, θ_indices, parameter_info)
-        h_transformed = transform_measurement_or_h(h, measurement_transforms[imeasurement])
-        σ = computeσ(u, t, p, xnoise, xnondynamic, petab_model, imeasurement,
-                     measurement_info, θ_indices, parameter_info)
+        # Model observable and noise
+        mapxnoise = θ_indices.mapxnoise[imeasurement]
+        mapxobservable = θ_indices.mapxobservable[imeasurement]
+        h = _h(u, t, p, xobservable, xnondynamic, model.h, mapxobservable, obsid,
+               nominal_values)
+        h_transformed = transform_observable(h, measurement_transforms[imeasurement])
+        σ = _sd(u, t, p, xnoise, xnondynamic, model.sd, mapxnoise, obsid,
+                nominal_values)
+
+        y_transformed = measurement_transformed[imeasurement]
         residuals[imeasurement] = (h_transformed - y_transformed) / σ
     end
     return true

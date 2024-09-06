@@ -372,7 +372,7 @@ function create∂σ∂_function(model_name::String,
 
     write(io1,
           "function compute_∂σ∂σu!(u, t::Real, xnoise::AbstractVector, p_ode_problem::AbstractVector,  xnondynamic::AbstractVector,
-                   parameter_info::ParametersInfo, observableId::Symbol, parametermap::ObservableNoiseMap, out) \n")
+                   nominal_values::Vector{Float64}, observableId::Symbol, parametermap::ObservableNoiseMap, out) \n")
     write(io1, u_observeble_str)
     write(io1, "end")
     ∂σ∂σuStr = String(take!(io1))
@@ -385,7 +385,7 @@ function create∂σ∂_function(model_name::String,
 
     write(io2,
           "function compute_∂σ∂σp!(u, t::Real, xnoise::AbstractVector, p_ode_problem::AbstractVector,  xnondynamic::AbstractVector,
-                   parameter_info::ParametersInfo, observableId::Symbol, parametermap::ObservableNoiseMap, out) \n")
+                   nominal_values::Vector{Float64}, observableId::Symbol, parametermap::ObservableNoiseMap, out) \n")
     write(io2, p_observeble_str)
     write(io2, "end")
     ∂σ∂σpStr = String(take!(io2))

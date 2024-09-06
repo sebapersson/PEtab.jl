@@ -355,8 +355,8 @@ function get_bounds_prior(θ_name::Symbol,
     # Here the prior is on the linear scale, while the bounds are on parameter
     # scale so they must be transformed
     scale = petab_problem.parameter_info.parameter_scale[i]
-    lower_bound = transform_θ_element(lower_bounds[i], scale, reverse_transform = false)
-    upper_bound = transform_θ_element(upper_bounds[i], scale, reverse_transform = false)
+    lower_bound = transform_x(lower_bounds[i], scale, to_xscale = false)
+    upper_bound = transform_x(upper_bounds[i], scale, to_xscale = false)
     return [lower_bound, upper_bound]
 end
 
@@ -374,7 +374,7 @@ function transform_prior_samples!(samples::Vector{Float64},
     # parmeter scale for the parameter estimation
     scale = petab_problem.parameter_info.parameter_scale[i]
     for i in eachindex(samples)
-        samples[i] = transform_θ_element.(samples[i], scale, reverse_transform = true)
+        samples[i] = transform_x.(samples[i], scale, to_xscale = true)
     end
 
     return nothing

@@ -109,7 +109,7 @@ function PEtab.run_PEtab_select(path_yaml::String,
         # Setup dictionary to conveniently storing model parameters
         estimatedParameters = Dict(string(petab_problem.xnames[i]) => fArg[i]
                                    for i in eachindex(fArg))
-        nDataPoints = length(_petab_problem.petab_model.petab_tables[:measurements])
+        nDataPoints = length(_petab_problem.model.petab_tables[:measurements])
         py"update_model"(select_problem, model, f, estimatedParameters, nDataPoints)
     end
 
@@ -133,9 +133,9 @@ function PEtab.run_PEtab_select(path_yaml::String,
     _custom_values = Dict()
     [_custom_values[parametersToChange[i]] = "estimate"
      for i in eachindex(parametersToChange)]
-    _petab_model = PEtabModel(joinpath(dirmodel, modelSpaceFile[1][:petab_yaml]),
+    _model = PEtabModel(joinpath(dirmodel, modelSpaceFile[1][:petab_yaml]),
                               build_julia_files = true, verbose = false)
-    _petab_problem = PEtabODEProblem(_petab_model,
+    _petab_problem = PEtabODEProblem(_model,
                                      ode_solver = ode_solver,
                                      ode_solver_gradient = ode_solver_gradient,
                                      ss_solver = ss_solver,

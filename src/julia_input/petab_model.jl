@@ -28,11 +28,11 @@ function _PEtabModel(sys::Union{ReactionSystem, ODESystem}, simulation_condition
                      events::Union{PEtabEvent, AbstractVector, Nothing},
                      verbose::Bool)::PEtabModel
     if sys isa ODESystem
-        modelname = "ODESystemModel"
+        name = "ODESystemModel"
     else
-        modelname = "ReactionSystemModel"
+        name = "ReactionSystemModel"
     end
-    _logging(:Build_PEtabModel, verbose; name = modelname)
+    _logging(:Build_PEtabModel, verbose; name = name)
 
     # Convert the input to valid PEtab tables
     measurements_df = _measurements_to_table(measurements, simulation_conditions)
@@ -44,7 +44,7 @@ function _PEtabModel(sys::Union{ReactionSystem, ODESystem}, simulation_condition
 
     # Build the initial value map (initial values as parameters are set in the reaction sys_mutated)
     sys_mutated = deepcopy(sys)
-    statemap_use = _get_statemap(sys_mutated, conditions_df, statemap)
+    sys_mutated, statemap_use = _get_statemap(sys_mutated, conditions_df, statemap)
     parametermap_use = _get_parametermap(sys_mutated, parametermap)
     # Warn user if any variable is unassigned (and defaults to zero)
     _check_unassigned_variables(statemap_use, :specie, parameters_df, conditions_df)
@@ -52,7 +52,7 @@ function _PEtabModel(sys::Union{ReactionSystem, ODESystem}, simulation_condition
 
     _logging(:Build_u0_h_σ, verbose; exist = false)
     btime = @elapsed begin
-        h_str, u0!_str, u0_str, σ_str = create_u0_h_σ_file(modelname, sys_mutated,
+        h_str, u0!_str, u0_str, σ_str = create_u0_h_σ_file(name, sys_mutated,
                                                            conditions_df, measurements_df,
                                                            parameters_df, observables_df,
                                                            statemap_use)
@@ -65,7 +65,7 @@ function _PEtabModel(sys::Union{ReactionSystem, ODESystem}, simulation_condition
 
     _logging(:Build_∂_h_σ, verbose; exist = false)
     btime = @elapsed begin
-        ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str = create_∂_h_σ_file(modelname, sys_mutated,
+        ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str = create_∂_h_σ_file(name, sys_mutated,
                                                                    conditions_df,
                                                                    measurements_df,
                                                                    parameters_df,
@@ -86,33 +86,18 @@ function _PEtabModel(sys::Union{ReactionSystem, ODESystem}, simulation_condition
         θ_indices = parse_conditions(petab_tables, sys_mutated, parametermap_use,
                                      statemap_use)
         sbml_events = parse_events(events, sys_mutated)
-        model_SBML = SBMLImporter.ModelSBML(modelname; events = sbml_events)
+        model_SBML = SBMLImporter.ModelSBML(name; events = sbml_events)
         float_tspan = _xdynamic_in_event_cond(model_SBML, θ_indices, petab_tables) |> !
         psys = _get_sys_parameters(sys_mutated, statemap_use, parametermap_use) .|> string
-        cbset = SBMLImporter.create_callbacks(sys_mutated, model_SBML, modelname;
+        cbset = SBMLImporter.create_callbacks(sys_mutated, model_SBML, name;
                                               p_PEtab = psys, float_tspan = float_tspan)
     end
     _logging(:Build_callbacks, verbose; time = btime)
 
     # Path only applies when PEtab tables are provided
     paths = Dict{Symbol, String}()
-    petab_model = PEtabModel(modelname,
-                             compute_h,
-                             compute_u0!,
-                             compute_u0,
-                             compute_σ,
-                             compute_∂h∂u!,
-                             compute_∂σ∂σu!,
-                             compute_∂h∂p!,
-                             compute_∂σ∂σp!,
-                             float_tspan,
-                             paths,
-                             sys,
-                             sys_mutated,
-                             parametermap_use,
-                             statemap_use,
-                             petab_tables,
-                             cbset,
-                             true)
-    return petab_model
+    return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, compute_∂h∂u!,
+                      compute_∂σ∂σu!, compute_∂h∂p!, compute_∂σ∂σp!, float_tspan, paths,
+                      sys, sys_mutated, parametermap_use, statemap_use, petab_tables,
+                      cbset, true)
 end

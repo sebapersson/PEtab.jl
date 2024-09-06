@@ -140,7 +140,7 @@ function _grad_adjoint_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vecto
                              xobservable::Vector{T}, xnondynamic::Vector{T}, icid::Int64,
                              probinfo::PEtab.PEtabODEProblemInfo, model_info::PEtab.ModelInfo,
                              vjp_ss_cid::Function)::Bool where T <: AbstractFloat
-    @unpack θ_indices, simulation_info, petab_model = model_info
+    @unpack θ_indices, simulation_info, model = model_info
     @unpack parameter_info, measurement_info = model_info
     @unpack imeasurements_t, tsaves, smatrixindices, tracked_callbacks = simulation_info
     @unpack sensealg, cache, solver_gradient = probinfo
@@ -191,7 +191,7 @@ function _grad_adjoint_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vecto
     # In case we do not simulate the ODE for a steady state first we can compute
     # the initial sensitivites easily via automatic differantitatiom
     if simulation_info.has_pre_equilibration == false
-        ForwardDiff.jacobian!(St0, petab_model.compute_u0!, sol.prob.u0, sol.prob.p)
+        ForwardDiff.jacobian!(St0, model.u0!, sol.prob.u0, sol.prob.p)
         adjoint_grad .= dp .+ transpose(St0) * du
     # In case we simulate to a stady state we need to compute a VJP.
     else

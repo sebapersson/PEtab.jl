@@ -33,7 +33,7 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 
 include("Structs.jl")
 
-include("Common.jl")
+include("common.jl")
 include("logging.jl")
 
 include(joinpath("petab_files", "common.jl"))
@@ -88,9 +88,9 @@ include(joinpath("Show.jl"))
 @setup_workload begin
     path_yaml = joinpath(@__DIR__, "..", "test", "Test_model3", "Test_model3.yaml")
     @compile_workload begin
-        petab_model = PEtabModel(path_yaml, verbose = false, build_julia_files = true,
+        model = PEtabModel(path_yaml, verbose = false, build_julia_files = true,
                                  write_to_file = false)
-        petab_problem = PEtabODEProblem(petab_model, verbose = false)
+        petab_problem = PEtabODEProblem(model, verbose = false)
         petab_problem.nllh(petab_problem.xnominal_transformed)
     end
 end

@@ -24,8 +24,8 @@ function parse_conditions(petab_tables::Dict{Symbol, DataFrame}, sys, parameterm
 end
 function parse_conditions(parameter_info::ParametersInfo,
                           measurements_info::MeasurementsInfo,
-                          petab_model::PEtabModel)::ParameterIndices
-    @unpack statemap, parametermap, sys_mutated, petab_tables = petab_model
+                          model::PEtabModel)::ParameterIndices
+    @unpack statemap, parametermap, sys_mutated, petab_tables = model
     return parse_conditions(parameter_info, measurements_info, sys_mutated, parametermap,
                             statemap, petab_tables[:conditions])
 end
@@ -294,7 +294,7 @@ function _get_condition_maps(sys, parametermap, statemap, parameter_info::Parame
             # When the value in the conditions table maps to a constant parameter
             if Symbol(value) in parameter_info.parameter_id && variable in xids_model
                 iconstant = findfirst(x -> x == Symbol(value), parameter_info.parameter_id)
-                push!(constant_values, parameter_info.nominal_values[iconstant])
+                push!(constant_values, parameter_info.nominal_value[iconstant])
                 _add_ix_sys!(isys_constant_values, variable, xids_sys)
                 continue
             end

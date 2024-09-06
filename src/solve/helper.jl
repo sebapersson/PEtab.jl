@@ -1,5 +1,5 @@
 function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::T, model_info::ModelInfo, cache::PEtabODEProblemCache; sensitivites::Bool = false, simid::Union{Nothing, Symbol} = nothing)::ODEProblem where T <: AbstractVector
-    @unpack θ_indices, petab_model, nstates = model_info
+    @unpack θ_indices, model, nstates = model_info
     simid = isnothing(simid) ? cid : simid
 
     # Each simulation condition needs to have its own associated u0 and p vector, as these
@@ -16,7 +16,7 @@ function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::T, model_in
     p[map_cid.ix_sys] .= xdynamic[map_cid.ix_dynamic]
 
     # Initial state can depend on condition specific parameters
-    petab_model.compute_u0!((@view u0[1:nstates]), p)
+    model.u0!((@view u0[1:nstates]), p)
 
     _oprob = remake(oprob, p = p, u0 = u0)
     # In case we solve the forward sensitivity equations we must adjust the initial
@@ -25,7 +25,7 @@ function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::T, model_in
     # resets u0 values for the sensitivites
     if sensitivites == true
         St0::Matrix{Float64} = zeros(Float64, nstates, length(p))
-        ForwardDiff.jacobian!(St0, petab_model.compute_u0, p)
+        ForwardDiff.jacobian!(St0, model.u0, p)
         _oprob.u0 .= vcat(u0, vec(St0))
     end
     return _oprob
