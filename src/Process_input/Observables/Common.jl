@@ -1,13 +1,13 @@
 
 """
-    petab_formula_to_Julia(formula::String, state_names, parameter_info::ParametersInfo, namesParamDyn::Vector{String}, namesNonDynParam::Vector{String})::String
+    petab_formula_to_Julia(formula::String, state_names, petab_parameters::PEtabParameters, namesParamDyn::Vector{String}, namesNonDynParam::Vector{String})::String
 
     Translate a peTab formula (e.g for observable or for sd-parameter) into Julia syntax and output the result
     as a string.
 """
 function petab_formula_to_Julia(formula::String,
                                 model_state_names::Vector{String},
-                                parameter_info::ParametersInfo,
+                                petab_parameters::PEtabParameters,
                                 xdynamic_names::Vector{String},
                                 xnondynamic_names::Vector{String})::String
 
@@ -28,7 +28,7 @@ function petab_formula_to_Julia(formula::String,
             # Get word (e.g param, state, math-operation or number)
             word, i_new = get_word(formula, i, char_directly_translate)
             # Translate word to Julia syntax
-            julia_formula *= word_to_julia(word, model_state_names, parameter_info,
+            julia_formula *= word_to_julia(word, model_state_names, petab_parameters,
                                            xdynamic_names, xnondynamic_names)
             i = i_new
 
@@ -100,7 +100,7 @@ end
 
 function word_to_julia(word_translate::String,
                        model_state_names::Vector{String},
-                       parameter_info::ParametersInfo,
+                       petab_parameters::PEtabParameters,
                        xdynamic_names::Vector{String},
                        xnondynamic_names::Vector{String})::String
 
@@ -110,7 +110,7 @@ function word_to_julia(word_translate::String,
 
     word_julia = ""
     # If word_translate is a constant parameter
-    if word_translate ∈ string.(parameter_info.parameter_id) &&
+    if word_translate ∈ string.(petab_parameters.parameter_id) &&
        word_translate ∉ xdynamic_names && word_translate ∉ xnondynamic_names
         # Constant parameters get a _C appended to tell them apart
         word_julia *= word_translate * "_C"
@@ -201,7 +201,7 @@ function get_noise_parameters(formula::String)::String
 end
 
 """
-    variables_to_array_index(formula,state_names,parameter_names,namesNonDynParam,parameter_info)::String
+    variables_to_array_index(formula,state_names,parameter_names,namesNonDynParam,petab_parameters)::String
 
 Replaces any state or parameter from formula with their corresponding index in the ODE system
 Symbolics can return strings without multiplication sign, e.g. 100.0STAT5 instead of 100.0*STAT5
@@ -209,7 +209,7 @@ so replace_variable cannot be used here
 """
 function variables_to_array_index(formula::String,
                                   model_state_names::Vector{String},
-                                  parameter_info::ParametersInfo,
+                                  petab_parameters::PEtabParameters,
                                   pNames::Vector{String},
                                   xnondynamic_names::Vector{String};
                                   p_ode_problem::Bool = false)::String
@@ -234,10 +234,10 @@ function variables_to_array_index(formula::String,
                                              "xnondynamic[" * string(i) * "]")
     end
 
-    for i in eachindex(parameter_info.parameter_id)
-        if parameter_info.estimate[i] == false
+    for i in eachindex(petab_parameters.parameter_id)
+        if petab_parameters.estimate[i] == false
             formula = replace_word_number_prefix(formula,
-                                                 string(parameter_info.parameter_id[i]) *
+                                                 string(petab_parameters.parameter_id[i]) *
                                                  "_C",
                                                  "nominal_value[" *
                                                  string(i) * "]")
@@ -261,7 +261,7 @@ function replace_explicit_variable_rule(formula::String,
                 continue
             end
             _formula = SBMLImporter._replace_variable(_formula, specie_id,
-                                                     "(" * specie.formula * ")")
+                                                      "(" * specie.formula * ")")
         end
         _formula == formula && break
         formula = deepcopy(_formula)
@@ -275,7 +275,7 @@ function replace_explicit_variable_rule(formula::String,
                 continue
             end
             _formula = SBMLImporter._replace_variable(_formula, parameter_id,
-                                                     "(" * parameter.formula * ")")
+                                                      "(" * parameter.formula * ")")
         end
         _formula == formula && break
         formula = deepcopy(_formula)

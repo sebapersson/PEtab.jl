@@ -1,20 +1,21 @@
-function SimulationInfo(callbacks::SciMLBase.DECallback, measurement_info::MeasurementsInfo;
+function SimulationInfo(callbacks::SciMLBase.DECallback,
+                        petab_measurements::PEtabMeasurements;
                         sensealg)::SimulationInfo
-    conditionids = _get_conditionids(measurement_info)
+    conditionids = _get_conditionids(petab_measurements)
     has_pre_equilibration = !all(conditionids[:pre_equilibration] .== :None)
 
     # Precompute values needed by the ODE-solver, such as tmax, tsave...
-    tmaxs = _get_tmaxs(conditionids, measurement_info)
-    tsaves = _get_tsaves(conditionids, measurement_info)
+    tmaxs = _get_tmaxs(conditionids, petab_measurements)
+    tsaves = _get_tsaves(conditionids, petab_measurements)
 
     # Indicies for getting measurement points for each condition. The second is a vector
     # of vector that accounts for multiple measurements per time-point which needs to
     # be accounted for in gradient compuations
     # TODO: imeasurements is redundant
-    imeasurements = _get_imeasurements(conditionids, measurement_info)
-    imeasurements_t = _get_imeasurements_t(imeasurements, measurement_info)
+    imeasurements = _get_imeasurements(conditionids, petab_measurements)
+    imeasurements_t = _get_imeasurements_t(imeasurements, petab_measurements)
     # Time indicies in ODESolution for each measurement
-    imeasurements_t_sol = _get_imeasurements_t_sol(imeasurements, measurement_info)
+    imeasurements_t_sol = _get_imeasurements_t_sol(imeasurements, petab_measurements)
     # When computing forward sensitivites via forward mode automatic differentiation we get a
     # big sensitivity matrix accross all experimental conditions, where S[i:(i+nStates)]
     # corresponds to the sensitivites at a specific time-point. Here the indicies for each
@@ -45,8 +46,9 @@ function SimulationInfo(callbacks::SciMLBase.DECallback, measurement_info::Measu
                           tracked_callbacks, sensealg)
 end
 
-function _get_conditionids(measurement_info::MeasurementsInfo)::Dict{Symbol, Vector{Symbol}}
-    @unpack pre_equilibration_condition_id, simulation_condition_id = measurement_info
+function _get_conditionids(petab_measurements::PEtabMeasurements)::Dict{Symbol,
+                                                                        Vector{Symbol}}
+    @unpack pre_equilibration_condition_id, simulation_condition_id = petab_measurements
     # An experimental id is uniqely defined by a pre-equlibrium and simulation id, where
     # the former can be empty. For each experimental id we need to store the corresponding
     # pre and simulation id, and their concatenation
@@ -78,49 +80,50 @@ function _get_conditionids(measurement_info::MeasurementsInfo)::Dict{Symbol, Vec
 end
 
 function _get_tsaves(conditionids::Dict{Symbol, Vector{Symbol}},
-                     measurement_info::MeasurementsInfo)::Dict{Symbol, Vector{Float64}}
+                     petab_measurements::PEtabMeasurements)::Dict{Symbol, Vector{Float64}}
     tsave = Dict{Symbol, Vector{Float64}}()
     for (i, experiment_id) in pairs(conditionids[:experiment])
         preeqids, cids = conditionids[:pre_equilibration][i], conditionids[:simulation][i]
-        it = _get_tindices(preeqids, cids, measurement_info)
-        tsave[experiment_id] = sort(unique(measurement_info.time[it]))
+        it = _get_tindices(preeqids, cids, petab_measurements)
+        tsave[experiment_id] = sort(unique(petab_measurements.time[it]))
     end
     return tsave
 end
 
 function _get_tmaxs(conditionids::Dict{Symbol, Vector{Symbol}},
-                    measurement_info::MeasurementsInfo)::Dict{Symbol, Float64}
+                    petab_measurements::PEtabMeasurements)::Dict{Symbol, Float64}
     tmaxs = Dict{Symbol, Float64}()
     for (i, experiment_id) in pairs(conditionids[:experiment])
         preeqids, cids = conditionids[:pre_equilibration][i], conditionids[:simulation][i]
-        it = _get_tindices(preeqids, cids, measurement_info)
-        tmaxs[experiment_id] = maximum(measurement_info.time[it])
+        it = _get_tindices(preeqids, cids, petab_measurements)
+        tmaxs[experiment_id] = maximum(petab_measurements.time[it])
     end
     return tmaxs
 end
 
 function _get_imeasurements(conditionids::Dict{Symbol, Vector{Symbol}},
-                            measurement_info::MeasurementsInfo)::Dict{Symbol, Vector{Int64}}
+                            petab_measurements::PEtabMeasurements)::Dict{Symbol,
+                                                                         Vector{Int64}}
     imeasurements = Dict{Symbol, Vector{Int64}}()
     for (i, experiment_id) in pairs(conditionids[:experiment])
         preeqids, cids = conditionids[:pre_equilibration][i], conditionids[:simulation][i]
-        it = _get_tindices(preeqids, cids, measurement_info)
+        it = _get_tindices(preeqids, cids, petab_measurements)
         imeasurements[experiment_id] = it
     end
     return imeasurements
 end
 
 function _get_tindices(pre_equilibration_id::Symbol, simulation_id::Symbol,
-                       measurement_info::MeasurementsInfo)::Vector{Int64}
-    @unpack pre_equilibration_condition_id, simulation_condition_id = measurement_info
+                       petab_measurements::PEtabMeasurements)::Vector{Int64}
+    @unpack pre_equilibration_condition_id, simulation_condition_id = petab_measurements
     ipreeq = findall(x -> x == pre_equilibration_id, pre_equilibration_condition_id)
     isim = findall(x -> x == simulation_id, simulation_condition_id)
     return intersect(ipreeq, isim)
 end
 
 function _get_imeasurements_t_sol(imeasurements::Dict{Symbol, Vector{Int64}},
-                                  measurement_info::MeasurementsInfo)::Vector{Int64}
-    time = measurement_info.time
+                                  petab_measurements::PEtabMeasurements)::Vector{Int64}
+    time = petab_measurements.time
     imeasurements_t_sol = zeros(Int64, length(time))
     for i in eachindex(time)
         for ims in values(imeasurements)
@@ -136,9 +139,9 @@ function _get_imeasurements_t_sol(imeasurements::Dict{Symbol, Vector{Int64}},
 end
 
 function _get_imeasurements_t(imeasurements::Dict{Symbol, Vector{Int64}},
-                              measurement_info::MeasurementsInfo)::Dict{Symbol,
-                                                                        Vector{Vector{Int64}}}
-    time = measurement_info.time
+                              petab_measurements::PEtabMeasurements)::Dict{Symbol,
+                                                                           Vector{Vector{Int64}}}
+    time = petab_measurements.time
     imeasurements_t = Dict{Symbol, Vector{Vector{Int64}}}()
     for (id, ims) in imeasurements
         timepoints = time[ims]

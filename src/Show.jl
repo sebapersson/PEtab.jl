@@ -43,7 +43,7 @@ function show(io::IO, prob::PEtabODEProblem)
 
     n_odes = length(unknowns(model.sys_mutated))
     n_parameters_est = length(prob.xnames)
-    n_dynamic_parameters = length(model_info.θ_indices.xids[:dynamic])
+    n_dynamic_parameters = length(model_info.xindices.xids[:dynamic])
 
     solver_str, options_str = get_ode_solver_str(probinfo.solver)
     solver_gradient_str, options_gradient_str = get_ode_solver_str(probinfo.solver_gradient)
@@ -89,7 +89,8 @@ function show(io::IO, prob::PEtabODEProblem)
             algStr = algStr[1:(i_end - 1)] * "()"
             @printf(io,
                     ". Algorithm %s with (abstol, reltol, maxiters) = (%.1e, %.1e, %.1e)",
-                    algStr, probinfo.ss_solver.abstol, probinfo.ss_solver.reltol, probinfo.ss_solver.maxiters)
+                    algStr, probinfo.ss_solver.abstol, probinfo.ss_solver.reltol,
+                    probinfo.ss_solver.maxiters)
         end
 
         # Print gradient steady state solver
@@ -109,7 +110,8 @@ function show(io::IO, prob::PEtabODEProblem)
             algStr = algStr[1:(i_end - 1)] * "()"
             @printf(io,
                     ". Algorithm %s with (abstol, reltol, maxiters) = (%.1e, %.1e, %.1e)",
-                    algStr, probinfo.ss_solver_gradient.abstol, probinfo.ss_solver_gradient.reltol,
+                    algStr, probinfo.ss_solver_gradient.abstol,
+                    probinfo.ss_solver_gradient.reltol,
                     probinfo.ss_solver_gradient.maxiters)
         end
     end

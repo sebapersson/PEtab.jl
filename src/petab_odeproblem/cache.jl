@@ -3,8 +3,8 @@ function PEtabODEProblemCache(gradient_method::Symbol,
                               FIM_method::Symbol,
                               sensealg,
                               model_info::ModelInfo)::PEtabODEProblemCache
-    @unpack θ_indices, model, simulation_info, measurement_info = model_info
-    nxestimate = length(θ_indices.xids[:estimate])
+    @unpack xindices, model, simulation_info, petab_measurements = model_info
+    nxestimate = length(xindices.xids[:estimate])
     nstates = model_info.nstates
     nxode = parameters(model.sys_mutated) |> length
 
@@ -19,10 +19,10 @@ function PEtabODEProblemCache(gradient_method::Symbol,
         level_cache = 0
     end
     # Parameters on linear scale
-    xdynamic = zeros(Float64, length(θ_indices.xindices[:dynamic]))
-    xobservable = zeros(Float64, length(θ_indices.xindices[:observable]))
-    xnoise = zeros(Float64, length(θ_indices.xindices[:noise]))
-    xnondynamic = zeros(Float64, length(θ_indices.xindices[:nondynamic]))
+    xdynamic = zeros(Float64, length(xindices.xindices[:dynamic]))
+    xobservable = zeros(Float64, length(xindices.xindices[:observable]))
+    xnoise = zeros(Float64, length(xindices.xindices[:noise]))
+    xnondynamic = zeros(Float64, length(xindices.xindices[:nondynamic]))
     # Parameters on parameter-scale
     xdynamic_ps = DiffCache(similar(xdynamic), chunksize, levels = level_cache)
     xobservable_ps = DiffCache(similar(xobservable), chunksize, levels = level_cache)
@@ -31,7 +31,7 @@ function PEtabODEProblemCache(gradient_method::Symbol,
 
     # Arrays needed in gradient compuations
     xdynamic_grad = zeros(Float64, length(xdynamic))
-    xnotode_grad = zeros(Float64, length(θ_indices.xids[:not_system]))
+    xnotode_grad = zeros(Float64, length(xindices.xids[:not_system]))
     # For forward sensitivity equations and adjoint sensitivity analysis partial
     # derivatives are computed symbolically
     symbolic_needed_grads = gradient_method in [:Adjoint, :ForwardEquations]
@@ -80,8 +80,8 @@ function PEtabODEProblemCache(gradient_method::Symbol,
 
     # For Gauss-Newton the model residuals are computed
     if GN_hess
-        jacobian_gn = zeros(Float64, nxestimate, length(measurement_info.time))
-        residuals_gn = zeros(Float64, length(measurement_info.time))
+        jacobian_gn = zeros(Float64, nxestimate, length(petab_measurements.time))
+        residuals_gn = zeros(Float64, length(petab_measurements.time))
     else
         jacobian_gn = zeros(Float64, (0, 0))
         residuals_gn = zeros(Float64, 0)

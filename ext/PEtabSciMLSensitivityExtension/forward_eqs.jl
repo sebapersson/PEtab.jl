@@ -8,14 +8,25 @@ function PEtab._get_odeproblem_gradient(odeproblem::ODEProblem, gradient_method:
                                         odeproblem.p, sensealg = sensealg)
 end
 
-function PEtab.solve_sensitivites!(model_info::PEtab.ModelInfo, _solve_conditions!::Function, xdynamic::Vector{<:AbstractFloat}, sensealg::ForwardAlg, probinfo::PEtab.PEtabODEProblemInfo, cids::Vector{Symbol}, cfg::Nothing, isremade::Bool = false)::Bool
+function PEtab.solve_sensitivites!(model_info::PEtab.ModelInfo,
+                                   _solve_conditions!::Function,
+                                   xdynamic::Vector{<:AbstractFloat}, sensealg::ForwardAlg,
+                                   probinfo::PEtab.PEtabODEProblemInfo,
+                                   cids::Vector{Symbol}, cfg::Nothing,
+                                   isremade::Bool = false)::Bool
     success = _solve_conditions!(xdynamic, cids)
     return success
 end
 
-function PEtab._grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic::Vector{T}, icid::Int64, sensealg::ForwardAlg, probinfo::PEtab.PEtabODEProblemInfo, model_info::PEtab.ModelInfo)::Nothing where T <: AbstractFloat
-    @unpack θ_indices, simulation_info, model = model_info
-    @unpack parameter_info, measurement_info = model_info
+function PEtab._grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T},
+                                       xnoise::Vector{T}, xobservable::Vector{T},
+                                       xnondynamic::Vector{T}, icid::Int64,
+                                       sensealg::ForwardAlg,
+                                       probinfo::PEtab.PEtabODEProblemInfo,
+                                       model_info::PEtab.ModelInfo)::Nothing where {T <:
+                                                                                    AbstractFloat}
+    @unpack xindices, simulation_info, model = model_info
+    @unpack petab_parameters, petab_measurements = model_info
     @unpack imeasurements_t, tsaves = simulation_info
     cache = probinfo.cache
 
@@ -42,7 +53,7 @@ function PEtab._grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xno
 
     # Adjust if gradient is non-linear scale (e.g. log and log10). TODO: Refactor
     # this function later
-    PEtab.grad_to_xscale!(grad, _grad, ∂G∂p, xdynamic, θ_indices, simid,
+    PEtab.grad_to_xscale!(grad, _grad, ∂G∂p, xdynamic, xindices, simid,
                           sensitivites_AD = false)
     return nothing
 end

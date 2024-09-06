@@ -3,18 +3,18 @@ function ∂G∂_!(∂G∂_::AbstractVector, u::AbstractVector, p::Vector{T}, t:
                imeasurements_t_cid::Vector{Vector{Int64}}, model_info::ModelInfo,
                xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic::Vector{T},
                ∂h∂_::Vector{T}, ∂σ∂_::Vector{T}; ∂G∂U::Bool = true,
-               residuals::Bool = false)::Nothing where T <: AbstractFloat
-    @unpack measurement_info, θ_indices, parameter_info, model = model_info
-    @unpack measurement_transforms, observable_id = measurement_info
-    nominal_values = parameter_info.nominal_value
+               residuals::Bool = false)::Nothing where {T <: AbstractFloat}
+    @unpack petab_measurements, xindices, petab_parameters, model = model_info
+    @unpack measurement_transforms, observable_id = petab_measurements
+    nominal_values = petab_parameters.nominal_value
     fill!(∂G∂_, 0.0)
     for imeasurement in imeasurements_t_cid[i]
         obsid = observable_id[imeasurement]
         fill!(∂h∂_, 0.0)
         fill!(∂σ∂_, 0.0)
 
-        mapxnoise = θ_indices.mapxnoise[imeasurement]
-        mapxobservable = θ_indices.mapxobservable[imeasurement]
+        mapxnoise = xindices.mapxnoise[imeasurement]
+        mapxobservable = xindices.mapxobservable[imeasurement]
         h = _h(u, t, p, xobservable, xnondynamic, model.h, mapxobservable, obsid,
                nominal_values)
         h_transformed = transform_observable(h, measurement_transforms[imeasurement])
@@ -40,7 +40,7 @@ function ∂G∂_!(∂G∂_::AbstractVector, u::AbstractVector, p::Vector{T}, t:
 
         # In case of Guass Newton approximation we target the
         # residuals = (h_transformed - y_transformed) / σ
-        y_transformed = measurement_info.measurement_transformed[imeasurement]
+        y_transformed = petab_measurements.measurement_transformed[imeasurement]
         if residuals == false
             ∂G∂h = (h_transformed - y_transformed) / σ^2
             ∂G∂σ = 1 / σ - ((h_transformed - y_transformed)^2 / σ^3)
@@ -55,7 +55,8 @@ end
 
 function _get_∂G∂_!(probinfo::PEtabODEProblemInfo, model_info::ModelInfo, cid::Symbol,
                     xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic::Vector{T};
-                    residuals::Bool = false)::Tuple{Function, Function} where T <: AbstractFloat
+                    residuals::Bool = false)::Tuple{Function,
+                                                    Function} where {T <: AbstractFloat}
     cache = probinfo.cache
     if residuals == false
         it = model_info.simulation_info.imeasurements_t[cid]
@@ -82,11 +83,12 @@ end
 
 # Adjust the gradient from linear scale to current scale for x-vector
 function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector{T},
-                         xdynamic::Vector{T}, θ_indices::ParameterIndices, simid::Symbol;
-                         sensitivites_AD::Bool = false, adjoint::Bool = false)::Nothing where T <: AbstractFloat
-    @unpack dynamic_to_sys, sys_to_dynamic  = θ_indices.map_odeproblem
-    @unpack xids, xscale = θ_indices
-    @unpack ix_sys, ix_dynamic = θ_indices.maps_conidition_id[simid]
+                         xdynamic::Vector{T}, xindices::ParameterIndices, simid::Symbol;
+                         sensitivites_AD::Bool = false,
+                         adjoint::Bool = false)::Nothing where {T <: AbstractFloat}
+    @unpack dynamic_to_sys, sys_to_dynamic = xindices.map_odeproblem
+    @unpack xids, xscale = xindices
+    @unpack ix_sys, ix_dynamic = xindices.maps_conidition_id[simid]
     # Adjust for parameters that appear in each simulation condition (not unique to simid).
     # Note that ∂G∂p is on the scale of ODEProblem.p which might not be the same scale
     # as parameters appear in the gradient on linear-scale
@@ -120,7 +122,8 @@ function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector
     if adjoint == true || sensitivites_AD == false
         @views _grad_to_xscale!(grad_xscale[ix_sys], grad_linscale[ix_sys],
                                 xdynamic[ix_dynamic], xids[:dynamic][ix_dynamic], xscale)
-        @views out = _grad_to_xscale(grad_linscale[ix_sys] .+ ∂G∂p[ix_sys],  xdynamic[ix_dynamic],
+        @views out = _grad_to_xscale(grad_linscale[ix_sys] .+ ∂G∂p[ix_sys],
+                                     xdynamic[ix_dynamic],
                                      xids[:dynamic][ix_dynamic], xscale)
         for (i, imap) in pairs(ix_sys)
             grad_xscale[imap] += out[i]
@@ -131,7 +134,7 @@ end
 
 function _grad_to_xscale!(grad_xscale::AbstractVector{T}, grad_linscale::AbstractVector{T},
                           x::AbstractVector{T}, xids::AbstractVector{Symbol},
-                          xscale::Dict{Symbol, Symbol})::Nothing where T <: AbstractFloat
+                          xscale::Dict{Symbol, Symbol})::Nothing where {T <: AbstractFloat}
     for (i, xid) in pairs(xids)
         grad_xscale[i] += _grad_to_xscale(grad_linscale[i], x[i], xscale[xid])
     end
@@ -139,14 +142,16 @@ function _grad_to_xscale!(grad_xscale::AbstractVector{T}, grad_linscale::Abstrac
 end
 
 function _grad_to_xscale(grad_linscale::AbstractVector{T}, x::AbstractVector{T},
-                         xids::AbstractVector{Symbol}, xscale::Dict{Symbol, Symbol})::Vector{T} where T <: AbstractFloat
+                         xids::AbstractVector{Symbol},
+                         xscale::Dict{Symbol, Symbol})::Vector{T} where {T <: AbstractFloat}
     grad_xscale = similar(grad_linscale)
     for (i, xid) in pairs(xids)
         grad_xscale[i] = _grad_to_xscale(grad_linscale[i], x[i], xscale[xid])
     end
     return grad_xscale
 end
-function _grad_to_xscale(grad_linscale_val::T, x_val::T, xscale::Symbol)::T where T <: AbstractFloat
+function _grad_to_xscale(grad_linscale_val::T, x_val::T,
+                         xscale::Symbol)::T where {T <: AbstractFloat}
     if xscale === :log10
         return log(10) * grad_linscale_val * x_val
     elseif xscale === :log

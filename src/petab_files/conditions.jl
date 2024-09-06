@@ -1,5 +1,5 @@
 """
-        parse_conditions
+        ParameterIndices
 
 Parse conditions and build parameter maps for the different parameter types.
 
@@ -14,26 +14,28 @@ This function extracts which parameter is what type, and builds maps for correct
 the parameter during likelihood computations. It further accounts for parameters potentially
 only appearing in a certain simulation condition.
 """
-function parse_conditions(petab_tables::Dict{Symbol, DataFrame}, sys, parametermap,
+function ParameterIndices(petab_tables::Dict{Symbol, DataFrame}, sys, parametermap,
                           statemap)::ParameterIndices
-    parameter_info = parse_parameters(petab_tables[:parameters])
-    measurement_info = parse_measurements(petab_tables[:measurements],
-                                          petab_tables[:observables])
-    return parse_conditions(parameter_info, measurement_info, sys, parametermap, statemap,
+    petab_parameters = PEtabParameters(petab_tables[:parameters])
+    petab_measurements = PEtabMeasurements(petab_tables[:measurements],
+                                           petab_tables[:observables])
+    return ParameterIndices(petab_parameters, petab_measurements, sys, parametermap,
+                            statemap,
                             petab_tables[:conditions])
 end
-function parse_conditions(parameter_info::ParametersInfo,
-                          measurements_info::MeasurementsInfo,
+function ParameterIndices(petab_parameters::PEtabParameters,
+                          petab_measurements::PEtabMeasurements,
                           model::PEtabModel)::ParameterIndices
     @unpack statemap, parametermap, sys_mutated, petab_tables = model
-    return parse_conditions(parameter_info, measurements_info, sys_mutated, parametermap,
+    return ParameterIndices(petab_parameters, petab_measurements, sys_mutated, parametermap,
                             statemap, petab_tables[:conditions])
 end
-function parse_conditions(parameter_info::ParametersInfo,
-                          measurements_info::MeasurementsInfo, sys, parametermap, statemap,
+function ParameterIndices(petab_parameters::PEtabParameters,
+                          petab_measurements::PEtabMeasurements, sys, parametermap,
+                          statemap,
                           conditions_df::DataFrame)::ParameterIndices
-    _check_conditionids(conditions_df, measurements_info)
-    xids = _get_xids(parameter_info, measurements_info, sys, conditions_df, statemap,
+    _check_conditionids(conditions_df, petab_measurements)
+    xids = _get_xids(petab_parameters, petab_measurements, sys, conditions_df, statemap,
                      parametermap)
 
     # indices for mapping parameters correctly, e.g. from xest -> xdynamic etc...
@@ -41,36 +43,38 @@ function parse_conditions(parameter_info::ParametersInfo,
     xindices = _get_xindices(xids)
     xindices_notsys = _get_xindices_notsys(xids)
     odeproblem_map = _get_odeproblem_map(xids)
-    condition_maps = _get_condition_maps(sys, parametermap, statemap, parameter_info,
+    condition_maps = _get_condition_maps(sys, parametermap, statemap, petab_parameters,
                                          conditions_df, xids)
     # For each time-point we must build a map that stores if i) noise/obserable parameters
     # are constants, ii) should be estimated, iii) and corresponding index in parameter
     # vector if they should be estimated
-    xobservable_maps = _get_map_observable_noise(xids[:observable], measurements_info,
-                                                 parameter_info; observable = true)
-    xnoise_maps = _get_map_observable_noise(xids[:noise], measurements_info, parameter_info;
+    xobservable_maps = _get_map_observable_noise(xids[:observable], petab_measurements,
+                                                 petab_parameters; observable = true)
+    xnoise_maps = _get_map_observable_noise(xids[:noise], petab_measurements,
+                                            petab_parameters;
                                             observable = false)
 
     # TODO: Uncertain this should live here
-    xscale = _get_xscales(xids, parameter_info)
+    xscale = _get_xscales(xids, petab_parameters)
     return ParameterIndices(xindices, xids, xindices_notsys, xscale, xobservable_maps,
                             xnoise_maps, odeproblem_map, condition_maps)
 end
 
-function _get_xids(parameter_info::ParametersInfo, measurements_info::MeasurementsInfo,
+function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements,
                    sys::Union{ODESystem, ReactionSystem}, conditions_df::DataFrame,
                    statemap, parametermap)::Dict{Symbol, Vector{Symbol}}
-    @unpack observable_parameters, noise_parameters = measurements_info
+    @unpack observable_parameters, noise_parameters = petab_measurements
 
     # Non-dynamic parameters are those that only appear in the observable and noise
     # functions, but are not defined noise or observable column of the measurement file.
     # Need to be tracked separately for efficient gradient computations
-    xids_observable = _get_xids_observable_noise(observable_parameters, parameter_info)
-    xids_noise = _get_xids_observable_noise(noise_parameters, parameter_info)
-    xids_nondynamic = _get_xids_nondynamic(xids_observable, xids_noise, sys, parameter_info,
+    xids_observable = _get_xids_observable_noise(observable_parameters, petab_parameters)
+    xids_noise = _get_xids_observable_noise(noise_parameters, petab_parameters)
+    xids_nondynamic = _get_xids_nondynamic(xids_observable, xids_noise, sys,
+                                           petab_parameters,
                                            conditions_df)
     xids_dynamic = _get_xids_dynamic(xids_observable, xids_noise, xids_nondynamic,
-                                     parameter_info)
+                                     petab_parameters)
     xids_sys = _get_sys_parameters(sys, statemap, parametermap)
     xids_not_system = unique(vcat(xids_observable, xids_noise, xids_nondynamic))
     xids_estimate = vcat(xids_dynamic, xids_not_system)
@@ -92,7 +96,8 @@ function _get_xindices(xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, Vector{
                 :nondynamic => xi_nondynamic, :not_system => xi_not_system)
 end
 
-function _get_xindices_notsys(xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, Vector{Int32}}
+function _get_xindices_notsys(xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol,
+                                                                        Vector{Int32}}
     ins = xids[:not_system]
     ixnoise = Int32[findfirst(x -> x == id, ins) for id in xids[:noise]]
     ixobservable = Int32[findfirst(x -> x == id, ins) for id in xids[:observable]]
@@ -102,17 +107,17 @@ function _get_xindices_notsys(xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, 
 end
 
 function _get_xscales(xids::Dict{T, Vector{T}},
-                      parameter_info::ParametersInfo)::Dict{T, T} where {T <: Symbol}
-    @unpack parameter_scale, parameter_id = parameter_info
+                      petab_parameters::PEtabParameters)::Dict{T, T} where {T <: Symbol}
+    @unpack parameter_scale, parameter_id = petab_parameters
     s = [parameter_scale[findfirst(x -> x == id, parameter_id)] for id in xids[:estimate]]
     return Dict(xids[:estimate] .=> s)
 end
 
 function _get_xids_dynamic(observable_ids::T, noise_ids::T, xids_nondynamic::T,
-                           parameter_info::ParametersInfo)::T where {T <: Vector{Symbol}}
+                           petab_parameters::PEtabParameters)::T where {T <: Vector{Symbol}}
     dynamics_xids = Symbol[]
-    for id in parameter_info.parameter_id
-        if _estimate_parameter(id, parameter_info) == false
+    for id in petab_parameters.parameter_id
+        if _estimate_parameter(id, petab_parameters) == false
             continue
         end
         if id in Iterators.flatten((observable_ids, noise_ids, xids_nondynamic))
@@ -123,7 +128,8 @@ function _get_xids_dynamic(observable_ids::T, noise_ids::T, xids_nondynamic::T,
     return dynamics_xids
 end
 
-function _get_xids_observable_noise(values, parameter_info::ParametersInfo)::Vector{Symbol}
+function _get_xids_observable_noise(values,
+                                    petab_parameters::PEtabParameters)::Vector{Symbol}
     ids = Symbol[]
     for value in values
         isempty(value) && continue
@@ -131,12 +137,12 @@ function _get_xids_observable_noise(values, parameter_info::ParametersInfo)::Vec
         # Multiple ids are split by ; in the PEtab table
         for id in Symbol.(split(value, ';'))
             is_number(id) && continue
-            if !(id in parameter_info.parameter_id)
+            if !(id in petab_parameters.parameter_id)
                 throw(PEtabFileError("Parameter $id in measurement file does not appear " *
                                      "in the PEtab parameters table."))
             end
             id in ids && continue
-            if _estimate_parameter(id, parameter_info) == false
+            if _estimate_parameter(id, petab_parameters) == false
                 continue
             end
             push!(ids, id)
@@ -146,13 +152,13 @@ function _get_xids_observable_noise(values, parameter_info::ParametersInfo)::Vec
 end
 
 function _get_xids_nondynamic(xids_observable::T, xids_noise::T, sys,
-                              parameter_info::ParametersInfo,
+                              petab_parameters::PEtabParameters,
                               conditions_df::DataFrame)::T where {T <: Vector{Symbol}}
-    xids_condition = _get_xids_condition(sys, parameter_info, conditions_df)
+    xids_condition = _get_xids_condition(sys, petab_parameters, conditions_df)
     xids_sys = parameters(sys) .|> Symbol
     xids_nondynamic = Symbol[]
-    for id in parameter_info.parameter_id
-        if _estimate_parameter(id, parameter_info) == false
+    for id in petab_parameters.parameter_id
+        if _estimate_parameter(id, petab_parameters) == false
             continue
         end
         if id in Iterators.flatten((xids_sys, xids_condition, xids_observable, xids_noise))
@@ -163,7 +169,7 @@ function _get_xids_nondynamic(xids_observable::T, xids_noise::T, sys,
     return xids_nondynamic
 end
 
-function _get_xids_condition(sys, parameter_info::ParametersInfo,
+function _get_xids_condition(sys, petab_parameters::PEtabParameters,
                              conditions_df::DataFrame)::Vector{Symbol}
     xids_sys = parameters(sys) .|> string
     species_sys = _get_state_ids(sys)
@@ -177,7 +183,7 @@ function _get_xids_condition(sys, parameter_info::ParametersInfo,
         for condition_variable in Symbol.(conditions_df[!, colname])
             is_number(condition_variable) && continue
             condition_variable == :missing && continue
-            if _estimate_parameter(condition_variable, parameter_info) == false
+            if _estimate_parameter(condition_variable, petab_parameters) == false
                 continue
             end
             condition_variable in xids_condition && continue
@@ -188,13 +194,13 @@ function _get_xids_condition(sys, parameter_info::ParametersInfo,
 end
 
 function _get_map_observable_noise(xids::Vector{Symbol},
-                                   measurements_info::MeasurementsInfo,
-                                   parameter_info::ParametersInfo;
+                                   petab_measurements::PEtabMeasurements,
+                                   petab_parameters::PEtabParameters;
                                    observable::Bool)::Vector{ObservableNoiseMap}
     if observable == true
-        parameter_rows = measurements_info.observable_parameters
+        parameter_rows = petab_measurements.observable_parameters
     else
-        parameter_rows = measurements_info.noise_parameters
+        parameter_rows = petab_measurements.noise_parameters
     end
     maps = Vector{ObservableNoiseMap}(undef, length(parameter_rows))
     for (i, parameter_row) in pairs(parameter_rows)
@@ -223,9 +229,9 @@ function _get_map_observable_noise(xids::Vector{Symbol},
                 continue
             end
             # If a constant parameter defined in the PEtab files
-            if value in parameter_info.parameter_id
-                ix = findfirst(x -> x == value, parameter_info.parameter_id)
-                constant_values[j] = parameter_info.nominal_value[ix]
+            if value in petab_parameters.parameter_id
+                ix = findfirst(x -> x == value, petab_parameters.parameter_id)
+                constant_values[j] = petab_parameters.nominal_value[ix]
                 continue
             end
             throw(PEtabFileError("Id $value in noise or observable column in measurement " *
@@ -246,7 +252,7 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}})::MapODEProblem
     return MapODEProblem(sys_to_dynamic, dynamic_to_sys)
 end
 
-function _get_condition_maps(sys, parametermap, statemap, parameter_info::ParametersInfo,
+function _get_condition_maps(sys, parametermap, statemap, petab_parameters::PEtabParameters,
                              conditions_df::DataFrame,
                              xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, ConditionMap}
     species_sys = _get_state_ids(sys)
@@ -292,9 +298,10 @@ function _get_condition_maps(sys, parametermap, statemap, parameter_info::Parame
             end
 
             # When the value in the conditions table maps to a constant parameter
-            if Symbol(value) in parameter_info.parameter_id && variable in xids_model
-                iconstant = findfirst(x -> x == Symbol(value), parameter_info.parameter_id)
-                push!(constant_values, parameter_info.nominal_value[iconstant])
+            if Symbol(value) in petab_parameters.parameter_id && variable in xids_model
+                iconstant = findfirst(x -> x == Symbol(value),
+                                      petab_parameters.parameter_id)
+                push!(constant_values, petab_parameters.nominal_value[iconstant])
                 _add_ix_sys!(isys_constant_values, variable, xids_sys)
                 continue
             end
@@ -358,9 +365,9 @@ function _get_default_map_value(variable::String, parametermap, statemap)::Float
 end
 
 function _check_conditionids(conditions_df::DataFrame,
-                             measurements_info::MeasurementsInfo)::Nothing
+                             petab_measurements::PEtabMeasurements)::Nothing
     ncol(conditions_df) == 1 && return nothing
-    @unpack pre_equilibration_condition_id, simulation_condition_id = measurements_info
+    @unpack pre_equilibration_condition_id, simulation_condition_id = petab_measurements
     measurementids = unique(vcat(pre_equilibration_condition_id, simulation_condition_id))
     for conditionid in (conditions_df[!, :conditionId] .|> Symbol)
         conditionid in measurementids && continue
@@ -385,8 +392,10 @@ function _get_sys_parameters(sys::Union{ODESystem, ReactionSystem}, statemap,
     return out .|> Symbol
 end
 
-function _xdynamic_in_event_cond(model_SBML::SBMLImporter.ModelSBML, θ_indices::ParameterIndices, petab_tables::Dict{Symbol, DataFrame})::Bool
-    xids_sys_in_xdynamic = _get_xids_sys_in_xdynamic(θ_indices, petab_tables[:conditions])
+function _xdynamic_in_event_cond(model_SBML::SBMLImporter.ModelSBML,
+                                 xindices::ParameterIndices,
+                                 petab_tables::Dict{Symbol, DataFrame})::Bool
+    xids_sys_in_xdynamic = _get_xids_sys_in_xdynamic(xindices, petab_tables[:conditions])
     for event in values(model_SBML.events)
         for xid in xids_sys_in_xdynamic
             trigger_alt = SBMLImporter._replace_variable(event.trigger, xid, "")
@@ -398,12 +407,13 @@ function _xdynamic_in_event_cond(model_SBML::SBMLImporter.ModelSBML, θ_indices:
     return false
 end
 
-function _get_xids_sys_in_xdynamic(θ_indices::ParameterIndices, conditions_df::DataFrame)::Vector{String}
-    xids_sys = θ_indices.xids[:sys]
-    xids_sys_in_xdynamic = filter(x -> x in xids_sys, θ_indices.xids[:dynamic])
+function _get_xids_sys_in_xdynamic(xindices::ParameterIndices,
+                                   conditions_df::DataFrame)::Vector{String}
+    xids_sys = xindices.xids[:sys]
+    xids_sys_in_xdynamic = filter(x -> x in xids_sys, xindices.xids[:dynamic])
     # Extract sys parameters where an xdynamic via the condition table maps to a parameter
     # in the ODE
-    xids_condition = filter(x -> !(x in xids_sys), θ_indices.xids[:dynamic])
+    xids_condition = filter(x -> !(x in xids_sys), xindices.xids[:dynamic])
     for variable in propertynames(conditions_df)
         !(variable in xids_sys) && continue
         for xid_condition in string.(xids_condition)

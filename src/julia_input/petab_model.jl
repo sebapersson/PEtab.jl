@@ -1,28 +1,27 @@
-function PEtabModel(sys::Union{ReactionSystem, ODESystem}, simulation_conditions::Dict,
+function PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
                     observables::Dict{String, <:PEtabObservable}, measurements::DataFrame,
-                    petab_parameters::Vector{PEtabParameter};
+                    parameters::Vector{PEtabParameter};
                     statemap::Union{Nothing, AbstractVector} = nothing,
                     parametermap::Union{Nothing, AbstractVector} = nothing,
                     events::Union{PEtabEvent, AbstractVector, Nothing} = nothing,
                     verbose::Bool = false)::PEtabModel
     return _PEtabModel(sys, simulation_conditions, observables, measurements,
-                       petab_parameters, statemap, parametermap, events, verbose)
+                       parameters, statemap, parametermap, events, verbose)
 end
-function PEtabModel(sys::Union{ReactionSystem, ODESystem},
-                    observables::Dict{String, <:PEtabObservable}, measurements::DataFrame,
-                    petab_parameters::Vector{PEtabParameter};
+function PEtabModel(sys::ModelSystem, observables::Dict{String, <:PEtabObservable},
+                    measurements::DataFrame, parameters::Vector{PEtabParameter};
                     statemap::Union{Nothing, AbstractVector} = nothing,
                     parametermap::Union{Nothing, AbstractVector} = nothing,
                     events::Union{PEtabEvent, AbstractVector, Nothing} = nothing,
                     verbose::Bool = false)::PEtabModel
     simulation_conditions = Dict("__c0__" => Dict())
     return _PEtabModel(sys, simulation_conditions, observables, measurements,
-                       petab_parameters, statemap, parametermap, events, verbose)
+                       parameters, statemap, parametermap, events, verbose)
 end
 
-function _PEtabModel(sys::Union{ReactionSystem, ODESystem}, simulation_conditions::Dict,
+function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
                      observables::Dict{String, <:PEtabObservable}, measurements::DataFrame,
-                     petab_parameters::Vector{PEtabParameter},
+                     parameters::Vector{PEtabParameter},
                      statemap::Union{Nothing, AbstractVector},
                      parametermap::Union{Nothing, AbstractVector},
                      events::Union{PEtabEvent, AbstractVector, Nothing},
@@ -38,7 +37,7 @@ function _PEtabModel(sys::Union{ReactionSystem, ODESystem}, simulation_condition
     measurements_df = _measurements_to_table(measurements, simulation_conditions)
     observables_df = _observables_to_table(observables)
     conditions_df = _conditions_to_table(simulation_conditions)
-    parameters_df = _parameters_to_table(petab_parameters)
+    parameters_df = _parameters_to_table(parameters)
     petab_tables = Dict(:parameters => parameters_df, :conditions => conditions_df,
                         :observables => observables_df, :measurements => measurements_df)
 
@@ -83,11 +82,11 @@ function _PEtabModel(sys::Union{ReactionSystem, ODESystem}, simulation_condition
     # callback
     _logging(:Build_callbacks, verbose)
     btime = @elapsed begin
-        θ_indices = parse_conditions(petab_tables, sys_mutated, parametermap_use,
-                                     statemap_use)
+        xindices = ParameterIndices(petab_tables, sys_mutated, parametermap_use,
+                                    statemap_use)
         sbml_events = parse_events(events, sys_mutated)
         model_SBML = SBMLImporter.ModelSBML(name; events = sbml_events)
-        float_tspan = _xdynamic_in_event_cond(model_SBML, θ_indices, petab_tables) |> !
+        float_tspan = _xdynamic_in_event_cond(model_SBML, xindices, petab_tables) |> !
         psys = _get_sys_parameters(sys_mutated, statemap_use, parametermap_use) .|> string
         cbset = SBMLImporter.create_callbacks(sys_mutated, model_SBML, name;
                                               p_PEtab = psys, float_tspan = float_tspan)

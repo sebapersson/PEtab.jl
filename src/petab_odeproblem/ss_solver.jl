@@ -1,4 +1,5 @@
-function SteadyStateSolver(ss_solver::SteadyStateSolver, oprob::ODEProblem, osolver::ODESolver)::SteadyStateSolver
+function SteadyStateSolver(ss_solver::SteadyStateSolver, oprob::ODEProblem,
+                           osolver::ODESolver)::SteadyStateSolver
     abstol = isnothing(ss_solver.abstol) ? osolver.abstol * 100 : ss_solver.abstol
     reltol = isnothing(ss_solver.reltol) ? osolver.reltol * 100 : ss_solver.reltol
     maxiters = isnothing(ss_solver.maxiters) ? osolver.maxiters : ss_solver.maxiters
@@ -47,12 +48,12 @@ function condition_ss(u, t, integrator, abstol::Float64, reltol::Float64,
     end
 
     if newton == true && success_newton == false && pseudoinverse == true
-        @warn "Jacobian non-invertible when solving for steady-state. " *
-              "By user option uses pseduo instead (displays max 10 times)" maxlog=10
+        @warn "Jacobian non-invertible when solving for steady-state. "*
+        "By user option uses pseduo instead (displays max 10 times)" maxlog=10
         Δu = pinv(jac) * testval
     elseif newton == true && success_newton == false
-        @warn "Jacobian non-invertible when solving for steady-state. " *
-              "By default uses wrms instead (displays max 10 times)" maxlog=10
+        @warn "Jacobian non-invertible when solving for steady-state. "*
+        "By default uses wrms instead (displays max 10 times)" maxlog=10
     end
 
     nu = length(u)

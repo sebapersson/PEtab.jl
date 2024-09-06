@@ -40,7 +40,7 @@ function get_odesol(res::Union{PEtabOptimisationResult, PEtabMultistartOptimisat
     end
 
     ode_problem, cbset = get_odeproblem(res, petab_problem; condition_id = condition_id,
-                                         pre_eq_id = pre_eq_id)
+                                        pre_eq_id = pre_eq_id)
     @unpack solver, abstol, reltol = ode_solver
     return solve(ode_problem, solver, abstol = abstol, reltol = reltol, callback = cbset)
 end
@@ -153,7 +153,7 @@ function _get_fitted_parameters(res::Union{PEtabOptimisationResult,
     ode_problem = petab_problem.probinfo.odeproblem
     cache = petab_problem.probinfo.cache
     model_info = petab_problem.model_info
-    @unpack θ_indices, model, simulation_info = petab_problem.model_info
+    @unpack xindices, model, simulation_info = petab_problem.model_info
     # Sanity check input
     if isnothing(condition_id)
         _c_id = simulation_info.conditionids[:simulation][1]
@@ -168,18 +168,18 @@ function _get_fitted_parameters(res::Union{PEtabOptimisationResult,
         _pre_eq_id = nothing
     end
 
-    p, ps = ode_problem.p[:], θ_indices.xids[:sys]
+    p, ps = ode_problem.p[:], xindices.xids[:sys]
     u0, u0s = ode_problem.u0[:], first.(model.statemap)
 
     if res isa Vector{Float64}
-        θT = transform_x(res, θ_indices.xids[:estimate], θ_indices)
+        θT = transform_x(res, xindices.xids[:estimate], xindices)
     else
-        θT = transform_x(res.xmin, θ_indices.xids[:estimate], θ_indices)
+        θT = transform_x(res.xmin, xindices.xids[:estimate], xindices)
     end
-    xdynamic, xobservable, xnoise, xnondynamic = split_x(θT, θ_indices)
+    xdynamic, xobservable, xnoise, xnondynamic = split_x(θT, xindices)
 
     # Set constant model parameters
-    _set_cond_const_parameters!(p, xdynamic, θ_indices)
+    _set_cond_const_parameters!(p, xdynamic, xindices)
     ode_problem.p .= p
     ode_problem.u0 .= u0
 
@@ -205,7 +205,7 @@ function _get_fitted_parameters(res::Union{PEtabOptimisationResult,
                                                                                                      conditionId,
                                                                                                      xdynamic,
                                                                                                      model,
-                                                                                                     θ_indices)
+                                                                                                     xindices)
 
     pre_eq_sol = solve_ode_pre_equlibrium!(u_ss,
                                            u_t0,
@@ -264,7 +264,7 @@ The parameter vector `xpetab` should be provided on the PEtab scale (default log
 function solve_all_conditions(xpetab, petab_problem::PEtabODEProblem, solver; abstol = 1e-8,
                               reltol = 1e-8, maxiters = nothing, ntimepoints_save = 0,
                               save_observed_t = false)
-    @unpack ode_problem, model, simulation_info, θ_indices = petab_problem
+    @unpack ode_problem, model, simulation_info, xindices = petab_problem
     @unpack ode_solver, ss_solver, cache = petab_problem
     _ode_solver = deepcopy(ode_solver)
     _ode_solver.abstol = abstol
@@ -274,13 +274,13 @@ function solve_all_conditions(xpetab, petab_problem::PEtabODEProblem, solver; ab
         _ode_solver.maxiters = maxiters
     end
 
-    xdynamic, xobservable, xnoise, xnondynamic = split_x(xpetab, θ_indices)
-    xdynamic_ps = transform_x(xdynamic, θ_indices.xids[:dynamic], θ_indices,
-                            :xdynamic, petab_problem.cache)
+    xdynamic, xobservable, xnoise, xnondynamic = split_x(xpetab, xindices)
+    xdynamic_ps = transform_x(xdynamic, xindices.xids[:dynamic], xindices,
+                              :xdynamic, petab_problem.cache)
 
     odesols, could_solve = solve_ODE_all_conditions(ode_problem, model, xdynamic_ps,
                                                     cache, simulation_info,
-                                                    θ_indices, _ode_solver, ss_solver;
+                                                    xindices, _ode_solver, ss_solver;
                                                     save_observed_t = save_observed_t,
                                                     ntimepoints_save = ntimepoints_save)
     return odesols, could_solve

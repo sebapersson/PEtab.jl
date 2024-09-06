@@ -1,4 +1,8 @@
-function solve_pre_equlibrium!(u_ss::T, u_t0::T, @nospecialize(oprob::ODEProblem), osolver::ODESolver, ss_solver::SteadyStateSolver, float_tspan::Bool)::Union{ODESolution, SciMLBase.NonlinearSolution} where T <: AbstractVector
+function solve_pre_equlibrium!(u_ss::T, u_t0::T, @nospecialize(oprob::ODEProblem),
+                               osolver::ODESolver, ss_solver::SteadyStateSolver,
+                               float_tspan::Bool)::Union{ODESolution,
+                                                         SciMLBase.NonlinearSolution} where {T <:
+                                                                                             AbstractVector}
     if ss_solver.method === :Simulate
         sol = simulate_to_ss(oprob, osolver, ss_solver, float_tspan)
         if sol.retcode == ReturnCode.Terminated || sol.retcode == ReturnCode.Success
@@ -24,7 +28,8 @@ function simulate_to_ss(@nospecialize(oprob::ODEProblem), osolver::ODESolver,
                  dense = false, callback = ss_solver.callback_ss, verbose = verbose)
 end
 
-function rootfind_ss(oprob::ODEProblem, ss_solver::SteadyStateSolver)::SciMLBase.NonlinearSolution
+function rootfind_ss(oprob::ODEProblem,
+                     ss_solver::SteadyStateSolver)::SciMLBase.NonlinearSolution
     @unpack abstol, reltol, maxiters, rootfinding_alg = ss_solver
     prob = remake(ss_solver.nprob, u0 = oprob.u0[:],
                   p = oprob.p[:])

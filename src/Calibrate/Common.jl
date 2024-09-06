@@ -262,7 +262,7 @@ function generate_startguesses(petab_problem::PEtabODEProblem,
                                                                              QuasiMonteCarlo.SamplingAlgorithm
                                                                              }
     verbose == true && @info "Generating start-guesses"
-    @unpack prior_info, θ_names, lower_bounds, upper_bounds, = petab_problem
+    @unpack priors, θ_names, lower_bounds, upper_bounds, = petab_problem
 
     # Nothing prevents the user from sending in a parameter vector with zero parameters
     if length(lower_bounds) == 0
@@ -274,7 +274,7 @@ function generate_startguesses(petab_problem::PEtabODEProblem,
             _p::Vector{Float64} = [rand() * (upper_bounds[j] - lower_bounds[j]) +
                                    lower_bounds[j] for j in eachindex(lower_bounds)]
             # Account for potential initalisation priors
-            for (θ_name, _dist) in prior_info.initialisation_distribution
+            for (θ_name, _dist) in priors.initialisation_distribution
                 if sample_from_prior == false
                     continue
                 end
@@ -312,7 +312,7 @@ function generate_startguesses(petab_problem::PEtabODEProblem,
         end
 
         # Account for potential initalisation priors
-        for (θ_name, _dist) in prior_info.initialisation_distribution
+        for (θ_name, _dist) in priors.initialisation_distribution
             if sample_from_prior == false
                 continue
             end
@@ -346,15 +346,15 @@ end
 
 function get_bounds_prior(θ_name::Symbol,
                           petab_problem::PEtabODEProblem)::Vector{Float64}
-    @unpack prior_info, lower_bounds, upper_bounds = petab_problem
+    @unpack priors, lower_bounds, upper_bounds = petab_problem
     i = findfirst(x -> x == θ_name, petab_problem.xnames)
-    if prior_info.prior_on_parameter_scale[θ_name] == true
+    if priors.prior_on_parameter_scale[θ_name] == true
         return [lower_bounds[i], upper_bounds[i]]
     end
 
     # Here the prior is on the linear scale, while the bounds are on parameter
     # scale so they must be transformed
-    scale = petab_problem.parameter_info.parameter_scale[i]
+    scale = petab_problem.petab_parameters.parameter_scale[i]
     lower_bound = transform_x(lower_bounds[i], scale, to_xscale = false)
     upper_bound = transform_x(upper_bounds[i], scale, to_xscale = false)
     return [lower_bound, upper_bound]
@@ -363,16 +363,16 @@ end
 function transform_prior_samples!(samples::Vector{Float64},
                                   θ_name::Symbol,
                                   petab_problem::PEtabODEProblem)::Nothing
-    @unpack prior_info, lower_bounds, upper_bounds = petab_problem
+    @unpack priors, lower_bounds, upper_bounds = petab_problem
     i = findfirst(x -> x == θ_name, petab_problem.xnames)
-    if prior_info.prior_on_parameter_scale[θ_name] == true
+    if priors.prior_on_parameter_scale[θ_name] == true
         return nothing
     end
 
     # Here the prior is on the linear scale, while the bounds are on parameter
     # so the prior samples are linear, thus they must be transformed back to
     # parmeter scale for the parameter estimation
-    scale = petab_problem.parameter_info.parameter_scale[i]
+    scale = petab_problem.petab_parameters.parameter_scale[i]
     for i in eachindex(samples)
         samples[i] = transform_x.(samples[i], scale, to_xscale = true)
     end

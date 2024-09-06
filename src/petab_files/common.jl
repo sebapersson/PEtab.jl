@@ -18,8 +18,8 @@ function _check_values_column(df::DataFrame, valid_values, colname::Symbol,
     return nothing
 end
 
-function _estimate_parameter(id::Symbol, parameter_info::ParametersInfo)::Bool
-    @unpack estimate, parameter_id = parameter_info
+function _estimate_parameter(id::Symbol, petab_parameters::PEtabParameters)::Bool
+    @unpack estimate, parameter_id = petab_parameters
     ip = findfirst(x -> x == id, parameter_id)
     return isnothing(ip) ? false : estimate[ip]
 end

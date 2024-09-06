@@ -136,7 +136,8 @@ end
 # They removed this function from Catalyst, so I copied it here
 function addparam!(rn::ReactionSystem, p; disablechecks = false)
     Catalyst.reset_networkproperties!(rn)
-    curidx = disablechecks ? nothing : findfirst(S -> isequal(S, p), ModelingToolkit.get_ps(rn))
+    curidx = disablechecks ? nothing :
+             findfirst(S -> isequal(S, p), ModelingToolkit.get_ps(rn))
     if curidx === nothing
         push!(ModelingToolkit.get_ps(rn), p)
         ModelingToolkit.process_variables!(ModelingToolkit.get_var_to_name(rn),

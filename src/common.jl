@@ -5,7 +5,8 @@ function _get_state_ids(system)::Vector{String}
     return ids
 end
 
-function _set_const_parameters!(model::PEtabModel, parameters_info::ParametersInfo)::Nothing
+function _set_const_parameters!(model::PEtabModel,
+                                parameters_info::PEtabParameters)::Nothing
     @unpack statemap, parametermap, sys_mutated = model
     @unpack nominal_value, parameter_id = parameters_info
     state_ids = _get_state_ids(sys_mutated)
@@ -23,8 +24,8 @@ function _set_const_parameters!(model::PEtabModel, parameters_info::ParametersIn
     return nothing
 end
 
-function split_x(θ_est::AbstractVector, θ_indices::ParameterIndices)
-    @unpack xindices = θ_indices
+function split_x(θ_est::AbstractVector, xindices::ParameterIndices)
+    @unpack xindices = xindices
     xdynamic = @view θ_est[xindices[:dynamic]]
     xobservable = @view θ_est[xindices[:observable]]
     xnoise = @view θ_est[xindices[:noise]]
@@ -32,8 +33,9 @@ function split_x(θ_est::AbstractVector, θ_indices::ParameterIndices)
     return xdynamic, xobservable, xnoise, xnondynamic
 end
 
-function split_x!(x::AbstractVector, θ_indices::ParameterIndices, cache::PEtabODEProblemCache)::Nothing
-    xindices = θ_indices.xindices
+function split_x!(x::AbstractVector, xindices::ParameterIndices,
+                  cache::PEtabODEProblemCache)::Nothing
+    xindices = xindices.xindices
     @views cache.xdynamic .= x[xindices[:dynamic]]
     @views cache.xobservable .= x[xindices[:observable]]
     @views cache.xnoise .= x[xindices[:noise]]
@@ -42,42 +44,44 @@ function split_x!(x::AbstractVector, θ_indices::ParameterIndices, cache::PEtabO
 end
 
 # Transform parameter from log10 scale to normal scale, or reverse transform
-function transform_x!(x::AbstractVector, xids::Vector{Symbol}, θ_indices::ParameterIndices; to_xscale::Bool = false)::Nothing
+function transform_x!(x::AbstractVector, xids::Vector{Symbol}, xindices::ParameterIndices;
+                      to_xscale::Bool = false)::Nothing
     @inbounds for (i, xid) in pairs(xids)
-        x[i] = transform_x(x[i], θ_indices.xscale[xid]; to_xscale = to_xscale)
+        x[i] = transform_x(x[i], xindices.xscale[xid]; to_xscale = to_xscale)
     end
     return nothing
 end
 
-function transform_x(x::AbstractVector, θ_indices::ParameterIndices, whichx::Symbol, cache::PEtabODEProblemCache; to_xscale::Bool = false)::AbstractVector
+function transform_x(x::AbstractVector, xindices::ParameterIndices, whichx::Symbol,
+                     cache::PEtabODEProblemCache; to_xscale::Bool = false)::AbstractVector
     if whichx === :xdynamic
-        xids = θ_indices.xids[:dynamic]
+        xids = xindices.xids[:dynamic]
         x_ps = get_tmp(cache.xdynamic_ps, x)
     elseif whichx === :xnoise
-        xids = θ_indices.xids[:noise]
+        xids = xindices.xids[:noise]
         x_ps = get_tmp(cache.xnoise_ps, x)
     elseif whichx === :xnondynamic
-        xids = θ_indices.xids[:nondynamic]
+        xids = xindices.xids[:nondynamic]
         x_ps = get_tmp(cache.xnondynamic_ps, x)
     elseif whichx === :xobservable
-        xids = θ_indices.xids[:observable]
+        xids = xindices.xids[:observable]
         x_ps = get_tmp(cache.xobservable_ps, x)
     end
     for (i, xid) in pairs(xids)
-        x_ps[i] = transform_x(x[i], θ_indices.xscale[xid]; to_xscale = to_xscale)
+        x_ps[i] = transform_x(x[i], xindices.xscale[xid]; to_xscale = to_xscale)
     end
     return x_ps
 end
-function transform_x(x::T, xnames::Vector{Symbol}, θ_indices::ParameterIndices;
-                     to_xscale::Bool = false)::T where T <: AbstractVector
+function transform_x(x::T, xnames::Vector{Symbol}, xindices::ParameterIndices;
+                     to_xscale::Bool = false)::T where {T <: AbstractVector}
     out = similar(x)
     isempty(x) && return out
     for (i, xname) in pairs(xnames)
-        out[i] = transform_x(x[i], θ_indices.xscale[xname]; to_xscale = to_xscale)
+        out[i] = transform_x(x[i], xindices.xscale[xname]; to_xscale = to_xscale)
     end
     return out
 end
-function transform_x(x::T, scale::Symbol; to_xscale::Bool = false)::T where T <: Real
+function transform_x(x::T, scale::Symbol; to_xscale::Bool = false)::T where {T <: Real}
     if scale === :lin
         return x
     elseif scale === :log10
@@ -87,7 +91,7 @@ function transform_x(x::T, scale::Symbol; to_xscale::Bool = false)::T where T <:
     end
 end
 
-function transform_observable(val::T, transform::Symbol)::T where T <: Real
+function transform_observable(val::T, transform::Symbol)::T where {T <: Real}
     if transform == :lin
         return val
     elseif transform == :log10
@@ -99,7 +103,7 @@ end
 
 function _sd(u::AbstractVector, t::Float64, p::AbstractVector, xnoise::T, xnondynamic::T,
              petab_sd::Function, mapxnoise::ObservableNoiseMap, observable_id::Symbol,
-             nominal_values::Vector{Float64})::Real where T <: AbstractVector
+             nominal_values::Vector{Float64})::Real where {T <: AbstractVector}
     if mapxnoise.single_constant == true
         σ = mapxnoise.constant_values[1]
     else
@@ -110,7 +114,8 @@ end
 
 function _h(u::AbstractVector, t::Float64, p::AbstractVector, xobservable::T,
             xnondynamic::T, petab_h::Function, mapxobservable::ObservableNoiseMap,
-            observable_id::Symbol, nominal_values::Vector{Float64})::Real where T <: AbstractVector
+            observable_id::Symbol,
+            nominal_values::Vector{Float64})::Real where {T <: AbstractVector}
     return petab_h(u, t, p, xobservable, xnondynamic, nominal_values, observable_id,
                    mapxobservable)
 end
@@ -154,14 +159,14 @@ function is_number(x::Symbol)::Bool
     is_number(x |> string)
 end
 
-function _get_ixdynamic_simid(simid::Symbol, θ_indices::ParameterIndices;
+function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices;
                               full_x::Bool = false)::Vector{Integer}
-    xmap_simid = θ_indices.maps_conidition_id[simid]
+    xmap_simid = xindices.maps_conidition_id[simid]
     if full_x == false
-        ixdynamic = vcat(θ_indices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic)
+        ixdynamic = vcat(xindices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic)
     else
-        ixdynamic = vcat(θ_indices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic,
-                         θ_indices.xindices[:not_system])
+        ixdynamic = vcat(xindices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic,
+                         xindices.xindices[:not_system])
     end
     return unique(ixdynamic)
 end

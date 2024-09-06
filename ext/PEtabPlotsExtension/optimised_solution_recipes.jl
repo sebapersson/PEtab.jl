@@ -115,7 +115,7 @@ function _get_observable(θ::Vector{Float64}, petab_problem::PEtabODEProblem,
     # Notice that an observable_id for a condition_id can have in a sense different simulation
     # values due to a potential pre-eq id, different pre-eq should be labelled accordingly in
     # the plot
-    pre_eq_ids = petab_problem.measurement_info.conditionids[:pre_equilibration][idata]
+    pre_eq_ids = petab_problem.petab_measurements.conditionids[:pre_equilibration][idata]
     t_observed = measurement_data[idata, :time]
     h_observed = measurement_data[idata, :measurement]
     label_observed = [pre_eq_id == :None ? condition_id :
@@ -139,24 +139,24 @@ function _get_observable(θ::Vector{Float64}, petab_problem::PEtabODEProblem,
         # If number of observable parameters is non-zero it does not make sense to return a
         # a smooth trajectory, but if they are zero returning a smooth trajectory is preferred
         # as it looks better
-        mapxobservables = petab_problem.θ_indices.mapxobservable[_idata]
+        mapxobservables = petab_problem.xindices.mapxobservable[_idata]
         smooth_sol = all([map.n_parameters == 0 for map in mapxobservables])
         # For smooth trajectory must solve ODE and compute the observable function
         if smooth_sol == true
-            @unpack θ_indices, cache, measurement_info, parameter_info, model = petab_problem
-            xdynamic, xobservable, xnoise, xnondynamic = PEtab.split_x(θ, θ_indices)
-            xobservable_ps = PEtab.transform_x(xobservable, θ_indices.xids[:observable],
-                                             θ_indices, :xobservable, cache)
-            xnondynamic_ps = PEtab.transform_x(xnondynamic, θ_indices.xids[:nondynamic],
-                                              θ_indices, :xnondynamic, cache)
+            @unpack xindices, cache, petab_measurements, petab_parameters, model = petab_problem
+            xdynamic, xobservable, xnoise, xnondynamic = PEtab.split_x(θ, xindices)
+            xobservable_ps = PEtab.transform_x(xobservable, xindices.xids[:observable],
+                                               xindices, :xobservable, cache)
+            xnondynamic_ps = PEtab.transform_x(xnondynamic, xindices.xids[:nondynamic],
+                                               xindices, :xnondynamic, cache)
             i_measurement = _idata[1]
             _h_model = similar(sol.t)
             for i in eachindex(_h_model)
                 u = sol[:, i]
                 _h_model[i] = PEtab.computeh(u, sol.t[i], sol.prob.p, xobservable_ps,
                                              xnondynamic_ps, model,
-                                             i_measurement, measurement_info, θ_indices,
-                                             parameter_info)
+                                             i_measurement, petab_measurements, xindices,
+                                             petab_parameters)
             end
             _t_model = sol.t
 

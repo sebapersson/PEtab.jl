@@ -2,13 +2,14 @@
 function _jac_residuals_xdynamic!(jac::AbstractMatrix, _solve_conditions!::Function,
                                   probinfo::PEtabODEProblemInfo,
                                   model_info::ModelInfo, cfg::ForwardDiff.JacobianConfig;
-                                  cids::Vector{Symbol} = [:all], isremade::Bool = false)::Nothing
+                                  cids::Vector{Symbol} = [:all],
+                                  isremade::Bool = false)::Nothing
     @unpack cache, sensealg, reuse_sensitivities = probinfo
-    @unpack θ_indices, simulation_info = model_info
-    xnoise_ps = transform_x(cache.xnoise, θ_indices, :xnoise, cache)
-    xobservable_ps = transform_x(cache.xobservable, θ_indices, :xobservable, cache)
-    xnondynamic_ps = transform_x(cache.xnondynamic, θ_indices, :xnondynamic, cache)
-    xdynamic_ps = transform_x(cache.xdynamic, θ_indices, :xdynamic, cache)
+    @unpack xindices, simulation_info = model_info
+    xnoise_ps = transform_x(cache.xnoise, xindices, :xnoise, cache)
+    xobservable_ps = transform_x(cache.xobservable, xindices, :xobservable, cache)
+    xnondynamic_ps = transform_x(cache.xnondynamic, xindices, :xnondynamic, cache)
+    xdynamic_ps = transform_x(cache.xdynamic, xindices, :xdynamic, cache)
 
     if reuse_sensitivities == false
         success = solve_sensitivites!(model_info, _solve_conditions!, xdynamic_ps,
@@ -35,11 +36,13 @@ function _jac_residuals_xdynamic!(jac::AbstractMatrix, _solve_conditions!::Funct
     return nothing
 end
 
-function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic::Vector{T}, xnoise::Vector{T},
+function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic::Vector{T},
+                              xnoise::Vector{T},
                               xobservable::Vector{T}, xnondynamic::Vector{T}, icid::Int64,
-                              probinfo::PEtabODEProblemInfo, model_info::ModelInfo) where T <: AbstractFloat
-    @unpack θ_indices, simulation_info, model = model_info
-    @unpack parameter_info, measurement_info = model_info
+                              probinfo::PEtabODEProblemInfo,
+                              model_info::ModelInfo) where {T <: AbstractFloat}
+    @unpack xindices, simulation_info, model = model_info
+    @unpack petab_parameters, petab_measurements = model_info
     @unpack imeasurements_t, tsaves, smatrixindices = simulation_info
     cache = probinfo.cache
 
@@ -47,7 +50,7 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic::Vector{T}, xnois
     cid = simulation_info.conditionids[:experiment][icid]
     simid = simulation_info.conditionids[:simulation][icid]
     smatrixindices_cid = smatrixindices[cid]
-    ixdynamic_simid = _get_ixdynamic_simid(simid, θ_indices)
+    ixdynamic_simid = _get_ixdynamic_simid(simid, xindices)
     sol = simulation_info.odesols_derivatives[cid]
 
     # Partial derivatives needed for computing the gradient (derived from the chain-rule)
@@ -69,7 +72,7 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic::Vector{T}, xnois
             ∂G∂p!(∂G∂p, u, p, tsave, 1, [[imeasurement]])
             @views forward_eqs_grad[ixdynamic_simid] .= transpose(_S) * ∂G∂u
             _jac = @view jac[:, imeasurement]
-            grad_to_xscale!(_jac, forward_eqs_grad, ∂G∂p, xdynamic, θ_indices, simid,
+            grad_to_xscale!(_jac, forward_eqs_grad, ∂G∂p, xdynamic, xindices, simid,
                             sensitivites_AD = true)
         end
     end
@@ -79,13 +82,16 @@ end
 # To compute the gradient for non-dynamic parameters
 function residuals_not_solveode(residuals::T1, xnoise::T2, xobservable::T2, xnondynamic::T2,
                                 probinfo::PEtabODEProblemInfo, model_info::ModelInfo;
-                                cids::Vector{Symbol} = [:all])::T1 where {T1 <: AbstractVector,
-                                                                          T2 <: AbstractVector}
-    @unpack θ_indices, simulation_info = model_info
+                                cids::Vector{Symbol} = [:all])::T1 where {
+                                                                          T1 <:
+                                                                          AbstractVector,
+                                                                          T2 <:
+                                                                          AbstractVector}
+    @unpack xindices, simulation_info = model_info
     cache = probinfo.cache
-    xnoise_ps = transform_x(xnoise, θ_indices, :xnoise, cache)
-    xobservable_ps = transform_x(xobservable, θ_indices, :xobservable, cache)
-    xnondynamic_ps = transform_x(xnondynamic, θ_indices, :xnondynamic, cache)
+    xnoise_ps = transform_x(xnoise, xindices, :xnoise, cache)
+    xobservable_ps = transform_x(xobservable, xindices, :xobservable, cache)
+    xnondynamic_ps = transform_x(xnondynamic, xindices, :xnondynamic, cache)
 
     for cid in simulation_info.conditionids[:experiment]
         if cids[1] != :all && !(cid in cids)
@@ -103,25 +109,26 @@ end
 
 # For an experimental condition compute residuals
 function _residuals_cond!(residuals::T1, xnoise::T2, xobservable::T2, xnondynamic::T2,
-                          cid::Symbol, model_info::ModelInfo)::Bool where {T1 <: AbstractVector,
-                                                                           T2 <: AbstractVector}
-    @unpack θ_indices, simulation_info, measurement_info, parameter_info, model = model_info
+                          cid::Symbol,
+                          model_info::ModelInfo)::Bool where {T1 <: AbstractVector,
+                                                              T2 <: AbstractVector}
+    @unpack xindices, simulation_info, petab_measurements, petab_parameters, model = model_info
     sol = simulation_info.odesols_derivatives[cid]
     if !(sol.retcode == ReturnCode.Success || sol.retcode == ReturnCode.Terminated)
         return false
     end
 
-    @unpack time, measurement_transforms, measurement_transformed, observable_id = measurement_info
+    @unpack time, measurement_transforms, measurement_transformed, observable_id = petab_measurements
     @unpack imeasurements, imeasurements_t_sol = simulation_info
-    nominal_values = parameter_info.nominal_value
+    nominal_values = petab_parameters.nominal_value
     for imeasurement in imeasurements[cid]
         t, obsid = time[imeasurement], observable_id[imeasurement]
         u = sol[:, imeasurements_t_sol[imeasurement]] .|> SBMLImporter._to_float
         p = sol.prob.p .|> SBMLImporter._to_float
 
         # Model observable and noise
-        mapxnoise = θ_indices.mapxnoise[imeasurement]
-        mapxobservable = θ_indices.mapxobservable[imeasurement]
+        mapxnoise = xindices.mapxnoise[imeasurement]
+        mapxobservable = xindices.mapxobservable[imeasurement]
         h = _h(u, t, p, xobservable, xnondynamic, model.h, mapxobservable, obsid,
                nominal_values)
         h_transformed = transform_observable(h, measurement_transforms[imeasurement])

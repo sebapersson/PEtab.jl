@@ -31,26 +31,27 @@ function create_u0_h_σ_file(model_name::String,
 
     petab_tables = read_tables(path_yaml)
     measurements_data, observables_data, parameters_data, experimental_conditions, = collect(values(petab_tables))
-    parameter_info = parse_parameters(parameters_data, custom_values = custom_values)
-    measurement_info = parse_measurements(measurements_data, observables_data)
+    petab_parameters = PEtabParameters(parameters_data, custom_values = custom_values)
+    petab_measurements = PEtabMeasurements(measurements_data, observables_data)
 
     # Indices for keeping track of parameters in θ
-    θ_indices = parse_conditions(parameter_info, measurement_info, system, parametermap,
-                                 statemap, experimental_conditions)
+    xindices = ParameterIndices(petab_parameters, petab_measurements, system, parametermap,
+                                statemap, experimental_conditions)
 
-    h_str = create_h_function(model_name, dirjulia, model_state_names, parameter_info,
+    h_str = create_h_function(model_name, dirjulia, model_state_names, petab_parameters,
                               p_ode_problem_names,
-                              string.(θ_indices.xids[:nondynamic]), observables_data,
+                              string.(xindices.xids[:nondynamic]), observables_data,
                               model_SBML, write_to_file)
 
-    u0!_str = create_u0_function(model_name, dirjulia, parameter_info, p_ode_problem_names,
+    u0!_str = create_u0_function(model_name, dirjulia, petab_parameters,
+                                 p_ode_problem_names,
                                  statemap, write_to_file, model_SBML, inplace = true)
 
-    u0_str = create_u0_function(model_name, dirjulia, parameter_info, p_ode_problem_names,
+    u0_str = create_u0_function(model_name, dirjulia, petab_parameters, p_ode_problem_names,
                                 statemap, write_to_file, model_SBML, inplace = false)
 
-    σ_str = create_σ_function(model_name, dirjulia, parameter_info, model_state_names,
-                              p_ode_problem_names, string.(θ_indices.xids[:nondynamic]),
+    σ_str = create_σ_function(model_name, dirjulia, petab_parameters, model_state_names,
+                              p_ode_problem_names, string.(xindices.xids[:nondynamic]),
                               observables_data, model_SBML, write_to_file)
 
     return h_str, u0!_str, u0_str, σ_str
@@ -69,29 +70,31 @@ function create_u0_h_σ_file(model_name::String,
     parametermap = [p => 0.0 for p in parameters(system)]
     p_ode_problem_names = _get_sys_parameters(system, statemap, parametermap) .|> string
 
-    parameter_info = PEtab.parse_parameters(parameters_data)
-    measurement_info = PEtab.parse_measurements(measurements_data, observables_data)
+    petab_parameters = PEtab.PEtabParameters(parameters_data)
+    petab_measurements = PEtab.PEtabMeasurements(measurements_data, observables_data)
 
     # Indices for keeping track of parameters in θ
-    θ_indices = PEtab.parse_conditions(parameter_info, measurement_info, system,
-                                       parametermap, statemap, experimental_conditions)
+    xindices = PEtab.ParameterIndices(petab_parameters, petab_measurements, system,
+                                      parametermap, statemap, experimental_conditions)
 
     # Dummary variables to keep PEtab importer happy even as we are not providing any PEtab files
     model_SBML = SBMLImporter.ModelSBML("")
 
-    h_str = PEtab.create_h_function(model_name, @__DIR__, model_state_names, parameter_info,
+    h_str = PEtab.create_h_function(model_name, @__DIR__, model_state_names,
+                                    petab_parameters,
                                     p_ode_problem_names,
-                                    string.(θ_indices.xids[:nondynamic]),
+                                    string.(xindices.xids[:nondynamic]),
                                     observables_data, model_SBML, false)
-    u0!_str = PEtab.create_u0_function(model_name, @__DIR__, parameter_info,
+    u0!_str = PEtab.create_u0_function(model_name, @__DIR__, petab_parameters,
                                        p_ode_problem_names, statemap, false,
                                        model_SBML, inplace = true)
-    u0_str = PEtab.create_u0_function(model_name, @__DIR__, parameter_info,
+    u0_str = PEtab.create_u0_function(model_name, @__DIR__, petab_parameters,
                                       p_ode_problem_names, statemap, false,
                                       model_SBML, inplace = false)
-    σ_str = PEtab.create_σ_function(model_name, @__DIR__, parameter_info, model_state_names,
+    σ_str = PEtab.create_σ_function(model_name, @__DIR__, petab_parameters,
+                                    model_state_names,
                                     p_ode_problem_names,
-                                    string.(θ_indices.xids[:nondynamic]),
+                                    string.(xindices.xids[:nondynamic]),
                                     observables_data, model_SBML, false)
 
     return h_str, u0!_str, u0_str, σ_str
@@ -101,7 +104,7 @@ end
     create_h_function(model_name::String,
                       dirmodel::String,
                       model_state_names::Vector{String},
-                      parameter_info::ParametersInfo,
+                      petab_parameters::PEtabParameters,
                       namesParamDyn::Vector{String},
                       namesNonDynParam::Vector{String},
                       observables_data::DataFrame,
@@ -113,7 +116,7 @@ end
 function create_h_function(model_name::String,
                            dirmodel::String,
                            model_state_names::Vector{String},
-                           parameter_info::ParametersInfo,
+                           petab_parameters::PEtabParameters,
                            p_ode_problem_names::Vector{String},
                            xnondynamic_names::Vector{String},
                            observables_data::DataFrame,
@@ -122,9 +125,9 @@ function create_h_function(model_name::String,
     io = IOBuffer()
     path_save = joinpath(dirmodel, model_name * "_h_sd_u0.jl")
     model_state_str, xdynamic_str, xnondynamic_str, constant_parameters_str = create_top_function_h(model_state_names,
-                                                                                                       parameter_info,
-                                                                                                       p_ode_problem_names,
-                                                                                                       xnondynamic_names)
+                                                                                                    petab_parameters,
+                                                                                                    p_ode_problem_names,
+                                                                                                    xnondynamic_names)
 
     # Write the formula for each observable in Julia syntax
     observable_ids = string.(observables_data[!, :observableId])
@@ -142,10 +145,11 @@ function create_h_function(model_name::String,
         formula = replace_explicit_variable_rule(_formula, model_SBML)
 
         # Translate the formula for the observable to Julia syntax
-        _julia_formula = petab_formula_to_Julia(formula, model_state_names, parameter_info,
+        _julia_formula = petab_formula_to_Julia(formula, model_state_names,
+                                                petab_parameters,
                                                 p_ode_problem_names, xnondynamic_names)
         julia_formula = variables_to_array_index(_julia_formula, model_state_names,
-                                                 parameter_info, p_ode_problem_names,
+                                                 petab_parameters, p_ode_problem_names,
                                                  xnondynamic_names, p_ode_problem = true)
         observable_str *= "\t\t" * "return " * julia_formula * "\n" * "\tend\n\n"
     end
@@ -177,14 +181,14 @@ end
 
 """
     create_top_function_h(model_state_names::Vector{String},
-                          parameter_info::ParametersInfo,
+                          petab_parameters::PEtabParameters,
                           namesParamODEProb::Vector{String},
                           namesNonDynParam::Vector{String})
 
     Extracts all variables needed for the observable h function.
 """
 function create_top_function_h(model_state_names::Vector{String},
-                               parameter_info::ParametersInfo,
+                               petab_parameters::PEtabParameters,
                                p_ode_problem_names::Vector{String},
                                xnondynamic_names::Vector{String})
     model_state_str = "#"
@@ -197,7 +201,7 @@ function create_top_function_h(model_state_names::Vector{String},
     xdynamic_str = "#"
     for i in eachindex(p_ode_problem_names)
         xdynamic_str *= "p_ode_problem_names[" * string(i) * "] = " *
-                         p_ode_problem_names[i] * ", "
+                        p_ode_problem_names[i] * ", "
     end
     xdynamic_str = xdynamic_str[1:(end - 2)] # Remove last non needed ", "
     xdynamic_str *= "\n"
@@ -206,17 +210,17 @@ function create_top_function_h(model_state_names::Vector{String},
     if !isempty(xnondynamic_names)
         for i in eachindex(xnondynamic_names)
             xnondynamic_str *= "xnondynamic[" * string(i) * "] = " *
-                                 xnondynamic_names[i] * ", "
+                               xnondynamic_names[i] * ", "
         end
         xnondynamic_str = xnondynamic_str[1:(end - 2)] # Remove last non needed ", "
         xnondynamic_str *= "\n"
     end
 
     constant_parameters_str = ""
-    for i in eachindex(parameter_info.parameter_id)
-        if parameter_info.estimate[i] == false
-            constant_parameters_str *= "#parameter_info.nominalValue[" * string(i) *
-                                       "] = " * string(parameter_info.parameter_id[i]) *
+    for i in eachindex(petab_parameters.parameter_id)
+        if petab_parameters.estimate[i] == false
+            constant_parameters_str *= "#petab_parameters.nominalValue[" * string(i) *
+                                       "] = " * string(petab_parameters.parameter_id[i]) *
                                        "_C \n"
         end
     end
@@ -228,7 +232,7 @@ end
 """
     create_u0_function(model_name::String,
                        dirmodel::String,
-                       parameter_info::ParametersInfo,
+                       petab_parameters::PEtabParameters,
                        p_ode_problem_names::Vector{String},
                        statemap,
                        model_SBML;
@@ -237,12 +241,12 @@ end
     For model_name create a function for computing initial value by translating the statemap
     into Julia syntax.
 
-    To correctly create the function the name of all parameters, parameter_info (to get constant parameters)
+    To correctly create the function the name of all parameters, petab_parameters (to get constant parameters)
     are required.
 """
 function create_u0_function(model_name::String,
                             dirmodel::String,
-                            parameter_info::ParametersInfo,
+                            petab_parameters::PEtabParameters,
                             p_ode_problem_names::Vector{String},
                             statemap,
                             write_to_file::Bool,
@@ -290,11 +294,13 @@ function create_u0_function(model_name::String,
         stateName = model_state_names[i]
         _stateExpression = replace(string(statemap[i].second), " " => "")
         stateFormula = petab_formula_to_Julia(_stateExpression, model_state_names,
-                                              parameter_info, p_ode_problem_names, String[])
+                                              petab_parameters, p_ode_problem_names,
+                                              String[])
         for i in eachindex(p_ode_problem_names)
             stateFormula = SBMLImporter._replace_variable(stateFormula,
-                                                         p_ode_problem_names[i],
-                                                         "p_ode_problem[" * string(i) * "]")
+                                                          p_ode_problem_names[i],
+                                                          "p_ode_problem[" * string(i) *
+                                                          "]")
         end
         model_state_str *= "\t" * stateName * " = " * stateFormula * "\n"
     end
@@ -336,7 +342,7 @@ end
 """
     create_σ_function(model_name::String,
                       dirmodel::String,
-                      parameter_info::ParametersInfo,
+                      petab_parameters::PEtabParameters,
                       model_state_names::Vector{String},
                       p_ode_problem_names::Vector{String},
                       xnondynamic_names::Vector{String},
@@ -348,7 +354,7 @@ end
 """
 function create_σ_function(model_name::String,
                            dirmodel::String,
-                           parameter_info::ParametersInfo,
+                           petab_parameters::PEtabParameters,
                            model_state_names::Vector{String},
                            p_ode_problem_names::Vector{String},
                            xnondynamic_names::Vector{String},
@@ -373,10 +379,11 @@ function create_σ_function(model_name::String,
         formula = replace_explicit_variable_rule(_formula, model_SBML)
 
         # Translate the formula for the observable to Julia syntax
-        _julia_formula = petab_formula_to_Julia(formula, model_state_names, parameter_info,
+        _julia_formula = petab_formula_to_Julia(formula, model_state_names,
+                                                petab_parameters,
                                                 p_ode_problem_names, xnondynamic_names)
         julia_formula = variables_to_array_index(_julia_formula, model_state_names,
-                                                 parameter_info, p_ode_problem_names,
+                                                 petab_parameters, p_ode_problem_names,
                                                  xnondynamic_names, p_ode_problem = true)
         observable_str *= "\t\t" * "return " * julia_formula * "\n" * "\tend\n\n"
     end

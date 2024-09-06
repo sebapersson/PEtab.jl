@@ -36,7 +36,7 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
                                  sensealg_use, model_info)
 
     btime = @elapsed begin
-        _set_const_parameters!(model, model_info.parameter_info)
+        _set_const_parameters!(model, model_info.petab_parameters)
         @unpack sys_mutated, statemap, parametermap, defined_in_julia = model
         if sys_mutated isa ODESystem && defined_in_julia == false
             SL = specialize_level
@@ -65,7 +65,8 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
     # To build the steady-state solvers the ODEProblem (specifically its Jacobian)
     # is needed (which is the same for oprob and oprob_gradient)
     ss_solver_use = SteadyStateSolver(_ss_solver, oprob, odesolver_use)
-    ss_solver_gradient_use = SteadyStateSolver(_ss_solver_gradient, oprob, odesolver_gradient_use)
+    ss_solver_gradient_use = SteadyStateSolver(_ss_solver_gradient, oprob,
+                                               odesolver_gradient_use)
 
     return PEtabODEProblemInfo(oprob, oprob_gradient, odesolver_use, odesolver_gradient_use,
                                ss_solver_use, ss_solver_gradient_use, gradient_method_use,

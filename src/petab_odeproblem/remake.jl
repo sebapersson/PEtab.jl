@@ -14,7 +14,7 @@ function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
     # before were to be estimated are set to fixated. In PEtab-select setting some
     # parameters can also be set to estimate, these can be removed here.
     for xid in keys(xchange)
-        if xchange[xid] == "estimate" &&  !(xid in prob.xnames)
+        if xchange[xid] == "estimate" && !(xid in prob.xnames)
             throw(PEtabInputError("When remaking a PEtabODEProblem new parameters, here " *
                                   "$xid, which is not set to be estimated in the PEtab " *
                                   "table cannot be set to be estimated. Instead build " *
@@ -31,7 +31,7 @@ function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
     xids_fixate = keys(xchange) |> collect
     x_fixate = zeros(Float64, length(xids_fixate))
     for (i, xid) in pairs(xids_fixate)
-        scale = model_info.θ_indices.xscale[xid]
+        scale = model_info.xindices.xscale[xid]
         x_fixate[i] = transform_x(xchange[xid], scale; to_xscale = true)
     end
 
@@ -39,7 +39,7 @@ function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
     # evaluate ForwardDiff over a subset of chunks. To this end we here make sure
     # "fixed" parameter are moved to the end of the parameter vector to not run ForwardDiff
     # over these
-    xids_dynamic = model_info.θ_indices.xids[:dynamic]
+    xids_dynamic = model_info.xindices.xids[:dynamic]
     ixdynamic_fixate = Int64[]
     for xid in xids_fixate
         ix = findfirst(x -> x == xid, xids_dynamic)
@@ -93,10 +93,10 @@ function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
     nestimate = length(xnames)
 
     # Set priors to be skipped (first reset to not skip any evaluated parameters)
-    prior_info = model_info.prior_info
-    filter!(x -> isnothing(x), prior_info.skip)
+    priors = model_info.priors
+    filter!(x -> isnothing(x), priors.skip)
     for xid in xids_fixate
-        push!(prior_info.skip, xid)
+        push!(priors.skip, xid)
     end
 
     # Needed for the new problem (as under the hood we still use the full Hessian and

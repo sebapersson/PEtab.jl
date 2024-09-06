@@ -134,7 +134,7 @@ function PEtab.run_PEtab_select(path_yaml::String,
     [_custom_values[parametersToChange[i]] = "estimate"
      for i in eachindex(parametersToChange)]
     _model = PEtabModel(joinpath(dirmodel, modelSpaceFile[1][:petab_yaml]),
-                              build_julia_files = true, verbose = false)
+                        build_julia_files = true, verbose = false)
     _petab_problem = PEtabODEProblem(_model,
                                      ode_solver = ode_solver,
                                      ode_solver_gradient = ode_solver_gradient,

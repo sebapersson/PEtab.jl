@@ -1,14 +1,14 @@
 # Compute gradient via adjoint sensitivity analysis
 function grad_adjoint!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode!::Function,
                        probinfo::PEtab.PEtabODEProblemInfo, model_info::PEtab.ModelInfo;
-                       cids::Vector{Symbol} = [:all])::Nothing where T <: AbstractFloat
-    @unpack simulation_info, simulation_info, θ_indices, prior_info = model_info
+                       cids::Vector{Symbol} = [:all])::Nothing where {T <: AbstractFloat}
+    @unpack simulation_info, simulation_info, xindices, priors = model_info
     @unpack cache = probinfo
-    PEtab.split_x!(x, θ_indices, cache)
+    PEtab.split_x!(x, xindices, cache)
     @unpack xdynamic_grad, xnotode_grad = cache
 
     _grad_adjoint_xdynamic!(xdynamic_grad, probinfo, model_info; cids = cids)
-    @views grad[θ_indices.xindices[:dynamic]] .= xdynamic_grad
+    @views grad[xindices.xindices[:dynamic]] .= xdynamic_grad
 
     # Happens when at least one forward pass fails and I set the gradient to 1e8
     if !isempty(xdynamic_grad) && all(xdynamic_grad .== 0.0)
@@ -17,9 +17,9 @@ function grad_adjoint!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode!::Funct
     end
 
     # None-dynamic parameter not part of ODE (only need an ODE solution for gradient)
-    x_notode = @view x[θ_indices.xindices[:not_system]]
+    x_notode = @view x[xindices.xindices[:not_system]]
     ReverseDiff.gradient!(xnotode_grad, _nllh_not_solveode!, x_notode)
-    @views grad[θ_indices.xindices[:not_system]] .= xnotode_grad
+    @views grad[xindices.xindices[:not_system]] .= xnotode_grad
     return nothing
 end
 
@@ -28,11 +28,11 @@ function _grad_adjoint_xdynamic!(grad::Vector{<:AbstractFloat},
                                  model_info::PEtab.ModelInfo;
                                  cids::Vector{Symbol} = [:all])::Nothing
     @unpack cache, sensealg, sensealg_ss = probinfo
-    @unpack simulation_info, θ_indices = model_info
-    xnoise_ps = PEtab.transform_x(cache.xnoise, θ_indices, :xnoise, cache)
-    xobservable_ps = PEtab.transform_x(cache.xobservable, θ_indices, :xobservable, cache)
-    xnondynamic_ps = PEtab.transform_x(cache.xnondynamic, θ_indices, :xnondynamic, cache)
-    xdynamic_ps = PEtab.transform_x(cache.xdynamic, θ_indices, :xdynamic, cache)
+    @unpack simulation_info, xindices = model_info
+    xnoise_ps = PEtab.transform_x(cache.xnoise, xindices, :xnoise, cache)
+    xobservable_ps = PEtab.transform_x(cache.xobservable, xindices, :xobservable, cache)
+    xnondynamic_ps = PEtab.transform_x(cache.xnondynamic, xindices, :xnondynamic, cache)
+    xdynamic_ps = PEtab.transform_x(cache.xdynamic, xindices, :xdynamic, cache)
 
     success = PEtab.solve_conditions!(model_info, xdynamic_ps, probinfo; cids = cids,
                                       dense_sol = true, save_observed_t = false,
@@ -73,7 +73,8 @@ end
 
 # TODO: Figure out how to get the math behind SteadyStateAdjoint working, should really
 # be easy as it boils down to a single Matrix operation given Jacobian
-function _get_vjps_ss(probinfo::PEtab.PEtabODEProblemInfo, simulation_info::PEtab.SimulationInfo,
+function _get_vjps_ss(probinfo::PEtab.PEtabODEProblemInfo,
+                      simulation_info::PEtab.SimulationInfo,
                       sensealg_ss::AdjointAlg, cids::Vector{Symbol})::Dict{Symbol, Function}
     if cids[1] == :all
         preeq_ids = unique(simulation_info.conditionids[:pre_equilibration])
@@ -138,10 +139,11 @@ end
 
 function _grad_adjoint_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vector{T},
                              xobservable::Vector{T}, xnondynamic::Vector{T}, icid::Int64,
-                             probinfo::PEtab.PEtabODEProblemInfo, model_info::PEtab.ModelInfo,
-                             vjp_ss_cid::Function)::Bool where T <: AbstractFloat
-    @unpack θ_indices, simulation_info, model = model_info
-    @unpack parameter_info, measurement_info = model_info
+                             probinfo::PEtab.PEtabODEProblemInfo,
+                             model_info::PEtab.ModelInfo,
+                             vjp_ss_cid::Function)::Bool where {T <: AbstractFloat}
+    @unpack xindices, simulation_info, model = model_info
+    @unpack petab_parameters, petab_measurements = model_info
     @unpack imeasurements_t, tsaves, smatrixindices, tracked_callbacks = simulation_info
     @unpack sensealg, cache, solver_gradient = probinfo
     @unpack solver_adj, abstol_adj, reltol_adj, maxiters, force_dtmin = solver_gradient
@@ -193,13 +195,13 @@ function _grad_adjoint_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vecto
     if simulation_info.has_pre_equilibration == false
         ForwardDiff.jacobian!(St0, model.u0!, sol.prob.u0, sol.prob.p)
         adjoint_grad .= dp .+ transpose(St0) * du
-    # In case we simulate to a stady state we need to compute a VJP.
+        # In case we simulate to a stady state we need to compute a VJP.
     else
         adjoint_grad .= dp .+ vjp_ss_cid(du)
     end
 
     # Adjust if gradient is non-linear scale (e.g. log and log10).
-    PEtab.grad_to_xscale!(grad, adjoint_grad, ∂G∂p, xdynamic, θ_indices, simid,
+    PEtab.grad_to_xscale!(grad, adjoint_grad, ∂G∂p, xdynamic, xindices, simid,
                           adjoint = true)
     return true
 end
@@ -207,7 +209,8 @@ end
 # In order to obtain the ret-codes when solving the adjoint ODE system we must, as here
 # copy to 99% from SciMLSensitivity GitHub repo to access the actual solve-call to the
 # ODEAdjointProblem. Under MIT Expat license at https://github.com/SciML/SciMLSensitivity.jl
-function __adjoint_sensitivities!(_du::AbstractVector, _dp::AbstractVector, sol::ODESolution,
+function __adjoint_sensitivities!(_du::AbstractVector, _dp::AbstractVector,
+                                  sol::ODESolution,
                                   sensealg::InterpolatingAdjoint, t::Vector{Float64},
                                   solver::SciMLAlgorithm, abstol::Float64, reltol::Float64,
                                   callback::SciMLBase.DECallback, compute_∂G∂u::F;

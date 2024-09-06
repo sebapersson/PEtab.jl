@@ -2,7 +2,7 @@ function _check_method(method::Symbol, whatcheck::Symbol)::Nothing
     if whatcheck == :gradient
         allowed_methods = GRADIENT_METHODS
         if method == :Adjoint
-            @assert "SciMLSensitivity" ∈ string.(values(Base.loaded_modules)) "To use " *
+            @assert "SciMLSensitivity" ∈ string.(values(Base.loaded_modules)) "To use "*
             "adjoint sensitivity analysis SciMLSensitivity must be loaded"
         end
     elseif whatcheck == :Hessian
@@ -17,10 +17,10 @@ function _check_method(method::Symbol, whatcheck::Symbol)::Nothing
     end
 end
 
-function _get_model_size(sys::Union{ReactionSystem, ODESystem},
+function _get_model_size(sys::ModelSystem,
                          model_info::ModelInfo)::Symbol
     nODEs = length(unknowns(sys))
-    nps = length(model_info.θ_indices.xids[:dynamic])
+    nps = length(model_info.xindices.xids[:dynamic])
     if nODEs ≤ 15 && nps ≤ 20
         return :Small
     elseif nODEs ≤ 50 && nps ≤ 70

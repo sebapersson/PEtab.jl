@@ -65,7 +65,8 @@ Two options are available for `termination_check`:
 `maxiters` refers to either the maximum number of rootfinding steps or the maximum number of integration steps,
 depending on the chosen method.
 """
-struct SteadyStateSolver{T1 <: Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm},
+struct SteadyStateSolver{T1 <:
+                         Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm},
                          T2 <: Union{Nothing, AbstractFloat},
                          T3 <: Union{Nothing, NonlinearProblem},
                          CA <: Union{Nothing, SciMLBase.DECallback},
@@ -80,8 +81,12 @@ struct SteadyStateSolver{T1 <: Union{Nothing, NonlinearSolve.AbstractNonlinearSo
     nprob::T3
     pseudoinverse::Bool
 end
-function SteadyStateSolver(method::Symbol; termination_check::Symbol = :wrms, rootfinding_alg::Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm} = nothing,
-                           abstol = nothing, reltol = nothing, maxiters::Union{Nothing, Int64} = nothing, pseudoinverse::Bool = false)::SteadyStateSolver
+function SteadyStateSolver(method::Symbol; termination_check::Symbol = :wrms,
+                           rootfinding_alg::Union{Nothing,
+                                                  NonlinearSolve.AbstractNonlinearSolveAlgorithm} = nothing,
+                           abstol = nothing, reltol = nothing,
+                           maxiters::Union{Nothing, Int64} = nothing,
+                           pseudoinverse::Bool = false)::SteadyStateSolver
     if !(method in [:Rootfinding, :Simulate])
         throw(PEtabInputError("Allowed methods for computing steady state are :Rootfinding " *
                               ":Simulate not $method"))
@@ -92,7 +97,8 @@ function SteadyStateSolver(method::Symbol; termination_check::Symbol = :wrms, ro
         return SteadyStateSolver(rootfinding_alg, abstol, reltol, maxiters)
     end
 end
-function SteadyStateSolver(termination_check::Symbol, abstol, reltol, maxiters, pseudoinverse::Bool)::SteadyStateSolver
+function SteadyStateSolver(termination_check::Symbol, abstol, reltol, maxiters,
+                           pseudoinverse::Bool)::SteadyStateSolver
     if !(termination_check in [:Newton, :wrms])
         throw(PEtabInputError("When steady states are computed via simulations " *
                               "allowed termination methods are :Newton or :wrms not " *
@@ -101,7 +107,8 @@ function SteadyStateSolver(termination_check::Symbol, abstol, reltol, maxiters, 
     return SteadyStateSolver(:Simulate, nothing, termination_check, abstol, reltol,
                              maxiters, nothing, nothing, pseudoinverse)
 end
-function SteadyStateSolver(alg::Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm},
+function SteadyStateSolver(alg::Union{Nothing,
+                                      NonlinearSolve.AbstractNonlinearSolveAlgorithm},
                            abstol, reltol, maxiters)::SteadyStateSolver
     _alg = isnothing(alg) ? NonlinearSolve.TrustRegion() : alg
     return SteadyStateSolver(:Rootfinding, _alg, :nothing, abstol, reltol, maxiters,
@@ -157,7 +164,7 @@ struct ParameterIndices
     maps_conidition_id::Dict{Symbol, ConditionMap}
 end
 
-struct PriorInfo
+struct Priors
     logpdf::Dict{Symbol, Function}
     distribution::Dict{Symbol, Distribution{Univariate, Continuous}}
     initialisation_distribution::Dict{Symbol, Distribution{Univariate, Continuous}}
@@ -165,12 +172,12 @@ struct PriorInfo
     has_priors::Bool
     skip::Vector{Symbol}
 end
-function PriorInfo()
+function Priors()
     # In case the models does not have priors
-    return PriorInfo(Dict{Symbol, Function}(),
-                     Dict{Symbol, Distribution{Univariate, Continuous}}(),
-                     Dict{Symbol, Distribution{Univariate, Continuous}}(),
-                     Dict{Symbol, Bool}(), false, Symbol[])
+    return Priors(Dict{Symbol, Function}(),
+                  Dict{Symbol, Distribution{Univariate, Continuous}}(),
+                  Dict{Symbol, Distribution{Univariate, Continuous}}(),
+                  Dict{Symbol, Bool}(), false, Symbol[])
 end
 
 """
@@ -203,11 +210,11 @@ All of this happens automatically, and resulting files are stored under `model.p
 model = PEtabModel("path_to_petab_problem_yaml")
 ```
 
-    PEtabModel(system::Union{ReactionSystem, ODESystem},
+    PEtabModel(system::ModelSystem,
                simulation_conditions::Dict{String, Dict},
                observables::Dict{String, <:PEtabObservable},
                measurements::DataFrame,
-               petab_parameters::Vector{PEtabParameter};
+               parameters::Vector{PEtabParameter};
                statemap::Union{Nothing, Vector{Pair}=nothing,
                parametermap::Union{Nothing, Vector{Pair}=nothing,
                events::Union{Nothing, PEtabEvent, AbstractVector}=nothing,
@@ -218,11 +225,11 @@ Create a PEtabModel directly in Julia from a Catalyst reaction system or MTK ODE
 For additional information on the input format, see the main documentation.
 
 # Arguments
-- `system::Union{ReactionSystem, ODESystem}`: A Catalyst reaction system or a ModellingToolkit ODESystem
+- `system::ModelSystem`: A Catalyst reaction system or a ModellingToolkit ODESystem
 - `simulation_conditions::Dict{String, T}`: A dictionary specifying values for control parameters/species per simulation condition.
 - `observables::Dict{String, PEtab.PEtabObservable}`: A dictionary specifying the observable and noise formulas linking the model to data.
 - `measurements::DataFrame`: Measurement data to calibrate the model against.
-- `petab_parameters::Vector{PEtab.PEtabParameter}`: Parameters to estimate in PEtabParameter format.
+- `parameters::Vector{PEtab.PEtabParameter}`: Parameters to estimate in PEtabParameter format.
 - `statemap=nothing`: An optional state-map to set initial species values to be constant across all simulation conditions.
 - `parametermap=nothing`: An optional state-map to set parameter values to be constant across all simulation conditions.
 - `events=nothing`: Potential model event (callbacks) defined via `PEtabEvent`. In case of several events provide a vector of `PEtabEvent`.
@@ -260,7 +267,7 @@ measurements = DataFrame(
 simulation_conditions = Dict("c0" => Dict())
 
 # PEtab-parameters to estimate
-petab_parameters = [
+parameters = [
     PEtabParameter(:a0, value=1.0, scale=:lin),
     PEtabParameter(:b0, value=0.0, scale=:lin),
     PEtabParameter(:k1, value=0.8, scale=:lin),
@@ -274,14 +281,14 @@ observables = Dict("obs_a" => PEtabObservable(A, 0.5))
 # Create a PEtabODEProblem
 model = PEtabModel(
     rn, simulation_conditions, observables, measurements,
-    petab_parameters, verbose=false
+    parameters, verbose=false
 )
 ```
 
-    PEtabModel(system::Union{ReactionSystem, ODESystem},
+    PEtabModel(system::ModelSystem,
                observables::Dict{String, <:PEtabObservable},
                measurements::DataFrame,
-               petab_parameters::Vector{PEtabParameter};
+               parameters::Vector{PEtabParameter};
                statemap::Union{Nothing, Vector{Pair}=nothing,
                parametermap::Union{Nothing, Vector{Pair}=nothing,
                events::Union{Nothing, PEtabEvent, AbstractVector}=nothing,
@@ -312,14 +319,14 @@ struct PEtabModel
     defined_in_julia::Bool
 end
 
-struct ParametersInfo
+struct PEtabParameters
     nominal_value::Vector{Float64}
     lower_bounds::Vector{Float64}
     upper_bounds::Vector{Float64}
     parameter_id::Vector{Symbol}
     parameter_scale::Vector{Symbol}
     estimate::Vector{Bool}
-    n_parameters_esimtate::Int64
+    nparameters_esimtate::Int64
 end
 
 struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
@@ -363,7 +370,7 @@ struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
     nxdynamic::Vector{Int64}
 end
 
-struct MeasurementsInfo{T <: Vector{<:Union{<:String, <:AbstractFloat}}}
+struct PEtabMeasurements{T <: Vector{<:Union{<:String, <:AbstractFloat}}}
     measurement::Vector{Float64}
     measurement_transformed::Vector{Float64}
     simulated_values::Vector{Float64}
@@ -398,24 +405,24 @@ struct PEtabODEProblemInfo{S1 <: ODESolver, S2 <: ODESolver, C <: PEtabODEProble
 end
 
 struct ModelInfo
-    measurement_info::MeasurementsInfo
-    parameter_info::ParametersInfo
-    θ_indices::ParameterIndices
+    petab_measurements::PEtabMeasurements
+    petab_parameters::PEtabParameters
+    xindices::ParameterIndices
     simulation_info::SimulationInfo
-    prior_info::PriorInfo
+    priors::Priors
     model::PEtabModel
     nstates::Int32
 end
 function ModelInfo(model::PEtabModel, sensealg, custom_values)::ModelInfo
     tables, cbs = model.petab_tables, model.callbacks
-    measurement_info = parse_measurements(tables[:measurements], tables[:observables])
-    parameter_info = parse_parameters(tables[:parameters], custom_values = custom_values)
-    θ_indices = parse_conditions(parameter_info, measurement_info, model)
-    simulation_info = SimulationInfo(cbs, measurement_info, sensealg = sensealg)
-    prior_info = parse_priors(θ_indices, tables[:parameters])
+    petab_measurements = PEtabMeasurements(tables[:measurements], tables[:observables])
+    petab_parameters = PEtabParameters(tables[:parameters], custom_values = custom_values)
+    xindices = ParameterIndices(petab_parameters, petab_measurements, model)
+    simulation_info = SimulationInfo(cbs, petab_measurements, sensealg = sensealg)
+    priors = Priors(xindices, tables[:parameters])
     nstates = length(unknowns(model.sys_mutated)) |> Int32
-    return ModelInfo(measurement_info, parameter_info, θ_indices, simulation_info,
-                     prior_info, model, nstates)
+    return ModelInfo(petab_measurements, petab_parameters, xindices, simulation_info,
+                     priors, model, nstates)
 end
 
 """
@@ -442,7 +449,7 @@ For constructor, see below.
 - `gradient_method`: The method used to compute the gradient (either :ForwardDiff, :ForwardEquations, :Adjoint, or :Zygote).
 - `hessian_method`: The method used to compute or approximate the Hessian (either :ForwardDiff, :BlocForwardDiff, or :GaussNewton).
 - `FIM_method`: The method used to compute FIM, either :ForwardDiff (full Hessian) or :GaussNewton (only recomended for >100 parameter models)
-- `n_parameters_esimtate`: The number of parameters to estimate.
+- `nparameters_esimtate`: The number of parameters to estimate.
 - `θ_names`: The names of the parameters in θ.
 - `θ_nominal`: The nominal values of θ as specified in the PEtab parameters file.
 - `θ_nominalT`: The nominal values of θ on the parameter scale (e.g., log) as specified in the PEtab parameters file.
@@ -517,7 +524,7 @@ struct PEtabODEProblem{F1 <: Function, F2 <: Function, F3 <: Function, F4 <: Fun
     compute_residuals::Any
     probinfo::PEtabODEProblemInfo
     model_info::ModelInfo
-    n_parameters_esimtate::Int64
+    nparameters_esimtate::Int64
     xnames::Vector{Symbol}
     xnominal::Vector{Float64}
     xnominal_transformed::Vector{Float64}
@@ -948,7 +955,7 @@ struct PEtabPigeonReference{T <: InferenceInfo,
 end
 function PEtabPigeonReference(petab_problem::PEtabODEProblem)
     inference_info = InferenceInfo(petab_problem)
-    return PEtabPigeonReference(inference_info, petab_problem.n_parameters_esimtate)
+    return PEtabPigeonReference(inference_info, petab_problem.nparameters_esimtate)
 end
 function (logreference::PEtab.PEtabPigeonReference)(x)
     # Correction must occur in Prior as in the Prior/reference the value is not

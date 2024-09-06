@@ -1,5 +1,5 @@
-function parse_parameters(parameters_df::DataFrame;
-                          custom_values::Union{Nothing, Dict} = nothing)::ParametersInfo
+function PEtabParameters(parameters_df::DataFrame;
+                         custom_values::Union{Nothing, Dict} = nothing)::PEtabParameters
     _check_values_column(parameters_df, VALID_SCALES, :parameterScale, "parameters")
     _check_values_column(parameters_df, [0, 1], :estimate, "parameters")
 
@@ -37,14 +37,14 @@ function parse_parameters(parameters_df::DataFrame;
         end
     end
 
-    return ParametersInfo(nominal_values, lower_bounds, upper_bounds, parameter_ids,
-                          paramter_scales, estimate, nparameters_esimtate)
+    return PEtabParameters(nominal_values, lower_bounds, upper_bounds, parameter_ids,
+                           paramter_scales, estimate, nparameters_esimtate)
 end
 
-function parse_priors(θ_indices::ParameterIndices, parameters_df::DataFrame)::PriorInfo
+function Priors(xindices::ParameterIndices, parameters_df::DataFrame)::Priors
     # In case there are no model priors
     if !(:objectivePriorType in propertynames(parameters_df))
-        return PriorInfo()
+        return Priors()
     end
 
     priors = Dict{Symbol, Distribution{Univariate, Continuous}}()
@@ -52,7 +52,7 @@ function parse_priors(θ_indices::ParameterIndices, parameters_df::DataFrame)::P
     prior_logpdfs = Dict{Symbol, Function}()
     initialisation_dists = Dict{Symbol, Distribution{Univariate, Continuous}}()
 
-    for id in θ_indices.xids[:estimate]
+    for id in xindices.xids[:estimate]
         irow = findfirst(x -> x == string(id), string.(parameters_df[!, :parameterId]))
         _prior = parameters_df[irow, :objectivePriorType]
         if ismissing(_prior) || isempty(_prior)
@@ -64,7 +64,7 @@ function parse_priors(θ_indices::ParameterIndices, parameters_df::DataFrame)::P
             on_parameter_scale[id] = !parameters_df[irow, :priorOnLinearScale]
             priors[id] = _parse_julia_prior(_prior)
 
-        # Prior via the PEtab tables
+            # Prior via the PEtab tables
         else
             prior_parameters = split(parameters_df[irow, :objectivePriorParameters], ";")
             prior_parameters = parse.(Float64, prior_parameters)
@@ -106,12 +106,15 @@ function parse_priors(θ_indices::ParameterIndices, parameters_df::DataFrame)::P
     # For remake it is useful if we can flag certain parameters to be skipped when computing
     # the prior
     skip = Symbol[]
-    return PriorInfo(prior_logpdfs, priors, initialisation_dists, on_parameter_scale, true,
-                     skip)
+    return Priors(prior_logpdfs, priors, initialisation_dists, on_parameter_scale, true,
+                  skip)
 end
 
 function _add_initialisation_prior!(initialisation_dists::T, priors::T, id::Symbol,
-                                    parameters_df::DataFrame)::Nothing where T <: Dict{Symbol, Distribution{Univariate, Continuous}}
+                                    parameters_df::DataFrame)::Nothing where {T <:
+                                                                              Dict{Symbol,
+                                                                                   Distribution{Univariate,
+                                                                                                Continuous}}}
     if !(:initializationPriorType in propertynames(parameters_df))
         return nothing
     end

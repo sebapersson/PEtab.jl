@@ -1,4 +1,5 @@
-function parse_events(events::Union{PEtabEvent, AbstractVector, Nothing}, sys::ModelSystem)::Dict{String, SBMLImporter.EventSBML}
+function parse_events(events::Union{PEtabEvent, AbstractVector, Nothing},
+                      sys::ModelSystem)::Dict{String, SBMLImporter.EventSBML}
     sbml_events = Dict{String, SBMLImporter.EventSBML}()
     isnothing(events) && return sbml_events
     # Need to be a vector for downstream processing
@@ -12,7 +13,8 @@ function parse_events(events::Union{PEtabEvent, AbstractVector, Nothing}, sys::M
     return sbml_events
 end
 
-function _parse_event(event::PEtabEvent, name::String, sys::ModelSystem)::SBMLImporter.EventSBML
+function _parse_event(event::PEtabEvent, name::String,
+                      sys::ModelSystem)::SBMLImporter.EventSBML
     state_ids = _get_state_ids(sys) .|> string
     xids_sys = parameters(sys) .|> string
 

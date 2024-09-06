@@ -56,26 +56,26 @@ function PEtabODEProblem(model::PEtabModel;
     compute_chi2 = (θ; as_array = false) -> begin
         _ = nllh(θ)
         if as_array == false
-            return sum(measurement_info.chi2_values)
+            return sum(petab_measurements.chi2_values)
         else
-            return measurement_info.chi2_values
+            return petab_measurements.chi2_values
         end
     end
     compute_residuals = (θ; as_array = false) -> begin
         _ = nllh(θ)
         if as_array == false
-            return sum(measurement_info.residuals)
+            return sum(petab_measurements.residuals)
         else
-            return measurement_info.residuals
+            return petab_measurements.residuals
         end
     end
     compute_simulated_values = (θ) -> begin
         _ = nllh(θ)
-        return measurement_info.simulated_values
+        return petab_measurements.simulated_values
     end
 
     # Relevant information for the unknown model parameters
-    xnames = model_info.θ_indices.xids[:estimate]
+    xnames = model_info.xindices.xids[:estimate]
     nestimate = length(xnames)
     lb = _get_bounds(model_info, xnames, :lower)
     ub = _get_bounds(model_info, xnames, :upper)
@@ -91,10 +91,10 @@ end
 
 function _get_prior(model_info::ModelInfo)::Tuple{Function, Function, Function}
     _prior = let minfo = model_info
-        @unpack θ_indices, prior_info = minfo
+        @unpack xindices, priors = minfo
         (x) -> begin
-            xnames = θ_indices.xids[:estimate]
-            return prior(x, xnames, prior_info, θ_indices)
+            xnames = xindices.xids[:estimate]
+            return prior(x, xnames, priors, xindices)
         end
     end
     _grad_prior = let p = _prior
@@ -152,8 +152,8 @@ function _get_grad(method, probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
 end
 
 function _get_hess(probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
-                     hess_prior::Function; ret_jacobian::Bool = false,
-                     FIM::Bool = false)::Tuple{Function, Function}
+                   hess_prior::Function; ret_jacobian::Bool = false,
+                   FIM::Bool = false)::Tuple{Function, Function}
     @unpack hessian_method, split_over_conditions, chunksize, cache = probinfo
     @unpack xdynamic = cache
     if FIM == true
@@ -213,24 +213,24 @@ end
 
 function _get_bounds(model_info::ModelInfo, xnames::Vector{Symbol},
                      which::Symbol)::Vector{Float64}
-    @unpack parameter_info, θ_indices = model_info
-    ix = [findfirst(x -> x == id, parameter_info.parameter_id) for id in xnames]
+    @unpack petab_parameters, xindices = model_info
+    ix = [findfirst(x -> x == id, petab_parameters.parameter_id) for id in xnames]
     if which == :lower
-        bounds = parameter_info.lower_bounds[ix]
+        bounds = petab_parameters.lower_bounds[ix]
     else
-        bounds = parameter_info.upper_bounds[ix]
+        bounds = petab_parameters.upper_bounds[ix]
     end
-    transform_x!(bounds, xnames, θ_indices, to_xscale = true)
+    transform_x!(bounds, xnames, xindices, to_xscale = true)
     return bounds
 end
 
 function _get_xnominal(model_info::ModelInfo, xnames::Vector{Symbol},
                        transform::Bool)::Vector{Float64}
-    @unpack parameter_info, θ_indices = model_info
-    ix = [findfirst(x -> x == id, parameter_info.parameter_id) for id in xnames]
-    xnominal = parameter_info.nominal_value[ix]
+    @unpack petab_parameters, xindices = model_info
+    ix = [findfirst(x -> x == id, petab_parameters.parameter_id) for id in xnames]
+    xnominal = petab_parameters.nominal_value[ix]
     if transform == true
-        transform_x!(xnominal, xnames, θ_indices, to_xscale = true)
+        transform_x!(xnominal, xnames, xindices, to_xscale = true)
     end
     return xnominal
 end

@@ -27,21 +27,21 @@ function create_∂_h_σ_file(model_name::String,
 
     petab_tables = read_tables(path_yaml)
     measurements_data, observables_data, parameters_data, experimental_conditions, = collect(values(petab_tables))
-    parameter_info = parse_parameters(parameters_data,
-                                      custom_values = custom_values)
-    measurement_info = parse_measurements(measurements_data, observables_data)
+    petab_parameters = PEtabParameters(parameters_data,
+                                       custom_values = custom_values)
+    petab_measurements = PEtabMeasurements(measurements_data, observables_data)
 
     # Indices for keeping track of parameters in θ
-    θ_indices = parse_conditions(parameter_info, measurement_info, system, parametermap,
-                                 statemap, experimental_conditions)
+    xindices = ParameterIndices(petab_parameters, petab_measurements, system, parametermap,
+                                statemap, experimental_conditions)
 
     ∂h∂u_str, ∂h∂p_str = create∂h∂_function(model_name, dirjulia, model_state_names,
-                                            parameter_info, p_ode_problem_names,
-                                            string.(θ_indices.xids[:nondynamic]),
+                                            petab_parameters, p_ode_problem_names,
+                                            string.(xindices.xids[:nondynamic]),
                                             observables_data, model_SBML, write_to_file)
-    ∂σ∂u_str, ∂σ∂p_str = create∂σ∂_function(model_name, dirjulia, parameter_info,
+    ∂σ∂u_str, ∂σ∂p_str = create∂σ∂_function(model_name, dirjulia, petab_parameters,
                                             model_state_names, p_ode_problem_names,
-                                            string.(θ_indices.xids[:nondynamic]),
+                                            string.(xindices.xids[:nondynamic]),
                                             observables_data, model_SBML, write_to_file)
 
     return ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str
@@ -57,23 +57,23 @@ function create_∂_h_σ_file(model_name::String,
     parametermap = [p => 0.0 for p in parameters(system)]
     p_ode_problem_names = _get_sys_parameters(system, statemap, parametermap) .|> string
 
-    parameter_info = PEtab.parse_parameters(parameters_data)
-    measurement_info = PEtab.parse_measurements(measurements_data, observables_data)
+    petab_parameters = PEtab.PEtabParameters(parameters_data)
+    petab_measurements = PEtab.PEtabMeasurements(measurements_data, observables_data)
 
     # Indices for keeping track of parameters in θ
-    θ_indices = PEtab.parse_conditions(parameter_info, measurement_info, system,
-                                       parametermap, statemap, experimental_conditions)
+    xindices = PEtab.ParameterIndices(petab_parameters, petab_measurements, system,
+                                      parametermap, statemap, experimental_conditions)
 
     # Dummary variables to keep PEtab importer happy even as we are not providing any PEtab files
     model_SBML = SBMLImporter.ModelSBML("")
 
     ∂h∂u_str, ∂h∂p_str = PEtab.create∂h∂_function(model_name, @__DIR__, model_state_names,
-                                                  parameter_info, p_ode_problem_names,
-                                                  string.(θ_indices.xids[:nondynamic]),
+                                                  petab_parameters, p_ode_problem_names,
+                                                  string.(xindices.xids[:nondynamic]),
                                                   observables_data, model_SBML, false)
-    ∂σ∂u_str, ∂σ∂p_str = PEtab.create∂σ∂_function(model_name, @__DIR__, parameter_info,
+    ∂σ∂u_str, ∂σ∂p_str = PEtab.create∂σ∂_function(model_name, @__DIR__, petab_parameters,
                                                   model_state_names, p_ode_problem_names,
-                                                  string.(θ_indices.xids[:nondynamic]),
+                                                  string.(xindices.xids[:nondynamic]),
                                                   observables_data, model_SBML, false)
 
     return ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str
@@ -83,7 +83,7 @@ end
     create∂h∂_function(model_name::String,
                        dirmodel::String,
                        model_state_names::Vector{String},
-                       parameter_info::ParametersInfo,
+                       petab_parameters::PEtabParameters,
                        p_ode_problem_names::Vector{String},
                        xnondynamic_names::Vector{String},
                        observables_data::DataFrame,
@@ -95,7 +95,7 @@ end
 function create∂h∂_function(model_name::String,
                             dirmodel::String,
                             model_state_names::Vector{String},
-                            parameter_info::ParametersInfo,
+                            petab_parameters::PEtabParameters,
                             p_ode_problem_names::Vector{String},
                             xnondynamic_names::Vector{String},
                             observables_data::DataFrame,
@@ -106,9 +106,9 @@ function create∂h∂_function(model_name::String,
     io2 = IOBuffer()
 
     model_state_str, p_ode_problem_str, xnondynamic_str = create_top_∂h∂_function(model_state_names,
-                                                                                    p_ode_problem_names,
-                                                                                    xnondynamic_names,
-                                                                                    observables_data)
+                                                                                  p_ode_problem_names,
+                                                                                  xnondynamic_names,
+                                                                                  observables_data)
 
     # Store the formula of each observable in string
     observable_ids = string.(observables_data[!, :observableId])
@@ -123,7 +123,7 @@ function create∂h∂_function(model_name::String,
         _formula = filter(x -> !isspace(x),
                           string(observables_data[!, :observableFormula][i]))
         formula = replace_explicit_variable_rule(_formula, model_SBML)
-        julia_formula = petab_formula_to_Julia(formula, model_state_names, parameter_info,
+        julia_formula = petab_formula_to_Julia(formula, model_state_names, petab_parameters,
                                                p_ode_problem_names, xnondynamic_names)
 
         enter_observable = true # Only extract observable parameter once
@@ -141,7 +141,8 @@ function create∂h∂_function(model_name::String,
                 ui_symbolic = eval(Meta.parse(model_state_names[iState]))
                 _∂h∂ui = string(Symbolics.derivative(julia_formula_symbolic, ui_symbolic;
                                                      simplify = true))
-                ∂h∂ui = variables_to_array_index(_∂h∂ui, model_state_names, parameter_info,
+                ∂h∂ui = variables_to_array_index(_∂h∂ui, model_state_names,
+                                                 petab_parameters,
                                                  p_ode_problem_names, xnondynamic_names,
                                                  p_ode_problem = true)
 
@@ -164,7 +165,8 @@ function create∂h∂_function(model_name::String,
                 pi_symbolic = eval(Meta.parse(p_ode_problem_names[ip]))
                 _∂h∂pi = string(Symbolics.derivative(julia_formula_symbolic, pi_symbolic;
                                                      simplify = true))
-                ∂h∂pi = variables_to_array_index(_∂h∂pi, model_state_names, parameter_info,
+                ∂h∂pi = variables_to_array_index(_∂h∂pi, model_state_names,
+                                                 petab_parameters,
                                                  p_ode_problem_names, xnondynamic_names,
                                                  p_ode_problem = true)
                 p_observeble_str *= "\t\tout[" * string(ip) * "] = " * ∂h∂pi * "\n"
@@ -251,7 +253,7 @@ function create_top_∂h∂_function(model_state_names::Vector{String},
     if !isempty(xnondynamic_names)
         for i in eachindex(xnondynamic_names)
             xnondynamic_str *= "xnondynamic[" * string(i) * "] = " *
-                                 xnondynamic_names[i] * ", "
+                               xnondynamic_names[i] * ", "
             variables_str *= xnondynamic_names[i] * ", "
         end
         xnondynamic_str = xnondynamic_str[1:(end - 2)] # Remove last non needed ", "
@@ -288,7 +290,7 @@ end
 """
     create∂σ∂_function(model_name::String,
                             dirmodel::String,
-                            parameter_info::ParametersInfo,
+                            petab_parameters::PEtabParameters,
                             model_state_names::Vector{String},
                             p_ode_problem_names::Vector{String},
                             xnondynamic_names::Vector{String},
@@ -299,7 +301,7 @@ end
 """
 function create∂σ∂_function(model_name::String,
                             dirmodel::String,
-                            parameter_info::ParametersInfo,
+                            petab_parameters::PEtabParameters,
                             model_state_names::Vector{String},
                             p_ode_problem_names::Vector{String},
                             xnondynamic_names::Vector{String},
@@ -321,7 +323,7 @@ function create∂σ∂_function(model_name::String,
 
         _formula = filter(x -> !isspace(x), string(observables_data[!, :noiseFormula][i]))
         formula = replace_explicit_variable_rule(_formula, model_SBML)
-        julia_formula = petab_formula_to_Julia(formula, model_state_names, parameter_info,
+        julia_formula = petab_formula_to_Julia(formula, model_state_names, petab_parameters,
                                                p_ode_problem_names, xnondynamic_names)
 
         enter_observable = true
@@ -338,7 +340,8 @@ function create∂σ∂_function(model_name::String,
                 ui_symbolic = eval(Meta.parse(model_state_names[iState]))
                 _∂σ∂ui = string(Symbolics.derivative(julia_formula_symbolic, ui_symbolic;
                                                      simplify = true))
-                ∂σ∂ui = variables_to_array_index(_∂σ∂ui, model_state_names, parameter_info,
+                ∂σ∂ui = variables_to_array_index(_∂σ∂ui, model_state_names,
+                                                 petab_parameters,
                                                  p_ode_problem_names, xnondynamic_names,
                                                  p_ode_problem = true)
                 u_observeble_str *= "\t\tout[" * string(iState) * "] = " * ∂σ∂ui * "\n"
@@ -359,7 +362,8 @@ function create∂σ∂_function(model_name::String,
                 pi_symbolic = eval(Meta.parse(p_ode_problem_names[ip]))
                 _∂σ∂pi = string(Symbolics.derivative(julia_formula_symbolic, pi_symbolic;
                                                      simplify = true))
-                ∂σ∂pi = variables_to_array_index(_∂σ∂pi, model_state_names, parameter_info,
+                ∂σ∂pi = variables_to_array_index(_∂σ∂pi, model_state_names,
+                                                 petab_parameters,
                                                  p_ode_problem_names, xnondynamic_names,
                                                  p_ode_problem = true)
                 p_observeble_str *= "\t\tout[" * string(ip) * "] = " * ∂σ∂pi * "\n"

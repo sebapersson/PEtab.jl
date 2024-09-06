@@ -1,7 +1,7 @@
-function _parameters_to_table(petab_parameters::Vector{PEtabParameter})::DataFrame
+function _parameters_to_table(parameters::Vector{PEtabParameter})::DataFrame
     # Most validity check occurs later during table parsing
     parameters_df = DataFrame()
-    for petab_paramter in petab_parameters
+    for petab_paramter in parameters
         @unpack parameter, scale, lb, ub, value, estimate = petab_paramter
 
         parameterScale = isnothing(scale) ? "lin" : string(scale)
@@ -28,12 +28,12 @@ function _parameters_to_table(petab_parameters::Vector{PEtabParameter})::DataFra
         append!(parameters_df, row)
     end
     # Add potential prior columns
-    if !all(isnothing.(getfield.(petab_parameters, :prior)))
-        priors = fill("", length(petab_parameters))
+    if !all(isnothing.(getfield.(parameters, :prior)))
+        priors = fill("", length(parameters))
         initialisation_priors = priors |> deepcopy
         priors_on_linear_scale = Vector{Union{Bool, String}}(undef, length(priors))
         fill!(priors_on_linear_scale, "")
-        for (i, petab_parameter) in pairs(petab_parameters)
+        for (i, petab_parameter) in pairs(parameters)
             @unpack prior, prior_on_linear_scale, sample_from_prior = petab_parameter
             isnothing(prior) && continue
             priors[i] = "__Julia__" * string(prior)

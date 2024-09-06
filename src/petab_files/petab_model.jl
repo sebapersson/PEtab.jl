@@ -50,7 +50,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false,
 
     # Indices for mapping parameters and tracking which parameter to estimate, useful
     # when building the comig PEtab functions
-    θ_indices = parse_conditions(petab_tables, odesystem, parametermap, statemap)
+    xindices = ParameterIndices(petab_tables, odesystem, parametermap, statemap)
 
     _logging(:Build_ODESystem, verbose; time = btime)
 
@@ -104,7 +104,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false,
     # should not be converted to floats in case dual numbers (for gradients) are propegated
     _logging(:Build_callbacks, verbose)
     btime = @elapsed begin
-        float_tspan = _xdynamic_in_event_cond(model_SBML, θ_indices, petab_tables) |> !
+        float_tspan = _xdynamic_in_event_cond(model_SBML, xindices, petab_tables) |> !
         psys = _get_sys_parameters(odesystem, statemap, parametermap) .|> string
         cbset = SBMLImporter.create_callbacks(odesystem, model_SBML, name;
                                               p_PEtab = psys, float_tspan = float_tspan)

@@ -1,5 +1,9 @@
-function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::T, model_info::ModelInfo, cache::PEtabODEProblemCache; sensitivites::Bool = false, simid::Union{Nothing, Symbol} = nothing)::ODEProblem where T <: AbstractVector
-    @unpack θ_indices, model, nstates = model_info
+function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::T,
+                           model_info::ModelInfo, cache::PEtabODEProblemCache;
+                           sensitivites::Bool = false,
+                           simid::Union{Nothing, Symbol} = nothing)::ODEProblem where {T <:
+                                                                                       AbstractVector}
+    @unpack xindices, model, nstates = model_info
     simid = isnothing(simid) ? cid : simid
 
     # Each simulation condition needs to have its own associated u0 and p vector, as these
@@ -11,7 +15,7 @@ function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::T, model_in
     @views u0 .= oprob.u0[1:length(u0)]
 
     # Condition specific parameters
-    map_cid = θ_indices.maps_conidition_id[simid]
+    map_cid = xindices.maps_conidition_id[simid]
     p[map_cid.isys_constant_values] .= map_cid.constant_values
     p[map_cid.ix_sys] .= xdynamic[map_cid.ix_dynamic]
 
@@ -83,7 +87,8 @@ function _get_tmax(tmax::Float64, solver::Union{Vector{Symbol}, SciMLAlgorithm})
     return tmax
 end
 
-function _get_preeq_ids(simulation_info::SimulationInfo, cids::Vector{Symbol})::Vector{Symbol}
+function _get_preeq_ids(simulation_info::SimulationInfo,
+                        cids::Vector{Symbol})::Vector{Symbol}
     if cids[1] == :all
         return unique(simulation_info.conditionids[:pre_equilibration])
     else
@@ -93,8 +98,8 @@ function _get_preeq_ids(simulation_info::SimulationInfo, cids::Vector{Symbol})::
 end
 
 function _set_cond_const_parameters!(p::AbstractVector, xdynamic::AbstractVector,
-                                     θ_indices::ParameterIndices)::Nothing
-    map_oprob = θ_indices.map_odeproblem
+                                     xindices::ParameterIndices)::Nothing
+    map_oprob = xindices.map_odeproblem
     @views p[map_oprob.sys_to_dynamic] .= xdynamic[map_oprob.dynamic_to_sys]
     return nothing
 end
