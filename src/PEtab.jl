@@ -27,11 +27,13 @@ using QuasiMonteCarlo
 using StyledStrings
 import SciMLBase.remake
 
-const ModelSystem = Union{ODESystem, ReactionSystem}
-
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
 include("Structs.jl")
+
+const ModelSystem = Union{ODESystem, ReactionSystem}
+const EstimationResult = Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult,
+                               Vector{<:AbstractFloat}}
 
 include("common.jl")
 include("logging.jl")

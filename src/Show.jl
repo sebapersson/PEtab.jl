@@ -78,7 +78,7 @@ function show(io::IO, event::PEtabEvent)
         for tg in target
             target_str *= (tg |> string) * ", "
         end
-        target_str = target_str[1:end-2] * "]"
+        target_str = target_str[1:(end - 2)] * "]"
     else
         target_str = target |> string
     end
@@ -87,7 +87,7 @@ function show(io::IO, event::PEtabEvent)
         for af in affect
             affect_str *= (af |> string) * ", "
         end
-        affect_str = affect_str[1:end-2] * "]"
+        affect_str = affect_str[1:(end - 2)] * "]"
     else
         affect_str = affect |> string
     end
