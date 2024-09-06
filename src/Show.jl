@@ -4,151 +4,134 @@
 =#
 import Base.show
 
-# Helper function for printing ODE-solver options
-function get_ode_solver_str(a::ODESolver)
-    solver_str = string(a.solver)[1:(findfirst('(', string(a.solver)) - 1)]
-    options_str = @sprintf("(abstol, reltol, maxiters) = (%.1e, %.1e, %.1e)", a.abstol,
-                           a.reltol, a.maxiters)
-    return solver_str, options_str
+function _get_solver_show(solver::ODESolver)::Tuple{String, String}
+    @unpack abstol, reltol, maxiters = solver
+    options = @sprintf("(abstol, reltol, maxiters) = (%.1e, %.1e, %.0e)", abstol, reltol,
+                       maxiters)
+    _solver = match(r"^[^({]+", solver.solver |> string).match
+    return _solver, options
 end
 
-function show(io::IO, a::PEtabModel)
-    model_name = @sprintf("%s", a.name)
-    n_odes = @sprintf("%d", length(unknowns(a.sys_mutated)))
-    n_ode_parameters = @sprintf("%d", length(parameters(a.sys_mutated)))
-
-    printstyled(io, "PEtabModel", color = 116)
-    print(io, " for model ")
-    printstyled(io, model_name, color = 116)
-    print(io, ". ODE-system has ")
-    printstyled(io, n_odes * " states", color = 116)
-    print(io, " and ")
-    printstyled(io, n_ode_parameters * " parameters.", color = 116)
-    if haskey(a.paths, :dirjulia)
-        @printf(io, "\nGenerated Julia files are at %s", a.paths[:dirjulia])
+function _get_ss_solver_show(ss_solver::SteadyStateSolver; onlyheader::Bool = false)
+    if ss_solver.method === :Simulate
+        heading = styled"{magenta:Simulate} ODE until du = f(u, p, t) ≈ 0"
+        if ss_solver.termination_check === :wrms
+            opt = styled"\nTerminates when {magenta:wrms} = \
+                        (∑((du ./ (reltol * u .+ abstol)).^2) / len(u)) < 1"
+        else
+            opt = styled"\nTerminates when {magenta:Newton} step Δu = \
+                         √(∑((Δu ./ (reltol * u .+ abstol)).^2) / len(u)) < 1"
+        end
+    else
+        heading = styled"{magenta:Rootfinding} to solve du = f(u, p, t) ≈ 0"
+        alg = match(r"^[^({]+", ss_solver.rootfinding_alg |> string).match
+        opt = styled"\n{magenta:Algorithm:} $(alg) with NonlinearSolve.jl termination"
+    end
+    if onlyheader
+        return heading
+    else
+        return styled"$(heading)$(opt)"
     end
 end
-function show(io::IO, a::ODESolver)
-    # Extract ODE solver as a readable string (without everything between)
-    solver_str, options_str = get_ode_solver_str(a)
-    printstyled(io, "ODESolver", color = 116)
-    print(io, " with ODE solver ")
-    printstyled(io, solver_str, color = 116)
-    @printf(io, ". Options %s", options_str)
+
+function show(io::IO, solver::ODESolver)
+    _solver, options = _get_solver_show(solver)
+    str = styled"{blue:{bold:ODESolver:}} {magenta:$(_solver)} with options $options"
+    print(io, str)
+end
+function show(io::IO, ss_solver::SteadyStateSolver)
+    str = styled"{blue:{bold:SteadyStateSolver:}} "
+    options = _get_ss_solver_show(ss_solver)
+    print(io, styled"$(str)$(options)")
+end
+function show(io::IO, parameter::PEtabParameter)
+    header = styled"{blue:{bold:PEtabParameter:}} {magenta:$(parameter.parameter)} "
+    @unpack scale, lb, ub, prior = parameter
+    opt = @sprintf("estimated on %s-scale with bounds [%.1e, %.1e]", scale, lb, ub)
+    if !isnothing(prior)
+        prior_str = replace(prior |> string, r"\{[^}]+\}" => "")
+        opt *= @sprintf(" and prior %s", prior_str)
+    end
+    print(io, styled"$(header)$(opt)")
+end
+function show(io::IO, observable::PEtabObservable)
+    @unpack obs, noise_formula, transformation = observable
+    header = styled"{blue:{bold:PEtabObservable:}} "
+    opt1 = styled"{magenta:h} = $(obs) and {magenta:sd} = $(noise_formula)"
+    if transformation in [:log, :log10]
+        opt = styled"$opt1 with log-normal measurement noise"
+    else
+        opt = styled"$opt1 with normal measurement noise"
+    end
+    print(io, styled"$(header)$(opt)")
+end
+function show(io::IO, event::PEtabEvent)
+    @unpack condition, target, affect = event
+    header = styled"{blue:{bold:PEtabEvent:}} "
+    if is_number(string(condition))
+        _cond = "t == " * string(condition)
+    else
+        _cond = condition |> string
+    end
+    if target isa Vector
+        target_str = "["
+        for tg in target
+            target_str *= (tg |> string) * ", "
+        end
+        target_str = target_str[1:end-2] * "]"
+    else
+        target_str = target |> string
+    end
+    if affect isa Vector
+        affect_str = "["
+        for af in affect
+            affect_str *= (af |> string) * ", "
+        end
+        affect_str = affect_str[1:end-2] * "]"
+    else
+        affect_str = affect |> string
+    end
+    effect_str = target_str * " = " * affect_str
+    opt = styled"{magenta:Condition} $_cond and {magenta:affect} $effect_str"
+    print(io, styled"$(header)$(opt)")
+end
+function show(io::IO, model::PEtabModel)
+    nstates = @sprintf("%d", length(unknowns(model.sys_mutated)))
+    nparameters = @sprintf("%d", length(parameters(model.sys_mutated)))
+    header = styled"{blue:{bold:PEtabModel:}} {magenta:$(model.name)} with $nstates states \
+                    and $nparameters parameters"
+    if haskey(model.paths, :dirjulia)
+        opt = @sprintf("\nGenerated Julia model files are at %s", model.paths[:dirjulia])
+    else
+        opt = ""
+    end
+    print(io, styled"$(header)$(opt)")
 end
 function show(io::IO, prob::PEtabODEProblem)
-    @unpack probinfo, model_info = prob
-    model = model_info.model
-    model_name = model.name
+    @unpack probinfo, model_info, nparameters_esimtate = prob
+    name = model_info.model.name
+    nstates = @sprintf("%d", length(unknowns(model_info.model.sys_mutated)))
+    nest = @sprintf("%d", nparameters_esimtate)
 
-    n_odes = length(unknowns(model.sys_mutated))
-    n_parameters_est = length(prob.xnames)
-    n_dynamic_parameters = length(model_info.xindices.xids[:dynamic])
+    header = styled"{blue:{bold:PEtabODEProblem:}} {magenta:$(name)} with ODE-states \
+                    $nstates and $nest parameters to estimate"
 
-    solver_str, options_str = get_ode_solver_str(probinfo.solver)
-    solver_gradient_str, options_gradient_str = get_ode_solver_str(probinfo.solver_gradient)
-
-    gradient_method = string(probinfo.gradient_method)
-    hessian_method = string(probinfo.hessian_method)
-
-    printstyled(io, "PEtabODEProblem", color = 116)
-    print(io, " for ")
-    printstyled(io, model_name, color = 116)
-    @printf(io,
-            ". ODE-states: %d. Parameters to estimate: %d where %d are dynamic.\n---------- Problem settings ----------\nGradient method : ",
-            n_odes, n_parameters_est, n_dynamic_parameters)
-    printstyled(io, gradient_method, color = 116)
-    if !isnothing(hessian_method)
-        print(io, "\nHessian method : ")
-        printstyled(io, hessian_method, color = 116)
+    optheader = styled"\n---------------- {blue:{bold:Problem options}} ---------------\n"
+    opt1 = styled"Gradient method: {magenta:$(probinfo.gradient_method)}\n"
+    opt2 = styled"Hessian method: {magenta:$(probinfo.hessian_method)}\n"
+    solver1, options1 = _get_solver_show(probinfo.solver)
+    solver2, options2 = _get_solver_show(probinfo.solver_gradient)
+    opt3 = styled"ODE-solver nllh: {magenta:$(solver1)}\n"
+    opt4 = styled"ODE-solver gradient: {magenta:$(solver2)}"
+    if model_info.simulation_info.has_pre_equilibration == false
+        print(io, styled"$(header)$(optheader)$(opt1)$(opt2)$(opt3)$(opt4)")
+        return nothing
     end
-    print(io, "\n--------- ODE-solver settings --------")
-    printstyled(io, "\nCost ")
-    printstyled(io, solver_str, color = 116)
-    @printf(io, ". Options %s", options_str)
-    printstyled(io, "\nGradient ")
-    printstyled(io, solver_gradient_str, color = 116)
-    @printf(io, ". Options %s", options_gradient_str)
-
-    if model_info.simulation_info.has_pre_equilibration == true
-        print(io, "\n--------- SS solver settings ---------")
-        # Print cost steady state solver
-        print(io, "\nCost ")
-        printstyled(io, string(probinfo.ss_solver.method), color = 116)
-        if probinfo.ss_solver.method === :Simulate &&
-           probinfo.ss_solver.termination_check === :wrms
-            @printf(io, ". Option wrms with (abstol, reltol) = (%.1e, %.1e)",
-                    probinfo.ss_solver.abstol, probinfo.ss_solver.reltol)
-        elseif probinfo.ss_solver.method === :Simulate &&
-               probinfo.ss_solver.termination_check === :Newton
-            @printf(io, ". Option small Newton-step with (abstol, reltol) = (%.1e, %.1e)",
-                    probinfo.ss_solver.abstol, probinfo.ss_solver.reltol)
-        elseif probinfo.ss_solver.method === :Rootfinding
-            algStr = string(a.ss_solver.rootfindingAlgorithm)
-            i_end = findfirst(x -> x == '{', algStr)
-            algStr = algStr[1:(i_end - 1)] * "()"
-            @printf(io,
-                    ". Algorithm %s with (abstol, reltol, maxiters) = (%.1e, %.1e, %.1e)",
-                    algStr, probinfo.ss_solver.abstol, probinfo.ss_solver.reltol,
-                    probinfo.ss_solver.maxiters)
-        end
-
-        # Print gradient steady state solver
-        print(io, "\nGradient ")
-        printstyled(io, string(probinfo.ss_solver_gradient.method), color = 116)
-        if probinfo.ss_solver_gradient.method === :Simulate &&
-           probinfo.ss_solver_gradient.termination_check === :wrms
-            @printf(io, ". Options wrms with (abstol, reltol) = (%.1e, %.1e)",
-                    probinfo.ss_solver_gradient.abstol, probinfo.ss_solver_gradient.reltol)
-        elseif probinfo.ss_solver_gradient.method === :Simulate &&
-               probinfo.ss_solver_gradient.termination_check === :Newton
-            @printf(io, ". Option small Newton-step with (abstol, reltol) = (%.1e, %.1e)",
-                    probinfo.ss_solver_gradient.abstol, probinfo.ss_solver_gradient.reltol)
-        elseif probinfo.ss_solver_gradient.method === :Rootfinding
-            algStr = string(probinfo.ss_solver_gradient.rootfindingAlgorithm)
-            i_end = findfirst(x -> x == '{', algStr)
-            algStr = algStr[1:(i_end - 1)] * "()"
-            @printf(io,
-                    ". Algorithm %s with (abstol, reltol, maxiters) = (%.1e, %.1e, %.1e)",
-                    algStr, probinfo.ss_solver_gradient.abstol,
-                    probinfo.ss_solver_gradient.reltol,
-                    probinfo.ss_solver_gradient.maxiters)
-        end
-    end
-end
-function show(io::IO, a::SteadyStateSolver)
-    printstyled(io, "SteadyStateSolver", color = 116)
-    if a.method === :Simulate
-        print(io, " with method ")
-        printstyled(io, ":Simulate", color = 116)
-        print(io, " ODE-model until du = f(u, p, t) ≈ 0.")
-        if a.termination_check === :wrms
-            @printf(io,
-                    "\nSimulation terminated if wrms fulfill;\n√(∑((du ./ (reltol * u .+ abstol)).^2) / length(u)) < 1\n")
-        else
-            @printf(io,
-                    "\nSimulation terminated if Newton-step Δu fulfill;\n√(∑((Δu ./ (reltol * u .+ abstol)).^2) / length(u)) < 1\n")
-        end
-    end
-
-    if a.method === :Rootfinding
-        print(io, " with method ")
-        printstyled(io, ":Rootfinding", color = 116)
-        print(io, " to solve du = f(u, p, t) ≈ 0.")
-        if isnothing(a.rootfinding_alg)
-            @printf(io, "\nAlgorithm : NonlinearSolve's heruistic. Options ")
-        else
-            algStr = string(a.rootfinding_alg)
-            i_end = findfirst(x -> x == '(', algStr)
-            algStr = algStr[1:(i_end - 1)] * "()"
-            @printf(io, "\nAlgorithm : %s. Options ", algStr)
-        end
-    end
-    if isnothing(a.abstol)
-        @printf(io, "with (abstol, reltol) = default values.")
-    else
-        @printf(io, "with (abstol, reltol) = (%.1e, %.1e)", a.abstol, a.reltol)
-    end
+    ss_solver1 = _get_ss_solver_show(probinfo.ss_solver; onlyheader = true)
+    ss_solver2 = _get_ss_solver_show(probinfo.ss_solver_gradient, onlyheader = true)
+    opt5 = styled"\nss-solver: $(ss_solver1)\n"
+    opt6 = styled"ss-solver gradient: $(ss_solver2)"
+    print(io, styled"$(header)$(optheader)$(opt1)$(opt2)$(opt3)$(opt4)$(opt5)$(opt6)")
 end
 function show(io::IO, a::PEtabOptimisationResult)
     printstyled(io, "PEtabOptimisationResult", color = 116)
@@ -169,35 +152,6 @@ function show(io::IO, a::PEtabMultistartOptimisationResult)
     if !isnothing(a.dir_save)
         @printf(io, "Results saved at %s\n", a.dir_save)
     end
-end
-function show(io::IO, a::PEtabParameter)
-    printstyled(io, "PEtabParameter", color = 116)
-    @printf(io, " %s", a.parameter)
-    if a.estimate != true
-        return nothing
-    end
-    @printf(io, ". Estimated on %s-scale with bounds [%.1e, %.1e]", a.scale, a.lb, a.ub)
-    if isnothing(a.prior)
-        return nothing
-    end
-    @printf(io, " and prior %s", string(a.prior))
-    return nothing
-end
-function show(io::IO, a::PEtabObservable)
-    printstyled(io, "PEtabObservable", color = 116)
-    @printf(io, ": h = %s, noise-formula = %s and ", string(a.obs), string(a.noise_formula))
-    if a.transformation ∈ [:log, :log10]
-        @printf(io, "log-normal measurement noise")
-    else
-        @printf(io, "normal (Gaussian) measurement noise")
-    end
-end
-function show(io::IO, a::PEtabEvent)
-    printstyled(io, "PEtabEvent", color = 116)
-    condition = is_number(string(a.condition)) ? "t == " * string(a.condition) :
-                string(a.condition)
-    @printf(io, ": condition %s, affect %s = %s", condition, string(a.target),
-            string(a.affect))
 end
 function show(io::IO, target::PEtabLogDensity)
     printstyled(io, "PEtabLogDensity", color = 116)
