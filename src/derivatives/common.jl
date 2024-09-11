@@ -1,81 +1,65 @@
-# Function to compute ∂G∂u and ∂G∂p for an observation assuming a fixed ODE-solution
-function ∂G∂_!(∂G∂_::AbstractVector, u::AbstractVector, p::Vector{T}, t::T, i::Integer,
-               imeasurements_t_cid::Vector{Vector{Int64}}, model_info::ModelInfo,
-               xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic::Vector{T},
-               ∂h∂_::Vector{T}, ∂σ∂_::Vector{T}; ∂G∂U::Bool = true,
-               residuals::Bool = false)::Nothing where {T <: AbstractFloat}
+function _G(u::AbstractVector, p::AbstractVector, t::T, i::Integer,
+            imeasurements_t_cid::Vector{Vector{Int64}}, model_info::ModelInfo,
+            xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic::Vector{T},
+            residuals::Bool) where T <: AbstractFloat
     @unpack petab_measurements, xindices, petab_parameters, model = model_info
     @unpack measurement_transforms, observable_id = petab_measurements
     nominal_values = petab_parameters.nominal_value
-    fill!(∂G∂_, 0.0)
+    out = 0.0
     for imeasurement in imeasurements_t_cid[i]
         obsid = observable_id[imeasurement]
-        fill!(∂h∂_, 0.0)
-        fill!(∂σ∂_, 0.0)
-
         mapxnoise = xindices.mapxnoise[imeasurement]
         mapxobservable = xindices.mapxobservable[imeasurement]
         h = _h(u, t, p, xobservable, xnondynamic, model.h, mapxobservable, obsid,
                nominal_values)
         h_transformed = transform_observable(h, measurement_transforms[imeasurement])
-        σ = _sd(u, t, p, xnoise, xnondynamic, model.sd, mapxnoise, obsid,
-                nominal_values)
+        σ = _sd(u, t, p, xnoise, xnondynamic, model.sd, mapxnoise, obsid, nominal_values)
 
-        if ∂G∂U == true
-            model.∂h∂u!(u, t, p, xobservable, xnondynamic, obsid, mapxobservable, ∂h∂_)
-            model.∂σ∂u!(u, t, xnoise, p, xnondynamic, nominal_values, obsid, mapxnoise,
-                        ∂σ∂_)
-        else
-            model.∂h∂p!(u, t, p, xobservable, xnondynamic, obsid, mapxobservable, ∂h∂_)
-            model.∂σ∂p!(u, t, xnoise, p, xnondynamic, nominal_values, obsid, mapxnoise,
-                        ∂σ∂_)
-        end
-
-        measurement_transform = measurement_transforms[imeasurement]
-        if measurement_transform == :log10
-            ∂h∂_ .*= 1 / (log(10) * exp10(h_transformed))
-        elseif measurement_transform == :log
-            ∂h∂_ .*= 1 / exp(h_transformed)
-        end
-
-        # In case of Guass Newton approximation we target the
-        # residuals = (h_transformed - y_transformed) / σ
         y_transformed = petab_measurements.measurement_transformed[imeasurement]
-        if residuals == false
-            ∂G∂h = (h_transformed - y_transformed) / σ^2
-            ∂G∂σ = 1 / σ - ((h_transformed - y_transformed)^2 / σ^3)
-        else
-            ∂G∂h = 1.0 / σ
-            ∂G∂σ = -(h_transformed - y_transformed) / σ^2
+        residual = (h_transformed - y_transformed) / σ
+        if residuals == true
+            out += residual
+            continue
         end
-        @views ∂G∂_ .+= (∂G∂h * ∂h∂_ .+ ∂G∂σ * ∂σ∂_)[:]
+        out += _nllh_obs(residual, σ, y_transformed, measurement_transforms[imeasurement])
     end
-    return nothing
+    return out
 end
 
 function _get_∂G∂_!(probinfo::PEtabODEProblemInfo, model_info::ModelInfo, cid::Symbol,
                     xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic::Vector{T};
                     residuals::Bool = false)::Tuple{Function,
                                                     Function} where {T <: AbstractFloat}
-    cache = probinfo.cache
     if residuals == false
         it = model_info.simulation_info.imeasurements_t[cid]
         ∂G∂u! = (out, u, p, t, i) -> begin
-            ∂G∂_!(out, u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic,
-                  cache.∂h∂u, cache.∂σ∂u; ∂G∂U = true, residuals = residuals)
+            _fu = (u) -> begin
+            _G(u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic, false)
+            end
+            ForwardDiff.gradient!(out, _fu, u)
+            return nothing
         end
         ∂G∂p! = (out, u, p, t, i) -> begin
-            ∂G∂_!(out, u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic,
-                  cache.∂h∂p, cache.∂σ∂p; ∂G∂U = false, residuals = residuals)
+            _fp = (p) -> begin
+                _G(u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic, false)
+            end
+            ForwardDiff.gradient!(out, _fp, p)
+            return nothing
         end
     else
         ∂G∂u! = (out, u, p, t, i, it) -> begin
-            ∂G∂_!(out, u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic,
-                  cache.∂h∂u, cache.∂σ∂u; ∂G∂U = true, residuals = residuals)
+            _fu = (u) -> begin
+                _G(u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic, true)
+            end
+            ForwardDiff.gradient!(out, _fu, u)
+            return nothing
         end
         ∂G∂p! = (out, u, p, t, i, it) -> begin
-            ∂G∂_!(out, u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic,
-                  cache.∂h∂p, cache.∂σ∂p; ∂G∂U = false, residuals = residuals)
+            _fp = (p) -> begin
+                _G(u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic, true)
+            end
+            ForwardDiff.gradient!(out, _fp, p)
+            return nothing
         end
     end
     return ∂G∂u!, ∂G∂p!
@@ -141,9 +125,7 @@ function _grad_to_xscale!(grad_xscale::AbstractVector{T}, grad_linscale::Abstrac
     return nothing
 end
 
-function _grad_to_xscale(grad_linscale::AbstractVector{T}, x::AbstractVector{T},
-                         xids::AbstractVector{Symbol},
-                         xscale::Dict{Symbol, Symbol})::Vector{T} where {T <: AbstractFloat}
+function _grad_to_xscale(grad_linscale::AbstractVector{T}, x::AbstractVector{T}, xids::AbstractVector{Symbol}, xscale::Dict{Symbol, Symbol})::Vector{T} where T <: AbstractFloat
     grad_xscale = similar(grad_linscale)
     for (i, xid) in pairs(xids)
         grad_xscale[i] = _grad_to_xscale(grad_linscale[i], x[i], xscale[xid])

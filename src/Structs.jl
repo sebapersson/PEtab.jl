@@ -149,8 +149,8 @@ struct ConditionMap
 end
 
 struct MapODEProblem
-    sys_to_dynamic::Vector{Int64}
-    dynamic_to_sys::Vector{Int64}
+    sys_to_dynamic::Vector{Int32}
+    dynamic_to_sys::Vector{Int32}
 end
 
 struct ParameterIndices
