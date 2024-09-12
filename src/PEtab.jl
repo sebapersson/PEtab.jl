@@ -39,13 +39,14 @@ include("common.jl")
 include("logging.jl")
 
 include(joinpath("petab_files", "common.jl"))
-include(joinpath("petab_files", "table_info.jl"))
-include(joinpath("petab_files", "read.jl"))
-include(joinpath("petab_files", "parameters.jl"))
-include(joinpath("petab_files", "measurements.jl"))
 include(joinpath("petab_files", "conditions.jl"))
-include(joinpath("petab_files", "simulations.jl"))
+include(joinpath("petab_files", "measurements.jl"))
+include(joinpath("petab_files", "observables.jl"))
+include(joinpath("petab_files", "parameters.jl"))
 include(joinpath("petab_files", "petab_model.jl"))
+include(joinpath("petab_files", "read.jl"))
+include(joinpath("petab_files", "simulations.jl"))
+include(joinpath("petab_files", "table_info.jl"))
 
 include(joinpath("julia_input", "events.jl"))
 include(joinpath("julia_input", "maps.jl"))
@@ -66,11 +67,6 @@ include(joinpath("solve", "helper.jl"))
 include(joinpath("solve", "solve.jl"))
 include(joinpath("solve", "steady_state.jl"))
 
-# Files related to processing user input
-include(joinpath("Process_input", "Observables", "Common.jl"))
-include(joinpath("Process_input", "Observables", "h_sigma_derivatives.jl"))
-include(joinpath("Process_input", "Observables", "u0_h_sigma.jl"))
-
 include(joinpath("petab_odeproblem", "cache.jl"))
 include(joinpath("petab_odeproblem", "create.jl"))
 include(joinpath("petab_odeproblem", "defaults.jl"))
@@ -90,7 +86,7 @@ include(joinpath("Show.jl"))
     path_yaml = joinpath(@__DIR__, "..", "test", "Test_model3", "Test_model3.yaml")
     @compile_workload begin
         model = PEtabModel(path_yaml, verbose = false, build_julia_files = true,
-                                 write_to_file = false)
+                           write_to_file = false)
         petab_problem = PEtabODEProblem(model, verbose = false)
         petab_problem.nllh(petab_problem.xnominal_transformed)
     end

@@ -304,10 +304,6 @@ struct PEtabModel
     u0!::Function
     u0::Function
     sd::Function
-    ∂h∂u!::Function
-    ∂σ∂u!::Function
-    ∂h∂p!::Function
-    ∂σ∂p!::Function
     float_tspan::Bool
     paths::Dict{Symbol, String}
     sys::Any

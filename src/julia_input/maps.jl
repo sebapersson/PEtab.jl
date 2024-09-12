@@ -30,9 +30,6 @@ function _get_statemap(sys::Union{ODESystem, ReactionSystem}, conditions_df::Dat
         statemap[is] = first(statemap[is]) => eval(Meta.parse("@parameters $pid"))[1]
     end
 
-    # For an ODESystem parameter only appearing in the initial conditions are not a part of
-    # the ODESystem parameters. For correct gradient they must be added to the system
-    sys = add_u0_parameters(sys, statemap)
     return sys, statemap
 end
 
@@ -86,32 +83,6 @@ function _check_unassigned_variables(variablemap, whichmap::Symbol,
         @warn "The $(whichmap) $id has not been assigned a value among PEtabParameters, " *
               "simulation conditions, or in the $(whichmap) map. It default to 0."
     end
-end
-
-function add_u0_parameters(sys::ReactionSystem, statemap)::ReactionSystem
-    return sys
-end
-function add_u0_parameters(sys::ODESystem, statemap)::ODESystem
-    parameter_ids = parameters(sys) .|> string
-    specie_ids = _get_state_ids(sys)
-    for (id, value) in statemap
-        u0exp = replace(string(value), " " => "")
-        istart, iend = 1, 1
-        char_terminate = ['(', ')', '+', '-', '/', '*', '^']
-        while iend < length(u0exp)
-            variable, iend = get_word(u0exp, istart, char_terminate)
-            istart = istart == iend ? iend + 1 : iend
-            isempty(variable) && continue
-            is_number(variable) && continue
-            variable in parameter_ids && continue
-            if variable in specie_ids
-                throw(PEtabFormatError("Initial value for specie $id cannot depend on " *
-                                       "another specie (in this case $variable"))
-            end
-            sys = _add_parameter(sys, variable)
-        end
-    end
-    return sys
 end
 
 function _add_parameter(sys::ReactionSystem, parameter)

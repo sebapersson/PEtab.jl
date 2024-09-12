@@ -54,49 +54,24 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false,
 
     _logging(:Build_ODESystem, verbose; time = btime)
 
-    path_u0_h_σ = joinpath(paths[:dirjulia], name * "_u0_h_sd.jl")
+    path_u0_h_σ = joinpath(paths[:dirjulia], "$(name)_h_sd_u0.jl")
     exist = isfile(path_u0_h_σ)
     _logging(:Build_u0_h_σ, verbose; buildfiles = build_julia_files, exist = exist)
     if !exist || build_julia_files == true
-        # TODO: Change after refactoring observable file
         btime = @elapsed begin
-            h_str, u0!_str, u0_str, σ_str = create_u0_h_σ_file(name, path_yaml,
-                                                               paths[:dirjulia], odesystem,
-                                                               parametermap, statemap,
-                                                               model_SBML,
-                                                               custom_values = custom_values,
-                                                               write_to_file = write_to_file)
+            hstr, u0!str, u0str, σstr = parse_observables(name, paths, odesystem,
+                                                          petab_tables[:observables],
+                                                          xindices, statemap, model_SBML,
+                                                          write_to_file)
         end
         _logging(:Build_u0_h_σ, verbose; time = btime)
     else
-        h_str, u0!_str, u0_str, σ_str = _get_functions_as_str(path_u0_h_σ, 4)
+        hstr, u0!str, u0str, σstr = _get_functions_as_str(path_u0_h_σ, 4)
     end
-    compute_h = @RuntimeGeneratedFunction(Meta.parse(h_str))
-    compute_u0! = @RuntimeGeneratedFunction(Meta.parse(u0!_str))
-    compute_u0 = @RuntimeGeneratedFunction(Meta.parse(u0_str))
-    compute_σ = @RuntimeGeneratedFunction(Meta.parse(σ_str))
-
-    path_∂_h_σ = joinpath(paths[:dirjulia], name * "_d_h_sd.jl")
-    exist = isfile(path_∂_h_σ)
-    _logging(:Build_∂_h_σ, verbose; buildfiles = build_julia_files, exist = exist)
-    if !exist || build_julia_files == true
-        btime = @elapsed begin
-            ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str = create_∂_h_σ_file(name, path_yaml,
-                                                                       paths[:dirjulia],
-                                                                       odesystem,
-                                                                       parametermap,
-                                                                       statemap, model_SBML,
-                                                                       custom_values = custom_values,
-                                                                       write_to_file = write_to_file)
-        end
-        _logging(:Build_∂_h_σ, verbose; time = btime)
-    else
-        ∂h∂u_str, ∂h∂p_str, ∂σ∂u_str, ∂σ∂p_str = _get_functions_as_str(path_D_h_sd, 4)
-    end
-    compute_∂h∂u! = @RuntimeGeneratedFunction(Meta.parse(∂h∂u_str))
-    compute_∂h∂p! = @RuntimeGeneratedFunction(Meta.parse(∂h∂p_str))
-    compute_∂σ∂σu! = @RuntimeGeneratedFunction(Meta.parse(∂σ∂u_str))
-    compute_∂σ∂σp! = @RuntimeGeneratedFunction(Meta.parse(∂σ∂p_str))
+    compute_h = @RuntimeGeneratedFunction(Meta.parse(hstr))
+    compute_u0! = @RuntimeGeneratedFunction(Meta.parse(u0!str))
+    compute_u0 = @RuntimeGeneratedFunction(Meta.parse(u0str))
+    compute_σ = @RuntimeGeneratedFunction(Meta.parse(σstr))
 
     # SBMLImporter holds the callback building functionality. However, currently it needs
     # to know the ODESystem parameter order (psys), and whether or not any parameters
@@ -111,10 +86,9 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false,
     end
     _logging(:Build_callbacks, verbose; time = btime)
 
-    return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, compute_∂h∂u!,
-                      compute_∂σ∂σu!, compute_∂h∂p!, compute_∂σ∂σp!, float_tspan, paths,
-                      odesystem, deepcopy(odesystem), parametermap, statemap, petab_tables,
-                      cbset, false)
+    return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan,
+                      paths, odesystem, deepcopy(odesystem), parametermap, statemap,
+                      petab_tables, cbset, false)
 end
 
 function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, conditions_df::DataFrame,

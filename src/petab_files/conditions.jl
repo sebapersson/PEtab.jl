@@ -20,8 +20,7 @@ function ParameterIndices(petab_tables::Dict{Symbol, DataFrame}, sys, parameterm
     petab_measurements = PEtabMeasurements(petab_tables[:measurements],
                                            petab_tables[:observables])
     return ParameterIndices(petab_parameters, petab_measurements, sys, parametermap,
-                            statemap,
-                            petab_tables[:conditions])
+                            statemap, petab_tables[:conditions])
 end
 function ParameterIndices(petab_parameters::PEtabParameters,
                           petab_measurements::PEtabMeasurements,
@@ -78,11 +77,12 @@ function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabM
     xids_sys = _get_sys_parameters(sys, statemap, parametermap)
     xids_not_system = unique(vcat(xids_observable, xids_noise, xids_nondynamic))
     xids_estimate = vcat(xids_dynamic, xids_not_system)
+    xids_petab = petab_parameters.parameter_id
 
     return Dict(:dynamic => xids_dynamic, :noise => xids_noise,
                 :observable => xids_observable, :nondynamic => xids_nondynamic,
                 :not_system => xids_not_system, :sys => xids_sys,
-                :estimate => xids_estimate)
+                :estimate => xids_estimate, :petab => xids_petab)
 end
 
 function _get_xindices(xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, Vector{Int32}}

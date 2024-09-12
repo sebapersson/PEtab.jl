@@ -107,32 +107,28 @@ function _sd(u::AbstractVector, t::Float64, p::AbstractVector, xnoise::T, xnondy
     if mapxnoise.single_constant == true
         σ = mapxnoise.constant_values[1]
     else
-        σ = petab_sd(u, t, xnoise, p, xnondynamic, nominal_values, observable_id, mapxnoise)
+        σ = petab_sd(u, t, p, xnoise, xnondynamic, nominal_values, observable_id, mapxnoise)
     end
     return σ
 end
 
 function _h(u::AbstractVector, t::Float64, p::AbstractVector, xobservable::T,
             xnondynamic::T, petab_h::Function, mapxobservable::ObservableNoiseMap,
-            observable_id::Symbol,
-            nominal_values::Vector{Float64})::Real where {T <: AbstractVector}
+            observable_id::Symbol, nominal_values::Vector{Float64})::Real where T <: AbstractVector
     return petab_h(u, t, p, xobservable, xnondynamic, nominal_values, observable_id,
                    mapxobservable)
 end
 
 # Function to extract observable or noise parameters when computing h or σ
-function get_obs_sd_parameter(x::AbstractVector, map::ObservableNoiseMap)
-    # TODO: Should be fixable when building observable function so that consistently a
-    # vector can be returned. Needed by observable function to figure this out
-    map.nparameters == 0 && return nothing
-
+function get_obs_sd_parameter(x::AbstractVector, map::ObservableNoiseMap)::AbstractVector
+    out = similar(x, map.nparameters)
+    map.nparameters == 0 && return out
     nestimate = sum(map.estimate)
     if nestimate == map.nparameters
-        out = x[map.xindices]
+        out .= x[map.xindices]
     elseif nestimate == 0
-        out = map.constant_values
+        out .= map.constant_values
     else
-        out = similar(x, map.nparameters)
         for i in eachindex(out)
             if map.estimate[i] == true
                 out[i] = x[map.xindices[i]]
@@ -141,7 +137,7 @@ function get_obs_sd_parameter(x::AbstractVector, map::ObservableNoiseMap)
             end
         end
     end
-    return length(out) == 1 ? out[1] : out
+    return out
 end
 
 """
