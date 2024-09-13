@@ -1,9 +1,9 @@
 function get_reaction_system(foo)
 
 	ModelingToolkit.@variables t
-	sps = Catalyst.@species x1(t) x2(t) 
+	sps = Catalyst.@species x1(t) x2(t)
 	vs = ModelingToolkit.@variables observable_x2(t) sigma_x2(t)
-	ps = Catalyst.@parameters k3 k1 k2 default 
+	ps = Catalyst.@parameters k3 k1 k2 default
 
 	D = Differential(t)
 
@@ -24,11 +24,11 @@ function get_reaction_system(foo)
 	observable_x2 => 0.0,
 	sigma_x2 => 0.04,
 	]
-	parameter_map = [
+	parametermap = [
 	k3 =>0.0,
 	k1 =>0.2,
 	k2 =>0.1,
 	default =>1.0,
 	]
-	return rn, specie_map, parameter_map
+	return rn, specie_map, parametermap
 end

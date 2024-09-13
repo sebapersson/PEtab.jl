@@ -57,7 +57,7 @@ let
 end
 
 # Tests runtime evaluation plot.
-# Tests idxs functionality. 
+# Tests idxs functionality.
 let
     p_run_eval = plot(petab_ms_res; plot_type=:runtime_eval, idxs=1:25)
     @test p_run_eval.series_list[1].plotattributes[:x] == getfield.(petab_ms_res.runs[1:25], :runtime)
@@ -67,7 +67,7 @@ end
 # Tests parallel coordinates plot.
 let
     p_parallel_coord = plot(petab_ms_res; plot_type=:parallel_coordinates, idxs=1:25)
-    
+
     p_mins = [minimum(run.xmin[idx] for run in petab_ms_res.runs[1:25]) for idx in 1:length(petab_ms_res.xmin)]
     p_maxs = [maximum(run.xmin[idx] for run in petab_ms_res.runs[1:25]) for idx in 1:length(petab_ms_res.xmin)]
     x_vals = [[(p_val-p_min)/(p_max-p_min) for (p_val,p_min,p_max) in zip(run.xmin,p_mins,p_maxs)] for run in petab_ms_res.runs[1:25]]
@@ -79,7 +79,7 @@ let
 end
 
 # Tests the plots comparing the fitted solution to the measurements.
-let 
+let
     # Declare model
     rn = @reaction_network begin
         kB, S + E --> SE
@@ -125,8 +125,8 @@ let
     measurements = vcat(m_c1_E, m_c1_P, m_c2_E, m_c2_P)
 
     # Fit solution
-    petab_model = PEtabModel(rn, simulation_conditions , observables, measurements, params; state_map=u0)
-    petab_problem = PEtabODEProblem(petab_model)
+    model = PEtabModel(rn, simulation_conditions , observables, measurements, params; statemap=u0)
+    petab_problem = PEtabODEProblem(model)
     res = calibrate_model_multistart(petab_problem, IPNewton(), 5, "simple_enzyme_model")
 
     # Check comparison dictionary.

@@ -13,7 +13,7 @@ function get_reference_stats(path_data)
     return reference_stats
 end
 
-function get_petab_problem_saturated(petab_parameters)::PEtabODEProblem
+function get_petab_problem_saturated(parameters)::PEtabODEProblem
 
     @parameters b1, b2
     @variables t x(t)
@@ -22,12 +22,12 @@ function get_petab_problem_saturated(petab_parameters)::PEtabODEProblem
         D(x) ~ b2*(b1 - x)
     ]
     specie_map = [x => 0]
-    parameter_map = [b1 => 1.0, b2 => 0.2]
+    parametermap = [b1 => 1.0, b2 => 0.2]
     @named sys = ODESystem(eqs)
 
     Random.seed!(1234)
     # Simulate the model
-    oprob = ODEProblem(sys, specie_map, (0.0, 2.5), parameter_map)
+    oprob = ODEProblem(sys, specie_map, (0.0, 2.5), parametermap)
     tsave = collect(range(0.0, 2.5, 101))
     dist = Normal(0.0, 0.03)
     _sol = solve(oprob, Rodas4(), abstol=1e-12, reltol=1e-12, saveat=tsave, tstops=tsave)
@@ -43,8 +43,8 @@ function get_petab_problem_saturated(petab_parameters)::PEtabODEProblem
         time=_sol.t,
         measurement=obs)
 
-    petab_model = PEtabModel(sys, observables, measurements, petab_parameters; state_map=specie_map)
-    petab_problem = PEtabODEProblem(petab_model; ode_solver=ODESolver(Rodas5(), abstol=1e-6, reltol=1e-6))
+    model = PEtabModel(sys, observables, measurements, parameters; statemap=specie_map)
+    petab_problem = PEtabODEProblem(model; ode_solver=ODESolver(Rodas5(), abstol=1e-6, reltol=1e-6))
 
     return petab_problem
 end
@@ -64,7 +64,7 @@ end
     Random.seed!(1213)
     target = PEtabLogDensity(petab_problem)
     sampler = NUTS(0.8)
-    xprior = to_prior_scale(petab_problem.θ_nominalT, target)
+    xprior = to_prior_scale(petab_problem.xnominal_transformed, target)
     xinference = target.inference_info.bijectors(xprior)
     res = sample(target, sampler,
                 2000;
@@ -146,7 +146,7 @@ end
     Random.seed!(1234)
     target = PEtabLogDensity(petab_problem)
     sampler = NUTS(0.8)
-    xprior = to_prior_scale(petab_problem.θ_nominalT, target)
+    xprior = to_prior_scale(petab_problem.xnominal_transformed, target)
     xinference = target.inference_info.bijectors(xprior)
     res = sample(target, sampler,
                 2000;

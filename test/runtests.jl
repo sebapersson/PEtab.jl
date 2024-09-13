@@ -1,6 +1,5 @@
 using SafeTestsets
 
-
 @safetestset "Aqua Quality Check" begin
   include("Aqua.jl")
 end
