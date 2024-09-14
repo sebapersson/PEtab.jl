@@ -6,7 +6,7 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
                              odesolver_gradient, ss_solver, ss_solver_gradient,
                              gradient_method, hessian_method, FIM_method, sensealg,
                              sensealg_ss, reuse_sensitivities::Bool, sparse_jacobian,
-                             specialize_level, chunksize, split_over_conditions::Bool,
+                             specialize_level, chunksize, split_over_conditions,
                              verbose::Bool)::PEtabODEProblemInfo
     _logging(:Build_ODEProblem, verbose)
     model_size = _get_model_size(model.sys_mutated, model_info)
@@ -21,6 +21,8 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
     _check_method(gradient_method_use, :gradient)
     _check_method(hessian_method_use, :Hessian)
     _check_method(FIM_method_use, :FIM)
+
+    split_use = _get_split_over_conditions(split_over_conditions, model_info)
 
     odesolver_use = _get_odesolver(odesolver, model_size, gradient_method_use)
     odesolver_gradient_use = _get_odesolver(odesolver_gradient, model_size,
@@ -72,5 +74,5 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
                                ss_solver_use, ss_solver_gradient_use, gradient_method_use,
                                hessian_method_use, FIM_method_use, reuse_sensitivities,
                                sparse_jacobian_use, sensealg_use, sensealg_ss_use,
-                               cache, split_over_conditions, chunksize_use)
+                               cache, split_use, chunksize_use)
 end

@@ -24,7 +24,8 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false,
         btime = @elapsed begin
             model_SBML_sys = SBMLImporter._to_system_syntax(model_SBML, false, false)
             modelstr = SBMLImporter.write_reactionsystem(model_SBML_sys, paths[:dirjulia],
-                                                         model_SBML)
+                                                         model_SBML;
+                                                         write_to_file = write_to_file)
         end
         _logging(:Build_SBML, verbose; time = btime)
     else

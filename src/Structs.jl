@@ -502,22 +502,21 @@ Once created, a `PEtabODEProblem` contains everything needed to perform paramete
 - `reuse_sensitivities::Bool=false` : If set to `true`, reuse the sensitivities computed during gradient computations for the Gauss-Newton Hessian approximation. This option is only applicable when using `hessian_method=:GaussNewton` and `gradient_method=:ForwardEquations`. Note that it should only be used when the optimizer always computes the gradient before the Hessian.
 - `verbose::Bool=true` : If set to `true`, print progress messages while setting up the PEtabODEProblem.
 """
-struct PEtabODEProblem{F1 <: Function, F2 <: Function, F3 <: Function, F4 <: Function,
-                       F5 <: Function, F6 <: Function}
+struct PEtabODEProblem{F1 <: Function, F2 <: Function, F3 <: Function}
     nllh::F1
     chi2::Any
     grad!::F2
-    grad::F3
-    hess!::F4
-    hess::F5
+    grad::Function
+    hess!::F3
+    hess::Function
     FIM!::Any
     FIM::Any
-    nllh_grad::F6
+    nllh_grad::Function
     prior::Function
     grad_prior::Function
     hess_prior::Function
-    compute_simulated_values::Any
-    compute_residuals::Any
+    simulated_values::Any
+    residuals::Any
     probinfo::PEtabODEProblemInfo
     model_info::ModelInfo
     nparameters_esimtate::Int64

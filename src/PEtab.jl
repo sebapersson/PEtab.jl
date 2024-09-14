@@ -83,10 +83,10 @@ include(joinpath("Show.jl"))
 
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem
 @setup_workload begin
-    path_yaml = joinpath(@__DIR__, "..", "test", "Test_model3", "Test_model3.yaml")
+    path_yaml = joinpath(@__DIR__, "..", "test", "analytic_ss", "Test_model3.yaml")
     @compile_workload begin
         model = PEtabModel(path_yaml, verbose = false, build_julia_files = true,
-                           write_to_file = false)
+                           write_to_file = true)
         petab_problem = PEtabODEProblem(model, verbose = false)
         petab_problem.nllh(petab_problem.xnominal_transformed)
     end

@@ -165,20 +165,14 @@ function _nllh_obs(residual::T, σ::Real, y_transformed::Float64, transform::Sym
 end
 
 function update_petab_measurements!(petab_measurements::PEtabMeasurements, h::T, hT::T,
-                                    σ::T,
-                                    res::T,
-                                    imeasurement::Integer)::Nothing where {T <:
-                                                                           AbstractFloat}
-    ChainRulesCore.@ignore_derivatives begin
-        petab_measurements.simulated_values[imeasurement] = h
-        mT = petab_measurements.measurement_transformed
-        petab_measurements.chi2_values[imeasurement] = (hT - mT[imeasurement])^2 / σ^2
-        petab_measurements.residuals[imeasurement] = res
-    end
+                                    σ::Real, res::T, imeasurement::Integer)::Nothing where {T <: AbstractFloat}
+    petab_measurements.simulated_values[imeasurement] = h
+    mT = petab_measurements.measurement_transformed[imeasurement]
+    petab_measurements.chi2_values[imeasurement] = (hT - mT)^2 / σ^2
+    petab_measurements.residuals[imeasurement] = res
     return nothing
 end
 function update_petab_measurements!(petab_measurements::PEtabMeasurements, h, hT, σ,
-                                    residual,
-                                    imeasurement)::Nothing
+                                    residual, imeasurement)::Nothing
     return nothing
 end

@@ -11,7 +11,7 @@ function PEtabODEProblem(model::PEtabModel;
                          sensealg = nothing,
                          sensealg_ss = nothing,
                          chunksize::Union{Nothing, Int64} = nothing,
-                         split_over_conditions::Bool = false,
+                         split_over_conditions::Union{Nothing, Bool} = nothing,
                          reuse_sensitivities::Bool = false,
                          verbose::Bool = true,
                          custom_values::Union{Nothing, Dict} = nothing)::PEtabODEProblem
@@ -52,27 +52,25 @@ function PEtabODEProblem(model::PEtabModel;
     end
     _logging(:Build_hessian, verbose; time = btime)
 
-    # TODO: Must refactor later
-    compute_chi2 = (θ; as_array = false) -> begin
-        _ = nllh(θ)
-        if as_array == false
-            return sum(petab_measurements.chi2_values)
-        else
-            return petab_measurements.chi2_values
+    # Useful functions for getting diagnostics
+    _logging(:Build_chi2_res_sim, verbose)
+    btime = @elapsed begin
+        _chi2 = (x; array = false) -> begin
+            _ = nllh(x)
+            vals = model_info.petab_measurements.chi2_values
+            return array == true ? vals : sum(vals)
+        end
+        _residuals = (x; array = true) -> begin
+            _ = nllh(x)
+            vals = model_info.petab_measurements.residuals
+            return array == true ? vals : sum(vals)
+        end
+        _simulated_values = (x) -> begin
+            _ = nllh(x)
+            return model_info.petab_measurements.simulated_values
         end
     end
-    compute_residuals = (θ; as_array = false) -> begin
-        _ = nllh(θ)
-        if as_array == false
-            return sum(petab_measurements.residuals)
-        else
-            return petab_measurements.residuals
-        end
-    end
-    compute_simulated_values = (θ) -> begin
-        _ = nllh(θ)
-        return petab_measurements.simulated_values
-    end
+    _logging(:Build_chi2_res_sim, verbose; time = btime)
 
     # Relevant information for the unknown model parameters
     xnames = model_info.xindices.xids[:estimate]
@@ -82,11 +80,10 @@ function PEtabODEProblem(model::PEtabModel;
     xnominal = _get_xnominal(model_info, xnames, false)
     xnominal_transformed = _get_xnominal(model_info, xnames, true)
 
-    return PEtabODEProblem(nllh, compute_chi2, grad!, grad, hess!, hess, FIM!, FIM,
-                           nllh_grad, prior, grad_prior, hess_prior,
-                           compute_simulated_values, compute_residuals, probinfo,
-                           model_info, nestimate, xnames, xnominal, xnominal_transformed,
-                           lb, ub)
+    return PEtabODEProblem(nllh, _chi2, grad!, grad, hess!, hess, FIM!, FIM, nllh_grad,
+                           prior, grad_prior, hess_prior, _simulated_values, _residuals,
+                           probinfo, model_info, nestimate, xnames, xnominal,
+                           xnominal_transformed, lb, ub)
 end
 
 function _get_prior(model_info::ModelInfo)::Tuple{Function, Function, Function}
@@ -175,7 +172,7 @@ function _get_hess(probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
             else
                 _hess_nllh!(H, x)
             end
-            if prior
+            if prior && ret_jacobian == false
                 # nllh -> negative prior
                 H .+= hess_prior(x) .* -1
             end
@@ -183,7 +180,11 @@ function _get_hess(probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
         end
     end
     _hess = (x; prior = true) -> begin
-        H = zeros(eltype(x), length(x), length(x))
+        if hessian_method == :GaussNewton && ret_jacobian == true
+            H = zeros(eltype(x), length(x), length(model_info.petab_measurements.time))
+        else
+            H = zeros(eltype(x), length(x), length(x))
+        end
         _hess!(H, x; prior = prior)
         return H
     end

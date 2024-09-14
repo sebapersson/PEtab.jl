@@ -73,7 +73,10 @@ function _logging(whatlog::Symbol, verbose::Bool; time = nothing, name::String =
         str = styled"{blue:{bold:│ }} Building {magenta:gradient} nllh function for method $(method) ... "
     end
     if whatlog == :Build_hessian
-        str = styled"{blue:{bold:└ }} Building {magenta:Hessian} nllh function for method $(method) ... "
+        str = styled"{blue:{bold:│ }} Building {magenta:Hessian} nllh function for method $(method) ... "
+    end
+    if whatlog == :Build_chi2_res_sim
+        str = styled"{blue:{bold:└ }} Building {magenta:χ₂} and {magenta:residuals} functions ... "
     end
 
     print(str)

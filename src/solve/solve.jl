@@ -143,42 +143,6 @@ function solve_conditions!(sols::AbstractMatrix, xdynamic::AbstractVector,
     return nothing
 end
 
-function solve_ODE_all_conditions(oprob::ODEProblem,
-                                  model::PEtabModel,
-                                  xdynamic::AbstractVector,
-                                  petab_ODESolver_cache,
-                                  simulation_info::SimulationInfo,
-                                  xindices::ParameterIndices,
-                                  osolver::ODESolver,
-                                  ss_solver::SteadyStateSolver;
-                                  cids::Vector{Symbol} = [:all],
-                                  ntimepoints_save::Int64 = 0,
-                                  save_observed_t::Bool = false,
-                                  dense_sol::Bool = true,
-                                  track_callback::Bool = false,
-                                  sensitivites::Bool = false)::Tuple{Dict{Symbol,
-                                                                          ODESolution},
-                                                                     Bool}
-    odesols = deepcopy(simulation_info.odesols)
-    success = solve_conditions!(odesols,
-                                oprob,
-                                model,
-                                xdynamic,
-                                petab_ODESolver_cache,
-                                simulation_info,
-                                xindices,
-                                osolver,
-                                ss_solver,
-                                cids = cids,
-                                ntimepoints_save = ntimepoints_save,
-                                save_observed_t = save_observed_t,
-                                dense_sol = dense_sol,
-                                track_callback = track_callback,
-                                sensitivites = sensitivites)
-
-    return odesols, success
-end
-
 # TODO: Should not need simulation_info (as callback should have everything), fix after
 # mtkv9 update
 function solve_post_equlibrium(@nospecialize(oprob::ODEProblem), u_ss::T, u_t0::T,

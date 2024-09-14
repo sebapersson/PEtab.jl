@@ -160,9 +160,10 @@ end
 """
     solve_all_conditions(xpetab, prob::PEtabODEProblem, solver; <keyword arguments>)
 
-Simulates the ODE model for all simulation conditions using the provided ODE solver and parameter vector `xpetab`.
+Simulates the ODE model for all simulation conditions using the provided ODE solver and
+parameter vector `x`.
 
-The parameter vector `xpetab` should be provided on the PEtab scale (default log10).
+The parameter vector `x` should be provided on the PEtab scale (default log10).
 
 # Keyword Arguments
 - `abstol=1e-8`: Absolute tolerance for the ODE solver.
@@ -179,105 +180,27 @@ The parameter vector `xpetab` should be provided on the PEtab scale (default log
 - `could_solve`: A boolean value indicating whether the model was successfully solved for
     all conditions.
 """
-function solve_all_conditions(xpetab, prob::PEtabODEProblem, solver; abstol = 1e-8,
+function solve_all_conditions(x, prob::PEtabODEProblem, osolver; abstol = 1e-8,
                               reltol = 1e-8, maxiters = nothing, ntimepoints_save = 0,
                               save_observed_t = false)
-    @unpack oprob, model, simulation_info, xindices = prob
-    @unpack ode_solver, ss_solver, cache = prob
-    _ode_solver = deepcopy(ode_solver)
-    _ode_solver.abstol = abstol
-    _ode_solver.reltol = reltol
-    _ode_solver.solver = solver
+    @unpack probinfo, model_info = prob
+    xindices = model_info.xindices
+    @unpack solver, cache = probinfo
+
+    solver.abstol = abstol
+    solver.reltol = reltol
+    solver.solver = osolver
     if !isnothing(maxiters)
-        _ode_solver.maxiters = maxiters
+        solver.maxiters = maxiters
     end
 
-    xdynamic, xobservable, xnoise, xnondynamic = split_x(xpetab, xindices)
-    xdynamic_ps = transform_x(xdynamic, xindices.xids[:dynamic], xindices,
-                              :xdynamic, prob.cache)
+    split_x!(x, xindices, cache)
+    xdynamic_ps = transform_x(cache.xdynamic, xindices, :xdynamic, cache)
 
-    odesols, could_solve = solve_ODE_all_conditions(oprob, model, xdynamic_ps,
-                                                    cache, simulation_info,
-                                                    xindices, _ode_solver, ss_solver;
-                                                    save_observed_t = save_observed_t,
-                                                    ntimepoints_save = ntimepoints_save)
-    return odesols, could_solve
-end
-
-"""
-    compute_runtime_accuracy(xpetab, prob, solver; <keyword arguments>)
-
-Get runtime and accuracy for an ODE solver when simulating a model across all simulation conditions with parameter vector `xpetab`.
-
-The parameter vector `xpetab` should be provided on the PEtab scale (default log10).
-
-# Keyword Arguments
-- `abstol=1e-8`: Absolute tolerance for the ODE solver.
-- `reltol=1e-8`: Relative tolerance for the ODE solver.
-- `solver_high_acc=Rodas4P()`: The ODE solver used to generate a high accuracy solution,
-    which is used as reference when computing the high accuracy soluation.
-- `abstol_highacc=1e-12`: Absolute tolerance for the high accuracy ODE solver.
-- `reltol_highacc=1e-12`: Relative tolerance for the high accuracy ODE solver.
-- `compute_acc=true`: If set to `false`, accuracy is not evaluated (returned a 0).
-- `ntimes_solve=5`: Number times to simulated the model to determine the average runtime.
-
-# Returns
-- `runtime`: The average time taken to solve the model across all conditions, in seconds.
-- `acc`: The solver's accuracy, determined by comparison with the high accuracy ODE solver.
-"""
-function compute_runtime_accuracy(xpetab, prob, solver; abstol = 1e-8,
-                                  reltol = 1e-8, solver_high_acc = Rodas4P(),
-                                  abstol_highacc = 1e-12, reltol_highacc = 1e-12,
-                                  compute_acc::Bool = true, ntimes_solve = 5)
-    local sols_highacc, could_solve_highacc
-    if compute_acc == true
-        sols_highacc, could_solve_highacc = PEtab.solve_all_conditions(xpetab,
-                                                                       prob,
-                                                                       solver_high_acc;
-                                                                       abstol = abstol_highacc,
-                                                                       reltol = reltol_highacc,
-                                                                       ntimepoints_save = 100)
-        if could_solve_highacc == false
-            @error "Could not solve high accuracy solution. Consider changing solver_high_acc"
-        end
-    else
-        sols_highacc, could_solve_highacc = nothing, nothing
-    end
-
-    # Get accuracy
-    if !isnothing(sols_highacc)
-        sols, could_solve = PEtab.solve_all_conditions(xpetab, prob, solver;
-                                                       abstol = abstol, reltol = reltol,
-                                                       ntimepoints_save = 100)
-        if could_solve == true
-            acc = 0.0
-            for id in keys(sols)
-                acc += sum((Array(sols[id]) - Array(sols_highacc[id])) .^ 2)
-            end
-        end
-    else
-        # Check if we can solve the ODE
-        acc = nothing
-        _, could_solve = PEtab.solve_all_conditions(xpetab, prob, solver;
-                                                    abstol = abstol, reltol = reltol,
-                                                    ntimepoints_save = 100)
-    end
-
-    if could_solve == false
-        @warn "Could not solve ODE. Runtime and accuracy are returned as Inf" maxlog=10
-        return Inf, Inf
-    end
-
-    # Get runtime
-    runtime = 0.0
-    for i in 1:ntimes_solve
-        runtime += @elapsed _, _ = PEtab.solve_all_conditions(xpetab, prob, solver;
-                                                              abstol = abstol,
-                                                              reltol = reltol)
-    end
-    runtime /= ntimes_solve
-
-    return runtime, acc
+    could_solve = solve_conditions!(model_info, xdynamic_ps, probinfo;
+                                    ntimepoints_save = ntimepoints_save,
+                                    save_observed_t = save_observed_t)
+    return model_info.simulation_info.odesols, could_solve
 end
 
 function _get_cid(cid::Union{Nothing, Symbol, String}, model_info::ModelInfo)::Symbol
