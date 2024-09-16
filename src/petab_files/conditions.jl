@@ -53,8 +53,9 @@ function ParameterIndices(petab_parameters::PEtabParameters,
                                             petab_parameters;
                                             observable = false)
 
-    # TODO: Uncertain this should live here
     xscale = _get_xscales(xids, petab_parameters)
+    _get_xnames_ps!(xids, xscale)
+
     return ParameterIndices(xindices, xids, xindices_notsys, xscale, xobservable_maps,
                             xnoise_maps, odeproblem_map, condition_maps)
 end
@@ -424,4 +425,17 @@ function _get_xids_sys_in_xdynamic(xindices::ParameterIndices,
     end
     unique!(xids_sys_in_xdynamic)
     return xids_sys_in_xdynamic .|> string
+end
+
+function _get_xnames_ps!(xids::Dict{Symbol, Vector{Symbol}}, xscale)::Nothing
+    out = similar(xids[:estimate])
+    for (i, id) in pairs(xids[:estimate])
+        scale = xscale[id]
+        if scale == :lin
+            out[i] = id
+        end
+        out[i] = "$(scale)_$id" |> Symbol
+    end
+    xids[:estimate_ps] = out
+    return nothing
 end

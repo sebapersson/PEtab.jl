@@ -74,11 +74,16 @@ function PEtabODEProblem(model::PEtabModel;
 
     # Relevant information for the unknown model parameters
     xnames = model_info.xindices.xids[:estimate]
+    xnames_ps = model_info.xindices.xids[:estimate_ps]
     nestimate = length(xnames)
-    lb = _get_bounds(model_info, xnames, :lower)
-    ub = _get_bounds(model_info, xnames, :upper)
-    xnominal = _get_xnominal(model_info, xnames, false)
-    xnominal_transformed = _get_xnominal(model_info, xnames, true)
+    _lb = _get_bounds(model_info, xnames, :lower)
+    _ub = _get_bounds(model_info, xnames, :upper)
+    _xnominal = _get_xnominal(model_info, xnames, false)
+    _xnominal_transformed = _get_xnominal(model_info, xnames, true)
+    lb = ComponentArray(; (xnames_ps .=> _lb)...)
+    ub = ComponentArray(; (xnames_ps .=> _ub)...)
+    xnominal = ComponentArray(; (xnames .=> _xnominal)...)
+    xnominal_transformed = ComponentArray(; (xnames_ps .=> _xnominal_transformed)...)
 
     return PEtabODEProblem(nllh, _chi2, grad!, grad, hess!, hess, FIM!, FIM, nllh_grad,
                            prior, grad_prior, hess_prior, _simulated_values, _residuals,
@@ -107,10 +112,12 @@ function _get_nllh(probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
                    prior::Function, residuals::Bool)::Function
     _nllh = let pinfo = probinfo, minfo = model_info, res = residuals, _prior = prior
         (x; prior = true) -> begin
-            nllh_val = nllh(x, pinfo, minfo, [:all], false, res)
+            _test_ordering(x, minfo.xindices.xids[:estimate_ps])
+            _x = x |> collect
+            nllh_val = nllh(_x, pinfo, minfo, [:all], false, res)
             if prior == true && res == false
                 # nllh -> negative prior
-                return nllh_val - _prior(x)
+                return nllh_val - _prior(_x)
             else
                 return nllh_val
             end
@@ -130,17 +137,20 @@ function _get_grad(method, probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
 
     _grad! = let _grad_nllh! = _grad_nllh!, grad_prior = grad_prior
         (g, x; prior = true, isremade = false) -> begin
-            _grad_nllh!(g, x; isremade = isremade)
+            _x = x |> collect
+            _g = similar(_x)
+            _grad_nllh!(_g, _x; isremade = isremade)
             if prior
                 # nllh -> negative prior
-                g .+= grad_prior(x) .* -1
+                _g .+= grad_prior(_x) .* -1
             end
+            g .= _g
             return nothing
         end
     end
     _grad = let _grad! = _grad!
         (x; prior = true, isremade = false) -> begin
-            gradient = zeros(Float64, length(x))
+            gradient = similar(x)
             _grad!(gradient, x; prior = prior, isremade = isremade)
             return gradient
         end
@@ -167,14 +177,15 @@ function _get_hess(probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
 
     _hess! = let _hess_nllh! = _hess_nllh!, hess_prior = hess_prior
         (H, x; prior = true, isremade = false) -> begin
+            _x = x |> collect
             if hessian_method == :GassNewton
-                _hess_nllh!(H, x; isremade = isremade)
+                _hess_nllh!(H, _x; isremade = isremade)
             else
-                _hess_nllh!(H, x)
+                _hess_nllh!(H, _x)
             end
             if prior && ret_jacobian == false
                 # nllh -> negative prior
-                H .+= hess_prior(x) .* -1
+                H .+= hess_prior(_x) .* -1
             end
             return nothing
         end
@@ -202,10 +213,11 @@ function _get_nllh_grad(gradient_method::Symbol, grad::Function, _prior::Functio
                                                 grad_forward_eqs = grad_forward_eqs,
                                                 grad_adjoint = grad_adjoint)
     _nllh_grad = (x; prior = true) -> begin
+        _x = x |> collect
         g = grad(x; prior = prior)
-        nllh = _nllh_not_solveode(x)
+        nllh = _nllh_not_solveode(_x)
         if prior
-            nllh += _prior(x)
+            nllh += _prior(_x)
         end
         return nllh, g
     end
@@ -235,3 +247,13 @@ function _get_xnominal(model_info::ModelInfo, xnames::Vector{Symbol},
     end
     return xnominal
 end
+
+function _test_ordering(x::ComponentArray, xnames_ps::Vector{Symbol})::Nothing
+    if !all(propertynames(x) .== xnames_ps)
+        throw(PEtabInputError("Input ComponentArray x to the PEtab nllh function \
+                               has wrong ordering or parameter names. In x the \
+                               parameters must appear in the order of $xnames_ps"))
+    end
+    return nothing
+end
+_test_ordering(x::AbstractVector, names_ps::Vector{Symbol})::Nothing = nothing

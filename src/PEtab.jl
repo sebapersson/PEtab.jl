@@ -5,9 +5,8 @@ using CSV
 using SciMLBase
 using OrdinaryDiffEq
 using Catalyst
-using DiffEqCallbacks
+using ComponentArrays
 using DataFrames
-using SteadyStateDiffEq
 using ForwardDiff
 using ReverseDiff
 import ChainRulesCore

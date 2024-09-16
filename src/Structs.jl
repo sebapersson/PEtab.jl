@@ -521,10 +521,10 @@ struct PEtabODEProblem{F1 <: Function, F2 <: Function, F3 <: Function}
     model_info::ModelInfo
     nparameters_esimtate::Int64
     xnames::Vector{Symbol}
-    xnominal::Vector{Float64}
-    xnominal_transformed::Vector{Float64}
-    lower_bounds::Vector{Float64}
-    upper_bounds::Vector{Float64}
+    xnominal::ComponentArray{Float64}
+    xnominal_transformed::ComponentArray{Float64}
+    lower_bounds::ComponentArray{Float64}
+    upper_bounds::ComponentArray{Float64}
 end
 
 """
