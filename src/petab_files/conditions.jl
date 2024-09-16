@@ -433,6 +433,7 @@ function _get_xnames_ps!(xids::Dict{Symbol, Vector{Symbol}}, xscale)::Nothing
         scale = xscale[id]
         if scale == :lin
             out[i] = id
+            continue
         end
         out[i] = "$(scale)_$id" |> Symbol
     end
