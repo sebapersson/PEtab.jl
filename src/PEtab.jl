@@ -37,6 +37,7 @@ const EstimationResult = Union{PEtabOptimisationResult, PEtabMultistartResult,
 
 include("common.jl")
 include("logging.jl")
+include("show.jl")
 
 include(joinpath("petab_files", "common.jl"))
 include(joinpath("petab_files", "conditions.jl"))
@@ -83,8 +84,7 @@ include(joinpath("parameter_estimation", "startguesses.jl"))
 # Nice util functions
 include(joinpath("Utility.jl"))
 
-# For correct struct printing
-include(joinpath("Show.jl"))
+
 
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem
 @setup_workload begin

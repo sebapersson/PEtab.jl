@@ -133,25 +133,29 @@ function show(io::IO, prob::PEtabODEProblem)
     opt6 = styled"ss-solver gradient: $(ss_solver2)"
     print(io, styled"$(header)$(optheader)$(opt1)$(opt2)$(opt3)$(opt4)$(opt5)$(opt6)")
 end
-function show(io::IO, a::PEtabOptimisationResult)
-    printstyled(io, "PEtabOptimisationResult", color = 116)
-    print(io, "\n--------- Summary ---------\n")
-    @printf(io, "min(f)                = %.2e\n", a.fmin)
-    @printf(io, "Parameters esimtated  = %d\n", length(a.x0))
-    @printf(io, "Optimiser iterations  = %d\n", a.niterations)
-    @printf(io, "Run time              = %.1es\n", a.runtime)
-    @printf(io, "Optimiser algorithm   = %s\n", a.alg)
+function show(io::IO, res::PEtabOptimisationResult)
+    header = styled"{blue:{bold:PEtabOptimisationResult}}"
+    optheader = styled"\n---------------- {blue:{bold:Summary}} ---------------\n"
+    opt1 = @sprintf("min(f)                = %.2e\n", res.fmin)
+    opt2 = @sprintf("Parameters esimtated  = %d\n", length(res.x0))
+    opt3 = @sprintf("Optimiser iterations  = %d\n", res.niterations)
+    opt4 = @sprintf("Runtime              = %.1es\n", res.runtime)
+    opt5 = @sprintf("Optimiser algorithm   = %s\n", res.alg)
+    print(io, styled"$(header)$(optheader)$(opt1)$(opt2)$(opt3)$(opt4)$(opt5)")
 end
-function show(io::IO, a::PEtabMultistartResult)
-    printstyled(io, "PEtabMultistartResult", color = 116)
-    print(io, "\n--------- Summary ---------\n")
-    @printf(io, "min(f)                = %.2e\n", a.fmin)
-    @printf(io, "Parameters esimtated  = %d\n", length(a.xmin))
-    @printf(io, "Number of multistarts = %d\n", a.nmultistarts)
-    @printf(io, "Optimiser algorithm   = %s\n", a.alg)
-    if !isnothing(a.dirsave)
-        @printf(io, "Results saved at %s\n", a.dirsave)
+function show(io::IO, res::PEtabMultistartResult)
+    header =  styled"{blue:{bold:PEtabMultistartResult}}"
+    optheader = styled"\n---------------- {blue:{bold:Summary}} ---------------\n"
+    opt1 = @sprintf("min(f)                = %.2e\n", res.fmin)
+    opt2 = @sprintf("Parameters esimtated  = %d\n", length(res.xmin))
+    opt3 = @sprintf("Number of multistarts = %d\n", res.nmultistarts)
+    opt4 = @sprintf("Optimiser algorithm   = %s\n", res.alg)
+    if !isnothing(res.dirsave)
+        opt5 = @sprintf("Results saved at %s\n", res.dirsave)
+    else
+        opt5 = ""
     end
+    print(io, styled"$(header)$(optheader)$(opt1)$(opt2)$(opt3)$(opt4)$(opt5)")
 end
 function show(io::IO, target::PEtabLogDensity)
     printstyled(io, "PEtabLogDensity", color = 116)

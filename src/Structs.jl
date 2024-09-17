@@ -661,7 +661,7 @@ by specifying the numerical ending by `which_run`. For example, to access result
 set `which_run="2"`.
 """
 struct PEtabMultistartResult
-    xmin::Vector{Float64} # Parameter vectors (if user wants to save them)
+    xmin::ComponentArray{Float64} # Parameter vectors (if user wants to save them)
     fmin::Float64 # Likelihood value (if user wants to save them)
     nmultistarts::Int
     alg::Symbol
