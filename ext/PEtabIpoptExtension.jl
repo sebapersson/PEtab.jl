@@ -47,9 +47,9 @@ function PEtab.calibrate(prob::PEtabODEProblem,
         xtrace = Vector{Vector{Float64}}(undef, 0)
         converged = :Optmisation_failed
         runtime = NaN
-        res = nothing
+        sol_ipopt = nothing
     end
-    xnames_ps = prob.model_info.xindices.xids[:estimate_ps]
+    xnames_ps = propertynames(prob.xnominal_transformed)
     xstart = ComponentArray(; (xnames_ps .=> xstart)...)
     xmin = ComponentArray(; (xnames_ps .=> _xmin)...)
 

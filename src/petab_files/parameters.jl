@@ -21,7 +21,7 @@ function PEtabParameters(parameters_df::DataFrame;
 
     # When doing model selection it can be necessary to change the parameter values
     # without changing in the PEtab files. To get all subsequent parameter running
-    # correct it must be done here. TODO: Refactor when time for PEtab-select
+    # correct it must be done here.
     if !isnothing(custom_values)
         for (id, value) in custom_values
             ip = findfirst(x -> x == id, parameter_ids)

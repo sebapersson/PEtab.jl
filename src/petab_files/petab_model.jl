@@ -1,6 +1,5 @@
 function PEtabModel(path_yaml::String; build_julia_files::Bool = false,
                     verbose::Bool = true, ifelse_to_event::Bool = true,
-                    custom_values::Union{Nothing, Dict} = nothing,
                     write_to_file::Bool = false)::PEtabModel
     paths = _get_petab_paths(path_yaml)
     petab_tables = read_tables(path_yaml)

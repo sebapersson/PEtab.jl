@@ -40,7 +40,7 @@ function PEtab.calibrate(prob::PEtabODEProblem,
         res = nothing
     end
     alg_used = "Fides($(alg.hessian_method))" |> Symbol
-    xnames_ps = prob.model_info.xindices.xids[:estimate_ps]
+    xnames_ps = propertynames(prob.xnominal_transformed)
     xstart = ComponentArray(; (xnames_ps .=> xstart)...)
     xmin = ComponentArray(; (xnames_ps .=> _xmin)...)
     return PEtabOptimisationResult(alg_used, xtrace, ftrace, niterations, fmin, xstart,

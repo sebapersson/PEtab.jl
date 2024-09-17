@@ -76,6 +76,7 @@ include(joinpath("petab_odeproblem", "remake.jl"))
 include(joinpath("petab_odeproblem", "ss_solver.jl"))
 
 include(joinpath("parameter_estimation", "multistart.jl"))
+include(joinpath("parameter_estimation", "petab_select.jl"))
 include(joinpath("parameter_estimation", "singlestart.jl"))
 include(joinpath("parameter_estimation", "startguesses.jl"))
 
@@ -104,7 +105,7 @@ export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
 
 # These are given as extensions, but their docstrings are availble in the
 # general documentation
-export calibrate, calibrate_multistart, run_PEtab_select
+export calibrate, calibrate_multistart, petab_select
 function get_obs_comparison_plots end
 export get_obs_comparison_plots
 

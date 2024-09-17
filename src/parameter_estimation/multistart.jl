@@ -83,7 +83,7 @@ function _calibrate_multistart(prob::PEtabODEProblem, alg, nmultistarts, dirsave
         !isdir(dirsave) && mkpath(dirsave)
         i = 1
         while true
-            path_x0 = joinpath(dirsave, "Start_guesses_$i.csv")
+            path_x0 = joinpath(dirsave, "startguesses$i.csv")
             !isfile(path_x0) && break
             i += 1
         end
@@ -108,17 +108,18 @@ function _calibrate_multistart(prob::PEtabODEProblem, alg, nmultistarts, dirsave
 
     runs = Vector{PEtabOptimisationResult}(undef, nmultistarts)
     for i in 1:nmultistarts
-        if !isempty(xstarts[i])
+        if !isempty(xstarts)
             xstart = xstarts[i]
             runs[i] = calibrate(prob, xstart, alg; save_trace = save_trace,
                                 options = options)
         # This happens when there are now parameter to estimate, edge case that can
         # appear in for example petab-select
         else
+            xstart, xmin = ComponentArray{Float64}(), ComponentArray{Float64}()
             runs[i] = PEtabOptimisationResult(:alg, Vector{Vector{Float64}}(undef, 0),
                                               Vector{Float64}(undef, 0), 0,
-                                              prob.nllh(Float64[]), Float64[],
-                                              Float64[], true, 0.0, nothing)
+                                              prob.nllh(xstart), xstart, xmin, true, 0.0,
+                                              nothing)
         end
         isnothing(path_res) && continue
         # It is best practive to save results after each multistart, as sometimes running

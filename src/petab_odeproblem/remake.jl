@@ -83,13 +83,16 @@ function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
         probinfo.cache.nxdynamic[1] = length(xids_dynamic)
     end
 
-    # Parameters and other things for the remade problem
+    # Parameters and other things for the remade problem. ix_names are needed here as
+    # in the PEtabODEProblem nominal values and bounds are ComponentArrays.
+    # empty_to_component_array is needed as a vector is returned
     ix = findall(x -> !(x in xids_fixate), prob.xnames)
-    lb = prob.lower_bounds[ix]
-    ub = prob.upper_bounds[ix]
+    ix_names = propertynames(prob.xnominal)[ix]
+    lb = prob.lower_bounds[ix_names] |> _to_component_array
+    ub = prob.upper_bounds[ix_names] |> _to_component_array
     xnames = prob.xnames[ix]
-    xnominal = prob.xnominal[ix]
-    xnominal_transformed = prob.xnominal_transformed[ix]
+    xnominal = prob.xnominal[ix_names] |> _to_component_array
+    xnominal_transformed = prob.xnominal_transformed[ix_names] |> _to_component_array
     nestimate = length(xnames)
 
     # Set priors to be skipped (first reset to not skip any evaluated parameters)
@@ -101,8 +104,8 @@ function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
 
     # Needed for the new problem (as under the hood we still use the full Hessian and
     # gradient, so these need to be pre-allocated)
-    _xest_full = similar(prob.xnominal)
-    _grad_full = similar(prob.xnominal)
+    _xest_full = similar(prob.xnominal) |> collect
+    _grad_full = similar(prob.xnominal) |> collect
     _hess_full = zeros(Float64, length(_xest_full), length(_xest_full))
     _FIM_full = zeros(Float64, length(_xest_full), length(_xest_full))
     ix_fixate = [findfirst(x -> x == id, prob.xnames) for id in xids_fixate]
@@ -133,17 +136,17 @@ function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
         xest_full = _set_xest(_xest_full, x, ix_fixate, x_fixate, imap)
         return prob.nllh(xest_full)
     end
-    _compute_simulated_values = (x; as_array = false) -> begin
+    _simulated_values = (x; as_array = false) -> begin
         xest_full = _set_xest(xest_full, x, ix_fixate, x_fixate, imap)
-        return prob.compute_simulated_values(_xest_full)
+        return prob.simulated_values(_xest_full)
     end
-    _compute_chi2 = (x) -> begin
+    _chi2 = (x) -> begin
         xest_full = _set_xest(_xest_full, x, ix_fixate, x_fixate, imap)
-        return prob.compute_chi2(xest_full)
+        return prob.chi2(xest_full)
     end
-    _compute_residuals = (x) -> begin
+    _residuals = (x) -> begin
         xest_full = _set_xest(_xest_full, x, ix_fixate, x_fixate, imap)
-        return prob.compute_residuals(xest_full)
+        return prob.residuals(xest_full)
     end
     _grad! = (g, x) -> begin
         xest_full = _set_xest(_xest_full, x, ix_fixate, x_fixate, imap)
@@ -159,6 +162,11 @@ function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
         g = similar(x)
         _grad!(g, x)
         return g
+    end
+    _nllh_grad = (x) -> begin
+        xest_full = _set_xest(_xest_full, x, ix_fixate, x_fixate, imap)
+        nllh, _grad_full = prob.nllh_grad(xest_full)
+        return nllh, _grad_full[imap]
     end
     _hess! = (H, x) -> begin
         xest_full = _set_xest(_xest_full, x, ix_fixate, x_fixate, imap)
@@ -196,12 +204,10 @@ function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
         _FIM!(FIM, x)
         return FIM
     end
-
-    return PEtabODEProblem(_nllh, _compute_chi2, _grad!, _grad, _hess!, _hess, _FIM!, _FIM,
-                           prob.nllh_grad, _prior, _grad_prior, _hess_prior,
-                           _compute_simulated_values, _compute_residuals, prob.probinfo,
-                           prob.model_info, nestimate, xnames, xnominal,
-                           xnominal_transformed, lb, ub)
+    return PEtabODEProblem(_nllh, _chi2, _grad!, _grad, _hess!, _hess, _FIM!, _FIM,
+                           _nllh_grad, _prior, _grad_prior, _hess_prior, _simulated_values,
+                           _residuals, prob.probinfo, prob.model_info, nestimate, xnames,
+                           xnominal, xnominal_transformed, lb, ub)
 end
 
 function _set_xest(_xest_full, x, ix_fixate, x_fixate, imap)
@@ -209,4 +215,12 @@ function _set_xest(_xest_full, x, ix_fixate, x_fixate, imap)
     xest_full[ix_fixate] .= x_fixate
     xest_full[imap] .= x
     return xest_full
+end
+
+function _to_component_array(x)::ComponentArray{Float64}
+    if isempty(x)
+        return ComponentArray{Float64}()
+    else
+        return x
+    end
 end
