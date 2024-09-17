@@ -581,7 +581,7 @@ end
 Ipopt can be configured to use either the Hessian method from the `PEtabODEProblem` (`LBFGS=false`) or a LBFGS scheme (`LBFGS=true`).
 For setting Ipopt options, see [`IpoptOptions`](@ref).
 
-See also [`calibrate_model`](@ref) and [`calibrate_model_multistart`](@ref).
+See also [`calibrate_model`](@ref) and [`calibrate_multistart`](@ref).
 
 ## Examples
 ```julia
@@ -617,7 +617,7 @@ For more information about each options see the Ipopt [documentation](https://co
 - `max_wall_time`: Max wall time optimisation is allowed to run
 - `acceptable_obj_change_tol`: Acceptance stopping criterion based on objective function change.
 
-See also [`calibrate_model`](@ref) and [`calibrate_model_multistart`](@ref).
+See also [`calibrate_model`](@ref) and [`calibrate_multistart`](@ref).
 """
 struct IpoptOptions
     print_level::Int64
@@ -637,96 +637,80 @@ function IpoptOptions(; print_level::Int64 = 0,
                         acceptable_obj_change_tol)
 end
 
-struct PEtabOptimisationResult{T <: Any}
+struct PEtabOptimisationResult
     alg::Symbol
-    xtrace::Vector{Vector{Float64}} # Parameter vectors (if user wants to save them)
-    ftrace::Vector{Float64} # Likelihood value (if user wants to save them)
-    n_iterations::Int64 # Number of iterations optimiser
-    fmin::Float64 # Best optimised value
-    x0::Vector{Float64} # Starting point
-    xmin::Vector{Float64} # Last parameter value
-    xnames::Vector{Symbol}
-    converged::T # If user wants to
-    runtime::Float64 # Always fun :)
+    xtrace::Vector{Vector{Float64}}
+    ftrace::Vector{Float64}
+    niterations::Int64
+    fmin::Float64
+    x0::ComponentArray{Float64}
+    xmin::ComponentArray{Float64}
+    converged
+    runtime::Float64
+    original
 end
 
 """
-    PEtabMultistartOptimisationResult(dir_res::String; which_run::String="1")
+    PEtabMultistartResult(dirres::String; which_run::String="1")
 
-Read PEtab multistart optimization results saved at `dir_res`.
+Read PEtab multistart optimization results saved at `dirres`.
 
 Each time a new optimization run is performed, results are saved with unique numerical endings
-appended to the directory specified by `dir_res`. Results from a specific run can be retreived
+appended to the directory specified by `dirres`. Results from a specific run can be retreived
 by specifying the numerical ending by `which_run`. For example, to access results from the second run,
 set `which_run="2"`.
 """
-struct PEtabMultistartOptimisationResult
+struct PEtabMultistartResult
     xmin::Vector{Float64} # Parameter vectors (if user wants to save them)
-    xnames::Vector{Symbol}
     fmin::Float64 # Likelihood value (if user wants to save them)
-    n_multistarts::Int
+    nmultistarts::Int
     alg::Symbol
     multistart_method::String
-    dir_save::Union{String, Nothing}
+    dirsave::Union{String, Nothing}
     runs::Vector{PEtabOptimisationResult} # See above
 end
-function PEtabMultistartOptimisationResult(dir_res::String;
-                                           which_run::String = "1")::PEtabMultistartOptimisationResult
-    @assert isdir(dir_res) "Directory $dir_res does not exist"
+function PEtabMultistartResult(dirres::String; which_run::Integer = 1)::PEtabMultistartResult
+    @assert isdir(dirres) "Directory $dirres does not exist"
 
-    path_res = joinpath(dir_res, "Optimisation_results" * which_run * ".csv")
-    path_parameters = joinpath(dir_res, "Best_parameters" * which_run * ".csv")
-    path_startguess = joinpath(dir_res, "Start_guesses" * which_run * ".csv")
-    path_trace = joinpath(dir_res, "Trace" * which_run * ".csv")
+    i = which_run |> string
+    path_res = joinpath(dirres, "results$i.csv")
+    path_parameters = joinpath(dirres, "xmins$i.csv")
+    path_startguess = joinpath(dirres, "startguesses$i.csv")
+    path_trace = joinpath(dirres, "trace$i.csv")
+    @assert isfile(path_res) "Result file $(path_res) does not exist"
+    @assert isfile(path_parameters) "Optimal parameters file $(path_parameters) does not exist"
+    @assert isfile(path_startguess) "Startguess file $(path_startguess) does not exist"
 
-    @assert isfile(path_res) "Result file (Optimisation_results...) does not exist"
-    @assert isfile(path_parameters) "Optimal parameters file (Best_parameters...) does not exist"
-    @assert isfile(path_startguess) "Startguess file (Start_guesses...) does not exist"
-    data_res = CSV.read(path_res, DataFrame)
-    data_parameters = CSV.read(path_parameters, DataFrame)
-    data_startguess = CSV.read(path_startguess, DataFrame)
-    xnames = Symbol.(names(data_parameters))[1:(end - 1)]
-
+    res_df = CSV.read(path_res, DataFrame)
+    x_df = CSV.read(path_parameters, DataFrame)
+    startguesses_df = CSV.read(path_startguess, DataFrame)
     if isfile(path_trace)
-        data_trace = CSV.read(path_trace, DataFrame)
+        trace_df = CSV.read(path_trace, DataFrame)
     end
-
-    _runs = Vector{PEtab.PEtabOptimisationResult}(undef, size(data_res)[1])
-    for i in eachindex(_runs)
+    runs = Vector{PEtab.PEtabOptimisationResult}(undef, nrow(res_df))
+    for i in eachindex(runs)
         if isfile(path_trace)
-            data_trace_i = data_trace[findall(x -> x == i, data_trace[!, :Start_guess]), :]
-            _ftrace = data_trace_i[!, :f_trace]
-            _xtrace = [Vector{Float64}(data_trace_i[i, 1:(end - 2)])
-                       for i in 1:size(data_trace_i)[1]]
+            trace_df_i = trace_df[findall(x -> x == i, trace_df[!, :startguess]), :]
+            _ftrace = trace_df_i[!, :ftrace]
+            _xtrace = [Vector{Float64}(trace_df_i[i, 1:(end - 2)])
+                       for i in 1:size(trace_df_i)[1]]
         else
             _ftrace = Vector{Float64}(undef, 0)
             _xtrace = Vector{Vector{Float64}}(undef, 0)
         end
-
-        _runs[i] = PEtab.PEtabOptimisationResult(Symbol(data_res[i, :alg]),
-                                                 _xtrace,
-                                                 _ftrace,
-                                                 data_res[i, :n_iterations],
-                                                 data_res[i, :fmin],
-                                                 data_startguess[i, 1:(end - 1)] |>
-                                                 Vector{Float64},
-                                                 data_parameters[i, 1:(end - 1)] |>
-                                                 Vector{Float64},
-                                                 xnames,
-                                                 data_res[i, :converged],
-                                                 data_res[i, :run_time])
+        xnames = propertynames(x_df)[1:end-1] |> collect
+        xmin = ComponentArray(; (xnames .=> x_df[i, 1:(end - 1)] |> Vector{Float64})...)
+        xstart = ComponentArray(; (xnames .=> startguesses_df[i, 1:(end - 1)] |> Vector{Float64})...)
+        runs[i] = PEtabOptimisationResult(Symbol(res_df[i, :alg]), _xtrace, _ftrace,
+                                          res_df[i, :niterations], res_df[i, :fmin],
+                                          xstart, xmin, res_df[i, :converged],
+                                          res_df[i, :runtime], nothing)
     end
-    run_best = _runs[argmin([isnan(_runs[i].fmin) ? Inf : _runs[i].fmin
-                             for i in eachindex(_runs)])]
-    _res = PEtabMultistartOptimisationResult(run_best.xmin,
-                                             xnames,
-                                             run_best.fmin,
-                                             length(_runs),
-                                             run_best.alg,
-                                             "",
-                                             dir_res,
-                                             _runs)
-    return _res
+    bestrun = runs[argmin([isnan(r.fmin) ? Inf : r.fmin for r in runs])]
+    fmin = bestrun.fmin
+    xmin = bestrun.xmin
+    nmultistarts = length(runs)
+    return PEtabMultistartResult(xmin, fmin, nmultistarts, bestrun.alg, "", dirres, runs)
 end
 
 """
@@ -851,7 +835,7 @@ Represents a parameter to be estimated in a PEtab model calibration problem.
 - `ub::Float64=1e-3`: The upper parameter bound in parameter estimation (default: 1e3).
 - `prior=nothing`: An optional continuous prior distribution from the Distributions package.
 - `prior_on_linear_scale::Bool=true`: Specifies whether the prior is on the linear scale (default) or the transformed scale, e.g., log10-scale.
-- `sample_from_prior::Bool=true`: Whether to sample the parameter from the prior distribution when generating startguesses for model calibration.
+- `sample_prior::Bool=true`: Whether to sample the parameter from the prior distribution when generating startguesses for model calibration.
 
 ## Examples
 ```julia
@@ -872,7 +856,7 @@ struct PEtabParameter
     prior::Union{Nothing, Distribution{Univariate, Continuous}}
     prior_on_linear_scale::Bool
     scale::Union{Nothing, Symbol} # :log10, :linear and :log supported.
-    sample_from_prior::Bool
+    sample_prior::Bool
 end
 function PEtabParameter(id::Union{Num, Symbol};
                         estimate::Bool = true,
@@ -882,9 +866,9 @@ function PEtabParameter(id::Union{Num, Symbol};
                         prior::Union{Nothing, Distribution{Univariate, Continuous}} = nothing,
                         prior_on_linear_scale::Bool = true,
                         scale::Union{Nothing, Symbol} = :log10,
-                        sample_from_prior::Bool = true)
+                        sample_prior::Bool = true)
     return PEtabParameter(id, estimate, value, lb, ub, prior, prior_on_linear_scale, scale,
-                          sample_from_prior)
+                          sample_prior)
 end
 
 struct PEtabFileError <: Exception

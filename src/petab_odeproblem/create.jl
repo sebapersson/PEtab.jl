@@ -178,15 +178,17 @@ function _get_hess(probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
     _hess! = let _hess_nllh! = _hess_nllh!, hess_prior = hess_prior
         (H, x; prior = true, isremade = false) -> begin
             _x = x |> collect
+            _H = H |> collect
             if hessian_method == :GassNewton
-                _hess_nllh!(H, _x; isremade = isremade)
+                _hess_nllh!(_H, _x; isremade = isremade)
             else
-                _hess_nllh!(H, _x)
+                _hess_nllh!(_H, _x)
             end
             if prior && ret_jacobian == false
                 # nllh -> negative prior
-                H .+= hess_prior(_x) .* -1
+                _H .+= hess_prior(_x) .* -1
             end
+            H .= _H
             return nothing
         end
     end
@@ -215,7 +217,8 @@ function _get_nllh_grad(gradient_method::Symbol, grad::Function, _prior::Functio
     _nllh_grad = (x; prior = true) -> begin
         _x = x |> collect
         g = grad(x; prior = prior)
-        nllh = _nllh_not_solveode(_x)
+        x_notode = @view _x[model_info.xindices.xindices[:not_system]]
+        nllh = _nllh_not_solveode(x_notode)
         if prior
             nllh += _prior(_x)
         end

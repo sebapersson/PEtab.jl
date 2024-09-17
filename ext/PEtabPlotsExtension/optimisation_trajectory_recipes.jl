@@ -57,11 +57,11 @@ const plot_types_ms = [
     x_vals, y_vals
 end
 
-# Plots the objective function progressions for a PEtabMultistartOptimisationResult.
-@recipe function f(res_ms::PEtabMultistartOptimisationResult;
+# Plots the objective function progressions for a PEtabMultistartResult.
+@recipe function f(res_ms::PEtabMultistartResult;
                    plot_type = :waterfall,
                    best_idxs_n = (plot_type in [:waterfall, :runtime_eval] ?
-                                  res_ms.n_multistarts : 10),
+                                  res_ms.nmultistarts : 10),
                    idxs = best_runs(res_ms, best_idxs_n),
                    clustering_function = objective_value_clustering)
 
@@ -179,7 +179,7 @@ end
 # Finds the best n runs in among all runs, and return their indexes.
 function best_runs(res_ms, n)
     best_idxs = sortperm(getfield.(res_ms.runs, :fmin))
-    return best_idxs[(end - min(n, res_ms.n_multistarts) + 1):end]
+    return best_idxs[(end - min(n, res_ms.nmultistarts) + 1):end]
 end
 
 # Converts Infs to the largest non-inf value (and return appropriate markershape vectors).

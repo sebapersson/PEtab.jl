@@ -34,11 +34,11 @@ function _parameters_to_table(parameters::Vector{PEtabParameter})::DataFrame
         priors_on_linear_scale = Vector{Union{Bool, String}}(undef, length(priors))
         fill!(priors_on_linear_scale, "")
         for (i, petab_parameter) in pairs(parameters)
-            @unpack prior, prior_on_linear_scale, sample_from_prior = petab_parameter
+            @unpack prior, prior_on_linear_scale, sample_prior = petab_parameter
             isnothing(prior) && continue
             priors[i] = "__Julia__" * string(prior)
             priors_on_linear_scale[i] = prior_on_linear_scale
-            sample_from_prior == false && continue
+            sample_prior == false && continue
             initialisation_priors[i] = priors[i]
         end
         parameters_df[!, :objectivePriorType] .= priors

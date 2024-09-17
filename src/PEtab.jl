@@ -32,7 +32,7 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 include("Structs.jl")
 
 const ModelSystem = Union{ODESystem, ReactionSystem}
-const EstimationResult = Union{PEtabOptimisationResult, PEtabMultistartOptimisationResult,
+const EstimationResult = Union{PEtabOptimisationResult, PEtabMultistartResult,
                                Vector{<:AbstractFloat}}
 
 include("common.jl")
@@ -75,6 +75,8 @@ include(joinpath("petab_odeproblem", "problem_info.jl"))
 include(joinpath("petab_odeproblem", "remake.jl"))
 include(joinpath("petab_odeproblem", "ss_solver.jl"))
 
+include(joinpath("parameter_estimation", "multistart.jl"))
+include(joinpath("parameter_estimation", "singlestart.jl"))
 include(joinpath("parameter_estimation", "startguesses.jl"))
 
 # Nice util functions
@@ -96,14 +98,13 @@ end
 
 export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
        PEtabODEProblem, remake, Fides, PEtabOptimisationResult, IpoptOptions,
-       IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult,
+       IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartResult,
        get_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, PEtabEvent,
        PEtabLogDensity, solve_all_conditions, compute_runtime_accuracy, PEtabPigeonReference
 
 # These are given as extensions, but their docstrings are availble in the
 # general documentation
-include(joinpath("Calibrate", "Common.jl"))
-export calibrate_model, calibrate_model_multistart, run_PEtab_select
+export calibrate, calibrate_multistart, run_PEtab_select
 function get_obs_comparison_plots end
 export get_obs_comparison_plots
 

@@ -1,7 +1,7 @@
 function PEtab.run_PEtab_select(path_yaml::String,
                                 optimizer;
                                 options = nothing,
-                                n_multistarts = 100,
+                                nmultistarts = 100,
                                 sampling_method::T = QuasiMonteCarlo.LatinHypercubeSample(),
                                 ode_solver::Union{Nothing, ODESolver} = nothing,
                                 ode_solver_gradient::Union{Nothing, ODESolver} = nothing,
@@ -89,17 +89,17 @@ function PEtab.run_PEtab_select(path_yaml::String,
     """
 
     function _callibrate_model(model, select_problem, _petab_problem::PEtabODEProblem;
-                               n_multistarts = n_multistarts)
+                               nmultistarts = nmultistarts)
         subspaceId, subspaceYAML, _subspaceParameters = py"get_model_to_test_info"(model)
         subspaceParameters = Dict(Symbol(k) => v for (k, v) in pairs(_subspaceParameters))
         @info "Callibrating model $subspaceId"
         petab_problem = remake_PEtab_problem(_petab_problem, subspaceParameters)
         if isnothing(options)
-            _res = PEtab.calibrate_model_multistart(petab_problem, optimizer, n_multistarts,
+            _res = PEtab.calibrate_multistart(petab_problem, optimizer, nmultistarts,
                                                     nothing,
                                                     sampling_method = sampling_method)
         else
-            _res = PEtab.calibrate_model_multistart(petab_problem, optimizer, n_multistarts,
+            _res = PEtab.calibrate_multistart(petab_problem, optimizer, nmultistarts,
                                                     nothing, options = options,
                                                     sampling_method = sampling_method)
         end
@@ -115,11 +115,11 @@ function PEtab.run_PEtab_select(path_yaml::String,
 
     function callibrate_candidate_models(candidate_space, select_problem, n_candidates,
                                          _petab_problem::PEtabODEProblem;
-                                         n_multistarts = 100)
+                                         nmultistarts = 100)
         for i in 1:n_candidates
             _callibrate_model(candidate_space.models[i], select_problem,
                               _petab_problem::PEtabODEProblem,
-                              n_multistarts = n_multistarts)
+                              nmultistarts = nmultistarts)
         end
     end
 
@@ -170,7 +170,7 @@ function PEtab.run_PEtab_select(path_yaml::String,
             @info "Model selection round $k with $n_candidates candidates - as the code compiles in this round it takes extra long time https://xkcd.com/303/"
         k != 1 && @info "Model selection round $k with $n_candidates candidates"
         callibrate_candidate_models(candidate_space, select_problem, n_candidates,
-                                    _petab_problem, n_multistarts = n_multistarts)
+                                    _petab_problem, nmultistarts = nmultistarts)
         newly_calibrated_models, calibrated_models = py"update_selection"(newly_calibrated_models,
                                                                           calibrated_models,
                                                                           select_problem,
