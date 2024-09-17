@@ -1,6 +1,6 @@
 # The possible types of plots avaiable for PEtabOptimisationResult.
-const plot_types = [:objective, :best_objective]
-const plot_types_ms = [
+const PLOT_TYPES = [:objective, :best_objective]
+const PLOT_TYPES_MS = [
     :objective,
     :best_objective,
     :waterfall,
@@ -9,15 +9,17 @@ const plot_types_ms = [
 ]
 
 # Plots the objective function progression for a PEtabOptimisationResult.
-@recipe function f(res::PEtabOptimisationResult{T}; plot_type = :best_objective) where {T}
+@recipe function f(res::PEtabOptimisationResult; plot_type = :best_objective)
     # Checks if any values were recorded.
     if isempty(res.ftrace)
-        error("No function evaluations where recorded in the calibration run, was save_trace=true?")
+        error("No function evaluations where recorded in the calibration run, was \
+               save_trace=true?")
     end
 
     # Checks that a recognised plot type was used.
-    if !in(plot_type, plot_types)
-        error("Argument plot_type have an unrecognised value ($(plot_type)). Alternative values are: $(plot_types).")
+    if !in(plot_type, PLOT_TYPES)
+        error("Argument plot_type have an unrecognised value ($(plot_type)). Alternative \
+               values are: $(PLOT_TYPES).")
     end
 
     # Options for different plot types.
@@ -39,7 +41,7 @@ const plot_types_ms = [
         label --> ""
         yaxis --> :log10
         xlabel --> "Function evaluation"
-        yguide --> "Best objective value"
+        yguide --> "Final nllh value"
         seriestype --> :path
 
         # Tunable
@@ -47,7 +49,7 @@ const plot_types_ms = [
 
         # Derived
         y_vals = res.ftrace
-        for idx in 2:(res.n_iterations + 1)
+        for idx in 2:(res.niterations + 1)
             y_vals[idx] = min(res.ftrace[idx], y_vals[idx - 1])
         end
         x_vals = 1:length(y_vals)
@@ -67,12 +69,14 @@ end
 
     # Checks if any values were recorded.
     if plot_type in [:objective, :best_objective] && isempty(res_ms.runs[1].ftrace)
-        error("No function evaluations where recorded in the calibration run, was save_trace=true?")
+        error("No function evaluations where recorded in the calibration run, was \
+               save_trace=true?")
     end
 
     # Checks that a recognised plot type was used.
-    if !in(plot_type, plot_types_ms)
-        error("Argument plot_type have an unrecognised value ($(plot_type)). Alternative values are: $(plot_types_ms).")
+    if !in(plot_type, PLOT_TYPES_MS)
+        error("Argument plot_type have an unrecognised value ($(plot_type)). Alternative \
+               values are: $(PLOT_TYPES_MS).")
     end
 
     # Finds the desired type of plot and generates it.
@@ -98,7 +102,7 @@ end
         label --> ""
         yaxis --> :log10
         xlabel --> "Function evaluation"
-        yguide --> "Best objective value"
+        yguide --> "Final nllh value"
         seriestype --> :path
 
         # Tunable
@@ -108,7 +112,7 @@ end
         # Derived
         y_vals = getfield.(res_ms.runs[idxs], :ftrace)
         for (run_idx, run) in enumerate(res_ms.runs[idxs])
-            for idx in 2:(run.n_iterations + 1)
+            for idx in 2:(run.niterations + 1)
                 y_vals[run_idx][idx] = min(run.ftrace[idx], y_vals[run_idx][idx - 1])
             end
         end
@@ -120,7 +124,7 @@ end
         label --> ""
         yaxis --> :log10
         xlabel --> "Optimisation run index"
-        yguide --> "Best objective value"
+        yguide --> "Final nllh value"
         seriestype --> :scatter
 
         # Tunable
@@ -135,8 +139,9 @@ end
         # Fixed
         label --> ""
         yaxis --> :log10
-        xlabel --> "Runtime (s)"
-        ylabel --> "Best objective value"
+        xaxis --> :log10
+        xlabel --> "Runtime [s]"
+        ylabel --> "Final nllh value"
         seriestype --> :scatter
 
         # Tunable
@@ -150,8 +155,8 @@ end
     elseif plot_type == :parallel_coordinates
         # Fixed
         label --> ""
-        xlabel --> "Parameter"
-        ylabel --> "Normalised parameter value"
+        xlabel --> "Normalised parameter value"
+        ylabel --> "Parameter"
         markershape --> :circle
 
         # Tunable
@@ -169,7 +174,7 @@ end
                   for run in res_ms.runs[idxs]]
 
         y_vals = 1:length(res_ms.xmin)
-        yticks --> (y_vals, res_ms.xnames)
+        yticks --> (y_vals, res_ms.runs[1].xmin |> propertynames)
         color --> clustering_function(res_ms.runs[idxs])
     end
 
@@ -193,7 +198,8 @@ function handle_Inf!(y_vals::Vector{Vector{Float64}})
     reshape(handle_Inf!.(y_vals; max_val = max_val), 1, length(y_vals))
 end
 
-# For a multistart optimisation result, clusters the runs according to their bojective value (and assign them a number, which corresponds to a colour).
+# For a multistart optimisation result, clusters the runs according to their bojective value
+# (and assign them a number, which corresponds to a colour).
 function objective_value_clustering(runs::Vector{PEtabOptimisationResult}; thres = 0.1)
     vals = getfield.(runs, :fmin)
     n = length(vals)

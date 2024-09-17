@@ -1,14 +1,18 @@
 # Plots the optimised solution, and compares it to the data.
 @recipe function f(res::Union{PEtabOptimisationResult, PEtabMultistartResult},
-                   petab_problem::PEtabODEProblem;
-                   observable_ids = [obs.observableId
-                                     for obs in petab_problem.model.petab_tables[:observables]],
-                   condition_id = [cond.conditionId
-                                   for cond in petab_problem.model.petab_tables[:conditions]][1])
+                   prob::PEtabODEProblem; obsids = nothing, cid = nothing)
+    observables_df = prob.model_info.model.petab_tables[:observables]
+    if isnothing(obsids)
+        obsids = observables_df[!, :observableId]
+    end
+    if isnothing(cid)
+        cid = prob.model_info.model.petab_tables[:conditions][!, :conditionId][1]
+    end
 
-    # Get plot options.
-    title --> condition_id
-    ylabel --> "Concentration"
+    # Get plot options
+    title --> cid
+    ylabel --> "Model and observed values"
+    xlabel --> "Time"
 
     # Prepares empty vectors with required plot inputs.
     seriestype = []
@@ -18,18 +22,14 @@
     y_vals = []
 
     # Loops through all observables, computing the required plot inputs.
-    all_obs = petab_problem.model.petab_tables[:observables]
-    for (obs_idx, obs_id) in enumerate(observable_ids)
-        t_observed, h_observed, label_observed, t_model, h_model, label_model, smooth_sol = _get_observable(res.xmin,
-                                                                                                            petab_problem,
-                                                                                                            condition_id,
-                                                                                                            obs_id)
+    for (obs_idx, obs_id) in enumerate(obsids)
+        t_observed, h_observed, label_observed, t_model, h_model, label_model = _get_observable(res.xmin, prob, cid, obs_id)
 
         # Plot args.
-        append!(seriestype, [:scatter, smooth_sol ? :line : :scatter])
+        append!(seriestype, [:scatter, :line])
         append!(color, [obs_idx, obs_idx])
-        obs_formula = all_obs[all_obs.observableId .== observable_ids[1], :][1,
-                                                                             1].observableFormula
+        iobs = findfirst(x -> x == obs_id, observables_df[!, :observableId])
+        obs_formula = observables_df[iobs, :observableFormula]
         append!(label, ["$(obs_formula) ($type)" for type in ["measured", "fitted"]])
 
         # Measured plot values.
@@ -42,7 +42,7 @@
     end
 
     # Set reshaped plot arguments
-    n_obs = length(observable_ids)
+    n_obs = length(obsids)
     seriestype --> reshape(seriestype, 1, 2n_obs)
     color --> reshape(color, 1, 2n_obs)
     label --> reshape(label, 1, 2n_obs)
@@ -54,35 +54,33 @@ end
 """
     get_obs_comparison_plots(res, model; kwargs...)
 
-Generates plots comparing the fitted solution to the data. The output is a dict, which contain one entry for each condition_id. Each of these entries contain another dict, each with one entry for each observables_id. Each of these entries contain the output of `plot(res, model; observable_ids=[observable_id], condition_id=condition_id, kwargs...)` for the corresponding condition and observables ids.
+Generates plots comparing the fitted solution to the data. The output is a dict, which contain one entry for each cid. Each of these entries contain another dict, each with one entry for each observables_id. Each of these entries contain the output of `plot(res, model; obsids=[obsid], cid=cid, kwargs...)` for the corresponding condition and observables ids.
 """
 function PEtab.get_obs_comparison_plots(res::Union{PEtabOptimisationResult,
                                                    PEtabMultistartResult},
-                                        petab_problem::PEtabODEProblem; kwargs...)
+                                        prob::PEtabODEProblem; kwargs...)
     comparison_dict = Dict()
-    for condition_id in [cond.conditionId
-                         for cond in petab_problem.model.petab_tables[:conditions]]
-        comparison_dict[condition_id] = Dict()
-        for observable_id in [obs.observableId
-                              for obs in petab_problem.model.petab_tables[:observables]]
-            comparison_dict[condition_id][observable_id] = plot(res, petab_problem;
-                                                                observable_ids = [observable_id],
-                                                                condition_id = condition_id,
-                                                                kwargs...)
+    cids = prob.model_info.model.petab_tables[:conditions][!, :conditionId]
+    obsids = prob.model_info.model.petab_tables[:observables][!, :observableId]
+    for cid in cids
+        comparison_dict[cid] = Dict()
+        for obsid in obsids
+            comparison_dict[cid][obsid] = plot(res, prob; obsids = [obsid], cid = cid,
+                                               kwargs...)
         end
     end
     return comparison_dict
 end
 
 """
-    _get_observable(θ::Vector{Float64}, petab_problem::PEtabODEProblem,
-                    condition_id::String, observable_id::String)
+    _get_observable(x, prob::PEtabODEProblem, cid::String, obsid::String)
 
-Return the model values for a given observable_id and condition_id using the parameter vector θ.
+Return the model values for a given obsid (obsid )and cid (condition id) using
+the parameter vector x.
 
-This function is primarily used for plotting purposes. It is important to note that for a single condition_id and
-observable_id, the function may return simulation results corresponding to multiple conditions if the model has
-different pre-equilibrium ids.
+This function is primarily used for plotting purposes. It is important to note that for a
+single cid and obsid, the function may return simulation results
+corresponding to multiple conditions if the model has different pre-equilibrium ids.
 
 # Returns
 - `t_observed::Vector{Float64}`: Time points for the observed data (x-axis).
@@ -94,87 +92,85 @@ different pre-equilibrium ids.
 - `smooth_sol::Bool`: Indicates whether the returned solution is smooth, i.e., there are no
     observable parameters.
 """
-function _get_observable(θ::Vector{Float64}, petab_problem::PEtabODEProblem,
-                         condition_id::String, observable_id::String)
+function _get_observable(x, prob::PEtabODEProblem, cid::String, obsid::String)
+    @unpack model_info, probinfo = prob
+    # Sanity check that a valid id has been provided
+    measurements_df = model_info.model.petab_tables[:measurements]
+    cids = measurements_df[!, :simulationConditionId]
+    obsids = measurements_df[!, :observableId]
+    @assert cid in cids "$cid in not one of the model's simulations ids"
+    @assert obsid in obsids "$obsid in not one of the model's observable ids"
 
-    # All measurment data is stored in petab_problem.model.petab_tables[:measurements]
-    measurement_data = petab_problem.model.petab_tables[:measurements] |> DataFrame
-    condition_ids = measurement_data[!, :simulationConditionId]
-    observable_ids = measurement_data[!, :observableId]
-
-    @assert condition_id in condition_ids "$condition_id in one of the model's simulations ids"
-    @assert observable_id in observable_ids "$observable_id in one of the model's observable ids"
-
-    # Identify which data-points in measurment data we should plot simulations for
-    idata = findall(condition_ids .== condition_id .&& observable_ids .== observable_id)
+    # Identify which data-points in measurment data to plot
+    idata = findall(cids .== cid .&& obsids .== obsid)
     if isempty(idata)
-        return Float64[], Float64[], String[], Float64[], Float64[], String[], true
+        return Float64[], Float64[], String[], Float64[], Float64[], String[]
     end
 
-    # Extract measurement value and observed time for the data. Alongside create an id-tag.
-    # Notice that an observable_id for a condition_id can have in a sense different simulation
-    # values due to a potential pre-eq id, different pre-eq should be labelled accordingly in
-    # the plot
-    pre_eq_ids = petab_problem.petab_measurements.conditionids[:pre_equilibration][idata]
-    t_observed = measurement_data[idata, :time]
-    h_observed = measurement_data[idata, :measurement]
-    label_observed = [pre_eq_id == :None ? condition_id :
-                      "pre_" * string(pre_eq_id) * "_" * condition_id
-                      for pre_eq_id in pre_eq_ids]
+    # Extract measurement value and observed time for the data. The same condition id
+    # can due to pre-equilibration correspond to different simulation scenario. This
+    # must be tracked via label_observed
+    preeq_ids = prob.model_info.petab_measurements.pre_equilibration_condition_id[idata]
+    t_observed = measurements_df[idata, :time]
+    h_observed = measurements_df[idata, :measurement]
+    label_observed = fill("", length(idata))
+    for i in eachindex(label_observed)
+        if preeq_ids[i] == :None
+            label_observed[i] = cid
+        else
+            label_observed[i] = "Pre_$(preeq_ids[i])_$(cid)"
+        end
+    end
 
+    # Compute model values. If we have observable parameters that scale the observable
+    # functions it does not make sense to return a smooth ODESolution, but if these are
+    # not present it looks better with a smooth solution
     t_model = Float64[]
     h_model = Float64[]
     label_model = String[]
-    smooth_sol::Bool = true
-    for pre_eq_id in unique(pre_eq_ids)
-        if pre_eq_id == :None
+    _x = collect(x)
+    for preeq_id in unique(preeq_ids)
+        if preeq_id == :None
             _idata = idata
-            sol = get_odesol(θ, petab_problem; condition_id = condition_id)
+            sol = PEtab.get_odesol(_x, prob; cid = cid)
         else
-            _idata = idata[findall(pre_eq_ids .== pre_eq_id)]
-            sol = get_odesol(θ, petab_problem; condition_id = condition_id,
-                             pre_eq_id = pre_eq_id)
+            _idata = idata[findall(preeq_ids .== preeq_id)]
+            sol = PEtab.get_odesol(_x, prob; cid = cid, preeq_id = preeq_id)
         end
 
-        # If number of observable parameters is non-zero it does not make sense to return a
-        # a smooth trajectory, but if they are zero returning a smooth trajectory is preferred
-        # as it looks better
-        mapxobservables = petab_problem.xindices.mapxobservable[_idata]
-        smooth_sol = all([map.n_parameters == 0 for map in mapxobservables])
+        mapxobservables = model_info.xindices.mapxobservable[_idata]
+        smooth_sol = all([map.nparameters == 0 for map in mapxobservables])
         # For smooth trajectory must solve ODE and compute the observable function
         if smooth_sol == true
-            @unpack xindices, cache, petab_measurements, petab_parameters, model = petab_problem
-            xdynamic, xobservable, xnoise, xnondynamic = PEtab.split_x(θ, xindices)
-            xobservable_ps = PEtab.transform_x(xobservable, xindices.xids[:observable],
-                                               xindices, :xobservable, cache)
-            xnondynamic_ps = PEtab.transform_x(xnondynamic, xindices.xids[:nondynamic],
-                                               xindices, :xnondynamic, cache)
-            i_measurement = _idata[1]
+            PEtab.split_x!(x, model_info.xindices, probinfo.cache)
+            @unpack xobservable, xnondynamic = probinfo.cache
+            xobservable_ps = PEtab.transform_x(xobservable, model_info.xindices,
+                                               :xobservable, probinfo.cache)
+            xnondynamic_ps = PEtab.transform_x(xnondynamic, model_info.xindices,
+                                               :xnondynamic, probinfo.cache)
             _h_model = similar(sol.t)
-            for i in eachindex(_h_model)
+            for (i, t) in pairs(sol.t)
                 u = sol[:, i]
-                _h_model[i] = PEtab.computeh(u, sol.t[i], sol.prob.p, xobservable_ps,
-                                             xnondynamic_ps, model,
-                                             i_measurement, petab_measurements, xindices,
-                                             petab_parameters)
+                h = PEtab._h(u, t, sol.prob.p, xobservable_ps, xnondynamic_ps,
+                             model_info.model.h, mapxobservables[1],
+                             Symbol(obsid), collect(prob.xnominal))
+                push!(h_model, h)
             end
-            _t_model = sol.t
-
+            t_model = vcat(t_model, sol.t)
+            npoints = length(sol.t)
+        # With observable parameters the simulated values can be used instead
         else
-            _t_model = measurement_data[_idata, :time]
-            _h_model = petab_problem.compute_simulated_values(θ)[_idata]
+            t_model = vcat(t_model, measurements_df[_idata, :time])
+            h_model = vcat(h_model, prob.simulated_values(x)[_idata])
+            npoints = length(measurements_df[_idata, :time])
         end
-
-        h_model = vcat(h_model, _h_model)
-        t_model = vcat(t_model, _t_model)
-        _label = Vector{String}(undef, length(_h_model))
-        if pre_eq_id == :None
-            _label .= condition_id
+        if preeq_id == :None
+            _label = [cid for _ in 1:npoints]
         else
-            _label .= "pre_" * string(pre_eq_id) * "_" * condition_id
+            _label = ["pre_$(preeq_id)_$(cid)" for _ in 1:npoints]
         end
         label_model = vcat(label_model, _label)
     end
 
-    return t_observed, h_observed, label_observed, t_model, h_model, label_model, smooth_sol
+    return t_observed, h_observed, label_observed, t_model, h_model, label_model
 end
