@@ -88,11 +88,12 @@ function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
     # empty_to_component_array is needed as a vector is returned
     ix = findall(x -> !(x in xids_fixate), prob.xnames)
     ix_names = propertynames(prob.xnominal)[ix]
-    lb = prob.lower_bounds[ix_names] |> _to_component_array
-    ub = prob.upper_bounds[ix_names] |> _to_component_array
+    ix_names_ps = propertynames(prob.xnominal_transformed)[ix]
+    lb = prob.lower_bounds[ix_names_ps] |> _to_component_array
+    ub = prob.upper_bounds[ix_names_ps] |> _to_component_array
     xnames = prob.xnames[ix]
     xnominal = prob.xnominal[ix_names] |> _to_component_array
-    xnominal_transformed = prob.xnominal_transformed[ix_names] |> _to_component_array
+    xnominal_transformed = prob.xnominal_transformed[ix_names_ps] |> _to_component_array
     nestimate = length(xnames)
 
     # Set priors to be skipped (first reset to not skip any evaluated parameters)

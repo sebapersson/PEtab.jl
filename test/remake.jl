@@ -1,6 +1,5 @@
 using PEtab, Test, OrdinaryDiffEq, LinearAlgebra
 
-xchange = xchange1
 function test_petab_remake(model::PEtabModel, xchange, what_check; testtol = 1e-3)
     if :GradientForwardDiff in what_check
         prob1 = PEtabODEProblem(model; odesolver=ODESolver(Rodas5P()), chunksize=2, verbose=false)
@@ -34,7 +33,7 @@ function test_petab_remake(model::PEtabModel, xchange, what_check; testtol = 1e-
         imatch = findall(in(prob2.xnames), prob1.xnames)
         h1GN = zeros(length(prob2.xnominal_transformed), length(prob2.xnominal_transformed))
         _h1GN = prob1.hess(prob1.xnominal_transformed)
-        h2GN = prob2.hess(h2GN, prob2.xnominal_transformed)
+        h2GN = prob2.hess(prob2.xnominal_transformed)
         for (i1, i2) in pairs(imatch)
             for (j1, j2) in pairs(imatch)
                 h1GN[i1, j1] = _h1GN[i2, j2]
@@ -50,8 +49,8 @@ function test_petab_remake(model::PEtabModel, xchange, what_check; testtol = 1e-
         imatch = findall(in(prob2.xnames), prob1.xnames)
         h1 = zeros(length(prob2.xnominal_transformed), length(prob2.xnominal_transformed))
         _ = prob1.nllh(prob1.xnominal_transformed) # ensure to allocate certain objects
-        _h1 = prob1.hess!(_h1, prob1.xnominal_transformed)
-        h2 = prob2.hess!(h2, prob2.xnominal_transformed)
+        _h1 = prob1.hess(prob1.xnominal_transformed)
+        h2 = prob2.hess(prob2.xnominal_transformed)
         for (i1, i2) in pairs(imatch)
             for (j1, j2) in pairs(imatch)
                 h1[i1, j1] = _h1[i2, j2]
@@ -111,8 +110,8 @@ xchange3 = Dict(:sigmaY2Step => 5.15364156671777)
 xchange4 = Dict(:sigmaY2Step => 5.15364156671777,
                 :k22 => 666.8355739795)
 @testset "PEtab remake : Brannmark" begin
-    test_petab_remake(model, xchange1, [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton]; testol = 1e-2)
-    test_petab_remake(model, xchange2, [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton]; testol = 1e-2)
-    test_petab_remake(model, xchange3, [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton]; testol = 1e-2)
-    test_petab_remake(model, xchange4, [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton]; testol = 1e-2)
+    test_petab_remake(model, xchange1, [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton]; testtol = 1e-2)
+    test_petab_remake(model, xchange2, [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton]; testtol = 1e-2)
+    test_petab_remake(model, xchange3, [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton]; testtol = 1e-2)
+    test_petab_remake(model, xchange4, [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton]; testtol = 1e-2)
 end
