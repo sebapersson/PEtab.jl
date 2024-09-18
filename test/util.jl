@@ -1,30 +1,19 @@
-using Catalyst
-using PEtab
-using OrdinaryDiffEq
-using Test
-using Catalyst
-using DataFrames
+#=
+    Test that the PEtab util functions return expected results
+=#
 
-@testset "Test util functions" begin
-    #=
-        Test ability to retrive model parameters for specific model conditions
-    =#
+using Catalyst, PEtab, OrdinaryDiffEq, Catalyst, DataFrames, Test
+
+@testset "util functions" begin
+    # Test ability to retrive model parameters for specific model conditions
     # Model without pre-eq or condition specific parameters
     path_yaml = joinpath(@__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
-    model = PEtabModel(path_yaml, build_julia_files=true, write_to_file=false, verbose=false)
+    model = PEtabModel(path_yaml; build_julia_files=true, write_to_file=false, verbose=false)
     prob = PEtabODEProblem(model; verbose=false)
     x = prob.xnominal_transformed .* 0.9
-    cost = prob.nllh(x)
-    res = PEtabOptimisationResult(:Fides,
-                                  Vector{Vector{Float64}}(undef, 0),
-                                  Vector{Float64}(undef, 0),
-                                  10,
-                                  cost,
-                                  x ./ 0.9,
-                                  x,
-                                  prob.xnames,
-                                  true,
-                                  10.0)
+    nllh = prob.nllh(x)
+    res = PEtabOptimisationResult(:Fides, Vector{Vector{Float64}}(undef, 0), Float64[], 10,
+                                  nllh, x ./ 0.9, x, true, 10.0,  nothing)
     c_id = :model1_data1
     @unpack u0, p = prob.model_info.simulation_info.odesols[c_id].prob
     u0_test = get_u0(res, prob; retmap=false)
@@ -40,16 +29,16 @@ using DataFrames
 
     # Beer model
     path_yaml = joinpath(@__DIR__, "published_models", "Beer_MolBioSystems2014", "Beer_MolBioSystems2014.yaml")
-    model = PEtabModel(path_yaml, verbose=false, build_julia_files=true)
+    model = PEtabModel(path_yaml; verbose=false, build_julia_files=true)
     prob = PEtabODEProblem(model; verbose=false, sparse_jacobian=false,
                            odesolver=ODESolver(Rodas5P(), abstol=1e-10, reltol=1e-10))
     x = prob.xnominal_transformed .* 0.9
-    cost = prob.nllh(x)
+    nllh = prob.nllh(x)
     res = PEtabOptimisationResult(:Fides,
                                   Vector{Vector{Float64}}(undef, 0),
                                   Vector{Float64}(undef, 0),
                                   10,
-                                  cost,
+                                  nllh,
                                   x ./ 0.9,
                                   x,
                                   prob.xnames,
@@ -67,12 +56,12 @@ using DataFrames
     model = PEtabModel(path_yaml; build_julia_files = true, verbose=false)
     prob = PEtabODEProblem(model, verbose=false)
     x = prob.xnominal_transformed .* 0.9
-    cost = prob.nllh(x)
+    nllh = prob.nllh(x)
     res = PEtabOptimisationResult(:Fides,
                                   Vector{Vector{Float64}}(undef, 0),
                                   Vector{Float64}(undef, 0),
                                   10,
-                                  cost,
+                                  nllh,
                                   x ./ 0.9,
                                   x,
                                   prob.xnames,

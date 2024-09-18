@@ -33,7 +33,7 @@ include("Structs.jl")
 
 const ModelSystem = Union{ODESystem, ReactionSystem}
 const EstimationResult = Union{PEtabOptimisationResult, PEtabMultistartResult,
-                               Vector{<:AbstractFloat}}
+                               Vector{<:AbstractFloat}, ComponentArray}
 
 include("common.jl")
 include("logging.jl")
@@ -81,10 +81,7 @@ include(joinpath("parameter_estimation", "petab_select.jl"))
 include(joinpath("parameter_estimation", "singlestart.jl"))
 include(joinpath("parameter_estimation", "startguesses.jl"))
 
-# Nice util functions
-include(joinpath("Utility.jl"))
-
-
+include(joinpath("util.jl"))
 
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem
 @setup_workload begin
@@ -101,7 +98,7 @@ export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
        PEtabODEProblem, remake, Fides, PEtabOptimisationResult, IpoptOptions,
        IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartResult,
        get_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, PEtabEvent,
-       PEtabLogDensity, solve_all_conditions, compute_runtime_accuracy, PEtabPigeonReference
+       PEtabLogDensity, solve_all_conditions
 
 # These are given as extensions, but their docstrings are availble in the
 # general documentation
@@ -154,7 +151,6 @@ if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabSciMLSensitivityExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "PEtabLogDensityProblemsExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "PEtabPlotsExtension.jl"))
-    include(joinpath(@__DIR__, "..", "ext", "PEtabPigeonsExtension.jl"))
 end
 
 export to_chains, to_prior_scale

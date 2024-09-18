@@ -139,7 +139,7 @@ function show(io::IO, res::PEtabOptimisationResult)
     opt1 = @sprintf("min(f)                = %.2e\n", res.fmin)
     opt2 = @sprintf("Parameters esimtated  = %d\n", length(res.x0))
     opt3 = @sprintf("Optimiser iterations  = %d\n", res.niterations)
-    opt4 = @sprintf("Runtime              = %.1es\n", res.runtime)
+    opt4 = @sprintf("Runtime               = %.1es\n", res.runtime)
     opt5 = @sprintf("Optimiser algorithm   = %s\n", res.alg)
     print(io, styled"$(header)$(optheader)$(opt1)$(opt2)$(opt3)$(opt4)$(opt5)")
 end

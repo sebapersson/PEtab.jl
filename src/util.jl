@@ -100,7 +100,7 @@ function _get_ps_u0(res::EstimationResult, prob::PEtabODEProblem,
     preeq_id = _get_preeq_id(preeq_id, model_info)
 
     # Extract model parameters
-    if res isa Vector
+    if res isa Vector || res isa ComponentArray
         x_transformed = transform_x(res, xindices.xids[:estimate], xindices)
     else
         x_transformed = transform_x(res.xmin, xindices.xids[:estimate], xindices)
