@@ -1,29 +1,18 @@
-# Tests the plotting recipes for PEtabOptimisationResult and PEtabMultistartOptimisationResult.
+# Tests the plotting recipes for PEtabOptimisationResult and PEtabMultistartResult.
 # Written by Torkel Loman.
-# Comment: I am only aware of how to load PEtabMultistartOptimisationResult from folders (and not PEtabOptimisationResult),
-# hence I am only testing on teh former (as I don't want to actually run an optimiser within these tests).
 
-
-# Fetch packages.
-using DataFrames
-using Catalyst
-using OrdinaryDiffEq
-using Optim
-using PEtab
-using Plots
-using Test
+using DataFrames, Catalyst, OrdinaryDiffEq, Optim, PEtab, Plots, Test
 
 ### Preparations ###
-petab_ms_res = PEtabMultistartOptimisationResult(joinpath(@__DIR__, "Optimisation_results", "boehm"))
+petab_ms_res = PEtabMultistartResult(joinpath(@__DIR__, "optimisation_results", "boehm"))
 
-# Helper functions.
 function cumulative_mins(v)
     m = v[1]
     return [m = min(m, x) for x in v]
 end
 function best_runs(res_ms, n)
     best_idxs = sortperm(getfield.(res_ms.runs, :fmin))
-    return best_idxs[end-min(n, res_ms.n_multistarts)+1:end]
+    return best_idxs[end-min(n, res_ms.nmultistarts)+1:end]
 end
 
 ### Run Tests ###
@@ -34,7 +23,7 @@ let
     p_obj = plot(petab_ms_res; plot_type=:objective, idxs=1:5)
     @test p_obj.n == 5
     for i = 1:5
-        @test p_obj.series_list[i].plotattributes[:x] == 1:(petab_ms_res.runs[i].n_iterations+1)
+        @test p_obj.series_list[i].plotattributes[:x] == 1:(petab_ms_res.runs[i].niterations+1)
         p_obj.series_list[i].plotattributes[:y] == petab_ms_res.runs[i].ftrace
     end
 end
@@ -44,7 +33,7 @@ end
 let
     p_best_obj = plot(petab_ms_res; plot_type=:best_objective, best_idxs_n=15)
     for (i, j) in enumerate(best_runs(petab_ms_res, 15))
-        @test p_best_obj.series_list[i].plotattributes[:x] == 1:(petab_ms_res.runs[j].n_iterations+1)
+        @test p_best_obj.series_list[i].plotattributes[:x] == 1:(petab_ms_res.runs[j].niterations+1)
         @test p_best_obj.series_list[i].plotattributes[:y] == cumulative_mins(petab_ms_res.runs[j].ftrace)
     end
 end
@@ -52,7 +41,7 @@ end
 # Tests waterfall plot.
 let
     p_waterfall = plot(petab_ms_res; plot_type=:waterfall)
-    @test p_waterfall.series_list[1].plotattributes[:x] == 1:petab_ms_res.:n_multistarts
+    @test p_waterfall.series_list[1].plotattributes[:x] == 1:petab_ms_res.:nmultistarts
     @test p_waterfall.series_list[1].plotattributes[:y] == sort(getfield.(petab_ms_res.runs, :fmin))
 end
 
@@ -75,7 +64,8 @@ let
     for idx = 1:25
         @test p_parallel_coord.series_list[idx].plotattributes[:x] == x_vals[idx]
     end
-    p_parallel_coord.series_list[1].plotattributes[:y] == 1:length(petab_ms_res.xnames)
+    xnames = propertynames(petab_ms_res.runs[1].xmin)
+    p_parallel_coord.series_list[1].plotattributes[:y] == 1:length(xnames)
 end
 
 # Tests the plots comparing the fitted solution to the measurements.
@@ -125,28 +115,29 @@ let
     measurements = vcat(m_c1_E, m_c1_P, m_c2_E, m_c2_P)
 
     # Fit solution
-    model = PEtabModel(rn, simulation_conditions , observables, measurements, params; statemap=u0)
-    petab_problem = PEtabODEProblem(model)
-    res = calibrate_model_multistart(petab_problem, IPNewton(), 5, "simple_enzyme_model")
+    model = PEtabModel(rn, simulation_conditions , observables, measurements, params;
+                       statemap=u0, verbose = false)
+    prob = PEtabODEProblem(model; verbose = false)
+    res = calibrate_multistart(prob, IPNewton(), 5)
 
     # Check comparison dictionary.
-    comp_dict = get_obs_comparison_plots(res, petab_problem)
+    comp_dict = get_obs_comparison_plots(res, prob)
     issetequal(keys(comp_dict), ["c1", "c2"])
     issetequal(keys(comp_dict["c1"]), ["obs_E", "obs_P"])
     issetequal(keys(comp_dict["c2"]), ["obs_E", "obs_P"])
 
     # Make plots
-    c1_E_plt = plot(res, petab_problem; observable_ids=["obs_E"], condition_id="c1")
-    c1_P_plt = plot(res, petab_problem; observable_ids=["obs_P"], condition_id="c1")
-    c1_E_P_plt = plot(res, petab_problem; condition_id="c1")
+    c1_E_plt = plot(res, prob; obsids=["obs_E"], cid="c1")
+    c1_P_plt = plot(res, prob; obsids=["obs_P"], cid="c1")
+    c1_E_P_plt = plot(res, prob; cid="c1")
 
-    c2_E_plt = plot(res, petab_problem; observable_ids=["obs_E"], condition_id="c2")
-    c2_P_plt = plot(res, petab_problem; observable_ids=["obs_P"], condition_id="c2")
-    c2_E_P_plt = plot(res, petab_problem; condition_id="c2")
+    c2_E_plt = plot(res, prob; obsids=["obs_E"], cid="c2")
+    c2_P_plt = plot(res, prob; obsids=["obs_P"], cid="c2")
+    c2_E_P_plt = plot(res, prob; cid="c2")
 
     # Fetch sols.
-    sol_c1 = get_odesol(res, petab_problem; condition_id="c1")
-    sol_c2 = get_odesol(res, petab_problem; condition_id="c2")
+    sol_c1 = get_odesol(res, prob; cid="c1")
+    sol_c2 = get_odesol(res, prob; cid="c2")
 
     # Test plots.
     for i in 1:2

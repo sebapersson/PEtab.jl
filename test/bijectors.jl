@@ -1,8 +1,5 @@
-using Test
-using ModelingToolkit
-using PEtab
-using ForwardDiff
-using LogDensityProblems, LogDensityProblemsAD, Bijectors
+using LogDensityProblems, LogDensityProblemsAD, Bijectors, PEtab, ModelingToolkit,
+      ForwardDiff, Test
 
 function test_custom_llh_and_gradient(x_nllh, x_inference, inference_info)
 
@@ -23,13 +20,10 @@ function test_custom_llh_and_gradient(x_nllh, x_inference, inference_info)
     grad_check = ForwardDiff.gradient(compute_nllh_ref, x_nllh)
     PEtab.correct_gradient!(grad_check, x_inference, x_nllh, inference_info)
     @test all(grad_ref .- grad_check .< 1e-10)
-
     return nothing
 end
 
-
 function _compute_nllh(θ::Vector{T}, inference_info::PEtab.InferenceInfo, data::Vector{Float64})::T where T<:Real
-
     x = similar(θ)
     @unpack priors_scale, parameters_scale = inference_info
     for i in eachindex(x)
@@ -41,7 +35,6 @@ function _compute_nllh(θ::Vector{T}, inference_info::PEtab.InferenceInfo, data:
             x[i] = exp(θ[i])
         end
     end
-
     μ1, μ2 = x
     _logpdf = sum(logpdf(Normal(μ1, 1.0), data[1:10]))
     _logpdf += sum(logpdf(Normal(μ2, 1.0), data[11:20]))

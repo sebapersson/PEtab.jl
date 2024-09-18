@@ -54,9 +54,8 @@ model = PEtabModel(path_yaml, verbose=false, build_julia_files=true, write_to_fi
     boehm_pyPESTO(model, ODESolver(Rodas5P(), abstol=1e-9, reltol=1e-9))
 end
 
-using PEtab, OrdinaryDiffEq
 path_yaml = joinpath(@__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
-model = PEtabModel(path_yaml, verbose=true, build_julia_files=true, write_to_file=true)
+model = PEtabModel(path_yaml, verbose=true, build_julia_files=true)
 prob = PEtabODEProblem(model)
 x = prob.xnominal_transformed
 nllh = prob.nllh(x)
