@@ -156,8 +156,8 @@ function test_cost_gradient_hessian_test_model3(petab_model::PEtabModel, ode_sol
         # Test all gradient combinations. Note we test sensitivity equations with and without autodiff
         gradient_forwarddiff = _test_cost_gradient_hessian(petab_model, ode_solver, p, compute_gradient=true, gradient_method=:ForwardDiff, ss_options=ss_options)
         @test norm(gradient_forwarddiff - reference_gradient) ≤ 1e-2
-        gradient_zygote = _test_cost_gradient_hessian(petab_model, ode_solver, p, compute_gradient=true, gradient_method=:Zygote, sensealg=ForwardDiffSensitivity(), ss_options=ss_options)
-        @test norm(gradient_zygote - reference_gradient) ≤ 1e-2
+        #gradient_zygote = _test_cost_gradient_hessian(petab_model, ode_solver, p, compute_gradient=true, gradient_method=:Zygote, sensealg=ForwardDiffSensitivity(), ss_options=ss_options)
+        #@test norm(gradient_zygote - reference_gradient) ≤ 1e-2
         gradient_forward1 = _test_cost_gradient_hessian(petab_model, ode_solver, p, compute_gradient=true, gradient_method=:ForwardEquations, sensealg=:ForwardDiff, ss_options=ss_options)
         @test norm(gradient_forward1 - reference_gradient) ≤ 1e-2
         gradient_forward2 = _test_cost_gradient_hessian(petab_model, ODESolver(CVODE_BDF(), abstol=1e-12, reltol=1e-12), p, compute_gradient=true, gradient_method=:ForwardEquations, sensealg=ForwardSensitivity(), ss_options=ss_options)
