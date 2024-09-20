@@ -14,8 +14,7 @@ using Catalyst, PEtab, OrdinaryDiffEq, Catalyst, DataFrames, Test
     nllh = prob.nllh(x)
     res = PEtabOptimisationResult(:Fides, Vector{Vector{Float64}}(undef, 0), Float64[], 10,
                                   nllh, x ./ 0.9, x, true, 10.0,  nothing)
-    c_id = :model1_data1
-    @unpack u0, p = prob.model_info.simulation_info.odesols[c_id].prob
+    @unpack u0, p = prob.model_info.simulation_info.odesols[:model1_data1].prob
     u0_test = get_u0(res, prob; retmap=false)
     p_test = get_ps(res, prob; retmap=false)
     oprob, _ = get_odeproblem(res, prob)
@@ -34,20 +33,11 @@ using Catalyst, PEtab, OrdinaryDiffEq, Catalyst, DataFrames, Test
                            odesolver=ODESolver(Rodas5P(), abstol=1e-10, reltol=1e-10))
     x = prob.xnominal_transformed .* 0.9
     nllh = prob.nllh(x)
-    res = PEtabOptimisationResult(:Fides,
-                                  Vector{Vector{Float64}}(undef, 0),
-                                  Vector{Float64}(undef, 0),
-                                  10,
-                                  nllh,
-                                  x ./ 0.9,
-                                  x,
-                                  prob.xnames,
-                                  true,
-                                  10.0)
-    c_id = :typeIDT1_ExpID1
-    @unpack u0, p = prob.model_info.simulation_info.odesols[c_id].prob
-    u0_test = get_u0(res, prob; cid=c_id, retmap=false)
-    p_test = get_ps(res, prob; cid=c_id, retmap=false)
+    res = PEtabOptimisationResult(:Fides, Vector{Vector{Float64}}(undef, 0), Float64[], 10,
+                                  nllh, x ./ 0.9, x, true, 10.0,  nothing)
+    @unpack u0, p = prob.model_info.simulation_info.odesols[:typeIDT1_ExpID1].prob
+    u0_test = get_u0(res, prob; cid=:typeIDT1_ExpID1, retmap=false)
+    p_test = get_ps(res, prob; cid=:typeIDT1_ExpID1, retmap=false)
     @test all(u0_test .== u0)
     to_test = Bool[1, 1, 1, 1, 0, 1, 1, 1, 1] # To account for Event variable
     @test all(p[to_test] == p_test[to_test])
@@ -57,21 +47,11 @@ using Catalyst, PEtab, OrdinaryDiffEq, Catalyst, DataFrames, Test
     prob = PEtabODEProblem(model, verbose=false)
     x = prob.xnominal_transformed .* 0.9
     nllh = prob.nllh(x)
-    res = PEtabOptimisationResult(:Fides,
-                                  Vector{Vector{Float64}}(undef, 0),
-                                  Vector{Float64}(undef, 0),
-                                  10,
-                                  nllh,
-                                  x ./ 0.9,
-                                  x,
-                                  prob.xnames,
-                                  true,
-                                  10.0)
-    c_id = :Dose_01
-    preeq_id = :Dose_0
+    res = PEtabOptimisationResult(:Fides, Vector{Vector{Float64}}(undef, 0), Float64[], 10,
+                                  nllh, x ./ 0.9, x, true, 10.0,  nothing)
     @unpack u0, p = prob.model_info.simulation_info.odesols[:Dose_0Dose_01].prob
-    p_test = get_ps(res.xmin, prob; cid=c_id, retmap=false)
-    u0_test = get_u0(res.xmin, prob; cid=c_id, retmap=false, preeq_id=preeq_id)
+    p_test = get_ps(res.xmin, prob; cid=:Dose_01, retmap=false)
+    u0_test = get_u0(res.xmin, prob; cid=:Dose_01, preeq_id=:Dose_0, retmap=false)
     @test all(u0_test .== u0)
     @test all(p == p_test)
 

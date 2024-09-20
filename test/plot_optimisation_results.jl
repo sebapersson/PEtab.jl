@@ -96,8 +96,8 @@ let
     # Make PETab problem.
     @unpack E,P = rn
     obs_E = PEtabObservable(E, 0.5)
-    obs_P = PEtabObservable(P, 0.5)
-    observables = Dict("obs_E" => obs_E, "obs_P" => obs_P)
+    obs_p = PEtabObservable(P, 0.5)
+    observables = Dict("obs_E" => obs_E, "obs_p" => obs_p)
 
     par_kB = PEtabParameter(:kB)
     par_kD = PEtabParameter(:kD)
@@ -109,9 +109,9 @@ let
     simulation_conditions = Dict("c1" => c1, "c2" => c2)
 
     m_c1_E = DataFrame(simulation_id="c1", obs_id="obs_E", time=c1_t, measurement=c1_E)
-    m_c1_P = DataFrame(simulation_id="c1", obs_id="obs_P", time=c1_t, measurement=c1_P)
+    m_c1_P = DataFrame(simulation_id="c1", obs_id="obs_p", time=c1_t, measurement=c1_P)
     m_c2_E = DataFrame(simulation_id="c2", obs_id="obs_E", time=c2_t, measurement=c2_E)
-    m_c2_P = DataFrame(simulation_id="c2", obs_id="obs_P", time=c2_t, measurement=c2_P)
+    m_c2_P = DataFrame(simulation_id="c2", obs_id="obs_p", time=c2_t, measurement=c2_P)
     measurements = vcat(m_c1_E, m_c1_P, m_c2_E, m_c2_P)
 
     # Fit solution
@@ -123,16 +123,16 @@ let
     # Check comparison dictionary.
     comp_dict = get_obs_comparison_plots(res, prob)
     issetequal(keys(comp_dict), ["c1", "c2"])
-    issetequal(keys(comp_dict["c1"]), ["obs_E", "obs_P"])
-    issetequal(keys(comp_dict["c2"]), ["obs_E", "obs_P"])
+    issetequal(keys(comp_dict["c1"]), ["obs_E", "obs_p"])
+    issetequal(keys(comp_dict["c2"]), ["obs_E", "obs_p"])
 
     # Make plots
     c1_E_plt = plot(res, prob; obsids=["obs_E"], cid="c1")
-    c1_P_plt = plot(res, prob; obsids=["obs_P"], cid="c1")
+    c1_P_plt = plot(res, prob; obsids=["obs_p"], cid="c1")
     c1_E_P_plt = plot(res, prob; cid="c1")
 
     c2_E_plt = plot(res, prob; obsids=["obs_E"], cid="c2")
-    c2_P_plt = plot(res, prob; obsids=["obs_P"], cid="c2")
+    c2_P_plt = plot(res, prob; obsids=["obs_p"], cid="c2")
     c2_E_P_plt = plot(res, prob; cid="c2")
 
     # Fetch sols.
@@ -143,12 +143,12 @@ let
     for i in 1:2
         @test comp_dict["c1"]["obs_E"].series_list[i].plotattributes[:x] == c1_E_plt.series_list[i].plotattributes[:x]
         @test comp_dict["c1"]["obs_E"].series_list[i].plotattributes[:y] == c1_E_plt.series_list[i].plotattributes[:y]
-        @test comp_dict["c1"]["obs_P"].series_list[i].plotattributes[:x] == c1_P_plt.series_list[i].plotattributes[:x]
-        @test comp_dict["c1"]["obs_P"].series_list[i].plotattributes[:y] == c1_P_plt.series_list[i].plotattributes[:y]
+        @test comp_dict["c1"]["obs_p"].series_list[i].plotattributes[:x] == c1_P_plt.series_list[i].plotattributes[:x]
+        @test comp_dict["c1"]["obs_p"].series_list[i].plotattributes[:y] == c1_P_plt.series_list[i].plotattributes[:y]
         @test comp_dict["c2"]["obs_E"].series_list[i].plotattributes[:x] == c2_E_plt.series_list[i].plotattributes[:x]
         @test comp_dict["c2"]["obs_E"].series_list[i].plotattributes[:y] == c2_E_plt.series_list[i].plotattributes[:y]
-        @test comp_dict["c2"]["obs_P"].series_list[i].plotattributes[:x] == c2_P_plt.series_list[i].plotattributes[:x]
-        @test comp_dict["c2"]["obs_P"].series_list[i].plotattributes[:y] == c2_P_plt.series_list[i].plotattributes[:y]
+        @test comp_dict["c2"]["obs_p"].series_list[i].plotattributes[:x] == c2_P_plt.series_list[i].plotattributes[:x]
+        @test comp_dict["c2"]["obs_p"].series_list[i].plotattributes[:y] == c2_P_plt.series_list[i].plotattributes[:y]
     end
 
     @test sol_c1.t == c1_E_plt.series_list[2].plotattributes[:x]
