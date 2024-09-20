@@ -20,7 +20,7 @@ using OrdinaryDiffEq
 using Printf
 
 path_yaml = joinpath(@__DIR__, "Boehm", "Boehm_JProteomeRes2014.yaml")
-petab_model = PEtabModel(path_yaml, verbose=true)
+model = PEtabModel(path_yaml, verbose=true)
 ```
 ```
 PEtabModel for model Boehm. ODE-system has 8 states and 10 parameters.
@@ -36,7 +36,7 @@ Next step is to create a `PEtabODEProblem` from a PEtab model, for which we use 
 * `hessian_method`: This option lets us choose a Hessian computation method. For small models with up to 20 parameters, it is computationally feasible to compute the full Hessian via forward-mode AD. Thus, we choose `:ForwardDiff`.
 
 ```julia
-petab_problem = PEtabODEProblem(petab_model, 
+petab_problem = PEtabODEProblem(model, 
                                 ode_solver=ODESolver(Rodas5P(), abstol=1e-8, reltol=1e-8), 
                                 gradient_method=:ForwardDiff, 
                                 hessian_method=:ForwardDiff)
@@ -54,7 +54,7 @@ Gradient Rodas5P(). Options (abstol, reltol, maxiters) = (1.0e-08, 1.0e-08, 1.0e
 If we don not provide any of these arguments, appropriate options are automatically selected based on the size of the problem following the guidelines in [Choosing best options for a PEtab problem](@ref best_options).
 
 ```julia
-petab_problem = PEtabODEProblem(petab_model)
+petab_problem = PEtabODEProblem(model)
 ```
 ```
 PEtabODEProblem for Boehm. ODE-states: 8. Parameters to estimate: 9 where 6 are dynamic.
@@ -70,12 +70,12 @@ Gradient Rodas5P(). Options (abstol, reltol, maxiters) = (1.0e-08, 1.0e-08, 1.0e
 
 The `PEtabODEProblem` includes all the necessary information to set up an optimization problem using most available optimizers. Its main fields are:
 
-1. `petabODEProblem.compute_cost` - This field computes the cost (i.e., the objective function) for a given parameter vector `θ`.
-2. `petabODEProblem.compute_gradient!` - This field computes the gradient of the cost with respect to `θ` using the chosen method.
-3. `petabODEProblem.compute_hessian!` - This field computes the Hessian of the cost with respect to `θ` using the chosen method.
+1. `petabODEProblem.nllh` - This field computes the cost (i.e., the objective function) for a given parameter vector `θ`.
+2. `petabODEProblem.grad!` - This field computes the gradient of the cost with respect to `θ` using the chosen method.
+3. `petabODEProblem.hess!` - This field computes the Hessian of the cost with respect to `θ` using the chosen method.
 4. `petabODEProblem.lower_bounds` - This field is a vector containing the lower bounds for the parameters, as specified in the PEtab parameters file.
 5. `petabODEProblem.upper_bounds` - This field is a vector containing the upper bounds for the parameters, as specified in the PEtab parameters file.
-6. `petabODEProblem.θ_names` - This field is a vector containing the names of the parameters to be estimated.
+6. `petabODEProblem.xnames` - This field is a vector containing the names of the parameters to be estimated.
 
 !!! note
     The parameter vector `θ` is assumed to be on the scale specified by the PEtab parameters file. For example, if parameter `i` is on the log scale, then `θ[i]` should also be on the log scale.
@@ -84,12 +84,12 @@ The `PEtabODEProblem` includes all the necessary information to set up an optimi
 
 ```julia
 # Parameters are log-scaled
-p = petab_problem.θ_nominalT 
+p = petab_problem.xnominal_transformed 
 gradient = zeros(length(p))
 hessian = zeros(length(p), length(p))
-cost = petab_problem.compute_cost(p)
-petab_problem.compute_gradient!(gradient, p)
-petab_problem.compute_hessian!(hessian, p)
+cost = petab_problem.nllh(p)
+petab_problem.grad!(gradient, p)
+petab_problem.hess!(hessian, p)
 @printf("Cost = %.2f\n", cost)
 @printf("First element in the gradient = %.2e\n", gradient[1])
 @printf("First element in the hessian = %.2f\n", hessian[1, 1])

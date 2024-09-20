@@ -25,7 +25,7 @@ Additionally, the `PEtabODEProblem` contain all the necessary information to use
 
 A widely adopted and effective approach for model calibration is multi-start local optimization. In this method, a local optimizer is run from a large number (typically 100-1000) of randomly generated initial parameter guesses. These guesses are efficiently generated using techniques like Latin-hypercube sampling to effectively explore the parameter space.
 
-To perform multi-start parameter estimation, you can employ the `calibrate_model_multistart` function. This function requires a `PEtabODEProblem` or a `OptimizationProblem`, the number of multi-starts, one of the available optimizer algorithms, and a directory to save the results. If you provide `dir_save=nothing` as the directory path, the results will not be written to disk. However, as a precaution against premature termination, we strongly recommended to specify a directory.
+To perform multi-start parameter estimation, you can employ the `calibrate_multistart` function. This function requires a `PEtabODEProblem` or a `OptimizationProblem`, the number of multi-starts, one of the available optimizer algorithms, and a directory to save the results. If you provide `dirsave=nothing` as the directory path, the results will not be written to disk. However, as a precaution against premature termination, we strongly recommended to specify a directory.
 
 For example, to use the Interior-point Newton method from [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl) to perform parameter estimation on the Boehm model with 10 multi-starts you can write:
 
@@ -33,15 +33,15 @@ For example, to use the Interior-point Newton method from [Optim.jl](https://git
 using PEtab
 using Optim
 
-dir_save = joinpath(@__DIR__, "Boehm_opt")
-petab_model = PEtabModel(path_to_Boehm_model)
-petab_problem = PEtabODEProblem(petab_model)
-res = calibrate_model_multistart(petab_problem, IPNewton(), 10, dir_save,
+dirsave = joinpath(@__DIR__, "Boehm_opt")
+model = PEtabModel(path_to_Boehm_model)
+petab_problem = PEtabODEProblem(model)
+res = calibrate_multistart(petab_problem, IPNewton(), 10, dirsave,
                                  options=Optim.Options(iterations = 200))
 print(res)
 ```
 ```
-PEtabMultistartOptimisationResult
+PEtabMultistartResult
 --------- Summary ---------
 min(f)                = 1.48e+02
 Parameters esimtated  = 9
@@ -49,14 +49,14 @@ Number of multistarts = 10
 Optimiser algorithm   = Optim_IPNewton
 ```
 
-In this example, we use `Optim.Options` to set the maximum number of iterations to 200. You can find a full list of options [here](https://julianlsolvers.github.io/Optim.jl/v0.9.3/user/config/). The results are returned as a `PEtabMultistartOptimisationResult`, which contains the best-found minima (`xmin`), the smallest objective value (`fmin`), and optimization results for each run. In case a `dir_save` is provided results can also easily be read from disk into a `PEtabMultistartOptimisationResult` struct:
+In this example, we use `Optim.Options` to set the maximum number of iterations to 200. You can find a full list of options [here](https://julianlsolvers.github.io/Optim.jl/v0.9.3/user/config/). The results are returned as a `PEtabMultistartResult`, which contains the best-found minima (`xmin`), the smallest objective value (`fmin`), and optimization results for each run. In case a `dirsave` is provided results can also easily be read from disk into a `PEtabMultistartResult` struct:
 
 ```julia
-res_read = PEtabMultistartOptimisationResult(dir_save)
+res_read = PEtabMultistartResult(dirsave)
 print(res_read)
 ```
 ```
-PEtabMultistartOptimisationResult
+PEtabMultistartResult
 --------- Summary ---------
 min(f)                = 1.48e+02
 Parameters esimtated  = 9
@@ -70,11 +70,11 @@ Alternatively, we can first convert the `PEtabODEProblem` into an `OptimizationP
 using Optimization
 using OptimizationOptimJL
 
-dir_save = joinpath(@__DIR__, "Boehm_opt")
-petab_model = PEtabModel(path_to_Boehm_model)
-petab_problem = PEtabODEProblem(petab_model)
+dirsave = joinpath(@__DIR__, "Boehm_opt")
+model = PEtabModel(path_to_Boehm_model)
+petab_problem = PEtabODEProblem(model)
 optimization_problem = PEtab.OptimizationProblem(petab_problem)
-res = calibrate_model_multistart(optimization_problem, petab_problem, Optim.ParticleSwarm(), 10, dir_save,
+res = calibrate_multistart(optimization_problem, petab_problem, Optim.ParticleSwarm(), 10, dirsave,
                                  reltol=1e-8)
 ```
 
@@ -87,14 +87,14 @@ using PEtab
 using PyCall
 using QuasiMonteCarlo
 
-petab_model = PEtabModel(path_yaml)
-petab_problem = PEtabODEProblem(petab_model)
-res = calibrate_model_multistart(petab_problem, Fides(nothing), 10, dir_save,
+model = PEtabModel(path_yaml)
+petab_problem = PEtabODEProblem(model)
+res = calibrate_multistart(petab_problem, Fides(nothing), 10, dirsave,
                                sampling_method=QuasiMonteCarlo.LatinHypercubeSample())
 print(res)
 ```
 ```
-PEtabMultistartOptimisationResult
+PEtabMultistartResult
 --------- Summary ---------
 min(f)                = 1.38e+02
 Parameters esimtated  = 9
@@ -110,15 +110,15 @@ Finally, we have the option to save the trace of each optimization run. For inst
 using PEtab
 using Ipopt
 
-petab_model = PEtabModel(path_yaml)
-petab_problem = PEtabODEProblem(petab_model)
-res = calibrate_model_multistart(petab_problem, IpoptOptimiser(false), 10, dir_save,
+model = PEtabModel(path_yaml)
+petab_problem = PEtabODEProblem(model)
+res = calibrate_multistart(petab_problem, IpoptOptimiser(false), 10, dirsave,
                                  save_trace=true,
                                  seed=123)
 print(res)
 ```
 ```
-PEtabMultistartOptimisationResult
+PEtabMultistartResult
 --------- Summary ---------
 min(f)                = 1.38e+02
 Parameters esimtated  = 9
@@ -138,17 +138,17 @@ res.runs[1].ftrace
 
 ## [Generating startguesses for parameter estimation](@id get_startguesses)
 
-When you call the `calibrate_model_multistart` function, it uses the `generate_startguesses` function to create initial startguesses for parameter estimation. With `generate_startguesses`, you can generate start-guesses within the bounds of the `PEtabODEProblem` using various sampling methods from [QuasiMonteCarlo](https://github.com/SciML/QuasiMonteCarlo.jl) through the `sampling_method` parameter. For example, to run 10 optimization runs with Sobol sampling, do:
+When you call the `calibrate_multistart` function, it uses the `generate_startguesses` function to create initial startguesses for parameter estimation. With `generate_startguesses`, you can generate start-guesses within the bounds of the `PEtabODEProblem` using various sampling methods from [QuasiMonteCarlo](https://github.com/SciML/QuasiMonteCarlo.jl) through the `sampling_method` parameter. For example, to run 10 optimization runs with Sobol sampling, do:
 
 ```julia
 using QuasiMonteCarlo
-res = calibrate_model_multistart(petab_problem, IpoptOptimiser(false), 10, dir_save,
+res = calibrate_multistart(petab_problem, IpoptOptimiser(false), 10, dirsave,
                                  sampling_method=SobolSample(),
                                  save_trace=true,
                                  seed=123)
 ```
 
-In addition for problems specified directly in Julia, when a parameter has a prior, the start-guesses for said parameter are sampled from the prior distribution, where the prior is clipped/truncated by the parameter's lower and upper bounds. You can disable this for all parameters by setting `sample_from_prior=false`. To disable it for specific parameters, use `sample_from_prior=false` when creating the `PEtabParameter`. For example: `PEtabParameters(:c1, sample_from_prior=false)`.
+In addition for problems specified directly in Julia, when a parameter has a prior, the start-guesses for said parameter are sampled from the prior distribution, where the prior is clipped/truncated by the parameter's lower and upper bounds. You can disable this for all parameters by setting `sample_prior=false`. To disable it for specific parameters, use `sample_prior=false` when creating the `PEtabParameter`. For example: `PEtabParameters(:c1, sample_prior=false)`.
 
 For problems specified in the PEtab table format, the `initializationPriorType` must be provided to sample initial values from priors. See the [PEtab documentation](https://petab.readthedocs.io/en/latest/documentation_data_format.html#parameter-table) for details.
 

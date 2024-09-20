@@ -12,7 +12,7 @@ using OrdinaryDiffEq
 using Printf
 
 path_yaml = joinpath(@__DIR__, "Beer", "Beer_MolBioSystems2014.yaml") 
-petab_model = PEtabModel(path_yaml, verbose=true)
+model = PEtabModel(path_yaml, verbose=true)
 ```
 ```
 PEtabModel for model Beer. ODE-system has 4 states and 9 parameters.
@@ -32,18 +32,18 @@ For a model like Beer, the following options are thus recommended:
 
 ```julia
 ode_solver = ODESolver(Rodas5P(), abstol=1e-8, reltol=1e-8)
-petab_problem = PEtabODEProblem(petab_model, ode_solver, 
+petab_problem = PEtabODEProblem(model, ode_solver, 
                                 gradient_method=:ForwardDiff, 
                                 hessian_method=:ForwardDiff, 
                                 split_over_conditions=true, 
                                 sparse_jacobian=false)
 
-p = petab_problem.θ_nominalT
+p = petab_problem.xnominal_transformed
 gradient = zeros(length(p))
 hessian = zeros(length(p), length(p))
-cost = petab_problem.compute_cost(p)
-petab_problem.compute_gradient!(gradient, p)
-petab_problem.compute_hessian!(hessian, p)
+cost = petab_problem.nllh(p)
+petab_problem.grad!(gradient, p)
+petab_problem.hess!(hessian, p)
 @printf("Cost = %.2f\n", cost)
 @printf("First element in the gradient = %.2e\n", gradient[1])
 @printf("First element in the hessian = %.2f\n", hessian[1, 1])

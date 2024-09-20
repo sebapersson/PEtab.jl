@@ -7,7 +7,7 @@ Here we demonstrate how to define a parameter estimation problem using a simple 
 1. **Dynamic Model**: You can use either a `ReactionSystem` defined in [Catalyst](https://petab.readthedocs.io/en/latest/) or an `ODESystem` defined in [ModellingToolkit](https://github.com/SciML/ModelingToolkit.jl).
 2. **Observable Formula**: To link the model to the measurement data, you need an observable formula. Since real-world data often comes with measurement noise, you also must specify a noise formula and noise distribution. This is specified as a `PEtabObservable`.
 3. **Parameters to Estimate**: Typically, you do not want to estimate all model parameters. Moreover, sometimes you might want to incorporate prior beliefs by assigning priors to certain parameters. Parameter information is provided as a vector of `PEtabParameter`.
-4. **Simulation Conditions**: Measurements are often taken under various experimental conditions, such as different substrate concentrations. These experimental conditions typically correspond to model control parameters, like the initial value of a model species. You specify these conditions as a `Dict` (see below). In case the model only has a single simulation conditions, `simulation_conditions` can be omitted when building the `PEtabModel`.
+4. **Simulation Conditions**: PEtabMeasurements are often taken under various experimental conditions, such as different substrate concentrations. These experimental conditions typically correspond to model control parameters, like the initial value of a model species. You specify these conditions as a `Dict` (see below). In case the model only has a single simulation conditions, `simulation_conditions` can be omitted when building the `PEtabModel`.
 5. **Measurement Data**: To calibrate the model, you need measurement data, which should be provided as a `DataFrame`. The data format is explained below.
 
 ## Defining the Dynamic Model
@@ -53,8 +53,8 @@ To estimate an initial value, such as `SE`, for an `ODESystem`, you need to defi
 Regardless of how the model is defined, if you want to fixate a parameter or initial value to a constant value across all simulations, you can use a state and/or parameter map. For instance, to set `E` and `P` to be 1.0 and 0.0, and set `c1` to 1.0, do:
 
 ```@example 1; ansicolor=false
-state_map = [:E => 1.0, :P => 0.0]
-parameter_map = [:c1 => 1.0]
+statemap = [:E => 1.0, :P => 0.0]
+parametermap = [:c1 => 1.0]
 nothing # hide
 ```
 
@@ -69,8 +69,8 @@ Let us assume we are observing the product `P` with a normally distributed multi
 ```@example 1; ansicolor=false
 @unpack P, E, SE = rn
 @parameters sigma, scale, offset
-obs_P = PEtabObservable(scale * P + offset, sigma * P, transformation=:lin)
-obs_Sum = PEtabObservable(E + SE, 3.0, transformation=:log)
+obs_p = PEtabObservable(scale * P + offset, sigma * P, transformation=:lin)
+obs_sum = PEtabObservable(E + SE, 3.0, transformation=:log)
 nothing # hide
 ```
 
@@ -79,8 +79,8 @@ The `transformation` parameter can take one of three values: `:lin` (default for
 To complete the definition, we group these observables together in a `Dict` with appropriate names:
 
 ```@example 1; ansicolor=false
-observables = Dict("obs_P" => obs_P,
-                   "obs_Sum" => obs_Sum)
+observables = Dict("obs_p" => obs_p,
+                   "obs_sum" => obs_sum)
 ```
 
 ## Defining Parameters to Estimate
@@ -98,10 +98,10 @@ If you have prior information about parameters, you can specify a continuous pri
 ```@example 1; ansicolor=false
 using Distributions
 _se0 = PEtabParameter(:se0, prior=LogNormal(log(3.1), 0.5), 
-                      prior_on_linear_scale=true, sample_from_prior=true)
+                      prior_on_linear_scale=true, sample_prior=true)
 ```
 
-In this case, `prior_on_linear_scale=true` (default) indicates that the prior is defined on the linear scale, not the default transformed log10 scale used for parameter estimation. Moreover, for parameters with priors, start-guesses for parameter estimation are generated from the prior distribution (instead of randomly within the upper and lower bounds), if you want to disable this for a specific parameter set `sample_from_prior=false` (default is true), more information can be found [here](@ref get_startguesses).
+In this case, `prior_on_linear_scale=true` (default) indicates that the prior is defined on the linear scale, not the default transformed log10 scale used for parameter estimation. Moreover, for parameters with priors, start-guesses for parameter estimation are generated from the prior distribution (instead of randomly within the upper and lower bounds), if you want to disable this for a specific parameter set `sample_prior=false` (default is true), more information can be found [here](@ref get_startguesses).
 
 Apart from estimating parameters in the reaction system, you can also estimate parameters related to measurement noise or parameters used exclusively in the observable formula (e.g., `scale` and `offset` parameters see above) by defining them as a `PEtabParameter`:
 
@@ -148,10 +148,10 @@ The measurement data should be organized as a `DataFrame` in the following forma
 
 | simulation_id (str) | obs_id (str) | time (float) | measurement (float) |
 |---------------------|--------------|--------------|---------------------|
-| c0                  | obs_P        | 1.0          | 0.7                 |
-| c0                  | obs_Sum      | 10.0         | 0.1                 |
-| c1                  | obs_P        | 1.0          | 1.0                 |
-| c1                  | obs_Sum      | 20.0         | 1.5                 |
+| c0                  | obs_p        | 1.0          | 0.7                 |
+| c0                  | obs_sum      | 10.0         | 0.1                 |
+| c1                  | obs_p        | 1.0          | 1.0                 |
+| c1                  | obs_sum      | 20.0         | 1.5                 |
 
 For each measurement, you need to specify:
 
@@ -167,7 +167,7 @@ using DataFrames
 
 measurements = DataFrame(
     simulation_id=["c0", "c0", "c1", "c1"],
-    obs_id=["obs_P", "obs_Sum", "obs_P", "obs_Sum"],
+    obs_id=["obs_p", "obs_sum", "obs_p", "obs_sum"],
     time=[1.0, 10.0, 1.0, 20.0],
     measurement=[0.7, 0.1, 1.0, 1.5])
 ```
@@ -177,22 +177,22 @@ measurements = DataFrame(
 After defining the model, observables, parameters to estimate, simulation conditions, and measurement data, you can easily create a `PEtabODEProblem` for your parameter estimation task using the `ReactionSystem`:
 
 ```@example 1; ansicolor=false
-petab_model = PEtabModel(rn, simulation_conditions, observables, measurements,
-                         parameters, state_map=state_map, parameter_map=parameter_map,
+model = PEtabModel(rn, simulation_conditions, observables, measurements,
+                         parameters, statemap=statemap, parametermap=parametermap,
                          verbose=false)
-petab_problem = PEtabODEProblem(petab_model, verbose=false)
+petab_problem = PEtabODEProblem(model, verbose=false)
 ```
 
 or the `ODESystem`:
 
 ```@example 1; ansicolor=false
-petab_model = PEtabModel(sys, simulation_conditions, observables, measurements,
-                         parameters, state_map=state_map, parameter_map=parameter_map,
+model = PEtabModel(sys, simulation_conditions, observables, measurements,
+                         parameters, statemap=statemap, parametermap=parametermap,
                          verbose=false)
-petab_problem = PEtabODEProblem(petab_model, verbose=false)
+petab_problem = PEtabODEProblem(model, verbose=false)
 ```
 
-The `PEtabODEProblem` contains all the necessary information to work with most available optimizers (see [here](@ref import_petab_problem)). Alternatively, if you want to perform parameter estimation using a multi-start approach, you can use the `calibrate_model_multistart` function (see [Parameter estimation](@ref parameter_estimation)). When creating the `PEtabODEProblem` good default options are selected based on the problem size, but if you want to set any options, a full list is available [here](@ref API).
+The `PEtabODEProblem` contains all the necessary information to work with most available optimizers (see [here](@ref import_petab_problem)). Alternatively, if you want to perform parameter estimation using a multi-start approach, you can use the `calibrate_multistart` function (see [Parameter estimation](@ref parameter_estimation)). When creating the `PEtabODEProblem` good default options are selected based on the problem size, but if you want to set any options, a full list is available [here](@ref API).
 
 !!! note
     If the model does not have multiple simulation conditions (e.g., data is collected under a single condition), you can omit the `simulation_conditions` argument when constructing the `PEtabModel` and the `simulation_id` columns from the measurement data. Simply use the following format: `PEtabModel(sys, observables, measurements, parameters, <keyword arguments>)`.
@@ -243,23 +243,23 @@ eqs = [
 @named sys = ODESystem(eqs; defaults=Dict(SE => se0))
 
 # Define state and parameter maps
-state_map =  [:E => 1.0, :P => 0.0]
-parameter_map = [:c1 => 1.0]
+statemap =  [:E => 1.0, :P => 0.0]
+parametermap = [:c1 => 1.0]
 
 # Unpack model components
 @unpack P, E, SE = rn
 @parameters sigma, scale, offset
 
 # Define observables
-obs_P = PEtabObservable(scale * P + offset, sigma * P, transformation=:lin)
-obs_Sum = PEtabObservable(E + SE, 3.0, transformation=:log)
-observables = Dict("obs_P" => obs_P,
-                   "obs_Sum" => obs_Sum)
+obs_p = PEtabObservable(scale * P + offset, sigma * P, transformation=:lin)
+obs_sum = PEtabObservable(E + SE, 3.0, transformation=:log)
+observables = Dict("obs_p" => obs_p,
+                   "obs_sum" => obs_sum)
 
 # Define parameters for estimation
 _c3 = PEtabParameter(:c3, scale=:log10)
 _se0 = PEtabParameter(:se0, prior=LogNormal(log(3.1), 0.5), 
-                      prior_on_linear_scale=true, sample_from_prior=true)
+                      prior_on_linear_scale=true, sample_prior=true)
 _c2 = PEtabParameter(:c2)
 _sigma = PEtabParameter(:sigma)
 _scale = PEtabParameter(:scale)
@@ -275,18 +275,18 @@ simulation_conditions = Dict("c0" => condition_c0,
 # Define measurement data
 measurements = DataFrame(
     simulation_id=["c0", "c0", "c1", "c1"],
-    obs_id=["obs_P", "obs_Sum", "obs_P", "obs_Sum"],
+    obs_id=["obs_p", "obs_sum", "obs_p", "obs_sum"],
     time=[1.0, 10.0, 1.0, 20.0],
     measurement=[0.7, 0.1, 1.0, 1.5]
 )
 
-# Create a PEtab model. To build the petab_model with ODE-system instead of
+# Create a PEtab model. To build the model with ODE-system instead of
 # ReactionSystem provide sys instead of rn as first argument
-petab_model = PEtabModel(
+model = PEtabModel(
     rn, simulation_conditions, observables, measurements,
-    parameters, state_map=state_map, parameter_map=parameter_map, verbose=true
+    parameters, statemap=statemap, parametermap=parametermap, verbose=true
 )
 
 # Create a PEtabODEProblem
-petab_problem = PEtabODEProblem(petab_model)
+petab_problem = PEtabODEProblem(model)
 ```

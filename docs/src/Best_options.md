@@ -28,7 +28,7 @@ PEtab.jl provides several gradient and hessian methods that can be used with the
 Overall, for a small model, a good setup often is:
 
 ```julia
-petab_problem = PEtabODEProblem(petab_model,
+petab_problem = PEtabODEProblem(model,
                                 ode_solver=ODESolver(Rodas5P(), abstol=1e-8, reltol=1e-8),
                                 gradient_method=:ForwardDiff,
                                 hessian_method=:ForwardDiff)
@@ -53,7 +53,7 @@ petab_problem = PEtabODEProblem(petab_model,
 Overall, when the gradient is always computed before the Hessian in the optimizer, a good setup is often:
 
 ```julia
-petab_problem = PEtabODEProblem(petab_model,
+petab_problem = PEtabODEProblem(model,
                                 ode_solver=ODESolver(QNDF(), abstol=1e-8, reltol=1e-8),
                                 gradient_method=:ForwardEquations,
                                 hessian_method=:GaussNewton,
@@ -63,7 +63,7 @@ petab_problem = PEtabODEProblem(petab_model,
 Otherwise, a good setup is:
 
 ```julia
-petab_problem = PEtabODEProblem(petab_model,
+petab_problem = PEtabODEProblem(model,
                                 ode_solver=ODESolver(QNDF(), abstol=1e-8, reltol=1e-8),
                                 gradient_method=:ForwardDiff,
                                 hessian_method=:GaussNewton)
@@ -90,7 +90,7 @@ petab_problem = PEtabODEProblem(petab_model,
 All in all, for a large model, a good setup often is:
 
 ```julia
-petab_problem = PEtabODEProblem(petab_model,
+petab_problem = PEtabODEProblem(model,
                                 ode_solver=ODESolver(CVODE_BDF(), abstol=1e-8, reltol=1e-8),
                                 ode_solver_gradient=ODESolver(CVODE_BDF(), abstol=1e-8, reltol=1e-8),
                                 gradient_method=:Adjoint,

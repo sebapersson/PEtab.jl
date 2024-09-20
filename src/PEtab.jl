@@ -29,6 +29,7 @@ import QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
+include(joinpath("structs", "create_petab_model.jl"))
 include("Structs.jl")
 
 const ModelSystem = Union{ODESystem, ReactionSystem}

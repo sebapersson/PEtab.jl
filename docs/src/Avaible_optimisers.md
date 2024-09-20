@@ -147,8 +147,8 @@ Solver options are set using keywords. Here we set the relative tolerance for te
 It is also possible to run multi-start parameter estimation using an `OptimizationProblem`:
 
 ```julia
-res = calibrate_model_multistart(optimization_problem, petab_problem, alg, 
-                                 nstarts, dir_save, reltol=1e-8)
+res = calibrate_multistart(optimization_problem, petab_problem, alg, 
+                                 nstarts, dirsave, reltol=1e-8)
 ```
 
 Here, `alg` can be any algorithm available in [Optimization.jl](https://github.com/fides-dev/fides).

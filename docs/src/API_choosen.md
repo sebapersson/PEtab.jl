@@ -14,9 +14,9 @@ PEtab.OptimizationProblem
 IpoptOptions
 IpoptOptimiser
 calibrate_model
-calibrate_model_multistart
-PEtabMultistartOptimisationResult
-run_PEtab_select
+calibrate_multistart
+PEtabMultistartResult
+petab_select
 generate_startguesses
 get_ps
 get_u0

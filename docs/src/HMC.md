@@ -28,13 +28,13 @@ eqs = [
     D(x) ~ b2*(b1 - x)
 ]
 specie_map = [x => 0]
-parameter_map = [b1 => 1.0, b2 => 0.2]
+parametermap = [b1 => 1.0, b2 => 0.2]
 @named sys = ODESystem(eqs)
 
 # Simulate data
 using Random, Distributions
 Random.seed!(1234)
-oprob = ODEProblem(sys, specie_map, (0.0, 2.5), parameter_map)
+oprob = ODEProblem(sys, specie_map, (0.0, 2.5), parametermap)
 tsave = collect(range(0.0, 2.5, 101))
 dist = Normal(0.0, 0.03)
 _sol = solve(oprob, Rodas4(), abstol=1e-12, reltol=1e-12, saveat=tsave, tstops=tsave)
@@ -77,8 +77,8 @@ When specifying priors in PEtab.jl, it is important to note that parameters are 
 With the priors defined, we can proceed to create a `PEtabODEProblem`.
 
 ```@example 1; ansicolor=false
-petab_model = PEtabModel(sys, observables, measurements, parameters_ets; state_map=specie_map, verbose=false)
-petab_problem = PEtabODEProblem(petab_model; ode_solver=ODESolver(Rodas5(), abstol=1e-6, reltol=1e-6), verbose=false)
+model = PEtabModel(sys, observables, measurements, parameters_ets; statemap=specie_map, verbose=false)
+petab_problem = PEtabODEProblem(model; ode_solver=ODESolver(Rodas5(), abstol=1e-6, reltol=1e-6), verbose=false)
 nothing #hide
 ```
 
@@ -96,7 +96,7 @@ When later performing Bayesian inference, the settings for the ODE solver and gr
 Inference can now be performed. Although the choice of a starting point for the inference process is crucial, for simplicity we use the parameter vector used for simulating the data (note that the second parameter is on $\mathrm{log}_{10}$ scale).
 
 ```@example 1; ansicolor=false
-xpetab = petab_problem.θ_nominalT
+xpetab = petab_problem.xnominal_transformed
 ```
 
 Lastly, when conducting Bayesian inference with PEtab.jl, an **important** note is that inference is performed on the prior scale. For instance, if a parameter is set with `scale=:log10`, but the prior is defined on the linear scale (`prior_on_linear_scale=true`), then inference is performed on the linear scale. Moreover, Bayesian inference algorithms typically prefer to operate in an unconstrained space, that is a prior such as $b_1 \sim \mathcal{U}(0.0, 5.0)$, where the parameter is bounded is not ideal. To address this, bounded parameters are [transformed](https://mc-stan.org/docs/reference-manual/change-of-variables.html) to be unconstrained.
@@ -104,7 +104,7 @@ Lastly, when conducting Bayesian inference with PEtab.jl, an **important** note 
 In summary, for a parameter vector on the PEtab parameter scale (`xpetab`), for inference we must transform to the prior scale (`xprior`), and then to the inference scale (`xinference`). This can be done via:
 
 ```@example 1; ansicolor=false
-xprior = to_prior_scale(petab_problem.θ_nominalT, target)
+xprior = to_prior_scale(petab_problem.xnominal_transformed, target)
 xinference = target.inference_info.bijectors(xprior)
 ```
 

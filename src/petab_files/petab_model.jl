@@ -1,5 +1,5 @@
-function PEtabModel(path_yaml::String; build_julia_files::Bool = false,
-                    verbose::Bool = true, ifelse_to_event::Bool = true,
+function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
+                    verbose::Bool = true, ifelse_to_callback::Bool = true,
                     write_to_file::Bool = false)::PEtabModel
     paths = _get_petab_paths(path_yaml)
     petab_tables = read_tables(path_yaml)
@@ -13,7 +13,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = false,
     # the SBML model must be mutated to add an iniitial value parameter to correctly
     # compute gradients
     model_SBML = SBMLImporter.parse_SBML(paths[:SBML], false; model_as_string = false,
-                                         ifelse_to_callback = ifelse_to_event,
+                                         ifelse_to_callback = ifelse_to_callback,
                                          inline_assignment_rules = false)
     _addu0_parameters!(model_SBML, petab_tables[:conditions], petab_tables[:parameters])
     pathmodel = joinpath(paths[:dirjulia], name * ".jl")

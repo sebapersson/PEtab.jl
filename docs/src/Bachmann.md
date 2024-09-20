@@ -17,7 +17,7 @@ using Sundials # For CVODE_BDF
 using Printf
  
 path_yaml = joinpath(@__DIR__, "Bachmann", "Bachmann_MSB2011.yaml") 
-petab_model = PEtabModel(path_yaml, verbose=true)
+model = PEtabModel(path_yaml, verbose=true)
 ```
 ```
 PEtabModel for model Bachmann. ODE-system has 25 states and 39 parameters.
@@ -40,15 +40,15 @@ Here are a few things to keep in mind:
 ```julia
 using Zygote # For adjoint
 using SciMLSensitivity # For adjoint
-petab_problem = PEtabODEProblem(petab_model, 
+petab_problem = PEtabODEProblem(model, 
                                 ode_solver=ODESolver(QNDF(), abstol=1e-8, reltol=1e-8), 
                                 ode_solver_gradient=ODESolver(CVODE_BDF(), abstol=1e-8, reltol=1e-8),
                                 gradient_method=:Adjoint, 
                                 sensealg=InterpolatingAdjoint(autojacvec=EnzymeVJP())) 
-p = petab_problem.θ_nominalT 
+p = petab_problem.xnominal_transformed 
 gradient = zeros(length(p)) 
-cost = petab_problem.compute_cost(p)
-petab_problem.compute_gradient!(gradient, p)
+cost = petab_problem.nllh(p)
+petab_problem.grad!(gradient, p)
 @printf("Cost = %.2f\n", cost)
 @printf("First element in the gradient = %.2e\n", gradient[1])
 ```
@@ -68,18 +68,18 @@ When choosing `gradient_method=:ForwardEquations` and `hessian_method=:GaussNewt
    * Note - this approach requires that `sensealg=:ForwardDiff` for the gradient.
 
 ```julia
-petab_problem = PEtabODEProblem(petab_model, 
+petab_problem = PEtabODEProblem(model, 
                                 ode_solver=ODESolver(QNDF(), abstol=1e-8, reltol=1e-8),
                                 gradient_method=:ForwardEquations, 
                                 hessian_method=:GaussNewton,
                                 sensealg=:ForwardDiff, 
                                 reuse_sensitivities=true) 
-p = petab_problem.θ_nominalT 
+p = petab_problem.xnominal_transformed 
 gradient = zeros(length(p)) 
 hessian = zeros(length(p), length(p)) 
-cost = petab_problem.compute_cost(p)
-petab_problem.compute_gradient!(gradient, p)
-petab_problem.compute_hessian!(hessian, p)
+cost = petab_problem.nllh(p)
+petab_problem.grad!(gradient, p)
+petab_problem.hess!(hessian, p)
 @printf("Cost for Bachmann = %.2f\n", cost)
 @printf("First element in the gradient = %.2e\n", gradient[1])
 @printf("First element in the Gauss-Newton Hessian = %.2f\n", hessian[1, 1])

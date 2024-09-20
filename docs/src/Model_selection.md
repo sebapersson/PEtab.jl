@@ -7,7 +7,7 @@ In many scenarios we have competing hypotheses (model structures) that we want t
 
 ## Example
 
-PEtab.jl provides support for PEtab Select through the `run_PEtab_select` function. This function takes two required arguments; the path to the PEtab Select YAML file, and the optimizer for parameter estimation. For the optimizer, you can choose from `optimizer=Fides()` (Fides Newton-trust region), `optimizer=IPNewton()` from Optim.jl, or `optimizer=LBFGS()` from Optim.jl ([see](@ref parameter_estimation)). Additionally, you can pass any keyword arguments accepted by the `calibrate_model` function for parameter estimation and `PEtabODEProblem` function for setting simulation options ([see](@ref gradient_support)).
+PEtab.jl provides support for PEtab Select through the `petab_select` function. This function takes two required arguments; the path to the PEtab Select YAML file, and the optimizer for parameter estimation. For the optimizer, you can choose from `optimizer=Fides()` (Fides Newton-trust region), `optimizer=IPNewton()` from Optim.jl, or `optimizer=LBFGS()` from Optim.jl ([see](@ref parameter_estimation)). Additionally, you can pass any keyword arguments accepted by the `calibrate_model` function for parameter estimation and `PEtabODEProblem` function for setting simulation options ([see](@ref gradient_support)).
 
 Since PEtab Select is a Python package, you need to have [PyCall.jl](https://github.com/JuliaPy/PyCall.jl) installed. Before using it, build PyCall with a Python environment that has PEtab select installed. Here's an example of how to do it (note that `path_python_exe` depends on your system configuration):
 
@@ -27,7 +27,7 @@ using Optim
 using QuasiMonteCarlo
 
 path_yaml = joinpath(@__DIR__, "PEtab_select", "0002", "petab_select_problem.yaml")
-path_save = run_PEtab_select(path_yaml, IPNewton(), 
+path_save = petab_select(path_yaml, IPNewton(), 
                           nOptimisationStarts=10, 
                           ode_solver=ODESolver(Rodas5P()),
                           gradient_method=:ForwardDiff, 
