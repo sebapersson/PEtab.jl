@@ -116,7 +116,7 @@ let
 
     # Fit solution
     model = PEtabModel(rn, simulation_conditions , observables, measurements, params;
-                       statemap=u0, verbose = false)
+                       speciemap=u0, verbose = false)
     prob = PEtabODEProblem(model; verbose = false)
     res = calibrate_multistart(prob, IPNewton(), 5)
 

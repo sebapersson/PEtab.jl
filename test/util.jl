@@ -74,7 +74,7 @@ using Catalyst, PEtab, OrdinaryDiffEq, Catalyst, DataFrames, Test
     m_c2 = DataFrame(simulation_id = "c2", obs_id="obs_X1", time=[1.0, 2.0, 3.0], measurement=[1.2, 1.4, 1.6])
     measurements = vcat(m_c1, m_c2)
     model = PEtabModel(rs, simulation_conditions, observables, measurements, params;
-                       statemap=u0, verbose = false)
+                       speciemap=u0, verbose = false)
     prob = PEtabODEProblem(model; verbose = false)
     prob.nllh(log10.([1.0, 2.0]))
     ode_prob_mutated = prob.model_info.simulation_info.odesols[:c2].prob

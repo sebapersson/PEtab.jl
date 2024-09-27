@@ -13,7 +13,7 @@ function PEtabODEProblem(model::PEtabModel;
                          chunksize::Union{Nothing, Int64} = nothing,
                          split_over_conditions::Union{Nothing, Bool} = nothing,
                          reuse_sensitivities::Bool = false,
-                         verbose::Bool = true,
+                         verbose::Bool = false,
                          custom_values::Union{Nothing, Dict} = nothing)::PEtabODEProblem
     _logging(:Build_PEtabODEProblem, verbose; name = model.name)
 

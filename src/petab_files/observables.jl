@@ -1,12 +1,12 @@
 function parse_observables(modelname::String, paths::Dict{Symbol, String}, sys::ModelSystem,
-                           observables_df::DataFrame, xindices::ParameterIndices, statemap,
+                           observables_df::DataFrame, xindices::ParameterIndices, speciemap,
                            model_SBML::SBMLImporter.ModelSBML, write_to_file::Bool)::NTuple{4, String}
     state_ids = _get_state_ids(sys)
 
     _hstr = _parse_h(state_ids, xindices, observables_df, model_SBML)
     _σstr = _parse_σ(state_ids, xindices, observables_df, model_SBML)
-    _u0str = _parse_u0(statemap, state_ids, xindices, model_SBML, false)
-    _u0!str = _parse_u0(statemap, state_ids, xindices, model_SBML, true)
+    _u0str = _parse_u0(speciemap, state_ids, xindices, model_SBML, false)
+    _u0!str = _parse_u0(speciemap, state_ids, xindices, model_SBML, true)
     if write_to_file == true
         pathsave = joinpath(paths[:dirjulia], "$(modelname)_h_sd_u0.jl")
         strwrite = *(_hstr, _u0str, _u0!str, _σstr)
@@ -58,8 +58,8 @@ function _parse_σ(state_ids::Vector{String}, xindices::ParameterIndices, observ
     return σstr
 end
 
-function _parse_u0(statemap, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, inplace::Bool)
-    statemap_ids = replace.(string.(first.(statemap)), "(t)" => "")
+function _parse_u0(speciemap, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, inplace::Bool)
+    speciemap_ids = replace.(string.(first.(speciemap)), "(t)" => "")
     if inplace == true
         u0str = "function compute_u0!(u0::AbstractVector, p::AbstractVector)\n"
     else
@@ -67,8 +67,8 @@ function _parse_u0(statemap, state_ids::Vector{String}, xindices::ParameterIndic
     end
 
     for id in state_ids
-        im = findfirst(x -> x == id, statemap_ids)
-        u0formula = _parse_formula(string(statemap[im].second), state_ids, xindices, model_SBML, :u0)
+        im = findfirst(x -> x == id, speciemap_ids)
+        u0formula = _parse_formula(string(speciemap[im].second), state_ids, xindices, model_SBML, :u0)
         u0str *= "\t$id = $u0formula\n"
     end
 

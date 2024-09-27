@@ -27,7 +27,7 @@ D = default_time_deriv()
 end
 @mtkbuild sys = SYS()
 
-statemap = [:B => 1.0] # Constant initial value for B
+speciemap = [:B => 1.0] # Constant initial value for B
 
 # Measurement data
 measurements = DataFrame(simulation_id=["c0", "c0", "c1", "c1"],
@@ -49,7 +49,7 @@ observables = Dict("obs_a" => PEtabObservable(A, 1.0))
 
 # Create a PEtabODEProblem ReactionNetwork
 model_rn = PEtabModel(rn, simulation_conditions, observables, measurements,
-                      parameters, verbose=false, statemap=statemap)
+                      parameters, verbose=false, speciemap=speciemap)
 petab_problem_rn = PEtabODEProblem(model_rn, verbose=false)
 # Create a PEtabODEProblem ODESystem
 model_sys = PEtabModel(sys, simulation_conditions, observables, measurements,

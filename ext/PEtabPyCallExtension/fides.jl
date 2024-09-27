@@ -9,7 +9,7 @@ function PEtab.calibrate_multistart(prob::PEtab.PEtabODEProblem, alg::PEtab.Fide
         Random.seed!(seed)
     end
     return PEtab._calibrate_multistart(prob, alg, nmultistarts, dirsave, sampling_method,
-                                      options, sample_prior, save_trace)
+                                       options, sample_prior, save_trace)
 end
 
 function PEtab.calibrate(prob::PEtabODEProblem,
@@ -43,8 +43,8 @@ function PEtab.calibrate(prob::PEtabODEProblem,
     xnames_ps = propertynames(prob.xnominal_transformed)
     xstart = ComponentArray(; (xnames_ps .=> xstart)...)
     xmin = ComponentArray(; (xnames_ps .=> _xmin)...)
-    return PEtabOptimisationResult(alg_used, xtrace, ftrace, niterations, fmin, xstart,
-                                   xmin, converged, runtime, res)
+    return PEtabOptimisationResult(xmin, fmin, xstart, alg_used, niterations, runtime,
+                                   xtrace, ftrace, converged, res)
 end
 
 function _get_fides_prob(prob::PEtabODEProblem, alg::Fides, options)::Function

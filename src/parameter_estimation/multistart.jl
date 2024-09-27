@@ -1,76 +1,29 @@
 """
-    calibrate_multistart(prob::PEtabODEProblem,
-                               alg,
-                               nmultistarts::Signed,
-                               dirsave::Union{Nothing, String};
-                               sampling_method=QuasiMonteCarlo.LatinHypercubeSample(),
-                               sample_prior::Bool=true,
-                               options=options,
-                               seed=nothing,
-                               save_trace::Bool=false)::PEtabMultistartResult
+    calibrate_multistart(prob::PEtabODEProblem, alg, nmultistarts::Integer;
+                         dirsave=nothing, kwargs...)::PEtabMultistartResult
 
-Perform multistart optimization for a PEtabODEProblem using the algorithm `alg`.
+Perform `nmultistarts` parameter estimation runs from randomly sampled starting points using
+the optimization algorithm `alg` to estimate the unknown model parameters in `prob`.
 
-The optimization algorithm `alg` can be one of the following:
-- [Optim](https://julianlsolvers.github.io/Optim.jl/stable/) LBFGS, BFGS, or IPNewton methods
-- [IpoptOptimiser](https://coin-or.github.io/Ipopt/) interior-point optimizer
-- [Fides](https://github.com/fides-dev/fides) Newton trust region method
+ A list of available and recommended optimization algorithms (`alg`) can be found in the
+package documentation and [`calibrate`](@ref) documentation. If `dirsave` is provided,
+intermediate results for each run are saved in `dirsave`. It is **strongly** recommended to
+provide `dirsave` for larger models, as parameter estimation can take hours (or even days!),
+and without `dirsave`, all intermediate results will be lost if something goes wrong.
 
-For each algorithm, optimizer options can be provided in the format of the respective package.
-For a comprehensive list of available options, please refer to the main documentation. If you want the optimizer
-to return parameter and objective trace information, set `save_trace=true`.
+Different ways to visualize the parameter estimation result can be found in the
+documentation.
 
-Multistart optimization involves generating multiple starting points for optimization runs. These starting points
-are generated using the specified `sampling_method` from [QuasiMonteCarlo.jl](https://github.com/SciML/QuasiMonteCarlo.jl),
-with the default being LatinHypercubeSample, a method that typically produces better results than random sampling.
-If `sample_prior=true` (default), for parameters with priors samples are taken from the prior distribution, where the
-distribution is clipped/truncated by the parameter's lower- and upper bound. For reproducibility, you can set a random
-number generator seed using the `seed` parameter.
+See also [`PEtabMultistartResult`](@ref), [`get_startguesses`](@ref), and [`calibrate`](@ref).
 
-If `dirsave` is provided as `nothing`, results are not written to disk. Otherwise, if a directory path is provided,
-results are written to disk. Writing results to disk is recommended in case the optimization process is terminated
-after a number of optimization runs.
-
-The results are returned as a `PEtabMultistartResult`, which stores the best-found minima (`xmin`),
-smallest objective value (`fmin`), as well as optimization results for each run.
-
-!!! note
-    To use Optim optimizers, you must load Optim with `using Optim`. To use Ipopt, you
-    must load Ipopt with `using Ipopt`. To use Fides, load PyCall with `using PyCall` and
-    ensure Fides is installed (see documentation for setup).
-
-## Examples
-```julia
-# Perform 100 optimization runs using Optim's IPNewton, save results in dirsave
-using Optim
-dirsave = joinpath(@__DIR__, "Results")
-res = calibrate_multistart(prob, Optim.IPNewton(), 100, dirsave;
-                           options=Optim.Options(iterations = 1000))
-```
-```julia
-# Perform 100 optimization runs using Fides, save results in dirsave
-using PyCall
-dirsave = joinpath(@__DIR__, "Results")
-res = calibrate_multistart(prob, Fides(nothing), 100, dirsave;
-                               options=py"{'maxiter' : 1000}"o)
-```
-```julia
-# Perform 100 optimization runs using Ipopt, save results in dirsave. For each
-# run save the trace
-using Ipopt
-dirsave = joinpath(@__DIR__, "Results")
-res = calibrate_multistart(prob, IpoptOptimiser(false), 100, dirsave;
-                               options=IpoptOptions(max_iter = 1000),
-                               save_trace=true)
-```
-```julia
-# Perform 100 optimization runs using Optimization with IPNewton, save results in dirsave.
-using Optimization
-using OptimizationOptimJL
-prob = PEtab.OptimizationProblem(prob, interior_point_alg=true)
-res = calibrate_multistart(prob, IPNewton(), 100, dirsave;
-                                 reltol=1e-8)
-```
+## Keyword Arguments
+- `sampling_method = LatinHypercubeSample()`: Method for sampling a diverse (spread out) set
+   of starting points. See the documentation for [`get_startguesses`](@ref), which is the
+   function used for sampling.
+- `sample_prior::Bool = true`: See the documentation for [`get_startguesses`](@ref).
+- `seed = nothing`: Seed used when generating starting points.
+- `options = DEFAULT_OPTIONS`: Configurable options for `alg`. See the documentation for
+    [`calibrate`](@ref).
 """
 function calibrate_multistart end
 
@@ -133,7 +86,7 @@ function _calibrate_multistart(prob::PEtabODEProblem, alg, nmultistarts, dirsave
     # Will fix with regex when things are running
     sampling_method_str = string(sampling_method)[1:findfirst(x -> x == '(',
                                                               string(sampling_method))][1:(end - 1)]
-    return PEtabMultistartResult(xmin, fmin, nmultistarts, bestrun.alg, sampling_method_str,
+    return PEtabMultistartResult(xmin, fmin, bestrun.alg, nmultistarts, sampling_method_str,
                                  dirsave, runs)
 end
 

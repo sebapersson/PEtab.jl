@@ -15,26 +15,26 @@ the parameter during likelihood computations. It further accounts for parameters
 only appearing in a certain simulation condition.
 """
 function ParameterIndices(petab_tables::Dict{Symbol, DataFrame}, sys, parametermap,
-                          statemap)::ParameterIndices
+                          speciemap)::ParameterIndices
     petab_parameters = PEtabParameters(petab_tables[:parameters])
     petab_measurements = PEtabMeasurements(petab_tables[:measurements],
                                            petab_tables[:observables])
     return ParameterIndices(petab_parameters, petab_measurements, sys, parametermap,
-                            statemap, petab_tables[:conditions])
+                            speciemap, petab_tables[:conditions])
 end
 function ParameterIndices(petab_parameters::PEtabParameters,
                           petab_measurements::PEtabMeasurements,
                           model::PEtabModel)::ParameterIndices
-    @unpack statemap, parametermap, sys_mutated, petab_tables = model
+    @unpack speciemap, parametermap, sys_mutated, petab_tables = model
     return ParameterIndices(petab_parameters, petab_measurements, sys_mutated, parametermap,
-                            statemap, petab_tables[:conditions])
+                            speciemap, petab_tables[:conditions])
 end
 function ParameterIndices(petab_parameters::PEtabParameters,
                           petab_measurements::PEtabMeasurements, sys, parametermap,
-                          statemap,
+                          speciemap,
                           conditions_df::DataFrame)::ParameterIndices
     _check_conditionids(conditions_df, petab_measurements)
-    xids = _get_xids(petab_parameters, petab_measurements, sys, conditions_df, statemap,
+    xids = _get_xids(petab_parameters, petab_measurements, sys, conditions_df, speciemap,
                      parametermap)
 
     # indices for mapping parameters correctly, e.g. from xest -> xdynamic etc...
@@ -42,7 +42,7 @@ function ParameterIndices(petab_parameters::PEtabParameters,
     xindices = _get_xindices(xids)
     xindices_notsys = _get_xindices_notsys(xids)
     odeproblem_map = _get_odeproblem_map(xids)
-    condition_maps = _get_condition_maps(sys, parametermap, statemap, petab_parameters,
+    condition_maps = _get_condition_maps(sys, parametermap, speciemap, petab_parameters,
                                          conditions_df, xids)
     # For each time-point we must build a map that stores if i) noise/obserable parameters
     # are constants, ii) should be estimated, iii) and corresponding index in parameter
@@ -62,7 +62,7 @@ end
 
 function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements,
                    sys::Union{ODESystem, ReactionSystem}, conditions_df::DataFrame,
-                   statemap, parametermap)::Dict{Symbol, Vector{Symbol}}
+                   speciemap, parametermap)::Dict{Symbol, Vector{Symbol}}
     @unpack observable_parameters, noise_parameters = petab_measurements
 
     # Non-dynamic parameters are those that only appear in the observable and noise
@@ -75,7 +75,7 @@ function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabM
                                            conditions_df)
     xids_dynamic = _get_xids_dynamic(xids_observable, xids_noise, xids_nondynamic,
                                      petab_parameters)
-    xids_sys = _get_sys_parameters(sys, statemap, parametermap)
+    xids_sys = _get_sys_parameters(sys, speciemap, parametermap)
     xids_not_system = unique(vcat(xids_observable, xids_noise, xids_nondynamic))
     xids_estimate = vcat(xids_dynamic, xids_not_system)
     xids_petab = petab_parameters.parameter_id
@@ -253,7 +253,7 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}})::MapODEProblem
     return MapODEProblem(sys_to_dynamic, dynamic_to_sys)
 end
 
-function _get_condition_maps(sys, parametermap, statemap, petab_parameters::PEtabParameters,
+function _get_condition_maps(sys, parametermap, speciemap, petab_parameters::PEtabParameters,
                              conditions_df::DataFrame,
                              xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, ConditionMap}
     species_sys = _get_state_ids(sys)
@@ -285,7 +285,7 @@ function _get_condition_maps(sys, parametermap, statemap, petab_parameters::PEta
             # If value is missing the default SBML values should be used. These are encoded
             # in the parameter- and state-maps
             if ismissing(value) && variable in xids_model
-                default_value = _get_default_map_value(variable, parametermap, statemap)
+                default_value = _get_default_map_value(variable, parametermap, speciemap)
                 push!(constant_values, default_value)
                 _add_ix_sys!(isys_constant_values, variable, xids_sys)
                 continue
@@ -344,8 +344,8 @@ function _add_ix_sys!(ix::Vector{Int32}, variable::String,
 end
 
 # Extract default parameter value from state, or parameter map
-function _get_default_map_value(variable::String, parametermap, statemap)::Float64
-    species_sys = first.(statemap) .|> string
+function _get_default_map_value(variable::String, parametermap, speciemap)::Float64
+    species_sys = first.(speciemap) .|> string
     species_sys = replace.(species_sys, "(t)" => "")
     xids_sys = first.(parametermap) .|> string
 
@@ -356,7 +356,7 @@ function _get_default_map_value(variable::String, parametermap, statemap)::Float
 
     # States can have 1 level of allowed recursion (map to a parameter)
     ix = findfirst(x -> x == variable, species_sys)
-    value = statemap[ix].second |> string
+    value = speciemap[ix].second |> string
     if value in xids_sys
         ix = findfirst(x -> x == value, xids_sys)
         return parametermap[ix].second |> Float64
@@ -378,14 +378,14 @@ function _check_conditionids(conditions_df::DataFrame,
     return nothing
 end
 
-function _get_sys_parameters(sys::Union{ODESystem, ReactionSystem}, statemap,
+function _get_sys_parameters(sys::Union{ODESystem, ReactionSystem}, speciemap,
                              parametermap)::Vector{Symbol}
     # This is a hack untill SciMLSensitivity integrates with the SciMLStructures interface.
     # Basically allows the parameters in the system to be retreived in the order they
     # appear in the ODESystem later on
     _p = parameters(sys)
     out = similar(_p)
-    oprob = ODEProblem(sys, statemap, [0.0, 5e3], parametermap; jac = true, sparse = false)
+    oprob = ODEProblem(sys, speciemap, [0.0, 5e3], parametermap; jac = true, sparse = false)
     maps = ModelingToolkit.getp(oprob, _p)
     for (i, map) in pairs(maps.getters)
         out[map.idx.idx] = _p[i]

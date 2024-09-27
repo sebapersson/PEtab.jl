@@ -60,8 +60,8 @@ end
     @test all(.≈(res2.xmin, prob.xnominal_transformed, atol = 1e-2))
     @test all(.≈(res3.xmin, prob.xnominal_transformed, atol = 1e-2))
     # Testing Ipopt.jl
-    res4 = calibrate(prob, x0, IpoptOptimiser(true), options=IpoptOptions(print_level=0))
-    res5 = calibrate(prob, x0, IpoptOptimiser(false), options=IpoptOptions(print_level=0))
+    res4 = calibrate(prob, x0, IpoptOptimizer(true), options=IpoptOptions(print_level=0))
+    res5 = calibrate(prob, x0, IpoptOptimizer(false), options=IpoptOptions(print_level=0))
     @test all(.≈(res4.xmin, prob.xnominal_transformed, atol = 1e-2))
     @test all(.≈(res5.xmin, prob.xnominal_transformed, atol = 1e-2))
     # Testing Optimization.jl (this package is set to have heavy updates, hence limited support)
@@ -83,7 +83,7 @@ end
     prob = PEtabODEProblem(model; verbose=false)
     res1 = calibrate_multistart(prob, Optim.IPNewton(), 10; save_trace=true,
                                 dirsave = dirsave)
-    res2 = calibrate_multistart(prob, IpoptOptimiser(true), 10; save_trace=false)
+    res2 = calibrate_multistart(prob, IpoptOptimizer(true), 10; save_trace=false)
     res3 = calibrate_multistart(prob, Fides(:BFGS), 10; save_trace=false)
     @test all(.≈(res1.xmin, prob.xnominal_transformed, atol = 1e-2))
     @test all(.≈(res2.xmin, prob.xnominal_transformed, atol = 1e-2))

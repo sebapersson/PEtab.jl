@@ -1,26 +1,28 @@
 """
-    petab_select(path_yaml, alg; kwargs...)
+    petab_select(path_yaml, alg; nmultistarts = 100, kwargs...) -> path_res
 
-Given a PEtab-select YAML file perform model selection with the algorithms specified in the
-YAML file using a provided optmization algorithm `alg`.
+For a PEtab-select problem, perform model selection with the method specified in the PEtab
+select problem files. Returns the path (`path_res`) to a YAML-file with model selection
+results.
 
-Results are written to a YAML file in the same directory as the PEtab-select YAML file.
+The general model selection (e.g. to use forward-search) options are specified in the
+PEtab-select files. For details on how to set this up, see the
+PEtab-select [documentation](https://github.com/PEtab-dev/petab_select).
 
-Each candidate model produced during the model selection undergoes parameter estimation
-using local multi-start optimization. Three alg are supported: `optimizer=Fides()`
-(Fides Newton-trust region), `optimizer=IPNewton()` from Optim.jl, and `optimizer=LBFGS()`
-from Optim.jl. Additional keywords for the optimisation are `nmultistarts::Int`- number
-of multi-starts for parameter estimation (defaults to 100) and
-`optimizationSamplingMethod` - which is any sampling method from QuasiMonteCarlo.jl for
-generating start guesses (defaults to LatinHypercubeSample).
+For each round of model selection, the candidate models are parameter estimated using
+multi-start parameter estimation, with `nmultistarts` performed for each model.
+The objective values obtained from parameter estimation are then used for the next round of
+ model evaluation.
 
-Simulation options can be set using any keyword argument accepted by the `PEtabODEProblem` function.
-For example, setting `gradient_method=:ForwardDiff` specifies the use of forward-mode automatic differentiation for
-gradient computation. If left blank, we automatically select appropriate options based on the size of the problem.
+ A list of available and recommended optimization algorithms (`alg`) can be found in the
+package documentation and [`calibrate`](@ref) documentation.
 
-!!! note
-    To use Optim optimizers, you must load Optim with `using Optim`. To use Ipopt, you
-    must load Ipopt with `using Ipopt`. To use Fides, load PyCall with `using PyCall`
-    and ensure Fides is installed (see documentation for setup).
+See also [`calibrate_multistart`](@ref).
+
+## Keyword Arguments
+- `kwargs`: The same keywords accepted by [`PEtabODEProblem`](@ref) and [`calibrate`](@ref).
 """
 function petab_select end
+
+# For developers, the actual code can be found in the PEtabPyCallExt directory. This is
+# just the way functions defined in extensions are handled.

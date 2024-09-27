@@ -11,8 +11,8 @@ using PEtab, OrdinaryDiffEq, SciMLSensitivity, ForwardDiff, LinearAlgebra, Sundi
 include(joinpath(@__DIR__, "common.jl"))
 
 function solve_algebraic_ss(model::PEtabModel, solver, tol::Float64, a::T1, b::T1, c::T1, d::T1) where T1<:Real
-    oprob = ODEProblem(model.sys_mutated, model.statemap, (0.0, 9.7),
-                             model.parametermap, jac=true)
+    oprob = ODEProblem(model.sys_mutated, model.speciemap, (0.0, 9.7), model.parametermap,
+                       jac=true)
     oprob = remake(oprob, p = convert.(eltype(a), oprob.p.tunable),
                          u0 = convert.(eltype(a), oprob.u0))
     sols = Array{ODESolution, 1}(undef, 2)

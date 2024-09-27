@@ -7,7 +7,7 @@ end
 
 function _set_const_parameters!(model::PEtabModel,
                                 parameters_info::PEtabParameters)::Nothing
-    @unpack statemap, parametermap, sys_mutated = model
+    @unpack speciemap, parametermap, sys_mutated = model
     @unpack nominal_value, parameter_id = parameters_info
     state_ids = _get_state_ids(sys_mutated)
     xids_sys = first.(parametermap) .|> string
@@ -18,7 +18,7 @@ function _set_const_parameters!(model::PEtabModel,
         if !isnothing(ip)
             parametermap[ip] = Pair(parametermap[ip].first, nominal_value[i])
         elseif !isnothing(is)
-            statemap[is] = Pair(statemap[is].first, nominal_value[i])
+            speciemap[is] = Pair(speciemap[is].first, nominal_value[i])
         end
     end
     return nothing

@@ -73,8 +73,8 @@ function PEtab.calibrate(prob::PEtabODEProblem,
     elseif alg isa Optim.LBFGS
         alg_used = :Optim_LBFGS
     end
-    return PEtabOptimisationResult(alg_used, xtrace, ftrace, niterations, fmin, xstart,
-                                   xmin, converged, runtime, res)
+    return PEtabOptimisationResult(xmin, fmin, xstart, alg_used, niterations, runtime,
+                                   xtrace, ftrace, converged, res)
 end
 
 function _get_optim_problem(prob::PEtabODEProblem, alg, options::Optim.Options)::Function

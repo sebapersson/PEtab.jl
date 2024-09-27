@@ -77,7 +77,7 @@ When specifying priors in PEtab.jl, it is important to note that parameters are 
 With the priors defined, we can proceed to create a `PEtabODEProblem`.
 
 ```@example 1; ansicolor=false
-model = PEtabModel(sys, observables, measurements, parameters_ets; statemap=specie_map, verbose=false)
+model = PEtabModel(sys, observables, measurements, parameters_ets; speciemap=specie_map, verbose=false)
 petab_problem = PEtabODEProblem(model; ode_solver=ODESolver(Rodas5(), abstol=1e-6, reltol=1e-6), verbose=false)
 nothing #hide
 ```

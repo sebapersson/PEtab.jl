@@ -1,20 +1,13 @@
 """
-    get_odesol(res, prob::PEtabODEProblem; cid=nothing, kwargs...)::ODESolution
+    get_odesol(res, prob::PEtabODEProblem; kwargs...)::ODESolution
 
-From a fitted PEtab model or parameter vector (`res`) solve the ODE model for the specified
-condition id (`cid`). The `ODESolver` options specifed in the `PEtabODEProblem` are used for
-solving the ODE.
+Retrieve the `ODESolution` from simulating the ODE model in `prob`. `res` can
+be a parameter estimation result (e.g., `PEtabMultistartResult`) or a `Vector` with
+parameters in the order expected by `prob` (see [`get_x`](@ref)).
 
-If `cid` is provided, the parameters are extracted for that specific simulation condition.
-If not, parameters for the first (default) simulation condition are used.
+For information on keyword arguements see [`get_ps`](@ref).
 
-If a parameter vector is provided it must have the parameters in the same order as
-`prob.xnames`.
-
-## Keyword arguments
-- `preeq_id`: Potential pre-equlibration (steady-state) simulation id. If a valid `preeq_id`
-    is provided, the ODE is first for `preeq_id` simulated to a steady state. Then starting
-    from the steady-state the ODE solution that is returned is computed.
+See also: [`get_u0`](@ref) and [`get_odeproblem`](@ref).
 """
 function get_odesol(res::EstimationResult, prob::PEtabODEProblem;
                     cid::Union{String, Symbol, Nothing} = nothing,
@@ -28,21 +21,15 @@ function get_odesol(res::EstimationResult, prob::PEtabODEProblem;
 end
 
 """
-    get_odeproblem(res, prob::PEtabODEProblem; cid=nothing, kwargs...)
+    get_odeproblem(res, prob::PEtabODEProblem; kwargs...) -> (sol, callbacks)
 
-From a fitted PEtab model or parameter vector (`res`) retreive the ODEProblem and
-callbackset for the specified condition id (`cid`).
+Retrieve the `ODEProblem` and callbacks (`CallbackSet`) for simulating the ODE model in
+`prob`. `res` can be a parameter estimation result (e.g., `PEtabMultistartResult`) or a
+`Vector` with parameters in the order expected by `prob` (see [`get_x`](@ref)).
 
-For information on the arguments (`cid` and kwargs...) see the documentation for
-[get_odesol].
+For information on keyword arguements see [`get_ps`](@ref).
 
-## Example
-```julia
-using OrdinaryDiffEq
-# Solve the model for condition "cond1"
-prob, cb = get_odeproblem(res, prob, cid="cond1")
-sol = solve(prob, Rodas5P(), callback=cb)
-```
+See also: [`get_u0`](@ref) and [`get_odesol`](@ref).
 """
 function get_odeproblem(res::EstimationResult, prob::PEtabODEProblem;
                         cid::Union{String, Symbol, Nothing} = nothing,
@@ -56,16 +43,27 @@ function get_odeproblem(res::EstimationResult, prob::PEtabODEProblem;
 end
 
 """
-    get_ps(res, prob::PEtabODEProblem; cid=nothing, retmap=true, kwargs...)
+    get_ps(res, prob::PEtabODEProblem; kwargs...)
 
-From a fitted PEtab model or parameter vector (`res`) retreive the `ODEProblem` parameters
-for the specified `cid`
+Retrieve the `ODEProblem` parameter values for simulating the ODE model in `prob`. `res` can
+be a parameter estimation result (e.g., `PEtabMultistartResult`) or a `Vector` with
+parameters in the order expected by `prob` (see [`get_x`](@ref)).
 
-If `retmap=true` (recomended) a map on the form `[k1 => val1, ...]` is returned, otherwise
-a vector is returned.
+See also: [`get_u0`](@ref), [`get_odeproblem`](@ref), [`get_odesol`](@ref).
 
-For information on the arguments (`cid` and `kwargs...`) see the documentation for
-[get_odesol].
+## Keyword Arguments
+
+- `retmap=true`: Whether to return the values as a map in the form `[k1 => val1, ...]`. Such
+    a map can be directly used when building an `ODEProblem`. If `false`, a `Vector` is
+    returned. This keyword is only applicable for `get_u0` and `get_ps`.
+- `cid::Symbol`: Which simulation condition to return parameters for. If not provided,
+    defaults to the first simulation condition. For other `get` functions, the
+    `ODEProblem`, `u0`, or `ODESolution` for the specified `cid` is returned.
+- `preeq_id`: Which potential pre-equilibration (steady-state) simulation id to use.
+    If a valid `preeq_id` is provided, the ODE is first simulated to steady state for
+    `preeq_id`. Then the model shifts to `cid`, and the parameters for `cid` are returned.
+    For other `get` functions, the  `ODEProblem`, `u0`, or `ODESolution` for the
+    specified `cid` is returned
 """
 function get_ps(res::EstimationResult, prob::PEtabODEProblem;
                 cid::Union{String, Symbol, Nothing} = nothing, retmap::Bool = true)
@@ -74,13 +72,15 @@ function get_ps(res::EstimationResult, prob::PEtabODEProblem;
 end
 
 """
-    get_u0(res, prob::PEtabODEProblem; cid=nothing, retmap=true, kwargs...)
+    get_u0(res, prob::PEtabODEProblem; kwargs...)
 
-From a fitted PEtab model or parameter vector (`res`) retreive the `ODEProblem` initial
-values for the specified `cid`.
+Retrieve the `ODEProblem` initial values for simulating the ODE model in `prob`. `res` can
+be a parameter estimation result (e.g., `PEtabMultistartResult`) or a `Vector` with
+parameters in the order expected by `prob` (see [`get_x`](@ref)).
 
-For information on the arguments (`cid` and `kwargs...`) see the documentation for
-[get_ps].
+For information on keyword arguements see [`get_ps`](@ref).
+
+See also [`get_odeproblem`](@ref) and [`get_odesol`](@ref).
 """
 function get_u0(res::EstimationResult, prob::PEtabODEProblem; retmap::Bool = true,
                 cid::Union{String, Symbol, Nothing} = nothing,
@@ -111,7 +111,7 @@ function _get_ps_u0(res::EstimationResult, prob::PEtabODEProblem,
     p = odeproblem.p[:]
     ps = xindices.xids[:sys]
     u0 = odeproblem.u0[:]
-    u0s = first.(model_info.model.statemap)[1:length(u0)]
+    u0s = first.(model_info.model.speciemap)[1:length(u0)]
 
     # Set constant model parameters
     _set_cond_const_parameters!(p, xdynamic, xindices)
@@ -158,27 +158,48 @@ function _get_ps_u0(res::EstimationResult, prob::PEtabODEProblem,
 end
 
 """
-    solve_all_conditions(xpetab, prob::PEtabODEProblem, solver; <keyword arguments>)
+    get_x(prob::PEtabODEProblem; linear_scale = false)::ComponentArray
 
-Simulates the ODE model for all simulation conditions using the provided ODE solver and
-parameter vector `x`.
+Get the nominal parameter vector with parameters in the correct order expected by `prob` for
+parameter estimation/inference. Nominal values can optionally be specified when creating a
+`PEtabParameter`, or in the parameters table if the problem is provided in the PEtab
+standard format.
 
-The parameter vector `x` should be provided on the PEtab scale (default log10).
+For ease of interaction (e.g., changing values), the parameter vector is returned as a
+`ComponentArray`.  For how to interact with a `ComponentArray`, see the documentation and
+the ComponentArrays.jl [documentation](https://github.com/jonniedie/ComponentArrays.jl).
+
+See also [`PEtabParameter`](@ref).
+
+## Keyword argument
+- `linear_scale`: Whether to return parameters on the linear scale. By default, parameters
+  are returned on the scale they are estimated, which by default is `log10` as this often
+  improves parameter estimation performance.
+"""
+function get_x(prob::PEtabODEProblem; linear_scale::Bool = false)::ComponentArray
+    return linear_scale ? prob.xnominal : prob.xnominal_transformed
+end
+
+"""
+    solve_all_conditions(x, prob::PEtabODEProblem, solver; kwargs)
+
+Solve the ODE model in `prob` for all simulation conditions with the provided ODE-solver.
+
+`x` should be a `Vector` or `ComponentArray` with parameters in the order expected by
+`prob` (see [`get_x`](@ref)).
 
 # Keyword Arguments
 - `abstol=1e-8`: Absolute tolerance for the ODE solver.
 - `reltol=1e-8`: Relative tolerance for the ODE solver.
 - `maxiters=1e4`: Maximum iterations for the ODE solver.
-- `ntimepoints_save=0`: Specifies the number of time points at which to save the ODE
-    solution for each condition. A value of 0 means the solution is saved at the solvers
-    default time points.
+- `ntimepoints_save=0`: The number of time points at which to save the ODE solution for
+    each condition. A value of 0 means the solution is saved at the solvers default time
+    points.
 - `save_observed_t=false`: When set to true, this option overrides `ntimepoints_save`
-    and saves the ODE solution only at the time points where measurement data are available.
+    and saves the ODE solution only at the time points where measurement data is available.
 
 # Returns
-- `odesols`: A dictionary containing the `ODESolution` for each condition.
-- `could_solve`: A boolean value indicating whether the model was successfully solved for
-    all conditions.
+- `odesols`: A dictionary containing the `ODESolution` for each simulation condition.
 """
 function solve_all_conditions(x, prob::PEtabODEProblem, osolver; abstol = 1e-8,
                               reltol = 1e-8, maxiters = nothing, ntimepoints_save = 0,
@@ -197,10 +218,10 @@ function solve_all_conditions(x, prob::PEtabODEProblem, osolver; abstol = 1e-8,
     split_x!(x, xindices, cache)
     xdynamic_ps = transform_x(cache.xdynamic, xindices, :xdynamic, cache)
 
-    could_solve = solve_conditions!(model_info, xdynamic_ps, probinfo;
-                                    ntimepoints_save = ntimepoints_save,
-                                    save_observed_t = save_observed_t)
-    return model_info.simulation_info.odesols, could_solve
+    _ = solve_conditions!(model_info, xdynamic_ps, probinfo;
+                         ntimepoints_save = ntimepoints_save,
+                         save_observed_t = save_observed_t)
+    return model_info.simulation_info.odesols
 end
 
 function _get_cid(cid::Union{Nothing, Symbol, String}, model_info::ModelInfo)::Symbol

@@ -3,7 +3,7 @@
 
 Parameter estimation information for parameter `x`.
 
-All pest to be estimated in a `PEtabODEProblem` must be declared as a
+All parameters to be estimated in a `PEtabODEProblem` must be declared as a
 `PEtabParameter`, and `x` must be the name of a parameter that appears in the model,
 observable formula, or noise formula.
 
@@ -14,33 +14,27 @@ observable formula, or noise formula.
 - `scale::Symbol = :log10`: The scale on which to estimate the parameter. Allowed options
     are `:log10` (default), `:log`, and `:lin`. Estimating pest on the `log10` scale
     typically improves performance and is recommended.
-- `prior = nothing`: An optional continuous univariate prior distribution from
+- `prior = nothing`: An optional continuous univariate parameter prior distribution from
     [Distributions.jl](https://github.com/JuliaStats/Distributions.jl).
 - `prior_on_linear_scale = true`: Whether the prior is on the linear scale (default) or on
     the transformed scale. For example, if `scale = :log10` and
-    `prior_on_linear_scale = false`, the prior acts on the transformed value; `log10(id)`.
+    `prior_on_linear_scale = false`, the prior acts on the transformed value; `log10(x)`.
 - `estimate = true`: Whether the parameter should be estimated (default) or treated as a
     constant.
-- `value = nothing`: Value to use if `estimate = false`. Defaults to the midpoint between
-    `lb` and `ub`.
+- `value = nothing`: Value to use if `estimate = false`, and value retreived by the `get_x`
+    function. Defaults to the midpoint between `lb` and `ub`.
 
 ## Description
 
 If a prior ``\\pi(x_i)`` is provided, the parameter estimation problem becomes a maximum a
 posteriori problem instead of a maximum likelihood problem. Practically, instead of
 minimizing the negative log-likelihood,``-\\ell(x)``, the negative posterior is minimized:
+
 ```math
-\\min -\\ell(x) - \\sum_{i} π(xᵢ)
+\\min_{\\mathbf{x}} -\\ell(\\mathbf{x}) - \\sum_{i} \\pi(x_i)
 ```
-For all pest ``x_{i}`` with a prior.
 
-## Example
-
-```julia
-# Parameter with a LogNormal prior
-using PEtab, Distributions
-PEtabParameter(:c1; prior=LogNormal(3.0, 1.0))
-```
+For all parameters ``i`` with a prior.
 """
 struct PEtabParameter
     parameter::Union{Num, Symbol}
@@ -50,18 +44,15 @@ struct PEtabParameter
     ub::Union{Nothing, Float64}
     prior::Union{Nothing, Distribution{Univariate, Continuous}}
     prior_on_linear_scale::Bool
-    scale::Union{Nothing, Symbol} # :log10, :linear and :log supported.
+    scale::Symbol
     sample_prior::Bool
 end
-function PEtabParameter(id::Union{Num, Symbol};
-                        estimate::Bool = true,
-                        value::Union{Nothing, Float64} = nothing,
+function PEtabParameter(id::Union{Num, Symbol}; estimate::Bool = true,
+                        value::Union{Nothing, Float64} = nothing, sample_prior::Bool = true,
                         lb::Union{Nothing, Float64} = 1e-3,
                         ub::Union{Nothing, Float64} = 1e3,
                         prior::Union{Nothing, Distribution{Univariate, Continuous}} = nothing,
-                        prior_on_linear_scale::Bool = true,
-                        scale::Union{Nothing, Symbol} = :log10,
-                        sample_prior::Bool = true)
+                        prior_on_linear_scale::Bool = true, scale::Symbol = :log10)
     return PEtabParameter(id, estimate, value, lb, ub, prior, prior_on_linear_scale, scale,
                           sample_prior)
 end
@@ -72,57 +63,44 @@ end
 Formulas defining the likelihood that links the model output to the measurement data.
 
 `obs_formula` describes how the model output relates to the measurement data, while
-`noise_formula` describes the measurement error and can be a constant numerical value.
-The observable and noise formulas can be any valid Julia equation (see example 2 below).
-Variables used in these formulas must be either model species, model pest, or
-pest defined as `PEtabParameter`. The formulas can also include time-point-specific
-noise and observable pest; for more information on this see the documentation.
+`noise_formula` describes the standard deviation (measurement error) and can be an equation
+or a numerical value. Both the observable and noise formulas can be a valid Julia equation.
+Variables used in these formulas must be either model species, model parameters, or
+parameters defined as `PEtabParameter`. The formulas can also include time-point-specific
+noise and observable parameters; for more information, see the documentation.
 
-## Keyword Arguments
+## Keyword Argument
 
-- `transformation`: Specifies the transformation applied to the observable and measurement.
-    Valid options are `:lin` (normal measurement noise), `:log`, or `:log10` (log-normal
-    measurement noise). See below for more details.
+- `transformation`: The transformation applied to the observable and its corresponding
+    measurements. Valid options are `:lin` (normal measurement noise), `:log`, or
+    `:log10` (log-normal measurement noise). See below for more details.
 
 ## Description
 
-For a measurement ``y``, an observable ``h = obs\\_formula``, and a standard deviation
-``\\sigma = noise\\_formula``, the `PEtabObservable` defines the likelihood that links the
+For a measurement `y`, an observable `h = obs_formula`, and a standard deviation
+`σ = noise_formula`, the `PEtabObservable` defines the likelihood that links the
 model output to the measurement data: ``\\pi(y \\mid h, \\sigma)``. For
 `transformation = :lin`, the measurement noise is assumed to be normally distributed, and
 the likelihood is given by:
+
 ```math
-\\pi(y|h, \\sigma) = \\frac{1}{\\sqrt{2\\pi \\sigma^2}}\\mathrm{exp}\\bigg( -\\frac{y - h}{2\\sigma^2} \\bigg)
+\\pi(y|h, \\sigma) = \\frac{1}{\\sqrt{2\\pi \\sigma^2}}\\mathrm{exp}\\bigg( -\\frac{(y - h)^2}{2\\sigma^2} \\bigg)
 ```
 
 As a special case, if ``\\sigma = 1``, this likelihood reduces to the least-squares
 objective function. For `transformation = :log`, the measurement noise is assumed to be
 log-normally distributed, and the likelihood is given by:
 ```math
-\\pi(y|h, \\sigma) = \\frac{1}{\\sqrt{2\\pi \\sigma^2 y^2}}\\mathrm{exp}\\bigg( -\\frac{\\mathrm{log}(y) - \\mathrm{log}(h)}{2\\sigma^2} \\bigg)
+\\pi(y|h, \\sigma) = \\frac{1}{\\sqrt{2\\pi \\sigma^2 y^2}}\\mathrm{exp}\\bigg( -\\frac{\\big(\\mathrm{log}(y) - \\mathrm{log}(h)\\big)^2}{2\\sigma^2} \\bigg)
 ```
 
 For `transformation = :log10`, the measurement noise is assumed to be log10-normally
 distributed, and the likelihood is given by:
 ```math
-\\pi(y|h, \\sigma) = \\frac{1}{\\sqrt{2\\pi \\sigma^2 y^2}\\mathrm{log}(10) }\\mathrm{exp}\\bigg( -\\frac{\\mathrm{log}_{10}(y) - \\mathrm{log}_{10}(h)}{2\\sigma^2} \\bigg)
+\\pi(y|h, \\sigma) = \\frac{1}{\\sqrt{2\\pi \\sigma^2 y^2}\\mathrm{log}(10) }\\mathrm{exp}\\bigg( -\\frac{\\big(\\mathrm{log}_{10}(y) - \\mathrm{log}_{10}(h)\\big)^2}{2\\sigma^2} \\bigg)
 ```
 
-It should be noted, that in practice when running parameter estimation or Bayesian
-inference, PEtab.jl uses the log-likelihood for numerical stability.
-
-## Examples
-```julia
-# Example 1: Constant known measurement noise σ=3.0
-@unpack X = rn  # 'rn' is the dynamic model and X is assumed model specie
-PEtabObservable(X, 3.0, transformation=:log)
-```
-```julia
-# Example 2: Unknown measurement noise σ (which must be defined as PEtabParameter)
-@unpack X, Y = rn  # 'rn' is the dynamic model and X and Y are assumed model species
-@pest sigma
-PEtabObservable((X + Y) / X, sigma)
-```
+For numerical stabillity, PEtab.jl works with the log-likelihood in practice.
 """
 struct PEtabObservable
     obs::Any
@@ -140,39 +118,17 @@ end
 A model event triggered by `condition` that sets the value of `targets` to that of
 `affects`.
 
-For a collection of examples with plots, see the documentation.
+For a collection of examples with corresponding plots, see the documentation.
 
 ## Arguments
 - `condition`: A Boolean expression that triggers the event when it transitions from
     `false` to `true`. For example, if `t == c1`, the event is triggered when the model
-    time `t` equals `c1`. For `S > 2.0`, the event triggers when `S` passes the value 2.0
+    time `t` equals `c1`. For `S > 2.0`, the event triggers when specie `S` passes 2.0
     from below.
-- `affects`: An algebraic expression consisting of model species and pest that
-    describes the effect of the event. It can be a single expression or a vector of
-    multiple effects.
-- `targets`: Model species or pest that the event acts on. Must match the dimension of
-    `affects`.
-
-## Examples
-```julia
-using Catalyst, PEtab
-# Trigger event at t = 3.0, and update A <- A + 5
-rn = @reaction_network begin
-    (k1, k2), A <--> B
-end
-@unpack A = rn
-t = default_time()
-event = PEtabEvent(3.0 == 3, A + 5.0, A)
-```
-```julia
-using Catalyst
-# Trigger event when A == 0.2, and update B <- 2.0
-rn = @reaction_network begin
-    (k1, k2), A <--> B
-end
-@unpack A, B = rn
-event = PEtabEvent(A == 0.2, 2.0, B)
-```
+- `affects`: An equation of of model species and parameters that describes the effect of
+    the event. It can be a single expression or a vector if there are multiple targets.
+- `targets`: Model species or parameters that the event acts on. Must match the dimension
+    of `affects`.
 """
 struct PEtabEvent
     condition
@@ -194,24 +150,24 @@ See also [`PEtabObservable`](@ref), [`PEtabParameter`](@ref), and [`PEtabEvent`]
 ## Keyword Arguments
 
 - `simulation_conditions = nothing`: An optional dictionary specifying initial specie values
-    and/or model parameters for each simulation condition. Required if the model has
+    and/or model parameters for each simulation condition. Only required if the model has
     multiple simulation conditions.
 - `events = nothing`: Optional model events (callbacks) provided as `PEtabEvent`. Multiple
-    events should be provided as a Vector of `PEtabEvent`.
+    events should be provided as a `Vector` of `PEtabEvent`.
 - `verbose::Bool = false`: Whether to print progress while building the `PEtabModel`.
 
 
     PEtabModel(path_yaml; kwargs...)
 
-Import a PEtab problem in the standard format, with the YAML file located at `path_yaml`,
-into a `PEtabModel` for parameter estimation.
+Import a PEtab problem in the standard format with YAML file at `path_yaml` into a
+`PEtabModel` for parameter estimation.
 
 For examples on how to import a PEtab problem, see the documentation.
 
 ## Keyword Arguments
-- `ifelse_to_callback::Bool = true`: Rewrites `ifelse` (SBML piecewise) expressions to use
-  [callbacks](https://github.com/SciML/DiffEqCallbacks.jl). This improves simulation
-  runtime. It is strongly recommended to set this to `true`.
+- `ifelse_to_callback::Bool = true`: Whether to rewrite `ifelse` (SBML piecewise)
+    expressions to [callbacks](https://github.com/SciML/DiffEqCallbacks.jl). This improves
+    simulation runtime. It is strongly recommended to set this to `true`.
 - `verbose::Bool = false`: Whether to print progress while building the `PEtabModel`.
 - `write_to_file::Bool = false`: Whether to write the generated Julia functions to files in
    the same directory as the PEtab problem. Useful for debugging.
@@ -227,7 +183,7 @@ struct PEtabModel
     sys::Any
     sys_mutated::Any
     parametermap::Any
-    statemap::Any
+    speciemap::Any
     petab_tables::Dict{Symbol, DataFrame}
     callbacks::SciMLBase.DECallback
     defined_in_julia::Bool

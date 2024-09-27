@@ -39,15 +39,15 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
 
     btime = @elapsed begin
         _set_const_parameters!(model, model_info.petab_parameters)
-        @unpack sys_mutated, statemap, parametermap, defined_in_julia = model
+        @unpack sys_mutated, speciemap, parametermap, defined_in_julia = model
         if sys_mutated isa ODESystem && defined_in_julia == false
             SL = specialize_level
-            _oprob = ODEProblem{true, SL}(sys_mutated, statemap, [0.0, 5e3], parametermap;
+            _oprob = ODEProblem{true, SL}(sys_mutated, speciemap, [0.0, 5e3], parametermap;
                                           jac = true, sparse = sparse_jacobian_use)
         else
             # For ReactionSystem there is bug if I try to set specialize_level. Also,
-            # statemap must somehow be a vector. TODO: Test with MTKv9
-            u0map_tmp = zeros(Float64, length(model.statemap))
+            # speciemap must somehow be a vector. TODO: Test with MTKv9
+            u0map_tmp = zeros(Float64, length(model.speciemap))
             _oprob = ODEProblem(sys_mutated, u0map_tmp, [0.0, 5e3], parametermap;
                                 jac = true, sparse = sparse_jacobian_use)
         end

@@ -51,11 +51,6 @@
     x_vals, y_vals
 end
 
-"""
-    get_obs_comparison_plots(res, model; kwargs...)
-
-Generates plots comparing the fitted solution to the data. The output is a dict, which contain one entry for each cid. Each of these entries contain another dict, each with one entry for each observables_id. Each of these entries contain the output of `plot(res, model; obsids=[obsid], cid=cid, kwargs...)` for the corresponding condition and observables ids.
-"""
 function PEtab.get_obs_comparison_plots(res::Union{PEtabOptimisationResult,
                                                    PEtabMultistartResult},
                                         prob::PEtabODEProblem; kwargs...)
@@ -75,7 +70,7 @@ end
 """
     _get_observable(x, prob::PEtabODEProblem, cid::String, obsid::String)
 
-Return the model values for a given obsid (obsid )and cid (condition id) using
+Return the model values for a given obsid and cid (condition id) using
 the parameter vector x.
 
 This function is primarily used for plotting purposes. It is important to note that for a

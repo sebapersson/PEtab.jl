@@ -29,10 +29,14 @@ import QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
-include(joinpath("structs", "create_petab_model.jl"))
+const ModelSystem = Union{ODESystem, ReactionSystem}
+const NonlinearAlg = Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}
+
+include(joinpath("structs", "petab_model.jl"))
+include(joinpath("structs", "petab_odeproblem.jl"))
+include(joinpath("structs", "parameter_estimation.jl"))
 include("Structs.jl")
 
-const ModelSystem = Union{ODESystem, ReactionSystem}
 const EstimationResult = Union{PEtabOptimisationResult, PEtabMultistartResult,
                                Vector{<:AbstractFloat}, ComponentArray}
 
@@ -79,6 +83,7 @@ include(joinpath("petab_odeproblem", "ss_solver.jl"))
 
 include(joinpath("parameter_estimation", "multistart.jl"))
 include(joinpath("parameter_estimation", "petab_select.jl"))
+include(joinpath("parameter_estimation", "plot.jl"))
 include(joinpath("parameter_estimation", "singlestart.jl"))
 include(joinpath("parameter_estimation", "startguesses.jl"))
 
@@ -95,23 +100,18 @@ include(joinpath("util.jl"))
     end
 end
 
-export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
-       PEtabODEProblem, remake, Fides, PEtabOptimisationResult, IpoptOptions,
-       IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartResult,
-       get_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, PEtabEvent,
-       PEtabLogDensity, solve_all_conditions
-
-# These are given as extensions, but their docstrings are availble in the
-# general documentation
-export calibrate, calibrate_multistart, petab_select
-function get_obs_comparison_plots end
-export get_obs_comparison_plots
-
 # Functions that only appear in extension
 function compute_llh end
 function compute_prior end
 function get_correction end
 function correct_gradient! end
+
+export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
+       PEtabODEProblem, remake, Fides, PEtabOptimisationResult, IpoptOptions,
+       IpoptOptimizer, PEtabParameter, PEtabObservable, PEtabMultistartResult,
+       get_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, PEtabEvent,
+       PEtabLogDensity, solve_all_conditions, get_x, calibrate, calibrate_multistart,
+       petab_select, get_obs_comparison_plots
 
 """
     to_prior_scale(xpetab, target::PEtabLogDensity)::AbstractVector

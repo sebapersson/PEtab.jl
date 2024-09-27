@@ -1,5 +1,5 @@
 function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
-                    verbose::Bool = true, ifelse_to_callback::Bool = true,
+                    verbose::Bool = false, ifelse_to_callback::Bool = true,
                     write_to_file::Bool = false)::PEtabModel
     paths = _get_petab_paths(path_yaml)
     petab_tables = read_tables(path_yaml)
@@ -35,7 +35,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
     btime = @elapsed begin
         get_rn = @RuntimeGeneratedFunction(Meta.parse(modelstr))
         # Argument needed by @RuntimeGeneratedFunction
-        rn, statemap, parametermap = get_rn("https://xkcd.com/303/")
+        rn, speciemap, parametermap = get_rn("https://xkcd.com/303/")
         _odesystem = convert(ODESystem, Catalyst.complete(rn))
         # DAE requires special processing
         if isempty(model_SBML.algebraic_rules)
@@ -46,11 +46,11 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
     end
     # The state-map is not in the same order as unknowns(system) so the former is reorded
     # to make it easier to build the u0 function
-    _reorder_statemap!(statemap, odesystem)
+    _reorder_speciemap!(speciemap, odesystem)
 
     # Indices for mapping parameters and tracking which parameter to estimate, useful
     # when building the comig PEtab functions
-    xindices = ParameterIndices(petab_tables, odesystem, parametermap, statemap)
+    xindices = ParameterIndices(petab_tables, odesystem, parametermap, speciemap)
 
     _logging(:Build_ODESystem, verbose; time = btime)
 
@@ -61,7 +61,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
         btime = @elapsed begin
             hstr, u0!str, u0str, σstr = parse_observables(name, paths, odesystem,
                                                           petab_tables[:observables],
-                                                          xindices, statemap, model_SBML,
+                                                          xindices, speciemap, model_SBML,
                                                           write_to_file)
         end
         _logging(:Build_u0_h_σ, verbose; time = btime)
@@ -80,14 +80,14 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
     _logging(:Build_callbacks, verbose)
     btime = @elapsed begin
         float_tspan = _xdynamic_in_event_cond(model_SBML, xindices, petab_tables) |> !
-        psys = _get_sys_parameters(odesystem, statemap, parametermap) .|> string
+        psys = _get_sys_parameters(odesystem, speciemap, parametermap) .|> string
         cbset = SBMLImporter.create_callbacks(odesystem, model_SBML, name;
                                               p_PEtab = psys, float_tspan = float_tspan)
     end
     _logging(:Build_callbacks, verbose; time = btime)
 
     return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan,
-                      paths, odesystem, deepcopy(odesystem), parametermap, statemap,
+                      paths, odesystem, deepcopy(odesystem), parametermap, speciemap,
                       petab_tables, cbset, false)
 end
 
@@ -137,14 +137,14 @@ function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, conditions_df::D
     return nothing
 end
 
-function _reorder_statemap!(statemap, odesystem::ODESystem)::Nothing
+function _reorder_speciemap!(speciemap, odesystem::ODESystem)::Nothing
     statenames = unknowns(odesystem) .|> string
     for (i, statename) in pairs(statenames)
-        string(statemap[i].first) == statename && continue
-        imap = findfirst(x -> x == statename, first.(statemap) .|> string)
-        tmp = statemap[i]
-        statemap[i] = statemap[imap]
-        statemap[imap] = tmp
+        string(speciemap[i].first) == statename && continue
+        imap = findfirst(x -> x == statename, first.(speciemap) .|> string)
+        tmp = speciemap[i]
+        speciemap[i] = speciemap[imap]
+        speciemap[imap] = tmp
     end
     return nothing
 end

@@ -1,22 +1,21 @@
-# TODO: Need to make sure consistent type in the statemap (use same as in unknowns)
-function _get_statemap(sys::Union{ODESystem, ReactionSystem}, conditions_df::DataFrame,
-                       statemap_input)
+# TODO: Need to make sure consistent type in the speciemap (use same as in unknowns)
+function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, speciemap_input)
     specie_ids = _get_state_ids(sys)
     sys_unknowns = unknowns(sys)
     default_values = ModelingToolkit.get_defaults(sys) |> _keys_to_string
-    statemap = Vector{Pair}(undef, 0)
+    speciemap = Vector{Pair}(undef, 0)
     for (i, specieid) in pairs(specie_ids)
         value = haskey(default_values, specieid) ? default_values[specieid] : 0.0
-        push!(statemap, sys_unknowns[i] => value)
+        push!(speciemap, sys_unknowns[i] => value)
     end
 
-    # Default values as statemap_input might only set values for subset of species
-    if !isnothing(statemap_input)
-        for (specie_id, value) in statemap_input
+    # Default values as speciemap_input might only set values for subset of species
+    if !isnothing(speciemap_input)
+        for (specie_id, value) in speciemap_input
             id = replace(string(specie_id), "(t)" => "")
             !(id in specie_ids) && continue
             is = findfirst(x -> x == id, specie_ids)
-            statemap[is] = first(statemap[is]) => value
+            speciemap[is] = first(speciemap[is]) => value
         end
     end
 
@@ -27,13 +26,13 @@ function _get_statemap(sys::Union{ODESystem, ReactionSystem}, conditions_df::Dat
         pid = "__init__" * string(condition_variable) * "__"
         sys = _add_parameter(sys, pid)
         is = findfirst(x -> x == condition_variable, specie_ids)
-        statemap[is] = first(statemap[is]) => eval(Meta.parse("@parameters $pid"))[1]
+        speciemap[is] = first(speciemap[is]) => eval(Meta.parse("@parameters $pid"))[1]
     end
 
-    return sys, statemap
+    return sys, speciemap
 end
 
-function _get_parametermap(sys::Union{ODESystem, ReactionSystem}, parametermap_input)
+function _get_parametermap(sys::ModelSystem, parametermap_input)
     parametermap = [Num(p) => 0.0 for p in parameters(sys)]
 
     # User are allowed to specify default numerical values in the system
@@ -65,15 +64,23 @@ function _get_parametermap(sys::Union{ODESystem, ReactionSystem}, parametermap_i
     return parametermap
 end
 
-function _check_unassigned_variables(variablemap, whichmap::Symbol,
-                                     parameters_df::DataFrame,
+function _check_unassigned_variables(sys::ModelSystem, variablemap, mapinput,
+                                     whichmap::Symbol, parameters_df::DataFrame,
                                      conditions_df::DataFrame)::Nothing
+    default_values = ModelingToolkit.get_defaults(sys)
+    if !isnothing(mapinput)
+        ids_input = replace.(first.(mapinput) .|> string, "(t)" => "")
+    else
+        ids_input = nothing
+    end
     for (variableid, value) in variablemap
         value = value |> string
         value != "0.0" && continue
+        haskey(default_values, variableid) && continue
 
         # As usual specie ids can be on the form S(t) ...
         id = replace(variableid |> string, "(t)" => "")
+        !isnothing(ids_input) && id in ids_input && continue
         # Parameter for initial value
         if length(id) > 8 && id[1:8] == "__init__"
             continue

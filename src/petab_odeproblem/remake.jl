@@ -1,13 +1,15 @@
 """
     remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
 
-Fixate model parameters for a given PEtabODEProblem without recompiling the problem.
+Fix and consequently remove a set of parameters from being estimated without rebuilding
+`prob`.
 
-This function allows you to modify parameters without the need to recompile the underlying code, resulting in reduced
-latency. To fixate the parameter k1, you can use `xchange=Dict(:k1 => 1.0)`.
+`xchange` should be provided as a `Dict` with parameter names and their new values. For
+example, to fix `k1` to `1.0`, provide `xchange = Dict(:k1 => 1.0)`. The parameters to be
+fixed can only be those that were originally set to be estimated.
 
-If model derivatives are computed using ForwardDiff.jl with a chunk-size of N, the new PEtabODEProblem will only
-evaluate the necessary number of chunks of size N to compute the full gradient for the remade problem.
+`remake` is the most efficient approach for fixing parameters, as it does not re-compile the
+problem.
 """
 function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
     # It only makes sense to remake (from compilation point if view) if parameters that

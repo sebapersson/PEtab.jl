@@ -51,7 +51,7 @@ Cost Rodas5P(). Options (abstol, reltol, maxiters) = (1.0e-08, 1.0e-08, 1.0e+04)
 Gradient Rodas5P(). Options (abstol, reltol, maxiters) = (1.0e-08, 1.0e-08, 1.0e+04)
 ```
 
-If we don not provide any of these arguments, appropriate options are automatically selected based on the size of the problem following the guidelines in [Choosing best options for a PEtab problem](@ref best_options).
+If we don not provide any of these arguments, appropriate options are automatically selected based on the size of the problem following the guidelines in [Choosing best options for a PEtab problem](@ref default_options).
 
 ```julia
 petab_problem = PEtabODEProblem(model)
@@ -102,4 +102,4 @@ First element in the hessian = 2199.49
 
 ## Where to go from here
 
-Next, if you want the estimate the model we suggest you take a look at the [Parameter Estimation (Model Calibration)](@ref parameter_estimation). We also recommend [Choosing best options for a PEtab problem](@ref best_options) guide. In case you want to setup the PEtab problem directory in Julia take a look at [Creating a PEtab Parameter Estimation Problem in Julia](@ref define_in_julia)
+Next, if you want the estimate the model we suggest you take a look at the [Parameter Estimation (Model Calibration)](@ref parameter_estimation). We also recommend [Choosing best options for a PEtab problem](@ref default_options) guide. In case you want to setup the PEtab problem directory in Julia take a look at [Creating a PEtab Parameter Estimation Problem in Julia](@ref define_in_julia)

@@ -7,7 +7,7 @@ using Catalyst: @unpack
 using ComponentArrays
 using PEtab
 
-function PEtab.calibrate_multistart(prob::PEtabODEProblem, alg::IpoptOptimiser,
+function PEtab.calibrate_multistart(prob::PEtabODEProblem, alg::IpoptOptimizer,
                                     nmultistarts::Signed; save_trace::Bool = false,
                                     dirsave::Union{Nothing, String} = nothing,
                                     sampling_method::SamplingAlgorithm = LatinHypercubeSample(),
@@ -23,7 +23,7 @@ end
 
 function PEtab.calibrate(prob::PEtabODEProblem,
                          x::Union{Vector{<:AbstractFloat}, ComponentArray},
-                         alg::IpoptOptimiser; save_trace::Bool = false,
+                         alg::IpoptOptimizer; save_trace::Bool = false,
                          options::IpoptOptions = IpoptOptions())::PEtab.PEtabOptimisationResult
     xstart = x |> collect
     ipopt_prob, iters, ftrace, xtrace = _get_ipopt_prob(prob, alg.LBFGS, save_trace,
@@ -58,8 +58,8 @@ function PEtab.calibrate(prob::PEtabODEProblem,
     else
         alg_used = :Ipopt_user_Hessian
     end
-    return PEtabOptimisationResult(alg_used, xtrace, ftrace, niterations, fmin, xstart,
-                                   xmin, converged, runtime, sol_ipopt)
+    return PEtabOptimisationResult(xmin, fmin, xstart, alg_used, niterations, runtime,
+                                   xtrace, ftrace, converged, sol_ipopt)
 end
 
 function _get_ipopt_prob(prob::PEtabODEProblem, LBFGS::Bool, save_trace::Bool, options::PEtab.IpoptOptions)
