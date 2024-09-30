@@ -13,8 +13,11 @@ PEtab.jl is a Julia package for creating parameter estimation problems for fitti
 * Includes wrappers for performing parameter estimation with optimization packages [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl), [Ipopt](https://coin-or.github.io/Ipopt/), [Optimization.jl](https://github.com/SciML/Optimization.jl), and [Fides.py](https://github.com/fides-dev/fides).
 * Includes wrappers for performing Bayesian inference with the state-of-the-art NUTS sampler (the same sampler used in [Turing.jl](https://github.com/TuringLang/Turing.jl)) or with [AdaptiveMCMC.jl](https://github.com/mvihola/AdaptiveMCMC.jl).
 
-!!! note "Give us a Star!"
+!!! note "Star us on GitHub!"
     If you find the package useful in your work please consider giving us a star on [GitHub](https://github.com/sebapersson/PEtab.jl). This will help us secure funding in the future to continue maintaining the package.
+
+!!! tip "Latest news: PEtab.jl v3.0"
+    Version 3.0 is a breaking release that added support for ModelingToolkit v9 and Catalyst v14. Along with updating these packages, PEtab.jl underwent a major update, with new functionality added as well as the renaming of several functions to be more consistent with the naming convention in the SciML ecosystem. See the [HISTORY] file for more details.
 
 ## Installation
 

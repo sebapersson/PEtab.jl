@@ -27,12 +27,18 @@ petab_select
 
 As an example, for a simple signaling model (files can be downloaded from [here](https://github.com/sebapersson/PEtab.jl/tree/main/docs/src/assets/petab_select)), you can run PEtab Select with the `IPNewton()` algorithm:
 
-```@example 1
+```julia
 using Optim, PEtab, PyCall
 path_yaml = joinpath(@__DIR__, "assets", "petab_select", "petab_select_problem.yaml")
 path_res = petab_select(path_yaml, IPNewton(); nmultistarts=10)
-rm(path_res) # hide
-nothing # hide
+```
+```julia
+┌ Info: PEtab select problem info
+│ Method: brute_force
+└ Criterion: AIC
+[ Info: Model selection round 1 with 1 candidates - as the code compiles in this round it takes extra long time https://xkcd.com/303/
+[ Info: Callibrating model M1_1
+[ Info: Saving results for best model at /home/sebpe/.julia/dev/PEtab/docs/build/assets/petab_select/PEtab_select_brute_force_AIC.yaml
 ```
 
 Where the YAML file storing the model selection results is saved at `path_res`.

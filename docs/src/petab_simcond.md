@@ -1,6 +1,6 @@
 # [Simulation Conditions](@id petab_sim_cond)
 
-Sometimes measurements are collected under various experimental conditions, where, for example, the initial concentration of a substrate differs between condition. From a modeling viewpoint, experimental conditions correspond to different simulation conditions, where the model is simulated with different initial values and/or different values for a set of control parameters.
+Sometimes measurements are collected under various experimental conditions, where, for example, the initial concentration of a substrate differs between conditions. From a modeling viewpoint, experimental conditions correspond to different simulation conditions where the model is simulated with different initial values and/or different values for a set of control parameters for each simulation condition. In other words, for each simulation condition, a unique model simulation is performed.
 
 This tutorial covers how to specify simulation conditions for a `PEtabModel`. As a working example, we use the Michaelis-Menten enzyme kinetics model from the starting [tutorial](@ref tutorial). Even though the code below encodes the model as a `ReactionSystem`, everything works exactly the same if the model is encoded as an `ODESystem`.
 
@@ -29,7 +29,7 @@ p_s0 = PEtabParameter(:S0)
 p_sigma = PEtabParameter(:sigma)
 pest = [p_c1, p_c2, p_s0, p_sigma]
 using Plots # hide
-default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm) # hide
+default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm, size = (600*1.25, 400 * 1.25), palette = ["#CC79A7", "#009E73", "#0072B2", "#D55E00", "#999999", "#E69F00", "#56B4E9", "#F0E442"], linewidth=4.0) # hide
 nothing # hide
 ```
 

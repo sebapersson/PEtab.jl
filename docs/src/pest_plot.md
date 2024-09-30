@@ -15,7 +15,7 @@ As a working example, we use already pre-computed parameter estimation results f
 using PEtab, Plots
 path_res = joinpath(@__DIR__, "assets", "optimization_results", "boehm")
 ms_res = PEtabMultistartResult(path_res)
-default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm) # hide
+default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm, size = (600*1.25, 400 * 1.25), palette = ["#CC79A7", "#009E73", "#0072B2", "#D55E00", "#999999", "#E69F00", "#56B4E9", "#F0E442"], linewidth=4.0) # hide
 nothing # hide
 ```
 
@@ -148,6 +148,7 @@ Following parameter estimation, we can plot the fitted solution for `P` in the f
 
 ```@example 2
 using Plots
+default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm, size = (600*1.25, 400 * 1.25), palette = ["#CC79A7", "#009E73", "#0072B2", "#D55E00", "#999999", "#E69F00", "#56B4E9", "#F0E442"], linewidth=4.0) # hide
 plot(res, petab_prob; obsid=["obs_p"], cid="cond1", linewidth = 2.0)
 ```
 

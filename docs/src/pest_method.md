@@ -1,3 +1,7 @@
+```@meta
+CollapsedDocStrings=true
+```
+
 # [Parameter Estimation Methods](@id pest_methods)
 
 The main function of PEtab.jl is to create parameter estimation problems and provide runtime-efficient gradient and Hessian functions for estimating unknown model parameters using suitable numerical optimization algorithms. Specifically, the parameter estimation problems considered by PEtab.jl are on the form:
@@ -118,6 +122,7 @@ The result from `calibrate` can also be plotted. For example, to see how well th
 
 ```@example 1
 using Plots
+default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm, size = (600*1.25, 400 * 1.25), palette = ["#CC79A7", "#009E73", "#0072B2", "#D55E00", "#999999", "#E69F00", "#56B4E9", "#F0E442"], linewidth=4.0) # hide
 plot(res, petab_prob)
 ```
 

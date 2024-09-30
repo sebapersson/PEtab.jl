@@ -2,7 +2,7 @@
 
 Sometimes, a subset of model parameters to be estimated can have different values across experimental conditions. For example, the parameter to estimate `c1` might have one value for condition `cond1` and a different value for condition `cond2`. In such cases, these condition-specific parameters need to be handled separately in the parameter estimation process.
 
-This tutorial covers how to handle condition-specific parameters when creating a `PEtabModel`. It requires that you are familiar with PEtab simulation conditions, if not; see this [tutorial](@ref petab_sim_cond). As a working example, we use the Michaelis-Menten enzyme kinetics model from the starting [tutorial](@ref tutorial). Even though the code below encodes the model as a `ReactionSystem`, everything works exactly the same if the model is encoded as an `ODESystem`.
+This tutorial covers how to handle condition-specific parameters when creating a `PEtabModel`. It requires that you are familiar with PEtab simulation conditions, if not; see [this](@ref petab_sim_cond) tutorial. As a working example, we use the Michaelis-Menten enzyme kinetics model from the starting [tutorial](@ref tutorial). Even though the code below encodes the model as a `ReactionSystem`, everything works exactly the same if the model is encoded as an `ODESystem`.
 
 ```@example 1
 using Catalyst, PEtab
@@ -68,7 +68,7 @@ petab_prob = PEtabODEProblem(model)
 
 With this setup, the value for the model parameter `c1` is given by `c1_cond1` when simulating the model for `cond1`, and by `c1_cond2` for `cond2`. Additionally, during parameter estimation, both `c1_cond1` and `c1_cond2` are estimated.
 
-For models with many condition-specific parameters, runtime performance may improve by setting `split_over_conditions=true` (PEtab.jl tries to determine when to do this automatically, but it is a hard problem) when building the `PEtabODEProblem`. For more information on this, see ADD example.
+For models with many condition-specific parameters, runtime performance may improve by setting `split_over_conditions=true` (PEtab.jl tries to determine when to do this automatically, but it is a hard problem) when building the `PEtabODEProblem`. For more information on this, see [this](@ref Beer_tut) example.
 
 ## Additional Possible Configurations
 

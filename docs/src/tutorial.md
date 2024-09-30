@@ -263,7 +263,9 @@ Lastly, to evaluate the parameter estimation, it is useful to plot how well the 
 
 ```@example 1
 using Plots
+default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm, size = (600*1.25, 400 * 1.25), palette = ["#CC79A7", "#009E73", "#0072B2", "#D55E00", "#999999", "#E69F00", "#56B4E9", "#F0E442"], linewidth=4.0) # hide
 plot(res, petab_prob; linewidth = 2.0)
+plot(res, petab_prob; linewidth = 2.0) # hide
 ```
 
 Even though the plot looks good, it is important to remember that ODE models often have multiple local minima [raue2013lessons](@cite). To ensure the global optimum is found, a global optimization approach is required. One effective method is multi-start parameter estimation, which we cover next.
@@ -322,9 +324,9 @@ This overarching tutorial provides an overview of how to create a parameter esti
 - **Time-Point Specific Parameters**: Sometimes one observable is measured with different assays. This can be handled by introducing different observable parameters (e.g., scale and offset) and noise parameters for different measurements. To learn how to add time-point-specific measurement and noise parameters, see [this](@ref time_point_parameters) tutorial.
 - **Import PEtab Models**: PEtab is a standard table-based format for parameter estimation. If a problem is provided in this standard format, PEtab.jl can import it directly. To learn how to import models in the standard format, see [this](@ref import_petab_problem) tutorial.
 
-Besides creating a parameter estimation problem, this overarching tutorial demonstrated how to perform parameter estimation using [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl). In addition, PEtab.jl also supports using [Ipopt](https://coin-or.github.io/Ipopt/), [Optimization.jl](https://github.com/SciML/Optimization.jl), and [Fides.py](https://github.com/fides-dev/fides). More information on available algorithms can parameter estimation can be found on [this](@ref pest_methods). Besides frequentist parameter estimation, PEtab.jl also supports Bayesian inference with state-of-the-art samplers such as [NUTS](https://github.com/TuringLang/Turing.jl) (the same sampler used in [Turing.jl](https://github.com/TuringLang/Turing.jl)) and [AdaptiveMCMC.jl](https://github.com/mvihola/AdaptiveMCMC.jl). For more information, see the Bayesian inference [page].
+Besides creating a parameter estimation problem, this overarching tutorial demonstrated how to perform parameter estimation using [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl). In addition, PEtab.jl also supports using [Ipopt](https://coin-or.github.io/Ipopt/), [Optimization.jl](https://github.com/SciML/Optimization.jl), and [Fides.py](https://github.com/fides-dev/fides). More information on available algorithms for parameter estimation can be found on [this](@ref pest_methods) page. Besides frequentist parameter estimation, PEtab.jl also supports Bayesian inference with state-of-the-art samplers such as [NUTS](https://github.com/TuringLang/Turing.jl) (the same sampler used in [Turing.jl](https://github.com/TuringLang/Turing.jl)) and [AdaptiveMCMC.jl](https://github.com/mvihola/AdaptiveMCMC.jl). For more information, see the Bayesian inference [page].
 
-Lastly, when creating a `PEtabODEProblem` there are many configurable options (see the [API](@ref API)). The default options are based on extensive benchmarks for dynamic models in biology, see [this](@ref default_options) page. For how to improve performance for models outside of biology, see [this](@ref nonstiff_models) page. Additionally, for a discussion on available gradient and Hessian methods, see [this](@ref gradient_support) page.
+Lastly, when creating a `PEtabODEProblem` there are many configurable options (see the [API](@ref API)). The default options are based on extensive benchmarks for dynamic models in biology, see [this](@ref default_options) page. For how to configure models outside of biology, see [this](@ref nonstiff_models) page. Additionally, for a discussion on available gradient and Hessian methods, see [this](@ref gradient_support) page.
 
 ## Copy Pasteable Example
 
@@ -413,4 +415,6 @@ nothing # hide
 ## References
 
 ```@bibliography
+Pages = ["tutorial.md"]
+Canonical = false
 ```

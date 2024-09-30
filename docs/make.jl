@@ -16,9 +16,9 @@ makedocs(;
          sitename = "PEtab.jl",
          format = Documenter.HTML(;
                                   prettyurls = get(ENV, "CI", "false") == "true",
-                                  canonical = "https://sebapersson.github.io/PEtab.jl",
                                   edit_link = "main",
-                                  assets = String[],),
+                                  repolink = "https://github.com/sebapersson/PEtab.jl",
+                                  assets = String["assets/custom_theme.css"],),
          pages = ["Home" => "index.md",
                   "Tutorial" => "tutorial.md",
                   "Extended Tutorials" => Any["Simulation conditions" => "petab_simcond.md",
@@ -32,10 +32,14 @@ makedocs(;
                                                 "Available and Recommended Algorithms" => "pest_algs.md",
                                                 "Model Selection with PEtab-select" => "pest_select.md",
                                                 "Wrapping Optimization Packages" => "pest_custom.md"],
+                  "Bayesian Inference" => "inference.md",
                   "API" => "API.md",
                   "Gradient and Hessian Methods" => "grad_hess_methods.md",
                   "Default Options" => "default_options.md",
-                  "Options for Non-Biology (Non-Stiff) Models" => "nonstiff_models.md",
+                  "Performance Tips" => Any["Non-Biology (Non-Stiff) Models" => "nonstiff_models.md",
+                                            "Condition-Specific Parameters" => "Beer.md",
+                                            "Adjoint Sensitivity Analysis (Large Models)" => "Bachmann.md"],
+                  "References" => "references.md",
                   "FAQ" => "FAQ.md"],)
 
 deploydocs(;

@@ -1,91 +1,76 @@
-# Medium-sized models (Bachmann model)
+# [Adjoint Sensitivity Analysis (large models)](@id adjoint)
 
-In this tutorial we will crate a `PEtabODEproblem` for the Bachmann model, a medium-sized ODE model. We will cover three topics:
+Having access to the gradient is beneficial for parameter estimation, as gradient-based optimization algorithms often perform best [raue2013lessons, raue2013lessons](@cite). For large model, the most efficient gradient method is adjoint sensitivity analysis [frohlich2017scalable, ma2021comparison](@cite), with a good mathematical description provided in [sapienza2024differentiable](@cite). PEtab.jl supports the adjoint sensitivity algorithms in [SciMLSensitivity.jl](https://github.com/SciML/SciMLSensitivity.jl). For these algorithms, three key options impact performance: which algorithm is used to compute the gradient quadrature, which method is used to compute the Vector-Jacobian-Product (VJP) in the adjoint ODE, and which ODE solver is used. This advanced example covers these considerations and assumes familiarity with gradient methods in PEtab (see [this](@ref gradient_support) page). In addition to this page, further details on tunable options are available in the SciMLSensitivity [documentation](https://github.com/SciML/SciMLSensitivity.jl).
 
-1. Computing the gradient via forward-sensitivity equations
-2. Computing the gradient via adjoint sensitivity analysis
-3. Computing the Gauss-Newton Hessian approximation, which often performs better than the (L)-BFGS Hessian approximation.
+As a working example, we use a published signaling model referred to as the Bachhman model after the first author [bachmann2011division](@cite). The Bachmann model is available in the PEtab standard format (a tutorial on importing problems in the standard format can be found [here](@ref import_petab_problem)), and the PEtab files for this model can be downloaded from [here](https://github.com/sebapersson/PEtab.jl/docs/src/assets/bachmann). Given the problem YAML file, we can import the problem as:
 
-To run the code, you need the Bachmann PEtab files, which can be found [here](https://github.com/sebapersson/PEtab.jl/tree/main/examples/Bachmann). You can find a fully runnable example of this tutorial [here](https://github.com/sebapersson/PEtab.jl/tree/main/examples/Bachmann.jl).
-
-First, we'll read the model and load the necessary libraries.
-
-```julia
+```@example 1
 using PEtab
-using OrdinaryDiffEq
-using Sundials # For CVODE_BDF
+path_yaml = joinpath(@__DIR__, "assets", "bachmann", "Bachmann_MSB2011.yaml")
+model = PEtabModel(path_yaml)
+nothing # hide
+```
+
+## Tuning Options
+
+The Bachmann model is a medium-sized model with 25 species in the ODE system and 113 parameters to estimate. Even though `gradient_method=:ForwardDiff` performs best for this model (more on this below), it is a good example for showcasing different tuning options. In particular, when computing the gradient via adjoint sensitivity analysis, the key tunable options for a `PEtabODEProblem` are:
+
+1. `odesolver_gradient`: Which ODE solver and solver tolerances (`abstol` and `reltol`) to use when solving the adjoint ODE system. Currently, `CVODE_BDF()` performs best.
+2. `sensealg`: Which adjoint algorithm to use. PEtab.jl supports the `InterpolatingAdjoint`, `QuadratureAdjoint`, and `GaussAdjoint` methods from SciMLSensitivity. For these, the most important tunable option is the VJP method, where `EnzymeVJP` often performs best. If this method does not work, `ReverseDiffVJP(true)` is a good alternative.
+
+As `QuadratureAdjoint` is the least reliable method, we here explore `InterpolatingAdjoint` and `GaussAdjoint`:
+
+```@example 1
+using SciMLSensitivity, Sundials
+osolver = ODESolver(CVODE_BDF(); abstol_adj = 1e-3, reltol_adj = 1e-6)
+petab_prob1 = PEtabODEProblem(model; gradient_method = :Adjoint,
+                              odesolver = osolver, odesolver_gradient = osolver,
+                              sensealg = InterpolatingAdjoint(autojacvec = EnzymeVJP()))
+petab_prob2 = PEtabODEProblem(model; gradient_method = :Adjoint,
+                              odesolver = osolver, odesolver_gradient = osolver,
+                              sensealg = GaussAdjoint(autojacvec = EnzymeVJP()))
+nothing # hide
+```
+
+Two things should be noted here. First, to use the adjoint functionality in PEtab.jl, SciMLSensitivity must be loaded. Second, when creating the `ODESolver`, `adj_abstol` sets the tolerances for solving the adjoint ODE (but not the standard forward ODE). From our experience, setting the adjoint tolerances lower than the default `1e-8` improves simulation stability (gradient computations fail less frequently). Given this, we can now compare runtime:
+
+```@example 1
 using Printf
- 
-path_yaml = joinpath(@__DIR__, "Bachmann", "Bachmann_MSB2011.yaml") 
-model = PEtabModel(path_yaml, verbose=true)
-```
-```
-PEtabModel for model Bachmann. ODE-system has 25 states and 39 parameters.
-Generated Julia files are at ...
-```
-
-## Adjoint sensitivity analysis
-
-When working with a subset of medium-sized models, and definitely for large-sized models, the most efficient way to compute gradients is through adjoint sensitivity analysis (`gradient_method=:Adjoint`). There are several tuneable options that can improve performance, including:
-
-1. `ode_solver_gradient`: This determines which ODE solver and solver tolerances (`abstol` and `reltol`) to use when computing the gradient (when solving the adjoint ODE-system). Currently, the best performing stiff solver for the adjoint problem in Julia is `CVODE_BDF()`.
-2. `sensealg`: This determines which adjoint algorithm to use. Currently, `InterpolatingAdjoint` and `QuadratureAdjoint` from SciMLSensitivity are supported. You can find more information in their [documentation](https://github.com/SciML/SciMLSensitivity.jl). You can provide any of the options that these methods are compatible with. For example, if you want to use the `ReverseDiffVJP` algorithm, an acceptable option is `sensealg=InterpolatingAdjoint(autojacvec=ReversDiffVJP())`.
-
-Here are a few things to keep in mind:
-
-!!! note
-    Adjoint sensitivity analysis is not as reliable in Julia as it is in [AMICI](https://github.com/SciML/SciMLSensitivity.jl/issues/795). However, our benchmarks show that SciMLSensitivity has the potential to be faster.
-
-
-```julia
-using Zygote # For adjoint
-using SciMLSensitivity # For adjoint
-petab_problem = PEtabODEProblem(model, 
-                                ode_solver=ODESolver(QNDF(), abstol=1e-8, reltol=1e-8), 
-                                ode_solver_gradient=ODESolver(CVODE_BDF(), abstol=1e-8, reltol=1e-8),
-                                gradient_method=:Adjoint, 
-                                sensealg=InterpolatingAdjoint(autojacvec=EnzymeVJP())) 
-p = petab_problem.xnominal_transformed 
-gradient = zeros(length(p)) 
-cost = petab_problem.nllh(p)
-petab_problem.grad!(gradient, p)
-@printf("Cost = %.2f\n", cost)
-@printf("First element in the gradient = %.2e\n", gradient[1])
-```
-```
-Cost = -418.41
-First element in the gradient = -1.70e-03
+x = get_x(petab_prob1)
+g1, g2 = similar(x), similar(x)
+petab_prob1.grad!(g1, x)
+petab_prob2.grad!(g2, x)
+b1 = @elapsed petab_prob1.grad!(g1, x) # hide
+b2 = @elapsed petab_prob2.grad!(g2, x) # hide
+@printf("Runtime InterpolatingAdjoint: %.1fs\n", b1)
+@printf("Runtime GaussAdjoint: %.1fs\n", b2)
 ```
 
-## Forward sensitivity analysis and Gauss-Newton hessian approximation
+In this case `InterpolatingAdjoint` performs best (this can change dependent on computer). As mentioned above, another important argument is the VJP method; let us explore the best two options for `InterpolatingAdjoint`:
 
-For medium-sized models, computing the full Hessian via forward-mode automatic differentiation can be too expensive, so we need an approximation. The [Gauss-Newton](https://en.wikipedia.org/wiki/Gauss%E2%80%93Newton_algorithm) (GN) approximation often performs better than the (L)-BFGS approximation. To compute it, we need the forward sensitivities. These sensitivities can also be used to compute the gradient. As some optimizers such as Fides.py compute both the Hessian and gradient at each iteration, we can save the sensitivities between the gradient and Hessian computations.
-
-When choosing `gradient_method=:ForwardEquations` and `hessian_method=:GaussNewton`, there are several tunable options, the key ones are:
-
-1. `sensealg` - which sensitivity algorithm to use when computing the sensitivities. We support both `ForwardSensitivity()` and `ForwardDiffSensitivity()` with tunable options as provided by SciMLSensitivity (see their [documentation](https://github.com/SciML/SciMLSensitivity.jl) for more information). The most efficient option is `:ForwardDiff`, where forward-mode automatic differentiation is used to compute the sensitivities.
-2. `reuse_sensitivities::Bool` - whether or not to reuse the sensitivities from the gradient computations when computing the Gauss-Newton Hessian approximation. Whether this option is applicable depends on the optimizer. For example, it works with Fides.py but not with Optim.jl's `IPNewton()`.
-   * Note - this approach requires that `sensealg=:ForwardDiff` for the gradient.
-
-```julia
-petab_problem = PEtabODEProblem(model, 
-                                ode_solver=ODESolver(QNDF(), abstol=1e-8, reltol=1e-8),
-                                gradient_method=:ForwardEquations, 
-                                hessian_method=:GaussNewton,
-                                sensealg=:ForwardDiff, 
-                                reuse_sensitivities=true) 
-p = petab_problem.xnominal_transformed 
-gradient = zeros(length(p)) 
-hessian = zeros(length(p), length(p)) 
-cost = petab_problem.nllh(p)
-petab_problem.grad!(gradient, p)
-petab_problem.hess!(hessian, p)
-@printf("Cost for Bachmann = %.2f\n", cost)
-@printf("First element in the gradient = %.2e\n", gradient[1])
-@printf("First element in the Gauss-Newton Hessian = %.2f\n", hessian[1, 1])
+```@example 1
+petab_prob1 = PEtabODEProblem(model; gradient_method = :Adjoint,
+                              odesolver = osolver, odesolver_gradient = osolver,
+                              sensealg = InterpolatingAdjoint(autojacvec = EnzymeVJP()))
+petab_prob2 = PEtabODEProblem(model; gradient_method = :Adjoint,
+                              odesolver = osolver, odesolver_gradient = osolver,
+                              sensealg = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)))
+petab_prob1.grad!(g1, x) # hide
+petab_prob2.grad!(g2, x) # hide
+b1 = @elapsed petab_prob1.grad!(g1, x)
+b2 = @elapsed petab_prob2.grad!(g2, x)
+@printf("Runtime EnzymeVJP() : %.1fs\n", b1)
+@printf("Runtime ReverseDiffVJP(true): %.1fs\n", b2)                              
+nothing # hide
 ```
-```
-Cost for Bachmann = -418.41
-First element in the gradient = -1.85e-03
-First element in the Gauss-Newton Hessian = 584.10
+
+In this case, `ReverseDiffVJP(true)` performs best (this can vary depending on the computer), but often `EnzymeVJP` is the better choice. Generally, `GaussAdjoint` with `EnzymeVJP` is often the best combination, but as seen above, this is not always the case. Therefore, for larger models where runtime can be substantial, we recommend benchmarking different adjoint algorithms and VJP methods to find the best configuration for your specific problem.
+
+Lastly, it should be noted that even if `gradient_method=:Adjoint` is the fastest option for larger models, we still recommend using `:ForwardDiff` if it is not substantially slower. This is because computing the gradient via adjoint methods is much more challenging than with forward methods, as the adjoint approach requires solving a difficult adjoint ODE. In our benchmarks, we have observed that sometimes `:ForwardDiff` successfully computes the gradient, while `:Adjoint` does not. Moreover, forward methods tend to produce more accurate gradients.
+
+## References
+
+```@bibliography
+Pages = ["Bachmann.md"]
+Canonical = false
 ```

@@ -97,7 +97,7 @@ PEtab.OptimizationProblem
 
 ## Bayesian Inference
 
-PEtab.jl offers wrappers to perform Bayesian inference using state-of-the-art methods such as [NUTS](https://github.com/TuringLang/Turing.jl) (the same sampler used in [Turing.jl](https://github.com/TuringLang/Turing.jl)) or [AdaptiveMCMC.jl](https://github.com/mvihola/AdaptiveMCMC.jl). While this part of the API is planned to be rewritten and updated (and may be moved to a separate package), it remains fully functional and tested:
+PEtab.jl offers wrappers to perform Bayesian inference using state-of-the-art methods such as [NUTS](https://github.com/TuringLang/Turing.jl) (the same sampler used in [Turing.jl](https://github.com/TuringLang/Turing.jl)) or [AdaptiveMCMC.jl](https://github.com/mvihola/AdaptiveMCMC.jl). It should be noted that this part of PEtab.jl is planned to be moved to a separate package, so the syntax will change and be made more user-friendly in the future.
 
 ```@docs
 PEtabLogDensity

@@ -1,3 +1,7 @@
+```@meta
+CollapsedDocStrings=true
+```
+
 # [Events (callbacks, dosages, etc.)](@id define_events)
 
 To account for experimental interventions, such as the addition of a substrate, changes in experimental conditions (e.g., temperature), or automatic dosages, events (often called [callbacks](https://docs.sciml.ai/DiffEqDocs/stable/features/callback_functions/), dosages, etc.) can be used. When creating a `PEtabModel` in Julia, events should be encoded as a `PEtabEvent`:
@@ -37,9 +41,9 @@ pest = [p_c1, p_c2, p_s0, p_sigma]
 # Smaller dataset compared to starting tutorial
 measurements = DataFrame(obs_id=["obs_p", "obs_sum", "obs_p", "obs_sum"],
                          time=[1.0, 10.0, 1.0, 20.0],
-                         measurement=[0.7, 0.1, 1.0, 1.5])       
-using Plots # hide                                           
-default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm) # hide
+                         measurement=[0.7, 0.1, 1.0, 1.5])
+using Plots # hide
+default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm, size = (600*1.25, 400 * 1.25), palette = ["#CC79A7", "#009E73", "#0072B2", "#D55E00", "#999999", "#E69F00", "#56B4E9", "#F0E442"], linewidth=4.0) # hide
 nothing # hide
 ```
 
@@ -191,7 +195,7 @@ measurements = DataFrame(simulation_id=["cond1", "cond1", "cond2", "cond2"],
                          obs_id=["obs_P", "obs_Sum", "obs_P", "obs_Sum"],
                          time=[1.0, 10.0, 1.0, 20.0],
                          measurement=[0.7, 0.1, 1.0, 1.5])
-nothing # hide                         
+nothing # hide
 ```
 
 In this setup, when the event is defined as:
