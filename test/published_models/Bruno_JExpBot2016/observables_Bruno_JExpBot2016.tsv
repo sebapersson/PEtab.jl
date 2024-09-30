@@ -1,0 +1,7 @@
+observableId	observableName	observableFormula	noiseFormula	observableTransformation	noiseDistribution
+ob10		b10	noiseParameter1_ob10	lin	normal
+obcar		bcar	noiseParameter1_obcar	lin	normal
+obcry		bcry	noiseParameter1_obcry	lin	normal
+obio		bio	noiseParameter1_obio		
+oohb10		ohb10	noiseParameter1_oohb10	lin	normal
+ozea		zea	noiseParameter1_ozea	lin	normal

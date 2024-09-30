@@ -5,12 +5,11 @@ using CSV
 using SciMLBase
 using OrdinaryDiffEq
 using Catalyst
-using DiffEqCallbacks
+using ComponentArrays
 using DataFrames
-using SteadyStateDiffEq
 using ForwardDiff
 using ReverseDiff
-import ChainRulesCore
+using DiffEqCallbacks
 using SBMLImporter
 using StatsBase
 using Sundials
@@ -24,81 +23,82 @@ using PreallocationTools
 using NonlinearSolve
 using PrecompileTools
 using QuasiMonteCarlo
+using StyledStrings
+import SciMLBase.remake
+import QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
-include("Structs.jl")
-include(joinpath("PEtabModel", "Table_input.jl"))
-include(joinpath("PEtabModel", "Julia_input.jl"))
+const ModelSystem = Union{ODESystem, ReactionSystem}
+const NonlinearAlg = Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}
 
-include("Common.jl")
+include(joinpath("structs", "petab_model.jl"))
+include(joinpath("structs", "petab_odeproblem.jl"))
+include(joinpath("structs", "parameter_estimation.jl"))
+include(joinpath("structs", "inference.jl"))
 
-# Files related to computing the cost (likelihood)
-include(joinpath("Objective", "Priors.jl"))
-include(joinpath("Objective", "Objective.jl"))
+const EstimationResult = Union{PEtabOptimisationResult, PEtabMultistartResult,
+                               Vector{<:AbstractFloat}, ComponentArray}
 
-# Files related to computing derivatives
-include(joinpath("Derivatives", "Hessian.jl"))
-include(joinpath("Derivatives", "Gradient.jl"))
-include(joinpath("Derivatives", "Forward_sensitivity_equations.jl"))
-include(joinpath("Derivatives", "Gauss_newton.jl"))
-include(joinpath("Derivatives", "Common.jl"))
-include(joinpath("Derivatives", "ForwardDiff_chunks.jl"))
+include("common.jl")
+include("logging.jl")
+include("show.jl")
 
-# Files related to solving the ODE-system
-include(joinpath("Solve_ODE", "Switch_condition.jl"))
-include(joinpath("Solve_ODE", "Common.jl"))
-include(joinpath("Solve_ODE", "Solve.jl"))
-include(joinpath("Solve_ODE", "Steady_state.jl"))
+include(joinpath("petab_files", "common.jl"))
+include(joinpath("petab_files", "conditions.jl"))
+include(joinpath("petab_files", "measurements.jl"))
+include(joinpath("petab_files", "observables.jl"))
+include(joinpath("petab_files", "parameters.jl"))
+include(joinpath("petab_files", "petab_model.jl"))
+include(joinpath("petab_files", "read.jl"))
+include(joinpath("petab_files", "simulations.jl"))
+include(joinpath("petab_files", "table_info.jl"))
 
-# Files related to processing user input
-include(joinpath("Process_input", "Table_input", "Measurements.jl"))
-include(joinpath("Process_input", "Table_input", "Parameters.jl"))
-include(joinpath("Process_input", "Table_input", "Read_tables.jl"))
-include(joinpath("Process_input", "Julia_input.jl"))
-include(joinpath("Process_input", "Common.jl"))
-include(joinpath("Process_input", "Simulation_info.jl"))
-include(joinpath("Process_input", "Parameter_indices.jl"))
-include(joinpath("Process_input", "Callbacks.jl"))
-include(joinpath("Process_input", "Observables", "Common.jl"))
-include(joinpath("Process_input", "Observables", "h_sigma_derivatives.jl"))
-include(joinpath("Process_input", "Observables", "u0_h_sigma.jl"))
+include(joinpath("julia_input", "events.jl"))
+include(joinpath("julia_input", "maps.jl"))
+include(joinpath("julia_input", "petab_model.jl"))
+include(joinpath("julia_input", "to_tables.jl"))
 
-# For creating a PEtabODEProblem
-include(joinpath("PEtabODEProblem", "Defaults.jl"))
-include(joinpath("PEtabODEProblem", "Remake.jl"))
-include(joinpath("PEtabODEProblem", "Cache.jl"))
-include(joinpath("PEtabODEProblem", "Create.jl"))
+include(joinpath("nllh_prior", "nllh.jl"))
+include(joinpath("nllh_prior", "prior.jl"))
 
-# Nice util functions
-include(joinpath("Utility.jl"))
+include(joinpath("derivatives", "common.jl"))
+include(joinpath("derivatives", "forward_eqs.jl"))
+include(joinpath("derivatives", "forward_ad_chunks.jl"))
+include(joinpath("derivatives", "gauss_newton.jl"))
+include(joinpath("derivatives", "gradient.jl"))
+include(joinpath("derivatives", "hessian.jl"))
 
-# For correct struct printing
-include(joinpath("Show.jl"))
+include(joinpath("solve", "helper.jl"))
+include(joinpath("solve", "solve.jl"))
+include(joinpath("solve", "steady_state.jl"))
+
+include(joinpath("petab_odeproblem", "cache.jl"))
+include(joinpath("petab_odeproblem", "create.jl"))
+include(joinpath("petab_odeproblem", "defaults.jl"))
+include(joinpath("petab_odeproblem", "derivative_functions.jl"))
+include(joinpath("petab_odeproblem", "problem_info.jl"))
+include(joinpath("petab_odeproblem", "remake.jl"))
+include(joinpath("petab_odeproblem", "ss_solver.jl"))
+
+include(joinpath("parameter_estimation", "multistart.jl"))
+include(joinpath("parameter_estimation", "petab_select.jl"))
+include(joinpath("parameter_estimation", "plot.jl"))
+include(joinpath("parameter_estimation", "singlestart.jl"))
+include(joinpath("parameter_estimation", "startguesses.jl"))
+
+include(joinpath("util.jl"))
 
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem
 @setup_workload begin
-    path_yaml = joinpath(@__DIR__, "..", "test", "Test_model3", "Test_model3.yaml")
+    path_yaml = joinpath(@__DIR__, "..", "test", "analytic_ss", "Test_model3.yaml")
     @compile_workload begin
-        petab_model = PEtabModel(path_yaml, verbose = false, build_julia_files = true,
-                                 write_to_file = false)
-        petab_problem = PEtabODEProblem(petab_model, verbose = false)
-        petab_problem.compute_cost(petab_problem.θ_nominalT)
+        model = PEtabModel(path_yaml, verbose = false, build_julia_files = true,
+                           write_to_file = true)
+        petab_problem = PEtabODEProblem(model, verbose = false)
+        petab_problem.nllh(petab_problem.xnominal_transformed)
     end
 end
-
-export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
-       PEtabODEProblem, remake_PEtab_problem, Fides, PEtabOptimisationResult, IpoptOptions,
-       IpoptOptimiser, PEtabParameter, PEtabObservable, PEtabMultistartOptimisationResult,
-       generate_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, PEtabEvent,
-       PEtabLogDensity, solve_all_conditions, compute_runtime_accuracy, PEtabPigeonReference
-
-# These are given as extensions, but their docstrings are availble in the
-# general documentation
-include(joinpath("Calibrate", "Common.jl"))
-export calibrate_model, calibrate_model_multistart, run_PEtab_select
-function get_obs_comparison_plots end
-export get_obs_comparison_plots
 
 # Functions that only appear in extension
 function compute_llh end
@@ -106,34 +106,41 @@ function compute_prior end
 function get_correction end
 function correct_gradient! end
 
+export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
+       PEtabODEProblem, remake, Fides, PEtabOptimisationResult, IpoptOptions,
+       IpoptOptimizer, PEtabParameter, PEtabObservable, PEtabMultistartResult,
+       get_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, PEtabEvent,
+       PEtabLogDensity, solve_all_conditions, get_x, calibrate, calibrate_multistart,
+       petab_select, get_obs_comparison_plots
+
 """
-    to_prior_scale(xpetab, target::PEtabLogDensity)::AbstractVector
+    to_prior_scale(xpetab, target::PEtabLogDensity)
 
-Transforms parameter `xpetab` from the PEtab problem scale to the prior scale.
+Transforms parameter `x` from the PEtab problem scale to the prior scale.
 
-This conversion is essential for Bayesian inference, as in PEtab.jl Bayesian inference
-is performed on the prior scale.
+This conversion is needed for Bayesian inference, as in PEtab.jl Bayesian inference is
+performed on the prior scale.
 
 !!! note
-    To use this function Bijectors, LogDensityProblems, LogDensityProblemsAD must be loaded;
-    `using Bijectors, LogDensityProblems, LogDensityProblemsAD`
+    To use this function, the Bijectors, LogDensityProblems, and LogDensityProblemsAD
+    packages must be loaded: `using Bijectors, LogDensityProblems, LogDensityProblemsAD`
 """
 function to_prior_scale end
 
 """
-    to_chains(res, target::PEtabLogDensity; start_time=nothing, end_time=nothing)::MCMCChains
+    to_chains(res, target::PEtabLogDensity; kwargs...)::MCMCChains
 
-Converts Bayesian inference results obtained with `PEtabLogDensity` into a `MCMCChains`.
+Converts Bayesian inference results obtained with `PEtabLogDensity` into an `MCMCChains`.
 
-`res` can be the inference results from AdvancedHMC.jl, AdaptiveMCMC.jl, or Pigeon.jl.
-The out chain has the inferred parameters on the prior scale.
+`res` can be the inference results from AdvancedHMC.jl or AdaptiveMCMC.jl. The returned
+chain has the parameters on the prior scale.
 
 # Keyword Arguments
 - `start_time`: Optional starting time for the inference, obtained with `now()`.
 - `end_time`: Optional ending time for the inference, obtained with `now()`.
 
 !!! note
-    To use this function MCMCChains must be loaded; `using MCMCChains`
+    To use this function, the MCMCChains package must be loaded: `using MCMCChains`
 """
 function to_chains end
 
@@ -145,7 +152,6 @@ if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabSciMLSensitivityExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "PEtabLogDensityProblemsExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "PEtabPlotsExtension.jl"))
-    include(joinpath(@__DIR__, "..", "ext", "PEtabPigeonsExtension.jl"))
 end
 
 export to_chains, to_prior_scale

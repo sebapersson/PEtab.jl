@@ -1,58 +1,69 @@
 using SafeTestsets
 
-
 @safetestset "Aqua Quality Check" begin
-  include("Aqua.jl")
+  include("aqua.jl")
 end
 
-@safetestset "Bijectors" begin
-  include(joinpath(@__DIR__, "Bijectors.jl"))
+@safetestset "Analtyic solution test model" begin
+  include("analytic_solution.jl")
 end
 
-@safetestset "Inference" begin
-  include(joinpath(@__DIR__, "Inference.jl"))
+@safetestset "Model with analytic steady-state" begin
+  include("analytic_ss.jl")
 end
 
-@safetestset "PEtab-select" begin
-  include("PEtab_select.jl")
-end
-
-@safetestset "Test model 2" begin
-  include("Test_model2.jl")
-end
-
-@safetestset "Test model 3" begin
-  include("Test_model3.jl")
-end
-
-@safetestset "Boehm against PyPesto" begin
-  include("Boehm.jl")
+@safetestset "Boehm model with pyPESTO reference" begin
+  include("boehm.jl")
 end
 
 @safetestset "PEtab remake" begin
-  include("PEtab_remake.jl")
+  include("remake.jl")
 end
 
 @safetestset "Log-likelihood values and gradients for published models" begin
-  include("Test_ll.jl")
+  include("published_models.jl")
 end
 
 @safetestset "Utility functions" begin
-  include(joinpath(@__DIR__, "Test_util.jl"))
+  include(joinpath(@__DIR__, "util.jl"))
 end
 
 @safetestset "PEtab test suite" begin
-  include("PEtab_test_suite.jl")
+  include("petab_testsuite.jl")
 end
 
-@safetestset "Catalyst integration" begin
-  include(joinpath(@__DIR__, "Julia_import", "Test_catalyst.jl"))
+@safetestset "Define models in Julia" begin
+  include("defined_in_julia.jl")
 end
 
-@safetestset "Model callibration" begin
-  include(joinpath(@__DIR__, "Callibrate_model.jl"))
+@safetestset "Compnent Arrays" begin
+    include("component_arrays.jl")
+end
+
+@safetestset "Default options" begin
+    include("defaults.jl")
+end
+
+@safetestset "Show" begin
+    include("show.jl")
+end
+
+@safetestset "Parameter estimation" begin
+  include("calibrate.jl")
 end
 
 @safetestset "Optimisation results plotting" begin
-  include(joinpath(@__DIR__, "Plot_optimisation_results.jl"))
+  include("plot_optimisation_results.jl")
+end
+
+@safetestset "Bijectors" begin
+    include("bijectors.jl")
+end
+
+@safetestset "Bayesian Inference" begin
+    include("inference.jl")
+end
+
+@safetestset "PEtab-select" begin
+    include("petab_select_testsuite.jl")
 end
