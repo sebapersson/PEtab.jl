@@ -91,13 +91,16 @@ function test_nllh_grad_hess(model::PEtabModel, osolver::ODESolver)::Nothing
     H = _compute_hess(x, model, :BlockForwardDiff, osolver)
     @test all(.≈(H[1:2, 1:2], hess_ref[1:2, 1:2]; atol = 1e-3))
     @test all(.≈(H[3:4, 3:4], hess_ref[3:4, 3:4]; atol = 1e-3))
+    H = _compute_hess(x, model, :BlockForwardDiff, osolver; split = true)
+    @test all(.≈(H[1:2, 1:2], hess_ref[1:2, 1:2]; atol = 1e-3))
+    @test all(.≈(H[3:4, 3:4], hess_ref[3:4, 3:4]; atol = 1e-3))
     return nothing
 end
 
 # Test that we do not have world-problem
 function create_model_inside_function()
     return PEtabModel(joinpath(@__DIR__, "analytic_solution", "Test_model2.yaml"),
-                      build_julia_files=true, verbose=true, write_to_file = false)
+                      build_julia_files=true, verbose=true, write_to_file = true)
 end
 model = create_model_inside_function()
 
@@ -112,3 +115,12 @@ end
 @testset "grad residuals" begin
     test_grad_residuals(model, ODESolver(Rodas5P(), abstol=1e-9, reltol=1e-9))
 end
+
+# Test if the PEtabModel can also be read from existing model files
+model = PEtabModel(joinpath(@__DIR__, "analytic_solution", "Test_model2.yaml"),
+                   build_julia_files=false, verbose=true, write_to_file = true)
+prob = PEtabODEProblem(model; verbose = true)
+@testset "ODE solver" begin
+    test_odesolver(model, ODESolver(Vern9(), abstol=1e-9, reltol=1e-9))
+end
+rm(model.paths[:dirjulia]; recursive = true)

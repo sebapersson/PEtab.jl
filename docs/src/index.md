@@ -17,7 +17,7 @@ PEtab.jl is a Julia package for creating parameter estimation problems for fitti
     If you find the package useful in your work please consider giving us a star on [GitHub](https://github.com/sebapersson/PEtab.jl). This will help us secure funding in the future to continue maintaining the package.
 
 !!! tip "Latest news: PEtab.jl v3.0"
-    Version 3.0 is a breaking release that added support for ModelingToolkit v9 and Catalyst v14. Along with updating these packages, PEtab.jl underwent a major update, with new functionality added as well as the renaming of several functions to be more consistent with the naming convention in the SciML ecosystem. See the [HISTORY] file for more details.
+    Version 3.0 is a breaking release that added support for ModelingToolkit v9 and Catalyst v14. Along with updating these packages, PEtab.jl underwent a major update, with new functionality added as well as the renaming of several functions to be more consistent with the naming convention in the SciML ecosystem. See the [HISTORY](https://github.com/sebapersson/PEtab.jl/blob/main/HISTORY.md) file for more details.
 
 ## Installation
 

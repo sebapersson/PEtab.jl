@@ -17,6 +17,7 @@ makedocs(;
          format = Documenter.HTML(;
                                   prettyurls = get(ENV, "CI", "false") == "true",
                                   edit_link = "main",
+                                  collapselevel = 1,
                                   repolink = "https://github.com/sebapersson/PEtab.jl",
                                   assets = String["assets/custom_theme.css"],),
          pages = ["Home" => "index.md",
