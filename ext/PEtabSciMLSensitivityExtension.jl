@@ -3,7 +3,8 @@ module PEtabSciMLSensitivityExtension
 using SciMLBase
 using ModelingToolkit
 using DiffEqCallbacks
-using OrdinaryDiffEq
+using OrdinaryDiffEqBDF
+using OrdinaryDiffEqSDIRK
 using ForwardDiff
 using ReverseDiff
 using SciMLSensitivity
