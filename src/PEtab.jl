@@ -94,7 +94,7 @@ include(joinpath("util.jl"))
     path_yaml = joinpath(@__DIR__, "..", "test", "analytic_ss", "Test_model3.yaml")
     @compile_workload begin
         model = PEtabModel(path_yaml, verbose = false, build_julia_files = true,
-                           write_to_file = true)
+                           write_to_file = false)
         petab_problem = PEtabODEProblem(model, verbose = false)
         petab_problem.nllh(petab_problem.xnominal_transformed)
     end
