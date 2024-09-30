@@ -219,8 +219,8 @@ function solve_all_conditions(x, prob::PEtabODEProblem, osolver; abstol = 1e-8,
     xdynamic_ps = transform_x(cache.xdynamic, xindices, :xdynamic, cache)
 
     _ = solve_conditions!(model_info, xdynamic_ps, probinfo;
-                         ntimepoints_save = ntimepoints_save,
-                         save_observed_t = save_observed_t)
+                          ntimepoints_save = ntimepoints_save,
+                          save_observed_t = save_observed_t)
     return model_info.simulation_info.odesols
 end
 

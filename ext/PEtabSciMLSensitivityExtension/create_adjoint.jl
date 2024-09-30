@@ -15,11 +15,14 @@ function PEtab._get_grad(method::Val{:Adjoint}, probinfo::PEtab.PEtabODEProblemI
 
     _grad! = let _grad_nllh! = _grad_nllh!, grad_prior = grad_prior
         (g, x; prior = true) -> begin
-            _grad_nllh!(g, x)
+            _x = x |> collect
+            _g = similar(_x)
+            _grad_nllh!(_g, _x)
             if prior
                 # nllh -> negative prior
-                g .+= grad_prior(x) .* -1
+                _g .+= grad_prior(_x) .* -1
             end
+            g .= _g
             return nothing
         end
     end

@@ -233,7 +233,7 @@ the simulation approach (see description below).
   - `:wrms`: Weighted root-mean-square. Terminate when:
     ``\\sqrt{\\frac{1}{N} \\sum_i^N \\Big( \\frac{du_i}{reltol * u_i + abstol}\\Big)^2} < 1``
   - `:Newton`: Terminate if the step for Newton's method `Δu` is sufficiently small:
-    ``\\sqrt{\\frac{1}{N} \\sum_i^N \\Big(\\frac{\\Delta u_i}{reltol * u_i + abstol}\\Big)^2} < 1``
+    ``\\sqrt{\\frac{1}{N} \\sum_i^N \\Big(\\frac{\\Delta u_i}{reltol * u_i + abstol}\\Big)^2} < 1`` \
     The `:Newton` approach requires that the Newton step `Δu` can be computed, which is
     only possible if the Jacobian of the RHS of the ODE model is invertible. If this is not
     the case, a pseudo-inverse is used if `pseudoinverse = true`, else `wrms` is used. The
@@ -481,4 +481,16 @@ struct PEtabODEProblem{F1 <: Function, F2 <: Function, F3 <: Function}
     xnominal_transformed::ComponentArray{Float64}
     lower_bounds::ComponentArray{Float64}
     upper_bounds::ComponentArray{Float64}
+end
+
+struct PEtabFileError <: Exception
+    var::String
+end
+
+struct PEtabFormatError <: Exception
+    var::String
+end
+
+struct PEtabInputError <: Exception
+    var::String
 end

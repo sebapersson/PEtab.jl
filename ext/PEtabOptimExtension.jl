@@ -108,7 +108,7 @@ function _optim_IPNewton(prob::PEtabODEProblem, alg::Optim.IPNewton,
     return _calibrate
 end
 
-function _optim_fminbox(prob::PEtabODEProblem, alg,options::Optim.Options)::Function
+function _optim_fminbox(prob::PEtabODEProblem, alg, options::Optim.Options)::Function
     @unpack lower_bounds, upper_bounds = prob
     lb = lower_bounds |> collect
     ub = upper_bounds |> collect

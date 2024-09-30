@@ -1,10 +1,8 @@
 module PEtabSciMLSensitivityExtension
 
-using ChainRulesCore
 using SciMLBase
 using ModelingToolkit
 using DiffEqCallbacks
-using SteadyStateDiffEq
 using OrdinaryDiffEq
 using ForwardDiff
 using ReverseDiff

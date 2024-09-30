@@ -1,3 +1,5 @@
+StyledStrings.addface!(:PURPLE => StyledStrings.Face(foreground = 0x8f4093))
+
 function _logging(whatlog::Symbol, verbose::Bool; time = nothing, name::String = "",
                   buildfiles::Bool = false, exist::Bool = false,
                   method::Union{Symbol, String} = "")::Nothing
@@ -11,72 +13,72 @@ function _logging(whatlog::Symbol, verbose::Bool; time = nothing, name::String =
 
     # For PEtabModel
     if whatlog == :Build_PEtabModel
-        str = styled"{blue:{bold:┌Info:}} Building {magenta:PEtabModel} for model $(name)\n"
+        str = styled"{PURPLE:{bold:┌Info:}} Building {emphasis:PEtabModel} for model $(name)\n"
     end
     if whatlog == :Build_SBML
         if buildfiles == true && exist == true
-            str = styled"{blue:{bold:│ }} By user option reimports {magenta:SBML} model ... "
+            str = styled"{PURPLE:{bold:│ }} By user option reimports {emphasis:SBML} model ... "
         end
         if exist == false
-            str = styled"{blue:{bold:│ }} Imports {magenta:SBML} model ... "
+            str = styled"{PURPLE:{bold:│ }} Imports {emphasis:SBML} model ... "
         end
         if buildfiles == false && exist == true
-            str = styled"{blue:{bold:│ }} {magenta:SBML} model already imported\n"
+            str = styled"{PURPLE:{bold:│ }} {emphasis:SBML} model already imported\n"
         end
     end
     if whatlog == :Build_ODESystem
-        str = styled"{blue:{bold:│ }} Parses the SBML model into an {magenta:ODESystem} ... "
+        str = styled"{PURPLE:{bold:│ }} Parses the SBML model into an {emphasis:ODESystem} ... "
     end
     if whatlog == :Build_u0_h_σ
         if buildfiles == true && exist == true
-            str = styled"{blue:{bold:│ }} By user option rebuilds {magenta:u0}, " *
-                  styled"{magenta:h} and {magenta:σ} functions ... "
+            str = styled"{PURPLE:{bold:│ }} By user option rebuilds {emphasis:u0}, " *
+                  styled"{emphasis:h} and {emphasis:σ} functions ... "
         end
         if exist == false
-            str = styled"{blue:{bold:│ }} Builds {magenta:u0}, {magenta:h} and " *
-                  styled"{magenta:σ} functions ... "
+            str = styled"{PURPLE:{bold:│ }} Builds {emphasis:u0}, {emphasis:h} and \
+                         {emphasis:σ} functions ... "
         end
         if buildfiles == false && exist == true
-            str = styled"{blue:{bold:│ }} {magenta:u0}, {magenta:h} and {magenta:σ} " *
+            str = styled"{PURPLE:{bold:│ }} {emphasis:u0}, {emphasis:h} and {emphasis:σ} " *
                   styled"functions already exist\n"
         end
     end
     if whatlog == :Build_∂_h_σ
         if buildfiles == true && exist == true
-            str = styled"{blue:{bold:│ }} By user option rebuilds {magenta:∂h∂p}, " *
-                  styled"{magenta:∂h∂u}, {magenta:∂σ∂p} and {magenta:∂σ∂u} functions ... "
+            str = styled"{PURPLE:{bold:│ }} By user option rebuilds {emphasis:∂h∂p}, " *
+                  styled"{emphasis:∂h∂u}, {emphasis:∂σ∂p} and {emphasis:∂σ∂u} functions ... "
         end
         if exist == false
-            str = styled"{blue:{bold:│ }} Builds {magenta:∂h∂p}, {magenta:∂h∂u}, " *
-                  styled"{magenta:∂σ∂p} and {magenta:∂σ∂u} functions ... "
+            str = styled"{PURPLE:{bold:│ }} Builds {emphasis:∂h∂p}, {emphasis:∂h∂u}, " *
+                  styled"{emphasis:∂σ∂p} and {emphasis:∂σ∂u} functions ... "
         end
         if buildfiles == false && exist == true
-            str = styled"{blue:{bold:│ }} {magenta:∂h∂p}, {magenta:∂h∂u}, " *
-                  styled"{magenta:∂σ∂p} and {magenta:∂σ∂u} functions already exist\n"
+            str = styled"{PURPLE:{bold:│ }} {emphasis:∂h∂p}, {emphasis:∂h∂u}, " *
+                  styled"{emphasis:∂σ∂p} and {emphasis:∂σ∂u} functions already exist\n"
         end
     end
     if whatlog == :Build_callbacks
-        str = styled"{blue:{bold:└ }} Builds {magenta:callback} (events) functions ... "
+        str = styled"{PURPLE:{bold:└ }} Builds {emphasis:callback} (events) functions ... "
     end
 
     # For PEtabODEProblem
     if whatlog == :Build_PEtabODEProblem
-        str = styled"{blue:{bold:┌Info:}} Building {magenta:PEtabODEProblem} for model $(name)\n"
+        str = styled"{PURPLE:{bold:┌Info:}} Building {emphasis:PEtabODEProblem} for model $(name)\n"
     end
     if whatlog == :Build_ODEProblem
-        str = styled"{blue:{bold:│ }} Building {magenta:ODEProblem} from model system ... "
+        str = styled"{PURPLE:{bold:│ }} Building {emphasis:ODEProblem} from model system ... "
     end
     if whatlog == :Build_nllh
-        str = styled"{blue:{bold:│ }} Building {magenta:nllh} (negative log-likelihood) function ... "
+        str = styled"{PURPLE:{bold:│ }} Building {emphasis:nllh} (negative log-likelihood) function ... "
     end
     if whatlog == :Build_gradient
-        str = styled"{blue:{bold:│ }} Building {magenta:gradient} nllh function for method $(method) ... "
+        str = styled"{PURPLE:{bold:│ }} Building {emphasis:gradient} nllh function for method $(method) ... "
     end
     if whatlog == :Build_hessian
-        str = styled"{blue:{bold:│ }} Building {magenta:Hessian} nllh function for method $(method) ... "
+        str = styled"{PURPLE:{bold:│ }} Building {emphasis:Hessian} nllh function for method $(method) ... "
     end
     if whatlog == :Build_chi2_res_sim
-        str = styled"{blue:{bold:└ }} Building {magenta:χ₂} and {magenta:residuals} functions ... "
+        str = styled"{PURPLE:{bold:└ }} Building {emphasis:χ₂} and {emphasis:residuals} functions ... "
     end
 
     print(str)

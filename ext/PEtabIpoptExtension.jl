@@ -62,7 +62,8 @@ function PEtab.calibrate(prob::PEtabODEProblem,
                                    xtrace, ftrace, converged, sol_ipopt)
 end
 
-function _get_ipopt_prob(prob::PEtabODEProblem, LBFGS::Bool, save_trace::Bool, options::PEtab.IpoptOptions)
+function _get_ipopt_prob(prob::PEtabODEProblem, LBFGS::Bool, save_trace::Bool,
+                         options::PEtab.IpoptOptions)
     @unpack lower_bounds, upper_bounds = prob
     lb = lower_bounds |> collect
     ub = upper_bounds |> collect
@@ -94,7 +95,7 @@ function _get_ipopt_prob(prob::PEtabODEProblem, LBFGS::Bool, save_trace::Bool, o
     ftrace = Vector{Float64}(undef, 0)
     xtrace = Vector{Vector{Float64}}(undef, 0)
     _intermediate = (alg_mod, iter_count, obj_value, inf_pr, inf_du, mu, d_norm,
-                     regularization_size,  alpha_du, alpha_pr, ls_trials) -> begin
+    regularization_size, alpha_du, alpha_pr, ls_trials) -> begin
         intermediate_ipopt(alg_mod, iter_count, obj_value, inf_pr, inf_du, mu, d_norm,
                            regularization_size, alpha_du, alpha_pr, ls_trials, iters,
                            ipopt_prob, save_trace, ftrace, xtrace)
@@ -116,7 +117,8 @@ function _get_ipopt_prob(prob::PEtabODEProblem, LBFGS::Bool, save_trace::Bool, o
 end
 
 function _hess!(x::Vector{Float64}, rows::Vector{Int32}, cols::Vector{Int32},
-                obj_factor::Float64, λ::Vector{Float64}, values::Union{Nothing, Vector{Float64}},
+                obj_factor::Float64, λ::Vector{Float64},
+                values::Union{Nothing, Vector{Float64}},
                 nparameters::Integer, hess!::Function)
     idx::Int32 = 0
     if values === nothing

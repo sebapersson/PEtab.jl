@@ -42,8 +42,10 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     parametermap_use = _get_parametermap(sys_mutated, parametermap)
     xindices = ParameterIndices(petab_tables, sys_mutated, parametermap_use, speciemap_use)
     # Warn user if any variable is unassigned (and defaults to zero)
-    _check_unassigned_variables(sys, speciemap_use, speciemap, :specie, parameters_df, conditions_df)
-    _check_unassigned_variables(sys, parametermap_use, parametermap, :parameter, parameters_df, conditions_df)
+    _check_unassigned_variables(sys, speciemap_use, speciemap, :specie, parameters_df,
+                                conditions_df)
+    _check_unassigned_variables(sys, parametermap_use, parametermap, :parameter,
+                                parameters_df, conditions_df)
 
     _logging(:Build_u0_h_σ, verbose; exist = false)
     btime = @elapsed begin
@@ -75,7 +77,8 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
 
     # Path only applies when PEtab tables are provided
     paths = Dict{Symbol, String}()
-    return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ,  float_tspan,
-                      paths, sys, sys_mutated, parametermap_use, speciemap_use, petab_tables,
+    return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan,
+                      paths, sys, sys_mutated, parametermap_use, speciemap_use,
+                      petab_tables,
                       cbset, true)
 end

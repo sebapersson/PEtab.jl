@@ -6,6 +6,9 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
     name = splitdir(paths[:dirmodel])[end]
 
     write_to_file && !isdir(paths[:dirjulia]) && mkdir(paths[:dirjulia])
+    if write_to_file == false && build_julia_files == true
+        paths[:dirjulia] = ""
+    end
     _logging(:Build_PEtabModel, verbose; name = name)
 
     # Import SBML model with SBMLImporter

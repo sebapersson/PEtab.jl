@@ -131,9 +131,9 @@ For a collection of examples with corresponding plots, see the documentation.
     of `affects`.
 """
 struct PEtabEvent
-    condition
-    affect
-    target
+    condition::Any
+    affect::Any
+    target::Any
 end
 
 """

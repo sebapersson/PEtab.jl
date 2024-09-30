@@ -23,7 +23,10 @@
 
     # Loops through all observables, computing the required plot inputs.
     for (obs_idx, obs_id) in enumerate(obsids)
-        t_observed, h_observed, label_observed, t_model, h_model, label_model = _get_observable(res.xmin, prob, cid, obs_id)
+        t_observed, h_observed, label_observed, t_model, h_model, label_model = _get_observable(res.xmin,
+                                                                                                prob,
+                                                                                                cid,
+                                                                                                obs_id)
 
         # Plot args.
         append!(seriestype, [:scatter, :line])
@@ -153,7 +156,7 @@ function _get_observable(x, prob::PEtabODEProblem, cid::String, obsid::String)
             end
             t_model = vcat(t_model, sol.t)
             npoints = length(sol.t)
-        # With observable parameters the simulated values can be used instead
+            # With observable parameters the simulated values can be used instead
         else
             t_model = vcat(t_model, measurements_df[_idata, :time])
             h_model = vcat(h_model, prob.simulated_values(x)[_idata])

@@ -35,7 +35,8 @@ function _get_model_size(sys::ModelSystem,
     end
 end
 
-function _get_split_over_conditions(split::Union{Nothing, Bool}, model_info::ModelInfo)::Bool
+function _get_split_over_conditions(split::Union{Nothing, Bool},
+                                    model_info::ModelInfo)::Bool
     !isnothing(split) && return split
     nxdynamic_sys = _get_size_xdynamic_sys(model_info)
     nxdynamic = length(model_info.xindices.xids[:dynamic])

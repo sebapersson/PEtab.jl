@@ -74,7 +74,8 @@ function get_startguesses(prob::PEtabODEProblem, n::Integer; sample_prior::Bool 
     return out
 end
 
-function _single_startguess(prob::PEtabODEProblem, sample_prior::Bool, allow_inf::Bool)::ComponentArray{Float64}
+function _single_startguess(prob::PEtabODEProblem, sample_prior::Bool,
+                            allow_inf::Bool)::ComponentArray{Float64}
     @unpack model_info, xnames, xnominal_transformed, lower_bounds, upper_bounds = prob
     out = similar(xnominal_transformed)
     for k in 1:1000

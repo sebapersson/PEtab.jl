@@ -19,14 +19,14 @@ function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fun
         tmp = nxdynamic[1]
         nxdynamic[1] = length(xdynamic)
         try
-        # In case of no length(xdynamic) = 0 the ODE must still be solved to get
-        # the gradient of nondynamic parameters
-        if length(xdynamic_grad) != 0
-            ForwardDiff.gradient!(xdynamic_grad, _nllh_solveode, xdynamic, cfg)
-            @views grad[xindices.xindices[:dynamic]] .= xdynamic_grad
-        else
-            _ = _nllh_solveode(xdynamic)
-        end
+            # In case of no length(xdynamic) = 0 the ODE must still be solved to get
+            # the gradient of nondynamic parameters
+            if length(xdynamic_grad) != 0
+                ForwardDiff.gradient!(xdynamic_grad, _nllh_solveode, xdynamic, cfg)
+                @views grad[xindices.xindices[:dynamic]] .= xdynamic_grad
+            else
+                _ = _nllh_solveode(xdynamic)
+            end
         catch
             fill!(grad, 0.0)
             return nothing

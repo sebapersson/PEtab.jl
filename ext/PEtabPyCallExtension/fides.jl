@@ -110,21 +110,24 @@ function _setup_fides(fun::Function, ub::Vector{Float64}, lb::Vector{Float64},
 
     """
     run_fides = (x0; verbose = verbose, options = options, funargs = funargs,
-                 hessian_update = hessian_update, resfun = resfun) -> begin
+    hessian_update = hessian_update, resfun = resfun) -> begin
         py"run_fides_python"(x0, fun, ub, lb, verbose, options, funargs, hessian_update,
                              resfun)
-        end
+    end
     return run_fides
 end
 
-function _fides_obj_hess(x::Vector{Float64}, prob::PEtabODEProblem)::Tuple{Float64, Vector{Float64}, Matrix{Float64}}
+function _fides_obj_hess(x::Vector{Float64},
+                         prob::PEtabODEProblem)::Tuple{Float64, Vector{Float64},
+                                                       Matrix{Float64}}
     nllh = prob.nllh(x)
     grad = prob.grad(x)
     hess = prob.hess(x)
     return (nllh, grad, hess)
 end
 
-function _fides_obj_hess_approx(x::Vector{Float64}, prob::PEtabODEProblem)::Tuple{Float64, Vector{Float64}}
+function _fides_obj_hess_approx(x::Vector{Float64},
+                                prob::PEtabODEProblem)::Tuple{Float64, Vector{Float64}}
     nllh, grad = prob.nllh_grad(x)
     return (nllh, grad)
 end

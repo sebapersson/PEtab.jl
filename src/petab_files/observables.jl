@@ -1,6 +1,7 @@
 function parse_observables(modelname::String, paths::Dict{Symbol, String}, sys::ModelSystem,
                            observables_df::DataFrame, xindices::ParameterIndices, speciemap,
-                           model_SBML::SBMLImporter.ModelSBML, write_to_file::Bool)::NTuple{4, String}
+                           model_SBML::SBMLImporter.ModelSBML,
+                           write_to_file::Bool)::NTuple{4, String}
     state_ids = _get_state_ids(sys)
 
     _hstr = _parse_h(state_ids, xindices, observables_df, model_SBML)
@@ -17,7 +18,8 @@ function parse_observables(modelname::String, paths::Dict{Symbol, String}, sys::
     return _hstr, _u0!str, _u0str, _σstr
 end
 
-function _parse_h(state_ids::Vector{String}, xindices::ParameterIndices, observables_df::DataFrame, model_SBML::SBMLImporter.ModelSBML)::String
+function _parse_h(state_ids::Vector{String}, xindices::ParameterIndices,
+                  observables_df::DataFrame, model_SBML::SBMLImporter.ModelSBML)::String
     hstr = "function compute_h(u::AbstractVector, t::Real, p::AbstractVector, \
             xobservable::AbstractVector, xnondynamic::AbstractVector, \
             nominal_values::Vector{Float64}, obsid::Symbol, \
@@ -37,7 +39,8 @@ function _parse_h(state_ids::Vector{String}, xindices::ParameterIndices, observa
     return hstr
 end
 
-function _parse_σ(state_ids::Vector{String}, xindices::ParameterIndices, observables_df::DataFrame, model_SBML::SBMLImporter.ModelSBML)::String
+function _parse_σ(state_ids::Vector{String}, xindices::ParameterIndices,
+                  observables_df::DataFrame, model_SBML::SBMLImporter.ModelSBML)::String
     σstr = "function compute_σ(u::AbstractVector, t::Real, p::AbstractVector, \
             xnoise::AbstractVector, xnondynamic::AbstractVector, \
             nominal_values::Vector{Float64}, obsid::Symbol, \
@@ -58,7 +61,8 @@ function _parse_σ(state_ids::Vector{String}, xindices::ParameterIndices, observ
     return σstr
 end
 
-function _parse_u0(speciemap, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, inplace::Bool)
+function _parse_u0(speciemap, state_ids::Vector{String}, xindices::ParameterIndices,
+                   model_SBML::SBMLImporter.ModelSBML, inplace::Bool)
     speciemap_ids = replace.(string.(first.(speciemap)), "(t)" => "")
     if inplace == true
         u0str = "function compute_u0!(u0::AbstractVector, p::AbstractVector)\n"
@@ -68,14 +72,16 @@ function _parse_u0(speciemap, state_ids::Vector{String}, xindices::ParameterIndi
 
     for id in state_ids
         im = findfirst(x -> x == id, speciemap_ids)
-        u0formula = _parse_formula(string(speciemap[im].second), state_ids, xindices, model_SBML, :u0)
+        u0formula = _parse_formula(string(speciemap[im].second), state_ids, xindices,
+                                   model_SBML, :u0)
         u0str *= "\t$id = $u0formula\n"
     end
 
     if inplace == true
-        u0str *= "\tu0 .= " * prod(state_ids .* ", ")[1:(end-2)] * "\n"
-    else inplace == false
-        u0str *= "\treturn [" * prod(state_ids .* ", ")[1:(end-2)] * "]\n"
+        u0str *= "\tu0 .= " * prod(state_ids .* ", ")[1:(end - 2)] * "\n"
+    else
+        inplace == false
+        u0str *= "\treturn [" * prod(state_ids .* ", ")[1:(end - 2)] * "]\n"
     end
     u0str *= "end\n\n"
     return u0str
@@ -83,17 +89,17 @@ end
 
 function _get_observable_parameters(formula::String)::Vector{String}
     obsp = [m.match for m in eachmatch(r"observableParameter[0-9]_\w+", formula)] |>
-        unique |>
-        sort .|>
-        string
+           unique |>
+           sort .|>
+           string
     return obsp
 end
 
 function _get_noise_parameters(formula::String)::Vector{String}
     noisep = [m.match for m in eachmatch(r"noiseParameter[0-9]_\w+", formula)] |>
-        unique |>
-        sort .|>
-        string
+             unique |>
+             sort .|>
+             string
     return noisep
 end
 
@@ -110,7 +116,9 @@ function _template_obs_sd_parameters(parameters::Vector{String}; obs::Bool)::Str
     end
 end
 
-function _parse_formula(formula::String, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, type::Symbol)::String
+function _parse_formula(formula::String, state_ids::Vector{String},
+                        xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML,
+                        type::Symbol)::String
     formula = SBMLImporter.insert_functions(formula, PETAB_FUNCTIONS, PETAB_FUNCTIONS_NAMES)
     # It is possible to have math expressions on the form 3.0a instead of 3.0*a, this makes
     # the parsing harder and is fixed with this regex. The second regex is to adjust
@@ -124,9 +132,19 @@ function _parse_formula(formula::String, state_ids::Vector{String}, xindices::Pa
         formula = SBMLImporter._inline_assignment_rules(formula, model_SBML)
     end
     if type == :observable
-        ids_replace = [:observable => "xobservable", :sys => "p", :nondynamic => "xnondynamic", :petab => "nominal_values"]
+        ids_replace = [
+            :observable => "xobservable",
+            :sys => "p",
+            :nondynamic => "xnondynamic",
+            :petab => "nominal_values"
+        ]
     elseif type == :noise
-        ids_replace = [:noise => "xnoise", :sys => "p", :nondynamic => "xnondynamic", :petab => "nominal_values"]
+        ids_replace = [
+            :noise => "xnoise",
+            :sys => "p",
+            :nondynamic => "xnondynamic",
+            :petab => "nominal_values"
+        ]
     elseif type == :u0
         ids_replace = [:sys => "p"]
     end

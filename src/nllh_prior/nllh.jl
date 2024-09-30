@@ -138,15 +138,16 @@ function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic::T,
             return Inf
         end
         if σ < 0.0
-            @warn "Measurement noise σ is smaller than 0. Consider changing the noise "*
-                  "formula so it cannot go below zero. This issue likelly happens due "*
-                  "to numerical noise when solving the ODE" maxlog=10
+            @warn "Measurement noise σ is smaller than 0. Consider changing the noise  \
+                   formula so it cannot go below zero. This issue likelly happens due \
+                   to numerical noise when solving the ODE" maxlog=10
             return Inf
         end
 
         # For residuals == true we only care about residuals
         if residuals == false
-            nllh += _nllh_obs(residual, σ, y_transformed, measurement_transforms[imeasurement])
+            nllh += _nllh_obs(residual, σ, y_transformed,
+                              measurement_transforms[imeasurement])
         else
             nllh += residual
         end
@@ -154,18 +155,22 @@ function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic::T,
     return nllh
 end
 
-function _nllh_obs(residual::T, σ::Real, y_transformed::Float64, transform::Symbol)::T where T <: Real
+function _nllh_obs(residual::T, σ::Real, y_transformed::Float64,
+                   transform::Symbol)::T where {T <: Real}
     if transform == :lin
         return log(σ) + 0.5 * log(2π) + 0.5 * residual^2
     elseif transform === :log10
-        return log(σ) + 0.5 * log(2π) + log(log(10)) + log(10) * y_transformed + 0.5 * residual^2
+        return log(σ) + 0.5 * log(2π) + log(log(10)) + log(10) * y_transformed +
+               0.5 * residual^2
     elseif transform === :log
         return log(σ) + 0.5 * log(2π) + y_transformed + 0.5 * residual^2
     end
 end
 
 function update_petab_measurements!(petab_measurements::PEtabMeasurements, h::T, hT::T,
-                                    σ::Real, res::T, imeasurement::Integer)::Nothing where {T <: AbstractFloat}
+                                    σ::Real, res::T,
+                                    imeasurement::Integer)::Nothing where {T <:
+                                                                           AbstractFloat}
     petab_measurements.simulated_values[imeasurement] = h
     mT = petab_measurements.measurement_transformed[imeasurement]
     petab_measurements.chi2_values[imeasurement] = (hT - mT)^2 / σ^2

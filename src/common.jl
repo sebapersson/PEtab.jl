@@ -114,7 +114,8 @@ end
 
 function _h(u::AbstractVector, t::Float64, p::AbstractVector, xobservable::T,
             xnondynamic::T, petab_h::Function, mapxobservable::ObservableNoiseMap,
-            observable_id::Symbol, nominal_values::Vector{Float64})::Real where T <: AbstractVector
+            observable_id::Symbol,
+            nominal_values::Vector{Float64})::Real where {T <: AbstractVector}
     return petab_h(u, t, p, xobservable, xnondynamic, nominal_values, observable_id,
                    mapxobservable)
 end

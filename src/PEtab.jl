@@ -9,7 +9,7 @@ using ComponentArrays
 using DataFrames
 using ForwardDiff
 using ReverseDiff
-import ChainRulesCore
+using DiffEqCallbacks
 using SBMLImporter
 using StatsBase
 using Sundials
@@ -35,7 +35,7 @@ const NonlinearAlg = Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorit
 include(joinpath("structs", "petab_model.jl"))
 include(joinpath("structs", "petab_odeproblem.jl"))
 include(joinpath("structs", "parameter_estimation.jl"))
-include("Structs.jl")
+include(joinpath("structs", "inference.jl"))
 
 const EstimationResult = Union{PEtabOptimisationResult, PEtabMultistartResult,
                                Vector{<:AbstractFloat}, ComponentArray}
@@ -114,33 +114,33 @@ export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
        petab_select, get_obs_comparison_plots
 
 """
-    to_prior_scale(xpetab, target::PEtabLogDensity)::AbstractVector
+    to_prior_scale(xpetab, target::PEtabLogDensity)
 
-Transforms parameter `xpetab` from the PEtab problem scale to the prior scale.
+Transforms parameter `x` from the PEtab problem scale to the prior scale.
 
-This conversion is essential for Bayesian inference, as in PEtab.jl Bayesian inference
-is performed on the prior scale.
+This conversion is needed for Bayesian inference, as in PEtab.jl Bayesian inference is
+performed on the prior scale.
 
 !!! note
-    To use this function Bijectors, LogDensityProblems, LogDensityProblemsAD must be loaded;
-    `using Bijectors, LogDensityProblems, LogDensityProblemsAD`
+    To use this function, the Bijectors, LogDensityProblems, and LogDensityProblemsAD
+    packages must be loaded: `using Bijectors, LogDensityProblems, LogDensityProblemsAD`
 """
 function to_prior_scale end
 
 """
-    to_chains(res, target::PEtabLogDensity; start_time=nothing, end_time=nothing)::MCMCChains
+    to_chains(res, target::PEtabLogDensity; kwargs...)::MCMCChains
 
-Converts Bayesian inference results obtained with `PEtabLogDensity` into a `MCMCChains`.
+Converts Bayesian inference results obtained with `PEtabLogDensity` into an `MCMCChains`.
 
-`res` can be the inference results from AdvancedHMC.jl, AdaptiveMCMC.jl, or Pigeon.jl.
-The out chain has the inferred parameters on the prior scale.
+`res` can be the inference results from AdvancedHMC.jl or AdaptiveMCMC.jl. The returned
+chain has the parameters on the prior scale.
 
 # Keyword Arguments
 - `start_time`: Optional starting time for the inference, obtained with `now()`.
 - `end_time`: Optional ending time for the inference, obtained with `now()`.
 
 !!! note
-    To use this function MCMCChains must be loaded; `using MCMCChains`
+    To use this function, the MCMCChains package must be loaded: `using MCMCChains`
 """
 function to_chains end
 

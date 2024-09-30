@@ -136,8 +136,8 @@ struct PEtabOptimisationResult
     runtime::Float64
     xtrace::Vector{Vector{Float64}}
     ftrace::Vector{Float64}
-    converged
-    original
+    converged::Any
+    original::Any
 end
 
 """
@@ -176,7 +176,8 @@ struct PEtabMultistartResult
     dirsave::Union{String, Nothing}
     runs::Vector{PEtabOptimisationResult}
 end
-function PEtabMultistartResult(dirres::String; which_run::Integer = 1)::PEtabMultistartResult
+function PEtabMultistartResult(dirres::String;
+                               which_run::Integer = 1)::PEtabMultistartResult
     @assert isdir(dirres) "Directory $dirres does not exist"
 
     i = which_run |> string
@@ -205,11 +206,13 @@ function PEtabMultistartResult(dirres::String; which_run::Integer = 1)::PEtabMul
             _ftrace = Vector{Float64}(undef, 0)
             _xtrace = Vector{Vector{Float64}}(undef, 0)
         end
-        xnames = propertynames(x_df)[1:end-1] |> collect
+        xnames = propertynames(x_df)[1:(end - 1)] |> collect
         xmin = ComponentArray(; (xnames .=> x_df[i, 1:(end - 1)] |>
-            Vector{Float64})...)
-        xstart = ComponentArray(; (xnames .=> startguesses_df[i, 1:(end - 1)] |>
-            Vector{Float64})...)
+                                            Vector{Float64})...)
+        xstart = ComponentArray(;
+                                (xnames .=>
+                                     startguesses_df[i, 1:(end - 1)] |>
+                                     Vector{Float64})...)
         runs[i] = PEtabOptimisationResult(xmin, res_df[i, :fmin], xstart,
                                           Symbol(res_df[i, :alg]), res_df[i, :niterations],
                                           res_df[i, :runtime], _xtrace, _ftrace,

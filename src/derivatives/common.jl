@@ -1,7 +1,7 @@
 function _G(u::AbstractVector, p::AbstractVector, t::T, i::Integer,
             imeasurements_t_cid::Vector{Vector{Int64}}, model_info::ModelInfo,
             xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic::Vector{T},
-            residuals::Bool) where T <: AbstractFloat
+            residuals::Bool) where {T <: AbstractFloat}
     @unpack petab_measurements, xindices, petab_parameters, model = model_info
     @unpack measurement_transforms, observable_id = petab_measurements
     nominal_values = petab_parameters.nominal_value
@@ -34,7 +34,7 @@ function _get_∂G∂_!(probinfo::PEtabODEProblemInfo, model_info::ModelInfo, ci
         it = model_info.simulation_info.imeasurements_t[cid]
         ∂G∂u! = (out, u, p, t, i) -> begin
             _fu = (u) -> begin
-            _G(u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic, false)
+                _G(u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic, false)
             end
             ForwardDiff.gradient!(out, _fu, u)
             return nothing
@@ -125,7 +125,9 @@ function _grad_to_xscale!(grad_xscale::AbstractVector{T}, grad_linscale::Abstrac
     return nothing
 end
 
-function _grad_to_xscale(grad_linscale::AbstractVector{T}, x::AbstractVector{T}, xids::AbstractVector{Symbol}, xscale::Dict{Symbol, Symbol})::Vector{T} where T <: AbstractFloat
+function _grad_to_xscale(grad_linscale::AbstractVector{T}, x::AbstractVector{T},
+                         xids::AbstractVector{Symbol},
+                         xscale::Dict{Symbol, Symbol})::Vector{T} where {T <: AbstractFloat}
     grad_xscale = similar(grad_linscale)
     for (i, xid) in pairs(xids)
         grad_xscale[i] = _grad_to_xscale(grad_linscale[i], x[i], xscale[xid])

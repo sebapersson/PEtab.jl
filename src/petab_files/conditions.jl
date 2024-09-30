@@ -253,7 +253,8 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}})::MapODEProblem
     return MapODEProblem(sys_to_dynamic, dynamic_to_sys)
 end
 
-function _get_condition_maps(sys, parametermap, speciemap, petab_parameters::PEtabParameters,
+function _get_condition_maps(sys, parametermap, speciemap,
+                             petab_parameters::PEtabParameters,
                              conditions_df::DataFrame,
                              xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, ConditionMap}
     species_sys = _get_state_ids(sys)
