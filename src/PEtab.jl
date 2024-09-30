@@ -3,7 +3,9 @@ module PEtab
 using ModelingToolkit
 using CSV
 using SciMLBase
-using OrdinaryDiffEq
+using OrdinaryDiffEqBDF
+using OrdinaryDiffEqRosenbrock
+using OrdinaryDiffEqSDIRK
 using Catalyst
 using ComponentArrays
 using DataFrames
