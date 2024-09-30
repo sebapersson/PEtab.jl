@@ -113,7 +113,7 @@ function test_nllh_grad_hess(model::PEtabModel, osolver::ODESolver, ss_solver::S
 end
 
 model = PEtabModel(joinpath(@__DIR__, "analytic_ss", "Test_model3.yaml"),
-                   build_julia_files=true, write_to_file=true, verbose=false)
+                   build_julia_files=true, write_to_file=false, verbose=false)
 
 @testset "ODE solver Simulate wrms termination" begin
     ss_solver = SteadyStateSolver(:Simulate, termination_check=:wrms, abstol=1e-12, reltol=1e-10)

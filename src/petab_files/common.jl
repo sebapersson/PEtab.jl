@@ -29,7 +29,7 @@ function _get_functions_as_str(path::String, nfunctions::Int64;
     functions = fill("", nfunctions)
     if asstr == false
         bodyfile = open(path, "r") do f
-            read(f)
+            read(f, String)
         end
         bodyfile = split(bodyfile, '\n')
     else
@@ -43,7 +43,7 @@ function _get_functions_as_str(path::String, nfunctions::Int64;
             infunction = true
         end
         if infunction && length(line) ≥ 3 && line[1:3] == "end"
-            functions[ifunction] = prod(bodyfile[istart:i])
+            functions[ifunction] = prod(bodyfile[istart:i] .* '\n')
             infunction == false
             ifunction += 1
         end
