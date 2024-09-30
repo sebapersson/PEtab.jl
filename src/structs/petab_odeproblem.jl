@@ -428,10 +428,10 @@ a `PEtabODEProblem` works with the negative log-likelihood:
 -\\ell(\\mathbf{x}) =  - \\sum_{i = 1}^N \\ell_i(\\mathbf{x}),
 ```
 
-where ``\ell_i`` is the likelihood for each measurement ``i``. In addition, to accommodate
+where ``\\ell_i`` is the likelihood for each measurement ``i``. In addition, to accommodate
 numerical optimization packages, the `PEtabODEProblem` provides efficient functions for
-computing the gradient ``-\\nabla \ell(\\mathbf{x})`` and the second derivative Hessian
-matrix ``-\\nabla^2 \ell(\\mathbf{x})``, using the specified or default `gradient_method`
+computing the gradient ``-\\nabla \\ell(\\mathbf{x})`` and the second derivative Hessian
+matrix ``-\\nabla^2 \\ell(\\mathbf{x})``, using the specified or default `gradient_method`
 and `hessian_method`.
 
 In addition to ``-\\ell`` and its derivatives, the `PEtabODEProblem` provides functions for
@@ -441,7 +441,7 @@ measurement `y`, an observable `h = obs_formula`, and a standard deviation
 `σ = noise_formula`, the χ² is computed as:
 
 ```math
-\\chi_2 = \\frac{(y - h)^2}{\\sigma^2}
+\\chi^2 = \\frac{(y - h)^2}{\\sigma^2}
 ```
 
 The residuals ``r`` can be used to assess the measurement error model and are computed as:
@@ -451,7 +451,7 @@ r = \\frac{(y - h)}{\\sigma}
 ```
 
 Lastly, the empirical Fisher Information Matrix (FIM) can be used for identifiability
-analysis [29]. It should ideally be computed with an exact Hessian method. The inverse of
+analysis [2]. It should ideally be computed with an exact Hessian method. The inverse of
 the FIM provides a lower bound on the covariance matrix. While the FIM can be useful, the
 profile-likelihood approach generally yields better results for identifiability analysis [2].
 
