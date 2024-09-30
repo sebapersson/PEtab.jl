@@ -2,7 +2,7 @@
 
 As discussed in [this](@ref define_conditions) extended tutorial, sometimes a subset of the model parameters to estimate have different values across experimental/simulation conditions. For such models, runtime can drastically improve by setting `split_over_conditions=true` when creating a `PEtabODEProblem`. This example explores this option in more detail, and it assumes that that you are familiar with condition-specific parameters in PEtab (see [this](@ref define_conditions) tutorial) and with the gradient methods in PEtab.jl (see [this](@ref gradient_support) page).
 
-As a working example, we use a published signaling model referred to as the Beer model after the first author [beer2014creating](@cite). The Beer model is available in the PEtab standard format (a tutorial on importing problems in the standard format can be found [here](@ref import_petab_problem)), and the PEtab files for this model can be downloaded from [here](https://github.com/sebapersson/PEtab.jl/docs/src/assets/beer). Given the problem YAML file, we can import the problem as:
+As a working example, we use a published signaling model referred to as the Beer model after the first author [beer2014creating](@cite). The Beer model is available in the PEtab standard format (a tutorial on importing problems in the standard format can be found [here](@ref import_petab_problem)), and the PEtab files for this model can be downloaded from [here](https://github.com/sebapersson/PEtab.jl/tree/main/docs/src/assets/beer). Given the problem YAML file, we can import the problem as:
 
 ```@example 1
 using PEtab

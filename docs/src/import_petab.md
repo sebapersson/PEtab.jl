@@ -6,7 +6,7 @@
 
 To import a PEtab problem, a valid PEtab problem is required. A tutorial on creating a PEtab problem can be found in the PEtab [documentation](https://petab.readthedocs.io/en/latest/), and a [linting tool](https://github.com/PEtab-dev/PEtab/tree/main) is available in Python for checking correctness. Additionally, PEtab.jl performs several format checks when importing the problem.
 
-A collection of valid PEtab problems is also available in the PEtab benchmark [repository](https://github.com/Benchmarking-Initiative/Benchmark-Models-PEtab). In this tutorial, we will use an already published model from the PEtab benchmark repository. Specifically, we will consider the STAT5 signaling model, referred to here as the Boehm model (after the first author) [boehm2014identification](@cite). The PEtab files for this model can be found [here](https://github.com/sebapersson/PEtab.jl/docs/src/assets/boehm).
+A collection of valid PEtab problems is also available in the PEtab benchmark [repository](https://github.com/Benchmarking-Initiative/Benchmark-Models-PEtab). In this tutorial, we will use an already published model from the PEtab benchmark repository. Specifically, we will consider the STAT5 signaling model, referred to here as the Boehm model (after the first author) [boehm2014identification](@cite). The PEtab files for this model can be found [here](https://github.com/sebapersson/PEtab.jl/tree/main/docs/src/assets/boehm).
 
 ## Importing a PEtabModel
 
