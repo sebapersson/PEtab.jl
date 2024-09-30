@@ -60,8 +60,8 @@ function test_odesolver(model::PEtabModel, osolver::ODESolver, ss_solver::Steady
     for i in 1:5
         a, b, c, d = parameters_test[:, i]
         x = [a, b, c, d]
-        sols, _ = solve_all_conditions(x, prob, osolver.solver; abstol = osolver.abstol,
-                                       reltol = osolver.reltol, save_observed_t = true)
+        sols = solve_all_conditions(x, prob, osolver.solver; abstol = osolver.abstol,
+                                    reltol = osolver.reltol, save_observed_t = true)
         algebraic_sols = solve_algebraic_ss(model, osolver.solver, osolver.abstol, a, b, c, d)
         sqdiff = 0.0
         for (i, cid) in pairs(prob.model_info.simulation_info.conditionids[:experiment])
@@ -112,7 +112,7 @@ function test_nllh_grad_hess(model::PEtabModel, osolver::ODESolver, ss_solver::S
     return nothing
 end
 
-model = PEtabModel(joinpath(@__DIR__, "Test_model3", "Test_model3.yaml"),
+model = PEtabModel(joinpath(@__DIR__, "analytic_ss", "Test_model3.yaml"),
                    build_julia_files=true, write_to_file=true, verbose=false)
 
 @testset "ODE solver Simulate wrms termination" begin
@@ -131,6 +131,6 @@ end
     test_nllh_grad_hess(model, osolver, ss_solver)
 end
 
-@testset "Gradient of residuals" begin
-    check_gradient_residuals(model, ODESolver(Rodas4P(), abstol=1e-9, reltol=1e-9))
+@testset "grad residuals" begin
+    test_grad_residuals(model, ODESolver(Rodas5P(), abstol=1e-9, reltol=1e-9))
 end

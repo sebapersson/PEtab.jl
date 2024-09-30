@@ -50,12 +50,12 @@ parameters = [PEtabParameter(:a0, value=1.0, scale=:lin),
 observables = Dict("obs_a" => PEtabObservable(observableParameter1_obs_a * A + observableParameter2_obs_a, 0.5))
 
 # Create a PEtabODEProblem ReactionNetwork
-model_rn = PEtabModel(rn, simulation_conditions, observables, measurements,
-                      parameters, verbose=false)
+model_rn = PEtabModel(rn, observables, measurements, parameters;
+                      simulation_conditions = simulation_conditions)
 petab_problem_rn = PEtabODEProblem(model_rn, verbose=false)
 # Create a PEtabODEProblem ODESystem
-model_sys = PEtabModel(sys, simulation_conditions, observables, measurements,
-                       parameters, verbose=false)
+model_sys = PEtabModel(sys, observables, measurements, parameters;
+                       simulation_conditions = simulation_conditions)
 petab_problem_sys = PEtabODEProblem(model_sys, verbose=false)
 
 # Compute negative log-likelihood

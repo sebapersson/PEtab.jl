@@ -12,8 +12,8 @@ using Catalyst, PEtab, OrdinaryDiffEq, Catalyst, DataFrames, Test
     prob = PEtabODEProblem(model; verbose=false)
     x = prob.xnominal_transformed .* 0.9
     nllh = prob.nllh(x)
-    res = PEtabOptimisationResult(:Fides, Vector{Vector{Float64}}(undef, 0), Float64[], 10,
-                                  nllh, x ./ 0.9, x, true, 10.0,  nothing)
+    res = PEtabOptimisationResult(x ./ 0.9, 10.0, x, :Fides, 10, 10.0,
+                                  Vector{Vector{Float64}}(undef, 0), Float64[],  true,  nothing)
     @unpack u0, p = prob.model_info.simulation_info.odesols[:model1_data1].prob
     u0_test = get_u0(res, prob; retmap=false)
     p_test = get_ps(res, prob; retmap=false)
@@ -33,8 +33,8 @@ using Catalyst, PEtab, OrdinaryDiffEq, Catalyst, DataFrames, Test
                            odesolver=ODESolver(Rodas5P(), abstol=1e-10, reltol=1e-10))
     x = prob.xnominal_transformed .* 0.9
     nllh = prob.nllh(x)
-    res = PEtabOptimisationResult(:Fides, Vector{Vector{Float64}}(undef, 0), Float64[], 10,
-                                  nllh, x ./ 0.9, x, true, 10.0,  nothing)
+    res = PEtabOptimisationResult(x ./ 0.9, 10.0, x, :Fides, 10, 10.0,
+                                  Vector{Vector{Float64}}(undef, 0), Float64[],  true,  nothing)
     @unpack u0, p = prob.model_info.simulation_info.odesols[:typeIDT1_ExpID1].prob
     u0_test = get_u0(res, prob; cid=:typeIDT1_ExpID1, retmap=false)
     p_test = get_ps(res, prob; cid=:typeIDT1_ExpID1, retmap=false)
@@ -47,8 +47,8 @@ using Catalyst, PEtab, OrdinaryDiffEq, Catalyst, DataFrames, Test
     prob = PEtabODEProblem(model, verbose=false)
     x = prob.xnominal_transformed .* 0.9
     nllh = prob.nllh(x)
-    res = PEtabOptimisationResult(:Fides, Vector{Vector{Float64}}(undef, 0), Float64[], 10,
-                                  nllh, x ./ 0.9, x, true, 10.0,  nothing)
+    res = PEtabOptimisationResult(x ./ 0.9, 10.0, x, :Fides, 10, 10.0,
+                                  Vector{Vector{Float64}}(undef, 0), Float64[],  true,  nothing)
     @unpack u0, p = prob.model_info.simulation_info.odesols[:Dose_0Dose_01].prob
     p_test = get_ps(res.xmin, prob; cid=:Dose_01, retmap=false)
     u0_test = get_u0(res.xmin, prob; cid=:Dose_01, preeq_id=:Dose_0, retmap=false)
@@ -73,8 +73,8 @@ using Catalyst, PEtab, OrdinaryDiffEq, Catalyst, DataFrames, Test
     m_c1 = DataFrame(simulation_id = "c1", obs_id="obs_X1", time=[1.0, 2.0, 3.0], measurement=[1.1, 1.2, 1.3])
     m_c2 = DataFrame(simulation_id = "c2", obs_id="obs_X1", time=[1.0, 2.0, 3.0], measurement=[1.2, 1.4, 1.6])
     measurements = vcat(m_c1, m_c2)
-    model = PEtabModel(rs, simulation_conditions, observables, measurements, params;
-                       speciemap=u0, verbose = false)
+    model = PEtabModel(rs, observables, measurements, params; speciemap=u0,
+                       simulation_conditions = simulation_conditions)
     prob = PEtabODEProblem(model; verbose = false)
     prob.nllh(log10.([1.0, 2.0]))
     ode_prob_mutated = prob.model_info.simulation_info.odesols[:c2].prob

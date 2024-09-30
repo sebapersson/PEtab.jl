@@ -48,7 +48,7 @@ model2 = PEtabModel(path2; build_julia_files = true, verbose = false, write_to_f
 
 ms_res = PEtabMultistartResult(joinpath(@__DIR__, "optimisation_results", "boehm"))
 @test @sprintf("%s", ms_res)[1:188] == "PEtabMultistartResult\n---------------- Summary ---------------\nmin(f)                = 1.38e+02\nParameters esimtated  = 9\nNumber of multistarts = 100\nOptimiser algorithm   = Optim_IPNewton"
-@test @sprintf("%s", ms_res.runs[1]) == "PEtabOptimisationResult\n---------------- Summary ---------------\nmin(f)                = 1.50e+02\nParameters esimtated  = 9\nOptimiser iterations  = 47\nRuntime              = 4.6e+00s\nOptimiser algorithm   = Optim_IPNewton\n"
+@test @sprintf("%s", ms_res.runs[1]) == "PEtabOptimisationResult\n---------------- Summary ---------------\nmin(f)                = 1.50e+02\nParameters esimtated  = 9\nOptimiser iterations  = 47\nRuntime               = 4.6e+00s\nOptimiser algorithm   = Optim_IPNewton\n"
 
 #=
 A fun bug in Julia

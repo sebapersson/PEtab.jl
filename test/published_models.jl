@@ -6,7 +6,7 @@
 using PEtab, OrdinaryDiffEq, SciMLSensitivity, ForwardDiff, LinearAlgebra, FiniteDifferences,
       Sundials, Test
 
-include(joinpath(@__DIR__, "Common.jl"))
+include(joinpath(@__DIR__, "common.jl"))
 
 NLLH_MODELS = Dict(:Bachmann_MSB2011 => (nllh = -418.40573341425295, prior = 0.0),
                    :Beer_MolBioSystems2014 => (nllh = -58622.9145631413, prior = 0.0),

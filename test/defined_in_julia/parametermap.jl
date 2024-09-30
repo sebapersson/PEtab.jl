@@ -45,11 +45,11 @@ parameters = [PEtabParameter(:a0, value=1.0, scale=:lin),
 @unpack A = rn
 observables = Dict("obs_a" => PEtabObservable(A, 0.5))
 
-model_rn = PEtabModel(rn, simulation_conditions, observables, measurements,
-                      parameters, verbose=false, parametermap=parametermap)
+model_rn = PEtabModel(rn, observables, measurements, parameters, parametermap=parametermap,
+                      simulation_conditions = simulation_conditions)
 petab_problem_rn = PEtabODEProblem(model_rn, verbose=false)
-model_sys = PEtabModel(sys, simulation_conditions, observables, measurements,
-                       parameters, verbose=false)
+model_sys = PEtabModel(sys, observables, measurements, parameters;
+                       simulation_conditions = simulation_conditions)
 petab_problem_sys = PEtabODEProblem(model_sys, verbose=false)
 
 nll_rn = petab_problem_rn.nllh(petab_problem_rn.xnominal_transformed)

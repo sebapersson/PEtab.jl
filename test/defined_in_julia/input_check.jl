@@ -31,7 +31,8 @@
         strwarn = "The parameter a0 has not been assigned a value among PEtabParameters, " *
                   "simulation conditions, or in the parameter map. It default to 0."
         @test_warn strwarn begin
-            model = PEtabModel(rn, simulation_conditions, observables, measurements, parameters, verbose=false, speciemap=speciemap)
+            model = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
+                               simulation_conditions = simulation_conditions)
         end
 
         simulation_conditions = Dict("c0" => Dict(:a0 => 1.0), "c1" => Dict(:a0 => 2.0))
@@ -39,7 +40,8 @@
         strwarn = "The parameter k2 has not been assigned a value among PEtabParameters, " *
                   "simulation conditions, or in the parameter map. It default to 0."
         @test_warn strwarn begin
-            model = PEtabModel(rn, simulation_conditions, observables, measurements, parameters, verbose=false, speciemap=speciemap)
+            model = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
+                               simulation_conditions = simulation_conditions)
         end
     end
 
@@ -51,15 +53,15 @@
         # Case 1 everything should work
         simulation_conditions = Dict("c0" => Dict(:a0 => 0.8),
                                      "c1" => Dict(:a0 => 0.9))
-        model = PEtabModel(rn, simulation_conditions, observables, measurements,
-                                 parameters, verbose=false, speciemap=speciemap)
+        model = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
+                           simulation_conditions = simulation_conditions)
         @test typeof(model) <: PEtabModel
 
         simulation_conditions = Dict("c0" => Dict(:b0 => 0.8),
                                     "c1" => Dict(:b0 => 0.9))
         @test_throws PEtab.PEtabFileError begin
-            model = PEtabModel(rn, simulation_conditions, observables, measurements,
-                                     parameters, verbose=false, speciemap=speciemap)
+            model = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
+                               simulation_conditions = simulation_conditions)
         end
 
         # PEtab-parameter to "estimate"
@@ -68,23 +70,23 @@
                             PEtabParameter(:noise, value=0.6, scale=:lin)]
         simulation_conditions = Dict("c0" => Dict(:a0 => 0.8),
                                      "c1" => Dict(:a0 => :noise))
-        model = PEtabModel(rn, simulation_conditions, observables, measurements,
-                                    parameters, verbose=false, speciemap=speciemap)
+        model = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
+                           simulation_conditions = simulation_conditions)
         @test model isa PEtabModel
 
         # c1 a0 maps to a non-model parameter
         simulation_conditions = Dict("c0" => Dict(:a0 => 0.8),
                                      "c1" => Dict(:a0 => :noise1))
         @test_throws PEtab.PEtabFileError begin
-            model = PEtabModel(rn, simulation_conditions, observables, measurements,
-                                     parameters, verbose=false, speciemap=speciemap)
+        model = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
+                           simulation_conditions = simulation_conditions)
         end
 
         simulation_conditions = Dict("c0" => Dict(:a0 => 0.8),
                                     "c1" => Dict(:k1 => :noise))
         @test_throws PEtab.PEtabFormatError begin
-            model = PEtabModel(rn, simulation_conditions, observables, measurements,
-                                     parameters, verbose=false, speciemap=speciemap)
+        model = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
+                           simulation_conditions = simulation_conditions)
         end
     end
 
@@ -110,16 +112,16 @@
                                  measurement=[0.7, 0.1, 0.8, 0.2],
                                  observable_parameters=[missing, "", "scale_P;offset_P", "1.0;1.0"],
                                  noise_parameters=[1.0, "noise", missing, missing])
-        model = PEtabModel(rn, simulation_conditions, observables, measurements,
-                                    parameters, verbose=false, speciemap=speciemap)
+        model = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
+                           simulation_conditions = simulation_conditions)
         @test model isa PEtabModel
 
         path = joinpath(@__DIR__, "Tmp.csv")
         CSV.write(path, measurements)
         dataread = CSV.read(path, DataFrame)
         rm(path)
-        model = PEtabModel(rn, simulation_conditions, observables, dataread,
-                                 parameters, verbose=false, speciemap=speciemap)
+        model = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
+                           simulation_conditions = simulation_conditions)
         @test model isa PEtabModel
 
         # Start messing up the data
@@ -130,8 +132,8 @@
                                 observable_parameters=[missing, "", "scale_P;offset_P", "1.0;1.0"],
                                 noise_parameters=[1.0, "noise", missing, missing])
         @test_throws PEtab.PEtabFileError begin
-            model = PEtabModel(rn, simulation_conditions, observables, measurements,
-                                     parameters, verbose=false, speciemap=speciemap)
+        model = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
+                           simulation_conditions = simulation_conditions)
         end
 
         measurements = DataFrame(simulation_id=[1.0, "c0", "c1", "c1"],
@@ -141,8 +143,8 @@
                                 observable_parameters=[missing, "", "scale_P;offset_P", "1.0;1.0"],
                                 noise_parameters=[1.0, "noise", missing, missing])
         @test_throws PEtab.PEtabFileError begin
-            model = PEtabModel(rn, simulation_conditions, observables, measurements,
-                                     parameters, verbose=false, speciemap=speciemap)
+            model = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
+                               simulation_conditions = simulation_conditions)
         end
 
         measurements = DataFrame(simulation_id=["c0", "c0", "c1", "c1"],
@@ -152,8 +154,8 @@
                                 observable_parameters=[missing, "", "scale_P;offset_P", "1.0;1.0"],
                                 noise_parameters=[1.0, "noise1", missing, missing])
         @test_throws PEtab.PEtabFileError begin
-            model = PEtabModel(rn, simulation_conditions, observables, measurements,
-                                     parameters, verbose=false, speciemap=speciemap)
+        model = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
+                           simulation_conditions = simulation_conditions)
         end
 
         measurements = DataFrame(simulation_id=["c0", "c0", "c1", "c1"],
@@ -163,8 +165,8 @@
                                 observable_parameters=[missing, "", "scale_P;offset_P1", "1.0;1.0"],
                                 noise_parameters=[1.0, "noise", missing, missing])
         @test_throws PEtab.PEtabFileError begin
-            model = PEtabModel(rn, simulation_conditions, observables, measurements,
-                                     parameters, verbose=false, speciemap=speciemap)
+        model = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
+                           simulation_conditions = simulation_conditions)
         end
     end
 end

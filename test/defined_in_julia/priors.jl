@@ -49,8 +49,8 @@ parameters = [PEtabParameter(:sigma, value=1.0, scale=:lin, prior=LogNormal(0.6,
                     PEtabParameter(:k2, value=0.6, scale=:log10, prior=LogNormal(0.6, 1.0))]
 
 # Create a PEtabODEProblem ReactionNetwork
-model_rn = PEtabModel(rn, simulation_conditions, observables, measurements,
-                            parameters, verbose=false)
+model_rn = PEtabModel(rn, observables, measurements, parameters;
+                      simulation_conditions = simulation_conditions)
 petab_problem_rn = PEtabODEProblem(model_rn, verbose=false)
 
 # Compute gradient + hessian for nllh and prior

@@ -7,8 +7,8 @@ Any[]
 	ps = Catalyst.@parameters c b a_scale a d default 
 
 	_reactions = [
-		Catalyst.Reaction(+(-(*(a, a_scale), *(b, x)), *(c, y)), nothing, [x], nothing, [*(1.0, /(1.0, default))]; metadata = [:name => "v_0", :id => "v1_v_0"], only_use_rate=true),
-		Catalyst.Reaction(-(*(b, x), +(*(c, y), *(d, y))), nothing, [y], nothing, [*(1.0, /(1.0, default))]; metadata = [:name => "v_1", :id => "v2_v_1"], only_use_rate=true),
+		Catalyst.Reaction(+(-(*(a, a_scale), *(b, x)), *(c, y)), nothing, [x], nothing, [1.0 / default]; metadata = [:name => "v_0", :id => "v1_v_0"], only_use_rate=true),
+		Catalyst.Reaction(-(*(b, x), +(*(c, y), *(d, y))), nothing, [y], nothing, [1.0 / default]; metadata = [:name => "v_1", :id => "v2_v_1"], only_use_rate=true),
 	]
 
 	comb_ratelaws = false

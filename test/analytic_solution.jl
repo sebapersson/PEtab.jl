@@ -22,8 +22,8 @@ function test_odesolver(model::PEtabModel, osolver::ODESolver)::Nothing
     for i in 1:5
         α, β = parameters_test[:, i]
         x = [α, β, 0.7, 0.6]
-        sols, _ = solve_all_conditions(x, prob, osolver.solver; abstol = osolver.abstol,
-                                       reltol = osolver.reltol, save_observed_t = true)
+        sols = solve_all_conditions(x, prob, osolver.solver; abstol = osolver.abstol,
+                                    reltol = osolver.reltol, save_observed_t = true)
         sol = sols[:model1_data1]
         sqdiff = 0.0
         for t in sol.t

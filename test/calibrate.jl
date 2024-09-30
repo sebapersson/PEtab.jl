@@ -85,6 +85,7 @@ end
                                 dirsave = dirsave)
     res2 = calibrate_multistart(prob, IpoptOptimizer(true), 10; save_trace=false)
     res3 = calibrate_multistart(prob, Fides(:BFGS), 10; save_trace=false)
+    res_read = PEtabMultistartResult(dirsave)
     @test all(.≈(res1.xmin, prob.xnominal_transformed, atol = 1e-2))
     @test all(.≈(res2.xmin, prob.xnominal_transformed, atol = 1e-2))
     @test all(.≈(res3.xmin, prob.xnominal_transformed, atol = 1e-2))

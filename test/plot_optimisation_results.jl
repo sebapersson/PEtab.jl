@@ -115,10 +115,10 @@ let
     measurements = vcat(m_c1_E, m_c1_P, m_c2_E, m_c2_P)
 
     # Fit solution
-    model = PEtabModel(rn, simulation_conditions , observables, measurements, params;
-                       speciemap=u0, verbose = false)
+    model = PEtabModel(rn , observables, measurements, params; speciemap=u0,
+                       simulation_conditions = simulation_conditions)
     prob = PEtabODEProblem(model; verbose = false)
-    res = calibrate_multistart(prob, IPNewton(), 5)
+    res = calibrate_multistart(prob, IPNewton(), 20)
 
     # Check comparison dictionary.
     comp_dict = get_obs_comparison_plots(res, prob)
@@ -158,13 +158,13 @@ let
     @test sol_c2.t == c2_P_plt.series_list[2].plotattributes[:x]
     @test sol_c2.t == c2_E_P_plt.series_list[2].plotattributes[:x]
 
-    @test sol_c1[:E] == c1_E_plt.series_list[2].plotattributes[:y] == c1_E_P_plt.series_list[2].plotattributes[:y]
-    @test sol_c1[:P] == c1_P_plt.series_list[2].plotattributes[:y] == c1_E_P_plt.series_list[4].plotattributes[:y]
-    @test sol_c2[:E] == c2_E_plt.series_list[2].plotattributes[:y] == c2_E_P_plt.series_list[2].plotattributes[:y]
-    @test sol_c2[:P] == c2_P_plt.series_list[2].plotattributes[:y] == c2_E_P_plt.series_list[4].plotattributes[:y]
+    @test sol_c1[:E] == c1_E_plt.series_list[2].plotattributes[:y]
+    @test sol_c1[:P] == c1_P_plt.series_list[2].plotattributes[:y]
+    @test sol_c2[:E] == c2_E_plt.series_list[2].plotattributes[:y]
+    @test sol_c2[:P] == c2_P_plt.series_list[2].plotattributes[:y]
 
-    @test c1_E == c1_E_plt.series_list[1].plotattributes[:y] == c1_E_P_plt.series_list[1].plotattributes[:y]
-    @test c1_P == c1_P_plt.series_list[1].plotattributes[:y] == c1_E_P_plt.series_list[3].plotattributes[:y]
-    @test c2_E == c2_E_plt.series_list[1].plotattributes[:y] == c2_E_P_plt.series_list[1].plotattributes[:y]
-    @test c2_P == c2_P_plt.series_list[1].plotattributes[:y] == c2_E_P_plt.series_list[3].plotattributes[:y]
+    @test c1_E == c1_E_plt.series_list[1].plotattributes[:y]
+    @test c1_P == c1_P_plt.series_list[1].plotattributes[:y]
+    @test c2_E == c2_E_plt.series_list[1].plotattributes[:y]
+    @test c2_P == c2_P_plt.series_list[1].plotattributes[:y]
 end

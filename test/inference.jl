@@ -31,7 +31,7 @@ function get_prob_saturated(pest)::PEtabODEProblem
 
     Random.seed!(1234)
     # Simulate the model
-    parametermap = [b1 => 1.0, b2 => 0.2]
+    parametermap = [:b1 => 1.0, :b2 => 0.2]
     oprob = ODEProblem(sys, [], (0.0, 2.5), parametermap)
     tsave = collect(range(0.0, 2.5, 101))
     dist = Normal(0.0, 0.03)
@@ -49,14 +49,13 @@ function get_prob_saturated(pest)::PEtabODEProblem
         measurement=obs)
 
     model = PEtabModel(sys, observables, measurements, pest; verbose = false)
-    return PEtabODEProblem(model; odesolver=ODESolver(Rodas5(), abstol=1e-6, reltol=1e-6); verbose = false)
+    return PEtabODEProblem(model; odesolver=ODESolver(Rodas5(), abstol=1e-6, reltol=1e-6))
 end
 
 @testset "Check inference linear priors + parameters" begin
-    @parameters b1 b2 sigma
-    _b1 = PEtabParameter(b1, value=1.0, lb=0.0, ub=5.0, scale=:lin)
-    _b2 = PEtabParameter(b2, value=0.2, lb=0.0, ub=5.0, scale=:lin)
-    _sigma = PEtabParameter(sigma, value=0.03, lb=1e-3, ub=1e2, scale=:lin)
+    _b1 = PEtabParameter(:b1, value=1.0, lb=0.0, ub=5.0, scale=:lin)
+    _b2 = PEtabParameter(:b2, value=0.2, lb=0.0, ub=5.0, scale=:lin)
+    _sigma = PEtabParameter(:sigma, value=0.03, lb=1e-3, ub=1e2, scale=:lin)
     pest = [_b1, _b2, _sigma]
     prob = get_prob_saturated(pest)
     # Reference chain based on 10,000 iterations
@@ -104,10 +103,9 @@ end
 
 @testset "Check inference transformed parameters" begin
     # Try mixing
-    @parameters b1 b2 sigma
-    _b1 = PEtabParameter(b1, value=1.0, lb=0.0, ub=5.0, scale=:log10, prior_on_linear_scale=true, prior=Uniform(0.0, 5.0))
-    _b2 = PEtabParameter(b2, value=0.2, lb=0.0, ub=5.0, scale=:log, prior=Uniform(-3, log(5.0)), prior_on_linear_scale=false)
-    _sigma = PEtabParameter(sigma, value=0.03, lb=1e-3, ub=1e2, scale=:log10, prior=Uniform(-3, 2.0), prior_on_linear_scale=false)
+    _b1 = PEtabParameter(:b1, value=1.0, lb=0.0, ub=5.0, scale=:log10, prior_on_linear_scale=true, prior=Uniform(0.0, 5.0))
+    _b2 = PEtabParameter(:b2, value=0.2, lb=0.0, ub=5.0, scale=:log, prior=Uniform(-3, log(5.0)), prior_on_linear_scale=false)
+    _sigma = PEtabParameter(:sigma, value=0.03, lb=1e-3, ub=1e2, scale=:log10, prior=Uniform(-3, 2.0), prior_on_linear_scale=false)
     pest = [_b1, _b2, _sigma]
     prob = get_prob_saturated(pest)
 
@@ -139,7 +137,7 @@ end
     # AdaptiveMCMC
     Random.seed!(1234)
     target = PEtabLogDensity(prob)
-    res = adaptive_rwm(xinference, target.logtarget, 200000; progress=true)
+    res = adaptive_rwm(xinference, target.logtarget, 200000; progress=false)
     chain_adapt = to_chains(res, target)
     adaptive_stats = summarystats(chain_adapt)
     @testset "Adaptive MCMC" begin
