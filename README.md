@@ -10,7 +10,7 @@
 
 PEtab.jl is a Julia package for creating parameter estimation problems for fitting Ordinary Differential Equation (ODE) models to data in Julia. Some major highlights of PEtab.jl are:
 
-* It supports coding parameter estimation problems directly in Julia, where the dynamic model can be provided as a [Catalyst](https://github.com/SciML/Catalyst.jl) `ReactionSystem`, a [ModelingToolkit](https://github.com/SciML/ModelingToolkit.jl) `ODESystem`, or as an [SBML](https://sbml.org/) file importer through [SBMLImporter](https://github.com/sebapersson/SBMLImporter.jl).
+* It supports coding parameter estimation problems directly in Julia, where the dynamic model can be provided as a [Catalyst](https://github.com/SciML/Catalyst.jl) `ReactionSystem`, a [ModelingToolkit](https://github.com/SciML/ModelingToolkit.jl) `ODESystem`, or as an [SBML](https://sbml.org/) file imported through [SBMLImporter](https://github.com/sebapersson/SBMLImporter.jl).
 * It can import and has full support for parameter estimation problems in the [PEtab](https://petab.readthedocs.io/en/latest/) standard format
 * It supports a wide range of features for parameter estimation problems, including multiple observables, multiple simulation conditions, models with events, and models with steady-state pre-equilibration simulations.
 * It integrates with Julia's [DifferentialEquations.jl](https://docs.sciml.ai/DiffEqDocs/stable/) ecosystem, which among other things, means it supports any of the state-of-the-art ODE solvers in [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl).
