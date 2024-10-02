@@ -36,7 +36,7 @@ end
   include("defined_in_julia.jl")
 end
 
-@safetestset "Compnent Arrays" begin
+@safetestset "Component Arrays" begin
     include("component_arrays.jl")
 end
 
