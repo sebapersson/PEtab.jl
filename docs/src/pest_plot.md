@@ -149,13 +149,13 @@ Following parameter estimation, we can plot the fitted solution for `P` in the f
 ```@example 2
 using Plots
 default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm, size = (600*1.25, 400 * 1.25), palette = ["#CC79A7", "#009E73", "#0072B2", "#D55E00", "#999999", "#E69F00", "#56B4E9", "#F0E442"], linewidth=4.0) # hide
-plot(res, petab_prob; obsid=["obs_p"], cid="cond1", linewidth = 2.0)
+plot(res, petab_prob; obsids=["obs_p"], cid="cond1", linewidth = 2.0)
 ```
 
 To instead wish to plot both observables for the second simulation condition (`cond2`), do:
 
 ```@example 2
-plot(res, petab_prob; obsid=["obs_e", "obs_p"], cid="cond2", linewidth = 2.0)
+plot(res, petab_prob; obsids=["obs_e", "obs_p"], cid="cond2", linewidth = 2.0)
 ```
 
 In this example, the `obsid` option is technically not required, as plotting all observables is the default behavior. Finally, it is possible to retrieve a dictionary containing plots for all combinations of observables and simulation conditions with:
