@@ -46,10 +46,11 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
         else
             odesystem = structural_simplify(dae_index_lowering(_odesystem))
         end
+        #odesystem = complete(odesystem)
     end
     # The state-map is not in the same order as unknowns(system) so the former is reorded
     # to make it easier to build the u0 function
-    _reorder_speciemap!(speciemap, odesystem)
+    speciemap = _reorder_speciemap(speciemap, odesystem)
 
     # Indices for mapping parameters and tracking which parameter to estimate, useful
     # when building the comig PEtab functions
@@ -140,14 +141,12 @@ function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, conditions_df::D
     return nothing
 end
 
-function _reorder_speciemap!(speciemap, odesystem::ODESystem)::Nothing
+function _reorder_speciemap(speciemap, odesystem::ODESystem)
     statenames = unknowns(odesystem) .|> string
+    speciemap_out = similar(speciemap, length(statenames))
     for (i, statename) in pairs(statenames)
-        string(speciemap[i].first) == statename && continue
         imap = findfirst(x -> x == statename, first.(speciemap) .|> string)
-        tmp = speciemap[i]
-        speciemap[i] = speciemap[imap]
-        speciemap[imap] = tmp
+        speciemap_out[i] = speciemap[imap]
     end
-    return nothing
+    return speciemap_out
 end
