@@ -14,7 +14,7 @@ PEtabParameter
 PEtabEvent
 ```
 
-Then, given a dynamic model (as `ReactionSystem` or `ODESystem`), measurement data as a `DataFrame`, and potential simulation conditions as a `Dict` (see this tutorial ADD!), a `PEtabModel` can be created:
+Then, given a dynamic model (as `ReactionSystem` or `ODESystem`), measurement data as a `DataFrame`, and potential simulation conditions as a `Dict` (see [this](@ref petab_sim_cond) tutorial), a `PEtabModel` can be created:
 
 ```@docs
 PEtabModel

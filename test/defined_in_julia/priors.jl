@@ -10,7 +10,7 @@ function _compute_prior(θ)
     k1, k2 = exp10(_k1), exp10(_k2)
 
     prior_sigma = LogNormal(0.6, 1.0)
-    prior_k1 = Normal(-0.8, 0.2)
+    prior_k1 = truncated(Normal(-0.8, 0.2), -1.0, 1.0)
     prior_k2 = LogNormal(0.6, 1.0)
 
     logprior = logpdf(prior_sigma, sigma)
@@ -43,10 +43,11 @@ observables = Dict("obs_a" => PEtabObservable(A, sigma))
 
 # PEtab-parameter to "estimate"
 parameters = [PEtabParameter(:sigma, value=1.0, scale=:lin, prior=LogNormal(0.6, 1.0)),
-                    PEtabParameter(:a0, value=1.0, scale=:lin),
-                    PEtabParameter(:b0, value=0.0, scale=:lin),
-                    PEtabParameter(:k1, value=0.8, scale=:log10, prior=Normal(-0.8, 0.2), prior_on_linear_scale=false),
-                    PEtabParameter(:k2, value=0.6, scale=:log10, prior=LogNormal(0.6, 1.0))]
+              PEtabParameter(:a0, value=1.0, scale=:lin),
+              PEtabParameter(:b0, value=0.0, scale=:lin),
+              PEtabParameter(:k1, value=0.8, scale=:log10, prior_on_linear_scale=false,
+                             prior=truncated(Normal(-0.8, 0.2), -1.0, 1.0)),
+              PEtabParameter(:k2, value=0.6, scale=:log10, prior=LogNormal(0.6, 1.0))]
 
 # Create a PEtabODEProblem ReactionNetwork
 model_rn = PEtabModel(rn, observables, measurements, parameters;
@@ -54,7 +55,7 @@ model_rn = PEtabModel(rn, observables, measurements, parameters;
 petab_problem_rn = PEtabODEProblem(model_rn, verbose=false)
 
 # Compute gradient + hessian for nllh and prior
-x = petab_problem_rn.xnominal_transformed
+x = get_x(petab_problem_rn)
 prior_val = _compute_prior(x)
 prior_grad = ForwardDiff.gradient(_compute_prior, x)
 prior_hess = ForwardDiff.hessian(_compute_prior, x)

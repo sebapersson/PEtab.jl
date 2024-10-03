@@ -133,5 +133,7 @@ function _parse_julia_prior(_prior::String)::Distribution{Univariate, Continuous
     # In expressions like Normal{Float64}(μ=0.3, σ=3.0) remove variables to obtain
     # Normal{Float64}(0.3, 3.0)
     _prior = replace(_prior, r"\b\w+\s*=\s*" => "")
+    _prior = replace(_prior, "Truncated" => "truncated")
+    _prior = replace(_prior, ";" => ",")
     return eval(Meta.parse(_prior))
 end
