@@ -1,5 +1,15 @@
 # Breaking updates and feature summaries across releases
 
+## PEtab 3.1.0
+
+Added support for truncated priors for `PEtabParameter`. Before this update the following would yield an error:
+
+```julia
+pk1 = PEtabParameter(:k1; prior = truncated(Normal(1.0, 1.0), 0.0, 3.0))
+```
+
+But now it works as expected.
+
 ## PEtab 3.0.0
 
 This version is a breaking release prompted by the update of ModelingToolkit to v9 and Catalyst to v14. Along with updating these packages, PEtab.jl also underwent a major update to make the package easier to use. The major changes are:
