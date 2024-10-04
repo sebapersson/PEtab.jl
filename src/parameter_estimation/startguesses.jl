@@ -17,7 +17,7 @@ See also [`calibrate`](@ref) and [`calibrate_multistart`](@ref).
    default `LatinHypercubeSample` is recommended as it usually performs well.
 - `sample_prior::Bool = true`: Whether to sample random parameter values from the
    prior distribution if a parameter has a prior.
-- `allow_inf::Bool = true`: Whether to return parameter vectors for which the likelihood
+- `allow_inf::Bool = false`: Whether to return parameter vectors for which the likelihood
    cannot be computed (typically happens because the `ODEProblem` cannot be solved). Often
    it only makes sense to use starting points with a computable likelihood for
    parameter estimation, hence it typically does not make sense to change this option.
