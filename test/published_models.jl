@@ -10,6 +10,7 @@ include(joinpath(@__DIR__, "common.jl"))
 
 NLLH_MODELS = Dict(:Bachmann_MSB2011 => (nllh = -418.40573341425295, prior = 0.0),
                    :Beer_MolBioSystems2014 => (nllh = -58622.9145631413, prior = 0.0),
+                   :Bruno_JExpBot2016 => (nllh = -46.688181449443945, prior = 0.0),
                    :Brannmark_JBC2010 => (nllh = 141.889113770537, prior = 0.0),
                    :Crauste_CellSystems2017 => (nllh = 190.96521897435176, prior = 0.0),
                    :Fujita_SciSignal2010 => (nllh = -53.08377736998929, prior = 0.0),
@@ -21,6 +22,7 @@ NLLH_MODELS = Dict(:Bachmann_MSB2011 => (nllh = -418.40573341425295, prior = 0.0
 
 GRAD_MODELS = Dict(:Bachmann_MSB2011 => (test=[:forward_AD, :forward_eqs, :forward_eqs_sciml, :adjoint], tol=1e-2, odetol=1e-9, split = false),
                    :Beer_MolBioSystems2014 => (test=[:forward_AD, :forward_eqs], tol=1e-1, odetol = 1e-8, split = true),
+                   :Bruno_JExpBot2016 => (test=[:forward_AD, :forward_eqs], tol=1e-1, odetol = 1e-8, split = false),
                    :Brannmark_JBC2010 => (test=[:forward_AD, :forward_eqs], tol=2e-3, odetol = 1e-10, split = false),
                    :Schwen_PONE2014 => (test=[:forward_AD, :forward_eqs], tol=1e-3, odetol = 1e-8, split = false))
 

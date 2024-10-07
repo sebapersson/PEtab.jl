@@ -70,7 +70,7 @@ struct PEtabParameters
     parameter_id::Vector{Symbol}
     parameter_scale::Vector{Symbol}
     estimate::Vector{Bool}
-    nparameters_esimtate::Int64
+    nparameters_estimate::Int64
 end
 
 struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
@@ -475,7 +475,7 @@ struct PEtabODEProblem{F1 <: Function, F2 <: Function, F3 <: Function}
     residuals::Any
     probinfo::PEtabODEProblemInfo
     model_info::ModelInfo
-    nparameters_esimtate::Int64
+    nparameters_estimate::Int64
     xnames::Vector{Symbol}
     xnominal::ComponentArray{Float64}
     xnominal_transformed::ComponentArray{Float64}

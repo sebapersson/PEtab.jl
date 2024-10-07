@@ -1,6 +1,6 @@
 # Bayesian Inference
 
-When performing parameter estimation for a model with PEtab.jl, the unknown model parameters are estimated within a frequentist framework, where the goal is to find the maximum likelihood estimate. When prior knowledge about the parameters is available, Bayesian inference offers an alternative approach to fitting a model to data. The aim of Bayesian inference is to infer the posterior distribution of unknown parameters given the data, ``\\pi(\\mathbf{x} | \\mathbf{y})``, by running a Markov chain Monte Carlo (MCMC) algorithm to sample from the posterior. A major challenge, aside from creating a good model, is to effectively sample the posterior. PEtab.jl supports Bayesian inference via two packages that implement different sampling algorithms:
+When performing parameter estimation for a model with PEtab.jl, the unknown model parameters are estimated within a frequentist framework, where the goal is to find the maximum likelihood estimate. When prior knowledge about the parameters is available, Bayesian inference offers an alternative approach to fitting a model to data. The aim of Bayesian inference is to infer the posterior distribution of unknown parameters given the data, $\pi(\mathbf{x} \mid \mathbf{y})$, by running a Markov chain Monte Carlo (MCMC) algorithm to sample from the posterior. A major challenge, aside from creating a good model, is to effectively sample the posterior. PEtab.jl supports Bayesian inference via two packages that implement different sampling algorithms:
 
 - **Adaptive Metropolis Hastings Samplers** available in [AdaptiveMCMC.jl](https://github.com/mvihola/AdaptiveMCMC.jl) [vihola2014ergonomic](@cite).
 - **Hamiltonian Monte Carlo (HMC) Samplers** available in [AdvancedHMC.jl](https://github.com/TuringLang/AdvancedHMC.jl). The default HMC sampler is the NUTS sampler, which is the default in Stan [hoffman2014no, carpenter2017stan](@cite). HMC samplers are often efficient for continuous targets (models with non-discrete parameters).
@@ -116,7 +116,7 @@ using AdvancedHMC
 # δ=0.8 - acceptance rate (default in Stan)
 sampler = NUTS(0.8)
 Random.seed!(1234) # hide
-res = sample(target, sampler, 2000; nadapts = 1000, initial_params = xinference, 
+res = sample(target, sampler, 2000; n_adapts = 1000, initial_params = xinference, 
              drop_warmup=true, progress=false)
 nothing #hide
 ```

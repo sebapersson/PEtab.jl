@@ -17,7 +17,7 @@ function PEtabParameters(parameters_df::DataFrame;
     _parse_table_column!(parameter_ids, parameters_df[!, :parameterId], Symbol)
     _parse_table_column!(paramter_scales, parameters_df[!, :parameterScale], Symbol)
     _parse_table_column!(estimate, parameters_df[!, :estimate], Bool)
-    nparameters_esimtate = sum(estimate) |> Int64
+    nparameters_estimate = sum(estimate) |> Int64
 
     # When doing model selection it can be necessary to change the parameter values
     # without changing in the PEtab files. To get all subsequent parameter running
@@ -38,7 +38,7 @@ function PEtabParameters(parameters_df::DataFrame;
     end
 
     return PEtabParameters(nominal_values, lower_bounds, upper_bounds, parameter_ids,
-                           paramter_scales, estimate, nparameters_esimtate)
+                           paramter_scales, estimate, nparameters_estimate)
 end
 
 function Priors(xindices::ParameterIndices, parameters_df::DataFrame)::Priors

@@ -9,8 +9,9 @@ function _parse_table_column!(out::AbstractVector, dfcol, type)::Nothing
 end
 
 function _check_values_column(df::DataFrame, valid_values, colname::Symbol,
-                              table::String)::Nothing
+                              table::String; allow_missing::Bool = false)::Nothing
     for val in df[!, colname]
+        allow_missing == true && ismissing(val) && continue
         val in valid_values && continue
         throw(PEtabFileError("Invalid value $val in $colname column in the $table table. " *
                              "Allowed values are $valid_values"))

@@ -95,7 +95,7 @@ function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector
                                 xids[:dynamic][ix], xscale)
         @views out = _grad_to_xscale(∂G∂p[ix_sys], xdynamic[ix_dynamic],
                                      xids[:dynamic][ix_dynamic], xscale)
-        for (i, imap) in pairs(ix_sys)
+        for (i, imap) in pairs(ix)
             grad_xscale[imap] += out[i]
         end
     end
