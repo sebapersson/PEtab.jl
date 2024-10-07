@@ -10,8 +10,6 @@ end
 
 function _check_values_column(df::DataFrame, valid_values, colname::Symbol,
                               table::String; allow_missing::Bool = false)::Nothing
-    println("colname = ", colname)
-    println("valid_values = ", valid_values)
     for val in df[!, colname]
         allow_missing == true && ismissing(val) && continue
         val in valid_values && continue
