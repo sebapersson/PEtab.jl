@@ -7,7 +7,7 @@ function PEtabMeasurements(measurements_df::DataFrame,
                            observables_df::DataFrame)::PEtabMeasurements
     if :observableTransformation in propertynames(observables_df)
         _check_values_column(observables_df, VALID_SCALES, :observableTransformation,
-                             "observables")
+                             "observables"; allow_missing = true)
     end
 
     nmeasurements = nrow(measurements_df)
@@ -41,7 +41,11 @@ function PEtabMeasurements(measurements_df::DataFrame,
     if :observableTransformation in propertynames(observables_df)
         for (i, transformation) in pairs(observables_df[!, :observableTransformation])
             id = observables_df[i, :observableId] |> Symbol
-            transformations[observable_ids .== id] .= Symbol(transformation)
+            if !ismissing(transformation)
+                transformations[observable_ids .== id] .= Symbol(transformation)
+            else
+                transformations[observable_ids .== id] .= :lin
+            end
         end
     end
 

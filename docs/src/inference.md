@@ -116,7 +116,7 @@ using AdvancedHMC
 # δ=0.8 - acceptance rate (default in Stan)
 sampler = NUTS(0.8)
 Random.seed!(1234) # hide
-res = sample(target, sampler, 2000; nadapts = 1000, initial_params = xinference, 
+res = sample(target, sampler, 2000; n_adapts = 1000, initial_params = xinference, 
              drop_warmup=true, progress=false)
 nothing #hide
 ```

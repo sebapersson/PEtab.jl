@@ -69,7 +69,7 @@ end
     xinference = target.inference_info.bijectors(xprior)
     res = sample(target, sampler,
                  2000;
-                 nadapts = 1000,
+                 n_adapts = 1000,
                  initial_params = xinference,
                  drop_warmup=true,
                  progress=false,
@@ -118,7 +118,7 @@ end
     xinference = target.inference_info.bijectors(xprior)
     res = sample(target, sampler,
                 2000;
-                nadapts = 1000,
+                n_adapts = 1000,
                 initial_params = xinference,
                 drop_warmup=true,
                 progress=false,
