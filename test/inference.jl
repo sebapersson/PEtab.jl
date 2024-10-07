@@ -62,13 +62,13 @@ end
     reference_stats = get_reference_stats(joinpath(@__DIR__, "inference_results", "Saturated_chain.csv"))
 
     # HMC inference case
-    Random.seed!(1213)
+    Random.seed!(123)
     target = PEtabLogDensity(prob)
     sampler = NUTS(0.8)
     xprior = to_prior_scale(prob.xnominal_transformed, target)
     xinference = target.inference_info.bijectors(xprior)
     res = sample(target, sampler,
-                 2000;
+                 3000;
                  n_adapts = 1000,
                  initial_params = xinference,
                  drop_warmup=true,
@@ -111,18 +111,18 @@ end
 
     reference_stats = get_reference_stats(joinpath(@__DIR__, "inference_results", "Saturated_chain_tparam.csv"))
 
-    Random.seed!(1234)
+    Random.seed!(123)
     target = PEtabLogDensity(prob)
     sampler = NUTS(0.8)
     xprior = to_prior_scale(prob.xnominal_transformed, target)
     xinference = target.inference_info.bijectors(xprior)
     res = sample(target, sampler,
-                2000;
-                n_adapts = 1000,
-                initial_params = xinference,
-                drop_warmup=true,
-                progress=false,
-                verbose=true)
+                 3000;
+                 n_adapts = 1000,
+                 initial_params = xinference,
+                 drop_warmup=true,
+                 progress=false,
+                 verbose=true)
     chain_hmc = to_chains(res, target)
     hmc_stats = summarystats(chain_hmc)
     @testset "HMC" begin
