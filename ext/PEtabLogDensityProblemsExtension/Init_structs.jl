@@ -1,6 +1,6 @@
 function PEtab.PEtabLogDensity(petab_problem::PEtabODEProblem)::PEtab.PEtabLogDensity
     inference_info = PEtab.InferenceInfo(petab_problem)
-    @unpack nllh, nllh_grad, nparameters_esimtate = petab_problem
+    @unpack nllh, nllh_grad, nparameters_estimate = petab_problem
 
     # For via autodiff compute the gradient of the prior and Jacobian correction
     _prior_correction = (x_inference) -> let inference_info = inference_info
@@ -22,10 +22,10 @@ function PEtab.PEtabLogDensity(petab_problem::PEtabODEProblem)::PEtab.PEtabLogDe
                             inference_info)
     end
 
-    initial_value = Vector{Float64}(undef, nparameters_esimtate)
+    initial_value = Vector{Float64}(undef, nparameters_estimate)
 
     return PEtab.PEtabLogDensity(inference_info, logtarget, logtarget_gradient,
-                                 initial_value, nparameters_esimtate)
+                                 initial_value, nparameters_estimate)
 end
 
 function PEtab.InferenceInfo(petab_problem::PEtabODEProblem)::PEtab.InferenceInfo

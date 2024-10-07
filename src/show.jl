@@ -121,10 +121,10 @@ function show(io::IO, model::PEtabModel)
     print(io, styled"$(header)$(opt)")
 end
 function show(io::IO, prob::PEtabODEProblem)
-    @unpack probinfo, model_info, nparameters_esimtate = prob
+    @unpack probinfo, model_info, nparameters_estimate = prob
     name = model_info.model.name
     nstates = @sprintf("%d", length(unknowns(model_info.model.sys_mutated)))
-    nest = @sprintf("%d", nparameters_esimtate)
+    nest = @sprintf("%d", nparameters_estimate)
 
     header = styled"{PURPLE:{bold:PEtabODEProblem:}} {emphasis:$(name)} with ODE-states \
                     $nstates and $nest parameters to estimate"
@@ -150,7 +150,7 @@ function show(io::IO, res::PEtabOptimisationResult)
     header = styled"{PURPLE:{bold:PEtabOptimisationResult}}"
     optheader = styled"\n---------------- {PURPLE:{bold:Summary}} ---------------\n"
     opt1 = @sprintf("min(f)                = %.2e\n", res.fmin)
-    opt2 = @sprintf("Parameters esimtated  = %d\n", length(res.x0))
+    opt2 = @sprintf("Parameters estimated  = %d\n", length(res.x0))
     opt3 = @sprintf("Optimiser iterations  = %d\n", res.niterations)
     opt4 = @sprintf("Runtime               = %.1es\n", res.runtime)
     opt5 = @sprintf("Optimiser algorithm   = %s\n", res.alg)
@@ -160,7 +160,7 @@ function show(io::IO, res::PEtabMultistartResult)
     header = styled"{PURPLE:{bold:PEtabMultistartResult}}"
     optheader = styled"\n---------------- {PURPLE:{bold:Summary}} ---------------\n"
     opt1 = @sprintf("min(f)                = %.2e\n", res.fmin)
-    opt2 = @sprintf("Parameters esimtated  = %d\n", length(res.xmin))
+    opt2 = @sprintf("Parameters estimated  = %d\n", length(res.xmin))
     opt3 = @sprintf("Number of multistarts = %d\n", res.nmultistarts)
     opt4 = @sprintf("Optimiser algorithm   = %s\n", res.alg)
     if !isnothing(res.dirsave)
