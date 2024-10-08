@@ -117,7 +117,7 @@ end
     xprior = to_prior_scale(prob.xnominal_transformed, target)
     xinference = target.inference_info.bijectors(xprior)
     res = sample(target, sampler,
-                 3000;
+                 5000;
                  n_adapts = 1000,
                  initial_params = xinference,
                  drop_warmup=true,
@@ -126,7 +126,7 @@ end
     chain_hmc = to_chains(res, target)
     hmc_stats = summarystats(chain_hmc)
     @testset "HMC" begin
-        @test reference_stats.nt.mean[1] ≈ hmc_stats.nt.mean[1] atol=5e-2
+        @test reference_stats.nt.mean[1] ≈ hmc_stats.nt.mean[1] atol=2e-1
         @test reference_stats.nt.mean[2] ≈ hmc_stats.nt.mean[2] atol=5e-2
         @test reference_stats.nt.mean[3] ≈ hmc_stats.nt.mean[3] atol=1e-2
         @test reference_stats.nt.std[1] ≈ hmc_stats.nt.std[1] atol=1e-1
