@@ -17,8 +17,8 @@ const CONDITIONS_COLS = Dict("conditionId" => (required = true, types = Abstract
 
 const PARAMETERS_COLS = Dict("parameterId" => (required = true, types = AbstractString),
                              "parameterScale" => (required = true, types = AbstractString),
-                             "lowerBound" => (required = true, types = Real),
-                             "upperBound" => (required = true, types = Real),
+                             "lowerBound" => (required = true, types = Union{Real, Missing}),
+                             "upperBound" => (required = true, types = Union{Real, Missing}),
                              "nominalValue" => (required = true, types = Real),
                              "estimate" => (required = true, types = Real),
                              "initializationPriorType" => (required = false,

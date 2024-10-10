@@ -11,12 +11,12 @@ function PEtabParameters(parameters_df::DataFrame;
     paramter_scales = fill(Symbol(), nparameters)
     estimate = fill(false, nparameters)
 
-    _parse_table_column!(lower_bounds, parameters_df[!, :lowerBound], Float64)
-    _parse_table_column!(upper_bounds, parameters_df[!, :upperBound], Float64)
     _parse_table_column!(nominal_values, parameters_df[!, :nominalValue], Float64)
     _parse_table_column!(parameter_ids, parameters_df[!, :parameterId], Symbol)
     _parse_table_column!(paramter_scales, parameters_df[!, :parameterScale], Symbol)
     _parse_table_column!(estimate, parameters_df[!, :estimate], Bool)
+    _parse_bound_column!(lower_bounds, parameters_df[!, :lowerBound], estimate)
+    _parse_bound_column!(upper_bounds, parameters_df[!, :upperBound], estimate)
     nparameters_estimate = sum(estimate) |> Int64
 
     # When doing model selection it can be necessary to change the parameter values
