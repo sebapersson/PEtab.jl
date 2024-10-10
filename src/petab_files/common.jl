@@ -1,9 +1,21 @@
-
 function _parse_table_column!(out::AbstractVector, dfcol, type)::Nothing
     @assert type in [Symbol, string, Float64, Bool]
     for (i, val) in pairs(dfcol)
         ismissing(val) && continue
         out[i] = val |> type
+    end
+    return nothing
+end
+
+function _parse_bound_column!(out::Vector{Float64}, dfcol, estimate::Vector{Bool})::Nothing
+    for (i, val) in pairs(dfcol)
+        if ismissing(val) && estimate[i] == false
+            continue
+        elseif ismissing(val)
+            throw(PEtabInputError("If a parameter does not have a bound " *
+                                  "then estimate = false for said parameter"))
+        end
+        out[i] = Float64(val)
     end
     return nothing
 end
