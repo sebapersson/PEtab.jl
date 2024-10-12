@@ -1,5 +1,13 @@
 # Breaking updates and feature summaries across releases
 
+## PEtab 3.2.0
+
+Added support for running multi-start parameter estimation with `calibrate_multistart` in parallel using `pmap` from Distributed.jl via the `nprocs` keyword. For example, to now run parameter estimation with two processes in parallel, use:
+
+```julia
+ms_res = calibrate_multistart(petab_prob, IPNewton(), 50; nprocs = 2)
+```
+
 ## PEtab 3.1.0
 
 Added support for truncated priors for `PEtabParameter`. Before this update the following would yield an error:

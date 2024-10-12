@@ -12,6 +12,7 @@ using DataFrames
 using ForwardDiff
 using ReverseDiff
 using DiffEqCallbacks
+using Distributed
 using SBMLImporter
 using StatsBase
 using Sundials
