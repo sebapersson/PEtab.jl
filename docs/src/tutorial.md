@@ -301,8 +301,8 @@ ms_res = calibrate_multistart(petab_prob, IPNewton(), 50)
 
 The printout shows parameter estimation statistics, such as the best objective value `fmin` across all runs. For further details on what is stored in `ms_res` see the [API](@ref API) documentation for `PEtabMultistartResult`.
 
-!!! tip "Parameter estimation in parallel"
-    Runtime for `calibrate_multistart` can often be reduced by performing parameter estimation runs in parallel by setting the `nprocs`. More details can be found [here](@ref multistart_est).
+!!! tip "Parallelize parameter estimation"
+    Runtime for `calibrate_multistart` can often be reduced by performing parameter estimation runs in parallel by setting the number of parallel processes with the `nprocs` keyword argument. More details can be found [here](@ref multistart_est).
 
 Following multi-start parameter estimation, it is important to evaluate the results. One common evaluation approach is plotting, and a frequently used evaluation plot is the waterfall plot, which in a sorted manner shows the final objective values for each run:
 
