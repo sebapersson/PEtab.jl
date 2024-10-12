@@ -28,7 +28,11 @@ function get_startguesses(prob::PEtabODEProblem, n::Integer; sample_prior::Bool 
     @unpack lower_bounds, upper_bounds, xnames, model_info = prob
 
     # Nothing prevents the user from sending in a parameter vector with zero parameters...
-    length(lower_bounds) == 0 && return Float64[]
+    if length(lower_bounds) == 0 && n == 1
+        return Float64[]
+    elseif length(lower_bounds) == 0
+        return [Float64[] for _ in 1:n]
+    end
     # In this case a single component array is returned
     if n == 1
         return _single_startguess(prob, sample_prior, allow_inf)

@@ -35,7 +35,7 @@ function _logging(whatlog::Symbol, verbose::Bool; time = nothing, name::String =
                   styled"{emphasis:h} and {emphasis:σ} functions ... "
         end
         if exist == false
-            str = styled"{PURPLE:{bold:│ }} Builds {emphasis:u0}, {emphasis:h} and \
+            str = styled"{PURPLE:{bold:│ }} Building {emphasis:u0}, {emphasis:h} and \
                          {emphasis:σ} functions ... "
         end
         if buildfiles == false && exist == true
@@ -49,7 +49,7 @@ function _logging(whatlog::Symbol, verbose::Bool; time = nothing, name::String =
                   styled"{emphasis:∂h∂u}, {emphasis:∂σ∂p} and {emphasis:∂σ∂u} functions ... "
         end
         if exist == false
-            str = styled"{PURPLE:{bold:│ }} Builds {emphasis:∂h∂p}, {emphasis:∂h∂u}, " *
+            str = styled"{PURPLE:{bold:│ }} Building {emphasis:∂h∂p}, {emphasis:∂h∂u}, " *
                   styled"{emphasis:∂σ∂p} and {emphasis:∂σ∂u} functions ... "
         end
         if buildfiles == false && exist == true
@@ -58,7 +58,7 @@ function _logging(whatlog::Symbol, verbose::Bool; time = nothing, name::String =
         end
     end
     if whatlog == :Build_callbacks
-        str = styled"{PURPLE:{bold:└ }} Builds {emphasis:callback} (events) functions ... "
+        str = styled"{PURPLE:{bold:└ }} Building {emphasis:callback} (events) functions ... "
     end
 
     # For PEtabODEProblem

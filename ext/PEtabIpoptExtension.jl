@@ -11,14 +11,14 @@ function PEtab.calibrate_multistart(prob::PEtabODEProblem, alg::IpoptOptimizer,
                                     nmultistarts::Signed; save_trace::Bool = false,
                                     dirsave::Union{Nothing, String} = nothing,
                                     sampling_method::SamplingAlgorithm = LatinHypercubeSample(),
-                                    sample_prior::Bool = true,
+                                    sample_prior::Bool = true, nprocs::Int64 = 1,
                                     seed::Union{Nothing, Signed} = nothing,
                                     options::IpoptOptions = IpoptOptions())::PEtab.PEtabMultistartResult
     if !isnothing(seed)
         Random.seed!(seed)
     end
     return PEtab._calibrate_multistart(prob, alg, nmultistarts, dirsave, sampling_method,
-                                       options, sample_prior, save_trace)
+                                       options, sample_prior, save_trace, nprocs)
 end
 
 function PEtab.calibrate(prob::PEtabODEProblem,
