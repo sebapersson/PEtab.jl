@@ -128,7 +128,7 @@ plot(res, petab_prob)
 
 Information on other available plots can be found on [this](@ref optimization_output_plotting) page. Now, even though the plot above may look good, it is important to remember that the objective function ($-\ell$ above) often has multiple local minima. To ensure the global optimum is found, a global optimization approach is needed. One effective global method is multi-start parameter estimation.
 
-## Multi-Start Parameter Estimation
+## [Multi-Start Parameter Estimation](@id multistart_est)
 
 Multi-start parameter estimation is an approach where `n` parameter estimation runs are initiated from `n` random starting points. The rationale is that a subset of these runs should, hopefully, converge to the global optimum. While simple, empirical benchmark studies have shown that this method performs well for ODE models in biology [raue2013lessons, raue2013lessons](@cite).
 
@@ -169,10 +169,11 @@ In principle, `x0s` can now be used together with `calibrate` to perform multi-s
 calibrate_multistart
 ```
 
-An important keyword argument for `calibrate_multistart` is `dirsave`, which specifies an optional directory to continuously save the results from each individual run. We **strongly recommend** providing such a directory, as parameter estimation for larger models can take hours or even days. If something goes wrong with the computer during that time, it is, to put it mildly, frustrating to lose all the results. For our working example, we can perform 50 multi-starts with:
+Two important keyword arguments for `calibrate_multistart` are `dirsave` and `nprocs`. If `nprocs > 1`, the parameter estimation runs are performed in parallel using the [`pmap`](https://docs.julialang.org/en/v1/stdlib/Distributed/#Distributed.pmap) function from Distributed.jl with `nprocs` processes. While `pmap` requires that everything is loaded on each process, which creates an overhead, if the multistart parameter estimation on a single process takes longer than 5 minutes, running in parallel often greatly reduces the total runtime. Moreover, `dirsave` specifies an optional directory to continuously save the results from each individual run. We **strongly recommend** providing such a directory, as parameter estimation for larger models can take hours or even days. If something goes wrong with the computer during that time, it is, to put it mildly, frustrating to lose all the results. For our working example, we can perform 50 multistarts in parallel on two processes with:
 
 ```@example 1
-ms_res = calibrate_multistart(petab_prob, IPNewton(), 50, dirsave="path_to_save_directory")
+ms_res = calibrate_multistart(petab_prob, IPNewton(), 50; nprocs = 2,
+                              dirsave="path_to_save_directory")
 ```
 
 The results are returned as a `PEtabMultistartResult`, which, in addition to printout statistics, contains relevant information for each run:
