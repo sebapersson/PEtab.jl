@@ -94,6 +94,10 @@ end
 end
 
 @testset "Calibrate multi-start parallell" begin
+    path_yaml = joinpath(@__DIR__, "analytic_solution", "Test_model2.yaml")
+    model = PEtabModel(path_yaml; verbose=false)
+    prob = PEtabODEProblem(model; verbose=false)
+    x0 = prob.xnominal_transformed .* 0.5
     dirsave = joinpath(@__DIR__, "calibrate_tmp")
     res1 = calibrate_multistart(prob, Optim.IPNewton(), 10; save_trace=true,
                                 dirsave = dirsave, nprocs = 2)
