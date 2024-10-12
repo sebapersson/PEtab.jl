@@ -73,7 +73,7 @@ function _calibrate_multistart(prob::PEtabODEProblem, alg, nmultistarts, dirsave
     # on each relevant process
     _nprocs = nprocs == 1 ? nprocs - 1 : nprocs
     pids = _create_workers(_nprocs)
-    _load_packages_workers(pids)
+    _load_packages_workers(pids, alg)
     _xstarts = [(x.second, x.first) for x in pairs(xstarts)]
     _calibrate_procs = x -> _calibrate_startguess(x[1], x[2], prob, alg, save_trace,
                                                   options, paths_save, mutex)
@@ -133,18 +133,15 @@ function _save_multistart_results(paths_save::Dict{Symbol, String},
     return nothing
 end
 
-function _load_packages_workers(workers::Vector{Int64})::Nothing
+function _load_packages_workers(workers::Vector{Int64}, alg)::Nothing
     isempty(workers) && return nothing
-    names_imported = names(Main, imported = true)
     @eval @everywhere $workers eval(:(using PEtab))
-    if :Optim in names_imported
-        @eval @everywhere $workers eval(:(using Optim))
-    end
-    if :Ipopt in names_imported
-        @eval @everywhere $workers eval(:(using Ipopt))
-    end
-    if :PyCall in names_imported
+    if alg isa Fides
         @eval @everywhere $workers eval(:(using PyCall))
+    elseif alg isa IpoptOptimizer
+        @eval @everywhere $workers eval(:(using Ipopt))
+    else
+        @eval @everywhere $workers eval(:(using Optim))
     end
     return nothing
 end
