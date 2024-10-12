@@ -66,7 +66,7 @@ function _calibrate_multistart(prob::PEtabODEProblem, alg, nmultistarts, dirsave
 
     # In case nprocs > 1 a mutex is needed to prevent multiple processes from writing
     # intermediate results to file at the same time
-    mutex = Distributed.RemoteChannel(()->Channel{Bool}(1))
+    mutex = Distributed.RemoteChannel(() -> Channel{Bool}(1))
     Distributed.put!(mutex, true)
     # Setup processes to run parameter estimation on. If nproc > 1 then the main proc is
     # not doing any work, hence the plus + 1. Second, to run the code, PEtab must be loaded
@@ -90,11 +90,12 @@ function _calibrate_multistart(prob::PEtabODEProblem, alg, nmultistarts, dirsave
                                  dirsave, runs)
 end
 
-function _calibrate_startguess(xstart, i, prob::PEtabODEProblem, alg, save_trace::Bool, options, paths_save, mutex)
+function _calibrate_startguess(xstart, i, prob::PEtabODEProblem, alg, save_trace::Bool,
+                               options, paths_save, mutex)
     if !isempty(xstart)
         res = calibrate(prob, xstart, alg; save_trace = save_trace, options = options)
-    # This happens when there are now parameter to estimate, edge case that can
-    # appear in for example petab-select
+        # This happens when there are now parameter to estimate, edge case that can
+        # appear in for example petab-select
     else
         xstart, xmin = ComponentArray{Float64}(), ComponentArray{Float64}()
         xtrace, ftrace = Vector{Vector{Float64}}(undef, 0), Vector{Float64}(undef, 0)
@@ -134,7 +135,7 @@ end
 
 function _load_packages_workers(workers::Vector{Int64})::Nothing
     isempty(workers) && return nothing
-    names_imported = names(Main, imported=true)
+    names_imported = names(Main, imported = true)
     @eval @everywhere $workers eval(:(using PEtab))
     if :Optim in names_imported
         @eval @everywhere $workers eval(:(using Optim))
