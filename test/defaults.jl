@@ -46,4 +46,5 @@ using PEtab, SciMLSensitivity, OrdinaryDiffEq, Sundials, Test
     @test prob.probinfo.split_over_conditions == false
     prob = PEtabODEProblem(model; gradient_method=:ForwardDiff, verbose=false)
     @test prob.probinfo.solver.solver isa KenCarp4
+    @test prob.probinfo.sparse_jacobian == false
 end
