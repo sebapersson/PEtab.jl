@@ -30,7 +30,8 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
                                             default_solver = odesolver_use)
     _ss_solver = _get_ss_solver(ss_solver)
     _ss_solver_gradient = _get_ss_solver(ss_solver_gradient)
-    sparse_jacobian_use = _get_sparse_jacobian(sparse_jacobian, model_size)
+    sparse_jacobian_use = _get_sparse_jacobian(sparse_jacobian, gradient_method_use,
+                                               model_size)
     chunksize_use = isnothing(chunksize) ? 0 : chunksize
 
     # Cache to avoid allocations to as large degree as possible. TODO: Refactor into single

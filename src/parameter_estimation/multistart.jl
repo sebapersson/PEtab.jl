@@ -6,12 +6,13 @@ Perform `nmultistarts` parameter estimation runs from randomly sampled starting 
 the optimization algorithm `alg` to estimate the unknown model parameters in `prob`.
 
 A list of available and recommended optimisation algorithms (`alg`) can be found in the
-package documentation and in the [`calibrate`](@ref) documentation. If `nprocs > 1`, the
-parameter estimation runs are performed in parallel using the `pmap` function from
-Distributed.jl with `nprocs` processes. If parameter estimation on a single process
+package documentation and in the [`calibrate`](@ref) documentation.
+
+If `nprocs > 1`, the parameter estimation runs are performed in parallel using the
+[`pmap`](https://docs.julialang.org/en/v1/stdlib/Distributed/#Distributed.pmap) function
+from Distributed.jl with `nprocs` processes. If parameter estimation on a single process
 (`nprocs = 1`) takes longer than 5 minutes, we **strongly** recommend setting `nprocs > 1`,
-because since multi-start parameter estimation is inherently parallel, performing it in
-parallel can greatly reduce runtime. Note that `nprocs` should not be larger than the number
+as this can greatly reduce runtime. Note that `nprocs` should not be larger than the number
 of cores on the computer.
 
 If `dirsave` is provided, intermediate results for each run are saved in `dirsave`. It is
