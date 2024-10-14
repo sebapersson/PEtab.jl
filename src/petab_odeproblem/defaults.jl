@@ -117,7 +117,8 @@ function _get_ss_solver(ss_solver::Union{SteadyStateSolver, Nothing})::SteadySta
     return SteadyStateSolver(:Simulate)
 end
 
-function _get_sparse_jacobian(sparse::Union{Bool, Nothing}, gradient_method::Symbol, model_size::Symbol)::Bool
+function _get_sparse_jacobian(sparse::Union{Bool, Nothing}, gradient_method::Symbol,
+                              model_size::Symbol)::Bool
     !isnothing(sparse) && return sparse
     gradient_method in [:ForwardDiff, :ForwardEquations] && return false
     model_size == :Large && return true
