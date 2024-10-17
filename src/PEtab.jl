@@ -37,6 +37,7 @@ const NonlinearAlg = Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorit
 
 include(joinpath("structs", "petab_model.jl"))
 include(joinpath("structs", "petab_odeproblem.jl"))
+include(joinpath("structs", "petab_sdeproblem.jl"))
 include(joinpath("structs", "parameter_estimation.jl"))
 include(joinpath("structs", "inference.jl"))
 
@@ -108,6 +109,10 @@ function compute_llh end
 function compute_prior end
 function get_correction end
 function correct_gradient! end
+function SDESolver end
+function llh end
+function PEtabSDEProblem end
+function _set_x_minfo! end
 
 export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
        PEtabODEProblem, remake, Fides, PEtabOptimisationResult, IpoptOptions,
@@ -155,6 +160,7 @@ if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabSciMLSensitivityExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "PEtabLogDensityProblemsExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "PEtabPlotsExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "PEtabStochasticDiffEq.jl"))
 end
 
 export to_chains, to_prior_scale

@@ -65,8 +65,14 @@ function _logging(whatlog::Symbol, verbose::Bool; time = nothing, name::String =
     if whatlog == :Build_PEtabODEProblem
         str = styled"{PURPLE:{bold:┌Info:}} Building {emphasis:PEtabODEProblem} for model $(name)\n"
     end
+    if whatlog == :Build_PEtabSDEProblem
+        str = styled"{PURPLE:{bold:┌Info:}} Building {emphasis:PEtabSDEProblem} for model $(name)\n"
+    end
     if whatlog == :Build_ODEProblem
         str = styled"{PURPLE:{bold:│ }} Building {emphasis:ODEProblem} from model system ... "
+    end
+    if whatlog == :Build_SDEProblem
+        str = styled"{PURPLE:{bold:└ }} Building {emphasis:SDEProblem} from model system ... "
     end
     if whatlog == :Build_nllh
         str = styled"{PURPLE:{bold:│ }} Building {emphasis:nllh} (negative log-likelihood) function ... "
