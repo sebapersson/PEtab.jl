@@ -32,7 +32,7 @@ import QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
-const ModelSystem = Union{ODESystem, ReactionSystem}
+const ModelSystem = Union{ODESystem, SDESystem, ReactionSystem}
 const NonlinearAlg = Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}
 
 include(joinpath("structs", "petab_model.jl"))

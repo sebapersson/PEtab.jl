@@ -61,7 +61,7 @@ function ParameterIndices(petab_parameters::PEtabParameters,
 end
 
 function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements,
-                   sys::Union{ODESystem, ReactionSystem}, conditions_df::DataFrame,
+                   sys::ModelSystem, conditions_df::DataFrame,
                    speciemap, parametermap)::Dict{Symbol, Vector{Symbol}}
     @unpack observable_parameters, noise_parameters = petab_measurements
 
@@ -379,15 +379,18 @@ function _check_conditionids(conditions_df::DataFrame,
     return nothing
 end
 
-function _get_sys_parameters(sys::Union{ODESystem, ReactionSystem}, speciemap,
-                             parametermap)::Vector{Symbol}
+function _get_sys_parameters(sys::ModelSystem, speciemap, parametermap)::Vector{Symbol}
     # This is a hack untill SciMLSensitivity integrates with the SciMLStructures interface.
     # Basically allows the parameters in the system to be retreived in the order they
     # appear in the ODESystem later on
     _p = parameters(sys)
     out = similar(_p)
-    oprob = ODEProblem(sys, speciemap, [0.0, 5e3], parametermap; jac = true, sparse = false)
-    maps = ModelingToolkit.getp(oprob, _p)
+    if sys isa SDESystem
+        prob = SDEProblem(sys, speciemap, [0.0, 5e3], parametermap)
+    else
+        prob = ODEProblem(sys, speciemap, [0.0, 5e3], parametermap; jac = true)
+    end
+    maps = ModelingToolkit.getp(prob, _p)
     for (i, map) in pairs(maps.getters)
         out[map.idx.idx] = _p[i]
     end

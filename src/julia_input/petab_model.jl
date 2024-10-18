@@ -23,6 +23,8 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
                      verbose::Bool)::PEtabModel
     if sys isa ODESystem
         name = "ODESystemModel"
+    elseif sys isa SDESystem
+        name = "SDESystemModel"
     else
         name = "ReactionSystemModel"
     end
