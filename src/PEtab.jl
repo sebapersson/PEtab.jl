@@ -112,7 +112,7 @@ function correct_gradient! end
 function SDESolver end
 function llh end
 function PEtabSDEProblem end
-function _set_x_minfo! end
+function _set_x_measurements_info! end
 
 export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
        PEtabODEProblem, remake, Fides, PEtabOptimisationResult, IpoptOptions,

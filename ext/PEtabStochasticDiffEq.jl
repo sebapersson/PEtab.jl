@@ -5,10 +5,11 @@ using StochasticDiffEq
 using ModelingToolkit
 using ComponentArrays
 
-function PEtab.llh(u::AbstractVector, p, it::Int64, measurements_info::PEtab.MeasurementsInfo)::Float64
+function PEtab.llh(u::AbstractVector, p, it::Int64,
+                   measurements_info::PEtab.MeasurementsInfo)::Float64
     @unpack xobservables, xnoise, xnondynamic, nominal_values, obsids, h, sd,
-            mapxnoise, mapxobservable, measurements, imeasurements_t,
-            measurement_transforms = measurements_info
+    mapxnoise, mapxobservable, measurements, imeasurements_t,
+    measurement_transforms = measurements_info
     t, nllh = measurements_info.t[it], 0.0
     for (j, imeasurement) in pairs(imeasurements_t[it])
         y = measurements[it][j]
@@ -38,7 +39,8 @@ function PEtab.SDESolver(alg; dt = nothing, adapt::Bool = false)
     return PEtab.SDESolver(alg, dt, adapt)
 end
 
-function PEtab.PEtabSDEProblem(model::PEtab.PEtabModel, sde_solver::PEtab.SDESolver; verbose::Bool = false)
+function PEtab.PEtabSDEProblem(model::PEtab.PEtabModel, sde_solver::PEtab.SDESolver;
+                               verbose::Bool = false)
     PEtab._logging(:Build_PEtabSDEProblem, verbose; name = model.name)
 
     # Information needed to compute the likelihood for each simulation condition
@@ -66,8 +68,9 @@ function PEtab.PEtabSDEProblem(model::PEtab.PEtabModel, sde_solver::PEtab.SDESol
                                  xnames_ps, xnominal, xnominal_transformed)
 end
 
-function PEtab._set_x_measurements_info!(measurements_info::PEtab.MeasurementsInfo, x, prob)::Nothing
+function PEtab._set_x_measurements_info!(prob::PEtab.PEtabSDEProblem, x)::Nothing
     xindices = prob.model_info.xindices
+    measurements_info = prob.measurements_info
     _, xobservable, xnoise, xnondynamic = PEtab.split_x(x, xindices)
 
     xnoise_ps = PEtab.transform_x(xnoise[:], xindices.xids[:noise], xindices)

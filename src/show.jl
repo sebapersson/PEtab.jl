@@ -146,6 +146,15 @@ function show(io::IO, prob::PEtabODEProblem)
     opt6 = styled"ss-solver gradient: $(ss_solver2)"
     print(io, styled"$(header)$(optheader)$(opt1)$(opt2)$(opt3)$(opt4)$(opt5)$(opt6)")
 end
+function show(io::IO, prob::PEtabSDEProblem)
+    @unpack model_info, xnominal = prob
+    name = model_info.model.name
+    nstates = @sprintf("%d", length(unknowns(model_info.model.sys_mutated)))
+    nest = @sprintf("%d", length(xnominal))
+    header = styled"{PURPLE:{bold:PEtabSDEProblem:}} {emphasis:$(name)} with $nstates \
+                    SDE-states and $nest parameters to estimate"
+    print(io, styled"$(header)")
+end
 function show(io::IO, res::PEtabOptimisationResult)
     header = styled"{PURPLE:{bold:PEtabOptimisationResult}}"
     optheader = styled"\n---------------- {PURPLE:{bold:Summary}} ---------------\n"
