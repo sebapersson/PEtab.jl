@@ -76,14 +76,10 @@ function PEtabODEProblem(model::PEtabModel;
     xnames = model_info.xindices.xids[:estimate]
     xnames_ps = model_info.xindices.xids[:estimate_ps]
     nestimate = length(xnames)
-    _lb = _get_bounds(model_info, xnames, :lower)
-    _ub = _get_bounds(model_info, xnames, :upper)
-    _xnominal = _get_xnominal(model_info, xnames, false)
-    _xnominal_transformed = _get_xnominal(model_info, xnames, true)
-    lb = ComponentArray(; (xnames_ps .=> _lb)...)
-    ub = ComponentArray(; (xnames_ps .=> _ub)...)
-    xnominal = ComponentArray(; (xnames .=> _xnominal)...)
-    xnominal_transformed = ComponentArray(; (xnames_ps .=> _xnominal_transformed)...)
+    lb = _get_bounds(model_info, xnames, :lower)
+    ub = _get_bounds(model_info, xnames, :upper)
+    xnominal = _get_xnominal(model_info, xnames, xnames_ps, false)
+    xnominal_transformed = _get_xnominal(model_info, xnames, xnames_ps, true)
 
     return PEtabODEProblem(nllh, _chi2, grad!, grad, hess!, hess, FIM!, FIM, nllh_grad,
                            prior, grad_prior, hess_prior, _simulated_values, _residuals,
@@ -227,28 +223,54 @@ function _get_nllh_grad(gradient_method::Symbol, grad::Function, _prior::Functio
     return _nllh_grad
 end
 
-function _get_bounds(model_info::ModelInfo, xnames::Vector{Symbol},
-                     which::Symbol)::Vector{Float64}
+function _get_bounds(model_info::ModelInfo, xnames::Vector{Symbol}, which::Symbol)
     @unpack petab_parameters, xindices = model_info
-    ix = [findfirst(x -> x == id, petab_parameters.parameter_id) for id in xnames]
-    if which == :lower
-        bounds = petab_parameters.lower_bounds[ix]
-    else
-        bounds = petab_parameters.upper_bounds[ix]
+    xnames_not_nn = xnames[findall(x -> !(x in xindices.xids[:nn]), xnames)]
+    xnames_nn = xnames[findall(x -> x in xindices.xids[:nn], xnames)]
+
+    # Mechanistic parameters are given as Vector
+    ix = [findfirst(x -> x == id, petab_parameters.parameter_id) for id in xnames_not_nn]
+    bounds_mechanistic = (xnames_not_nn .=> petab_parameters.lower_bounds[ix]) |> NamedTuple
+    # Network parameters are given as ComponentArray
+    vals = Vector{Any}(undef, length(xnames_nn))
+    for (i, net) in pairs(collect(values(model_info.model.nn)))
+        rng = Random.default_rng(1)
+        vals[i] = Lux.initialparameters(rng, net[2]) |> ComponentArray
+        if which == :lower
+            vals[i] .= -10.0
+        else
+            vals[i] .= 10.0
+        end
     end
-    transform_x!(bounds, xnames, xindices, to_xscale = true)
-    return bounds
+    bounds_net = (xnames_nn .=> vals) |> NamedTuple
+    return merge(bounds_mechanistic, bounds_net) |> ComponentArray
 end
 
 function _get_xnominal(model_info::ModelInfo, xnames::Vector{Symbol},
-                       transform::Bool)::Vector{Float64}
+                       xnames_ps::Vector{Symbol}, transform::Bool)
     @unpack petab_parameters, xindices = model_info
-    ix = [findfirst(x -> x == id, petab_parameters.parameter_id) for id in xnames]
+    ixnames_not_nn = findall(x -> !(x in xindices.xids[:nn]), xnames)
+    xnames_not_nn = xnames[ixnames_not_nn]
+    xnames_nn = xnames[findall(x -> x in xindices.xids[:nn], xnames)]
+
+    # Mechanistic parameters are given as Vector
+    ix = [findfirst(x -> x == id, petab_parameters.parameter_id) for id in xnames_not_nn]
     xnominal = petab_parameters.nominal_value[ix]
     if transform == true
         transform_x!(xnominal, xnames, xindices, to_xscale = true)
+        vals_mechanistic = (xnames_ps[ixnames_not_nn] .=> xnominal) |> NamedTuple
+    else
+        vals_mechanistic = (xnames[ixnames_not_nn] .=> xnominal) |> NamedTuple
     end
-    return xnominal
+    # Network parameters are given as ComponentArray
+    vals = Vector{Any}(undef, length(xnames_nn))
+    for (i, net) in pairs(collect(values(model_info.model.nn)))
+        rng = Random.default_rng(1)
+        vals[i] = Lux.initialparameters(rng, net[2]) |> ComponentArray
+        vals[i] .= 0.0
+    end
+    vals_nn = (xnames_nn .=> vals) |> NamedTuple
+    return merge(vals_mechanistic, vals_nn) |> ComponentArray
 end
 
 function _test_ordering(x::ComponentArray, xnames_ps::Vector{Symbol})::Nothing

@@ -92,7 +92,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
 
     return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan,
                       paths, odesystem, deepcopy(odesystem), parametermap, speciemap,
-                      petab_tables, cbset, false)
+                      petab_tables, cbset, false, nothing)
 end
 
 function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, conditions_df::DataFrame,

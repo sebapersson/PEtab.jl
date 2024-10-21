@@ -1,8 +1,7 @@
-function PEtabODEProblemCache(gradient_method::Symbol,
-                              hessian_method::Union{Symbol, Nothing},
-                              FIM_method::Symbol,
-                              sensealg,
-                              model_info::ModelInfo)::PEtabODEProblemCache
+function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
+                              FIM_method::Symbol, sensealg, model_info::ModelInfo,
+                              nn::Union{Dict, Nothing},
+                              oprob::ODEProblem)::PEtabODEProblemCache
     @unpack xindices, model, simulation_info, petab_measurements = model_info
     nxestimate = length(xindices.xids[:estimate])
     nstates = model_info.nstates
@@ -29,8 +28,20 @@ function PEtabODEProblemCache(gradient_method::Symbol,
     xnoise_ps = DiffCache(similar(xnoise), chunksize, levels = level_cache)
     xnondynamic_ps = DiffCache(similar(xnondynamic), chunksize, levels = level_cache)
 
+    # Parameters for potential neural-networks
+    xnn = Dict{Symbol, DiffCache}()
+    if !isnothing(nn)
+        for (id, net) in nn
+            rng = Random.default_rng(1)
+            _p = Lux.initialparameters(rng, net[2]) |> ComponentArray .|> Float64
+            xnn[id] = DiffCache(similar(_p); levels = level_cache)
+        end
+    end
+
     # Arrays needed in gradient compuations
-    xdynamic_grad = zeros(Float64, length(xdynamic))
+    # TODO: Fix for otheer methods down the line
+    nxdynamic_tot = length(xdynamic) + _get_n_net_parameters(nn, xindices.xids[:nn])
+    xdynamic_grad = zeros(Float64, nxdynamic_tot)
     xnotode_grad = zeros(Float64, length(xindices.xids[:not_system]))
     # For forward sensitivity equations and adjoint sensitivity analysis partial
     # derivatives are computed symbolically
@@ -121,8 +132,12 @@ function PEtabODEProblemCache(gradient_method::Symbol,
     pode = Dict{Symbol, DiffCache}()
     u0ode = Dict{Symbol, DiffCache}()
     for cid in condition_ids
-        pode[cid] = DiffCache(zeros(Float64, nxode), chunksize, levels = level_cache)
         u0ode[cid] = DiffCache(zeros(Float64, nstates), chunksize, levels = level_cache)
+        if oprob.p isa ComponentArray
+            pode[cid] = DiffCache(similar(oprob.p), chunksize, levels = level_cache)
+        else
+            pode[cid] = DiffCache(zeros(Float64, nxode), chunksize, levels = level_cache)
+        end
     end
 
     return PEtabODEProblemCache(xdynamic, xnoise, xobservable, xnondynamic, xdynamic_ps,
@@ -130,5 +145,6 @@ function PEtabODEProblemCache(gradient_method::Symbol,
                                 xnotode_grad, jacobian_gn, residuals_gn, forward_eqs_grad,
                                 adjoint_grad, St0, ∂h∂u, ∂σ∂u, ∂h∂p, ∂σ∂p, ∂G∂p, ∂G∂p_,
                                 ∂G∂u, dp, du, p, u, S, odesols, pode, u0ode,
-                                xdynamic_input_order, xdynamic_output_order, nxdynamic)
+                                xdynamic_input_order, xdynamic_output_order, nxdynamic,
+                                xnn)
 end

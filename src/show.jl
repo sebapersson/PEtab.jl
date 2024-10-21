@@ -109,8 +109,14 @@ function show(io::IO, event::PEtabEvent)
     print(io, styled"$(header)$(opt)")
 end
 function show(io::IO, model::PEtabModel)
-    nstates = @sprintf("%d", length(unknowns(model.sys_mutated)))
-    nparameters = @sprintf("%d", length(parameters(model.sys_mutated)))
+    if model.sys_mutated isa ODEProblem
+        nstates = @sprintf("%d", length(model.sys_mutated.u0))
+        nparameters = @sprintf("%d", length(model.sys_mutated.p))
+    else
+        nstates = @sprintf("%d", length(unknowns(model.sys_mutated)))
+        nparameters = @sprintf("%d", length(parameters(model.sys_mutated)))
+    end
+
     header = styled"{PURPLE:{bold:PEtabModel:}} {emphasis:$(model.name)} with $nstates states \
                     and $nparameters parameters"
     if haskey(model.paths, :dirjulia) && !isempty(model.paths[:dirjulia])

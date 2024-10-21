@@ -17,9 +17,8 @@ function _check_method(method::Symbol, whatcheck::Symbol)::Nothing
     end
 end
 
-function _get_model_size(sys::ModelSystem,
-                         model_info::ModelInfo)::Symbol
-    nODEs = length(unknowns(sys))
+function _get_model_size(sys::ModelSystem, model_info::ModelInfo)::Symbol
+    nODEs = length(_get_state_ids(sys))
     # When looking at number of dynamic parameters it is important to look at how
     # many dynamic parmeters are estimated per condition. For example, xdynamic might
     # have a size of 80, but only 10 parameters are estimated per condition. In these
@@ -56,7 +55,8 @@ function _get_size_xdynamic_sys(model_info::ModelInfo)::Int64
             nxdynamics_cond = length(map.ix_dynamic)
         end
     end
-    return nxdynamics_const + nxdynamics_cond
+    nxdynamics_nn = _get_n_net_parameters(model_info.model.nn, xindices.xids[:dynamic_nn])
+    return nxdynamics_const + nxdynamics_cond + nxdynamics_nn
 end
 
 function _get_gradient_method(method::Union{Symbol, Nothing}, model_size::Symbol,

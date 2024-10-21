@@ -34,39 +34,21 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
                                                model_size)
     chunksize_use = isnothing(chunksize) ? 0 : chunksize
 
-    # Cache to avoid allocations to as large degree as possible. TODO: Refactor into single
-    cache = PEtabODEProblemCache(gradient_method_use, hessian_method_use, FIM_method_use,
-                                 sensealg_use, model_info)
-
+    _logging(:Build_ODEProblem, verbose)
     btime = @elapsed begin
-        _set_const_parameters!(model, model_info.petab_parameters)
-        @unpack sys_mutated, speciemap, parametermap, defined_in_julia = model
-        if sys_mutated isa ODESystem && defined_in_julia == false
-            SL = specialize_level
-            _oprob = ODEProblem{true, SL}(sys_mutated, speciemap, [0.0, 5e3], parametermap;
-                                          jac = true, sparse = sparse_jacobian_use)
-        else
-            # For ReactionSystem there is bug if I try to set specialize_level. Also,
-            # speciemap must somehow be a vector. TODO: Test with MTKv9
-            u0map_tmp = zeros(Float64, length(model.speciemap))
-            _oprob = ODEProblem(sys_mutated, u0map_tmp, [0.0, 5e3], parametermap;
-                                jac = true, sparse = sparse_jacobian_use)
-        end
-        # Ensure correct types for further computations. Long-term we plan to here
-        # transition to the SciMLStructures interface, but that has to wait for
-        # SciMLSensitivity
-        if _oprob.p isa ModelingToolkit.MTKParameters
-            _p = _oprob.p.tunable .|> Float64
-            oprob = remake(_oprob, p = _p, u0 = Float64.(_oprob.u0))
-        else
-            oprob = remake(_oprob, p = Float64.(_oprob.p), u0 = Float64.(_oprob.u0))
-        end
+        oprob = _get_odeproblem(model.sys_mutated, model, model_info, specialize_level,
+                                sparse_jacobian_use)
         oprob_gradient = _get_odeproblem_gradient(oprob, gradient_method_use, sensealg_use)
     end
     _logging(:Build_ODEProblem, verbose; time = btime)
 
+    # Cache to avoid allocations to as large degree as possible.
+    cache = PEtabODEProblemCache(gradient_method_use, hessian_method_use, FIM_method_use,
+                                 sensealg_use, model_info, model.nn, oprob)
+
     # To build the steady-state solvers the ODEProblem (specifically its Jacobian)
-    # is needed (which is the same for oprob and oprob_gradient)
+    # is needed (which is the same for oprob and oprob_gradient). Not yet comptiable with
+    # UDE problems
     ss_solver_use = SteadyStateSolver(_ss_solver, oprob, odesolver_use)
     ss_solver_gradient_use = SteadyStateSolver(_ss_solver_gradient, oprob,
                                                odesolver_gradient_use)
@@ -76,4 +58,41 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
                                hessian_method_use, FIM_method_use, reuse_sensitivities,
                                sparse_jacobian_use, sensealg_use, sensealg_ss_use,
                                cache, split_use, chunksize_use)
+end
+
+function _get_odeproblem(sys::ODEProblem, ::PEtabModel, model_info::ModelInfo,
+                         specialize_level, ::Bool)::ODEProblem
+    for (i, id) in pairs(model_info.petab_parameters.parameter_id)
+        model_info.petab_parameters.estimate[i] == true && continue
+        !haskey(sys.p, id) && continue
+        sys.p[id] = model_info.petab_parameters.nominal_value[i]
+    end
+    _sys = remake(sys, u0 = sys.u0[:])
+    return _sys
+end
+function _get_odeproblem(sys, model::PEtabModel, model_info::ModelInfo, specialize_level,
+                         sparse_jacobian::Bool)::ODEProblem
+    _set_const_parameters!(model, model_info.petab_parameters)
+    @unpack speciemap, parametermap, defined_in_julia = model
+    if sys isa ODESystem && defined_in_julia == false
+        SL = specialize_level
+        _oprob = ODEProblem{true, SL}(sys, speciemap, [0.0, 5e3], parametermap;
+                                      jac = true, sparse = sparse_jacobian)
+    else
+        # For ReactionSystem there is bug if I try to set specialize_level. Also,
+        # speciemap must somehow be a vector. TODO: Test with MTKv9
+        u0map_tmp = zeros(Float64, length(model.speciemap))
+        _oprob = ODEProblem(sys, u0map_tmp, [0.0, 5e3], parametermap;
+                            jac = true, sparse = sparse_jacobian)
+    end
+    # Ensure correct types for further computations. Long-term we plan to here
+    # transition to the SciMLStructures interface, but that has to wait for
+    # SciMLSensitivity
+    if _oprob.p isa ModelingToolkit.MTKParameters
+        _p = _oprob.p.tunable .|> Float64
+        oprob = remake(_oprob, p = _p, u0 = Float64.(_oprob.u0))
+    else
+        oprob = remake(_oprob, p = Float64.(_oprob.p), u0 = Float64.(_oprob.u0))
+    end
+    return oprob
 end

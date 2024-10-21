@@ -187,4 +187,5 @@ struct PEtabModel
     petab_tables::Dict{Symbol, DataFrame}
     callbacks::SciMLBase.DECallback
     defined_in_julia::Bool
+    nn::Union{Dict, Nothing}
 end

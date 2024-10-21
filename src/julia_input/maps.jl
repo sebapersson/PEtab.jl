@@ -1,12 +1,11 @@
-# TODO: Need to make sure consistent type in the speciemap (use same as in unknowns)
 function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, speciemap_input)
     specie_ids = _get_state_ids(sys)
-    sys_unknowns = unknowns(sys)
-    default_values = ModelingToolkit.get_defaults(sys) |> _keys_to_string
+    speciemap_ids = _get_speciemap_ids(sys)
+    default_values = _get_default_values(sys)
     speciemap = Vector{Pair}(undef, 0)
     for (i, specieid) in pairs(specie_ids)
         value = haskey(default_values, specieid) ? default_values[specieid] : 0.0
-        push!(speciemap, sys_unknowns[i] => value)
+        push!(speciemap, speciemap_ids[i] => value)
     end
 
     # Default values as speciemap_input might only set values for subset of species
@@ -33,8 +32,9 @@ function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, speciemap_in
 end
 
 function _get_parametermap(sys::ModelSystem, parametermap_input)
-    parametermap = [Num(p) => 0.0 for p in parameters(sys)]
+    sys isa ODEProblem && return nothing
 
+    parametermap = [Num(p) => 0.0 for p in parameters(sys)]
     # User are allowed to specify default numerical values in the system
     default_values = ModelingToolkit.get_defaults(sys)
     for (i, pid) in pairs(first.(parametermap))
@@ -67,7 +67,10 @@ end
 function _check_unassigned_variables(sys::ModelSystem, variablemap, mapinput,
                                      whichmap::Symbol, parameters_df::DataFrame,
                                      conditions_df::DataFrame)::Nothing
-    default_values = ModelingToolkit.get_defaults(sys)
+    if whichmap == :parameter && sys isa ODEProblem
+        return nothing
+    end
+    default_values = _get_default_values(sys)
     if !isnothing(mapinput)
         ids_input = replace.(first.(mapinput) .|> string, "(t)" => "")
     else
@@ -92,6 +95,7 @@ function _check_unassigned_variables(sys::ModelSystem, variablemap, mapinput,
     end
 end
 
+# TODO: Add for SDEProblem and ODEProblem
 function _add_parameter(sys::ReactionSystem, parameter)
     _p = Symbol(parameter)
     addparam!(sys, only(@parameters($_p)))
@@ -106,9 +110,13 @@ function _add_parameter(sys::ODESystem, parameter)
     return complete(de)
 end
 
-function _keys_to_string(d::Dict)::Dict
+function _keys_to_string(d::Union{Dict, NamedTuple})::Dict
     keysnew = replace.(keys(d) |> collect .|> string, "(t)" => "")
     return Dict(keysnew .=> values(d))
+end
+function _keys_to_string(d::ComponentArray)::Dict
+    keysnew = replace.(keys(d) |> collect .|> string, "(t)" => "")
+    return Dict(keysnew .=> collect(d))
 end
 
 # They removed this function from Catalyst, so I copied it here
@@ -124,4 +132,18 @@ function addparam!(rn::ReactionSystem, p; disablechecks = false)
     else
         return curidx
     end
+end
+
+function _get_speciemap_ids(sys::ODEProblem)
+    return keys(sys.u0) |> collect
+end
+function _get_speciemap_ids(sys)
+    return unknowns(sys)
+end
+
+function _get_default_values(sys)
+    return ModelingToolkit.get_defaults(sys) |> _keys_to_string
+end
+function _get_default_values(sys::ODEProblem)
+    return _keys_to_string(sys.u0)
 end

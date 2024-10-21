@@ -4,6 +4,21 @@ function _get_state_ids(system)::Vector{String}
     ids = replace.(ids, "(t)" => "")
     return ids
 end
+function _get_state_ids(system::ODEProblem)::Vector{String}
+    local ids
+    try
+        ids = keys(system.u0) .|>
+            string |>
+            collect
+    catch
+        throw(PEtabInputError("If the model is provided as an ODEProblem then the initial \
+                               values (u0) must be a struct that supports the keys \
+                               function, for example, a ComponentArray or a NamedTuple. \
+                               This is because PEtab.jl must know the order of the species \
+                               in the ODE model"))
+    end
+    return ids
+end
 
 function _set_const_parameters!(model::PEtabModel,
                                 parameters_info::PEtabParameters)::Nothing
@@ -166,4 +181,15 @@ function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices;
                          xindices.xindices[:not_system])
     end
     return unique(ixdynamic)
+end
+
+function _get_n_net_parameters(nn::Union{Dict, Nothing}, xids::Vector{Symbol})::Int64
+    isnothing(nn) && return 0
+    nparameters = 0
+    for xid in xids
+        netid = string(xid)[3:end] |> Symbol
+        !haskey(nn, netid) && continue
+        nparameters += Lux.LuxCore.parameterlength(nn[netid][2])
+    end
+    return nparameters
 end

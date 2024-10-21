@@ -20,26 +20,25 @@ function ParameterIndices(petab_tables::Dict{Symbol, DataFrame}, sys, parameterm
     petab_measurements = PEtabMeasurements(petab_tables[:measurements],
                                            petab_tables[:observables])
     return ParameterIndices(petab_parameters, petab_measurements, sys, parametermap,
-                            speciemap, petab_tables[:conditions])
+                            speciemap, petab_tables[:conditions], nothing)
 end
 function ParameterIndices(petab_parameters::PEtabParameters,
                           petab_measurements::PEtabMeasurements,
                           model::PEtabModel)::ParameterIndices
     @unpack speciemap, parametermap, sys_mutated, petab_tables = model
     return ParameterIndices(petab_parameters, petab_measurements, sys_mutated, parametermap,
-                            speciemap, petab_tables[:conditions])
+                            speciemap, petab_tables[:conditions], model.nn)
 end
 function ParameterIndices(petab_parameters::PEtabParameters,
                           petab_measurements::PEtabMeasurements, sys, parametermap,
-                          speciemap,
-                          conditions_df::DataFrame)::ParameterIndices
+                          speciemap, conditions_df::DataFrame, nn::Union{Nothing, Dict})::ParameterIndices
     _check_conditionids(conditions_df, petab_measurements)
     xids = _get_xids(petab_parameters, petab_measurements, sys, conditions_df, speciemap,
-                     parametermap)
+                     parametermap, nn)
 
     # indices for mapping parameters correctly, e.g. from xest -> xdynamic etc...
     # TODO: SII is going to make this much easier (but the reverse will be harder)
-    xindices = _get_xindices(xids)
+    xindices = _get_xindices(xids, nn)
     xindices_notsys = _get_xindices_notsys(xids)
     odeproblem_map = _get_odeproblem_map(xids)
     condition_maps = _get_condition_maps(sys, parametermap, speciemap, petab_parameters,
@@ -61,40 +60,58 @@ function ParameterIndices(petab_parameters::PEtabParameters,
 end
 
 function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements,
-                   sys::ModelSystem, conditions_df::DataFrame,
-                   speciemap, parametermap)::Dict{Symbol, Vector{Symbol}}
+                   sys::ModelSystem, conditions_df::DataFrame, speciemap, parametermap,
+                   nn::Union{Nothing, Dict})::Dict{Symbol, Vector{Symbol}}
     @unpack observable_parameters, noise_parameters = petab_measurements
 
     # Non-dynamic parameters are those that only appear in the observable and noise
     # functions, but are not defined noise or observable column of the measurement file.
     # Need to be tracked separately for efficient gradient computations
+    if isnothing(nn)
+        xids_nn = Symbol[]
+    else
+        xids_nn = ("p_" .* string.(collect(keys(nn)))) .|> Symbol
+    end
+    xids_dynamic_nn = _get_xids_dynamic_nn(xids_nn, sys)
     xids_observable = _get_xids_observable_noise(observable_parameters, petab_parameters)
     xids_noise = _get_xids_observable_noise(noise_parameters, petab_parameters)
     xids_nondynamic = _get_xids_nondynamic(xids_observable, xids_noise, sys,
-                                           petab_parameters,
-                                           conditions_df)
-    xids_dynamic = _get_xids_dynamic(xids_observable, xids_noise, xids_nondynamic,
+                                           petab_parameters, conditions_df)
+    xids_dynamic = _get_xids_dynamic(xids_observable, xids_noise, xids_nondynamic, xids_nn,
                                      petab_parameters)
     xids_sys = _get_sys_parameters(sys, speciemap, parametermap)
     xids_not_system = unique(vcat(xids_observable, xids_noise, xids_nondynamic))
-    xids_estimate = vcat(xids_dynamic, xids_not_system)
+    xids_estimate = vcat(xids_dynamic, xids_not_system, xids_nn)
     xids_petab = petab_parameters.parameter_id
 
-    return Dict(:dynamic => xids_dynamic, :noise => xids_noise,
+    return Dict(:dynamic => xids_dynamic, :noise => xids_noise, :nn => xids_nn,
                 :observable => xids_observable, :nondynamic => xids_nondynamic,
                 :not_system => xids_not_system, :sys => xids_sys,
-                :estimate => xids_estimate, :petab => xids_petab)
+                :estimate => xids_estimate, :petab => xids_petab,
+                :dynamic_nn => xids_dynamic_nn)
 end
 
-function _get_xindices(xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, Vector{Int32}}
+function _get_xindices(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Symbol, Vector{Int32}}
     xids_est = xids[:estimate]
     xi_dynamic = Int32[findfirst(x -> x == id, xids_est) for id in xids[:dynamic]]
     xi_noise = Int32[findfirst(x -> x == id, xids_est) for id in xids[:noise]]
     xi_observable = Int32[findfirst(x -> x == id, xids_est) for id in xids[:observable]]
     xi_nondynamic = Int32[findfirst(x -> x == id, xids_est) for id in xids[:nondynamic]]
     xi_not_system = Int32[findfirst(x -> x == id, xids_est) for id in xids[:not_system]]
-    return Dict(:dynamic => xi_dynamic, :noise => xi_noise, :observable => xi_observable,
-                :nondynamic => xi_nondynamic, :not_system => xi_not_system)
+    xindices = Dict(:dynamic => xi_dynamic, :noise => xi_noise, :observable => xi_observable,
+                    :nondynamic => xi_nondynamic, :not_system => xi_not_system)
+    # Each neural network input is in a sense its own parameter component, hence they need
+    # to be treated separately.
+    if !isnothing(nn)
+        istart = length(xids_est) - length(xids[:nn])
+        for id in keys(nn)
+            pid = ("p_" * string(id)) |> Symbol
+            np = _get_n_net_parameters(nn, [pid])
+            xindices[pid] = (istart+1):(istart + np)
+            istart = xindices[pid][end]
+        end
+    end
+    return xindices
 end
 
 function _get_xindices_notsys(xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol,
@@ -114,14 +131,14 @@ function _get_xscales(xids::Dict{T, Vector{T}},
     return Dict(xids[:estimate] .=> s)
 end
 
-function _get_xids_dynamic(observable_ids::T, noise_ids::T, xids_nondynamic::T,
+function _get_xids_dynamic(xids_observable::T, xids_noise::T, xids_nondynamic::T, xids_nn::T,
                            petab_parameters::PEtabParameters)::T where {T <: Vector{Symbol}}
     dynamics_xids = Symbol[]
     for id in petab_parameters.parameter_id
         if _estimate_parameter(id, petab_parameters) == false
             continue
         end
-        if id in Iterators.flatten((observable_ids, noise_ids, xids_nondynamic))
+        if id in Iterators.flatten((xids_observable, xids_noise, xids_nondynamic, xids_nn))
             continue
         end
         push!(dynamics_xids, id)
@@ -129,8 +146,19 @@ function _get_xids_dynamic(observable_ids::T, noise_ids::T, xids_nondynamic::T,
     return dynamics_xids
 end
 
-function _get_xids_observable_noise(values,
-                                    petab_parameters::PEtabParameters)::Vector{Symbol}
+function _get_xids_dynamic_nn(xids_nn::Vector{Symbol}, sys)::Vector{Symbol}
+    if !(sys isa ODEProblem)
+        return Symbol[]
+    end
+    xids_dynamic_nn = Symbol[]
+    for id in xids_nn
+        !haskey(sys.p, id) && continue
+        push!(xids_dynamic_nn, id)
+    end
+    return xids_dynamic_nn
+end
+
+function _get_xids_observable_noise(values, petab_parameters::PEtabParameters)::Vector{Symbol}
     ids = Symbol[]
     for value in values
         isempty(value) && continue
@@ -156,7 +184,11 @@ function _get_xids_nondynamic(xids_observable::T, xids_noise::T, sys,
                               petab_parameters::PEtabParameters,
                               conditions_df::DataFrame)::T where {T <: Vector{Symbol}}
     xids_condition = _get_xids_condition(sys, petab_parameters, conditions_df)
-    xids_sys = parameters(sys) .|> Symbol
+    if sys isa ODEProblem
+        xids_sys = keys(sys.p) |> collect
+    else
+        xids_sys = parameters(sys) .|> Symbol
+    end
     xids_nondynamic = Symbol[]
     for id in petab_parameters.parameter_id
         if _estimate_parameter(id, petab_parameters) == false
@@ -380,6 +412,9 @@ function _check_conditionids(conditions_df::DataFrame,
 end
 
 function _get_sys_parameters(sys::ModelSystem, speciemap, parametermap)::Vector{Symbol}
+    if sys isa ODEProblem
+        return keys(sys.p) |> collect
+    end
     # This is a hack untill SciMLSensitivity integrates with the SciMLStructures interface.
     # Basically allows the parameters in the system to be retreived in the order they
     # appear in the ODESystem later on

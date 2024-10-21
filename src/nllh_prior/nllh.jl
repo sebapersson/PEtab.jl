@@ -1,12 +1,12 @@
 function nllh(x::Vector{T}, probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
               cids::Vector{Symbol}, hess::Bool, residuals::Bool)::T where {T <: Real}
-    xdynamic, xobservable, xnoise, xnondynamic = split_x(x, model_info.xindices)
-    nllh = nllh_solveode(xdynamic, xnoise, xobservable, xnondynamic, probinfo,
+    xdynamic, xobservable, xnoise, xnondynamic, xnn = split_x(x, model_info.xindices)
+    nllh = nllh_solveode(xdynamic, xnoise, xobservable, xnondynamic, xnn, probinfo,
                          model_info; hess = hess, residuals = residuals, cids = cids)
     return nllh
 end
 
-function nllh_solveode(xdynamic::T1, xnoise::T2, xobservable::T2, xnondynamic::T2,
+function nllh_solveode(xdynamic::T1, xnoise::T2, xobservable::T2, xnondynamic::T2, xnn,
                        probinfo::PEtabODEProblemInfo, model_info::ModelInfo;
                        hess::Bool = false, residuals::Bool = false, cids = [:all],
                        grad_xdynamic::Bool = false)::Real where {T1 <: AbstractVector,
@@ -25,7 +25,7 @@ function nllh_solveode(xdynamic::T1, xnoise::T2, xobservable::T2, xnondynamic::T
     xnondynamic_ps = transform_x(xnondynamic, xindices, :xnondynamic, cache)
 
     derivative = hess || grad_xdynamic
-    success = solve_conditions!(model_info, xdynamic_ps, probinfo; cids = cids,
+    success = solve_conditions!(model_info, xdynamic_ps, xnn, probinfo; cids = cids,
                                 dense_sol = false, save_observed_t = true,
                                 derivative = derivative)
     if success != true

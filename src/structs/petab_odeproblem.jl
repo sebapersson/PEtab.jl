@@ -78,7 +78,8 @@ struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
                             T3 <: Vector{<:AbstractFloat},
                             T4 <: Matrix{<:AbstractFloat},
                             T5 <: Dict,
-                            T6 <: Dict}
+                            T6 <: Dict,
+                            T7 <: Dict{Symbol, <:DiffCache}}
     xdynamic::T1
     xnoise::T1
     xobservable::T1
@@ -112,6 +113,7 @@ struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
     xdynamic_input_order::Vector{Int64}
     xdynamic_output_order::Vector{Int64}
     nxdynamic::Vector{Int64}
+    xnn::T7
 end
 
 struct PEtabMeasurements{T <: Vector{<:Union{<:String, <:AbstractFloat}}}
@@ -145,7 +147,7 @@ function ModelInfo(model::PEtabModel, sensealg, custom_values)::ModelInfo
     xindices = ParameterIndices(petab_parameters, petab_measurements, model)
     simulation_info = SimulationInfo(cbs, petab_measurements, sensealg = sensealg)
     priors = Priors(xindices, tables[:parameters])
-    nstates = length(unknowns(model.sys_mutated)) |> Int32
+    nstates = length(_get_state_ids(model.sys_mutated)) |> Int32
     return ModelInfo(petab_measurements, petab_parameters, xindices, simulation_info,
                      priors, model, nstates)
 end
