@@ -80,10 +80,10 @@ struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
                             T5 <: Dict,
                             T6 <: Dict,
                             T7 <: Dict{Symbol, <:DiffCache}}
-    xdynamic::T1
-    xnoise::T1
-    xobservable::T1
-    xnondynamic::T1
+    xdynamic::T2
+    xnoise::T2
+    xobservable::T2
+    xnondynamic::T2
     xdynamic_ps::T2
     xnoise_ps::T2
     xobservable_ps::T2
@@ -114,6 +114,7 @@ struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
     xdynamic_output_order::Vector{Int64}
     nxdynamic::Vector{Int64}
     xnn::T7
+    xnn_dict::Dict{Symbol, ComponentArray}
 end
 
 struct PEtabMeasurements{T <: Vector{<:Union{<:String, <:AbstractFloat}}}

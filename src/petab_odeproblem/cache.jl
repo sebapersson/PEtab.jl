@@ -18,29 +18,36 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
         level_cache = 0
     end
     # Parameters on linear scale
-    xdynamic = zeros(Float64, length(xindices.xindices[:dynamic]))
-    xobservable = zeros(Float64, length(xindices.xindices[:observable]))
-    xnoise = zeros(Float64, length(xindices.xindices[:noise]))
-    xnondynamic = zeros(Float64, length(xindices.xindices[:nondynamic]))
+    _xdynamic = zeros(Float64, length(xindices.xindices[:dynamic]))
+    _xobservable = zeros(Float64, length(xindices.xindices[:observable]))
+    _xnoise = zeros(Float64, length(xindices.xindices[:noise]))
+    _xnondynamic = zeros(Float64, length(xindices.xindices[:nondynamic]))
+    xdynamic = DiffCache(similar(_xdynamic), chunksize, levels = level_cache)
+    xobservable = DiffCache(similar(_xobservable), chunksize, levels = level_cache)
+    xnoise = DiffCache(similar(_xnoise), chunksize, levels = level_cache)
+    xnondynamic = DiffCache(similar(_xnondynamic), chunksize, levels = level_cache)
     # Parameters on parameter-scale
-    xdynamic_ps = DiffCache(similar(xdynamic), chunksize, levels = level_cache)
-    xobservable_ps = DiffCache(similar(xobservable), chunksize, levels = level_cache)
-    xnoise_ps = DiffCache(similar(xnoise), chunksize, levels = level_cache)
-    xnondynamic_ps = DiffCache(similar(xnondynamic), chunksize, levels = level_cache)
+    xdynamic_ps = DiffCache(similar(_xdynamic), chunksize, levels = level_cache)
+    xobservable_ps = DiffCache(similar(_xobservable), chunksize, levels = level_cache)
+    xnoise_ps = DiffCache(similar(_xnoise), chunksize, levels = level_cache)
+    xnondynamic_ps = DiffCache(similar(_xnondynamic), chunksize, levels = level_cache)
 
     # Parameters for potential neural-networks
     xnn = Dict{Symbol, DiffCache}()
+    xnn_dict = Dict{Symbol, ComponentArray}()
     if !isnothing(nn)
         for (id, net) in nn
             rng = Random.default_rng(1)
+            pid = "p_" * string(id) |> Symbol
             _p = Lux.initialparameters(rng, net[2]) |> ComponentArray .|> Float64
-            xnn[id] = DiffCache(similar(_p); levels = level_cache)
+            xnn[pid] = DiffCache(similar(_p); levels = level_cache)
+            xnn_dict[pid] = _p
         end
     end
 
     # Arrays needed in gradient compuations
     # TODO: Fix for otheer methods down the line
-    nxdynamic_tot = length(xdynamic) + _get_n_net_parameters(nn, xindices.xids[:nn])
+    nxdynamic_tot = length(_xdynamic) + _get_n_net_parameters(nn, xindices.xids[:nn])
     xdynamic_grad = zeros(Float64, nxdynamic_tot)
     xnotode_grad = zeros(Float64, length(xindices.xids[:not_system]))
     # For forward sensitivity equations and adjoint sensitivity analysis partial
@@ -117,9 +124,9 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
     # compute the gradient of a problem with reduced number of parameters where to run
     # fewer chunks with ForwardDiff.jl we only run enough chunks to reach nxdynamic
     # TODO: When get here
-    xdynamic_input_order::Vector{Int64} = collect(1:length(xdynamic))
-    xdynamic_output_order::Vector{Int64} = collect(1:length(xdynamic))
-    nxdynamic::Vector{Int64} = Int64[length(xdynamic)]
+    xdynamic_input_order::Vector{Int64} = collect(1:length(_xdynamic))
+    xdynamic_output_order::Vector{Int64} = collect(1:length(_xdynamic))
+    nxdynamic::Vector{Int64} = Int64[length(_xdynamic)]
 
     # Preallocate arrays used when solving the ODE model
     if simulation_info.has_pre_equilibration == true
@@ -146,5 +153,5 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
                                 adjoint_grad, St0, ∂h∂u, ∂σ∂u, ∂h∂p, ∂σ∂p, ∂G∂p, ∂G∂p_,
                                 ∂G∂u, dp, du, p, u, S, odesols, pode, u0ode,
                                 xdynamic_input_order, xdynamic_output_order, nxdynamic,
-                                xnn)
+                                xnn, xnn_dict)
 end

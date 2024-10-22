@@ -1,16 +1,15 @@
 function nllh(x::Vector{T}, probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
               cids::Vector{Symbol}, hess::Bool, residuals::Bool)::T where {T <: Real}
-    xdynamic, xobservable, xnoise, xnondynamic, xnn = split_x(x, model_info.xindices)
+    xdynamic, xobservable, xnoise, xnondynamic, xnn = split_x(x, model_info.xindices, probinfo.cache)
     nllh = nllh_solveode(xdynamic, xnoise, xobservable, xnondynamic, xnn, probinfo,
                          model_info; hess = hess, residuals = residuals, cids = cids)
     return nllh
 end
 
-function nllh_solveode(xdynamic::T1, xnoise::T2, xobservable::T2, xnondynamic::T2, xnn,
-                       probinfo::PEtabODEProblemInfo, model_info::ModelInfo;
-                       hess::Bool = false, residuals::Bool = false, cids = [:all],
-                       grad_xdynamic::Bool = false)::Real where {T1 <: AbstractVector,
-                                                                 T2 <: AbstractVector}
+function nllh_solveode(xdynamic::T1, xnoise::T2, xobservable::T2, xnondynamic::T2,
+                       xnn::Dict{Symbol, ComponentArray}, probinfo::PEtabODEProblemInfo,
+                       model_info::ModelInfo; hess::Bool = false, residuals::Bool = false,
+                       cids = [:all], grad_xdynamic::Bool = false)::Real where {T1 <: AbstractVector, T2 <: AbstractVector}
     xindices, cache = model_info.xindices, probinfo.cache
     # If the problem has been remade (e.g. for PEtab-select) the parameter order in
     # xdynamic must be corrected

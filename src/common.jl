@@ -39,26 +39,30 @@ function _set_const_parameters!(model::PEtabModel,
     return nothing
 end
 
-function split_x(θ_est::AbstractVector, xindices::ParameterIndices)
-    @unpack xindices = xindices
-    xdynamic = @view θ_est[xindices[:dynamic]]
-    xobservable = @view θ_est[xindices[:observable]]
-    xnoise = @view θ_est[xindices[:noise]]
-    xnondynamic = @view θ_est[xindices[:nondynamic]]
-    return xdynamic, xobservable, xnoise, xnondynamic
+function split_x(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache)
+    split_x!(x, xindices, cache)
+    @unpack xdynamic, xobservable, xnoise, xnondynamic = cache
+    return get_tmp(xdynamic, x), get_tmp(xobservable, x), get_tmp(xnoise, x), get_tmp(xnondynamic, x), cache.xnn_dict
 end
 
-function split_x!(x::AbstractVector, xindices::ParameterIndices,
-                  cache::PEtabODEProblemCache)::Nothing
-    xindices = xindices.xindices
-    @views cache.xdynamic .= x[xindices[:dynamic]]
-    @views cache.xobservable .= x[xindices[:observable]]
-    @views cache.xnoise .= x[xindices[:noise]]
-    @views cache.xnondynamic .= x[xindices[:nondynamic]]
+function split_x!(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache)::Nothing
+    xi = xindices.xindices
+    xdynamic = get_tmp(cache.xdynamic, x)
+    xdynamic .= @view x[xi[:dynamic]]
+    xobservable = get_tmp(cache.xobservable, x)
+    xobservable .= @view x[xi[:observable]]
+    xnoise = get_tmp(cache.xnoise, x)
+    xnoise = @view x[xi[:noise]]
+    xnondynamic = get_tmp(cache.xnondynamic, x)
+    xnondynamic = @view x[xi[:nondynamic]]
+    for (netid, xnn) in cache.xnn
+        _xnn = get_tmp(xnn, x)
+        _xnn .= @view x[xi[netid]]
+        cache.xnn_dict[netid] = _xnn
+    end
     return nothing
 end
 
-# Transform parameter from log10 scale to normal scale, or reverse transform
 function transform_x!(x::AbstractVector, xids::Vector{Symbol}, xindices::ParameterIndices;
                       to_xscale::Bool = false)::Nothing
     @inbounds for (i, xid) in pairs(xids)

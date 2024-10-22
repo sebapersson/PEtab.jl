@@ -1,8 +1,4 @@
-function solve_conditions!(model_info::ModelInfo, xdynamic::AbstractVector,
-                           probinfo::PEtabODEProblemInfo; cids::Vector{Symbol} = [:all],
-                           ntimepoints_save::Int64 = 0, save_observed_t::Bool = true,
-                           dense_sol::Bool = false, track_callback::Bool = false,
-                           sensitivites::Bool = false, derivative::Bool = false)::Bool
+function solve_conditions!(model_info::ModelInfo, xdynamic::AbstractVector, xnn::Dict{Symbol, ComponentArray}, probinfo::PEtabODEProblemInfo; cids::Vector{Symbol} = [:all], ntimepoints_save::Int64 = 0, save_observed_t::Bool = true, dense_sol::Bool = false, track_callback::Bool = false, sensitivites::Bool = false, derivative::Bool = false)::Bool
     @unpack simulation_info, model, xindices = model_info
     @unpack float_tspan = model
     cache = probinfo.cache
@@ -31,8 +27,8 @@ function solve_conditions!(model_info::ModelInfo, xdynamic::AbstractVector,
         u_t0 = similar(u_ss)
 
         for (i, preeq_id) in pairs(preeq_ids)
-            oprob_preeq = _switch_condition(oprob, preeq_id, xdynamic, model_info, cache;
-                                            sensitivites = sensitivites)
+            oprob_preeq = _switch_condition(oprob, preeq_id, xdynamic, xnn, model_info,
+                                            cache; sensitivites = sensitivites)
             # Sometimes due to strongly ill-conditioned Jacobian the linear-solve runs
             # into a domain error or bounds error. This is treated as integration error.
             try
@@ -61,7 +57,7 @@ function solve_conditions!(model_info::ModelInfo, xdynamic::AbstractVector,
         simid = simulation_info.conditionids[:simulation][i]
         tsave = _get_tsave(save_observed_t, simulation_info, cid, ntimepoints_save)
         dense = _is_dense(save_observed_t, dense_sol, ntimepoints_save)
-        oprob_cid = _switch_condition(oprob, cid, xdynamic, model_info, cache;
+        oprob_cid = _switch_condition(oprob, cid, xdynamic, xnn, model_info, cache;
                                       sensitivites = sensitivites, simid = simid)
 
         if simulation_info.conditionids[:pre_equilibration][i] != :None

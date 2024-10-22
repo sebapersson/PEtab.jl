@@ -1,8 +1,7 @@
-function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::T,
-                           model_info::ModelInfo, cache::PEtabODEProblemCache;
-                           sensitivites::Bool = false,
-                           simid::Union{Nothing, Symbol} = nothing)::ODEProblem where {T <:
-                                                                                       AbstractVector}
+function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::AbstractVector,
+                           xnn::Dict{Symbol, ComponentArray}, model_info::ModelInfo,
+                           cache::PEtabODEProblemCache; sensitivites::Bool = false,
+                           simid::Union{Nothing, Symbol} = nothing)::ODEProblem
     @unpack xindices, model, nstates = model_info
     simid = isnothing(simid) ? cid : simid
 
@@ -18,6 +17,12 @@ function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::T,
     map_cid = xindices.maps_conidition_id[simid]
     p[map_cid.isys_constant_values] .= map_cid.constant_values
     p[map_cid.ix_sys] .= xdynamic[map_cid.ix_dynamic]
+
+    # Potential Neural-Network parameters (in this case p must be a ComponentArray)
+    for (netid, xnet) in xnn
+        !haskey(p, netid) && continue
+        p[netid] .= xnet
+    end
 
     # Initial state can depend on condition specific parameters
     model.u0!((@view u0[1:nstates]), p)
