@@ -5,7 +5,7 @@ function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fun
                           isremade::Bool = false)::Nothing where {T <: AbstractFloat}
     cache = probinfo.cache
     @unpack simulation_info, xindices, priors = model_info
-    @unpack xdynamic_grad, xnotode_grad, xdynamic, nxdynamic = cache
+    @unpack xdynamic_grad, xnotode_grad, nxdynamic = cache
 
     # As a subset of ForwardDiff chunks might fail, return code status is checked via
     # simulation info
@@ -14,23 +14,26 @@ function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fun
     # When remaking the problem order of parameters a subset of xdynamic is fixed which
     # must be accounted for in gradient computations
     fill!(grad, 0.0)
-    split_x!(x, xindices, cache)
+    split_x!(x, xindices, cache; xdynamic_tot = true)
+    xdynamic = get_tmp(cache.xdynamic_tot, x)
     if isremade == false || length(xdynamic) == nxdynamic[1]
         tmp = nxdynamic[1]
         nxdynamic[1] = length(xdynamic)
-        try
+        #try
             # In case of no length(xdynamic) = 0 the ODE must still be solved to get
             # the gradient of nondynamic parameters
             if length(xdynamic_grad) != 0
                 ForwardDiff.gradient!(xdynamic_grad, _nllh_solveode, xdynamic, cfg)
-                @views grad[xindices.xindices[:dynamic]] .= xdynamic_grad
+                @views grad[xindices.xindices_dynamic[:dynamic_tot]] .= xdynamic_grad
             else
                 _ = _nllh_solveode(xdynamic)
             end
+        #=
         catch
             fill!(grad, 0.0)
             return nothing
         end
+        =#
         nxdynamic[1] = tmp
     else
         try

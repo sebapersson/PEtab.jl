@@ -39,6 +39,7 @@ function ParameterIndices(petab_parameters::PEtabParameters,
     # indices for mapping parameters correctly, e.g. from xest -> xdynamic etc...
     # TODO: SII is going to make this much easier (but the reverse will be harder)
     xindices = _get_xindices(xids, nn)
+    xindices_dynamic = _get_xindices_dynamic(xids, nn)
     xindices_notsys = _get_xindices_notsys(xids)
     odeproblem_map = _get_odeproblem_map(xids)
     condition_maps = _get_condition_maps(sys, parametermap, speciemap, petab_parameters,
@@ -55,8 +56,8 @@ function ParameterIndices(petab_parameters::PEtabParameters,
     xscale = _get_xscales(xids, petab_parameters)
     _get_xnames_ps!(xids, xscale)
 
-    return ParameterIndices(xindices, xids, xindices_notsys, xscale, xobservable_maps,
-                            xnoise_maps, odeproblem_map, condition_maps)
+    return ParameterIndices(xindices, xids, xindices_notsys, xindices_dynamic, xscale,
+                            xobservable_maps, xnoise_maps, odeproblem_map, condition_maps)
 end
 
 function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements,
@@ -102,6 +103,7 @@ function _get_xindices(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Symbol, Vec
                     :nondynamic => xi_nondynamic, :not_system => xi_not_system)
     # Each neural network input is in a sense its own parameter component, hence they need
     # to be treated separately.
+    xi_dynamic_tot = deepcopy(xi_dynamic)
     if !isnothing(nn)
         istart = length(xids_est) - length(xids[:nn])
         for id in keys(nn)
@@ -109,8 +111,31 @@ function _get_xindices(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Symbol, Vec
             np = _get_n_net_parameters(nn, [pid])
             xindices[pid] = (istart+1):(istart + np)
             istart = xindices[pid][end]
+            xi_dynamic_tot = vcat(xi_dynamic_tot, xindices[pid][end])
         end
     end
+    return xindices
+end
+
+# Getting indicies for mapping to xdynamic_tot and also reverse
+function _get_xindices_dynamic(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Symbol, Vector{Int32}}
+    xindices = Dict{Symbol, Vector{Int32}}()
+    xids_est = xids[:estimate]
+    xi_dynamic_tot = Int32[findfirst(x -> x == id, xids_est) for id in xids[:dynamic]]
+    xindices[:dynamic_mech] = deepcopy(xi_dynamic_tot)
+    if !isnothing(nn)
+        istart = length(xids_est) - length(xids[:nn])
+        istart_dynamic_tot = length(xi_dynamic_tot)
+        for id in keys(nn)
+            pid = ("p_" * string(id)) |> Symbol
+            np = _get_n_net_parameters(nn, [pid])
+            _xi = (istart+1):(istart + np)
+            _xi_dynamic = (istart_dynamic_tot+1):(istart_dynamic_tot + np)
+            xi_dynamic_tot = vcat(xi_dynamic_tot, _xi)
+            xindices[pid] = _xi_dynamic
+        end
+    end
+    xindices[:dynamic_tot] = xi_dynamic_tot
     return xindices
 end
 

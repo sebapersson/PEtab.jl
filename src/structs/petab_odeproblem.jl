@@ -40,6 +40,7 @@ struct ParameterIndices
     xindices::Dict{Symbol, Vector{Int32}}
     xids::Dict{Symbol, Vector{Symbol}}
     xindices_notsys::Dict{Symbol, Vector{Int32}}
+    xindices_dynamic::Dict{Symbol, Vector{Int32}}
     xscale::Dict{Symbol, Symbol}
     mapxobservable::Vector{ObservableNoiseMap}
     mapxnoise::Vector{ObservableNoiseMap}
@@ -115,6 +116,7 @@ struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
     nxdynamic::Vector{Int64}
     xnn::T7
     xnn_dict::Dict{Symbol, ComponentArray}
+    xdynamic_tot::T2
 end
 
 struct PEtabMeasurements{T <: Vector{<:Union{<:String, <:AbstractFloat}}}

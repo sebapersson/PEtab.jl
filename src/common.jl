@@ -45,7 +45,7 @@ function split_x(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODEP
     return get_tmp(xdynamic, x), get_tmp(xobservable, x), get_tmp(xnoise, x), get_tmp(xnondynamic, x), cache.xnn_dict
 end
 
-function split_x!(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache)::Nothing
+function split_x!(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache; xdynamic_tot::Bool = false)::Nothing
     xi = xindices.xindices
     xdynamic = get_tmp(cache.xdynamic, x)
     xdynamic .= @view x[xi[:dynamic]]
@@ -60,7 +60,22 @@ function split_x!(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODE
         _xnn .= @view x[xi[netid]]
         cache.xnn_dict[netid] = _xnn
     end
+    if xdynamic_tot == true
+        xdynamic_tot = get_tmp(cache.xdynamic_tot, x)
+        xdynamic_tot .= @view x[xindices.xindices_dynamic[:dynamic_tot]]
+    end
     return nothing
+end
+
+function split_xdynamic(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache)
+    xdynamic_mech = get_tmp(cache.xdynamic, x)
+    xdynamic_mech .= @view x[xindices.xindices_dynamic[:dynamic_mech]]
+    for (netid, xnn) in cache.xnn
+        _xnn = get_tmp(xnn, x)
+        _xnn .= @view x[xindices.xindices_dynamic[netid]]
+        cache.xnn_dict[netid] = _xnn
+    end
+    return xdynamic_mech, cache.xnn_dict
 end
 
 function transform_x!(x::AbstractVector, xids::Vector{Symbol}, xindices::ParameterIndices;

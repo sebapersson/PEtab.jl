@@ -12,9 +12,9 @@ function _get_grad_forward_AD(probinfo::PEtabODEProblemInfo,
     if split_over_conditions == false
         _nllh_solveode = _get_nllh_solveode(probinfo, model_info; grad_xdynamic = true)
 
-        @unpack xdynamic = cache
-        chunksize_use = _get_chunksize(chunksize, xdynamic)
-        cfg = ForwardDiff.GradientConfig(_nllh_solveode, xdynamic, chunksize_use)
+        @unpack xdynamic_grad = cache
+        chunksize_use = _get_chunksize(chunksize, xdynamic_grad)
+        cfg = ForwardDiff.GradientConfig(_nllh_solveode, xdynamic_grad, chunksize_use)
         _grad! = let _nllh_not_solveode = _nllh_not_solveode,
             _nllh_solveode = _nllh_solveode, cfg = cfg, minfo = model_info, pinfo = probinfo
 
@@ -30,7 +30,6 @@ function _get_grad_forward_AD(probinfo::PEtabODEProblemInfo,
 
         _grad! = let _nllh_not_solveode = _nllh_not_solveode,
             _nllh_solveode = _nllh_solveode, minfo = model_info, pinfo = probinfo
-
             (g, x; isremade = false) -> grad_forward_AD_split!(g, x, _nllh_not_solveode,
                                                                _nllh_solveode, pinfo, minfo)
         end
@@ -231,16 +230,29 @@ function _get_nllh_solveode(probinfo::PEtabODEProblemInfo, model_info::ModelInfo
                             grad_xdynamic::Bool = false, cid::Bool = false)
     if cid == false
         _nllh_solveode = let pinfo = probinfo, minfo = model_info
-            @unpack xnoise, xobservable, xnondynamic = pinfo.cache
-            (x) -> nllh_solveode(x, xnoise, xobservable, xnondynamic, pinfo, minfo;
-                                 grad_xdynamic = grad_xdynamic, cids = [:all])
+            xnoise, xobservable, xnondynamic = _get_x_notsystem(pinfo.cache, 1.0)
+            (x) -> begin
+                xmech, xnn = split_xdynamic(x, minfo.xindices, probinfo.cache)
+                return nllh_solveode(xmech, xnoise, xobservable, xnondynamic, xnn, pinfo,
+                                     minfo; grad_xdynamic = grad_xdynamic, cids = [:all])
+            end
         end
     else
         _nllh_solveode = let pinfo = probinfo, minfo = model_info
-            @unpack xnoise, xobservable, xnondynamic = pinfo.cache
-            (x, _cid) -> nllh_solveode(x, xnoise, xobservable, xnondynamic, pinfo, minfo;
-                                       grad_xdynamic = grad_xdynamic, cids = _cid)
+            xnoise, xobservable, xnondynamic = _get_x_notsystem(pinfo.cache, 1.0)
+            (x, cid) -> begin
+                xmech, xnn = split_xdynamic(x, minfo.xindices, probinfo.cache)
+                return nllh_solveode(xmech, xnoise, xobservable, xnondynamic, pinfo, xnn,
+                                     minfo; grad_xdynamic = grad_xdynamic, cids = cid)
+            end
         end
     end
     return _nllh_solveode
+end
+
+function _get_x_notsystem(cache::PEtabODEProblemCache, x::T)::NTuple{3, AbstractVector{T}} where T<:Real
+    xnoise = get_tmp(cache.xnoise, x)
+    xobservable = get_tmp(cache.xobservable, x)
+    xnondynamic = get_tmp(cache.xnondynamic, x)
+    return xnoise, xobservable, xnondynamic
 end

@@ -44,6 +44,9 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
             xnn_dict[pid] = _p
         end
     end
+    # For all dynamic parameters (mechanistic + nn parameters)
+    _xdynamic_tot = zeros(Float64, length(xindices.xindices_dynamic[:dynamic_tot]))
+    xdynamic_tot = DiffCache(similar(_xdynamic_tot), chunksize, levels = level_cache)
 
     # Arrays needed in gradient compuations
     # TODO: Fix for otheer methods down the line
@@ -126,7 +129,7 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
     # TODO: When get here
     xdynamic_input_order::Vector{Int64} = collect(1:length(_xdynamic))
     xdynamic_output_order::Vector{Int64} = collect(1:length(_xdynamic))
-    nxdynamic::Vector{Int64} = Int64[length(_xdynamic)]
+    nxdynamic::Vector{Int64} = Int64[length(_xdynamic_tot)]
 
     # Preallocate arrays used when solving the ODE model
     if simulation_info.has_pre_equilibration == true
@@ -153,5 +156,5 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
                                 adjoint_grad, St0, ∂h∂u, ∂σ∂u, ∂h∂p, ∂σ∂p, ∂G∂p, ∂G∂p_,
                                 ∂G∂u, dp, du, p, u, S, odesols, pode, u0ode,
                                 xdynamic_input_order, xdynamic_output_order, nxdynamic,
-                                xnn, xnn_dict)
+                                xnn, xnn_dict, xdynamic_tot)
 end
