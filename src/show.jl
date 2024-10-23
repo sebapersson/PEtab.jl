@@ -129,8 +129,12 @@ end
 function show(io::IO, prob::PEtabODEProblem)
     @unpack probinfo, model_info, nparameters_estimate = prob
     name = model_info.model.name
-    nstates = @sprintf("%d", length(unknowns(model_info.model.sys_mutated)))
-    nest = @sprintf("%d", nparameters_estimate)
+    if model_info.model.sys_mutated isa ODEProblem
+        nstates = @sprintf("%d", length(model_info.model.sys_mutated.u0))
+    else
+        nstates = @sprintf("%d", length(unknowns(model_info.model.sys_mutated)))
+    end
+    nest = @sprintf("%d", length(prob.xnominal))
 
     header = styled"{PURPLE:{bold:PEtabODEProblem:}} {emphasis:$(name)} with ODE-states \
                     $nstates and $nest parameters to estimate"

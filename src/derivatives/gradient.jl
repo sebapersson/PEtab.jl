@@ -71,8 +71,8 @@ function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveod
                                 isremade::Bool = false)::Nothing where {T <: AbstractFloat}
     @unpack simulation_info, xindices, priors = model_info
     cache = probinfo.cache
-    split_x!(x, xindices, cache)
-    @unpack xdynamic, xdynamic_grad, xnotode_grad = cache
+    split_x!(x, xindices, cache; xdynamic_tot = true)
+    @unpack xdynamic_grad, xnotode_grad = cache
 
     # A gradient is computed for each condition-id, only using parameter present for
     # said condition
@@ -83,13 +83,13 @@ function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveod
         xinput = x[ixdynamic_simid]
 
         _nllh = (_xinput) -> begin
-            _xdynamic = convert.(eltype(_xinput), xdynamic)
-            @views _xdynamic[ixdynamic_simid] .= _xinput
-            return _nllh_solveode(_xdynamic, [cid])
+            xdynamic_tot = get_tmp(probinfo.cache.xdynamic_tot, _xinput)
+            @views xdynamic_tot[ixdynamic_simid] .= _xinput
+            return _nllh_solveode(xdynamic_tot, [cid])
         end
         try
             # The ODE must be solved to get the gradient of the other parameters
-            if !isempty(xdynamic)
+            if !isempty(xdynamic_grad)
                 _grad = ForwardDiff.gradient(_nllh, xinput)
                 xdynamic_grad[ixdynamic_simid] .+= _grad
             else
@@ -103,7 +103,7 @@ function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveod
         fill!(grad, 0.0)
         return nothing
     end
-    @views grad[xindices.xindices[:dynamic]] .= xdynamic_grad
+    @views grad[xindices.xindices_dynamic[:dynamic_tot]] .= cache.xdynamic_grad
 
     x_notode = @view x[xindices.xindices[:not_system]]
     ForwardDiff.gradient!(xnotode_grad, _nllh_not_solveode, x_notode)

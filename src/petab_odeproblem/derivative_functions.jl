@@ -97,7 +97,7 @@ function _get_hess_forward_AD(probinfo::PEtabODEProblemInfo,
         _nllh = let pinfo = probinfo, minfo = model_info
             (x) -> nllh(x, pinfo, minfo, [:all], true, false)
         end
-        nestimate = length(model_info.xindices.xids[:estimate])
+        nestimate = _get_nx_estimate(model_info)
         chunksize_use = _get_chunksize(chunksize, zeros(nestimate))
         cfg = ForwardDiff.HessianConfig(_nllh, zeros(nestimate), chunksize_use)
         _hess_nllh! = let _nllh = _nllh, cfg = cfg, minfo = model_info
@@ -119,24 +119,25 @@ end
 function _get_hess_block_forward_AD(probinfo::PEtabODEProblemInfo,
                                     model_info::ModelInfo)::Function
     @unpack split_over_conditions, chunksize = probinfo
-    xdynamic = probinfo.cache.xdynamic
+    xdynamic_grad = probinfo.cache.xdynamic_grad
 
     _nllh_not_solveode = _get_nllh_not_solveode(probinfo, model_info;
                                                 grad_forward_AD = true)
 
     if split_over_conditions == false
         _nllh_solveode = let pinfo = probinfo, minfo = model_info
-            @unpack xnoise, xobservable, xnondynamic = pinfo.cache
-            (x) -> nllh_solveode(x, xnoise, xobservable, xnondynamic, pinfo, minfo;
-                                 grad_xdynamic = true, cids = [:all])
+            xnoise, xobservable, xnondynamic = _get_x_notsystem(pinfo.cache, 1.0)
+            (x) -> begin
+                xmech, xnn = split_xdynamic(x, minfo.xindices, probinfo.cache)
+                return nllh_solveode(xmech, xnoise, xobservable, xnondynamic, xnn, pinfo,
+                                     minfo; grad_xdynamic = true, cids = [:all])
+            end
         end
-
-        chunksize_use = _get_chunksize(chunksize, xdynamic)
-        cfg = ForwardDiff.HessianConfig(_nllh_solveode, xdynamic, chunksize_use)
+        chunksize_use = _get_chunksize(chunksize, xdynamic_grad)
+        cfg = ForwardDiff.HessianConfig(_nllh_solveode, xdynamic_grad, chunksize_use)
         _hess_nllh! = let _nllh_solveode = _nllh_solveode,
             _nllh_not_solveode = _nllh_not_solveode, pinfo = probinfo, minfo = model_info,
             cfg = cfg
-
             (H, x) -> hess_block!(H, x, _nllh_not_solveode, _nllh_solveode, pinfo,
                                   minfo, cfg; cids = [:all])
         end
@@ -144,11 +145,12 @@ function _get_hess_block_forward_AD(probinfo::PEtabODEProblemInfo,
 
     if split_over_conditions == true
         _nllh_solveode = let pinfo = probinfo, minfo = model_info
-            @unpack xnoise, xobservable, xnondynamic = pinfo.cache
-            (x, cid) -> nllh_solveode(x, xnoise, xobservable, xnondynamic,
-                                      pinfo, minfo,
-                                      grad_xdynamic = true,
-                                      cids = cid)
+            xnoise, xobservable, xnondynamic = _get_x_notsystem(pinfo.cache, 1.0)
+            (x, cid) -> begin
+                xmech, xnn = split_xdynamic(x, minfo.xindices, probinfo.cache)
+                return nllh_solveode(xmech, xnoise, xobservable, xnondynamic, xnn,
+                                     pinfo, minfo, grad_xdynamic = true, cids = cid)
+            end
         end
 
         _hess_nllh! = let _nllh_solveode = _nllh_solveode,
@@ -243,7 +245,7 @@ function _get_nllh_solveode(probinfo::PEtabODEProblemInfo, model_info::ModelInfo
             xnoise, xobservable, xnondynamic = _get_x_notsystem(pinfo.cache, 1.0)
             (x, cid) -> begin
                 xmech, xnn = split_xdynamic(x, minfo.xindices, probinfo.cache)
-                return nllh_solveode(xmech, xnoise, xobservable, xnondynamic, pinfo, xnn,
+                return nllh_solveode(xmech, xnoise, xobservable, xnondynamic, xnn, pinfo,
                                      minfo; grad_xdynamic = grad_xdynamic, cids = cid)
             end
         end
@@ -262,4 +264,10 @@ function _get_x_not_nn(cache::PEtabODEProblemCache, x::T)::NTuple{4, AbstractVec
     xnoise, xobservable, xnondynamic = _get_x_notsystem(cache, x)
     xdynamic = get_tmp(cache.xdynamic, x)
     return xnoise, xobservable, xnondynamic, xdynamic
+end
+
+function _get_nx_estimate(model_info::ModelInfo)::Int64
+    nestimate = length(model_info.xindices.xindices[:not_system]) +
+                length(model_info.xindices.xindices_dynamic[:dynamic_tot])
+    return nestimate
 end

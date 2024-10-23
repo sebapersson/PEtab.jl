@@ -87,7 +87,7 @@ function solve_sensitivites!(model_info::ModelInfo, _solve_conditions!::Function
             ixdynamic_simid = _get_ixdynamic_simid(simid, xindices)
             _xinput = xdynamic_tot[ixdynamic_simid]
             _S_condition! = (odesols, x) -> begin
-                _xdynamic_tot = convert.(eltype(x), xdynamic_tot)
+                _xdynamic_tot = get_tmp(probinfo.cache.xdynamic_tot, x)
                 _xdynamic_tot[ixdynamic_simid] .= x
                 _solve_conditions!(odesols, _xdynamic_tot, [cid])
             end

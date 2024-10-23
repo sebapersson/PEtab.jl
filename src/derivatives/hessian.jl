@@ -65,8 +65,8 @@ function hess_block!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Function
                      cids::Vector{Symbol} = [:all])::Nothing where {T <: AbstractFloat}
     @unpack simulation_info, xindices, priors = model_info
     cache = probinfo.cache
-    split_x!(x, xindices, cache)
-    xdynamic = cache.xdynamic
+    split_x!(x, xindices, cache; xdynamic_tot = true)
+    xdynamic_grad = cache.xdynamic_grad
 
     # If Hessian computation failed a zero Hessian is returned.
     simulation_info.could_solve[1] = true
@@ -74,11 +74,12 @@ function hess_block!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Function
     try
         # Even if xdynamic is empty the ODE must be solved to get the Hessian of the
         # parameters not appearing in the ODE
-        if !isempty(xdynamic)
-            ix = xindices.xindices[:dynamic]
-            @views ForwardDiff.hessian!(hess[ix, ix], _nllh_solveode, xdynamic, cfg)
+        if !isempty(xdynamic_grad)
+            ix = xindices.xindices_dynamic[:dynamic_tot]
+            xdynamic_tot = get_tmp(probinfo.cache.xdynamic_tot, x)
+            @views ForwardDiff.hessian!(hess[ix, ix], _nllh_solveode, xdynamic_tot, cfg)
         else
-            _nllh_solveode(xdynamic)
+            _nllh_solveode(xdynamic_grad)
         end
     catch
         fill!(hess, 0.0)
@@ -102,8 +103,7 @@ function hess_block_split!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Fu
                                                                           AbstractFloat}
     @unpack simulation_info, xindices, priors = model_info
     cache = probinfo.cache
-    split_x!(x, xindices, cache)
-    xdynamic = cache.xdynamic
+    split_x!(x, xindices, cache; xdynamic_tot = true)
 
     # If Hessian computation failed a zero Hessian is returned. Here a Hessian is computed
     # for each condition-id, only using parameter present for said condition
@@ -116,9 +116,9 @@ function hess_block_split!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Fu
 
         hess_tmp = zeros(eltype(x), length(xinput), length(xinput))
         _nllh_cid = (_xinput) -> begin
-            _x = convert.(eltype(_xinput), xdynamic)
-            _x[ixdynamic_simid] .= _xinput
-            return _nllh_solveode(_x, [cid])
+            xdynamic_tot = get_tmp(cache.xdynamic_tot, _xinput)
+            @views xdynamic_tot[ixdynamic_simid] .= _xinput
+            return _nllh_solveode(xdynamic_tot, [cid])
         end
         try
             ForwardDiff.hessian!(hess_tmp, _nllh_cid, xinput)
