@@ -155,12 +155,12 @@ function hess_GN!(out::Matrix{T}, x::Vector{T}, _residuals_not_solveode::Functio
 
     fill!(out, 0.0)
     fill!(jacobian_gn, 0.0)
-    split_x!(x, xindices, cache)
-    _jac = @view jacobian_gn[xindices.xindices[:dynamic], :]
+    split_x!(x, xindices, cache; xdynamic_tot = true)
+    _jac = @view jacobian_gn[xindices.xindices_dynamic[:dynamic_tot], :]
     _jac_residuals_xdynamic!(_jac, _solve_conditions!, probinfo, model_info, cfg;
                              cids = cids, isremade = isremade)
     # Happens when at least one forward pass fails
-    if !isempty(cache.xdynamic) && all(_jac .== 0.0)
+    if !isempty(cache.xdynamic_grad) && all(_jac .== 0.0)
         return nothing
     end
 

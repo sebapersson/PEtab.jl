@@ -109,7 +109,7 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
 
     # For Gauss-Newton the model residuals are computed
     if GN_hess
-        jacobian_gn = zeros(Float64, nxestimate, length(petab_measurements.time))
+        jacobian_gn = zeros(Float64, nxdynamic_tot, length(petab_measurements.time))
         residuals_gn = zeros(Float64, length(petab_measurements.time))
     else
         jacobian_gn = zeros(Float64, (0, 0))

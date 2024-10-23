@@ -4,15 +4,16 @@ function _jac_residuals_xdynamic!(jac::AbstractMatrix, _solve_conditions!::Funct
                                   model_info::ModelInfo, cfg::ForwardDiff.JacobianConfig;
                                   cids::Vector{Symbol} = [:all],
                                   isremade::Bool = false)::Nothing
-    @unpack cache, sensealg, reuse_sensitivities = probinfo
+    @unpack cache, reuse_sensitivities = probinfo
     @unpack xindices, simulation_info = model_info
-    xnoise_ps = transform_x(cache.xnoise, xindices, :xnoise, cache)
-    xobservable_ps = transform_x(cache.xobservable, xindices, :xobservable, cache)
-    xnondynamic_ps = transform_x(cache.xnondynamic, xindices, :xnondynamic, cache)
-    xdynamic_ps = transform_x(cache.xdynamic, xindices, :xdynamic, cache)
+    xnoise, xobservable, xnondynamic, xdynamic = _get_x_not_nn(cache, 1.0)
+    xnoise_ps = transform_x(xnoise, xindices, :xnoise, cache)
+    xobservable_ps = transform_x(xobservable, xindices, :xobservable, cache)
+    xnondynamic_ps = transform_x(xnondynamic, xindices, :xnondynamic, cache)
+    xdynamic_tot_ps = transform_x(xdynamic, xindices, :xdynamic_tot, cache)
 
     if reuse_sensitivities == false
-        success = solve_sensitivites!(model_info, _solve_conditions!, xdynamic_ps,
+        success = solve_sensitivites!(model_info, _solve_conditions!, xdynamic_tot_ps,
                                       :ForwardDiff, probinfo, cids, cfg, isremade)
         if success != true
             @warn "Failed to solve sensitivity equations"
@@ -20,7 +21,7 @@ function _jac_residuals_xdynamic!(jac::AbstractMatrix, _solve_conditions!::Funct
             return nothing
         end
     end
-    if isempty(xdynamic_ps)
+    if isempty(xdynamic_tot_ps)
         fill!(jac, 0.0)
         return nothing
     end
@@ -30,15 +31,15 @@ function _jac_residuals_xdynamic!(jac::AbstractMatrix, _solve_conditions!::Funct
         if cids[1] != :all && !(imulation_info.conditionids[:experiment][icid] in cids)
             continue
         end
-        _jac_residuals_cond!(jac, xdynamic_ps, xnoise_ps, xobservable_ps, xnondynamic_ps,
-                             icid, probinfo, model_info)
+        _jac_residuals_cond!(jac, xdynamic_tot_ps, xnoise_ps, xobservable_ps,
+                             xnondynamic_ps, icid, probinfo, model_info)
     end
     return nothing
 end
 
-function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic::Vector{T},
-                              xnoise::Vector{T},
-                              xobservable::Vector{T}, xnondynamic::Vector{T}, icid::Int64,
+function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic_tot::Vector{T},
+                              xnoise::Vector{T}, xobservable::Vector{T},
+                              xnondynamic::Vector{T}, icid::Int64,
                               probinfo::PEtabODEProblemInfo,
                               model_info::ModelInfo) where {T <: AbstractFloat}
     @unpack xindices, simulation_info, model = model_info
@@ -72,7 +73,7 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic::Vector{T},
             ∂G∂p!(∂G∂p, u, p, tsave, 1, [[imeasurement]])
             @views forward_eqs_grad[ixdynamic_simid] .= transpose(_S) * ∂G∂u
             _jac = @view jac[:, imeasurement]
-            grad_to_xscale!(_jac, forward_eqs_grad, ∂G∂p, xdynamic, xindices, simid,
+            grad_to_xscale!(_jac, forward_eqs_grad, ∂G∂p, xdynamic_tot, xindices, simid,
                             sensitivites_AD = true)
         end
     end

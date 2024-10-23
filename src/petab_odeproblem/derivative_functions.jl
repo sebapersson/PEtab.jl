@@ -164,7 +164,6 @@ end
 function _get_hess_gaussnewton(probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
                                ret_jacobian::Bool)::Function
     @unpack split_over_conditions, chunksize, cache = probinfo
-    xdynamic = probinfo.cache.xdynamic
 
     if split_over_conditions == false
         _solve_conditions! = let pinfo = probinfo, minfo = model_info
@@ -178,10 +177,9 @@ function _get_hess_gaussnewton(probinfo::PEtabODEProblemInfo, model_info::ModelI
                                                 sensitivites_AD = true)
         end
     end
-    chunksize_use = _get_chunksize(chunksize, xdynamic)
-    cfg = cfg = ForwardDiff.JacobianConfig(_solve_conditions!,
-                                           cache.odesols,
-                                           cache.xdynamic, chunksize_use)
+    chunksize_use = _get_chunksize(chunksize, cache.xdynamic_grad)
+    cfg = cfg = ForwardDiff.JacobianConfig(_solve_conditions!, cache.odesols,
+                                           cache.xdynamic_grad, chunksize_use)
 
     _residuals_not_solveode = let pinfo = probinfo, minfo = model_info
         ixnoise = minfo.xindices.xindices_notsys[:noise]
