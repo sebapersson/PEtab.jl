@@ -88,7 +88,7 @@ end
 
 function transform_x(x::AbstractVector, xindices::ParameterIndices, whichx::Symbol,
                      cache::PEtabODEProblemCache; to_xscale::Bool = false)::AbstractVector
-    if whichx === :xdynamic
+    if whichx === :xdynamic || whichx === :xdynamic_tot
         xids = xindices.xids[:dynamic]
         x_ps = get_tmp(cache.xdynamic_ps, x)
     elseif whichx === :xnoise
@@ -104,7 +104,16 @@ function transform_x(x::AbstractVector, xindices::ParameterIndices, whichx::Symb
     for (i, xid) in pairs(xids)
         x_ps[i] = transform_x(x[i], xindices.xscale[xid]; to_xscale = to_xscale)
     end
-    return x_ps
+    # For xdynamic_tot (mechanistic + neural net parameters) it does not make sense to
+    # transform the neural-net parameters, hence, in this approach only the mechanistic
+    # parameters are transformed, then they are added to the total vector
+    if whichx === :xdynamic_tot
+        xdynamic_tot = get_tmp(cache.xdynamic_tot, x)
+        xdynamic_tot[xindices.xindices_dynamic[:dynamic_mech]] .= x_ps
+        return xdynamic_tot
+    else
+        return x_ps
+    end
 end
 function transform_x(x::T, xnames::Vector{Symbol}, xindices::ParameterIndices;
                      to_xscale::Bool = false)::T where {T <: AbstractVector}
@@ -194,9 +203,11 @@ function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices;
                               full_x::Bool = false)::Vector{Integer}
     xmap_simid = xindices.maps_conidition_id[simid]
     if full_x == false
-        ixdynamic = vcat(xindices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic)
+        ixdynamic = vcat(xindices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic,
+                         xindices.xindices_dynamic[:dynamic_nn_all])
     else
         ixdynamic = vcat(xindices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic,
+                         xindices.xindices_dynamic[:dynamic_nn_all],
                          xindices.xindices[:not_system])
     end
     return unique(ixdynamic)

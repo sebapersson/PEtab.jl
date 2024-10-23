@@ -34,6 +34,7 @@ end
 struct MapODEProblem
     sys_to_dynamic::Vector{Int32}
     dynamic_to_sys::Vector{Int32}
+    sys_to_dynamic_nn::Vector{Int32}
 end
 
 struct ParameterIndices
@@ -80,7 +81,8 @@ struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
                             T4 <: Matrix{<:AbstractFloat},
                             T5 <: Dict,
                             T6 <: Dict,
-                            T7 <: Dict{Symbol, <:DiffCache}}
+                            T7 <: Dict{Symbol, <:DiffCache},
+                            T8 <: Union{Vector{<:AbstractFloat}, <:ComponentVector}}
     xdynamic::T2
     xnoise::T2
     xobservable::T2
@@ -105,7 +107,7 @@ struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
     ∂G∂u::T3
     dp::T1
     du::T1
-    p::T3
+    p::T8
     u::T3
     S::T4
     odesols::T4

@@ -28,7 +28,7 @@ function PEtab._get_grad(method::Val{:Adjoint}, probinfo::PEtab.PEtabODEProblemI
     end
     _grad = let _grad! = _grad!
         (x; prior = true) -> begin
-            gradient = zeros(Float64, length(x))
+            gradient = similar(x)
             _grad!(gradient, x; prior = prior)
             return gradient
         end

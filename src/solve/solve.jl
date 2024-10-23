@@ -98,20 +98,21 @@ function solve_conditions!(model_info::ModelInfo, xdynamic::AbstractVector, xnn:
     end
     return true
 end
-function solve_conditions!(sols::AbstractMatrix, xdynamic::AbstractVector,
+function solve_conditions!(sols::AbstractMatrix, xdynamic_tot::AbstractVector,
                            probinfo::PEtabODEProblemInfo, model_info::ModelInfo;
                            cids::Vector{Symbol} = [:all], ntimepoints_save::Int64 = 0,
                            save_observed_t::Bool = true, dense_sol::Bool = false,
                            track_callback::Bool = false, sensitivites::Bool = false,
                            sensitivites_AD::Bool = false)::Nothing
     cache = probinfo.cache
-    if sensitivites_AD == true && cache.nxdynamic[1] != length(xdynamic)
-        _xdynamic = xdynamic[cache.xdynamic_output_order]
+    xdynamic_mech, xnn = split_xdynamic(xdynamic_tot, model_info.xindices, cache)
+    if sensitivites_AD == true && cache.nxdynamic[1] != length(xdynamic_tot)
+        _xdynamic_mech = xdynamic_mech[cache.xdynamic_output_order]
     else
-        _xdynamic = xdynamic
+        _xdynamic_mech = xdynamic_mech
     end
     derivative = sensitivites_AD || sensitivites
-    sucess = solve_conditions!(model_info, _xdynamic, probinfo; cids = cids,
+    sucess = solve_conditions!(model_info, _xdynamic_mech, xnn, probinfo; cids = cids,
                                ntimepoints_save = ntimepoints_save, dense_sol = dense_sol,
                                save_observed_t = save_observed_t, derivative = derivative,
                                sensitivites = sensitivites, track_callback = track_callback)

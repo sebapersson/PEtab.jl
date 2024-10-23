@@ -19,7 +19,7 @@ function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fun
     if isremade == false || length(xdynamic) == nxdynamic[1]
         tmp = nxdynamic[1]
         nxdynamic[1] = length(xdynamic)
-        #try
+        try
             # In case of no length(xdynamic) = 0 the ODE must still be solved to get
             # the gradient of nondynamic parameters
             if length(xdynamic_grad) != 0
@@ -28,12 +28,10 @@ function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fun
             else
                 _ = _nllh_solveode(xdynamic)
             end
-        #=
         catch
             fill!(grad, 0.0)
             return nothing
         end
-        =#
         nxdynamic[1] = tmp
     else
         try
@@ -123,11 +121,11 @@ function grad_forward_eqs!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fu
     @unpack sensealg, cache, split_over_conditions = probinfo
     @unpack priors, xindices = model_info
     @unpack petab_parameters, priors, petab_measurements = model_info
-    split_x!(x, xindices, cache)
+    split_x!(x, xindices, cache; xdynamic_tot = true)
 
     _grad_forward_eqs!(cache.xdynamic_grad, _solve_conditions!, probinfo, model_info,
                        cfg; cids = cids, isremade = isremade)
-    @views grad[xindices.xindices[:dynamic]] .= cache.xdynamic_grad
+    @views grad[xindices.xindices_dynamic[:dynamic_tot]] .= cache.xdynamic_grad
 
     # Happens when at least one forward pass fails
     if !isempty(cache.xdynamic_grad) && all(cache.xdynamic_grad .== 0.0)

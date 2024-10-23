@@ -41,7 +41,7 @@ function ParameterIndices(petab_parameters::PEtabParameters,
     xindices = _get_xindices(xids, nn)
     xindices_dynamic = _get_xindices_dynamic(xids, nn)
     xindices_notsys = _get_xindices_notsys(xids)
-    odeproblem_map = _get_odeproblem_map(xids)
+    odeproblem_map = _get_odeproblem_map(xids, nn)
     condition_maps = _get_condition_maps(sys, parametermap, speciemap, petab_parameters,
                                          conditions_df, xids)
     # For each time-point we must build a map that stores if i) noise/obserable parameters
@@ -123,6 +123,8 @@ function _get_xindices_dynamic(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Sym
     xids_est = xids[:estimate]
     xi_dynamic_tot = Int32[findfirst(x -> x == id, xids_est) for id in xids[:dynamic]]
     xindices[:dynamic_mech] = deepcopy(xi_dynamic_tot)
+    xi_dynamic_nn_all = Int32[]
+    xi_sys_nn_all = Int32[]
     if !isnothing(nn)
         istart = length(xids_est) - length(xids[:nn])
         istart_dynamic_tot = length(xi_dynamic_tot)
@@ -133,9 +135,11 @@ function _get_xindices_dynamic(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Sym
             _xi_dynamic = (istart_dynamic_tot+1):(istart_dynamic_tot + np)
             xi_dynamic_tot = vcat(xi_dynamic_tot, _xi)
             xindices[pid] = _xi_dynamic
+            xi_dynamic_nn_all = vcat(xi_dynamic_nn_all, _xi_dynamic)
         end
     end
     xindices[:dynamic_tot] = xi_dynamic_tot
+    xindices[:dynamic_nn_all] = xi_dynamic_nn_all
     return xindices
 end
 
@@ -303,11 +307,38 @@ function _get_map_observable_noise(xids::Vector{Symbol},
     return maps
 end
 
-function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}})::MapODEProblem
+function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nn::Union{Dict, Nothing})::MapODEProblem
+    dynamic_to_sys, sys_to_dynamic, sys_to_dynamic_nn = Int32[], Int32[], Int32[]
+    isys = 1
+    for (i, id_xdynmaic) in pairs(xids[:dynamic])
+        for id_sys in xids[:sys]
+            if id_sys in xids[:nn]
+                isys += _get_n_net_parameters(nn, [id_sys])
+                continue
+            end
+            if id_sys == id_xdynmaic
+                push!(dynamic_to_sys, i)
+                push!(sys_to_dynamic, isys)
+                break
+            end
+            isys += 1
+        end
+        isys = 1
+    end
+    # TODO: Refactor to 1 loop
+    isys = 1
+    for id_sys in xids[:sys]
+        if id_sys in xids[:nn]
+            np = _get_n_net_parameters(nn, [id_sys]) - 1
+            sys_to_dynamic_nn = vcat(sys_to_dynamic_nn, collect(isys:(isys+np)))
+            isys += np
+        end
+        isys += 1
+    end
     dynamic_to_sys = findall(x -> x in xids[:sys], xids[:dynamic]) |> Vector{Int64}
     ids = xids[:dynamic][dynamic_to_sys]
     sys_to_dynamic = Int64[findfirst(x -> x == id, xids[:sys]) for id in ids]
-    return MapODEProblem(sys_to_dynamic, dynamic_to_sys)
+    return MapODEProblem(sys_to_dynamic, dynamic_to_sys, sys_to_dynamic_nn)
 end
 
 function _get_condition_maps(sys, parametermap, speciemap,

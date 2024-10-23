@@ -4,11 +4,11 @@ function grad_adjoint!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode!::Funct
                        cids::Vector{Symbol} = [:all])::Nothing where {T <: AbstractFloat}
     @unpack simulation_info, simulation_info, xindices, priors = model_info
     @unpack cache = probinfo
-    PEtab.split_x!(x, xindices, cache)
+    PEtab.split_x!(x, xindices, cache; xdynamic_tot = true)
     @unpack xdynamic_grad, xnotode_grad = cache
 
     _grad_adjoint_xdynamic!(xdynamic_grad, probinfo, model_info; cids = cids)
-    @views grad[xindices.xindices[:dynamic]] .= xdynamic_grad
+    @views grad[xindices.xindices_dynamic[:dynamic_tot]] .= xdynamic_grad
 
     # Happens when at least one forward pass fails and I set the gradient to 1e8
     if !isempty(xdynamic_grad) && all(xdynamic_grad .== 0.0)
@@ -28,13 +28,15 @@ function _grad_adjoint_xdynamic!(grad::Vector{<:AbstractFloat},
                                  model_info::PEtab.ModelInfo;
                                  cids::Vector{Symbol} = [:all])::Nothing
     @unpack cache, sensealg, sensealg_ss = probinfo
-    @unpack simulation_info, xindices = model_info
-    xnoise_ps = PEtab.transform_x(cache.xnoise, xindices, :xnoise, cache)
-    xobservable_ps = PEtab.transform_x(cache.xobservable, xindices, :xobservable, cache)
-    xnondynamic_ps = PEtab.transform_x(cache.xnondynamic, xindices, :xnondynamic, cache)
-    xdynamic_ps = PEtab.transform_x(cache.xdynamic, xindices, :xdynamic, cache)
+    @unpack xindices, simulation_info = model_info
+    xnoise, xobservable, xnondynamic, xdynamic = PEtab._get_x_not_nn(cache, 1.0)
+    xnoise_ps = PEtab.transform_x(xnoise, xindices, :xnoise, cache)
+    xobservable_ps = PEtab.transform_x(xobservable, xindices, :xobservable, cache)
+    xnondynamic_ps = PEtab.transform_x(xnondynamic, xindices, :xnondynamic, cache)
+    xdynamic_tot_ps = PEtab.transform_x(xdynamic, xindices, :xdynamic_tot, cache)
 
-    success = PEtab.solve_conditions!(model_info, xdynamic_ps, probinfo; cids = cids,
+    xdynamic_ps, xnn = PEtab.split_xdynamic(xdynamic_tot_ps, xindices, cache)
+    success = PEtab.solve_conditions!(model_info, xdynamic_ps, xnn, probinfo; cids = cids,
                                       dense_sol = true, save_observed_t = false,
                                       track_callback = true)
     if success == false
@@ -60,7 +62,7 @@ function _grad_adjoint_xdynamic!(grad::Vector{<:AbstractFloat},
             vjp_cid_ss = identity
         end
 
-        success = _grad_adjoint_cond!(grad, xdynamic_ps, xnoise_ps, xobservable_ps,
+        success = _grad_adjoint_cond!(grad, xdynamic_tot_ps, xnoise_ps, xobservable_ps,
                                       xnondynamic_ps, icid, probinfo, model_info,
                                       vjp_cid_ss)
         if success == false
@@ -137,7 +139,7 @@ function VJP_ss(du::AbstractVector, _sol::ODESolution, solver::SciMLAlgorithm,
     return out
 end
 
-function _grad_adjoint_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vector{T},
+function _grad_adjoint_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnoise::Vector{T},
                              xobservable::Vector{T}, xnondynamic::Vector{T}, icid::Int64,
                              probinfo::PEtab.PEtabODEProblemInfo,
                              model_info::PEtab.ModelInfo,
@@ -201,7 +203,7 @@ function _grad_adjoint_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vecto
     end
 
     # Adjust if gradient is non-linear scale (e.g. log and log10).
-    PEtab.grad_to_xscale!(grad, adjoint_grad, ∂G∂p, xdynamic, xindices, simid,
+    PEtab.grad_to_xscale!(grad, adjoint_grad, ∂G∂p, xdynamic_tot, xindices, simid,
                           adjoint = true)
     return true
 end

@@ -5,7 +5,11 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
     @unpack xindices, model, simulation_info, petab_measurements = model_info
     nxestimate = length(xindices.xids[:estimate])
     nstates = model_info.nstates
-    nxode = parameters(model.sys_mutated) |> length
+    if model.sys_mutated isa ODEProblem
+        nxode = length(oprob.p)
+    else
+        nxode = parameters(model.sys_mutated) |> length
+    end
 
     # Parameters for DiffCache
     chunksize = nxestimate + nxestimate^2
@@ -65,7 +69,11 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
         ∂G∂p = zeros(Float64, nxode)
         ∂G∂p_ = zeros(Float64, nxode)
         ∂G∂u = zeros(Float64, nstates)
-        p = zeros(Float64, nxode)
+        if oprob.p isa ComponentArray
+            p = similar(oprob.p)
+        else
+            p = zeros(Float64, nxode)
+        end
         u = zeros(Float64, nstates)
     else
         ∂h∂u = zeros(Float64, 0)
@@ -84,7 +92,7 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
     forward_eqs_AD = gradient_method === :ForwardEquations && sensealg === :ForwardDiff
     if forward_eqs_AD || GN_hess
         ntimepoints_save = simulation_info.tsaves |> values .|> length |> sum
-        S = zeros(Float64, ntimepoints_save * nstates, length(xdynamic))
+        S = zeros(Float64, ntimepoints_save * nstates, nxdynamic_tot)
         odesols = zeros(Float64, nstates, ntimepoints_save)
     else
         S = zeros(Float64, 0, 0)
@@ -94,7 +102,7 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
     # For Gauss-Newton or Forward-Equations approach when acumulating the xdynamic
     # gradient, it is of size xdynamic
     if gradient_method === :ForwardEquations || GN_hess
-        forward_eqs_grad = zeros(Float64, length(xdynamic))
+        forward_eqs_grad = zeros(Float64, length(_xdynamic_tot))
     else
         forward_eqs_grad = zeros(Float64, 0)
     end

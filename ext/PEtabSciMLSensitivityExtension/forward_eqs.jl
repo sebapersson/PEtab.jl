@@ -10,15 +10,15 @@ end
 
 function PEtab.solve_sensitivites!(model_info::PEtab.ModelInfo,
                                    _solve_conditions!::Function,
-                                   xdynamic::Vector{<:AbstractFloat}, sensealg::ForwardAlg,
+                                   xdynamic_tot::Vector{<:AbstractFloat}, sensealg::ForwardAlg,
                                    probinfo::PEtab.PEtabODEProblemInfo,
                                    cids::Vector{Symbol}, cfg::Nothing,
                                    isremade::Bool = false)::Bool
-    success = _solve_conditions!(xdynamic, cids)
+    success = _solve_conditions!(xdynamic_tot, cids)
     return success
 end
 
-function PEtab._grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T},
+function PEtab._grad_forward_eqs_cond!(grad::Vector{T}, xdynamic_tot::Vector{T},
                                        xnoise::Vector{T}, xobservable::Vector{T},
                                        xnondynamic::Vector{T}, icid::Int64,
                                        sensealg::ForwardAlg,
@@ -41,7 +41,7 @@ function PEtab._grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T},
 
     p = sol.prob.p
     ∂G∂p, ∂G∂p_ = zeros(Float64, length(p)), zeros(Float64, length(p))
-    ∂G∂u = zeros(Float64, length(unknowns(model.sys_mutated)))
+    ∂G∂u = zeros(Float64, length(PEtab._get_state_ids(model.sys_mutated)))
     _grad = zeros(Float64, length(p))
     for (it, tsave) in pairs(tsaves[cid])
         u, _S = extract_local_sensitivities(sol, it, true)
@@ -53,7 +53,7 @@ function PEtab._grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T},
 
     # Adjust if gradient is non-linear scale (e.g. log and log10). TODO: Refactor
     # this function later
-    PEtab.grad_to_xscale!(grad, _grad, ∂G∂p, xdynamic, xindices, simid,
+    PEtab.grad_to_xscale!(grad, _grad, ∂G∂p, xdynamic_tot, xindices, simid,
                           sensitivites_AD = false)
     return nothing
 end

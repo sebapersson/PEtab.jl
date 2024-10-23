@@ -1,4 +1,4 @@
-function _G(u::AbstractVector, p::AbstractVector, t::T, i::Integer,
+function _G(u::AbstractVector, p, t::T, i::Integer,
             imeasurements_t_cid::Vector{Vector{Int64}}, model_info::ModelInfo,
             xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic::Vector{T},
             residuals::Bool) where {T <: AbstractFloat}
@@ -70,9 +70,19 @@ function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector
                          xdynamic::Vector{T}, xindices::ParameterIndices, simid::Symbol;
                          sensitivites_AD::Bool = false,
                          adjoint::Bool = false)::Nothing where {T <: AbstractFloat}
-    @unpack dynamic_to_sys, sys_to_dynamic = xindices.map_odeproblem
+    @unpack dynamic_to_sys, sys_to_dynamic, sys_to_dynamic_nn = xindices.map_odeproblem
     @unpack xids, xscale = xindices
     @unpack ix_sys, ix_dynamic = xindices.maps_conidition_id[simid]
+    # Neural net parameters. These should not be transformed (are on linear scale),
+    # For everything except sensitivites_AD these are provided in the order of odeproblem.p
+    # and are mapped via sys_to_dynamic_nn
+    xi = xindices.xindices_dynamic[:dynamic_nn_all]
+    if sensitivites_AD == true
+        @views grad_xscale[xi] .= grad_linscale[xi]
+    else
+        @views grad_xscale[xi] .= grad_linscale[sys_to_dynamic_nn]
+    end
+
     # Adjust for parameters that appear in each simulation condition (not unique to simid).
     # Note that ∂G∂p is on the scale of ODEProblem.p which might not be the same scale
     # as parameters appear in the gradient on linear-scale
