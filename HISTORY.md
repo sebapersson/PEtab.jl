@@ -1,5 +1,9 @@
 # Breaking updates and feature summaries across releases
 
+## PEtab 3.3.0
+
+Update to Optimization.jl v4.
+
 ## PEtab 3.2.0
 
 Added support for running multi-start parameter estimation with `calibrate_multistart` in parallel using `pmap` from Distributed.jl via the `nprocs` keyword. For example, to now run parameter estimation with two processes in parallel, use:
