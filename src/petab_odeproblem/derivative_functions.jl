@@ -262,12 +262,12 @@ end
 
 function _get_x_not_nn(cache::PEtabODEProblemCache, x::T)::NTuple{4, AbstractVector{T}} where T<:Real
     xnoise, xobservable, xnondynamic = _get_x_notsystem(cache, x)
-    xdynamic = get_tmp(cache.xdynamic, x)
+    xdynamic = get_tmp(cache.xdynamic_mech, x)
     return xnoise, xobservable, xnondynamic, xdynamic
 end
 
 function _get_nx_estimate(model_info::ModelInfo)::Int64
     nestimate = length(model_info.xindices.xindices[:not_system]) +
-                length(model_info.xindices.xindices_dynamic[:dynamic_tot])
+                length(model_info.xindices.xindices_dynamic[:xest_to_xdynamic])
     return nestimate
 end

@@ -41,14 +41,14 @@ end
 
 function split_x(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache)
     split_x!(x, xindices, cache)
-    @unpack xdynamic, xobservable, xnoise, xnondynamic = cache
-    return get_tmp(xdynamic, x), get_tmp(xobservable, x), get_tmp(xnoise, x), get_tmp(xnondynamic, x), cache.xnn_dict
+    @unpack xdynamic_mech, xobservable, xnoise, xnondynamic = cache
+    return get_tmp(xdynamic_mech, x), get_tmp(xobservable, x), get_tmp(xnoise, x), get_tmp(xnondynamic, x), cache.xnn_dict
 end
 
 function split_x!(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache; xdynamic_tot::Bool = false)::Nothing
     xi = xindices.xindices
-    xdynamic = get_tmp(cache.xdynamic, x)
-    xdynamic .= @view x[xi[:dynamic]]
+    xdynamic = get_tmp(cache.xdynamic_mech, x)
+    xdynamic .= @view x[xi[:dynamic_mech]]
     xobservable = get_tmp(cache.xobservable, x)
     xobservable .= @view x[xi[:observable]]
     xnoise = get_tmp(cache.xnoise, x)
@@ -62,17 +62,17 @@ function split_x!(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODE
     end
     if xdynamic_tot == true
         xdynamic_tot = get_tmp(cache.xdynamic_tot, x)
-        xdynamic_tot .= @view x[xindices.xindices_dynamic[:dynamic_tot]]
+        xdynamic_tot .= @view x[xindices.xindices_dynamic[:xest_to_xdynamic]]
     end
     return nothing
 end
 
-function split_xdynamic(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache)
-    xdynamic_mech = get_tmp(cache.xdynamic, x)
-    xdynamic_mech .= @view x[xindices.xindices_dynamic[:dynamic_mech]]
+function split_xdynamic(xdynamic::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache)
+    xdynamic_mech = get_tmp(cache.xdynamic_mech, xdynamic)
+    xdynamic_mech .= @view xdynamic[xindices.xindices_dynamic[:xdynamic_to_mech]]
     for (netid, xnn) in cache.xnn
-        _xnn = get_tmp(xnn, x)
-        _xnn .= @view x[xindices.xindices_dynamic[netid]]
+        _xnn = get_tmp(xnn, xdynamic)
+        _xnn .= @view xdynamic[xindices.xindices_dynamic[netid]]
         cache.xnn_dict[netid] = _xnn
     end
     return xdynamic_mech, cache.xnn_dict
@@ -89,7 +89,7 @@ end
 function transform_x(x::AbstractVector, xindices::ParameterIndices, whichx::Symbol,
                      cache::PEtabODEProblemCache; to_xscale::Bool = false)::AbstractVector
     if whichx === :xdynamic || whichx === :xdynamic_tot
-        xids = xindices.xids[:dynamic]
+        xids = xindices.xids[:dynamic_mech]
         x_ps = get_tmp(cache.xdynamic_ps, x)
     elseif whichx === :xnoise
         xids = xindices.xids[:noise]
@@ -109,7 +109,7 @@ function transform_x(x::AbstractVector, xindices::ParameterIndices, whichx::Symb
     # parameters are transformed, then they are added to the total vector
     if whichx === :xdynamic_tot
         xdynamic_tot = get_tmp(cache.xdynamic_tot, x)
-        xdynamic_tot[xindices.xindices_dynamic[:dynamic_mech]] .= x_ps
+        xdynamic_tot[xindices.xindices_dynamic[:xdynamic_to_mech]] .= x_ps
         return xdynamic_tot
     else
         return x_ps
@@ -204,10 +204,10 @@ function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices;
     xmap_simid = xindices.maps_conidition_id[simid]
     if full_x == false
         ixdynamic = vcat(xindices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic,
-                         xindices.xindices_dynamic[:dynamic_nn_all])
+                         xindices.xindices_dynamic[:nn_in_ode_all])
     else
         ixdynamic = vcat(xindices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic,
-                         xindices.xindices_dynamic[:dynamic_nn_all],
+                         xindices.xindices_dynamic[:nn_in_ode_all],
                          xindices.xindices[:not_system])
     end
     return unique(ixdynamic)

@@ -158,7 +158,7 @@ function _get_hess(probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
                    hess_prior::Function; ret_jacobian::Bool = false,
                    FIM::Bool = false)::Tuple{Function, Function}
     @unpack hessian_method, split_over_conditions, chunksize, cache = probinfo
-    @unpack xdynamic = cache
+    @unpack xdynamic_mech = cache
     if FIM == true
         hessian_method = probinfo.FIM_method
     end
@@ -282,3 +282,10 @@ function _test_ordering(x::ComponentArray, xnames_ps::Vector{Symbol})::Nothing
     return nothing
 end
 _test_ordering(x::AbstractVector, names_ps::Vector{Symbol})::Nothing = nothing
+
+# TODO: Put in Lux functionality
+function _net!(out, pnn, input, nn)::Nothing
+    st, net = nn
+    out .= net(input, pnn, st)[1]
+    return nothing
+end

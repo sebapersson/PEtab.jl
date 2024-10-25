@@ -4,14 +4,16 @@ function PEtabModel(sys::ModelSystem, observables::Dict{String, PEtabObservable}
                     speciemap::Union{Nothing, AbstractVector} = nothing,
                     parametermap::Union{Nothing, AbstractVector} = nothing,
                     events::Union{PEtabEvent, AbstractVector, Nothing} = nothing,
-                    verbose::Bool = false, nn::Union{Dict, Nothing} = nothing)::PEtabModel
+                    verbose::Bool = false, nn::Union{Dict, Nothing} = nothing,
+                    mapping_table::Union{Dict, Nothing} = nothing)::PEtabModel
     # One simulation condition is needed by the PEtab standard, if there is no such
     # creation a dummy is created
     if isnothing(simulation_conditions)
         simulation_conditions = Dict("__c0__" => Dict())
     end
     return _PEtabModel(sys, simulation_conditions, observables, measurements,
-                       parameters, speciemap, parametermap, events, verbose, nn)
+                       parameters, speciemap, parametermap, events, verbose, nn,
+                       mapping_table)
 end
 
 function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
@@ -20,7 +22,8 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
                      speciemap::Union{Nothing, AbstractVector},
                      parametermap::Union{Nothing, AbstractVector},
                      events::Union{PEtabEvent, AbstractVector, Nothing},
-                     verbose::Bool, nn::Union{Dict, Nothing})::PEtabModel
+                     verbose::Bool, nn::Union{Dict, Nothing},
+                     mapping_table::Union{Dict, Nothing})::PEtabModel
     if sys isa ODESystem
         name = "ODESystemModel"
     elseif sys isa SDESystem
@@ -39,6 +42,12 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     parameters_df = _parameters_to_table(parameters)
     petab_tables = Dict(:parameters => parameters_df, :conditions => conditions_df,
                         :observables => observables_df, :measurements => measurements_df)
+    # A mapping table is only needed for models where a neural network sets the values for
+    # the model parameters
+    if !isnothing(mapping_table)
+        mapping_df = _mapping_to_table(mapping_table)
+        petab_tables[:mapping_table] = mapping_df
+    end
 
     # Build the initial value map (initial values as parameters are set in the reaction sys_mutated)
     sys_mutated = deepcopy(sys)

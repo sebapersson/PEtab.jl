@@ -75,7 +75,7 @@ function hess_block!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Function
         # Even if xdynamic is empty the ODE must be solved to get the Hessian of the
         # parameters not appearing in the ODE
         if !isempty(xdynamic_grad)
-            ix = xindices.xindices_dynamic[:dynamic_tot]
+            ix = xindices.xindices_dynamic[:xest_to_xdynamic]
             xdynamic_tot = get_tmp(probinfo.cache.xdynamic_tot, x)
             @views ForwardDiff.hessian!(hess[ix, ix], _nllh_solveode, xdynamic_tot, cfg)
         else
@@ -156,7 +156,7 @@ function hess_GN!(out::Matrix{T}, x::Vector{T}, _residuals_not_solveode::Functio
     fill!(out, 0.0)
     fill!(jacobian_gn, 0.0)
     split_x!(x, xindices, cache; xdynamic_tot = true)
-    _jac = @view jacobian_gn[xindices.xindices_dynamic[:dynamic_tot], :]
+    _jac = @view jacobian_gn[xindices.xindices_dynamic[:xest_to_xdynamic], :]
     _jac_residuals_xdynamic!(_jac, _solve_conditions!, probinfo, model_info, cfg;
                              cids = cids, isremade = isremade)
     # Happens when at least one forward pass fails

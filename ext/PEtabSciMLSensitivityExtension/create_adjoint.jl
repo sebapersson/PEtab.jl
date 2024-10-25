@@ -3,7 +3,7 @@ function PEtab._get_grad(method::Val{:Adjoint}, probinfo::PEtab.PEtabODEProblemI
                          grad_prior::Function)::Tuple{Function, Function}
     @unpack gradient_method, sensealg, sensealg_ss, cache = probinfo
     @unpack simulation_info = model_info
-    @unpack xdynamic = cache
+    @unpack xdynamic_mech = cache
 
     _nllh_not_solve = PEtab._get_nllh_not_solveode(probinfo, model_info;
                                                    grad_adjoint = true)

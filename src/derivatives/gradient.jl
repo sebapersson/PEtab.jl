@@ -24,7 +24,7 @@ function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fun
             # the gradient of nondynamic parameters
             if length(xdynamic_grad) != 0
                 ForwardDiff.gradient!(xdynamic_grad, _nllh_solveode, xdynamic, cfg)
-                @views grad[xindices.xindices_dynamic[:dynamic_tot]] .= xdynamic_grad
+                @views grad[xindices.xindices_dynamic[:xest_to_xdynamic]] .= xdynamic_grad
             else
                 _ = _nllh_solveode(xdynamic)
             end
@@ -42,7 +42,7 @@ function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fun
                 _xdynamic = xdynamic[cache.xdynamic_input_order]
                 forwarddiff_gradient_chunks(_nllh_solveode, xdynamic_grad, _xdynamic,
                                             chunk; nforward_passes = nforward_passes)
-                @views grad[xindices.xindices[:dynamic]] .= xdynamic_grad[cache.xdynamic_output_order]
+                @views grad[xindices.xindices_dynamic[:xest_to_xdynamic]] .= xdynamic_grad[cache.xdynamic_output_order]
             else
                 _ = _nllh_solveode(xdynamic)
             end
@@ -103,7 +103,7 @@ function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveod
         fill!(grad, 0.0)
         return nothing
     end
-    @views grad[xindices.xindices_dynamic[:dynamic_tot]] .= cache.xdynamic_grad
+    @views grad[xindices.xindices_dynamic[:xest_to_xdynamic]] .= cache.xdynamic_grad
 
     x_notode = @view x[xindices.xindices[:not_system]]
     ForwardDiff.gradient!(xnotode_grad, _nllh_not_solveode, x_notode)
@@ -125,7 +125,7 @@ function grad_forward_eqs!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fu
 
     _grad_forward_eqs!(cache.xdynamic_grad, _solve_conditions!, probinfo, model_info,
                        cfg; cids = cids, isremade = isremade)
-    @views grad[xindices.xindices_dynamic[:dynamic_tot]] .= cache.xdynamic_grad
+    @views grad[xindices.xindices_dynamic[:xest_to_xdynamic]] .= cache.xdynamic_grad
 
     # Happens when at least one forward pass fails
     if !isempty(cache.xdynamic_grad) && all(cache.xdynamic_grad .== 0.0)

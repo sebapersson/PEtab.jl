@@ -22,16 +22,18 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
         level_cache = 0
     end
     # Parameters on linear scale
-    _xdynamic = zeros(Float64, length(xindices.xindices[:dynamic]))
-    _xobservable = zeros(Float64, length(xindices.xindices[:observable]))
-    _xnoise = zeros(Float64, length(xindices.xindices[:noise]))
-    _xnondynamic = zeros(Float64, length(xindices.xindices[:nondynamic]))
-    xdynamic = DiffCache(similar(_xdynamic), chunksize, levels = level_cache)
+    _xdynamic_mech = zeros(Float64, length(xindices.xids[:dynamic_mech]))
+    _xdynamic_nn_out = zeros(Float64, length(xindices.xids[:nn_pre_ode_output]))
+    _xobservable = zeros(Float64, length(xindices.xids[:observable]))
+    _xnoise = zeros(Float64, length(xindices.xids[:noise]))
+    _xnondynamic = zeros(Float64, length(xindices.xids[:nondynamic]))
+    xdynamic_mech = DiffCache(similar(_xdynamic_mech), chunksize, levels = level_cache)
+    xdynamic_nn_out = DiffCache(similar(_xdynamic_nn_out), chunksize, levels = level_cache)
     xobservable = DiffCache(similar(_xobservable), chunksize, levels = level_cache)
     xnoise = DiffCache(similar(_xnoise), chunksize, levels = level_cache)
     xnondynamic = DiffCache(similar(_xnondynamic), chunksize, levels = level_cache)
     # Parameters on parameter-scale
-    xdynamic_ps = DiffCache(similar(_xdynamic), chunksize, levels = level_cache)
+    xdynamic_mech_ps = DiffCache(similar(_xdynamic_mech), chunksize, levels = level_cache)
     xobservable_ps = DiffCache(similar(_xobservable), chunksize, levels = level_cache)
     xnoise_ps = DiffCache(similar(_xnoise), chunksize, levels = level_cache)
     xnondynamic_ps = DiffCache(similar(_xnondynamic), chunksize, levels = level_cache)
@@ -49,12 +51,11 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
         end
     end
     # For all dynamic parameters (mechanistic + nn parameters)
-    _xdynamic_tot = zeros(Float64, length(xindices.xindices_dynamic[:dynamic_tot]))
+    nxdynamic_tot = _get_nxdynamic(xindices)
+    _xdynamic_tot = zeros(Float64, nxdynamic_tot)
     xdynamic_tot = DiffCache(similar(_xdynamic_tot), chunksize, levels = level_cache)
 
     # Arrays needed in gradient compuations
-    # TODO: Fix for otheer methods down the line
-    nxdynamic_tot = length(_xdynamic) + _get_n_net_parameters(nn, xindices.xids[:nn])
     xdynamic_grad = zeros(Float64, nxdynamic_tot)
     xnotode_grad = zeros(Float64, length(xindices.xids[:not_system]))
     # For forward sensitivity equations and adjoint sensitivity analysis partial
@@ -135,8 +136,8 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
     # compute the gradient of a problem with reduced number of parameters where to run
     # fewer chunks with ForwardDiff.jl we only run enough chunks to reach nxdynamic
     # TODO: When get here
-    xdynamic_input_order::Vector{Int64} = collect(1:length(_xdynamic))
-    xdynamic_output_order::Vector{Int64} = collect(1:length(_xdynamic))
+    xdynamic_input_order::Vector{Int64} = collect(1:length(_xdynamic_mech))
+    xdynamic_output_order::Vector{Int64} = collect(1:length(_xdynamic_mech))
     nxdynamic::Vector{Int64} = Int64[length(_xdynamic_tot)]
 
     # Preallocate arrays used when solving the ODE model
@@ -158,11 +159,15 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
         end
     end
 
-    return PEtabODEProblemCache(xdynamic, xnoise, xobservable, xnondynamic, xdynamic_ps,
+    return PEtabODEProblemCache(xdynamic_mech, xnoise, xobservable, xnondynamic, xdynamic_mech_ps,
                                 xnoise_ps, xobservable_ps, xnondynamic_ps, xdynamic_grad,
                                 xnotode_grad, jacobian_gn, residuals_gn, forward_eqs_grad,
                                 adjoint_grad, St0, ∂h∂u, ∂σ∂u, ∂h∂p, ∂σ∂p, ∂G∂p, ∂G∂p_,
                                 ∂G∂u, dp, du, p, u, S, odesols, pode, u0ode,
                                 xdynamic_input_order, xdynamic_output_order, nxdynamic,
-                                xnn, xnn_dict, xdynamic_tot)
+                                xnn, xnn_dict, xdynamic_tot, xdynamic_nn_out)
+end
+
+function _get_nxdynamic(xindices::ParameterIndices)::Int64
+    return length(xindices.xindices_dynamic[:xest_to_xdynamic])
 end

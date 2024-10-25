@@ -53,11 +53,26 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
     ss_solver_gradient_use = SteadyStateSolver(_ss_solver_gradient, oprob,
                                                odesolver_gradient_use)
 
+    # For models with a neural net that feeds into model parameters, it is convenient to
+    # pre-build the function that evaluates the neural network
+    nns_pre_ode = Dict{Symbol, Dict{Symbol, Function}}()
+    for (cid, maps_nn) in model_info.xindices.maps_nn_pre_ode
+        _nns = Dict{Symbol, Function}()
+        for (pid, map) in maps_nn
+            inputs = map.inputs
+            nn = model_info.model.nn[string(pid)[3:end] |> Symbol]
+            _nns[pid] = let inputs = inputs, nn = nn
+                (out, pnn) -> _net!(out, pnn, inputs, nn)
+            end
+        end
+        nns_pre_ode[cid] = _nns
+    end
+
     return PEtabODEProblemInfo(oprob, oprob_gradient, odesolver_use, odesolver_gradient_use,
                                ss_solver_use, ss_solver_gradient_use, gradient_method_use,
                                hessian_method_use, FIM_method_use, reuse_sensitivities,
                                sparse_jacobian_use, sensealg_use, sensealg_ss_use,
-                               cache, split_use, chunksize_use)
+                               cache, split_use, chunksize_use, nns_pre_ode)
 end
 
 function _get_odeproblem(sys::ODEProblem, ::PEtabModel, model_info::ModelInfo,

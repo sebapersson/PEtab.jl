@@ -139,3 +139,15 @@ function _measurements_to_table(measurements::DataFrame, conditions::Dict)::Data
     _check_table(measurements_df, :measurements)
     return measurements_df
 end
+
+function _mapping_to_table(mapping_table::Dict{String, Vector{Pair{Symbol, Symbol}}})::DataFrame
+    df_mapping = DataFrame()
+    for (netid, netmap) in mapping_table
+        for (io_id, io_value) in netmap
+            dftmp = DataFrame(netId = netid, ioId = string(io_id), ioValue = string(io_value))
+            df_mapping = vcat(df_mapping, dftmp)
+        end
+    end
+    _check_table(df_mapping, :mapping)
+    return df_mapping
+end

@@ -8,7 +8,7 @@ function grad_adjoint!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode!::Funct
     @unpack xdynamic_grad, xnotode_grad = cache
 
     _grad_adjoint_xdynamic!(xdynamic_grad, probinfo, model_info; cids = cids)
-    @views grad[xindices.xindices_dynamic[:dynamic_tot]] .= xdynamic_grad
+    @views grad[xindices.xindices_dynamic[:xest_to_xdynamic]] .= xdynamic_grad
 
     # Happens when at least one forward pass fails and I set the gradient to 1e8
     if !isempty(xdynamic_grad) && all(xdynamic_grad .== 0.0)

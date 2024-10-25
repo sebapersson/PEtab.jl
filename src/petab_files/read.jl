@@ -58,6 +58,8 @@ function _check_table(df, table::Symbol)::Nothing
         colsinfo = PARAMETERS_COLS
     elseif table == :observables
         colsinfo = OBSERVABLES_COLS
+    elseif table == :mapping
+        colsinfo = MAPPING_COLS
     end
 
     for (name, colinfo) in colsinfo

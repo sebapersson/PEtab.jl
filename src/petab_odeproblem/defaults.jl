@@ -38,7 +38,7 @@ function _get_split_over_conditions(split::Union{Nothing, Bool},
                                     model_info::ModelInfo)::Bool
     !isnothing(split) && return split
     nxdynamic_sys = _get_size_xdynamic_sys(model_info)
-    nxdynamic = length(model_info.xindices.xids[:dynamic])
+    nxdynamic = length(model_info.xindices.xids[:dynamic_mech])
     if nxdynamic ≥ 2 * nxdynamic_sys
         return true
     else
@@ -55,7 +55,7 @@ function _get_size_xdynamic_sys(model_info::ModelInfo)::Int64
             nxdynamics_cond = length(map.ix_dynamic)
         end
     end
-    nxdynamics_nn = _get_n_net_parameters(model_info.model.nn, xindices.xids[:dynamic_nn])
+    nxdynamics_nn = _get_n_net_parameters(model_info.model.nn, xindices.xids[:nn_in_ode])
     return nxdynamics_const + nxdynamics_cond + nxdynamics_nn
 end
 

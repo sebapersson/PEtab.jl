@@ -37,6 +37,15 @@ struct MapODEProblem
     sys_to_dynamic_nn::Vector{Int32}
 end
 
+struct NNPreODEMap{T <: DiffCache}
+    inputs::Vector{Float64}
+    outputs::T
+    xindices_output_xdynamic::Vector{Int32}
+    jac_nn::Matrix{Float64}
+    grad_output::Vector{Float64}
+    xindices_output_sys::Vector{Int32}
+end
+
 struct ParameterIndices
     xindices::Dict{Symbol, Vector{Int32}}
     xids::Dict{Symbol, Vector{Symbol}}
@@ -47,6 +56,7 @@ struct ParameterIndices
     mapxnoise::Vector{ObservableNoiseMap}
     map_odeproblem::MapODEProblem
     maps_conidition_id::Dict{Symbol, ConditionMap}
+    maps_nn_pre_ode::Dict{Symbol, Dict{Symbol, NNPreODEMap}}
 end
 
 struct Priors
@@ -83,7 +93,7 @@ struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
                             T6 <: Dict,
                             T7 <: Dict{Symbol, <:DiffCache},
                             T8 <: Union{Vector{<:AbstractFloat}, <:ComponentVector}}
-    xdynamic::T2
+    xdynamic_mech::T2
     xnoise::T2
     xobservable::T2
     xnondynamic::T2
@@ -119,6 +129,7 @@ struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
     xnn::T7
     xnn_dict::Dict{Symbol, ComponentArray}
     xdynamic_tot::T2
+    xdynamic_nn_out::T2
 end
 
 struct PEtabMeasurements{T <: Vector{<:Union{<:String, <:AbstractFloat}}}
@@ -352,6 +363,7 @@ struct PEtabODEProblemInfo{S1 <: ODESolver, S2 <: ODESolver, C <: PEtabODEProble
     cache::C
     split_over_conditions::Bool
     chunksize::Int64
+    nn_pre_ode::Dict{Symbol, Dict{Symbol, Function}}
 end
 
 """

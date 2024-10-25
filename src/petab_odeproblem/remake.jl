@@ -41,7 +41,7 @@ function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
     # evaluate ForwardDiff over a subset of chunks. To this end we here make sure
     # "fixed" parameter are moved to the end of the parameter vector to not run ForwardDiff
     # over these
-    xids_dynamic = model_info.xindices.xids[:dynamic]
+    xids_dynamic = model_info.xindices.xids[:dynamic_mech]
     ixdynamic_fixate = Int64[]
     for xid in xids_fixate
         ix = findfirst(x -> x == xid, xids_dynamic)

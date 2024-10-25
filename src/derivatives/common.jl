@@ -76,7 +76,7 @@ function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector
     # Neural net parameters. These should not be transformed (are on linear scale),
     # For everything except sensitivites_AD these are provided in the order of odeproblem.p
     # and are mapped via sys_to_dynamic_nn
-    xi = xindices.xindices_dynamic[:dynamic_nn_all]
+    xi = xindices.xindices_dynamic[:nn_in_ode_all]
     if sensitivites_AD == true
         @views grad_xscale[xi] .= grad_linscale[xi]
     else
@@ -92,7 +92,7 @@ function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector
         grad_p1 = grad_linscale[sys_to_dynamic] .+ ∂G∂p[sys_to_dynamic]
     end
     @views _grad_to_xscale!(grad_xscale[dynamic_to_sys], grad_p1, xdynamic[dynamic_to_sys],
-                            xids[:dynamic][dynamic_to_sys], xscale)
+                            xids[:dynamic_mech][dynamic_to_sys], xscale)
 
     # For forward sensitives via autodiff ∂G∂p is on the same scale as ode_problem.p, while
     # S-matrix is on the same scale as xdynamic. To be able to handle condition specific
@@ -102,9 +102,9 @@ function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector
     if sensitivites_AD == true
         ix = unique(ix_dynamic)
         @views _grad_to_xscale!(grad_xscale[ix], grad_linscale[ix], xdynamic[ix],
-                                xids[:dynamic][ix], xscale)
+                                xids[:dynamic_mech][ix], xscale)
         @views out = _grad_to_xscale(∂G∂p[ix_sys], xdynamic[ix_dynamic],
-                                     xids[:dynamic][ix_dynamic], xscale)
+                                     xids[:dynamic_mech][ix_dynamic], xscale)
         for (i, imap) in pairs(ix)
             grad_xscale[imap] += out[i]
         end
@@ -115,10 +115,10 @@ function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector
     # thus the for-loop
     if adjoint == true || sensitivites_AD == false
         @views _grad_to_xscale!(grad_xscale[ix_sys], grad_linscale[ix_sys],
-                                xdynamic[ix_dynamic], xids[:dynamic][ix_dynamic], xscale)
+                                xdynamic[ix_dynamic], xids[:dynamic_mech][ix_dynamic], xscale)
         @views out = _grad_to_xscale(grad_linscale[ix_sys] .+ ∂G∂p[ix_sys],
                                      xdynamic[ix_dynamic],
-                                     xids[:dynamic][ix_dynamic], xscale)
+                                     xids[:dynamic_mech][ix_dynamic], xscale)
         for (i, imap) in pairs(ix_sys)
             grad_xscale[imap] += out[i]
         end
