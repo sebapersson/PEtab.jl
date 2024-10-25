@@ -24,15 +24,17 @@ function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::AbstractVec
         p[netid] .= xnet
     end
 
-    # Parameters which are set by a neural net
-    compute_nns! = nn_pre_ode[simid]
-    maps_nns = xindices.maps_nn_pre_ode[simid]
-    for (netid, compute_nn!) in compute_nns!
-        pnn = xnn[netid]
-        map_nn = maps_nns[netid]
-        outputs = get_tmp(map_nn.outputs, pnn[1])
-        compute_nn!(outputs, pnn)
-        p[map_nn.xindices_output_sys] .= outputs
+    # Parameters which are set by a neural net. TODO: Make function maybe
+    if haskey(nn_pre_ode, simid)
+        compute_nns! = nn_pre_ode[simid]
+        maps_nns = xindices.maps_nn_pre_ode[simid]
+        for (netid, compute_nn!) in compute_nns!
+            pnn = xnn[netid]
+            map_nn = maps_nns[netid]
+            outputs = get_tmp(map_nn.outputs, pnn[1])
+            compute_nn!(outputs, pnn)
+            p[map_nn.xindices_output_sys] .= outputs
+        end
     end
 
     # Initial state can depend on condition specific parameters

@@ -47,6 +47,8 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     if !isnothing(mapping_table)
         mapping_df = _mapping_to_table(mapping_table)
         petab_tables[:mapping_table] = mapping_df
+    else
+        petab_tables[:mapping_table] = DataFrame()
     end
 
     # Build the initial value map (initial values as parameters are set in the reaction sys_mutated)

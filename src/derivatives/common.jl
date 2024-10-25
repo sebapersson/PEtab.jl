@@ -76,7 +76,7 @@ function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector
     # Neural net parameters. These should not be transformed (are on linear scale),
     # For everything except sensitivites_AD these are provided in the order of odeproblem.p
     # and are mapped via sys_to_dynamic_nn
-    xi = xindices.xindices_dynamic[:nn_in_ode_all]
+    xi = xindices.xindices_dynamic[:nn_in_ode]
     if sensitivites_AD == true
         @views grad_xscale[xi] .= grad_linscale[xi]
     else

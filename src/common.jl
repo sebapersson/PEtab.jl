@@ -204,10 +204,10 @@ function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices;
     xmap_simid = xindices.maps_conidition_id[simid]
     if full_x == false
         ixdynamic = vcat(xindices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic,
-                         xindices.xindices_dynamic[:nn_in_ode_all])
+                         xindices.xindices_dynamic[:nn_in_ode])
     else
         ixdynamic = vcat(xindices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic,
-                         xindices.xindices_dynamic[:nn_in_ode_all],
+                         xindices.xindices_dynamic[:nn_in_ode],
                          xindices.xindices[:not_system])
     end
     return unique(ixdynamic)

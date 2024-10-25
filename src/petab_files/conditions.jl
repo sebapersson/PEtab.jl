@@ -140,12 +140,15 @@ function _get_xindices_dynamic(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Sym
     xindices[:xdynamic_to_mech] = Int32.(1:length(xids[:dynamic_mech]))
     # Get indicies in xest for all dynamic parameters (mechanistic + neural net)
     xi_xest_to_xdynamic = Int32[findfirst(x -> x == id, xids[:estimate]) for id in xids[:dynamic_mech]]
+    xi_nn_in_ode = Int32[]
     istart = length(xids[:estimate]) - length(xids[:nn])
     for pid in xids[:nn_in_ode]
         np = _get_n_net_parameters(nn, [pid])
         xi_xest_to_xdynamic = vcat(xi_xest_to_xdynamic, (istart+1):(istart + np))
+        xi_nn_in_ode = vcat(xi_nn_in_ode, (istart+1):(istart + np))
         istart += np
     end
+    xindices[:nn_in_ode] = xi_nn_in_ode
     # Get indices in xdynamic for neural-net output parameters (these are included in
     # xdynamic for gradient to be computed when split_over_conditions = false, otherwise
     # they are just kept as constant)
@@ -586,7 +589,9 @@ function _get_xnames_ps!(xids::Dict{Symbol, Vector{Symbol}}, xscale)::Nothing
 end
 
 function _check_mapping_table(mapping_table::Union{DataFrame, Nothing}, nn::Union{Nothing, Dict}, petab_parameters::PEtabParameters, sys)::DataFrame
-    isnothing(mapping_table) || isnothing(nn) && return DataFrame()
+    if isempty(mapping_table) || isnothing(nn)
+        return DataFrame()
+    end
     for i in 1:nrow(mapping_table)
         netid = Symbol(mapping_table[i, :netId])
         if !haskey(nn, netid)
