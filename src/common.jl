@@ -200,7 +200,7 @@ function is_number(x::Symbol)::Bool
 end
 
 function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices;
-                              full_x::Bool = false)::Vector{Integer}
+                              full_x::Bool = false, nn_pre_ode::Bool)::Vector{Integer}
     xmap_simid = xindices.maps_conidition_id[simid]
     if full_x == false
         ixdynamic = vcat(xindices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic,
@@ -209,6 +209,9 @@ function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices;
         ixdynamic = vcat(xindices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic,
                          xindices.xindices_dynamic[:nn_in_ode],
                          xindices.xindices[:not_system])
+    end
+    if nn_pre_ode == true
+        ixdynamic = vcat(ixdynamic, xindices.xindices_dynamic[:nn_pre_ode])
     end
     return unique(ixdynamic)
 end

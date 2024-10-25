@@ -68,11 +68,19 @@ end
 # Adjust the gradient from linear scale to current scale for x-vector
 function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector{T},
                          xdynamic::Vector{T}, xindices::ParameterIndices, simid::Symbol;
-                         sensitivites_AD::Bool = false,
+                         sensitivites_AD::Bool = false, nn_pre_ode::Bool = false,
                          adjoint::Bool = false)::Nothing where {T <: AbstractFloat}
     @unpack dynamic_to_sys, sys_to_dynamic, sys_to_dynamic_nn = xindices.map_odeproblem
     @unpack xids, xscale = xindices
     @unpack ix_sys, ix_dynamic = xindices.maps_conidition_id[simid]
+    # Neural net parameters for a neural net before the ODE dynamics. These gradient
+    # components only considered for ForwardEquations full AD, where it is not possible to
+    # use the chain-rule to separately differentitate each componenent, and these parameters
+    # are differentiated using full AD.
+    if nn_pre_ode == true
+        xi = xindices.xindices_dynamic[:nn_pre_ode]
+        @views grad_xscale[xi] .= grad_linscale[xi]
+    end
     # Neural net parameters. These should not be transformed (are on linear scale),
     # For everything except sensitivites_AD these are provided in the order of odeproblem.p
     # and are mapped via sys_to_dynamic_nn

@@ -152,11 +152,14 @@ function _get_xindices_dynamic(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Sym
     # Get indices in xdynamic for neural-net output parameters (these are included in
     # xdynamic for gradient to be computed when split_over_conditions = false, otherwise
     # they are just kept as constant)
+    xi_nn_pre_ode = Int32[]
     for pid in xids[:nn_pre_ode]
         np = _get_n_net_parameters(nn, [pid])
         xi_xest_to_xdynamic = vcat(xi_xest_to_xdynamic, (istart+1):(istart + np))
+        xi_nn_pre_ode = vcat(xi_nn_pre_ode, (istart+1):(istart + np))
         istart += np
     end
+    xindices[:nn_pre_ode] = xi_nn_pre_ode
     xindices[:xest_to_xdynamic] = xi_xest_to_xdynamic
     # Get indices in xdynamic for each neural net inside of the ODE, in order to map
     # dynamic parameters to neural nets

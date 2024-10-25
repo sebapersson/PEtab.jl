@@ -113,7 +113,8 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnois
     cid = simulation_info.conditionids[:experiment][icid]
     simid = simulation_info.conditionids[:simulation][icid]
     smatrixindices_cid = smatrixindices[cid]
-    ixdynamic_simid = _get_ixdynamic_simid(simid, xindices)
+    nn_pre_ode = !probinfo.split_over_conditions
+    ixdynamic_simid = _get_ixdynamic_simid(simid, xindices, nn_pre_ode = nn_pre_ode)
     sol = simulation_info.odesols_derivatives[cid]
 
     # Partial derivatives needed for computing the gradient (derived from the chain-rule)
@@ -142,6 +143,6 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnois
     # Adjust if gradient is non-linear scale (e.g. log and log10). TODO: Refactor
     # this function later
     grad_to_xscale!(grad, forward_eqs_grad, ∂G∂p, xdynamic_tot, xindices, simid,
-                    sensitivites_AD = true)
+                    sensitivites_AD = true, nn_pre_ode = nn_pre_ode)
     return nothing
 end
