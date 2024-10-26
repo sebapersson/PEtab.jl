@@ -2,7 +2,7 @@
 
 ## PEtab 3.3.0
 
-Update to Optimization.jl v4.
+Update to Optimization.jl v4 and DiffEqCallbacks v4.
 
 ## PEtab 3.2.0
 
