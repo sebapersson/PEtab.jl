@@ -108,7 +108,7 @@ function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabM
                 :not_system => xids_not_system, :sys => xids_sys,
                 :estimate => xids_estimate, :petab => xids_petab,
                 :nn_in_ode => xids_nn_in_ode, :nn_pre_ode => xids_nn_pre_ode,
-                :nn_pre_ode_output => xids_nn_pre_ode_output)
+                :nn_pre_ode_outputs => xids_nn_pre_ode_output)
 end
 
 function _get_xindices(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Symbol, Vector{Int32}}
@@ -177,7 +177,7 @@ function _get_xindices_dynamic(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Sym
     # This only holds when xdynamic is expanded during split_over_conditions = true
     # to get the gradient of neural-net set parameters
     np = length(xindices[:xest_to_xdynamic])
-    xindices[:xdynamic_to_nnout] = (np+1):(np + length(xids[:nn_pre_ode_output]))
+    xindices[:xdynamic_to_nnout] = (np+1):(np + length(xids[:nn_pre_ode_outputs]))
     return xindices
 end
 
@@ -643,13 +643,11 @@ function _get_nn_pre_ode_maps(conditions_df::DataFrame, map_odeproblem::MapODEPr
             dfnn = mapping_table[mapping_table[!, :netId] .== nnid, :]
             ninputs = sum(occursin.("input", string.(dfnn[!, :ioId])))
             noutputs = sum(occursin.("output", string.(dfnn[!, :ioId])))
-            np = _get_n_net_parameters(nn, [pnnid])
             inputs = zeros(Float64, ninputs)
-            outputs = DiffCache(zeros(Float64, noutputs), levels = 2)
-            jac_nn = zeros(Float64, noutputs, np)
-            grad_output = zeros(Float64, noutputs)
-            # Index for the output parameter in xdynamic
-            xindices_output_xdynamic = zeros(Int32, noutputs)
+            # Index for the output parameter in grad during split conditions
+            xindices_nn_outputs_grad = zeros(Int32, noutputs)
+            # Index among the output parameters
+            xindices_nn_outputs = zeros(Int32, noutputs)
             # Index for the output in sys
             xindices_output_sys = zeros(Int32, noutputs)
             for (i, io_id) in pairs(string.(dfnn[!, :ioId]))
@@ -660,8 +658,8 @@ function _get_nn_pre_ode_maps(conditions_df::DataFrame, map_odeproblem::MapODEPr
                 end
                 if occursin("output", io_id)
                     ioutput = parse(Int64, io_id[7:end])
-                    ip = findfirst(x -> x == dfnn[i, :ioValue], xids[:nn_pre_ode_output])
-                    xindices_output_xdynamic[ioutput] = ip + nxdynamic
+                    ip = findfirst(x -> x == dfnn[i, :ioValue], xids[:nn_pre_ode_outputs])
+                    xindices_nn_outputs[ioutput] = ip
                     io_value = Symbol(dfnn[i, :ioValue])
                     # TODO: Funciton to query sys
                     isys = 1
@@ -678,7 +676,7 @@ function _get_nn_pre_ode_maps(conditions_df::DataFrame, map_odeproblem::MapODEPr
                     end
                 end
             end
-            maps_nn[pnnid] = NNPreODEMap(inputs, outputs, xindices_output_xdynamic, jac_nn, grad_output, xindices_output_sys)
+            maps_nn[pnnid] = NNPreODEMap(inputs, noutputs, xindices_nn_outputs, xindices_nn_outputs_grad, xindices_output_sys)
         end
         maps[conditionid] = maps_nn
     end

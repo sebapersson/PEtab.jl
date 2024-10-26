@@ -23,12 +23,10 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
     end
     # Parameters on linear scale
     _xdynamic_mech = zeros(Float64, length(xindices.xids[:dynamic_mech]))
-    _xdynamic_nn_out = zeros(Float64, length(xindices.xids[:nn_pre_ode_output]))
     _xobservable = zeros(Float64, length(xindices.xids[:observable]))
     _xnoise = zeros(Float64, length(xindices.xids[:noise]))
     _xnondynamic = zeros(Float64, length(xindices.xids[:nondynamic]))
     xdynamic_mech = DiffCache(similar(_xdynamic_mech), chunksize, levels = level_cache)
-    xdynamic_nn_out = DiffCache(similar(_xdynamic_nn_out), chunksize, levels = level_cache)
     xobservable = DiffCache(similar(_xobservable), chunksize, levels = level_cache)
     xnoise = DiffCache(similar(_xnoise), chunksize, levels = level_cache)
     xnondynamic = DiffCache(similar(_xnondynamic), chunksize, levels = level_cache)
@@ -54,6 +52,9 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
     nxdynamic_tot = _get_nxdynamic(xindices)
     _xdynamic_tot = zeros(Float64, nxdynamic_tot)
     xdynamic_tot = DiffCache(similar(_xdynamic_tot), chunksize, levels = level_cache)
+    # For the gradient of parameters that are set via neural-network (needed for efficient
+    # gradient of the neural network with the help of the chain rule)
+    grad_nn_pre_ode_outputs = zeros(Float64, length(xindices.xids[:nn_pre_ode_outputs]))
 
     # Arrays needed in gradient compuations
     xdynamic_grad = zeros(Float64, nxdynamic_tot)
@@ -165,7 +166,7 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
                                 adjoint_grad, St0, ∂h∂u, ∂σ∂u, ∂h∂p, ∂σ∂p, ∂G∂p, ∂G∂p_,
                                 ∂G∂u, dp, du, p, u, S, odesols, pode, u0ode,
                                 xdynamic_input_order, xdynamic_output_order, nxdynamic,
-                                xnn, xnn_dict, xdynamic_tot, xdynamic_nn_out)
+                                xnn, xnn_dict, xdynamic_tot, grad_nn_pre_ode_outputs)
 end
 
 function _get_nxdynamic(xindices::ParameterIndices)::Int64

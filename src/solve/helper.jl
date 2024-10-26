@@ -1,6 +1,6 @@
 function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::AbstractVector,
                            xnn::Dict{Symbol, ComponentArray}, model_info::ModelInfo,
-                           cache::PEtabODEProblemCache, nn_pre_ode::Dict{Symbol, Dict{Symbol, Function}};
+                           cache::PEtabODEProblemCache, nn_pre_ode::Dict{Symbol, Dict{Symbol, NNPreODE}};
                            sensitivites::Bool = false, simid::Union{Nothing, Symbol} = nothing)::ODEProblem
     @unpack xindices, model, nstates = model_info
     simid = isnothing(simid) ? cid : simid
@@ -26,13 +26,17 @@ function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::AbstractVec
 
     # Parameters which are set by a neural net. TODO: Make function maybe
     if haskey(nn_pre_ode, simid)
-        compute_nns! = nn_pre_ode[simid]
+        nns_pre_ode = nn_pre_ode[simid]
         maps_nns = xindices.maps_nn_pre_ode[simid]
-        for (netid, compute_nn!) in compute_nns!
-            pnn = xnn[netid]
+        for (netid, nn_pre_ode) in nns_pre_ode
             map_nn = maps_nns[netid]
-            outputs = get_tmp(map_nn.outputs, pnn[1])
-            compute_nn!(outputs, pnn)
+            # In case of neural nets being computed before the function call,
+            # nn_pre_ode.outputs has already been assigned
+            outputs = get_tmp(nn_pre_ode.outputs, p)
+            if nn_pre_ode.computed[1] == false
+                pnn = xnn[netid]
+                nn_pre_ode.nn!(outputs, pnn)
+            end
             p[map_nn.xindices_output_sys] .= outputs
         end
     end

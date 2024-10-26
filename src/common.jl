@@ -200,7 +200,7 @@ function is_number(x::Symbol)::Bool
 end
 
 function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices;
-                              full_x::Bool = false, nn_pre_ode::Bool)::Vector{Integer}
+                              full_x::Bool = false, nn_pre_ode::Bool = false)::Vector{Integer}
     xmap_simid = xindices.maps_conidition_id[simid]
     if full_x == false
         ixdynamic = vcat(xindices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic,
@@ -225,4 +225,28 @@ function _get_n_net_parameters(nn::Union{Dict, Nothing}, xids::Vector{Symbol})::
         nparameters += Lux.LuxCore.parameterlength(nn[netid][2])
     end
     return nparameters
+end
+
+function _jac_nn_pre_ode!(probinfo::PEtabODEProblemInfo)::Nothing
+    for nns_pre_ode in values(probinfo.nn_pre_ode)
+        for (netid, nn_pre_ode) in nns_pre_ode
+            pnn = get_tmp(probinfo.cache.xnn[netid], 1.0)
+            @unpack tape, jac_nn, outputs, computed = nn_pre_ode
+            ReverseDiff.jacobian!(jac_nn, tape, pnn)
+            outputs_tape = ReverseDiff.value(tape.output)
+            outputs_cache = get_tmp(outputs, outputs_tape)
+            outputs_cache .= outputs_tape
+            computed[1] = true
+        end
+    end
+    return nothing
+end
+
+function _reset_nn_pre_ode!(probinfo::PEtabODEProblemInfo)::Nothing
+    for nns_pre_ode in values(probinfo.nn_pre_ode)
+        for nn_pre_ode in values(nns_pre_ode)
+            nn_pre_ode.computed[1] = false
+        end
+    end
+    return nothing
 end

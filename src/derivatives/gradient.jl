@@ -74,30 +74,37 @@ function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveod
     split_x!(x, xindices, cache; xdynamic_tot = true)
     @unpack xdynamic_grad, xnotode_grad = cache
 
+    # Get the Jacobians of Neural-Networks that set values for potential model parameters.
+    # By then taking the gradient on the output of these networks, and computing a vjp,
+    # the gradient can be computed in minumum number of forward-passes
+    _jac_nn_pre_ode!(probinfo)
+
     # A gradient is computed for each condition-id, only using parameter present for
     # said condition
     fill!(xdynamic_grad, 0.0)
     for (i, cid) in pairs(simulation_info.conditionids[:experiment])
         simid = simulation_info.conditionids[:simulation][i]
-        ixdynamic_simid = _get_ixdynamic_simid(simid, xindices)
-        xinput = x[ixdynamic_simid]
-
+        xinput, ixdynamic_simid = _get_xinput(simid, x, model_info, probinfo)
         _nllh = (_xinput) -> begin
+            _split_xinput!(probinfo, simid, model_info, _xinput, ixdynamic_simid)
             xdynamic_tot = get_tmp(probinfo.cache.xdynamic_tot, _xinput)
-            @views xdynamic_tot[ixdynamic_simid] .= _xinput
             return _nllh_solveode(xdynamic_tot, [cid])
         end
-        try
+        #try
             # The ODE must be solved to get the gradient of the other parameters
             if !isempty(xdynamic_grad)
                 _grad = ForwardDiff.gradient(_nllh, xinput)
-                xdynamic_grad[ixdynamic_simid] .+= _grad
+                xdynamic_grad[ixdynamic_simid] .+= _grad[1:length(ixdynamic_simid)]
+                if length(_grad) > length(ixdynamic_simid)
+                    cache.grad_nn_pre_ode_outputs .= _grad[(length(ixdynamic_simid)+1):end]
+                    _grad_nn_pre_ode!(xdynamic_grad, simid, probinfo, model_info)
+                end
             else
                 _nllh(xinput)
             end
-        catch
+        #catch
             fill!(grad, 0.0)
-        end
+        #end
     end
     if simulation_info.could_solve[1] != true
         fill!(grad, 0.0)
@@ -108,6 +115,9 @@ function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveod
     x_notode = @view x[xindices.xindices[:not_system]]
     ForwardDiff.gradient!(xnotode_grad, _nllh_not_solveode, x_notode)
     @views grad[xindices.xindices[:not_system]] .= xnotode_grad
+
+    # Reset such that neural-nets pre ODE no longer have status of having been evaluated
+    _reset_nn_pre_ode!(probinfo)
     return nothing
 end
 

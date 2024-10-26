@@ -172,3 +172,40 @@ function _could_solveode_nllh(simulation_info::SimulationInfo)::Bool
     end
     return true
 end
+
+function _get_xinput(simid::Symbol, x::Vector{<:AbstractFloat}, model_info::ModelInfo, probinfo::PEtabODEProblemInfo)
+    @unpack xindices, simulation_info = model_info
+    ixdynamic_simid = _get_ixdynamic_simid(simid, xindices; nn_pre_ode = false)
+    ninode, npreode = length(ixdynamic_simid), length(xindices.xids[:nn_pre_ode_outputs])
+    xinput = zeros(Float64, ninode + npreode)
+    @views xinput[1:ninode] .= x[ixdynamic_simid]
+    for (netid, nn_pre_ode) in probinfo.nn_pre_ode[simid]
+        map_nn = model_info.xindices.maps_nn_pre_ode[simid][netid]
+        outputs = get_tmp(nn_pre_ode.outputs, xinput)
+        ix = map_nn.xindices_nn_outputs_grad
+        ix .= map_nn.xindices_nn_outputs .+ ninode
+        @views xinput[ix] .= outputs
+    end
+    return xinput, ixdynamic_simid
+end
+
+function _split_xinput!(probinfo::PEtabODEProblemInfo, simid::Symbol, model_info::ModelInfo, xinput::AbstractVector, ixdynamic_simid::Vector{Integer})::Nothing
+    xdynamic_tot = get_tmp(probinfo.cache.xdynamic_tot, xinput)
+    @views xdynamic_tot[ixdynamic_simid] .= xinput[1:length(ixdynamic_simid)]
+    for (netid, nn_pre_ode) in probinfo.nn_pre_ode[simid]
+        map_nn =  model_info.xindices.maps_nn_pre_ode[simid][netid]
+        outputs = get_tmp(nn_pre_ode.outputs, xinput)
+        @views outputs .= xinput[map_nn.xindices_nn_outputs_grad]
+    end
+    return nothing
+end
+
+function _grad_nn_pre_ode!(xdynamic_grad::Vector{Float64}, simid::Symbol, probinfo::PEtabODEProblemInfo, model_info::ModelInfo)::Nothing
+    for (netid, nn_pre_ode) in probinfo.nn_pre_ode[simid]
+        map_nn = model_info.xindices.maps_nn_pre_ode[simid][netid]
+        grad_nn_output = probinfo.cache.grad_nn_pre_ode_outputs[map_nn.xindices_nn_outputs]
+        ix = model_info.xindices.xindices_dynamic[netid]
+        xdynamic_grad[ix] .+= vec(grad_nn_output' * nn_pre_ode.jac_nn)
+    end
+    return nothing
+end

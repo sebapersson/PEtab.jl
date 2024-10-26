@@ -37,12 +37,11 @@ struct MapODEProblem
     sys_to_dynamic_nn::Vector{Int32}
 end
 
-struct NNPreODEMap{T <: DiffCache}
+struct NNPreODEMap
     inputs::Vector{Float64}
-    outputs::T
-    xindices_output_xdynamic::Vector{Int32}
-    jac_nn::Matrix{Float64}
-    grad_output::Vector{Float64}
+    noutputs::Int64
+    xindices_nn_outputs::Vector{Int32}
+    xindices_nn_outputs_grad::Vector{Int32}
     xindices_output_sys::Vector{Int32}
 end
 
@@ -129,7 +128,7 @@ struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
     xnn::T7
     xnn_dict::Dict{Symbol, ComponentArray}
     xdynamic_tot::T2
-    xdynamic_nn_out::T2
+    grad_nn_pre_ode_outputs::Vector{Float64}
 end
 
 struct PEtabMeasurements{T <: Vector{<:Union{<:String, <:AbstractFloat}}}
@@ -346,6 +345,14 @@ function SteadyStateSolver(alg::NonlinearAlg, abstol, reltol, maxiters)::SteadyS
                              nothing, nothing, false)
 end
 
+struct NNPreODE{T <: DiffCache}
+    nn!::Function
+    tape::Any
+    jac_nn::Matrix{Float64}
+    outputs::T
+    computed::Vector{Bool}
+end
+
 struct PEtabODEProblemInfo{S1 <: ODESolver, S2 <: ODESolver, C <: PEtabODEProblemCache}
     odeproblem::ODEProblem
     odeproblem_gradient::ODEProblem
@@ -363,7 +370,7 @@ struct PEtabODEProblemInfo{S1 <: ODESolver, S2 <: ODESolver, C <: PEtabODEProble
     cache::C
     split_over_conditions::Bool
     chunksize::Int64
-    nn_pre_ode::Dict{Symbol, Dict{Symbol, Function}}
+    nn_pre_ode::Dict{Symbol, Dict{Symbol, NNPreODE}}
 end
 
 """

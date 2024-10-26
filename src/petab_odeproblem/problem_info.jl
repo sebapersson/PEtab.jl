@@ -55,15 +55,22 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
 
     # For models with a neural net that feeds into model parameters, it is convenient to
     # pre-build the function that evaluates the neural network
-    nns_pre_ode = Dict{Symbol, Dict{Symbol, Function}}()
+    nns_pre_ode = Dict{Symbol, Dict{Symbol, NNPreODE}}()
     for (cid, maps_nn) in model_info.xindices.maps_nn_pre_ode
-        _nns = Dict{Symbol, Function}()
+        _nns = Dict{Symbol, NNPreODE}()
         for (pid, map) in maps_nn
-            inputs = map.inputs
+            @unpack inputs, noutputs = map
             nn = model_info.model.nn[string(pid)[3:end] |> Symbol]
-            _nns[pid] = let inputs = inputs, nn = nn
+            pnn = get_tmp(cache.xnn[pid], 1.0)
+            outputs = DiffCache(zeros(Float64, noutputs), levels = 2)
+            compute_nn! = let inputs = inputs, nn = nn
                 (out, pnn) -> _net!(out, pnn, inputs, nn)
             end
+
+            out = get_tmp(outputs, 1.0)
+            tape = ReverseDiff.JacobianTape(compute_nn!, out, pnn)
+            jac_nn = zeros(Float64, noutputs, length(pnn))
+            _nns[pid] = NNPreODE(compute_nn!, tape, jac_nn, outputs, [false])
         end
         nns_pre_ode[cid] = _nns
     end
