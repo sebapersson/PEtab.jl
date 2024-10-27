@@ -26,9 +26,10 @@ function test_odesolver(model::PEtabModel, osolver::ODESolver)::Nothing
                                     reltol = osolver.reltol, save_observed_t = true)
         sol = sols[:model1_data1]
         sqdiff = 0.0
-        for t in sol.t
+        for (it, t) in pairs(sol.t)
+            sol_num = sol[[:sebastian, :damiano]]
             sol_analytic = [u0[1]*exp(α*t), u0[2]*exp(β*t)]
-            sqdiff += sum((sol(t)[1:2] - sol_analytic).^2)
+            sqdiff += sum((sol_num[it] - sol_analytic).^2)
         end
         @test sqdiff ≤ 1e-6
     end
@@ -105,7 +106,7 @@ end
 model = create_model_inside_function()
 
 @testset "ODE solver" begin
-    test_odesolver(model, ODESolver(Vern9(), abstol=1e-9, reltol=1e-9))
+    test_odesolver(model, ODESolver(Rodas5P(), abstol=1e-9, reltol=1e-9))
 end
 
 @testset "nllh, grad, and hess" begin
@@ -118,7 +119,9 @@ end
 
 # Test if the PEtabModel can also be read from existing model files
 model = PEtabModel(joinpath(@__DIR__, "analytic_solution", "Test_model2.yaml"),
-                   build_julia_files=false, verbose=true, write_to_file = true)
+                   verbose=true, write_to_file = true)
+model = PEtabModel(joinpath(@__DIR__, "analytic_solution", "Test_model2.yaml"),
+                   build_julia_files=false, verbose=true, write_to_file = false)
 prob = PEtabODEProblem(model; verbose = true)
 @testset "ODE solver" begin
     test_odesolver(model, ODESolver(Vern9(), abstol=1e-9, reltol=1e-9))

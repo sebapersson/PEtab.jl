@@ -43,7 +43,11 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
         @unpack sys_mutated, speciemap, parametermap, defined_in_julia = model
         if sys_mutated isa ODESystem && defined_in_julia == false
             SL = specialize_level
-            _oprob = ODEProblem{true, SL}(sys_mutated, speciemap, [0.0, 5e3], parametermap;
+            # If speciemap contains a symbolic value, with MTKv9.48 p can no longer
+            # downstream be a Vector anymore. As PEtab.jl has its own u0 function it uses
+            # there is not problem with using a numerical value only speciemap
+            _u0 = first.(speciemap) .=> 0.0
+            _oprob = ODEProblem{true, SL}(sys_mutated, _u0, [0.0, 5e3], parametermap;
                                           jac = true, sparse = sparse_jacobian_use)
         else
             # For ReactionSystem there is bug if I try to set specialize_level. Also,
