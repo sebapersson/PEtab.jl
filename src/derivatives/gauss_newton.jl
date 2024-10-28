@@ -45,13 +45,15 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic_tot::Vector{T},
     @unpack xindices, simulation_info, model = model_info
     @unpack petab_parameters, petab_measurements = model_info
     @unpack imeasurements_t, tsaves, smatrixindices = simulation_info
-    cache = probinfo.cache
+    @unpack cache, split_over_conditions = probinfo
 
     # Simulation ids
     cid = simulation_info.conditionids[:experiment][icid]
     simid = simulation_info.conditionids[:simulation][icid]
     smatrixindices_cid = smatrixindices[cid]
-    ixdynamic_simid = _get_ixdynamic_simid(simid, xindices)
+    nn_pre_ode = probinfo.split_over_conditions == false
+    ixdynamic_simid = _get_ixdynamic_simid(simid, xindices, nn_pre_ode = nn_pre_ode)
+    ix_S_simid = _get_ix_S_simid(ixdynamic_simid, split_over_conditions, model_info)
     sol = simulation_info.odesols_derivatives[cid]
 
     # Partial derivatives needed for computing the gradient (derived from the chain-rule)
@@ -67,14 +69,22 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic_tot::Vector{T},
         u .= sol[:, it] .|> SBMLImporter._to_float
         istart = (smatrixindices_cid[it] - 1) * nstates + 1
         iend = istart + nstates - 1
-        _S = @view cache.S[istart:iend, ixdynamic_simid]
+        _S = @view cache.S[istart:iend, ix_S_simid]
         for imeasurement in imeasurements_t[cid][it]
             ∂G∂u!(∂G∂u, u, p, tsave, 1, [[imeasurement]])
             ∂G∂p!(∂G∂p, u, p, tsave, 1, [[imeasurement]])
-            @views forward_eqs_grad[ixdynamic_simid] .= transpose(_S) * ∂G∂u
+            @views forward_eqs_grad[ix_S_simid] .= transpose(_S) * ∂G∂u
             _jac = @view jac[:, imeasurement]
+            # In contrast to gradient functions, need to compute gradient/sensitivity
+            # for neural-net pre-ODE parameters per time-point to retreive a correct
+            # Jacobian for Gauss-Newton
+            if split_over_conditions == true
+                ix = (length(ixdynamic_simid)+1):length(forward_eqs_grad)
+                cache.grad_nn_pre_ode_outputs .= forward_eqs_grad[ix]
+                _grad_nn_pre_ode!(_jac, simid, probinfo, model_info)
+            end
             grad_to_xscale!(_jac, forward_eqs_grad, ∂G∂p, xdynamic_tot, xindices, simid,
-                            sensitivites_AD = true)
+                            sensitivites_AD = true, nn_pre_ode = nn_pre_ode)
         end
     end
     return nothing

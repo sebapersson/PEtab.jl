@@ -7,6 +7,11 @@ function grad_adjoint!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode!::Funct
     PEtab.split_x!(x, xindices, cache; xdynamic_tot = true)
     @unpack xdynamic_grad, xnotode_grad = cache
 
+    # Get the Jacobians of Neural-Networks that set values for potential model parameters.
+    # By then taking the gradient on the output of these networks, and computing a vjp,
+    # the gradient can be computed rapidly via the chain-rule
+    PEtab._jac_nn_pre_ode!(probinfo)
+
     _grad_adjoint_xdynamic!(xdynamic_grad, probinfo, model_info; cids = cids)
     @views grad[xindices.xindices_dynamic[:xest_to_xdynamic]] .= xdynamic_grad
 
@@ -20,6 +25,9 @@ function grad_adjoint!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode!::Funct
     x_notode = @view x[xindices.xindices[:not_system]]
     ReverseDiff.gradient!(xnotode_grad, _nllh_not_solveode!, x_notode)
     @views grad[xindices.xindices[:not_system]] .= xnotode_grad
+
+    # Reset such that neural-nets pre ODE no longer have status of having been evaluated
+    PEtab._reset_nn_pre_ode!(probinfo)
     return nothing
 end
 
@@ -197,9 +205,19 @@ function _grad_adjoint_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnoise::V
     if simulation_info.has_pre_equilibration == false
         ForwardDiff.jacobian!(St0, model.u0!, sol.prob.u0, sol.prob.p)
         adjoint_grad .= dp .+ transpose(St0) * du
-        # In case we simulate to a stady state we need to compute a VJP.
+    # In case we simulate to a stady state we need to compute a VJP.
     else
         adjoint_grad .= dp .+ vjp_ss_cid(du)
+    end
+
+    # In adjoint_grad the derivatives for all parameters in oprob.p are stored, if a subset
+    # of these are the output of neural-net, they are the inner-derivative needed to
+    # compute the gradient of the neural-net. As usual, the outer Jacobian derivative has
+    # already been computed, so the only thing left is to combine them
+    if !isempty(xindices.xids[:nn_pre_ode_outputs])
+        ix = xindices.map_odeproblem.sys_to_nn_pre_ode_output
+        cache.grad_nn_pre_ode_outputs .= adjoint_grad[ix]
+        PEtab._grad_nn_pre_ode!(grad, simid, probinfo, model_info)
     end
 
     # Adjust if gradient is non-linear scale (e.g. log and log10).

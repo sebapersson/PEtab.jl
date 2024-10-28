@@ -364,7 +364,8 @@ function _get_map_observable_noise(xids::Vector{Symbol},
 end
 
 function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nn::Union{Dict, Nothing})::MapODEProblem
-    dynamic_to_sys, sys_to_dynamic, sys_to_dynamic_nn = Int32[], Int32[], Int32[]
+    dynamic_to_sys, sys_to_dynamic = Int32[], Int32[]
+    sys_to_dynamic_nn, sys_to_nn_pre_ode_output = Int32[], Int32[]
     isys = 1
     for (i, id_xdynmaic) in pairs(xids[:dynamic_mech])
         for id_sys in xids[:sys]
@@ -375,6 +376,21 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nn::Union{Dict,
             if id_sys == id_xdynmaic
                 push!(dynamic_to_sys, i)
                 push!(sys_to_dynamic, isys)
+                break
+            end
+            isys += 1
+        end
+        isys = 1
+    end
+    isys = 1
+    for id_nn_output in xids[:nn_pre_ode_outputs]
+        for id_sys in xids[:sys]
+            if id_sys in xids[:nn]
+                isys += _get_n_net_parameters(nn, [id_sys])
+                continue
+            end
+            if id_sys == id_nn_output
+                push!(sys_to_nn_pre_ode_output, isys)
                 break
             end
             isys += 1
@@ -393,7 +409,7 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nn::Union{Dict,
     dynamic_to_sys = findall(x -> x in xids[:sys], xids[:dynamic_mech]) |> Vector{Int64}
     ids = xids[:dynamic_mech][dynamic_to_sys]
     sys_to_dynamic = Int64[findfirst(x -> x == id, xids[:sys]) for id in ids]
-    return MapODEProblem(sys_to_dynamic, dynamic_to_sys, sys_to_dynamic_nn)
+    return MapODEProblem(sys_to_dynamic, dynamic_to_sys, sys_to_dynamic_nn, sys_to_nn_pre_ode_output)
 end
 
 function _get_condition_maps(sys, parametermap, speciemap,

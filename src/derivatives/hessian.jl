@@ -111,7 +111,7 @@ function hess_block_split!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Fu
     fill!(hess, 0.0)
     for (i, cid) in pairs(simulation_info.conditionids[:experiment])
         simid = simulation_info.conditionids[:simulation][i]
-        ixdynamic_simid = _get_ixdynamic_simid(simid, xindices)
+        ixdynamic_simid = _get_ixdynamic_simid(simid, xindices; nn_pre_ode = true)
         xinput = x[ixdynamic_simid]
 
         hess_tmp = zeros(eltype(x), length(xinput), length(xinput))
@@ -153,6 +153,11 @@ function hess_GN!(out::Matrix{T}, x::Vector{T}, _residuals_not_solveode::Functio
     cache = probinfo.cache
     @unpack jacobian_gn, residuals_gn = cache
 
+    # See comment in gradient.jl on Jacobian of neural-net
+    if probinfo.split_over_conditions == true
+        _jac_nn_pre_ode!(probinfo)
+    end
+
     fill!(out, 0.0)
     fill!(jacobian_gn, 0.0)
     split_x!(x, xindices, cache; xdynamic_tot = true)
@@ -176,5 +181,7 @@ function hess_GN!(out::Matrix{T}, x::Vector{T}, _residuals_not_solveode::Functio
     else
         out .= jacobian_gn
     end
+    # Reset such that neural-nets pre ODE no longer have status of having been evaluated
+    _reset_nn_pre_ode!(probinfo)
     return nothing
 end

@@ -51,6 +51,16 @@ function PEtab._grad_forward_eqs_cond!(grad::Vector{T}, xdynamic_tot::Vector{T},
         ∂G∂p .+= ∂G∂p_
     end
 
+    # In _grad the derivatives for all parameters in oprob.p are stored, if a subset
+    # of these are the output of neural-net, they are the inner-derivative needed to
+    # compute the gradient of the neural-net. As usual, the outer Jacobian derivative has
+    # already been computed, so the only thing left is to combine them
+    if !isempty(xindices.xids[:nn_pre_ode_outputs])
+        ix = xindices.map_odeproblem.sys_to_nn_pre_ode_output
+        cache.grad_nn_pre_ode_outputs .= _grad[ix]
+        PEtab._grad_nn_pre_ode!(grad, simid, probinfo, model_info)
+    end
+
     # Adjust if gradient is non-linear scale (e.g. log and log10). TODO: Refactor
     # this function later
     PEtab.grad_to_xscale!(grad, _grad, ∂G∂p, xdynamic_tot, xindices, simid,

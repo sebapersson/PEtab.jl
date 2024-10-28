@@ -1,6 +1,6 @@
 function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
                               FIM_method::Symbol, sensealg, model_info::ModelInfo,
-                              nn::Union{Dict, Nothing},
+                              nn::Union{Dict, Nothing}, split_over_conditions::Bool,
                               oprob::ODEProblem)::PEtabODEProblemCache
     @unpack xindices, model, simulation_info, petab_measurements = model_info
     nxestimate = length(xindices.xids[:estimate])
@@ -90,23 +90,18 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
     end
 
     # In case the sensitivites are computed via automatic differentitation we need to
-    # pre-allocate a sensitivity matrix accross all conditions
+    # pre-allocate a sensitivity matrix accross all conditions.
     forward_eqs_AD = gradient_method === :ForwardEquations && sensealg === :ForwardDiff
+    nx_forwardeqs = _get_nx_forwardeqs(xindices, split_over_conditions)
     if forward_eqs_AD || GN_hess
         ntimepoints_save = simulation_info.tsaves |> values .|> length |> sum
-        S = zeros(Float64, ntimepoints_save * nstates, nxdynamic_tot)
+        S = zeros(Float64, ntimepoints_save * nstates, nx_forwardeqs)
+        forward_eqs_grad = zeros(Float64, nx_forwardeqs)
         odesols = zeros(Float64, nstates, ntimepoints_save)
     else
         S = zeros(Float64, 0, 0)
-        odesols = zeros(Float64, 0, 0)
-    end
-
-    # For Gauss-Newton or Forward-Equations approach when acumulating the xdynamic
-    # gradient, it is of size xdynamic
-    if gradient_method === :ForwardEquations || GN_hess
-        forward_eqs_grad = zeros(Float64, length(_xdynamic_tot))
-    else
         forward_eqs_grad = zeros(Float64, 0)
+        odesols = zeros(Float64, 0, 0)
     end
 
     # For Gauss-Newton the model residuals are computed
@@ -171,4 +166,14 @@ end
 
 function _get_nxdynamic(xindices::ParameterIndices)::Int64
     return length(xindices.xindices_dynamic[:xest_to_xdynamic])
+end
+
+function _get_nx_forwardeqs(xindices::ParameterIndices, split_over_conditions::Bool)::Int64
+    if split_over_conditions == false
+        return length(xindices.xindices_dynamic[:xest_to_xdynamic])
+    else
+        return (length(xindices.xindices_dynamic[:xdynamic_to_mech]) +
+                length(xindices.xindices_dynamic[:nn_in_ode]) +
+                length(xindices.xids[:nn_pre_ode_outputs]))
+    end
 end

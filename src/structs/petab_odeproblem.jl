@@ -35,6 +35,7 @@ struct MapODEProblem
     sys_to_dynamic::Vector{Int32}
     dynamic_to_sys::Vector{Int32}
     sys_to_dynamic_nn::Vector{Int32}
+    sys_to_nn_pre_ode_output::Vector{Int32}
 end
 
 struct NNPreODEMap

@@ -44,7 +44,7 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
 
     # Cache to avoid allocations to as large degree as possible.
     cache = PEtabODEProblemCache(gradient_method_use, hessian_method_use, FIM_method_use,
-                                 sensealg_use, model_info, model.nn, oprob)
+                                 sensealg_use, model_info, model.nn, split_use, oprob)
 
     # To build the steady-state solvers the ODEProblem (specifically its Jacobian)
     # is needed (which is the same for oprob and oprob_gradient). Not yet comptiable with

@@ -80,7 +80,7 @@ function solve_conditions!(model_info::ModelInfo, xdynamic::AbstractVector, xnn:
                 return false
             end
 
-            # ODE solution without pre-equlibrium
+        # ODE solution without pre-equlibrium
         else
             try
                 odesols[cid] = solve_no_pre_equlibrium(oprob_cid, osolver, simulation_info,

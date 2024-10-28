@@ -210,7 +210,7 @@ function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices;
                          xindices.xindices_dynamic[:nn_in_ode],
                          xindices.xindices[:not_system])
     end
-    if nn_pre_ode == true
+    if nn_pre_ode == true || full_x == true
         ixdynamic = vcat(ixdynamic, xindices.xindices_dynamic[:nn_pre_ode])
     end
     return unique(ixdynamic)
