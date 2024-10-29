@@ -96,11 +96,11 @@ struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
     xdynamic_mech::T2
     xnoise::T2
     xobservable::T2
-    xnondynamic::T2
+    xnondynamic_mech::T2
     xdynamic_ps::T2
     xnoise_ps::T2
     xobservable_ps::T2
-    xnondynamic_ps::T2
+    xnondynamic_mech_ps::T2
     xdynamic_grad::T1
     xnotode_grad::T1
     jacobian_gn::T4

@@ -41,8 +41,8 @@ end
 
 function split_x(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache)
     split_x!(x, xindices, cache)
-    @unpack xdynamic_mech, xobservable, xnoise, xnondynamic = cache
-    return get_tmp(xdynamic_mech, x), get_tmp(xobservable, x), get_tmp(xnoise, x), get_tmp(xnondynamic, x), cache.xnn_dict
+    @unpack xdynamic_mech, xobservable, xnoise, xnondynamic_mech = cache
+    return get_tmp(xdynamic_mech, x), get_tmp(xobservable, x), get_tmp(xnoise, x), get_tmp(xnondynamic_mech, x), cache.xnn_dict
 end
 
 function split_x!(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache; xdynamic_tot::Bool = false)::Nothing
@@ -53,8 +53,8 @@ function split_x!(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODE
     xobservable .= @view x[xi[:observable]]
     xnoise = get_tmp(cache.xnoise, x)
     xnoise = @view x[xi[:noise]]
-    xnondynamic = get_tmp(cache.xnondynamic, x)
-    xnondynamic = @view x[xi[:nondynamic]]
+    xnondynamic_mech = get_tmp(cache.xnondynamic_mech, x)
+    xnondynamic_mech = @view x[xi[:nondynamic_mech]]
     for (netid, xnn) in cache.xnn
         _xnn = get_tmp(xnn, x)
         _xnn .= @view x[xi[netid]]
@@ -71,6 +71,7 @@ function split_xdynamic(xdynamic::AbstractVector, xindices::ParameterIndices, ca
     xdynamic_mech = get_tmp(cache.xdynamic_mech, xdynamic)
     xdynamic_mech .= @view xdynamic[xindices.xindices_dynamic[:xdynamic_to_mech]]
     for (netid, xnn) in cache.xnn
+        netid in xindices.xids[:nn_nondynamic] && continue
         _xnn = get_tmp(xnn, xdynamic)
         _xnn .= @view xdynamic[xindices.xindices_dynamic[netid]]
         cache.xnn_dict[netid] = _xnn
@@ -94,9 +95,9 @@ function transform_x(x::AbstractVector, xindices::ParameterIndices, whichx::Symb
     elseif whichx === :xnoise
         xids = xindices.xids[:noise]
         x_ps = get_tmp(cache.xnoise_ps, x)
-    elseif whichx === :xnondynamic
-        xids = xindices.xids[:nondynamic]
-        x_ps = get_tmp(cache.xnondynamic_ps, x)
+    elseif whichx === :xnondynamic_mech
+        xids = xindices.xids[:nondynamic_mech]
+        x_ps = get_tmp(cache.xnondynamic_mech_ps, x)
     elseif whichx === :xobservable
         xids = xindices.xids[:observable]
         x_ps = get_tmp(cache.xobservable_ps, x)
@@ -144,23 +145,17 @@ function transform_observable(val::T, transform::Symbol)::T where {T <: Real}
     end
 end
 
-function _sd(u::AbstractVector, t::Float64, p::AbstractVector, xnoise::T, xnondynamic::T,
-             petab_sd::Function, mapxnoise::ObservableNoiseMap, observable_id::Symbol,
-             nominal_values::Vector{Float64})::Real where {T <: AbstractVector}
+function _sd(u::AbstractVector, t::Float64, p::AbstractVector, xnoise::T, xnondynamic_mech::T, xnn::Dict{Symbol, ComponentArray}, petab_sd::Function, mapxnoise::ObservableNoiseMap, observable_id::Symbol, nominal_values::Vector{Float64}, nn)::Real where {T <: AbstractVector}
     if mapxnoise.single_constant == true
         σ = mapxnoise.constant_values[1]
     else
-        σ = petab_sd(u, t, p, xnoise, xnondynamic, nominal_values, observable_id, mapxnoise)
+        σ = petab_sd(u, t, p, xnoise, xnondynamic_mech, xnn, nominal_values, observable_id, mapxnoise, nn)
     end
     return σ
 end
 
-function _h(u::AbstractVector, t::Float64, p::AbstractVector, xobservable::T,
-            xnondynamic::T, petab_h::Function, mapxobservable::ObservableNoiseMap,
-            observable_id::Symbol,
-            nominal_values::Vector{Float64})::Real where {T <: AbstractVector}
-    return petab_h(u, t, p, xobservable, xnondynamic, nominal_values, observable_id,
-                   mapxobservable)
+function _h(u::AbstractVector, t::Float64, p::AbstractVector, xobservable::T, xnondynamic_mech::T, xnn::Dict{Symbol, ComponentArray}, petab_h::Function, mapxobservable::ObservableNoiseMap, observable_id::Symbol, nominal_values::Vector{Float64}, nn)::Real where {T <: AbstractVector}
+    return petab_h(u, t, p, xobservable, xnondynamic_mech, xnn, nominal_values, observable_id, mapxobservable, nn)
 end
 
 # Function to extract observable or noise parameters when computing h or σ
@@ -208,7 +203,7 @@ function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices;
     else
         ixdynamic = vcat(xindices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic,
                          xindices.xindices_dynamic[:nn_in_ode],
-                         xindices.xindices[:not_system])
+                         xindices.xindices[:not_system_tot])
     end
     if nn_pre_ode == true || full_x == true
         ixdynamic = vcat(ixdynamic, xindices.xindices_dynamic[:nn_pre_ode])

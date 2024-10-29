@@ -1,10 +1,10 @@
 function parse_observables(modelname::String, paths::Dict{Symbol, String}, sys::ModelSystem,
                            observables_df::DataFrame, xindices::ParameterIndices, speciemap,
-                           model_SBML::SBMLImporter.ModelSBML,
+                           model_SBML::SBMLImporter.ModelSBML, mapping_table::DataFrame,
                            write_to_file::Bool)::NTuple{4, String}
     state_ids = _get_state_ids(sys)
 
-    _hstr = _parse_h(state_ids, xindices, observables_df, model_SBML)
+    _hstr = _parse_h(state_ids, xindices, observables_df, model_SBML, mapping_table)
     _σstr = _parse_σ(state_ids, xindices, observables_df, model_SBML)
     _u0str = _parse_u0(speciemap, state_ids, xindices, model_SBML, false)
     _u0!str = _parse_u0(speciemap, state_ids, xindices, model_SBML, true)
@@ -19,19 +19,23 @@ function parse_observables(modelname::String, paths::Dict{Symbol, String}, sys::
 end
 
 function _parse_h(state_ids::Vector{String}, xindices::ParameterIndices,
-                  observables_df::DataFrame, model_SBML::SBMLImporter.ModelSBML)::String
+                  observables_df::DataFrame, model_SBML::SBMLImporter.ModelSBML,
+                  mapping_table::DataFrame)::String
     hstr = "function compute_h(u::AbstractVector, t::Real, p::AbstractVector, \
-            xobservable::AbstractVector, xnondynamic::AbstractVector, \
+            xobservable::AbstractVector, xnondynamic_mech::AbstractVector, xnn, \
             nominal_values::Vector{Float64}, obsid::Symbol, \
-            map::ObservableNoiseMap)::Real\n"
+            map::ObservableNoiseMap, nn)::Real\n"
 
     observable_ids = string.(observables_df[!, :observableId])
     for (i, obsid) in pairs(observable_ids)
         formula = filter(x -> !isspace(x), observables_df[i, :observableFormula] |> string)
         formula = _parse_formula(formula, state_ids, xindices, model_SBML, :observable)
         obs_parameters = _get_observable_parameters(formula)
+        formulas_nn = _get_formulas_nn(formula, mapping_table, state_ids, xindices,
+                                       model_SBML, :observable)
         hstr *= "\tif obsid == :$(obsid)\n"
         hstr *= _template_obs_sd_parameters(obs_parameters; obs = true)
+        hstr *= formulas_nn
         hstr *= "\t\treturn $formula \n"
         hstr *= "\tend\n"
     end
@@ -42,9 +46,9 @@ end
 function _parse_σ(state_ids::Vector{String}, xindices::ParameterIndices,
                   observables_df::DataFrame, model_SBML::SBMLImporter.ModelSBML)::String
     σstr = "function compute_σ(u::AbstractVector, t::Real, p::AbstractVector, \
-            xnoise::AbstractVector, xnondynamic::AbstractVector, \
+            xnoise::AbstractVector, xnondynamic_mech::AbstractVector, xnn, \
             nominal_values::Vector{Float64}, obsid::Symbol, \
-            map::ObservableNoiseMap)::Real\n"
+            map::ObservableNoiseMap, nn)::Real\n"
 
     # Write the formula for standard deviations to file
     observable_ids = string.(observables_df[!, :observableId])
@@ -132,19 +136,9 @@ function _parse_formula(formula::String, state_ids::Vector{String},
         formula = SBMLImporter._inline_assignment_rules(formula, model_SBML)
     end
     if type == :observable
-        ids_replace = [
-            :observable => "xobservable",
-            :sys => "p",
-            :nondynamic => "xnondynamic",
-            :petab => "nominal_values"
-        ]
+        ids_replace = [:observable => "xobservable", :sys => "p", :nondynamic_mech => "xnondynamic_mech", :petab => "nominal_values"]
     elseif type == :noise
-        ids_replace = [
-            :noise => "xnoise",
-            :sys => "p",
-            :nondynamic => "xnondynamic",
-            :petab => "nominal_values"
-        ]
+        ids_replace = [:noise => "xnoise", :sys => "p", :nondynamic_mech => "xnondynamic_mech", :petab => "nominal_values"]
     elseif type == :u0
         ids_replace = [:sys => "p"]
     end
@@ -162,5 +156,31 @@ function _parse_formula(formula::String, state_ids::Vector{String},
     else
         formula = SBMLImporter._replace_variable(formula, "time", "t")
     end
+    return formula
+end
+
+function _get_formulas_nn(formula, mapping_table::DataFrame, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, type::Symbol)::String
+    formula_nn = ""
+    for netid in unique(mapping_table[!, :netId])
+        outputs = _get_net_values(mapping_table, Symbol(netid), :outputs)
+        has_nn_output = false
+        for output in outputs
+            if SBMLImporter._replace_variable(formula, output, "") != formula
+                has_nn_output = true
+            end
+        end
+        has_nn_output == false && continue
+        formula_nn *= _template_nn_formula(Symbol(netid), mapping_table, state_ids, xindices, model_SBML, type)
+    end
+    return formula_nn
+end
+
+function _template_nn_formula(netid::Symbol, mapping_table::DataFrame, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, type::Symbol)::String
+    inputs = "[" * prod(_get_net_values(mapping_table, netid, :inputs) .* ",") * "]"
+    inputs = _parse_formula(inputs, state_ids, xindices, model_SBML, type)
+    outputs = prod(_get_net_values(mapping_table, netid, :outputs) .* ", ")
+    formula = "\n\t\tst_$(netid), net_$(netid) = nn[:$(netid)]\n"
+    formula *= "\t\txnn_$(netid) = xnn[:p_$(netid)]\n"
+    formula *= "\t\t$(outputs) = net_$(netid)($inputs, xnn_$(netid), st_$(netid))[1]\n"
     return formula
 end

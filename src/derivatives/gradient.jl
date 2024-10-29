@@ -59,9 +59,9 @@ function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fun
     end
 
     # None-dynamic parameter not part of ODE (only need an ODE solution for gradient)
-    x_notode = @view x[xindices.xindices[:not_system]]
+    x_notode = @view x[xindices.xindices[:not_system_tot]]
     ForwardDiff.gradient!(xnotode_grad, _nllh_not_solveode, x_notode)
-    @views grad[xindices.xindices[:not_system]] .= xnotode_grad
+    @views grad[xindices.xindices[:not_system_tot]] .= xnotode_grad
     return nothing
 end
 
@@ -114,9 +114,9 @@ function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveod
     end
     @views grad[xindices.xindices_dynamic[:xest_to_xdynamic]] .= cache.xdynamic_grad
 
-    x_notode = @view x[xindices.xindices[:not_system]]
+    x_notode = @view x[xindices.xindices[:not_system_tot]]
     ForwardDiff.gradient!(xnotode_grad, _nllh_not_solveode, x_notode)
-    @views grad[xindices.xindices[:not_system]] .= xnotode_grad
+    @views grad[xindices.xindices[:not_system_tot]] .= xnotode_grad
 
     # Reset such that neural-nets pre ODE no longer have status of having been evaluated
     _reset_nn_pre_ode!(probinfo)
@@ -151,9 +151,9 @@ function grad_forward_eqs!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fu
     end
 
     # None-dynamic parameter not part of ODE (only need an ODE solution for gradient)
-    x_notode = @view x[xindices.xindices[:not_system]]
+    x_notode = @view x[xindices.xindices[:not_system_tot]]
     ForwardDiff.gradient!(cache.xnotode_grad, _nllh_not_solveode, x_notode)
-    @views grad[xindices.xindices[:not_system]] .= cache.xnotode_grad
+    @views grad[xindices.xindices[:not_system_tot]] .= cache.xnotode_grad
 
     # Reset such that neural-nets pre ODE no longer have status of having been evaluated
     _reset_nn_pre_ode!(probinfo)

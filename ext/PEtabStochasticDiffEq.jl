@@ -7,7 +7,7 @@ using ComponentArrays
 
 function PEtab.llh(u::AbstractVector, p, it::Int64,
                    measurements_info::PEtab.MeasurementsInfo)::Float64
-    @unpack xobservables, xnoise, xnondynamic, nominal_values, obsids, h, sd,
+    @unpack xobservables, xnoise, xnondynamic_mech, nominal_values, obsids, h, sd,
     mapxnoise, mapxobservable, measurements, imeasurements_t,
     measurement_transforms = measurements_info
     t, nllh = measurements_info.t[it], 0.0
@@ -15,10 +15,10 @@ function PEtab.llh(u::AbstractVector, p, it::Int64,
         y = measurements[it][j]
         obsid = obsids[imeasurement]
 
-        h = PEtab._h(u, t, p, xobservables, xnondynamic, measurements_info.h,
+        h = PEtab._h(u, t, p, xobservables, xnondynamic_mech, measurements_info.h,
                      mapxnoise[imeasurement], obsid, nominal_values)
         h_transformed = PEtab.transform_observable(h, measurement_transforms[imeasurement])
-        σ = PEtab._sd(u, t, p, xnoise, xnondynamic, measurements_info.sd,
+        σ = PEtab._sd(u, t, p, xnoise, xnondynamic_mech, measurements_info.sd,
                       mapxobservable[imeasurement], obsid, nominal_values)
 
         residual = (h_transformed - y) / σ
@@ -71,15 +71,15 @@ end
 function PEtab._set_x_measurements_info!(prob::PEtab.PEtabSDEProblem, x)::Nothing
     xindices = prob.model_info.xindices
     measurements_info = prob.measurements_info
-    _, xobservable, xnoise, xnondynamic = PEtab.split_x(x, xindices)
+    _, xobservable, xnoise, xnondynamic_mech = PEtab.split_x(x, xindices)
 
     xnoise_ps = PEtab.transform_x(xnoise[:], xindices.xids[:noise], xindices)
     xobservable_ps = PEtab.transform_x(xobservable[:], xindices.xids[:observable], xindices)
-    xnondynamic_ps = PEtab.transform_x(xnondynamic[:], xindices.xids[:nondynamic], xindices)
+    xnondynamic_mech_ps = PEtab.transform_x(xnondynamic_mech[:], xindices.xids[:nondynamic_mech], xindices)
 
     measurements_info.xnoise .= xnoise_ps
     measurements_info.xobservables .= xobservable_ps
-    measurements_info.xnondynamic .= xnondynamic_ps
+    measurements_info.xnondynamic_mech .= xnondynamic_mech_ps
     return nothing
 end
 

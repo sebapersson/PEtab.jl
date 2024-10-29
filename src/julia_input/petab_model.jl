@@ -44,12 +44,8 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
                         :observables => observables_df, :measurements => measurements_df)
     # A mapping table is only needed for models where a neural network sets the values for
     # the model parameters
-    if !isnothing(mapping_table)
-        mapping_df = _mapping_to_table(mapping_table)
-        petab_tables[:mapping_table] = mapping_df
-    else
-        petab_tables[:mapping_table] = DataFrame()
-    end
+    mapping_df = !isnothing(mapping_table) ? _mapping_to_table(mapping_table) : DataFrame()
+    petab_tables[:mapping_table] = mapping_df
 
     # Build the initial value map (initial values as parameters are set in the reaction sys_mutated)
     sys_mutated = deepcopy(sys)
@@ -68,7 +64,7 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
         hstr, u0!str, u0str, σstr = parse_observables(name, Dict{Symbol, String}(),
                                                       sys_mutated, observables_df,
                                                       xindices, speciemap_use, model_SBML,
-                                                      false)
+                                                      mapping_df, false)
         compute_h = @RuntimeGeneratedFunction(Meta.parse(hstr))
         compute_u0! = @RuntimeGeneratedFunction(Meta.parse(u0!str))
         compute_u0 = @RuntimeGeneratedFunction(Meta.parse(u0str))

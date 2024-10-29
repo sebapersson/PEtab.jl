@@ -141,15 +141,15 @@ function _get_observable(x, prob::PEtabODEProblem, cid::String, obsid::String)
         # For smooth trajectory must solve ODE and compute the observable function
         if smooth_sol == true
             PEtab.split_x!(x, model_info.xindices, probinfo.cache)
-            @unpack xobservable, xnondynamic = probinfo.cache
+            @unpack xobservable, xnondynamic_mech = probinfo.cache
             xobservable_ps = PEtab.transform_x(xobservable, model_info.xindices,
                                                :xobservable, probinfo.cache)
-            xnondynamic_ps = PEtab.transform_x(xnondynamic, model_info.xindices,
-                                               :xnondynamic, probinfo.cache)
+            xnondynamic_mech_ps = PEtab.transform_x(xnondynamic_mech, model_info.xindices,
+                                               :xnondynamic_mech, probinfo.cache)
             _h_model = similar(sol.t)
             for (i, t) in pairs(sol.t)
                 u = sol[:, i]
-                h = PEtab._h(u, t, sol.prob.p, xobservable_ps, xnondynamic_ps,
+                h = PEtab._h(u, t, sol.prob.p, xobservable_ps, xnondynamic_mech_ps,
                              model_info.model.h, mapxobservables[1],
                              Symbol(obsid), collect(prob.xnominal))
                 push!(h_model, h)

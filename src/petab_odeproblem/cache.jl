@@ -25,16 +25,16 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
     _xdynamic_mech = zeros(Float64, length(xindices.xids[:dynamic_mech]))
     _xobservable = zeros(Float64, length(xindices.xids[:observable]))
     _xnoise = zeros(Float64, length(xindices.xids[:noise]))
-    _xnondynamic = zeros(Float64, length(xindices.xids[:nondynamic]))
+    _xnondynamic_mech = zeros(Float64, length(xindices.xids[:nondynamic_mech]))
     xdynamic_mech = DiffCache(similar(_xdynamic_mech), chunksize, levels = level_cache)
     xobservable = DiffCache(similar(_xobservable), chunksize, levels = level_cache)
     xnoise = DiffCache(similar(_xnoise), chunksize, levels = level_cache)
-    xnondynamic = DiffCache(similar(_xnondynamic), chunksize, levels = level_cache)
+    xnondynamic_mech = DiffCache(similar(_xnondynamic_mech), chunksize, levels = level_cache)
     # Parameters on parameter-scale
     xdynamic_mech_ps = DiffCache(similar(_xdynamic_mech), chunksize, levels = level_cache)
     xobservable_ps = DiffCache(similar(_xobservable), chunksize, levels = level_cache)
     xnoise_ps = DiffCache(similar(_xnoise), chunksize, levels = level_cache)
-    xnondynamic_ps = DiffCache(similar(_xnondynamic), chunksize, levels = level_cache)
+    xnondynamic_mech_ps = DiffCache(similar(_xnondynamic_mech), chunksize, levels = level_cache)
 
     # Parameters for potential neural-networks
     xnn = Dict{Symbol, DiffCache}()
@@ -58,7 +58,7 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
 
     # Arrays needed in gradient compuations
     xdynamic_grad = zeros(Float64, nxdynamic_tot)
-    xnotode_grad = zeros(Float64, length(xindices.xids[:not_system]))
+    xnotode_grad = zeros(Float64, length(xindices.xindices[:not_system_tot]))
     # For forward sensitivity equations and adjoint sensitivity analysis partial
     # derivatives are computed symbolically
     symbolic_needed_grads = gradient_method in [:Adjoint, :ForwardEquations]
@@ -106,7 +106,8 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
 
     # For Gauss-Newton the model residuals are computed
     if GN_hess
-        jacobian_gn = zeros(Float64, nxdynamic_tot, length(petab_measurements.time))
+        nxtot = nxdynamic_tot + length(xindices.xindices[:not_system_tot])
+        jacobian_gn = zeros(Float64, nxtot, length(petab_measurements.time))
         residuals_gn = zeros(Float64, length(petab_measurements.time))
     else
         jacobian_gn = zeros(Float64, (0, 0))
@@ -155,8 +156,8 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
         end
     end
 
-    return PEtabODEProblemCache(xdynamic_mech, xnoise, xobservable, xnondynamic, xdynamic_mech_ps,
-                                xnoise_ps, xobservable_ps, xnondynamic_ps, xdynamic_grad,
+    return PEtabODEProblemCache(xdynamic_mech, xnoise, xobservable, xnondynamic_mech, xdynamic_mech_ps,
+                                xnoise_ps, xobservable_ps, xnondynamic_mech_ps, xdynamic_grad,
                                 xnotode_grad, jacobian_gn, residuals_gn, forward_eqs_grad,
                                 adjoint_grad, St0, ∂h∂u, ∂σ∂u, ∂h∂p, ∂σ∂p, ∂G∂p, ∂G∂p_,
                                 ∂G∂u, dp, du, p, u, S, odesols, pode, u0ode,

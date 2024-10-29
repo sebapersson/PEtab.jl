@@ -11,7 +11,7 @@ struct MeasurementsInfo
     obsids::Vector{Symbol}
     xobservables::Vector{Float64}
     xnoise::Vector{Float64}
-    xnondynamic::Vector{Float64}
+    xnondynamic_mech::Vector{Float64}
     nominal_values::Vector{Float64}
     mapxnoise::Vector{PEtab.ObservableNoiseMap}
     mapxobservable::Vector{PEtab.ObservableNoiseMap}
@@ -24,7 +24,7 @@ function MeasurementsInfo(model_info::PEtab.ModelInfo, cid::Symbol)
     @unpack xids, mapxnoise, mapxobservable = xindices
     xobservables = zeros(Float64, length(xids[:observable]))
     xnoise = zeros(Float64, length(xids[:noise]))
-    xnondynamic = zeros(Float64, length(xids[:nondynamic]))
+    xnondynamic_mech = zeros(Float64, length(xids[:nondynamic_mech]))
 
     @unpack measurement_transforms, observable_id, measurement_transformed = petab_measurements
     nominval_value = model_info.petab_parameters.nominal_value
@@ -39,7 +39,7 @@ function MeasurementsInfo(model_info::PEtab.ModelInfo, cid::Symbol)
         end
     end
     return MeasurementsInfo(t, measurements, imeasurements_t, observable_id, xobservables,
-                            xnoise, xnondynamic, nominval_value, mapxnoise, mapxobservable,
+                            xnoise, xnondynamic_mech, nominval_value, mapxnoise, mapxobservable,
                             measurement_transforms, h, sd)
 end
 

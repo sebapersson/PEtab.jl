@@ -22,9 +22,9 @@ function grad_adjoint!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode!::Funct
     end
 
     # None-dynamic parameter not part of ODE (only need an ODE solution for gradient)
-    x_notode = @view x[xindices.xindices[:not_system]]
+    x_notode = @view x[xindices.xindices[:not_system_tot]]
     ReverseDiff.gradient!(xnotode_grad, _nllh_not_solveode!, x_notode)
-    @views grad[xindices.xindices[:not_system]] .= xnotode_grad
+    @views grad[xindices.xindices[:not_system_tot]] .= xnotode_grad
 
     # Reset such that neural-nets pre ODE no longer have status of having been evaluated
     PEtab._reset_nn_pre_ode!(probinfo)
@@ -37,10 +37,10 @@ function _grad_adjoint_xdynamic!(grad::Vector{<:AbstractFloat},
                                  cids::Vector{Symbol} = [:all])::Nothing
     @unpack cache, sensealg, sensealg_ss = probinfo
     @unpack xindices, simulation_info = model_info
-    xnoise, xobservable, xnondynamic, xdynamic = PEtab._get_x_not_nn(cache, 1.0)
+    xnoise, xobservable, xnondynamic_mech, xdynamic = PEtab._get_x_not_nn(cache, 1.0)
     xnoise_ps = PEtab.transform_x(xnoise, xindices, :xnoise, cache)
     xobservable_ps = PEtab.transform_x(xobservable, xindices, :xobservable, cache)
-    xnondynamic_ps = PEtab.transform_x(xnondynamic, xindices, :xnondynamic, cache)
+    xnondynamic_mech_ps = PEtab.transform_x(xnondynamic_mech, xindices, :xnondynamic_mech, cache)
     xdynamic_tot_ps = PEtab.transform_x(xdynamic, xindices, :xdynamic_tot, cache)
 
     xdynamic_ps, xnn = PEtab.split_xdynamic(xdynamic_tot_ps, xindices, cache)
@@ -71,7 +71,7 @@ function _grad_adjoint_xdynamic!(grad::Vector{<:AbstractFloat},
         end
 
         success = _grad_adjoint_cond!(grad, xdynamic_tot_ps, xnoise_ps, xobservable_ps,
-                                      xnondynamic_ps, icid, probinfo, model_info,
+                                      xnondynamic_mech_ps, icid, probinfo, model_info,
                                       vjp_cid_ss)
         if success == false
             fill!(grad, 0.0)
@@ -148,7 +148,7 @@ function VJP_ss(du::AbstractVector, _sol::ODESolution, solver::SciMLAlgorithm,
 end
 
 function _grad_adjoint_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnoise::Vector{T},
-                             xobservable::Vector{T}, xnondynamic::Vector{T}, icid::Int64,
+                             xobservable::Vector{T}, xnondynamic_mech::Vector{T}, icid::Int64,
                              probinfo::PEtab.PEtabODEProblemInfo,
                              model_info::PEtab.ModelInfo,
                              vjp_ss_cid::Function)::Bool where {T <: AbstractFloat}
@@ -165,8 +165,7 @@ function _grad_adjoint_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnoise::V
     callback = tracked_callbacks[cid]
 
     # Partial derivatives needed for computing the gradient (derived from the chain-rule)
-    ∂G∂u!, ∂G∂p! = PEtab._get_∂G∂_!(probinfo, model_info, cid, xnoise, xobservable,
-                                    xnondynamic)
+    ∂G∂u!, ∂G∂p! = PEtab._get_∂G∂_!(model_info, cid, xnoise, xobservable, xnondynamic_mech, cache.xnn_dict)
 
     # The PEtab standard allow cases where we only observe data at t0, that is we do not
     # solve the ODE. Here adjoint_sensitivities fails (naturally). In this case we compute

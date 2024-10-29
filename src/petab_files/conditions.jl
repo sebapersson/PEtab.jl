@@ -44,7 +44,7 @@ function ParameterIndices(petab_parameters::PEtabParameters,
     # TODO: SII is going to make this much easier (but the reverse will be harder)
     xindices = _get_xindices(xids, nn)
     xindices_dynamic = _get_xindices_dynamic(xids, nn)
-    xindices_notsys = _get_xindices_notsys(xids)
+    xindices_notsys = _get_xindices_notsys(xids, nn)
     odeproblem_map = _get_odeproblem_map(xids, nn)
     condition_maps = _get_condition_maps(sys, parametermap, speciemap, petab_parameters,
                                          conditions_df, xids)
@@ -87,12 +87,13 @@ function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabM
     end
     xids_nn_in_ode = _get_xids_nn_in_ode(xids_nn, sys)
     xids_nn_pre_ode = _get_xids_nn_pre_ode(mapping_table, sys)
+    xids_nn_nondynamic = _get_xids_nn_nondynamic(xids_nn, xids_nn_in_ode, xids_nn_pre_ode)
     xids_observable = _get_xids_observable_noise(observable_parameters, petab_parameters)
     xids_noise = _get_xids_observable_noise(noise_parameters, petab_parameters)
-    xids_nondynamic = _get_xids_nondynamic(xids_observable, xids_noise, xids_nn_pre_ode, sys, petab_parameters, conditions_df)
-    xids_dynamic_mech = _get_xids_dynamic_mech(xids_observable, xids_noise, xids_nondynamic, xids_nn, petab_parameters)
+    xids_nondynamic_mech = _get_xids_nondynamic_mech_mech(xids_observable, xids_noise, xids_nn, sys, petab_parameters, conditions_df)
+    xids_dynamic_mech = _get_xids_dynamic_mech(xids_observable, xids_noise, xids_nondynamic_mech, xids_nn, petab_parameters)
 
-    xids_not_system = unique(vcat(xids_observable, xids_noise, xids_nondynamic))
+    xids_not_system = unique(vcat(xids_observable, xids_noise, xids_nondynamic_mech))
     xids_estimate = vcat(xids_dynamic_mech, xids_not_system, xids_nn)
     xids_petab = petab_parameters.parameter_id
 
@@ -104,11 +105,12 @@ function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabM
     xids_nn_pre_ode_output = _get_xids_nn_pre_ode_output(mapping_table, xids_sys)
 
     return Dict(:dynamic_mech => xids_dynamic_mech, :noise => xids_noise, :nn => xids_nn,
-                :observable => xids_observable, :nondynamic => xids_nondynamic,
-                :not_system => xids_not_system, :sys => xids_sys,
+                :observable => xids_observable, :nondynamic_mech => xids_nondynamic_mech,
+                :not_system_mech => xids_not_system, :sys => xids_sys,
                 :estimate => xids_estimate, :petab => xids_petab,
                 :nn_in_ode => xids_nn_in_ode, :nn_pre_ode => xids_nn_pre_ode,
-                :nn_pre_ode_outputs => xids_nn_pre_ode_output)
+                :nn_pre_ode_outputs => xids_nn_pre_ode_output,
+                :nn_nondynamic => xids_nn_nondynamic)
 end
 
 function _get_xindices(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Symbol, Vector{Int32}}
@@ -116,10 +118,10 @@ function _get_xindices(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Symbol, Vec
     xi_dynamic_mech = Int32[findfirst(x -> x == id, xids_est) for id in xids[:dynamic_mech]]
     xi_noise = Int32[findfirst(x -> x == id, xids_est) for id in xids[:noise]]
     xi_observable = Int32[findfirst(x -> x == id, xids_est) for id in xids[:observable]]
-    xi_nondynamic = Int32[findfirst(x -> x == id, xids_est) for id in xids[:nondynamic]]
-    xi_not_system = Int32[findfirst(x -> x == id, xids_est) for id in xids[:not_system]]
+    xi_nondynamic = Int32[findfirst(x -> x == id, xids_est) for id in xids[:nondynamic_mech]]
+    xi_not_system_mech = Int32[findfirst(x -> x == id, xids_est) for id in xids[:not_system_mech]]
     xindices = Dict(:dynamic_mech => xi_dynamic_mech, :noise => xi_noise, :observable => xi_observable,
-                    :nondynamic => xi_nondynamic, :not_system => xi_not_system)
+                    :nondynamic_mech => xi_nondynamic, :not_system_mech => xi_not_system_mech)
     # Each neural network input is in a sense its own parameter component, hence they need
     # to be treated separately.
     if !isnothing(nn)
@@ -131,6 +133,14 @@ function _get_xindices(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Symbol, Vec
             istart = xindices[pid][end]
         end
     end
+    xi_not_system_nn = Int32[]
+    if !isnothing(nn)
+        for pid in xids[:nn_nondynamic]
+            xi_not_system_nn = vcat(xi_not_system_nn, xindices[pid])
+        end
+    end
+    xindices[:not_system_nn] = xi_not_system_nn
+    xindices[:not_system_tot] = vcat(xi_not_system_mech, xi_not_system_nn)
     return xindices
 end
 
@@ -181,14 +191,21 @@ function _get_xindices_dynamic(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Sym
     return xindices
 end
 
-function _get_xindices_notsys(xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol,
-                                                                        Vector{Int32}}
-    ins = xids[:not_system]
+function _get_xindices_notsys(xids::Dict{Symbol, Vector{Symbol}},
+                              nn::Union{Nothing, Dict})::Dict{Symbol, Vector{Int32}}
+    ins = xids[:not_system_mech]
     ixnoise = Int32[findfirst(x -> x == id, ins) for id in xids[:noise]]
     ixobservable = Int32[findfirst(x -> x == id, ins) for id in xids[:observable]]
-    ixnondynamic = Int32[findfirst(x -> x == id, ins) for id in xids[:nondynamic]]
-    return Dict(:noise => ixnoise, :observable => ixobservable,
-                :nondynamic => ixnondynamic)
+    ixnondynamic_mech_mech = Int32[findfirst(x -> x == id, ins) for id in xids[:nondynamic_mech]]
+    xindices_notsys = Dict(:noise => ixnoise, :observable => ixobservable, :nondynamic_mech => ixnondynamic_mech_mech)
+    # Nondynamic neural-net parameters, mapping from nondynamic to neural nets
+    istart = length(ins)
+    for pid in xids[:nn_nondynamic]
+        np = _get_n_net_parameters(nn, [pid])
+        xindices_notsys[pid] = (istart+1):(istart + np)
+        istart += np
+    end
+    return xindices_notsys
 end
 
 function _get_xscales(xids::Dict{T, Vector{T}},
@@ -198,14 +215,14 @@ function _get_xscales(xids::Dict{T, Vector{T}},
     return Dict(xids[:estimate] .=> s)
 end
 
-function _get_xids_dynamic_mech(xids_observable::T, xids_noise::T, xids_nondynamic::T, xids_nn::T,
+function _get_xids_dynamic_mech(xids_observable::T, xids_noise::T, xids_nondynamic_mech::T, xids_nn::T,
                            petab_parameters::PEtabParameters)::T where {T <: Vector{Symbol}}
     dynamics_xids = Symbol[]
     for id in petab_parameters.parameter_id
         if _estimate_parameter(id, petab_parameters) == false
             continue
         end
-        if id in Iterators.flatten((xids_observable, xids_noise, xids_nondynamic, xids_nn))
+        if id in Iterators.flatten((xids_observable, xids_noise, xids_nondynamic_mech, xids_nn))
             continue
         end
         push!(dynamics_xids, id)
@@ -225,11 +242,29 @@ function _get_xids_nn_in_ode(xids_nn::Vector{Symbol}, sys)::Vector{Symbol}
     return xids_nn_in_ode
 end
 
-function _get_xids_nn_pre_ode(mapping_table, sys)::Vector{Symbol}
+function _get_xids_nn_pre_ode(mapping_table::DataFrame, sys::ModelSystem)::Vector{Symbol}
     !(sys isa ODEProblem) && return Symbol[]
     isempty(mapping_table) && return Symbol[]
-    netids_mapping = mapping_table[!, :netId] |> unique
-    return [Symbol("p_" * string(id)) for id in netids_mapping]
+    out = Symbol[]
+    for netid in unique(mapping_table[!, :netId])
+        outputs = _get_net_values(mapping_table, Symbol(netid), :outputs) .|> Symbol
+        if all([output in sys.p for output in outputs])
+            push!(out, Symbol("p_" * string(netid)))
+        end
+    end
+    return out
+end
+
+function _get_xids_nn_nondynamic(xids_nn::T, xids_nn_in_ode::T, xids_nn_pre_ode::T)::T where T <: Vector{Symbol}
+    # If a nn is not inside the ODE, or pre-ODE, it can only be present in the observable
+    # formula
+    out = Symbol[]
+    nnids = Iterators.flatten((xids_nn_in_ode, xids_nn_pre_ode))
+    for id in xids_nn
+        id in nnids && continue
+        push!(out, id)
+    end
+    return out
 end
 
 function _get_xids_nn_pre_ode_output(mapping_table::DataFrame, xids_sys::Vector{Symbol})::Vector{Symbol}
@@ -268,23 +303,21 @@ function _get_xids_observable_noise(values, petab_parameters::PEtabParameters)::
     return ids
 end
 
-function _get_xids_nondynamic(xids_observable::T, xids_noise::T, xids_nn_pre_ode::T, sys,
-                              petab_parameters::PEtabParameters,
-                              conditions_df::DataFrame)::T where {T <: Vector{Symbol}}
+function _get_xids_nondynamic_mech_mech(xids_observable::T, xids_noise::T, xids_nn::T, sys, petab_parameters::PEtabParameters, conditions_df::DataFrame)::T where {T <: Vector{Symbol}}
     xids_condition = _get_xids_condition(sys, petab_parameters, conditions_df)
     if sys isa ODEProblem
         xids_sys = keys(sys.p) |> collect
     else
         xids_sys = parameters(sys) .|> Symbol
     end
-    xids_nondynamic = Symbol[]
+    xids_nondynamic_mech = Symbol[]
     for id in petab_parameters.parameter_id
         _estimate_parameter(id, petab_parameters) == false && continue
-        _ids = Iterators.flatten((xids_sys, xids_condition, xids_observable, xids_noise, xids_nn_pre_ode))
+        _ids = Iterators.flatten((xids_sys, xids_condition, xids_observable, xids_noise, xids_nn))
         id in _ids && continue
-        push!(xids_nondynamic, id)
+        push!(xids_nondynamic_mech, id)
     end
-    return xids_nondynamic
+    return xids_nondynamic_mech
 end
 
 function _get_xids_condition(sys, petab_parameters::PEtabParameters,
@@ -627,11 +660,25 @@ function _check_mapping_table(mapping_table::Union{DataFrame, Nothing}, nn::Unio
                                    $io_id"))
         end
         # TODO: Add more stringent here (e.g. not allowed to estimate parameter)
-        io_value = Symbol(mapping_table[i, :ioValue])
-        if occursin("input", io_id) && !(io_value in petab_parameters.parameter_id)
-            throw(PEtabInputError("Input to neural net must be a PEtab parameter"))
-        elseif occursin("output", io_id) && !haskey(sys.p, io_value)
-            throw(PEtabInputError("Output to neural net must be an ODEModel parameter"))
+        outputs = _get_net_values(mapping_table, netid, :outputs) .|> Symbol
+        inputs = _get_net_values(mapping_table, netid, :inputs) .|> Symbol
+        # If the NN-output maps to ODEProblem parameters, the inputs must be PEtab
+        # parameters, as we have a nn_pre_ode case
+        state_ids = _get_state_ids(sys) .|> Symbol
+        model_variables = Iterators.flatten((state_ids, keys(sys.p), petab_parameters.parameter_id))
+        if all([output in sys.p for output in outputs])
+            if !all([input in petab_parameters.parameter_id for input in inputs])
+                throw(PEtabInputError("If mapping table output is ODEProblem parameters \
+                                       input must be a PEtabParameter, this does not hold \
+                                       for $inputs"))
+            end
+        # Case of neural net in the observable formula, in this case the inputs must be
+        # valid model variables
+        elseif !all([input in model_variables for input in inputs])
+            throw(PEtabInputError("If mapping table output is a parameter in the \
+                                   observable/sd formula, input must be a PEtabParameter, \
+                                   model specie, or model parameter. Does not hold for \
+                                   all inputs in $inputs"))
         end
     end
     return DataFrame(netId = Symbol.(mapping_table[!, :netId]),
@@ -645,14 +692,9 @@ function _get_nn_pre_ode_maps(conditions_df::DataFrame, map_odeproblem::MapODEPr
                               xindices_dynamic, mapping_table::DataFrame, nn)::Dict{Symbol, Dict{Symbol, NNPreODEMap}}
     nconditions = nrow(conditions_df)
     maps = Dict{Symbol, Dict{Symbol, NNPreODEMap}}()
-    isempty(mapping_table) && return maps
+    isempty(xids[:nn_pre_ode]) && return maps
     for i in 1:nconditions
         conditionid = conditions_df[i, :conditionId] |> Symbol
-        xmap_simid = condition_maps[conditionid]
-        nxdynamic = vcat(map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic,
-                         xindices_dynamic[:xest_to_xdynamic]) |>
-                    unique |>
-                    length
         maps_nn = Dict{Symbol, NNPreODEMap}()
         for pnnid in xids[:nn_pre_ode]
             nnid = string(pnnid)[3:end] |> Symbol

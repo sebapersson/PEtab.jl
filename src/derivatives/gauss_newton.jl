@@ -6,10 +6,10 @@ function _jac_residuals_xdynamic!(jac::AbstractMatrix, _solve_conditions!::Funct
                                   isremade::Bool = false)::Nothing
     @unpack cache, reuse_sensitivities = probinfo
     @unpack xindices, simulation_info = model_info
-    xnoise, xobservable, xnondynamic, xdynamic = _get_x_not_nn(cache, 1.0)
+    xnoise, xobservable, xnondynamic_mech, xdynamic = _get_x_not_nn(cache, 1.0)
     xnoise_ps = transform_x(xnoise, xindices, :xnoise, cache)
     xobservable_ps = transform_x(xobservable, xindices, :xobservable, cache)
-    xnondynamic_ps = transform_x(xnondynamic, xindices, :xnondynamic, cache)
+    xnondynamic_mech_ps = transform_x(xnondynamic_mech, xindices, :xnondynamic_mech, cache)
     xdynamic_tot_ps = transform_x(xdynamic, xindices, :xdynamic_tot, cache)
 
     if reuse_sensitivities == false
@@ -32,16 +32,12 @@ function _jac_residuals_xdynamic!(jac::AbstractMatrix, _solve_conditions!::Funct
             continue
         end
         _jac_residuals_cond!(jac, xdynamic_tot_ps, xnoise_ps, xobservable_ps,
-                             xnondynamic_ps, icid, probinfo, model_info)
+                             xnondynamic_mech_ps, icid, probinfo, model_info)
     end
     return nothing
 end
 
-function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic_tot::Vector{T},
-                              xnoise::Vector{T}, xobservable::Vector{T},
-                              xnondynamic::Vector{T}, icid::Int64,
-                              probinfo::PEtabODEProblemInfo,
-                              model_info::ModelInfo) where {T <: AbstractFloat}
+function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic_tot::Vector{T}, xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic_mech::Vector{T}, icid::Int64, probinfo::PEtabODEProblemInfo, model_info::ModelInfo) where {T <: AbstractFloat}
     @unpack xindices, simulation_info, model = model_info
     @unpack petab_parameters, petab_measurements = model_info
     @unpack imeasurements_t, tsaves, smatrixindices = simulation_info
@@ -57,8 +53,7 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic_tot::Vector{T},
     sol = simulation_info.odesols_derivatives[cid]
 
     # Partial derivatives needed for computing the gradient (derived from the chain-rule)
-    ∂G∂u!, ∂G∂p! = _get_∂G∂_!(probinfo, model_info, cid, xnoise, xobservable,
-                              xnondynamic; residuals = true)
+    ∂G∂u!, ∂G∂p! = _get_∂G∂_!(model_info, cid, xnoise, xobservable, xnondynamic_mech, cache.xnn_dict; residuals = true)
 
     nstates = model_info.nstates
     cache.p .= sol.prob.p .|> SBMLImporter._to_float
@@ -91,25 +86,18 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic_tot::Vector{T},
 end
 
 # To compute the gradient for non-dynamic parameters
-function residuals_not_solveode(residuals::T1, xnoise::T2, xobservable::T2, xnondynamic::T2,
-                                probinfo::PEtabODEProblemInfo, model_info::ModelInfo;
-                                cids::Vector{Symbol} = [:all])::T1 where {
-                                                                          T1 <:
-                                                                          AbstractVector,
-                                                                          T2 <:
-                                                                          AbstractVector}
+function residuals_not_solveode(residuals::T1, xnoise::T2, xobservable::T2, xnondynamic_mech::T2, xnn::Dict{Symbol, ComponentArray}, probinfo::PEtabODEProblemInfo, model_info::ModelInfo; cids::Vector{Symbol} = [:all])::T1 where {T1 <: AbstractVector, T2 <: AbstractVector}
     @unpack xindices, simulation_info = model_info
     cache = probinfo.cache
     xnoise_ps = transform_x(xnoise, xindices, :xnoise, cache)
     xobservable_ps = transform_x(xobservable, xindices, :xobservable, cache)
-    xnondynamic_ps = transform_x(xnondynamic, xindices, :xnondynamic, cache)
+    xnondynamic_mech_ps = transform_x(xnondynamic_mech, xindices, :xnondynamic_mech, cache)
 
     for cid in simulation_info.conditionids[:experiment]
         if cids[1] != :all && !(cid in cids)
             continue
         end
-        _residuals_cond!(residuals, xnoise_ps, xobservable_ps, xnondynamic_ps, cid,
-                         model_info)
+        _residuals_cond!(residuals, xnoise_ps, xobservable_ps, xnondynamic_mech_ps, xnn, cid, model_info)
         if success == false
             fill!(residuals, Inf)
             break
@@ -119,10 +107,7 @@ function residuals_not_solveode(residuals::T1, xnoise::T2, xobservable::T2, xnon
 end
 
 # For an experimental condition compute residuals
-function _residuals_cond!(residuals::T1, xnoise::T2, xobservable::T2, xnondynamic::T2,
-                          cid::Symbol,
-                          model_info::ModelInfo)::Bool where {T1 <: AbstractVector,
-                                                              T2 <: AbstractVector}
+function _residuals_cond!(residuals::T1, xnoise::T2, xobservable::T2, xnondynamic_mech::T2, xnn::Dict{Symbol, ComponentArray}, cid::Symbol, model_info::ModelInfo)::Bool where {T1 <: AbstractVector, T2 <: AbstractVector}
     @unpack xindices, simulation_info, petab_measurements, petab_parameters, model = model_info
     sol = simulation_info.odesols_derivatives[cid]
     if !(sol.retcode == ReturnCode.Success || sol.retcode == ReturnCode.Terminated)
@@ -140,11 +125,11 @@ function _residuals_cond!(residuals::T1, xnoise::T2, xobservable::T2, xnondynami
         # Model observable and noise
         mapxnoise = xindices.mapxnoise[imeasurement]
         mapxobservable = xindices.mapxobservable[imeasurement]
-        h = _h(u, t, p, xobservable, xnondynamic, model.h, mapxobservable, obsid,
-               nominal_values)
+        h = _h(u, t, p, xobservable, xnondynamic_mech, xnn, model.h, mapxobservable, obsid,
+               nominal_values, model.nn)
         h_transformed = transform_observable(h, measurement_transforms[imeasurement])
-        σ = _sd(u, t, p, xnoise, xnondynamic, model.sd, mapxnoise, obsid,
-                nominal_values)
+        σ = _sd(u, t, p, xnoise, xnondynamic_mech, xnn, model.sd, mapxnoise, obsid,
+                nominal_values, model.nn)
 
         y_transformed = measurement_transformed[imeasurement]
         residuals[imeasurement] = (h_transformed - y_transformed) / σ

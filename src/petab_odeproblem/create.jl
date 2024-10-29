@@ -213,7 +213,7 @@ function _get_nllh_grad(gradient_method::Symbol, grad::Function, _prior::Functio
     _nllh_grad = (x; prior = true) -> begin
         _x = x |> collect
         g = grad(x; prior = prior)
-        x_notode = @view _x[model_info.xindices.xindices[:not_system]]
+        x_notode = @view _x[model_info.xindices.xindices[:not_system_mech]]
         nllh = _nllh_not_solveode(x_notode)
         if prior
             nllh += _prior(_x)
@@ -288,4 +288,16 @@ function _net!(out, pnn, input, nn)::Nothing
     st, net = nn
     out .= net(input, pnn, st)[1]
     return nothing
+end
+
+function _get_net_values(mapping_table::DataFrame, netid::Symbol, type::Symbol)::Vector{String}
+    dfnet = mapping_table[Symbol.(mapping_table[!, :netId]) .== netid, :]
+    if type == :outputs
+        dfvals = dfnet[startswith.(string.(dfnet[!, :ioId]), "output"), :]
+    elseif type == :inputs
+        dfvals = dfnet[startswith.(string.(dfnet[!, :ioId]), "input"), :]
+    end
+    # Sort to get inputs in order output1, output2, ...
+    is = sortperm(string.(dfvals[!, :ioId]), by = x -> parse(Int, match(r"\d+$", x).match))
+    return dfvals[is, :ioValue] .|> string
 end

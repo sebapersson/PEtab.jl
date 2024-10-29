@@ -90,7 +90,7 @@ function hess_block!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Function
         return nothing
     end
 
-    ix_notode = xindices.xindices[:not_system]
+    ix_notode = xindices.xindices[:not_system_tot]
     x_notode = @view x[ix_notode]
     @views ForwardDiff.hessian!(hess[ix_notode, ix_notode], _nllh_not_solveode, x_notode)
     return nothing
@@ -137,7 +137,7 @@ function hess_block_split!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Fu
         return nothing
     end
 
-    ix_notode = xindices.xindices[:not_system]
+    ix_notode = xindices.xindices[:not_system_tot]
     x_notode = @view x[ix_notode]
     @views ForwardDiff.hessian!(hess[ix_notode, ix_notode], _nllh_not_solveode, x_notode)
     return nothing
@@ -169,8 +169,8 @@ function hess_GN!(out::Matrix{T}, x::Vector{T}, _residuals_not_solveode::Functio
         return nothing
     end
 
-    x_notode = @view x[xindices.xindices[:not_system]]
-    @views ForwardDiff.jacobian!(jacobian_gn[xindices.xindices[:not_system], :]',
+    x_notode = @view x[xindices.xindices[:not_system_tot]]
+    @views ForwardDiff.jacobian!(jacobian_gn[xindices.xindices[:not_system_tot], :]',
                                  _residuals_not_solveode, residuals_gn, x_notode,
                                  cfg_not_solve_ode)
 

@@ -5,10 +5,10 @@ function _grad_forward_eqs!(grad::Vector{T}, _solve_conditions!::Function,
                             isremade::Bool = false)::Nothing where {T <: AbstractFloat}
     @unpack cache, sensealg = probinfo
     @unpack xindices, simulation_info = model_info
-    xnoise, xobservable, xnondynamic, xdynamic = _get_x_not_nn(cache, 1.0)
+    xnoise, xobservable, xnondynamic_mech, xdynamic = _get_x_not_nn(cache, 1.0)
     xnoise_ps = transform_x(xnoise, xindices, :xnoise, cache)
     xobservable_ps = transform_x(xobservable, xindices, :xobservable, cache)
-    xnondynamic_ps = transform_x(xnondynamic, xindices, :xnondynamic, cache)
+    xnondynamic_mech_ps = transform_x(xnondynamic_mech, xindices, :xnondynamic_mech, cache)
     xdynamic_tot_ps = transform_x(xdynamic, xindices, :xdynamic_tot, cache)
 
     # Solve the expanded ODE system for the sensitivites
@@ -29,7 +29,7 @@ function _grad_forward_eqs!(grad::Vector{T}, _solve_conditions!::Function,
             continue
         end
         _grad_forward_eqs_cond!(grad, xdynamic_tot_ps, xnoise_ps, xobservable_ps,
-                                xnondynamic_ps, icid, sensealg, probinfo, model_info)
+                                xnondynamic_mech_ps, icid, sensealg, probinfo, model_info)
     end
     return nothing
 end
@@ -101,7 +101,7 @@ function solve_sensitivites!(model_info::ModelInfo, _solve_conditions!::Function
 end
 
 function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnoise::Vector{T},
-                                 xobservable::Vector{T}, xnondynamic::Vector{T},
+                                 xobservable::Vector{T}, xnondynamic_mech::Vector{T},
                                  icid::Int64, sensealg::Symbol,
                                  probinfo::PEtabODEProblemInfo,
                                  model_info::ModelInfo)::Nothing where {T <: AbstractFloat}
@@ -120,8 +120,8 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnois
     sol = simulation_info.odesols_derivatives[cid]
 
     # Partial derivatives needed for computing the gradient (derived from the chain-rule)
-    ∂G∂u!, ∂G∂p! = _get_∂G∂_!(probinfo, model_info, cid, xnoise, xobservable,
-                              xnondynamic)
+    ∂G∂u!, ∂G∂p! = _get_∂G∂_!(model_info, cid, xnoise, xobservable, xnondynamic_mech,
+                              cache.xnn_dict)
 
     nstates = model_info.nstates
     cache.p .= sol.prob.p .|> SBMLImporter._to_float
