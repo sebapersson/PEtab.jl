@@ -248,7 +248,7 @@ function _get_xids_nn_pre_ode(mapping_table::DataFrame, sys::ModelSystem)::Vecto
     out = Symbol[]
     for netid in unique(mapping_table[!, :netId])
         outputs = _get_net_values(mapping_table, Symbol(netid), :outputs) .|> Symbol
-        if all([output in sys.p for output in outputs])
+        if all([output in keys(sys.p) for output in outputs])
             push!(out, Symbol("p_" * string(netid)))
         end
     end

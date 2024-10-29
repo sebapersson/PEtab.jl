@@ -161,6 +161,7 @@ end
 
 function _get_formulas_nn(formula, mapping_table::DataFrame, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, type::Symbol)::String
     formula_nn = ""
+    isempty(mapping_table) && return formula_nn
     for netid in unique(mapping_table[!, :netId])
         outputs = _get_net_values(mapping_table, Symbol(netid), :outputs)
         has_nn_output = false
