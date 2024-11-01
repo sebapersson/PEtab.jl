@@ -158,9 +158,13 @@ To instead wish to plot both observables for the second simulation condition (`c
 plot(res, petab_prob; obsids=["obs_e", "obs_p"], cid="cond2", linewidth = 2.0)
 ```
 
-In this example, the `obsid` option is technically not required as plotting all observables is the default behavior. 
+In this example, the `obsid` option is technically not required, as plotting all observables is the default behavior. Furthermore, by default, the observable formula is shown in the legend or label. If the observable formula is long (e.g., the sum of all model species), this can make the plot unreadable. To address this, you can display only the observable ID in the label by setting `obsid_label = true`:
 
-If a parameter estimation result (`res` above) is provided, the fit for the best-found parameter vector is plotted. Sometimes, it can be useful to plot the fit for another parameter vector, such as the initial values `x0`. This can be easily done, as the `plot_fit` function also works for any parameter vector that is in the correct order expected by PEtab.jl (for more on parameter order, see [`get_x`](@ref)). For example, to plot the fit for the initial value for parameter estimation run 1, do:
+```@example 2
+plot(res, petab_prob; obsids=["obs_e", "obs_p"], cid="cond2", linewidth = 2.0, obsid_label = true)
+```
+
+If as above a parameter estimation result (`res`) is provided, the fit for the best-found parameter vector is plotted. It can also be useful to plot the fit for another parameter vector, such as the initial values `x0`. This can be easily done, as the `plot_fit` function also works for any parameter vector that is in the correct order expected by PEtab.jl (for more on parameter order, see [`get_x`](@ref)). For example, to plot the fit for the initial value for parameter estimation run 1, do:
 
 ```@example 2
 x0 = res.runs[1].x0

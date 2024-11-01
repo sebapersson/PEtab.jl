@@ -1,5 +1,5 @@
 # Plots the optimised solution, and compares it to the data.
-@recipe function f(res::PEtab.EstimationResult, prob::PEtabODEProblem; obsids = nothing, cid = nothing)
+@recipe function f(res::PEtab.EstimationResult, prob::PEtabODEProblem; obsids = nothing, cid = nothing, obsid_label::Bool = false)
     observables_df = prob.model_info.model.petab_tables[:observables]
     if isnothing(obsids)
         obsids = observables_df[!, :observableId]
@@ -36,8 +36,13 @@
         append!(seriestype, [:scatter, :line])
         append!(color, [obs_idx, obs_idx])
         iobs = findfirst(x -> x == obs_id, observables_df[!, :observableId])
-        obs_formula = observables_df[iobs, :observableFormula]
-        append!(label, ["$(obs_formula) ($type)" for type in ["measured", "fitted"]])
+        if obsid_label == false
+            obs_formula = observables_df[iobs, :observableFormula]
+            append!(label, ["$(obs_formula) ($type)" for type in ["measured", "fitted"]])
+        else
+            obs_formula = observables_df[iobs, :observableId]
+            append!(label, ["$(obs_formula) ($type)" for type in ["measured", "fitted"]])
+        end
 
         # Measured plot values.
         push!(x_vals, t_observed)
