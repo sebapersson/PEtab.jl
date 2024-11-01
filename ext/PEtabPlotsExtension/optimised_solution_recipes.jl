@@ -1,5 +1,6 @@
 # Plots the optimised solution, and compares it to the data.
-@recipe function f(res::PEtab.EstimationResult, prob::PEtabODEProblem; obsids = nothing, cid = nothing, obsid_label::Bool = false)
+@recipe function f(res::PEtab.EstimationResult, prob::PEtabODEProblem; obsids = nothing,
+                   cid = nothing, obsid_label::Bool = false)
     observables_df = prob.model_info.model.petab_tables[:observables]
     if isnothing(obsids)
         obsids = observables_df[!, :observableId]
@@ -63,7 +64,8 @@
     x_vals, y_vals
 end
 
-function PEtab.get_obs_comparison_plots(res::PEtab.EstimationResult, prob::PEtabODEProblem; kwargs...)
+function PEtab.get_obs_comparison_plots(res::PEtab.EstimationResult, prob::PEtabODEProblem;
+                                        kwargs...)
     comparison_dict = Dict()
     cids = prob.model_info.model.petab_tables[:conditions][!, :conditionId]
     obsids = prob.model_info.model.petab_tables[:observables][!, :observableId]
