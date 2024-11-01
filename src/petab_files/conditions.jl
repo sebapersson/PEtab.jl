@@ -15,12 +15,12 @@ the parameter during likelihood computations. It further accounts for parameters
 only appearing in a certain simulation condition.
 """
 function ParameterIndices(petab_tables::Dict{Symbol, DataFrame}, sys, parametermap,
-                          speciemap)::ParameterIndices
+                          speciemap, nn::Union{Nothing, Dict})::ParameterIndices
     petab_parameters = PEtabParameters(petab_tables[:parameters])
     petab_measurements = PEtabMeasurements(petab_tables[:measurements],
                                            petab_tables[:observables])
     return ParameterIndices(petab_parameters, petab_measurements, sys, parametermap,
-                            speciemap, petab_tables[:conditions], nothing,
+                            speciemap, petab_tables[:conditions], nn,
                             petab_tables[:mapping_table])
 end
 function ParameterIndices(petab_parameters::PEtabParameters,
@@ -36,7 +36,7 @@ function ParameterIndices(petab_parameters::PEtabParameters,
                           speciemap, conditions_df::DataFrame, nn::Union{Nothing, Dict},
                           mapping_table::Union{Nothing, DataFrame})::ParameterIndices
     _check_conditionids(conditions_df, petab_measurements)
-    mapping_table = _check_mapping_table(mapping_table, nn, petab_parameters, sys)
+    mapping_table = _check_mapping_table(mapping_table, nn, petab_parameters, sys, conditions_df)
     xids = _get_xids(petab_parameters, petab_measurements, sys, conditions_df, speciemap,
                      parametermap, nn, mapping_table)
 
@@ -47,7 +47,7 @@ function ParameterIndices(petab_parameters::PEtabParameters,
     xindices_notsys = _get_xindices_notsys(xids, nn)
     odeproblem_map = _get_odeproblem_map(xids, nn)
     condition_maps = _get_condition_maps(sys, parametermap, speciemap, petab_parameters,
-                                         conditions_df, xids)
+                                         conditions_df, mapping_table, xids)
     # For each time-point we must build a map that stores if i) noise/obserable parameters
     # are constants, ii) should be estimated, iii) and corresponding index in parameter
     # vector if they should be estimated
@@ -59,9 +59,7 @@ function ParameterIndices(petab_parameters::PEtabParameters,
     # If a neural-network sets values for a subset of model parameters, for efficent AD on
     # said network, it is neccesary to pre-compute the input, pre-allocate the output,
     # and build a map for which parameters in xdynamic the network maps to.
-    nn_pre_ode_maps = _get_nn_pre_ode_maps(conditions_df, odeproblem_map, condition_maps,
-                                           xids, petab_parameters, xindices_dynamic,
-                                           mapping_table, nn)
+    nn_pre_ode_maps = _get_nn_pre_ode_maps(conditions_df, xids, petab_parameters, mapping_table, nn, sys)
 
     xscale = _get_xscales(xids, petab_parameters)
     _get_xnames_ps!(xids, xscale)
@@ -90,7 +88,7 @@ function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabM
     xids_nn_nondynamic = _get_xids_nn_nondynamic(xids_nn, xids_nn_in_ode, xids_nn_pre_ode)
     xids_observable = _get_xids_observable_noise(observable_parameters, petab_parameters)
     xids_noise = _get_xids_observable_noise(noise_parameters, petab_parameters)
-    xids_nondynamic_mech = _get_xids_nondynamic_mech_mech(xids_observable, xids_noise, xids_nn, sys, petab_parameters, conditions_df)
+    xids_nondynamic_mech = _get_xids_nondynamic_mech_mech(xids_observable, xids_noise, xids_nn, sys, petab_parameters, conditions_df, mapping_table)
     xids_dynamic_mech = _get_xids_dynamic_mech(xids_observable, xids_noise, xids_nondynamic_mech, xids_nn, petab_parameters)
 
     xids_not_system = unique(vcat(xids_observable, xids_noise, xids_nondynamic_mech))
@@ -303,8 +301,8 @@ function _get_xids_observable_noise(values, petab_parameters::PEtabParameters)::
     return ids
 end
 
-function _get_xids_nondynamic_mech_mech(xids_observable::T, xids_noise::T, xids_nn::T, sys, petab_parameters::PEtabParameters, conditions_df::DataFrame)::T where {T <: Vector{Symbol}}
-    xids_condition = _get_xids_condition(sys, petab_parameters, conditions_df)
+function _get_xids_nondynamic_mech_mech(xids_observable::T, xids_noise::T, xids_nn::T, sys, petab_parameters::PEtabParameters, conditions_df::DataFrame, mapping_table::DataFrame)::T where {T <: Vector{Symbol}}
+    xids_condition = _get_xids_condition(sys, petab_parameters, conditions_df, mapping_table)
     if sys isa ODEProblem
         xids_sys = keys(sys.p) |> collect
     else
@@ -320,22 +318,35 @@ function _get_xids_nondynamic_mech_mech(xids_observable::T, xids_noise::T, xids_
     return xids_nondynamic_mech
 end
 
-function _get_xids_condition(sys, petab_parameters::PEtabParameters,
-                             conditions_df::DataFrame)::Vector{Symbol}
+function _get_xids_condition(sys, petab_parameters::PEtabParameters, conditions_df::DataFrame, mapping_table::DataFrame)::Vector{Symbol}
     xids_sys = parameters(sys) .|> string
     species_sys = _get_state_ids(sys)
+    net_inputs = String[]
+    if !isempty(mapping_table)
+        for netid in unique(mapping_table[!, :netId])
+            _net_inputs = _get_net_values(mapping_table, netid, :inputs) .|> string
+            net_inputs = vcat(net_inputs, _net_inputs)
+        end
+    end
+    problem_variables = Iterators.flatten((xids_sys, species_sys, net_inputs))
     xids_condition = Symbol[]
     for colname in names(conditions_df)
         colname in ["conditionName", "conditionId"] && continue
-        if !(colname in Iterators.flatten((xids_sys, species_sys)))
+        if !(colname in problem_variables)
             throw(PEtabFileError("Parameter $colname that dictates an experimental " *
                                  "condition does not appear among the model variables"))
         end
         for condition_variable in Symbol.(conditions_df[!, colname])
             is_number(condition_variable) && continue
             condition_variable == :missing && continue
-            if _estimate_parameter(condition_variable, petab_parameters) == false
+            should_est = _estimate_parameter(condition_variable, petab_parameters)
+            if should_est == false
                 continue
+            end
+            if string(colname) in net_inputs && should_est == true
+                throw(PEtabFileError("Neural net input variable $(condition_variable) for \
+                                      condition variable $colname is not allowed to be a \
+                                      parameter that is estimated"))
             end
             condition_variable in xids_condition && continue
             push!(xids_condition, condition_variable)
@@ -445,10 +456,7 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nn::Union{Dict,
     return MapODEProblem(sys_to_dynamic, dynamic_to_sys, sys_to_dynamic_nn, sys_to_nn_pre_ode_output)
 end
 
-function _get_condition_maps(sys, parametermap, speciemap,
-                             petab_parameters::PEtabParameters,
-                             conditions_df::DataFrame,
-                             xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, ConditionMap}
+function _get_condition_maps(sys, parametermap, speciemap, petab_parameters::PEtabParameters, conditions_df::DataFrame, mapping_table::DataFrame, xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, ConditionMap}
     species_sys = _get_state_ids(sys)
     xids_sys, xids_dynamic = xids[:sys] .|> string, xids[:dynamic_mech] .|> string
     xids_model = Iterators.flatten((xids_sys, species_sys))
@@ -472,6 +480,10 @@ function _get_condition_maps(sys, parametermap, speciemap,
             if value isa Real && variable in xids_model
                 push!(constant_values, value |> Float64)
                 _add_ix_sys!(isys_constant_values, variable, xids_sys)
+                continue
+            end
+
+            if value isa Real && Symbol(variable) in mapping_table[!, :ioValue]
                 continue
             end
 
@@ -510,6 +522,13 @@ function _get_condition_maps(sys, parametermap, speciemap,
                 throw(PEtabFileError("If a row in conditions file is NaN then the column " *
                                      "header must be a state"))
             end
+
+            # A variable can be one of the neural net inputs. The map is then built later
+            # when building the input function for the NN
+            if Symbol(variable) in mapping_table[!, :ioValue]
+                continue
+            end
+
             throw(PEtabFileError("For condition $conditionid, the value of $variable, " *
                                  "$value, does not correspond to any model parameter, " *
                                  "species, or PEtab parameter. The condition variable " *
@@ -640,45 +659,56 @@ function _get_xnames_ps!(xids::Dict{Symbol, Vector{Symbol}}, xscale)::Nothing
     return nothing
 end
 
-function _check_mapping_table(mapping_table::Union{DataFrame, Nothing}, nn::Union{Nothing, Dict}, petab_parameters::PEtabParameters, sys)::DataFrame
+function _check_mapping_table(mapping_table::Union{DataFrame, Nothing}, nn::Union{Nothing, Dict}, petab_parameters::PEtabParameters, sys, conditions_df::DataFrame)::DataFrame
     if isempty(mapping_table) || isnothing(nn)
         return DataFrame()
     end
-    for i in 1:nrow(mapping_table)
-        netid = Symbol(mapping_table[i, :netId])
-        if !haskey(nn, netid)
-            throw(PEtabInputError("Neural network id $netid provided in the mapping table \
-                                   does not correspond to any Neural Network id provided \
-                                   in the PEtab problem"))
-        end
-        io_id = string(mapping_table[i, :ioId])
-        pattern = r"^(input\d|output\d)$"
+    state_ids = _get_state_ids(sys) .|> Symbol
+    model_variables = Iterators.flatten((state_ids, keys(sys.p), petab_parameters.parameter_id))
+
+    # Sanity check ioId column
+    pattern = r"^(input\d|output\d)$"
+    for io_id in string.(mapping_table[!, :ioId])
         if !occursin(pattern, io_id)
             throw(PEtabInputError("In mapping table, in ioId column allowed values are \
                                    only input{:digit} or output{:digit} where digit is \
                                    the number of the input/output to the network. Not \
                                    $io_id"))
         end
-        # TODO: Add more stringent here (e.g. not allowed to estimate parameter)
+    end
+
+    # Sanity check ioValue column (input and outputs to neural-net)
+    for netid in Symbol.(unique(mapping_table[!, :netId]))
+        if !haskey(nn, netid)
+            throw(PEtabInputError("Neural network id $netid provided in the mapping table \
+                                   does not correspond to any Neural Network id provided \
+                                   in the PEtab problem"))
+        end
         outputs = _get_net_values(mapping_table, netid, :outputs) .|> Symbol
         inputs = _get_net_values(mapping_table, netid, :inputs) .|> Symbol
-        # If the NN-output maps to ODEProblem parameters, the inputs must be PEtab
-        # parameters, as we have a nn_pre_ode case
-        state_ids = _get_state_ids(sys) .|> Symbol
-        model_variables = Iterators.flatten((state_ids, keys(sys.p), petab_parameters.parameter_id))
-        if all([output in sys.p for output in outputs])
-            if !all([input in petab_parameters.parameter_id for input in inputs])
+        input_variables = _get_nn_input_variables(inputs, conditions_df, petab_parameters, sys)
+
+        # If input_variables is empty all inputs are numbers which can always be handled
+        if isempty(input_variables)
+            continue
+        # If all outputs maps to ODEProblem parameters, it is a pre-nn ODE case. In this
+        # case all input variables must be PEtab parameters (or numbers which are already
+        # filtered out from input_variables)
+        elseif all([output in sys.p for output in outputs])
+            if !all([ipv in petab_parameters.parameter_id for ipv in input_variables])
                 throw(PEtabInputError("If mapping table output is ODEProblem parameters \
                                        input must be a PEtabParameter, this does not hold \
                                        for $inputs"))
             end
-        # Case of neural net in the observable formula, in this case the inputs must be
-        # valid model variables
-        elseif !all([input in model_variables for input in inputs])
+            continue
+        # If all inputs maps to model variables, the nn must be in the observable formula,
+        # else something is wrong
+        elseif !all([ipv in model_variables for ipv in input_variables])
             throw(PEtabInputError("If mapping table output is a parameter in the \
                                    observable/sd formula, input must be a PEtabParameter, \
                                    model specie, or model parameter. Does not hold for \
                                    all inputs in $inputs"))
+            continue
         end
     end
     return DataFrame(netId = Symbol.(mapping_table[!, :netId]),
@@ -686,10 +716,7 @@ function _check_mapping_table(mapping_table::Union{DataFrame, Nothing}, nn::Unio
                      ioValue = Symbol.(mapping_table[!, :ioValue]))
 end
 
-function _get_nn_pre_ode_maps(conditions_df::DataFrame, map_odeproblem::MapODEProblem,
-                              condition_maps::Dict{Symbol, ConditionMap},
-                              xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters,
-                              xindices_dynamic, mapping_table::DataFrame, nn)::Dict{Symbol, Dict{Symbol, NNPreODEMap}}
+function _get_nn_pre_ode_maps(conditions_df::DataFrame, xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, mapping_table::DataFrame, nn, sys)::Dict{Symbol, Dict{Symbol, NNPreODEMap}}
     nconditions = nrow(conditions_df)
     maps = Dict{Symbol, Dict{Symbol, NNPreODEMap}}()
     isempty(xids[:nn_pre_ode]) && return maps
@@ -697,46 +724,92 @@ function _get_nn_pre_ode_maps(conditions_df::DataFrame, map_odeproblem::MapODEPr
         conditionid = conditions_df[i, :conditionId] |> Symbol
         maps_nn = Dict{Symbol, NNPreODEMap}()
         for pnnid in xids[:nn_pre_ode]
-            nnid = string(pnnid)[3:end] |> Symbol
-            dfnn = mapping_table[mapping_table[!, :netId] .== nnid, :]
-            ninputs = sum(occursin.("input", string.(dfnn[!, :ioId])))
-            noutputs = sum(occursin.("output", string.(dfnn[!, :ioId])))
-            inputs = zeros(Float64, ninputs)
-            # Index for the output parameter in grad during split conditions
-            xindices_nn_outputs_grad = zeros(Int32, noutputs)
-            # Index among the output parameters
-            xindices_nn_outputs = zeros(Int32, noutputs)
-            # Index for the output in sys
-            xindices_output_sys = zeros(Int32, noutputs)
-            for (i, io_id) in pairs(string.(dfnn[!, :ioId]))
-                if occursin("input", io_id)
-                    iinput = parse(Int64, io_id[6:end])
-                    ip = findfirst(x -> x == dfnn[i, :ioValue], petab_parameters.parameter_id)
-                    inputs[iinput] = petab_parameters.nominal_value[ip]
+            netid = string(pnnid)[3:end] |> Symbol
+            outputs = _get_net_values(mapping_table, netid, :outputs) .|> Symbol
+            inputs = _get_net_values(mapping_table, netid, :inputs) .|> Symbol
+            input_variables = _get_nn_input_variables(inputs, DataFrame(conditions_df[i, :]), petab_parameters, sys; keep_numbers = true)
+
+            # Get values for the inputs. For the pre-ODE case only constant inputs are
+            # allowed for a simulation condition, hence, can directly obtain the input
+            # numerical values
+            input_values = zeros(Float64, length(input_variables))
+            for (i, input_variable) in pairs(input_variables)
+                if is_number(input_variable)
+                    input_values[i] = parse(Float64, string(input_variable))
+                    continue
                 end
-                if occursin("output", io_id)
-                    ioutput = parse(Int64, io_id[7:end])
-                    ip = findfirst(x -> x == dfnn[i, :ioValue], xids[:nn_pre_ode_outputs])
-                    xindices_nn_outputs[ioutput] = ip
-                    io_value = Symbol(dfnn[i, :ioValue])
-                    # TODO: Funciton to query sys
-                    isys = 1
-                    for id_sys in xids[:sys]
-                        if id_sys in xids[:nn]
-                            np = _get_n_net_parameters(nn, [id_sys]) - 1
-                            isys += np
-                        end
-                        if id_sys == io_value
-                            xindices_output_sys[ioutput] = isys
-                            break
-                        end
-                        isys += 1
+                ip = findfirst(x -> x == input_variable, petab_parameters.parameter_id)
+                input_values[i] = petab_parameters.nominal_value[ip]
+            end
+
+            # Indicies for correctly mapping the output. The outputs are stored in a
+            # separate vector of order xids[:nn_pre_ode_outputs], which xindices_nn_outputs
+            # stores the index for. The outputs maps to parameters in sys, which
+            # xindices_output_sys stores. Lastly, for split_over_conditions = true the
+            # gradient of the output variables is needed, xindices_nn_outputs_grad stores
+            # the indices in xdynamic_grad for the outputs (the indices depend on the
+            # condition so the Vector is only pre-allocated here).
+            noutputs = length(outputs)
+            xindices_nn_outputs = zeros(Int32, noutputs)
+            xindices_output_sys = zeros(Int32, noutputs)
+            xindices_nn_outputs_grad = zeros(Int32, noutputs)
+            for (i, output_variable) in pairs(outputs)
+                io = findfirst(x -> x == output_variable, xids[:nn_pre_ode_outputs])
+                xindices_nn_outputs[i] = io
+                isys = 1
+                # TODO: To common pattern, refactor into a function
+                for id_sys in xids[:sys]
+                    if id_sys in xids[:nn]
+                        np = _get_n_net_parameters(nn, [id_sys]) - 1
+                        isys += np
                     end
+                    if id_sys == output_variable
+                        xindices_output_sys[i] = isys
+                        break
+                    end
+                    isys += 1
                 end
             end
-            maps_nn[pnnid] = NNPreODEMap(inputs, noutputs, xindices_nn_outputs, xindices_nn_outputs_grad, xindices_output_sys)
+            maps_nn[pnnid] = NNPreODEMap(input_values, noutputs, xindices_nn_outputs, xindices_nn_outputs_grad, xindices_output_sys)
         end
         maps[conditionid] = maps_nn
     end
     return maps
+end
+
+function _get_nn_input_variables(inputs::Vector{Symbol}, conditions_df::DataFrame, petab_parameters::PEtabParameters, sys; keep_numbers::Bool = false)::Vector{Symbol}
+    state_ids = _get_state_ids(sys) .|> Symbol
+    xsys = keys(sys.p) |> collect
+    input_variables = Symbol[]
+    for input in inputs
+        if is_number(input)
+            if keep_numbers == true
+                push!(input_variables, input)
+            end
+            continue
+        end
+        if input in petab_parameters.parameter_id
+            ip = findfirst(x -> x == input, petab_parameters.parameter_id)
+            if petab_parameters.estimate[ip] == true
+                throw(PEtabInputError("Input for neural network ($input) is not allowed \
+                                       to be a parameter that is estimated"))
+            end
+            push!(input_variables, input)
+            continue
+        end
+        if input in Iterators.flatten((state_ids, xsys))
+            push!(input_variables, input)
+            continue
+        end
+        if input in propertynames(conditions_df)
+            for condition_value in Symbol.(conditions_df[!, input])
+                _input_variables = _get_nn_input_variables([condition_value], conditions_df, petab_parameters, sys; keep_numbers = keep_numbers)
+                input_variables = vcat(input_variables, _input_variables)
+            end
+            continue
+        end
+        throw(PEtabInputError("Input $input to neural-network cannot be found among ODE \
+                               variables, PEtab parameters, or in the conditions table"))
+    end
+    return input_variables
 end

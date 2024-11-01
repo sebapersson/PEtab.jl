@@ -88,8 +88,8 @@ function solve_sensitivites!(model_info::ModelInfo, _solve_conditions!::Function
             xinput = _get_xinput(simid, xdynamic_tot, ixdynamic_simid, model_info, probinfo)
             _S_condition! = (odesols, _xinput) -> begin
                 _split_xinput!(probinfo, simid, model_info, _xinput, ixdynamic_simid)
-                xdynamic_tot = get_tmp(probinfo.cache.xdynamic_tot, _xinput)
-                _solve_conditions!(odesols, xdynamic_tot, [cid])
+                _xdynamic_tot = get_tmp(probinfo.cache.xdynamic_tot, _xinput)
+                _solve_conditions!(odesols, _xdynamic_tot, [cid])
             end
             ix_S_simid = _get_ix_S_simid(ixdynamic_simid, split_over_conditions, model_info)
             @views ForwardDiff.jacobian!(Stmp[:, ix_S_simid], _S_condition!, odesols,
