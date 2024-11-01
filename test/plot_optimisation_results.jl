@@ -131,7 +131,7 @@ let
     c1_P_plt = plot(res, prob; obsids=["obs_p"], cid="c1")
     c1_E_P_plt = plot(res, prob; cid="c1")
 
-    c2_E_plt = plot(res, prob; obsids=["obs_E"], cid="c2")
+    c2_E_plt = plot(res.xmin, prob; obsids=["obs_E"], cid="c2")
     c2_P_plt = plot(res, prob; obsids=["obs_p"], cid="c2")
     c2_E_P_plt = plot(res, prob; cid="c2")
 
