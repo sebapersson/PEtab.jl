@@ -1,5 +1,12 @@
 # Breaking updates and feature summaries across releases
 
+## PEtab 3.4.0
+
+Plot updates:
+
+* Makes it possible to provide a parameter vector instead of only a parameter estimation results when plotting model fit.
+* Add option to change label in model fit plot to show observable id.
+
 ## PEtab 3.3.0
 
 Update to Optimization.jl v4 and DiffEqCallbacks v4.

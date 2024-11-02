@@ -1,6 +1,6 @@
 # Plots the optimised solution, and compares it to the data.
-@recipe function f(res::Union{PEtabOptimisationResult, PEtabMultistartResult},
-                   prob::PEtabODEProblem; obsids = nothing, cid = nothing)
+@recipe function f(res::PEtab.EstimationResult, prob::PEtabODEProblem; obsids = nothing,
+                   cid = nothing, obsid_label::Bool = false)
     observables_df = prob.model_info.model.petab_tables[:observables]
     if isnothing(obsids)
         obsids = observables_df[!, :observableId]
@@ -22,8 +22,13 @@
     y_vals = []
 
     # Loops through all observables, computing the required plot inputs.
+    if res isa Union{AbstractVector, ComponentArray}
+        xmin = res
+    else
+        xmin = res.xmin
+    end
     for (obs_idx, obs_id) in enumerate(obsids)
-        t_observed, h_observed, label_observed, t_model, h_model, label_model = _get_observable(res.xmin,
+        t_observed, h_observed, label_observed, t_model, h_model, label_model = _get_observable(xmin,
                                                                                                 prob,
                                                                                                 cid,
                                                                                                 obs_id)
@@ -32,8 +37,13 @@
         append!(seriestype, [:scatter, :line])
         append!(color, [obs_idx, obs_idx])
         iobs = findfirst(x -> x == obs_id, observables_df[!, :observableId])
-        obs_formula = observables_df[iobs, :observableFormula]
-        append!(label, ["$(obs_formula) ($type)" for type in ["measured", "fitted"]])
+        if obsid_label == false
+            obs_formula = observables_df[iobs, :observableFormula]
+            append!(label, ["$(obs_formula) ($type)" for type in ["measured", "fitted"]])
+        else
+            obs_formula = observables_df[iobs, :observableId]
+            append!(label, ["$(obs_formula) ($type)" for type in ["measured", "fitted"]])
+        end
 
         # Measured plot values.
         push!(x_vals, t_observed)
@@ -54,9 +64,8 @@
     x_vals, y_vals
 end
 
-function PEtab.get_obs_comparison_plots(res::Union{PEtabOptimisationResult,
-                                                   PEtabMultistartResult},
-                                        prob::PEtabODEProblem; kwargs...)
+function PEtab.get_obs_comparison_plots(res::PEtab.EstimationResult, prob::PEtabODEProblem;
+                                        kwargs...)
     comparison_dict = Dict()
     cids = prob.model_info.model.petab_tables[:conditions][!, :conditionId]
     obsids = prob.model_info.model.petab_tables[:observables][!, :observableId]
