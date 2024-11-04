@@ -194,6 +194,7 @@ function is_number(x::Symbol)::Bool
     is_number(x |> string)
 end
 
+# TODO: Precompute only once
 function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices;
                               full_x::Bool = false, nn_pre_ode::Bool = false)::Vector{Integer}
     xmap_simid = xindices.maps_conidition_id[simid]
@@ -204,6 +205,13 @@ function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices;
         ixdynamic = vcat(xindices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic,
                          xindices.xindices_dynamic[:nn_in_ode],
                          xindices.xindices[:not_system_tot])
+    end
+    # Include parameters that potentially appear as only input to a neural-net. These
+    # parameters are by default included in xdynamic (as they gouvern model dynamics)
+    if !isempty(xindices.maps_nn_pre_ode)
+        for map_nn in values(xindices.maps_nn_pre_ode[simid])
+            ixdynamic = vcat(ixdynamic, map_nn.ixdynamic_mech_inputs)
+        end
     end
     if nn_pre_ode == true || full_x == true
         ixdynamic = vcat(ixdynamic, xindices.xindices_dynamic[:nn_pre_ode])

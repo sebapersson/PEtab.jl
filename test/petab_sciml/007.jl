@@ -1,4 +1,4 @@
-test_case = "006"
+test_case = "007"
 
 nn_model = @compact(
     layer1 = Dense(2, 5, Lux.tanh),
@@ -14,7 +14,7 @@ pnn, _st = Lux.setup(rng, nn_model)
 const st = _st
 nndict = Dict(:net1 => (st, nn_model))
 
-function lv6!(du, u, p, t)
+function lv7!(du, u, p, t)
     prey, predator = u
     @unpack alpha, delta, beta, gamma = p
     du[1] = alpha * prey - beta * prey * predator # prey
@@ -24,16 +24,17 @@ end
 
 u0 = ComponentArray(prey = 0.44249296, predator = 4.6280594)
 p_mechanistic = ComponentArray(alpha = 1.3, delta = 1.8, beta = 0.9, gamma = 0.8)
-uprob = ODEProblem(lv6!, u0, (0.0, 10.0), p_mechanistic)
+uprob = ODEProblem(lv7!, u0, (0.0, 10.0), p_mechanistic)
 
 p_alpha = PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3)
 p_beta = PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9)
 p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)
 p_input1 = PEtabParameter(:input1; scale = :lin, lb = 0.0, ub = 15.0, value = 1.0, estimate = false)
+p_input2 = PEtabParameter(:input2; scale = :lin, lb = 0.0, ub = 15.0, value = 1.0, estimate = true)
 p_net1 = PEtabParameter(:p_net1; scale = :lin, lb = -15.0, ub = 15.0, value = 0.0)
-pest = [p_alpha, p_beta, p_delta, p_input1, p_net1]
+pest = [p_alpha, p_beta, p_delta, p_input1, p_input2, p_net1]
 
-mapping_table = Dict("net1" => [:input1 => :input1, :input2 => :alpha, :output1 => :gamma])
+mapping_table = Dict("net1" => [:input1 => :input1, :input2 => :input2, :output1 => :gamma])
 
 conds = Dict("cond1" => Dict{Symbol, Symbol}())
 

@@ -85,11 +85,23 @@ function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabM
     end
     xids_nn_in_ode = _get_xids_nn_in_ode(xids_nn, sys)
     xids_nn_pre_ode = _get_xids_nn_pre_ode(mapping_table, sys)
+    xids_nn_input_est = _get_xids_nn_input_est(mapping_table, conditions_df, petab_parameters, sys)
     xids_nn_nondynamic = _get_xids_nn_nondynamic(xids_nn, xids_nn_in_ode, xids_nn_pre_ode)
     xids_observable = _get_xids_observable_noise(observable_parameters, petab_parameters)
     xids_noise = _get_xids_observable_noise(noise_parameters, petab_parameters)
-    xids_nondynamic_mech = _get_xids_nondynamic_mech_mech(xids_observable, xids_noise, xids_nn, sys, petab_parameters, conditions_df, mapping_table)
+    xids_nondynamic_mech = _get_xids_nondynamic_mech(xids_observable, xids_noise, xids_nn, sys, petab_parameters, conditions_df, mapping_table)
     xids_dynamic_mech = _get_xids_dynamic_mech(xids_observable, xids_noise, xids_nondynamic_mech, xids_nn, petab_parameters)
+    # If a parameter is in ixdynamic_mech_inputs and in xids_nondynamic_mech it only
+    # appears as an input parameter to estimate. Technically, this is a xdynamic, but,
+    # a special varient as it never directly enters the ODE. Therefore, it must be tracked.
+    xids_nn_input_only_est = Symbol[]
+    for id in xids_nn_input_est
+        !(id in xids_nondynamic_mech) && continue
+        id in xids_dynamic_mech && continue
+        push!(xids_dynamic_mech, id)
+        push!(xids_nn_input_only_est, id)
+        xids_nondynamic_mech = filter(x -> x != id, xids_nondynamic_mech)
+    end
 
     xids_not_system = unique(vcat(xids_observable, xids_noise, xids_nondynamic_mech))
     xids_estimate = vcat(xids_dynamic_mech, xids_not_system, xids_nn)
@@ -108,7 +120,8 @@ function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabM
                 :estimate => xids_estimate, :petab => xids_petab,
                 :nn_in_ode => xids_nn_in_ode, :nn_pre_ode => xids_nn_pre_ode,
                 :nn_pre_ode_outputs => xids_nn_pre_ode_output,
-                :nn_nondynamic => xids_nn_nondynamic)
+                :nn_nondynamic => xids_nn_nondynamic,
+                :nn_only_input => xids_nn_input_only_est)
 end
 
 function _get_xindices(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Symbol, Vector{Int32}}
@@ -146,6 +159,7 @@ function _get_xindices_dynamic(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Sym
     xindices = Dict{Symbol, Vector{Int32}}()
     # Get indices for mechanstic parameters in xdynamic
     xindices[:xdynamic_to_mech] = Int32.(1:length(xids[:dynamic_mech]))
+    xindices[:nn_only_input] = Int32.([findfirst(x -> x == id, xids[:dynamic_mech]) for id in xids[:nn_only_input]])
     # Get indicies in xest for all dynamic parameters (mechanistic + neural net)
     xi_xest_to_xdynamic = Int32[findfirst(x -> x == id, xids[:estimate]) for id in xids[:dynamic_mech]]
     xi_nn_in_ode = Int32[]
@@ -301,7 +315,7 @@ function _get_xids_observable_noise(values, petab_parameters::PEtabParameters)::
     return ids
 end
 
-function _get_xids_nondynamic_mech_mech(xids_observable::T, xids_noise::T, xids_nn::T, sys, petab_parameters::PEtabParameters, conditions_df::DataFrame, mapping_table::DataFrame)::T where {T <: Vector{Symbol}}
+function _get_xids_nondynamic_mech(xids_observable::T, xids_noise::T, xids_nn::T, sys, petab_parameters::PEtabParameters, conditions_df::DataFrame, mapping_table::DataFrame)::T where {T <: Vector{Symbol}}
     xids_condition = _get_xids_condition(sys, petab_parameters, conditions_df, mapping_table)
     if sys isa ODEProblem
         xids_sys = keys(sys.p) |> collect
@@ -821,4 +835,21 @@ function _get_nn_input_variables(inputs::Vector{Symbol}, conditions_df::DataFram
                                variables, PEtab parameters, or in the conditions table"))
     end
     return input_variables
+end
+
+function _get_xids_nn_input_est(mapping_table::DataFrame, conditions_df::DataFrame, petab_parameters::PEtabParameters, sys)::Vector{Symbol}
+    out = Symbol[]
+    isempty(mapping_table) && return out
+    for netid in Symbol.(unique(mapping_table[!, :netId]))
+        inputs = _get_net_values(mapping_table, netid, :inputs) .|> Symbol
+        input_variables = _get_nn_input_variables(inputs, conditions_df, petab_parameters, sys)
+        for input_variable in input_variables
+            !(input_variable in petab_parameters.parameter_id) && continue
+            ip = findfirst(x -> x == input_variable, petab_parameters.parameter_id)
+            if petab_parameters.estimate[ip] == true
+                push!(out, input_variable)
+            end
+        end
+    end
+    return out
 end

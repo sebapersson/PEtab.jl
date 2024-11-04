@@ -148,6 +148,22 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnois
         cache.grad_nn_pre_ode .= forward_eqs_grad[(length(ixdynamic_simid)+1):end]
         _grad_nn_pre_ode!(grad, simid, probinfo, model_info)
     end
+    # Adjust for parameters that only appear in the input. As these belong to xdynamic,
+    # but do not map to the system, they are not correctly mapped in grad_to_xscale!
+    # TODO: Must adjust for scale transformation later, as input can be on log10 scale,
+    # probably here and in _grad_nn_pre_ode!
+    if split_over_conditions == false && !isempty(xindices.maps_nn_pre_ode)
+        for map_nn in values(xindices.maps_nn_pre_ode[simid])
+            ixs = map_nn.ixdynamic_mech_inputs
+            for ix in ixs
+                if !(xindices.xids[:dynamic_mech][ix] in xindices.xids[:nn_only_input])
+                    continue
+                end
+                grad[ix] += forward_eqs_grad[ix]
+            end
+        end
+    end
+
     # Adjust if gradient is non-linear scale (e.g. log and log10). TODO: Refactor
     # this function later
     grad_to_xscale!(grad, forward_eqs_grad, ∂G∂p, xdynamic_tot, xindices, simid,
