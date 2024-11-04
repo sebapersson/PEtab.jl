@@ -10,7 +10,7 @@ function grad_adjoint!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode!::Funct
     # Get the Jacobians of Neural-Networks that set values for potential model parameters.
     # By then taking the gradient on the output of these networks, and computing a vjp,
     # the gradient can be computed rapidly via the chain-rule
-    PEtab._jac_nn_pre_ode!(probinfo)
+    PEtab._jac_nn_pre_ode!(probinfo, model_info)
 
     _grad_adjoint_xdynamic!(xdynamic_grad, probinfo, model_info; cids = cids)
     @views grad[xindices.xindices_dynamic[:xest_to_xdynamic]] .= xdynamic_grad
@@ -215,7 +215,7 @@ function _grad_adjoint_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnoise::V
     # already been computed, so the only thing left is to combine them
     if !isempty(xindices.xids[:nn_pre_ode_outputs])
         ix = xindices.map_odeproblem.sys_to_nn_pre_ode_output
-        cache.grad_nn_pre_ode_outputs .= adjoint_grad[ix]
+        cache.grad_nn_pre_ode .= adjoint_grad[ix]
         PEtab._grad_nn_pre_ode!(grad, simid, probinfo, model_info)
     end
 

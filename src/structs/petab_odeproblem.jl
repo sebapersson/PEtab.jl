@@ -39,11 +39,16 @@ struct MapODEProblem
 end
 
 struct NNPreODEMap
-    inputs::Vector{Float64}
+    constant_inputs::Vector{Float64}
+    iconstant_inputs::Vector{Int32}
+    ixdynamic_mech_inputs::Vector{Int32}
+    ixdynamic_inputs::Vector{Int32}
+    ninputs::Int64
+    nxdynamic_inputs::Int64
     noutputs::Int64
-    xindices_nn_outputs::Vector{Int32}
-    xindices_nn_outputs_grad::Vector{Int32}
-    xindices_output_sys::Vector{Int32}
+    ix_nn_outputs::Vector{Int32}
+    ix_nn_outputs_grad::Vector{Int32}
+    ioutput_sys::Vector{Int32}
 end
 
 struct ParameterIndices
@@ -129,7 +134,7 @@ struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
     xnn::T7
     xnn_dict::Dict{Symbol, ComponentArray}
     xdynamic_tot::T2
-    grad_nn_pre_ode_outputs::Vector{Float64}
+    grad_nn_pre_ode::Vector{Float64}
 end
 
 struct PEtabMeasurements{T <: Vector{<:Union{<:String, <:AbstractFloat}}}
@@ -351,6 +356,8 @@ struct NNPreODE{T <: DiffCache}
     tape::Any
     jac_nn::Matrix{Float64}
     outputs::T
+    inputs::T
+    x::T
     computed::Vector{Bool}
 end
 

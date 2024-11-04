@@ -75,7 +75,7 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic_tot::Vector{T}, x
             # Jacobian for Gauss-Newton
             if split_over_conditions == true
                 ix = (length(ixdynamic_simid)+1):length(forward_eqs_grad)
-                cache.grad_nn_pre_ode_outputs .= forward_eqs_grad[ix]
+                cache.grad_nn_pre_ode .= forward_eqs_grad[ix]
                 _grad_nn_pre_ode!(_jac, simid, probinfo, model_info)
             end
             grad_to_xscale!(_jac, forward_eqs_grad, ∂G∂p, xdynamic_tot, xindices, simid,

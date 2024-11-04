@@ -284,10 +284,22 @@ end
 _test_ordering(x::AbstractVector, names_ps::Vector{Symbol})::Nothing = nothing
 
 # TODO: Put in Lux functionality (from here and down)
-function _net!(out, pnn, input, nn)::Nothing
+function _net!(out, x, pnn::DiffCache, inputs::DiffCache, map_nn::NNPreODEMap, nn)::Nothing
+    _inputs = get_tmp(inputs, x)
+    _pnn = get_tmp(pnn, x)
+    _inputs[map_nn.iconstant_inputs] .= map_nn.constant_inputs
+    @views _inputs[map_nn.ixdynamic_inputs] .= x[1:map_nn.nxdynamic_inputs]
+    @views _pnn .= x[(map_nn.nxdynamic_inputs + 1):end]
     st, net = nn
-    out .= net(input, pnn, st)[1]
+    out .= net(_inputs, _pnn, st)[1]
     return nothing
+end
+
+function _get_nn_pre_ode_x(nnpre::NNPreODE, xdynamic_mech::AbstractVector, pnn::ComponentArray, map_nn::NNPreODEMap)::AbstractVector
+    x = get_tmp(nnpre.x, xdynamic_mech)
+    x[1:map_nn.nxdynamic_inputs] = xdynamic_mech[map_nn.ixdynamic_mech_inputs]
+    @views x[(map_nn.nxdynamic_inputs+1):end] .= pnn
+    return x
 end
 
 function _get_net_values(mapping_table::DataFrame, netid::Symbol, type::Symbol)::Vector{String}

@@ -179,8 +179,8 @@ function _get_xinput(simid::Symbol, x::Vector{<:AbstractFloat}, ixdynamic_simid,
     for (netid, nn_pre_ode) in probinfo.nn_pre_ode[simid]
         map_nn = model_info.xindices.maps_nn_pre_ode[simid][netid]
         outputs = get_tmp(nn_pre_ode.outputs, xinput)
-        ix = map_nn.xindices_nn_outputs_grad
-        ix .= map_nn.xindices_nn_outputs .+ ninode
+        ix = map_nn.ix_nn_outputs_grad
+        ix .= map_nn.ix_nn_outputs .+ ninode
         @views xinput[ix] .= outputs
     end
     return xinput
@@ -195,17 +195,19 @@ function _split_xinput!(probinfo::PEtabODEProblemInfo, simid::Symbol, model_info
     for (netid, nn_pre_ode) in probinfo.nn_pre_ode[simid]
         map_nn =  model_info.xindices.maps_nn_pre_ode[simid][netid]
         outputs = get_tmp(nn_pre_ode.outputs, xinput)
-        @views outputs .= xinput[map_nn.xindices_nn_outputs_grad]
+        @views outputs .= xinput[map_nn.ix_nn_outputs_grad]
     end
     return nothing
 end
 
 function _grad_nn_pre_ode!(xdynamic_grad::AbstractVector, simid::Symbol, probinfo::PEtabODEProblemInfo, model_info::ModelInfo)::Nothing
     isempty(probinfo.nn_pre_ode) && return nothing
+    @unpack xindices_dynamic, maps_nn_pre_ode = model_info.xindices
     for (netid, nn_pre_ode) in probinfo.nn_pre_ode[simid]
-        map_nn = model_info.xindices.maps_nn_pre_ode[simid][netid]
-        grad_nn_output = probinfo.cache.grad_nn_pre_ode_outputs[map_nn.xindices_nn_outputs]
-        ix = model_info.xindices.xindices_dynamic[netid]
+        map_nn = maps_nn_pre_ode[simid][netid]
+        grad_nn_output = probinfo.cache.grad_nn_pre_ode[map_nn.ix_nn_outputs]
+        ix = Iterators.flatten((map_nn.ixdynamic_mech_inputs, xindices_dynamic[netid])) |>
+            collect
         xdynamic_grad[ix] .+= vec(grad_nn_output' * nn_pre_ode.jac_nn)
     end
     return nothing

@@ -6,4 +6,5 @@ include(joinpath(@__DIR__, "helper.jl"))
     include(joinpath(@__DIR__, "003.jl"))
     include(joinpath(@__DIR__, "004.jl"))
     include(joinpath(@__DIR__, "005.jl"))
+    include(joinpath(@__DIR__, "006.jl"))
 end

@@ -59,18 +59,21 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
     for (cid, maps_nn) in model_info.xindices.maps_nn_pre_ode
         _nns = Dict{Symbol, NNPreODE}()
         for (pid, map) in maps_nn
-            @unpack inputs, noutputs = map
+            @unpack ninputs, noutputs = map
             nn = model_info.model.nn[string(pid)[3:end] |> Symbol]
-            pnn = get_tmp(cache.xnn[pid], 1.0)
+            pnn = cache.xnn[pid]
             outputs = DiffCache(zeros(Float64, noutputs), levels = 2)
-            compute_nn! = let inputs = inputs, nn = nn
-                (out, pnn) -> _net!(out, pnn, inputs, nn)
+            inputs = DiffCache(zeros(Float64, ninputs), levels = 2)
+            compute_nn! = let nn = nn, map_nn = map, inputs = inputs, pnn = pnn
+                (out, x) -> _net!(out, x, pnn, inputs, map_nn, nn)
             end
 
             out = get_tmp(outputs, 1.0)
-            tape = ReverseDiff.JacobianTape(compute_nn!, out, pnn)
-            jac_nn = zeros(Float64, noutputs, length(pnn))
-            _nns[pid] = NNPreODE(compute_nn!, tape, jac_nn, outputs, [false])
+            nx = length(get_tmp(pnn, 1.0)) + map.nxdynamic_inputs
+            xarg = DiffCache(zeros(Float64, nx), levels = 2)
+            tape = ReverseDiff.JacobianTape(compute_nn!, out, get_tmp(xarg, 1.0))
+            jac_nn = zeros(Float64, noutputs, nx)
+            _nns[pid] = NNPreODE(compute_nn!, tape, jac_nn, outputs, inputs, xarg, [false])
         end
         nns_pre_ode[cid] = _nns
     end

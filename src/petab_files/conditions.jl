@@ -728,34 +728,48 @@ function _get_nn_pre_ode_maps(conditions_df::DataFrame, xids::Dict{Symbol, Vecto
             outputs = _get_net_values(mapping_table, netid, :outputs) .|> Symbol
             inputs = _get_net_values(mapping_table, netid, :inputs) .|> Symbol
             input_variables = _get_nn_input_variables(inputs, DataFrame(conditions_df[i, :]), petab_parameters, sys; keep_numbers = true)
+            ninputs = length(input_variables)
 
-            # Get values for the inputs. For the pre-ODE case only constant inputs are
-            # allowed for a simulation condition, hence, can directly obtain the input
-            # numerical values
-            input_values = zeros(Float64, length(input_variables))
+            # Get values for the inputs. For the pre-ODE inputs can either be constant
+            # values (numeric) or a parameter, which is treated as a xdynamic parameter
+            constant_inputs, iconstant_inputs = zeros(Float64, 0), zeros(Int32, 0)
+            ixdynamic_mech_inputs, ixdynamic_inputs = zeros(Int32, 0), zeros(Int32, 0)
             for (i, input_variable) in pairs(input_variables)
                 if is_number(input_variable)
-                    input_values[i] = parse(Float64, string(input_variable))
+                    val = parse(Float64, string(input_variable))
+                    push!(constant_inputs, val)
+                    push!(iconstant_inputs, i)
                     continue
                 end
+                # Has to now be a PEtabParameter, that can either be constant or be
+                # estimated
                 ip = findfirst(x -> x == input_variable, petab_parameters.parameter_id)
-                input_values[i] = petab_parameters.nominal_value[ip]
+                if petab_parameters.estimate[ip] == false
+                    push!(constant_inputs, petab_parameters.nominal_value[ip])
+                    push!(iconstant_inputs, i)
+                    continue
+                end
+                # Parameter that is estimated (and part of ixdynamic)
+                ixmech = findfirst(x -> x == input_variable, xids[:dynamic_mech])
+                push!(ixdynamic_mech_inputs, ixmech)
+                push!(ixdynamic_inputs, i)
             end
+            nxdynamic_inputs = length(ixdynamic_mech_inputs)
 
             # Indicies for correctly mapping the output. The outputs are stored in a
-            # separate vector of order xids[:nn_pre_ode_outputs], which xindices_nn_outputs
+            # separate vector of order xids[:nn_pre_ode_outputs], which ix_nn_outputs
             # stores the index for. The outputs maps to parameters in sys, which
-            # xindices_output_sys stores. Lastly, for split_over_conditions = true the
-            # gradient of the output variables is needed, xindices_nn_outputs_grad stores
+            # ioutput_sys stores. Lastly, for split_over_conditions = true the
+            # gradient of the output variables is needed, ix_nn_outputs_grad stores
             # the indices in xdynamic_grad for the outputs (the indices depend on the
             # condition so the Vector is only pre-allocated here).
             noutputs = length(outputs)
-            xindices_nn_outputs = zeros(Int32, noutputs)
-            xindices_output_sys = zeros(Int32, noutputs)
-            xindices_nn_outputs_grad = zeros(Int32, noutputs)
+            ix_nn_outputs = zeros(Int32, noutputs)
+            ioutput_sys = zeros(Int32, noutputs)
+            ix_nn_outputs_grad = zeros(Int32, noutputs)
             for (i, output_variable) in pairs(outputs)
                 io = findfirst(x -> x == output_variable, xids[:nn_pre_ode_outputs])
-                xindices_nn_outputs[i] = io
+                ix_nn_outputs[i] = io
                 isys = 1
                 # TODO: To common pattern, refactor into a function
                 for id_sys in xids[:sys]
@@ -764,13 +778,13 @@ function _get_nn_pre_ode_maps(conditions_df::DataFrame, xids::Dict{Symbol, Vecto
                         isys += np
                     end
                     if id_sys == output_variable
-                        xindices_output_sys[i] = isys
+                        ioutput_sys[i] = isys
                         break
                     end
                     isys += 1
                 end
             end
-            maps_nn[pnnid] = NNPreODEMap(input_values, noutputs, xindices_nn_outputs, xindices_nn_outputs_grad, xindices_output_sys)
+            maps_nn[pnnid] = NNPreODEMap(constant_inputs, iconstant_inputs, ixdynamic_mech_inputs, ixdynamic_inputs, ninputs, nxdynamic_inputs, noutputs, ix_nn_outputs, ix_nn_outputs_grad, ioutput_sys)
         end
         maps[conditionid] = maps_nn
     end
@@ -789,11 +803,6 @@ function _get_nn_input_variables(inputs::Vector{Symbol}, conditions_df::DataFram
             continue
         end
         if input in petab_parameters.parameter_id
-            ip = findfirst(x -> x == input, petab_parameters.parameter_id)
-            if petab_parameters.estimate[ip] == true
-                throw(PEtabInputError("Input for neural network ($input) is not allowed \
-                                       to be a parameter that is estimated"))
-            end
             push!(input_variables, input)
             continue
         end

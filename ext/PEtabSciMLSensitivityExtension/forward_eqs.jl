@@ -56,7 +56,7 @@ function PEtab._grad_forward_eqs_cond!(grad::Vector{T}, xdynamic_tot::Vector{T},
     # already been computed, so the only thing left is to combine them
     if !isempty(xindices.xids[:nn_pre_ode_outputs])
         ix = xindices.map_odeproblem.sys_to_nn_pre_ode_output
-        cache.grad_nn_pre_ode_outputs .= _grad[ix]
+        cache.grad_nn_pre_ode .= _grad[ix]
         PEtab._grad_nn_pre_ode!(grad, simid, probinfo, model_info)
     end
 

@@ -35,9 +35,10 @@ function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::AbstractVec
             outputs = get_tmp(nn_pre_ode.outputs, p)
             if nn_pre_ode.computed[1] == false
                 pnn = xnn[netid]
-                nn_pre_ode.nn!(outputs, pnn)
+                _x = _get_nn_pre_ode_x(nn_pre_ode, xdynamic, pnn, map_nn)
+                nn_pre_ode.nn!(outputs, _x)
             end
-            p[map_nn.xindices_output_sys] .= outputs
+            p[map_nn.ioutput_sys] .= outputs
         end
     end
 

@@ -222,12 +222,20 @@ function _get_n_net_parameters(nn::Union{Dict, Nothing}, xids::Vector{Symbol})::
     return nparameters
 end
 
-function _jac_nn_pre_ode!(probinfo::PEtabODEProblemInfo)::Nothing
-    for nns_pre_ode in values(probinfo.nn_pre_ode)
+function _jac_nn_pre_ode!(probinfo::PEtabODEProblemInfo, model_info::ModelInfo)::Nothing
+    @unpack cache = probinfo
+    for (cid, nns_pre_ode) in probinfo.nn_pre_ode
         for (netid, nn_pre_ode) in nns_pre_ode
-            pnn = get_tmp(probinfo.cache.xnn[netid], 1.0)
-            @unpack tape, jac_nn, outputs, computed = nn_pre_ode
-            ReverseDiff.jacobian!(jac_nn, tape, pnn)
+            # Parameter mapping. If one of the inputs is a parameter to estimate, the
+            # Jacobian is also computed of the input parameter.
+            map_nn = model_info.xindices.maps_nn_pre_ode[cid][netid]
+            pnn = get_tmp(cache.xnn[netid], 1.0)
+            xdynamic_mech = get_tmp(cache.xdynamic_mech, 1.0)
+            xdynamic_mech_ps = transform_x(xdynamic_mech, model_info.xindices, :xdynamic, cache)
+            _x = _get_nn_pre_ode_x(nn_pre_ode, xdynamic_mech_ps, pnn, map_nn)
+
+            @unpack tape, jac_nn, outputs, inputs, computed = nn_pre_ode
+            ReverseDiff.jacobian!(jac_nn, tape, _x)
             outputs_tape = ReverseDiff.value(tape.output)
             outputs_cache = get_tmp(outputs, outputs_tape)
             outputs_cache .= outputs_tape

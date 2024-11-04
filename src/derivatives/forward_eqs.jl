@@ -145,7 +145,7 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnois
     # Transfer the nn-output parameters gradient to cache, which is later correctly
     # adjusted in grad_to_xscale!
     if split_over_conditions == true
-        cache.grad_nn_pre_ode_outputs .= forward_eqs_grad[(length(ixdynamic_simid)+1):end]
+        cache.grad_nn_pre_ode .= forward_eqs_grad[(length(ixdynamic_simid)+1):end]
         _grad_nn_pre_ode!(grad, simid, probinfo, model_info)
     end
     # Adjust if gradient is non-linear scale (e.g. log and log10). TODO: Refactor

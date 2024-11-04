@@ -54,7 +54,7 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
     xdynamic_tot = DiffCache(similar(_xdynamic_tot), chunksize, levels = level_cache)
     # For the gradient of parameters that are set via neural-network (needed for efficient
     # gradient of the neural network with the help of the chain rule)
-    grad_nn_pre_ode_outputs = zeros(Float64, length(xindices.xids[:nn_pre_ode_outputs]))
+    grad_nn_pre_ode = zeros(Float64, length(xindices.xids[:nn_pre_ode_outputs]))
 
     # Arrays needed in gradient compuations
     xdynamic_grad = zeros(Float64, nxdynamic_tot)
@@ -162,7 +162,7 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
                                 adjoint_grad, St0, ∂h∂u, ∂σ∂u, ∂h∂p, ∂σ∂p, ∂G∂p, ∂G∂p_,
                                 ∂G∂u, dp, du, p, u, S, odesols, pode, u0ode,
                                 xdynamic_input_order, xdynamic_output_order, nxdynamic,
-                                xnn, xnn_dict, xdynamic_tot, grad_nn_pre_ode_outputs)
+                                xnn, xnn_dict, xdynamic_tot, grad_nn_pre_ode)
 end
 
 function _get_nxdynamic(xindices::ParameterIndices)::Int64
