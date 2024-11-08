@@ -88,6 +88,8 @@ function transform_x(x::T, scale::Symbol; to_xscale::Bool = false)::T where {T <
         return to_xscale == true ? log10(x) : exp10(x)
     elseif scale === :log
         return to_xscale == true ? log(x) : exp(x)
+    elseif scale === :log2
+        return to_xscale == true ? log2(x) : exp2(x)
     end
 end
 
@@ -98,6 +100,8 @@ function transform_observable(val::T, transform::Symbol)::T where {T <: Real}
         return val > 0 ? log10(val) : Inf
     elseif transform == :log
         return val > 0 ? log(val) : Inf
+    elseif transform == :log2
+        return val > 0 ? log2(val) : Inf
     end
 end
 
