@@ -1,5 +1,9 @@
 # Breaking updates and feature summaries across releases
 
+## PEtab 3.5.0
+
+Add `log2` transformation for parameters and observable transformations.
+
 ## PEtab 3.4.0
 
 Plot updates:

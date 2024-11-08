@@ -138,10 +138,12 @@ function _grad_to_xscale(grad_linscale_val::T, x_val::T,
                          xscale::Symbol)::T where {T <: AbstractFloat}
     if xscale === :log10
         return log(10) * grad_linscale_val * x_val
-    elseif xscale === :log
-        return grad_linscale_val * x_val
     elseif xscale === :lin
         return grad_linscale_val
+    elseif xscale == :log2
+        return log(2) * grad_linscale_val * x_val
+    elseif xscale === :log
+        return grad_linscale_val * x_val
     end
 end
 
