@@ -341,52 +341,127 @@ end
 Transforms parameters (`ps`) for a Lux layer to a tidy DataFrame `df` with columns `value`
 and `parameterId`.
 
-A `Lux.Dense` layer has two sets of parameters, weights and optionally biases. The
-weight matrix `W` has dimensions `size(W) = (out_dims, in_dims)`, and if present, the bias
-vector `B` has dimensions `size(B) = out_dims`. Thus, in `df` the column `parameterId`
-has values:
-- `netname_layername_weight_i_j`: weight for output `i` and input `j`
-- `netname_layername_bias_i`: bias for output `i`
+A `Lux.Dense` layer has two sets of parameters, `weight` and optionally `bias`. For
+`Dense` and all other form of layers `weight` and `bias` are stored as:
+
+- `netname_layername_weight_ix`: weight for output `i` and input `j`
+- `netname_layername_bias_ix`: bias for output `i`
+
+Where `ix` depends on the `Tensor` the parameters are stored in. For example, if
+`size(weight) = (5, 2)` `ix` is on the form `ix = i_j`. Here, it is important to note that
+the PEtab standard uses Julia tensor. For example, `x = ones(5, 3, 2)` can be thought of
+as a Tensor with height 5, width 3 and depth 2. In PyTorch `x` would correspond to
+`x = torch.ones(2, 5, 3)`.
+
+For `Dense` layer possible parameters that are saved to a DataFrame are:
+- `weight` of dimension `(out_features, in_features)`
+- `bias` of dimension `(out_features)`
 """
 function layer_ps_to_tidy(layer::Lux.Dense, ps::Union{NamedTuple, ComponentArray}, netname::Symbol, layername::Symbol)::DataFrame
     @unpack in_dims, out_dims, use_bias = layer
-    weight_names = fill("", in_dims * out_dims)
-    for i in 1:out_dims
-        for j in 1:in_dims
-            ix = out_dims * (j - 1) + i
-            weight_names[ix] = "weight_$(i)_$(j)"
-        end
-    end
-    df_weight = DataFrame(parameterId = "$(netname)_$(layername)_" .* weight_names,
-                          value = vec(ps.weight))
-    if use_bias == true
-        bias_names = "bias_" .* string.(1:out_dims)
-        df_bias = DataFrame(parameterId = "$(netname)_$(layername)_" .* bias_names,
-                            value = ps.bias)
-    else
-        df_bias = DataFrame()
-    end
+    df_weight = _ps_weight_to_tidy(ps, (out_dims, in_dims), netname, layername)
+    df_bias = _ps_bias_to_tidy(ps, (out_dims, ), netname, layername, use_bias)
     return vcat(df_weight, df_bias)
 end
+"""
+    layer_ps_to_tidy(layer::Lux.ConvTranspose, ...)::DataFrame
 
+For `ConvTranspose` layer possible parameters that are saved to a DataFrame are:
+- `weight` of dimension `(kernel_size, in_channels, out_channels)`
+- `bias` of dimension `(out_channels)`
+
+Note that `kernel_size` for `ConvTranspose` and `Conv` layers can be a `Tuple`, for example
+for `Torch` `conv2d` it is a two-dimensional tuple.
+"""
+function layer_ps_to_tidy(layer::Lux.ConvTranspose, ps::Union{NamedTuple, ComponentArray}, netname::Symbol, layername::Symbol)::DataFrame
+    @unpack kernel_size, use_bias, in_chs, out_chs = layer
+    df_weight = _ps_weight_to_tidy(ps, (kernel_size..., out_chs, in_chs), netname, layername)
+    df_bias = _ps_bias_to_tidy(ps, (out_chs, ), netname, layername, use_bias)
+    return vcat(df_weight, df_bias)
+end
+"""
+    layer_ps_to_tidy(layer::Lux.ConvTranspose, ...)::DataFrame
+
+For `Conv` layer possible parameters that are saved to a DataFrame are:
+- `weight` of dimension `(kernel_size, out_channels, in_channels)`
+- `bias` of dimension `(out_channels)`
+"""
+function layer_ps_to_tidy(layer::Lux.Conv, ps::Union{NamedTuple, ComponentArray}, netname::Symbol, layername::Symbol)::DataFrame
+    @unpack kernel_size, use_bias, in_chs, out_chs = layer
+    df_weight = _ps_weight_to_tidy(ps, (kernel_size..., in_chs, out_chs), netname, layername)
+    df_bias = _ps_bias_to_tidy(ps, (out_chs, ), netname, layername, use_bias)
+    return vcat(df_weight, df_bias)
+end
+"""
+    layer_ps_to_tidy(layer::Union{Lux.MaxPool}, ...)::DataFrame
+
+Pooling layers do not have parameters.
+"""
+function layer_ps_to_tidy(layer::Union{Lux.MaxPool},::Union{NamedTuple, ComponentArray}, ::Symbol, ::Symbol)::DataFrame
+    return DataFrame()
+end
+
+
+function set_ps_layer!(ps::ComponentArray, layer::Lux.ConvTranspose, df_ps::DataFrame)::Nothing
+    @unpack kernel_size, use_bias, in_chs, out_chs = layer
+    _set_ps_weight!(ps, (kernel_size..., out_chs, in_chs), df_ps)
+    _set_ps_bias!(ps, (out_chs, ), df_ps, use_bias)
+    return nothing
+end
+function set_ps_layer!(ps::ComponentArray, layer::Lux.Conv, df_ps::DataFrame)::Nothing
+    @unpack kernel_size, use_bias, in_chs, out_chs = layer
+    _set_ps_weight!(ps, (kernel_size..., in_chs, out_chs), df_ps)
+    _set_ps_bias!(ps, (out_chs, ), df_ps, use_bias)
+    return nothing
+end
 function set_ps_layer!(ps::ComponentArray, layer::Lux.Dense, df_ps::DataFrame)::Nothing
     @unpack in_dims, out_dims, use_bias = layer
-    @assert size(ps.weight) == (out_dims, in_dims) "layer size does not match ps.weight size"
-    if use_bias == true
-        @assert size(ps.bias) == (out_dims, ) "layer size does not match ps.bias size"
-    end
+    _set_ps_weight!(ps, (out_dims, in_dims), df_ps)
+    _set_ps_bias!(ps, (out_dims, ), df_ps, use_bias)
+    return nothing
+end
+function set_ps_layer!(::ComponentArray, ::Union{Lux.MaxPool}, ::DataFrame)::Nothing
+    return nothing
+end
 
+function _set_ps_weight!(ps::ComponentArray, weight_dims, df_ps::DataFrame)::Nothing
+    @assert size(ps.weight) == weight_dims "layer size does not match ps.weight size"
     df_weights = df_ps[occursin.("weight_", df_ps[!, :parameterId]), :]
     for (i, id) in pairs(df_weights[!, :parameterId])
-        j, k = parse.(Int64, collect(m.match for m in eachmatch(r"\d+", id))[(end-1):end])
-        ps.weight[j, k] = df_weights[i, :value]
-    end
-
-    use_bias == false && return nothing
-    df_bias = df_ps[occursin.("bias_", df_ps[!, :parameterId]), :]
-    for (i, id) in pairs(df_bias[!, :parameterId])
-        j = parse(Int64, collect(m.match for m in eachmatch(r"\d+", id))[end])
-        ps.bias[j] = df_bias[i, :value]
+        ix = parse.(Int64, collect(m.match for m in eachmatch(r"\d+", id))[(end-length(weight_dims)+1):end])
+        ps.weight[ix...] = df_weights[i, :value]
     end
     return nothing
+end
+
+function _set_ps_bias!(ps::ComponentArray, bias_dims, df_ps::DataFrame, use_bias)::Nothing
+    use_bias == false && return nothing
+    @assert size(ps.bias) == bias_dims "layer size does not match ps.bias size"
+    df_bias = df_ps[occursin.("bias_", df_ps[!, :parameterId]), :]
+    for (i, id) in pairs(df_bias[!, :parameterId])
+        ix = parse.(Int64, collect(m.match for m in eachmatch(r"\d+", id))[(end-length(bias_dims)+1):end])
+        ps.bias[ix...] = df_bias[i, :value]
+    end
+    return nothing
+end
+
+function _ps_weight_to_tidy(ps, weight_dims, netname::Symbol, layername::Symbol)::DataFrame
+    iweight = getfield.(findall(x -> true, ones(weight_dims)), :I)
+    weight_names =  ["weight" * prod("_" .* string.(ix)) for ix in iweight]
+    df_weight = DataFrame(parameterId = "$(netname)_$(layername)_" .* weight_names,
+                          value = vec(ps.weight))
+    return df_weight
+end
+
+function _ps_bias_to_tidy(ps, bias_dims, netname::Symbol, layername::Symbol, use_bias)::DataFrame
+    use_bias == false && return DataFrame()
+    if length(bias_dims) > 1
+        ibias = getfield.(findall(x -> true, ones(bias_dims)), :I)
+    else
+        ibias = 1:bias_dims[1]
+    end
+    bias_names =  ["bias" * prod("_" .* string.(ix)) for ix in ibias]
+    df_bias = DataFrame(parameterId = "$(netname)_$(layername)_" .* bias_names,
+                        value = vec(ps.bias))
+    return df_bias
 end
