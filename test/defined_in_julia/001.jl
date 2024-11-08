@@ -36,9 +36,9 @@ measurements = DataFrame(obs_id=["obs_a", "obs_a"],
 
 # PEtab-parameter to "estimate"
 parameters = [PEtabParameter(:a0, value=1.0, scale=:lin),
-                    PEtabParameter(:b0, value=0.0, scale=:lin),
-                    PEtabParameter(:k1, value=0.8, scale=:lin),
-                    PEtabParameter(:k2, value=0.6, scale=:lin)]
+              PEtabParameter(:b0, value=0.0, scale=:lin),
+              PEtabParameter(:k1, value=0.8, scale=:lin),
+              PEtabParameter(:k2, value=0.6, scale=:lin)]
 
 # Observable equation
 @unpack A = rn
