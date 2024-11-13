@@ -93,6 +93,14 @@ include(joinpath("parameter_estimation", "singlestart.jl"))
 include(joinpath("parameter_estimation", "startguesses.jl"))
 
 include(joinpath("util.jl"))
+
+include(joinpath("neural_nets", "common.jl"))
+include(joinpath("neural_nets", "netinfo.jl"))
+include(joinpath("neural_nets", "parse.jl"))
+include(joinpath("neural_nets", "read_ps.jl"))
+include(joinpath("neural_nets", "templates.jl"))
+include(joinpath("neural_nets", "write_ps.jl"))
+
 #=
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem
 @setup_workload begin
