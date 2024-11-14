@@ -3,6 +3,7 @@ function set_ps_net!(ps::ComponentArray, df_ps::DataFrame, netname::Symbol, nn):
     for (id, layer) in pairs(nn.layers)
         df_layer = df_net[startswith.(df_net[!, :parameterId], "$(netname)_$(id)_"), :]
         ps_layer = ps[id]
+        isempty(ps_layer) && continue
         _set_ps_layer!(ps_layer, layer, df_layer)
         ps[id] = ps_layer
     end
@@ -71,7 +72,18 @@ function _set_ps_layer!(ps::ComponentArray, layer::Lux.ConvTranspose, df_ps::Dat
     @views ps.bias .= ps_bias
     return nothing
 end
-function _set_ps_layer!(::Union{Vector{<:AbstractFloat}, ComponentArray}, ::PS_FREE_LAYERS, ::DataFrame)::Nothing
+function _set_ps_layer!(ps::ComponentArray, layer::Union{Lux.BatchNorm, Lux.InstanceNorm}, df_ps::DataFrame)::Nothing
+    @unpack affine, chs = layer
+    @assert size(ps.scale) == (chs,) "Error in dimension of scale for $(typeof(layer)) layer"
+    @assert size(ps.bias) == (chs,) "Error in dimension of scale for $(typeof(layer)) layer"
+    # In Lux.jl the weight is named scale
+    ps_scale = _get_ps_layer(df_ps, 1, :weight)
+    ps_bias = _get_ps_layer(df_ps, 1, :bias)
+    @views ps.scale .= ps_scale
+    @views ps.bias .= ps_bias
+    return nothing
+end
+function _set_ps_layer!(::ComponentArray, ::PS_FREE_LAYERS, ::DataFrame)::Nothing
     return nothing
 end
 

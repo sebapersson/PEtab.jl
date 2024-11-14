@@ -102,6 +102,23 @@ function _ps_to_tidy(layer::Lux.Bilinear, ps::Union{NamedTuple, ComponentArray},
     return vcat(df_weight, df_bias)
 end
 """
+    layer_ps_to_tidy(layer::Union{Lux.BatchNorm, Lux.InstanceNorm}, ...)::DataFrame
+
+For `BatchNorm` and `InstanceNorm` layer possible parameters that are saved to a DataFrame
+are:
+- `scale/weight` of dimension `(num_features)`
+- `bias` of dimension `(num_features)`
+!!! note
+    in Lux.jl the dimension argument `num_features` is chs (number of input channels)
+"""
+function layer_ps_to_tidy(layer::Union{Lux.BatchNorm, Lux.InstanceNorm}, ps::Union{NamedTuple, ComponentArray}, netname::Symbol, layername::Symbol)::DataFrame
+    @unpack affine, chs = layer
+    affine == false && return DataFrame()
+    df_weight = _ps_weight_to_tidy(ps, netname, layername; scale = true)
+    df_bias = _ps_bias_to_tidy(ps, (chs, ), netname, layername, true)
+    return vcat(df_weight, df_bias)
+end
+"""
     _ps_to_tidy(layer::PS_FREE_LAYERS, ...)::DataFrame
 
 Layers without parameters to estimate.
@@ -110,12 +127,22 @@ function _ps_to_tidy(layer::PS_FREE_LAYERS, ::Union{NamedTuple, ComponentArray},
     return DataFrame()
 end
 
-function _ps_weight_to_tidy(ps, netname::Symbol, layername::Symbol)::DataFrame
-    iweight = getfield.(findall(x -> true, ones(size(ps.weight))), :I)
+function _ps_weight_to_tidy(ps, netname::Symbol, layername::Symbol; scale::Bool = false)::DataFrame
+    # For Batchnorm in Lux.jl the weight layer is refered to as scale.
+    if scale == false
+        ps_weight = ps.weight
+    else
+        ps_weight = ps.scale
+    end
+    if length(size(ps_weight)) > 1
+        iweight = getfield.(findall(x -> true, ones(size(ps_weight))), :I)
+    else
+        iweight = 1:length(ps_weight)
+    end
     iweight = [iw .- 1 for iw in iweight]
     weight_names =  ["weight" * prod("_" .* string.(ix)) for ix in iweight]
     df_weight = DataFrame(parameterId = "$(netname)_$(layername)_" .* weight_names,
-                          value = vec(ps.weight))
+                          value = vec(ps_weight))
     return df_weight
 end
 

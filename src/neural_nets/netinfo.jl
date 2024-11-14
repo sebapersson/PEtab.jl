@@ -127,10 +127,7 @@ LAYERS = Dict("Linear" => (lux_layer = Lux.Dense,
                                    kwargs = BATCHNORM_KWARGS),
               "InstanceNorm3d" => (lux_layer = Lux.InstanceNorm,
                                    args = ["num_features" => 1],
-                                   kwargs = BATCHNORM_KWARGS),
-              "GroupNorm" => (lux_layer = Lux.GroupNorm,
-                              args = ["num_channels" => 1, "num_groups" => 2],
-                              kwargs = ["eps" => "epsilon", "affine" => "affine"]))
+                                   kwargs = BATCHNORM_KWARGS))
 ACTIVATION_FUNCTIONS = Dict("relu" => (fn = "Lux.relu", nargs = 1),
                             "relu6" => (fn = "Lux.relu6", nargs = 1),
                             "hardtanh" => (fn = "Lux.hardtanh", nargs = 1),
