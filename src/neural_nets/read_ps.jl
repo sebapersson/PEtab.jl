@@ -71,7 +71,7 @@ function _set_ps_layer!(ps::ComponentArray, layer::Lux.ConvTranspose, df_ps::Dat
     @views ps.bias .= ps_bias
     return nothing
 end
-function _set_ps_layer!(::ComponentArray, ::Union{Lux.MaxPool}, ::DataFrame)::Nothing
+function _set_ps_layer!(::Union{Vector{<:AbstractFloat}, ComponentArray}, ::PS_FREE_LAYERS, ::DataFrame)::Nothing
     return nothing
 end
 

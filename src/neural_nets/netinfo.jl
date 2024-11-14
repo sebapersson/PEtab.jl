@@ -1,3 +1,5 @@
+const PS_FREE_LAYERS = Union{Lux.MaxPool, Lux.MeanPool, Lux.LPPool, Lux.AdaptiveMaxPool, Lux.AdaptiveMeanPool, Lux.FlattenLayer, Lux.Dropout, Lux.AlphaDropout}
+
 CONV_ARGS = ["kernel_size" => 1, "in_channels => out_channels" => 2]
 CONV_KWARGS = ["stride" => "stride", "padding" => "pad", "dilation" => "dilation", "bias" => "use_bias"]
 CONVT_KWARGS = vcat(CONV_KWARGS, ["output_padding" => "outpad"])

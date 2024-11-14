@@ -1,5 +1,3 @@
-const PS_FREE_LAYERS = Union{Lux.MaxPool, Lux.MeanPool, Lux.LPPool, Lux.AdaptiveMaxPool, Lux.AdaptiveMeanPool, Lux.FlattenLayer, Lux.Dropout, Lux.AlphaDropout}
-
 function nn_ps_to_tidy(nn, ps::Union{ComponentArray, NamedTuple}, netname::Symbol)::DataFrame
     df_ps = DataFrame()
     for (layername, layer) in pairs(nn.layers)

@@ -56,7 +56,7 @@ function _parse_flatten_layer(layer_parse)
     end_dim, start_dim = layer_parse["args"]["end_dim"], layer_parse["args"]["start_dim"]
     # Default most common case, only reduces dimension by 1 in the input tensor
     if start_dim == 1 && end_dim == -1
-        return layer_parse["layer_id"] => "Lux.FlattenLayer(; N = $N)"
+        return layer_parse["layer_id"] => "Lux.FlattenLayer()"
     elseif start_dim == 0 && end_dim == -1
         return layer_parse["layer_id"] => "vec"
     end
@@ -114,6 +114,10 @@ function _parse_layer_kwargs(layer_parse, layer_info)::NamedTuple
         elseif haskey(layer_info, :tuple_args) && kwarg in layer_info[:tuple_args]
             val = Tuple(val)
         end
+        # Account for images being stored in different order between Lux.jl and PyTorch
+        if kwarg_julia in ["pad", "stride", "dilation"] && val isa Tuple
+            val = reverse(val)
+        end
         push!(kwarg_vals, val)
         push!(kwarg_ids, Symbol(kwarg_julia))
     end
@@ -134,6 +138,8 @@ function _parse_activation_function(step_output::String, step_input::String, ste
     if actinfo[:nargs] == 1 && !haskey(actinfo, :kwargs)
         return "$(step_output) = Lux.fast_activation($(actinfo.fn), $(step_input))"
     end
+    # Remove last , in step input for parsing to work downstream
+    step_input = step_input[1:end-2]
 
     # Multiple input activation functions (e.g. elu). Note, parsed into Julia syntax
     args = fill("", actinfo.nargs)
