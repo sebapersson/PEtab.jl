@@ -39,11 +39,11 @@ function _set_ps_layer!(ps::ComponentArray, layer::Lux.Conv, df_ps::DataFrame)::
     @assert size(ps.weight) == (kernel_size..., in_chs, out_chs) "Error in dimension of weights for Conv layer"
     _ps_weight = _get_ps_layer(df_ps, length((kernel_size..., in_chs, out_chs)), :weight)
     if length(kernel_size) == 1
-        ps_weight = _reshape_array(_ps_weight, CONV1D_MAP_PY_TO_LUX)
+        ps_weight = _reshape_array(_ps_weight, CONV1D_MAP)
     elseif length(kernel_size) == 2
-        ps_weight = _reshape_array(_ps_weight, CONV2D_MAP_PY_TO_LUX)
+        ps_weight = _reshape_array(_ps_weight, CONV2D_MAP)
     elseif length(kernel_size) == 3
-        ps_weight = _reshape_array(_ps_weight, CONV3D_MAP_PY_TO_LUX)
+        ps_weight = _reshape_array(_ps_weight, CONV3D_MAP)
     end
     @views ps.weight .= ps_weight
 
@@ -58,11 +58,11 @@ function _set_ps_layer!(ps::ComponentArray, layer::Lux.ConvTranspose, df_ps::Dat
     @assert size(ps.weight) == (kernel_size..., out_chs, in_chs) "Error in dimension of weights for ConvTranspose layer"
     _ps_weight = _get_ps_layer(df_ps, length((kernel_size..., out_chs, in_chs)), :weight)
     if length(kernel_size) == 1
-        ps_weight = _reshape_array(_ps_weight, CONV1D_MAP_PY_TO_LUX)
+        ps_weight = _reshape_array(_ps_weight, CONV1D_MAP)
     elseif length(kernel_size) == 2
-        ps_weight = _reshape_array(_ps_weight, CONV2D_MAP_PY_TO_LUX)
+        ps_weight = _reshape_array(_ps_weight, CONV2D_MAP)
     elseif length(kernel_size) == 3
-        ps_weight = _reshape_array(_ps_weight, CONV3D_MAP_PY_TO_LUX)
+        ps_weight = _reshape_array(_ps_weight, CONV3D_MAP)
     end
     @views ps.weight .= ps_weight
 
@@ -79,6 +79,34 @@ function _set_ps_layer!(ps::ComponentArray, layer::Union{Lux.BatchNorm, Lux.Inst
     # In Lux.jl the weight is named scale
     ps_scale = _get_ps_layer(df_ps, 1, :weight)
     ps_bias = _get_ps_layer(df_ps, 1, :bias)
+    @views ps.scale .= ps_scale
+    @views ps.bias .= ps_bias
+    return nothing
+end
+function _set_ps_layer!(ps::ComponentArray, layer::Lux.LayerNorm, df_ps::DataFrame)::Nothing
+    @unpack shape, affine = layer
+    affine == false && return nothing
+    @assert length(shape) ≤ 4 "To many input dimensions for LayerNorm"
+    # Somehow the dimension in Lux.jl is (shape, 1), while in PyTorch it is shape (but
+    # permuted)
+    @assert size(ps.scale) == (shape..., 1) "Error in dimension of scale for LayerNorm layer"
+    @assert size(ps.bias) == (shape..., 1) "Error in dimension of bias for LayerNorm layer"
+    # In Lux.jl the weight is named scale
+    _ps_scale = _get_ps_layer(df_ps, length(shape), :weight)
+    _ps_bias = _get_ps_layer(df_ps, length(shape), :bias)
+    if length(shape) == 4
+        ps_scale = _reshape_array(_ps_scale, LAYERNORM4_MAP)
+        ps_bias = _reshape_array(_ps_bias, LAYERNORM4_MAP)
+    elseif length(shape) == 3
+        ps_scale = _reshape_array(_ps_scale, LAYERNORM3_MAP)
+        ps_bias = _reshape_array(_ps_bias, LAYERNORM3_MAP)
+    elseif length(shape) == 2
+        ps_scale = _reshape_array(_ps_scale, LAYERNORM2_MAP)
+        ps_bias = _reshape_array(_ps_bias, LAYERNORM2_MAP)
+    else
+        ps_scale = _ps_scale
+        ps_bias = _ps_bias
+    end
     @views ps.scale .= ps_scale
     @views ps.bias .= ps_bias
     return nothing

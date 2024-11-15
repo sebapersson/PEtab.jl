@@ -79,7 +79,7 @@ function _parse_layer_arg!(args_parsed, arg, layer_parse, layer_info)::Nothing
         # Lux.jl prefers images in the foramt [W, H] and PyTorch [H, W] to store the images
         # in memory order. Therefore, for operations with kernels (e.g. Conv, Pool...), the
         # kernel order is reversed.
-        if argname == "kernel_size" || argname == "output_size"
+        if argname in ["kernel_size", "output_size", "normalized_shape"]
             args_parsed[iarg] = reverse(val)
         else
             args_parsed[iarg] = val

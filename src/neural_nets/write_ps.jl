@@ -50,11 +50,11 @@ For `Conv` layer possible parameters that are saved to a DataFrame are:
 function _ps_to_tidy(layer::Lux.Conv, ps::Union{NamedTuple, ComponentArray}, netname::Symbol, layername::Symbol)::DataFrame
     @unpack kernel_size, use_bias, in_chs, out_chs = layer
     if length(kernel_size) == 1
-        _psweigth = _reshape_array(ps.weight, CONV1D_MAP_PY_TO_LUX)
+        _psweigth = _reshape_array(ps.weight, CONV1D_MAP)
     elseif length(kernel_size) == 2
-        _psweigth = _reshape_array(ps.weight, CONV2D_MAP_PY_TO_LUX)
+        _psweigth = _reshape_array(ps.weight, CONV2D_MAP)
     elseif length(kernel_size) == 3
-        _psweigth = _reshape_array(ps.weight, CONV3D_MAP_PY_TO_LUX)
+        _psweigth = _reshape_array(ps.weight, CONV3D_MAP)
     end
     _ps = ComponentArray(weight = _psweigth)
     df_weight = _ps_weight_to_tidy(_ps, netname, layername)
@@ -75,13 +75,13 @@ For `ConvTranspose` layer possible parameters that are saved to a DataFrame are:
 function _ps_to_tidy(layer::Lux.ConvTranspose, ps::Union{NamedTuple, ComponentArray}, netname::Symbol, layername::Symbol)::DataFrame
     @unpack kernel_size, use_bias, in_chs, out_chs = layer
     if length(kernel_size) == 1
-        _psweigth = _reshape_array(ps.weight, CONV1D_MAP_PY_TO_LUX)
+        _psweigth = _reshape_array(ps.weight, CONV1D_MAP)
     elseif length(kernel_size) == 2
         # For the mapping, see comment above on image format in Lux.Conv
-        _psweigth = _reshape_array(ps.weight, CONV2D_MAP_PY_TO_LUX)
+        _psweigth = _reshape_array(ps.weight, CONV2D_MAP)
     elseif length(kernel_size) == 3
         # See comment on Lux.Conv
-        _psweigth = _reshape_array(ps.weight, CONV3D_MAP_PY_TO_LUX)
+        _psweigth = _reshape_array(ps.weight, CONV3D_MAP)
     end
     _ps = ComponentArray(weight = _psweigth)
     df_weight = _ps_weight_to_tidy(_ps, netname, layername)
@@ -116,6 +116,40 @@ function layer_ps_to_tidy(layer::Union{Lux.BatchNorm, Lux.InstanceNorm}, ps::Uni
     affine == false && return DataFrame()
     df_weight = _ps_weight_to_tidy(ps, netname, layername; scale = true)
     df_bias = _ps_bias_to_tidy(ps, (chs, ), netname, layername, true)
+    return vcat(df_weight, df_bias)
+end
+"""
+    layer_ps_to_tidy(layer::Lux.LayerNorm, ...)::DataFrame
+
+For `LayerNorm` layer possible parameters that are saved to a DataFrame are:
+- `scale/weight` of `size(input)` dimension
+- `bias` of `size(input)` dimension
+
+!!! note
+    Input order differs between Lux.jl and PyTorch. Order `["C", "D", "H", "W"]` in
+    PyTorch corresponds to `["W", "H", "D", "C"]` in Lux.jl. Basically, regardless of input
+    dimension the Lux.jl dimension is the PyTorch dimension reversed.
+"""
+function layer_ps_to_tidy(layer::LayerNorm, ps::Union{NamedTuple, ComponentArray}, netname::Symbol, layername::Symbol)::DataFrame
+    @unpack shape, affine = layer
+    affine == false && return DataFrame()
+    # Note, in Lux.jl the input dimension is `size(input, 1)`.
+    if length(shape) == 4
+        _psweigth = _reshape_array(ps.scale[:, :, :, :, 1], LAYERNORM4_MAP)
+        _psbias = _reshape_array(ps.bias[:, :, :, :, 1], LAYERNORM4_MAP)
+    elseif length(shape) == 3
+        _psweigth = _reshape_array(ps.scale[:, :, :, 1], LAYERNORM3_MAP)
+        _psbias = _reshape_array(ps.bias[:, :, :, 1], LAYERNORM3_MAP)
+    elseif length(shape) == 2
+        _psweigth = _reshape_array(ps.scale[:, :, 1], LAYERNORM2_MAP)
+        _psbias = _reshape_array(ps.bias[:, :, 1], LAYERNORM2_MAP)
+    elseif length(shape) == 1
+        _psweigth = ps.scale[:, 1]
+        _psbias = ps.bias[:, 1]
+    end
+    _ps = ComponentArray(weight = _psweigth, bias = _psbias)
+    df_weight = _ps_weight_to_tidy(_ps, netname, layername)
+    df_bias = _ps_bias_to_tidy(_ps, size(_ps.bias), netname, layername, true)
     return vcat(df_weight, df_bias)
 end
 """
