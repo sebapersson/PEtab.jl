@@ -1,6 +1,7 @@
 function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
                     verbose::Bool = false, ifelse_to_callback::Bool = true,
-                    write_to_file::Bool = false)::PEtabModel
+                    write_to_file::Bool = false,
+                    nnmodels::Union{Dict, Nothing} = nothing)::PEtabModel
     paths = _get_petab_paths(path_yaml)
     petab_tables = read_tables(path_yaml)
     name = splitdir(paths[:dirmodel])[end]
@@ -15,48 +16,31 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
     # In case one of the conditions in the PEtab table assigns an initial specie value,
     # the SBML model must be mutated to add an iniitial value parameter to correctly
     # compute gradients
+    nnmodels_in_ode = _get_in_ode_nets(nnmodels)
+    if !isempty(nnmodels_in_ode)
+        inline_assignment_rules = true
+    else
+        inline_assignment_rules = false
+    end
     model_SBML = SBMLImporter.parse_SBML(paths[:SBML], false; model_as_string = false,
                                          ifelse_to_callback = ifelse_to_callback,
-                                         inline_assignment_rules = false)
+                                         inline_assignment_rules = inline_assignment_rules)
     _addu0_parameters!(model_SBML, petab_tables[:conditions], petab_tables[:parameters])
     pathmodel = joinpath(paths[:dirjulia], name * ".jl")
     exist = isfile(pathmodel)
-    _logging(:Build_SBML, verbose; buildfiles = build_julia_files, exist = exist)
-    if !exist || build_julia_files == true
-        btime = @elapsed begin
-            model_SBML_sys = SBMLImporter._to_system_syntax(model_SBML, false, false)
-            modelstr = SBMLImporter.write_reactionsystem(model_SBML_sys, paths[:dirjulia],
-                                                         model_SBML;
-                                                         write_to_file = write_to_file)
-        end
-        _logging(:Build_SBML, verbose; time = btime)
+    # If the model contains a neural-network it must be parsed as an ODEProblem, as MTK
+    # does not have good neural-net support yet. Otherwise, model should be parsed as
+    # ODESystem as usual
+    if isempty(nnmodels_in_ode)
+        odesystem, speciemap, parametermap = _get_odesys(exist, build_julia_files, model_SBML)
+        nn = Dict()
     else
-        modelstr = _get_functions_as_str(pathmodel, 1)[1]
+        odesystem, speciemap, parametermap, nn = _get_odeproblem(model_SBML, nnmodels_in_ode, petab_tables[:mapping_table])
     end
-
-    _logging(:Build_ODESystem, verbose)
-    btime = @elapsed begin
-        get_rn = @RuntimeGeneratedFunction(Meta.parse(modelstr))
-        # Argument needed by @RuntimeGeneratedFunction
-        rn, speciemap, parametermap = get_rn("https://xkcd.com/303/")
-        _odesystem = convert(ODESystem, Catalyst.complete(rn))
-        # DAE requires special processing
-        if isempty(model_SBML.algebraic_rules)
-            odesystem = structural_simplify(_odesystem)
-        else
-            odesystem = structural_simplify(dae_index_lowering(_odesystem))
-        end
-        #odesystem = complete(odesystem)
-    end
-    # The state-map is not in the same order as unknowns(system) so the former is reorded
-    # to make it easier to build the u0 function
-    speciemap = _reorder_speciemap(speciemap, odesystem)
 
     # Indices for mapping parameters and tracking which parameter to estimate, useful
     # when building the comig PEtab functions
-    xindices = ParameterIndices(petab_tables, odesystem, parametermap, speciemap)
-
-    _logging(:Build_ODESystem, verbose; time = btime)
+    xindices = ParameterIndices(petab_tables, odesystem, parametermap, speciemap, nn)
 
     path_u0_h_σ = joinpath(paths[:dirjulia], "$(name)_h_sd_u0.jl")
     exist = isfile(path_u0_h_σ)
@@ -66,6 +50,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
             hstr, u0!str, u0str, σstr = parse_observables(name, paths, odesystem,
                                                           petab_tables[:observables],
                                                           xindices, speciemap, model_SBML,
+                                                          petab_tables[:mapping_table],
                                                           write_to_file)
         end
         _logging(:Build_u0_h_σ, verbose; time = btime)
@@ -85,14 +70,16 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
     btime = @elapsed begin
         float_tspan = _xdynamic_in_event_cond(model_SBML, xindices, petab_tables) |> !
         psys = _get_sys_parameters(odesystem, speciemap, parametermap) .|> string
+        specie_ids = _get_state_ids(odesystem)
         cbset = SBMLImporter.create_callbacks(odesystem, model_SBML, name;
-                                              p_PEtab = psys, float_tspan = float_tspan)
+                                              p_PEtab = psys, float_tspan = float_tspan,
+                                              _specie_ids = specie_ids)
     end
     _logging(:Build_callbacks, verbose; time = btime)
 
     return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan,
                       paths, odesystem, deepcopy(odesystem), parametermap, speciemap,
-                      petab_tables, cbset, false, nothing)
+                      petab_tables, cbset, false, nn)
 end
 
 function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, conditions_df::DataFrame,
@@ -149,4 +136,162 @@ function _reorder_speciemap(speciemap, odesystem::ODESystem)
         speciemap_out[i] = speciemap[imap]
     end
     return speciemap_out
+end
+
+function _get_odesys(model_SBML::SBMLImporter.ModelSBML, exist::Bool, build_julia_files::Bool)
+    _logging(:Build_SBML, verbose; buildfiles = build_julia_files, exist = exist)
+    btime = @elapsed begin
+        if !exist || build_julia_files == true
+            model_SBML_sys = SBMLImporter._to_system_syntax(model_SBML, false, false)
+            modelstr = SBMLImporter.write_reactionsystem(model_SBML_sys, paths[:dirjulia], model_SBML; write_to_file = write_to_file)
+        else
+            modelstr = _get_functions_as_str(pathmodel, 1)[1]
+        end
+    end
+    _logging(:Build_SBML, verbose; time = btime)
+
+    _logging(:Build_ODESystem, verbose)
+    btime = @elapsed begin
+        get_rn = @RuntimeGeneratedFunction(Meta.parse(modelstr))
+        # Argument needed by @RuntimeGeneratedFunction
+        rn, speciemap, parametermap = get_rn("https://xkcd.com/303/")
+        _odesystem = convert(ODESystem, Catalyst.complete(rn))
+        # DAE requires special processing
+        if isempty(model_SBML.algebraic_rules)
+            odesystem = structural_simplify(_odesystem)
+        else
+            odesystem = structural_simplify(dae_index_lowering(_odesystem))
+        end
+    end
+    # The state-map is not in the same order as unknowns(system) so the former is reorded
+    # to make it easier to build the u0 function
+    speciemap = _reorder_speciemap(speciemap, odesystem)
+    return odesystem, speciemap, parametermap
+end
+
+function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, nnmodels_in_ode::Dict, mapping_table::DataFrame)
+    for id in keys(nnmodels_in_ode)
+        if !(string(id) in mapping_table[!, :netId])
+            throw(PEtab.PEtabInputError("Neural net $id defined in the net.yaml file is \
+                                         is not defined in the mapping table, which it must \
+                                         in order to understand how the net interacts with \
+                                        the model."))
+        end
+        # Inputs can be any variable
+        for variable_id in PEtab._get_net_values(mapping_table, id, :inputs)
+            if SBMLImporter._is_model_variable(variable_id, model_SBML) == false
+                throw(PEtab.PEtabInputError("Input $variable_id to neural net $id inside the
+                                            ODE is not as required a valid SBML variable."))
+            end
+        end
+        # Outputs can only be parameters, as implications of setting a specie are unclear
+        for variable_id in PEtab._get_net_values(mapping_table, id, :outputs)
+            if !haskey(model_SBML.parameters, variable_id)
+                throw(PEtab.PEtabInputError("Ouput $variable_id to neural net $id inside the
+                                            ODE is not as required a valid SBML parameter."))
+            end
+            delete!(model_SBML.parameters, variable_id)
+        end
+    end
+
+    # Build the internal PEtab.jl nn-dict. The same that users provide via the PEtab
+    # interface
+    rng = Random.default_rng()
+    nndict, pnns = Dict(), Dict()
+    for (netid, nnmodel) in nnmodels_in_ode
+        _pnn, _st = Lux.setup(rng, nnmodel[:net])
+        nndict[netid] = [_st, nnmodel[:net]]
+        pnns[Symbol("p_$netid")] = _pnn
+    end
+
+    # Parse ODEProblem, with nndict via closure
+    model_SBML_prob = SBMLImporter.ModelSBMLProb(model_SBML)
+    __fode = _template_odeproblem(model_SBML_prob, model_SBML, nnmodels_in_ode, mapping_table)
+    _fode = @RuntimeGeneratedFunction(Meta.parse(__fode))
+    fode = let nndict = nndict
+        (du, u, p, t) -> _fode(du, u, p, t, nndict)
+    end
+
+    # Parametermap needs to include neural net parameters
+    psvals = parse.(Float64, last.(model_SBML_prob.psmap))
+    psvec = (; (Symbol.(first.(model_SBML_prob.psmap)) .=> psvals)...)
+    for (pid, pnn) in pnns
+        psvec = merge(psvec, (;pid => pnn, ))
+    end
+    psvec = ComponentArray(psvec)
+    _u0tmp = zeros(Float64, length(model_SBML_prob.umodel))
+    u0 = ComponentArray(; (Symbol.(model_SBML_prob.umodel) .=> _u0tmp)...)
+    oprob = SciMLBase.ODEProblem(fode, u0, (0.0, 10.0), psvec)
+
+    # Speciemap (initial values)
+    u0map = model_SBML_prob.umap
+    psmap = nothing
+
+    # Remove nn from mapping table, to later help distinguish from where a neural net
+    # is provided
+    for netid in keys(nnmodels_in_ode)
+        filter!(:netId => !=(string(netid)), mapping_table)
+    end
+
+    return oprob, u0map, psmap, nndict
+end
+
+function load_nets(path_yaml::String)::Dict
+    yaml_file = YAML.load_file(path_yaml)
+    sciml_info = yaml_file["extensions"]["petab_sciml"]
+    nnmodels = Dict()
+    for _netfile in sciml_info["net_files"]
+        nnmodel = Dict()
+        netfile = joinpath(dirname(path_yaml), _netfile)
+        net, id = PEtab.parse_to_lux(netfile)
+        for nninfo in sciml_info["hybridization"][id]
+            if haskey(nninfo, "input")
+                nnmodel[:input] = nninfo["input"]
+            elseif haskey(nninfo, "output")
+                nnmodel[:output] = nninfo["output"]
+            end
+        end
+        nnmodel[:net] = net
+        nnmodels[Symbol(id)] = nnmodel
+    end
+    return nnmodels
+end
+
+function _template_nn_in_ode(netid::Symbol, mapping_table)
+    inputs = "[" * prod(PEtab._get_net_values(mapping_table, netid, :inputs) .* ",") * "]"
+    outputs_p = prod(PEtab._get_net_values(mapping_table, netid, :outputs) .* ", ")
+    outputs_net = "out, st_$(netid)"
+    formula = "\n\tst_$(netid), net_$(netid) = nn[:$(netid)]\n"
+    formula *= "\txnn_$(netid) = p[:p_$(netid)]\n"
+    formula *= "\t$(outputs_net) = net_$(netid)($inputs, xnn_$(netid), st_$(netid))\n"
+    formula *= "\tnn[:$(netid)][1] = st_$(netid)\n"
+    formula *= "\t$(outputs_p) = out\n\n"
+    return formula
+end
+
+function _template_odeproblem(model_SBML_prob, model_SBML, nnmodels_in_ode, mapping_table::DataFrame)::String
+    @unpack umodel, ps, odes = model_SBML_prob
+    fode = "function f_$(model_SBML.name)(du, u, p, t, nn)::Nothing\n"
+    fode *= "\t" * prod(umodel .* ", ") * " = u\n"
+    fode *= "\t@unpack " * prod(ps .* ", ") * " = p\n"
+    for netid in keys(nnmodels_in_ode)
+        fode *= _template_nn_in_ode(netid, mapping_table)
+    end
+    for ode in odes
+        fode *= "\t" * ode
+    end
+    fode *= "\treturn nothing\n"
+    fode *= "end"
+    return fode
+end
+
+function _get_in_ode_nets(nnmodels::Union{Dict, Nothing})::Dict
+    out = Dict()
+    isnothing(nnmodels) && return out
+    for (id, nnmodel) in nnmodels
+        if nnmodel[:input] == "ode" && nnmodel[:output] == "ode"
+            out[id] = nnmodel
+        end
+    end
+    return out
 end

@@ -210,7 +210,7 @@ function _solve(oprob::ODEProblem, solver::SciMLAlgorithm, tsave::Vector{Float64
 end
 
 function catch_ode_error(e)::Nothing
-    if e isa BoundsError
+    if e isa DomainError # BoundsError
         @warn "Bounds error ODE solve"
     elseif e isa DomainError
         @warn "Domain error on ODE solve"

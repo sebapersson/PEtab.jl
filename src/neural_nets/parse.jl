@@ -3,7 +3,7 @@ function parse_to_lux(path_yaml::String)
     layers = Dict([_parse_layer(l) for l in network_yaml["layers"]])
     input, output, forward_steps = _parse_forward_pass(network_yaml["forward"], layers)
     model_str = _template_nn_model(layers, input, output, forward_steps)
-    return eval(Meta.parse(model_str))
+    return eval(Meta.parse(model_str)), network_yaml["mlmodel_id"]
 end
 
 function _parse_forward_pass(forward_trace::Vector{<:Dict}, layers::Dict)::Tuple{String, String, Vector{String}}

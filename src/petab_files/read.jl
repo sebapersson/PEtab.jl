@@ -4,8 +4,13 @@ function read_tables(path_yaml::String)::Dict{Symbol, DataFrame}
     conditions_df = _read_table(paths[:conditions], :conditions)
     observables_df = _read_table(paths[:observables], :observables)
     measurements_df = _read_table(paths[:measurements], :measurements)
-    return Dict(:parameters => parameters_df, :conditions => conditions_df,
-                :observables => observables_df, :measurements => measurements_df)
+    tables = Dict(:parameters => parameters_df, :conditions => conditions_df,
+                  :observables => observables_df, :measurements => measurements_df)
+    # Part of PEtab extensions, and not required and/or usually encountered.
+    if haskey(paths, :mapping_table)
+        tables[:mapping_table] = CSV.read(paths[:mapping_table], DataFrame)
+    end
+    return tables
 end
 
 function _get_petab_paths(path_yaml::AbstractString)::Dict{Symbol, String}
@@ -20,10 +25,15 @@ function _get_petab_paths(path_yaml::AbstractString)::Dict{Symbol, String}
     path_observables = _get_path(yaml_file, dirmodel, "observable_files")
     path_conditions = _get_path(yaml_file, dirmodel, "condition_files")
     path_parameters = _get_path(yaml_file, dirmodel, "parameter_file")
-    return Dict(:SBML => path_SBML, :parameters => path_parameters,
-                :conditions => path_conditions, :observables => path_observables,
-                :measurements => path_measurements, :dirmodel => dirmodel,
-                :dirjulia => dirjulia)
+    paths = Dict(:SBML => path_SBML, :parameters => path_parameters,
+                 :conditions => path_conditions, :observables => path_observables,
+                 :measurements => path_measurements, :dirmodel => dirmodel,
+                 :dirjulia => dirjulia)
+    path_mapping = _get_path(yaml_file, dirmodel, "mapping_tables")
+    if !isempty(path_mapping)
+        paths[:mapping_table] = path_mapping
+    end
+    return paths
 end
 
 function _read_table(path::String, file::Symbol)::DataFrame
@@ -33,8 +43,14 @@ function _read_table(path::String, file::Symbol)::DataFrame
 end
 
 function _get_path(yaml_file, dirmodel::String, file::String)::String
-    if file != "parameter_file"
-        path = joinpath(dirmodel, yaml_file["problems"][1][file][1])
+    if !(file in ["parameter_file", "mapping_tables"])
+        path = joinpath(dirmodel, yaml_file["problems"][file][1])
+    elseif file == "mapping_tables"
+        if !haskey(yaml_file["problems"], "mapping_tables")
+            path = ""
+        else
+            path = joinpath(dirmodel, yaml_file["problems"][file][1])
+        end
     else
         path = joinpath(dirmodel, yaml_file[file])
     end
