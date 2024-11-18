@@ -186,11 +186,20 @@ function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, nnmodels_in_ode::Di
         end
         # Outputs can only be parameters, as implications of setting a specie are unclear
         for variable_id in PEtab._get_net_values(mapping_table, id, :outputs)
-            if !haskey(model_SBML.parameters, variable_id)
-                throw(PEtab.PEtabInputError("Ouput $variable_id to neural net $id inside the
-                                            ODE is not as required a valid SBML parameter."))
+            if haskey(model_SBML.parameters, variable_id)
+                delete!(model_SBML.parameters, variable_id)
+                continue
             end
-            delete!(model_SBML.parameters, variable_id)
+            if occursin(r"_dot$", variable_id)
+                specie_id = replace(variable_id, r"_dot$" => "")
+                @assert haskey(model_SBML.species, specie_id) "$(specie_id) is not a valid \
+                                                               model SBML specie"
+                model_SBML.species[specie_id].formula = variable_id
+                continue
+            end
+            throw(PEtab.PEtabInputError("Ouput $variable_id to neural net $id inside the
+                                        ODE is not as required a valid SBML parameter or
+                                        a specie derivative on the form specie_id_dot"))
         end
     end
 
@@ -244,11 +253,11 @@ function load_nets(path_yaml::String)::Dict
         nnmodel = Dict()
         netfile = joinpath(dirname(path_yaml), _netfile)
         net, id = PEtab.parse_to_lux(netfile)
-        for nninfo in sciml_info["hybridization"][id]
-            if haskey(nninfo, "input")
-                nnmodel[:input] = nninfo["input"]
-            elseif haskey(nninfo, "output")
-                nnmodel[:output] = nninfo["output"]
+        for (id, nninfo) in sciml_info["hybridization"][id]
+            if id == "input"
+                nnmodel[:input] = nninfo
+            elseif id == "output"
+                nnmodel[:output] = nninfo
             end
         end
         nnmodel[:net] = net
