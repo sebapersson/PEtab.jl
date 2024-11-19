@@ -81,7 +81,7 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
         if !isempty(sbml_events)
             model_SBML = SBMLImporter.ModelSBML(name; events = sbml_events)
             float_tspan = _xdynamic_in_event_cond(model_SBML, xindices, petab_tables) |> !
-            psys = _get_sys_parameters(sys_mutated, speciemap_use, parametermap_use) .|>
+            psys = _get_xids_sys_order(sys_mutated, speciemap_use, parametermap_use) .|>
                 string
             cbset = SBMLImporter.create_callbacks(sys_mutated, model_SBML, name;
                                                   p_PEtab = psys, float_tspan = float_tspan)

@@ -77,7 +77,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
     _logging(:Build_callbacks, verbose)
     btime = @elapsed begin
         float_tspan = _xdynamic_in_event_cond(model_SBML, xindices, petab_tables) |> !
-        psys = _get_sys_parameters(odesystem, speciemap, parametermap) .|> string
+        psys = _get_xids_sys_order(odesystem, speciemap, parametermap) .|> string
         specie_ids = _get_state_ids(odesystem)
         cbset = SBMLImporter.create_callbacks(odesystem, model_SBML, name;
                                               p_PEtab = psys, float_tspan = float_tspan,
