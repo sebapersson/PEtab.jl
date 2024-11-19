@@ -255,12 +255,16 @@ function _get_xids_nn_in_ode(xids_nn::Vector{Symbol}, sys)::Vector{Symbol}
 end
 
 function _get_xids_nn_pre_ode(mapping_table::DataFrame, sys::ModelSystem)::Vector{Symbol}
-    !(sys isa ODEProblem) && return Symbol[]
     isempty(mapping_table) && return Symbol[]
+    if sys isa ODEProblem
+        xids_sys = keys(sys.p)
+    else
+        xids_sys = parameters(sys) .|> Symbol
+    end
     out = Symbol[]
     for netid in unique(mapping_table[!, :netId])
         outputs = _get_net_values(mapping_table, Symbol(netid), :outputs) .|> Symbol
-        if all([output in keys(sys.p) for output in outputs])
+        if all([output in xids_sys for output in outputs])
             push!(out, Symbol("p_" * string(netid)))
         end
     end
@@ -678,7 +682,12 @@ function _check_mapping_table(mapping_table::Union{DataFrame, Nothing}, nn::Unio
         return DataFrame()
     end
     state_ids = _get_state_ids(sys) .|> Symbol
-    model_variables = Iterators.flatten((state_ids, keys(sys.p), petab_parameters.parameter_id))
+    if sys isa ODEProblem
+        xids_sys = keys(sys.p)
+    else
+        xids_sys = parameters(sys) .|> Symbol
+    end
+    model_variables = Iterators.flatten((state_ids, xids_sys, petab_parameters.parameter_id))
 
     # Sanity check ioId column
     pattern = r"^(input\d|output\d)$"
@@ -708,7 +717,7 @@ function _check_mapping_table(mapping_table::Union{DataFrame, Nothing}, nn::Unio
         # If all outputs maps to ODEProblem parameters, it is a pre-nn ODE case. In this
         # case all input variables must be PEtab parameters (or numbers which are already
         # filtered out from input_variables)
-        elseif all([output in sys.p for output in outputs])
+        elseif all([output in xids_sys for output in outputs])
             if !all([ipv in petab_parameters.parameter_id for ipv in input_variables])
                 throw(PEtabInputError("If mapping table output is ODEProblem parameters \
                                        input must be a PEtabParameter, this does not hold \
@@ -807,7 +816,11 @@ end
 
 function _get_nn_input_variables(inputs::Vector{Symbol}, conditions_df::DataFrame, petab_parameters::PEtabParameters, sys; keep_numbers::Bool = false)::Vector{Symbol}
     state_ids = _get_state_ids(sys) .|> Symbol
-    xsys = keys(sys.p) |> collect
+    if sys isa ODEProblem
+        xsys = keys(sys.p) |> collect
+    else
+        xsys = parameters(sys) .|> Symbol
+    end
     input_variables = Symbol[]
     for input in inputs
         if is_number(input)

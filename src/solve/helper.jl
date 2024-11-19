@@ -20,6 +20,7 @@ function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::AbstractVec
 
     # Potential Neural-Network parameters (in this case p must be a ComponentArray)
     for (netid, xnet) in xnn
+        !(p isa ComponentArray) && continue
         !haskey(p, netid) && continue
         p[netid] .= xnet
     end

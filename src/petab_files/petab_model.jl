@@ -12,6 +12,15 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
     end
     _logging(:Build_PEtabModel, verbose; name = name)
 
+    # Build the internal PEtab.jl nn-dict. The same that users provide via the PEtab
+    # interface
+    rng = Random.default_rng()
+    nn = Dict()
+    for (netid, nnmodel) in nnmodels
+        _, _st = Lux.setup(rng, nnmodel[:net])
+        nn[netid] = [_st, nnmodel[:net]]
+    end
+
     # Import SBML model with SBMLImporter
     # In case one of the conditions in the PEtab table assigns an initial specie value,
     # the SBML model must be mutated to add an iniitial value parameter to correctly
@@ -32,10 +41,9 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
     # does not have good neural-net support yet. Otherwise, model should be parsed as
     # ODESystem as usual
     if isempty(nnmodels_in_ode)
-        odesystem, speciemap, parametermap = _get_odesys(exist, build_julia_files, model_SBML)
-        nn = Dict()
+        odesystem, speciemap, parametermap = _get_odesys(model_SBML, paths, exist, build_julia_files, write_to_file, verbose)
     else
-        odesystem, speciemap, parametermap, nn = _get_odeproblem(model_SBML, nnmodels_in_ode, petab_tables[:mapping_table])
+        odesystem, speciemap, parametermap = _get_odeproblem(model_SBML, nnmodels_in_ode, petab_tables[:mapping_table], nn)
     end
 
     # Indices for mapping parameters and tracking which parameter to estimate, useful
@@ -138,7 +146,7 @@ function _reorder_speciemap(speciemap, odesystem::ODESystem)
     return speciemap_out
 end
 
-function _get_odesys(model_SBML::SBMLImporter.ModelSBML, exist::Bool, build_julia_files::Bool)
+function _get_odesys(model_SBML::SBMLImporter.ModelSBML, paths::Dict{Symbol, String}, exist::Bool, build_julia_files::Bool, write_to_file::Bool, verbose::Bool)
     _logging(:Build_SBML, verbose; buildfiles = build_julia_files, exist = exist)
     btime = @elapsed begin
         if !exist || build_julia_files == true
@@ -169,7 +177,7 @@ function _get_odesys(model_SBML::SBMLImporter.ModelSBML, exist::Bool, build_juli
     return odesystem, speciemap, parametermap
 end
 
-function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, nnmodels_in_ode::Dict, mapping_table::DataFrame)
+function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, nnmodels_in_ode::Dict, mapping_table::DataFrame, nn::Dict)
     for id in keys(nnmodels_in_ode)
         if !(string(id) in mapping_table[!, :netId])
             throw(PEtab.PEtabInputError("Neural net $id defined in the net.yaml file is \
@@ -203,13 +211,11 @@ function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, nnmodels_in_ode::Di
         end
     end
 
-    # Build the internal PEtab.jl nn-dict. The same that users provide via the PEtab
-    # interface
+    # Build the internal PEtab.jl nn-dict used by the ODEProblem
     rng = Random.default_rng()
-    nndict, pnns = Dict(), Dict()
+    pnns = Dict()
     for (netid, nnmodel) in nnmodels_in_ode
-        _pnn, _st = Lux.setup(rng, nnmodel[:net])
-        nndict[netid] = [_st, nnmodel[:net]]
+        _pnn, _ = Lux.setup(rng, nnmodel[:net])
         pnns[Symbol("p_$netid")] = _pnn
     end
 
@@ -217,7 +223,7 @@ function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, nnmodels_in_ode::Di
     model_SBML_prob = SBMLImporter.ModelSBMLProb(model_SBML)
     __fode = _template_odeproblem(model_SBML_prob, model_SBML, nnmodels_in_ode, mapping_table)
     _fode = @RuntimeGeneratedFunction(Meta.parse(__fode))
-    fode = let nndict = nndict
+    fode = let nndict = nn
         (du, u, p, t) -> _fode(du, u, p, t, nndict)
     end
 
@@ -241,8 +247,7 @@ function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, nnmodels_in_ode::Di
     for netid in keys(nnmodels_in_ode)
         filter!(:netId => !=(string(netid)), mapping_table)
     end
-
-    return oprob, u0map, psmap, nndict
+    return oprob, u0map, psmap
 end
 
 function load_nets(path_yaml::String)::Dict

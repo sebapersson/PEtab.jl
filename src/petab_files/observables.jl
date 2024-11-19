@@ -182,6 +182,8 @@ function _template_nn_formula(netid::Symbol, mapping_table::DataFrame, state_ids
     outputs = prod(_get_net_values(mapping_table, netid, :outputs) .* ", ")
     formula = "\n\t\tst_$(netid), net_$(netid) = nn[:$(netid)]\n"
     formula *= "\t\txnn_$(netid) = xnn[:p_$(netid)]\n"
-    formula *= "\t\t$(outputs) = net_$(netid)($inputs, xnn_$(netid), st_$(netid))[1]\n"
+    formula *= "\t\tout, st_$(netid) = net_$(netid)($inputs, xnn_$(netid), st_$(netid))\n"
+    formula *= "\t\t$(outputs) = out\n"
+    formula *= "\t\tnn[:$(netid)][1] = st_$(netid)\n"
     return formula
 end

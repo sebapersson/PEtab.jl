@@ -100,13 +100,13 @@ function _get_odeproblem(sys, model::PEtabModel, model_info::ModelInfo, speciali
     _set_const_parameters!(model, model_info.petab_parameters)
     @unpack speciemap, parametermap, defined_in_julia = model
     if sys isa ODESystem && defined_in_julia == false
+        # With MTK v9 speciemap must somehow be a vector.
         SL = specialize_level
-        _oprob = ODEProblem{true, SL}(sys, speciemap, [0.0, 5e3], parametermap;
+        u0map_tmp = zeros(Float64, length(model.speciemap))
+        _oprob = ODEProblem{true, SL}(sys, u0map_tmp, [0.0, 5e3], parametermap;
                                       jac = true, sparse = sparse_jacobian)
     else
-        # For ReactionSystem there is bug if I try to set specialize_level. Also,
-        # speciemap must somehow be a vector. TODO: Test with MTKv9
-        u0map_tmp = zeros(Float64, length(model.speciemap))
+        # For ReactionSystem and there is bug if I try to set specialize_level.
         _oprob = ODEProblem(sys, u0map_tmp, [0.0, 5e3], parametermap;
                             jac = true, sparse = sparse_jacobian)
     end
