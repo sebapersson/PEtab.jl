@@ -63,3 +63,18 @@ function _get_functions_as_str(path::String, nfunctions::Int64;
     end
     return functions
 end
+
+function _xdynamic_in_event_cond(model_SBML::SBMLImporter.ModelSBML,
+                                 xindices::ParameterIndices,
+                                 petab_tables::Dict{Symbol, DataFrame})::Bool
+    xids_sys_in_xdynamic = _get_xids_sys_order_in_xdynamic(xindices, petab_tables[:conditions])
+    for event in values(model_SBML.events)
+        for xid in xids_sys_in_xdynamic
+            trigger_alt = SBMLImporter._replace_variable(event.trigger, xid, "")
+            if trigger_alt != event.trigger
+                return true
+            end
+        end
+    end
+    return false
+end
