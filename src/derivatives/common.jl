@@ -85,8 +85,6 @@ function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector
     else
         @views grad_xscale[xi] .+= grad_linscale[sys_to_dynamic_nn]
     end
-    # Parameter that only appear as input to neural-net. These need to also have adjusted
-    # scale
 
     # Adjust for parameters that appear in each simulation condition (not unique to simid).
     # Note that ∂G∂p is on the scale of ODEProblem.p which might not be the same scale
