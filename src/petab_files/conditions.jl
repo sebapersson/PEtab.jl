@@ -52,6 +52,8 @@ function ParameterIndices(petab_parameters::PEtabParameters,
     xindices_est = _get_xindices_xest(xids, nn)
     xindices_dynamic = _get_xindices_dynamic(xids, nn)
     xindices_notsys = _get_xindices_notsys(xids, nn)
+
+    # Maps for mapping to ODEProblem across conditions
     odeproblem_map = _get_odeproblem_map(xids, nn)
     condition_maps = _get_condition_maps(sys, parametermap, speciemap, petab_parameters,
                                          conditions_df, mapping_table, xids)
@@ -61,8 +63,7 @@ function ParameterIndices(petab_parameters::PEtabParameters,
     xobservable_maps = _get_map_observable_noise(xids[:observable], petab_measurements,
                                                  petab_parameters; observable = true)
     xnoise_maps = _get_map_observable_noise(xids[:noise], petab_measurements,
-                                            petab_parameters;
-                                            observable = false)
+                                            petab_parameters; observable = false)
     # If a neural-network sets values for a subset of model parameters, for efficent AD on
     # said network, it is neccesary to pre-compute the input, pre-allocate the output,
     # and build a map for which parameters in xdynamic the network maps to.
@@ -70,7 +71,6 @@ function ParameterIndices(petab_parameters::PEtabParameters,
 
     xscale = _get_xscales(xids, petab_parameters)
     _get_xnames_ps!(xids, xscale)
-
     return ParameterIndices(xindices_est, xids, xindices_notsys, xindices_dynamic, xscale,
                             xobservable_maps, xnoise_maps, odeproblem_map, condition_maps,
                             nn_pre_ode_maps)
@@ -132,12 +132,10 @@ function _get_xindices_xest(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Symbol
     # Indices for each neural network. Each neural-net gets its own key in xindices_est
     istart = length(xids[:estimate]) - length(xids[:nn])
     for netid in keys(nn)
-        pid = Symbol("p_$netid")
-        xindices_est[pid] = _get_xindices_net(pid, istart, nn)
-        istart = xindices_est[pid][end]
+        xindices_est[Symbol("p_$netid")] = _get_xindices_net(Symbol("p_$netid"), istart, nn)
+        istart = xindices_est[Symbol("p_$netid")][end]
     end
-    # As for mechanistic parameters, it is benefical to track neural nets not part of
-    # ODESystem
+    # As above, also track not part of ODESystem
     xi_not_system_tot = deepcopy(xi_not_system_mech)
     for pid in xids[:nn_nondynamic]
         xi_not_system_tot = vcat(xi_not_system_tot, xindices_est[pid])
@@ -148,12 +146,11 @@ end
 
 function _get_xindices_dynamic(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Symbol, Vector{Int32}}
     xindices = Dict{Symbol, Vector{Int32}}()
-    # Only mechanistic parameters
+    # Mechanistic parameters
     xindices[:xdynamic_to_mech] = Int32.(1:length(xids[:dynamic_mech]))
 
-    # Mechanistic + neural net parameters, as well as each category of neural-net parameters
+    # Mechanistic + neural net parameters, for each neural category
     xi_xest_to_xdynamic = _get_xindices(xids[:dynamic_mech], xids[:estimate])
-    # nn_in_ode
     xi_nn_in_ode = Int32[]
     istart = length(xids[:estimate]) - length(xids[:nn])
     for pid in xids[:nn_in_ode]
@@ -163,7 +160,6 @@ function _get_xindices_dynamic(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Sym
         istart = xn[end]
     end
     xindices[:nn_in_ode] = xi_nn_in_ode
-    # nn_pre_ode
     xi_nn_pre_ode = Int32[]
     for pid in xids[:nn_pre_ode]
         xn = _get_xindices_net(pid, istart, nn)
@@ -177,9 +173,9 @@ function _get_xindices_dynamic(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Sym
     istart = length(xindices[:xdynamic_to_mech])
     for pid in Iterators.flatten((xids[:nn_in_ode], xids[:nn_pre_ode]))
         xindices[pid] = _get_xindices_net(pid, istart, nn)
-        istart += xindices[pid][end]
+        istart = xindices[pid][end]
     end
-    # nn_pre_ode outputs are for effiency added to xdynamic, and, these parameters are
+    # nn_pre_ode outputs are for effiency added to xdynamic, and these parameters are
     # sent to the end of the vector
     np = length(xindices[:xest_to_xdynamic])
     xindices[:xdynamic_to_nnout] = (np+1):(np + length(xids[:nn_pre_ode_outputs]))
@@ -188,17 +184,16 @@ end
 
 function _get_xindices_notsys(xids::Dict{Symbol, Vector{Symbol}},
                               nn::Union{Nothing, Dict})::Dict{Symbol, Vector{Int32}}
-    ins = xids[:not_system_mech]
-    ixnoise = Int32[findfirst(x -> x == id, ins) for id in xids[:noise]]
-    ixobservable = Int32[findfirst(x -> x == id, ins) for id in xids[:observable]]
-    ixnondynamic_mech_mech = Int32[findfirst(x -> x == id, ins) for id in xids[:nondynamic_mech]]
-    xindices_notsys = Dict(:noise => ixnoise, :observable => ixobservable, :nondynamic_mech => ixnondynamic_mech_mech)
-    # Nondynamic neural-net parameters, mapping from nondynamic to neural nets
-    istart = length(ins)
+    # Mechanistic parameters
+    ixnoise = _get_xindices(xids[:noise], xids[:not_system_mech])
+    ixobservable = _get_xindices(xids[:observable], xids[:not_system_mech])
+    ixnondynamic_mech = _get_xindices(xids[:nondynamic_mech], xids[:not_system_mech])
+    xindices_notsys = Dict(:noise => ixnoise, :observable => ixobservable, :nondynamic_mech => ixnondynamic_mech)
+    # Neural net parameters
+    istart = length(xids[:not_system_mech])
     for pid in xids[:nn_nondynamic]
-        np = _get_n_net_parameters(nn, [pid])
-        xindices_notsys[pid] = (istart+1):(istart + np)
-        istart += np
+        xindices_notsys[pid] = _get_xindices_net(pid, istart, nn)
+        istart = xindices_notsys[pid][end]
     end
     return xindices_notsys
 end
