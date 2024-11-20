@@ -63,7 +63,7 @@ end
 # Adjust the gradient from linear scale to current scale for x-vector
 function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector{T},
                          xdynamic::Vector{T}, xindices::ParameterIndices, simid::Symbol;
-                         sensitivites_AD::Bool = false, nn_pre_ode::Bool = false,
+                         sensitivites_AD::Bool = false, nn_preode::Bool = false,
                          adjoint::Bool = false)::Nothing where {T <: AbstractFloat}
     @unpack dynamic_to_sys, sys_to_dynamic, sys_to_dynamic_nn = xindices.map_odeproblem
     @unpack xids, xscale = xindices
@@ -72,8 +72,8 @@ function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector
     # components only considered for ForwardEquations full AD, where it is not possible to
     # use the chain-rule to separately differentitate each componenent, and these parameters
     # are differentiated using full AD.
-    if nn_pre_ode == true
-        xi = xindices.xindices_dynamic[:nn_pre_ode]
+    if nn_preode == true
+        xi = xindices.xindices_dynamic[:nn_preode]
         @views grad_xscale[xi] .+= grad_linscale[xi]
     end
     # Neural net parameters. These should not be transformed (are on linear scale),
@@ -170,15 +170,15 @@ end
 
 function _get_xinput(simid::Symbol, x::Vector{<:AbstractFloat}, ixdynamic_simid, model_info::ModelInfo, probinfo::PEtabODEProblemInfo)
     @unpack xindices, simulation_info = model_info
-    ninode, npreode = length(ixdynamic_simid), length(xindices.xids[:nn_pre_ode_outputs])
+    ninode, npreode = length(ixdynamic_simid), length(xindices.xids[:nn_preode_outputs])
     xinput = zeros(Float64, ninode + npreode)
     @views xinput[1:ninode] .= x[ixdynamic_simid]
-    if isempty(probinfo.nn_pre_ode)
+    if isempty(probinfo.f_nns_preode)
         return xinput
     end
-    for (netid, nn_pre_ode) in probinfo.nn_pre_ode[simid]
-        map_nn = model_info.xindices.maps_nn_pre_ode[simid][netid]
-        outputs = get_tmp(nn_pre_ode.outputs, xinput)
+    for (netid, nn_preode) in probinfo.f_nns_preode[simid]
+        map_nn = model_info.xindices.maps_nn_preode[simid][netid]
+        outputs = get_tmp(nn_preode.outputs, xinput)
         ix = map_nn.ix_nn_outputs_grad
         ix .= map_nn.ix_nn_outputs .+ ninode
         @views xinput[ix] .= outputs
@@ -189,26 +189,13 @@ end
 function _split_xinput!(probinfo::PEtabODEProblemInfo, simid::Symbol, model_info::ModelInfo, xinput::AbstractVector, ixdynamic_simid::Vector{Integer})::Nothing
     xdynamic_tot = get_tmp(probinfo.cache.xdynamic_tot, xinput)
     @views xdynamic_tot[ixdynamic_simid] .= xinput[1:length(ixdynamic_simid)]
-    if isempty(probinfo.nn_pre_ode)
+    if isempty(probinfo.f_nns_preode)
         return nothing
     end
-    for (netid, nn_pre_ode) in probinfo.nn_pre_ode[simid]
-        map_nn =  model_info.xindices.maps_nn_pre_ode[simid][netid]
-        outputs = get_tmp(nn_pre_ode.outputs, xinput)
+    for (netid, nn_preode) in probinfo.f_nns_preode[simid]
+        map_nn =  model_info.xindices.maps_nn_preode[simid][netid]
+        outputs = get_tmp(nn_preode.outputs, xinput)
         @views outputs .= xinput[map_nn.ix_nn_outputs_grad]
-    end
-    return nothing
-end
-
-function _grad_nn_pre_ode!(xdynamic_grad::AbstractVector, simid::Symbol, probinfo::PEtabODEProblemInfo, model_info::ModelInfo)::Nothing
-    isempty(probinfo.nn_pre_ode) && return nothing
-    @unpack xindices_dynamic, maps_nn_pre_ode = model_info.xindices
-    for (netid, nn_pre_ode) in probinfo.nn_pre_ode[simid]
-        map_nn = maps_nn_pre_ode[simid][netid]
-        grad_nn_output = probinfo.cache.grad_nn_pre_ode[map_nn.ix_nn_outputs]
-        ix = Iterators.flatten((map_nn.ixdynamic_mech_inputs, xindices_dynamic[netid])) |>
-            collect
-        xdynamic_grad[ix] .+= vec(grad_nn_output' * nn_pre_ode.jac_nn)
     end
     return nothing
 end

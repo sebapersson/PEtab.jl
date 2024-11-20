@@ -136,6 +136,7 @@ const LAYERS = Dict(
                     args = ["normalized_shape" => 1],
                     kwargs = LAYERNORM_KWARGS,
                     tuple_args = ["normalized_shape"]))
+
 const ACTIVATION_FUNCTIONS = Dict(
     "relu" => (fn = "Lux.relu", nargs = 1),
     "relu6" => (fn = "Lux.relu6", nargs = 1),

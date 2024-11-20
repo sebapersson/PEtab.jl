@@ -1,4 +1,4 @@
-function set_ps_net!(ps::ComponentArray, df_ps::DataFrame, netname::Symbol, nn)::Nothing
+function PEtab.set_ps_net!(ps::ComponentArray, df_ps::DataFrame, netname::Symbol, nn)::Nothing
     df_net = df_ps[startswith.( df_ps[!, :parameterId], "$(netname)_"), :]
     for (id, layer) in pairs(nn.layers)
         df_layer = df_net[startswith.(df_net[!, :parameterId], "$(netname)_$(id)_"), :]

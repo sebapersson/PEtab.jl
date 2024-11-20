@@ -234,8 +234,7 @@ function _get_bounds(model_info::ModelInfo, xnames::Vector{Symbol}, which::Symbo
     # Network parameters are given as ComponentArray
     vals = Vector{Any}(undef, length(xnames_nn))
     for (i, net) in pairs(collect(values(model_info.model.nn)))
-        rng = Random.default_rng(1)
-        vals[i] = Lux.initialparameters(rng, net[2]) |> ComponentArray
+        vals[i] = _get_nn_initialparameters(net[2])
         if which == :lower
             vals[i] .= -10.0
         else
@@ -265,8 +264,7 @@ function _get_xnominal(model_info::ModelInfo, xnames::Vector{Symbol},
     # Network parameters are given as ComponentArray
     vals = Vector{Any}(undef, length(xnames_nn))
     for (i, net) in pairs(collect(values(model_info.model.nn)))
-        rng = Random.default_rng(1)
-        vals[i] = Lux.initialparameters(rng, net[2]) |> ComponentArray
+        vals[i] = _get_nn_initialparameters(net[2])
         vals[i] .= 0.0
     end
     vals_nn = (xnames_nn .=> vals) |> NamedTuple
@@ -282,34 +280,3 @@ function _test_ordering(x::ComponentArray, xnames_ps::Vector{Symbol})::Nothing
     return nothing
 end
 _test_ordering(x::AbstractVector, names_ps::Vector{Symbol})::Nothing = nothing
-
-# TODO: Put in Lux functionality (from here and down)
-function _net!(out, x, pnn::DiffCache, inputs::DiffCache, map_nn::NNPreODEMap, nn)::Nothing
-    _inputs = get_tmp(inputs, x)
-    _pnn = get_tmp(pnn, x)
-    _inputs[map_nn.iconstant_inputs] .= map_nn.constant_inputs
-    @views _inputs[map_nn.ixdynamic_inputs] .= x[1:map_nn.nxdynamic_inputs]
-    @views _pnn .= x[(map_nn.nxdynamic_inputs + 1):end]
-    st, net = nn
-    out .= net(_inputs, _pnn, st)[1]
-    return nothing
-end
-
-function _get_nn_pre_ode_x(nnpre::NNPreODE, xdynamic_mech::AbstractVector, pnn::ComponentArray, map_nn::NNPreODEMap)::AbstractVector
-    x = get_tmp(nnpre.x, xdynamic_mech)
-    x[1:map_nn.nxdynamic_inputs] = xdynamic_mech[map_nn.ixdynamic_mech_inputs]
-    @views x[(map_nn.nxdynamic_inputs+1):end] .= pnn
-    return x
-end
-
-function _get_net_values(mapping_table::DataFrame, netid::Symbol, type::Symbol)::Vector{String}
-    dfnet = mapping_table[Symbol.(mapping_table[!, :netId]) .== netid, :]
-    if type == :outputs
-        dfvals = dfnet[startswith.(string.(dfnet[!, :ioId]), "output"), :]
-    elseif type == :inputs
-        dfvals = dfnet[startswith.(string.(dfnet[!, :ioId]), "input"), :]
-    end
-    # Sort to get inputs in order output1, output2, ...
-    is = sortperm(string.(dfvals[!, :ioId]), by = x -> parse(Int, match(r"\d+$", x).match))
-    return dfvals[is, :ioValue] .|> string
-end

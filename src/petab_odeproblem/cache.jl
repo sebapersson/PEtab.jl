@@ -41,20 +41,20 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
     xnn_dict = Dict{Symbol, ComponentArray}()
     if !isnothing(nn)
         for (id, net) in nn
-            rng = Random.default_rng(1)
             pid = "p_" * string(id) |> Symbol
-            _p = Lux.initialparameters(rng, net[2]) |> ComponentArray .|> Float64
+            _p = _get_nn_initialparameters(net[2])
             xnn[pid] = DiffCache(similar(_p); levels = level_cache)
             xnn_dict[pid] = _p
         end
     end
+
     # For all dynamic parameters (mechanistic + nn parameters)
     nxdynamic_tot = _get_nxdynamic(xindices)
     _xdynamic_tot = zeros(Float64, nxdynamic_tot)
     xdynamic_tot = DiffCache(similar(_xdynamic_tot), chunksize, levels = level_cache)
     # For the gradient of parameters that are set via neural-network (needed for efficient
     # gradient of the neural network with the help of the chain rule)
-    grad_nn_pre_ode = zeros(Float64, length(xindices.xids[:nn_pre_ode_outputs]))
+    grad_nn_preode = zeros(Float64, length(xindices.xids[:nn_preode_outputs]))
 
     # Arrays needed in gradient compuations
     xdynamic_grad = zeros(Float64, nxdynamic_tot)
@@ -162,7 +162,7 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
                                 adjoint_grad, St0, ∂h∂u, ∂σ∂u, ∂h∂p, ∂σ∂p, ∂G∂p, ∂G∂p_,
                                 ∂G∂u, dp, du, p, u, S, odesols, pode, u0ode,
                                 xdynamic_input_order, xdynamic_output_order, nxdynamic,
-                                xnn, xnn_dict, xdynamic_tot, grad_nn_pre_ode)
+                                xnn, xnn_dict, xdynamic_tot, grad_nn_preode)
 end
 
 function _get_nxdynamic(xindices::ParameterIndices)::Int64
@@ -175,6 +175,6 @@ function _get_nx_forwardeqs(xindices::ParameterIndices, split_over_conditions::B
     else
         return (length(xindices.xindices_dynamic[:xdynamic_to_mech]) +
                 length(xindices.xindices_dynamic[:nn_in_ode]) +
-                length(xindices.xids[:nn_pre_ode_outputs]))
+                length(xindices.xids[:nn_preode_outputs]))
     end
 end

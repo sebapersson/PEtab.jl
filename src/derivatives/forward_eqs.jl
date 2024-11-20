@@ -84,7 +84,7 @@ function solve_sensitivites!(model_info::ModelInfo, _solve_conditions!::Function
         Stmp = similar(S)
         for (i, cid) in pairs(simulation_info.conditionids[:experiment])
             simid = simulation_info.conditionids[:simulation][i]
-            ixdynamic_simid = _get_ixdynamic_simid(simid, xindices; nn_pre_ode = false)
+            ixdynamic_simid = _get_ixdynamic_simid(simid, xindices; nn_preode = false)
             xinput = _get_xinput(simid, xdynamic_tot, ixdynamic_simid, model_info, probinfo)
             _S_condition! = (odesols, _xinput) -> begin
                 _split_xinput!(probinfo, simid, model_info, _xinput, ixdynamic_simid)
@@ -114,8 +114,8 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnois
     cid = simulation_info.conditionids[:experiment][icid]
     simid = simulation_info.conditionids[:simulation][icid]
     smatrixindices_cid = smatrixindices[cid]
-    nn_pre_ode = probinfo.split_over_conditions == false
-    ixdynamic_simid = _get_ixdynamic_simid(simid, xindices, nn_pre_ode = nn_pre_ode)
+    nn_preode = probinfo.split_over_conditions == false
+    ixdynamic_simid = _get_ixdynamic_simid(simid, xindices, nn_preode = nn_preode)
     ix_S_simid = _get_ix_S_simid(ixdynamic_simid, split_over_conditions, model_info)
     sol = simulation_info.odesols_derivatives[cid]
 
@@ -145,13 +145,13 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnois
     # Transfer the nn-output parameters gradient to cache, which is later correctly
     # adjusted in grad_to_xscale!
     if split_over_conditions == true
-        cache.grad_nn_pre_ode .= forward_eqs_grad[(length(ixdynamic_simid)+1):end]
-        _grad_nn_pre_ode!(grad, simid, probinfo, model_info)
+        cache.grad_nn_preode .= forward_eqs_grad[(length(ixdynamic_simid)+1):end]
+        _set_grad_x_nn_preode!(grad, simid, probinfo, model_info)
     end
 
     # Adjust if gradient is non-linear scale (e.g. log and log10).
     grad_to_xscale!(grad, forward_eqs_grad, ∂G∂p, xdynamic_tot, xindices, simid,
-                    sensitivites_AD = true, nn_pre_ode = nn_pre_ode)
+                    sensitivites_AD = true, nn_preode = nn_preode)
     return nothing
 end
 
@@ -160,7 +160,7 @@ function _get_ix_S_simid(ixdynamic_simid, split_over_conditions::Bool, model_inf
         return ixdynamic_simid[:]
     end
     nx_forward_eqs = _get_nx_forwardeqs(model_info.xindices, split_over_conditions)
-    nx_nn_pre_ode_outputs = length(model_info.xindices.xids[:nn_pre_ode_outputs])
-    istart = nx_forward_eqs - nx_nn_pre_ode_outputs + 1
+    nx_nn_preode_outputs = length(model_info.xindices.xids[:nn_preode_outputs])
+    istart = nx_forward_eqs - nx_nn_preode_outputs + 1
     return vcat(ixdynamic_simid, istart:nx_forward_eqs)
 end

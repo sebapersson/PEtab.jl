@@ -24,36 +24,3 @@ function _get_xids_sys_order_in_xdynamic(xindices::ParameterIndices, conditions_
     unique!(xids_sys_in_xdynamic)
     return xids_sys_in_xdynamic .|> string
 end
-
-# TODO: Move to net common
-function _get_nn_input_variables(inputs::Vector{Symbol}, conditions_df::DataFrame, petab_parameters::PEtabParameters, sys::ModelSystem; keep_numbers::Bool = false)::Vector{Symbol}
-    state_ids = _get_state_ids(sys) .|> Symbol
-    xids_sys = _get_xids_sys(sys)
-    input_variables = Symbol[]
-    for input in inputs
-        if is_number(input)
-            if keep_numbers == true
-                push!(input_variables, input)
-            end
-            continue
-        end
-        if input in petab_parameters.parameter_id
-            push!(input_variables, input)
-            continue
-        end
-        if input in Iterators.flatten((state_ids, xids_sys))
-            push!(input_variables, input)
-            continue
-        end
-        if input in propertynames(conditions_df)
-            for condition_value in Symbol.(conditions_df[!, input])
-                _input_variables = _get_nn_input_variables([condition_value], conditions_df, petab_parameters, sys; keep_numbers = keep_numbers)
-                input_variables = vcat(input_variables, _input_variables)
-            end
-            continue
-        end
-        throw(PEtabInputError("Input $input to neural-network cannot be found among ODE \
-                               variables, PEtab parameters, or in the conditions table"))
-    end
-    return input_variables
-end

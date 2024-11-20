@@ -47,8 +47,8 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic_tot::Vector{T}, x
     cid = simulation_info.conditionids[:experiment][icid]
     simid = simulation_info.conditionids[:simulation][icid]
     smatrixindices_cid = smatrixindices[cid]
-    nn_pre_ode = probinfo.split_over_conditions == false
-    ixdynamic_simid = _get_ixdynamic_simid(simid, xindices, nn_pre_ode = nn_pre_ode)
+    nn_preode = probinfo.split_over_conditions == false
+    ixdynamic_simid = _get_ixdynamic_simid(simid, xindices, nn_preode = nn_preode)
     ix_S_simid = _get_ix_S_simid(ixdynamic_simid, split_over_conditions, model_info)
     sol = simulation_info.odesols_derivatives[cid]
 
@@ -75,11 +75,11 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic_tot::Vector{T}, x
             # Jacobian for Gauss-Newton
             if split_over_conditions == true
                 ix = (length(ixdynamic_simid)+1):length(forward_eqs_grad)
-                cache.grad_nn_pre_ode .= forward_eqs_grad[ix]
-                _grad_nn_pre_ode!(_jac, simid, probinfo, model_info)
+                cache.grad_nn_preode .= forward_eqs_grad[ix]
+                _set_grad_x_nn_preode!(_jac, simid, probinfo, model_info)
             end
             grad_to_xscale!(_jac, forward_eqs_grad, ∂G∂p, xdynamic_tot, xindices, simid,
-                            sensitivites_AD = true, nn_pre_ode = nn_pre_ode)
+                            sensitivites_AD = true, nn_preode = nn_preode)
         end
     end
     return nothing

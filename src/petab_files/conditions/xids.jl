@@ -13,8 +13,8 @@ function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabM
     # Parameters related to neural networks (data-driven models)
     xids_nn = _get_xids_nn(nn)
     xids_nn_in_ode = _get_xids_nn_in_ode(xids_nn, sys)
-    xids_nn_pre_ode = _get_xids_nn_pre_ode(mapping_table, sys)
-    xids_nn_nondynamic = _get_xids_nn_nondynamic(xids_nn, xids_nn_in_ode, xids_nn_pre_ode)
+    xids_nn_preode = _get_xids_nn_preode(mapping_table, sys)
+    xids_nn_nondynamic = _get_xids_nn_nondynamic(xids_nn, xids_nn_in_ode, xids_nn_preode)
     # Parameter which are input to a neural net, and are estimated. These must be tracked
     # for gradients
     xids_nn_input_est = _get_xids_nn_input_est(mapping_table, conditions_df, petab_parameters, sys)
@@ -22,7 +22,7 @@ function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabM
     # the derivative of the parameter is needed to compute the network gradient following
     # the chain-rule. Therefore, these parameters must be tracked such that they can be
     # a part of xdynamic.
-    xids_nn_pre_ode_output = _get_xids_nn_pre_ode_output(mapping_table, xids_sys)
+    xids_nn_preode_output = _get_xids_nn_preode_output(mapping_table, xids_sys)
 
     # Mechanistic (none neural-net parameters). Note non-dynamic parameters are those that
     # only appear in the observable and noise functions, but are not defined noise or
@@ -42,8 +42,8 @@ function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabM
                 :observable => xids_observable, :nondynamic_mech => xids_nondynamic_mech,
                 :not_system_mech => xids_not_system_mech, :sys => xids_sys,
                 :estimate => xids_estimate, :petab => xids_petab,
-                :nn_in_ode => xids_nn_in_ode, :nn_pre_ode => xids_nn_pre_ode,
-                :nn_pre_ode_outputs => xids_nn_pre_ode_output,
+                :nn_in_ode => xids_nn_in_ode, :nn_preode => xids_nn_preode,
+                :nn_preode_outputs => xids_nn_preode_output,
                 :nn_nondynamic => xids_nn_nondynamic)
 end
 
@@ -83,7 +83,7 @@ function _get_xids_sys(sys::ModelSystem)::Vector{Symbol}
     return sys isa ODEProblem ? collect(keys(sys.p)) : Symbol.(parameters(sys))
 end
 
-function _get_xids_nn_pre_ode_output(mapping_table::DataFrame, xids_sys::Vector{Symbol})::Vector{Symbol}
+function _get_xids_nn_preode_output(mapping_table::DataFrame, xids_sys::Vector{Symbol})::Vector{Symbol}
     out = Symbol[]
     for i in 1:nrow(mapping_table)
         io_value = mapping_table[i, :ioValue]
@@ -184,7 +184,7 @@ function _get_xids_nn_in_ode(xids_nn::Vector{Symbol}, sys)::Vector{Symbol}
     return xids_nn_in_ode
 end
 
-function _get_xids_nn_pre_ode(mapping_table::DataFrame, sys::ModelSystem)::Vector{Symbol}
+function _get_xids_nn_preode(mapping_table::DataFrame, sys::ModelSystem)::Vector{Symbol}
     isempty(mapping_table) && return Symbol[]
     xids_sys = _get_xids_sys(sys)
     out = Symbol[]
@@ -197,10 +197,10 @@ function _get_xids_nn_pre_ode(mapping_table::DataFrame, sys::ModelSystem)::Vecto
     return out
 end
 
-function _get_xids_nn_nondynamic(xids_nn::T, xids_nn_in_ode::T, xids_nn_pre_ode::T)::T where T <: Vector{Symbol}
+function _get_xids_nn_nondynamic(xids_nn::T, xids_nn_in_ode::T, xids_nn_preode::T)::T where T <: Vector{Symbol}
     out = Symbol[]
     for id in xids_nn
-        id in Iterators.flatten((xids_nn_in_ode, xids_nn_pre_ode)) && continue
+        id in Iterators.flatten((xids_nn_in_ode, xids_nn_preode)) && continue
         push!(out, id)
     end
     return out

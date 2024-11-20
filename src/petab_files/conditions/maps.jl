@@ -52,7 +52,7 @@ end
 
 function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nn::Union{Dict, Nothing})::MapODEProblem
     dynamic_to_sys, sys_to_dynamic = Int32[], Int32[]
-    sys_to_dynamic_nn, sys_to_nn_pre_ode_output = Int32[], Int32[]
+    sys_to_dynamic_nn, sys_to_nn_preode_output = Int32[], Int32[]
     for (i, id_xdynmaic) in pairs(xids[:dynamic_mech])
         isys = 1
         for id_sys in xids[:sys]
@@ -68,7 +68,7 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nn::Union{Dict,
             isys += 1
         end
     end
-    for id_nn_output in xids[:nn_pre_ode_outputs]
+    for id_nn_output in xids[:nn_preode_outputs]
         isys = 1
         for id_sys in xids[:sys]
             if id_sys in xids[:nn]
@@ -76,7 +76,7 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nn::Union{Dict,
                 continue
             end
             if id_sys == id_nn_output
-                push!(sys_to_nn_pre_ode_output, isys)
+                push!(sys_to_nn_preode_output, isys)
                 break
             end
             isys += 1
@@ -93,7 +93,7 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nn::Union{Dict,
     dynamic_to_sys = findall(x -> x in xids[:sys], xids[:dynamic_mech]) |> Vector{Int64}
     ids = xids[:dynamic_mech][dynamic_to_sys]
     sys_to_dynamic = Int64[findfirst(x -> x == id, xids[:sys]) for id in ids]
-    return MapODEProblem(sys_to_dynamic, dynamic_to_sys, sys_to_dynamic_nn, sys_to_nn_pre_ode_output)
+    return MapODEProblem(sys_to_dynamic, dynamic_to_sys, sys_to_dynamic_nn, sys_to_nn_preode_output)
 end
 
 function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_parameters::PEtabParameters, conditions_df::DataFrame, mapping_table::DataFrame, xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, ConditionMap}
@@ -180,14 +180,14 @@ function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_pa
     return maps
 end
 
-function _get_nn_pre_ode_maps(conditions_df::DataFrame, xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, mapping_table::DataFrame, nn, sys::ModelSystem)::Dict{Symbol, Dict{Symbol, NNPreODEMap}}
+function _get_nn_preode_maps(conditions_df::DataFrame, xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, mapping_table::DataFrame, nn, sys::ModelSystem)::Dict{Symbol, Dict{Symbol, NNPreODEMap}}
     nconditions = nrow(conditions_df)
     maps = Dict{Symbol, Dict{Symbol, NNPreODEMap}}()
-    isempty(xids[:nn_pre_ode]) && return maps
+    isempty(xids[:nn_preode]) && return maps
     for i in 1:nconditions
         conditionid = conditions_df[i, :conditionId] |> Symbol
         maps_nn = Dict{Symbol, NNPreODEMap}()
-        for pnnid in xids[:nn_pre_ode]
+        for pnnid in xids[:nn_preode]
             netid = string(pnnid)[3:end] |> Symbol
             outputs = _get_net_values(mapping_table, netid, :outputs) .|> Symbol
             inputs = _get_net_values(mapping_table, netid, :inputs) .|> Symbol
@@ -220,7 +220,7 @@ function _get_nn_pre_ode_maps(conditions_df::DataFrame, xids::Dict{Symbol, Vecto
             nxdynamic_inputs = length(ixdynamic_mech_inputs)
 
             # Indicies for correctly mapping the output. The outputs are stored in a
-            # separate vector of order xids[:nn_pre_ode_outputs], which ix_nn_outputs
+            # separate vector of order xids[:nn_preode_outputs], which ix_nn_outputs
             # stores the index for. The outputs maps to parameters in sys, which
             # ix_output_sys stores. Lastly, for split_over_conditions = true the
             # gradient of the output variables is needed, ix_outputs_grad stores
@@ -231,7 +231,7 @@ function _get_nn_pre_ode_maps(conditions_df::DataFrame, xids::Dict{Symbol, Vecto
             ix_output_sys = zeros(Int32, noutputs)
             ix_outputs_grad = zeros(Int32, noutputs)
             for (i, output_variable) in pairs(outputs)
-                io = findfirst(x -> x == output_variable, xids[:nn_pre_ode_outputs])
+                io = findfirst(x -> x == output_variable, xids[:nn_preode_outputs])
                 ix_nn_outputs[i] = io
                 isys = 1
                 for id_sys in xids[:sys]

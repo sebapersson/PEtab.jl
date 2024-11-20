@@ -53,36 +53,15 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
     ss_solver_gradient_use = SteadyStateSolver(_ss_solver_gradient, oprob,
                                                odesolver_gradient_use)
 
-    # For models with a neural net that feeds into model parameters, it is convenient to
-    # pre-build the function that evaluates the neural network
-    nns_pre_ode = Dict{Symbol, Dict{Symbol, NNPreODE}}()
-    for (cid, maps_nn) in model_info.xindices.maps_nn_pre_ode
-        _nns = Dict{Symbol, NNPreODE}()
-        for (pid, map) in maps_nn
-            @unpack ninputs, noutputs = map
-            nn = model_info.model.nn[string(pid)[3:end] |> Symbol]
-            pnn = cache.xnn[pid]
-            outputs = DiffCache(zeros(Float64, noutputs), levels = 2)
-            inputs = DiffCache(zeros(Float64, ninputs), levels = 2)
-            compute_nn! = let nn = nn, map_nn = map, inputs = inputs, pnn = pnn
-                (out, x) -> _net!(out, x, pnn, inputs, map_nn, nn)
-            end
-
-            out = get_tmp(outputs, 1.0)
-            nx = length(get_tmp(pnn, 1.0)) + map.nxdynamic_inputs
-            xarg = DiffCache(zeros(Float64, nx), levels = 2)
-            tape = ReverseDiff.JacobianTape(compute_nn!, out, get_tmp(xarg, 1.0))
-            jac_nn = zeros(Float64, noutputs, nx)
-            _nns[pid] = NNPreODE(compute_nn!, tape, jac_nn, outputs, inputs, xarg, [false])
-        end
-        nns_pre_ode[cid] = _nns
-    end
+    # For models with a neural net that feeds into model parameters, pre-build functions
+    # for evaluating the neural-net and its Jacobian
+    f_nns_preode = _get_f_nns_preode(model_info, cache)
 
     return PEtabODEProblemInfo(oprob, oprob_gradient, odesolver_use, odesolver_gradient_use,
                                ss_solver_use, ss_solver_gradient_use, gradient_method_use,
                                hessian_method_use, FIM_method_use, reuse_sensitivities,
                                sparse_jacobian_use, sensealg_use, sensealg_ss_use,
-                               cache, split_use, chunksize_use, nns_pre_ode)
+                               cache, split_use, chunksize_use, f_nns_preode)
 end
 
 function _get_odeproblem(sys::ODEProblem, ::PEtabModel, model_info::ModelInfo,
@@ -120,4 +99,31 @@ function _get_odeproblem(sys, model::PEtabModel, model_info::ModelInfo, speciali
         oprob = remake(_oprob, p = Float64.(_oprob.p), u0 = Float64.(_oprob.u0))
     end
     return oprob
+end
+
+function _get_f_nns_preode(model_info::ModelInfo, cache::PEtabODEProblemCache)::Dict{Symbol, Dict{Symbol, NNPreODE}}
+    f_nns_preode = Dict{Symbol, Dict{Symbol, NNPreODE}}()
+    for (cid, maps_nn) in model_info.xindices.maps_nn_preode
+        f_nn_preode = Dict{Symbol, NNPreODE}()
+        for (pid, map) in maps_nn
+            @unpack ninputs, noutputs = map
+            nn = model_info.model.nn[Symbol(string(pid)[3:end])]
+            pnn = cache.xnn[pid]
+            outputs = DiffCache(zeros(Float64, noutputs), levels = 2)
+            inputs = DiffCache(zeros(Float64, ninputs), levels = 2)
+            compute_nn! = let nn = nn, map_nn = map, inputs = inputs, pnn = pnn
+                (out, x) -> _net!(out, x, pnn, inputs, map_nn, nn)
+            end
+            # For the Jacobian ReverseDiff.jl is used. For performance it is important to
+            # pre-compile the tape
+            out = get_tmp(outputs, 1.0)
+            nx = length(get_tmp(pnn, 1.0)) + map.nxdynamic_inputs
+            xarg = DiffCache(zeros(Float64, nx), levels = 2)
+            tape = ReverseDiff.JacobianTape(compute_nn!, out, get_tmp(xarg, 1.0))
+            jac_nn = zeros(Float64, noutputs, nx)
+            f_nn_preode[pid] = NNPreODE(compute_nn!, tape, jac_nn, outputs, inputs, xarg, [false])
+        end
+        f_nns_preode[cid] = f_nn_preode
+    end
+    return f_nns_preode
 end

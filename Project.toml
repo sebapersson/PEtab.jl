@@ -61,6 +61,7 @@ StochasticDiffEq = "789caeaf-c7a9-5a7d-9973-96adeb23e2a0"
 [extensions]
 PEtabIpoptExtension = ["Ipopt"]
 PEtabLogDensityProblemsExtension = ["LogDensityProblems", "LogDensityProblemsAD", "Bijectors"]
+PEtabLuxExtension = ["Lux"]
 PEtabMCMCChainsExtension = ["MCMCChains"]
 PEtabOptimExtension = ["Optim"]
 PEtabOptimizationExtension = ["Optimization"]

@@ -29,7 +29,6 @@ using QuasiMonteCarlo
 using StyledStrings
 import SciMLBase.remake
 import QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
-using Lux
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
@@ -100,11 +99,8 @@ include(joinpath("parameter_estimation", "startguesses.jl"))
 include(joinpath("util.jl"))
 
 include(joinpath("neural_nets", "common.jl"))
-include(joinpath("neural_nets", "netinfo.jl"))
-include(joinpath("neural_nets", "parse.jl"))
-include(joinpath("neural_nets", "read_ps.jl"))
+include(joinpath("neural_nets", "compute.jl"))
 include(joinpath("neural_nets", "templates.jl"))
-include(joinpath("neural_nets", "write_ps.jl"))
 
 #=
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem
@@ -128,6 +124,11 @@ function SDESolver end
 function llh end
 function PEtabSDEProblem end
 function _set_x_measurements_info! end
+function load_nets end
+function _setup_nnmodels end
+function _get_pnns end
+function _get_nn_initialparameters end
+function set_ps_net! end
 
 export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
        PEtabODEProblem, remake, Fides, PEtabOptimisationResult, IpoptOptions,

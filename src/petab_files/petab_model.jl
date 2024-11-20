@@ -14,18 +14,17 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
 
     # Build the internal PEtab.jl nn-dict. The same that users provide via the PEtab
     # interface
-    rng = Random.default_rng()
-    nn = Dict()
-    for (netid, nnmodel) in nnmodels
-        _, _st = Lux.setup(rng, nnmodel[:net])
-        nn[netid] = [_st, nnmodel[:net]]
+    if !isnothing(nnmodels)
+        nn = _setup_nnmodels(nnmodels)
+    else
+        nn = nothing
     end
 
     # Import SBML model with SBMLImporter
     # In case one of the conditions in the PEtab table assigns an initial specie value,
     # the SBML model must be mutated to add an iniitial value parameter to correctly
     # compute gradients
-    nnmodels_in_ode = _get_in_ode_nets(nnmodels)
+    nnmodels_in_ode = _get_nns_in_ode(nnmodels)
     if !isempty(nnmodels_in_ode)
         inline_assignment_rules = true
     else
@@ -183,7 +182,7 @@ function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, nnmodels_in_ode::Di
             throw(PEtab.PEtabInputError("Neural net $id defined in the net.yaml file is \
                                          is not defined in the mapping table, which it must \
                                          in order to understand how the net interacts with \
-                                        the model."))
+                                         the model."))
         end
         # Inputs can be any variable
         for variable_id in PEtab._get_net_values(mapping_table, id, :inputs)
@@ -212,12 +211,7 @@ function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, nnmodels_in_ode::Di
     end
 
     # Build the internal PEtab.jl nn-dict used by the ODEProblem
-    rng = Random.default_rng()
-    pnns = Dict()
-    for (netid, nnmodel) in nnmodels_in_ode
-        _pnn, _ = Lux.setup(rng, nnmodel[:net])
-        pnns[Symbol("p_$netid")] = _pnn
-    end
+    pnns = _get_pnns(nnmodels_in_ode)
 
     # Parse ODEProblem, with nndict via closure
     model_SBML_prob = SBMLImporter.ModelSBMLProb(model_SBML)
@@ -248,64 +242,4 @@ function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, nnmodels_in_ode::Di
         filter!(:netId => !=(string(netid)), mapping_table)
     end
     return oprob, u0map, psmap
-end
-
-function load_nets(path_yaml::String)::Dict
-    yaml_file = YAML.load_file(path_yaml)
-    sciml_info = yaml_file["extensions"]["petab_sciml"]
-    nnmodels = Dict()
-    for _netfile in sciml_info["net_files"]
-        nnmodel = Dict()
-        netfile = joinpath(dirname(path_yaml), _netfile)
-        net, id = PEtab.parse_to_lux(netfile)
-        for (id, nninfo) in sciml_info["hybridization"][id]
-            if id == "input"
-                nnmodel[:input] = nninfo
-            elseif id == "output"
-                nnmodel[:output] = nninfo
-            end
-        end
-        nnmodel[:net] = net
-        nnmodels[Symbol(id)] = nnmodel
-    end
-    return nnmodels
-end
-
-function _template_nn_in_ode(netid::Symbol, mapping_table)
-    inputs = "[" * prod(PEtab._get_net_values(mapping_table, netid, :inputs) .* ",") * "]"
-    outputs_p = prod(PEtab._get_net_values(mapping_table, netid, :outputs) .* ", ")
-    outputs_net = "out, st_$(netid)"
-    formula = "\n\tst_$(netid), net_$(netid) = nn[:$(netid)]\n"
-    formula *= "\txnn_$(netid) = p[:p_$(netid)]\n"
-    formula *= "\t$(outputs_net) = net_$(netid)($inputs, xnn_$(netid), st_$(netid))\n"
-    formula *= "\tnn[:$(netid)][1] = st_$(netid)\n"
-    formula *= "\t$(outputs_p) = out\n\n"
-    return formula
-end
-
-function _template_odeproblem(model_SBML_prob, model_SBML, nnmodels_in_ode, mapping_table::DataFrame)::String
-    @unpack umodel, ps, odes = model_SBML_prob
-    fode = "function f_$(model_SBML.name)(du, u, p, t, nn)::Nothing\n"
-    fode *= "\t" * prod(umodel .* ", ") * " = u\n"
-    fode *= "\t@unpack " * prod(ps .* ", ") * " = p\n"
-    for netid in keys(nnmodels_in_ode)
-        fode *= _template_nn_in_ode(netid, mapping_table)
-    end
-    for ode in odes
-        fode *= "\t" * ode
-    end
-    fode *= "\treturn nothing\n"
-    fode *= "end"
-    return fode
-end
-
-function _get_in_ode_nets(nnmodels::Union{Dict, Nothing})::Dict
-    out = Dict()
-    isnothing(nnmodels) && return out
-    for (id, nnmodel) in nnmodels
-        if nnmodel[:input] == "ode" && nnmodel[:output] == "ode"
-            out[id] = nnmodel
-        end
-    end
-    return out
 end

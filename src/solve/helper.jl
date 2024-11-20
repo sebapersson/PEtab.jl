@@ -1,6 +1,6 @@
 function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::AbstractVector,
                            xnn::Dict{Symbol, ComponentArray}, model_info::ModelInfo,
-                           cache::PEtabODEProblemCache, nn_pre_ode::Dict{Symbol, Dict{Symbol, NNPreODE}};
+                           cache::PEtabODEProblemCache, f_nns_preode::Dict{Symbol, Dict{Symbol, NNPreODE}};
                            sensitivites::Bool = false, simid::Union{Nothing, Symbol} = nothing)::ODEProblem
     @unpack xindices, model, nstates = model_info
     simid = isnothing(simid) ? cid : simid
@@ -18,30 +18,16 @@ function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::AbstractVec
     p[map_cid.isys_constant_values] .= map_cid.constant_values
     p[map_cid.ix_sys] .= xdynamic[map_cid.ix_dynamic]
 
-    # Potential Neural-Network parameters (in this case p must be a ComponentArray)
+    # Potential Neural-Network parameters (in this case p must be a ComponentArray) which
+    # are inside the ODE
     for (netid, xnet) in xnn
         !(p isa ComponentArray) && continue
         !haskey(p, netid) && continue
         p[netid] .= xnet
     end
 
-    # Parameters which are set by a neural net. TODO: Make function maybe
-    if haskey(nn_pre_ode, simid)
-        nns_pre_ode = nn_pre_ode[simid]
-        maps_nns = xindices.maps_nn_pre_ode[simid]
-        for (netid, nn_pre_ode) in nns_pre_ode
-            map_nn = maps_nns[netid]
-            # In case of neural nets being computed before the function call,
-            # nn_pre_ode.outputs has already been assigned
-            outputs = get_tmp(nn_pre_ode.outputs, p)
-            if nn_pre_ode.computed[1] == false
-                pnn = xnn[netid]
-                _x = _get_nn_pre_ode_x(nn_pre_ode, xdynamic, pnn, map_nn)
-                nn_pre_ode.nn!(outputs, _x)
-            end
-            p[map_nn.ioutput_sys] .= outputs
-        end
-    end
+    # Potential ODE parameters which have their value assigned by a neural-net
+    _set_nn_preode_parameters!(p, xdynamic, xnn, simid, xindices, f_nns_preode)
 
     # Initial state can depend on condition specific parameters
     model.u0!((@view u0[1:nstates]), p)
@@ -125,5 +111,23 @@ function _set_cond_const_parameters!(p::AbstractVector, xdynamic::AbstractVector
                                      xindices::ParameterIndices)::Nothing
     map_oprob = xindices.map_odeproblem
     @views p[map_oprob.sys_to_dynamic] .= xdynamic[map_oprob.dynamic_to_sys]
+    return nothing
+end
+
+function _set_nn_preode_parameters!(p::AbstractVector, xdynamic::AbstractVector, xnn, simid::Symbol, xindices::ParameterIndices, f_nns_preode::Dict{Symbol, Dict{Symbol, NNPreODE}})::Nothing
+    !haskey(f_nns_preode, simid) && return nothing
+    maps_nns = xindices.maps_nn_preode[simid]
+    for (netid, f_nn_preode) in f_nns_preode[simid]
+        map_nn = maps_nns[netid]
+        # In case of neural nets being computed before the function call,
+        # f_nn_preode.outputs is already computed
+        outputs = get_tmp(f_nn_preode.outputs, p)
+        if f_nn_preode.computed[1] == false
+            pnn = xnn[netid]
+            x = _get_f_nn_preode_x(f_nn_preode, xdynamic, pnn, map_nn)
+            f_nn_preode.nn!(outputs, x)
+        end
+        p[map_nn.ioutput_sys] .= outputs
+    end
     return nothing
 end

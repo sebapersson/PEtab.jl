@@ -196,7 +196,7 @@ end
 
 # TODO: Precompute only once
 function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices;
-                              full_x::Bool = false, nn_pre_ode::Bool = false)::Vector{Integer}
+                              full_x::Bool = false, nn_preode::Bool = false)::Vector{Integer}
     xmap_simid = xindices.maps_conidition_id[simid]
     if full_x == false
         ixdynamic = vcat(xindices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic,
@@ -208,56 +208,13 @@ function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices;
     end
     # Include parameters that potentially appear as only input to a neural-net. These
     # parameters are by default included in xdynamic (as they gouvern model dynamics)
-    if !isempty(xindices.maps_nn_pre_ode)
-        for map_nn in values(xindices.maps_nn_pre_ode[simid])
+    if !isempty(xindices.maps_nn_preode)
+        for map_nn in values(xindices.maps_nn_preode[simid])
             ixdynamic = vcat(ixdynamic, map_nn.ixdynamic_mech_inputs)
         end
     end
-    if nn_pre_ode == true || full_x == true
-        ixdynamic = vcat(ixdynamic, xindices.xindices_dynamic[:nn_pre_ode])
+    if nn_preode == true || full_x == true
+        ixdynamic = vcat(ixdynamic, xindices.xindices_dynamic[:nn_preode])
     end
     return unique(ixdynamic)
-end
-
-function _get_n_net_parameters(nn::Union{Dict, Nothing}, xids::Vector{Symbol})::Int64
-    isnothing(nn) && return 0
-    nparameters = 0
-    for xid in xids
-        netid = string(xid)[3:end] |> Symbol
-        !haskey(nn, netid) && continue
-        nparameters += Lux.LuxCore.parameterlength(nn[netid][2])
-    end
-    return nparameters
-end
-
-function _jac_nn_pre_ode!(probinfo::PEtabODEProblemInfo, model_info::ModelInfo)::Nothing
-    @unpack cache = probinfo
-    for (cid, nns_pre_ode) in probinfo.nn_pre_ode
-        for (netid, nn_pre_ode) in nns_pre_ode
-            # Parameter mapping. If one of the inputs is a parameter to estimate, the
-            # Jacobian is also computed of the input parameter.
-            map_nn = model_info.xindices.maps_nn_pre_ode[cid][netid]
-            pnn = get_tmp(cache.xnn[netid], 1.0)
-            xdynamic_mech = get_tmp(cache.xdynamic_mech, 1.0)
-            xdynamic_mech_ps = transform_x(xdynamic_mech, model_info.xindices, :xdynamic, cache)
-            _x = _get_nn_pre_ode_x(nn_pre_ode, xdynamic_mech_ps, pnn, map_nn)
-
-            @unpack tape, jac_nn, outputs, inputs, computed = nn_pre_ode
-            ReverseDiff.jacobian!(jac_nn, tape, _x)
-            outputs_tape = ReverseDiff.value(tape.output)
-            outputs_cache = get_tmp(outputs, outputs_tape)
-            outputs_cache .= outputs_tape
-            computed[1] = true
-        end
-    end
-    return nothing
-end
-
-function _reset_nn_pre_ode!(probinfo::PEtabODEProblemInfo)::Nothing
-    for nns_pre_ode in values(probinfo.nn_pre_ode)
-        for nn_pre_ode in values(nns_pre_ode)
-            nn_pre_ode.computed[1] = false
-        end
-    end
-    return nothing
 end

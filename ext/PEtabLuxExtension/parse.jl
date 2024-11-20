@@ -1,3 +1,24 @@
+function PEtab.load_nets(path_yaml::String)::Dict
+    yaml_file = YAML.load_file(path_yaml)
+    sciml_info = yaml_file["extensions"]["petab_sciml"]
+    nnmodels = Dict()
+    for _netfile in sciml_info["net_files"]
+        nnmodel = Dict()
+        netfile = joinpath(dirname(path_yaml), _netfile)
+        net, id = parse_to_lux(netfile)
+        for (id, nninfo) in sciml_info["hybridization"][id]
+            if id == "input"
+                nnmodel[:input] = nninfo
+            elseif id == "output"
+                nnmodel[:output] = nninfo
+            end
+        end
+        nnmodel[:net] = net
+        nnmodels[Symbol(id)] = nnmodel
+    end
+    return nnmodels
+end
+
 function parse_to_lux(path_yaml::String)
     network_yaml = YAML.load_file(path_yaml)["models"][1]
     layers = Dict([_parse_layer(l) for l in network_yaml["layers"]])

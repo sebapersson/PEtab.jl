@@ -38,25 +38,25 @@ function _get_xindices_dynamic(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Sym
         istart = xn[end]
     end
     xindices[:nn_in_ode] = xi_nn_in_ode
-    xi_nn_pre_ode = Int32[]
-    for pid in xids[:nn_pre_ode]
+    xi_nn_preode = Int32[]
+    for pid in xids[:nn_preode]
         xn = _get_xindices_net(pid, istart, nn)
         xi_xest_to_xdynamic = vcat(xi_xest_to_xdynamic, xn)
-        xi_nn_pre_ode = vcat(xi_nn_pre_ode, xn)
+        xi_nn_preode = vcat(xi_nn_preode, xn)
         istart += xn[end]
     end
-    xindices[:nn_pre_ode] = xi_nn_pre_ode
+    xindices[:nn_preode] = xi_nn_preode
     xindices[:xest_to_xdynamic] = xi_xest_to_xdynamic
     # Get indices in xdynamic for each neural net in xdynamic
     istart = length(xindices[:xdynamic_to_mech])
-    for pid in Iterators.flatten((xids[:nn_in_ode], xids[:nn_pre_ode]))
+    for pid in Iterators.flatten((xids[:nn_in_ode], xids[:nn_preode]))
         xindices[pid] = _get_xindices_net(pid, istart, nn)
         istart = xindices[pid][end]
     end
-    # nn_pre_ode outputs are for effiency added to xdynamic, and these parameters are
+    # nn_preode outputs are for effiency added to xdynamic, and these parameters are
     # sent to the end of the vector
     np = length(xindices[:xest_to_xdynamic])
-    xindices[:xdynamic_to_nnout] = (np+1):(np + length(xids[:nn_pre_ode_outputs]))
+    xindices[:xdynamic_to_nnout] = (np+1):(np + length(xids[:nn_preode_outputs]))
     return xindices
 end
 

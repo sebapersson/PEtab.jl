@@ -67,11 +67,11 @@ function ParameterIndices(petab_parameters::PEtabParameters,
     # If a neural-network sets values for a subset of model parameters, for efficent AD on
     # said network, it is neccesary to pre-compute the input, pre-allocate the output,
     # and build a map for which parameters in xdynamic the network maps to.
-    nn_pre_ode_maps = _get_nn_pre_ode_maps(conditions_df, xids, petab_parameters, mapping_table, nn, sys)
+    nn_preode_maps = _get_nn_preode_maps(conditions_df, xids, petab_parameters, mapping_table, nn, sys)
 
     xscale = _get_xscales(xids, petab_parameters)
     _get_xnames_ps!(xids, xscale)
     return ParameterIndices(xindices_est, xids, xindices_notsys, xindices_dynamic, xscale,
                             xobservable_maps, xnoise_maps, odeproblem_map, condition_maps,
-                            nn_pre_ode_maps)
+                            nn_preode_maps)
 end
