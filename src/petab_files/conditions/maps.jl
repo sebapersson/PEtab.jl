@@ -87,6 +87,7 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nn::Union{Dict,
         if id_sys in xids[:nn]
             sys_to_dynamic_nn = vcat(sys_to_dynamic_nn, _get_xindices_net(id_sys, isys, nn))
             isys = sys_to_dynamic_nn[end]
+            continue
         end
         isys += 1
     end
