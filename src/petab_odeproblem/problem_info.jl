@@ -109,17 +109,30 @@ function _get_f_nns_preode(model_info::ModelInfo, cache::PEtabODEProblemCache)::
             @unpack ninputs, noutputs = map
             nn = model_info.model.nn[Symbol(string(pid)[3:end])]
             pnn = cache.xnn[pid]
+
+            # ForwardDiff compatible compute_nn! funciton
             outputs = DiffCache(zeros(Float64, noutputs), levels = 2)
             inputs = DiffCache(zeros(Float64, ninputs), levels = 2)
             compute_nn! = let nn = nn, map_nn = map, inputs = inputs, pnn = pnn
                 (out, x) -> _net!(out, x, pnn, inputs, map_nn, nn)
             end
-            # For the Jacobian ReverseDiff.jl is used. For performance it is important to
-            # pre-compile the tape
-            out = get_tmp(outputs, 1.0)
+
+            # ReverseDiff.tape compatible (fastest on CPU, but only works if input is
+            # known at compile-time)
+            if map.nxdynamic_inputs == 0
+                inputs_rev = map.constant_inputs[map.iconstant_inputs]
+                compute_nn_rev! = let nn = nn, inputs_rev = inputs_rev
+                    (out, x) -> _net_reversediff!(out, x, inputs_rev, nn)
+                end
+                out = get_tmp(outputs, 1.0)
+                _pnn = get_tmp(pnn, 1.0)
+                tape = ReverseDiff.JacobianTape(compute_nn_rev!, out, _pnn)
+            else
+                tape = nothing
+            end
+
             nx = length(get_tmp(pnn, 1.0)) + map.nxdynamic_inputs
             xarg = DiffCache(zeros(Float64, nx), levels = 2)
-            tape = ReverseDiff.JacobianTape(compute_nn!, out, get_tmp(xarg, 1.0))
             jac_nn = zeros(Float64, noutputs, nx)
             f_nn_preode[pid] = NNPreODE(compute_nn!, tape, jac_nn, outputs, inputs, xarg, [false])
         end

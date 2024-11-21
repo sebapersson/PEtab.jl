@@ -8,7 +8,7 @@ function read_tables(path_yaml::String)::Dict{Symbol, DataFrame}
                   :observables => observables_df, :measurements => measurements_df)
     # Part of PEtab extensions, and not required and/or usually encountered.
     if haskey(paths, :mapping_table)
-        tables[:mapping_table] = CSV.read(paths[:mapping_table], DataFrame)
+        tables[:mapping_table] = _read_table(paths[:mapping_table], :mapping)
     end
     return tables
 end

@@ -33,7 +33,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
     model_SBML = SBMLImporter.parse_SBML(paths[:SBML], false; model_as_string = false,
                                          ifelse_to_callback = ifelse_to_callback,
                                          inline_assignment_rules = inline_assignment_rules)
-    _addu0_parameters!(model_SBML, petab_tables[:conditions], petab_tables[:parameters])
+    _addu0_parameters!(model_SBML, petab_tables)
     pathmodel = joinpath(paths[:dirjulia], name * ".jl")
     exist = isfile(pathmodel)
     # If the model contains a neural-network it must be parsed as an ODEProblem, as MTK
@@ -89,18 +89,36 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
                       petab_tables, cbset, false, nn)
 end
 
-function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, conditions_df::DataFrame,
-                            parameters_df::DataFrame)::Nothing
+function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::Dict{Symbol, DataFrame})::Nothing
+    conditions_df = petab_tables[:conditions]
+    parameters_df = petab_tables[:parameters]
+    mapping_table = petab_tables[:mapping_table]
+
     specieids = keys(model_SBML.species)
     rateruleids = model_SBML.rate_rule_variables
     sbml_variables = Iterators.flatten((specieids, rateruleids)) |> unique
-
     condition_variables = names(conditions_df)
-    if any(x -> x in sbml_variables, condition_variables) == false
+
+    # Neural net output variables can
+    net_outputs = String[]
+    if !isempty(mapping_table)
+        for netid in Symbol.(unique(mapping_table[!, :netId]))
+            net_outputs = vcat(net_outputs, _get_net_values(mapping_table, netid, :outputs))
+        end
+        for net_output in net_outputs
+            !(net_output in condition_variables) && continue
+            throw(PEtabInputError("Output $(net_output) for a neural-net in the mapping \
+                                   table points to a parameter which is set by an
+                                   experimental condition. This is not allowed."))
+        end
+    end
+
+    variables = Iterators.flatten((condition_variables, net_outputs))
+    if any(x -> x in sbml_variables, variables) == false
         return nothing
     end
 
-    for condition_variable in condition_variables
+    for condition_variable in variables
         !(condition_variable in sbml_variables) && continue
 
         if condition_variable in specieids
@@ -115,9 +133,17 @@ function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, conditions_df::D
         model_SBML.parameters[u0name] = u0parameter
         sbml_variable.initial_value = u0name
 
+        # Rename output in the mapping table, to have the neural-net map to the
+        # initial-value parameter instead
+        if condition_variable in net_outputs
+            ix = findall(x -> x == condition_variable, mapping_table[!, :ioValue])
+            mapping_table[ix, :ioValue] .= "__init__" .* sbml_variable.name .* "__"
+        end
+
         # Check if any parameter in the PEtab tables maps to u0 in the conditions table,
         # because if this is the case this parameter must be added to the SBML model as
         # it should be treated as a dynamic parameter for indexing
+        !(condition_variable in names(conditions_df)) && continue
         for condition_value in conditions_df[!, condition_variable]
             condition_value isa Real && continue
             ismissing(condition_value) && continue

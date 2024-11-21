@@ -2,10 +2,24 @@ function _net!(out, x, pnn::DiffCache, inputs::DiffCache, map_nn::NNPreODEMap, n
     _inputs = get_tmp(inputs, x)
     _pnn = get_tmp(pnn, x)
     _inputs[map_nn.iconstant_inputs] .= map_nn.constant_inputs
-    @views _inputs[map_nn.ixdynamic_inputs] .= x[1:map_nn.nxdynamic_inputs]
-    @views _pnn .= x[(map_nn.nxdynamic_inputs + 1):end]
+    _inputs[map_nn.ixdynamic_inputs] .= x[1:map_nn.nxdynamic_inputs]
+    _pnn .= x[(map_nn.nxdynamic_inputs + 1):end]
     st, net = nn
     _out, st = net(_inputs, _pnn, st)
+    out .= _out
+    nn[1] = st
+    return nothing
+end
+
+# For ReverseDiff the tape forward-pass fails with get_tmp. get_tmp is only needed for
+# ForwardDiff, and when the input depends on a parameter to estimate. If none of the
+# inputs are estimated, that is, are known at compile-time it is possible to compile the
+# function and enjoy good performance on the CPU. If one of the inputs depend on parameters
+# to estimate, ForwardDiff can be used instead (and hopefully in the future Enzyme can
+# make all this code obselete)
+function _net_reversediff!(out, pnn, inputs::Array{<:AbstractFloat}, nn)::Nothing
+    st, net = nn
+    _out, st = net(inputs, pnn, st)
     out .= _out
     nn[1] = st
     return nothing
@@ -15,19 +29,22 @@ function _jac_nn_preode!(probinfo::PEtabODEProblemInfo, model_info::ModelInfo)::
     @unpack cache = probinfo
     for (cid, f_nns_preode) in probinfo.f_nns_preode
         for (netid, f_nn_preode) in f_nns_preode
+            @unpack tape, jac_nn, outputs, computed, nn! = f_nn_preode
             # Parameter mapping. If one of the inputs is a parameter to estimate, the
             # Jacobian is also computed of the input parameter.
             map_nn = model_info.xindices.maps_nn_preode[cid][netid]
             pnn = get_tmp(cache.xnn[netid], 1.0)
-            xdynamic_mech = get_tmp(cache.xdynamic_mech, 1.0)
-            xdynamic_mech_ps = transform_x(xdynamic_mech, model_info.xindices, :xdynamic, cache)
-            _x = _get_f_nn_preode_x(f_nn_preode, xdynamic_mech_ps, pnn, map_nn)
 
-            @unpack tape, jac_nn, outputs, inputs, computed = f_nn_preode
-            ReverseDiff.jacobian!(jac_nn, tape, _x)
-            outputs_tape = ReverseDiff.value(tape.output)
-            outputs_cache = get_tmp(outputs, outputs_tape)
-            outputs_cache .= outputs_tape
+            _outputs = get_tmp(outputs, pnn)
+            if map_nn.nxdynamic_inputs > 0
+                xdynamic_mech = get_tmp(cache.xdynamic_mech, 1.0)
+                xdynamic_mech_ps = transform_x(xdynamic_mech, model_info.xindices, :xdynamic, cache)
+                _x = _get_f_nn_preode_x(f_nn_preode, xdynamic_mech_ps, pnn, map_nn)
+                ForwardDiff.jacobian!(jac_nn, nn!, _outputs, _x)
+            else
+                ReverseDiff.jacobian!(jac_nn, tape, pnn)
+                _outputs .= ReverseDiff.value(tape.output)
+            end
             computed[1] = true
         end
     end

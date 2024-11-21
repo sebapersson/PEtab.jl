@@ -2,7 +2,7 @@ function _get_xindices(xids_subset::Vector{Symbol}, xids_est::Vector{Symbol})::V
     return Int32[findfirst(x -> x == id, xids_est) for id in xids_subset]
 end
 
-function _get_xindices_net(pid::Symbol, istart::Int64, nn)::Vector{Int64}
+function _get_xindices_net(pid::Symbol, istart::Integer, nn)::Vector{Int64}
     np = _get_n_net_parameters(nn, [pid])
     return (istart+1):(istart + np)
 end

@@ -31,7 +31,11 @@ function _get_xindices_dynamic(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Sym
     xi_xest_to_xdynamic = _get_xindices(xids[:dynamic_mech], xids[:estimate])
     xi_nn_in_ode = Int32[]
     istart = length(xids[:estimate]) - length(xids[:nn])
-    for pid in xids[:nn_in_ode]
+    # Need to loop of keys(nn) to get consistent mapping when accessing for example xest
+    # and xdynamic
+    for netid in keys(nn)
+        pid = Symbol("p_$netid")
+        !(pid in xids[:nn_in_ode]) && continue
         xn = _get_xindices_net(pid, istart, nn)
         xi_xest_to_xdynamic = vcat(xi_xest_to_xdynamic, xn)
         xi_nn_in_ode = vcat(xi_nn_in_ode, xn)
@@ -39,17 +43,21 @@ function _get_xindices_dynamic(xids::Dict{Symbol, Vector{Symbol}}, nn)::Dict{Sym
     end
     xindices[:nn_in_ode] = xi_nn_in_ode
     xi_nn_preode = Int32[]
-    for pid in xids[:nn_preode]
+    for netid in keys(nn)
+        pid = Symbol("p_$netid")
+        !(pid in xids[:nn_preode]) && continue
         xn = _get_xindices_net(pid, istart, nn)
         xi_xest_to_xdynamic = vcat(xi_xest_to_xdynamic, xn)
         xi_nn_preode = vcat(xi_nn_preode, xn)
-        istart += xn[end]
+        istart = xn[end]
     end
     xindices[:nn_preode] = xi_nn_preode
     xindices[:xest_to_xdynamic] = xi_xest_to_xdynamic
     # Get indices in xdynamic for each neural net in xdynamic
     istart = length(xindices[:xdynamic_to_mech])
-    for pid in Iterators.flatten((xids[:nn_in_ode], xids[:nn_preode]))
+    for netid in keys(nn)
+        pid = Symbol("p_$netid")
+        !(pid in Iterators.flatten((xids[:nn_in_ode], xids[:nn_preode]))) && continue
         xindices[pid] = _get_xindices_net(pid, istart, nn)
         istart = xindices[pid][end]
     end
