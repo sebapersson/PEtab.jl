@@ -233,7 +233,8 @@ function _get_bounds(model_info::ModelInfo, xnames::Vector{Symbol}, which::Symbo
     bounds_mechanistic = (xnames_not_nn .=> petab_parameters.lower_bounds[ix]) |> NamedTuple
     # Network parameters are given as ComponentArray
     vals = Vector{Any}(undef, length(xnames_nn))
-    for (i, net) in pairs(collect(values(model_info.model.nn)))
+    for (i, pid) in pairs(xnames_nn)
+        net = model_info.model.nn[Symbol(string(pid)[3:end])]
         vals[i] = _get_nn_initialparameters(net[2])
         if which == :lower
             vals[i] .= -10.0
@@ -252,7 +253,8 @@ function _get_xnominal(model_info::ModelInfo, xnames::Vector{Symbol},
     xnames_not_nn = xnames[ixnames_not_nn]
     xnames_nn = xnames[findall(x -> x in xindices.xids[:nn], xnames)]
 
-    # Mechanistic parameters are given as Vector
+    # Mechanistic parameters are given as Vector.
+    # TODO: Refactor (not my best)
     ix = [findfirst(x -> x == id, petab_parameters.parameter_id) for id in xnames_not_nn]
     xnominal = petab_parameters.nominal_value[ix]
     if transform == true
@@ -263,7 +265,8 @@ function _get_xnominal(model_info::ModelInfo, xnames::Vector{Symbol},
     end
     # Network parameters are given as ComponentArray
     vals = Vector{Any}(undef, length(xnames_nn))
-    for (i, net) in pairs(collect(values(model_info.model.nn)))
+    for (i, pid) in pairs(xnames_nn)
+        net = model_info.model.nn[Symbol(string(pid)[3:end])]
         vals[i] = _get_nn_initialparameters(net[2])
         vals[i] .= 0.0
     end

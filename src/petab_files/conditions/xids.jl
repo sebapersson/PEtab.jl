@@ -11,10 +11,18 @@ function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabM
     xids_sys = _get_xids_sys_order(sys, speciemap, parametermap)
 
     # Parameters related to neural networks (data-driven models)
-    xids_nn = _get_xids_nn(nn)
+    _xids_nn = _get_xids_nn(nn)
+    xids_nn_in_ode = _get_xids_nn_in_ode(_xids_nn, sys)
+    xids_nn_preode = _get_xids_nn_preode(mapping_table, sys)
+    xids_nn_nondynamic = _get_xids_nn_nondynamic(_xids_nn, xids_nn_in_ode, xids_nn_preode)
+    # For all mapping to be correct in_ode must be first. TODO: Refactor when works
+    xids_nn = unique(vcat(xids_nn_in_ode, xids_nn_preode, xids_nn_nondynamic))
+    #=
     xids_nn_in_ode = _get_xids_nn_in_ode(xids_nn, sys)
     xids_nn_preode = _get_xids_nn_preode(mapping_table, sys)
     xids_nn_nondynamic = _get_xids_nn_nondynamic(xids_nn, xids_nn_in_ode, xids_nn_preode)
+    =#
+
     # Parameter which are input to a neural net, and are estimated. These must be tracked
     # for gradients
     xids_nn_input_est = _get_xids_nn_input_est(mapping_table, conditions_df, petab_parameters, sys)

@@ -60,6 +60,7 @@ function split_x!(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODE
         _xnn .= @view x[xi[netid]]
         cache.xnn_dict[netid] = _xnn
     end
+    # TODO: Errors happens with xdynamic_tot. Figure of how x is split!!
     if xdynamic_tot == true
         xdynamic_tot = get_tmp(cache.xdynamic_tot, x)
         xdynamic_tot .= @view x[xindices.xindices_dynamic[:xest_to_xdynamic]]

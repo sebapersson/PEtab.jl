@@ -88,7 +88,7 @@ function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveod
         ixdynamic_simid = _get_ixdynamic_simid(simid, xindices; nn_preode = false)
         xinput = _get_xinput(simid, _xdynamic_tot, ixdynamic_simid, model_info, probinfo)
         _nllh = (_xinput) -> begin
-        _split_xinput!(probinfo, simid, model_info, _xinput, ixdynamic_simid)
+            _split_xinput!(probinfo, simid, model_info, _xinput, ixdynamic_simid)
             xdynamic_tot = get_tmp(probinfo.cache.xdynamic_tot, _xinput)
             return _nllh_solveode(xdynamic_tot, [cid])
         end
