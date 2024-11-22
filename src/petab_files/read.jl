@@ -51,7 +51,7 @@ function _get_path(yaml_file, dirmodel::String, file::String)::String
         if !haskey(yaml_file["problems"][1], "mapping_tables")
             path = ""
         else
-            path = joinpath(dirmodel, yaml_file["problems"][file])
+            path = joinpath(dirmodel, yaml_file["problems"][1][file])
         end
     else
         path = joinpath(dirmodel, yaml_file[file])
