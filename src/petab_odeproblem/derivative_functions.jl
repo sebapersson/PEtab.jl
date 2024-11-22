@@ -273,9 +273,9 @@ function split_x_notsystem(x, xindices::ParameterIndices, cache::PEtabODEProblem
     xnoise = get_tmp(cache.xnoise, x)
     xobservable = get_tmp(cache.xobservable, x)
     xnondynamic_mech = get_tmp(cache.xnondynamic_mech, x)
-    xnoise .= xindices.xindices_notsys[:noise]
-    xobservable .= xindices.xindices_notsys[:observable]
-    xnondynamic_mech .= xindices.xindices_notsys[:nondynamic_mech]
+    xnoise .= @view x[xindices.xindices_notsys[:noise]]
+    xobservable .= @view x[xindices.xindices_notsys[:observable]]
+    xnondynamic_mech .= @view x[xindices.xindices_notsys[:nondynamic_mech]]
     for pid in xindices.xids[:nn_nondynamic]
         xnn = get_tmp(cache.xnn[pid], x)
         xnn .= x[xindices.xindices_notsys[pid]]

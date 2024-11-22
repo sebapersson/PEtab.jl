@@ -166,7 +166,7 @@ function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_pa
 
             # A variable can be one of the neural net inputs. The map is then built later
             # when building the input function for the NN
-            if Symbol(variable) in mapping_table[!, :ioValue]
+            if !isempty(mapping_table) && Symbol(variable) in mapping_table[!, :ioValue]
                 continue
             end
 

@@ -52,9 +52,9 @@ function split_x!(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODE
     xobservable = get_tmp(cache.xobservable, x)
     xobservable .= @view x[xi[:observable]]
     xnoise = get_tmp(cache.xnoise, x)
-    xnoise = @view x[xi[:noise]]
+    xnoise .= @view x[xi[:noise]]
     xnondynamic_mech = get_tmp(cache.xnondynamic_mech, x)
-    xnondynamic_mech = @view x[xi[:nondynamic_mech]]
+    xnondynamic_mech .= @view x[xi[:nondynamic_mech]]
     for (netid, xnn) in cache.xnn
         _xnn = get_tmp(xnn, x)
         _xnn .= @view x[xi[netid]]

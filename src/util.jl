@@ -94,7 +94,7 @@ function _get_ps_u0(res::EstimationResult, prob::PEtabODEProblem,
                     preeq_id::Union{Nothing, Symbol, String}, retmap::Bool)
     @unpack probinfo, model_info = prob
     @unpack xindices, model, simulation_info = prob.model_info
-    @unpack solver, ss_solver, cache, odeproblem = probinfo
+    @unpack solver, ss_solver, cache, odeproblem, f_nns_preode = probinfo
 
     cid = _get_cid(cid, model_info)
     preeq_id = _get_preeq_id(preeq_id, model_info)
@@ -105,7 +105,7 @@ function _get_ps_u0(res::EstimationResult, prob::PEtabODEProblem,
     else
         x_transformed = transform_x(res.xmin, xindices.xids[:estimate], xindices)
     end
-    xdynamic, _, _, _ = split_x(x_transformed, xindices)
+    xdynamic, _, _, _, xnn = split_x(x_transformed, xindices, cache)
 
     # System parameters and their associated ids
     p = odeproblem.p[:]
@@ -128,19 +128,19 @@ function _get_ps_u0(res::EstimationResult, prob::PEtabODEProblem,
             simid = nothing
             _cid = cid
         end
-        oprob = _switch_condition(odeproblem, _cid, xdynamic, model_info, cache;
-                                  simid = simid)
+        oprob = _switch_condition(odeproblem, _cid, xdynamic, xnn, model_info, cache,
+                                  f_nns_preode; simid = simid)
     else
         # For models with pre-eq in order to correctly return the initial values the model
         # must first be simulated to steady state, and following the steady-state the
         # parameters must be correctly set
         u_ss = Vector{Float64}(undef, length(u0))
         u_t0 = Vector{Float64}(undef, length(u0))
-        oprob_preeq = _switch_condition(odeproblem, preeq_id, xdynamic, model_info, cache)
+        oprob_preeq = _switch_condition(odeproblem, preeq_id, xdynamic, model_info, cache, f_nns_preode)
         _ = solve_pre_equlibrium!(u_ss, u_t0, oprob_preeq, solver, ss_solver, true)
         # Setup the problem with correct initial values
         _cid = string(preeq_id) * string(cid) |> Symbol
-        oprob = _switch_condition(odeproblem, _cid, xdynamic, model_info, cache;
+        oprob = _switch_condition(odeproblem, _cid, xdynamic, xnn, model_info, cache;
                                   simid = cid)
         has_not_changed = oprob.u0 .== u_t0
         oprob.u0[has_not_changed] .= u_ss[has_not_changed]
@@ -216,9 +216,10 @@ function solve_all_conditions(x, prob::PEtabODEProblem, osolver; abstol = 1e-8,
     end
 
     split_x!(x, xindices, cache)
-    xdynamic_ps = transform_x(cache.xdynamic, xindices, :xdynamic, cache)
+    xdynamic_mech = get_tmp(cache.xdynamic_mech, x)
+    xdynamic_ps = transform_x(xdynamic_mech, xindices, :xdynamic, cache)
 
-    _ = solve_conditions!(model_info, xdynamic_ps, probinfo;
+    _ = solve_conditions!(model_info, xdynamic_ps, cache.xnn_dict, probinfo;
                           ntimepoints_save = ntimepoints_save,
                           save_observed_t = save_observed_t)
     return model_info.simulation_info.odesols

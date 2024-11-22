@@ -76,8 +76,8 @@ function PEtabODEProblem(model::PEtabModel;
     xnames = model_info.xindices.xids[:estimate]
     xnames_ps = model_info.xindices.xids[:estimate_ps]
     nestimate = length(xnames)
-    lb = _get_bounds(model_info, xnames, :lower)
-    ub = _get_bounds(model_info, xnames, :upper)
+    lb = _get_bounds(model_info, xnames, xnames_ps, :lower)
+    ub = _get_bounds(model_info, xnames, xnames_ps, :upper)
     xnominal = _get_xnominal(model_info, xnames, xnames_ps, false)
     xnominal_transformed = _get_xnominal(model_info, xnames, xnames_ps, true)
 
@@ -223,14 +223,23 @@ function _get_nllh_grad(gradient_method::Symbol, grad::Function, _prior::Functio
     return _nllh_grad
 end
 
-function _get_bounds(model_info::ModelInfo, xnames::Vector{Symbol}, which::Symbol)
+function _get_bounds(model_info::ModelInfo, xnames::Vector{Symbol}, xnames_ps::Vector{Symbol}, which::Symbol)
     @unpack petab_parameters, xindices = model_info
-    xnames_not_nn = xnames[findall(x -> !(x in xindices.xids[:nn]), xnames)]
+    ixnames_not_nn = findall(x -> !(x in xindices.xids[:nn]), xnames)
+    xnames_not_nn = xnames[ixnames_not_nn]
+    xnames_ps_not_nn = xnames_ps[ixnames_not_nn]
     xnames_nn = xnames[findall(x -> x in xindices.xids[:nn], xnames)]
 
     # Mechanistic parameters are given as Vector
     ix = [findfirst(x -> x == id, petab_parameters.parameter_id) for id in xnames_not_nn]
-    bounds_mechanistic = (xnames_not_nn .=> petab_parameters.lower_bounds[ix]) |> NamedTuple
+    if which == :lower
+        xmech = petab_parameters.lower_bounds[ix]
+    else
+        xmech = petab_parameters.upper_bounds[ix]
+    end
+    transform_x!(xmech, xnames, xindices, to_xscale = true)
+    bounds_mechanistic = NamedTuple(xnames_ps_not_nn .=> xmech)
+
     # Network parameters are given as ComponentArray
     vals = Vector{Any}(undef, length(xnames_nn))
     for (i, pid) in pairs(xnames_nn)

@@ -10,7 +10,7 @@ function parse_observables(modelname::String, paths::Dict{Symbol, String}, sys::
     _u0!str = _parse_u0(speciemap, state_ids, xindices, model_SBML, true)
     if write_to_file == true
         pathsave = joinpath(paths[:dirjulia], "$(modelname)_h_sd_u0.jl")
-        strwrite = *(_hstr, _u0str, _u0!str, _σstr)
+        strwrite = *(_hstr, _u0!str, _u0str, _σstr)
         open(pathsave, "w") do f
             write(f, strwrite)
         end

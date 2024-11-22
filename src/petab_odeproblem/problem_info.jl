@@ -86,6 +86,7 @@ function _get_odeproblem(sys, model::PEtabModel, model_info::ModelInfo, speciali
                                       jac = true, sparse = sparse_jacobian)
     else
         # For ReactionSystem and there is bug if I try to set specialize_level.
+        u0map_tmp = zeros(Float64, length(model.speciemap))
         _oprob = ODEProblem(sys, u0map_tmp, [0.0, 5e3], parametermap;
                             jac = true, sparse = sparse_jacobian)
     end

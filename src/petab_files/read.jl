@@ -9,6 +9,8 @@ function read_tables(path_yaml::String)::Dict{Symbol, DataFrame}
     # Part of PEtab extensions, and not required and/or usually encountered.
     if haskey(paths, :mapping_table)
         tables[:mapping_table] = _read_table(paths[:mapping_table], :mapping)
+    else
+        tables[:mapping_table] = DataFrame()
     end
     return tables
 end
@@ -44,9 +46,9 @@ end
 
 function _get_path(yaml_file, dirmodel::String, file::String)::String
     if !(file in ["parameter_file", "mapping_tables"])
-        path = joinpath(dirmodel, yaml_file["problems"][file][1])
+        path = joinpath(dirmodel, yaml_file["problems"][1][file][1])
     elseif file == "mapping_tables"
-        if !haskey(yaml_file["problems"], "mapping_tables")
+        if !haskey(yaml_file["problems"][1], "mapping_tables")
             path = ""
         else
             path = joinpath(dirmodel, yaml_file["problems"][file])
@@ -54,8 +56,8 @@ function _get_path(yaml_file, dirmodel::String, file::String)::String
     else
         path = joinpath(dirmodel, yaml_file[file])
     end
-    if !isfile(path)
-        throw(PEtabFileError("$path_conditions is not a valid path for the $file table"))
+    if !isempty(path) && !isfile(path)
+        throw(PEtabFileError("$path is not a valid path for the $file table"))
     end
     return path
 end
