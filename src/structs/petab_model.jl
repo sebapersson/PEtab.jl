@@ -12,8 +12,8 @@ observable formula, or noise formula.
 - `lb::Float64 = 1e-3`: The lower parameter bound for parameter estimation.
 - `ub::Float64 = 1e3`: The upper parameter bound for parameter estimation.
 - `scale::Symbol = :log10`: The scale on which to estimate the parameter. Allowed options
-    are `:log10` (default), `:log`, and `:lin`. Estimating pest on the `log10` scale
-    typically improves performance and is recommended.
+    are `:log10` (default), `:log2` `:log`, and `:lin`. Estimating pest on the `log10`
+    scale typically improves performance and is recommended.
 - `prior = nothing`: An optional continuous univariate parameter prior distribution from
     [Distributions.jl](https://github.com/JuliaStats/Distributions.jl).
 - `prior_on_linear_scale = true`: Whether the prior is on the linear scale (default) or on
@@ -72,7 +72,7 @@ noise and observable parameters; for more information, see the documentation.
 ## Keyword Argument
 
 - `transformation`: The transformation applied to the observable and its corresponding
-    measurements. Valid options are `:lin` (normal measurement noise), `:log`, or
+    measurements. Valid options are `:lin` (normal measurement noise), `:log`, `log2` or
     `:log10` (log-normal measurement noise). See below for more details.
 
 ## Description
@@ -98,6 +98,12 @@ For `transformation = :log10`, the measurement noise is assumed to be log10-norm
 distributed, and the likelihood is given by:
 ```math
 \\pi(y|h, \\sigma) = \\frac{1}{\\sqrt{2\\pi \\sigma^2 y^2}\\mathrm{log}(10) }\\mathrm{exp}\\bigg( -\\frac{\\big(\\mathrm{log}_{10}(y) - \\mathrm{log}_{10}(h)\\big)^2}{2\\sigma^2} \\bigg)
+```
+
+Lastly, for `transformation = :log2`, the measurement noise is assumed to be log2-normally
+distributed, and the likelihood is given by:
+```math
+\\pi(y|h, \\sigma) = \\frac{1}{\\sqrt{2\\pi \\sigma^2 y^2}\\mathrm{log}(2) }\\mathrm{exp}\\bigg( -\\frac{\\big(\\mathrm{log}_{2}(y) - \\mathrm{log}_{2}(h)\\big)^2}{2\\sigma^2} \\bigg)
 ```
 
 For numerical stabillity, PEtab.jl works with the log-likelihood in practice.

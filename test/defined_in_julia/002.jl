@@ -41,7 +41,7 @@ simulation_conditions = Dict("c0" => Dict(:a0 => 0.8),
 
 # PEtab-parameter to "estimate"
 parameters = [PEtabParameter(:k1, value=0.8, scale=:lin),
-                    PEtabParameter(:k2, value=0.6, scale=:lin)]
+              PEtabParameter(:k2, value=0.6, scale=:lin)]
 
 # Observable equation
 @unpack A = rn
