@@ -12,7 +12,7 @@ nn_model = @compact(
 end
 pnn, _st = Lux.setup(rng, nn_model)
 const st = _st
-nndict = Dict(:net1 => (st, nn_model))
+nndict = Dict(:net1 => [st, nn_model])
 
 function _lv!(du, u, p, t, nn)
     prey, predator = u
@@ -52,7 +52,7 @@ measurements = CSV.read(path_m, DataFrame)
 model = PEtabModel(uprob, obs, measurements, pest; nn = nndict,
                    simulation_conditions = conds)
 osolver = ODESolver(Rodas5P(autodiff = false), abstol = 1e-10, reltol = 1e-10)
-for config in ProbConfigs
+for config in PROB_CONFIGS
     petab_prob = PEtabODEProblem(model; odesolver = osolver, gradient_method = config.grad,
                                  split_over_conditions = config.split, sensealg=config.sensealg)
     test_model(test_case, petab_prob)

@@ -4,12 +4,12 @@ using Catalyst: @unpack
 import Random
 rng = Random.default_rng()
 
-ProbConfigs = [(grad = :ForwardDiff, split = false, sensealg = :ForwardDiff),
-               (grad = :ForwardDiff, split = true, sensealg = :ForwardDiff),
-               (grad = :ForwardEquations, split = false, sensealg = :ForwardDiff),
-               (grad = :ForwardEquations, split = true, sensealg = :ForwardDiff),
-               (grad = :ForwardEquations, split = true, sensealg = ForwardSensitivity()),
-               (grad = :Adjoint, split = true, sensealg = InterpolatingAdjoint(autojacvec=ReverseDiffVJP(true)))]
+PROB_CONFIGS = [(grad = :ForwardDiff, split = false, sensealg = :ForwardDiff),
+                (grad = :ForwardDiff, split = true, sensealg = :ForwardDiff),
+                (grad = :ForwardEquations, split = false, sensealg = :ForwardDiff),
+                (grad = :ForwardEquations, split = true, sensealg = :ForwardDiff),
+                (grad = :ForwardEquations, split = true, sensealg = ForwardSensitivity()),
+                (grad = :Adjoint, split = true, sensealg = InterpolatingAdjoint(autojacvec=ReverseDiffVJP(true)))]
 
 function get_mechanistic_ids(model_info::PEtab.ModelInfo)::Vector{Symbol}
     mechanistic_ids = Symbol[]
@@ -24,6 +24,7 @@ function get_x_nn(test_case::String, petab_prob::PEtabODEProblem)
     path_ps_net = joinpath(@__DIR__, "test_cases", test_case, "petab", "parameters_nn.tsv")
     df_ps_net = CSV.read(path_ps_net, DataFrame)
     x = get_x(petab_prob)
+    model = petab_prob.model_info.model
     for netid in keys(model.nn)
         pid = Symbol("p_$(netid)")
         PEtab.set_ps_net!((@view x[pid]), df_ps_net, netid, model.nn[netid][2])
@@ -59,10 +60,12 @@ function test_model(test_case, petab_prob::PEtabODEProblem)
         @test grad_petab[id] ≈ grad_ref[iref, :value] atol=tol_grad
     end
     # Neural-net parameters
-    for nid in keys(model.nn)
+    for nid in keys(petab_prob.model_info.model.nn)
         pid = Symbol("p_$nid")
-        iref = findall(startswith.(string.(grad_ref[!, :parameterId]), "$(nid)_"))
-        @test all(.≈(grad_petab[pid], grad_ref[iref, :value]; atol=tol_grad))
+        for layer_id in keys(grad_petab[pid])
+            iref = findall(startswith.(string.(grad_ref[!, :parameterId]), "$(nid)_$(layer_id)"))
+            @test all(.≈(grad_petab[pid][layer_id], grad_ref[iref, :value]; atol=tol_grad))
+        end
     end
     return nothing
 end
