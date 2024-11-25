@@ -110,10 +110,8 @@ function _get_f_nns_preode(model_info::ModelInfo, cache::PEtabODEProblemCache)::
             @unpack ninputs, noutputs = map
             nn = model_info.model.nn[Symbol(string(pid)[3:end])]
             pnn = cache.xnn[pid]
-
-            # ForwardDiff compatible compute_nn! funciton
-            outputs = DiffCache(zeros(Float64, noutputs), levels = 2)
             inputs = DiffCache(zeros(Float64, ninputs), levels = 2)
+            outputs = DiffCache(zeros(Float64, noutputs), levels = 2)
             compute_nn! = let nn = nn, map_nn = map, inputs = inputs, pnn = pnn
                 (out, x) -> _net!(out, x, pnn, inputs, map_nn, nn)
             end
@@ -121,7 +119,11 @@ function _get_f_nns_preode(model_info::ModelInfo, cache::PEtabODEProblemCache)::
             # ReverseDiff.tape compatible (fastest on CPU, but only works if input is
             # known at compile-time)
             if map.nxdynamic_inputs == 0
-                inputs_rev = map.constant_inputs[map.iconstant_inputs]
+                if map.file_input == false
+                    inputs_rev = map.constant_inputs[map.iconstant_inputs]
+                else
+                    inputs_rev = map.constant_inputs
+                end
                 compute_nn_rev! = let nn = nn, inputs_rev = inputs_rev
                     (out, x) -> _net_reversediff!(out, x, inputs_rev, nn)
                 end

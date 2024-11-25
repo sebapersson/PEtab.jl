@@ -181,7 +181,7 @@ function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_pa
     return maps
 end
 
-function _get_nn_preode_maps(conditions_df::DataFrame, xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, mapping_table::DataFrame, nn, sys::ModelSystem)::Dict{Symbol, Dict{Symbol, NNPreODEMap}}
+function _get_nn_preode_maps(conditions_df::DataFrame, xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, mapping_table::DataFrame, nn, sys::ModelSystem, paths::Dict{Symbol, String})::Dict{Symbol, Dict{Symbol, NNPreODEMap}}
     nconditions = nrow(conditions_df)
     maps = Dict{Symbol, Dict{Symbol, NNPreODEMap}}()
     isempty(xids[:nn_preode]) && return maps
@@ -192,14 +192,29 @@ function _get_nn_preode_maps(conditions_df::DataFrame, xids::Dict{Symbol, Vector
             netid = string(pnnid)[3:end] |> Symbol
             outputs = _get_net_values(mapping_table, netid, :outputs) .|> Symbol
             inputs = _get_net_values(mapping_table, netid, :inputs) .|> Symbol
-            input_variables = _get_nn_input_variables(inputs, DataFrame(conditions_df[i, :]), petab_parameters, sys; keep_numbers = true)
+            input_variables = _get_nn_input_variables(inputs, DataFrame(conditions_df[i, :]), petab_parameters, sys; keep_numbers = true, paths = paths)
             ninputs = length(input_variables)
+            file_input = false
 
             # Get values for the inputs. For the pre-ODE inputs can either be constant
             # values (numeric) or a parameter, which is treated as a xdynamic parameter
             constant_inputs, iconstant_inputs = zeros(Float64, 0), zeros(Int32, 0)
             ixdynamic_mech_inputs, ixdynamic_inputs = zeros(Int32, 0), zeros(Int32, 0)
             for (i, input_variable) in pairs(input_variables)
+                if isfile(string(input_variable))
+                    if length(input_variables) > 1
+                        throw(PEtabInputError("If input to neural net is a file, only one \
+                            input can be provided in the mapping table. This does not \
+                            hold for $netid"))
+                    end
+                    input_data = CSV.read(string(input_variable), DataFrame)
+                    constant_inputs = _df_to_array(input_data)
+                    # Given an input file, we need to have a batch
+                    # TODO: Add batch stuffy here
+                    constant_inputs = reshape(constant_inputs, (size(constant_inputs)..., 1))
+                    file_input = true
+                    continue
+                end
                 if is_number(input_variable)
                     val = parse(Float64, string(input_variable))
                     push!(constant_inputs, val)
@@ -246,7 +261,7 @@ function _get_nn_preode_maps(conditions_df::DataFrame, xids::Dict{Symbol, Vector
                     isys += 1
                 end
             end
-            maps_nn[pnnid] = NNPreODEMap(constant_inputs, iconstant_inputs, ixdynamic_mech_inputs, ixdynamic_inputs, ninputs, nxdynamic_inputs, noutputs, ix_nn_outputs, ix_outputs_grad, ix_output_sys)
+            maps_nn[pnnid] = NNPreODEMap(constant_inputs, iconstant_inputs, ixdynamic_mech_inputs, ixdynamic_inputs, ninputs, nxdynamic_inputs, noutputs, ix_nn_outputs, ix_outputs_grad, ix_output_sys, file_input)
         end
         maps[conditionid] = maps_nn
     end

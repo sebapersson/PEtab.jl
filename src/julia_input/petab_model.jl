@@ -46,12 +46,13 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     # the model parameters
     mapping_df = !isnothing(mapping_table) ? _mapping_to_table(mapping_table) : DataFrame()
     petab_tables[:mapping_table] = mapping_df
+    paths = Dict{Symbol, String}()
 
     # Build the initial value map (initial values as parameters are set in the reaction sys_mutated)
     sys_mutated = deepcopy(sys)
     sys_mutated, speciemap_use = _get_speciemap(sys_mutated, conditions_df, speciemap)
     parametermap_use = _get_parametermap(sys_mutated, parametermap)
-    xindices = ParameterIndices(petab_tables, sys_mutated, parametermap_use, speciemap_use, nn)
+    xindices = ParameterIndices(petab_tables, sys_mutated, parametermap_use, speciemap_use, nn, paths)
     # Warn user if any variable is unassigned (and defaults to zero)
     _check_unassigned_variables(sys, speciemap_use, speciemap, :specie, parameters_df,
                                 conditions_df)
@@ -92,7 +93,6 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     _logging(:Build_callbacks, verbose; time = btime)
 
     # Path only applies when PEtab tables are provided
-    paths = Dict{Symbol, String}()
     return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan,
                       paths, sys, sys_mutated, parametermap_use, speciemap_use,
                       petab_tables, cbset, true, nn)

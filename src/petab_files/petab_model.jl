@@ -47,7 +47,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
 
     # Indices for mapping parameters and tracking which parameter to estimate, useful
     # when building the comig PEtab functions
-    xindices = ParameterIndices(petab_tables, odesystem, parametermap, speciemap, nn)
+    xindices = ParameterIndices(petab_tables, paths, odesystem, parametermap, speciemap, nn)
 
     path_u0_h_σ = joinpath(paths[:dirjulia], "$(name)_h_sd_u0.jl")
     exist = isfile(path_u0_h_σ)

@@ -1,9 +1,13 @@
 function _net!(out, x, pnn::DiffCache, inputs::DiffCache, map_nn::NNPreODEMap, nn)::Nothing
-    _inputs = get_tmp(inputs, x)
     _pnn = get_tmp(pnn, x)
-    _inputs[map_nn.iconstant_inputs] .= map_nn.constant_inputs
-    _inputs[map_nn.ixdynamic_inputs] .= x[1:map_nn.nxdynamic_inputs]
     _pnn .= x[(map_nn.nxdynamic_inputs + 1):end]
+    if map_nn.file_input == false
+        _inputs = get_tmp(inputs, x)
+        _inputs[map_nn.iconstant_inputs] .= map_nn.constant_inputs
+        _inputs[map_nn.ixdynamic_inputs] .= x[1:map_nn.nxdynamic_inputs]
+    else
+        _inputs = convert.(eltype(x), map_nn.constant_inputs)
+    end
     st, net = nn
     _out, st = net(_inputs, _pnn, st)
     out .= _out

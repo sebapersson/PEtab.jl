@@ -11,7 +11,7 @@ function _check_conditionids(conditions_df::DataFrame,
     return nothing
 end
 
-function _check_mapping_table(mapping_table::Union{DataFrame, Nothing}, nn::Union{Nothing, Dict}, petab_parameters::PEtabParameters, sys::ModelSystem, conditions_df::DataFrame)::DataFrame
+function _check_mapping_table(mapping_table::Union{DataFrame, Nothing}, nn::Union{Nothing, Dict}, petab_parameters::PEtabParameters, sys::ModelSystem, conditions_df::DataFrame, paths::Dict{Symbol, String})::DataFrame
     isempty(mapping_table) && return DataFrame()
     isnothing(nn) && return DataFrame()
     state_ids = _get_state_ids(sys) .|> Symbol
@@ -37,7 +37,7 @@ function _check_mapping_table(mapping_table::Union{DataFrame, Nothing}, nn::Unio
         end
         outputs = _get_net_values(mapping_table, netid, :outputs) .|> Symbol
         inputs = _get_net_values(mapping_table, netid, :inputs) .|> Symbol
-        input_variables = _get_nn_input_variables(inputs, conditions_df, petab_parameters, sys)
+        input_variables = _get_nn_input_variables(inputs, conditions_df, petab_parameters, sys; paths = paths)
 
         # If input_variables is empty all inputs are numbers which can always be handled
         if isempty(input_variables)
@@ -46,7 +46,9 @@ function _check_mapping_table(mapping_table::Union{DataFrame, Nothing}, nn::Unio
         # case all input variables must be PEtab parameters (or numbers which are already
         # filtered out from input_variables)
         elseif all([output in xids_sys for output in outputs])
-            if !all([ipv in petab_parameters.parameter_id for ipv in input_variables])
+            cond1 = all([ipv in petab_parameters.parameter_id for ipv in input_variables])
+            cond2 = all([isfile(string(ipv)) for ipv in input_variables])
+            if !(cond1 == true || cond2 == true)
                 throw(PEtabInputError("If mapping table output is ODEProblem parameters \
                                        input must be a PEtabParameter, this does not hold \
                                        for $inputs"))

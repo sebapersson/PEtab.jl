@@ -38,8 +38,8 @@ struct MapODEProblem
     sys_to_nn_preode_output::Vector{Int32}
 end
 
-struct NNPreODEMap
-    constant_inputs::Vector{Float64}
+struct NNPreODEMap{T1 <: Array{<:AbstractFloat}}
+    constant_inputs::T1
     iconstant_inputs::Vector{Int32}
     ixdynamic_mech_inputs::Vector{Int32}
     ixdynamic_inputs::Vector{Int32}
@@ -49,6 +49,7 @@ struct NNPreODEMap
     ix_nn_outputs::Vector{Int32}
     ix_nn_outputs_grad::Vector{Int32}
     ioutput_sys::Vector{Int32}
+    file_input::Bool
 end
 
 struct ParameterIndices

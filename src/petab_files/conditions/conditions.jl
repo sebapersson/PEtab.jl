@@ -20,32 +20,28 @@ This function extracts which parameter is what type, and builds maps for correct
 the parameter during likelihood computations. It further accounts for parameters potentially
 only appearing in a certain simulation conditions.
 """
-function ParameterIndices(petab_tables::Dict{Symbol, DataFrame}, sys, parametermap,
-                          speciemap, nn::Union{Nothing, Dict})::ParameterIndices
+function ParameterIndices(petab_tables::Dict{Symbol, DataFrame}, paths::Dict{Symbol, String}, sys::ModelSystem, parametermap, speciemap, nn::Union{Nothing, Dict})::ParameterIndices
     petab_parameters = PEtabParameters(petab_tables[:parameters])
     petab_measurements = PEtabMeasurements(petab_tables[:measurements],
                                            petab_tables[:observables])
     return ParameterIndices(petab_parameters, petab_measurements, sys, parametermap,
                             speciemap, petab_tables[:conditions], nn,
-                            petab_tables[:mapping_table])
+                            petab_tables[:mapping_table], paths)
 end
-function ParameterIndices(petab_parameters::PEtabParameters,
-                          petab_measurements::PEtabMeasurements,
-                          model::PEtabModel)::ParameterIndices
+function ParameterIndices(petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements, model::PEtabModel)::ParameterIndices
     @unpack speciemap, parametermap, sys_mutated, petab_tables = model
     return ParameterIndices(petab_parameters, petab_measurements, sys_mutated, parametermap,
                             speciemap, petab_tables[:conditions], model.nn,
-                            petab_tables[:mapping_table])
+                            petab_tables[:mapping_table], model.paths)
 end
 function ParameterIndices(petab_parameters::PEtabParameters,
                           petab_measurements::PEtabMeasurements, sys, parametermap,
                           speciemap, conditions_df::DataFrame, nn::Union{Nothing, Dict},
-                          mapping_table::Union{Nothing, DataFrame})::ParameterIndices
+                          mapping_table::Union{Nothing, DataFrame}, paths::Dict{Symbol, String})::ParameterIndices
     _check_conditionids(conditions_df, petab_measurements)
-    mapping_table = _check_mapping_table(mapping_table, nn, petab_parameters, sys, conditions_df)
-
+    mapping_table = _check_mapping_table(mapping_table, nn, petab_parameters, sys, conditions_df, paths)
     xids = _get_xids(petab_parameters, petab_measurements, sys, conditions_df, speciemap,
-                     parametermap, nn, mapping_table)
+                     parametermap, nn, mapping_table, paths)
 
     # indices for mapping parameters correctly, e.g. from xest -> xdynamic etc...
     # TODO: SII is going to make this much easier (but the reverse will be harder)
@@ -67,7 +63,7 @@ function ParameterIndices(petab_parameters::PEtabParameters,
     # If a neural-network sets values for a subset of model parameters, for efficent AD on
     # said network, it is neccesary to pre-compute the input, pre-allocate the output,
     # and build a map for which parameters in xdynamic the network maps to.
-    nn_preode_maps = _get_nn_preode_maps(conditions_df, xids, petab_parameters, mapping_table, nn, sys)
+    nn_preode_maps = _get_nn_preode_maps(conditions_df, xids, petab_parameters, mapping_table, nn, sys, paths)
 
     xscale = _get_xscales(xids, petab_parameters)
     _get_xnames_ps!(xids, xscale)

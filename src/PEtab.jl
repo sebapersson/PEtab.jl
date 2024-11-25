@@ -129,6 +129,7 @@ function _setup_nnmodels end
 function _get_pnns end
 function _get_nn_initialparameters end
 function set_ps_net! end
+function _df_to_array end
 
 export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
        PEtabODEProblem, remake, Fides, PEtabOptimisationResult, IpoptOptions,

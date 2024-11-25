@@ -17,7 +17,7 @@ function _get_net_values(mapping_table::DataFrame, netid::Symbol, type::Symbol):
     return dfvals[is, :ioValue] .|> string
 end
 
-function _get_nn_input_variables(inputs::Vector{Symbol}, conditions_df::DataFrame, petab_parameters::PEtabParameters, sys::ModelSystem; keep_numbers::Bool = false)::Vector{Symbol}
+function _get_nn_input_variables(inputs::Vector{Symbol}, conditions_df::DataFrame, petab_parameters::PEtabParameters, sys::ModelSystem; keep_numbers::Bool = false, paths::Union{Nothing, Dict{Symbol, String}} = nothing)::Vector{Symbol}
     state_ids = _get_state_ids(sys) .|> Symbol
     xids_sys = _get_xids_sys(sys)
     input_variables = Symbol[]
@@ -36,9 +36,20 @@ function _get_nn_input_variables(inputs::Vector{Symbol}, conditions_df::DataFram
             push!(input_variables, input)
             continue
         end
+        # When building ParameterIndices somtimes only the relative input is provided for
+        # the path of a potential input file. To ease downstream processing the complete p
+        # ath is provided for downstream processing
+        if isfile(string(input))
+            push!(input_variables, input)
+            continue
+        end
+        if haskey(paths, :dirmodel) && isfile(joinpath(paths[:dirmodel], string(input)))
+            push!(input_variables, Symbol(joinpath(paths[:dirmodel], string(input))))
+            continue
+        end
         if input in propertynames(conditions_df)
             for condition_value in Symbol.(conditions_df[!, input])
-                _input_variables = _get_nn_input_variables([condition_value], conditions_df, petab_parameters, sys; keep_numbers = keep_numbers)
+                _input_variables = _get_nn_input_variables([condition_value], conditions_df, petab_parameters, sys; keep_numbers = keep_numbers, paths = paths)
                 input_variables = vcat(input_variables, _input_variables)
             end
             continue
