@@ -114,6 +114,8 @@ end
     # AdaptiveMCMC
     Random.seed!(1234)
     target = PEtabLogDensity(prob)
+    xprior = to_prior_scale(prob.xnominal_transformed, target)
+    xinference = target.inference_info.bijectors(xprior)
     res = adaptive_rwm(xinference, target.logtarget, 200000; progress=false)
     chain_adapt = to_chains(res, target)
     adaptive_stats = summarystats(chain_adapt)
