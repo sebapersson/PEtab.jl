@@ -1,22 +1,39 @@
-function PEtab.load_nets(path_yaml::String)::Dict
+function PEtab.load_nnmodels(path_yaml::String)::Dict{Symbol, <:PEtab.NNModel}
     yaml_file = YAML.load_file(path_yaml)
     sciml_info = yaml_file["extensions"]["petab_sciml"]
-    nnmodels = Dict()
+    nnmodels = Dict{Symbol, PEtab.NNModel}()
     for _netfile in sciml_info["net_files"]
-        nnmodel = Dict()
         netfile = joinpath(dirname(path_yaml), _netfile)
-        net, id = parse_to_lux(netfile)
-        for (id, nninfo) in sciml_info["hybridization"][id]
+        net, netid = parse_to_lux(netfile)
+        input_info, output_info = String[], String[]
+        for (id, nninfo) in sciml_info["hybridization"][netid]
             if id == "input"
-                nnmodel[:input] = nninfo
+                input_info = nninfo isa Vector ? nninfo : [nninfo]
             elseif id == "output"
-                nnmodel[:output] = nninfo
+                output_info = nninfo isa Vector ? nninfo : [nninfo]
             end
         end
-        nnmodel[:net] = net
-        nnmodels[Symbol(id)] = nnmodel
+        nnmodels[Symbol(netid)] = PEtab.NNModel(net; input_info = input_info, output_info = output_info)
     end
     return nnmodels
+end
+
+function PEtab.NNModel(net::Union{Lux.Chain, Lux.CompactLuxLayer}; dirdata = nothing, inputs::Vector{T} = Symbol[], outputs::Vector{T} = Symbol[], input_info::Vector{String} = String[], output_info = String[])::NNModel where T <: Union{String, Symbol}
+    rng = Random.default_rng()
+    st = Lux.initialstates(rng, net)
+    if isnothing(dirdata)
+        dirdata = ""
+    elseif !isdir(dirdata)
+        throw(PEtab.PEtabInputError("For a NNmodel dirdata keyword argument must be a \
+            valid directory. This does not hold for $dirdata"))
+    end
+    if (!isempty(inputs) && isempty(outputs)) || (isempty(inputs) && !isempty(outputs))
+        throw(PEtab.PEtabInputError("If either input or output is provided to a NNModel \
+            then both input and output must be provided"))
+    end
+    _inputs = Symbol.(inputs)
+    _outputs = Symbol.(outputs)
+    return NNModel(net, st, dirdata, _inputs, _outputs, input_info, output_info)
 end
 
 function parse_to_lux(path_yaml::String)

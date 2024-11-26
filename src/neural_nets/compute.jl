@@ -1,4 +1,4 @@
-function _net!(out, x, pnn::DiffCache, inputs::DiffCache, map_nn::NNPreODEMap, nn)::Nothing
+function _net!(out, x, pnn::DiffCache, inputs::DiffCache, map_nn::NNPreODEMap, nnmodel::NNModel)::Nothing
     _pnn = get_tmp(pnn, x)
     _pnn .= x[(map_nn.nxdynamic_inputs + 1):end]
     if map_nn.file_input == false
@@ -8,10 +8,10 @@ function _net!(out, x, pnn::DiffCache, inputs::DiffCache, map_nn::NNPreODEMap, n
     else
         _inputs = convert.(eltype(x), map_nn.constant_inputs)
     end
-    st, net = nn
-    _out, st = net(_inputs, _pnn, st)
+
+    _out, st = nnmodel.nn(_inputs, _pnn, nnmodel.st)
+    nnmodel.st = st
     out .= _out
-    nn[1] = st
     return nothing
 end
 
@@ -21,11 +21,10 @@ end
 # function and enjoy good performance on the CPU. If one of the inputs depend on parameters
 # to estimate, ForwardDiff can be used instead (and hopefully in the future Enzyme can
 # make all this code obselete)
-function _net_reversediff!(out, pnn, inputs::Array{<:AbstractFloat}, nn)::Nothing
-    st, net = nn
-    _out, st = net(inputs, pnn, st)
+function _net_reversediff!(out, pnn, inputs::Array{<:AbstractFloat}, nnmodel::NNModel)::Nothing
+    _out, st = nnmodel.nn(inputs, pnn, nnmodel.st)
+    nnmodel.st = st
     out .= _out
-    nn[1] = st
     return nothing
 end
 

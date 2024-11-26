@@ -20,37 +20,30 @@ This function extracts which parameter is what type, and builds maps for correct
 the parameter during likelihood computations. It further accounts for parameters potentially
 only appearing in a certain simulation conditions.
 """
-function ParameterIndices(petab_tables::Dict{Symbol, DataFrame}, paths::Dict{Symbol, String}, sys::ModelSystem, parametermap, speciemap, nn::Union{Nothing, Dict})::ParameterIndices
+function ParameterIndices(petab_tables::Dict{Symbol, DataFrame}, sys::ModelSystem, parametermap, speciemap, nnmodels::Union{Nothing, Dict{Symbol, <:NNModel}})::ParameterIndices
     petab_parameters = PEtabParameters(petab_tables[:parameters])
     petab_measurements = PEtabMeasurements(petab_tables[:measurements],
                                            petab_tables[:observables])
-    return ParameterIndices(petab_parameters, petab_measurements, sys, parametermap,
-                            speciemap, petab_tables[:conditions], nn,
-                            petab_tables[:mapping_table], paths)
+    return ParameterIndices(petab_parameters, petab_measurements, sys, parametermap, speciemap, petab_tables[:conditions], nnmodels, petab_tables[:mapping_table])
 end
 function ParameterIndices(petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements, model::PEtabModel)::ParameterIndices
     @unpack speciemap, parametermap, sys_mutated, petab_tables = model
-    return ParameterIndices(petab_parameters, petab_measurements, sys_mutated, parametermap,
-                            speciemap, petab_tables[:conditions], model.nn,
-                            petab_tables[:mapping_table], model.paths)
+    return ParameterIndices(petab_parameters, petab_measurements, sys_mutated, parametermap, speciemap, petab_tables[:conditions], model.nnmodels, petab_tables[:mapping_table])
 end
-function ParameterIndices(petab_parameters::PEtabParameters,
-                          petab_measurements::PEtabMeasurements, sys, parametermap,
-                          speciemap, conditions_df::DataFrame, nn::Union{Nothing, Dict},
-                          mapping_table::Union{Nothing, DataFrame}, paths::Dict{Symbol, String})::ParameterIndices
+function ParameterIndices(petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements, sys::ModelSystem, parametermap, speciemap, conditions_df::DataFrame, nnmodels::Union{Nothing, Dict{Symbol, <:NNModel}}, mapping_table::Union{Nothing, DataFrame})::ParameterIndices
     _check_conditionids(conditions_df, petab_measurements)
-    mapping_table = _check_mapping_table(mapping_table, nn, petab_parameters, sys, conditions_df, paths)
+    mapping_table = _check_mapping_table(mapping_table, nnmodels, petab_parameters, sys, conditions_df)
     xids = _get_xids(petab_parameters, petab_measurements, sys, conditions_df, speciemap,
-                     parametermap, nn, mapping_table, paths)
+                     parametermap, nnmodels, mapping_table)
 
     # indices for mapping parameters correctly, e.g. from xest -> xdynamic etc...
     # TODO: SII is going to make this much easier (but the reverse will be harder)
-    xindices_est = _get_xindices_xest(xids, nn)
-    xindices_dynamic = _get_xindices_dynamic(xids, nn)
-    xindices_notsys = _get_xindices_notsys(xids, nn)
+    xindices_est = _get_xindices_xest(xids, nnmodels)
+    xindices_dynamic = _get_xindices_dynamic(xids, nnmodels)
+    xindices_notsys = _get_xindices_notsys(xids, nnmodels)
 
     # Maps for mapping to ODEProblem across conditions
-    odeproblem_map = _get_odeproblem_map(xids, nn)
+    odeproblem_map = _get_odeproblem_map(xids, nnmodels)
     condition_maps = _get_condition_maps(sys, parametermap, speciemap, petab_parameters,
                                          conditions_df, mapping_table, xids)
     # For each time-point we must build a map that stores if i) noise/obserable parameters
@@ -63,7 +56,7 @@ function ParameterIndices(petab_parameters::PEtabParameters,
     # If a neural-network sets values for a subset of model parameters, for efficent AD on
     # said network, it is neccesary to pre-compute the input, pre-allocate the output,
     # and build a map for which parameters in xdynamic the network maps to.
-    nn_preode_maps = _get_nn_preode_maps(conditions_df, xids, petab_parameters, mapping_table, nn, sys, paths)
+    nn_preode_maps = _get_nn_preode_maps(conditions_df, xids, petab_parameters, mapping_table, nnmodels, sys)
 
     xscale = _get_xscales(xids, petab_parameters)
     _get_xnames_ps!(xids, xscale)

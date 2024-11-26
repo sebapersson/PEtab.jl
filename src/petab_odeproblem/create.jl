@@ -243,8 +243,8 @@ function _get_bounds(model_info::ModelInfo, xnames::Vector{Symbol}, xnames_ps::V
     # Network parameters are given as ComponentArray
     vals = Vector{Any}(undef, length(xnames_nn))
     for (i, pid) in pairs(xnames_nn)
-        net = model_info.model.nn[Symbol(string(pid)[3:end])]
-        vals[i] = _get_nn_initialparameters(net[2])
+        nnmodel = model_info.model.nnmodels[Symbol(string(pid)[3:end])]
+        vals[i] = _get_nn_initialparameters(nnmodel)
         if which == :lower
             vals[i] .= -10.0
         else
@@ -275,8 +275,8 @@ function _get_xnominal(model_info::ModelInfo, xnames::Vector{Symbol},
     # Network parameters are given as ComponentArray
     vals = Vector{Any}(undef, length(xnames_nn))
     for (i, pid) in pairs(xnames_nn)
-        net = model_info.model.nn[Symbol(string(pid)[3:end])]
-        vals[i] = _get_nn_initialparameters(net[2])
+        nnmodel = model_info.model.nnmodels[Symbol(string(pid)[3:end])]
+        vals[i] = _get_nn_initialparameters(nnmodel)
         vals[i] .= 0.0
     end
     vals_nn = (xnames_nn .=> vals) |> NamedTuple

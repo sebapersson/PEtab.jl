@@ -50,7 +50,7 @@ function _get_map_observable_noise(xids::Vector{Symbol},
     return maps
 end
 
-function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nn::Union{Dict, Nothing})::MapODEProblem
+function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing})::MapODEProblem
     dynamic_to_sys, sys_to_dynamic = Int32[], Int32[]
     sys_to_dynamic_nn, sys_to_nn_preode_output = Int32[], Int32[]
     for (i, id_xdynmaic) in pairs(xids[:dynamic_mech])
@@ -85,7 +85,7 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nn::Union{Dict,
     isys = 0
     for id_sys in xids[:sys]
         if id_sys in xids[:nn]
-            sys_to_dynamic_nn = vcat(sys_to_dynamic_nn, _get_xindices_net(id_sys, isys, nn))
+            sys_to_dynamic_nn = vcat(sys_to_dynamic_nn, _get_xindices_net(id_sys, isys, nnmodels))
             isys = sys_to_dynamic_nn[end]
             continue
         end
@@ -181,7 +181,7 @@ function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_pa
     return maps
 end
 
-function _get_nn_preode_maps(conditions_df::DataFrame, xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, mapping_table::DataFrame, nn, sys::ModelSystem, paths::Dict{Symbol, String})::Dict{Symbol, Dict{Symbol, NNPreODEMap}}
+function _get_nn_preode_maps(conditions_df::DataFrame, xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, mapping_table::DataFrame, nnmodels::Dict{Symbol, <:NNModel}, sys::ModelSystem)::Dict{Symbol, Dict{Symbol, NNPreODEMap}}
     nconditions = nrow(conditions_df)
     maps = Dict{Symbol, Dict{Symbol, NNPreODEMap}}()
     isempty(xids[:nn_preode]) && return maps
@@ -192,7 +192,7 @@ function _get_nn_preode_maps(conditions_df::DataFrame, xids::Dict{Symbol, Vector
             netid = string(pnnid)[3:end] |> Symbol
             outputs = _get_net_values(mapping_table, netid, :outputs) .|> Symbol
             inputs = _get_net_values(mapping_table, netid, :inputs) .|> Symbol
-            input_variables = _get_nn_input_variables(inputs, DataFrame(conditions_df[i, :]), petab_parameters, sys; keep_numbers = true, paths = paths)
+            input_variables = _get_nn_input_variables(inputs, netid, nnmodels[netid], DataFrame(conditions_df[i, :]), petab_parameters, sys; keep_numbers = true)
             ninputs = length(input_variables)
             file_input = false
 

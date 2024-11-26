@@ -5,22 +5,26 @@
     in throught the ODESolver when using ForwardDiff
 =#
 
-function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements, sys::ModelSystem, conditions_df::DataFrame, speciemap, parametermap, nn::Union{Nothing, Dict}, mapping_table::DataFrame, paths::Dict{Symbol, String})::Dict{Symbol, Vector{Symbol}}
+function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements, sys::ModelSystem, conditions_df::DataFrame, speciemap, parametermap, nnmodels::Union{Nothing, Dict{Symbol, <:NNModel}}, mapping_table::DataFrame)::Dict{Symbol, Vector{Symbol}}
     @unpack observable_parameters, noise_parameters = petab_measurements
     # xids in the ODESystem in correct order
     xids_sys = _get_xids_sys_order(sys, speciemap, parametermap)
 
     # Parameters related to neural networks (data-driven models)
-    _xids_nn = _get_xids_nn(nn)
+    _xids_nn = _get_xids_nn(nnmodels)
     xids_nn_in_ode = _get_xids_nn_in_ode(_xids_nn, sys)
     xids_nn_preode = _get_xids_nn_preode(mapping_table, sys)
     xids_nn_nondynamic = _get_xids_nn_nondynamic(_xids_nn, xids_nn_in_ode, xids_nn_preode)
-    # For all mapping to be correct in_ode must be first. TODO: Refactor when works
+    # For all mapping to be correct in_ode must be first.
     xids_nn = unique(vcat(xids_nn_in_ode, xids_nn_preode, xids_nn_nondynamic))
+    # Need to reorder xids_sys nn parameter to follow the order in xids_nn_in_ode for
+    # correct indexing in the adjoint gradient method
+    ix = [findfirst(x -> x == id, xids_sys) for id in xids_nn_in_ode]
+    xids_sys[sort(ix)] .= xids_nn_in_ode
 
     # Parameter which are input to a neural net, and are estimated. These must be tracked
     # for gradients
-    xids_nn_input_est = _get_xids_nn_input_est(mapping_table, conditions_df, petab_parameters, sys, paths)
+    xids_nn_input_est = _get_xids_nn_input_est(mapping_table, conditions_df, petab_parameters, sys, nnmodels)
     # If a Neural-Net sets the values for a parameter, in practice for gradient computations
     # the derivative of the parameter is needed to compute the network gradient following
     # the chain-rule. Therefore, these parameters must be tracked such that they can be
@@ -172,9 +176,9 @@ function _get_xids_condition(sys, petab_parameters::PEtabParameters, conditions_
     return xids_condition
 end
 
-function _get_xids_nn(nn::Union{Nothing, Dict})::Vector{Symbol}
-    isnothing(nn) && return Symbol[]
-    return ("p_" .* string.(collect(keys(nn)))) .|> Symbol
+function _get_xids_nn(nnmodels::Union{Nothing, Dict{Symbol, <:NNModel}})::Vector{Symbol}
+    isnothing(nnmodels) && return Symbol[]
+    return ("p_" .* string.(collect(keys(nnmodels)))) .|> Symbol
 end
 
 function _get_xids_nn_in_ode(xids_nn::Vector{Symbol}, sys)::Vector{Symbol}
@@ -209,12 +213,12 @@ function _get_xids_nn_nondynamic(xids_nn::T, xids_nn_in_ode::T, xids_nn_preode::
     return out
 end
 
-function _get_xids_nn_input_est(mapping_table::DataFrame, conditions_df::DataFrame, petab_parameters::PEtabParameters, sys::ModelSystem, paths::Dict{Symbol, String})::Vector{Symbol}
+function _get_xids_nn_input_est(mapping_table::DataFrame, conditions_df::DataFrame, petab_parameters::PEtabParameters, sys::ModelSystem, nnmodels::Dict{Symbol, <:NNModel})::Vector{Symbol}
     isempty(mapping_table) && return Symbol[]
     out = Symbol[]
     for netid in Symbol.(unique(mapping_table[!, :netId]))
         inputs = _get_net_values(mapping_table, netid, :inputs) .|> Symbol
-        input_variables = _get_nn_input_variables(inputs, conditions_df, petab_parameters, sys; paths = paths)
+        input_variables = _get_nn_input_variables(inputs, netid, nnmodels[netid], conditions_df, petab_parameters, sys)
         for input_variable in input_variables
             !(input_variable in petab_parameters.parameter_id) && continue
             ip = findfirst(x -> x == input_variable, petab_parameters.parameter_id)

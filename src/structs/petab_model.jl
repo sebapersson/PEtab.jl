@@ -136,6 +136,17 @@ struct PEtabEvent
     target::Any
 end
 
+# TODO: Public so must document
+mutable struct NNModel{T <: Any}
+    const nn::T
+    st::NamedTuple
+    const dirdata::String
+    const inputs::Vector{Symbol}
+    const outputs::Vector{Symbol}
+    const input_info::Vector{String}
+    const output_info::Vector{String}
+end
+
 """
     PEtabModel(sys, observables::Dict{String, PEtabObservable}, measurements::DataFrame,
                parameters::Vector{PEtabParameter}; kwargs...)
@@ -187,5 +198,5 @@ struct PEtabModel
     petab_tables::Dict{Symbol, DataFrame}
     callbacks::SciMLBase.DECallback
     defined_in_julia::Bool
-    nn::Union{Dict, Nothing}
+    nnmodels::Dict{Symbol, <:NNModel}
 end

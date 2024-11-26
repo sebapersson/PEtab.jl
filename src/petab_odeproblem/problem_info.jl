@@ -44,7 +44,7 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
 
     # Cache to avoid allocations to as large degree as possible.
     cache = PEtabODEProblemCache(gradient_method_use, hessian_method_use, FIM_method_use,
-                                 sensealg_use, model_info, model.nn, split_use, oprob)
+                                 sensealg_use, model_info, model.nnmodels, split_use, oprob)
 
     # To build the steady-state solvers the ODEProblem (specifically its Jacobian)
     # is needed (which is the same for oprob and oprob_gradient). Not yet comptiable with
@@ -72,7 +72,10 @@ function _get_odeproblem(sys::ODEProblem, ::PEtabModel, model_info::ModelInfo,
         sys.p[id] = model_info.petab_parameters.nominal_value[i]
     end
     _sys = remake(sys, u0 = sys.u0[:])
-    return _sys
+    # It matters that p follows the same order as in xids for correct indexing in the
+    # adjoint gradient method
+    __sys = remake(_sys, p = _sys.p[model_info.xindices.xids[:sys]])
+    return __sys
 end
 function _get_odeproblem(sys, model::PEtabModel, model_info::ModelInfo, specialize_level,
                          sparse_jacobian::Bool)::ODEProblem
@@ -108,12 +111,12 @@ function _get_f_nns_preode(model_info::ModelInfo, cache::PEtabODEProblemCache)::
         f_nn_preode = Dict{Symbol, NNPreODE}()
         for (pid, map) in maps_nn
             @unpack ninputs, noutputs = map
-            nn = model_info.model.nn[Symbol(string(pid)[3:end])]
+            nnmodel = model_info.model.nnmodels[Symbol(string(pid)[3:end])]
             pnn = cache.xnn[pid]
             inputs = DiffCache(zeros(Float64, ninputs), levels = 2)
             outputs = DiffCache(zeros(Float64, noutputs), levels = 2)
-            compute_nn! = let nn = nn, map_nn = map, inputs = inputs, pnn = pnn
-                (out, x) -> _net!(out, x, pnn, inputs, map_nn, nn)
+            compute_nn! = let nnmodel = nnmodel, map_nn = map, inputs = inputs, pnn = pnn
+                (out, x) -> _net!(out, x, pnn, inputs, map_nn, nnmodel)
             end
 
             # ReverseDiff.tape compatible (fastest on CPU, but only works if input is
@@ -124,8 +127,8 @@ function _get_f_nns_preode(model_info::ModelInfo, cache::PEtabODEProblemCache)::
                 else
                     inputs_rev = map.constant_inputs
                 end
-                compute_nn_rev! = let nn = nn, inputs_rev = inputs_rev
-                    (out, x) -> _net_reversediff!(out, x, inputs_rev, nn)
+                compute_nn_rev! = let nnmodel = nnmodel, inputs_rev = inputs_rev
+                    (out, x) -> _net_reversediff!(out, x, inputs_rev, nnmodel)
                 end
                 out = get_tmp(outputs, 1.0)
                 _pnn = get_tmp(pnn, 1.0)

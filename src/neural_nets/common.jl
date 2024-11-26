@@ -17,7 +17,7 @@ function _get_net_values(mapping_table::DataFrame, netid::Symbol, type::Symbol):
     return dfvals[is, :ioValue] .|> string
 end
 
-function _get_nn_input_variables(inputs::Vector{Symbol}, conditions_df::DataFrame, petab_parameters::PEtabParameters, sys::ModelSystem; keep_numbers::Bool = false, paths::Union{Nothing, Dict{Symbol, String}} = nothing)::Vector{Symbol}
+function _get_nn_input_variables(inputs::Vector{Symbol}, netid::Symbol, nnmodel::NNModel, conditions_df::DataFrame, petab_parameters::PEtabParameters, sys::ModelSystem; keep_numbers::Bool = false)::Vector{Symbol}
     state_ids = _get_state_ids(sys) .|> Symbol
     xids_sys = _get_xids_sys(sys)
     input_variables = Symbol[]
@@ -37,19 +37,19 @@ function _get_nn_input_variables(inputs::Vector{Symbol}, conditions_df::DataFram
             continue
         end
         # When building ParameterIndices somtimes only the relative input is provided for
-        # the path of a potential input file. To ease downstream processing the complete p
-        # ath is provided for downstream processing
+        # the path of a potential input file. To ease downstream processing the complete
+        # path is provided for downstream processing
         if isfile(string(input))
             push!(input_variables, input)
             continue
         end
-        if haskey(paths, :dirmodel) && isfile(joinpath(paths[:dirmodel], string(input)))
-            push!(input_variables, Symbol(joinpath(paths[:dirmodel], string(input))))
+        if isfile(joinpath(nnmodel.dirdata, string(input)))
+            push!(input_variables, Symbol(joinpath(nnmodel.dirdata, string(input))))
             continue
         end
         if input in propertynames(conditions_df)
             for condition_value in Symbol.(conditions_df[!, input])
-                _input_variables = _get_nn_input_variables([condition_value], conditions_df, petab_parameters, sys; keep_numbers = keep_numbers, paths = paths)
+                _input_variables = _get_nn_input_variables([condition_value], netid, nnmodel, conditions_df, petab_parameters, sys; keep_numbers = keep_numbers)
                 input_variables = vcat(input_variables, _input_variables)
             end
             continue
@@ -60,24 +60,24 @@ function _get_nn_input_variables(inputs::Vector{Symbol}, conditions_df::DataFram
     return input_variables
 end
 
-function _get_nns_in_ode(nnmodels::Union{Dict, Nothing})::Dict
-    out = Dict()
+function _get_nnmodels_inode(nnmodels::Union{Dict, Nothing})::Dict{Symbol, <:NNModel}
+    out = Dict{Symbol, NNModel}()
     isnothing(nnmodels) && return out
-    for (id, nnmodel) in nnmodels
-        if nnmodel[:input] == "ode" && nnmodel[:output] == "ode"
-            out[id] = nnmodel
+    for (netid, nnmodel) in nnmodels
+        if nnmodel.input_info[1] == "ode" && nnmodel.output_info[1] == "ode"
+            out[netid] = nnmodel
         end
     end
     return out
 end
 
-function _get_n_net_parameters(nn::Union{Dict, Nothing}, xids::Vector{Symbol})::Int64
-    isnothing(nn) && return 0
+function _get_n_net_parameters(nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing}, xids::Vector{Symbol})::Int64
+    isnothing(nnmodels) && return 0
     nparameters = 0
     for xid in xids
         netid = string(xid)[3:end] |> Symbol
-        !haskey(nn, netid) && continue
-        nparameters += _get_n_net_parameters(nn[netid][2])
+        !haskey(nnmodels, netid) && continue
+        nparameters += _get_n_net_parameters(nnmodels[netid])
     end
     return nparameters
 end

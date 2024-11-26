@@ -1,6 +1,6 @@
 function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
                               FIM_method::Symbol, sensealg, model_info::ModelInfo,
-                              nn::Union{Dict, Nothing}, split_over_conditions::Bool,
+                              nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing}, split_over_conditions::Bool,
                               oprob::ODEProblem)::PEtabODEProblemCache
     @unpack xindices, model, simulation_info, petab_measurements = model_info
     nxestimate = length(xindices.xids[:estimate])
@@ -39,10 +39,10 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
     # Parameters for potential neural-networks
     xnn = Dict{Symbol, DiffCache}()
     xnn_dict = Dict{Symbol, ComponentArray}()
-    if !isnothing(nn)
-        for (id, net) in nn
-            pid = "p_" * string(id) |> Symbol
-            _p = _get_nn_initialparameters(net[2])
+    if !isnothing(nnmodels)
+        for (netid, nnmodel) in nnmodels
+            pid = Symbol("p_$netid")
+            _p = _get_nn_initialparameters(nnmodel)
             xnn[pid] = DiffCache(similar(_p); levels = level_cache)
             xnn_dict[pid] = _p
         end

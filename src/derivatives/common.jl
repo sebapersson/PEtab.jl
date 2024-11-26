@@ -8,10 +8,10 @@ function _G(u::AbstractVector, p, t::T, i::Integer, imeasurements_t_cid::Vector{
         mapxnoise = xindices.mapxnoise[imeasurement]
         mapxobservable = xindices.mapxobservable[imeasurement]
         h = _h(u, t, p, xobservable, xnondynamic_mech, xnn, model.h, mapxobservable, obsid,
-               nominal_values, model.nn)
+               nominal_values, model.nnmodels)
         h_transformed = transform_observable(h, measurement_transforms[imeasurement])
         σ = _sd(u, t, p, xnoise, xnondynamic_mech, xnn, model.sd, mapxnoise, obsid,
-                nominal_values, model.nn)
+                nominal_values, model.nnmodels)
 
         y_transformed = petab_measurements.measurement_transformed[imeasurement]
         residual = (h_transformed - y_transformed) / σ

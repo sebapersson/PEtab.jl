@@ -11,7 +11,7 @@ function _reshape_array(x, mapping)
     return xout
 end
 
-function PEtab._setup_nnmodels(nnmodels::Dict)::Dict
+function PEtab._setup_nnmodels(nnmodels::Dict{Symbol, <:NNModel})::Dict
     rng = Random.default_rng()
     nn = Dict()
     for (netid, nnmodel) in nnmodels
@@ -25,19 +25,19 @@ function PEtab._get_pnns(nnmodels_in_ode::Dict)::Dict{Symbol, NamedTuple}
     rng = Random.default_rng()
     pnns = Dict()
     for (netid, nnmodel) in nnmodels_in_ode
-        _pnn, _ = Lux.setup(rng, nnmodel[:net])
+        _pnn, _ = Lux.setup(rng, nnmodel.nn)
         pnns[Symbol("p_$netid")] = _pnn
     end
     return pnns
 end
 
-function PEtab._get_n_net_parameters(net)
-    return Lux.LuxCore.parameterlength(net)
+function PEtab._get_n_net_parameters(nnmodel::PEtab.NNModel)
+    return Lux.LuxCore.parameterlength(nnmodel.nn)
 end
 
-function PEtab._get_nn_initialparameters(net)::ComponentArray
+function PEtab._get_nn_initialparameters(nnmodel::PEtab.NNModel)::ComponentArray
     rng = Random.default_rng(1)
-    return Lux.initialparameters(rng, net) |> ComponentArray .|> Float64
+    return Lux.initialparameters(rng, nnmodel.nn) |> ComponentArray .|> Float64
 end
 
 function PEtab._df_to_array(df::DataFrame)::Array{<:AbstractFloat}

@@ -1,4 +1,4 @@
-function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, speciemap_input)
+function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, mapping_table::DataFrame, speciemap_input)
     specie_ids = _get_state_ids(sys)
     speciemap_ids = _get_speciemap_ids(sys)
     default_values = _get_default_values(sys)
@@ -19,13 +19,32 @@ function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, speciemap_in
     end
 
     # Add extra parameter in case any of the conditions map to a model specie (just as must
-    # be done for SBML models)
-    for condition_variable in names(conditions_df)
-        !(condition_variable in specie_ids) && continue
-        pid = "__init__" * string(condition_variable) * "__"
+    # be done for SBML models). Also add extra parameter if a Neural-Net maps to a specie
+    condition_variables = names(conditions_df)
+    net_outputs = String[]
+    if !isempty(mapping_table)
+        for netid in Symbol.(unique(mapping_table[!, :netId]))
+            net_outputs = vcat(net_outputs, _get_net_values(mapping_table, netid, :outputs))
+        end
+        for net_output in net_outputs
+            !(net_output in condition_variables) && continue
+            throw(PEtabInputError("Output $(net_output) for a neural-net in the mapping \
+                                   table points to a parameter which is set by an
+                                   experimental condition. This is not allowed."))
+        end
+    end
+    for variable in Iterators.flatten((condition_variables, net_outputs))
+        !(variable in specie_ids) && continue
+        pid = "__init__" * string(variable) * "__"
         sys = _add_parameter(sys, pid)
-        is = findfirst(x -> x == condition_variable, specie_ids)
+        is = findfirst(x -> x == variable, specie_ids)
         speciemap[is] = first(speciemap[is]) => eval(Meta.parse("@parameters $pid"))[1]
+        # Rename output in the mapping table, to have the neural-net map to the
+        # initial-value parameter instead
+        if variable in net_outputs
+            ix = findall(x -> x == variable, mapping_table[!, :ioValue])
+            mapping_table[ix, :ioValue] .= pid
+        end
     end
 
     return sys, speciemap
@@ -108,6 +127,15 @@ function _add_parameter(sys::ODESystem, parameter)
     pnew = vcat(parameters(sys), only(@parameters($p)))
     @named de = ODESystem(equations(sys), Catalyst.default_t(), unknowns(sys), pnew)
     return complete(de)
+end
+function _add_parameter(sys::ODEProblem, parameter)
+    # For an ODEProblem p can be arbitrary struct (we enfroce ComponentArray though for
+    # parameter mapping)
+    @assert sys.p isa ComponentArray "p for ODEProblem must be a ComponentArray"
+    _p = sys.p |> NamedTuple
+    _padd = NamedTuple{(Symbol(parameter), )}((0.0, ))
+    p = ComponentArray(merge(_p, _padd))
+    return remake(sys, p = p)
 end
 
 function _keys_to_string(d::Union{Dict, NamedTuple})::Dict

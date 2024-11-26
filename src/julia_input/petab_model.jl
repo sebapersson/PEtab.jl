@@ -4,16 +4,14 @@ function PEtabModel(sys::ModelSystem, observables::Dict{String, PEtabObservable}
                     speciemap::Union{Nothing, AbstractVector} = nothing,
                     parametermap::Union{Nothing, AbstractVector} = nothing,
                     events::Union{PEtabEvent, AbstractVector, Nothing} = nothing,
-                    verbose::Bool = false, nn::Union{Dict, Nothing} = nothing,
-                    mapping_table::Union{Dict, Nothing} = nothing)::PEtabModel
+                    verbose::Bool = false, nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing} = nothing)::PEtabModel
     # One simulation condition is needed by the PEtab standard, if there is no such
     # creation a dummy is created
     if isnothing(simulation_conditions)
         simulation_conditions = Dict("__c0__" => Dict())
     end
     return _PEtabModel(sys, simulation_conditions, observables, measurements,
-                       parameters, speciemap, parametermap, events, verbose, nn,
-                       mapping_table)
+                       parameters, speciemap, parametermap, events, verbose, nnmodels)
 end
 
 function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
@@ -21,9 +19,8 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
                      parameters::Vector{PEtabParameter},
                      speciemap::Union{Nothing, AbstractVector},
                      parametermap::Union{Nothing, AbstractVector},
-                     events::Union{PEtabEvent, AbstractVector, Nothing},
-                     verbose::Bool, nn::Union{Dict, Nothing},
-                     mapping_table::Union{Dict, Nothing})::PEtabModel
+                     events::Union{PEtabEvent, AbstractVector, Nothing}, verbose::Bool,
+                     nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing})::PEtabModel
     if sys isa ODESystem
         name = "ODESystemModel"
     elseif sys isa SDESystem
@@ -44,15 +41,15 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
                         :observables => observables_df, :measurements => measurements_df)
     # A mapping table is only needed for models where a neural network sets the values for
     # the model parameters
-    mapping_df = !isnothing(mapping_table) ? _mapping_to_table(mapping_table) : DataFrame()
+    mapping_df = !isnothing(nnmodels) ? _mapping_to_table(nnmodels) : DataFrame()
     petab_tables[:mapping_table] = mapping_df
     paths = Dict{Symbol, String}()
 
     # Build the initial value map (initial values as parameters are set in the reaction sys_mutated)
     sys_mutated = deepcopy(sys)
-    sys_mutated, speciemap_use = _get_speciemap(sys_mutated, conditions_df, speciemap)
+    sys_mutated, speciemap_use = _get_speciemap(sys_mutated, conditions_df, mapping_df, speciemap)
     parametermap_use = _get_parametermap(sys_mutated, parametermap)
-    xindices = ParameterIndices(petab_tables, sys_mutated, parametermap_use, speciemap_use, nn, paths)
+    xindices = ParameterIndices(petab_tables, sys_mutated, parametermap_use, speciemap_use, nnmodels)
     # Warn user if any variable is unassigned (and defaults to zero)
     _check_unassigned_variables(sys, speciemap_use, speciemap, :specie, parameters_df,
                                 conditions_df)
@@ -95,5 +92,5 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     # Path only applies when PEtab tables are provided
     return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan,
                       paths, sys, sys_mutated, parametermap_use, speciemap_use,
-                      petab_tables, cbset, true, nn)
+                      petab_tables, cbset, true, nnmodels)
 end

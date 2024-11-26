@@ -24,7 +24,7 @@ function _parse_h(state_ids::Vector{String}, xindices::ParameterIndices,
     hstr = "function compute_h(u::AbstractVector, t::Real, p::AbstractVector, \
             xobservable::AbstractVector, xnondynamic_mech::AbstractVector, xnn, \
             nominal_values::Vector{Float64}, obsid::Symbol, \
-            map::ObservableNoiseMap, nn)::Real\n"
+            map::ObservableNoiseMap, nnmodels)::Real\n"
 
     observable_ids = string.(observables_df[!, :observableId])
     for (i, obsid) in pairs(observable_ids)
@@ -180,10 +180,10 @@ function _template_nn_formula(netid::Symbol, mapping_table::DataFrame, state_ids
     inputs = "[" * prod(_get_net_values(mapping_table, netid, :inputs) .* ",") * "]"
     inputs = _parse_formula(inputs, state_ids, xindices, model_SBML, type)
     outputs = prod(_get_net_values(mapping_table, netid, :outputs) .* ", ")
-    formula = "\n\t\tst_$(netid), net_$(netid) = nn[:$(netid)]\n"
+    formula = "\n\t\tnnmodel_$(netid) = nnmodels[:$(netid)]\n"
     formula *= "\t\txnn_$(netid) = xnn[:p_$(netid)]\n"
-    formula *= "\t\tout, st_$(netid) = net_$(netid)($inputs, xnn_$(netid), st_$(netid))\n"
+    formula *= "\t\tout, st_$(netid) = nnmodel_$(netid).nn($inputs, xnn_$(netid), nnmodel_$(netid).st)\n"
     formula *= "\t\t$(outputs) = out\n"
-    formula *= "\t\tnn[:$(netid)][1] = st_$(netid)\n"
+    formula *= "\t\tnnmodel_$(netid).st = st_$(netid)\n"
     return formula
 end

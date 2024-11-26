@@ -1,5 +1,4 @@
-function _check_conditionids(conditions_df::DataFrame,
-                             petab_measurements::PEtabMeasurements)::Nothing
+function _check_conditionids(conditions_df::DataFrame, petab_measurements::PEtabMeasurements)::Nothing
     ncol(conditions_df) == 1 && return nothing
     @unpack pre_equilibration_condition_id, simulation_condition_id = petab_measurements
     measurementids = unique(vcat(pre_equilibration_condition_id, simulation_condition_id))
@@ -11,9 +10,9 @@ function _check_conditionids(conditions_df::DataFrame,
     return nothing
 end
 
-function _check_mapping_table(mapping_table::Union{DataFrame, Nothing}, nn::Union{Nothing, Dict}, petab_parameters::PEtabParameters, sys::ModelSystem, conditions_df::DataFrame, paths::Dict{Symbol, String})::DataFrame
+function _check_mapping_table(mapping_table::Union{DataFrame, Nothing}, nnmodels::Union{Nothing, Dict{Symbol, <:NNModel}}, petab_parameters::PEtabParameters, sys::ModelSystem, conditions_df::DataFrame)::DataFrame
     isempty(mapping_table) && return DataFrame()
-    isnothing(nn) && return DataFrame()
+    isnothing(nnmodels) && return DataFrame()
     state_ids = _get_state_ids(sys) .|> Symbol
     xids_sys = _get_xids_sys(sys)
     model_variables = Iterators.flatten((state_ids, xids_sys, petab_parameters.parameter_id))
@@ -30,14 +29,14 @@ function _check_mapping_table(mapping_table::Union{DataFrame, Nothing}, nn::Unio
     end
     # Sanity check ioValue column (input and outputs to neural-net)
     for netid in Symbol.(unique(mapping_table[!, :netId]))
-        if !haskey(nn, netid)
+        if !haskey(nnmodels, netid)
             throw(PEtabInputError("Neural network id $netid provided in the mapping table \
                                    does not correspond to any Neural Network id provided \
                                    in the PEtab problem"))
         end
         outputs = _get_net_values(mapping_table, netid, :outputs) .|> Symbol
         inputs = _get_net_values(mapping_table, netid, :inputs) .|> Symbol
-        input_variables = _get_nn_input_variables(inputs, conditions_df, petab_parameters, sys; paths = paths)
+        input_variables = _get_nn_input_variables(inputs, netid, nnmodels[netid], conditions_df, petab_parameters, sys)
 
         # If input_variables is empty all inputs are numbers which can always be handled
         if isempty(input_variables)

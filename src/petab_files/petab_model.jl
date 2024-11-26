@@ -1,7 +1,7 @@
 function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
                     verbose::Bool = false, ifelse_to_callback::Bool = true,
                     write_to_file::Bool = false,
-                    nnmodels::Union{Dict, Nothing} = nothing)::PEtabModel
+                    nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing} = nothing)::PEtabModel
     paths = _get_petab_paths(path_yaml)
     petab_tables = read_tables(path_yaml)
     name = splitdir(paths[:dirmodel])[end]
@@ -15,16 +15,14 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
     # Build the internal PEtab.jl nn-dict. The same that users provide via the PEtab
     # interface
     if !isnothing(nnmodels)
-        nn = _setup_nnmodels(nnmodels)
-    else
-        nn = nothing
+        _add_dirdata!(nnmodels, paths[:dirmodel])
     end
 
     # Import SBML model with SBMLImporter
     # In case one of the conditions in the PEtab table assigns an initial specie value,
     # the SBML model must be mutated to add an iniitial value parameter to correctly
     # compute gradients
-    nnmodels_in_ode = _get_nns_in_ode(nnmodels)
+    nnmodels_in_ode = _get_nnmodels_inode(nnmodels)
     if !isempty(nnmodels_in_ode)
         inline_assignment_rules = true
     else
@@ -42,12 +40,12 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
     if isempty(nnmodels_in_ode)
         odesystem, speciemap, parametermap = _get_odesys(model_SBML, paths, exist, build_julia_files, write_to_file, verbose)
     else
-        odesystem, speciemap, parametermap = _get_odeproblem(model_SBML, nnmodels_in_ode, petab_tables[:mapping_table], nn)
+        odesystem, speciemap, parametermap = _get_odeproblem(model_SBML, nnmodels_in_ode, petab_tables[:mapping_table], nnmodels)
     end
 
     # Indices for mapping parameters and tracking which parameter to estimate, useful
     # when building the comig PEtab functions
-    xindices = ParameterIndices(petab_tables, paths, odesystem, parametermap, speciemap, nn)
+    xindices = ParameterIndices(petab_tables, odesystem, parametermap, speciemap, nnmodels)
 
     path_u0_h_σ = joinpath(paths[:dirjulia], "$(name)_h_sd_u0.jl")
     exist = isfile(path_u0_h_σ)
@@ -86,7 +84,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
 
     return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan,
                       paths, odesystem, deepcopy(odesystem), parametermap, speciemap,
-                      petab_tables, cbset, false, nn)
+                      petab_tables, cbset, false, nnmodels)
 end
 
 function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::Dict{Symbol, DataFrame})::Nothing
@@ -202,7 +200,7 @@ function _get_odesys(model_SBML::SBMLImporter.ModelSBML, paths::Dict{Symbol, Str
     return odesystem, speciemap, parametermap
 end
 
-function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, nnmodels_in_ode::Dict, mapping_table::DataFrame, nn::Dict)
+function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, nnmodels_in_ode::Dict, mapping_table::DataFrame, nnmodels::Dict)
     for id in keys(nnmodels_in_ode)
         if !(string(id) in mapping_table[!, :netId])
             throw(PEtab.PEtabInputError("Neural net $id defined in the net.yaml file is \
@@ -243,8 +241,8 @@ function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, nnmodels_in_ode::Di
     model_SBML_prob = SBMLImporter.ModelSBMLProb(model_SBML)
     __fode = _template_odeproblem(model_SBML_prob, model_SBML, nnmodels_in_ode, mapping_table)
     _fode = @RuntimeGeneratedFunction(Meta.parse(__fode))
-    fode = let nndict = nn
-        (du, u, p, t) -> _fode(du, u, p, t, nndict)
+    fode = let nnmodels = nnmodels
+        (du, u, p, t) -> _fode(du, u, p, t, nnmodels)
     end
 
     # Parametermap needs to include neural net parameters
@@ -268,4 +266,12 @@ function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, nnmodels_in_ode::Di
         filter!(:netId => !=(string(netid)), mapping_table)
     end
     return oprob, u0map, psmap
+end
+
+function _add_dirdata!(nnmodels::Dict{Symbol, <:NNModel}, dirdata::String)::Nothing
+    for (netid, nnmodel) in nnmodels
+        _nnmodel = @set nnmodel.dirdata = dirdata
+        nnmodels[netid] = _nnmodel
+    end
+    return nothing
 end

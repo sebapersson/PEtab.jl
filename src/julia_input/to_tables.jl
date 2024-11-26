@@ -140,14 +140,20 @@ function _measurements_to_table(measurements::DataFrame, conditions::Dict)::Data
     return measurements_df
 end
 
-function _mapping_to_table(mapping_table::Dict{String, Vector{Pair{Symbol, Symbol}}})::DataFrame
+function _mapping_to_table(nnmodels::Dict{Symbol, <:NNModel})::DataFrame
     df_mapping = DataFrame()
-    for (netid, netmap) in mapping_table
-        for (io_id, io_value) in netmap
-            dftmp = DataFrame(netId = netid, ioId = string(io_id), ioValue = string(io_value))
+    for (netid, nnmodel) in nnmodels
+        for (i, io_value) in pairs(nnmodel.inputs)
+            dftmp = DataFrame(netId = string(netid), ioId = "input$i", ioValue = string(io_value))
+            df_mapping = vcat(df_mapping, dftmp)
+        end
+        for (i, io_value) in pairs(nnmodel.outputs)
+            dftmp = DataFrame(netId = string(netid), ioId = "output$i", ioValue = string(io_value))
             df_mapping = vcat(df_mapping, dftmp)
         end
     end
-    _check_table(df_mapping, :mapping)
+    if !isempty(df_mapping)
+        _check_table(df_mapping, :mapping)
+    end
     return df_mapping
 end
