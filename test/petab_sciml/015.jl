@@ -1,18 +1,20 @@
-test_case = "003"
+test_case = "015"
 
-nn3 = @compact(
-    layer1 = Dense(2, 5, Lux.tanh),
-    layer2 = Dense(5, 5, Lux.tanh),
-    layer3 = Dense(5, 1)
+nn = @compact(
+    layer1 = Conv((5, 5), 3 => 1; cross_correlation=true),
+    layer2 = FlattenLayer(),
+    layer3 = Dense(36 => 1, Lux.relu)
 ) do x
     embed = layer1(x)
     embed = layer2(embed)
     out = layer3(embed)
     @return out
-end
-nnmodels = Dict(:net1 => NNModel(nn3, inputs = [:input1, :input2], outputs = [:gamma]))
+end |> f64
+dirdata = joinpath(@__DIR__, "test_cases", "015", "petab")
+nnmodels = Dict(:net1 => NNModel(nn, inputs = ["input_data.tsv"], outputs = ["gamma"],
+                                 dirdata = dirdata))
 
-function lv3!(du, u, p, t)
+function lv15!(du, u, p, t)
     prey, predator = u
     @unpack alpha, delta, beta, gamma = p
     du[1] = alpha * prey - beta * prey * predator # prey
@@ -22,15 +24,13 @@ end
 
 u0 = ComponentArray(prey = 0.44249296, predator = 4.6280594)
 p_mechanistic = ComponentArray(alpha = 1.3, delta = 1.8, beta = 0.9, gamma = 0.8)
-uprob = ODEProblem(lv3!, u0, (0.0, 10.0), p_mechanistic)
+uprob = ODEProblem(lv15!, u0, (0.0, 10.0), p_mechanistic)
 
 p_alpha = PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3)
 p_beta = PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9)
 p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)
-p_input1 = PEtabParameter(:input1; scale = :lin, lb = 0.0, ub = 15.0, value = 1.0, estimate = false)
-p_input2 = PEtabParameter(:input2; scale = :lin, lb = 0.0, ub = 15.0, value = 1.0, estimate = false)
 p_net1 = PEtabParameter(:p_net1; scale = :lin, lb = -15.0, ub = 15.0, value = 0.0)
-pest = [p_alpha, p_beta, p_delta, p_input1, p_input2, p_net1]
+pest = [p_alpha, p_beta, p_delta, p_net1]
 
 conds = Dict("cond1" => Dict{Symbol, Symbol}())
 

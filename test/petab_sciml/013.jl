@@ -1,6 +1,6 @@
-test_case = "003"
+test_case = "013"
 
-nn3 = @compact(
+nn13_1 = @compact(
     layer1 = Dense(2, 5, Lux.tanh),
     layer2 = Dense(5, 5, Lux.tanh),
     layer3 = Dense(5, 1)
@@ -10,33 +10,53 @@ nn3 = @compact(
     out = layer3(embed)
     @return out
 end
-nnmodels = Dict(:net1 => NNModel(nn3, inputs = [:input1, :input2], outputs = [:gamma]))
+nn13_2 = @compact(
+    layer1 = Dense(2, 5, Lux.relu),
+    layer2 = Dense(5, 10, Lux.relu),
+    layer3 = Dense(10, 1)
+) do x
+    embed = layer1(x)
+    embed = layer2(embed)
+    out = layer3(embed)
+    @return out
+end
+pnn1 = Lux.initialparameters(rng, nn13_1)
+nnmodels = Dict(:net1 => NNModel(nn13_1),
+                :net2 => NNModel(nn13_2, inputs = [:alpha, :predator], outputs = [:net2_output1]))
 
-function lv3!(du, u, p, t)
+function _lv13!(du, u, p, t, nnmodels)
     prey, predator = u
-    @unpack alpha, delta, beta, gamma = p
-    du[1] = alpha * prey - beta * prey * predator # prey
-    du[2] = gamma * predator * prey - delta * predator # predator
+    @unpack alpha, delta, beta, p_net1 = p
+
+    net1 = nnmodels[:net1]
+    du1_nn, st = net1.nn([prey, predator], p_net1, net1.st)
+    net1.st = st
+
+    du[1] = alpha*prey - beta * prey * predator # prey
+    du[2] = du1_nn[1] - delta*predator # predator
     return nothing
 end
 
+lv13! = let _nnmodels = nnmodels
+    (du, u, p, t) -> _lv13!(du, u, p, t, _nnmodels)
+end
+p_mechanistic = (alpha = 1.3, delta = 1.8, beta = 0.9)
+p_model = ComponentArray(merge(p_mechanistic, (p_net1=pnn1,)))
 u0 = ComponentArray(prey = 0.44249296, predator = 4.6280594)
-p_mechanistic = ComponentArray(alpha = 1.3, delta = 1.8, beta = 0.9, gamma = 0.8)
-uprob = ODEProblem(lv3!, u0, (0.0, 10.0), p_mechanistic)
+uprob = ODEProblem(lv13!, u0, (0.0, 10.0), p_model)
 
 p_alpha = PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3)
 p_beta = PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9)
 p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)
-p_input1 = PEtabParameter(:input1; scale = :lin, lb = 0.0, ub = 15.0, value = 1.0, estimate = false)
-p_input2 = PEtabParameter(:input2; scale = :lin, lb = 0.0, ub = 15.0, value = 1.0, estimate = false)
 p_net1 = PEtabParameter(:p_net1; scale = :lin, lb = -15.0, ub = 15.0, value = 0.0)
-pest = [p_alpha, p_beta, p_delta, p_input1, p_input2, p_net1]
-
-conds = Dict("cond1" => Dict{Symbol, Symbol}())
+p_net2 = PEtabParameter(:p_net2; scale = :lin, lb = -15.0, ub = 15.0, value = 0.0)
+pest = [p_alpha, p_beta, p_delta, p_net1, p_net2]
 
 obs_prey = PEtabObservable(:prey, 0.05)
-obs_predator = PEtabObservable(:predator, 0.05)
+obs_predator = PEtabObservable(:net2_output1, 0.05)
 obs = Dict("prey" => obs_prey, "predator" => obs_predator)
+
+conds = Dict("cond1" => Dict{Symbol, Symbol}())
 
 path_m = joinpath(@__DIR__, "test_cases", test_case, "petab", "measurements.tsv")
 measurements = CSV.read(path_m, DataFrame)

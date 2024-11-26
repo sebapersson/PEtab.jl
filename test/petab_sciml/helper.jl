@@ -25,9 +25,9 @@ function get_x_nn(test_case::String, petab_prob::PEtabODEProblem)
     df_ps_net = CSV.read(path_ps_net, DataFrame)
     x = get_x(petab_prob)
     model = petab_prob.model_info.model
-    for netid in keys(model.nn)
+    for netid in keys(model.nnmodels)
         pid = Symbol("p_$(netid)")
-        PEtab.set_ps_net!((@view x[pid]), df_ps_net, netid, model.nn[netid][2])
+        PEtab.set_ps_net!((@view x[pid]), df_ps_net, netid, model.nnmodels[netid].nn)
     end
     return x
 end
@@ -60,7 +60,7 @@ function test_model(test_case, petab_prob::PEtabODEProblem)
         @test grad_petab[id] ≈ grad_ref[iref, :value] atol=tol_grad
     end
     # Neural-net parameters
-    for nid in keys(petab_prob.model_info.model.nn)
+    for nid in keys(petab_prob.model_info.model.nnmodels)
         pid = Symbol("p_$nid")
         for layer_id in keys(grad_petab[pid])
             iref = findall(startswith.(string.(grad_ref[!, :parameterId]), "$(nid)_$(layer_id)"))

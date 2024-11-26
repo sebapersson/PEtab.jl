@@ -1,6 +1,6 @@
 test_case = "004"
 
-nn_model = @compact(
+nn4 = @compact(
     layer1 = Dense(2, 5, Lux.tanh),
     layer2 = Dense(5, 5, Lux.tanh),
     layer3 = Dense(5, 1)
@@ -10,9 +10,7 @@ nn_model = @compact(
     out = layer3(embed)
     @return out
 end
-pnn, _st = Lux.setup(rng, nn_model)
-const st = _st
-nndict = Dict(:net1 => [st, nn_model])
+nnmodels = Dict(:net1 => NNModel(nn4, inputs = [:net1_input1, :net1_input2], outputs = [:gamma]))
 
 function lv4!(du, u, p, t)
     prey, predator = u
@@ -38,8 +36,6 @@ cond1 = Dict(:net1_input1 => 10.0, :net1_input2 => 20.0)
 cond2 = Dict(:net1_input1 => :input1_cond2, :net1_input2 => :input2_cond2)
 conds = Dict("cond1" => cond1, "cond2" => cond2)
 
-mapping_table = Dict("net1" => [:input1 => :net1_input1, :input2 => :net1_input2, :output1 => :gamma])
-
 obs_prey = PEtabObservable(:prey, 0.05)
 obs_predator = PEtabObservable(:predator, 0.05)
 obs = Dict("prey" => obs_prey, "predator" => obs_predator)
@@ -47,8 +43,7 @@ obs = Dict("prey" => obs_prey, "predator" => obs_predator)
 path_m = joinpath(@__DIR__, "test_cases", test_case, "petab", "measurements.tsv")
 measurements = CSV.read(path_m, DataFrame)
 
-model = PEtabModel(uprob, obs, measurements, pest; nn = nndict,
-                   mapping_table = mapping_table,
+model = PEtabModel(uprob, obs, measurements, pest; nnmodels = nnmodels,
                    simulation_conditions = conds)
 osolver = ODESolver(Rodas5P(autodiff = false), abstol = 1e-10, reltol = 1e-10)
 for config in PROB_CONFIGS
