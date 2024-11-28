@@ -8,7 +8,6 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
                              sensealg_ss, reuse_sensitivities::Bool, sparse_jacobian,
                              specialize_level, chunksize, split_over_conditions,
                              verbose::Bool)::PEtabODEProblemInfo
-    _logging(:Build_ODEProblem, verbose)
     model_size = _get_model_size(model.sys_mutated, model_info)
     gradient_method_use = _get_gradient_method(gradient_method, model_size,
                                                reuse_sensitivities)
@@ -109,23 +108,23 @@ function _get_f_nns_preode(model_info::ModelInfo, cache::PEtabODEProblemCache)::
     f_nns_preode = Dict{Symbol, Dict{Symbol, NNPreODE}}()
     for (cid, maps_nn) in model_info.xindices.maps_nn_preode
         f_nn_preode = Dict{Symbol, NNPreODE}()
-        for (pid, map) in maps_nn
-            @unpack ninputs, noutputs = map
+        for (pid, map_nn) in maps_nn
+            @unpack ninputs, noutputs = map_nn
             nnmodel = model_info.model.nnmodels[Symbol(string(pid)[3:end])]
             pnn = cache.xnn[pid]
             inputs = DiffCache(zeros(Float64, ninputs), levels = 2)
             outputs = DiffCache(zeros(Float64, noutputs), levels = 2)
-            compute_nn! = let nnmodel = nnmodel, map_nn = map, inputs = inputs, pnn = pnn
+            compute_nn! = let nnmodel = nnmodel, map_nn = map_nn, inputs = inputs, pnn = pnn
                 (out, x) -> _net!(out, x, pnn, inputs, map_nn, nnmodel)
             end
 
             # ReverseDiff.tape compatible (fastest on CPU, but only works if input is
             # known at compile-time)
-            if map.nxdynamic_inputs == 0
-                if map.file_input == false
-                    inputs_rev = map.constant_inputs[map.iconstant_inputs]
+            if map_nn.nxdynamic_inputs == 0
+                if map_nn.file_input == false
+                    inputs_rev = map_nn.constant_inputs[map_nn.iconstant_inputs]
                 else
-                    inputs_rev = map.constant_inputs
+                    inputs_rev = map_nn.constant_inputs
                 end
                 compute_nn_rev! = let nnmodel = nnmodel, inputs_rev = inputs_rev
                     (out, x) -> _net_reversediff!(out, x, inputs_rev, nnmodel)
@@ -137,7 +136,7 @@ function _get_f_nns_preode(model_info::ModelInfo, cache::PEtabODEProblemCache)::
                 tape = nothing
             end
 
-            nx = length(get_tmp(pnn, 1.0)) + map.nxdynamic_inputs
+            nx = length(get_tmp(pnn, 1.0)) + map_nn.nxdynamic_inputs
             xarg = DiffCache(zeros(Float64, nx), levels = 2)
             jac_nn = zeros(Float64, noutputs, nx)
             f_nn_preode[pid] = NNPreODE(compute_nn!, tape, jac_nn, outputs, inputs, xarg, [false])

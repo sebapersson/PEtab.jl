@@ -1,8 +1,5 @@
 include(joinpath(@__DIR__, "helper.jl"))
 
-# TODO: Refactor ids handling to be more clear
-# TODO: Refactor transform to be more clear what is transformed (mech or nn)
-# 9min
 @testset "PEtab SciML extension" begin
     for i in 1:16
         test_case = i < 10 ? "00$i" : "0$i"
@@ -25,8 +22,3 @@ include(joinpath(@__DIR__, "helper.jl"))
         end
     end
 end
-
-petab_prob = PEtabODEProblem(model; odesolver = osolver, split_over_conditions = true, gradient_method = :ForwardDiff)
-x = get_x(petab_prob)
-petab_prob.nllh(x)
-petab_prob.grad(x)

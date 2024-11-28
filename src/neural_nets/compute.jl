@@ -41,7 +41,7 @@ function _jac_nn_preode!(probinfo::PEtabODEProblemInfo, model_info::ModelInfo)::
             _outputs = get_tmp(outputs, pnn)
             if map_nn.nxdynamic_inputs > 0
                 xdynamic_mech = get_tmp(cache.xdynamic_mech, 1.0)
-                xdynamic_mech_ps = transform_x(xdynamic_mech, model_info.xindices, :xdynamic, cache)
+                xdynamic_mech_ps = transform_x(xdynamic_mech, model_info.xindices, :xdynamic_mech, cache)
                 _x = _get_f_nn_preode_x(f_nn_preode, xdynamic_mech_ps, pnn, map_nn)
                 ForwardDiff.jacobian!(jac_nn, nn!, _outputs, _x)
             else

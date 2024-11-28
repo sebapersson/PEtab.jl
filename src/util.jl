@@ -217,7 +217,7 @@ function solve_all_conditions(x, prob::PEtabODEProblem, osolver; abstol = 1e-8,
 
     split_x!(x, xindices, cache)
     xdynamic_mech = get_tmp(cache.xdynamic_mech, x)
-    xdynamic_ps = transform_x(xdynamic_mech, xindices, :xdynamic, cache)
+    xdynamic_ps = transform_x(xdynamic_mech, xindices, :xdynamic_mech, cache)
 
     _ = solve_conditions!(model_info, xdynamic_ps, cache.xnn_dict, probinfo;
                           ntimepoints_save = ntimepoints_save,

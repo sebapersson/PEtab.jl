@@ -90,7 +90,7 @@ end
 
 function transform_x(x::AbstractVector, xindices::ParameterIndices, whichx::Symbol,
                      cache::PEtabODEProblemCache; to_xscale::Bool = false)::AbstractVector
-    if whichx === :xdynamic || whichx === :xdynamic_tot
+    if whichx === :xdynamic_mech || whichx === :xdynamic_tot
         xids = xindices.xids[:dynamic_mech]
         x_ps = get_tmp(cache.xdynamic_ps, x)
     elseif whichx === :xnoise

@@ -15,16 +15,16 @@ function nllh_solveode(xdynamic::T1, xnoise::T2, xobservable::T2, xnondynamic_me
     # xdynamic must be corrected
     if grad_xdynamic == true && cache.nxdynamic[1] != length(xdynamic)
         _xdynamic = xdynamic[cache.xdynamic_output_order]
-        xdynamic_ps = transform_x(_xdynamic, xindices, :xdynamic, cache)
+        xdynamic_mech_ps = transform_x(_xdynamic, xindices, :xdynamic_mech, cache)
     else
-        xdynamic_ps = transform_x(xdynamic, xindices, :xdynamic, cache)
+        xdynamic_mech_ps = transform_x(xdynamic, xindices, :xdynamic_mech, cache)
     end
     xnoise_ps = transform_x(xnoise, xindices, :xnoise, cache)
     xobservable_ps = transform_x(xobservable, xindices, :xobservable, cache)
     xnondynamic_mech_ps = transform_x(xnondynamic_mech, xindices, :xnondynamic_mech, cache)
 
     derivative = hess || grad_xdynamic
-    success = solve_conditions!(model_info, xdynamic_ps, xnn, probinfo; cids = cids,
+    success = solve_conditions!(model_info, xdynamic_mech_ps, xnn, probinfo; cids = cids,
                                 dense_sol = false, save_observed_t = true,
                                 derivative = derivative)
     if success != true
