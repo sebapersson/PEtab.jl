@@ -1,4 +1,4 @@
-function _reshape_array(x, mapping)
+function PEtab._reshape_array(x, mapping)
     dims_out = size(x)[last.(mapping)]
     xout = reshape(deepcopy(x), dims_out)
     for i in eachindex(Base.CartesianIndices(x))
@@ -62,5 +62,5 @@ function PEtab._df_to_array(df::DataFrame)::Array{<:AbstractFloat}
         imap[i] = findfirst(x -> x == order_jl[i], order_py)
     end
     map = collect(1:length(order_py)) .=> imap
-    return _reshape_array(out, map)
+    return PEtab._reshape_array(out, map)
 end

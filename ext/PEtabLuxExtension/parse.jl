@@ -36,7 +36,7 @@ function PEtab.NNModel(net::Union{Lux.Chain, Lux.CompactLuxLayer}; dirdata = not
     return NNModel(net, st, dirdata, _inputs, _outputs, input_info, output_info)
 end
 
-function parse_to_lux(path_yaml::String)
+function PEtab.parse_to_lux(path_yaml::String)
     network_yaml = YAML.load_file(path_yaml)["models"][1]
     layers = Dict([_parse_layer(l) for l in network_yaml["layers"]])
     input, output, forward_steps = _parse_forward_pass(network_yaml["forward"], layers)

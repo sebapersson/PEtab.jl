@@ -39,11 +39,11 @@ function _set_ps_layer!(ps::ComponentArray, layer::Lux.Conv, df_ps::DataFrame)::
     @assert size(ps.weight) == (kernel_size..., in_chs, out_chs) "Error in dimension of weights for Conv layer"
     _ps_weight = _get_ps_layer(df_ps, length((kernel_size..., in_chs, out_chs)), :weight)
     if length(kernel_size) == 1
-        ps_weight = _reshape_array(_ps_weight, CONV1D_MAP)
+        ps_weight = PEtab._reshape_array(_ps_weight, CONV1D_MAP)
     elseif length(kernel_size) == 2
-        ps_weight = _reshape_array(_ps_weight, CONV2D_MAP)
+        ps_weight = PEtab._reshape_array(_ps_weight, CONV2D_MAP)
     elseif length(kernel_size) == 3
-        ps_weight = _reshape_array(_ps_weight, CONV3D_MAP)
+        ps_weight = PEtab._reshape_array(_ps_weight, CONV3D_MAP)
     end
     @views ps.weight .= ps_weight
 
@@ -58,11 +58,11 @@ function _set_ps_layer!(ps::ComponentArray, layer::Lux.ConvTranspose, df_ps::Dat
     @assert size(ps.weight) == (kernel_size..., out_chs, in_chs) "Error in dimension of weights for ConvTranspose layer"
     _ps_weight = _get_ps_layer(df_ps, length((kernel_size..., out_chs, in_chs)), :weight)
     if length(kernel_size) == 1
-        ps_weight = _reshape_array(_ps_weight, CONV1D_MAP)
+        ps_weight = PEtab._reshape_array(_ps_weight, CONV1D_MAP)
     elseif length(kernel_size) == 2
-        ps_weight = _reshape_array(_ps_weight, CONV2D_MAP)
+        ps_weight = PEtab._reshape_array(_ps_weight, CONV2D_MAP)
     elseif length(kernel_size) == 3
-        ps_weight = _reshape_array(_ps_weight, CONV3D_MAP)
+        ps_weight = PEtab._reshape_array(_ps_weight, CONV3D_MAP)
     end
     @views ps.weight .= ps_weight
 
@@ -95,14 +95,14 @@ function _set_ps_layer!(ps::ComponentArray, layer::Lux.LayerNorm, df_ps::DataFra
     _ps_scale = _get_ps_layer(df_ps, length(shape), :weight)
     _ps_bias = _get_ps_layer(df_ps, length(shape), :bias)
     if length(shape) == 4
-        ps_scale = _reshape_array(_ps_scale, LAYERNORM4_MAP)
-        ps_bias = _reshape_array(_ps_bias, LAYERNORM4_MAP)
+        ps_scale = PEtab._reshape_array(_ps_scale, LAYERNORM4_MAP)
+        ps_bias = PEtab._reshape_array(_ps_bias, LAYERNORM4_MAP)
     elseif length(shape) == 3
-        ps_scale = _reshape_array(_ps_scale, LAYERNORM3_MAP)
-        ps_bias = _reshape_array(_ps_bias, LAYERNORM3_MAP)
+        ps_scale = PEtab._reshape_array(_ps_scale, LAYERNORM3_MAP)
+        ps_bias = PEtab._reshape_array(_ps_bias, LAYERNORM3_MAP)
     elseif length(shape) == 2
-        ps_scale = _reshape_array(_ps_scale, LAYERNORM2_MAP)
-        ps_bias = _reshape_array(_ps_bias, LAYERNORM2_MAP)
+        ps_scale = PEtab._reshape_array(_ps_scale, LAYERNORM2_MAP)
+        ps_bias = PEtab._reshape_array(_ps_bias, LAYERNORM2_MAP)
     else
         ps_scale = _ps_scale
         ps_bias = _ps_bias
