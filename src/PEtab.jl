@@ -132,6 +132,8 @@ function _get_nn_initialparameters end
 function set_ps_net! end
 function _df_to_array end
 function NNModel end
+function parse_to_lux end
+function _reshape_array end
 
 export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel, NNModel,
        PEtabODEProblem, remake, Fides, PEtabOptimisationResult, IpoptOptions,

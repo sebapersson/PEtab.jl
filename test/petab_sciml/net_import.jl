@@ -14,7 +14,7 @@ function df_to_array(df::DataFrame, order_jl::Vector{String}, order_py::Vector{S
         out[ix[i]...] = df[i, :value]
     end
     length(size(out)) == 1 && return out
-    # At this point the array follows a multidimensional PyTorch indexing. Therefore the
+    # At this point the array follows a multixdimensional PyTorch indexing. Therefore the
     # array must be reshaped to Julia indexing
     imap = zeros(Int64, length(order_jl))
     for i in eachindex(order_jl)
@@ -37,7 +37,7 @@ end
 
         dirtest = joinpath(@__DIR__, "test_cases", "net_$testcase")
         yaml_test = YAML.load_file(joinpath(dirtest, "solutions.yaml"))
-        nnmodel = PEtab.parse_to_lux(joinpath(dirtest, yaml_test["net_file"]))
+        nnmodel, netid = PEtab.parse_to_lux(joinpath(dirtest, yaml_test["net_file"]))
         _ps, st = Lux.setup(rng, nnmodel)
         ps = ComponentArray(_ps)
 
