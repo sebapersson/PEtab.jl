@@ -35,6 +35,7 @@ function _get_ss_solver_show(ss_solver::SteadyStateSolver; onlyheader::Bool = fa
     else
         heading = styled"{emphasis:Rootfinding} to solve du = f(u, p, t) ≈ 0"
         alg = match(r"^[^({]+", ss_solver.rootfinding_alg |> string).match
+        alg = replace(alg, "NonlinearSolveFirstOrder." => "")
         opt = styled"\n{emphasis:Algorithm:} $(alg) with NonlinearSolve.jl termination"
     end
     if onlyheader

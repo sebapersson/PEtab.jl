@@ -36,17 +36,16 @@ measurements = DataFrame(obs_id=["obs_a", "obs_a"],
 
 # PEtab-parameter to "estimate"
 parameters = [PEtabParameter(:a0, value=1.0, scale=:lin),
-                    PEtabParameter(:b0, value=0.0, scale=:lin),
-                    PEtabParameter(:k1, value=0.8, scale=:lin),
-                    PEtabParameter(:k2, value=0.6, scale=:lin)]
+              PEtabParameter(:b0, value=0.0, scale=:lin),
+              PEtabParameter(:k1, value=0.8, scale=:lin),
+              PEtabParameter(:k2, value=0.6, scale=:lin)]
 
 # Observable equation
 @unpack A = rn
 observables = Dict("obs_a" => PEtabObservable(A, 0.5))
 
 # Create a PEtabODEProblem ReactionNetwork
-model_rn = PEtabModel(rn, observables, measurements,
-                            parameters, verbose=false)
+model_rn = PEtabModel(rn, observables, measurements, parameters, verbose=false)
 petab_problem_rn = PEtabODEProblem(model_rn, verbose=false)
 # Create a PEtabODEProblem ODESystem
 model_sys = PEtabModel(sys, observables, measurements, parameters, verbose=false)

@@ -1,6 +1,7 @@
 module PEtabPlotsExtension
 
 import ModelingToolkit: @unpack
+using ComponentArrays
 using DataFrames
 using PEtab
 using Plots

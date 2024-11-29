@@ -145,10 +145,14 @@ end
 
 function _nllh_obs(residual::T, σ::Real, y_transformed::Float64,
                    transform::Symbol)::T where {T <: Real}
+    # Note: log(10)*log10(x) = log(x) and log(2)*log2(x) = log(x)
     if transform == :lin
         return log(σ) + 0.5 * log(2π) + 0.5 * residual^2
     elseif transform === :log10
         return log(σ) + 0.5 * log(2π) + log(log(10)) + log(10) * y_transformed +
+               0.5 * residual^2
+    elseif transform === :log2
+        return log(σ) + 0.5 * log(2π) + log(log(2)) + log(2) * y_transformed +
                0.5 * residual^2
     elseif transform === :log
         return log(σ) + 0.5 * log(2π) + y_transformed + 0.5 * residual^2
