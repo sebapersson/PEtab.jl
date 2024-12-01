@@ -41,7 +41,12 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
                         :observables => observables_df, :measurements => measurements_df)
     # A mapping table is only needed for models where a neural network sets the values for
     # the model parameters
-    mapping_df = !isnothing(nnmodels) ? _mapping_to_table(nnmodels) : DataFrame()
+    if !isnothing(nnmodels)
+        mapping_df = _mapping_to_table(nnmodels)
+    else
+        mapping_df = DataFrame()
+        nnmodels = Dict{Symbol, NNModel}()
+    end
     petab_tables[:mapping_table] = mapping_df
     paths = Dict{Symbol, String}()
 

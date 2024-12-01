@@ -16,6 +16,8 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
     # interface
     if !isnothing(nnmodels)
         _add_dirdata!(nnmodels, paths[:dirmodel])
+    else
+        nnmodels = Dict{Symbol, NNModel}()
     end
 
     # Import SBML model with SBMLImporter

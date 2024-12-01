@@ -33,6 +33,10 @@ end
 function ParameterIndices(petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements, sys::ModelSystem, parametermap, speciemap, conditions_df::DataFrame, nnmodels::Union{Nothing, Dict{Symbol, <:NNModel}}, mapping_table::Union{Nothing, DataFrame})::ParameterIndices
     _check_conditionids(conditions_df, petab_measurements)
     mapping_table = _check_mapping_table(mapping_table, nnmodels, petab_parameters, sys, conditions_df)
+    # To ease downstream processing (does not need to check if nothing everywhere)
+    if isnothing(nnmodels)
+        nnmodels = Dict{Symbol, NNModel}()
+    end
     xids = _get_xids(petab_parameters, petab_measurements, sys, conditions_df, speciemap,
                      parametermap, nnmodels, mapping_table)
 

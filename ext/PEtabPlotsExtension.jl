@@ -5,6 +5,7 @@ using ComponentArrays
 using DataFrames
 using PEtab
 using Plots
+using PreallocationTools
 using RuntimeGeneratedFunctions
 
 RuntimeGeneratedFunctions.init(@__MODULE__)

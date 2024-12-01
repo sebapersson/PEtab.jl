@@ -151,16 +151,18 @@ function _get_observable(x, prob::PEtabODEProblem, cid::String, obsid::String)
         if smooth_sol == true
             PEtab.split_x!(x, model_info.xindices, probinfo.cache)
             @unpack xobservable, xnondynamic_mech = probinfo.cache
+            xobservable = get_tmp(xobservable, x)
+            xnondynamic_mech = get_tmp(xnondynamic_mech, x)
             xobservable_ps = PEtab.transform_x(xobservable, model_info.xindices,
                                                :xobservable, probinfo.cache)
             xnondynamic_mech_ps = PEtab.transform_x(xnondynamic_mech, model_info.xindices,
-                                               :xnondynamic_mech, probinfo.cache)
-            _h_model = similar(sol.t)
+                                                    :xnondynamic_mech, probinfo.cache)
             for (i, t) in pairs(sol.t)
                 u = sol[:, i]
                 h = PEtab._h(u, t, sol.prob.p, xobservable_ps, xnondynamic_mech_ps,
-                             model_info.model.h, mapxobservables[1],
-                             Symbol(obsid), collect(prob.xnominal))
+                             probinfo.cache.xnn_dict, model_info.model.h,
+                             mapxobservables[1], Symbol(obsid), collect(prob.xnominal),
+                             model_info.model.nnmodels)
                 push!(h_model, h)
             end
             t_model = vcat(t_model, sol.t)
@@ -178,6 +180,5 @@ function _get_observable(x, prob::PEtabODEProblem, cid::String, obsid::String)
         end
         label_model = vcat(label_model, _label)
     end
-
     return t_observed, h_observed, label_observed, t_model, h_model, label_model
 end

@@ -120,8 +120,8 @@ end
 # Test if the PEtabModel can also be read from existing model files
 model = PEtabModel(joinpath(@__DIR__, "analytic_solution", "Test_model2.yaml"),
                    verbose=true, write_to_file = true)
-model = PEtabModel(joinpath(@__DIR__, "analytic_solution", "Test_model2.yaml"),
-                   build_julia_files=false, verbose=true, write_to_file = false)
+model2 = PEtabModel(joinpath(@__DIR__, "analytic_solution", "Test_model2.yaml"),
+                    build_julia_files=false, verbose=true, write_to_file = false)
 prob = PEtabODEProblem(model; verbose = true)
 @testset "ODE solver" begin
     test_odesolver(model2, ODESolver(Vern9(), abstol=1e-9, reltol=1e-9))
