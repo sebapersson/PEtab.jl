@@ -1,43 +1,34 @@
-function nn_ps_to_tidy(nn, ps::Union{ComponentArray, NamedTuple}, netname::Symbol)::DataFrame
-    df_ps = DataFrame()
-    for (layername, layer) in pairs(nn.layers)
-        ps_layer = ps[layername]
-        df_layer = _ps_to_tidy(layer, ps_layer, netname, layername)
-        df_ps = vcat(df_ps, df_layer)
+function nn_ps_to_h5!(nn, ps::Union{ComponentArray, NamedTuple}, path::String)::Nothing
+    if isfile(path)
+        rm(path)
     end
-    return df_ps
+    file = h5open(path, "w")
+    for (layername, layer) in pairs(nn.layers)
+        _ps_to_h5!(file, layer, ps[layername], layername)
+    end
+    close(file)
+    return nothing
 end
 
 """
-    _ps_to_tidy(layer::Lux.Dense, ps, netname, layername)::DataFrame
+    _ps_to_h5!(layer::Lux.Dense, ps, netname, layername)::Nothing
 
-Transforms parameters (`ps`) for a Lux layer to a tidy DataFrame `df` with columns `value`
-and `parameterId`.
-
-A `Lux.Dense` layer has two sets of parameters, `weight` and optionally `bias`. For
-`Dense` and all other form of layers `weight` and `bias` are stored as:
-
-- `netname_layername_weight_ix`: weight for output `i` and input `j`
-- `netname_layername_bias_ix`: bias for output `i`
-
-Where `ix` depends on the `Tensor` the parameters are stored in. For example, if
-`size(weight) = (5, 2)` `ix` is on the form `ix = i_j`. Here, it is important to note that
-the PEtab standard uses Julia tensor. For example, `x = ones(5, 3, 2)` can be thought of
-as a Tensor with height 5, width 3 and depth 2. In PyTorch `x` would correspond to
-`x = torch.ones(2, 5, 3)`.
+Transforms parameters (`ps`) for a Lux layer to a h5 file with the data stored in the
+order expected by PyTorich.
 
 For `Dense` layer possible parameters that are saved to a DataFrame are:
 - `weight` of dimension `(out_features, in_features)`
 - `bias` of dimension `(out_features)`
 """
-function _ps_to_tidy(layer::Lux.Dense, ps::Union{NamedTuple, ComponentArray}, netname::Symbol, layername::Symbol)::DataFrame
+function _ps_to_h5!(file, layer::Lux.Dense, ps::Union{NamedTuple, ComponentArray}, layername::Symbol)::Nothing
     @unpack in_dims, out_dims, use_bias = layer
-    df_weight = _ps_weight_to_tidy(ps, netname, layername)
-    df_bias = _ps_bias_to_tidy(ps, (out_dims, ), netname, layername, use_bias)
-    return vcat(df_weight, df_bias)
+    g = create_group(file, string(layername))
+    _ps_weight_to_h5!(g, ps)
+    _ps_bias_to_h5!(g, ps, use_bias)
+    return nothing
 end
 """
-    _ps_to_tidy(layer::Lux.ConvTranspose, ...)::DataFrame
+    _ps_to_h5!(layer::Lux.ConvTranspose, ...)::Nothing
 
 For `Conv` layer possible parameters that are saved to a DataFrame are:
 - `weight` of dimension `(in_channels, out_channels, kernel_size)`
@@ -47,7 +38,7 @@ For `Conv` layer possible parameters that are saved to a DataFrame are:
     Note, in Lux.jl `weight` has `(kernel_size, in_channels, out_channels)`. This is fixed
     by the importer.
 """
-function _ps_to_tidy(layer::Lux.Conv, ps::Union{NamedTuple, ComponentArray}, netname::Symbol, layername::Symbol)::DataFrame
+function _ps_to_h5!(file, layer::Lux.Conv, ps::Union{NamedTuple, ComponentArray}, layername::Symbol)::Nothing
     @unpack kernel_size, use_bias, in_chs, out_chs = layer
     if length(kernel_size) == 1
         _psweigth = PEtab._reshape_array(ps.weight, CONV1D_MAP)
@@ -57,12 +48,13 @@ function _ps_to_tidy(layer::Lux.Conv, ps::Union{NamedTuple, ComponentArray}, net
         _psweigth = PEtab._reshape_array(ps.weight, CONV3D_MAP)
     end
     _ps = ComponentArray(weight = _psweigth)
-    df_weight = _ps_weight_to_tidy(_ps, netname, layername)
-    df_bias = _ps_bias_to_tidy(ps, (out_chs, ), netname, layername, use_bias)
-    return vcat(df_weight, df_bias)
+    g = create_group(file, string(layername))
+    _ps_weight_to_h5!(g, _ps)
+    _ps_bias_to_h5!(g, ps, use_bias)
+    return nothing
 end
 """
-    _ps_to_tidy(layer::Lux.ConvTranspose, ...)::DataFrame
+    _ps_to_h5!(layer::Lux.ConvTranspose, ...)::Nothing
 
 For `ConvTranspose` layer possible parameters that are saved to a DataFrame are:
 - `weight` of dimension `(in_channels, out_channels, kernel_size)`
@@ -72,37 +64,37 @@ For `ConvTranspose` layer possible parameters that are saved to a DataFrame are:
     Note, in Lux.jl `weight` has `(kernel_size, out_channels, in_channels)`. This is fixed
     by the importer.
 """
-function _ps_to_tidy(layer::Lux.ConvTranspose, ps::Union{NamedTuple, ComponentArray}, netname::Symbol, layername::Symbol)::DataFrame
+function _ps_to_h5!(file, layer::Lux.ConvTranspose, ps::Union{NamedTuple, ComponentArray}, layername::Symbol)::Nothing
     @unpack kernel_size, use_bias, in_chs, out_chs = layer
     if length(kernel_size) == 1
         _psweigth = PEtab._reshape_array(ps.weight, CONV1D_MAP)
     elseif length(kernel_size) == 2
-        # For the mapping, see comment above on image format in Lux.Conv
         _psweigth = PEtab._reshape_array(ps.weight, CONV2D_MAP)
     elseif length(kernel_size) == 3
-        # See comment on Lux.Conv
         _psweigth = PEtab._reshape_array(ps.weight, CONV3D_MAP)
     end
     _ps = ComponentArray(weight = _psweigth)
-    df_weight = _ps_weight_to_tidy(_ps, netname, layername)
-    df_bias = _ps_bias_to_tidy(ps, (out_chs, ), netname, layername, use_bias)
-    return vcat(df_weight, df_bias)
+    g = create_group(file, string(layername))
+    _ps_weight_to_h5!(g, _ps)
+    _ps_bias_to_h5!(g, ps, use_bias)
+    return nothing
 end
 """
-    _ps_to_tidy(layer::Lux.Bilinear, ...)::DataFrame
+    _ps_to_h5!(layer::Lux.Bilinear, ...)::Nothing
 
 For `Bilinear` layer possible parameters that are saved to a DataFrame are:
 - `weight` of dimension `(out_features, in_features1, in_features2)`
 - `bias` of dimension `(out_features)`
 """
-function _ps_to_tidy(layer::Lux.Bilinear, ps::Union{NamedTuple, ComponentArray}, netname::Symbol, layername::Symbol)::DataFrame
+function _ps_to_h5!(file, layer::Lux.Bilinear, ps::Union{NamedTuple, ComponentArray}, netname::Symbol, layername::Symbol)::Nothing
     @unpack in1_dims, in2_dims, out_dims, use_bias = layer
-    df_weight = _ps_weight_to_tidy(ps, netname, layername)
-    df_bias = _ps_bias_to_tidy(ps, (out_dims, ), netname, layername, use_bias)
-    return vcat(df_weight, df_bias)
+    g = create_group(file, string(layername))
+    _ps_weight_to_h5!(g, ps)
+    _ps_bias_to_h5!(g, ps, use_bias)
+    return nothing
 end
 """
-    layer_ps_to_tidy(layer::Union{Lux.BatchNorm, Lux.InstanceNorm}, ...)::DataFrame
+    layer_ps_to_h5!(layer::Union{Lux.BatchNorm, Lux.InstanceNorm}, ...)::Nothing
 
 For `BatchNorm` and `InstanceNorm` layer possible parameters that are saved to a DataFrame
 are:
@@ -111,15 +103,16 @@ are:
 !!! note
     in Lux.jl the dimension argument `num_features` is chs (number of input channels)
 """
-function layer_ps_to_tidy(layer::Union{Lux.BatchNorm, Lux.InstanceNorm}, ps::Union{NamedTuple, ComponentArray}, netname::Symbol, layername::Symbol)::DataFrame
+function layer_ps_to_h5!(file, layer::Union{Lux.BatchNorm, Lux.InstanceNorm}, ps::Union{NamedTuple, ComponentArray}, netname::Symbol, layername::Symbol)::Nothing
     @unpack affine, chs = layer
     affine == false && return DataFrame()
-    df_weight = _ps_weight_to_tidy(ps, netname, layername; scale = true)
-    df_bias = _ps_bias_to_tidy(ps, (chs, ), netname, layername, true)
-    return vcat(df_weight, df_bias)
+    g = create_group(file, string(layername))
+    _ps_weight_to_h5!(g, ps; scale = true)
+    _ps_bias_to_h5!(g, ps, true)
+    return nothing
 end
 """
-    layer_ps_to_tidy(layer::Lux.LayerNorm, ...)::DataFrame
+    layer_ps_to_h5!(layer::Lux.LayerNorm, ...)::Nothing
 
 For `LayerNorm` layer possible parameters that are saved to a DataFrame are:
 - `scale/weight` of `size(input)` dimension
@@ -130,7 +123,7 @@ For `LayerNorm` layer possible parameters that are saved to a DataFrame are:
     PyTorch corresponds to `["W", "H", "D", "C"]` in Lux.jl. Basically, regardless of input
     dimension the Lux.jl dimension is the PyTorch dimension reversed.
 """
-function layer_ps_to_tidy(layer::LayerNorm, ps::Union{NamedTuple, ComponentArray}, netname::Symbol, layername::Symbol)::DataFrame
+function layer_ps_to_h5!(file, layer::LayerNorm, ps::Union{NamedTuple, ComponentArray}, netname::Symbol, layername::Symbol)::Nothing
     @unpack shape, affine = layer
     affine == false && return DataFrame()
     # Note, in Lux.jl the input dimension is `size(input, 1)`.
@@ -148,47 +141,36 @@ function layer_ps_to_tidy(layer::LayerNorm, ps::Union{NamedTuple, ComponentArray
         _psbias = ps.bias[:, 1]
     end
     _ps = ComponentArray(weight = _psweigth, bias = _psbias)
-    df_weight = _ps_weight_to_tidy(_ps, netname, layername)
-    df_bias = _ps_bias_to_tidy(_ps, size(_ps.bias), netname, layername, true)
-    return vcat(df_weight, df_bias)
+    g = create_group(file, string(layername))
+    _ps_weight_to_h5!(g, _ps)
+    _ps_bias_to_h5!(g, _ps, true)
+    return nothing
 end
 """
-    _ps_to_tidy(layer::PS_FREE_LAYERS, ...)::DataFrame
+    _ps_to_h5!(layer::PS_FREE_LAYERS, ...)::Nothing
 
 Layers without parameters to estimate.
 """
-function _ps_to_tidy(layer::PS_FREE_LAYERS, ::Union{NamedTuple, ComponentArray}, ::Symbol, ::Symbol)::DataFrame
-    return DataFrame()
+function _ps_to_h5!(layer::PS_FREE_LAYERS, ::Union{NamedTuple, ComponentArray}, ::Symbol)::Nothing
+    return nothing
 end
 
-function _ps_weight_to_tidy(ps, netname::Symbol, layername::Symbol; scale::Bool = false)::DataFrame
-    # For Batchnorm in Lux.jl the weight layer is refered to as scale.
-    if scale == false
-        ps_weight = ps.weight
-    else
-        ps_weight = ps.scale
-    end
-    if length(size(ps_weight)) > 1
-        iweight = getfield.(findall(x -> true, ones(size(ps_weight))), :I)
-    else
-        iweight = 1:length(ps_weight)
-    end
-    iweight = [iw .- 1 for iw in iweight]
-    weight_names =  ["weight" * prod("_" .* string.(ix)) for ix in iweight]
-    df_weight = DataFrame(parameterId = "$(netname)_$(layername)_" .* weight_names,
-                          value = vec(ps_weight))
-    return df_weight
+function _ps_weight_to_h5!(g, ps; scale::Bool = false)::Nothing
+    # For Batchnorm in Lux.jl the weight layer is referred to as scale.
+    ps_weight = scale == false ? ps.weight : ps.scale
+    # To account for Python (for which the standard is defined) is row-major
+    ps_weight = permutedims(ps_weight, reverse(1:ndims(ps_weight)))
+    g["weight"] = ps_weight
+    return nothing
 end
 
-function _ps_bias_to_tidy(ps, bias_dims, netname::Symbol, layername::Symbol, use_bias)::DataFrame
-    use_bias == false && return DataFrame()
-    if length(bias_dims) > 1
-        ibias = getfield.(findall(x -> true, ones(bias_dims)), :I)
+function _ps_bias_to_h5!(g, ps, use_bias)::Nothing
+    use_bias == false && return nothing
+    if length(size(ps.bias)) > 1
+        ps_bias = permutedims(ps.bias, reverse(1:ndims(ps.bias)))
     else
-        ibias = (0:bias_dims[1]-1)
+        ps_bias = vec(ps.bias)
     end
-    bias_names =  ["bias" * prod("_" .* string.(ix)) for ix in ibias]
-    df_bias = DataFrame(parameterId = "$(netname)_$(layername)_" .* bias_names,
-                        value = vec(ps.bias))
-    return df_bias
+    g["bias"] = ps_bias
+    return nothing
 end

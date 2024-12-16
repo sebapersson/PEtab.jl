@@ -1,18 +1,9 @@
-using YAML, PEtab, Lux, Random, ComponentArrays, CSV, DataFrames, Test
+using YAML, PEtab, Lux, Random, ComponentArrays, HDF5, Test
 rng = Random.default_rng()
 
-function df_to_array(df::DataFrame, order_jl::Vector{String}, order_py::Vector{String})
-    if df[!, :ix] isa Vector{Int64}
-        ix = df[!, :ix] .+ 1
-        dims = (length(ix), )
-    else
-        ix = [Tuple(parse.(Int64, split(ix, ";")) .+ 1) for ix in df[!, :ix]]
-        dims = maximum(ix)
-    end
-    out = zeros(dims)
-    for i in eachindex(ix)
-        out[ix[i]...] = df[i, :value]
-    end
+function parse_array(x::Array{T}, order_jl::Vector{String}, order_py::Vector{String})::Array{T} where T <: AbstractFloat
+    # To column-major
+    out = permutedims(x, reverse(1:ndims(x)))
     length(size(out)) == 1 && return out
     # At this point the array follows a multixdimensional PyTorch indexing. Therefore the
     # array must be reshaped to Julia indexing
@@ -48,23 +39,22 @@ end
         output_order_py = yaml_test["output_order_py"]
 
         for j in 1:3
-            input_df = CSV.read(joinpath(dirtest, yaml_test["net_input"][j]), DataFrame)
+            _input = h5read(joinpath(dirtest, yaml_test["net_input"][j]), "input")
+            input = parse_array(_input, input_order_jl, input_order_py)
             # alpha dropout does not want mixed precision
             if i == 20
-                input = df_to_array(input_df, input_order_jl, input_order_py) |> f64
-            else
-                input = df_to_array(input_df, input_order_jl, input_order_py) |> f32
+                input = input |> f64
             end
-            output_df = CSV.read(joinpath(dirtest, yaml_test["net_output"][j]), DataFrame)
-            output_ref = df_to_array(output_df, output_order_jl, output_order_py)
+            _output = h5read(joinpath(dirtest, yaml_test["net_output"][j]), "output")
+            output_ref = parse_array(_output, output_order_jl, output_order_py)
             if needs_batch
                 input = reshape(input, (size(input)..., 1))
                 output_ref = reshape(output_ref, (size(output_ref)..., 1))
             end
 
             if haskey(yaml_test, "net_ps")
-                df_ps = CSV.read(joinpath(dirtest, yaml_test["net_ps"][j]), DataFrame)
-                PEtab.set_ps_net!(ps, df_ps, :net, nnmodel)
+                path_h5 = joinpath(dirtest, yaml_test["net_ps"][j])
+                PEtab.set_ps_net!(ps, path_h5, nnmodel)
             end
 
             if haskey(yaml_test, "dropout")
