@@ -20,22 +20,41 @@ function _get_petab_paths(path_yaml::AbstractString)::Dict{Symbol, String}
         throw(PEtabFileError("yaml file $(path_yaml) does not exist"))
     end
     yaml_file = YAML.load_file(path_yaml)
+    version = yaml_file["format_version"]
+    @assert version in [1, 2] "Incorrect PEtab version in yaml file"
     dirmodel = dirname(path_yaml)
+    if version == 1
+        return _parse_yaml_v1(yaml_file, dirmodel)
+    else
+        return _parse_yaml_v2(yaml_file, dirmodel)
+    end
+end
+
+function _parse_yaml_v1(yaml_file, dirmodel::String)::Dict{Symbol, String}
     dirjulia = joinpath(dirmodel, "Julia_model_files")
     path_SBML = _get_path(yaml_file, dirmodel, "sbml_files")
     path_measurements = _get_path(yaml_file, dirmodel, "measurement_files")
     path_observables = _get_path(yaml_file, dirmodel, "observable_files")
     path_conditions = _get_path(yaml_file, dirmodel, "condition_files")
     path_parameters = _get_path(yaml_file, dirmodel, "parameter_file")
-    paths = Dict(:SBML => path_SBML, :parameters => path_parameters,
-                 :conditions => path_conditions, :observables => path_observables,
-                 :measurements => path_measurements, :dirmodel => dirmodel,
-                 :dirjulia => dirjulia)
-    path_mapping = _get_path(yaml_file, dirmodel, "mapping_tables")
-    if !isempty(path_mapping)
-        paths[:mapping_table] = path_mapping
-    end
-    return paths
+    return Dict(:SBML => path_SBML, :parameters => path_parameters,
+                :conditions => path_conditions, :observables => path_observables,
+                :measurements => path_measurements, :dirmodel => dirmodel,
+                :dirjulia => dirjulia)
+end
+
+function _parse_yaml_v2(yaml_file, dirmodel::String)::Dict{Symbol, String}
+    dirjulia = joinpath(dirmodel, "Julia_model_files")
+    path_SBML = _get_path(yaml_file, dirmodel, "sbml_files")
+    path_measurements = _get_path(yaml_file, dirmodel, "measurement_files")
+    path_observables = _get_path(yaml_file, dirmodel, "observable_files")
+    path_conditions = _get_path(yaml_file, dirmodel, "condition_files")
+    path_parameters = _get_path(yaml_file, dirmodel, "parameter_file")
+    path_mapping = _get_path(yaml_file, dirmodel, "mapping_files")
+    return Dict(:SBML => path_SBML, :parameters => path_parameters,
+                :conditions => path_conditions, :observables => path_observables,
+                :measurements => path_measurements, :dirmodel => dirmodel,
+                :dirjulia => dirjulia, :mapping_table => path_mapping)
 end
 
 function _read_table(path::String, file::Symbol)::DataFrame
@@ -45,14 +64,13 @@ function _read_table(path::String, file::Symbol)::DataFrame
 end
 
 function _get_path(yaml_file, dirmodel::String, file::String)::String
-    if !(file in ["parameter_file", "mapping_tables"])
+    # For version 2.0 different model languges are supported
+    if file == "sbml_files" && haskey(yaml_file["problems"][1], "model_files")
+        model_info = yaml_file["problems"][1]["model_files"]
+        @assert model_info["language"] == "sbml" "Only SBML models are supported"
+        path = joinpath(dirmodel, model_info["location"])
+    elseif file != "parameter_file"
         path = joinpath(dirmodel, yaml_file["problems"][1][file][1])
-    elseif file == "mapping_tables"
-        if !haskey(yaml_file["problems"][1], "mapping_tables")
-            path = ""
-        else
-            path = joinpath(dirmodel, yaml_file["problems"][1][file])
-        end
     else
         path = joinpath(dirmodel, yaml_file[file])
     end

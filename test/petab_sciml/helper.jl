@@ -20,52 +20,46 @@ function get_mechanistic_ids(model_info::PEtab.ModelInfo)::Vector{Symbol}
     return mechanistic_ids
 end
 
-function get_x_nn(test_case::String, petab_prob::PEtabODEProblem)
-    path_ps_net = joinpath(@__DIR__, "test_cases", test_case, "petab", "parameters_nn.tsv")
-    df_ps_net = CSV.read(path_ps_net, DataFrame)
-    x = get_x(petab_prob)
-    model = petab_prob.model_info.model
-    for netid in keys(model.nnmodels)
-        pid = Symbol("p_$(netid)")
-        PEtab.set_ps_net!((@view x[pid]), df_ps_net, netid, model.nnmodels[netid].nn)
-    end
-    return x
-end
-
 function test_model(test_case, petab_prob::PEtabODEProblem)
     @unpack split_over_conditions, gradient_method = petab_prob.probinfo
     @info "Case $(test_case) and gradient method $(gradient_method) and split = $(split_over_conditions)"
     # Reference values
-    test_dir = joinpath(@__DIR__, "test_cases", test_case)
-    path_solutions = joinpath(test_dir, "solutions.yaml")
+    dirtest = joinpath(@__DIR__, "test_cases", test_case)
+    path_solutions = joinpath(dirtest, "solutions.yaml")
     yamlfile = YAML.load_file(path_solutions)
     llh_ref, tol_llh = yamlfile["llh"], yamlfile["tol_llh"]
-    gradfile, tol_grad = yamlfile["grad_llh_files"][1], yamlfile["tol_grad_llh"]
-    grad_ref = CSV.read(joinpath(test_dir, gradfile), DataFrame)
+    tol_grad = yamlfile["tol_grad_llh"]
+    gradfile_mech = yamlfile["grad_llh_files"]["mech"]
+    gradmech_ref = CSV.read(joinpath(dirtest, gradfile_mech), DataFrame)
     simfile, tol_sim = yamlfile["simulation_files"][1], yamlfile["tol_simulations"]
-    simref = CSV.read(joinpath(test_dir, simfile), DataFrame)
+    simref = CSV.read(joinpath(dirtest, simfile), DataFrame)
+
+    # Get Parameter values
+    x = get_x(petab_prob)
+    for (netid, nninfo) in petab_prob.model_info.model.nnmodels
+        path_h5 = joinpath(dirtest, "petab", "$(netid)_ps.hf5")
+        PEtab.set_ps_net!((@view x[netid]), path_h5, nninfo.nn)
+    end
 
     # PEtab problem values
-    x = get_x_nn(test_case, petab_prob)
     llh_petab = petab_prob.nllh(x) * -1
     grad_petab = petab_prob.grad(x) .* -1
     sim_petab = petab_prob.simulated_values(x)
-
     @test llh_petab ≈ llh_ref atol=tol_llh
     @test all(.≈(sim_petab, simref.simulation; atol=tol_sim))
     # Mechanistic parameters in gradient
     mechids = get_mechanistic_ids(petab_prob.model_info)
     for id in mechids
-        iref = findfirst(x -> string(x) == "$id", grad_ref[!, :parameterId])
-        @test grad_petab[id] ≈ grad_ref[iref, :value] atol=tol_grad
+        iref = findfirst(x -> string(x) == "$id", gradmech_ref[!, :parameterId])
+        @test grad_petab[id] ≈ gradmech_ref[iref, :value] atol=tol_grad
     end
     # Neural-net parameters
-    for nid in keys(petab_prob.model_info.model.nnmodels)
-        pid = Symbol("p_$nid")
-        for layer_id in keys(grad_petab[pid])
-            iref = findall(startswith.(string.(grad_ref[!, :parameterId]), "$(nid)_$(layer_id)"))
-            @test all(.≈(grad_petab[pid][layer_id], grad_ref[iref, :value]; atol=tol_grad))
-        end
+    for (netid, nninfo) in petab_prob.model_info.model.nnmodels
+        grad_test = grad_petab[netid]
+        path_ref = joinpath(dirtest, yamlfile["grad_llh_files"][string(netid)])
+        grad_ref = deepcopy(grad_test)
+        PEtab.set_ps_net!(grad_ref, path_ref, nninfo.nn)
+        @test all(.≈(grad_test, grad_ref; atol=tol_grad))
     end
     return nothing
 end

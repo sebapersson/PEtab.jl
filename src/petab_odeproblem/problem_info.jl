@@ -35,32 +35,8 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
 
     _logging(:Build_ODEProblem, verbose)
     btime = @elapsed begin
-        _set_const_parameters!(model, model_info.petab_parameters)
-        @unpack sys_mutated, speciemap, parametermap, defined_in_julia = model
-        if sys_mutated isa ODESystem && defined_in_julia == false
-            SL = specialize_level
-            # If speciemap contains a symbolic value, with MTKv9.48 p can no longer
-            # downstream be a Vector anymore. As PEtab.jl has its own u0 function it uses
-            # there is not problem with using a numerical value only speciemap
-            _u0 = first.(speciemap) .=> 0.0
-            _oprob = ODEProblem{true, SL}(sys_mutated, _u0, [0.0, 5e3], parametermap;
-                                          jac = true, sparse = sparse_jacobian_use)
-        else
-            # For ReactionSystem there is bug if I try to set specialize_level. Also,
-            # speciemap must somehow be a vector. TODO: Test with MTKv9
-            u0map_tmp = zeros(Float64, length(model.speciemap))
-            _oprob = ODEProblem(sys_mutated, u0map_tmp, [0.0, 5e3], parametermap;
-                                jac = true, sparse = sparse_jacobian_use)
-        end
-        # Ensure correct types for further computations. Long-term we plan to here
-        # transition to the SciMLStructures interface, but that has to wait for
-        # SciMLSensitivity
-        if _oprob.p isa ModelingToolkit.MTKParameters
-            _p = _oprob.p.tunable .|> Float64
-            oprob = remake(_oprob, p = _p, u0 = Float64.(_oprob.u0))
-        else
-            oprob = remake(_oprob, p = Float64.(_oprob.p), u0 = Float64.(_oprob.u0))
-        end
+        oprob = _get_odeproblem(model.sys_mutated, model, model_info, specialize_level,
+                                sparse_jacobian_use)
         oprob_gradient = _get_odeproblem_gradient(oprob, gradient_method_use, sensealg_use)
     end
     _logging(:Build_ODEProblem, verbose; time = btime)
@@ -132,10 +108,10 @@ function _get_f_nns_preode(model_info::ModelInfo, cache::PEtabODEProblemCache)::
     f_nns_preode = Dict{Symbol, Dict{Symbol, NNPreODE}}()
     for (cid, maps_nn) in model_info.xindices.maps_nn_preode
         f_nn_preode = Dict{Symbol, NNPreODE}()
-        for (pid, map_nn) in maps_nn
+        for (netid, map_nn) in maps_nn
             @unpack ninputs, noutputs = map_nn
-            nnmodel = model_info.model.nnmodels[Symbol(string(pid)[3:end])]
-            pnn = cache.xnn[pid]
+            nnmodel = model_info.model.nnmodels[netid]
+            pnn = cache.xnn[netid]
             inputs = DiffCache(zeros(Float64, ninputs), levels = 2)
             outputs = DiffCache(zeros(Float64, noutputs), levels = 2)
             compute_nn! = let nnmodel = nnmodel, map_nn = map_nn, inputs = inputs, pnn = pnn
@@ -163,7 +139,7 @@ function _get_f_nns_preode(model_info::ModelInfo, cache::PEtabODEProblemCache)::
             nx = length(get_tmp(pnn, 1.0)) + map_nn.nxdynamic_inputs
             xarg = DiffCache(zeros(Float64, nx), levels = 2)
             jac_nn = zeros(Float64, noutputs, nx)
-            f_nn_preode[pid] = NNPreODE(compute_nn!, tape, jac_nn, outputs, inputs, xarg, [false])
+            f_nn_preode[netid] = NNPreODE(compute_nn!, tape, jac_nn, outputs, inputs, xarg, [false])
         end
         f_nns_preode[cid] = f_nn_preode
     end

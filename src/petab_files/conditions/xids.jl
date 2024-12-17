@@ -93,7 +93,7 @@ end
 function _get_xids_nn_preode_output(mapping_table::DataFrame, xids_sys::Vector{Symbol})::Vector{Symbol}
     out = Symbol[]
     for i in 1:nrow(mapping_table)
-        io_value = mapping_table[i, :ioValue]
+        io_value = mapping_table[i, "petab.PETAB_ENTITY_ID"]
         io_value ∉ xids_sys && continue
         if io_value in out
             throw(PEtabInputError("Only one neural network output can map to paramter \
@@ -144,7 +144,7 @@ function _get_xids_condition(sys, petab_parameters::PEtabParameters, conditions_
     species_sys = _get_state_ids(sys)
     net_inputs = String[]
     if !isempty(mapping_table)
-        for netid in unique(mapping_table[!, :netId])
+        for netid in Symbol.(unique(_get_netids(mapping_table)))
             _net_inputs = _get_net_values(mapping_table, netid, :inputs) .|> string
             net_inputs = vcat(net_inputs, _net_inputs)
         end
@@ -178,7 +178,7 @@ end
 
 function _get_xids_nn(nnmodels::Union{Nothing, Dict{Symbol, <:NNModel}})::Vector{Symbol}
     isnothing(nnmodels) && return Symbol[]
-    return ("p_" .* string.(collect(keys(nnmodels)))) .|> Symbol
+    return collect(keys(nnmodels)) .|> Symbol
 end
 
 function _get_xids_nn_in_ode(xids_nn::Vector{Symbol}, sys)::Vector{Symbol}
@@ -195,10 +195,10 @@ function _get_xids_nn_preode(mapping_table::DataFrame, sys::ModelSystem)::Vector
     isempty(mapping_table) && return Symbol[]
     xids_sys = _get_xids_sys(sys)
     out = Symbol[]
-    for netid in Symbol.(unique(mapping_table[!, :netId]))
+    for netid in Symbol.(unique(_get_netids(mapping_table)))
         outputs = _get_net_values(mapping_table, Symbol(netid), :outputs) .|> Symbol
         if all([output in xids_sys for output in outputs])
-            push!(out, Symbol("p_$netid"))
+            push!(out, netid)
         end
     end
     return out
@@ -216,7 +216,7 @@ end
 function _get_xids_nn_input_est(mapping_table::DataFrame, conditions_df::DataFrame, petab_parameters::PEtabParameters, sys::ModelSystem, nnmodels::Dict{Symbol, <:NNModel})::Vector{Symbol}
     isempty(mapping_table) && return Symbol[]
     out = Symbol[]
-    for netid in Symbol.(unique(mapping_table[!, :netId]))
+    for netid in Symbol.(unique(_get_netids(mapping_table)))
         inputs = _get_net_values(mapping_table, netid, :inputs) .|> Symbol
         input_variables = _get_nn_input_variables(inputs, netid, nnmodels[netid], conditions_df, petab_parameters, sys)
         for input_variable in input_variables

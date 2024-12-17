@@ -13,6 +13,7 @@ using ForwardDiff
 using ReverseDiff
 using DiffEqCallbacks
 using Distributed
+using HDF5
 using SBMLImporter
 using StatsBase
 using Sundials
@@ -130,7 +131,7 @@ function _setup_nnmodels end
 function _get_pnns end
 function _get_nn_initialparameters end
 function set_ps_net! end
-function _df_to_array end
+function _reshape_io_data end
 function NNModel end
 function parse_to_lux end
 function _reshape_array end

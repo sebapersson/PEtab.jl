@@ -6,15 +6,17 @@ function _get_f_nn_preode_x(nnpre::NNPreODE, xdynamic_mech::AbstractVector, pnn:
 end
 
 function _get_net_values(mapping_table::DataFrame, netid::Symbol, type::Symbol)::Vector{String}
-    dfnet = mapping_table[Symbol.(mapping_table[!, :netId]) .== netid, :]
+    entity_col = string.(mapping_table[!, "petab.MODEL_ENTITY_ID"])
     if type == :outputs
-        dfvals = dfnet[startswith.(string.(dfnet[!, :ioId]), "output"), :]
+        idf = startswith.(entity_col, "$(netid).output")
     elseif type == :inputs
-        dfvals = dfnet[startswith.(string.(dfnet[!, :ioId]), "input"), :]
+        idf = startswith.(entity_col, "$(netid).input")
     end
+    df = mapping_table[idf, :]
     # Sort to get inputs in order output1, output2, ...
-    is = sortperm(string.(dfvals[!, :ioId]), by = x -> parse(Int, match(r"\d+$", x).match))
-    return dfvals[is, :ioValue] .|> string
+    is = sortperm(string.(df[!, "petab.MODEL_ENTITY_ID"]),
+                  by = x -> parse(Int, match(r"\d+$", x).match))
+    return string.(df[is, "petab.PETAB_ENTITY_ID"])
 end
 
 function _get_nn_input_variables(inputs::Vector{Symbol}, netid::Symbol, nnmodel::NNModel, conditions_df::DataFrame, petab_parameters::PEtabParameters, sys::ModelSystem; keep_numbers::Bool = false)::Vector{Symbol}
@@ -75,9 +77,15 @@ function _get_n_net_parameters(nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing}
     isnothing(nnmodels) && return 0
     nparameters = 0
     for xid in xids
-        netid = string(xid)[3:end] |> Symbol
-        !haskey(nnmodels, netid) && continue
-        nparameters += _get_n_net_parameters(nnmodels[netid])
+        !haskey(nnmodels, xid) && continue
+        nparameters += _get_n_net_parameters(nnmodels[xid])
     end
     return nparameters
+end
+
+function _get_netids(mapping_table::DataFrame)::Vector{String}
+    isempty(mapping_table) && return String[]
+    return split.(string.(mapping_table[!, "petab.MODEL_ENTITY_ID"]), ".") .|>
+        first .|>
+        string
 end

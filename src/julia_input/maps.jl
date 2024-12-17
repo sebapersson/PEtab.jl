@@ -23,7 +23,7 @@ function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, mapping_tabl
     condition_variables = names(conditions_df)
     net_outputs = String[]
     if !isempty(mapping_table)
-        for netid in Symbol.(unique(mapping_table[!, :netId]))
+        for netid in Symbol.(unique(_get_netids(mapping_table)))
             net_outputs = vcat(net_outputs, _get_net_values(mapping_table, netid, :outputs))
         end
         for net_output in net_outputs
@@ -42,8 +42,8 @@ function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, mapping_tabl
         # Rename output in the mapping table, to have the neural-net map to the
         # initial-value parameter instead
         if variable in net_outputs
-            ix = findall(x -> x == variable, mapping_table[!, :ioValue])
-            mapping_table[ix, :ioValue] .= pid
+            ix = findall(x -> x == variable, mapping_table[!, "petab.PETAB_ENTITY_ID"])
+            mapping_table[ix, "petab.PETAB_ENTITY_ID"] .= pid
         end
     end
 

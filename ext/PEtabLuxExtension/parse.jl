@@ -2,15 +2,15 @@ function PEtab.load_nnmodels(path_yaml::String)::Dict{Symbol, <:PEtab.NNModel}
     yaml_file = YAML.load_file(path_yaml)
     sciml_info = yaml_file["extensions"]["petab_sciml"]
     nnmodels = Dict{Symbol, PEtab.NNModel}()
-    for _netfile in sciml_info["net_files"]
-        netfile = joinpath(dirname(path_yaml), _netfile)
-        net, netid = parse_to_lux(netfile)
+    for (netid, netinfo) in sciml_info
+        netfile = joinpath(dirname(path_yaml), netinfo["file"])
+        net, netid = PEtab.parse_to_lux(netfile)
         input_info, output_info = String[], String[]
-        for (id, nninfo) in sciml_info["hybridization"][netid]
+        for (id, io_info) in netinfo["hybridization"]
             if id == "input"
-                input_info = nninfo isa Vector ? nninfo : [nninfo]
+                input_info = io_info isa Vector ? io_info : [io_info]
             elseif id == "output"
-                output_info = nninfo isa Vector ? nninfo : [nninfo]
+                output_info = io_info isa Vector ? io_info : [io_info]
             end
         end
         nnmodels[Symbol(netid)] = PEtab.NNModel(net; input_info = input_info, output_info = output_info)

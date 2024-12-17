@@ -19,7 +19,7 @@ function _template_nn_in_ode(netid::Symbol, mapping_table)
     outputs_p = prod(PEtab._get_net_values(mapping_table, netid, :outputs) .* ", ")
     outputs_net = "out, st_$(netid)"
     formula = "\n\tnnmodel_$(netid) = nnmodels[:$(netid)]\n"
-    formula *= "\txnn_$(netid) = p[:p_$(netid)]\n"
+    formula *= "\txnn_$(netid) = p[:$(netid)]\n"
     formula *= "\t$(outputs_net) = nnmodel_$(netid).nn($inputs, xnn_$(netid), nnmodel_$(netid).st)\n"
     formula *= "\tnnmodel_$(netid).st = st_$(netid)\n"
     formula *= "\t$(outputs_p) = out\n\n"

@@ -162,7 +162,7 @@ end
 function _get_formulas_nn(formula, mapping_table::DataFrame, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, type::Symbol)::String
     formula_nn = ""
     isempty(mapping_table) && return formula_nn
-    for netid in unique(mapping_table[!, :netId])
+    for netid in unique(_get_netids(mapping_table))
         outputs = _get_net_values(mapping_table, Symbol(netid), :outputs)
         has_nn_output = false
         for output in outputs
@@ -181,7 +181,7 @@ function _template_nn_formula(netid::Symbol, mapping_table::DataFrame, state_ids
     inputs = _parse_formula(inputs, state_ids, xindices, model_SBML, type)
     outputs = prod(_get_net_values(mapping_table, netid, :outputs) .* ", ")
     formula = "\n\t\tnnmodel_$(netid) = nnmodels[:$(netid)]\n"
-    formula *= "\t\txnn_$(netid) = xnn[:p_$(netid)]\n"
+    formula *= "\t\txnn_$(netid) = xnn[:$(netid)]\n"
     formula *= "\t\tout, st_$(netid) = nnmodel_$(netid).nn($inputs, xnn_$(netid), nnmodel_$(netid).st)\n"
     formula *= "\t\t$(outputs) = out\n"
     formula *= "\t\tnnmodel_$(netid).st = st_$(netid)\n"

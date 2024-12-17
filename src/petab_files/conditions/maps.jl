@@ -124,7 +124,7 @@ function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_pa
                 continue
             end
 
-            if value isa Real && Symbol(variable) in mapping_table[!, :ioValue]
+            if value isa Real && Symbol(variable) in mapping_table[!, "petab.PETAB_ENTITY_ID"]
                 continue
             end
 
@@ -166,7 +166,7 @@ function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_pa
 
             # A variable can be one of the neural net inputs. The map is then built later
             # when building the input function for the NN
-            if !isempty(mapping_table) && Symbol(variable) in mapping_table[!, :ioValue]
+            if !isempty(mapping_table) && Symbol(variable) in mapping_table[!, "petab.PETAB_ENTITY_ID"]
                 continue
             end
 
@@ -188,8 +188,7 @@ function _get_nn_preode_maps(conditions_df::DataFrame, xids::Dict{Symbol, Vector
     for i in 1:nconditions
         conditionid = conditions_df[i, :conditionId] |> Symbol
         maps_nn = Dict{Symbol, NNPreODEMap}()
-        for pnnid in xids[:nn_preode]
-            netid = string(pnnid)[3:end] |> Symbol
+        for netid in xids[:nn_preode]
             outputs = _get_net_values(mapping_table, netid, :outputs) .|> Symbol
             inputs = _get_net_values(mapping_table, netid, :inputs) .|> Symbol
             input_variables = _get_nn_input_variables(inputs, netid, nnmodels[netid], DataFrame(conditions_df[i, :]), petab_parameters, sys; keep_numbers = true)
@@ -207,10 +206,12 @@ function _get_nn_preode_maps(conditions_df::DataFrame, xids::Dict{Symbol, Vector
                             input can be provided in the mapping table. This does not \
                             hold for $netid"))
                     end
-                    input_data = CSV.read(string(input_variable), DataFrame)
-                    constant_inputs = _df_to_array(input_data)
+                    # TODO: Add support for multiple inputs here
+                    input_data = h5read(string(input_variable), "input1") .|> Float64
+                    # hdf5 files are in row-major
+                    input_data = permutedims(input_data, reverse(1:ndims(input_data)))
+                    constant_inputs = _reshape_io_data(input_data)
                     # Given an input file, we need to have a batch
-                    # TODO: Add batch stuffy here
                     constant_inputs = reshape(constant_inputs, (size(constant_inputs)..., 1))
                     file_input = true
                     continue
@@ -261,7 +262,7 @@ function _get_nn_preode_maps(conditions_df::DataFrame, xids::Dict{Symbol, Vector
                     isys += 1
                 end
             end
-            maps_nn[pnnid] = NNPreODEMap(constant_inputs, iconstant_inputs, ixdynamic_mech_inputs, ixdynamic_inputs, ninputs, nxdynamic_inputs, noutputs, ix_nn_outputs, ix_outputs_grad, ix_output_sys, file_input)
+            maps_nn[netid] = NNPreODEMap(constant_inputs, iconstant_inputs, ixdynamic_mech_inputs, ixdynamic_inputs, ninputs, nxdynamic_inputs, noutputs, ix_nn_outputs, ix_outputs_grad, ix_output_sys, file_input)
         end
         maps[conditionid] = maps_nn
     end

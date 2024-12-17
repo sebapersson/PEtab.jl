@@ -41,7 +41,7 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
     xnn_dict = Dict{Symbol, ComponentArray}()
     if !isnothing(nnmodels)
         for (netid, nnmodel) in nnmodels
-            pid = Symbol("p_$netid")
+            pid = netid
             _p = _get_nn_initialparameters(nnmodel)
             xnn[pid] = DiffCache(similar(_p); levels = level_cache)
             xnn_dict[pid] = _p

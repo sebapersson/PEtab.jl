@@ -18,17 +18,17 @@ function _check_mapping_table(mapping_table::Union{DataFrame, Nothing}, nnmodels
     model_variables = Iterators.flatten((state_ids, xids_sys, petab_parameters.parameter_id))
 
     # Sanity check ioId column
-    pattern = r"^(input\d|output\d)$"
-    for io_id in string.(mapping_table[!, :ioId])
+    pattern = r"(.input\d|.output\d)$"
+    for io_id in string.(mapping_table[!, "petab.MODEL_ENTITY_ID"])
         if !occursin(pattern, io_id)
-            throw(PEtabInputError("In mapping table, in ioId column allowed values are \
-                                   only input{:digit} or output{:digit} where digit is \
-                                   the number of the input/output to the network. Not \
-                                   $io_id"))
+            throw(PEtabInputError("In mapping table, in petab.MODEL_ENTITY_ID column allowed \
+                                   values are only netid.input{:digit} or netid.output{:digit} \
+                                   where digit is the number of the input/output to the \
+                                   network. Not $io_id"))
         end
     end
     # Sanity check ioValue column (input and outputs to neural-net)
-    for netid in Symbol.(unique(mapping_table[!, :netId]))
+    for netid in unique(Symbol.(_get_netids(mapping_table)))
         if !haskey(nnmodels, netid)
             throw(PEtabInputError("Neural network id $netid provided in the mapping table \
                                    does not correspond to any Neural Network id provided \
@@ -63,7 +63,7 @@ function _check_mapping_table(mapping_table::Union{DataFrame, Nothing}, nnmodels
             continue
         end
     end
-    return DataFrame(netId = Symbol.(mapping_table[!, :netId]),
-                     ioId = Symbol.(mapping_table[!, :ioId]),
-                     ioValue = Symbol.(mapping_table[!, :ioValue]))
+    return DataFrame(
+        Dict("petab.MODEL_ENTITY_ID" => Symbol.(mapping_table[!, "petab.MODEL_ENTITY_ID"]),
+             "petab.PETAB_ENTITY_ID" => Symbol.(mapping_table[!, "petab.PETAB_ENTITY_ID"])))
 end

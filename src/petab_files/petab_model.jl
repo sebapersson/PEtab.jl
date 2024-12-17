@@ -102,7 +102,7 @@ function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::Di
     # Neural net output variables can
     net_outputs = String[]
     if !isempty(mapping_table)
-        for netid in Symbol.(unique(mapping_table[!, :netId]))
+        for netid in unique(Symbol.(_get_netids(mapping_table)))
             net_outputs = vcat(net_outputs, _get_net_values(mapping_table, netid, :outputs))
         end
         for net_output in net_outputs
@@ -136,8 +136,8 @@ function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::Di
         # Rename output in the mapping table, to have the neural-net map to the
         # initial-value parameter instead
         if condition_variable in net_outputs
-            ix = findall(x -> x == condition_variable, mapping_table[!, :ioValue])
-            mapping_table[ix, :ioValue] .= "__init__" .* sbml_variable.name .* "__"
+            ix = findall(x -> x == condition_variable, mapping_table[!, "petab.PETAB_ENTITY_ID"])
+            mapping_table[ix, "petab.PETAB_ENTITY_ID"] .= "__init__" .* sbml_variable.name .* "__"
         end
 
         # Check if any parameter in the PEtab tables maps to u0 in the conditions table,
@@ -204,7 +204,7 @@ end
 
 function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, nnmodels_in_ode::Dict, mapping_table::DataFrame, nnmodels::Dict)
     for id in keys(nnmodels_in_ode)
-        if !(string(id) in mapping_table[!, :netId])
+        if !(string(id) in _get_netids(mapping_table))
             throw(PEtab.PEtabInputError("Neural net $id defined in the net.yaml file is \
                                          is not defined in the mapping table, which it must \
                                          in order to understand how the net interacts with \
@@ -265,7 +265,8 @@ function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, nnmodels_in_ode::Di
     # Remove nn from mapping table, to later help distinguish from where a neural net
     # is provided
     for netid in keys(nnmodels_in_ode)
-        filter!(:netId => !=(string(netid)), mapping_table)
+        netids = _get_netids(mapping_table)
+        mapping_table = mapping_table[findall(x -> x != string(netid), netids), :]
     end
     return oprob, u0map, psmap
 end
