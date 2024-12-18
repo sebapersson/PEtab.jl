@@ -11,7 +11,7 @@ nn = @compact(
     @return out
 end |> f64
 dirdata = joinpath(@__DIR__, "test_cases", "015", "petab")
-nnmodels = Dict(:net1 => NNModel(nn, inputs = ["input_data.tsv"], outputs = ["gamma"],
+nnmodels = Dict(:net1 => NNModel(nn, inputs = ["input_data.hf5"], outputs = ["gamma"],
                                  dirdata = dirdata))
 
 function lv15!(du, u, p, t)
@@ -29,14 +29,14 @@ uprob = ODEProblem(lv15!, u0, (0.0, 10.0), p_mechanistic)
 p_alpha = PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3)
 p_beta = PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9)
 p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)
-p_net1 = PEtabParameter(:p_net1; scale = :lin, lb = -15.0, ub = 15.0, value = 0.0)
+p_net1 = PEtabParameter(:net1; scale = :lin, lb = -15.0, ub = 15.0, value = 0.0)
 pest = [p_alpha, p_beta, p_delta, p_net1]
 
 conds = Dict("cond1" => Dict{Symbol, Symbol}())
 
 obs_prey = PEtabObservable(:prey, 0.05)
 obs_predator = PEtabObservable(:predator, 0.05)
-obs = Dict("prey" => obs_prey, "predator" => obs_predator)
+obs = Dict("prey_o" => obs_prey, "predator_o" => obs_predator)
 
 path_m = joinpath(@__DIR__, "test_cases", test_case, "petab", "measurements.tsv")
 measurements = CSV.read(path_m, DataFrame)

@@ -26,10 +26,10 @@ nnmodels = Dict(:net1 => NNModel(nn12_1),
 
 function _lv12!(du, u, p, t, nnmodels)
     prey, predator = u
-    @unpack alpha, delta, beta, p_net1 = p
+    @unpack alpha, delta, beta = p
 
     net1 = nnmodels[:net1]
-    du1_nn, st = net1.nn([prey, predator], p_net1, net1.st)
+    du1_nn, st = net1.nn([prey, predator], p[:net1], net1.st)
     net1.st = st
 
     du[1] = alpha*prey - beta * prey * predator # prey
@@ -41,7 +41,7 @@ lv12! = let _nnmodels = nnmodels
     (du, u, p, t) -> _lv12!(du, u, p, t, _nnmodels)
 end
 p_mechanistic = (alpha = 1.3, delta = 1.8, beta = 0.9)
-p_model = ComponentArray(merge(p_mechanistic, (p_net1=pnn1,)))
+p_model = ComponentArray(merge(p_mechanistic, (net1=pnn1,)))
 u0 = ComponentArray(prey = 0.44249296, predator = 4.6280594)
 uprob = ODEProblem(lv12!, u0, (0.0, 10.0), p_model)
 
@@ -49,13 +49,13 @@ p_alpha = PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3)
 p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)
 p_input1 = PEtabParameter(:input1; scale = :lin, lb = 0.0, ub = 15.0, value = 2.0, estimate = false)
 p_input2 = PEtabParameter(:input2; scale = :lin, lb = 0.0, ub = 15.0, value = 2.0, estimate = false)
-p_net1 = PEtabParameter(:p_net1; scale = :lin, lb = -15.0, ub = 15.0, value = 0.0)
-p_net2 = PEtabParameter(:p_net2; scale = :lin, lb = -15.0, ub = 15.0, value = 0.0)
+p_net1 = PEtabParameter(:net1; scale = :lin, lb = -15.0, ub = 15.0, value = 0.0)
+p_net2 = PEtabParameter(:net2; scale = :lin, lb = -15.0, ub = 15.0, value = 0.0)
 pest = [p_alpha, p_delta, p_input1, p_input2, p_net1, p_net2]
 
 obs_prey = PEtabObservable(:prey, 0.05)
 obs_predator = PEtabObservable(:predator, 0.05)
-obs = Dict("prey" => obs_prey, "predator" => obs_predator)
+obs = Dict("prey_o" => obs_prey, "predator_o" => obs_predator)
 
 conds = Dict("cond1" => Dict{Symbol, Symbol}())
 

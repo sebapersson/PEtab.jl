@@ -30,12 +30,12 @@ p_alpha = PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3)
 p_beta = PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9)
 p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)
 p_gamma = PEtabParameter(:gamma; scale = :lin, lb = 0.0, ub = 15.0, value = 0.8)
-p_net1 = PEtabParameter(:p_net1; scale = :lin, lb = -15.0, ub = 15.0, value = 0.0)
+p_net1 = PEtabParameter(:net1; scale = :lin, lb = -15.0, ub = 15.0, value = 0.0)
 pest = [p_alpha, p_beta, p_delta, p_gamma, p_net1]
 
 obs_prey = PEtabObservable(:net1_output1, 0.05)
 obs_predator = PEtabObservable(:predator, 0.05)
-obs = Dict("prey" => obs_prey, "predator" => obs_predator)
+obs = Dict("prey_o" => obs_prey, "predator_o" => obs_predator)
 
 conds = Dict("cond1" => Dict{Symbol, Symbol}())
 

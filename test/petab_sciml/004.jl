@@ -29,7 +29,7 @@ p_beta = PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9)
 p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)
 p_input1 = PEtabParameter(:input1_cond2; scale = :lin, lb = 0.0, ub = 15.0, value = 1.0, estimate = false)
 p_input2 = PEtabParameter(:input2_cond2; scale = :lin, lb = 0.0, ub = 15.0, value = 1.0, estimate = false)
-p_net1 = PEtabParameter(:p_net1; scale = :lin, lb = -15.0, ub = 15.0, value = 0.0)
+p_net1 = PEtabParameter(:net1; scale = :lin, lb = -15.0, ub = 15.0, value = 0.0)
 pest = [p_alpha, p_beta, p_delta, p_input1, p_input2, p_net1]
 
 cond1 = Dict(:net1_input1 => 10.0, :net1_input2 => 20.0)
@@ -38,7 +38,7 @@ conds = Dict("cond1" => cond1, "cond2" => cond2)
 
 obs_prey = PEtabObservable(:prey, 0.05)
 obs_predator = PEtabObservable(:predator, 0.05)
-obs = Dict("prey" => obs_prey, "predator" => obs_predator)
+obs = Dict("prey_o" => obs_prey, "predator_o" => obs_predator)
 
 path_m = joinpath(@__DIR__, "test_cases", test_case, "petab", "measurements.tsv")
 measurements = CSV.read(path_m, DataFrame)
