@@ -6,7 +6,7 @@ function _get_f_nn_preode_x(nnpre::NNPreODE, xdynamic_mech::AbstractVector, pnn:
 end
 
 function _get_net_values(mapping_table::DataFrame, netid::Symbol, type::Symbol)::Vector{String}
-    entity_col = string.(mapping_table[!, "petab.MODEL_ENTITY_ID"])
+    entity_col = string.(mapping_table[!, "modelEntityId"])
     if type == :outputs
         idf = startswith.(entity_col, "$(netid).output")
     elseif type == :inputs
@@ -14,9 +14,9 @@ function _get_net_values(mapping_table::DataFrame, netid::Symbol, type::Symbol):
     end
     df = mapping_table[idf, :]
     # Sort to get inputs in order output1, output2, ...
-    is = sortperm(string.(df[!, "petab.MODEL_ENTITY_ID"]),
+    is = sortperm(string.(df[!, "modelEntityId"]),
                   by = x -> parse(Int, match(r"\d+$", x).match))
-    return string.(df[is, "petab.PETAB_ENTITY_ID"])
+    return string.(df[is, "petabEntityId"])
 end
 
 function _get_nn_input_variables(inputs::Vector{Symbol}, netid::Symbol, nnmodel::NNModel, conditions_df::DataFrame, petab_parameters::PEtabParameters, sys::ModelSystem; keep_numbers::Bool = false)::Vector{Symbol}
@@ -85,7 +85,7 @@ end
 
 function _get_netids(mapping_table::DataFrame)::Vector{String}
     isempty(mapping_table) && return String[]
-    return split.(string.(mapping_table[!, "petab.MODEL_ENTITY_ID"]), ".") .|>
+    return split.(string.(mapping_table[!, "modelEntityId"]), ".") .|>
         first .|>
         string
 end

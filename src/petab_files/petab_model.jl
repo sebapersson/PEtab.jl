@@ -136,8 +136,8 @@ function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::Di
         # Rename output in the mapping table, to have the neural-net map to the
         # initial-value parameter instead
         if condition_variable in net_outputs
-            ix = findall(x -> x == condition_variable, mapping_table[!, "petab.PETAB_ENTITY_ID"])
-            mapping_table[ix, "petab.PETAB_ENTITY_ID"] .= "__init__" .* sbml_variable.name .* "__"
+            ix = findall(x -> x == condition_variable, mapping_table[!, "petabEntityId"])
+            mapping_table[ix, "petabEntityId"] .= "__init__" .* sbml_variable.name .* "__"
         end
 
         # Check if any parameter in the PEtab tables maps to u0 in the conditions table,

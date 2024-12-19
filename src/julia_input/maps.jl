@@ -42,8 +42,8 @@ function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, mapping_tabl
         # Rename output in the mapping table, to have the neural-net map to the
         # initial-value parameter instead
         if variable in net_outputs
-            ix = findall(x -> x == variable, mapping_table[!, "petab.PETAB_ENTITY_ID"])
-            mapping_table[ix, "petab.PETAB_ENTITY_ID"] .= pid
+            ix = findall(x -> x == variable, mapping_table[!, "petabEntityId"])
+            mapping_table[ix, "petabEntityId"] .= pid
         end
     end
 

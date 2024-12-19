@@ -145,14 +145,14 @@ function _mapping_to_table(nnmodels::Dict{Symbol, <:NNModel})::DataFrame
     for (netid, nnmodel) in nnmodels
         for (i, io_value) in pairs(nnmodel.inputs)
             dftmp = DataFrame(Dict(
-                "petab.MODEL_ENTITY_ID" => "$(netid).input$i",
-                "petab.PETAB_ENTITY_ID" => string(io_value)))
+                "modelEntityId" => "$(netid).input$i",
+                "petabEntityId" => string(io_value)))
             df_mapping = vcat(df_mapping, dftmp)
         end
         for (i, io_value) in pairs(nnmodel.outputs)
             dftmp = DataFrame(Dict(
-                "petab.MODEL_ENTITY_ID" => "$(netid).output$i",
-                "petab.PETAB_ENTITY_ID" => string(io_value)))
+                "modelEntityId" => "$(netid).output$i",
+                "petabEntityId" => string(io_value)))
             df_mapping = vcat(df_mapping, dftmp)
         end
     end

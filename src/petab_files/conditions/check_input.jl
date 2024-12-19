@@ -19,9 +19,9 @@ function _check_mapping_table(mapping_table::Union{DataFrame, Nothing}, nnmodels
 
     # Sanity check ioId column
     pattern = r"(.input\d|.output\d)$"
-    for io_id in string.(mapping_table[!, "petab.MODEL_ENTITY_ID"])
+    for io_id in string.(mapping_table[!, "modelEntityId"])
         if !occursin(pattern, io_id)
-            throw(PEtabInputError("In mapping table, in petab.MODEL_ENTITY_ID column allowed \
+            throw(PEtabInputError("In mapping table, in modelEntityId column allowed \
                                    values are only netid.input{:digit} or netid.output{:digit} \
                                    where digit is the number of the input/output to the \
                                    network. Not $io_id"))
@@ -64,6 +64,6 @@ function _check_mapping_table(mapping_table::Union{DataFrame, Nothing}, nnmodels
         end
     end
     return DataFrame(
-        Dict("petab.MODEL_ENTITY_ID" => Symbol.(mapping_table[!, "petab.MODEL_ENTITY_ID"]),
-             "petab.PETAB_ENTITY_ID" => Symbol.(mapping_table[!, "petab.PETAB_ENTITY_ID"])))
+        Dict("modelEntityId" => Symbol.(mapping_table[!, "modelEntityId"]),
+             "petabEntityId" => Symbol.(mapping_table[!, "petabEntityId"])))
 end

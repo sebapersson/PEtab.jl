@@ -93,7 +93,7 @@ end
 function _get_xids_nn_preode_output(mapping_table::DataFrame, xids_sys::Vector{Symbol})::Vector{Symbol}
     out = Symbol[]
     for i in 1:nrow(mapping_table)
-        io_value = mapping_table[i, "petab.PETAB_ENTITY_ID"]
+        io_value = mapping_table[i, "petabEntityId"]
         io_value ∉ xids_sys && continue
         if io_value in out
             throw(PEtabInputError("Only one neural network output can map to paramter \

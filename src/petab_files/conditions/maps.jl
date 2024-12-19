@@ -124,7 +124,7 @@ function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_pa
                 continue
             end
 
-            if value isa Real && Symbol(variable) in mapping_table[!, "petab.PETAB_ENTITY_ID"]
+            if value isa Real && Symbol(variable) in mapping_table[!, "petabEntityId"]
                 continue
             end
 
@@ -166,7 +166,7 @@ function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_pa
 
             # A variable can be one of the neural net inputs. The map is then built later
             # when building the input function for the NN
-            if !isempty(mapping_table) && Symbol(variable) in mapping_table[!, "petab.PETAB_ENTITY_ID"]
+            if !isempty(mapping_table) && Symbol(variable) in mapping_table[!, "petabEntityId"]
                 continue
             end
 
