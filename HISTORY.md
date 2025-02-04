@@ -1,5 +1,9 @@
 # Breaking updates and feature summaries across releases
 
+## PEtab 3.6.0
+
+Update petab-select to version 0.3. This only changes internals, the user interface for PEtab-select remains unchanged.
+
 ## PEtab 3.5.0
 
 Add `log2` transformation for parameters and observable transformations.
