@@ -64,6 +64,6 @@ function _check_mapping_table(mapping_table::Union{DataFrame, Nothing}, nnmodels
         end
     end
     return DataFrame(
-        Dict("modelEntityId" => Symbol.(mapping_table[!, "modelEntityId"]),
-             "petabEntityId" => Symbol.(mapping_table[!, "petabEntityId"])))
+        Dict("petabEntityId" => Symbol.(mapping_table[!, "petabEntityId"]),
+             "modelEntityId" => Symbol.(mapping_table[!, "modelEntityId"])))
 end

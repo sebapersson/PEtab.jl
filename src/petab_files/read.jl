@@ -66,7 +66,8 @@ end
 function _get_path(yaml_file, dirmodel::String, file::String)::String
     # For version 2.0 different model languges are supported
     if file == "sbml_files" && haskey(yaml_file["problems"][1], "model_files")
-        model_info = yaml_file["problems"][1]["model_files"]
+        key = collect(keys(yaml_file["problems"][1]["model_files"]))[1]
+        model_info = yaml_file["problems"][1]["model_files"][key]
         @assert model_info["language"] == "sbml" "Only SBML models are supported"
         path = joinpath(dirmodel, model_info["location"])
     elseif file != "parameter_file"

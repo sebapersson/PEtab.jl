@@ -48,7 +48,7 @@ const OBSERVABLES_COLS = Dict("observableId" => (required = true, types = Abstra
 
 const MAPPING_COLS = Dict("modelEntityId" => (required = true, types = AbstractString),
                           "petabEntityId" => (required = true,
-                                                      types = Union{AbstractString, Real}))
+                                              types = Union{AbstractString, Real}))
 
 const VALID_SCALES = ["lin", "log10", "log", "log2"]
 
