@@ -13,10 +13,6 @@ function PEtab.petab_select(path_yaml::String, alg; options = nothing,
                             split_over_conditions::Bool = false)
     py"""
     import petab_select
-    import math
-
-    def get_model_to_test_info(model):
-        return (model.model_subspace_id, model.parameters)
 
     def get_select_problem(path_yaml):
         return petab_select.Problem.from_yaml(path_yaml)
@@ -62,12 +58,12 @@ function PEtab.petab_select(path_yaml::String, alg; options = nothing,
 
     """
 
-    function _calibrate_candidate(model, select_problem, _prob::PEtabODEProblem,
+    function _calibrate_candidate(model, select_problem, petab_prob::PEtabODEProblem,
                                   nmultistarts::Integer)::Nothing
-        subspace_id, _subspace_parameters = py"get_model_to_test_info"(model)
+        subspace_id, _subspace_parameters = py"get_model_info"(model)
         subspace_parameters = Dict(Symbol(k) => v for (k, v) in pairs(_subspace_parameters))
         @info "Callibrating model $subspace_id"
-        prob = PEtab.remake(_prob, subspace_parameters)
+        prob = PEtab.remake(petab_prob, subspace_parameters)
         if isnothing(options)
             res = PEtab.calibrate_multistart(prob, alg, nmultistarts;
                                              sampling_method = sampling_method)
@@ -80,10 +76,10 @@ function PEtab.petab_select(path_yaml::String, alg; options = nothing,
         return nothing
     end
 
-    function calibrate_candidates(iteration, select_problem, _prob::PEtabODEProblem,
+    function calibrate_candidates(iteration, select_problem, petab_prob::PEtabODEProblem,
                                   nmultistarts::Integer)::Nothing
         for model in iteration[py"petab_select.constants.UNCALIBRATED_MODELS"]
-            _calibrate_candidate(model, select_problem, _prob, nmultistarts)
+            _calibrate_candidate(model, select_problem, petab_prob, nmultistarts)
         end
         return nothing
     end
@@ -100,17 +96,20 @@ function PEtab.petab_select(path_yaml::String, alg; options = nothing,
     xchange = propertynames(model_space_file)[3:end]
     custom_values = Dict()
     [custom_values[xchange[i]] = "estimate" for i in eachindex(xchange)]
-    _model = PEtabModel(joinpath(dirmodel, model_space_file[1, :model_subspace_petab_yaml]),
-                        build_julia_files = true, verbose = false, write_to_file = false)
-    _prob = PEtabODEProblem(_model; odesolver = odesolver, ss_solver = ss_solver,
-                            odesolver_gradient = odesolver_gradient, sensealg = sensealg,
-                            ss_solver_gradient = ss_solver_gradient, chunksize = chunksize,
-                            gradient_method = gradient_method, sensealg_ss = sensealg_ss,
-                            hessian_method = hessian_method, verbose = false,
-                            sparse_jacobian = sparse_jacobian,
-                            split_over_conditions = split_over_conditions,
-                            reuse_sensitivities = reuse_sensitivities,
-                            custom_values = custom_values)
+    petab_model = PEtabModel(joinpath(dirmodel,
+                                      model_space_file[1, :model_subspace_petab_yaml]),
+                             build_julia_files = true, verbose = false,
+                             write_to_file = false)
+    petab_prob = PEtabODEProblem(petab_model; odesolver = odesolver, ss_solver = ss_solver,
+                                 odesolver_gradient = odesolver_gradient,
+                                 sensealg = sensealg,
+                                 ss_solver_gradient = ss_solver_gradient,
+                                 chunksize = chunksize, gradient_method = gradient_method,
+                                 sensealg_ss = sensealg_ss, hessian_method = hessian_method,
+                                 verbose = false, sparse_jacobian = sparse_jacobian,
+                                 split_over_conditions = split_over_conditions,
+                                 reuse_sensitivities = reuse_sensitivities,
+                                 custom_values = custom_values)
 
     select_problem = py"get_select_problem"(path_yaml)
     str_write = @sprintf("PEtab select problem info\nMethod: %s\nCriterion: %s\n",
@@ -132,7 +131,7 @@ function PEtab.petab_select(path_yaml::String, alg; options = nothing,
             ncandidates = py"get_ncandidates"(iteration)
             ncandidates != 0 && @info "Round $k with $ncandidates candidates"
         end
-        calibrate_candidates(iteration, select_problem, _prob, nmultistarts)
+        calibrate_candidates(iteration, select_problem, petab_prob, nmultistarts)
         iteration_results = py"get_iteration_results"(select_problem, iteration)
         ncandidates = py"get_ncandidates"(iteration)
         k += 1
