@@ -1,18 +1,19 @@
-criteria:
-  BIC: -6.383646149270872
-  NLLH: -4.087702809249463
-estimated_parameters:
-  sigma_x2: 0.12245324237132274
-model_hash: a56fafb3d43e25d3231e6f77d6b62e816bce3010fd0913fba51b67c35c9c281f77e8ffeb504e429c36b65e42c7f8617e6ea57d0a9ba416736e4ee60db9592056
-model_id: a56fafb3d43e25d3231e6f77d6b62e816bce3010fd0913fba51b67c35c9c281f77e8ffeb504e429c36b65e42c7f8617e6ea57d0a9ba416736e4ee60db9592056
 model_subspace_id: M1
 model_subspace_indices:
 - 1
 - 1
 - 0
+criteria:
+  NLLH: -4.0877027520227704
+  BIC: -6.383646034817486
+model_hash: M1-110
+model_subspace_petab_yaml: ../0001/petab/petab_problem.yaml
+estimated_parameters:
+  sigma_x2: 0.12242924701706556
+iteration: 1
+model_id: M1-110
 parameters:
   k1: 0.2
   k2: 0.1
   k3: 0
-petab_yaml: ../0001/petab/petab_problem.yaml
-predecessor_model_hash: null
+predecessor_model_hash: virtual_initial_model-

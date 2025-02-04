@@ -2,7 +2,7 @@
     PEtab-select test-suite (except the very long time to run Blasi model)
 =#
 
-using PEtab, Optim, PyCall, YAML, Test
+using PEtab, Optim, PyCall, YAML, Test, OrdinaryDiffEqRosenbrock
 
 @testset "PEtab-select" begin
     path_yaml = joinpath(@__DIR__, "petab_select", "0001", "petab_select_problem.yaml")
@@ -24,7 +24,8 @@ using PEtab, Optim, PyCall, YAML, Test
 
     path_yaml = joinpath(@__DIR__, "petab_select", "0003", "petab_select_problem.yaml")
     path_exepected = joinpath(@__DIR__, "petab_select", "0003", "expected.yaml")
-    path_save = petab_select(path_yaml, Fides(nothing), nmultistarts=10)
+    path_save = petab_select(path_yaml, Fides(nothing), nmultistarts=10;
+                             odesolver = ODESolver(Rodas5P(); verbose = false))
     expected_res = YAML.load_file(path_exepected)
     data_res = YAML.load_file(path_save)
     @test expected_res["criteria"]["NLLH"] ≈ data_res["criteria"]["NLLH"] atol=1e-3

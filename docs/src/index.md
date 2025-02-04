@@ -33,7 +33,7 @@ or alternatively
 julia> using Pkg; Pkg.add("PEtab")
 ```
 
-PEtab is compatible with Julia version 1.9 and above. For best performance we strongly recommend using the latest Julia version, which most easily can be installed with [juliaup](https://github.com/JuliaLang/juliaup).
+PEtab is compatible with Julia version 1.10 and above. For best performance we strongly recommend using the latest Julia version, which most easily can be installed with [juliaup](https://github.com/JuliaLang/juliaup).
 
 ## Getting help
 
