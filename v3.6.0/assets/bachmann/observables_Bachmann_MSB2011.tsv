@@ -1,0 +1,21 @@
+observableId	observableName	observableFormula	noiseFormula	observableTransformation	noiseDistribution
+observable_CISRNA_foldA		CISRNA * observableParameter1_observable_CISRNA_foldA / CISRNAEqc + 1	noiseParameter1_observable_CISRNA_foldA	log10	normal
+observable_CISRNA_foldB		CISRNA * observableParameter1_observable_CISRNA_foldB / CISRNAEqc + 1	noiseParameter1_observable_CISRNA_foldB	log10	normal
+observable_CISRNA_foldC		CISRNA * observableParameter1_observable_CISRNA_foldC / CISRNAEqc + 1	noiseParameter1_observable_CISRNA_foldC	log10	normal
+observable_CIS_abs		CIS	noiseParameter1_observable_CIS_abs	log10	normal
+observable_CIS_au		observableParameter1_observable_CIS_au + CIS * observableParameter2_observable_CIS_au / CISEqc	noiseParameter1_observable_CIS_au	log10	normal
+observable_CIS_au1		CIS * observableParameter1_observable_CIS_au1 / CISEqc	noiseParameter1_observable_CIS_au1	log10	normal
+observable_CIS_au2		CIS * observableParameter1_observable_CIS_au2 / CISEqc	noiseParameter1_observable_CIS_au2	log10	normal
+observable_SHP1_abs		SHP1 + SHP1Act	noiseParameter1_observable_SHP1_abs	log10	normal
+observable_SOCS3RNA_foldA		SOCS3RNA * observableParameter1_observable_SOCS3RNA_foldA / SOCS3RNAEqc + 1	noiseParameter1_observable_SOCS3RNA_foldA	log10	normal
+observable_SOCS3RNA_foldB		SOCS3RNA * observableParameter1_observable_SOCS3RNA_foldB / SOCS3RNAEqc + 1	noiseParameter1_observable_SOCS3RNA_foldB	log10	normal
+observable_SOCS3RNA_foldC		SOCS3RNA * observableParameter1_observable_SOCS3RNA_foldC / SOCS3RNAEqc + 1	noiseParameter1_observable_SOCS3RNA_foldC	log10	normal
+observable_SOCS3_abs		SOCS3	noiseParameter1_observable_SOCS3_abs	log10	normal
+observable_SOCS3_au		observableParameter1_observable_SOCS3_au + SOCS3 * observableParameter2_observable_SOCS3_au / SOCS3Eqc	noiseParameter1_observable_SOCS3_au	log10	normal
+observable_STAT5_abs		STAT5	noiseParameter1_observable_STAT5_abs	log10	normal
+observable_pEpoR_au		observableParameter1_observable_pEpoR_au + observableParameter2_observable_pEpoR_au * (16 * p12EpoRpJAK2 + 16 * p1EpoRpJAK2 + 16 * p2EpoRpJAK2) / init_EpoRJAK2	noiseParameter1_observable_pEpoR_au	log10	normal
+observable_pJAK2_au		observableParameter1_observable_pJAK2_au + observableParameter2_observable_pJAK2_au * (2 * EpoRpJAK2 + 2 * p12EpoRpJAK2 + 2 * p1EpoRpJAK2 + 2 * p2EpoRpJAK2) / init_EpoRJAK2	noiseParameter1_observable_pJAK2_au	log10	normal
+observable_pSTAT5B_rel		observableParameter1_observable_pSTAT5B_rel + 100 * pSTAT5 / (STAT5 + pSTAT5)	noiseParameter1_observable_pSTAT5B_rel	lin	normal
+observable_pSTAT5_au		observableParameter1_observable_pSTAT5_au + pSTAT5 * observableParameter2_observable_pSTAT5_au / init_STAT5	noiseParameter1_observable_pSTAT5_au + noiseParameter2_observable_pSTAT5_au	log10	normal
+observable_tSHP1_au		observableParameter1_observable_tSHP1_au * (SHP1 + SHP1Act) / init_SHP1	noiseParameter1_observable_tSHP1_au	log10	normal
+observable_tSTAT5_au		observableParameter1_observable_tSTAT5_au * (STAT5 + pSTAT5) / init_STAT5	noiseParameter1_observable_tSTAT5_au	log10	normal
