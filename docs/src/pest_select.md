@@ -15,6 +15,9 @@ Pkg.build("PyCall")
 ```
 
 !!! note
+    Version >0.3 of PEtab Select must be installed.
+
+!!! note
     Model selection is currently only possible for problem in the [PEtab Select](https://github.com/PEtab-dev/petab_select) standard format. We plan to add a Julia interface.
 
 ## Model Selection Example
