@@ -1,17 +1,18 @@
-criteria:
-  AICc: 11.117195852885663
-  NLLH: 5.558597926442832
-estimated_parameters: {}
-model_hash: 55257e66db40f0afe00d8a79e7794512f9a1b784b6f3f46afda685d7da6d6b16972a126dc9ffc87194cd033d82c9899d9fb9516d085b418ba7684446943bfb09
-model_id: 55257e66db40f0afe00d8a79e7794512f9a1b784b6f3f46afda685d7da6d6b16972a126dc9ffc87194cd033d82c9899d9fb9516d085b418ba7684446943bfb09
 model_subspace_id: M1_0
 model_subspace_indices:
 - 0
 - 0
 - 0
+criteria:
+  NLLH: 5.558597930767597
+  AICc: 11.117195861535194
+model_hash: M1_0-000
+model_subspace_petab_yaml: ../0007/petab/petab_problem.yaml
+estimated_parameters: {}
+iteration: 4
+model_id: M1_0-000
 parameters:
   k1: 0.2
   k2: 0.1
   k3: 0
-petab_yaml: ../0007/petab/petab_problem.yaml
-predecessor_model_hash: e90911f79cb469da6acd814744c6440dd449cc496ef56c4221956930fe41b4b7f561e61f8051112b87042764880b8650ee3c008c5dce973a4361a99694ab254b
+predecessor_model_hash: M1_3-000

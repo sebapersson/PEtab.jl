@@ -13,80 +13,72 @@ function PEtab.petab_select(path_yaml::String, alg; options = nothing,
                             split_over_conditions::Bool = false)
     py"""
     import petab_select
-    import numpy as np
+    import math
 
     def print_model(model, select_problem) -> None:
         print(f'''\
               Model subspace ID: {model.model_subspace_id}
-              PEtab YAML location: {model.petab_yaml}
+              PEtab YAML location: {model.model_subspace_petab_yaml}
               Custom model parameters: {model.parameters}
-              Model hash: {model.get_hash()}
+              Model hash: {model.hash}
               Model ID: {model.model_id}
-              Criteria value : {model.get_criterion(select_problem.criterion, compute=False)}
-              nllh value : {model.get_criterion("NLLH", compute=False)}
-              Estimated parameters : {model.estimated_parameters}
-              ''')
-
-    def setup_tracking():
-        calibrated_models = {}
-        newly_calibrated_models = {}
-        return calibrated_models, newly_calibrated_models
-
-    def print_candidate_space(candidate_space, select_problem):
-        for candidate in candidate_space.models:
-            print_model(candidate, select_problem)
-
-    def get_number_of_candidates(candidate_space):
-        return len(candidate_space.models)
+              {select_problem.criterion}: {model.get_criterion(select_problem.criterion, compute=False)}
+              Model was calibrated in iteration: {model.iteration}''')
 
     def get_model_to_test_info(model):
-        return (model.model_subspace_id, str(model.petab_yaml), model.parameters)
+        return (model.model_subspace_id, model.parameters)
 
-    def setup_petab_select(path_yaml):
-        select_problem = petab_select.Problem.from_yaml(path_yaml)
-        return select_problem
+    def get_select_problem(path_yaml):
+        return petab_select.Problem.from_yaml(path_yaml)
 
-    def create_candidate_space(select_problem):
-        candidate_space = petab_select.ui.candidates(problem=select_problem)
+    def get_iteration_results(select_problem, iteration):
+        return petab_select.ui.end_iteration(problem=select_problem,
+                                             candidate_space=iteration[petab_select.constants.CANDIDATE_SPACE],
+                                             calibrated_models=iteration[petab_select.constants.UNCALIBRATED_MODELS])
+
+    def get_candidate_space(iteration_results, select_problem, first_iteration):
+        if first_iteration == True:
+            candidate_space = petab_select.constants.CANDIDATE_SPACE
+        else:
+            candidate_space = iteration_results[petab_select.constants.CANDIDATE_SPACE]
         return candidate_space
 
-    def update_model(select_problem, model, nllh, x, ndatapoints):
-        model.set_criterion(petab_select.constants.Criterion.NLLH, nllh)
-        if select_problem.method == "famos" or select_problem.criterion == "AIC":
-            model.set_criterion(petab_select.constants.Criterion.AIC, 2*len(x) + 2*nllh)
-        if select_problem.method == "famos" or select_problem.criterion == "BIC":
-            model.set_criterion(petab_select.constants.Criterion.BIC, len(x)*np.log(ndatapoints) + 2*nllh)
-        if select_problem.method == "famos" or select_problem.criterion == "AICc":
-            AIC =  2*len(x) + 2*nllh
-            AICc = AIC + ((2*len(x)**2 + 2*len(x)) / (ndatapoints - len(x)-1))
-            model.set_criterion(petab_select.constants.Criterion.AICC, AICc)
+    def get_ncandidates(iteration):
+        return len(iteration[petab_select.constants.UNCALIBRATED_MODELS])
+
+    def set_criterion_value(select_problem, model, nllh, x):
+        model.set_criterion(petab_select.Criterion.NLLH, nllh)
+        model.set_criterion(select_problem.criterion,
+                            model.get_criterion(select_problem.criterion, compute=True))
         model.estimated_parameters = x
         return
 
-    def update_selection(newly_calibrated_models, calibrated_models, select_problem,  candidate_space):
-        newly_calibrated_models = {model.get_hash(): model for model in candidate_space.models}
-        calibrated_models.update(newly_calibrated_models)
-        select_problem.exclude_models(newly_calibrated_models.values())
-        return newly_calibrated_models, calibrated_models
+    def get_iteration(select_problem, candidate_space, first_iteration):
+        if first_iteration == True:
+            iteration = petab_select.ui.start_iteration(problem=select_problem)
+        else:
+            iteration = petab_select.ui.start_iteration(problem=select_problem,
+                                                        candidate_space=candidate_space)
+        return iteration
 
-    def update_candidate_space(candidate_space, select_problem, newly_calibrated_models):
-        petab_select.ui.candidates(problem=select_problem, candidate_space=candidate_space, newly_calibrated_models=newly_calibrated_models)
+    def get_best_model(select_problem, iteration_results):
+        return petab_select.ui.get_best(
+            problem=select_problem,
+            models=iteration_results[petab_select.constants.CANDIDATE_SPACE].calibrated_models)
 
-    def get_best_model(select_problem, calibrated_models):
-        best_model = select_problem.get_best(calibrated_models.values())
-        return best_model
+    def get_model_info(model):
+        return (model.model_subspace_id, model.parameters)
 
     def write_selection_result(model, path_save):
         model.to_yaml(path_save)
 
     """
 
-    function _callibrate_model(model, select_problem, _prob::PEtabODEProblem;
-                               nmultistarts = nmultistarts)
-        subspace_id, _, _subspace_parameters = py"get_model_to_test_info"(model)
+    function _calibrate_candidate(model, select_problem, _prob::PEtabODEProblem, nmultistarts)
+        subspace_id, _subspace_parameters = py"get_model_to_test_info"(model)
         subspace_parameters = Dict(Symbol(k) => v for (k, v) in pairs(_subspace_parameters))
         @info "Callibrating model $subspace_id"
-        prob = remake(_prob, subspace_parameters)
+        prob = PEtab.remake(_prob, subspace_parameters)
         if isnothing(options)
             _res = PEtab.calibrate_multistart(prob, alg, nmultistarts;
                                               sampling_method = sampling_method)
@@ -97,16 +89,14 @@ function PEtab.petab_select(path_yaml::String, alg; options = nothing,
         f = _res.fmin
         xmin = _res.xmin
         xmin_dict = Dict(string.(prob.xnames) .=> xmin)
-        ndatapoints = nrow(_prob.model_info.model.petab_tables[:measurements])
-        py"update_model"(select_problem, model, f, xmin_dict, ndatapoints)
+        py"set_criterion_value"(select_problem, model, f, xmin_dict)
     end
 
-    function callibrate_candidate_models(candidate_space, select_problem, ncandidates,
-                                         _prob::PEtabODEProblem; nmultistarts = 100)
-        for i in 1:ncandidates
-            _callibrate_model(candidate_space.models[i], select_problem,
-                              _prob; nmultistarts = nmultistarts)
+    function calibrate_candidates(iteration, select_problem, _prob::PEtabODEProblem, nmultistarts::Integer)::Nothing
+        for model in iteration[py"petab_select.constants.UNCALIBRATED_MODELS"]
+            _calibrate_candidate(model, select_problem, _prob, nmultistarts)
         end
+        return nothing
     end
 
     # First we use the model-space file to build (from parameter viewpoint) the biggest
@@ -121,7 +111,7 @@ function PEtab.petab_select(path_yaml::String, alg; options = nothing,
     xchange = propertynames(model_space_file)[3:end]
     custom_values = Dict()
     [custom_values[xchange[i]] = "estimate" for i in eachindex(xchange)]
-    _model = PEtabModel(joinpath(dirmodel, model_space_file[1, :petab_yaml]),
+    _model = PEtabModel(joinpath(dirmodel, model_space_file[1, :model_subspace_petab_yaml]),
                         build_julia_files = true, verbose = false, write_to_file = false)
     _prob = PEtabODEProblem(_model; odesolver = odesolver, ss_solver = ss_solver,
                             odesolver_gradient = odesolver_gradient, sensealg = sensealg,
@@ -133,36 +123,31 @@ function PEtab.petab_select(path_yaml::String, alg; options = nothing,
                             reuse_sensitivities = reuse_sensitivities,
                             custom_values = custom_values)
 
-    calibrated_models, newly_calibrated_models = py"setup_tracking"()
-    select_problem = py"setup_petab_select"(path_yaml)
+    select_problem = py"get_select_problem"(path_yaml)
     str_write = @sprintf("PEtab select problem info\nMethod: %s\nCriterion: %s\n",
                          select_problem.method, select_problem.criterion)
     @info "$str_write"
-
-    # Check if there is a predecessor model to setup the parameter space
-    candidate_space = py"create_candidate_space"(select_problem)
-
     k = 1
-    ncandidates = py"get_number_of_candidates"(candidate_space)
-    local best_model
+    local best_model, iteration_results
     while true
         # Start the iterative model selction process
-        k == 1 &&
-            @info "Model selection round $k with $ncandidates candidates - as the code \
-                   compiles in this round it takes extra long time https://xkcd.com/303/"
-        k != 1 && @info "Model selection round $k with $ncandidates candidates"
-        callibrate_candidate_models(candidate_space, select_problem, ncandidates,
-                                    _prob, nmultistarts = nmultistarts)
-        newly_calibrated_models, calibrated_models = py"update_selection"(newly_calibrated_models,
-                                                                          calibrated_models,
-                                                                          select_problem,
-                                                                          candidate_space)
-
-        py"update_candidate_space"(candidate_space, select_problem, newly_calibrated_models)
-        ncandidates = py"get_number_of_candidates"(candidate_space)
+        if k == 1
+            iteration = py"get_iteration"(select_problem, nothing, true)
+            ncandidates = py"get_ncandidates"(iteration)
+            @info "Round $k with $ncandidates candidates - as the code compiles this round \
+                   it takes extra long time https://xkcd.com/303/"
+        else
+            candidate_space = py"get_candidate_space"(iteration_results, select_problem, false)
+            iteration = py"get_iteration"(select_problem, candidate_space, false)
+            ncandidates = py"get_ncandidates"(iteration)
+            ncandidates != 0 && @info "Round $k with $ncandidates candidates"
+        end
+        calibrate_candidates(iteration, select_problem, _prob, nmultistarts)
+        iteration_results = py"get_iteration_results"(select_problem, iteration)
+        ncandidates = py"get_ncandidates"(iteration)
         k += 1
         if ncandidates == 0
-            best_model = py"get_best_model"(select_problem, calibrated_models)
+            best_model = py"get_best_model"(select_problem, iteration_results)
             break
         end
     end
