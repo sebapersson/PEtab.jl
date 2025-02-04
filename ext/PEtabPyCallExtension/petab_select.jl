@@ -1,5 +1,5 @@
 function PEtab.petab_select(path_yaml::String, alg; options = nothing,
-                            nmultistarts = 100, reuse_sensitivities::Bool = false,
+                            nmultistarts::Integer = 100, reuse_sensitivities::Bool = false,
                             sampling_method::SamplingAlgorithm = LatinHypercubeSample(),
                             odesolver::Union{Nothing, ODESolver} = nothing,
                             odesolver_gradient::Union{Nothing, ODESolver} = nothing,
@@ -15,16 +15,6 @@ function PEtab.petab_select(path_yaml::String, alg; options = nothing,
     import petab_select
     import math
 
-    def print_model(model, select_problem) -> None:
-        print(f'''\
-              Model subspace ID: {model.model_subspace_id}
-              PEtab YAML location: {model.model_subspace_petab_yaml}
-              Custom model parameters: {model.parameters}
-              Model hash: {model.hash}
-              Model ID: {model.model_id}
-              {select_problem.criterion}: {model.get_criterion(select_problem.criterion, compute=False)}
-              Model was calibrated in iteration: {model.iteration}''')
-
     def get_model_to_test_info(model):
         return (model.model_subspace_id, model.parameters)
 
@@ -38,10 +28,9 @@ function PEtab.petab_select(path_yaml::String, alg; options = nothing,
 
     def get_candidate_space(iteration_results, select_problem, first_iteration):
         if first_iteration == True:
-            candidate_space = petab_select.constants.CANDIDATE_SPACE
+            return petab_select.constants.CANDIDATE_SPACE
         else:
-            candidate_space = iteration_results[petab_select.constants.CANDIDATE_SPACE]
-        return candidate_space
+            return iteration_results[petab_select.constants.CANDIDATE_SPACE]
 
     def get_ncandidates(iteration):
         return len(iteration[petab_select.constants.UNCALIBRATED_MODELS])
@@ -55,11 +44,10 @@ function PEtab.petab_select(path_yaml::String, alg; options = nothing,
 
     def get_iteration(select_problem, candidate_space, first_iteration):
         if first_iteration == True:
-            iteration = petab_select.ui.start_iteration(problem=select_problem)
+            return petab_select.ui.start_iteration(problem=select_problem)
         else:
-            iteration = petab_select.ui.start_iteration(problem=select_problem,
-                                                        candidate_space=candidate_space)
-        return iteration
+            return petab_select.ui.start_iteration(problem=select_problem,
+                                                   candidate_space=candidate_space)
 
     def get_best_model(select_problem, iteration_results):
         return petab_select.ui.get_best(
@@ -75,22 +63,21 @@ function PEtab.petab_select(path_yaml::String, alg; options = nothing,
     """
 
     function _calibrate_candidate(model, select_problem, _prob::PEtabODEProblem,
-                                  nmultistarts)
+                                  nmultistarts::Integer)::Nothing
         subspace_id, _subspace_parameters = py"get_model_to_test_info"(model)
         subspace_parameters = Dict(Symbol(k) => v for (k, v) in pairs(_subspace_parameters))
         @info "Callibrating model $subspace_id"
         prob = PEtab.remake(_prob, subspace_parameters)
         if isnothing(options)
-            _res = PEtab.calibrate_multistart(prob, alg, nmultistarts;
-                                              sampling_method = sampling_method)
+            res = PEtab.calibrate_multistart(prob, alg, nmultistarts;
+                                             sampling_method = sampling_method)
         else
-            _res = PEtab.calibrate_multistart(prob, alg, nmultistarts; options = options,
-                                              sampling_method = sampling_method)
+            res = PEtab.calibrate_multistart(prob, alg, nmultistarts; options = options,
+                                             sampling_method = sampling_method)
         end
-        f = _res.fmin
-        xmin = _res.xmin
-        xmin_dict = Dict(string.(prob.xnames) .=> xmin)
-        py"set_criterion_value"(select_problem, model, f, xmin_dict)
+        xmin_dict = Dict(string.(prob.xnames) .=> res.xmin)
+        py"set_criterion_value"(select_problem, model, res.fmin, xmin_dict)
+        return nothing
     end
 
     function calibrate_candidates(iteration, select_problem, _prob::PEtabODEProblem,
