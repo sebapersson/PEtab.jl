@@ -74,7 +74,8 @@ function PEtab.petab_select(path_yaml::String, alg; options = nothing,
 
     """
 
-    function _calibrate_candidate(model, select_problem, _prob::PEtabODEProblem, nmultistarts)
+    function _calibrate_candidate(model, select_problem, _prob::PEtabODEProblem,
+                                  nmultistarts)
         subspace_id, _subspace_parameters = py"get_model_to_test_info"(model)
         subspace_parameters = Dict(Symbol(k) => v for (k, v) in pairs(_subspace_parameters))
         @info "Callibrating model $subspace_id"
@@ -92,7 +93,8 @@ function PEtab.petab_select(path_yaml::String, alg; options = nothing,
         py"set_criterion_value"(select_problem, model, f, xmin_dict)
     end
 
-    function calibrate_candidates(iteration, select_problem, _prob::PEtabODEProblem, nmultistarts::Integer)::Nothing
+    function calibrate_candidates(iteration, select_problem, _prob::PEtabODEProblem,
+                                  nmultistarts::Integer)::Nothing
         for model in iteration[py"petab_select.constants.UNCALIBRATED_MODELS"]
             _calibrate_candidate(model, select_problem, _prob, nmultistarts)
         end
@@ -137,7 +139,8 @@ function PEtab.petab_select(path_yaml::String, alg; options = nothing,
             @info "Round $k with $ncandidates candidates - as the code compiles this round \
                    it takes extra long time https://xkcd.com/303/"
         else
-            candidate_space = py"get_candidate_space"(iteration_results, select_problem, false)
+            candidate_space = py"get_candidate_space"(iteration_results, select_problem,
+                                                      false)
             iteration = py"get_iteration"(select_problem, candidate_space, false)
             ncandidates = py"get_ncandidates"(iteration)
             ncandidates != 0 && @info "Round $k with $ncandidates candidates"
