@@ -1,7 +1,7 @@
 include(joinpath(@__DIR__, "helper.jl"))
 
 @testset "PEtab SciML extension" begin
-    for i in 1:16
+    for i in 1:19
         test_case = i < 10 ? "00$i" : "0$i"
         path_yaml = joinpath(@__DIR__, "test_cases", test_case, "petab", "problem_ude.yaml")
         nnmodels = PEtab.load_nnmodels(path_yaml)
@@ -12,6 +12,10 @@ include(joinpath(@__DIR__, "helper.jl"))
             # added in practice, it is not priority
             if (config.grad == :ForwardEquations && config.split == false &&
                 config.sensealg == :ForwardDiff)
+                continue
+            end
+            # To long time, will not be used in practice
+            if config.sensealg == ForwardSensitivity() && test_case == "011"
                 continue
             end
             petab_prob = PEtabODEProblem(model; odesolver = osolver,

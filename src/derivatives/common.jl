@@ -1,4 +1,4 @@
-function _G(u::AbstractVector, p, t::T, i::Integer, imeasurements_t_cid::Vector{Vector{Int64}}, model_info::ModelInfo, xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic_mech::Vector{T}, xnn::Dict{Symbol, ComponentArray}, residuals::Bool) where {T <: AbstractFloat}
+function _G(u::AbstractVector, p, t::T, i::Integer, imeasurements_t_cid::Vector{Vector{Int64}}, model_info::ModelInfo, xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic_mech::Vector{T}, xnn::Dict{Symbol, ComponentArray}, xnn_constant::Dict{Symbol, ComponentArray}, residuals::Bool) where {T <: AbstractFloat}
     @unpack petab_measurements, xindices, petab_parameters, model = model_info
     @unpack measurement_transforms, observable_id = petab_measurements
     nominal_values = petab_parameters.nominal_value
@@ -7,11 +7,9 @@ function _G(u::AbstractVector, p, t::T, i::Integer, imeasurements_t_cid::Vector{
         obsid = observable_id[imeasurement]
         mapxnoise = xindices.mapxnoise[imeasurement]
         mapxobservable = xindices.mapxobservable[imeasurement]
-        h = _h(u, t, p, xobservable, xnondynamic_mech, xnn, model.h, mapxobservable, obsid,
-               nominal_values, model.nnmodels)
+        h = _h(u, t, p, xobservable, xnondynamic_mech, xnn, xnn_constant, model.h, mapxobservable, obsid, nominal_values, model.nnmodels)
         h_transformed = transform_observable(h, measurement_transforms[imeasurement])
-        σ = _sd(u, t, p, xnoise, xnondynamic_mech, xnn, model.sd, mapxnoise, obsid,
-                nominal_values, model.nnmodels)
+        σ = _sd(u, t, p, xnoise, xnondynamic_mech, xnn, xnn_constant, model.sd, mapxnoise, obsid, nominal_values, model.nnmodels)
 
         y_transformed = petab_measurements.measurement_transformed[imeasurement]
         residual = (h_transformed - y_transformed) / σ
@@ -24,19 +22,19 @@ function _G(u::AbstractVector, p, t::T, i::Integer, imeasurements_t_cid::Vector{
     return out
 end
 
-function _get_∂G∂_!(model_info::ModelInfo, cid::Symbol, xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic_mech::Vector{T}, xnn::Dict{Symbol, ComponentArray}; residuals::Bool = false)::NTuple{2, Function} where {T <: AbstractFloat}
+function _get_∂G∂_!(model_info::ModelInfo, cid::Symbol, xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic_mech::Vector{T}, xnn::Dict{Symbol, ComponentArray}, xnn_constant::Dict{Symbol, ComponentArray}; residuals::Bool = false)::NTuple{2, Function} where {T <: AbstractFloat}
     if residuals == false
         it = model_info.simulation_info.imeasurements_t[cid]
         ∂G∂u! = (out, u, p, t, i) -> begin
             _fu = (u) -> begin
-                _G(u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic_mech, xnn, false)
+                _G(u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic_mech, xnn, xnn_constant, false)
             end
             ForwardDiff.gradient!(out, _fu, u)
             return nothing
         end
         ∂G∂p! = (out, u, p, t, i) -> begin
             _fp = (p) -> begin
-                _G(u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic_mech, xnn, false)
+                _G(u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic_mech, xnn, xnn_constant, false)
             end
             ForwardDiff.gradient!(out, _fp, p)
             return nothing
@@ -44,14 +42,14 @@ function _get_∂G∂_!(model_info::ModelInfo, cid::Symbol, xnoise::Vector{T}, x
     else
         ∂G∂u! = (out, u, p, t, i, it) -> begin
             _fu = (u) -> begin
-                _G(u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic_mech, xnn, true)
+                _G(u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic_mech, xnn, xnn_constant, true)
             end
             ForwardDiff.gradient!(out, _fu, u)
             return nothing
         end
         ∂G∂p! = (out, u, p, t, i, it) -> begin
             _fp = (p) -> begin
-                _G(u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic_mech, xnn, true)
+                _G(u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic_mech, xnn, xnn_constant, true)
             end
             ForwardDiff.gradient!(out, _fp, p)
             return nothing

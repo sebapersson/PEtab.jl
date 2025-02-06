@@ -60,7 +60,6 @@ function split_x!(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODE
         _xnn .= @view x[xi[netid]]
         cache.xnn_dict[netid] = _xnn
     end
-    # TODO: Errors happens with xdynamic_tot. Figure of how x is split!!
     if xdynamic_tot == true
         xdynamic_tot = get_tmp(cache.xdynamic_tot, x)
         xdynamic_tot .= @view x[xindices.xindices_dynamic[:xest_to_xdynamic]]
@@ -150,17 +149,17 @@ function transform_observable(val::T, transform::Symbol)::T where {T <: Real}
     end
 end
 
-function _sd(u::AbstractVector, t::Float64, p::AbstractVector, xnoise::T, xnondynamic_mech::T, xnn::Dict{Symbol, ComponentArray}, petab_sd::Function, mapxnoise::ObservableNoiseMap, observable_id::Symbol, nominal_values::Vector{Float64}, nn)::Real where {T <: AbstractVector}
+function _sd(u::AbstractVector, t::Float64, p::AbstractVector, xnoise::T, xnondynamic_mech::T, xnn::Dict{Symbol, ComponentArray}, xnn_constant::Dict{Symbol, ComponentArray}, petab_sd::Function, mapxnoise::ObservableNoiseMap, observable_id::Symbol, nominal_values::Vector{Float64}, nn)::Real where {T <: AbstractVector}
     if mapxnoise.single_constant == true
         σ = mapxnoise.constant_values[1]
     else
-        σ = petab_sd(u, t, p, xnoise, xnondynamic_mech, xnn, nominal_values, observable_id, mapxnoise, nn)
+        σ = petab_sd(u, t, p, xnoise, xnondynamic_mech, xnn, xnn_constant, nominal_values, observable_id, mapxnoise, nn)
     end
     return σ
 end
 
-function _h(u::AbstractVector, t::Float64, p::AbstractVector, xobservable::T, xnondynamic_mech::T, xnn::Dict{Symbol, ComponentArray}, petab_h::Function, mapxobservable::ObservableNoiseMap, observable_id::Symbol, nominal_values::Vector{Float64}, nn)::Real where {T <: AbstractVector}
-    return petab_h(u, t, p, xobservable, xnondynamic_mech, xnn, nominal_values, observable_id, mapxobservable, nn)
+function _h(u::AbstractVector, t::Float64, p::AbstractVector, xobservable::T, xnondynamic_mech::T, xnn::Dict{Symbol, ComponentArray}, xnn_constant::Dict{Symbol, ComponentArray}, petab_h::Function, mapxobservable::ObservableNoiseMap, observable_id::Symbol, nominal_values::Vector{Float64}, nn)::Real where {T <: AbstractVector}
+    return petab_h(u, t, p, xobservable, xnondynamic_mech, xnn, xnn_constant, nominal_values, observable_id, mapxobservable, nn)
 end
 
 # Function to extract observable or noise parameters when computing h or σ

@@ -165,7 +165,7 @@ function _grad_adjoint_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnoise::V
     callback = tracked_callbacks[cid]
 
     # Partial derivatives needed for computing the gradient (derived from the chain-rule)
-    ∂G∂u!, ∂G∂p! = PEtab._get_∂G∂_!(model_info, cid, xnoise, xobservable, xnondynamic_mech, cache.xnn_dict)
+    ∂G∂u!, ∂G∂p! = PEtab._get_∂G∂_!(model_info, cid, xnoise, xobservable, xnondynamic_mech, cache.xnn_dict, cache.xnn_constant)
 
     # The PEtab standard allow cases where we only observe data at t0, that is we do not
     # solve the ODE. Here adjoint_sensitivities fails (naturally). In this case we compute

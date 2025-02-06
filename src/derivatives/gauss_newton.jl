@@ -53,7 +53,7 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic_tot::Vector{T}, x
     sol = simulation_info.odesols_derivatives[cid]
 
     # Partial derivatives needed for computing the gradient (derived from the chain-rule)
-    ∂G∂u!, ∂G∂p! = _get_∂G∂_!(model_info, cid, xnoise, xobservable, xnondynamic_mech, cache.xnn_dict; residuals = true)
+    ∂G∂u!, ∂G∂p! = _get_∂G∂_!(model_info, cid, xnoise, xobservable, xnondynamic_mech, cache.xnn_dict, cache.xnn_constant; residuals = true)
 
     nstates = model_info.nstates
     cache.p .= sol.prob.p .|> SBMLImporter._to_float
@@ -97,7 +97,7 @@ function residuals_not_solveode(residuals::T1, xnoise::T2, xobservable::T2, xnon
         if cids[1] != :all && !(cid in cids)
             continue
         end
-        _residuals_cond!(residuals, xnoise_ps, xobservable_ps, xnondynamic_mech_ps, xnn, cid, model_info)
+        _residuals_cond!(residuals, xnoise_ps, xobservable_ps, xnondynamic_mech_ps, xnn, cache.xnn_constant, cid, model_info)
         if success == false
             fill!(residuals, Inf)
             break
@@ -107,7 +107,7 @@ function residuals_not_solveode(residuals::T1, xnoise::T2, xobservable::T2, xnon
 end
 
 # For an experimental condition compute residuals
-function _residuals_cond!(residuals::T1, xnoise::T2, xobservable::T2, xnondynamic_mech::T2, xnn::Dict{Symbol, ComponentArray}, cid::Symbol, model_info::ModelInfo)::Bool where {T1 <: AbstractVector, T2 <: AbstractVector}
+function _residuals_cond!(residuals::T1, xnoise::T2, xobservable::T2, xnondynamic_mech::T2, xnn::Dict{Symbol, ComponentArray}, xnn_constant, cid::Symbol, model_info::ModelInfo)::Bool where {T1 <: AbstractVector, T2 <: AbstractVector}
     @unpack xindices, simulation_info, petab_measurements, petab_parameters, model = model_info
     sol = simulation_info.odesols_derivatives[cid]
     if !(sol.retcode == ReturnCode.Success || sol.retcode == ReturnCode.Terminated)
@@ -125,11 +125,9 @@ function _residuals_cond!(residuals::T1, xnoise::T2, xobservable::T2, xnondynami
         # Model observable and noise
         mapxnoise = xindices.mapxnoise[imeasurement]
         mapxobservable = xindices.mapxobservable[imeasurement]
-        h = _h(u, t, p, xobservable, xnondynamic_mech, xnn, model.h, mapxobservable, obsid,
-               nominal_values, model.nnmodels)
+        h = _h(u, t, p, xobservable, xnondynamic_mech, xnn, xnn_constant, model.h, mapxobservable, obsid, nominal_values, model.nnmodels)
         h_transformed = transform_observable(h, measurement_transforms[imeasurement])
-        σ = _sd(u, t, p, xnoise, xnondynamic_mech, xnn, model.sd, mapxnoise, obsid,
-                nominal_values, model.nnmodels)
+        σ = _sd(u, t, p, xnoise, xnondynamic_mech, xnn, xnn_constant, model.sd, mapxnoise, obsid, nominal_values, model.nnmodels)
 
         y_transformed = measurement_transformed[imeasurement]
         residuals[imeasurement] = (h_transformed - y_transformed) / σ

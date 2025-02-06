@@ -11,13 +11,25 @@ function PEtabParameters(parameters_df::DataFrame;
     paramter_scales = fill(Symbol(), nparameters)
     estimate = fill(false, nparameters)
 
-    _parse_table_column!(nominal_values, parameters_df[!, :nominalValue], Float64)
     _parse_table_column!(parameter_ids, parameters_df[!, :parameterId], Symbol)
     _parse_table_column!(paramter_scales, parameters_df[!, :parameterScale], Symbol)
     _parse_table_column!(estimate, parameters_df[!, :estimate], Bool)
     _parse_bound_column!(lower_bounds, parameters_df[!, :lowerBound], estimate)
     _parse_bound_column!(upper_bounds, parameters_df[!, :upperBound], estimate)
     nparameters_estimate = sum(estimate) |> Int64
+    # Due to PEtab SciML extension the nominal-value can for a neural network actually
+    # be a file. Thus, this column requires special parsing
+    nn_parameters_files = Dict{Symbol, String}()
+    for (i, nominal_value) in pairs(parameters_df[!, :nominalValue])
+        if nominal_value isa Real
+            nominal_values[i] = nominal_value
+        elseif SBMLImporter.is_number(nominal_value)
+            nominal_values[i] = parse(Float64, nominal_value)
+        else
+            nominal_values[i] = Inf
+            nn_parameters_files[parameter_ids[i]] = nominal_value
+        end
+    end
 
     # When doing model selection it can be necessary to change the parameter values
     # without changing in the PEtab files. To get all subsequent parameter running
@@ -38,7 +50,8 @@ function PEtabParameters(parameters_df::DataFrame;
     end
 
     return PEtabParameters(nominal_values, lower_bounds, upper_bounds, parameter_ids,
-                           paramter_scales, estimate, nparameters_estimate)
+                           paramter_scales, estimate, nparameters_estimate,
+                           nn_parameters_files)
 end
 
 function Priors(xindices::ParameterIndices, parameters_df::DataFrame)::Priors

@@ -33,8 +33,7 @@ function nllh_solveode(xdynamic::T1, xnoise::T2, xobservable::T2, xnondynamic_me
         end
         return Inf
     end
-    return _nllh(xnoise_ps, xobservable_ps, xnondynamic_mech_ps, xnn, model_info, cids; hess = hess,
-                 grad_xdynamic = grad_xdynamic, residuals = residuals)
+    return _nllh(xnoise_ps, xobservable_ps, xnondynamic_mech_ps, xnn, cache.xnn_constant, model_info, cids; hess = hess, grad_xdynamic = grad_xdynamic, residuals = residuals)
 end
 
 function nllh_not_solveode(xnoise::T1, xobservable::T1, xnondynamic_mech::T1, xnn::Dict{Symbol, ComponentArray}, probinfo::PEtabODEProblemInfo, model_info::ModelInfo; grad_forward_AD::Bool = false, grad_adjoint::Bool = false, grad_forward_eqs::Bool = false, cids = [:all])::Real where {T1 <: AbstractVector}
@@ -43,12 +42,12 @@ function nllh_not_solveode(xnoise::T1, xobservable::T1, xnondynamic_mech::T1, xn
     xobservable_ps = transform_x(xobservable, xindices, :xobservable, cache)
     xnondynamic_mech_ps = transform_x(xnondynamic_mech, xindices, :xnondynamic_mech, cache)
 
-    return _nllh(xnoise_ps, xobservable_ps, xnondynamic_mech_ps, xnn, model_info, cids,
+    return _nllh(xnoise_ps, xobservable_ps, xnondynamic_mech_ps, xnn, cache.xnn_constant, model_info, cids,
                  grad_forward_AD = grad_forward_AD, grad_adjoint = grad_adjoint,
                  grad_forward_eqs = grad_forward_eqs)
 end
 
-function _nllh(xnoise::T, xobservable::T, xnondynamic_mech::T, xnn::Dict{Symbol, ComponentArray}, model_info::ModelInfo, cids::Vector{Symbol}; hess::Bool = false, grad_xdynamic::Bool = false, residuals::Bool = false, grad_forward_AD::Bool = false, grad_adjoint::Bool = false, grad_forward_eqs::Bool = false)::Real where {T <: AbstractVector}
+function _nllh(xnoise::T, xobservable::T, xnondynamic_mech::T, xnn::Dict{Symbol, ComponentArray}, xnn_constant::Dict{Symbol, ComponentArray}, model_info::ModelInfo, cids::Vector{Symbol}; hess::Bool = false, grad_xdynamic::Bool = false, residuals::Bool = false, grad_forward_AD::Bool = false, grad_adjoint::Bool = false, grad_forward_eqs::Bool = false)::Real where {T <: AbstractVector}
     simulation_info = model_info.simulation_info
     derivative = any((hess, grad_adjoint, grad_forward_AD, grad_forward_eqs, grad_xdynamic))
     if derivative == true
@@ -64,9 +63,7 @@ function _nllh(xnoise::T, xobservable::T, xnondynamic_mech::T, xnn::Dict{Symbol,
         end
 
         sol = odesols[cid]
-        nllh += _nllh_cond(sol, xnoise, xobservable, xnondynamic_mech, xnn, cid, model_info;
-                           grad_adjoint = grad_adjoint, grad_forward_AD = grad_forward_AD,
-                           grad_forward_eqs = grad_forward_eqs, residuals = residuals)
+        nllh += _nllh_cond(sol, xnoise, xobservable, xnondynamic_mech, xnn, xnn_constant, cid, model_info; grad_adjoint = grad_adjoint, grad_forward_AD = grad_forward_AD, grad_forward_eqs = grad_forward_eqs, residuals = residuals)
         if isinf(nllh)
             return nllh
         end
@@ -74,7 +71,7 @@ function _nllh(xnoise::T, xobservable::T, xnondynamic_mech::T, xnn::Dict{Symbol,
     return nllh
 end
 
-function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic_mech::T, xnn::Dict{Symbol, ComponentArray}, cid::Symbol, model_info::ModelInfo; residuals::Bool = false, grad_forward_AD::Bool = false, grad_adjoint::Bool = false, grad_forward_eqs::Bool = false)::Real where {T <: AbstractVector}
+function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic_mech::T, xnn::Dict{Symbol, ComponentArray}, xnn_constant::Dict{Symbol, ComponentArray}, cid::Symbol, model_info::ModelInfo; residuals::Bool = false, grad_forward_AD::Bool = false, grad_adjoint::Bool = false, grad_forward_eqs::Bool = false)::Real where {T <: AbstractVector}
     @unpack xindices, simulation_info, petab_measurements, petab_parameters, model = model_info
     if !(sol.retcode == ReturnCode.Success || sol.retcode == ReturnCode.Terminated)
         return Inf
@@ -108,11 +105,9 @@ function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic_mec
         # Model observable and noise
         mapxnoise = xindices.mapxnoise[imeasurement]
         mapxobservable = xindices.mapxobservable[imeasurement]
-        h = _h(u, t, p, xobservable, xnondynamic_mech, xnn, model.h, mapxobservable, obsid,
-               nominal_values, model.nnmodels)
+        h = _h(u, t, p, xobservable, xnondynamic_mech, xnn, xnn_constant, model.h, mapxobservable, obsid, nominal_values, model.nnmodels)
         h_transformed = transform_observable(h, measurement_transforms[imeasurement])
-        σ = _sd(u, t, p, xnoise, xnondynamic_mech, xnn, model.sd, mapxnoise, obsid,
-                nominal_values, model.nnmodels)
+        σ = _sd(u, t, p, xnoise, xnondynamic_mech, xnn, xnn_constant, model.sd, mapxnoise, obsid, nominal_values, model.nnmodels)
 
         y_transformed = measurement_transformed[imeasurement]
         residual = (h_transformed - y_transformed) / σ

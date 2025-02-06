@@ -43,15 +43,10 @@ function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabM
     _add_xids_nn_input_est_only!(xids_dynamic_mech, xids_nn_input_est)
     xids_not_system_mech = unique(vcat(xids_observable, xids_noise, xids_nondynamic_mech))
 
-    xids_estimate = vcat(xids_dynamic_mech, xids_not_system_mech, xids_nn)
+    xids_nn_est = _get_xids_nn_est(xids_nn, petab_parameters)
+    xids_estimate = vcat(xids_dynamic_mech, xids_not_system_mech, xids_nn_est)
     xids_petab = petab_parameters.parameter_id
-    return Dict(:dynamic_mech => xids_dynamic_mech, :noise => xids_noise, :nn => xids_nn,
-                :observable => xids_observable, :nondynamic_mech => xids_nondynamic_mech,
-                :not_system_mech => xids_not_system_mech, :sys => xids_sys,
-                :estimate => xids_estimate, :petab => xids_petab,
-                :nn_in_ode => xids_nn_in_ode, :nn_preode => xids_nn_preode,
-                :nn_preode_outputs => xids_nn_preode_output,
-                :nn_nondynamic => xids_nn_nondynamic)
+    return Dict(:dynamic_mech => xids_dynamic_mech, :noise => xids_noise, :nn => xids_nn, :nn_est => xids_nn_est, :observable => xids_observable, :nondynamic_mech => xids_nondynamic_mech, :not_system_mech => xids_not_system_mech, :sys => xids_sys, :estimate => xids_estimate, :petab => xids_petab, :nn_in_ode => xids_nn_in_ode, :nn_preode => xids_nn_preode, :nn_preode_outputs => xids_nn_preode_output, :nn_nondynamic => xids_nn_nondynamic)
 end
 
 function _get_xids_dynamic_mech(xids_observable::T, xids_noise::T, xids_nondynamic_mech::T, xids_nn::T, petab_parameters::PEtabParameters)::T where {T <: Vector{Symbol}}
@@ -257,4 +252,14 @@ function _get_xscales(xids::Dict{T, Vector{T}},
     @unpack parameter_scale, parameter_id = petab_parameters
     s = [parameter_scale[findfirst(x -> x == id, parameter_id)] for id in xids[:estimate]]
     return Dict(xids[:estimate] .=> s)
+end
+
+function _get_xids_nn_est(xids_nn::Vector{Symbol}, petab_parameters::PEtabParameters)::Vector{Symbol}
+    out = Symbol[]
+    for netid in xids_nn
+        ip = findfirst(x -> x == netid, petab_parameters.parameter_id)
+        petab_parameters.estimate[ip] == false && continue
+        push!(out, netid)
+    end
+    return out
 end

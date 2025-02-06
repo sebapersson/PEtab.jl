@@ -4,6 +4,11 @@ function _get_f_nn_preode_x(nnpre::NNPreODE, xdynamic_mech::AbstractVector, pnn:
     @views x[(map_nn.nxdynamic_inputs+1):end] .= pnn
     return x
 end
+function _get_f_nn_preode_x(nnpre::NNPreODE, xdynamic_mech::AbstractVector, map_nn::NNPreODEMap)::AbstractVector
+    x = get_tmp(nnpre.x, xdynamic_mech)
+    x[1:map_nn.nxdynamic_inputs] = xdynamic_mech[map_nn.ixdynamic_mech_inputs]
+    return x
+end
 
 function _get_net_values(mapping_table::DataFrame, netid::Symbol, type::Symbol)::Vector{String}
     entity_col = string.(mapping_table[!, "modelEntityId"])

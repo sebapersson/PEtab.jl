@@ -23,7 +23,7 @@ function _parse_h(state_ids::Vector{String}, xindices::ParameterIndices,
                   mapping_table::DataFrame)::String
     hstr = "function compute_h(u::AbstractVector, t::Real, p::AbstractVector, \
             xobservable::AbstractVector, xnondynamic_mech::AbstractVector, xnn, \
-            nominal_values::Vector{Float64}, obsid::Symbol, \
+            xnn_constant, nominal_values::Vector{Float64}, obsid::Symbol, \
             map::ObservableNoiseMap, nnmodels)::Real\n"
 
     observable_ids = string.(observables_df[!, :observableId])
@@ -47,7 +47,7 @@ function _parse_σ(state_ids::Vector{String}, xindices::ParameterIndices,
                   observables_df::DataFrame, model_SBML::SBMLImporter.ModelSBML)::String
     σstr = "function compute_σ(u::AbstractVector, t::Real, p::AbstractVector, \
             xnoise::AbstractVector, xnondynamic_mech::AbstractVector, xnn, \
-            nominal_values::Vector{Float64}, obsid::Symbol, \
+            xnn_constant, nominal_values::Vector{Float64}, obsid::Symbol, \
             map::ObservableNoiseMap, nn)::Real\n"
 
     # Write the formula for standard deviations to file
@@ -181,7 +181,11 @@ function _template_nn_formula(netid::Symbol, mapping_table::DataFrame, state_ids
     inputs = _parse_formula(inputs, state_ids, xindices, model_SBML, type)
     outputs = prod(_get_net_values(mapping_table, netid, :outputs) .* ", ")
     formula = "\n\t\tnnmodel_$(netid) = nnmodels[:$(netid)]\n"
-    formula *= "\t\txnn_$(netid) = xnn[:$(netid)]\n"
+    if netid in xindices.xids[:nn_est]
+        formula *= "\t\txnn_$(netid) = xnn[:$(netid)]\n"
+    else
+        formula *= "\t\txnn_$(netid) = xnn_constant[:$(netid)]\n"
+    end
     formula *= "\t\tout, st_$(netid) = nnmodel_$(netid).nn($inputs, xnn_$(netid), nnmodel_$(netid).st)\n"
     formula *= "\t\t$(outputs) = out\n"
     formula *= "\t\tnnmodel_$(netid).st = st_$(netid)\n"

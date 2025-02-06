@@ -14,6 +14,19 @@ function _net!(out, x, pnn::DiffCache, inputs::DiffCache, map_nn::NNPreODEMap, n
     out .= _out
     return nothing
 end
+function _net!(out, x, pnn::ComponentArray, inputs::DiffCache, map_nn::NNPreODEMap, nnmodel::NNModel)::Nothing
+    if map_nn.file_input == false
+        _inputs = get_tmp(inputs, x)
+        _inputs[map_nn.iconstant_inputs] .= map_nn.constant_inputs
+        _inputs[map_nn.ixdynamic_inputs] .= x[1:map_nn.nxdynamic_inputs]
+    else
+        _inputs = convert.(eltype(x), map_nn.constant_inputs)
+    end
+    _out, st = nnmodel.nn(_inputs, pnn, nnmodel.st)
+    nnmodel.st = st
+    out .= _out
+    return nothing
+end
 
 # For ReverseDiff the tape forward-pass fails with get_tmp. get_tmp is only needed for
 # ForwardDiff, and when the input depends on a parameter to estimate. If none of the
@@ -32,6 +45,10 @@ function _jac_nn_preode!(probinfo::PEtabODEProblemInfo, model_info::ModelInfo)::
     @unpack cache = probinfo
     for (cid, f_nns_preode) in probinfo.f_nns_preode
         for (netid, f_nn_preode) in f_nns_preode
+            # Only relevant if neural-network parameters are estimated, otherwise a normal
+            # reverse pass of the code is fast
+            !haskey(cache.xnn, netid) && continue
+
             @unpack tape, jac_nn, outputs, computed, nn! = f_nn_preode
             # Parameter mapping. If one of the inputs is a parameter to estimate, the
             # Jacobian is also computed of the input parameter.
@@ -60,8 +77,13 @@ function _set_grad_x_nn_preode!(xdynamic_grad::AbstractVector, simid::Symbol, pr
     for (netid, f_nn_preode) in probinfo.f_nns_preode[simid]
         map_nn = maps_nn_preode[simid][netid]
         grad_nn_output = probinfo.cache.grad_nn_preode[map_nn.ix_nn_outputs]
-        ix = Iterators.flatten((map_nn.ixdynamic_mech_inputs, xindices_dynamic[netid])) |>
-            collect
+        # Needed to account for neural-net parameter potentially not being estimated
+        if haskey(xindices_dynamic, netid)
+            ix = Iterators.flatten((map_nn.ixdynamic_mech_inputs, xindices_dynamic[netid])) |>
+                collect
+        else
+            ix = map_nn.ixdynamic_mech_inputs
+        end
         xdynamic_grad[ix] .+= vec(grad_nn_output' * f_nn_preode.jac_nn)
     end
     return nothing

@@ -2,7 +2,7 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
                               FIM_method::Symbol, sensealg, model_info::ModelInfo,
                               nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing}, split_over_conditions::Bool,
                               oprob::ODEProblem)::PEtabODEProblemCache
-    @unpack xindices, model, simulation_info, petab_measurements = model_info
+    @unpack xindices, model, simulation_info, petab_measurements, petab_parameters = model_info
     nxestimate = length(xindices.xids[:estimate])
     nstates = model_info.nstates
     if model.sys_mutated isa ODEProblem
@@ -36,15 +36,22 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
     xnoise_ps = DiffCache(similar(_xnoise), chunksize, levels = level_cache)
     xnondynamic_mech_ps = DiffCache(similar(_xnondynamic_mech), chunksize, levels = level_cache)
 
-    # Parameters for potential neural-networks
+    # Parameters for potential neural-networks. First parameters to estimate, then
+    # constant parameters (not to be estimated)
     xnn = Dict{Symbol, DiffCache}()
     xnn_dict = Dict{Symbol, ComponentArray}()
+    xnn_constant = Dict{Symbol, ComponentArray}()
     if !isnothing(nnmodels)
         for (netid, nnmodel) in nnmodels
-            pid = netid
             _p = _get_nn_initialparameters(nnmodel)
-            xnn[pid] = DiffCache(similar(_p); levels = level_cache)
-            xnn_dict[pid] = _p
+            if netid in xindices.xids[:nn_est]
+                xnn[netid] = DiffCache(similar(_p); levels = level_cache)
+                xnn_dict[netid] = _p
+            else
+                psfile_path = joinpath(model.paths[:dirmodel], petab_parameters.nn_parameters_files[netid])
+                set_ps_net!(_p, psfile_path, model.nnmodels[netid].nn)
+                xnn_constant[netid] = _p
+            end
         end
     end
 
@@ -162,7 +169,7 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
                                 adjoint_grad, St0, ∂h∂u, ∂σ∂u, ∂h∂p, ∂σ∂p, ∂G∂p, ∂G∂p_,
                                 ∂G∂u, dp, du, p, u, S, odesols, pode, u0ode,
                                 xdynamic_input_order, xdynamic_output_order, nxdynamic,
-                                xnn, xnn_dict, xdynamic_tot, grad_nn_preode)
+                                xnn, xnn_dict, xnn_constant, xdynamic_tot, grad_nn_preode)
 end
 
 function _get_nxdynamic(xindices::ParameterIndices)::Int64

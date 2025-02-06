@@ -38,6 +38,7 @@ function test_model(test_case, petab_prob::PEtabODEProblem)
     x = get_x(petab_prob)
     for (netid, nninfo) in petab_prob.model_info.model.nnmodels
         path_h5 = joinpath(dirtest, "petab", "$(netid)_ps.hf5")
+        !(netid in petab_prob.model_info.xindices.xids[:nn_est]) && continue
         PEtab.set_ps_net!((@view x[netid]), path_h5, nninfo.nn)
     end
 
@@ -55,6 +56,7 @@ function test_model(test_case, petab_prob::PEtabODEProblem)
     end
     # Neural-net parameters
     for (netid, nninfo) in petab_prob.model_info.model.nnmodels
+        !(netid in petab_prob.model_info.xindices.xids[:nn_est]) && continue
         grad_test = grad_petab[netid]
         path_ref = joinpath(dirtest, yamlfile["grad_llh_files"][string(netid)])
         grad_ref = deepcopy(grad_test)

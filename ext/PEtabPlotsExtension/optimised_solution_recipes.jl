@@ -159,10 +159,7 @@ function _get_observable(x, prob::PEtabODEProblem, cid::String, obsid::String)
                                                     :xnondynamic_mech, probinfo.cache)
             for (i, t) in pairs(sol.t)
                 u = sol[:, i]
-                h = PEtab._h(u, t, sol.prob.p, xobservable_ps, xnondynamic_mech_ps,
-                             probinfo.cache.xnn_dict, model_info.model.h,
-                             mapxobservables[1], Symbol(obsid), collect(prob.xnominal),
-                             model_info.model.nnmodels)
+                h = PEtab._h(u, t, sol.prob.p, xobservable_ps, xnondynamic_mech_ps, probinfo.cache.xnn_dict, probinfo.cache.xnn_constant, model_info.model.h, mapxobservables[1], Symbol(obsid), collect(prob.xnominal), model_info.model.nnmodels)
                 push!(h_model, h)
             end
             t_model = vcat(t_model, sol.t)

@@ -123,8 +123,14 @@ function _set_nn_preode_parameters!(p::AbstractVector, xdynamic::AbstractVector,
         # f_nn_preode.outputs is already computed
         outputs = get_tmp(f_nn_preode.outputs, p)
         if f_nn_preode.computed[1] == false
-            pnn = xnn[netid]
-            x = _get_f_nn_preode_x(f_nn_preode, xdynamic, pnn, map_nn)
+            # Only if neural net parameters are estimated, otherwise pnn is not used to
+            # set values in x (vector that might used for gradient computations)
+            if haskey(xnn, netid)
+                pnn = xnn[netid]
+                x = _get_f_nn_preode_x(f_nn_preode, xdynamic, pnn, map_nn)
+            else
+                x = _get_f_nn_preode_x(f_nn_preode, xdynamic, map_nn)
+            end
             f_nn_preode.nn!(outputs, x)
         end
         p[map_nn.ioutput_sys] .= outputs

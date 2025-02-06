@@ -89,6 +89,7 @@ struct PEtabParameters
     parameter_scale::Vector{Symbol}
     estimate::Vector{Bool}
     nparameters_estimate::Int64
+    nn_parameters_files::Dict{Symbol, String}
 end
 
 struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
@@ -134,6 +135,7 @@ struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
     nxdynamic::Vector{Int64}
     xnn::T7
     xnn_dict::Dict{Symbol, ComponentArray}
+    xnn_constant::Dict{Symbol, ComponentArray}
     xdynamic_tot::T2
     grad_nn_preode::Vector{Float64}
 end

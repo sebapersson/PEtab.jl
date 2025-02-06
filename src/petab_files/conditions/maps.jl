@@ -56,7 +56,7 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nnmodels::Union
     for (i, id_xdynmaic) in pairs(xids[:dynamic_mech])
         isys = 1
         for id_sys in xids[:sys]
-            if id_sys in xids[:nn]
+            if id_sys in xids[:nn_est]
                 isys += _get_n_net_parameters(nn, [id_sys])
                 continue
             end
@@ -71,7 +71,7 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nnmodels::Union
     for id_nn_output in xids[:nn_preode_outputs]
         isys = 1
         for id_sys in xids[:sys]
-            if id_sys in xids[:nn]
+            if id_sys in xids[:nn_est]
                 isys += _get_n_net_parameters(nn, [id_sys])
                 continue
             end
@@ -84,7 +84,7 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nnmodels::Union
     end
     isys = 0
     for id_sys in xids[:sys]
-        if id_sys in xids[:nn]
+        if id_sys in xids[:nn_est]
             sys_to_dynamic_nn = vcat(sys_to_dynamic_nn, _get_xindices_net(id_sys, isys, nnmodels))
             isys = sys_to_dynamic_nn[end]
             continue
@@ -252,7 +252,7 @@ function _get_nn_preode_maps(conditions_df::DataFrame, xids::Dict{Symbol, Vector
                 ix_nn_outputs[i] = io
                 isys = 1
                 for id_sys in xids[:sys]
-                    if id_sys in xids[:nn]
+                    if id_sys in xids[:nn_est]
                         isys += (_get_n_net_parameters(nn, [id_sys]) - 1)
                     end
                     if id_sys == output_variable

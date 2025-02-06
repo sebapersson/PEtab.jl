@@ -121,7 +121,7 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnois
 
     # Partial derivatives needed for computing the gradient (derived from the chain-rule)
     ∂G∂u!, ∂G∂p! = _get_∂G∂_!(model_info, cid, xnoise, xobservable, xnondynamic_mech,
-                              cache.xnn_dict)
+                              cache.xnn_dict, cache.xnn_constant)
 
     nstates = model_info.nstates
     cache.p .= sol.prob.p .|> SBMLImporter._to_float

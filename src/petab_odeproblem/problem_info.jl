@@ -65,15 +65,23 @@ end
 
 function _get_odeproblem(sys::ODEProblem, ::PEtabModel, model_info::ModelInfo,
                          specialize_level, ::Bool)::ODEProblem
-    for (i, id) in pairs(model_info.petab_parameters.parameter_id)
-        model_info.petab_parameters.estimate[i] == true && continue
+    @unpack petab_parameters, xindices, model = model_info
+    for (i, id) in pairs(petab_parameters.parameter_id)
+        petab_parameters.estimate[i] == true && continue
+        id in xindices.xids[:nn] && continue
         !haskey(sys.p, id) && continue
-        sys.p[id] = model_info.petab_parameters.nominal_value[i]
+        sys.p[id] = petab_parameters.nominal_value[i]
     end
     _sys = remake(sys, u0 = sys.u0[:])
     # It matters that p follows the same order as in xids for correct indexing in the
     # adjoint gradient method
     __sys = remake(_sys, p = _sys.p[model_info.xindices.xids[:sys]])
+    # Set potential constant neural net parameters in the ODE
+    for netid in xindices.xids[:nn_in_ode]
+        netid in xindices.xids[:nn_est] && continue
+        psfile_path = joinpath(model.paths[:dirmodel], petab_parameters.nn_parameters_files[netid])
+        set_ps_net!((@view __sys.p[netid]), psfile_path, model.nnmodels[netid].nn)
+    end
     return __sys
 end
 function _get_odeproblem(sys, model::PEtabModel, model_info::ModelInfo, specialize_level,
@@ -111,7 +119,13 @@ function _get_f_nns_preode(model_info::ModelInfo, cache::PEtabODEProblemCache)::
         for (netid, map_nn) in maps_nn
             @unpack ninputs, noutputs = map_nn
             nnmodel = model_info.model.nnmodels[netid]
-            pnn = cache.xnn[netid]
+            # If parameters are constant, they only need to be assigned here, as when
+            # building the cache xnn_not_est has the correct values.
+            if netid in model_info.xindices.xids[:nn_est]
+                pnn = cache.xnn[netid]
+            else
+                pnn = cache.xnn_constant[netid]
+            end
             inputs = DiffCache(zeros(Float64, ninputs), levels = 2)
             outputs = DiffCache(zeros(Float64, noutputs), levels = 2)
             compute_nn! = let nnmodel = nnmodel, map_nn = map_nn, inputs = inputs, pnn = pnn
@@ -136,7 +150,11 @@ function _get_f_nns_preode(model_info::ModelInfo, cache::PEtabODEProblemCache)::
                 tape = nothing
             end
 
-            nx = length(get_tmp(pnn, 1.0)) + map_nn.nxdynamic_inputs
+            if netid in model_info.xindices.xids[:nn_est]
+                nx = length(get_tmp(pnn, 1.0)) + map_nn.nxdynamic_inputs
+            else
+                nx = map_nn.nxdynamic_inputs
+            end
             xarg = DiffCache(zeros(Float64, nx), levels = 2)
             jac_nn = zeros(Float64, noutputs, nx)
             f_nn_preode[netid] = NNPreODE(compute_nn!, tape, jac_nn, outputs, inputs, xarg, [false])

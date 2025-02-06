@@ -36,7 +36,7 @@ function PEtab._grad_forward_eqs_cond!(grad::Vector{T}, xdynamic_tot::Vector{T},
     sol = simulation_info.odesols_derivatives[cid]
 
     # Partial derivatives needed for computing the gradient (derived from the chain-rule)
-    ∂G∂u!, ∂G∂p! = PEtab._get_∂G∂_!(model_info, cid, xnoise, xobservable, xnondynamic_mech, cache.xnn_dict)
+    ∂G∂u!, ∂G∂p! = PEtab._get_∂G∂_!(model_info, cid, xnoise, xobservable, xnondynamic_mech, cache.xnn_dict, cache.xnn_constant)
 
     p = sol.prob.p
     ∂G∂p, ∂G∂p_ = zeros(Float64, length(p)), zeros(Float64, length(p))
