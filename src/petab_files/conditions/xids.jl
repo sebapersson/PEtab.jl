@@ -5,7 +5,7 @@
     in throught the ODESolver when using ForwardDiff
 =#
 
-function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements, sys::ModelSystem, conditions_df::DataFrame, speciemap, parametermap, nnmodels::Union{Nothing, Dict{Symbol, <:NNModel}}, mapping_table::DataFrame)::Dict{Symbol, Vector{Symbol}}
+function _get_xids(petab_parameters::PEtabParameters, petab_net_parameters::PEtabNetParameters, petab_measurements::PEtabMeasurements, sys::ModelSystem, conditions_df::DataFrame, speciemap, parametermap, nnmodels::Union{Nothing, Dict{Symbol, <:NNModel}}, mapping_table::DataFrame)::Dict{Symbol, Vector{Symbol}}
     @unpack observable_parameters, noise_parameters = petab_measurements
     # xids in the ODESystem in correct order
     xids_sys = _get_xids_sys_order(sys, speciemap, parametermap)
@@ -43,7 +43,7 @@ function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabM
     _add_xids_nn_input_est_only!(xids_dynamic_mech, xids_nn_input_est)
     xids_not_system_mech = unique(vcat(xids_observable, xids_noise, xids_nondynamic_mech))
 
-    xids_nn_est = _get_xids_nn_est(xids_nn, petab_parameters)
+    xids_nn_est = _get_xids_nn_est(xids_nn, petab_net_parameters)
     xids_estimate = vcat(xids_dynamic_mech, xids_not_system_mech, xids_nn_est)
     xids_petab = petab_parameters.parameter_id
     return Dict(:dynamic_mech => xids_dynamic_mech, :noise => xids_noise, :nn => xids_nn, :nn_est => xids_nn_est, :observable => xids_observable, :nondynamic_mech => xids_nondynamic_mech, :not_system_mech => xids_not_system_mech, :sys => xids_sys, :estimate => xids_estimate, :petab => xids_petab, :nn_in_ode => xids_nn_in_ode, :nn_preode => xids_nn_preode, :nn_preode_outputs => xids_nn_preode_output, :nn_nondynamic => xids_nn_nondynamic)
@@ -247,14 +247,21 @@ function _get_xnames_ps!(xids::Dict{Symbol, Vector{Symbol}}, xscale)::Nothing
     return nothing
 end
 
-function _get_xscales(xids::Dict{T, Vector{T}},
-                      petab_parameters::PEtabParameters)::Dict{T, T} where {T <: Symbol}
+function _get_xscales(xids::Dict{T, Vector{T}}, petab_parameters::PEtabParameters)::Dict{T, T} where {T <: Symbol}
     @unpack parameter_scale, parameter_id = petab_parameters
-    s = [parameter_scale[findfirst(x -> x == id, parameter_id)] for id in xids[:estimate]]
+    s = Symbol[]
+    for id in xids[:estimate]
+        if id in petab_parameters.parameter_id
+            ip = findfirst(x -> x == id, petab_parameters.parameter_id)
+            push!(s, petab_parameters.parameter_scale[ip])
+        else
+            push!(s, :lin)
+        end
+    end
     return Dict(xids[:estimate] .=> s)
 end
 
-function _get_xids_nn_est(xids_nn::Vector{Symbol}, petab_parameters::PEtabParameters)::Vector{Symbol}
+function _get_xids_nn_est(xids_nn::Vector{Symbol}, petab_parameters::PEtabNetParameters)::Vector{Symbol}
     out = Symbol[]
     for netid in xids_nn
         ip = findfirst(x -> x == netid, petab_parameters.parameter_id)

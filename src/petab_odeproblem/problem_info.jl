@@ -65,7 +65,7 @@ end
 
 function _get_odeproblem(sys::ODEProblem, ::PEtabModel, model_info::ModelInfo,
                          specialize_level, ::Bool)::ODEProblem
-    @unpack petab_parameters, xindices, model = model_info
+    @unpack petab_parameters, petab_net_parameters, xindices, model = model_info
     for (i, id) in pairs(petab_parameters.parameter_id)
         petab_parameters.estimate[i] == true && continue
         id in xindices.xids[:nn] && continue
@@ -79,8 +79,7 @@ function _get_odeproblem(sys::ODEProblem, ::PEtabModel, model_info::ModelInfo,
     # Set potential constant neural net parameters in the ODE
     for netid in xindices.xids[:nn_in_ode]
         netid in xindices.xids[:nn_est] && continue
-        psfile_path = joinpath(model.paths[:dirmodel], petab_parameters.nn_parameters_files[netid])
-        set_ps_net!((@view __sys.p[netid]), psfile_path, model.nnmodels[netid].nn)
+        set_ps_net!((@view __sys.p[netid]), netid, model.nnmodels[netid], model, petab_net_parameters)
     end
     return __sys
 end

@@ -10,6 +10,13 @@ function _get_f_nn_preode_x(nnpre::NNPreODE, xdynamic_mech::AbstractVector, map_
     return x
 end
 
+function set_ps_net!(ps::ComponentArray, netid::Symbol, nnmodel::NNModel, model::PEtabModel, petab_net_parameters::PEtabNetParameters)::Nothing
+    inet = findfirst(x -> x == netid, petab_net_parameters.parameter_id)
+    psfile_path = joinpath(model.paths[:dirmodel], petab_net_parameters.nominal_value[inet])
+    set_ps_net!(ps, psfile_path, nnmodel.nn)
+    return nothing
+end
+
 function _get_net_values(mapping_table::DataFrame, netid::Symbol, type::Symbol)::Vector{String}
     entity_col = string.(mapping_table[!, "modelEntityId"])
     if type == :outputs

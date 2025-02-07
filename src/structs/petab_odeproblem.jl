@@ -89,7 +89,14 @@ struct PEtabParameters
     parameter_scale::Vector{Symbol}
     estimate::Vector{Bool}
     nparameters_estimate::Int64
-    nn_parameters_files::Dict{Symbol, String}
+end
+
+struct PEtabNetParameters{T <: Vector{<:Union{String, <:Float64}}}
+    nominal_value::T
+    lower_bounds::Vector{Float64}
+    upper_bounds::Vector{Float64}
+    parameter_id::Vector{Symbol}
+    estimate::Vector{Bool}
 end
 
 struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
@@ -158,6 +165,7 @@ end
 struct ModelInfo
     petab_measurements::PEtabMeasurements
     petab_parameters::PEtabParameters
+    petab_net_parameters::PEtabNetParameters
     xindices::ParameterIndices
     simulation_info::SimulationInfo
     priors::Priors
@@ -167,13 +175,13 @@ end
 function ModelInfo(model::PEtabModel, sensealg, custom_values)::ModelInfo
     tables, cbs = model.petab_tables, model.callbacks
     petab_measurements = PEtabMeasurements(tables[:measurements], tables[:observables])
-    petab_parameters = PEtabParameters(tables[:parameters], custom_values = custom_values)
+    petab_parameters = PEtabParameters(tables[:parameters], model.nnmodels; custom_values = custom_values)
+    petab_net_parameters = PEtabNetParameters(tables[:parameters], model.nnmodels)
     xindices = ParameterIndices(petab_parameters, petab_measurements, model)
     simulation_info = SimulationInfo(cbs, petab_measurements, sensealg = sensealg)
     priors = Priors(xindices, tables[:parameters])
     nstates = length(_get_state_ids(model.sys_mutated)) |> Int32
-    return ModelInfo(petab_measurements, petab_parameters, xindices, simulation_info,
-                     priors, model, nstates)
+    return ModelInfo(petab_measurements, petab_parameters, petab_net_parameters, xindices, simulation_info,priors, model, nstates)
 end
 
 """

@@ -1,35 +1,32 @@
-function PEtabParameters(parameters_df::DataFrame;
-                         custom_values::Union{Nothing, Dict} = nothing)::PEtabParameters
+function PEtabParameters(_parameters_df::DataFrame, nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing}; custom_values::Union{Nothing, Dict} = nothing)::PEtabParameters
+    # Neural-net parameters are parsed in different function, as they have different
+    # intialisation, etc...
+    imech = _get_parameters_ix(_parameters_df, nnmodels, :mechanistic)
+    parameters_df = _parameters_df[imech, 1:end]
+
     _check_values_column(parameters_df, VALID_SCALES, :parameterScale, "parameters")
     _check_values_column(parameters_df, [0, 1], :estimate, "parameters")
 
+    # nominalValue parsed as Vector{String} in case neural-network file appears in the
+    # column
+    if parameters_df[1, :nominalValue] isa String
+        parameters_df[!, :nominalValue] .= parse.(Float64, parameters_df[!, :nominalValue])
+    end
     nparameters = nrow(parameters_df)
+    parameter_ids = fill(Symbol(), nrow(parameters_df))
     lower_bounds = fill(-Inf, nparameters)
     upper_bounds = fill(Inf, nparameters)
-    nominal_values = zeros(Float64, nparameters) # Vector with Nominal value in PeTab-file
-    parameter_ids = fill(Symbol(), nparameters)
+    nominal_values = zeros(Float64, nparameters)
     paramter_scales = fill(Symbol(), nparameters)
     estimate = fill(false, nparameters)
 
+    _parse_table_column!(nominal_values, parameters_df[!, :nominalValue], Float64)
     _parse_table_column!(parameter_ids, parameters_df[!, :parameterId], Symbol)
     _parse_table_column!(paramter_scales, parameters_df[!, :parameterScale], Symbol)
     _parse_table_column!(estimate, parameters_df[!, :estimate], Bool)
     _parse_bound_column!(lower_bounds, parameters_df[!, :lowerBound], estimate)
     _parse_bound_column!(upper_bounds, parameters_df[!, :upperBound], estimate)
     nparameters_estimate = sum(estimate) |> Int64
-    # Due to PEtab SciML extension the nominal-value can for a neural network actually
-    # be a file. Thus, this column requires special parsing
-    nn_parameters_files = Dict{Symbol, String}()
-    for (i, nominal_value) in pairs(parameters_df[!, :nominalValue])
-        if nominal_value isa Real
-            nominal_values[i] = nominal_value
-        elseif SBMLImporter.is_number(nominal_value)
-            nominal_values[i] = parse(Float64, nominal_value)
-        else
-            nominal_values[i] = Inf
-            nn_parameters_files[parameter_ids[i]] = nominal_value
-        end
-    end
 
     # When doing model selection it can be necessary to change the parameter values
     # without changing in the PEtab files. To get all subsequent parameter running
@@ -50,8 +47,38 @@ function PEtabParameters(parameters_df::DataFrame;
     end
 
     return PEtabParameters(nominal_values, lower_bounds, upper_bounds, parameter_ids,
-                           paramter_scales, estimate, nparameters_estimate,
-                           nn_parameters_files)
+                           paramter_scales, estimate, nparameters_estimate)
+end
+
+function PEtabNetParameters(_parameters_df::DataFrame, nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing})::PEtabNetParameters
+    inet = _get_parameters_ix(_parameters_df, nnmodels, :net)
+    parameters_df = _parameters_df[inet, 1:end]
+
+    _check_values_column(parameters_df, [0, 1], :estimate, "parameters")
+
+    nparameters = nrow(parameters_df)
+    parameter_ids = fill(Symbol(), nrow(parameters_df))
+    lower_bounds = fill(-Inf, nparameters)
+    upper_bounds = fill(Inf, nparameters)
+    estimate = fill(false, nparameters)
+
+    _parse_table_column!(parameter_ids, parameters_df[!, :parameterId], Symbol)
+    _parse_table_column!(estimate, parameters_df[!, :estimate], Bool)
+    _parse_bound_column!(lower_bounds, parameters_df[!, :lowerBound], estimate)
+    _parse_bound_column!(upper_bounds, parameters_df[!, :upperBound], estimate)
+
+    # Nominal-value for net parameters can be either a file name, of a numerical value
+    nominal_values = Vector{Union{String, Float64}}(undef, nparameters)
+    for (i, nominal_value) in pairs(parameters_df[!, :nominalValue])
+        if nominal_value isa Real
+            nominal_values[i] = nominal_value
+        elseif SBMLImporter.is_number(nominal_value)
+            nominal_values[i] = parse(Float64, nominal_value)
+        else
+            nominal_values[i] = nominal_value
+        end
+    end
+    return PEtabNetParameters(nominal_values, lower_bounds, upper_bounds, parameter_ids, estimate)
 end
 
 function Priors(xindices::ParameterIndices, parameters_df::DataFrame)::Priors
@@ -149,4 +176,24 @@ function _parse_julia_prior(_prior::String)::Distribution{Univariate, Continuous
     _prior = replace(_prior, "Truncated" => "truncated")
     _prior = replace(_prior, ";" => ",")
     return eval(Meta.parse(_prior))
+end
+
+function _get_parameters_ix(parameters_df::DataFrame, nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing}, which_p::Symbol)::Vector{Int64}
+    @assert which_p in [:mechanistic, :net] "Error in PEtabParameters parsing"
+    _parameter_ids = fill(Symbol(), nrow(parameters_df))
+    _parse_table_column!(_parameter_ids, parameters_df[!, :parameterId], Symbol)
+    if which_p == :mechanistic
+        if !isnothing(nnmodels)
+            ip = findall(x -> !haskey(nnmodels, x), _parameter_ids)
+        else
+            ip = collect(1:length(_parameter_ids))
+        end
+    else
+        if !isnothing(nnmodels)
+            ip = findall(x -> haskey(nnmodels, x), _parameter_ids)
+        else
+            ip = Int64[]
+        end
+    end
+    return ip
 end

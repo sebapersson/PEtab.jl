@@ -2,7 +2,7 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
                               FIM_method::Symbol, sensealg, model_info::ModelInfo,
                               nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing}, split_over_conditions::Bool,
                               oprob::ODEProblem)::PEtabODEProblemCache
-    @unpack xindices, model, simulation_info, petab_measurements, petab_parameters = model_info
+    @unpack xindices, model, simulation_info, petab_measurements, petab_parameters, petab_net_parameters = model_info
     nxestimate = length(xindices.xids[:estimate])
     nstates = model_info.nstates
     if model.sys_mutated isa ODEProblem
@@ -48,8 +48,7 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
                 xnn[netid] = DiffCache(similar(_p); levels = level_cache)
                 xnn_dict[netid] = _p
             else
-                psfile_path = joinpath(model.paths[:dirmodel], petab_parameters.nn_parameters_files[netid])
-                set_ps_net!(_p, psfile_path, model.nnmodels[netid].nn)
+                set_ps_net!(_p, netid, nnmodel, model, petab_net_parameters)
                 xnn_constant[netid] = _p
             end
         end

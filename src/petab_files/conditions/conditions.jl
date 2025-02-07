@@ -21,24 +21,24 @@ the parameter during likelihood computations. It further accounts for parameters
 only appearing in a certain simulation conditions.
 """
 function ParameterIndices(petab_tables::Dict{Symbol, DataFrame}, sys::ModelSystem, parametermap, speciemap, nnmodels::Union{Nothing, Dict{Symbol, <:NNModel}})::ParameterIndices
-    petab_parameters = PEtabParameters(petab_tables[:parameters])
-    petab_measurements = PEtabMeasurements(petab_tables[:measurements],
-                                           petab_tables[:observables])
-    return ParameterIndices(petab_parameters, petab_measurements, sys, parametermap, speciemap, petab_tables[:conditions], nnmodels, petab_tables[:mapping_table])
+    petab_parameters = PEtabParameters(petab_tables[:parameters], nnmodels)
+    petab_net_parameters = PEtabNetParameters(petab_tables[:parameters], nnmodels)
+    petab_measurements = PEtabMeasurements(petab_tables[:measurements], petab_tables[:observables])
+    return ParameterIndices(petab_parameters, petab_net_parameters, petab_measurements, sys, parametermap, speciemap, petab_tables[:conditions], nnmodels, petab_tables[:mapping_table])
 end
 function ParameterIndices(petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements, model::PEtabModel)::ParameterIndices
-    @unpack speciemap, parametermap, sys_mutated, petab_tables = model
-    return ParameterIndices(petab_parameters, petab_measurements, sys_mutated, parametermap, speciemap, petab_tables[:conditions], model.nnmodels, petab_tables[:mapping_table])
+    @unpack speciemap, parametermap, sys_mutated, petab_tables, nnmodels = model
+    petab_net_parameters = PEtabNetParameters(petab_tables[:parameters], nnmodels)
+    return ParameterIndices(petab_parameters, petab_net_parameters, petab_measurements, sys_mutated, parametermap, speciemap, petab_tables[:conditions], nnmodels, petab_tables[:mapping_table])
 end
-function ParameterIndices(petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements, sys::ModelSystem, parametermap, speciemap, conditions_df::DataFrame, nnmodels::Union{Nothing, Dict{Symbol, <:NNModel}}, mapping_table::Union{Nothing, DataFrame})::ParameterIndices
+function ParameterIndices(petab_parameters::PEtabParameters, petab_net_parameters::PEtabNetParameters, petab_measurements::PEtabMeasurements, sys::ModelSystem, parametermap, speciemap, conditions_df::DataFrame, nnmodels::Union{Nothing, Dict{Symbol, <:NNModel}}, mapping_table::Union{Nothing, DataFrame})::ParameterIndices
     _check_conditionids(conditions_df, petab_measurements)
     mapping_table = _check_mapping_table(mapping_table, nnmodels, petab_parameters, sys, conditions_df)
     # To ease downstream processing (does not need to check if nothing everywhere)
     if isnothing(nnmodels)
         nnmodels = Dict{Symbol, NNModel}()
     end
-    xids = _get_xids(petab_parameters, petab_measurements, sys, conditions_df, speciemap,
-                     parametermap, nnmodels, mapping_table)
+    xids = _get_xids(petab_parameters, petab_net_parameters, petab_measurements, sys, conditions_df, speciemap, parametermap, nnmodels, mapping_table)
 
     # indices for mapping parameters correctly, e.g. from xest -> xdynamic etc...
     # TODO: SII is going to make this much easier (but the reverse will be harder)
