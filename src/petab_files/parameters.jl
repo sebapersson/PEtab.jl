@@ -184,16 +184,20 @@ function _get_parameters_ix(parameters_df::DataFrame, nnmodels::Union{Dict{Symbo
     _parse_table_column!(_parameter_ids, parameters_df[!, :parameterId], Symbol)
     if which_p == :mechanistic
         if !isnothing(nnmodels)
-            ip = findall(x -> !haskey(nnmodels, x), _parameter_ids)
+            ip = findall(x -> !hasnetid(nnmodels, x), _parameter_ids)
         else
             ip = collect(1:length(_parameter_ids))
         end
     else
         if !isnothing(nnmodels)
-            ip = findall(x -> haskey(nnmodels, x), _parameter_ids)
+            ip = findall(x -> hasnetid(nnmodels, x), _parameter_ids)
         else
             ip = Int64[]
         end
     end
     return ip
+end
+
+function hasnetid(nnmodels::Dict{Symbol, <:NNModel}, id::Symbol)::Bool
+    return haskey(nnmodels, Symbol(split(string(id), '.')[1]))
 end

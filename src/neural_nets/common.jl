@@ -16,6 +16,37 @@ function set_ps_net!(ps::ComponentArray, netid::Symbol, nnmodel::NNModel, model:
     set_ps_net!(ps, psfile_path, nnmodel.nn)
     return nothing
 end
+function set_ps_net!(ps::ComponentArray, netid::Symbol, model_info::ModelInfo)::Nothing
+    @unpack model, petab_net_parameters = model_info
+    dirmodel, nnmodel = model.paths[:dirmodel], model.nnmodels[netid]
+    netindices = _get_netindices(netid, petab_net_parameters.parameter_id)
+    netfile = joinpath(dirmodel, petab_net_parameters.nominal_value[1])
+    @assert isfile(netfile) "Parameter values for net $netid must be a file"
+
+    # Set parameters for entire net, then set values for specific layers
+    PEtab.set_ps_net!(ps, netid, nnmodel, model, petab_net_parameters)
+    length(netindices) == 1 && return nothing
+
+    for netindex in netindices
+        id = string(petab_net_parameters.parameter_id[netindex])
+        value = petab_net_parameters.nominal_value[netindex]
+        if value isa String
+            @assert joinpath(dirmodel, value) == netfile "A separate file for a layer is not allowed"
+            continue
+        end
+
+        @assert count(".", id) ≤ 2 "Only two . are allowed when specifaying network layer"
+        if count(".", id) == 1
+            layerid = Symbol(split(id, ".")[2])
+            @views ps[layerid] .= value
+        else
+            layerid = Symbol(split(id, ".")[2])
+            pid = Symbol(split(id, ".")[3])
+            @views ps[layerid][pid] .= value
+        end
+    end
+    return nothing
+end
 
 function _get_net_values(mapping_table::DataFrame, netid::Symbol, type::Symbol)::Vector{String}
     entity_col = string.(mapping_table[!, "modelEntityId"])
@@ -100,4 +131,9 @@ function _get_netids(mapping_table::DataFrame)::Vector{String}
     return split.(string.(mapping_table[!, "modelEntityId"]), ".") .|>
         first .|>
         string
+end
+
+function _get_netindices(netid::Symbol, netids::Vector{Symbol})::Vector{Int64}
+    filtered_indices = findall(x -> startswith(x, string(netid)), string.(netids))
+    return sort(filtered_indices, by = i -> count(==('.'), string(netids[i])))
 end

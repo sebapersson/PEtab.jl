@@ -224,63 +224,75 @@ function _get_nllh_grad(gradient_method::Symbol, grad::Function, _prior::Functio
 end
 
 function _get_bounds(model_info::ModelInfo, xnames::Vector{Symbol}, xnames_ps::Vector{Symbol}, which::Symbol)
-    @unpack petab_parameters, xindices = model_info
-    ixnames_not_nn = findall(x -> !(x in xindices.xids[:nn]), xnames)
-    xnames_not_nn = xnames[ixnames_not_nn]
-    xnames_ps_not_nn = xnames_ps[ixnames_not_nn]
-    xnames_nn = xnames[findall(x -> x in xindices.xids[:nn], xnames)]
+    @unpack petab_parameters, petab_net_parameters, xindices = model_info
 
-    # Mechanistic parameters are given as Vector
-    ix = [findfirst(x -> x == id, petab_parameters.parameter_id) for id in xnames_not_nn]
+    # Mechanistic parameters has its bounds like a Vector
+    ix_mech = _get_ixnames_mech(xnames, petab_parameters)
+    xnames_mech = xnames[ix_mech]
+    ix = [findfirst(x -> x == id, petab_parameters.parameter_id) for id in xnames_mech]
     if which == :lower
-        xmech = petab_parameters.lower_bounds[ix]
+        bounds = petab_parameters.lower_bounds[ix]
     else
-        xmech = petab_parameters.upper_bounds[ix]
+        bounds = petab_parameters.upper_bounds[ix]
     end
-    transform_x!(xmech, xnames, xindices, to_xscale = true)
-    bounds_mechanistic = NamedTuple(xnames_ps_not_nn .=> xmech)
+    transform_x!(bounds, xnames_mech, xindices, to_xscale = true)
+    xmech_bounds = NamedTuple(xnames_mech .=> bounds)
 
-    # Network parameters are given as ComponentArray
-    vals = Vector{Any}(undef, length(xnames_nn))
+    # Each network has its bounds as a ComponentArray
+    xnames_nn = xnames[setdiff(1:length(xnames), ix_mech)]
+    bounds = Vector{ComponentArray}(undef, length(xnames_nn))
     for (i, netid) in pairs(xnames_nn)
         nnmodel = model_info.model.nnmodels[netid]
-        vals[i] = _get_nn_initialparameters(nnmodel)
+        bounds[i] = _get_nn_initialparameters(nnmodel)
         if which == :lower
-            vals[i] .= -10.0
+            bounds[i] .= -Inf
         else
-            vals[i] .= 10.0
+            bounds[i] .= Inf
         end
     end
-    bounds_net = (xnames_nn .=> vals) |> NamedTuple
-    return merge(bounds_mechanistic, bounds_net) |> ComponentArray
+    xnn_bounds = (xnames_nn .=> bounds) |> NamedTuple
+    return merge(xmech_bounds, xnn_bounds) |> ComponentArray
 end
 
 function _get_xnominal(model_info::ModelInfo, xnames::Vector{Symbol},
                        xnames_ps::Vector{Symbol}, transform::Bool)
-    @unpack petab_parameters, xindices = model_info
-    ixnames_not_nn = findall(x -> !(x in xindices.xids[:nn]), xnames)
-    xnames_not_nn = xnames[ixnames_not_nn]
-    xnames_nn = xnames[findall(x -> x in xindices.xids[:nn], xnames)]
+    @unpack petab_parameters, petab_net_parameters, xindices = model_info
 
-    # Mechanistic parameters are given as Vector.
-    # TODO: Refactor (not my best)
-    ix = [findfirst(x -> x == id, petab_parameters.parameter_id) for id in xnames_not_nn]
-    xnominal = petab_parameters.nominal_value[ix]
+    # Mechanistic parameters which are returned as a Vector
+    ix_mech = _get_ixnames_mech(xnames, petab_parameters)
+    xnominal_mech = _get_xnominal_mech(xnames[ix_mech], petab_parameters)
     if transform == true
-        transform_x!(xnominal, xnames, xindices, to_xscale = true)
-        vals_mechanistic = (xnames_ps[ixnames_not_nn] .=> xnominal) |> NamedTuple
+        transform_x!(xnominal_mech, xnames[ix_mech], xindices, to_xscale = true)
+        xmech = (xnames_ps[ix_mech] .=> xnominal_mech) |> NamedTuple
     else
-        vals_mechanistic = (xnames[ixnames_not_nn] .=> xnominal) |> NamedTuple
+        xmech = (xnames[ix_mech] .=> xnominal_mech) |> NamedTuple
     end
-    # Network parameters are given as ComponentArray
-    vals = Vector{Any}(undef, length(xnames_nn))
+
+    # Each network has its parameters as a ComponentArray
+    xnames_nn = xnames[setdiff(1:length(xnames), ix_mech)]
+    xnominal_nn = Vector{ComponentArray}(undef, length(xnames_nn))
     for (i, netid) in pairs(xnames_nn)
         nnmodel = model_info.model.nnmodels[netid]
-        vals[i] = _get_nn_initialparameters(nnmodel)
-        vals[i] .= 0.0
+        psnet = _get_nn_initialparameters(nnmodel)
+        set_ps_net!(psnet, netid, model_info)
+        xnominal_nn[i] = psnet
     end
-    vals_nn = (xnames_nn .=> vals) |> NamedTuple
-    return merge(vals_mechanistic, vals_nn) |> ComponentArray
+    xnn = (xnames_nn .=> xnominal_nn) |> NamedTuple
+    return ComponentArray(merge(xmech, xnn))
+end
+
+function _get_ixnames_mech(xnames::Vector{Symbol}, petab_parameters::PEtabParameters)::Vector{Int64}
+    return findall(x -> x in petab_parameters.parameter_id, xnames)
+end
+
+function _get_xnominal_mech(xnames_mech::Vector{Symbol}, petab_parameters::PEtabParameters)::Vector{Float64}
+    ix = [findfirst(x -> x == id, petab_parameters.parameter_id) for id in xnames_mech]
+    return petab_parameters.nominal_value[ix]
+end
+
+function _get_xnames(petab_parameters::PEtabNetParameters)::Vector{Symbol}
+    ix = findall(x -> x == true, petab_parameters.estimate)
+    return petab_parameters.parameter_id[ix]
 end
 
 function _test_ordering(x::ComponentArray, xnames_ps::Vector{Symbol})::Nothing
