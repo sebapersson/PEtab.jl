@@ -97,6 +97,7 @@ struct PEtabNetParameters{T <: Vector{<:Union{String, <:Float64}}}
     upper_bounds::Vector{Float64}
     parameter_id::Vector{Symbol}
     estimate::Vector{Bool}
+    initialisation_priors::Vector{Function}
 end
 
 struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},

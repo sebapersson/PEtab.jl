@@ -26,13 +26,15 @@ const PARAMETERS_COLS = Dict("parameterId" => (required = true, types = Abstract
                                                                          AbstractString}),
                              "initializationPriorParameters" => (required = false,
                                                                  types = Union{Missing,
-                                                                               AbstractString}),
+                                                                               AbstractString,
+                                                                               Real}),
                              "objectivePriorType" => (required = false,
                                                       types = Union{Missing,
                                                                     AbstractString}),
                              "objectivePriorParameters" => (required = false,
                                                             types = Union{Missing,
-                                                                          AbstractString}))
+                                                                          AbstractString,
+                                                                          Real}))
 
 const OBSERVABLES_COLS = Dict("observableId" => (required = true, types = AbstractString),
                               "observableFormula" => (required = true,

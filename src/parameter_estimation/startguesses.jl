@@ -26,6 +26,7 @@ function get_startguesses(prob::PEtabODEProblem, n::Integer; sample_prior::Bool 
                           allow_inf::Bool = false,
                           sampling_method::SamplingAlgorithm = LatinHypercubeSample())
     @unpack lower_bounds, upper_bounds, xnames, model_info = prob
+    rng = Random.default_rng()
 
     # Nothing prevents the user from sending in a parameter vector with zero parameters...
     if length(lower_bounds) == 0 && n == 1
@@ -35,69 +36,128 @@ function get_startguesses(prob::PEtabODEProblem, n::Integer; sample_prior::Bool 
     end
     # In this case a single component array is returned
     if n == 1
-        return _single_startguess(prob, sample_prior, allow_inf)
+        return _single_startguess(prob, sample_prior, allow_inf, rng)
     end
 
     # Returning a vector of vector
-    out = Vector{ComponentArray{Float64}}(undef, 0)
+    out = Vector{ComponentArray{Float64}}(undef, n)
     found_starts = 0
     for i in 1:1000
         # QuasiMonteCarlo is deterministic, so for sufficiently few start-guesses we can
         # end up in a never ending loop. To sidestep this if less than 10 starts are
         # left numbers are generated from random Uniform (with potential prior sampling)
         nsamples = n - found_starts
-        if nsamples > 10
-            _samples = QuasiMonteCarlo.sample(nsamples, lower_bounds, upper_bounds,
-                                              sampling_method)
-            _samples = [_samples[:, i] for i in 1:nsamples]
-        else
-            _samples = [_single_startguess(prob, false, allow_inf) for _ in 1:nsamples]
-        end
-        # Account for potential priors
-        for _sample in _samples
-            sample_prior == false && continue
-            for (j, id) in pairs(xnames)
-                !haskey(model_info.priors.initialisation_distribution, id) && continue
-                _sample[j] = _sample_prior(id, model_info)
+        xmechs = _multiple_mech_startguess!(nsamples, prob, sample_prior, sampling_method)
+        for (j, xmech) in pairs(xmechs)
+            iout = j + found_starts
+            out[iout] = similar(prob.xnominal_transformed)
+            @views out[iout][1:length(xmech)] .= xmech
+            for netid in _get_xnames_nn(xnames, model_info)
+                @views out[iout][netid] .= _single_nn_startguess(prob, netid, rng)
             end
         end
         allow_inf == true && break
-        for _sample in _samples
-            isinf(prob.nllh(_sample)) && continue
-            x = deepcopy(prob.xnominal_transformed)
-            x .= _sample
-            push!(out, x)
+        for x in out
+            isinf(prob.nllh(x)) && continue
             found_starts += 1
         end
         found_starts == n && break
         if i == 1000
             throw(PEtabInputError("Failed to generate $n startguess that with a finite \
-                                   likelihood"))
+                                   likelihood after 1000 tries"))
         end
     end
     return out
 end
 
-function _single_startguess(prob::PEtabODEProblem, sample_prior::Bool,
-                            allow_inf::Bool)::ComponentArray{Float64}
-    @unpack model_info, xnames, xnominal_transformed, lower_bounds, upper_bounds = prob
+function _single_startguess(prob::PEtabODEProblem, sample_prior::Bool, allow_inf::Bool, rng)::ComponentArray{Float64}
+    @unpack model_info, xnames, xnominal_transformed = prob
     out = similar(xnominal_transformed)
+
+    # Neural net and mechanistic parameters needs to be treated differently, as they have
+    # different modes of start-guess generation
+    ix_mech = _get_ixnames_mech(xnames, model_info.petab_parameters)
+    xnames_mech = xnames[ix_mech]
+    xnames_nn = _get_xnames_nn(xnames, model_info)
     for k in 1:1000
-        for (i, id) in pairs(xnames)
-            if sample_prior && haskey(model_info.priors.initialisation_distribution, id)
-                out[i] = _sample_prior(id, model_info)
-            else
-                out[i] = rand(Distributions.Uniform(lower_bounds[i], upper_bounds[i]))
-            end
+        @views out[ix_mech] .= _single_mech_startguess(prob, xnames_mech, sample_prior)
+        for netid in xnames_nn
+            @views out[netid] .= _single_nn_startguess(prob, netid, rng)
         end
         allow_inf == true && break
         !isinf(prob.nllh(out)) && break
         if k == 1000
             throw(PEtabInputError("Failed to generate a startguess with a finite \
-                                   likelihood"))
+                                   likelihood within 1000 attempts"))
         end
     end
     return out
+end
+
+function _single_mech_startguess(prob::PEtabODEProblem, xnames_mech::Vector{Symbol}, sample_prior::Bool)::Vector{Float64}
+    @unpack model_info, lower_bounds, upper_bounds = prob
+    out = fill(0.0, length(xnames_mech))
+    for (i, id) in pairs(xnames_mech)
+        if sample_prior && haskey(model_info.priors.initialisation_distribution, id)
+            out[i] = _sample_prior(id, model_info)
+        else
+            out[i] = rand(Distributions.Uniform(lower_bounds[i], upper_bounds[i]))
+        end
+    end
+    return out
+end
+
+function _single_nn_startguess(prob::PEtabODEProblem, netid::Symbol, rng)::ComponentArray{Float64}
+    petab_net_parameters = prob.model_info.petab_net_parameters
+    netindices = _get_netindices(netid, petab_net_parameters.parameter_id)
+    out = similar(prob.xnominal_transformed[netid])
+    for netindex in netindices
+        id = string(petab_net_parameters.parameter_id[netindex])
+        prior = petab_net_parameters.initialisation_priors[netindex]
+        if count(".", id) == 0
+            _set_nn_startguess!(out, prior, rng)
+        elseif count(".", id) == 1
+            layerid = Symbol(split(id, ".")[2])
+            _set_nn_startguess!((@view out[layerid]), prior, rng)
+        else
+            layerid = Symbol(split(id, ".")[2])
+            pid = Symbol(split(id, ".")[3])
+            _set_nn_startguess!((@view out[layerid][pid]), prior, rng)
+        end
+    end
+    return out
+end
+
+function _multiple_mech_startguess!(nsamples::Int64, prob::PEtabODEProblem, sample_prior::Bool, sampling_method::SamplingAlgorithm)::Vector{Vector{Float64}}
+    @unpack model_info, xnames, xnominal_transformed, lower_bounds, upper_bounds = prob
+    ix_mech = _get_ixnames_mech(xnames, model_info.petab_parameters)
+    xnames_mech = xnames[ix_mech]
+    if nsamples > 10
+        samples = QuasiMonteCarlo.sample(nsamples, lower_bounds[ix_mech], upper_bounds[ix_mech], sampling_method)
+        samples = [samples[:, i] for i in 1:nsamples]
+    else
+        samples = [_single_mech_startguess(prob, xnames_mech, false)[:] for _ in 1:nsamples]
+    end
+    # Account for potential priors
+    for sample in samples
+        sample_prior == false && continue
+        for (j, id) in pairs(xnames_mech)
+            !haskey(model_info.priors.initialisation_distribution, id) && continue
+            sample[j] = _sample_prior(id, model_info)
+        end
+    end
+    return samples
+end
+
+function _set_nn_startguess!(ps, prior, rng)::Nothing
+    if !(ps isa ComponentArray)
+        @views ps .= prior(rng, ps)
+        return nothing
+    end
+    for id in keys(ps)
+        _set_nn_startguess!((@view ps[id]), prior, rng)
+    end
+    return nothing
 end
 
 function _sample_prior(id::Symbol, model_info::ModelInfo)::Float64

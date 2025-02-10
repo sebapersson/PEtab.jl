@@ -78,7 +78,14 @@ function PEtabNetParameters(_parameters_df::DataFrame, nnmodels::Union{Dict{Symb
             nominal_values[i] = nominal_value
         end
     end
-    return PEtabNetParameters(nominal_values, lower_bounds, upper_bounds, parameter_ids, estimate)
+
+    # Priors for sampling network initial values for parameter estimation
+    if isempty(parameters_df)
+        initialisation_priors = Vector{Function}(undef, 0)
+    else
+        initialisation_priors = PEtab._get_initialisation_priors(parameters_df)
+    end
+    return PEtabNetParameters(nominal_values, lower_bounds, upper_bounds, parameter_ids, estimate, initialisation_priors)
 end
 
 function Priors(xindices::ParameterIndices, parameters_df::DataFrame)::Priors

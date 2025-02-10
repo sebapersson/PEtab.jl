@@ -135,6 +135,7 @@ function _reshape_io_data end
 function NNModel end
 function parse_to_lux end
 function _reshape_array end
+function _get_initialisation_priors end
 
 export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel, NNModel,
        PEtabODEProblem, remake, Fides, PEtabOptimisationResult, IpoptOptions,

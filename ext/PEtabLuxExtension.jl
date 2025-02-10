@@ -4,6 +4,7 @@ using Catalyst: @unpack
 using ComponentArrays
 using CSV
 using DataFrames
+import Distributions
 using HDF5
 using Lux
 using PEtab

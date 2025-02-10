@@ -137,3 +137,8 @@ function _get_netindices(netid::Symbol, netids::Vector{Symbol})::Vector{Int64}
     filtered_indices = findall(x -> startswith(x, string(netid)), string.(netids))
     return sort(filtered_indices, by = i -> count(==('.'), string(netids[i])))
 end
+
+function _get_xnames_nn(xnames::Vector{Symbol}, model_info::ModelInfo)::Vector{Symbol}
+    ix_mech = _get_ixnames_mech(xnames, model_info.petab_parameters)
+    return xnames[setdiff(1:length(xnames), ix_mech)]
+end
