@@ -115,14 +115,14 @@ function _single_nn_startguess(prob::PEtabODEProblem, netid::Symbol, rng)::Compo
         id = string(petab_net_parameters.parameter_id[netindex])
         prior = petab_net_parameters.initialisation_priors[netindex]
         if count(".", id) == 0
-            _set_nn_startguess!(out, prior, rng)
+            out .= _get_nn_startguess(out, prior, rng)
         elseif count(".", id) == 1
             layerid = Symbol(split(id, ".")[2])
-            _set_nn_startguess!((@view out[layerid]), prior, rng)
+            @views out[layerid] .= _get_nn_startguess(out[layerid], prior, rng)
         else
             layerid = Symbol(split(id, ".")[2])
             pid = Symbol(split(id, ".")[3])
-            _set_nn_startguess!((@view out[layerid][pid]), prior, rng)
+            @views out[layerid][pid] .= _get_nn_startguess(out[layerid][pid], prior, rng)
         end
     end
     return out
@@ -149,15 +149,15 @@ function _multiple_mech_startguess!(nsamples::Int64, prob::PEtabODEProblem, samp
     return samples
 end
 
-function _set_nn_startguess!(ps, prior, rng)::Nothing
+function _get_nn_startguess(ps, prior, rng)
     if !(ps isa ComponentArray)
-        @views ps .= prior(rng, ps)
-        return nothing
+        return prior(rng, ps)
     end
+    out = similar(ps)
     for id in keys(ps)
-        _set_nn_startguess!((@view ps[id]), prior, rng)
+        @views out[id] .= _get_nn_startguess(ps[id], prior, rng)
     end
-    return nothing
+    return out
 end
 
 function _sample_prior(id::Symbol, model_info::ModelInfo)::Float64
