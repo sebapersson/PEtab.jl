@@ -1,9 +1,20 @@
 include(joinpath(@__DIR__, "helper.jl"))
 
-@testset "PEtab SciML extension" begin
+@testset "PEtab SciML net import" begin
+    for i in 1:51
+        testcase = i < 10 ? "00$i" : "0$i"
+        # nnmodel must be loaded here to avoid world-problem
+        dirtest = joinpath(@__DIR__, "test_cases", "net_import", "$testcase")
+        yaml_test = YAML.load_file(joinpath(dirtest, "solutions.yaml"))
+        nnmodel, _ = PEtab.parse_to_lux(joinpath(dirtest, yaml_test["net_file"]))
+        test_netimport(testcase, nnmodel)
+    end
+end
+
+@testset "PEtab SciML hybrid models" begin
     for i in 1:19
         test_case = i < 10 ? "00$i" : "0$i"
-        path_yaml = joinpath(@__DIR__, "test_cases", test_case, "petab", "problem_ude.yaml")
+        path_yaml = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "problem_ude.yaml")
         nnmodels = PEtab.load_nnmodels(path_yaml)
         osolver = ODESolver(Rodas5P(autodiff = false), abstol = 1e-10, reltol = 1e-10)
         model = PEtabModel(path_yaml; nnmodels = nnmodels, verbose = false)
@@ -22,7 +33,19 @@ include(joinpath(@__DIR__, "helper.jl"))
                                          gradient_method = config.grad,
                                          split_over_conditions = config.split,
                                          sensealg=config.sensealg)
-            test_model(test_case, petab_prob)
+            test_hybrid(test_case, petab_prob)
         end
+    end
+end
+
+@testset "PEtab SciML initialization" begin
+    for i in 1:16
+        @info "Init test case $i"
+        test_case = i < 10 ? "00$i" : "0$i"
+        path_yaml = joinpath(@__DIR__, "test_cases", "initialization", test_case, "petab",
+                             "problem_ude.yaml")
+        nnmodels = PEtab.load_nnmodels(path_yaml)
+        model = PEtabModel(path_yaml; nnmodels = nnmodels, verbose = false)
+        test_init(test_case, model)
     end
 end
