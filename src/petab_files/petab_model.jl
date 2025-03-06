@@ -155,7 +155,7 @@ function _reorder_parametermap(parametermap, parameter_order::Vector{Symbol})
     parametermap_out = Vector{Pair{Symbolics.Num, Float64}}(undef, length(parametermap))
     for (i, pname) in pairs(parameter_order)
         imap = findfirst(x -> x == pname, Symbol.(first.(parametermap)))
-        
+
         if !(parametermap[imap].second isa Symbolics.Num)
             parametermap_out[i] = parametermap[imap].first => parametermap[imap].second
         elseif SBMLImporter.is_number(string(parametermap[imap].second))

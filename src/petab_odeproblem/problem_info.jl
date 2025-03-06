@@ -53,7 +53,9 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
         @unpack sys_mutated, speciemap, parametermap, defined_in_julia = model
         _parametermap = _reorder_parametermap(parametermap, model_info.xindices.xids[:sys])
         _u0 = first.(speciemap) .=> 0.0
-        odefun = ODEFunction(_get_system(sys_mutated), first.(speciemap), first.(_parametermap); jac = true, sparse = sparse_jacobian_use)
+        odefun = ODEFunction(_get_system(sys_mutated), first.(speciemap),
+                             first.(_parametermap); jac = true,
+                             sparse = sparse_jacobian_use)
         _oprob = ODEProblem(odefun, last.(_u0), [0.0, 5e3], last.(_parametermap))
         oprob = remake(_oprob, p = Float64.(_oprob.p), u0 = Float64.(_oprob.u0))
         oprob_gradient = _get_odeproblem_gradient(oprob, gradient_method_use, sensealg_use)
