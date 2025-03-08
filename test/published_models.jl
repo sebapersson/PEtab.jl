@@ -29,8 +29,8 @@ function test_nllh(modelid::Symbol)::Nothing
     @info "nllh model $modelid"
     path = joinpath(@__DIR__, "published_models", "$modelid", "$(modelid).yaml")
     model = PEtabModel(path)
-    osolver = ODESolver(Rodas4P(), abstol = 1e-11, reltol = 1e-11, maxiters = Int(1e5))
-    ssolver = SteadyStateSolver(:Simulate; abstol=5e-10, reltol=1e-12, maxiters = Int(1e5))
+    osolver = ODESolver(Rodas5P(), abstol = 1e-10, reltol = 1e-10, maxiters = Int(1e5))
+    ssolver = SteadyStateSolver(:Simulate; abstol=5e-10, reltol=1e-10, maxiters = Int(1e5))
     prob = PEtabODEProblem(model; odesolver = osolver, ss_solver = ssolver,
                            sparse_jacobian = false)
     nllh = prob.nllh(get_x(prob))
