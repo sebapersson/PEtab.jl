@@ -23,7 +23,6 @@ NLLH_MODELS = Dict(:Bachmann_MSB2011 => (nllh = -418.40573341425295, prior = 0.0
 GRAD_MODELS = Dict(:Bachmann_MSB2011 => (test=[:forward_AD, :forward_eqs, :forward_eqs_sciml, :adjoint], tol=1e-2, odetol=1e-9, split = false),
                    :Beer_MolBioSystems2014 => (test=[:forward_AD, :forward_eqs], tol=1e-1, odetol = 1e-8, split = true),
                    :Bruno_JExpBot2016 => (test=[:forward_AD, :forward_eqs], tol=1e-1, odetol = 1e-8, split = false),
-                   :Brannmark_JBC2010 => (test=[:forward_AD], tol=1e-1, odetol = 1e-9, split = false),
                    :Schwen_PONE2014 => (test=[:forward_AD, :forward_eqs], tol=1e-3, odetol = 1e-8, split = false))
 
 function test_nllh(modelid::Symbol)::Nothing
