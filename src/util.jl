@@ -58,7 +58,9 @@ For information on keyword arguments, see [`get_ps`](@ref).
 
 See also: [`get_u0`](@ref) and [`get_odesol`](@ref).
 """
-function get_system(res::EstimationResult, prob::PEtabODEProblem; cid::Union{String, Symbol, Nothing} = nothing, preeq_id::Union{String, Symbol, Nothing} = nothing)
+function get_system(res::EstimationResult, prob::PEtabODEProblem;
+                    cid::Union{String, Symbol, Nothing} = nothing,
+                    preeq_id::Union{String, Symbol, Nothing} = nothing)
     @unpack model_info, probinfo = prob
     @unpack sys, callbacks, paths = model_info.model
     if haskey(paths, :SBML)
