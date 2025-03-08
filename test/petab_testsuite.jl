@@ -1,5 +1,4 @@
-using PEtab, YAML, OrdinaryDiffEq, Sundials, ForwardDiff, LinearAlgebra, FiniteDifferences,
-      CSV, DataFrames, Test
+using PEtab, YAML, FiniteDifferences, CSV, DataFrames, Test
 
 function test_case(case::String; test_grad::Bool=true)
     @info "Test case $case"

@@ -51,7 +51,7 @@ function test_grad(modelid::Symbol)::Nothing
     testtol = GRAD_MODELS[modelid].tol
     split = GRAD_MODELS[modelid].split
 
-    ss_solver = SteadyStateSolver(:Simulate; abstol=5e-10, reltol=1e-12, maxiters = Int(1e5))
+    ss_solver = SteadyStateSolver(:Simulate; abstol=1e-9, reltol=1e-12, maxiters = Int(1e5))
     osolver1 = ODESolver(Rodas5P(), abstol = odetol, reltol = odetol, maxiters = Int(1e5))
     osolver2 = ODESolver(CVODE_BDF(), abstol = odetol, reltol = odetol)
     prob_ref = PEtabODEProblem(model; odesolver = osolver1, ss_solver = ss_solver,
