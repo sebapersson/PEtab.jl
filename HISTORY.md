@@ -1,5 +1,9 @@
 # Breaking updates and feature summaries across releases
 
+## PEtab 3.7.0
+
+Add the `get_system` utility function. This function retrieves the `PEtabODEProblem` model system (either a `ReactionSystem` or an `ODESystem`) along with its associated species and parameter maps for any chosen simulation condition.
+
 ## PEtab 3.6.0
 
 Update petab-select to version 0.3. This only changes internals, the user interface for PEtab-select remains unchanged.

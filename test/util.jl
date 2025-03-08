@@ -2,8 +2,7 @@
     Test that the PEtab util functions return expected results
 =#
 
-using Catalyst, PEtab, OrdinaryDiffEq, Catalyst, DataFrames, Test
-
+using Catalyst, PEtab, OrdinaryDiffEqRosenbrock, Catalyst, DataFrames, Test
 @testset "util functions" begin
     # Test ability to retrive model parameters for specific model conditions
     # Model without pre-eq or condition specific parameters
@@ -25,6 +24,14 @@ using Catalyst, PEtab, OrdinaryDiffEq, Catalyst, DataFrames, Test
     @test all(oprob.p == p)
     @test all(sol.prob.u0 .== u0)
     @test all(sol.prob.p == p)
+    # Testing the get_system. As the model is SBML a ReactionSystem model should be returned
+    solref = get_odesol(x, prob)
+    rn, u0, ps, cb = get_system(x, prob)
+    @test rn isa Catalyst.ReactionSystem
+    osys = convert(ODESystem, rn) |> structural_simplify |> complete
+    oprob = ODEProblem(osys, u0, [solref.t[1], solref.t[end]], ps)
+    @test oprob.p.tunable == solref.prob.p
+    @test oprob.u0 == solref.prob.u0
 
     # Beer model
     path_yaml = joinpath(@__DIR__, "published_models", "Beer_MolBioSystems2014", "Beer_MolBioSystems2014.yaml")
@@ -77,9 +84,16 @@ using Catalyst, PEtab, OrdinaryDiffEq, Catalyst, DataFrames, Test
                        simulation_conditions = simulation_conditions)
     prob = PEtabODEProblem(model; verbose = false)
     prob.nllh(log10.([1.0, 2.0]))
-    ode_prob_mutated = prob.model_info.simulation_info.odesols[:c2].prob
-    ode_prob, _ = get_odeproblem(log10.([1.0, 2.0]), prob; cid=:c2)
-    @test length(ode_prob.p) == 2
-    @test all(ode_prob.p .== ode_prob_mutated.p[[1, 3]])
-    @test all(ode_prob.p[[2, 1]] .== ode_prob_mutated.u0)
+    oprob_mutated = prob.model_info.simulation_info.odesols[:c2].prob
+    oprob, _ = get_odeproblem(log10.([1.0, 2.0]), prob; cid=:c2)
+    @test length(oprob.p) == 2
+    @test all(oprob.p .== oprob_mutated.p[[1, 3]])
+    @test all(oprob.p[[2, 1]] .== oprob_mutated.u0)
+    # Test that get_system correctly returns a ReactionSystem
+    rn, u0, ps, _ = get_system(log10.([1.0, 2.0]), prob; cid=:c2)
+    @test rn isa Catalyst.ReactionSystem
+    osys = convert(ODESystem, rn) |> structural_simplify |> complete
+    oprob_sys = ODEProblem(osys, u0, (0.0, 1.0), ps)
+    @test oprob_sys.p.tunable == oprob.p
+    @test oprob_sys.u0 == oprob.u0
 end

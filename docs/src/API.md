@@ -47,6 +47,7 @@ And additionally, functions for interacting with the underlying dynamic model (`
 ```@docs
 get_u0
 get_ps
+get_system
 get_odeproblem
 get_odesol
 solve_all_conditions

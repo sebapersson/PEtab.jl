@@ -46,7 +46,6 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
         else
             odesystem = structural_simplify(dae_index_lowering(_odesystem))
         end
-        #odesystem = complete(odesystem)
     end
     # The state-map is not in the same order as unknowns(system) so the former is reorded
     # to make it easier to build the u0 function
