@@ -19,7 +19,7 @@ jobs:
       matrix:
         version:
           - '1.10'
-          - '1.11'
+          - '1.11.3'
         python: [3.10.13]
         os:
           - ubuntu-latest
