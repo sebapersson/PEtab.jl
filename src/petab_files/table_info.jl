@@ -46,7 +46,7 @@ const OBSERVABLES_COLS = Dict("observableId" => (required = true, types = Abstra
                                                       types = Union{AbstractString,
                                                                     Missing}))
 
-const VALID_SCALES = ["lin", "log10", "log"]
+const VALID_SCALES = ["lin", "log10", "log", "log2"]
 
 # SBMLImporter is used for parsing functions in the PEtab syntax to Julia syntax
 const PETAB_FUNCTIONS = Dict("pow" => SBMLImporter.FunctionSBML(["__x__", "__y__"],

@@ -1,5 +1,28 @@
 # Breaking updates and feature summaries across releases
 
+## PEtab 3.7.0
+
+Add the `get_system` utility function. This function retrieves the `PEtabODEProblem` model system (either a `ReactionSystem` or an `ODESystem`) along with its associated species and parameter maps for any chosen simulation condition.
+
+## PEtab 3.6.0
+
+Update petab-select to version 0.3. This only changes internals, the user interface for PEtab-select remains unchanged.
+
+## PEtab 3.5.0
+
+Add `log2` transformation for parameters and observable transformations.
+
+## PEtab 3.4.0
+
+Plot updates:
+
+* Makes it possible to provide a parameter vector instead of only a parameter estimation results when plotting model fit.
+* Add option to change label in model fit plot to show observable id.
+
+## PEtab 3.3.0
+
+Update to Optimization.jl v4 and DiffEqCallbacks v4.
+
 ## PEtab 3.2.0
 
 Added support for running multi-start parameter estimation with `calibrate_multistart` in parallel using `pmap` from Distributed.jl via the `nprocs` keyword. For example, to now run parameter estimation with two processes in parallel, use:

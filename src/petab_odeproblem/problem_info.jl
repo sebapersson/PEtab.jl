@@ -38,29 +38,26 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
     cache = PEtabODEProblemCache(gradient_method_use, hessian_method_use, FIM_method_use,
                                  sensealg_use, model_info)
 
+    # Several things to note here:
+    # 1. p and u0 needs to be Float64 to avoid potential problems later, as sometimes
+    #  they end up being Int due to SBML model file structure
+    #  ODEFunction must be used because when going directly to ODEProblem MTKParameters
+    #  are used as parameter struct, however, MTKParameters are not yet compatiable
+    # 2. with SciMLSensitivity, and if remake is used to transform to parameter vector 
+    #  an error is thrown. The order of p is given by model_info.xindices.xids[:sys],
+    #  (see conditions.jl for details) hence to set correct values for constant
+    #  parameters the parameter map must be reorded.
+    # 3. For ODEFunction an ODESystem is needed, hence ReactionSystems must be converted.                                 
     btime = @elapsed begin
         _set_const_parameters!(model, model_info.petab_parameters)
         @unpack sys_mutated, speciemap, parametermap, defined_in_julia = model
-        if sys_mutated isa ODESystem && defined_in_julia == false
-            SL = specialize_level
-            _oprob = ODEProblem{true, SL}(sys_mutated, speciemap, [0.0, 5e3], parametermap;
-                                          jac = true, sparse = sparse_jacobian_use)
-        else
-            # For ReactionSystem there is bug if I try to set specialize_level. Also,
-            # speciemap must somehow be a vector. TODO: Test with MTKv9
-            u0map_tmp = zeros(Float64, length(model.speciemap))
-            _oprob = ODEProblem(sys_mutated, u0map_tmp, [0.0, 5e3], parametermap;
-                                jac = true, sparse = sparse_jacobian_use)
-        end
-        # Ensure correct types for further computations. Long-term we plan to here
-        # transition to the SciMLStructures interface, but that has to wait for
-        # SciMLSensitivity
-        if _oprob.p isa ModelingToolkit.MTKParameters
-            _p = _oprob.p.tunable .|> Float64
-            oprob = remake(_oprob, p = _p, u0 = Float64.(_oprob.u0))
-        else
-            oprob = remake(_oprob, p = Float64.(_oprob.p), u0 = Float64.(_oprob.u0))
-        end
+        _parametermap = _reorder_parametermap(parametermap, model_info.xindices.xids[:sys])
+        _u0 = first.(speciemap) .=> 0.0
+        odefun = ODEFunction(_get_system(sys_mutated), first.(speciemap),
+                             first.(_parametermap); jac = true,
+                             sparse = sparse_jacobian_use)
+        _oprob = ODEProblem(odefun, last.(_u0), [0.0, 5e3], last.(_parametermap))
+        oprob = remake(_oprob, p = Float64.(_oprob.p), u0 = Float64.(_oprob.u0))
         oprob_gradient = _get_odeproblem_gradient(oprob, gradient_method_use, sensealg_use)
     end
     _logging(:Build_ODEProblem, verbose; time = btime)

@@ -158,7 +158,20 @@ To instead wish to plot both observables for the second simulation condition (`c
 plot(res, petab_prob; obsids=["obs_e", "obs_p"], cid="cond2", linewidth = 2.0)
 ```
 
-In this example, the `obsid` option is technically not required, as plotting all observables is the default behavior. Finally, it is possible to retrieve a dictionary containing plots for all combinations of observables and simulation conditions with:
+In this example, the `obsid` option is technically not required, as plotting all observables is the default behavior. Furthermore, by default, the observable formula is shown in the legend or label. If the observable formula is long (e.g., the sum of all model species), this can make the plot unreadable. To address this, you can display only the observable ID in the label by setting `obsid_label = true`:
+
+```@example 2
+plot(res, petab_prob; obsids=["obs_e", "obs_p"], cid="cond2", linewidth = 2.0, obsid_label = true)
+```
+
+If as above a parameter estimation result (`res`) is provided, the fit for the best-found parameter vector is plotted. It can also be useful to plot the fit for another parameter vector, such as the initial values `x0`. This can be easily done, as the `plot_fit` function also works for any parameter vector that is in the correct order expected by PEtab.jl (for more on parameter order, see [`get_x`](@ref)). For example, to plot the fit for the initial value for parameter estimation run 1, do:
+
+```@example 2
+x0 = res.runs[1].x0
+plot(x0, petab_prob; obsids=["obs_e", "obs_p"], cid="cond2", linewidth = 2.0)
+```
+
+Finally, it is possible to retrieve a dictionary containing plots for all combinations of observables and simulation conditions with:
 
 ```@example 2
 comp_dict = get_obs_comparison_plots(res, petab_prob; linewidth = 2.0)
@@ -170,6 +183,8 @@ Here, `comp_dict` contains one entry for each condition (with keys corresponding
 ```@example 2
 comp_dict["cond1"]["obs_e"]
 ```
+
+The input to `get_obs_comparison_plots` can also be a parameter vector.
 
 ## References
 

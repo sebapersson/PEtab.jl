@@ -13,7 +13,7 @@ ss_solver2 = SteadyStateSolver(:Simulate; termination_check = :Newton)
 ss_solver3 = SteadyStateSolver(:Rootfinding)
 @test @sprintf("%s", ss_solver1) == "SteadyStateSolver: Simulate ODE until du = f(u, p, t) ≈ 0\nTerminates when wrms = (∑((du ./ (reltol * u .+ abstol)).^2) / len(u)) < 1"
 @test @sprintf("%s", ss_solver2) == "SteadyStateSolver: Simulate ODE until du = f(u, p, t) ≈ 0\nTerminates when Newton step Δu = √(∑((Δu ./ (reltol * u .+ abstol)).^2) / len(u)) < 1"
-@test @sprintf("%s", ss_solver3) == "SteadyStateSolver: Rootfinding to solve du = f(u, p, t) ≈ 0\nAlgorithm: TrustRegion with NonlinearSolve.jl termination"
+@test @sprintf("%s", ss_solver3) == "SteadyStateSolver: Rootfinding to solve du = f(u, p, t) ≈ 0\nAlgorithm: GeneralizedFirstOrderAlgorithm with NonlinearSolve.jl termination"
 
 p1 = PEtabParameter(:k1)
 p2 = PEtabParameter(:k2; scale = :lin)
