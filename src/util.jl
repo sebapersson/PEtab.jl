@@ -21,7 +21,7 @@ function get_odesol(res::EstimationResult, prob::PEtabODEProblem;
 end
 
 """
-    get_odeproblem(res, prob::PEtabODEProblem; kwargs...) -> (sol, callbacks)
+    get_odeproblem(res, prob::PEtabODEProblem; kwargs...) -> (sys, callbacks)
 
 Retrieve the `ODEProblem` and callbacks (`CallbackSet`) for simulating the ODE model in
 `prob`. `res` can be a parameter estimation result (e.g., `PEtabMultistartResult`) or a
@@ -35,11 +35,41 @@ function get_odeproblem(res::EstimationResult, prob::PEtabODEProblem;
                         cid::Union{String, Symbol, Nothing} = nothing,
                         preeq_id::Union{String, Symbol, Nothing} = nothing)
     @unpack model_info, probinfo = prob
-    u0, p = _get_ps_u0(res, prob, cid, preeq_id, true)
+    u0, p = _get_ps_u0(res, prob, cid, preeq_id, false)
     tmax = model_info.simulation_info.tmaxs[_get_cid(cid, model_info)]
-    oprob = ODEProblem(model_info.model.sys, u0, [0.0, tmax], p, jac = true)
-    oprob = remake(oprob, p = oprob.p.tunable)
+    odefun = ODEFunction(_get_system(prob.model_info.model.sys))
+    oprob = ODEProblem(odefun, u0, [0.0, tmax], p)
     return oprob, model_info.model.callbacks
+end
+
+"""
+    get_system(res, prob::PEtabODEProblem; kwargs...) -> (sys, p, u0, callbacks)
+
+Retrieve the dynamic model system, parameter map (`p`), initial species map (`u0`), and
+callbacks (`CallbackSet`) for the model in `prob`. The argument `res` can be a parameter
+estimation result (e.g., `PEtabMultistartResult`) or a `Vector` of parameters in the order
+expected by `prob` (see [`get_x`](@ref)).
+
+The system type returned depends on the input to `PEtabModel`. If the model is provided as
+a `ReactionSystem`, a `ReactionSystem` is returned. The same applies for an `ODESystem`. If
+the model is provided via an SBML file, a `ReactionSystem` is returned.
+
+For information on keyword arguments, see [`get_ps`](@ref).
+
+See also: [`get_u0`](@ref) and [`get_odesol`](@ref).
+"""
+function get_system(res::EstimationResult, prob::PEtabODEProblem;
+                    cid::Union{String, Symbol, Nothing} = nothing,
+                    preeq_id::Union{String, Symbol, Nothing} = nothing)
+    @unpack model_info, probinfo = prob
+    @unpack sys, callbacks, paths = model_info.model
+    if haskey(paths, :SBML)
+        prn, _ = load_SBML(paths[:SBML])
+        sys = prn.rn
+    end
+    u0, p = _get_ps_u0(res, prob, cid, preeq_id, true)
+    # TODO: Test this!!
+    return sys, u0, p, callbacks
 end
 
 """
@@ -241,4 +271,11 @@ function _get_preeq_id(preeq_id::Union{Nothing, Symbol, String},
         preeq_id = Symbol(preeq_id)
     end
     return preeq_id
+end
+
+function _get_system(sys::ReactionSystem)::ODESystem
+    return complete(convert(ODESystem, sys))
+end
+function _get_system(sys::ODESystem)::ODESystem
+    return sys
 end

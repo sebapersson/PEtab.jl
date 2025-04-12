@@ -116,7 +116,6 @@ include(joinpath("neural_nets", "templates.jl"))
     end
 end
 =#
-
 # Functions that only appear in extension
 function compute_llh end
 function compute_prior end
@@ -140,7 +139,7 @@ function _get_initialisation_priors end
 export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel, NNModel,
        PEtabODEProblem, remake, Fides, PEtabOptimisationResult, IpoptOptions,
        IpoptOptimizer, PEtabParameter, PEtabObservable, PEtabMultistartResult,
-       get_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, PEtabEvent,
+       get_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, get_system, PEtabEvent,
        PEtabLogDensity, solve_all_conditions, get_x, calibrate, calibrate_multistart,
        petab_select, get_obs_comparison_plots
 

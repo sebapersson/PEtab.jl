@@ -11,10 +11,12 @@ using PEtab, OrdinaryDiffEq, SciMLSensitivity, ForwardDiff, LinearAlgebra, Sundi
 include(joinpath(@__DIR__, "common.jl"))
 
 function solve_algebraic_ss(model::PEtabModel, solver, tol::Float64, a::T1, b::T1, c::T1, d::T1) where T1<:Real
-    oprob = ODEProblem(model.sys_mutated, model.speciemap, (0.0, 9.7), model.parametermap,
-                       jac=true)
-    oprob = remake(oprob, p = convert.(eltype(a), oprob.p.tunable),
-                         u0 = convert.(eltype(a), oprob.u0))
+    ofun = ODEFunction(model.sys_mutated, first.(model.speciemap), 
+                       first.(model.parametermap), jac=true)
+    oprob = ODEProblem(ofun, last.(model.speciemap), (0.0, 9.7),
+                       last.(model.parametermap))
+    oprob = remake(oprob, p = convert.(eltype(a), oprob.p), 
+                   u0 = convert.(eltype(a), oprob.u0))
     sols = Array{ODESolution, 1}(undef, 2)
     oprob.p[1], oprob.p[5], oprob.p[6], oprob.p[3] = a, b, c, d
     oprob.u0[1] = a / b + ( a * c ) / ( b * d ) # x0

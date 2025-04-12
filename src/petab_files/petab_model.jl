@@ -278,3 +278,19 @@ function _add_dirdata!(nnmodels::Dict{Symbol, <:NNModel}, dirdata::String)::Noth
     end
     return nothing
 end
+
+function _reorder_parametermap(parametermap, parameter_order::Vector{Symbol})
+    parametermap_out = Vector{Pair{Symbolics.Num, Float64}}(undef, length(parametermap))
+    for (i, pname) in pairs(parameter_order)
+        imap = findfirst(x -> x == pname, Symbol.(first.(parametermap)))
+
+        if !(parametermap[imap].second isa Symbolics.Num)
+            parametermap_out[i] = parametermap[imap].first => parametermap[imap].second
+        elseif SBMLImporter.is_number(string(parametermap[imap].second))
+            parametermap_out[i] = parametermap[imap].first => parametermap[imap].second.val
+        else
+            parametermap_out[i] = parametermap[imap].first => 0.0
+        end
+    end
+    return parametermap_out
+end
