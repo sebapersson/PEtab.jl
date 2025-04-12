@@ -1,7 +1,7 @@
-function PEtabParameters(_parameters_df::DataFrame, nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing}; custom_values::Union{Nothing, Dict} = nothing)::PEtabParameters
+function PEtabParameters(_parameters_df::DataFrame, mappings_df::DataFrame, nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing}; custom_values::Union{Nothing, Dict} = nothing)::PEtabParameters
     # Neural-net parameters are parsed in different function, as they have different
     # intialisation, etc...
-    imech = _get_parameters_ix(_parameters_df, nnmodels, :mechanistic)
+    imech = _get_parameters_ix(_parameters_df, mappings_df, nnmodels, :mechanistic)
     parameters_df = _parameters_df[imech, 1:end]
 
     _check_values_column(parameters_df, VALID_SCALES, :parameterScale, "parameters")
@@ -50,14 +50,15 @@ function PEtabParameters(_parameters_df::DataFrame, nnmodels::Union{Dict{Symbol,
                            paramter_scales, estimate, nparameters_estimate)
 end
 
-function PEtabNetParameters(_parameters_df::DataFrame, nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing})::PEtabNetParameters
-    inet = _get_parameters_ix(_parameters_df, nnmodels, :net)
+function PEtabNetParameters(_parameters_df::DataFrame, mappings_df::DataFrame, nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing})::PEtabNetParameters
+    inet = _get_parameters_ix(_parameters_df, mappings_df, nnmodels, :net)
     parameters_df = _parameters_df[inet, 1:end]
 
     _check_values_column(parameters_df, [0, 1], :estimate, "parameters")
 
     nparameters = nrow(parameters_df)
     parameter_ids = fill(Symbol(), nrow(parameters_df))
+    netids = fill(Symbol(), nrow(parameters_df))
     lower_bounds = fill(-Inf, nparameters)
     upper_bounds = fill(Inf, nparameters)
     estimate = fill(false, nparameters)
@@ -66,6 +67,7 @@ function PEtabNetParameters(_parameters_df::DataFrame, nnmodels::Union{Dict{Symb
     _parse_table_column!(estimate, parameters_df[!, :estimate], Bool)
     _parse_bound_column!(lower_bounds, parameters_df[!, :lowerBound], estimate)
     _parse_bound_column!(upper_bounds, parameters_df[!, :upperBound], estimate)
+    _get_netids!(netids, parameter_ids, mappings_df, nnmodels)
 
     # Nominal-value for net parameters can be either a file name, of a numerical value
     nominal_values = Vector{Union{String, Float64}}(undef, nparameters)
@@ -79,13 +81,7 @@ function PEtabNetParameters(_parameters_df::DataFrame, nnmodels::Union{Dict{Symb
         end
     end
 
-    # Priors for sampling network initial values for parameter estimation
-    if isempty(parameters_df)
-        initialisation_priors = Vector{Function}(undef, 0)
-    else
-        initialisation_priors = PEtab._get_initialisation_priors(parameters_df)
-    end
-    return PEtabNetParameters(nominal_values, lower_bounds, upper_bounds, parameter_ids, estimate, initialisation_priors)
+    return PEtabNetParameters(nominal_values, lower_bounds, upper_bounds, parameter_ids, estimate, netids, Vector{Function}(undef, 0))
 end
 
 function Priors(xindices::ParameterIndices, parameters_df::DataFrame)::Priors
@@ -185,26 +181,34 @@ function _parse_julia_prior(_prior::String)::Distribution{Univariate, Continuous
     return eval(Meta.parse(_prior))
 end
 
-function _get_parameters_ix(parameters_df::DataFrame, nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing}, which_p::Symbol)::Vector{Int64}
-    @assert which_p in [:mechanistic, :net] "Error in PEtabParameters parsing"
-    _parameter_ids = fill(Symbol(), nrow(parameters_df))
-    _parse_table_column!(_parameter_ids, parameters_df[!, :parameterId], Symbol)
-    if which_p == :mechanistic
-        if !isnothing(nnmodels)
-            ip = findall(x -> !hasnetid(nnmodels, x), _parameter_ids)
-        else
-            ip = collect(1:length(_parameter_ids))
-        end
-    else
-        if !isnothing(nnmodels)
-            ip = findall(x -> hasnetid(nnmodels, x), _parameter_ids)
-        else
-            ip = Int64[]
+function _get_parameters_ix(parameters_df::DataFrame, mappings_df::DataFrame, nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing}, which_ps::Symbol)::Vector{Int64}
+    @assert which_ps in [:mechanistic, :net] "Error in PEtabParameters parsing"
+    net_ps_variables = String[]
+    for netid in keys(nnmodels)
+        _net_ps_variables = _get_net_petab_variables(mappings_df, netid, :parameters)
+        net_ps_variables = vcat(net_ps_variables, _net_ps_variables)
+    end
+
+    out = Int64[]
+    for (i, parameter_id) in pairs(parameters_df.parameterId)
+        if which_ps == :net && parameter_id in net_ps_variables
+            push!(out, i)
+        elseif which_ps == :mechanistic && !(parameter_id in net_ps_variables)
+            push!(out, i)
         end
     end
-    return ip
+    return out
 end
 
-function hasnetid(nnmodels::Dict{Symbol, <:NNModel}, id::Symbol)::Bool
-    return haskey(nnmodels, Symbol(split(string(id), '.')[1]))
+function _get_netids!(netids::Vector{Symbol}, parameter_ids::Vector{Symbol}, mappings_df::DataFrame, nnmodels::Dict{Symbol, <:NNModel})::Nothing
+    for (i, parameter_id) in pairs(string.(parameter_ids))
+        for netid in keys(nnmodels)
+            if !(parameter_id in _get_net_petab_variables(mappings_df, netid, :parameters))
+                continue
+            end
+            netids[i] = netid
+            break
+        end
+    end
+    return nothing
 end

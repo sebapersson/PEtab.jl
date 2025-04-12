@@ -11,31 +11,31 @@ function _get_f_nn_preode_x(nnpre::NNPreODE, xdynamic_mech::AbstractVector, map_
 end
 
 function set_ps_net!(ps::ComponentArray, netid::Symbol, nnmodel::NNModel, model::PEtabModel, petab_net_parameters::PEtabNetParameters)::Nothing
-    inet = findfirst(x -> x == netid, petab_net_parameters.parameter_id)
-    psfile_path = joinpath(model.paths[:dirmodel], petab_net_parameters.nominal_value[inet])
-    set_ps_net!(ps, psfile_path, nnmodel.nn)
+    netindices = _get_netindices(netid, petab_net_parameters.netid)
+    ps_path = _get_ps_path(netid, model, petab_net_parameters.nominal_value[netindices[1]])
+    set_ps_net!(ps, ps_path, nnmodel.nn)
     return nothing
 end
 function set_ps_net!(ps::ComponentArray, netid::Symbol, model_info::ModelInfo)::Nothing
     @unpack model, petab_net_parameters = model_info
-    dirmodel, nnmodel = model.paths[:dirmodel], model.nnmodels[netid]
-    netindices = _get_netindices(netid, petab_net_parameters.parameter_id)
-    netfile = joinpath(dirmodel, petab_net_parameters.nominal_value[1])
-    @assert isfile(netfile) "Parameter values for net $netid must be a file"
+    nnmodel = model.nnmodels[netid]
+    netindices = _get_netindices(netid, petab_net_parameters.netid)
+    ps_path = _get_ps_path(netid, model_info.model, petab_net_parameters.nominal_value[netindices[1]])
+    @assert isfile(ps_path) "Parameter values for net $netid must be a file"
 
     # Set parameters for entire net, then set values for specific layers
     PEtab.set_ps_net!(ps, netid, nnmodel, model, petab_net_parameters)
     length(netindices) == 1 && return nothing
-
     for netindex in netindices
         id = string(petab_net_parameters.parameter_id[netindex])
         value = petab_net_parameters.nominal_value[netindex]
         if value isa String
-            @assert joinpath(dirmodel, value) == netfile "A separate file for a layer is not allowed"
+            _path = _get_ps_path(netid, model_info.model, value)
+            @assert _path == ps_path "A separate file for a layer is not allowed"
             continue
         end
 
-        @assert count(".", id) ≤ 2 "Only two . are allowed when specifaying network layer"
+        @assert count(".", id) ≤ 2 "Only two . are allowed when specifying network layer"
         if count(".", id) == 1
             layerid = Symbol(split(id, ".")[2])
             @views ps[layerid] .= value
@@ -48,72 +48,141 @@ function set_ps_net!(ps::ComponentArray, netid::Symbol, model_info::ModelInfo)::
     return nothing
 end
 
-function _get_net_values(mapping_table::DataFrame, netid::Symbol, type::Symbol)::Vector{String}
-    entity_col = string.(mapping_table[!, "modelEntityId"])
-    if type == :outputs
-        idf = startswith.(entity_col, "$(netid).output")
-    elseif type == :inputs
-        idf = startswith.(entity_col, "$(netid).input")
+function _get_ps_path(netid::Symbol, model::PEtabModel, nominal_value::String)
+    array_files = (YAML.load_file(model.paths[:yaml]))["extensions"]["array_files"]
+    if !haskey(array_files, nominal_value)
+        throw(PEtab.PEtabInputError("For neural network $netid the parameter file \
+            $(nominal_value) has not been defined in the YAML problem file under \
+            array_files"))
     end
-    df = mapping_table[idf, :]
+    return joinpath(model.paths[:dirmodel], array_files[nominal_value]["location"])
+end
+
+function _get_net_petab_variables(mappings_df::DataFrame, netid::Symbol, type::Symbol)::Vector{String}
+    entity_col = string.(mappings_df[!, "modelEntityId"])
+    if type == :outputs
+        idf = startswith.(entity_col, "$(netid).outputs")
+    elseif type == :inputs
+        idf = startswith.(entity_col, "$(netid).inputs")
+    elseif type == :parameters
+        idf = startswith.(entity_col, "$(netid).parameters")
+        return mappings_df[idf, :petabEntityId]
+    end
+    df = mappings_df[idf, :]
     # Sort to get inputs in order output1, output2, ...
     is = sortperm(string.(df[!, "modelEntityId"]),
-                  by = x -> parse(Int, match(r"\d+$", x).match))
+                  by = x -> parse(Int, match(r".*\[(\d+)\]$", x).captures[1]))
     return string.(df[is, "petabEntityId"])
 end
 
-function _get_nn_input_variables(inputs::Vector{Symbol}, netid::Symbol, nnmodel::NNModel, conditions_df::DataFrame, petab_parameters::PEtabParameters, sys::ModelSystem; keep_numbers::Bool = false)::Vector{Symbol}
-    state_ids = _get_state_ids(sys) .|> Symbol
-    xids_sys = _get_xids_sys(sys)
-    input_variables = Symbol[]
-    for input in inputs
-        if is_number(input)
+function _get_net_input_values(input_variables::Vector{Symbol}, netid::Symbol, nnmodel::NNModel, conditions_df::DataFrame, hybridization_df::DataFrame, petab_parameters::PEtabParameters, sys::ModelSystem; keep_numbers::Bool = false)::Vector{Symbol}
+    input_values = Symbol[]
+    for input_variable in input_variables
+        # This can be triggered via recursion (condition table can have numbers)
+        if is_number(input_variable)
             if keep_numbers == true
-                push!(input_variables, input)
+                push!(input_values, input)
             end
             continue
         end
-        if input in petab_parameters.parameter_id
+
+        if input_variable in petab_parameters.parameter_id
             push!(input_variables, input)
             continue
         end
-        if input in Iterators.flatten((state_ids, xids_sys))
-            push!(input_variables, input)
+
+        if input_variable in Symbol.(hybridization_df.targetId)
+            ix = findfirst(x -> x == input_variable, Symbol.(hybridization_df.targetId))
+            push!(input_variables, Symbol.(hybridization_df.targetValue[ix]))
             continue
         end
-        # When building ParameterIndices somtimes only the relative input is provided for
+
+        # When input is assigned via the conditions table. Recursion needed to find the
+        # the potential parameter assigning the input
+        if input_variable in propertynames(conditions_df)
+            for condition_value in Symbol.(conditions_df[!, input])
+                _input_values = _get_net_input_values([condition_value], netid, nnmodel, conditions_df, hybridization_df, petab_parameters, sys; keep_numbers = keep_numbers)
+                input_values = vcat(input_values, _input_values)
+            end
+            continue
+        end
+
+        # When building ParameterIndices sometimes only the relative input is provided for
         # the path of a potential input file. To ease downstream processing the complete
-        # path is provided for downstream processing
-        if isfile(string(input))
+        # is added to files here.
+        if isfile(string(input_variable))
             push!(input_variables, input)
             continue
         end
-        if isfile(joinpath(nnmodel.dirdata, string(input)))
+        if isfile(joinpath(nnmodel.dirdata, string(input_variable)))
             push!(input_variables, Symbol(joinpath(nnmodel.dirdata, string(input))))
             continue
         end
-        if input in propertynames(conditions_df)
-            for condition_value in Symbol.(conditions_df[!, input])
-                _input_variables = _get_nn_input_variables([condition_value], netid, nnmodel, conditions_df, petab_parameters, sys; keep_numbers = keep_numbers)
-                input_variables = vcat(input_variables, _input_variables)
-            end
-            continue
-        end
-        throw(PEtabInputError("Input $input to neural-network cannot be found among ODE \
-                               variables, PEtab parameters, or in the conditions table"))
+
+        throw(PEtabInputError("Input $(input_variable) to neural-network cannot be found \
+            among ODE variables, PEtab parameters, or in the conditions table"))
     end
     return input_variables
 end
 
-function _get_nnmodels_inode(nnmodels::Union{Dict, Nothing})::Dict{Symbol, <:NNModel}
+"""
+    _get_nnmodels_in_ode(nnmodels, path_SBML, petab_tables)
+
+Identify which neural-network models appear in the ODE right-hand-side
+
+For this to hold, the following must hold:
+
+1. Neural network has static = false
+2. All neural network inputs and outputs appear in the hybridization table
+3. All neural network outputs should assign to SBML model parameters
+
+In case 3 does not hold, an error should be thrown as something is wrong with the PEtab
+problem.
+"""
+function _get_nnmodels_in_ode(nnmodels::Dict{Symbol, <:NNModel}, path_SBML::String, petab_tables::Dict{Symbol, DataFrame})::Dict{Symbol, <:NNModel}
     out = Dict{Symbol, NNModel}()
     isnothing(nnmodels) && return out
-    for (netid, nnmodel) in nnmodels
-        if nnmodel.input_info[1] == "ode" && nnmodel.output_info[1] == "ode"
-            out[netid] = nnmodel
+
+    libsbml_model = SBMLImporter.SBML.readSBML(path_SBML)
+    hybridization_df = petab_tables[:hybridization]
+    mappings_df = petab_tables[:mapping_table]
+    # First sanity check mapping table column names
+    # Sanity check that columns in mapping table are correctly named
+    pattern = r"(.inputs|.outputs|.parameters)"
+    for io_id in string.(mappings_df[!, "modelEntityId"])
+        if !occursin(pattern, io_id)
+            throw(PEtabInputError("In mapping table, in modelEntityId column allowed \
+                                   values are only netid.inputs..., netid.outputs... \
+                                   and netid.parameters... $io_id is invalid"))
         end
     end
+
+    for (netid, nnmodel) in nnmodels
+        nnmodel.static == true && continue
+
+        input_variables = _get_net_petab_variables(mappings_df, netid, :inputs)
+        if !all([x in hybridization_df.targetId for x in input_variables])
+            throw(PEtab.PEtabInputError("For a static=false neural network all input \
+                must be assigned value in the hybridization table. This does not hold for \
+                $netid"))
+        end
+
+        output_variables = _get_net_petab_variables(mappings_df, netid, :outputs)
+        outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
+        isempty(outputs_df) && continue
+        if !all([x in keys(libsbml_model.parameters) for x in outputs_df.targetId])
+            throw(PEtab.PEtabInputError("For a static=false neural network all output \
+                variables in hybridization table must map to SBML model parameters. This does
+                not hold for $netid"))
+        end
+        out[netid] = nnmodel
+    end
     return out
+end
+
+function _get_nnmodels_in_ode_ids(nnmodels::Dict{Symbol, <:NNModel}, path_SBML::String, petab_tables::Dict{Symbol, DataFrame})::Vector{Symbol}
+    nnmodels_in_ode = _get_nnmodels_inode_ids(nnmodels, path_SBML, petab_tables)
+    return collect(keys(nnmodels_in_ode))
 end
 
 function _get_n_net_parameters(nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing}, xids::Vector{Symbol})::Int64
@@ -126,9 +195,9 @@ function _get_n_net_parameters(nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing}
     return nparameters
 end
 
-function _get_netids(mapping_table::DataFrame)::Vector{String}
-    isempty(mapping_table) && return String[]
-    return split.(string.(mapping_table[!, "modelEntityId"]), ".") .|>
+function _get_netids(mappings_df::DataFrame)::Vector{String}
+    isempty(mappings_df) && return String[]
+    return split.(string.(mappings_df[!, "modelEntityId"]), ".") .|>
         first .|>
         string
 end

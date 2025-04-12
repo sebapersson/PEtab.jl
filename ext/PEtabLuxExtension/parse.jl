@@ -1,24 +1,18 @@
 function PEtab.load_nnmodels(path_yaml::String)::Dict{Symbol, <:PEtab.NNModel}
-    yaml_file = YAML.load_file(path_yaml)
-    sciml_info = yaml_file["extensions"]["petab_sciml"]
+    problem_yaml = YAML.load_file(path_yaml)
+    dirmodel = dirname(path_yaml)
+    neural_nets = problem_yaml["extensions"]["neural_nets"]
     nnmodels = Dict{Symbol, PEtab.NNModel}()
-    for (netid, netinfo) in sciml_info
-        netfile = joinpath(dirname(path_yaml), netinfo["file"])
-        net, netid = PEtab.parse_to_lux(netfile)
-        input_info, output_info = String[], String[]
-        for (id, io_info) in netinfo["hybridization"]
-            if id == "input"
-                input_info = io_info isa Vector ? io_info : [io_info]
-            elseif id == "output"
-                output_info = io_info isa Vector ? io_info : [io_info]
-            end
-        end
-        nnmodels[Symbol(netid)] = PEtab.NNModel(net; input_info = input_info, output_info = output_info)
+    for (netid, netinfo) in neural_nets
+        path_net = joinpath(dirname(path_yaml), netinfo["location"])
+        net, _ = PEtab.parse_to_lux(path_net)
+        static = netinfo["static"]
+        nnmodels[Symbol(netid)] = PEtab.NNModel(net; static = static, dirdata = dirmodel)
     end
     return nnmodels
 end
 
-function PEtab.NNModel(net::Union{Lux.Chain, Lux.CompactLuxLayer}; dirdata = nothing, inputs::Vector{T} = Symbol[], outputs::Vector{T} = Symbol[], input_info::Vector{String} = String[], output_info = String[])::NNModel where T <: Union{String, Symbol}
+function PEtab.NNModel(net::Union{Lux.Chain, Lux.CompactLuxLayer}; static::Bool = true, dirdata = nothing, inputs::Vector{T} = Symbol[], outputs::Vector{T} = Symbol[], input_info::Vector{String} = String[], output_info = String[])::NNModel where T <: Union{String, Symbol}
     rng = Random.default_rng()
     st = Lux.initialstates(rng, net)
     if isnothing(dirdata)
@@ -33,7 +27,7 @@ function PEtab.NNModel(net::Union{Lux.Chain, Lux.CompactLuxLayer}; dirdata = not
     end
     _inputs = Symbol.(inputs)
     _outputs = Symbol.(outputs)
-    return NNModel(net, st, dirdata, _inputs, _outputs, input_info, output_info)
+    return NNModel(net, st, static, dirdata, _inputs, _outputs, input_info, output_info)
 end
 
 function PEtab.parse_to_lux(path_yaml::String)

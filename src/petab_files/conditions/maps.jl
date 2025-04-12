@@ -50,7 +50,7 @@ function _get_map_observable_noise(xids::Vector{Symbol},
     return maps
 end
 
-function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing})::MapODEProblem
+function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nnmodels::Dict{Symbol, <:NNModel})::MapODEProblem
     dynamic_to_sys, sys_to_dynamic = Int32[], Int32[]
     sys_to_dynamic_nn, sys_to_nn_preode_output = Int32[], Int32[]
     for (i, id_xdynmaic) in pairs(xids[:dynamic_mech])
@@ -97,7 +97,10 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nnmodels::Union
     return MapODEProblem(sys_to_dynamic, dynamic_to_sys, sys_to_dynamic_nn, sys_to_nn_preode_output)
 end
 
-function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_parameters::PEtabParameters, conditions_df::DataFrame, mapping_table::DataFrame, xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, ConditionMap}
+function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_parameters::PEtabParameters, petab_tables::Dict{Symbol, DataFrame}, xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, ConditionMap}
+    mappings_df = petab_tables[:mapping_table]
+    conditions_df = petab_tables[:conditions]
+    # TODO: xids_model should just a be functions
     species_sys = _get_state_ids(sys)
     xids_sys, xids_dynamic = xids[:sys] .|> string, xids[:dynamic_mech] .|> string
     xids_model = Iterators.flatten((xids_sys, species_sys))
@@ -117,14 +120,14 @@ function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_pa
                 value = parse(Float64, value)
             end
 
-            # When the value in the condidtion table maps to a numeric value
+            # When the value in the condition table maps to a numeric value
             if value isa Real && variable in xids_model
                 push!(constant_values, value |> Float64)
                 _add_ix_sys!(isys_constant_values, variable, xids_sys)
                 continue
             end
 
-            if value isa Real && Symbol(variable) in mapping_table[!, "petabEntityId"]
+            if value isa Real && Symbol(variable) in mappings_df[!, "petabEntityId"]
                 continue
             end
 
@@ -137,7 +140,7 @@ function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_pa
                 continue
             end
 
-            # When the value in the condtitions table maps to a parameter to estimate
+            # When the value in the conditions table maps to a parameter to estimate
             if value in xids_dynamic && variable in xids_model
                 push!(ix_dynamic, findfirst(x -> x == value, xids_dynamic))
                 _add_ix_sys!(ix_sys, variable, xids_sys)
@@ -153,7 +156,7 @@ function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_pa
                 continue
             end
 
-            # NaN values are relevant for pre-equilibration and denotes a controll variable
+            # NaN values are relevant for pre-equilibration and denotes a control variable
             # should use the value obtained from the forward simulation
             if value isa Real && isnan(value) && variable in species_sys
                 push!(constant_values, NaN)
@@ -166,14 +169,14 @@ function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_pa
 
             # A variable can be one of the neural net inputs. The map is then built later
             # when building the input function for the NN
-            if !isempty(mapping_table) && Symbol(variable) in mapping_table[!, "petabEntityId"]
+            if !isempty(mappings_df) && Symbol(variable) in mappings_df.petabEntityId
                 continue
             end
 
-            throw(PEtabFileError("For condition $conditionid, the value of $variable, " *
-                                 "$value, does not correspond to any model parameter, " *
-                                 "species, or PEtab parameter. The condition variable " *
-                                 "must be a valid model id or a numeric value"))
+            throw(PEtabFileError("For condition $conditionid, the value of $variable, \
+                $value, does not correspond to any model parameter, species, or PEtab \
+                parameter. The condition variable must be a valid model id or a numeric \
+                 value"))
         end
         maps[conditionid] = ConditionMap(constant_values, isys_constant_values, ix_dynamic,
                                          ix_sys)
@@ -181,32 +184,36 @@ function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_pa
     return maps
 end
 
-function _get_nn_preode_maps(conditions_df::DataFrame, xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, mapping_table::DataFrame, nnmodels::Dict{Symbol, <:NNModel}, sys::ModelSystem)::Dict{Symbol, Dict{Symbol, NNPreODEMap}}
-    nconditions = nrow(conditions_df)
+function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, petab_tables::Dict{Symbol, DataFrame}, nnmodels::Dict{Symbol, <:NNModel}, sys::ModelSystem)::Dict{Symbol, Dict{Symbol, NNPreODEMap}}
     maps = Dict{Symbol, Dict{Symbol, NNPreODEMap}}()
     isempty(xids[:nn_preode]) && return maps
+
+    mappings_df = petab_tables[:mapping_table]
+    conditions_df = petab_tables[:conditions]
+    hybridization_df = petab_tables[:hybridization]
+    nconditions = nrow(conditions_df)
     for i in 1:nconditions
         conditionid = conditions_df[i, :conditionId] |> Symbol
         maps_nn = Dict{Symbol, NNPreODEMap}()
         for netid in xids[:nn_preode]
-            outputs = _get_net_values(mapping_table, netid, :outputs) .|> Symbol
-            inputs = _get_net_values(mapping_table, netid, :inputs) .|> Symbol
-            input_variables = _get_nn_input_variables(inputs, netid, nnmodels[netid], DataFrame(conditions_df[i, :]), petab_parameters, sys; keep_numbers = true)
-            ninputs = length(input_variables)
+            outputs = _get_net_petab_variables(mappings_df, netid, :outputs) .|> Symbol
+            inputs = _get_net_petab_variables(mappings_df, netid, :inputs) .|> Symbol
+            input_values = _get_net_input_values(inputs, netid, nnmodels[netid], DataFrame(conditions_df[i, :]), hybridization_df, petab_parameters, sys; keep_numbers = true)
+            ninputs = length(input_values)
             file_input = false
 
             # Get values for the inputs. For the pre-ODE inputs can either be constant
             # values (numeric) or a parameter, which is treated as a xdynamic parameter
             constant_inputs, iconstant_inputs = zeros(Float64, 0), zeros(Int32, 0)
             ixdynamic_mech_inputs, ixdynamic_inputs = zeros(Int32, 0), zeros(Int32, 0)
-            for (i, input_variable) in pairs(input_variables)
+            for (i, input_variable) in pairs(input_values)
                 if isfile(string(input_variable))
-                    if length(input_variables) > 1
+                    if length(input_values) > 1
                         throw(PEtabInputError("If input to neural net is a file, only one \
                             input can be provided in the mapping table. This does not \
                             hold for $netid"))
                     end
-                    # TODO: Add support for multiple inputs here
+                    # TODO: Add support for multiple inputs here, when the time comes
                     input_data = h5read(string(input_variable), "input1") .|> Float64
                     # hdf5 files are in row-major
                     input_data = permutedims(input_data, reverse(1:ndims(input_data)))
@@ -216,20 +223,22 @@ function _get_nn_preode_maps(conditions_df::DataFrame, xids::Dict{Symbol, Vector
                     file_input = true
                     continue
                 end
+
                 if is_number(input_variable)
                     val = parse(Float64, string(input_variable))
                     push!(constant_inputs, val)
                     push!(iconstant_inputs, i)
                     continue
                 end
-                # At this point the value must be a parameter
+
+                # At this point the value must be a parameter, that is either constant
+                # or estimates
                 ip = findfirst(x -> x == input_variable, petab_parameters.parameter_id)
                 if petab_parameters.estimate[ip] == false
                     push!(constant_inputs, petab_parameters.nominal_value[ip])
                     push!(iconstant_inputs, i)
                     continue
                 end
-                # Parameter that is estimated (and part of ixdynamic)
                 ixmech = findfirst(x -> x == input_variable, xids[:dynamic_mech])
                 push!(ixdynamic_mech_inputs, ixmech)
                 push!(ixdynamic_inputs, i)

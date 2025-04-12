@@ -1,48 +1,54 @@
-#=
-    Get the ids to categorise the parameters into their respective paramter category.
-    This is important to avoid uncessary compuations during gradient compuations, e.g.
-    for parameters not a part of the ODESystem we do not have to propegate Dual numbers
-    in throught the ODESolver when using ForwardDiff
-=#
+"""
+    _get_xids(petab_parameters, petab_net_parameters, petab_measurements, sys, petab_tables,
+        speciemap, parametermap, nnmodels)
 
-function _get_xids(petab_parameters::PEtabParameters, petab_net_parameters::PEtabNetParameters, petab_measurements::PEtabMeasurements, sys::ModelSystem, conditions_df::DataFrame, speciemap, parametermap, nnmodels::Union{Nothing, Dict{Symbol, <:NNModel}}, mapping_table::DataFrame)::Dict{Symbol, Vector{Symbol}}
+Categorize all models parameters.
+
+This is a **very** important function, as parameter type dictates how the gradient should
+be computed for any parameter. The assigned parameter categories are later used to
+build all the indices used by PEtab.jl to correctly map parameters.
+"""
+function _get_xids(petab_parameters::PEtabParameters, petab_net_parameters::PEtabNetParameters, petab_measurements::PEtabMeasurements, sys::ModelSystem, petab_tables::Dict{Symbol, DataFrame}, speciemap, parametermap, nnmodels::Dict{Symbol, <:NNModel})::Dict{Symbol, Vector{Symbol}}
     @unpack observable_parameters, noise_parameters = petab_measurements
+
     # xids in the ODESystem in correct order
     xids_sys = _get_xids_sys_order(sys, speciemap, parametermap)
 
-    # Parameters related to neural networks (data-driven models)
+    # Neural network parameters.
+    # In case of multiple neural networks, to get correct indexing for adjoint gradient
+    # methods, nets that appears in the ODE RHS must appear first, and xids_sys must follow
+    # the order of xids_nn_in_ode for adjoint indexing to be correct.
     _xids_nn = _get_xids_nn(nnmodels)
     xids_nn_in_ode = _get_xids_nn_in_ode(_xids_nn, sys)
-    xids_nn_preode = _get_xids_nn_preode(mapping_table, sys)
+    xids_nn_preode = _get_xids_nn_preode(nnmodels)
     xids_nn_nondynamic = _get_xids_nn_nondynamic(_xids_nn, xids_nn_in_ode, xids_nn_preode)
-    # For all mapping to be correct in_ode must be first.
     xids_nn = unique(vcat(xids_nn_in_ode, xids_nn_preode, xids_nn_nondynamic))
-    # Need to reorder xids_sys nn parameter to follow the order in xids_nn_in_ode for
-    # correct indexing in the adjoint gradient method
     ix = [findfirst(x -> x == id, xids_sys) for id in xids_nn_in_ode]
     xids_sys[sort(ix)] .= xids_nn_in_ode
 
-    # Parameter which are input to a neural net, and are estimated. These must be tracked
-    # for gradients
-    xids_nn_input_est = _get_xids_nn_input_est(mapping_table, conditions_df, petab_parameters, sys, nnmodels)
-    # If a Neural-Net sets the values for a parameter, in practice for gradient computations
-    # the derivative of the parameter is needed to compute the network gradient following
-    # the chain-rule. Therefore, these parameters must be tracked such that they can be
-    # a part of xdynamic.
-    xids_nn_preode_output = _get_xids_nn_preode_output(mapping_table, xids_sys)
+    # Parameter which are input to a neural net, and are estimated. These must be
+    # separately tracked in order to compute correct gradients
+    xids_nn_input_est = _get_xids_nn_input_est(petab_tables, petab_parameters, sys, nnmodels)
+
+    # Parameters set by a static neural net. Needed to be tracked for gradient computations
+    # (as PEtab.jl computes neural net and ODE gradients separately in this case)
+    xids_nn_preode_output = _get_xids_nn_preode_output(petab_tables, nnmodels)
 
     # Mechanistic (none neural-net parameters). Note non-dynamic parameters are those that
     # only appear in the observable and noise functions, but are not defined noise or
     # observable column of the measurement file.
     xids_observable = _get_xids_observable_noise(observable_parameters, petab_parameters)
     xids_noise = _get_xids_observable_noise(noise_parameters, petab_parameters)
-    xids_nondynamic_mech = _get_xids_nondynamic_mech(xids_observable, xids_noise, xids_nn, xids_nn_input_est, sys, petab_parameters, conditions_df, mapping_table)
+    xids_nondynamic_mech = _get_xids_nondynamic_mech(xids_observable, xids_noise, xids_nn, xids_nn_input_est, sys, petab_parameters, petab_tables, nnmodels)
     xids_dynamic_mech = _get_xids_dynamic_mech(xids_observable, xids_noise, xids_nondynamic_mech, xids_nn, petab_parameters)
-    # If a parameter is in xids_nn_input_est and does not appear in the sys, it must be
-    # treated as a xdynamic parameter, since it informs the ODE (it is not a nondynamic)
+
+    # Edge case. If a parameter is in xids_nn_input_est and does not appear in the sys,
+    # it must be treated as a xdynamic parameter for gradient purposes since it informs
+    # the ODE, so in a sense, it is a form of dynamic parameter.
     _add_xids_nn_input_est_only!(xids_dynamic_mech, xids_nn_input_est)
     xids_not_system_mech = unique(vcat(xids_observable, xids_noise, xids_nondynamic_mech))
 
+    # Bookeep parameters to estimate
     xids_nn_est = _get_xids_nn_est(xids_nn, petab_net_parameters)
     xids_estimate = vcat(xids_dynamic_mech, xids_not_system_mech, xids_nn_est)
     xids_petab = petab_parameters.parameter_id
@@ -85,16 +91,15 @@ function _get_xids_sys(sys::ModelSystem)::Vector{Symbol}
     return sys isa ODEProblem ? collect(keys(sys.p)) : Symbol.(parameters(sys))
 end
 
-function _get_xids_nn_preode_output(mapping_table::DataFrame, xids_sys::Vector{Symbol})::Vector{Symbol}
+function _get_xids_nn_preode_output(petab_tables::Dict{Symbol, DataFrame}, nnmodels::Dict{Symbol, <:NNModel})::Vector{Symbol}
     out = Symbol[]
-    for i in 1:nrow(mapping_table)
-        io_value = mapping_table[i, "petabEntityId"]
-        io_value ∉ xids_sys && continue
-        if io_value in out
-            throw(PEtabInputError("Only one neural network output can map to paramter \
-                                   $(io_value)"))
-        end
-        push!(out, io_value)
+    mappings_df = petab_tables[:mapping_table]
+    hybridization_df = petab_tables[:hybridization]
+    for (netid, nnmodel) in nnmodels
+        nnmodel.static == false && continue
+        output_variables = _get_net_petab_variables(mappings_df, netid, :outputs)
+        outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
+        out = vcat(out, Symbol.(outputs_df.targetId))
     end
     return out
 end
@@ -121,8 +126,8 @@ function _get_xids_observable_noise(values, petab_parameters::PEtabParameters)::
     return ids
 end
 
-function _get_xids_nondynamic_mech(xids_observable::T, xids_noise::T, xids_nn::T, xids_nn_input_est::T, sys::ModelSystem, petab_parameters::PEtabParameters, conditions_df::DataFrame, mapping_table::DataFrame)::T where {T <: Vector{Symbol}}
-    xids_condition = _get_xids_condition(sys, petab_parameters, conditions_df, mapping_table)
+function _get_xids_nondynamic_mech(xids_observable::T, xids_noise::T, xids_nn::T, xids_nn_input_est::T, sys::ModelSystem, petab_parameters::PEtabParameters, petab_tables::Dict{Symbol, DataFrame}, nnmodels::Dict{Symbol, <:NNModel})::T where {T <: Vector{Symbol}}
+    xids_condition = _get_xids_condition(sys, petab_parameters, petab_tables, nnmodels)
     xids_sys = _get_xids_sys(sys)
     xids_nondynamic_mech = Symbol[]
     _ids = Iterators.flatten((xids_sys, xids_condition, xids_observable, xids_noise, xids_nn, xids_nn_input_est))
@@ -134,17 +139,19 @@ function _get_xids_nondynamic_mech(xids_observable::T, xids_noise::T, xids_nn::T
     return xids_nondynamic_mech
 end
 
-function _get_xids_condition(sys, petab_parameters::PEtabParameters, conditions_df::DataFrame, mapping_table::DataFrame)::Vector{Symbol}
+function _get_xids_condition(sys, petab_parameters::PEtabParameters, petab_tables::Dict{Symbol, DataFrame}, nnmodels::Dict{Symbol, <:NNModel})::Vector{Symbol}
+    mappings_df = petab_tables[:mapping_table]
+    conditions_df = petab_tables[:conditions]
     xids_sys = parameters(sys) .|> string
     species_sys = _get_state_ids(sys)
     net_inputs = String[]
-    if !isempty(mapping_table)
-        for netid in Symbol.(unique(_get_netids(mapping_table)))
-            _net_inputs = _get_net_values(mapping_table, netid, :inputs) .|> string
-            net_inputs = vcat(net_inputs, _net_inputs)
-        end
+    for (netid, nnmodel) in nnmodels
+        nnmodel.static == false && continue
+        input_variables = _get_net_petab_variables(mappings_df, netid, :inputs) .|> string
+        net_inputs = vcat(net_inputs, input_variables)
     end
     problem_variables = Iterators.flatten((xids_sys, species_sys, net_inputs))
+
     xids_condition = Symbol[]
     for colname in names(conditions_df)
         colname in ["conditionName", "conditionId"] && continue
@@ -155,6 +162,7 @@ function _get_xids_condition(sys, petab_parameters::PEtabParameters, conditions_
         for condition_variable in Symbol.(conditions_df[!, colname])
             is_number(condition_variable) && continue
             condition_variable == :missing && continue
+
             should_est = _estimate_parameter(condition_variable, petab_parameters)
             if should_est == false
                 continue
@@ -186,15 +194,11 @@ function _get_xids_nn_in_ode(xids_nn::Vector{Symbol}, sys)::Vector{Symbol}
     return xids_nn_in_ode
 end
 
-function _get_xids_nn_preode(mapping_table::DataFrame, sys::ModelSystem)::Vector{Symbol}
-    isempty(mapping_table) && return Symbol[]
-    xids_sys = _get_xids_sys(sys)
+function _get_xids_nn_preode(nnmodels::Dict{Symbol, <:NNModel})::Vector{Symbol}
     out = Symbol[]
-    for netid in Symbol.(unique(_get_netids(mapping_table)))
-        outputs = _get_net_values(mapping_table, Symbol(netid), :outputs) .|> Symbol
-        if all([output in xids_sys for output in outputs])
-            push!(out, netid)
-        end
+    for (netid, nnmodel) in nnmodels
+        nnmodel.static == false && continue
+        push!(out, netid)
     end
     return out
 end
@@ -208,17 +212,22 @@ function _get_xids_nn_nondynamic(xids_nn::T, xids_nn_in_ode::T, xids_nn_preode::
     return out
 end
 
-function _get_xids_nn_input_est(mapping_table::DataFrame, conditions_df::DataFrame, petab_parameters::PEtabParameters, sys::ModelSystem, nnmodels::Dict{Symbol, <:NNModel})::Vector{Symbol}
-    isempty(mapping_table) && return Symbol[]
+function _get_xids_nn_input_est(petab_tables::Dict{Symbol, DataFrame}, petab_parameters::PEtabParameters, sys::ModelSystem, nnmodels::Dict{Symbol, <:NNModel})::Vector{Symbol}
+    mappings_df = petab_tables[:mapping_table]
+    conditions_df = petab_tables[:conditions]
+    hybridization_df = petab_tables[:hybridization]
+    isempty(mappings_df) && return Symbol[]
+
     out = Symbol[]
-    for netid in Symbol.(unique(_get_netids(mapping_table)))
-        inputs = _get_net_values(mapping_table, netid, :inputs) .|> Symbol
-        input_variables = _get_nn_input_variables(inputs, netid, nnmodels[netid], conditions_df, petab_parameters, sys)
-        for input_variable in input_variables
-            !(input_variable in petab_parameters.parameter_id) && continue
+    for (netid, nnmodel) in nnmodels
+        nnmodel.static == false && continue
+        input_variables = Symbol.(_get_net_petab_variables(mappings_df, netid, :inputs))
+        input_values = _get_net_input_values(input_variables, netid, nnmodel, conditions_df, hybridization_df, petab_parameters, sys)
+        for input_value in input_values
+            !(input_value in petab_parameters.parameter_id) && continue
             ip = findfirst(x -> x == input_variable, petab_parameters.parameter_id)
             if petab_parameters.estimate[ip] == true
-                push!(out, input_variable)
+                push!(out, input_value)
             end
         end
     end
@@ -261,11 +270,11 @@ function _get_xscales(xids::Dict{T, Vector{T}}, petab_parameters::PEtabParameter
     return Dict(xids[:estimate] .=> s)
 end
 
-function _get_xids_nn_est(xids_nn::Vector{Symbol}, petab_parameters::PEtabNetParameters)::Vector{Symbol}
+function _get_xids_nn_est(xids_nn::Vector{Symbol}, petab_net_parameters::PEtabNetParameters)::Vector{Symbol}
     out = Symbol[]
     for netid in xids_nn
-        ip = findfirst(x -> x == netid, petab_parameters.parameter_id)
-        petab_parameters.estimate[ip] == false && continue
+        ip = findfirst(x -> x == netid, petab_net_parameters.netid)
+        petab_net_parameters.estimate[ip] == false && continue
         push!(out, netid)
     end
     return out

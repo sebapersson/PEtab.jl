@@ -163,7 +163,7 @@ function _get_formulas_nn(formula, mapping_table::DataFrame, state_ids::Vector{S
     formula_nn = ""
     isempty(mapping_table) && return formula_nn
     for netid in unique(_get_netids(mapping_table))
-        outputs = _get_net_values(mapping_table, Symbol(netid), :outputs)
+        outputs = _get_net_petab_variables(mapping_table, Symbol(netid), :outputs)
         has_nn_output = false
         for output in outputs
             if SBMLImporter._replace_variable(formula, output, "") != formula
@@ -177,9 +177,9 @@ function _get_formulas_nn(formula, mapping_table::DataFrame, state_ids::Vector{S
 end
 
 function _template_nn_formula(netid::Symbol, mapping_table::DataFrame, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, type::Symbol)::String
-    inputs = "[" * prod(_get_net_values(mapping_table, netid, :inputs) .* ",") * "]"
+    inputs = "[" * prod(_get_net_petab_variables(mapping_table, netid, :inputs) .* ",") * "]"
     inputs = _parse_formula(inputs, state_ids, xindices, model_SBML, type)
-    outputs = prod(_get_net_values(mapping_table, netid, :outputs) .* ", ")
+    outputs = prod(_get_net_petab_variables(mapping_table, netid, :outputs) .* ", ")
     formula = "\n\t\tnnmodel_$(netid) = nnmodels[:$(netid)]\n"
     if netid in xindices.xids[:nn_est]
         formula *= "\t\txnn_$(netid) = xnn[:$(netid)]\n"

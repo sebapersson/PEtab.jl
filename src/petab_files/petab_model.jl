@@ -12,37 +12,32 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
     end
     _logging(:Build_PEtabModel, verbose; name = name)
 
-    # Build the internal PEtab.jl nn-dict. The same that users provide via the PEtab
-    # interface
-    if !isnothing(nnmodels)
-        _add_dirdata!(nnmodels, paths[:dirmodel])
-    else
-        nnmodels = Dict{Symbol, NNModel}()
-    end
+    # Ensure correct type internally for nnmodels
+    nnmodels = isnothing(nnmodels) ? Dict{Symbol, NNModel}() : nnmodels
 
-    # Import SBML model with SBMLImporter
-    # In case one of the conditions in the PEtab table assigns an initial specie value,
-    # the SBML model must be mutated to add an iniitial value parameter to correctly
-    # compute gradients
-    nnmodels_in_ode = _get_nnmodels_inode(nnmodels)
-    if !isempty(nnmodels_in_ode)
-        inline_assignment_rules = true
-    else
-        inline_assignment_rules = false
-    end
+    #=
+        Import SBML model with SBMLImporter.jl
+
+        If the model contains a neural-network it must be parsed as an ODEProblem, as MTK
+        does not have good neural-net support yet. Otherwise, model should be parsed as
+        ODESystem as usual. If parsed as ODEProblem assignment rules must be inlined
+
+        In case one of the conditions in the PEtab table assigns an initial specie value,
+        the SBML model must be mutated to add an initial value parameter in order for
+        PEtab.jl to be able to correctly compute gradients
+    =#
+    nnmodels_in_ode = _get_nnmodels_in_ode(nnmodels, paths[:SBML], petab_tables)
+    inline_assignment_rules = !isempty(nnmodels_in_ode)
     model_SBML = SBMLImporter.parse_SBML(paths[:SBML], false; model_as_string = false,
                                          ifelse_to_callback = ifelse_to_callback,
                                          inline_assignment_rules = inline_assignment_rules)
     _addu0_parameters!(model_SBML, petab_tables)
     pathmodel = joinpath(paths[:dirjulia], name * ".jl")
     exist = isfile(pathmodel)
-    # If the model contains a neural-network it must be parsed as an ODEProblem, as MTK
-    # does not have good neural-net support yet. Otherwise, model should be parsed as
-    # ODESystem as usual
     if isempty(nnmodels_in_ode)
         odesystem, speciemap, parametermap = _get_odesys(model_SBML, paths, exist, build_julia_files, write_to_file, verbose)
     else
-        odesystem, speciemap, parametermap = _get_odeproblem(model_SBML, nnmodels_in_ode, petab_tables[:mapping_table], nnmodels)
+        odesystem, speciemap, parametermap = _get_odeproblem(model_SBML, nnmodels_in_ode, petab_tables)
     end
 
     # Indices for mapping parameters and tracking which parameter to estimate, useful
@@ -103,7 +98,7 @@ function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::Di
     net_outputs = String[]
     if !isempty(mapping_table)
         for netid in unique(Symbol.(_get_netids(mapping_table)))
-            net_outputs = vcat(net_outputs, _get_net_values(mapping_table, netid, :outputs))
+            net_outputs = vcat(net_outputs, _get_net_petab_variables(mapping_table, netid, :outputs))
         end
         for net_output in net_outputs
             !(net_output in condition_variables) && continue
@@ -202,81 +197,54 @@ function _get_odesys(model_SBML::SBMLImporter.ModelSBML, paths::Dict{Symbol, Str
     return odesystem, speciemap, parametermap
 end
 
-function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, nnmodels_in_ode::Dict, mapping_table::DataFrame, nnmodels::Dict)
-    for id in keys(nnmodels_in_ode)
-        if !(string(id) in _get_netids(mapping_table))
-            throw(PEtab.PEtabInputError("Neural net $id defined in the net.yaml file is \
-                                         is not defined in the mapping table, which it must \
-                                         in order to understand how the net interacts with \
-                                         the model."))
-        end
-        # Inputs can be any variable
-        for variable_id in PEtab._get_net_values(mapping_table, id, :inputs)
-            if SBMLImporter._is_model_variable(variable_id, model_SBML) == false
-                throw(PEtab.PEtabInputError("Input $variable_id to neural net $id inside the
-                                            ODE is not as required a valid SBML variable."))
-            end
-        end
-        # Outputs can only be parameters, as implications of setting a specie are unclear
-        for variable_id in PEtab._get_net_values(mapping_table, id, :outputs)
-            if haskey(model_SBML.parameters, variable_id)
-                delete!(model_SBML.parameters, variable_id)
-                continue
-            end
-            if occursin(r"_dot$", variable_id)
-                specie_id = replace(variable_id, r"_dot$" => "")
-                @assert haskey(model_SBML.species, specie_id) "$(specie_id) is not a valid \
-                                                               model SBML specie"
-                model_SBML.species[specie_id].formula = variable_id
-                continue
-            end
-            throw(PEtab.PEtabInputError("Ouput $variable_id to neural net $id inside the
-                                        ODE is not as required a valid SBML parameter or
-                                        a specie derivative on the form specie_id_dot"))
+function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, nnmodels_in_ode::Dict, petab_tables::Dict{Symbol, DataFrame})
+    hybridization_df = petab_tables[:hybridization]
+    mapping_df = petab_tables[:mapping_table]
+    for netid in keys(nnmodels_in_ode)
+        output_variables = _get_net_petab_variables(mapping_df, netid, :outputs)
+        outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
+        output_targets = outputs_df.targetId
+        for output_target in output_targets
+            delete!(model_SBML.parameters, output_target)
         end
     end
 
-    # Build the internal PEtab.jl nn-dict used by the ODEProblem
-    pnns = _get_pnns(nnmodels_in_ode)
-
-    # Parse ODEProblem, with nndict via closure
+    # Parse the SBML model into an ODEProblem with the neueral networks inserted
     model_SBML_prob = SBMLImporter.ModelSBMLProb(model_SBML)
-    __fode = _template_odeproblem(model_SBML_prob, model_SBML, nnmodels_in_ode, mapping_table)
+    __fode = _template_odeproblem(model_SBML_prob, model_SBML, nnmodels_in_ode, petab_tables)
     _fode = @RuntimeGeneratedFunction(Meta.parse(__fode))
-    fode = let nnmodels = nnmodels
+    fode = let nnmodels = nnmodels_in_ode
         (du, u, p, t) -> _fode(du, u, p, t, nnmodels)
     end
 
-    # Parametermap needs to include neural net parameters
-    psvals = parse.(Float64, last.(model_SBML_prob.psmap))
-    psvec = (; (Symbol.(first.(model_SBML_prob.psmap)) .=> psvals)...)
-    for (pid, pnn) in pnns
-        psvec = merge(psvec, (;pid => pnn, ))
+    # Build the internal PEtab.jl ODEProblem parameter struct, which is a ComponentVector
+    # with mechanistic and neural-network parameters. For internal PEtab.jl mapping,
+    # neural-network must be last in this ComponentVector
+    psnets = _get_psnets(nnmodels_in_ode)
+    ps_mech_values = parse.(Float64, last.(model_SBML_prob.psmap))
+    psode = (; (Symbol.(first.(model_SBML_prob.psmap)) .=> ps_mech_values)...)
+    for (netid, psnet) in psnets
+        psode = merge(psode, (;netid => psnet, ))
     end
-    psvec = ComponentArray(psvec)
+    psode = ComponentArray(psode)
+    # For internal mapping, initial values need to be provided as a ComponentArray
     _u0tmp = zeros(Float64, length(model_SBML_prob.umodel))
     u0 = ComponentArray(; (Symbol.(model_SBML_prob.umodel) .=> _u0tmp)...)
-    oprob = SciMLBase.ODEProblem(fode, u0, (0.0, 10.0), psvec)
+    oprob = SciMLBase.ODEProblem(fode, u0, (0.0, 10.0), psode)
 
-    # Speciemap (initial values)
+    # PEtab.jl needed maps for later processing
     u0map = model_SBML_prob.umap
     psmap = nothing
-
-    # Remove nn from mapping table, to later help distinguish from where a neural net
-    # is provided
-    for netid in keys(nnmodels_in_ode)
-        netids = _get_netids(mapping_table)
-        mapping_table = mapping_table[findall(x -> x != string(netid), netids), :]
-    end
     return oprob, u0map, psmap
 end
 
-function _add_dirdata!(nnmodels::Dict{Symbol, <:NNModel}, dirdata::String)::Nothing
+_parse_nnmodels(::Nothing, ::String)::Nothing = nothing
+function _parse_nnmodels(nnmodels::Dict{Symbol, <:NNModel}, dirdata::String)::Nothing
     for (netid, nnmodel) in nnmodels
         _nnmodel = @set nnmodel.dirdata = dirdata
         nnmodels[netid] = _nnmodel
     end
-    return nothing
+    return nnmodels
 end
 
 function _reorder_parametermap(parametermap, parameter_order::Vector{Symbol})

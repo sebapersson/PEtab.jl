@@ -97,6 +97,7 @@ struct PEtabNetParameters{T <: Vector{<:Union{String, <:Float64}}}
     upper_bounds::Vector{Float64}
     parameter_id::Vector{Symbol}
     estimate::Vector{Bool}
+    netid::Vector{Symbol}
     initialisation_priors::Vector{Function}
 end
 
@@ -176,8 +177,8 @@ end
 function ModelInfo(model::PEtabModel, sensealg, custom_values)::ModelInfo
     tables, cbs = model.petab_tables, model.callbacks
     petab_measurements = PEtabMeasurements(tables[:measurements], tables[:observables])
-    petab_parameters = PEtabParameters(tables[:parameters], model.nnmodels; custom_values = custom_values)
-    petab_net_parameters = PEtabNetParameters(tables[:parameters], model.nnmodels)
+    petab_parameters = PEtabParameters(tables[:parameters], tables[:mapping_table], model.nnmodels; custom_values = custom_values)
+    petab_net_parameters = PEtabNetParameters(tables[:parameters], tables[:mapping_table], model.nnmodels)
     xindices = ParameterIndices(petab_parameters, petab_measurements, model)
     simulation_info = SimulationInfo(cbs, petab_measurements, sensealg = sensealg)
     priors = Priors(xindices, tables[:parameters])
@@ -186,7 +187,7 @@ function ModelInfo(model::PEtabModel, sensealg, custom_values)::ModelInfo
 end
 
 """
-    ODESolver(solver, kwargs..)
+    ODESolver(solver, kwargs...)
 
 ODE-solver options (`solver`, `tolerances`, etc.) used for solving the ODE model in a
 `PEtabODEProblem`.

@@ -49,8 +49,10 @@ const OBSERVABLES_COLS = Dict("observableId" => (required = true, types = Abstra
                                                                     Missing}))
 
 const MAPPING_COLS = Dict("modelEntityId" => (required = true, types = AbstractString),
-                          "petabEntityId" => (required = true,
-                                              types = Union{AbstractString, Real}))
+                          "petabEntityId" => (required = true, types = AbstractString))
+
+const HYBRIDIZATION_COLS = Dict("targetId" => (required = true, types = AbstractString),
+                                "targetValue" => (required = true, types = AbstractString))
 
 const VALID_SCALES = ["lin", "log10", "log", "log2"]
 

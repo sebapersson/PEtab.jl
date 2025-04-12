@@ -1,10 +1,10 @@
-function _template_odeproblem(model_SBML_prob, model_SBML, nnmodels_in_ode, mapping_table::DataFrame)::String
+function _template_odeproblem(model_SBML_prob, model_SBML, nnmodels_in_ode::Dict, petab_tables::Dict{Symbol, DataFrame})::String
     @unpack umodel, ps, odes = model_SBML_prob
     fode = "function f_$(model_SBML.name)(du, u, p, t, nnmodels)::Nothing\n"
     fode *= "\t" * prod(umodel .* ", ") * " = u\n"
     fode *= "\t@unpack " * prod(ps .* ", ") * " = p\n"
     for netid in keys(nnmodels_in_ode)
-        fode *= _template_nn_in_ode(netid, mapping_table)
+        fode *= _template_nn_in_ode(netid, petab_tables)
     end
     for ode in odes
         fode *= "\t" * ode
@@ -14,9 +14,19 @@ function _template_odeproblem(model_SBML_prob, model_SBML, nnmodels_in_ode, mapp
     return fode
 end
 
-function _template_nn_in_ode(netid::Symbol, mapping_table)
-    inputs = "[" * prod(PEtab._get_net_values(mapping_table, netid, :inputs) .* ",") * "]"
-    outputs_p = prod(PEtab._get_net_values(mapping_table, netid, :outputs) .* ", ")
+function _template_nn_in_ode(netid::Symbol, petab_tables::Dict{Symbol, DataFrame})::String
+    hybridization_df = petab_tables[:hybridization]
+    mapping_df = petab_tables[:mapping_table]
+
+    input_variables = _get_net_petab_variables(mapping_df, netid, :inputs)
+    inputs_df = filter(r -> r.targetId in input_variables, hybridization_df)
+    input_expressions = inputs_df.targetValue
+    output_variables = _get_net_petab_variables(mapping_df, netid, :outputs)
+    outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
+    output_targets = outputs_df.targetId
+
+    inputs = "[" * prod(input_expressions .* ",") * "]"
+    outputs_p = prod(output_targets .* ", ")
     outputs_net = "out, st_$(netid)"
     formula = "\n\tnnmodel_$(netid) = nnmodels[:$(netid)]\n"
     formula *= "\txnn_$(netid) = p[:$(netid)]\n"

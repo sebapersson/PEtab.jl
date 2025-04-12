@@ -4,14 +4,11 @@ function read_tables(path_yaml::String)::Dict{Symbol, DataFrame}
     conditions_df = _read_table(paths[:conditions], :conditions)
     observables_df = _read_table(paths[:observables], :observables)
     measurements_df = _read_table(paths[:measurements], :measurements)
+    mapping_df = _read_table(paths[:mapping_table], :mapping)
+    hybridization_df = _read_table(paths[:hybridization], :hybridization)
     tables = Dict(:parameters => parameters_df, :conditions => conditions_df,
-                  :observables => observables_df, :measurements => measurements_df)
-    # Part of PEtab extensions, and not required and/or usually encountered.
-    if haskey(paths, :mapping_table)
-        tables[:mapping_table] = _read_table(paths[:mapping_table], :mapping)
-    else
-        tables[:mapping_table] = DataFrame()
-    end
+                  :observables => observables_df, :measurements => measurements_df,
+                  :mapping_table => mapping_df, :hybridization => hybridization_df)
     return tables
 end
 
@@ -24,13 +21,13 @@ function _get_petab_paths(path_yaml::AbstractString)::Dict{Symbol, String}
     @assert version in [1, 2] "Incorrect PEtab version in yaml file"
     dirmodel = dirname(path_yaml)
     if version == 1
-        return _parse_yaml_v1(yaml_file, dirmodel)
+        return _parse_yaml_v1(yaml_file, path_yaml, dirmodel)
     else
-        return _parse_yaml_v2(yaml_file, dirmodel)
+        return _parse_yaml_v2(yaml_file, path_yaml, dirmodel)
     end
 end
 
-function _parse_yaml_v1(yaml_file, dirmodel::String)::Dict{Symbol, String}
+function _parse_yaml_v1(yaml_file, path_yaml::String, dirmodel::String)::Dict{Symbol, String}
     dirjulia = joinpath(dirmodel, "Julia_model_files")
     path_SBML = _get_path(yaml_file, dirmodel, "sbml_files")
     path_measurements = _get_path(yaml_file, dirmodel, "measurement_files")
@@ -40,10 +37,10 @@ function _parse_yaml_v1(yaml_file, dirmodel::String)::Dict{Symbol, String}
     return Dict(:SBML => path_SBML, :parameters => path_parameters,
                 :conditions => path_conditions, :observables => path_observables,
                 :measurements => path_measurements, :dirmodel => dirmodel,
-                :dirjulia => dirjulia)
+                :dirjulia => dirjulia, :yaml => path_yaml)
 end
 
-function _parse_yaml_v2(yaml_file, dirmodel::String)::Dict{Symbol, String}
+function _parse_yaml_v2(yaml_file, path_yaml::String, dirmodel::String)::Dict{Symbol, String}
     dirjulia = joinpath(dirmodel, "Julia_model_files")
     path_SBML = _get_path(yaml_file, dirmodel, "sbml_files")
     path_measurements = _get_path(yaml_file, dirmodel, "measurement_files")
@@ -51,13 +48,19 @@ function _parse_yaml_v2(yaml_file, dirmodel::String)::Dict{Symbol, String}
     path_conditions = _get_path(yaml_file, dirmodel, "condition_files")
     path_parameters = _get_path(yaml_file, dirmodel, "parameter_file")
     path_mapping = _get_path(yaml_file, dirmodel, "mapping_files")
+    path_hybridization = _get_path(yaml_file, dirmodel, "hybridization_file")
     return Dict(:SBML => path_SBML, :parameters => path_parameters,
                 :conditions => path_conditions, :observables => path_observables,
                 :measurements => path_measurements, :dirmodel => dirmodel,
-                :dirjulia => dirjulia, :mapping_table => path_mapping)
+                :dirjulia => dirjulia, :mapping_table => path_mapping,
+                :hybridization => path_hybridization, :yaml => path_yaml)
 end
 
 function _read_table(path::String, file::Symbol)::DataFrame
+    # Optional files that are allowed to be empty
+    if file in [:hybridization, :mapping_table] && isempty(path)
+        return DataFrame
+    end
     df = CSV.read(path, DataFrame; stringtype = String)
     _check_table(df, file)
     return df
@@ -70,10 +73,16 @@ function _get_path(yaml_file, dirmodel::String, file::String)::String
         model_info = yaml_file["problems"][1]["model_files"][key]
         @assert model_info["language"] == "sbml" "Only SBML models are supported"
         path = joinpath(dirmodel, model_info["location"])
-    elseif file != "parameter_file"
-        path = joinpath(dirmodel, yaml_file["problems"][1][file][1])
-    else
+    elseif file == "parameter_file"
         path = joinpath(dirmodel, yaml_file[file])
+    elseif file == "hybridization_file"
+        if haskey(yaml_file, "extensions") && haskey(yaml_file["extensions"], "hybridization_file")
+            path = joinpath(dirmodel, yaml_file["extensions"]["hybridization_file"])
+        else
+            path = ""
+        end
+    else
+        path = joinpath(dirmodel, yaml_file["problems"][1][file][1])
     end
     if !isempty(path) && !isfile(path)
         throw(PEtabFileError("$path is not a valid path for the $file table"))
@@ -97,6 +106,8 @@ function _check_table(df, table::Symbol)::Nothing
         colsinfo = OBSERVABLES_COLS
     elseif table == :mapping
         colsinfo = MAPPING_COLS
+    elseif table == :hybridization
+        colsinfo = HYBRIDIZATION_COLS
     end
 
     for (name, colinfo) in colsinfo

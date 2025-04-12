@@ -21,24 +21,21 @@ the parameter during likelihood computations. It further accounts for parameters
 only appearing in a certain simulation conditions.
 """
 function ParameterIndices(petab_tables::Dict{Symbol, DataFrame}, sys::ModelSystem, parametermap, speciemap, nnmodels::Union{Nothing, Dict{Symbol, <:NNModel}})::ParameterIndices
-    petab_parameters = PEtabParameters(petab_tables[:parameters], nnmodels)
-    petab_net_parameters = PEtabNetParameters(petab_tables[:parameters], nnmodels)
+    petab_parameters = PEtabParameters(petab_tables[:parameters], petab_tables[:mapping_table], nnmodels)
+    petab_net_parameters = PEtabNetParameters(petab_tables[:parameters], petab_tables[:mapping_table], nnmodels)
     petab_measurements = PEtabMeasurements(petab_tables[:measurements], petab_tables[:observables])
-    return ParameterIndices(petab_parameters, petab_net_parameters, petab_measurements, sys, parametermap, speciemap, petab_tables[:conditions], nnmodels, petab_tables[:mapping_table])
+    return ParameterIndices(petab_parameters, petab_net_parameters, petab_measurements, sys, parametermap, speciemap, petab_tables, nnmodels)
 end
 function ParameterIndices(petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements, model::PEtabModel)::ParameterIndices
     @unpack speciemap, parametermap, sys_mutated, petab_tables, nnmodels = model
-    petab_net_parameters = PEtabNetParameters(petab_tables[:parameters], nnmodels)
-    return ParameterIndices(petab_parameters, petab_net_parameters, petab_measurements, sys_mutated, parametermap, speciemap, petab_tables[:conditions], nnmodels, petab_tables[:mapping_table])
+    petab_net_parameters = PEtabNetParameters(petab_tables[:parameters], petab_tables[:mapping_table], nnmodels)
+    return ParameterIndices(petab_parameters, petab_net_parameters, petab_measurements, sys_mutated, parametermap, speciemap, petab_tables, nnmodels)
 end
-function ParameterIndices(petab_parameters::PEtabParameters, petab_net_parameters::PEtabNetParameters, petab_measurements::PEtabMeasurements, sys::ModelSystem, parametermap, speciemap, conditions_df::DataFrame, nnmodels::Union{Nothing, Dict{Symbol, <:NNModel}}, mapping_table::Union{Nothing, DataFrame})::ParameterIndices
-    _check_conditionids(conditions_df, petab_measurements)
-    mapping_table = _check_mapping_table(mapping_table, nnmodels, petab_parameters, sys, conditions_df)
-    # To ease downstream processing (does not need to check if nothing everywhere)
-    if isnothing(nnmodels)
-        nnmodels = Dict{Symbol, NNModel}()
-    end
-    xids = _get_xids(petab_parameters, petab_net_parameters, petab_measurements, sys, conditions_df, speciemap, parametermap, nnmodels, mapping_table)
+function ParameterIndices(petab_parameters::PEtabParameters, petab_net_parameters::PEtabNetParameters, petab_measurements::PEtabMeasurements, sys::ModelSystem, parametermap, speciemap, petab_tables::Dict{Symbol, DataFrame}, nnmodels::Union{Nothing, Dict{Symbol, <:NNModel}})::ParameterIndices
+    _check_conditionids(petab_tables, petab_measurements)
+    _check_mapping_table(petab_tables, nnmodels, petab_parameters, sys)
+
+    xids = _get_xids(petab_parameters, petab_net_parameters, petab_measurements, sys, petab_tables, speciemap, parametermap, nnmodels)
 
     # indices for mapping parameters correctly, e.g. from xest -> xdynamic etc...
     # TODO: SII is going to make this much easier (but the reverse will be harder)
@@ -48,8 +45,7 @@ function ParameterIndices(petab_parameters::PEtabParameters, petab_net_parameter
 
     # Maps for mapping to ODEProblem across conditions
     odeproblem_map = _get_odeproblem_map(xids, nnmodels)
-    condition_maps = _get_condition_maps(sys, parametermap, speciemap, petab_parameters,
-                                         conditions_df, mapping_table, xids)
+    condition_maps = _get_condition_maps(sys, parametermap, speciemap, petab_parameters, petab_tables, xids)
     # For each time-point we must build a map that stores if i) noise/obserable parameters
     # are constants, ii) should be estimated, iii) and corresponding index in parameter
     # vector if they should be estimated
@@ -60,7 +56,7 @@ function ParameterIndices(petab_parameters::PEtabParameters, petab_net_parameter
     # If a neural-network sets values for a subset of model parameters, for efficent AD on
     # said network, it is neccesary to pre-compute the input, pre-allocate the output,
     # and build a map for which parameters in xdynamic the network maps to.
-    nn_preode_maps = _get_nn_preode_maps(conditions_df, xids, petab_parameters, mapping_table, nnmodels, sys)
+    nn_preode_maps = _get_nn_preode_maps(xids, petab_parameters, petab_tables, nnmodels, sys)
 
     xscale = _get_xscales(xids, petab_parameters)
     _get_xnames_ps!(xids, xscale)

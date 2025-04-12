@@ -24,7 +24,7 @@ function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, mapping_tabl
     net_outputs = String[]
     if !isempty(mapping_table)
         for netid in Symbol.(unique(_get_netids(mapping_table)))
-            net_outputs = vcat(net_outputs, _get_net_values(mapping_table, netid, :outputs))
+            net_outputs = vcat(net_outputs, _get_net_petab_variables(mapping_table, netid, :outputs))
         end
         for net_output in net_outputs
             !(net_output in condition_variables) && continue

@@ -143,9 +143,11 @@ struct PEtabEvent
 end
 
 # TODO: Public so must document
+# TODO: For Julia interface later check if all fields are required
 mutable struct NNModel{T <: Any}
     const nn::T
     st::NamedTuple
+    const static::Bool
     const dirdata::String
     const inputs::Vector{Symbol}
     const outputs::Vector{Symbol}

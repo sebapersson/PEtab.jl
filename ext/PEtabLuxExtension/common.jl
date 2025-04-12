@@ -21,7 +21,7 @@ function PEtab._setup_nnmodels(nnmodels::Dict{Symbol, <:NNModel})::Dict
     return nn
 end
 
-function PEtab._get_pnns(nnmodels_in_ode::Dict)::Dict{Symbol, NamedTuple}
+function PEtab._get_psnets(nnmodels_in_ode::Dict)::Dict{Symbol, NamedTuple}
     rng = Random.default_rng()
     pnns = Dict()
     for (netid, nnmodel) in nnmodels_in_ode

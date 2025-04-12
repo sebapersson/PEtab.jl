@@ -127,7 +127,7 @@ function PEtabSDEProblem end
 function _set_x_measurements_info! end
 function load_nnmodels end
 function _setup_nnmodels end
-function _get_pnns end
+function _get_psnets end
 function _get_nn_initialparameters end
 function set_ps_net! end
 function _reshape_io_data end
