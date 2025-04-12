@@ -1,9 +1,10 @@
 module PEtabStochasticDiffEq
 
+using Catalyst
+using ComponentArrays
+using ModelingToolkit
 using PEtab
 using StochasticDiffEq
-using ModelingToolkit
-using ComponentArrays
 
 function PEtab.llh(u::AbstractVector, p, it::Int64,
                    measurements_info::PEtab.MeasurementsInfo)::Float64
@@ -46,14 +47,14 @@ function PEtab.PEtabSDEProblem(model::PEtab.PEtabModel, sde_solver::PEtab.SDESol
     # Information needed to compute the likelihood for each simulation condition
     model_info = PEtab.ModelInfo(model, nothing, nothing)
 
-    # Measurement data stored in a format accesiable for partice filters
+    # Measurement data stored in a format for particle filters
     # TODO: Make a Dict for simulation conditions
     cid = model_info.simulation_info.conditionids[:experiment][1]
     measurements_info = PEtab.MeasurementsInfo(model_info, cid)
 
     PEtab._logging(:Build_SDEProblem, verbose)
     btime = @elapsed begin
-        sprob = _get_sdeproblem(model)
+        sprob = _get_sdeproblem(model_info)
     end
     PEtab._logging(:Build_SDEProblem, verbose; time = btime)
 
@@ -83,17 +84,16 @@ function PEtab._set_x_measurements_info!(prob::PEtab.PEtabSDEProblem, x)::Nothin
     return nothing
 end
 
-function _get_sdeproblem(model::PEtabModel)::SDEProblem
-    @unpack sys_mutated, speciemap, parametermap = model
-    u0map_tmp = zeros(Float64, length(model.speciemap))
-    _sprob = SDEProblem(sys_mutated, u0map_tmp, [0.0, 5e3], parametermap)
-    if _sprob.p isa ModelingToolkit.MTKParameters
-        _p = _sprob.p.tunable .|> Float64
-        sprob = remake(_sprob, p = _p, u0 = Float64.(_sprob.u0))
-    else
-        sprob = remake(_sprob, p = Float64.(_sprob.p), u0 = Float64.(_sprob.u0))
-    end
-    return sprob
+function _get_sdeproblem(model_info::PEtab.ModelInfo)::SDEProblem
+    PEtab._set_const_parameters!(model_info.model, model_info.petab_parameters)
+    @unpack sys_mutated, speciemap, parametermap = model_info.model
+    _u0 = first.(speciemap) .=> 0.0
+    _u0 = zeros(Float64, length(speciemap))
+    _ps = first.(parametermap) .=> Float64.(last.(parametermap))
+    return SDEProblem(sys_mutated, _u0, [0.0, 5e3], _ps)
 end
+
+_get_sdesystem(sys::ReactionSystem)::SDESystem = complete(convert(SDESystem, sys))
+_get_sdesystem(sys::SDESystem)::SDESystem = sys
 
 end
