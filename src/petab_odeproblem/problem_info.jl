@@ -85,29 +85,16 @@ function _get_odeproblem(sys::ODEProblem, ::PEtabModel, model_info::ModelInfo,
 end
 function _get_odeproblem(sys, model::PEtabModel, model_info::ModelInfo, specialize_level,
                          sparse_jacobian::Bool)::ODEProblem
-    _set_const_parameters!(model, model_info.petab_parameters)
     @unpack speciemap, parametermap, defined_in_julia = model
-    if sys isa ODESystem && defined_in_julia == false
-        # With MTK v9 speciemap must somehow be a vector.
-        SL = specialize_level
-        u0map_tmp = zeros(Float64, length(model.speciemap))
-        _oprob = ODEProblem{true, SL}(sys, u0map_tmp, [0.0, 5e3], parametermap;
-                                      jac = true, sparse = sparse_jacobian)
-    else
-        # For ReactionSystem and there is bug if I try to set specialize_level.
-        u0map_tmp = zeros(Float64, length(model.speciemap))
-        _oprob = ODEProblem(sys, u0map_tmp, [0.0, 5e3], parametermap;
-                            jac = true, sparse = sparse_jacobian)
-    end
-    # Ensure correct types for further computations. Long-term we plan to here
-    # transition to the SciMLStructures interface, but that has to wait for
-    # SciMLSensitivity
-    if _oprob.p isa ModelingToolkit.MTKParameters
-        _p = _oprob.p.tunable .|> Float64
-        oprob = remake(_oprob, p = _p, u0 = Float64.(_oprob.u0))
-    else
-        oprob = remake(_oprob, p = Float64.(_oprob.p), u0 = Float64.(_oprob.u0))
-    end
+    SL = specialize_level
+
+    _set_const_parameters!(model, model_info.petab_parameters)
+    _parametermap = _reorder_parametermap(parametermap, model_info.xindices.xids[:sys])
+    _u0 = first.(speciemap) .=> 0.0
+
+    odefun = ODEFunction(sys, first.(speciemap), first.(_parametermap); jac = true, sparse = sparse_jacobian)
+    _oprob = ODEProblem{true, SL}(odefun, last.(_u0), [0.0, 5e3], last.(_parametermap))
+    oprob = remake(_oprob, p = Float64.(_oprob.p), u0 = Float64.(_oprob.u0))
     return oprob
 end
 

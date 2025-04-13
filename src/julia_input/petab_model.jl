@@ -42,17 +42,17 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     # A mapping table is only needed for models where a neural network sets the values for
     # the model parameters
     if !isnothing(nnmodels)
-        mapping_df = _mapping_to_table(nnmodels)
+        mappings_df = _mapping_to_table(nnmodels)
     else
-        mapping_df = DataFrame()
+        mappings_df = DataFrame()
         nnmodels = Dict{Symbol, NNModel}()
     end
-    petab_tables[:mapping_table] = mapping_df
+    petab_tables[:mapping_table] = mappings_df
     paths = Dict{Symbol, String}()
 
     # Build the initial value map (initial values as parameters are set in the reaction sys_mutated)
     sys_mutated = deepcopy(sys)
-    sys_mutated, speciemap_use = _get_speciemap(sys_mutated, conditions_df, mapping_df, speciemap)
+    sys_mutated, speciemap_use = _get_speciemap(sys_mutated, conditions_df, mappings_df, speciemap)
     parametermap_use = _get_parametermap(sys_mutated, parametermap)
     xindices = ParameterIndices(petab_tables, sys_mutated, parametermap_use, speciemap_use, nnmodels)
     # Warn user if any variable is unassigned (and defaults to zero)
@@ -64,10 +64,7 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     _logging(:Build_u0_h_σ, verbose; exist = false)
     btime = @elapsed begin
         model_SBML = SBMLImporter.ModelSBML(name)
-        hstr, u0!str, u0str, σstr = parse_observables(name, Dict{Symbol, String}(),
-                                                      sys_mutated, observables_df,
-                                                      xindices, speciemap_use, model_SBML,
-                                                      mapping_df, false)
+        hstr, u0!str, u0str, σstr = parse_observables(name, Dict{Symbol, String}(), sys_mutated, petab_tables, xindices, speciemap_use, model_SBML, nnmodels, false)
         compute_h = @RuntimeGeneratedFunction(Meta.parse(hstr))
         compute_u0! = @RuntimeGeneratedFunction(Meta.parse(u0!str))
         compute_u0 = @RuntimeGeneratedFunction(Meta.parse(u0str))

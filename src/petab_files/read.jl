@@ -4,11 +4,11 @@ function read_tables(path_yaml::String)::Dict{Symbol, DataFrame}
     conditions_df = _read_table(paths[:conditions], :conditions)
     observables_df = _read_table(paths[:observables], :observables)
     measurements_df = _read_table(paths[:measurements], :measurements)
-    mapping_df = _read_table(paths[:mapping_table], :mapping)
+    mappings_df = _read_table(paths[:mapping_table], :mapping)
     hybridization_df = _read_table(paths[:hybridization], :hybridization)
     tables = Dict(:parameters => parameters_df, :conditions => conditions_df,
                   :observables => observables_df, :measurements => measurements_df,
-                  :mapping_table => mapping_df, :hybridization => hybridization_df)
+                  :mapping_table => mappings_df, :hybridization => hybridization_df)
     return tables
 end
 

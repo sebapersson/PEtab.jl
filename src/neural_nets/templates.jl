@@ -16,12 +16,12 @@ end
 
 function _template_nn_in_ode(netid::Symbol, petab_tables::Dict{Symbol, DataFrame})::String
     hybridization_df = petab_tables[:hybridization]
-    mapping_df = petab_tables[:mapping_table]
+    mappings_df = petab_tables[:mapping_table]
 
-    input_variables = _get_net_petab_variables(mapping_df, netid, :inputs)
+    input_variables = _get_net_petab_variables(mappings_df, netid, :inputs)
     inputs_df = filter(r -> r.targetId in input_variables, hybridization_df)
     input_expressions = inputs_df.targetValue
-    output_variables = _get_net_petab_variables(mapping_df, netid, :outputs)
+    output_variables = _get_net_petab_variables(mappings_df, netid, :outputs)
     outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
     output_targets = outputs_df.targetId
 

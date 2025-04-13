@@ -31,7 +31,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
     model_SBML = SBMLImporter.parse_SBML(paths[:SBML], false; model_as_string = false,
                                          ifelse_to_callback = ifelse_to_callback,
                                          inline_assignment_rules = inline_assignment_rules)
-    _addu0_parameters!(model_SBML, petab_tables)
+    _addu0_parameters!(model_SBML, petab_tables, nnmodels)
     pathmodel = joinpath(paths[:dirjulia], name * ".jl")
     exist = isfile(pathmodel)
     if isempty(nnmodels_in_ode)
@@ -49,11 +49,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
     _logging(:Build_u0_h_σ, verbose; buildfiles = build_julia_files, exist = exist)
     if !exist || build_julia_files == true
         btime = @elapsed begin
-            hstr, u0!str, u0str, σstr = parse_observables(name, paths, odesystem,
-                                                          petab_tables[:observables],
-                                                          xindices, speciemap, model_SBML,
-                                                          petab_tables[:mapping_table],
-                                                          write_to_file)
+            hstr, u0!str, u0str, σstr = parse_observables(name, paths, odesystem, petab_tables, xindices, speciemap, model_SBML, nnmodels, write_to_file)
         end
         _logging(:Build_u0_h_σ, verbose; time = btime)
     else
@@ -84,28 +80,25 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
                       petab_tables, cbset, false, nnmodels)
 end
 
-function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::Dict{Symbol, DataFrame})::Nothing
+function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::Dict{Symbol, DataFrame}, nnmodels::Dict{Symbol, <:NNModel})::Nothing
     conditions_df = petab_tables[:conditions]
     parameters_df = petab_tables[:parameters]
-    mapping_table = petab_tables[:mapping_table]
+    mappings_df = petab_tables[:mapping_table]
+    hybridization_df = petab_tables[:hybridization]
 
     specieids = keys(model_SBML.species)
     rateruleids = model_SBML.rate_rule_variables
     sbml_variables = Iterators.flatten((specieids, rateruleids)) |> unique
     condition_variables = names(conditions_df)
 
-    # Neural net output variables can
+    # Neural net output variables can set initial values, in this case the initial
+    # value must be converted to a parameter
     net_outputs = String[]
-    if !isempty(mapping_table)
-        for netid in unique(Symbol.(_get_netids(mapping_table)))
-            net_outputs = vcat(net_outputs, _get_net_petab_variables(mapping_table, netid, :outputs))
-        end
-        for net_output in net_outputs
-            !(net_output in condition_variables) && continue
-            throw(PEtabInputError("Output $(net_output) for a neural-net in the mapping \
-                                   table points to a parameter which is set by an
-                                   experimental condition. This is not allowed."))
-        end
+    for (netid, nnmodel) in nnmodels
+        nnmodel.static == false && continue
+        output_variables = _get_net_petab_variables(mappings_df, netid, :outputs)
+        outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
+        net_outputs = vcat(net_outputs, outputs_df.targetId)
     end
 
     variables = Iterators.flatten((condition_variables, net_outputs))
@@ -128,11 +121,11 @@ function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::Di
         model_SBML.parameters[u0name] = u0parameter
         sbml_variable.initial_value = u0name
 
-        # Rename output in the mapping table, to have the neural-net map to the
+        # Rename output in the hybridization table, to have the neural-net map to the
         # initial-value parameter instead
         if condition_variable in net_outputs
-            ix = findall(x -> x == condition_variable, mapping_table[!, "petabEntityId"])
-            mapping_table[ix, "petabEntityId"] .= "__init__" .* sbml_variable.name .* "__"
+            ix = findall(x -> x == condition_variable, hybridization_df.targetId)
+            hybridization_df[ix, :targetId] .= "__init__" .* sbml_variable.name .* "__"
         end
 
         # Check if any parameter in the PEtab tables maps to u0 in the conditions table,
@@ -199,9 +192,9 @@ end
 
 function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, nnmodels_in_ode::Dict, petab_tables::Dict{Symbol, DataFrame})
     hybridization_df = petab_tables[:hybridization]
-    mapping_df = petab_tables[:mapping_table]
+    mappings_df = petab_tables[:mapping_table]
     for netid in keys(nnmodels_in_ode)
-        output_variables = _get_net_petab_variables(mapping_df, netid, :outputs)
+        output_variables = _get_net_petab_variables(mappings_df, netid, :outputs)
         outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
         output_targets = outputs_df.targetId
         for output_target in output_targets

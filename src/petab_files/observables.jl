@@ -1,11 +1,8 @@
-function parse_observables(modelname::String, paths::Dict{Symbol, String}, sys::ModelSystem,
-                           observables_df::DataFrame, xindices::ParameterIndices, speciemap,
-                           model_SBML::SBMLImporter.ModelSBML, mapping_table::DataFrame,
-                           write_to_file::Bool)::NTuple{4, String}
+function parse_observables(modelname::String, paths::Dict{Symbol, String}, sys::ModelSystem, petab_tables::Dict{Symbol, DataFrame}, xindices::ParameterIndices, speciemap, model_SBML::SBMLImporter.ModelSBML, nnmodels::Dict{Symbol, <:NNModel}, write_to_file::Bool)::NTuple{4, String}
     state_ids = _get_state_ids(sys)
 
-    _hstr = _parse_h(state_ids, xindices, observables_df, model_SBML, mapping_table)
-    _σstr = _parse_σ(state_ids, xindices, observables_df, model_SBML)
+    _hstr = _parse_h(state_ids, xindices, petab_tables, model_SBML, nnmodels)
+    _σstr = _parse_σ(state_ids, xindices, petab_tables[:observables], model_SBML)
     _u0str = _parse_u0(speciemap, state_ids, xindices, model_SBML, false)
     _u0!str = _parse_u0(speciemap, state_ids, xindices, model_SBML, true)
     if write_to_file == true
@@ -18,21 +15,19 @@ function parse_observables(modelname::String, paths::Dict{Symbol, String}, sys::
     return _hstr, _u0!str, _u0str, _σstr
 end
 
-function _parse_h(state_ids::Vector{String}, xindices::ParameterIndices,
-                  observables_df::DataFrame, model_SBML::SBMLImporter.ModelSBML,
-                  mapping_table::DataFrame)::String
+function _parse_h(state_ids::Vector{String}, xindices::ParameterIndices, petab_tables::Dict{Symbol, DataFrame}, model_SBML::SBMLImporter.ModelSBML, nnmodels::Dict{Symbol, <:NNModel})::String
     hstr = "function compute_h(u::AbstractVector, t::Real, p::AbstractVector, \
             xobservable::AbstractVector, xnondynamic_mech::AbstractVector, xnn, \
             xnn_constant, nominal_values::Vector{Float64}, obsid::Symbol, \
             map::ObservableNoiseMap, nnmodels)::Real\n"
 
+    observables_df = petab_tables[:observables]
     observable_ids = string.(observables_df[!, :observableId])
     for (i, obsid) in pairs(observable_ids)
         formula = filter(x -> !isspace(x), observables_df[i, :observableFormula] |> string)
         formula = _parse_formula(formula, state_ids, xindices, model_SBML, :observable)
         obs_parameters = _get_observable_parameters(formula)
-        formulas_nn = _get_formulas_nn(formula, mapping_table, state_ids, xindices,
-                                       model_SBML, :observable)
+        formulas_nn = _get_formulas_nn(formula, petab_tables, state_ids, xindices, model_SBML, nnmodels, :observable)
         hstr *= "\tif obsid == :$(obsid)\n"
         hstr *= _template_obs_sd_parameters(obs_parameters; obs = true)
         hstr *= formulas_nn
@@ -159,29 +154,43 @@ function _parse_formula(formula::String, state_ids::Vector{String},
     return formula
 end
 
-function _get_formulas_nn(formula, mapping_table::DataFrame, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, type::Symbol)::String
+function _get_formulas_nn(formula, petab_tables::Dict{Symbol, DataFrame}, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, nnmodels::Dict{Symbol, <:NNModel}, type::Symbol)::String
     formula_nn = ""
-    isempty(mapping_table) && return formula_nn
-    for netid in unique(_get_netids(mapping_table))
-        outputs = _get_net_petab_variables(mapping_table, Symbol(netid), :outputs)
+    mappings_df = petab_tables[:mapping_table]
+    isempty(mappings_df) && return formula_nn
+    for (netid, nnmodel) in nnmodels
+        nnmodel.static == true && continue
+
+        output_variables = _get_net_petab_variables(mappings_df, Symbol(netid), :outputs)
         has_nn_output = false
-        for output in outputs
-            if SBMLImporter._replace_variable(formula, output, "") != formula
+        for output_variable in output_variables
+            if SBMLImporter._replace_variable(formula, output_variable, "") != formula
                 has_nn_output = true
             end
         end
         has_nn_output == false && continue
-        formula_nn *= _template_nn_formula(Symbol(netid), mapping_table, state_ids, xindices, model_SBML, type)
+        formula_nn *= _template_nn_formula(netid, petab_tables, state_ids, xindices, model_SBML, type)
     end
     return formula_nn
 end
 
-function _template_nn_formula(netid::Symbol, mapping_table::DataFrame, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, type::Symbol)::String
-    inputs = "[" * prod(_get_net_petab_variables(mapping_table, netid, :inputs) .* ",") * "]"
+function _template_nn_formula(netid::Symbol, petab_tables::Dict{Symbol, DataFrame}, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, type::Symbol)::String
+    mappings_df = petab_tables[:mapping_table]
+    hybridization_df = petab_tables[:hybridization]
+
+    input_variables = _get_net_petab_variables(mappings_df, netid, :inputs)
+    inputs_df = filter(r -> r.targetId in input_variables, hybridization_df)
+    input_expressions = inputs_df.targetValue
+    inputs = "[" * prod(input_expressions .* ",") * "]"
     inputs = _parse_formula(inputs, state_ids, xindices, model_SBML, type)
-    outputs = prod(_get_net_petab_variables(mapping_table, netid, :outputs) .* ", ")
+
+    output_variables = _get_net_petab_variables(mappings_df, Symbol(netid), :outputs)
+    outputs = prod(output_variables .* ", ")
+
     formula = "\n\t\tnnmodel_$(netid) = nnmodels[:$(netid)]\n"
-    if netid in xindices.xids[:nn_est]
+    if netid in xindices.xids[:nn_in_ode]
+        formula *= "\t\txnn_$(netid) = p[:$(netid)]\n"
+    elseif netid in xindices.xids[:nn_est]
         formula *= "\t\txnn_$(netid) = xnn[:$(netid)]\n"
     else
         formula *= "\t\txnn_$(netid) = xnn_constant[:$(netid)]\n"

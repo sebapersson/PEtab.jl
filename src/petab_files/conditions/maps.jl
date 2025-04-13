@@ -169,7 +169,7 @@ function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_pa
 
             # A variable can be one of the neural net inputs. The map is then built later
             # when building the input function for the NN
-            if !isempty(mappings_df) && Symbol(variable) in mappings_df.petabEntityId
+            if !isempty(mappings_df) && variable in mappings_df.petabEntityId
                 continue
             end
 
@@ -196,14 +196,12 @@ function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameter
         conditionid = conditions_df[i, :conditionId] |> Symbol
         maps_nn = Dict{Symbol, NNPreODEMap}()
         for netid in xids[:nn_preode]
-            outputs = _get_net_petab_variables(mappings_df, netid, :outputs) .|> Symbol
+            # Get values for the inputs. For the pre-ODE inputs can either be constant
+            # values (numeric) or a parameter, which is treated as a xdynamic parameter
+            file_input = false
             inputs = _get_net_petab_variables(mappings_df, netid, :inputs) .|> Symbol
             input_values = _get_net_input_values(inputs, netid, nnmodels[netid], DataFrame(conditions_df[i, :]), hybridization_df, petab_parameters, sys; keep_numbers = true)
             ninputs = length(input_values)
-            file_input = false
-
-            # Get values for the inputs. For the pre-ODE inputs can either be constant
-            # values (numeric) or a parameter, which is treated as a xdynamic parameter
             constant_inputs, iconstant_inputs = zeros(Float64, 0), zeros(Int32, 0)
             ixdynamic_mech_inputs, ixdynamic_inputs = zeros(Int32, 0), zeros(Int32, 0)
             for (i, input_variable) in pairs(input_values)
@@ -252,19 +250,22 @@ function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameter
             # gradient of the output variables is needed, ix_outputs_grad stores
             # the indices in xdynamic_grad for the outputs (the indices depend on the
             # condition so the Vector is only pre-allocated here).
-            noutputs = length(outputs)
+            output_variables = _get_net_petab_variables(mappings_df, netid, :outputs)
+            outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
+            output_targets = Symbol.(outputs_df.targetId)
+            noutputs = length(output_targets)
             ix_nn_outputs = zeros(Int32, noutputs)
             ix_output_sys = zeros(Int32, noutputs)
             ix_outputs_grad = zeros(Int32, noutputs)
-            for (i, output_variable) in pairs(outputs)
-                io = findfirst(x -> x == output_variable, xids[:nn_preode_outputs])
+            for (i, output_target) in pairs(output_targets)
+                io = findfirst(x -> x == output_target, xids[:nn_preode_outputs])
                 ix_nn_outputs[i] = io
                 isys = 1
                 for id_sys in xids[:sys]
                     if id_sys in xids[:nn_est]
                         isys += (_get_n_net_parameters(nn, [id_sys]) - 1)
                     end
-                    if id_sys == output_variable
+                    if id_sys == output_target
                         ix_output_sys[i] = isys
                         break
                     end

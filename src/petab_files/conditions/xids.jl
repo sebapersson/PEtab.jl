@@ -221,11 +221,11 @@ function _get_xids_nn_input_est(petab_tables::Dict{Symbol, DataFrame}, petab_par
     out = Symbol[]
     for (netid, nnmodel) in nnmodels
         nnmodel.static == false && continue
-        input_variables = Symbol.(_get_net_petab_variables(mappings_df, netid, :inputs))
+        input_variables = _get_net_petab_variables(mappings_df, netid, :inputs) .|> Symbol
         input_values = _get_net_input_values(input_variables, netid, nnmodel, conditions_df, hybridization_df, petab_parameters, sys)
         for input_value in input_values
             !(input_value in petab_parameters.parameter_id) && continue
-            ip = findfirst(x -> x == input_variable, petab_parameters.parameter_id)
+            ip = findfirst(x -> x == input_value, petab_parameters.parameter_id)
             if petab_parameters.estimate[ip] == true
                 push!(out, input_value)
             end

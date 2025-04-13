@@ -81,26 +81,26 @@ function _get_net_input_values(input_variables::Vector{Symbol}, netid::Symbol, n
         # This can be triggered via recursion (condition table can have numbers)
         if is_number(input_variable)
             if keep_numbers == true
-                push!(input_values, input)
+                push!(input_values, input_variable)
             end
             continue
         end
 
         if input_variable in petab_parameters.parameter_id
-            push!(input_variables, input)
+            push!(input_values, input_variable)
             continue
         end
 
         if input_variable in Symbol.(hybridization_df.targetId)
             ix = findfirst(x -> x == input_variable, Symbol.(hybridization_df.targetId))
-            push!(input_variables, Symbol.(hybridization_df.targetValue[ix]))
+            push!(input_values, Symbol.(hybridization_df.targetValue[ix]))
             continue
         end
 
         # When input is assigned via the conditions table. Recursion needed to find the
         # the potential parameter assigning the input
         if input_variable in propertynames(conditions_df)
-            for condition_value in Symbol.(conditions_df[!, input])
+            for condition_value in Symbol.(conditions_df[!, input_variable])
                 _input_values = _get_net_input_values([condition_value], netid, nnmodel, conditions_df, hybridization_df, petab_parameters, sys; keep_numbers = keep_numbers)
                 input_values = vcat(input_values, _input_values)
             end
@@ -111,18 +111,18 @@ function _get_net_input_values(input_variables::Vector{Symbol}, netid::Symbol, n
         # the path of a potential input file. To ease downstream processing the complete
         # is added to files here.
         if isfile(string(input_variable))
-            push!(input_variables, input)
+            push!(input_values, input)
             continue
         end
         if isfile(joinpath(nnmodel.dirdata, string(input_variable)))
-            push!(input_variables, Symbol(joinpath(nnmodel.dirdata, string(input))))
+            push!(input_values, Symbol(joinpath(nnmodel.dirdata, string(input))))
             continue
         end
 
         throw(PEtabInputError("Input $(input_variable) to neural-network cannot be found \
             among ODE variables, PEtab parameters, or in the conditions table"))
     end
-    return input_variables
+    return input_values
 end
 
 """

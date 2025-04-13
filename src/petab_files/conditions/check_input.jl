@@ -25,17 +25,18 @@ function _check_mapping_table(petab_tables::Dict{Symbol, DataFrame}, nnmodels::U
     isnothing(nnmodels) && return nothing
 
     # Sanity check assigned assignments for static neural networks
-    conditions_df = petab_tables[:conditions]
-    hybridization_df = petab_tables[:hybridization]
     for (netid, nnmodel) in nnmodels
         nnmodel.static == false && continue
-        _check_static_net_inputs(nnmodels, mappings_df, hybridization_df, conditions_df, petab_parameters, sys, netid)
-        _check_static_net_outputs(nnmodels, mappings_df, hybridization_df, petab_parameters, sys, netid)
+        _check_static_net_inputs(petab_tables, petab_parameters, netid)
+        _check_static_net_outputs(petab_tables, petab_parameters, sys, netid)
     end
     return nothing
 end
 
-function _check_static_net_outputs(mappings_df::DataFrame, hybridization_df::DataFrame, conditions_df::DataFrame, petab_parameters::PEtabParameters, netid::Symbol)::Nothing
+function _check_static_net_inputs(petab_tables::Dict{Symbol, DataFrame}, petab_parameters::PEtabParameters, netid::Symbol)::Nothing
+    conditions_df = petab_tables[:conditions]
+    hybridization_df = petab_tables[:hybridization]
+    mappings_df = petab_tables[:mapping_table]
     input_variables = _get_net_petab_variables(mappings_df, netid, :inputs)
     for input_variable in input_variables
         input_variable in hybridization_df.targetId && continue
@@ -49,7 +50,9 @@ function _check_static_net_outputs(mappings_df::DataFrame, hybridization_df::Dat
     return nothing
 end
 
-function _check_static_net_outputs(mappings_df::DataFrame, hybridization_df::DataFrame, petab_parameters::PEtabParameters, sys::ModelSystem, netid::Symbol)::Nothing
+function _check_static_net_outputs(petab_tables::Dict{Symbol, DataFrame}, petab_parameters::PEtabParameters, sys::ModelSystem, netid::Symbol)::Nothing
+    hybridization_df = petab_tables[:hybridization]
+    mappings_df = petab_tables[:mapping_table]
     state_ids = _get_state_ids(sys) .|> Symbol
     xids_sys = _get_xids_sys(sys)
     x_estimate = petab_parameters.parameter_id[petab_parameters.estimate]
