@@ -98,6 +98,7 @@ struct PEtabNetParameters{T <: Vector{<:Union{String, <:Float64}}}
     parameter_id::Vector{Symbol}
     estimate::Vector{Bool}
     netid::Vector{Symbol}
+    mapping_table_id::Vector{String}
     initialisation_priors::Vector{Function}
 end
 

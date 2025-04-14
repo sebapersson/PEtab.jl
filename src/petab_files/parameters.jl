@@ -62,12 +62,14 @@ function PEtabNetParameters(_parameters_df::DataFrame, mappings_df::DataFrame, n
     lower_bounds = fill(-Inf, nparameters)
     upper_bounds = fill(Inf, nparameters)
     estimate = fill(false, nparameters)
+    mapping_table_ids = fill("", nparameters)
 
     _parse_table_column!(parameter_ids, parameters_df[!, :parameterId], Symbol)
     _parse_table_column!(estimate, parameters_df[!, :estimate], Bool)
     _parse_bound_column!(lower_bounds, parameters_df[!, :lowerBound], estimate)
     _parse_bound_column!(upper_bounds, parameters_df[!, :upperBound], estimate)
     _get_netids!(netids, parameter_ids, mappings_df, nnmodels)
+    _get_mapping_table_ids!(mapping_table_ids, parameter_ids, mappings_df)
 
     # Nominal-value for net parameters can be either a file name, of a numerical value
     nominal_values = Vector{Union{String, Float64}}(undef, nparameters)
@@ -81,7 +83,7 @@ function PEtabNetParameters(_parameters_df::DataFrame, mappings_df::DataFrame, n
         end
     end
 
-    return PEtabNetParameters(nominal_values, lower_bounds, upper_bounds, parameter_ids, estimate, netids, Vector{Function}(undef, 0))
+    return PEtabNetParameters(nominal_values, lower_bounds, upper_bounds, parameter_ids, estimate, netids, mapping_table_ids, Vector{Function}(undef, 0))
 end
 
 function Priors(xindices::ParameterIndices, parameters_df::DataFrame)::Priors
@@ -209,6 +211,14 @@ function _get_netids!(netids::Vector{Symbol}, parameter_ids::Vector{Symbol}, map
             netids[i] = netid
             break
         end
+    end
+    return nothing
+end
+
+function _get_mapping_table_ids!(mapping_table_ids::Vector{String}, parameter_ids::Vector{Symbol}, mappings_df::DataFrame)::Nothing
+    for (i, parameter_id) in pairs(string.(parameter_ids))
+        ix = findfirst(x -> x == parameter_id, mappings_df.petabEntityId)
+        mapping_table_ids[i] = mappings_df.modelEntityId[ix]
     end
     return nothing
 end

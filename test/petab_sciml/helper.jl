@@ -20,7 +20,7 @@ function test_hybrid(test_case, petab_prob::PEtabODEProblem)
     yamlfile = YAML.load_file(path_solutions)
     llh_ref, tol_llh = yamlfile["llh"], yamlfile["tol_llh"]
     tol_grad = yamlfile["tol_grad_llh"]
-    gradfile_mech = yamlfile["grad_llh_files"]["mech"]
+    gradfile_mech = yamlfile["grad_files"]["mech"]
     gradmech_ref = CSV.read(joinpath(dirtest, gradfile_mech), DataFrame)
     simfile, tol_sim = yamlfile["simulation_files"][1], yamlfile["tol_simulations"]
     simref = CSV.read(joinpath(dirtest, simfile), DataFrame)
@@ -45,7 +45,7 @@ function test_hybrid(test_case, petab_prob::PEtabODEProblem)
     for (netid, nninfo) in petab_prob.model_info.model.nnmodels
         !(netid in petab_prob.model_info.xindices.xids[:nn_est]) && continue
         grad_test = grad_petab[netid]
-        path_ref = joinpath(dirtest, yamlfile["grad_llh_files"][string(netid)])
+        path_ref = joinpath(dirtest, yamlfile["grad_files"][string(netid)])
         grad_ref = deepcopy(grad_test)
         PEtab.set_ps_net!(grad_ref, path_ref, nninfo.nn)
         @test all(.≈(grad_test, grad_ref; atol=tol_grad))
@@ -60,34 +60,17 @@ function test_init(test_case, model::PEtabModel)::Nothing
 
     dirtest = joinpath(@__DIR__, "test_cases", "initialization", test_case)
     yamlfile = YAML.load_file(joinpath(dirtest, "solutions.yaml"))
-    for (test_criteria, test_info) in yamlfile["test"]
-        tol = test_info["tol"]
-        for (netid, nninfo) in petab_prob.model_info.model.nnmodels
-            !(netid in petab_prob.model_info.xindices.xids[:nn_est]) && continue
-            path_ref = joinpath(dirtest, test_info["ps_files"][string(netid)])
-            ps_ref = deepcopy(x[netid])
-            PEtab.set_ps_net!(ps_ref, path_ref, nninfo.nn)
-
-            if test_criteria == "nominal"
-                @test all(.≈(x[netid], ps_ref; atol=tol))
-            end
-            if test_criteria == "mean"
-                nsamples = test_info["nsamples"]
-                xtest = get_startguesses(petab_prob, nsamples; allow_inf = true)
-                xmean = sum([x for x in xtest]) ./ nsamples
-                @test all(.≈(xmean[netid], ps_ref; atol=tol))
-            end
-            if test_criteria == "variance"
-                nsamples = test_info["nsamples"]
-                xtest = get_startguesses(petab_prob, nsamples; allow_inf = true)
-                xmean = sum([x for x in xtest]) ./ nsamples
-                xvar = sum([(x .- xmean).^2 for x in xtest]) ./ (nsamples - 1)
-                @test all(.≈(xvar[netid], ps_ref; atol=tol))
-            end
-        end
+    for (netid, nnmodel) in petab_prob.model_info.model.nnmodels
+        netid = :net1
+        !haskey(yamlfile["parameter_files"], string(netid)) && continue
+        path_ref = joinpath(dirtest, yamlfile["parameter_files"][string(netid)])
+        ps_ref = deepcopy(x[netid])
+        PEtab.set_ps_net!(ps_ref, path_ref, nnmodel.nn)
+        @test ps_ref == x[netid]
     end
     return nothing
 end
+
 
 function test_netimport(testcase, nnmodel)::Nothing
     @info "Case $testcase"

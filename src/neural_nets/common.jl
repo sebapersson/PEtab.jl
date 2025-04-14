@@ -11,7 +11,7 @@ function _get_f_nn_preode_x(nnpre::NNPreODE, xdynamic_mech::AbstractVector, map_
 end
 
 function set_ps_net!(ps::ComponentArray, netid::Symbol, nnmodel::NNModel, model::PEtabModel, petab_net_parameters::PEtabNetParameters)::Nothing
-    netindices = _get_netindices(netid, petab_net_parameters.netid)
+    netindices = _get_netindices(netid, petab_net_parameters.mapping_table_id)
     ps_path = _get_ps_path(netid, model, petab_net_parameters.nominal_value[netindices[1]])
     set_ps_net!(ps, ps_path, nnmodel.nn)
     return nothing
@@ -19,7 +19,7 @@ end
 function set_ps_net!(ps::ComponentArray, netid::Symbol, model_info::ModelInfo)::Nothing
     @unpack model, petab_net_parameters = model_info
     nnmodel = model.nnmodels[netid]
-    netindices = _get_netindices(netid, petab_net_parameters.netid)
+    netindices = _get_netindices(netid, petab_net_parameters.mapping_table_id)
     ps_path = _get_ps_path(netid, model_info.model, petab_net_parameters.nominal_value[netindices[1]])
     @assert isfile(ps_path) "Parameter values for net $netid must be a file"
 
@@ -27,7 +27,7 @@ function set_ps_net!(ps::ComponentArray, netid::Symbol, model_info::ModelInfo)::
     PEtab.set_ps_net!(ps, netid, nnmodel, model, petab_net_parameters)
     length(netindices) == 1 && return nothing
     for netindex in netindices
-        id = string(petab_net_parameters.parameter_id[netindex])
+        mapping_table_id = string(petab_net_parameters.mapping_table_id[netindex])
         value = petab_net_parameters.nominal_value[netindex]
         if value isa String
             _path = _get_ps_path(netid, model_info.model, value)
@@ -35,14 +35,16 @@ function set_ps_net!(ps::ComponentArray, netid::Symbol, model_info::ModelInfo)::
             continue
         end
 
-        @assert count(".", id) ≤ 2 "Only two . are allowed when specifying network layer"
-        if count(".", id) == 1
-            layerid = Symbol(split(id, ".")[2])
+        @assert count(".", mapping_table_id) ≤ 2 "Only two . are allowed when specifying network layer"
+        if count('[', mapping_table_id) == 1 && count('.', mapping_table_id) == 1
+            layerid = match(r"parameters\[(\w+)\]", mapping_table_id).captures[1] |>
+                Symbol
             @views ps[layerid] .= value
         else
-            layerid = Symbol(split(id, ".")[2])
-            pid = Symbol(split(id, ".")[3])
-            @views ps[layerid][pid] .= value
+            layerid = match(r"parameters\[(\w+)\]", mapping_table_id).captures[1] |>
+                Symbol
+            arrayid = Symbol(split(mapping_table_id, ".")[3])
+            @views ps[layerid][arrayid] .= value
         end
     end
     return nothing
@@ -199,9 +201,9 @@ function _get_netids(mappings_df::DataFrame)::Vector{String}
         string
 end
 
-function _get_netindices(netid::Symbol, netids::Vector{Symbol})::Vector{Int64}
-    filtered_indices = findall(x -> startswith(x, string(netid)), string.(netids))
-    return sort(filtered_indices, by = i -> count(==('.'), string(netids[i])))
+function _get_netindices(netid::Symbol, mapping_table_ids::Vector{String})::Vector{Int64}
+    ix = findall(x -> startswith(x, string(netid)), mapping_table_ids)
+    return sort(ix, by = i -> count(c -> c == '[' || c == '.', mapping_table_ids[i]))
 end
 
 function _get_xnames_nn(xnames::Vector{Symbol}, model_info::ModelInfo)::Vector{Symbol}
