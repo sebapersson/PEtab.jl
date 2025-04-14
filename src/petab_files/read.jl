@@ -1,4 +1,4 @@
-function read_tables(path_yaml::String)::Dict{Symbol, DataFrame}
+function read_tables(path_yaml::String)::PEtabTables
     paths = _get_petab_paths(path_yaml)
     parameters_df = _read_table(paths[:parameters], :parameters)
     conditions_df = _read_table(paths[:conditions], :conditions)
@@ -6,9 +6,11 @@ function read_tables(path_yaml::String)::Dict{Symbol, DataFrame}
     measurements_df = _read_table(paths[:measurements], :measurements)
     mappings_df = _read_table(paths[:mapping_table], :mapping)
     hybridization_df = _read_table(paths[:hybridization], :hybridization)
+    yaml_file = YAML.load_file(path_yaml)
     tables = Dict(:parameters => parameters_df, :conditions => conditions_df,
                   :observables => observables_df, :measurements => measurements_df,
-                  :mapping_table => mappings_df, :hybridization => hybridization_df)
+                  :mapping_table => mappings_df, :hybridization => hybridization_df,
+                  :yaml => yaml_file)
     return tables
 end
 

@@ -75,8 +75,9 @@ function _get_net_petab_variables(mappings_df::DataFrame, netid::Symbol, type::S
     return string.(df[is, "petabEntityId"])
 end
 
-function _get_net_input_values(input_variables::Vector{Symbol}, netid::Symbol, nnmodel::NNModel, conditions_df::DataFrame, hybridization_df::DataFrame, petab_parameters::PEtabParameters, sys::ModelSystem; keep_numbers::Bool = false)::Vector{Symbol}
+function _get_net_input_values(input_variables::Vector{Symbol}, netid::Symbol, nnmodel::NNModel, conditions_df::DataFrame, petab_tables::PEtabTables, petab_parameters::PEtabParameters, sys::ModelSystem; keep_numbers::Bool = false)::Vector{Symbol}
     input_values = Symbol[]
+    hybridization_df = petab_tables[:hybridization]
     for input_variable in input_variables
         # This can be triggered via recursion (condition table can have numbers)
         if is_number(input_variable)
@@ -101,26 +102,22 @@ function _get_net_input_values(input_variables::Vector{Symbol}, netid::Symbol, n
         # the potential parameter assigning the input
         if input_variable in propertynames(conditions_df)
             for condition_value in Symbol.(conditions_df[!, input_variable])
-                _input_values = _get_net_input_values([condition_value], netid, nnmodel, conditions_df, hybridization_df, petab_parameters, sys; keep_numbers = keep_numbers)
+                _input_values = _get_net_input_values([condition_value], netid, nnmodel, conditions_df, petab_tables, petab_parameters, sys; keep_numbers = keep_numbers)
                 input_values = vcat(input_values, _input_values)
             end
             continue
         end
 
-        # When building ParameterIndices sometimes only the relative input is provided for
-        # the path of a potential input file. To ease downstream processing the complete
-        # is added to files here.
-        if isfile(string(input_variable))
-            push!(input_values, input)
-            continue
-        end
-        if isfile(joinpath(nnmodel.dirdata, string(input_variable)))
-            push!(input_values, Symbol(joinpath(nnmodel.dirdata, string(input))))
+        # If the input variable is a file, the complete path is added here, which simplifies
+        # downstream processing
+        if _input_isfile(input_variable, petab_tables[:yaml])
+            path = _get_input_path(input_variable, petab_tables[:yaml], nnmodel.dirdata)
+            push!(input_values, path)
             continue
         end
 
         throw(PEtabInputError("Input $(input_variable) to neural-network cannot be found \
-            among ODE variables, PEtab parameters, or in the conditions table"))
+            among ODE variables, PEtab parameters, array files or in the conditions table"))
     end
     return input_values
 end
@@ -139,7 +136,7 @@ For this to hold, the following must hold:
 In case 3 does not hold, an error should be thrown as something is wrong with the PEtab
 problem.
 """
-function _get_nnmodels_in_ode(nnmodels::Dict{Symbol, <:NNModel}, path_SBML::String, petab_tables::Dict{Symbol, DataFrame})::Dict{Symbol, <:NNModel}
+function _get_nnmodels_in_ode(nnmodels::Dict{Symbol, <:NNModel}, path_SBML::String, petab_tables::PEtabTables)::Dict{Symbol, <:NNModel}
     out = Dict{Symbol, NNModel}()
     isnothing(nnmodels) && return out
 
@@ -180,7 +177,7 @@ function _get_nnmodels_in_ode(nnmodels::Dict{Symbol, <:NNModel}, path_SBML::Stri
     return out
 end
 
-function _get_nnmodels_in_ode_ids(nnmodels::Dict{Symbol, <:NNModel}, path_SBML::String, petab_tables::Dict{Symbol, DataFrame})::Vector{Symbol}
+function _get_nnmodels_in_ode_ids(nnmodels::Dict{Symbol, <:NNModel}, path_SBML::String, petab_tables::PEtabTables)::Vector{Symbol}
     nnmodels_in_ode = _get_nnmodels_inode_ids(nnmodels, path_SBML, petab_tables)
     return collect(keys(nnmodels_in_ode))
 end
@@ -210,4 +207,20 @@ end
 function _get_xnames_nn(xnames::Vector{Symbol}, model_info::ModelInfo)::Vector{Symbol}
     ix_mech = _get_ixnames_mech(xnames, model_info.petab_parameters)
     return xnames[setdiff(1:length(xnames), ix_mech)]
+end
+
+function _input_isfile(input_variable::Union{String, Symbol}, yaml_file::Dict)::Bool
+    yaml_file_extensions = yaml_file["extensions"]
+    !haskey(yaml_file_extensions, "array_files") && return false
+    return haskey(yaml_file_extensions["array_files"], string(input_variable))
+end
+
+function _get_input_path(input_variable::Union{String, Symbol}, yaml_file::Dict, dir::String)::Symbol
+    filename = yaml_file["extensions"]["array_files"][string(input_variable)]["location"]
+    path = joinpath(dir, filename)
+    if !isfile(path)
+        throw(PEtab.PEtabInputError("$path is not a valid file path to the file input \
+            for PEtab neural network input variable $(input_variable)"))
+    end
+    return Symbol(path)
 end

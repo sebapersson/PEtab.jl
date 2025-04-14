@@ -8,7 +8,7 @@ This is a **very** important function, as parameter type dictates how the gradie
 be computed for any parameter. The assigned parameter categories are later used to
 build all the indices used by PEtab.jl to correctly map parameters.
 """
-function _get_xids(petab_parameters::PEtabParameters, petab_net_parameters::PEtabNetParameters, petab_measurements::PEtabMeasurements, sys::ModelSystem, petab_tables::Dict{Symbol, DataFrame}, speciemap, parametermap, nnmodels::Dict{Symbol, <:NNModel})::Dict{Symbol, Vector{Symbol}}
+function _get_xids(petab_parameters::PEtabParameters, petab_net_parameters::PEtabNetParameters, petab_measurements::PEtabMeasurements, sys::ModelSystem, petab_tables::PEtabTables, speciemap, parametermap, nnmodels::Dict{Symbol, <:NNModel})::Dict{Symbol, Vector{Symbol}}
     @unpack observable_parameters, noise_parameters = petab_measurements
 
     # xids in the ODESystem in correct order
@@ -91,7 +91,7 @@ function _get_xids_sys(sys::ModelSystem)::Vector{Symbol}
     return sys isa ODEProblem ? collect(keys(sys.p)) : Symbol.(parameters(sys))
 end
 
-function _get_xids_nn_preode_output(petab_tables::Dict{Symbol, DataFrame}, nnmodels::Dict{Symbol, <:NNModel})::Vector{Symbol}
+function _get_xids_nn_preode_output(petab_tables::PEtabTables, nnmodels::Dict{Symbol, <:NNModel})::Vector{Symbol}
     out = Symbol[]
     mappings_df = petab_tables[:mapping_table]
     hybridization_df = petab_tables[:hybridization]
@@ -126,7 +126,7 @@ function _get_xids_observable_noise(values, petab_parameters::PEtabParameters)::
     return ids
 end
 
-function _get_xids_nondynamic_mech(xids_observable::T, xids_noise::T, xids_nn::T, xids_nn_input_est::T, sys::ModelSystem, petab_parameters::PEtabParameters, petab_tables::Dict{Symbol, DataFrame}, nnmodels::Dict{Symbol, <:NNModel})::T where {T <: Vector{Symbol}}
+function _get_xids_nondynamic_mech(xids_observable::T, xids_noise::T, xids_nn::T, xids_nn_input_est::T, sys::ModelSystem, petab_parameters::PEtabParameters, petab_tables::PEtabTables, nnmodels::Dict{Symbol, <:NNModel})::T where {T <: Vector{Symbol}}
     xids_condition = _get_xids_condition(sys, petab_parameters, petab_tables, nnmodels)
     xids_sys = _get_xids_sys(sys)
     xids_nondynamic_mech = Symbol[]
@@ -139,7 +139,7 @@ function _get_xids_nondynamic_mech(xids_observable::T, xids_noise::T, xids_nn::T
     return xids_nondynamic_mech
 end
 
-function _get_xids_condition(sys, petab_parameters::PEtabParameters, petab_tables::Dict{Symbol, DataFrame}, nnmodels::Dict{Symbol, <:NNModel})::Vector{Symbol}
+function _get_xids_condition(sys, petab_parameters::PEtabParameters, petab_tables::PEtabTables, nnmodels::Dict{Symbol, <:NNModel})::Vector{Symbol}
     mappings_df = petab_tables[:mapping_table]
     conditions_df = petab_tables[:conditions]
     xids_sys = parameters(sys) .|> string
@@ -212,17 +212,16 @@ function _get_xids_nn_nondynamic(xids_nn::T, xids_nn_in_ode::T, xids_nn_preode::
     return out
 end
 
-function _get_xids_nn_input_est(petab_tables::Dict{Symbol, DataFrame}, petab_parameters::PEtabParameters, sys::ModelSystem, nnmodels::Dict{Symbol, <:NNModel})::Vector{Symbol}
+function _get_xids_nn_input_est(petab_tables::PEtabTables, petab_parameters::PEtabParameters, sys::ModelSystem, nnmodels::Dict{Symbol, <:NNModel})::Vector{Symbol}
     mappings_df = petab_tables[:mapping_table]
     conditions_df = petab_tables[:conditions]
-    hybridization_df = petab_tables[:hybridization]
     isempty(mappings_df) && return Symbol[]
 
     out = Symbol[]
     for (netid, nnmodel) in nnmodels
         nnmodel.static == false && continue
         input_variables = _get_net_petab_variables(mappings_df, netid, :inputs) .|> Symbol
-        input_values = _get_net_input_values(input_variables, netid, nnmodel, conditions_df, hybridization_df, petab_parameters, sys)
+        input_values = _get_net_input_values(input_variables, netid, nnmodel, conditions_df, petab_tables, petab_parameters, sys)
         for input_value in input_values
             !(input_value in petab_parameters.parameter_id) && continue
             ip = findfirst(x -> x == input_value, petab_parameters.parameter_id)

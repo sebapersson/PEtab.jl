@@ -80,7 +80,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
                       petab_tables, cbset, false, nnmodels)
 end
 
-function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::Dict{Symbol, DataFrame}, nnmodels::Dict{Symbol, <:NNModel})::Nothing
+function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::PEtabTables, nnmodels::Dict{Symbol, <:NNModel})::Nothing
     conditions_df = petab_tables[:conditions]
     parameters_df = petab_tables[:parameters]
     mappings_df = petab_tables[:mapping_table]
@@ -190,7 +190,7 @@ function _get_odesys(model_SBML::SBMLImporter.ModelSBML, paths::Dict{Symbol, Str
     return odesystem, speciemap, parametermap
 end
 
-function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, nnmodels_in_ode::Dict, petab_tables::Dict{Symbol, DataFrame})
+function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, nnmodels_in_ode::Dict, petab_tables::PEtabTables)
     hybridization_df = petab_tables[:hybridization]
     mappings_df = petab_tables[:mapping_table]
     for netid in keys(nnmodels_in_ode)

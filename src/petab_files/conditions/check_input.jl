@@ -1,4 +1,4 @@
-function _check_conditionids(petab_tables::Dict{Symbol, DataFrame}, petab_measurements::PEtabMeasurements)::Nothing
+function _check_conditionids(petab_tables::PEtabTables, petab_measurements::PEtabMeasurements)::Nothing
     conditions_df = petab_tables[:conditions]
     ncol(conditions_df) == 1 && return nothing
     @unpack pre_equilibration_condition_id, simulation_condition_id = petab_measurements
@@ -19,7 +19,7 @@ function _check_conditionids(petab_tables::Dict{Symbol, DataFrame}, petab_measur
     return nothing
 end
 
-function _check_mapping_table(petab_tables::Dict{Symbol, DataFrame}, nnmodels::Union{Nothing, Dict{Symbol, <:NNModel}}, petab_parameters::PEtabParameters, sys::ModelSystem)::Nothing
+function _check_mapping_table(petab_tables::PEtabTables, nnmodels::Union{Nothing, Dict{Symbol, <:NNModel}}, petab_parameters::PEtabParameters, sys::ModelSystem)::Nothing
     mappings_df = petab_tables[:mapping_table]
     isempty(mappings_df) && return nothing
     isnothing(nnmodels) && return nothing
@@ -33,7 +33,7 @@ function _check_mapping_table(petab_tables::Dict{Symbol, DataFrame}, nnmodels::U
     return nothing
 end
 
-function _check_static_net_inputs(petab_tables::Dict{Symbol, DataFrame}, petab_parameters::PEtabParameters, netid::Symbol)::Nothing
+function _check_static_net_inputs(petab_tables::PEtabTables, petab_parameters::PEtabParameters, netid::Symbol)::Nothing
     conditions_df = petab_tables[:conditions]
     hybridization_df = petab_tables[:hybridization]
     mappings_df = petab_tables[:mapping_table]
@@ -42,15 +42,16 @@ function _check_static_net_inputs(petab_tables::Dict{Symbol, DataFrame}, petab_p
         input_variable in hybridization_df.targetId && continue
         input_variable in names(conditions_df) && continue
         Symbol(input_variable) in petab_parameters.parameter_id && continue
+        _input_isfile(input_variable, petab_tables[:yaml]) && continue
         throw(PEtab.PEtabInputError("For a static neural network, input variables in \
             assigned to in the mapping table must be assigned value by a parameter in \
-            the parameter table, or in the conditions table. This does not hold for \
-            $(input_variable)"))
+            the parameter table, or in the conditions table, or be assigned to a file \
+            variable defined in the YAML file. This does not hold for $(input_variable)"))
     end
     return nothing
 end
 
-function _check_static_net_outputs(petab_tables::Dict{Symbol, DataFrame}, petab_parameters::PEtabParameters, sys::ModelSystem, netid::Symbol)::Nothing
+function _check_static_net_outputs(petab_tables::PEtabTables, petab_parameters::PEtabParameters, sys::ModelSystem, netid::Symbol)::Nothing
     hybridization_df = petab_tables[:hybridization]
     mappings_df = petab_tables[:mapping_table]
     state_ids = _get_state_ids(sys) .|> Symbol

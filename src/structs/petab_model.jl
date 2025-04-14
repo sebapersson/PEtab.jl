@@ -203,7 +203,7 @@ struct PEtabModel
     sys_mutated::Any
     parametermap::Any
     speciemap::Any
-    petab_tables::Dict{Symbol, DataFrame}
+    petab_tables::PEtabTables
     callbacks::SciMLBase.DECallback
     defined_in_julia::Bool
     nnmodels::Dict{Symbol, <:NNModel}

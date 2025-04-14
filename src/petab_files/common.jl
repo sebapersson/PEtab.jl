@@ -66,7 +66,7 @@ end
 
 function _xdynamic_in_event_cond(model_SBML::SBMLImporter.ModelSBML,
                                  xindices::ParameterIndices,
-                                 petab_tables::Dict{Symbol, DataFrame})::Bool
+                                 petab_tables::PEtabTables)::Bool
     xids_sys_in_xdynamic = _get_xids_sys_order_in_xdynamic(xindices, petab_tables[:conditions])
     for event in values(model_SBML.events)
         for xid in xids_sys_in_xdynamic

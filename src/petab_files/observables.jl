@@ -1,4 +1,4 @@
-function parse_observables(modelname::String, paths::Dict{Symbol, String}, sys::ModelSystem, petab_tables::Dict{Symbol, DataFrame}, xindices::ParameterIndices, speciemap, model_SBML::SBMLImporter.ModelSBML, nnmodels::Dict{Symbol, <:NNModel}, write_to_file::Bool)::NTuple{4, String}
+function parse_observables(modelname::String, paths::Dict{Symbol, String}, sys::ModelSystem, petab_tables::PEtabTables, xindices::ParameterIndices, speciemap, model_SBML::SBMLImporter.ModelSBML, nnmodels::Dict{Symbol, <:NNModel}, write_to_file::Bool)::NTuple{4, String}
     state_ids = _get_state_ids(sys)
 
     _hstr = _parse_h(state_ids, xindices, petab_tables, model_SBML, nnmodels)
@@ -15,7 +15,7 @@ function parse_observables(modelname::String, paths::Dict{Symbol, String}, sys::
     return _hstr, _u0!str, _u0str, _σstr
 end
 
-function _parse_h(state_ids::Vector{String}, xindices::ParameterIndices, petab_tables::Dict{Symbol, DataFrame}, model_SBML::SBMLImporter.ModelSBML, nnmodels::Dict{Symbol, <:NNModel})::String
+function _parse_h(state_ids::Vector{String}, xindices::ParameterIndices, petab_tables::PEtabTables, model_SBML::SBMLImporter.ModelSBML, nnmodels::Dict{Symbol, <:NNModel})::String
     hstr = "function compute_h(u::AbstractVector, t::Real, p::AbstractVector, \
             xobservable::AbstractVector, xnondynamic_mech::AbstractVector, xnn, \
             xnn_constant, nominal_values::Vector{Float64}, obsid::Symbol, \
@@ -154,7 +154,7 @@ function _parse_formula(formula::String, state_ids::Vector{String},
     return formula
 end
 
-function _get_formulas_nn(formula, petab_tables::Dict{Symbol, DataFrame}, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, nnmodels::Dict{Symbol, <:NNModel}, type::Symbol)::String
+function _get_formulas_nn(formula, petab_tables::PEtabTables, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, nnmodels::Dict{Symbol, <:NNModel}, type::Symbol)::String
     formula_nn = ""
     mappings_df = petab_tables[:mapping_table]
     isempty(mappings_df) && return formula_nn
@@ -174,7 +174,7 @@ function _get_formulas_nn(formula, petab_tables::Dict{Symbol, DataFrame}, state_
     return formula_nn
 end
 
-function _template_nn_formula(netid::Symbol, petab_tables::Dict{Symbol, DataFrame}, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, type::Symbol)::String
+function _template_nn_formula(netid::Symbol, petab_tables::PEtabTables, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, type::Symbol)::String
     mappings_df = petab_tables[:mapping_table]
     hybridization_df = petab_tables[:hybridization]
 

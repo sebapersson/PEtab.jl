@@ -1,4 +1,4 @@
-function _template_odeproblem(model_SBML_prob, model_SBML, nnmodels_in_ode::Dict, petab_tables::Dict{Symbol, DataFrame})::String
+function _template_odeproblem(model_SBML_prob, model_SBML, nnmodels_in_ode::Dict, petab_tables::PEtabTables)::String
     @unpack umodel, ps, odes = model_SBML_prob
     fode = "function f_$(model_SBML.name)(du, u, p, t, nnmodels)::Nothing\n"
     fode *= "\t" * prod(umodel .* ", ") * " = u\n"
@@ -14,7 +14,7 @@ function _template_odeproblem(model_SBML_prob, model_SBML, nnmodels_in_ode::Dict
     return fode
 end
 
-function _template_nn_in_ode(netid::Symbol, petab_tables::Dict{Symbol, DataFrame})::String
+function _template_nn_in_ode(netid::Symbol, petab_tables::PEtabTables)::String
     hybridization_df = petab_tables[:hybridization]
     mappings_df = petab_tables[:mapping_table]
 

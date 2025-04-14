@@ -97,7 +97,7 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nnmodels::Dict{
     return MapODEProblem(sys_to_dynamic, dynamic_to_sys, sys_to_dynamic_nn, sys_to_nn_preode_output)
 end
 
-function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_parameters::PEtabParameters, petab_tables::Dict{Symbol, DataFrame}, xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, ConditionMap}
+function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_parameters::PEtabParameters, petab_tables::PEtabTables, xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, ConditionMap}
     mappings_df = petab_tables[:mapping_table]
     conditions_df = petab_tables[:conditions]
     # TODO: xids_model should just a be functions
@@ -184,7 +184,7 @@ function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_pa
     return maps
 end
 
-function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, petab_tables::Dict{Symbol, DataFrame}, nnmodels::Dict{Symbol, <:NNModel}, sys::ModelSystem)::Dict{Symbol, Dict{Symbol, NNPreODEMap}}
+function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, petab_tables::PEtabTables, nnmodels::Dict{Symbol, <:NNModel}, sys::ModelSystem)::Dict{Symbol, Dict{Symbol, NNPreODEMap}}
     maps = Dict{Symbol, Dict{Symbol, NNPreODEMap}}()
     isempty(xids[:nn_preode]) && return maps
 
@@ -200,7 +200,7 @@ function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameter
             # values (numeric) or a parameter, which is treated as a xdynamic parameter
             file_input = false
             inputs = _get_net_petab_variables(mappings_df, netid, :inputs) .|> Symbol
-            input_values = _get_net_input_values(inputs, netid, nnmodels[netid], DataFrame(conditions_df[i, :]), hybridization_df, petab_parameters, sys; keep_numbers = true)
+            input_values = _get_net_input_values(inputs, netid, nnmodels[netid], DataFrame(conditions_df[i, :]), petab_tables, petab_parameters, sys; keep_numbers = true)
             ninputs = length(input_values)
             constant_inputs, iconstant_inputs = zeros(Float64, 0), zeros(Int32, 0)
             ixdynamic_mech_inputs, ixdynamic_inputs = zeros(Int32, 0), zeros(Int32, 0)
