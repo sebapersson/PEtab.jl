@@ -71,7 +71,6 @@ function test_init(test_case, model::PEtabModel)::Nothing
     return nothing
 end
 
-
 function test_netimport(testcase, nnmodel)::Nothing
     @info "Case $testcase"
     if testcase in ["003", "004", "005", "006", "007", "008", "009", "010", "014",

@@ -58,6 +58,7 @@ function _get_∂G∂_!(model_info::ModelInfo, cid::Symbol, xnoise::Vector{T}, x
     return ∂G∂u!, ∂G∂p!
 end
 
+# TODO: ∂G∂p does not handle if neural network appears in observable
 # Adjust the gradient from linear scale to current scale for x-vector
 function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector{T},
                          xdynamic::Vector{T}, xindices::ParameterIndices, simid::Symbol;
@@ -79,9 +80,9 @@ function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector
     # and are mapped via sys_to_dynamic_nn
     xi = xindices.xindices_dynamic[:nn_in_ode]
     if sensitivites_AD == true
-        @views grad_xscale[xi] .+= grad_linscale[xi]
+        @views grad_xscale[xi] .+= grad_linscale[xi] + ∂G∂p[sys_to_dynamic_nn]
     else
-        @views grad_xscale[xi] .+= grad_linscale[sys_to_dynamic_nn]
+        @views grad_xscale[xi] .+= grad_linscale[sys_to_dynamic_nn] + ∂G∂p[sys_to_dynamic_nn]
     end
 
     # Adjust for parameters that appear in each simulation condition (not unique to simid).

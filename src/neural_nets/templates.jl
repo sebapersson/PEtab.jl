@@ -23,15 +23,19 @@ function _template_nn_in_ode(netid::Symbol, petab_tables::PEtabTables)::String
     input_expressions = inputs_df.targetValue
     output_variables = _get_net_petab_variables(mappings_df, netid, :outputs)
     outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
-    output_targets = outputs_df.targetId
+    output_targets = ""
+    for (i, output_target) in pairs(outputs_df.targetId)
+        output_targets *= "\t$output_target = " * outputs_df.targetValue[i] * "\n"
+    end
 
     inputs = "[" * prod(input_expressions .* ",") * "]"
-    outputs_p = prod(output_targets .* ", ")
+    outputs_p = prod(output_variables .* ", ")
     outputs_net = "out, st_$(netid)"
     formula = "\n\tnnmodel_$(netid) = nnmodels[:$(netid)]\n"
     formula *= "\txnn_$(netid) = p[:$(netid)]\n"
     formula *= "\t$(outputs_net) = nnmodel_$(netid).nn($inputs, xnn_$(netid), nnmodel_$(netid).st)\n"
     formula *= "\tnnmodel_$(netid).st = st_$(netid)\n"
-    formula *= "\t$(outputs_p) = out\n\n"
+    formula *= "\t$(outputs_p) = out\n"
+    formula *= "$(output_targets)\n\n"
     return formula
 end
