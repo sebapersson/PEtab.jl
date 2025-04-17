@@ -1,5 +1,9 @@
 # Breaking updates and feature summaries across releases
 
+## PEtab 3.8.0
+
+Update to use Catalyst.jl version 15.
+
 ## PEtab 3.7.0
 
 Add the `get_system` utility function. This function retrieves the `PEtabODEProblem` model system (either a `ReactionSystem` or an `ODESystem`) along with its associated species and parameter maps for any chosen simulation condition.
