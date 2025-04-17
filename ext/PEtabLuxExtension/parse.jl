@@ -1,7 +1,7 @@
 function PEtab.load_nnmodels(path_yaml::String)::Dict{Symbol, <:PEtab.NNModel}
     problem_yaml = YAML.load_file(path_yaml)
     dirmodel = dirname(path_yaml)
-    neural_nets = problem_yaml["extensions"]["neural_nets"]
+    neural_nets = problem_yaml["extensions"]["sciml"]["neural_nets"]
     nnmodels = Dict{Symbol, PEtab.NNModel}()
     for (netid, netinfo) in neural_nets
         path_net = joinpath(dirname(path_yaml), netinfo["location"])

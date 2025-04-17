@@ -68,23 +68,23 @@ function _read_table(path::String, file::Symbol)::DataFrame
     return df
 end
 
-function _get_path(yaml_file, dirmodel::String, file::String)::String
+function _get_path(yaml_file, dir::String, file::String)::String
     # For version 2.0 different model languges are supported
     if file == "sbml_files" && haskey(yaml_file["problems"][1], "model_files")
         key = collect(keys(yaml_file["problems"][1]["model_files"]))[1]
         model_info = yaml_file["problems"][1]["model_files"][key]
         @assert model_info["language"] == "sbml" "Only SBML models are supported"
-        path = joinpath(dirmodel, model_info["location"])
+        path = joinpath(dir, model_info["location"])
     elseif file == "parameter_file"
-        path = joinpath(dirmodel, yaml_file[file])
+        path = joinpath(dir, yaml_file[file])
     elseif file == "hybridization_file"
-        if haskey(yaml_file, "extensions") && haskey(yaml_file["extensions"], "hybridization_file")
-            path = joinpath(dirmodel, yaml_file["extensions"]["hybridization_file"])
+        if haskey(yaml_file, "extensions") && haskey(yaml_file["extensions"], "sciml") && haskey(yaml_file["extensions"]["sciml"], "hybridization_file")
+            path = joinpath(dir, yaml_file["extensions"]["sciml"]["hybridization_file"])
         else
             path = ""
         end
     else
-        path = joinpath(dirmodel, yaml_file["problems"][1][file][1])
+        path = joinpath(dir, yaml_file["problems"][1][file][1])
     end
     if !isempty(path) && !isfile(path)
         throw(PEtabFileError("$path is not a valid path for the $file table"))
@@ -97,7 +97,7 @@ end
 
 Check that a PEtab table has the required columns, and each column has correct types.
 """
-function _check_table(df, table::Symbol)::Nothing
+function _check_table(df::DataFrame, table::Symbol)::Nothing
     if table == :measurements
         colsinfo = MEASUREMENT_COLS
     elseif table == :conditions

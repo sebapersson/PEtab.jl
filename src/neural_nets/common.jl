@@ -51,7 +51,8 @@ function set_ps_net!(ps::ComponentArray, netid::Symbol, model_info::ModelInfo)::
 end
 
 function _get_ps_path(netid::Symbol, model::PEtabModel, nominal_value::String)
-    array_files = (YAML.load_file(model.paths[:yaml]))["extensions"]["array_files"]
+    yaml_file = YAML.load_file(model.paths[:yaml])
+    array_files = yaml_file["extensions"]["sciml"]["array_files"]
     if !haskey(array_files, nominal_value)
         throw(PEtab.PEtabInputError("For neural network $netid the parameter file \
             $(nominal_value) has not been defined in the YAML problem file under \
@@ -212,13 +213,14 @@ function _get_xnames_nn(xnames::Vector{Symbol}, model_info::ModelInfo)::Vector{S
 end
 
 function _input_isfile(input_variable::Union{String, Symbol}, yaml_file::Dict)::Bool
-    yaml_file_extensions = yaml_file["extensions"]
+    yaml_file_extensions = yaml_file["extensions"]["sciml"]
     !haskey(yaml_file_extensions, "array_files") && return false
     return haskey(yaml_file_extensions["array_files"], string(input_variable))
 end
 
 function _get_input_path(input_variable::Union{String, Symbol}, yaml_file::Dict, dir::String)::Symbol
-    filename = yaml_file["extensions"]["array_files"][string(input_variable)]["location"]
+    _input_variable = string(input_variable)
+    filename = yaml_file["extensions"]["sciml"]["array_files"][_input_variable]["location"]
     path = joinpath(dir, filename)
     if !isfile(path)
         throw(PEtab.PEtabInputError("$path is not a valid file path to the file input \
