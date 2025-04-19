@@ -110,7 +110,7 @@ function get_correction end
 function correct_gradient! end
 
 export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
-       PEtabODEProblem, remake, Fides, PEtabOptimisationResult, IpoptOptions,
+       PEtabODEProblem, remake, PEtabOptimisationResult, IpoptOptions,
        IpoptOptimizer, PEtabParameter, PEtabObservable, PEtabMultistartResult,
        get_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, get_system, PEtabEvent,
        PEtabLogDensity, solve_all_conditions, get_x, calibrate, calibrate_multistart,

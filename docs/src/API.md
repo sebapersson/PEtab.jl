@@ -76,10 +76,9 @@ Lastly, model selection is provided via `petab_select`:
 petab_select
 ```
 
-For each case case, PEtab.jl supports the usage of optimization algorithms from [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl), [Ipopt.jl](https://github.com/jump-dev/Ipopt.jl), and [Fides.py](https://github.com/fides-dev/fides):
+For each case case, PEtab.jl supports the usage of optimization algorithms from [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl), [Ipopt.jl](https://github.com/jump-dev/Ipopt.jl), and [Fides.jl](https://fides-dev.github.io/Fides.jl/stable/):
 
 ```@docs
-Fides
 IpoptOptimizer
 IpoptOptions
 ```

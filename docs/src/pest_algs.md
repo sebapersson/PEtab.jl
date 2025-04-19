@@ -1,14 +1,14 @@
 # [Available and Recommended Optimization Algorithms](@id options_optimizers)
 
-For the `calibrate` and `calibrate_multistart` functions, PEtab.jl supports optimization algorithms from several popular optimization packages: [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl), [Ipopt.jl](https://github.com/jump-dev/Ipopt.jl), and [Fides.py](https://github.com/fides-dev/fides). This page provides information on each package, as well as recommendations.
+For the `calibrate` and `calibrate_multistart` functions, PEtab.jl supports optimization algorithms from several popular optimization packages: [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl), [Ipopt.jl](https://github.com/jump-dev/Ipopt.jl), and [Fides.jl](https://fides-dev.github.io/Fides.jl/stable/). This page provides information on each package, as well as recommendations.
 
 ## Recommended Optimization Algorithm
 
-When choosing an optimization algorithm, it is important to keep the **no free lunch** principle in mind: while an algorithm may work well for one problem, there is no universally best method. Nevertheless, benchmark studies have identified algorithms that often perform well for ODE models in biology (and likely beyond) [raue2013lessons, hass2019benchmark, villaverde2019benchmarking](@cite). In particular, the best algorithm to use depends on the size of the parameter estimation problem. This is because the problem considered here is a non-linear continuous optimization problem, and for such problems, having access to a good Hessian approximation improves performance. And, the problem size dictates which type of Hessian approximation can be computed (see this [page](@ref gradient_support) for more details). Following this, we recommend:
+When choosing an optimization algorithm, it is important to keep the **no free lunch** principle in mind: while an algorithm may work well for one problem, there is no universally best method. Nevertheless, benchmark studies have identified algorithms that often perform well for ODE models in biology (and likely beyond) [raue2013lessons, hass2019benchmark, villaverde2019benchmarking](@cite). Typically the best algorithm to use depends on the size of the parameter estimation problem, because having access to a good Hessian approximation improves performance, and the problem size dictates which type of Hessian approximation can be computed (see this [page](@ref gradient_support) for more details). Following this, we recommend:
 
 - For **small** models (fewer than 10 ODEs and fewer than 20 parameters to estimate) where computing the Hessian is often computationally feasible, the `IPNewton()` method from Optim.jl.
-- For **medium sized** models (roughly more than 10 ODEs and fewer than 75 parameters), where a Gauss-Newton Hessian can be computed, Fides. The Gauss-Newton Hessian approximation typically outperforms the more common (L)-BFGS approximation, and benchmarks have shown that Fides performs well with such a Hessian approximation [frohlich2022fides](@cite). If Fides is difficult to install, `Optim.BFGS` also performs well.
-- For **large** models (more than 20 ODEs and more than 75 parameters to estimate), where a Gauss-Newton approximation is too computationally expensive, a (L)-BFGS optimizer is recommended, such as Ipopt or `Optim.BFGS`.
+- For **medium sized** models (roughly more than 10 ODEs and fewer than 75 parameters), where a Gauss-Newton Hessian can be computed, Fides. The Gauss-Newton Hessian approximation typically outperforms the more common (L)-BFGS approximation, and benchmarks have shown that Fides performs well with such a Hessian approximation [frohlich2022fides](@cite).
+- For **large** models (more than 20 ODEs and more than 75 parameters to estimate), where a Gauss-Newton approximation is too computationally expensive, a (L)-BFGS optimizer is recommended, such as Ipopt, `Fides.BFGS` or `Optim.BFGS`.
 
 ## [Optim.jl](@id Optim_alg)
 
@@ -63,25 +63,7 @@ For more information on Ipopt and its available options, see the Ipopt [document
 
 ## Fides
 
-[Fides.py](https://github.com/fides-dev/fides) is a trust-region Newton method designed for box-constrained optimization problems [frohlich2022fides](@cite). It is particularly efficient when the Hessian is approximated using the [Gauss-Newton](https://en.wikipedia.org/wiki/Gauss%E2%80%93Newton_algorithm) method.
-
-The only drawback with Fides is that it is a Python package, but fortunately, it can be used from PEtab.jl through PyCall. To this end, you must build PyCall with a Python environment that has Fides installed:
-
-```julia
-using PyCall
-# Path to Python executable with Fides installed
-path_python_exe = "path_python"
-ENV["PYTHON"] = path_python_exe
-# Build PyCall with the Fides Python environment
-import Pkg
-Pkg.build("PyCall")
-```
-
-Fides supports several Hessian approximations, which can be specified in the `Fides` constructor:
-
-```@docs; canonical=false
-Fides
-```
+[Fides.jl](https://github.com/fides-dev/Fides.jl) is a trust-region Newton method designed for box-constrained optimization problems [frohlich2022fides](@cite). It is particularly efficient when the Hessian is approximated using the [Gauss-Newton](https://en.wikipedia.org/wiki/Gauss%E2%80%93Newton_algorithm) method. Fides also supports several Hessian approximations (e.g. `BFGS`, `SR1`),and a full list can be found in the Fides [documentation](https://fides-dev.github.io/Fides.jl/stable/API/)
 
 A notable feature of Fides is that in each optimization step, the objective, gradient, and Hessian are computed simultaneously. This opens up the possibility for efficient reuse of computed quantities, especially when the Hessian is computed via the Gauss-Newton approximation. Because, to compute the Gauss-Newton Hessian the forward sensitivities are used, which can also be used to compute the gradient. Hence, a good `PEtabODEProblem` configuration for Fides with Gauss-Newton is:
 
@@ -94,12 +76,19 @@ petab_prob = PEtabODEProblem(model; gradient_method = :ForwardEquations,
 Given this setup, the Hessian method from the `PEtabODEProblem` can be used to run Fides for 200 iterations with:
 
 ```julia
-using PyCall
-res = calibrate(petab_prob, x0, Fides(nothing);
-                options=py"{'maxiter' : 1000}")
+using Fides
+res = calibrate(petab_prob, x0, Fides.CustomHessian();
+                options = FidesOptions(maxiter = 1000))
 ```
 
-As noted above, for Fides options are specified using a Python dictionary. Available options and their default values can be found in the Fides [documentation](https://fides-optimizer.readthedocs.io/en/latest/generated/fides.constants.html), and more information on the algorithm can be found in the original publication [frohlich2022fides](@cite).
+Fides options are specified with `FidesOptions`, where a full list of options can be found in the Fides [documentation](https://fides-dev.github.io/Fides.jl/stable/API/). As mentioned, Fides also implements several Hessian approximations, for example the `BFGS` approximation can be used with:
+
+```julia
+using Fides
+res = calibrate(petab_prob, x0, Fides.BFGS())
+```
+
+More information on the Fides algorithm can be found in the original publication [frohlich2022fides](@cite).
 
 ## References
 

@@ -50,12 +50,8 @@ ms_res = PEtabMultistartResult(joinpath(@__DIR__, "optimisation_results", "boehm
 @test @sprintf("%s", ms_res)[1:188] == "PEtabMultistartResult\n---------------- Summary ---------------\nmin(f)                = 1.38e+02\nParameters estimated  = 9\nNumber of multistarts = 100\nOptimiser algorithm   = Optim_IPNewton"
 @test @sprintf("%s", ms_res.runs[1]) == "PEtabOptimisationResult\n---------------- Summary ---------------\nmin(f)                = 1.50e+02\nParameters estimated  = 9\nOptimiser iterations  = 47\nRuntime               = 4.6e+00s\nOptimiser algorithm   = Optim_IPNewton\n"
 
-alg1 = Fides(:BFGS)
-alg2 = Fides(nothing)
-alg3 = IpoptOptimizer(false)
-@test "$alg1" == "Fides(hessian_method = BFGS; verbose = false)"
-@test "$alg2" == "Fides(hessian_method = nothing; verbose = false)"
-@test "$alg3" == "Ipopt(LBFGS = false)"
+alg = IpoptOptimizer(false)
+@test "$alg" == "Ipopt(LBFGS = false)"
 
 #=
 A fun bug in Julia
