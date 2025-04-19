@@ -6,7 +6,13 @@ using ComponentArrays: ComponentArray
 using PEtab
 using QuasiMonteCarlo: LatinHypercubeSample
 
-function PEtab.calibrate_multistart(prob::PEtabODEProblem, alg::HessianUpdate, nmultistarts::Signed; save_trace::Bool = false, dirsave::Union{Nothing, String} = nothing, sampling_method::PEtab.SamplingAlgorithm = LatinHypercubeSample(), sample_prior::Bool = true, nprocs::Int64 = 1, seed::Union{Nothing, Signed} = nothing, options::FidesOptions = FidesOptions())::PEtab.PEtabMultistartResult
+function PEtab.calibrate_multistart(prob::PEtabODEProblem, alg::HessianUpdate,
+                                    nmultistarts::Signed; save_trace::Bool = false,
+                                    dirsave::Union{Nothing, String} = nothing,
+                                    sampling_method::PEtab.SamplingAlgorithm = LatinHypercubeSample(),
+                                    sample_prior::Bool = true, nprocs::Int64 = 1,
+                                    seed::Union{Nothing, Signed} = nothing,
+                                    options::FidesOptions = FidesOptions())::PEtab.PEtabMultistartResult
     if !isnothing(seed)
         Random.seed!(seed)
     end
@@ -14,7 +20,9 @@ function PEtab.calibrate_multistart(prob::PEtabODEProblem, alg::HessianUpdate, n
                                        options, sample_prior, save_trace, nprocs)
 end
 
-function PEtab.calibrate(prob::PEtabODEProblem, x::InputVector, alg::HessianUpdate; save_trace::Bool = false, options::FidesOptions = FidesOptions())::PEtab.PEtabOptimisationResult
+function PEtab.calibrate(prob::PEtabODEProblem, x::InputVector, alg::HessianUpdate;
+                         save_trace::Bool = false,
+                         options::FidesOptions = FidesOptions())::PEtab.PEtabOptimisationResult
     if save_trace == true
         @warn "For Fides the x and f trace cannot currently be saved (we are working on it)" maxlog=10
         save_trace = false
@@ -50,7 +58,8 @@ function PEtab.calibrate(prob::PEtabODEProblem, x::InputVector, alg::HessianUpda
                                    xtrace, ftrace, converged, res)
 end
 
-function _get_fides_problem(prob::PEtabODEProblem, x::InputVector, ::CustomHessian)::FidesProblem
+function _get_fides_problem(prob::PEtabODEProblem, x::InputVector,
+                            ::CustomHessian)::FidesProblem
     fides_objective = let _prob = prob
         (x) -> begin
             f, grad = _prob.nllh_grad(x)
