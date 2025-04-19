@@ -171,9 +171,6 @@ function show(io::IO, res::PEtabMultistartResult)
     end
     print(io, styled"$(header)$(optheader)$(opt1)$(opt2)$(opt3)$(opt4)$(opt5)")
 end
-function show(io::IO, alg::Fides)
-    print(io, "Fides(hessian_method = $(alg.hessian_method); verbose = $(alg.verbose))")
-end
 function show(io::IO, alg::IpoptOptimizer)
     print(io, "Ipopt(LBFGS = $(alg.LBFGS))")
 end

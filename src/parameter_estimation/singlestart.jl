@@ -9,16 +9,21 @@ order expected by `prob`. To get a vector in the correct order, see [`get_x`](@r
 
 A list of available and recommended optimization algorithms (`alg`) can be found in the
 documentation. Briefly, supported algorithms are from:
+
 - [Optim.jl](https://julianlsolvers.github.io/Optim.jl/stable/): `LBFGS()`, `BFGS()`,
     or `IPNewton()` methods.
 - [Ipopt.jl](https://coin-or.github.io/Ipopt/): `IpoptOptimizer()` interior-point Newton
     method.
-- [Fides.py](https://github.com/fides-dev/fides): `Fides()` Newton trust region method.
+- [Fides.jl](https://fides-dev.github.io/Fides.jl/stable/): Newton trust region for
+    box-constrained problem. Fides can either use the Hessian in `prob`
+    (`alg = Fides.CustomHessian()`), or any of its built in Hessian approximations (e.g.
+    `alg = Fides.BFGS()`). A full list of Hessian approximations can be found in the Fides
+    [documentation](https://fides-dev.github.io/Fides.jl/stable/)
 
 Different ways to visualize the parameter estimation result can be found in the
 documentation.
 
-See also [`PEtabOptimisationResult`](@ref), [`Fides`](@ref) and [`IpoptOptimizer`](@ref)
+See also [`PEtabOptimisationResult`](@ref) and [`IpoptOptimizer`](@ref)
 
 ## Keyword Arguments
 - `save_trace::Bool = false`: Whether to save the optimization trace of the objective

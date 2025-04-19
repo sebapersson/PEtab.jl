@@ -16,7 +16,7 @@ PEtab.jl is a Julia package for creating parameter estimation problems for fitti
 * It integrates with Julia's [DifferentialEquations.jl](https://docs.sciml.ai/DiffEqDocs/stable/) ecosystem, which among other things, means it supports any of the state-of-the-art ODE solvers in [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl).
 * It supports efficient forward and adjoint gradient methods, suitable for small and large models, respectively.
 * It supports exact Hessian's for small models and good approximations for large models.
-* It includes wrappers for performing parameter estimation with optimization packages [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl), [Ipopt](https://coin-or.github.io/Ipopt/), [Optimization.jl](https://github.com/SciML/Optimization.jl), and [Fides.py](https://github.com/fides-dev/fides).
+* It includes wrappers for performing parameter estimation with optimization packages [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl), [Ipopt](https://coin-or.github.io/Ipopt/), [Optimization.jl](https://github.com/SciML/Optimization.jl), and [Fides.jl](https://fides-dev.github.io/Fides.jl/stable/).
 * It includes wrappers for performing Bayesian inference using state-of-the-art methods such as [NUTS](https://github.com/TuringLang/Turing.jl) (the same sampler used in [Turing.jl](https://github.com/TuringLang/Turing.jl)) or [AdaptiveMCMC.jl](https://github.com/mvihola/AdaptiveMCMC.jl).
 
 Additional information and tutorials can be found in the [documentation](https://sebapersson.github.io/PEtab.jl/stable/).

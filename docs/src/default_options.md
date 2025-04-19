@@ -53,7 +53,7 @@ While PEtab.jl provides default settings for large models, we recommend benchmar
 
 **Gradient method**: For large models, the most efficient gradient method is adjoint sensitivity analysis (`gradient_method=:Adjoint`). PEtab.jl supports the `InterpolatingAdjoint()`, `GaussAdjoint()`, and `QuadratureAdjoint()` algorithms from SciMLSensitivity.jl. The default is `InterpolatingAdjoint(autojacvec = EnzymeVJP())`, but we strongly recommend benchmarking different adjoint methods and different `autojacvec` options. For further details on adjoint options, see the SciMLSensitivity.jl [documentation](https://docs.sciml.ai/SciMLSensitivity/stable/).
 
-**Hessian method**: For large models, computing sensitivities (Gauss-Newton) or a full Hessian is not computationally feasible. Therefore, using an L-(BFGS) approximation is often the best option. BFGS support is built into most available optimizers such as [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl), [Ipopt.jl](https://github.com/jump-dev/Ipopt.jl), and [Fides.py](https://github.com/fides-dev/fides).
+**Hessian method**: For large models, computing sensitivities (Gauss-Newton) or a full Hessian is not computationally feasible. Therefore, using an L-(BFGS) approximation is often the best option. BFGS support is built into most available optimizers such as [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl), [Ipopt.jl](https://github.com/jump-dev/Ipopt.jl), and [Fides.jl](https://fides-dev.github.io/Fides.jl/stable/).
 
 Overall, for large models, the default configuration is:
 
