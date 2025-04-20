@@ -2,7 +2,7 @@
     PEtab-select test-suite (except the very long time to run Blasi model)
 =#
 
-using PEtab, Optim, Fides, PyCall, YAML, Test, OrdinaryDiffEqRosenbrock
+using PEtab, Optim, Fides, PEtabSelect, YAML, Test, OrdinaryDiffEqRosenbrock
 
 @testset "PEtab-select" begin
     path_yaml = joinpath(@__DIR__, "petab_select", "0001", "petab_select_problem.yaml")
