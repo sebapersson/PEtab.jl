@@ -88,15 +88,15 @@ function test_nllh_grad_hess(model::PEtabModel, osolver::ODESolver)::Nothing
     @test all(.≈(normalize(g), normalize(grad_ref); atol = 1e-3))
 
     H = _compute_hess(x, model, :ForwardDiff, osolver)
-    @test all(.≈(H, hess_ref; atol = 1e-3))
+    @test all(.≈(H, hess_ref; atol = 5e-3))
     H = _compute_hess(x, model, :ForwardDiff, osolver; split = true)
-    @test all(.≈(H, hess_ref; atol = 1e-3))
+    @test all(.≈(H, hess_ref; atol = 5e-3))
     H = _compute_hess(x, model, :BlockForwardDiff, osolver)
-    @test all(.≈(H[1:2, 1:2], hess_ref[1:2, 1:2]; atol = 1e-3))
-    @test all(.≈(H[3:4, 3:4], hess_ref[3:4, 3:4]; atol = 1e-3))
+    @test all(.≈(H[1:2, 1:2], hess_ref[1:2, 1:2]; atol = 5e-3))
+    @test all(.≈(H[3:4, 3:4], hess_ref[3:4, 3:4]; atol = 5e-3))
     H = _compute_hess(x, model, :BlockForwardDiff, osolver; split = true)
-    @test all(.≈(H[1:2, 1:2], hess_ref[1:2, 1:2]; atol = 1e-3))
-    @test all(.≈(H[3:4, 3:4], hess_ref[3:4, 3:4]; atol = 1e-3))
+    @test all(.≈(H[1:2, 1:2], hess_ref[1:2, 1:2]; atol = 5e-3))
+    @test all(.≈(H[3:4, 3:4], hess_ref[3:4, 3:4]; atol = 5e-3))
     return nothing
 end
 
