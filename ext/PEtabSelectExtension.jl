@@ -4,7 +4,7 @@ import CSV
 using DataFrames: DataFrame
 import QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
 using PEtab
-using PEtabSelect
+import PEtabSelect
 import YAML
 
 function PEtab.petab_select(path_yaml::String, alg; options = nothing,
