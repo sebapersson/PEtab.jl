@@ -6,8 +6,7 @@
     the ODE solver, cost function, gradient and hessian is tested
  =#
 
-using PEtab, OrdinaryDiffEq, SciMLSensitivity, ForwardDiff, LinearAlgebra, CSV, DataFrames,
-      Test
+using PEtab, OrdinaryDiffEqRosenbrock, SciMLSensitivity, ForwardDiff, LinearAlgebra, CSV, DataFrames, Test
 
 include(joinpath(@__DIR__, "common.jl"))
 
@@ -110,7 +109,7 @@ model = create_model_inside_function()
 end
 
 @testset "nllh, grad, and hess" begin
-    test_nllh_grad_hess(model, ODESolver(Vern9(), abstol=1e-15, reltol=1e-15))
+    test_nllh_grad_hess(model, ODESolver(Rodas5P(), abstol=1e-15, reltol=1e-15))
 end
 
 @testset "grad residuals" begin

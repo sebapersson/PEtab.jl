@@ -1,7 +1,7 @@
 # Tests the plotting recipes for PEtabOptimisationResult and PEtabMultistartResult.
 # Written by Torkel Loman.
 
-using DataFrames, Catalyst, OrdinaryDiffEq, Optim, PEtab, Plots, Test
+using DataFrames, Catalyst, Optim, PEtab, Plots, Test
 
 ### Preparations ###
 petab_ms_res = PEtabMultistartResult(joinpath(@__DIR__, "optimisation_results", "boehm"))

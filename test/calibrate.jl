@@ -3,7 +3,7 @@
     generation, to single-start and multistart parameter estimation.
 =#
 
-using PEtab, Distributions, CSV, DataFrames, OrdinaryDiffEq, Catalyst, ComponentArrays,
+using PEtab, Distributions, CSV, DataFrames, OrdinaryDiffEqRosenbrock, Catalyst, ComponentArrays,
       Optim, Ipopt, Fides, Optimization, OptimizationOptimJL, Test
 
 @testset "Generate startguesses" begin
