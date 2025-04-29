@@ -33,7 +33,16 @@ function PEtab.petab_select(path_yaml::String, alg; options = nothing,
     xchange = propertynames(model_space)[3:end]
     custom_values = Dict(xchange .=> "estimate")
     petab_model = PEtabModel(joinpath(dirmodel, model_space[1, :model_subspace_petab_yaml]))
-    petab_prob = PEtabODEProblem(petab_model; odesolver = odesolver, ss_solver = ss_solver, odesolver_gradient = odesolver_gradient, sensealg = sensealg, ss_solver_gradient = ss_solver_gradient, chunksize = chunksize, gradient_method = gradient_method, sensealg_ss = sensealg_ss, hessian_method = hessian_method, sparse_jacobian = sparse_jacobian, split_over_conditions = split_over_conditions, reuse_sensitivities = reuse_sensitivities, custom_values = custom_values)
+    petab_prob = PEtabODEProblem(petab_model; odesolver = odesolver, ss_solver = ss_solver,
+                                 odesolver_gradient = odesolver_gradient,
+                                 sensealg = sensealg,
+                                 ss_solver_gradient = ss_solver_gradient,
+                                 chunksize = chunksize, gradient_method = gradient_method,
+                                 sensealg_ss = sensealg_ss, hessian_method = hessian_method,
+                                 sparse_jacobian = sparse_jacobian,
+                                 split_over_conditions = split_over_conditions,
+                                 reuse_sensitivities = reuse_sensitivities,
+                                 custom_values = custom_values)
 
     select_problem = PEtabSelect.import_problem(path_yaml)
     criterion = split(string(select_problem.criterion), '.')[2]
@@ -52,11 +61,13 @@ function PEtab.petab_select(path_yaml::String, alg; options = nothing,
             @info "Round $k with $ncandidates candidates - as the code compiles this round \
                    it takes extra long time https://xkcd.com/303/"
         else
-            iteration = PEtabSelect.get_iteration_info(select_problem, iteration_results, false)
+            iteration = PEtabSelect.get_iteration_info(select_problem, iteration_results,
+                                                       false)
             ncandidates = PEtabSelect.get_n_new_models(iteration)
             ncandidates != 0 && @info "Round $k with $ncandidates candidates"
         end
-        _calibrate_candidates!(iteration, select_problem, petab_prob, alg, nmultistarts, options, sampling_method)
+        _calibrate_candidates!(iteration, select_problem, petab_prob, alg, nmultistarts,
+                               options, sampling_method)
         iteration_results = PEtabSelect.get_iteration_results(select_problem, iteration)
         ncandidates = PEtabSelect.get_n_new_models(iteration)
         k += 1
@@ -73,23 +84,28 @@ function PEtab.petab_select(path_yaml::String, alg; options = nothing,
     return path_save
 end
 
-function _calibrate_candidates!(iteration, select_problem, petab_prob::PEtabODEProblem, alg, nmultistarts::Integer, options, sampling_method)::Nothing
+function _calibrate_candidates!(iteration, select_problem, petab_prob::PEtabODEProblem, alg,
+                                nmultistarts::Integer, options, sampling_method)::Nothing
     uncalibrated_models = PEtabSelect.get_uncalibrated_models(iteration)
     for model in uncalibrated_models
-        _calibrate_candidate!(model, select_problem, petab_prob, alg, nmultistarts, options, sampling_method)
+        _calibrate_candidate!(model, select_problem, petab_prob, alg, nmultistarts, options,
+                              sampling_method)
     end
     return nothing
 end
 
-function _calibrate_candidate!(model, select_problem, petab_prob::PEtabODEProblem, alg, nmultistarts::Integer, options, sampling_method)::Nothing
+function _calibrate_candidate!(model, select_problem, petab_prob::PEtabODEProblem, alg,
+                               nmultistarts::Integer, options, sampling_method)::Nothing
     subspace_id = PEtabSelect.get_model_subspace_id(model)
     model_parameters = PEtabSelect.get_model_parameters(model)
     @info "Calibrating model $subspace_id"
     prob = PEtab.remake(petab_prob, model_parameters)
     if isnothing(options)
-        res = PEtab.calibrate_multistart(prob, alg, nmultistarts; sampling_method = sampling_method)
+        res = PEtab.calibrate_multistart(prob, alg, nmultistarts;
+                                         sampling_method = sampling_method)
     else
-        res = PEtab.calibrate_multistart(prob, alg, nmultistarts; options = options, sampling_method = sampling_method)
+        res = PEtab.calibrate_multistart(prob, alg, nmultistarts; options = options,
+                                         sampling_method = sampling_method)
     end
     PEtabSelect.set_criterion!(model, select_problem, res.fmin)
     PEtabSelect.set_parameters!(model, Dict(prob.xnames .=> res.xmin))
