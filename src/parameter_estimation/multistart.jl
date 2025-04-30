@@ -136,9 +136,10 @@ end
 
 function _load_packages_workers(workers::Vector{Int64}, alg)::Nothing
     isempty(workers) && return nothing
+    alg_str = string(alg)
     @eval @everywhere $workers eval(:(using PEtab))
-    if alg isa Fides
-        @eval @everywhere $workers eval(:(using PyCall))
+    if alg_str[1:5] == "Fides"
+        @eval @everywhere $workers eval(:(using Fides))
     elseif alg isa IpoptOptimizer
         @eval @everywhere $workers eval(:(using Ipopt))
     else

@@ -110,7 +110,7 @@ function get_correction end
 function correct_gradient! end
 
 export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
-       PEtabODEProblem, remake, Fides, PEtabOptimisationResult, IpoptOptions,
+       PEtabODEProblem, remake, PEtabOptimisationResult, IpoptOptions,
        IpoptOptimizer, PEtabParameter, PEtabObservable, PEtabMultistartResult,
        get_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, get_system, PEtabEvent,
        PEtabLogDensity, solve_all_conditions, get_x, calibrate, calibrate_multistart,
@@ -150,7 +150,8 @@ function to_chains end
 if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabIpoptExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "PEtabOptimExtension.jl"))
-    include(joinpath(@__DIR__, "..", "ext", "PEtabPyCallExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "PEtabSelect.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "Fides.jl"))
     include(joinpath(@__DIR__, "..", "ext", "PEtabOptimizationExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "PEtabSciMLSensitivityExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "PEtabLogDensityProblemsExtension.jl"))

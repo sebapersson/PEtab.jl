@@ -1,4 +1,4 @@
-using PEtab, Test, OrdinaryDiffEq, LinearAlgebra
+using PEtab, Test, OrdinaryDiffEqRosenbrock, LinearAlgebra
 
 function test_petab_remake(model::PEtabModel, xchange, what_check; testtol = 1e-3)
     if :GradientForwardDiff in what_check

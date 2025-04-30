@@ -3,8 +3,8 @@
     generation, to single-start and multistart parameter estimation.
 =#
 
-using PEtab, Distributions, CSV, DataFrames, OrdinaryDiffEq, Catalyst, ComponentArrays,
-      Optim, Ipopt, Optimization, OptimizationOptimJL, PyCall, Test
+using PEtab, Distributions, CSV, DataFrames, OrdinaryDiffEqRosenbrock, Catalyst, ComponentArrays,
+      Optim, Ipopt, Fides, Optimization, OptimizationOptimJL, Test
 
 @testset "Generate startguesses" begin
     # Test startguesses for a hard to integrate ODE model
@@ -67,11 +67,11 @@ end
     # Testing Optimization.jl (this package is set to have heavy updates, hence limited support)
     optprob = OptimizationProblem(prob; box_constraints = true)
     optprob.u0 .= x0
-    res6 = solve(optprob, ParticleSwarm())
+    res6 = Optimization.solve(optprob, ParticleSwarm())
     @test all(.≈(res6.u, prob.xnominal_transformed, atol = 1e-2))
-    # Fides.py (requires a PyCall, but Fides often works well so...)
-    res7 = calibrate(prob, x0, Fides(nothing))
-    res8 = calibrate(prob, x0, Fides(:BFGS))
+    # Fides.jl (the package uses PythonCall to wrap fides.py)
+    res7 = calibrate(prob, x0, Fides.CustomHessian())
+    res8 = calibrate(prob, x0, Fides.BFGS())
     @test all(.≈(res7.xmin, prob.xnominal_transformed, atol = 1e-2))
     @test all(.≈(res8.xmin, prob.xnominal_transformed, atol = 1e-2))
 end
@@ -84,7 +84,7 @@ end
     res1 = calibrate_multistart(prob, Optim.IPNewton(), 10; save_trace=true,
                                 dirsave = dirsave)
     res2 = calibrate_multistart(prob, IpoptOptimizer(true), 10; save_trace=false)
-    res3 = calibrate_multistart(prob, Fides(:BFGS), 10; save_trace=false)
+    res3 = calibrate_multistart(prob, Fides.BFGS(), 10; save_trace=false)
     res_read = PEtabMultistartResult(dirsave)
     @test all(.≈(res1.xmin, prob.xnominal_transformed, atol = 1e-2))
     @test all(.≈(res2.xmin, prob.xnominal_transformed, atol = 1e-2))
@@ -102,7 +102,9 @@ end
     res1 = calibrate_multistart(prob, Optim.IPNewton(), 10; save_trace=true,
                                 dirsave = dirsave, nprocs = 2)
     res2 = calibrate_multistart(prob, IpoptOptimizer(true), 10; nprocs = 2)
-    res3 = calibrate_multistart(prob, Fides(:BFGS), 10; nprocs = 2)
+    @info "Starting Fides on multiple workers"
+    res3 = calibrate_multistart(prob, Fides.BFGS(), 10; nprocs = 2)
+    @info "Done with Fides on multiple workers"
     res_read = PEtabMultistartResult(dirsave)
     @test all(.≈(res1.xmin, prob.xnominal_transformed, atol = 1e-2))
     @test all(.≈(res2.xmin, prob.xnominal_transformed, atol = 1e-2))

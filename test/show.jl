@@ -1,12 +1,10 @@
-using PEtab, Sundials, OrdinaryDiffEq, StyledStrings, Printf, NonlinearSolve,
+using PEtab, Sundials, OrdinaryDiffEqRosenbrock, StyledStrings, Printf, NonlinearSolve,
       Distributions, Catalyst, Test
 
 solver1 = ODESolver(Rodas5P())
 solver2 = ODESolver(CVODE_BDF(); abstol = 1e-3, reltol = 1e-8, maxiters = 1000)
-solver3 = ODESolver(Vern7())
 @test @sprintf("%s", solver1) == "ODESolver: Rodas5P with options (abstol, reltol, maxiters) = (1.0e-08, 1.0e-08, 1e+04)"
 @test @sprintf("%s", solver2) == "ODESolver: CVODE_BDF with options (abstol, reltol, maxiters) = (1.0e-03, 1.0e-08, 1e+03)"
-@test @sprintf("%s", solver3) == "ODESolver: Vern7 with options (abstol, reltol, maxiters) = (1.0e-08, 1.0e-08, 1e+04)"
 
 ss_solver1 = SteadyStateSolver(:Simulate)
 ss_solver2 = SteadyStateSolver(:Simulate; termination_check = :Newton)
@@ -50,12 +48,8 @@ ms_res = PEtabMultistartResult(joinpath(@__DIR__, "optimisation_results", "boehm
 @test @sprintf("%s", ms_res)[1:188] == "PEtabMultistartResult\n---------------- Summary ---------------\nmin(f)                = 1.38e+02\nParameters estimated  = 9\nNumber of multistarts = 100\nOptimiser algorithm   = Optim_IPNewton"
 @test @sprintf("%s", ms_res.runs[1]) == "PEtabOptimisationResult\n---------------- Summary ---------------\nmin(f)                = 1.50e+02\nParameters estimated  = 9\nOptimiser iterations  = 47\nRuntime               = 4.6e+00s\nOptimiser algorithm   = Optim_IPNewton\n"
 
-alg1 = Fides(:BFGS)
-alg2 = Fides(nothing)
-alg3 = IpoptOptimizer(false)
-@test "$alg1" == "Fides(hessian_method = BFGS; verbose = false)"
-@test "$alg2" == "Fides(hessian_method = nothing; verbose = false)"
-@test "$alg3" == "Ipopt(LBFGS = false)"
+alg = IpoptOptimizer(false)
+@test "$alg" == "Ipopt(LBFGS = false)"
 
 #=
 A fun bug in Julia
