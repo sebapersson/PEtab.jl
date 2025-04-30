@@ -3,7 +3,6 @@ using PEtab, Sundials, OrdinaryDiffEqRosenbrock, StyledStrings, Printf, Nonlinea
 
 solver1 = ODESolver(Rodas5P())
 solver2 = ODESolver(CVODE_BDF(); abstol = 1e-3, reltol = 1e-8, maxiters = 1000)
-solver3 = ODESolver(Vern7())
 @test @sprintf("%s", solver1) == "ODESolver: Rodas5P with options (abstol, reltol, maxiters) = (1.0e-08, 1.0e-08, 1e+04)"
 @test @sprintf("%s", solver2) == "ODESolver: CVODE_BDF with options (abstol, reltol, maxiters) = (1.0e-03, 1.0e-08, 1e+03)"
 
