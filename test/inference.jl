@@ -1,4 +1,4 @@
-using PEtab, OrdinaryDiffEq, ModelingToolkit, Distributions, Random, DataFrames, CSV
+using PEtab, OrdinaryDiffEqRosenbrock, ModelingToolkit, Distributions, Random, DataFrames, CSV
 using Bijectors, LogDensityProblems, LogDensityProblemsAD, MCMCChains, Catalyst, Test
 using AdaptiveMCMC, AdvancedHMC
 
