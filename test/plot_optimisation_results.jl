@@ -1,7 +1,7 @@
 # Tests the plotting recipes for PEtabOptimisationResult and PEtabMultistartResult.
 # Written by Torkel Loman.
 
-using DataFrames, Catalyst, Optim, PEtab, Plots, Test
+using DataFrames, OrdinaryDiffEqRosenbrock, Catalyst, Optim, PEtab, Plots, Test
 
 ### Preparations ###
 petab_ms_res = PEtabMultistartResult(joinpath(@__DIR__, "optimisation_results", "boehm"))
@@ -83,14 +83,14 @@ let
     # Simulate data.
     # Condition 1.
     oprob_true_c1 = ODEProblem(rn,  [:S => 1.0; u0], (0.0, 10.0), p_true)
-    true_sol_c1 = solve(oprob_true_c1, Tsit5())
-    data_sol_c1 = solve(oprob_true_c1, Tsit5(); saveat=1.0)
+    true_sol_c1 = solve(oprob_true_c1, Rodas5P())
+    data_sol_c1 = solve(oprob_true_c1, Rodas5P(); saveat=1.0)
     c1_t, c1_E, c1_P = data_sol_c1.t[2:end], (0.8 .+ 0.4*rand(10)) .* data_sol_c1[:E][2:end], (0.8 .+ 0.4*rand(10)) .* data_sol_c1[:P][2:end]
 
     # Condition 2.
     oprob_true_c2 = ODEProblem(rn,  [:S => 0.5; u0], (0.0, 10.0), p_true)
-    true_sol_c2 = solve(oprob_true_c2, Tsit5())
-    data_sol_c2 = solve(oprob_true_c2, Tsit5(); saveat=1.0)
+    true_sol_c2 = solve(oprob_true_c2, Rodas5P())
+    data_sol_c2 = solve(oprob_true_c2, Rodas5P(); saveat=1.0)
     c2_t, c2_E, c2_P = data_sol_c2.t[2:end], (0.8 .+ 0.4*rand(10)) .* data_sol_c2[:E][2:end], (0.8 .+ 0.4*rand(10)) .* data_sol_c2[:P][2:end]
 
     # Make PETab problem.
