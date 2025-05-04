@@ -197,3 +197,48 @@ function _parse_activation_function(step_output::String, step_input::String, ste
     end
     return "$(step_output) = $(actinfo.fn)($args)"
 end
+
+# TODO: Depending on the issue on Lux.jl, this function can enter into parse or enter
+# TODO: PEtabModel, as it extracts everything required for freezing.
+function get_freeze_info(netid::Symbol, nnmodels, path_yaml)::Dict
+    paths = PEtab._get_petab_paths(path_yaml)
+    petab_tables = PEtab.read_tables(path_yaml)
+    PEtab.PEtabNetParameters(petab_tables[:parameters], petab_tables[:mapping_table], nnmodels)
+    inet = findall(x -> x == netid, petab_net_parameters.netid)
+    all(petab_net_parameters.estimate[inet] .== false) && return Dict()
+    all(petab_net_parameters.estimate[inet] .== true) && return Dict()
+
+    ps, _ = Lux.setup(rng, nn)
+    ps = ComponentArray(ps) |> f64
+    PEtab.set_ps_net!(ps, netid, nnmodels, paths, petab_tables)
+    netindices = PEtab._get_netindices(netid, petab_net_parameters.mapping_table_id)
+    freeze_info = Dict{Symbol, Dict}()
+    for netindex in netindices[2:end]
+        mapping_table_id = string(petab_net_parameters.mapping_table_id[netindex])
+        estimate = petab_net_parameters.estimate[netindex]
+
+        @assert count(".", mapping_table_id) ≤ 2 "Only two . are allowed when specifying network layer"
+        if count('[', mapping_table_id) == 1 && count('.', mapping_table_id) == 1
+            estimate == true && continue
+            layerid = match(r"parameters\[(\w+)\]", mapping_table_id).captures[1] |> Symbol
+            arrayids = keys(ps[layerid])
+            freeze_info[layerid] = Dict()
+            for arrayid in arrayids
+                freeze_info[layerid][arrayid] = ps[layerid][arrayid]
+            end
+            continue
+        end
+
+        layerid = match(r"parameters\[(\w+)\]", mapping_table_id).captures[1] |> Symbol
+        arrayid = Symbol(split(mapping_table_id, ".")[3])
+        if !haskey(freeze_info, layerid) && estimate == false
+            freeze_info[layerid][arrayid] = ps[layerid][arrayid]
+        elseif haskey(freeze_info, layerid) && estimate == true
+            delete!(freeze_info[layerid], arrayid)
+        elseif haskey(freeze_info, layerid) && estimate == false
+            haskey(freeze_info[layerid], arrayid) && continue
+            freeze_info[layerid][arrayid] = ps[layerid][arrayid]
+        end
+    end
+    return freeze_info
+end
