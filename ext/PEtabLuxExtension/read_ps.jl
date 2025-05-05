@@ -14,24 +14,24 @@ function _set_ps_layer!(ps::ComponentArray, layer::Lux.Dense, file_group)::Nothi
     @unpack in_dims, out_dims, use_bias = layer
     @assert size(ps.weight) == (out_dims, in_dims) "Error in dimension of weights for Dense layer"
     ps_weight = _get_ps_layer(file_group, :weight)
-    @views ps.weight .= ps_weight
+    _set_ps_array!(ps, :weight, ps_weight)
 
     use_bias == false && return nothing
     @assert size(ps.bias) == (out_dims, ) "Error in dimension of bias for Dense layer"
     ps_bias = _get_ps_layer(file_group, :bias)
-    @views ps.bias .= ps_bias
+    _set_ps_array!(ps, :bias, ps_bias)
     return nothing
 end
 function _set_ps_layer!(ps::ComponentArray, layer::Lux.Bilinear, file_group)::Nothing
     @unpack in1_dims, in2_dims, out_dims, use_bias = layer
     @assert size(ps.weight) == (out_dims, in1_dims, in2_dims) "Error in dimension of weights for Bilinear layer"
     ps_weight = _get_ps_layer(file_group, :weight)
-    @views ps.weight .= ps_weight
+    _set_ps_array!(ps, :weight, ps_weight)
 
     use_bias == false && return nothing
     @assert size(ps.bias) == (out_dims, ) "Error in dimension of bias for Dense layer"
     ps_bias = _get_ps_layer(file_group, :bias)
-    @views ps.bias .= ps_bias
+    _set_ps_array!(ps, :bias, ps_bias)
     return nothing
 end
 function _set_ps_layer!(ps::ComponentArray, layer::Lux.Conv, file_group)::Nothing
@@ -45,12 +45,12 @@ function _set_ps_layer!(ps::ComponentArray, layer::Lux.Conv, file_group)::Nothin
     elseif length(kernel_size) == 3
         ps_weight = PEtab._reshape_array(_ps_weight, CONV3D_MAP)
     end
-    @views ps.weight .= ps_weight
+    _set_ps_array!(ps, :weight, ps_weight)
 
     use_bias == false && return nothing
     @assert size(ps.bias) == (out_chs, ) "Error in dimension of bias for Conv layer"
     ps_bias = _get_ps_layer(file_group, :bias)
-    @views ps.bias .= ps_bias
+    _set_ps_array!(ps, :bias, ps_bias)
     return nothing
 end
 function _set_ps_layer!(ps::ComponentArray, layer::Lux.ConvTranspose, file_group)::Nothing
@@ -64,12 +64,12 @@ function _set_ps_layer!(ps::ComponentArray, layer::Lux.ConvTranspose, file_group
     elseif length(kernel_size) == 3
         ps_weight = PEtab._reshape_array(_ps_weight, CONV3D_MAP)
     end
-    @views ps.weight .= ps_weight
+    _set_ps_array!(ps, :weight, ps_weight)
 
     use_bias == false && return nothing
     @assert size(ps.bias) == (out_chs, ) "Error in dimension of bias for ConvTranspose layer"
     ps_bias = _get_ps_layer(file_group, :bias)
-    @views ps.bias .= ps_bias
+    _set_ps_array!(ps, :bias, ps_bias)
     return nothing
 end
 function _set_ps_layer!(ps::ComponentArray, layer::Union{Lux.BatchNorm, Lux.InstanceNorm}, file_group)::Nothing
@@ -79,8 +79,8 @@ function _set_ps_layer!(ps::ComponentArray, layer::Union{Lux.BatchNorm, Lux.Inst
     # In Lux.jl the weight is named scale
     ps_scale = _get_ps_layer(file_group, :weight)
     ps_bias = _get_ps_layer(file_group, :bias)
-    @views ps.scale .= ps_scale
-    @views ps.bias .= ps_bias
+    _set_ps_array(ps, :scale, ps_scale)
+    _set_ps_array!(ps, :bias, ps_bias)
     return nothing
 end
 function _set_ps_layer!(ps::ComponentArray, layer::Lux.LayerNorm, file_group)::Nothing
@@ -107,8 +107,8 @@ function _set_ps_layer!(ps::ComponentArray, layer::Lux.LayerNorm, file_group)::N
         ps_scale = _ps_scale
         ps_bias = _ps_bias
     end
-    @views ps.scale .= ps_scale
-    @views ps.bias .= ps_bias
+    _set_ps_array(ps, :scale, ps_scale)
+    _set_ps_array!(ps, :bias, ps_bias)
     return nothing
 end
 function _set_ps_layer!(::ComponentArray, ::PS_FREE_LAYERS, ::DataFrame)::Nothing
@@ -123,4 +123,11 @@ function _get_ps_layer(file_group, which::Symbol)
     end
     # Julia is column-major, while the standard format is row-major
     return permutedims(ps, reverse(1:ndims(ps)))
+end
+
+function _set_ps_array!(ps::ComponentArray, id::Symbol, value::Array{<:AbstractFloat})::Nothing
+    # Happens when a layer if frozen
+    isempty(ps[id]) && return nothing
+    @views ps[id] .= value
+    return nothing
 end

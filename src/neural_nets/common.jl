@@ -10,27 +10,27 @@ function _get_f_nn_preode_x(nnpre::NNPreODE, xdynamic_mech::AbstractVector, map_
     return x
 end
 
-function set_ps_net!(ps::ComponentArray, netid::Symbol, nnmodel::NNModel, model::PEtabModel, petab_net_parameters::PEtabNetParameters)::Nothing
+function set_ps_net!(ps::ComponentArray, netid::Symbol, nnmodel::NNModel, paths::Dict{Symbol, String}, petab_net_parameters::PEtabNetParameters)::Nothing
     netindices = _get_netindices(netid, petab_net_parameters.mapping_table_id)
-    ps_path = _get_ps_path(netid, model, petab_net_parameters.nominal_value[netindices[1]])
+    ps_path = _get_ps_path(netid, paths, petab_net_parameters.nominal_value[netindices[1]])
     set_ps_net!(ps, ps_path, nnmodel.nn)
     return nothing
 end
-function set_ps_net!(ps::ComponentArray, netid::Symbol, model_info::ModelInfo)::Nothing
-    @unpack model, petab_net_parameters = model_info
-    nnmodel = model.nnmodels[netid]
+function set_ps_net!(ps::ComponentArray, netid::Symbol, nnmodels, paths::Dict{Symbol, String}, petab_tables::PEtabTables)::Nothing
+    petab_net_parameters = PEtabNetParameters(petab_tables[:parameters], petab_tables[:mapping_table], nnmodels)
+    nnmodel = nnmodels[netid]
     netindices = _get_netindices(netid, petab_net_parameters.mapping_table_id)
-    ps_path = _get_ps_path(netid, model_info.model, petab_net_parameters.nominal_value[netindices[1]])
+    ps_path = _get_ps_path(netid, paths, petab_net_parameters.nominal_value[netindices[1]])
     @assert isfile(ps_path) "Parameter values for net $netid must be a file"
 
     # Set parameters for entire net, then set values for specific layers
-    PEtab.set_ps_net!(ps, netid, nnmodel, model, petab_net_parameters)
+    PEtab.set_ps_net!(ps, netid, nnmodel, paths, petab_net_parameters)
     length(netindices) == 1 && return nothing
     for netindex in netindices
         mapping_table_id = string(petab_net_parameters.mapping_table_id[netindex])
         value = petab_net_parameters.nominal_value[netindex]
         if value isa String
-            _path = _get_ps_path(netid, model_info.model, value)
+            _path = _get_ps_path(netid, paths, value)
             @assert _path == ps_path "A separate file for a layer is not allowed"
             continue
         end
@@ -50,15 +50,15 @@ function set_ps_net!(ps::ComponentArray, netid::Symbol, model_info::ModelInfo)::
     return nothing
 end
 
-function _get_ps_path(netid::Symbol, model::PEtabModel, nominal_value::String)
-    yaml_file = YAML.load_file(model.paths[:yaml])
+function _get_ps_path(netid::Symbol, paths::Dict{Symbol, String}, nominal_value::String)
+    yaml_file = YAML.load_file(paths[:yaml])
     array_files = yaml_file["extensions"]["sciml"]["array_files"]
     if !haskey(array_files, nominal_value)
         throw(PEtab.PEtabInputError("For neural network $netid the parameter file \
             $(nominal_value) has not been defined in the YAML problem file under \
             array_files"))
     end
-    return joinpath(model.paths[:dirmodel], array_files[nominal_value]["location"])
+    return joinpath(paths[:dirmodel], array_files[nominal_value]["location"])
 end
 
 function _get_net_petab_variables(mappings_df::DataFrame, netid::Symbol, type::Symbol)::Vector{String}

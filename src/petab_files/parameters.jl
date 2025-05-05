@@ -183,7 +183,7 @@ function _parse_julia_prior(_prior::String)::Distribution{Univariate, Continuous
     return eval(Meta.parse(_prior))
 end
 
-function _get_parameters_ix(parameters_df::DataFrame, mappings_df::DataFrame, nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing}, which_ps::Symbol)::Vector{Int64}
+function _get_parameters_ix(parameters_df::DataFrame, mappings_df::DataFrame, nnmodels::Dict{Symbol, <:NNModel}, which_ps::Symbol)::Vector{Int64}
     @assert which_ps in [:mechanistic, :net] "Error in PEtabParameters parsing"
     net_ps_variables = String[]
     for netid in keys(nnmodels)
@@ -202,7 +202,7 @@ function _get_parameters_ix(parameters_df::DataFrame, mappings_df::DataFrame, nn
     return out
 end
 
-function _get_netids!(netids::Vector{Symbol}, parameter_ids::Vector{Symbol}, mappings_df::DataFrame, nnmodels::Dict{Symbol, <:NNModel})::Nothing
+function _get_netids!(netids::Vector{Symbol}, parameter_ids::Vector{Symbol}, mappings_df::DataFrame, nnmodels::Dict)::Nothing
     for (i, parameter_id) in pairs(string.(parameter_ids))
         for netid in keys(nnmodels)
             if !(parameter_id in _get_net_petab_variables(mappings_df, netid, :parameters))

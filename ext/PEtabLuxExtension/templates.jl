@@ -1,7 +1,14 @@
-function _template_nn_model(layers, input, output, forward_steps)::String
+function _template_nn_model(layers, input, output, forward_steps, freeze_info::Union{Nothing, Dict})::String
     model_str = "@compact(\n"
     for (id, layer) in layers
-        model_str *= "\t$(id) = " * string(layer) * ",\n"
+        if isnothing(freeze_info) || !haskey(freeze_info, Symbol(id))
+            model_str *= "\t$(id) = " * string(layer) * ",\n"
+            continue
+        end
+        which_params = keys(freeze_info[Symbol(id)]) |> collect .|> string
+        which_params = '(' * prod(":" .* which_params .* ", ") * ')'
+        model_str *= "\t$(id) = Lux.Experimental.freeze(" * string(layer) *
+            ", $(which_params)),\n"
     end
     model_str *= ") do $(input)\n"
     for forward_step in forward_steps

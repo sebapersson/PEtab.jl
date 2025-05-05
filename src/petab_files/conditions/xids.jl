@@ -272,9 +272,12 @@ end
 function _get_xids_nn_est(xids_nn::Vector{Symbol}, petab_net_parameters::PEtabNetParameters)::Vector{Symbol}
     out = Symbol[]
     for netid in xids_nn
-        ip = findfirst(x -> x == netid, petab_net_parameters.netid)
-        petab_net_parameters.estimate[ip] == false && continue
-        push!(out, netid)
+        ip = findall(x -> x == netid, petab_net_parameters.netid)
+        for estimate in petab_net_parameters.estimate[ip]
+            estimate == false && continue
+            push!(out, netid)
+            break
+        end
     end
     return out
 end

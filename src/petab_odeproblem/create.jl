@@ -256,7 +256,8 @@ end
 
 function _get_xnominal(model_info::ModelInfo, xnames::Vector{Symbol},
                        xnames_ps::Vector{Symbol}, transform::Bool)
-    @unpack petab_parameters, petab_net_parameters, xindices = model_info
+    @unpack petab_parameters, xindices, model = model_info
+    @unpack nnmodels, paths, petab_tables = model
 
     # Mechanistic parameters which are returned as a Vector
     ix_mech = _get_ixnames_mech(xnames, petab_parameters)
@@ -274,7 +275,7 @@ function _get_xnominal(model_info::ModelInfo, xnames::Vector{Symbol},
     for (i, netid) in pairs(xnames_nn)
         nnmodel = model_info.model.nnmodels[netid]
         psnet = _get_nn_initialparameters(nnmodel)
-        set_ps_net!(psnet, netid, model_info)
+        set_ps_net!(psnet, netid, nnmodels, paths, petab_tables)
         xnominal_nn[i] = psnet
     end
     xnn = (xnames_nn .=> xnominal_nn) |> NamedTuple
