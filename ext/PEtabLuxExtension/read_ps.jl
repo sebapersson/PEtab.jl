@@ -79,7 +79,7 @@ function _set_ps_layer!(ps::ComponentArray, layer::Union{Lux.BatchNorm, Lux.Inst
     # In Lux.jl the weight is named scale
     ps_scale = _get_ps_layer(file_group, :weight)
     ps_bias = _get_ps_layer(file_group, :bias)
-    _set_ps_array(ps, :scale, ps_scale)
+    _set_ps_array!(ps, :scale, ps_scale)
     _set_ps_array!(ps, :bias, ps_bias)
     return nothing
 end
@@ -107,7 +107,7 @@ function _set_ps_layer!(ps::ComponentArray, layer::Lux.LayerNorm, file_group)::N
         ps_scale = _ps_scale
         ps_bias = _ps_bias
     end
-    _set_ps_array(ps, :scale, ps_scale)
+    _set_ps_array!(ps, :scale, ps_scale)
     _set_ps_array!(ps, :bias, ps_bias)
     return nothing
 end

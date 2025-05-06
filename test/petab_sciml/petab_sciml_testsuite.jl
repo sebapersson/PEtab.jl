@@ -12,7 +12,7 @@ include(joinpath(@__DIR__, "helper.jl"))
 end
 
 @testset "PEtab SciML hybrid models" begin
-    for i in 1:22
+    for i in 1:25
         test_case = i < 10 ? "00$i" : "0$i"
         path_yaml = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "problem.yaml")
         nnmodels = PEtab.load_nnmodels(path_yaml)

@@ -48,7 +48,7 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
                 xnn[netid] = DiffCache(similar(_p); levels = level_cache)
                 xnn_dict[netid] = _p
             else
-                set_ps_net!(_p, netid, nnmodel, model, petab_net_parameters)
+                set_ps_net!(_p, netid, nnmodel, model.paths, petab_net_parameters)
                 xnn_constant[netid] = _p
             end
         end
