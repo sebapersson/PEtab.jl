@@ -12,12 +12,12 @@ include(joinpath(@__DIR__, "helper.jl"))
 end
 
 @testset "PEtab SciML hybrid models" begin
-    for i in 1:25
+    for i in 1:28
         test_case = i < 10 ? "00$i" : "0$i"
         path_yaml = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "problem.yaml")
         nnmodels = PEtab.load_nnmodels(path_yaml)
         osolver = ODESolver(Rodas5P(autodiff = false), abstol = 1e-10, reltol = 1e-10, maxiters=Int(1e6))
-        model = PEtabModel(path_yaml; nnmodels = nnmodels, verbose = false)
+        model = PEtabModel(path_yaml; nnmodels = nnmodels)
         for config in PROB_CONFIGS
             # Edge case for underperforming configuration. So even though support could be
             # added in theory, it is not priority

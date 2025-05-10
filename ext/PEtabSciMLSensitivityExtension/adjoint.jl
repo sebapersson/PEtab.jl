@@ -23,7 +23,7 @@ function grad_adjoint!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode!::Funct
 
     # None-dynamic parameter not part of ODE (only need an ODE solution for gradient)
     x_notode = @view x[xindices.xindices[:not_system_tot]]
-    ReverseDiff.gradient!(xnotode_grad, _nllh_not_solveode!, x_notode)
+    ForwardDiff.gradient!(xnotode_grad, _nllh_not_solveode!, x_notode)
     @views grad[xindices.xindices[:not_system_tot]] .= xnotode_grad
 
     # Reset such that neural-nets pre ODE no longer have status of having been evaluated

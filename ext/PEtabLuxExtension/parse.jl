@@ -246,8 +246,8 @@ function _get_freeze_info(netid::Symbol, nnmodels::Dict, path_yaml::String)::Dic
         layerid = match(r"parameters\[(\w+)\]", mapping_table_id).captures[1] |> Symbol
         arrayid = Symbol(split(mapping_table_id, ".")[3])
         if !haskey(freeze_info, layerid) && estimate == false
-            freeze_info[layerid][arrayid] = ps[layerid][arrayid]
-        elseif haskey(freeze_info, layerid) && estimate == true
+            freeze_info[layerid] = Dict(arrayid => ps[layerid][arrayid])
+        elseif haskey(freeze_info, layerid) && haskey(freeze_info[layerid], arrayid) && estimate == true
             delete!(freeze_info[layerid], arrayid)
         elseif haskey(freeze_info, layerid) && estimate == false
             haskey(freeze_info[layerid], arrayid) && continue
