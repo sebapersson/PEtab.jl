@@ -109,12 +109,12 @@ function _get_prior(model_info::ModelInfo)::Tuple{Function, Function, Function}
 end
 
 function _get_nllh(probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
-                   prior::Function, residuals::Bool)::Function
-    _nllh = let pinfo = probinfo, minfo = model_info, res = residuals, _prior = prior
-        (x; prior = true) -> begin
+                   prior::Function, residuals::Bool; cids::AbstractVector{Symbol}=[:all])::Function
+    _nllh = let pinfo = probinfo, minfo = model_info, res = residuals, _prior = prior, Cids = cids
+        (x; prior = true, cids = Cids) -> begin
             _test_ordering(x, minfo.xindices.xids[:estimate_ps])
             _x = x |> collect
-            nllh_val = nllh(_x, pinfo, minfo, [:all], false, res)
+            nllh_val = nllh(_x, pinfo, minfo, cids, false, res)
             if prior == true && res == false
                 # nllh -> negative prior
                 return nllh_val - _prior(_x)
@@ -127,16 +127,16 @@ function _get_nllh(probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
 end
 
 function _get_grad(method, probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
-                   grad_prior::Function)::Tuple{Function, Function}
+                   grad_prior::Function; cids::AbstractVector{Symbol}=[:all])::Tuple{Function, Function}
     if probinfo.gradient_method == :ForwardDiff
-        _grad_nllh! = _get_grad_forward_AD(probinfo, model_info)
+        _grad_nllh! = _get_grad_forward_AD(probinfo, model_info; cids = cids)
     end
     if probinfo.gradient_method == :ForwardEquations
-        _grad_nllh! = _get_grad_forward_eqs(probinfo, model_info)
+        _grad_nllh! = _get_grad_forward_eqs(probinfo, model_info; cids = cids)
     end
 
-    _grad! = let _grad_nllh! = _grad_nllh!, grad_prior = grad_prior
-        (g, x; prior = true, isremade = false) -> begin
+    _grad! = let _grad_nllh! = _grad_nllh!, grad_prior = grad_prior, Cids = cids
+        (g, x; prior = true, isremade = false, cids = Cids) -> begin
             _x = x |> collect
             _g = similar(_x)
             _grad_nllh!(_g, _x; isremade = isremade)
@@ -148,8 +148,8 @@ function _get_grad(method, probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
             return nothing
         end
     end
-    _grad = let _grad! = _grad!
-        (x; prior = true, isremade = false) -> begin
+    _grad = let _grad! = _grad!, Cids = cids
+        (x; prior = true, isremade = false, cids = Cids) -> begin
             gradient = similar(x)
             _grad!(gradient, x; prior = prior, isremade = isremade)
             return gradient
@@ -160,7 +160,7 @@ end
 
 function _get_hess(probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
                    hess_prior::Function; ret_jacobian::Bool = false,
-                   FIM::Bool = false)::Tuple{Function, Function}
+                   FIM::Bool = false, cids::AbstractVector{Symbol}=[:all])::Tuple{Function, Function}
     @unpack hessian_method, split_over_conditions, chunksize, cache = probinfo
     @unpack xdynamic = cache
     if FIM == true
@@ -168,18 +168,18 @@ function _get_hess(probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
     end
 
     if hessian_method === :ForwardDiff
-        _hess_nllh! = _get_hess_forward_AD(probinfo, model_info)
+        _hess_nllh! = _get_hess_forward_AD(probinfo, model_info; cids = cids)
     elseif hessian_method === :BlockForwardDiff
-        _hess_nllh! = _get_hess_block_forward_AD(probinfo, model_info)
+        _hess_nllh! = _get_hess_block_forward_AD(probinfo, model_info; cids = cids)
     elseif hessian_method == :GaussNewton
-        _hess_nllh! = _get_hess_gaussnewton(probinfo, model_info, ret_jacobian)
+        _hess_nllh! = _get_hess_gaussnewton(probinfo, model_info, ret_jacobian; cids = cids)
     end
 
     _hess! = let _hess_nllh! = _hess_nllh!, hess_prior = hess_prior
         (H, x; prior = true, isremade = false) -> begin
             _x = x |> collect
             _H = H |> collect
-            if hessian_method == :GassNewton
+            if hessian_method == :GaussNewton
                 _hess_nllh!(_H, _x; isremade = isremade)
             else
                 _hess_nllh!(_H, _x)
