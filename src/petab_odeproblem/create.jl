@@ -179,7 +179,7 @@ function _get_hess(probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
         (H, x; prior = true, isremade = false) -> begin
             _x = x |> collect
             _H = H |> collect
-            if hessian_method == :GassNewton
+            if hessian_method == :GaussNewton
                 _hess_nllh!(_H, _x; isremade = isremade)
             else
                 _hess_nllh!(_H, _x)
