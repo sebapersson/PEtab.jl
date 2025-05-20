@@ -17,7 +17,7 @@ function set_ps_net!(ps::ComponentArray, netid::Symbol, nnmodel::NNModel, paths:
     return nothing
 end
 function set_ps_net!(ps::ComponentArray, netid::Symbol, nnmodels, paths::Dict{Symbol, String}, petab_tables::PEtabTables)::Nothing
-    petab_net_parameters = PEtabNetParameters(petab_tables[:parameters], petab_tables[:mapping_table], nnmodels)
+    petab_net_parameters = PEtabNetParameters(petab_tables[:parameters], petab_tables[:mapping], nnmodels)
     nnmodel = nnmodels[netid]
     netindices = _get_netindices(netid, petab_net_parameters.mapping_table_id)
     ps_path = _get_ps_path(netid, paths, petab_net_parameters.nominal_value[netindices[1]])
@@ -141,11 +141,11 @@ problem.
 """
 function _get_nnmodels_in_ode(nnmodels::Dict{Symbol, <:NNModel}, path_SBML::String, petab_tables::PEtabTables)::Dict{Symbol, <:NNModel}
     out = Dict{Symbol, NNModel}()
-    isnothing(nnmodels) && return out
+    isempty(nnmodels) && return out
 
     libsbml_model = SBMLImporter.SBML.readSBML(path_SBML)
     hybridization_df = petab_tables[:hybridization]
-    mappings_df = petab_tables[:mapping_table]
+    mappings_df = petab_tables[:mapping]
     # First sanity check mapping table column names
     # Sanity check that columns in mapping table are correctly named
     pattern = r"(.inputs|.outputs|.parameters)"

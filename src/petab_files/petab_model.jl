@@ -83,7 +83,7 @@ end
 function _addu0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::PEtabTables, nnmodels::Dict{Symbol, <:NNModel})::Nothing
     conditions_df = petab_tables[:conditions]
     parameters_df = petab_tables[:parameters]
-    mappings_df = petab_tables[:mapping_table]
+    mappings_df = petab_tables[:mapping]
     hybridization_df = petab_tables[:hybridization]
 
     specieids = keys(model_SBML.species)
@@ -192,7 +192,7 @@ end
 
 function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, nnmodels_in_ode::Dict, petab_tables::PEtabTables)
     hybridization_df = petab_tables[:hybridization]
-    mappings_df = petab_tables[:mapping_table]
+    mappings_df = petab_tables[:mapping]
     for netid in keys(nnmodels_in_ode)
         output_variables = _get_net_petab_variables(mappings_df, netid, :outputs)
         outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)

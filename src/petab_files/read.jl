@@ -1,15 +1,15 @@
 function read_tables(path_yaml::String)::PEtabTables
     paths = _get_petab_paths(path_yaml)
-    parameters_df = _read_table(paths[:parameters], :parameters)
-    conditions_df = _read_table(paths[:conditions], :conditions)
-    observables_df = _read_table(paths[:observables], :observables)
-    measurements_df = _read_table(paths[:measurements], :measurements)
-    mappings_df = _read_table(paths[:mapping_table], :mapping)
-    hybridization_df = _read_table(paths[:hybridization], :hybridization)
+    parameters_df = _read_table(paths, :parameters)
+    conditions_df = _read_table(paths, :conditions)
+    observables_df = _read_table(paths, :observables)
+    measurements_df = _read_table(paths, :measurements)
+    mappings_df = _read_table(paths, :mapping)
+    hybridization_df = _read_table(paths, :hybridization)
     yaml_file = YAML.load_file(path_yaml)
     tables = Dict(:parameters => parameters_df, :conditions => conditions_df,
                   :observables => observables_df, :measurements => measurements_df,
-                  :mapping_table => mappings_df, :hybridization => hybridization_df,
+                  :mapping => mappings_df, :hybridization => hybridization_df,
                   :yaml => yaml_file)
     return tables
 end
@@ -54,16 +54,14 @@ function _parse_yaml_v2(yaml_file, path_yaml::String, dirmodel::String)::Dict{Sy
     return Dict(:SBML => path_SBML, :parameters => path_parameters,
                 :conditions => path_conditions, :observables => path_observables,
                 :measurements => path_measurements, :dirmodel => dirmodel,
-                :dirjulia => dirjulia, :mapping_table => path_mapping,
+                :dirjulia => dirjulia, :mapping => path_mapping,
                 :hybridization => path_hybridization, :yaml => path_yaml)
 end
 
-function _read_table(path::String, file::Symbol)::DataFrame
+function _read_table(paths::Dict{Symbol, String}, file::Symbol)::DataFrame
     # Optional files that are allowed to be empty
-    if file in [:hybridization, :mapping_table] && isempty(path)
-        return DataFrame
-    end
-    df = CSV.read(path, DataFrame; stringtype = String)
+    !haskey(paths, file) && return DataFrame()
+    df = CSV.read(paths[file], DataFrame; stringtype = String)
     _check_table(df, file)
     return df
 end

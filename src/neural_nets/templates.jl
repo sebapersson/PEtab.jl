@@ -16,7 +16,7 @@ end
 
 function _template_nn_in_ode(netid::Symbol, petab_tables::PEtabTables)::String
     hybridization_df = petab_tables[:hybridization]
-    mappings_df = petab_tables[:mapping_table]
+    mappings_df = petab_tables[:mapping]
 
     input_variables = _get_net_petab_variables(mappings_df, netid, :inputs)
     inputs_df = filter(r -> r.targetId in input_variables, hybridization_df)

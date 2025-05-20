@@ -93,7 +93,7 @@ end
 
 function _get_xids_nn_preode_output(petab_tables::PEtabTables, nnmodels::Dict{Symbol, <:NNModel})::Vector{Symbol}
     out = Symbol[]
-    mappings_df = petab_tables[:mapping_table]
+    mappings_df = petab_tables[:mapping]
     hybridization_df = petab_tables[:hybridization]
     for (netid, nnmodel) in nnmodels
         nnmodel.static == false && continue
@@ -140,7 +140,7 @@ function _get_xids_nondynamic_mech(xids_observable::T, xids_noise::T, xids_nn::T
 end
 
 function _get_xids_condition(sys, petab_parameters::PEtabParameters, petab_tables::PEtabTables, nnmodels::Dict{Symbol, <:NNModel})::Vector{Symbol}
-    mappings_df = petab_tables[:mapping_table]
+    mappings_df = petab_tables[:mapping]
     conditions_df = petab_tables[:conditions]
     xids_sys = parameters(sys) .|> string
     species_sys = _get_state_ids(sys)
@@ -213,7 +213,7 @@ function _get_xids_nn_nondynamic(xids_nn::T, xids_nn_in_ode::T, xids_nn_preode::
 end
 
 function _get_xids_nn_input_est(petab_tables::PEtabTables, petab_parameters::PEtabParameters, sys::ModelSystem, nnmodels::Dict{Symbol, <:NNModel})::Vector{Symbol}
-    mappings_df = petab_tables[:mapping_table]
+    mappings_df = petab_tables[:mapping]
     conditions_df = petab_tables[:conditions]
     isempty(mappings_df) && return Symbol[]
 

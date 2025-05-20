@@ -98,7 +98,7 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nnmodels::Dict{
 end
 
 function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_parameters::PEtabParameters, petab_tables::PEtabTables, xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, ConditionMap}
-    mappings_df = petab_tables[:mapping_table]
+    mappings_df = petab_tables[:mapping]
     conditions_df = petab_tables[:conditions]
     # TODO: xids_model should just a be functions
     species_sys = _get_state_ids(sys)
@@ -188,7 +188,7 @@ function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameter
     maps = Dict{Symbol, Dict{Symbol, NNPreODEMap}}()
     isempty(xids[:nn_preode]) && return maps
 
-    mappings_df = petab_tables[:mapping_table]
+    mappings_df = petab_tables[:mapping]
     conditions_df = petab_tables[:conditions]
     hybridization_df = petab_tables[:hybridization]
     nconditions = nrow(conditions_df)

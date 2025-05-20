@@ -47,7 +47,7 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
         mappings_df = DataFrame()
         nnmodels = Dict{Symbol, NNModel}()
     end
-    petab_tables[:mapping_table] = mappings_df
+    petab_tables[:mapping] = mappings_df
     paths = Dict{Symbol, String}()
 
     # Build the initial value map (initial values as parameters are set in the reaction sys_mutated)

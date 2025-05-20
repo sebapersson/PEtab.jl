@@ -11,6 +11,7 @@ function _check_conditionids(petab_tables::PEtabTables, petab_measurements::PEta
               "table. Therefore no measurement corresponds to this id."
     end
     # No variables are allowed to be double assigned in conditions and hybridization tables
+    isempty(hybridization_df) && return nothing
     for target_id in hybridization_df.targetId
         !(target_id in names(conditions_df)) && continue
         throw(PEtab.PEtabInputError("Variable $(target_id) is assigned in both the
@@ -20,9 +21,9 @@ function _check_conditionids(petab_tables::PEtabTables, petab_measurements::PEta
 end
 
 function _check_mapping_table(petab_tables::PEtabTables, nnmodels::Union{Nothing, Dict{Symbol, <:NNModel}}, petab_parameters::PEtabParameters, sys::ModelSystem)::Nothing
-    mappings_df = petab_tables[:mapping_table]
+    mappings_df = petab_tables[:mapping]
     isempty(mappings_df) && return nothing
-    isnothing(nnmodels) && return nothing
+    isempty(nnmodels) && return nothing
 
     # Sanity check assigned assignments for static neural networks
     for (netid, nnmodel) in nnmodels
@@ -36,7 +37,7 @@ end
 function _check_static_net_inputs(petab_tables::PEtabTables, petab_parameters::PEtabParameters, netid::Symbol)::Nothing
     conditions_df = petab_tables[:conditions]
     hybridization_df = petab_tables[:hybridization]
-    mappings_df = petab_tables[:mapping_table]
+    mappings_df = petab_tables[:mapping]
     input_variables = _get_net_petab_variables(mappings_df, netid, :inputs)
     for input_variable in input_variables
         input_variable in hybridization_df.targetId && continue
@@ -53,7 +54,7 @@ end
 
 function _check_static_net_outputs(petab_tables::PEtabTables, petab_parameters::PEtabParameters, sys::ModelSystem, netid::Symbol)::Nothing
     hybridization_df = petab_tables[:hybridization]
-    mappings_df = petab_tables[:mapping_table]
+    mappings_df = petab_tables[:mapping]
     state_ids = _get_state_ids(sys) .|> Symbol
     xids_sys = _get_xids_sys(sys)
     x_estimate = petab_parameters.parameter_id[petab_parameters.estimate]

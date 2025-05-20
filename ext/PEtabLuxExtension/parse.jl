@@ -216,7 +216,7 @@ end
 function _get_freeze_info(netid::Symbol, nnmodels::Dict, path_yaml::String)::Dict
     paths = PEtab._get_petab_paths(path_yaml)
     petab_tables = PEtab.read_tables(path_yaml)
-    petab_net_parameters = PEtab.PEtabNetParameters(petab_tables[:parameters], petab_tables[:mapping_table], nnmodels)
+    petab_net_parameters = PEtab.PEtabNetParameters(petab_tables[:parameters], petab_tables[:mapping], nnmodels)
     inet = findall(x -> x == netid, petab_net_parameters.netid)
     all(petab_net_parameters.estimate[inet] .== false) && return Dict()
     all(petab_net_parameters.estimate[inet] .== true) && return Dict()

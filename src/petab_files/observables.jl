@@ -156,7 +156,7 @@ end
 
 function _get_formulas_nn(formula, petab_tables::PEtabTables, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, nnmodels::Dict{Symbol, <:NNModel}, type::Symbol)::String
     formula_nn = ""
-    mappings_df = petab_tables[:mapping_table]
+    mappings_df = petab_tables[:mapping]
     isempty(mappings_df) && return formula_nn
     for (netid, nnmodel) in nnmodels
         nnmodel.static == true && continue
@@ -175,7 +175,7 @@ function _get_formulas_nn(formula, petab_tables::PEtabTables, state_ids::Vector{
 end
 
 function _template_nn_formula(netid::Symbol, petab_tables::PEtabTables, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, type::Symbol)::String
-    mappings_df = petab_tables[:mapping_table]
+    mappings_df = petab_tables[:mapping]
     hybridization_df = petab_tables[:hybridization]
 
     input_variables = _get_net_petab_variables(mappings_df, netid, :inputs)

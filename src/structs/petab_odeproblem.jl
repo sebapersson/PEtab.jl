@@ -178,8 +178,8 @@ end
 function ModelInfo(model::PEtabModel, sensealg, custom_values)::ModelInfo
     tables, cbs = model.petab_tables, model.callbacks
     petab_measurements = PEtabMeasurements(tables[:measurements], tables[:observables])
-    petab_parameters = PEtabParameters(tables[:parameters], tables[:mapping_table], model.nnmodels; custom_values = custom_values)
-    petab_net_parameters = PEtabNetParameters(tables[:parameters], tables[:mapping_table], model.nnmodels)
+    petab_parameters = PEtabParameters(tables[:parameters], tables[:mapping], model.nnmodels; custom_values = custom_values)
+    petab_net_parameters = PEtabNetParameters(tables[:parameters], tables[:mapping], model.nnmodels)
     xindices = ParameterIndices(petab_parameters, petab_measurements, model)
     simulation_info = SimulationInfo(cbs, petab_measurements, sensealg = sensealg)
     priors = Priors(xindices, tables[:parameters])

@@ -21,14 +21,14 @@ the parameter during likelihood computations. It further accounts for parameters
 only appearing in a certain simulation conditions.
 """
 function ParameterIndices(petab_tables::PEtabTables, sys::ModelSystem, parametermap, speciemap, nnmodels::Dict{Symbol, <:NNModel})::ParameterIndices
-    petab_parameters = PEtabParameters(petab_tables[:parameters], petab_tables[:mapping_table], nnmodels)
-    petab_net_parameters = PEtabNetParameters(petab_tables[:parameters], petab_tables[:mapping_table], nnmodels)
+    petab_parameters = PEtabParameters(petab_tables[:parameters], petab_tables[:mapping], nnmodels)
+    petab_net_parameters = PEtabNetParameters(petab_tables[:parameters], petab_tables[:mapping], nnmodels)
     petab_measurements = PEtabMeasurements(petab_tables[:measurements], petab_tables[:observables])
     return ParameterIndices(petab_parameters, petab_net_parameters, petab_measurements, sys, parametermap, speciemap, petab_tables, nnmodels)
 end
 function ParameterIndices(petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements, model::PEtabModel)::ParameterIndices
     @unpack speciemap, parametermap, sys_mutated, petab_tables, nnmodels = model
-    petab_net_parameters = PEtabNetParameters(petab_tables[:parameters], petab_tables[:mapping_table], nnmodels)
+    petab_net_parameters = PEtabNetParameters(petab_tables[:parameters], petab_tables[:mapping], nnmodels)
     return ParameterIndices(petab_parameters, petab_net_parameters, petab_measurements, sys_mutated, parametermap, speciemap, petab_tables, nnmodels)
 end
 function ParameterIndices(petab_parameters::PEtabParameters, petab_net_parameters::PEtabNetParameters, petab_measurements::PEtabMeasurements, sys::ModelSystem, parametermap, speciemap, petab_tables::PEtabTables, nnmodels::Union{Nothing, Dict{Symbol, <:NNModel}})::ParameterIndices
