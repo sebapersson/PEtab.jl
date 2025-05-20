@@ -15,7 +15,6 @@ This tutorial covers how to specify two types of events: those triggered at spec
 ```@example 1
 using Catalyst, DataFrames, PEtab
 
-t = default_t()
 rn = @reaction_network begin
     @parameters S0 c3=1.0
     @species S(t)=S0

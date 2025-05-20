@@ -25,7 +25,6 @@ As a working example, we use the Michaelis-Menten enzyme kinetics model from the
 using Catalyst, PEtab
 
 # Create the dynamic model
-t = default_t()
 rn = @reaction_network begin
     @parameters S0 c3=1.0
     @species S(t)=S0
