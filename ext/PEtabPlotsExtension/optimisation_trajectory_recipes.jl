@@ -9,7 +9,9 @@ const PLOT_TYPES_MS = [
 ]
 
 # Plots the objective function progression for a PEtabOptimisationResult.
-@recipe function f(res::PEtabOptimisationResult; plot_type = :best_objective)
+@recipe function f(res::PEtabOptimisationResult; plot_type = :best_objective,
+                   yaxis = determine_yaxis(res_ms.runs),
+                   obj_shift = objective_shift(res_ms.runs, yaxis))
     # Checks if any values were recorded.
     if isempty(res.ftrace)
         error("No function evaluations where recorded in the calibration run, was \
@@ -26,20 +28,20 @@ const PLOT_TYPES_MS = [
     if plot_type == :objective
         # Fixed
         label --> ""
-        yaxis --> :log10
+        yaxis --> yaxis
         xlabel --> "Function evaluation"
         yguide --> "Objective value"
         seriestype --> :scatter
 
         # Derived
-        y_vals = res.ftrace
+        y_vals = res.ftrace .- obj_shift
         x_vals = 1:length(y_vals)
 
         markershape --> handle_Inf!(y_vals)
     elseif plot_type == :best_objective
         # Fixed
         label --> ""
-        yaxis --> :log10
+        yaxis --> yaxis
         xlabel --> "Function evaluation"
         yguide --> "Final nllh value"
         seriestype --> :path
@@ -52,6 +54,7 @@ const PLOT_TYPES_MS = [
         for idx in 2:(res.niterations + 1)
             y_vals[idx] = min(res.ftrace[idx], y_vals[idx - 1])
         end
+        y_vals = y_vals .- obj_shift
         x_vals = 1:length(y_vals)
         xlimit --> (1, length(x_vals))
     end
@@ -65,7 +68,9 @@ end
                    best_idxs_n = (plot_type in [:waterfall, :runtime_eval] ?
                                   res_ms.nmultistarts : 10),
                    idxs = best_runs(res_ms, best_idxs_n),
-                   clustering_function = objective_value_clustering)
+                   clustering_function = objective_value_clustering,
+                   yaxis = determine_yaxis(res_ms.runs[idxs]),
+                   obj_shift = objective_shift(res_ms.runs[idxs], yaxis))
 
     # Checks if any values were recorded.
     if plot_type in [:objective, :best_objective] && isempty(res_ms.runs[1].ftrace)
@@ -83,7 +88,7 @@ end
     if plot_type == :objective
         # Fixed
         label --> ""
-        yaxis --> :log10
+        yaxis --> yaxis
         xlabel --> "Function evaluation"
         yguide --> "Objective value"
         seriestype --> :scatter
@@ -93,6 +98,7 @@ end
 
         # Derived
         y_vals = getfield.(res_ms.runs[idxs], :ftrace)
+        y_vals = [yvs .- obj_shift for yvs in y_vals]
         x_vals = [1:l for l in length.(y_vals)]
 
         markershape --> handle_Inf!(y_vals)
@@ -100,7 +106,7 @@ end
     elseif plot_type == :best_objective
         # Fixed
         label --> ""
-        yaxis --> :log10
+        yaxis --> yaxis
         xlabel --> "Function evaluation"
         yguide --> "Final nllh value"
         seriestype --> :path
@@ -116,13 +122,14 @@ end
                 y_vals[run_idx][idx] = min(run.ftrace[idx], y_vals[run_idx][idx - 1])
             end
         end
+        y_vals = [yvs .- obj_shift for yvs in y_vals]
         x_vals = [1:l for l in length.(y_vals)]
         color --> clustering_function(res_ms.runs[idxs])
         xlimit --> (1, maximum(length.(x_vals)))
     elseif plot_type == :waterfall
         # Fixed
         label --> ""
-        yaxis --> :log10
+        yaxis --> yaxis
         xlabel --> "Optimisation run index"
         yguide --> "Final nllh value"
         seriestype --> :scatter
@@ -133,12 +140,13 @@ end
         # Derived
         y_vals = getfield.(res_ms.runs[idxs], :fmin)
         x_vals = sortperm(sortperm(y_vals))
+        y_vals = [yvs .- obj_shift for yvs in y_vals]
         markershape --> handle_Inf!(y_vals)
         color --> clustering_function(res_ms.runs[idxs])[1, :]
     elseif plot_type == :runtime_eval
         # Fixed
         label --> ""
-        yaxis --> :log10
+        yaxis --> yaxis
         xaxis --> :log10
         xlabel --> "Runtime [s]"
         ylabel --> "Final nllh value"
@@ -150,6 +158,7 @@ end
 
         # Derived
         y_vals = getfield.(res_ms.runs[idxs], :fmin)
+        y_vals = [yvs .- obj_shift for yvs in y_vals]
         x_vals = getfield.(res_ms.runs[idxs], :runtime)
         color --> clustering_function(res_ms.runs[idxs])[1, :]
     elseif plot_type == :parallel_coordinates
@@ -216,4 +225,24 @@ function objective_value_clustering(runs::Vector{PEtabOptimisationResult}; thres
         colors[i] = cur_color
     end
     reshape(colors, 1, n)
+end
+
+# A helper function which determine whether the y-axis should be logarithmic or not.
+# If the range between the highest and lowest plotted value is more than 100, use logarithmic
+# y-axis (else, linear).
+function determine_yaxis(runs)
+    max_val = maximum(maximum(vals for vals in getfield.(runs, :ftrace)))
+    min_val = minimum(minimum(vals for vals in getfield.(runs, :ftrace)))
+    return (max_val/min_val) > 100 ? :log10 : :identity
+end
+
+# A helper function which determine whether we need to shift the objective values. Used
+# to prevent negative values from being plotted on log-scale. If we shift, all objective
+# values are shifted by the same amount, so the lowest one equals to 1.
+function objective_shift(runs, yaxis)
+    min_val = minimum(minimum(vals for vals in getfield.(runs, :ftrace)))
+    if (yaxis != :identity) && (min_val <= 0.0)
+        return min_val - 1.0
+    end
+    return 0.0
 end
