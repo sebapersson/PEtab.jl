@@ -9,9 +9,11 @@ const PLOT_TYPES_MS = [
 ]
 
 # Plots the objective function progression for a PEtabOptimisationResult.
+# I wanted to use `yaxis` and not `yaxis_scale`, but that seems prevents the user from
+# using `yaxis` to overwrite things (not sure why).
 @recipe function f(res::PEtabOptimisationResult; plot_type = :best_objective,
-                   yaxis = determine_yaxis(res_ms.runs),
-                   obj_shift = objective_shift(res_ms.runs, yaxis))
+                   yaxis_scale = determine_yaxis([res], plot_type),
+                   obj_shift = objective_shift([res], yaxis_scale))
     # Checks if any values were recorded.
     if isempty(res.ftrace)
         error("No function evaluations where recorded in the calibration run, was \
@@ -28,7 +30,7 @@ const PLOT_TYPES_MS = [
     if plot_type == :objective
         # Fixed
         label --> ""
-        yaxis --> yaxis
+        yaxis --> yaxis_scale
         xlabel --> "Function evaluation"
         yguide --> "Objective value"
         seriestype --> :scatter
@@ -41,7 +43,7 @@ const PLOT_TYPES_MS = [
     elseif plot_type == :best_objective
         # Fixed
         label --> ""
-        yaxis --> yaxis
+        yaxis --> yaxis_scale
         xlabel --> "Function evaluation"
         yguide --> "Final nllh value"
         seriestype --> :path
@@ -69,8 +71,8 @@ end
                                   res_ms.nmultistarts : 10),
                    idxs = best_runs(res_ms, best_idxs_n),
                    clustering_function = objective_value_clustering,
-                   yaxis = determine_yaxis(res_ms.runs[idxs]),
-                   obj_shift = objective_shift(res_ms.runs[idxs], yaxis))
+                   yaxis_scale = determine_yaxis(res_ms.runs[idxs], plot_type),
+                   obj_shift = objective_shift(res_ms.runs[idxs], yaxis_scale))
 
     # Checks if any values were recorded.
     if plot_type in [:objective, :best_objective] && isempty(res_ms.runs[1].ftrace)
@@ -88,7 +90,7 @@ end
     if plot_type == :objective
         # Fixed
         label --> ""
-        yaxis --> yaxis
+        yaxis --> yaxis_scale
         xlabel --> "Function evaluation"
         yguide --> "Objective value"
         seriestype --> :scatter
@@ -106,7 +108,7 @@ end
     elseif plot_type == :best_objective
         # Fixed
         label --> ""
-        yaxis --> yaxis
+        yaxis --> yaxis_scale
         xlabel --> "Function evaluation"
         yguide --> "Final nllh value"
         seriestype --> :path
@@ -129,7 +131,7 @@ end
     elseif plot_type == :waterfall
         # Fixed
         label --> ""
-        yaxis --> yaxis
+        yaxis --> yaxis_scale
         xlabel --> "Optimisation run index"
         yguide --> "Final nllh value"
         seriestype --> :scatter
@@ -146,7 +148,7 @@ end
     elseif plot_type == :runtime_eval
         # Fixed
         label --> ""
-        yaxis --> yaxis
+        yaxis --> yaxis_scale
         xaxis --> :log10
         xlabel --> "Runtime [s]"
         ylabel --> "Final nllh value"
@@ -230,7 +232,8 @@ end
 # A helper function which determine whether the y-axis should be logarithmic or not.
 # If the range between the highest and lowest plotted value is more than 100, use logarithmic
 # y-axis (else, linear).
-function determine_yaxis(runs)
+function determine_yaxis(runs, plot_type::Symbol)
+    plot_type ∉ [:objective, :best_objective, :waterfall, :runtime_eval] && return :identity
     max_val = maximum(maximum(vals for vals in getfield.(runs, :ftrace)))
     min_val = minimum(minimum(vals for vals in getfield.(runs, :ftrace)))
     return (max_val/min_val) > 100 ? :log10 : :identity
@@ -239,9 +242,9 @@ end
 # A helper function which determine whether we need to shift the objective values. Used
 # to prevent negative values from being plotted on log-scale. If we shift, all objective
 # values are shifted by the same amount, so the lowest one equals to 1.
-function objective_shift(runs, yaxis)
+function objective_shift(runs, yaxis_scale)
     min_val = minimum(minimum(vals for vals in getfield.(runs, :ftrace)))
-    if (yaxis != :identity) && (min_val <= 0.0)
+    if (yaxis_scale != :identity) && (min_val <= 0.0)
         return min_val - 1.0
     end
     return 0.0
