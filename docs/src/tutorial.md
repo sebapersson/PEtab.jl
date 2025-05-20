@@ -77,6 +77,7 @@ Using a ModelingToolkit `ODESystem`, the model is defined as:
 
 ```@example 1
 using ModelingToolkit
+using D_nounits as D
 @mtkmodel SYS begin
     @parameters begin
         S0
@@ -344,6 +345,7 @@ end
 speciemap = [:E => 50.0, :SE => 0.0, :P => 0.0]
 
 using ModelingToolkit
+using D_nounits as D
 @mtkmodel SYS begin
     @parameters begin
         S0

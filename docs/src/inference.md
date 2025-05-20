@@ -16,6 +16,7 @@ If a PEtab problem is in the PEtab standard format, priors are defined in the [p
 
 ```@example 1
 using Distributions, ModelingToolkit, OrdinaryDiffEq, Plots
+using D_nounits as D
 @mtkmodel SYS begin
     @parameters begin
         b1
