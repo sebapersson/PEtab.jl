@@ -42,8 +42,6 @@ jobs:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
       - uses: julia-actions/cache@v1
-      - name: Add specific OpenSSL_jll version to avoid CI failure
-        run: julia --project -e 'using Pkg; Pkg.add(PackageSpec(name="OpenSSL_jll", version="3.0"))'
       - uses: julia-actions/julia-buildpkg@v1
         env:
           PYTHON : "${{ env.pythonLocation }}/bin/python"
