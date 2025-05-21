@@ -13,7 +13,7 @@ const PLOT_TYPES_MS = [
 # using `yaxis` to overwrite things (not sure why).
 @recipe function f(res::PEtabOptimisationResult; plot_type = :best_objective,
                    yaxis_scale = determine_yaxis([res], plot_type),
-                   obj_shift = objective_shift([res], yaxis_scale))
+                   obj_shift = objective_shift([res], plot_type, yaxis_scale))
     # Checks if any values were recorded.
     if isempty(res.ftrace)
         error("No function evaluations where recorded in the calibration run, was \
@@ -72,7 +72,7 @@ end
                    idxs = best_runs(res_ms, best_idxs_n),
                    clustering_function = objective_value_clustering,
                    yaxis_scale = determine_yaxis(res_ms.runs[idxs], plot_type),
-                   obj_shift = objective_shift(res_ms.runs[idxs], yaxis_scale))
+                   obj_shift = objective_shift(res_ms.runs[idxs], plot_type, yaxis_scale))
 
     # Checks if any values were recorded.
     if plot_type in [:objective, :best_objective] && isempty(res_ms.runs[1].ftrace)
@@ -234,18 +234,29 @@ end
 # y-axis (else, linear).
 function determine_yaxis(runs, plot_type::Symbol)
     plot_type ∉ [:objective, :best_objective, :waterfall, :runtime_eval] && return :identity
-    max_val = maximum(maximum(vals for vals in getfield.(runs, :ftrace)))
-    min_val = minimum(minimum(vals for vals in getfield.(runs, :ftrace)))
+    min_val, max_val = extrema(get_plotted_vals(runs, plot_type))
     return (max_val/min_val) > 100 ? :log10 : :identity
 end
 
 # A helper function which determine whether we need to shift the objective values. Used
 # to prevent negative values from being plotted on log-scale. If we shift, all objective
 # values are shifted by the same amount, so the lowest one equals to 1.
-function objective_shift(runs, yaxis_scale)
-    min_val = minimum(minimum(vals for vals in getfield.(runs, :ftrace)))
+function objective_shift(runs, plot_type::Symbol, yaxis_scale)
+    min_val = minimum(get_plotted_vals(runs, plot_type))
     if (yaxis_scale != :identity) && (min_val <= 0.0)
         return min_val - 1.0
     end
     return 0.0
+end
+
+# Returns all loss function values. Which we extract depends on the type of plot.
+# This workflow could likely be made more performant.
+function get_plotted_vals(runs, plot_type::Symbol)
+    vals = getfield.(runs, :fmin)
+    if (plot_type == :objective) && !isempty(runs[1].ftrace)
+        append!(vals, [run.ftrace[1] for run in runs])
+    elseif (plot_type == :best_objective) && !isempty(runs[1].ftrace)
+        foreach(run -> append!(vals, run.ftrace), runs)
+    end
+    return vals
 end
