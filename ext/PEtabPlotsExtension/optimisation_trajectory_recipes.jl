@@ -235,7 +235,7 @@ end
 function determine_yaxis(runs, plot_type::Symbol)
     plot_type ∉ [:objective, :best_objective, :waterfall, :runtime_eval] && return :identity
     min_val, max_val = extrema(get_plotted_vals(runs, plot_type))
-    return (max_val/min_val) > 100 ? :log10 : :identity
+    return (max_val / min_val) > 100 ? :log10 : :identity
 end
 
 # A helper function which determine whether we need to shift the objective values. Used
