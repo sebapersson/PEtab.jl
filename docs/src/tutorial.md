@@ -56,7 +56,6 @@ The dynamic model can be either a [Catalyst.jl](https://github.com/SciML/Catalys
 
 ```@example 1
 using Catalyst
-t = default_t()
 rn = @reaction_network begin
     @parameters S0 c3=1.0
     @species S(t)=S0
@@ -336,7 +335,6 @@ Lastly, when creating a `PEtabODEProblem` there are many configurable options (s
 ```@example 1
 using Catalyst, PEtab
 # Create the dynamic model(s)
-t = default_t()
 rn = @reaction_network begin
     @parameters S0 c3=1.0
     @species S(t)=S0

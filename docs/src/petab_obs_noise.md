@@ -7,7 +7,6 @@ This tutorial covers how to specify time-point specific observable and noise par
 ```@example 1
 using Catalyst, PEtab
 
-t = default_t()
 rn = @reaction_network begin
     @parameters S0 c3=1.0
     @species S(t)=S0
