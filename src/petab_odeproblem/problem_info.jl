@@ -24,10 +24,8 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
 
     split_use = _get_split_over_conditions(split_over_conditions, model_info)
 
-    odesolver_use = _get_odesolver(odesolver, model_size, gradient_method_use)
-    odesolver_gradient_use = _get_odesolver(odesolver_gradient, model_size,
-                                            gradient_method_use;
-                                            default_solver = odesolver_use)
+    odesolver_use = _get_odesolver(odesolver, model_size, false, gradient_method_use, sensealg_use)
+    odesolver_gradient_use = _get_odesolver(odesolver_gradient, model_size, true, gradient_method_use, sensealg_use; default_solver = odesolver_use)
     _ss_solver = _get_ss_solver(ss_solver)
     _ss_solver_gradient = _get_ss_solver(ss_solver_gradient)
     sparse_jacobian_use = _get_sparse_jacobian(sparse_jacobian, gradient_method_use,
@@ -43,11 +41,11 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
     #  they end up being Int due to SBML model file structure
     #  ODEFunction must be used because when going directly to ODEProblem MTKParameters
     #  are used as parameter struct, however, MTKParameters are not yet compatiable
-    # 2. with SciMLSensitivity, and if remake is used to transform to parameter vector 
+    # 2. with SciMLSensitivity, and if remake is used to transform to parameter vector
     #  an error is thrown. The order of p is given by model_info.xindices.xids[:sys],
     #  (see conditions.jl for details) hence to set correct values for constant
     #  parameters the parameter map must be reorded.
-    # 3. For ODEFunction an ODESystem is needed, hence ReactionSystems must be converted.                                 
+    # 3. For ODEFunction an ODESystem is needed, hence ReactionSystems must be converted.
     btime = @elapsed begin
         _set_const_parameters!(model, model_info.petab_parameters)
         @unpack sys_mutated, speciemap, parametermap, defined_in_julia = model
