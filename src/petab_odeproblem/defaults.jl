@@ -89,12 +89,16 @@ function _get_hessian_method(method::Union{Symbol, Nothing}, model_size::Symbol)
     end
 end
 
-function _get_odesolver(solver::Union{ODESolver, Nothing}, model_size::Symbol, gradient::Bool, gradient_method::Symbol, sensealg; default_solver = nothing)::ODESolver
+function _get_odesolver(solver::Union{ODESolver, Nothing}, model_size::Symbol,
+                        gradient::Bool, gradient_method::Symbol, sensealg;
+                        default_solver = nothing)::ODESolver
     !isnothing(solver) && gradient == false && return solver
     solver = isnothing(solver) ? default_solver : solver
     # Only pure Julia solvers are compatible with autodiff (ForwardDiff)
-    autodiff = (gradient_method == :ForwardDiff) || (gradient_method == :ForwardEquations && sensealg == :ForwardDiff)
-    if gradient && !isnothing(solver) && !SciMLBase.isautodifferentiable(solver.solver) && autodiff
+    autodiff = (gradient_method == :ForwardDiff) ||
+               (gradient_method == :ForwardEquations && sensealg == :ForwardDiff)
+    if gradient && !isnothing(solver) && !SciMLBase.isautodifferentiable(solver.solver) &&
+       autodiff
         throw(PEtab.PEtabInputError("$solver is not compatible with automatic \
             differentiation. Either use a ForwardDiff compatible solver, e.g. most Julia \
             solvers like QNDF and Rodas5P, or a non-autodiff gradient method like :Adjoint \
