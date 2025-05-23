@@ -130,7 +130,7 @@ function _measurements_to_table(measurements::DataFrame, conditions::Dict)::Data
                                          "in the measurement table"))
         end
         rename!(measurements_df, "simulation_id" => "simulationConditionId")
-    else
+    elseif !("simulationConditionId" in names(measurements_df))
         measurements_df[!, "simulationConditionId"] .= "__c0__"
     end
 
