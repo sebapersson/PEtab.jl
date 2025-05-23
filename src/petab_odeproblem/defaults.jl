@@ -99,7 +99,7 @@ function _get_odesolver(solver::Union{ODESolver, Nothing}, model_size::Symbol, g
             differentiation. Either use a ForwardDiff compatible solver, e.g. most Julia \
             solvers like QNDF and Rodas5P, or a non-autodiff gradient method like :Adjoint \
             or :ForwardEquations with sensealg = SciMLSensitivity.ForwardSensitivity()"))
-    else !isnothing(solver)
+    elseif !isnothing(solver)
         return solver
     end
     if model_size == :Small
