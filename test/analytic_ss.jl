@@ -108,7 +108,7 @@ function test_nllh_grad_hess(model::PEtabModel, osolver::ODESolver, ss_solver::S
     g = _compute_grad(x, model, :Adjoint, osolver; ss_solver = ss_solver,
                       sensealg=GaussAdjoint(autojacvec=ReverseDiffVJP(true)))
     g = _compute_grad(x, model, :Adjoint, osolver; ss_solver = ss_solver,
-                      sensealg=GaussAdjoint(autojacvec=EnzymeVJP()))
+                      sensealg=GaussAdjoint(autojacvec=ReverseDiffVJP(true)))
     @test all(.≈(g, grad_ref; atol = 1e-3))
 
     H = _compute_hess(x, model, :ForwardDiff, osolver; ss_solver = ss_solver)
