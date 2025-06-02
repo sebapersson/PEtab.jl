@@ -3,8 +3,8 @@
     pyPESTO computed values
 =#
 
-using PEtab, OrdinaryDiffEq, Sundials, SciMLSensitivity, CSV, DataFrames, LinearAlgebra,
-      Test
+using PEtab, OrdinaryDiffEqRosenbrock, Sundials, SciMLSensitivity, CSV, DataFrames,
+    LinearAlgebra, Test
 
 include(joinpath(@__DIR__, "common.jl"))
 

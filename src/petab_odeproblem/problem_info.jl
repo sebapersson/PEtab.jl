@@ -43,11 +43,11 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
     #  they end up being Int due to SBML model file structure
     #  ODEFunction must be used because when going directly to ODEProblem MTKParameters
     #  are used as parameter struct, however, MTKParameters are not yet compatiable
-    # 2. with SciMLSensitivity, and if remake is used to transform to parameter vector 
+    # 2. with SciMLSensitivity, and if remake is used to transform to parameter vector
     #  an error is thrown. The order of p is given by model_info.xindices.xids[:sys],
     #  (see conditions.jl for details) hence to set correct values for constant
     #  parameters the parameter map must be reorded.
-    # 3. For ODEFunction an ODESystem is needed, hence ReactionSystems must be converted.                                 
+    # 3. For ODEFunction an ODESystem is needed, hence ReactionSystems must be converted.
     btime = @elapsed begin
         _set_const_parameters!(model, model_info.petab_parameters)
         @unpack sys_mutated, speciemap, parametermap, defined_in_julia = model
