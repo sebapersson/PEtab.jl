@@ -36,7 +36,7 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 
 const ModelSystem = Union{ODESystem, SDESystem, ReactionSystem, ODEProblem}
 const NonlinearAlg = Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}
-const PEtabTables = Dict{Symbol, Union{DataFrame, Dict}}
+const PEtabTables = Dict{Symbol, <:Union{DataFrame, Dict}}
 
 include(joinpath("structs", "petab_model.jl"))
 include(joinpath("structs", "petab_odeproblem.jl"))
@@ -186,6 +186,6 @@ if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabStochasticDiffEq.jl"))
 end
 
-export to_chains, to_prior_scale
+export to_chains, to_prior_scale, PEtabNetParameter
 
 end

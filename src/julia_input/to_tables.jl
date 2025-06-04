@@ -1,34 +1,17 @@
-function _parameters_to_table(parameters::Vector{PEtabParameter})::DataFrame
+function _parameters_to_table(parameters::Vector)::DataFrame
     # Most validity check occurs later during table parsing
     parameters_df = DataFrame()
     for petab_paramter in parameters
-        @unpack parameter, scale, lb, ub, value, estimate = petab_paramter
-
-        parameterScale = isnothing(scale) ? "lin" : string(scale)
-        if !(parameterScale in VALID_SCALES)
-            throw(PEtabFormatError("Scale $parameterScale is not allowed for parameter " *
-                                   "$parameter. Allowed scales are $(VALID_SCALES)"))
+        if !(petab_paramter isa Union{PEtabParameter, PEtabNetParameter})
+            throw(PEtab.PEtabInputError("Input parameters to a PEtabModel must either \
+                be a PEtabParameter or a PEtabNetParameter."))
         end
-
-        lowerBound = isnothing(lb) ? 1e-3 : lb
-        upperBound = isnothing(ub) ? 1e3 : ub
-        if lowerBound > upperBound
-            throw(PEtabFormatError("Lower bound $lowerBound is larger than upper bound " *
-                                   "$upperBound for paramter $parameter"))
-        end
-
-        nominalValue = isnothing(value) ? (lowerBound + upperBound) / 2.0 : value
-        should_estimate = estimate == true ? 1 : 0
-        row = DataFrame(parameterId = parameter |> string,
-                        parameterScale = parameterScale,
-                        lowerBound = lowerBound,
-                        upperBound = upperBound,
-                        nominalValue = nominalValue,
-                        estimate = should_estimate)
-        append!(parameters_df, row)
+        row = _parse_petab_parameter(petab_paramter)
+        parameters_df = vcat(parameters_df, row)
     end
     # Add potential prior columns
-    if !all(isnothing.(getfield.(parameters, :prior)))
+    ip = findall(x -> x isa PEtabParameter, parameters)
+    if !all(isnothing.(getfield.(parameters[ip], :prior)))
         priors = fill("", length(parameters))
         initialisation_priors = priors |> deepcopy
         priors_on_linear_scale = Vector{Union{Bool, String}}(undef, length(priors))
@@ -47,6 +30,50 @@ function _parameters_to_table(parameters::Vector{PEtabParameter})::DataFrame
     end
     _check_table(parameters_df, :parameters)
     return parameters_df
+end
+
+function _parse_petab_parameter(petab_parameter::PEtabParameter)::DataFrame
+    @unpack parameter, scale, lb, ub, value, estimate = petab_parameter
+
+    parameter_scale = isnothing(scale) ? "lin" : string(scale)
+    if !(parameter_scale in VALID_SCALES)
+        throw(PEtabFormatError("Scale $parameter_scale is not allowed for parameter \
+            $parameter. Allowed scales are $(VALID_SCALES)"))
+    end
+
+    lower_bound = isnothing(lb) ? 1e-3 : lb
+    upper_bound = isnothing(ub) ? 1e3 : ub
+    if lower_bound > upper_bound
+        throw(PEtabFormatError("Lower bound $lower_bound is larger than upper bound \
+            $upper_bound for paramter $parameter"))
+    end
+
+    nominal_value = isnothing(value) ? (lower_bound + upper_bound) / 2.0 : value
+    should_estimate = estimate == true ? 1 : 0
+    row = DataFrame(parameterId = "$(parameter)",
+                    parameterScale = parameter_scale,
+                    lowerBound = lower_bound,
+                    upperBound = upper_bound,
+                    nominalValue = nominal_value,
+                    estimate = should_estimate)
+    return row
+end
+function _parse_petab_parameter(petab_parameter::PEtabNetParameter)::DataFrame
+    @unpack netid, estimate, value = petab_parameter
+
+    if isnothing(value)
+        nominal_value = "$(netid)_julia_random"
+    else
+        nominal_value = "$(netid)_julia_provided"
+    end
+    should_estimate = estimate == true ? 1 : 0
+    row = DataFrame(parameterId = "$(netid)_parameters",
+                    parameterScale = "lin",
+                    lowerBound = -Inf,
+                    upperBound = Inf,
+                    nominalValue = nominal_value,
+                    estimate = should_estimate)
+    return row
 end
 
 function _observables_to_table(observables::Dict{String, <:PEtabObservable})::DataFrame
@@ -141,6 +168,7 @@ function _measurements_to_table(measurements::DataFrame, conditions::Dict)::Data
 end
 
 function _mapping_to_table(nnmodels::Dict{Symbol, <:NNModel})::DataFrame
+    isempty(nnmodels) && return DataFrame()
     df_mapping = DataFrame()
     for (netid, nnmodel) in nnmodels
         for (i, io_value) in pairs(nnmodel.inputs)
@@ -155,6 +183,10 @@ function _mapping_to_table(nnmodels::Dict{Symbol, <:NNModel})::DataFrame
                 "petabEntityId" => string(io_value)))
             df_mapping = vcat(df_mapping, dftmp)
         end
+        dftmp = DataFrame(Dict(
+                "modelEntityId" => "$(netid).parameters",
+                "petabEntityId" => "$(netid)_parameters"))
+        df_mapping = vcat(df_mapping, dftmp)
     end
     if !isempty(df_mapping)
         _check_table(df_mapping, :mapping)

@@ -57,6 +57,12 @@ function PEtabParameter(id::Union{Num, Symbol}; estimate::Bool = true,
                           sample_prior)
 end
 
+struct PEtabNetParameter{T <: AbstractFloat}
+    netid::Symbol
+    estimate::Bool
+    value::Union{Nothing, ComponentVector{T}}
+end
+
 """
     PEtabObservable(obs_formula, noise_formula; kwargs...)
 
@@ -147,6 +153,7 @@ end
 mutable struct NNModel{T <: Any}
     const nn::T
     st::NamedTuple
+    const ps::ComponentVector{Float64}
     const static::Bool
     const dirdata::String
     const inputs::Vector{Symbol}

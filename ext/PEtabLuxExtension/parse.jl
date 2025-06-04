@@ -22,6 +22,7 @@ function PEtab.NNModel(net::Union{Lux.Chain, Lux.CompactLuxLayer}; static::Bool 
     # Set frozen parameters if applicable
     rng = Random.default_rng()
     st = Lux.initialstates(rng, net) |> f64
+    ps = Lux.initialparameters(rng, net) |> ComponentArray |> f64
     if !isnothing(freeze_info)
         for (layer_id, array_info) in freeze_info
             for (array_id, array_value) in array_info
@@ -41,7 +42,7 @@ function PEtab.NNModel(net::Union{Lux.Chain, Lux.CompactLuxLayer}; static::Bool 
     end
     _inputs = Symbol.(inputs)
     _outputs = Symbol.(outputs)
-    return NNModel(net, st, static, dirdata, _inputs, _outputs, input_info, output_info)
+    return NNModel(net, st, ps, static, dirdata, _inputs, _outputs, input_info, output_info)
 end
 
 function PEtab.parse_to_lux(path_yaml::String; freeze_info::Union{Nothing, Dict} = nothing)

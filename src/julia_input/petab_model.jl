@@ -1,5 +1,5 @@
 function PEtabModel(sys::ModelSystem, observables::Dict{String, PEtabObservable},
-                    measurements::DataFrame, parameters::Vector{PEtabParameter};
+                    measurements::DataFrame, parameters::Vector;
                     simulation_conditions::Union{Nothing, Dict} = nothing,
                     speciemap::Union{Nothing, AbstractVector} = nothing,
                     parametermap::Union{Nothing, AbstractVector} = nothing,
@@ -16,7 +16,7 @@ end
 
 function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
                      observables::Dict{String, <:PEtabObservable}, measurements::DataFrame,
-                     parameters::Vector{PEtabParameter},
+                     parameters::Vector,
                      speciemap::Union{Nothing, AbstractVector},
                      parametermap::Union{Nothing, AbstractVector},
                      events::Union{PEtabEvent, AbstractVector, Nothing}, verbose::Bool,
@@ -30,6 +30,9 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     else
         name = "ReactionSystemModel"
     end
+    nnmodels = isnothing(nnmodels) ? Dict{Symbol, NNModel}() : nnmodels
+    _set_nn_parameters!(nnmodels, parameters)
+
     _logging(:Build_PEtabModel, verbose; name = name)
 
     # Convert the input to valid PEtab tables
@@ -37,18 +40,8 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     observables_df = _observables_to_table(observables)
     conditions_df = _conditions_to_table(simulation_conditions)
     parameters_df = _parameters_to_table(parameters)
-    petab_tables = Dict(:parameters => parameters_df, :conditions => conditions_df,
-                        :observables => observables_df, :measurements => measurements_df)
-    # A mapping table is only needed for models where a neural network sets the values for
-    # the model parameters
-    if !isnothing(nnmodels)
-        mappings_df = _mapping_to_table(nnmodels)
-    else
-        mappings_df = DataFrame()
-        nnmodels = Dict{Symbol, NNModel}()
-    end
-    petab_tables[:mapping] = mappings_df
-    paths = Dict{Symbol, String}()
+    mappings_df = _mapping_to_table(nnmodels)
+    petab_tables = Dict{Symbol, DataFrame}(:parameters => parameters_df, :conditions => conditions_df, :observables => observables_df, :measurements => measurements_df, :mapping => mappings_df, :hybridization => DataFrame())
 
     # Build the initial value map (initial values as parameters are set in the reaction sys_mutated)
     sys_mutated = deepcopy(sys)
@@ -92,6 +85,7 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     _logging(:Build_callbacks, verbose; time = btime)
 
     # Path only applies when PEtab tables are provided
+    paths = Dict{Symbol, String}()
     return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan,
                       paths, sys, sys_mutated, parametermap_use, speciemap_use,
                       petab_tables, cbset, true, nnmodels)

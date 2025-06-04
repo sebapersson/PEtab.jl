@@ -17,8 +17,15 @@ function set_ps_net!(ps::ComponentArray, netid::Symbol, nnmodel::NNModel, paths:
     return nothing
 end
 function set_ps_net!(ps::ComponentArray, netid::Symbol, nnmodels, paths::Dict{Symbol, String}, petab_tables::PEtabTables)::Nothing
-    petab_net_parameters = PEtabNetParameters(petab_tables[:parameters], petab_tables[:mapping], nnmodels)
+    # Case when Julia provided parameter input
+    if isempty(paths)
+        ps .= nnmodels[netid].ps
+        return nothing
+    end
+
+    # Case for PEtab standard format provided
     nnmodel = nnmodels[netid]
+    petab_net_parameters = PEtabNetParameters(petab_tables[:parameters], petab_tables[:mapping], nnmodels)
     netindices = _get_netindices(netid, petab_net_parameters.mapping_table_id)
     ps_path = _get_ps_path(netid, paths, petab_net_parameters.nominal_value[netindices[1]])
     @assert isfile(ps_path) "Parameter values for net $netid must be a file"
@@ -227,4 +234,19 @@ function _get_input_path(input_variable::Union{String, Symbol}, yaml_file::Dict,
             for PEtab neural network input variable $(input_variable)"))
     end
     return Symbol(path)
+end
+
+function _set_nn_parameters!(nnmodels::Dict{Symbol, <:NNModel}, parameters)::Nothing
+    for petab_parameter in parameters
+        !(petab_parameter isa PEtabNetParameter) && continue
+        @unpack netid, value = petab_parameter
+        if !haskey(nnmodels, netid)
+            throw(PEtab.PEtabInputError("For neural network $(netid) a PEtabNetParameter \
+                has been provided, but not as required a NetModel via the net_models \
+                keyword."))
+        end
+        isnothing(value) && continue
+        nnmodels[netid].ps .= value
+    end
+    return nothing
 end

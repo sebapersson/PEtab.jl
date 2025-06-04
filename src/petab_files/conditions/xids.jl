@@ -97,6 +97,7 @@ function _get_xids_nn_preode_output(petab_tables::PEtabTables, nnmodels::Dict{Sy
     hybridization_df = petab_tables[:hybridization]
     for (netid, nnmodel) in nnmodels
         nnmodel.static == false && continue
+        isempty(hybridization_df) && continue
         output_variables = _get_net_petab_variables(mappings_df, netid, :outputs)
         outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
         out = vcat(out, Symbol.(outputs_df.targetId))
