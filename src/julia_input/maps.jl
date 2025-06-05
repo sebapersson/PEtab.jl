@@ -1,4 +1,4 @@
-function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, mapping_table::DataFrame, speciemap_input)
+function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, hybridization_df::DataFrame, nnmodels::Dict{Symbol, <:NNModel} , speciemap_input)
     specie_ids = _get_state_ids(sys)
     speciemap_ids = _get_speciemap_ids(sys)
     default_values = _get_default_values(sys)
@@ -19,20 +19,19 @@ function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, mapping_tabl
     end
 
     # Add extra parameter in case any of the conditions map to a model specie (just as must
-    # be done for SBML models). Also add extra parameter if a Neural-Net maps to a specie
+    # be done for SBML models). An extra parameter must also be added if a neural network
+    # maps to a specie
     condition_variables = names(conditions_df)
     net_outputs = String[]
-    if !isempty(mapping_table)
-        for netid in Symbol.(unique(_get_netids(mapping_table)))
-            net_outputs = vcat(net_outputs, _get_net_petab_variables(mapping_table, netid, :outputs))
-        end
-        for net_output in net_outputs
-            !(net_output in condition_variables) && continue
-            throw(PEtabInputError("Output $(net_output) for a neural-net in the mapping \
-                                   table points to a parameter which is set by an
-                                   experimental condition. This is not allowed."))
+    for nnmodel in values(nnmodels)
+        nnmodel.static == false && continue
+        for output_id in string.(nnmodel.outputs)
+            if output_id in specie_ids
+                push!(net_outputs, output_id)
+            end
         end
     end
+
     for variable in Iterators.flatten((condition_variables, net_outputs))
         !(variable in specie_ids) && continue
         pid = "__init__" * string(variable) * "__"
@@ -42,11 +41,10 @@ function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, mapping_tabl
         # Rename output in the mapping table, to have the neural-net map to the
         # initial-value parameter instead
         if variable in net_outputs
-            ix = findall(x -> x == variable, mapping_table[!, "petabEntityId"])
-            mapping_table[ix, "petabEntityId"] .= pid
+            ix = findall(x -> x == variable, hybridization_df[!, :targetId])
+            hybridization_df[ix, :targetId] .= pid
         end
     end
-
     return sys, speciemap
 end
 

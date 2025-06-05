@@ -46,7 +46,7 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
 
     # Build the initial value map (initial values as parameters are set in the reaction sys_mutated)
     sys_mutated = deepcopy(sys)
-    sys_mutated, speciemap_use = _get_speciemap(sys_mutated, conditions_df, mappings_df, speciemap)
+    sys_mutated, speciemap_use = _get_speciemap(sys_mutated, conditions_df, hybridization_df, nnmodels, speciemap)
     parametermap_use = _get_parametermap(sys_mutated, parametermap)
     xindices = ParameterIndices(petab_tables, sys_mutated, parametermap_use, speciemap_use, nnmodels)
     # Warn user if any variable is unassigned (and defaults to zero)
