@@ -21,8 +21,14 @@ nn12_2 = @compact(
     @return out
 end
 pnn1 = Lux.initialparameters(rng, nn12_1)
-nnmodels = Dict(:net1 => NNModel(nn12_1),
-                :net2 => NNModel(nn12_2, inputs = [:input1, :input2], outputs = [:beta]))
+nnmodels = Dict(:net1 => NNModel(nn12_1; static = false),
+                :net2 => NNModel(nn12_2; static = false, inputs = [:alpha, :predator], outputs = [:net2_output1]))
+path_h5 = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "net1_ps.hdf5")
+pnn1 = Lux.initialparameters(rng, nn12_1) |> ComponentArray |> f64
+PEtab.set_ps_net!(pnn1, path_h5, nn12_1)
+path_h5 = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "net2_ps.hdf5")
+pnn2 = Lux.initialparameters(rng, nn12_2) |> ComponentArray |> f64
+PEtab.set_ps_net!(pnn2, path_h5, nn12_2)
 
 function _lv12!(du, u, p, t, nnmodels)
     prey, predator = u
@@ -46,27 +52,24 @@ u0 = ComponentArray(prey = 0.44249296, predator = 4.6280594)
 uprob = ODEProblem(lv12!, u0, (0.0, 10.0), p_model)
 
 p_alpha = PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3)
+p_beta = PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9)
 p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)
-p_input1 = PEtabParameter(:input1; scale = :lin, lb = 0.0, ub = 15.0, value = 2.0, estimate = false)
-p_input2 = PEtabParameter(:input2; scale = :lin, lb = 0.0, ub = 15.0, value = 2.0, estimate = false)
-p_net1 = PEtabParameter(:net1; scale = :lin, lb = -15.0, ub = 15.0, value = 0.0)
-p_net2 = PEtabParameter(:net2; scale = :lin, lb = -15.0, ub = 15.0, value = 0.0)
-pest = [p_alpha, p_delta, p_input1, p_input2, p_net1, p_net2]
+p_net1 = PEtabNetParameter(:net1, true, pnn1)
+p_net2 = PEtabNetParameter(:net2, true, pnn2)
+pest = [p_alpha, p_beta, p_delta, p_net1, p_net2]
 
 obs_prey = PEtabObservable(:prey, 0.05)
-obs_predator = PEtabObservable(:predator, 0.05)
+obs_predator = PEtabObservable(:net2_output1, 0.05)
 obs = Dict("prey_o" => obs_prey, "predator_o" => obs_predator)
 
 conds = Dict("cond1" => Dict{Symbol, Symbol}())
 
-path_m = joinpath(@__DIR__, "test_cases", test_case, "petab", "measurements.tsv")
+path_m = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "measurements.tsv")
 measurements = CSV.read(path_m, DataFrame)
 
 model = PEtabModel(uprob, obs, measurements, pest; nnmodels = nnmodels,
                    simulation_conditions = conds)
 osolver = ODESolver(Rodas5P(autodiff = false), abstol = 1e-10, reltol = 1e-10)
-for config in PROB_CONFIGS
-    petab_prob = PEtabODEProblem(model; odesolver = osolver, gradient_method = config.grad,
-                                 split_over_conditions = config.split, sensealg=config.sensealg)
-    test_model(test_case, petab_prob)
-end
+petab_prob = PEtabODEProblem(model; odesolver = osolver, gradient_method = :ForwardDiff,
+                             split_over_conditions = true)
+test_hybrid(test_case, petab_prob)
