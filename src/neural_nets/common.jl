@@ -11,6 +11,12 @@ function _get_f_nn_preode_x(nnpre::NNPreODE, xdynamic_mech::AbstractVector, map_
 end
 
 function set_ps_net!(ps::ComponentArray, netid::Symbol, nnmodel::NNModel, paths::Dict{Symbol, String}, petab_net_parameters::PEtabNetParameters)::Nothing
+    # Case when Julia provided parameter input
+    if isempty(paths)
+        ps .= nnmodel.ps
+        return nothing
+    end
+
     netindices = _get_netindices(netid, petab_net_parameters.mapping_table_id)
     ps_path = _get_ps_path(netid, paths, petab_net_parameters.nominal_value[netindices[1]])
     set_ps_net!(ps, ps_path, nnmodel.nn)
