@@ -41,7 +41,8 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     conditions_df = _conditions_to_table(simulation_conditions)
     parameters_df = _parameters_to_table(parameters)
     mappings_df = _mapping_to_table(nnmodels)
-    petab_tables = Dict{Symbol, DataFrame}(:parameters => parameters_df, :conditions => conditions_df, :observables => observables_df, :measurements => measurements_df, :mapping => mappings_df, :hybridization => DataFrame())
+    hybridization_df = _hybridization_to_table(nnmodels, parameters_df, conditions_df)
+    petab_tables = Dict{Symbol, DataFrame}(:parameters => parameters_df, :conditions => conditions_df, :observables => observables_df, :measurements => measurements_df, :mapping => mappings_df, :hybridization => hybridization_df)
 
     # Build the initial value map (initial values as parameters are set in the reaction sys_mutated)
     sys_mutated = deepcopy(sys)

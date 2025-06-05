@@ -120,7 +120,7 @@ function _get_net_input_values(input_variables::Vector{Symbol}, netid::Symbol, n
 
         # If the input variable is a file, the complete path is added here, which simplifies
         # downstream processing
-        if _input_isfile(input_variable, petab_tables[:yaml])
+        if haskey(petab_tables, :yaml) && _input_isfile(input_variable, petab_tables[:yaml])
             path = _get_input_path(input_variable, petab_tables[:yaml], nnmodel.dirdata)
             push!(input_values, path)
             continue

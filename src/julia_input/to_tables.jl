@@ -169,27 +169,66 @@ end
 
 function _mapping_to_table(nnmodels::Dict{Symbol, <:NNModel})::DataFrame
     isempty(nnmodels) && return DataFrame()
-    df_mapping = DataFrame()
+    mappings_df = DataFrame()
     for (netid, nnmodel) in nnmodels
-        for (i, io_value) in pairs(nnmodel.inputs)
-            dftmp = DataFrame(Dict(
-                "modelEntityId" => "$(netid).input$i",
-                "petabEntityId" => string(io_value)))
-            df_mapping = vcat(df_mapping, dftmp)
+        for (i, input_id) in pairs(nnmodel.inputs)
+            if nnmodel.static == true
+                dftmp = DataFrame(Dict(
+                    "modelEntityId" => "$(netid).inputs[0][$(i-1)]",
+                    "petabEntityId" => string(input_id)))
+                mappings_df = vcat(mappings_df, dftmp)
+            else
+                dftmp = DataFrame(Dict(
+                    "modelEntityId" => "$(netid).inputs[0][$(i-1)]",
+                    "petabEntityId" => "__$(netid)__input$(i-1)"))
+                mappings_df = vcat(mappings_df, dftmp)
+            end
         end
-        for (i, io_value) in pairs(nnmodel.outputs)
-            dftmp = DataFrame(Dict(
-                "modelEntityId" => "$(netid).output$i",
-                "petabEntityId" => string(io_value)))
-            df_mapping = vcat(df_mapping, dftmp)
+        for (i, output_id) in pairs(nnmodel.outputs)
+            if nnmodel.static == true
+                dftmp = DataFrame(Dict(
+                    "modelEntityId" => "$(netid).outputs[0][$(i-1)]",
+                    "petabEntityId" => "__$(netid)__output$(i-1)"))
+                mappings_df = vcat(mappings_df, dftmp)
+            else
+                dftmp = DataFrame(Dict(
+                    "modelEntityId" => "$(netid).outputs[0][$(i-1)]",
+                    "petabEntityId" => string(output_id)))
+                mappings_df = vcat(mappings_df, dftmp)
+            end
         end
         dftmp = DataFrame(Dict(
                 "modelEntityId" => "$(netid).parameters",
                 "petabEntityId" => "$(netid)_parameters"))
-        df_mapping = vcat(df_mapping, dftmp)
+        mappings_df = vcat(mappings_df, dftmp)
     end
-    if !isempty(df_mapping)
-        _check_table(df_mapping, :mapping)
+    if !isempty(mappings_df)
+        _check_table(mappings_df, :mapping)
     end
-    return df_mapping
+    return mappings_df
+end
+
+function _hybridization_to_table(nnmodels::Dict{Symbol, <:NNModel}, parameters_df::DataFrame, conditions_df::DataFrame)::DataFrame
+    hybridization_df = DataFrame()
+    for (netid, nnmodel) in nnmodels
+
+        for (i, input_id) in pairs(string.(nnmodel.inputs))
+            if nnmodel.static == true
+                input_id in parameters_df.parameterId && continue
+                input_id in names(conditions_df) && continue
+                dftmp = DataFrame(targetId = input_id, targetValue = "__$(netid)__input$(i-1)")
+                hybridization_df = vcat(hybridization_df, dftmp)
+            else
+                dftmp = DataFrame(targetId = "__$(netid)__input$(i-1)", targetValue = input_id)
+                hybridization_df = vcat(hybridization_df, dftmp)
+            end
+        end
+
+        for (i, output_id) in pairs(string.(nnmodel.outputs))
+            nnmodel.static == false && continue
+            dftmp = DataFrame(targetId = output_id, targetValue = "__$(netid)__output$(i-1)")
+            hybridization_df = vcat(hybridization_df, dftmp)
+        end
+    end
+    return hybridization_df
 end
