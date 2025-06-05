@@ -18,10 +18,14 @@ function PEtab.load_nnmodels(path_yaml::String)::Dict{Symbol, <:PEtab.NNModel}
     return nnmodels
 end
 
-function PEtab.NNModel(net::Union{Lux.Chain, Lux.CompactLuxLayer}; static::Bool = true, dirdata = nothing, inputs::Vector{T} = Symbol[], outputs::Vector{T} = Symbol[], input_info::Vector{String} = String[], output_info = String[], freeze_info::Union{Nothing, Dict} = nothing)::NNModel where T <: Union{String, Symbol}
+function PEtab.NNModel(net::Union{Lux.Chain, Lux.CompactLuxLayer}; st = nothing, static::Bool = true, dirdata = nothing, inputs::Vector{T} = Symbol[], outputs::Vector{T} = Symbol[], input_info::Vector{String} = String[], output_info = String[], freeze_info::Union{Nothing, Dict} = nothing)::NNModel where T <: Union{String, Symbol}
     # Set frozen parameters if applicable
     rng = Random.default_rng()
-    st = Lux.initialstates(rng, net) |> f64
+    # st must be of type Float64 for numerical stability
+    if isnothing(st)
+        st = Lux.initialstates(rng, net)
+    end
+    st = st |> f64
     ps = Lux.initialparameters(rng, net) |> ComponentArray |> f64
     if !isnothing(freeze_info)
         for (layer_id, array_info) in freeze_info

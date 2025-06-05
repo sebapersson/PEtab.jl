@@ -10,7 +10,7 @@ nn22 = @compact(
     out = layer3(embed)
     @return out
 end
-nnmodels = Dict(:net4 => NNModel(nn22; static = false, inputs = [:prey, :preadtor], outputs = [:net4_output1, :net4_output2]))
+nnmodels = Dict(:net4 => NNModel(nn22; static = false, inputs = [:prey, :predator], outputs = [:net4_output1, :net4_output2]))
 path_h5 = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "net4_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn22) |> ComponentArray |> f64
 PEtab.set_ps_net!(pnn, path_h5, nn22)
