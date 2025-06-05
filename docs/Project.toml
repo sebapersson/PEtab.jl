@@ -25,7 +25,7 @@ Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"
 
 [compat]
 AdaptiveMCMC = "0.1.4"
-AdvancedHMC = "0.6, 0.7"
+AdvancedHMC = "0.6, 0.7, 0.8"
 Bijectors = "0.13, 0.15"
 Catalyst = "15"
 DataFrames = "1"
