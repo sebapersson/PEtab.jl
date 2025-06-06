@@ -1,30 +1,32 @@
-function _net!(out, x, pnn::DiffCache, inputs::DiffCache, map_nn::NNPreODEMap, nnmodel::NNModel)::Nothing
-    _pnn = get_tmp(pnn, x)
-    _pnn .= x[(map_nn.nxdynamic_inputs + 1):end]
-    if map_nn.file_input == false
-        _inputs = get_tmp(inputs, x)
-        _inputs[map_nn.iconstant_inputs] .= map_nn.constant_inputs
-        _inputs[map_nn.ixdynamic_inputs] .= x[1:map_nn.nxdynamic_inputs]
-    else
-        _inputs = convert.(eltype(x), map_nn.constant_inputs)
-    end
-
-    _out, st = nnmodel.nn(_inputs, _pnn, nnmodel.st)
-    nnmodel.st = st
-    out .= _out
-    return nothing
+"""Prepare neural network parameter vector."""
+function _prepare_net_params(param_cache::DiffCache, x, map_nn::NNPreODEMap)
+    tmp_params = get_tmp(param_cache, x)
+    tmp_params .= x[(map_nn.nxdynamic_inputs + 1):end]
+    return tmp_params
 end
-function _net!(out, x, pnn::ComponentArray, inputs::DiffCache, map_nn::NNPreODEMap, nnmodel::NNModel)::Nothing
+
+_prepare_net_params(params::ComponentArray, x, map_nn::NNPreODEMap) = params
+
+"""Assemble neural network input vector."""
+function _prepare_net_inputs(map_nn::NNPreODEMap, x, input_cache::DiffCache)
     if map_nn.file_input == false
-        _inputs = get_tmp(inputs, x)
-        _inputs[map_nn.iconstant_inputs] .= map_nn.constant_inputs
-        _inputs[map_nn.ixdynamic_inputs] .= x[1:map_nn.nxdynamic_inputs]
+        tmp_inputs = get_tmp(input_cache, x)
+        tmp_inputs[map_nn.iconstant_inputs] .= map_nn.constant_inputs
+        tmp_inputs[map_nn.ixdynamic_inputs] .= x[1:map_nn.nxdynamic_inputs]
     else
-        _inputs = convert.(eltype(x), map_nn.constant_inputs)
+        tmp_inputs = convert.(eltype(x), map_nn.constant_inputs)
     end
-    _out, st = nnmodel.nn(_inputs, pnn, nnmodel.st)
-    nnmodel.st = st
-    out .= _out
+    return tmp_inputs
+end
+
+function _net!(output, x_vec, net_params, input_cache::DiffCache,
+               map_nn::NNPreODEMap, nnmodel::NNModel)::Nothing
+    params = _prepare_net_params(net_params, x_vec, map_nn)
+    inputs = _prepare_net_inputs(map_nn, x_vec, input_cache)
+
+    net_out, new_state = nnmodel.nn(inputs, params, nnmodel.st)
+    nnmodel.st = new_state
+    output .= net_out
     return nothing
 end
 
@@ -43,13 +45,13 @@ end
 
 function _jac_nn_preode!(probinfo::PEtabODEProblemInfo, model_info::ModelInfo)::Nothing
     @unpack cache = probinfo
-    for (cid, f_nns_preode) in probinfo.f_nns_preode
-        for (netid, f_nn_preode) in f_nns_preode
+    for (cid, net_functions) in probinfo.f_nns_preode
+        for (netid, net_function) in net_functions
             # Only relevant if neural-network parameters are estimated, otherwise a normal
             # reverse pass of the code is fast
             !haskey(cache.xnn, netid) && continue
 
-            @unpack tape, jac_nn, outputs, computed, nn! = f_nn_preode
+            @unpack tape, jac_nn, outputs, computed, nn! = net_function
             # Parameter mapping. If one of the inputs is a parameter to estimate, the
             # Jacobian is also computed of the input parameter.
             map_nn = model_info.xindices.maps_nn_preode[cid][netid]
@@ -59,7 +61,7 @@ function _jac_nn_preode!(probinfo::PEtabODEProblemInfo, model_info::ModelInfo)::
             if map_nn.nxdynamic_inputs > 0
                 xdynamic_mech = get_tmp(cache.xdynamic_mech, 1.0)
                 xdynamic_mech_ps = transform_x(xdynamic_mech, model_info.xindices, :xdynamic_mech, cache)
-                _x = _get_f_nn_preode_x(f_nn_preode, xdynamic_mech_ps, pnn, map_nn)
+                _x = _get_f_nn_preode_x(net_function, xdynamic_mech_ps, pnn, map_nn)
                 ForwardDiff.jacobian!(jac_nn, nn!, _outputs, _x)
             else
                 ReverseDiff.jacobian!(jac_nn, tape, pnn)
@@ -71,28 +73,30 @@ function _jac_nn_preode!(probinfo::PEtabODEProblemInfo, model_info::ModelInfo)::
     return nothing
 end
 
-function _set_grad_x_nn_preode!(xdynamic_grad::AbstractVector, simid::Symbol, probinfo::PEtabODEProblemInfo, model_info::ModelInfo)::Nothing
+function _set_grad_x_nn_preode!(xdynamic_grad::AbstractVector, simid::Symbol,
+                                probinfo::PEtabODEProblemInfo,
+                                model_info::ModelInfo)::Nothing
     isempty(probinfo.f_nns_preode) && return nothing
     @unpack xindices_dynamic, maps_nn_preode = model_info.xindices
-    for (netid, f_nn_preode) in probinfo.f_nns_preode[simid]
-        map_nn = maps_nn_preode[simid][netid]
-        grad_nn_output = probinfo.cache.grad_nn_preode[map_nn.ix_nn_outputs]
+    for (netid, net_function) in probinfo.f_nns_preode[simid]
+        nn_map = maps_nn_preode[simid][netid]
+        output_grad = probinfo.cache.grad_nn_preode[nn_map.ix_nn_outputs]
         # Needed to account for neural-net parameter potentially not being estimated
         if haskey(xindices_dynamic, netid)
-            ix = Iterators.flatten((map_nn.ixdynamic_mech_inputs, xindices_dynamic[netid])) |>
+            ix = Iterators.flatten((nn_map.ixdynamic_mech_inputs, xindices_dynamic[netid])) |
                 collect
         else
-            ix = map_nn.ixdynamic_mech_inputs
+            ix = nn_map.ixdynamic_mech_inputs
         end
-        xdynamic_grad[ix] .+= vec(grad_nn_output' * f_nn_preode.jac_nn)
+        xdynamic_grad[ix] .+= vec(output_grad' * net_function.jac_nn)
     end
     return nothing
 end
 
 function _reset_nn_preode!(probinfo::PEtabODEProblemInfo)::Nothing
-    for f_nns_preode in values(probinfo.f_nns_preode)
-        for f_nn_preode in values(f_nns_preode)
-            f_nn_preode.computed[1] = false
+    for net_functions in values(probinfo.f_nns_preode)
+        for net_function in values(net_functions)
+            net_function.computed[1] = false
         end
     end
     return nothing
