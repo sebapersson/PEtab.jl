@@ -34,10 +34,6 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
                                                model_size)
     chunksize_use = isnothing(chunksize) ? 0 : chunksize
 
-    # Cache to avoid allocations to as large degree as possible. TODO: Refactor into single
-    cache = PEtabODEProblemCache(gradient_method_use, hessian_method_use, FIM_method_use,
-                                 sensealg_use, model_info)
-
     # Several things to note here:
     # 1. p and u0 needs to be Float64 to avoid potential problems later, as sometimes
     #  they end up being Int due to SBML model file structure

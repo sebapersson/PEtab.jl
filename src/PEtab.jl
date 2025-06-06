@@ -106,7 +106,6 @@ include(joinpath("neural_nets", "compute.jl"))
 include(joinpath("neural_nets", "templates.jl"))
 
 #=
-
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem
 @setup_workload begin
     path_yaml = joinpath(@__DIR__, "..", "test", "analytic_ss", "Test_model3.yaml")
@@ -117,6 +116,7 @@ include(joinpath("neural_nets", "templates.jl"))
         petab_problem.nllh(petab_problem.xnominal_transformed)
     end
 end
+=#
 
 # Functions that only appear in extension
 function compute_llh end

@@ -1,7 +1,4 @@
-function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol,
-                              FIM_method::Symbol, sensealg, model_info::ModelInfo,
-                              nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing}, split_over_conditions::Bool,
-                              oprob::ODEProblem)::PEtabODEProblemCache
+function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol, FIM_method::Symbol, sensealg, model_info::ModelInfo, nnmodels::Union{Dict{Symbol, <:NNModel}}, split_over_conditions::Bool, oprob::ODEProblem)::PEtabODEProblemCache
     @unpack xindices, model, simulation_info, petab_measurements, petab_parameters, petab_net_parameters = model_info
     nxestimate = length(xindices.xids[:estimate])
     nstates = model_info.nstates
