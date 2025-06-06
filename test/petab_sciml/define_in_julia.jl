@@ -1,30 +1,9 @@
 include(joinpath(@__DIR__, "helper.jl"))
 
 @testset "SciML model in Julia" begin
-    include(joinpath(@__DIR__, "001.jl"))
-    include(joinpath(@__DIR__, "002.jl"))
-    include(joinpath(@__DIR__, "003.jl"))
-    include(joinpath(@__DIR__, "004.jl"))
-    include(joinpath(@__DIR__, "005.jl"))
-    include(joinpath(@__DIR__, "006.jl"))
-    include(joinpath(@__DIR__, "007.jl"))
-    include(joinpath(@__DIR__, "008.jl"))
-    include(joinpath(@__DIR__, "009.jl"))
-    include(joinpath(@__DIR__, "010.jl"))
-    include(joinpath(@__DIR__, "011.jl"))
-    include(joinpath(@__DIR__, "012.jl"))
-    include(joinpath(@__DIR__, "013.jl"))
-    include(joinpath(@__DIR__, "016.jl"))
-    include(joinpath(@__DIR__, "017.jl"))
-    include(joinpath(@__DIR__, "018.jl"))
-    include(joinpath(@__DIR__, "019.jl"))
-    include(joinpath(@__DIR__, "020.jl"))
-    include(joinpath(@__DIR__, "021.jl"))
-    include(joinpath(@__DIR__, "022.jl"))
-    include(joinpath(@__DIR__, "023.jl"))
-    include(joinpath(@__DIR__, "024.jl"))
-    include(joinpath(@__DIR__, "025.jl"))
-    include(joinpath(@__DIR__, "026.jl"))
-    include(joinpath(@__DIR__, "027.jl"))
-    include(joinpath(@__DIR__, "028.jl"))
+    for i in 1:28
+        i in [14, 15] && continue
+        test_case = i > 10 ? "0$(i).jl" : "00$(i).jl"
+        include(joinpath(@__DIR__, test_case))
+    end
 end

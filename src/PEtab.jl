@@ -36,7 +36,7 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 
 const ModelSystem = Union{ODESystem, SDESystem, ReactionSystem, ODEProblem}
 const NonlinearAlg = Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}
-const PEtabTables = Dict{Symbol, <:Union{DataFrame, Dict}}
+const PEtabTables = Union{Dict{Symbol, Union{DataFrame, Dict}}}
 
 include(joinpath("structs", "petab_model.jl"))
 include(joinpath("structs", "petab_odeproblem.jl"))
