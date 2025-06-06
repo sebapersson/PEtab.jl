@@ -37,7 +37,7 @@ function get_odeproblem(res::EstimationResult, prob::PEtabODEProblem;
     @unpack model_info, probinfo = prob
     u0, p = _get_ps_u0(res, prob, cid, preeq_id, false)
     tmax = model_info.simulation_info.tmaxs[_get_cid(cid, model_info)]
-    odefun = ODEFunction(_get_system(prob.model_info.model.sys))
+    odefun = ODEFunction(_to_odesystem(prob.model_info.model.sys))
     oprob = ODEProblem(odefun, u0, [0.0, tmax], p)
     return oprob, model_info.model.callbacks
 end
@@ -271,11 +271,4 @@ function _get_preeq_id(preeq_id::Union{Nothing, Symbol, String},
         preeq_id = Symbol(preeq_id)
     end
     return preeq_id
-end
-
-function _get_system(sys::ReactionSystem)::ODESystem
-    return complete(convert(ODESystem, sys))
-end
-function _get_system(sys::ODESystem)::ODESystem
-    return sys
 end

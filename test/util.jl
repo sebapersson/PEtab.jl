@@ -2,14 +2,14 @@
     Test that the PEtab util functions return expected results
 =#
 
-using Catalyst, PEtab, OrdinaryDiffEqRosenbrock, Catalyst, DataFrames, Test
+using Catalyst, DataFrames, OrdinaryDiffEqRosenbrock, PEtab, Test
 @testset "util functions" begin
     # Test ability to retrive model parameters for specific model conditions
     # Model without pre-eq or condition specific parameters
     path_yaml = joinpath(@__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
     model = PEtabModel(path_yaml; build_julia_files=true, write_to_file=false, verbose=false)
     prob = PEtabODEProblem(model; verbose=false)
-    x = prob.xnominal_transformed .* 0.9
+    x = get_x(prob) .* 0.9
     nllh = prob.nllh(x)
     res = PEtabOptimisationResult(x ./ 0.9, 10.0, x, :Fides, 10, 10.0,
                                   Vector{Vector{Float64}}(undef, 0), Float64[],  true,  nothing)
@@ -38,7 +38,7 @@ using Catalyst, PEtab, OrdinaryDiffEqRosenbrock, Catalyst, DataFrames, Test
     model = PEtabModel(path_yaml; verbose=false, build_julia_files=true)
     prob = PEtabODEProblem(model; verbose=false, sparse_jacobian=false,
                            odesolver=ODESolver(Rodas5P(), abstol=1e-10, reltol=1e-10))
-    x = prob.xnominal_transformed .* 0.9
+    x = get_x(prob) .* 0.9
     nllh = prob.nllh(x)
     res = PEtabOptimisationResult(x ./ 0.9, 10.0, x, :Fides, 10, 10.0,
                                   Vector{Vector{Float64}}(undef, 0), Float64[],  true,  nothing)
@@ -52,7 +52,7 @@ using Catalyst, PEtab, OrdinaryDiffEqRosenbrock, Catalyst, DataFrames, Test
     path_yaml = joinpath(@__DIR__, "published_models", "Brannmark_JBC2010", "Brannmark_JBC2010.yaml")
     model = PEtabModel(path_yaml; build_julia_files = true, verbose=false)
     prob = PEtabODEProblem(model, verbose=false)
-    x = prob.xnominal_transformed .* 0.9
+    x = get_x(prob) .* 0.9
     nllh = prob.nllh(x)
     res = PEtabOptimisationResult(x ./ 0.9, 10.0, x, :Fides, 10, 10.0,
                                   Vector{Vector{Float64}}(undef, 0), Float64[],  true,  nothing)

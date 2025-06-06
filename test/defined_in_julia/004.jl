@@ -54,14 +54,14 @@ observables = Dict("obs_a" => PEtabObservable(scaling_A * A + offset_A, 1.0))
 # Create a PEtabODEProblem ReactionNetwork
 model_rn = PEtabModel(rn, observables, measurements, parameters;
                       simulation_conditions = simulation_conditions)
-petab_problem_rn = PEtabODEProblem(model_rn, verbose=false)
+petab_prob_rn = PEtabODEProblem(model_rn, verbose=false)
 # Create a PEtabODEProblem ODESystem
 model_sys = PEtabModel(sys, observables, measurements, parameters,
      simulation_conditions = simulation_conditions)
-petab_problem_sys = PEtabODEProblem(model_sys, verbose=false)
+petab_prob_sys = PEtabODEProblem(model_sys, verbose=false)
 
 # Compute negative log-likelihood
-nll_rn = petab_problem_rn.nllh(petab_problem_rn.xnominal_transformed)
-nll_sys = petab_problem_sys.nllh(petab_problem_sys.xnominal_transformed)
+nll_rn = petab_prob_rn.nllh(get_x(petab_prob_rn))
+nll_sys = petab_prob_sys.nllh(get_x(petab_prob_sys))
 @test nll_rn ≈ 5.69297960953693 atol=1e-3
 @test nll_sys ≈ 5.69297960953693 atol=1e-3

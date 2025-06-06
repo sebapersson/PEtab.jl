@@ -1,9 +1,3 @@
-using OrdinaryDiffEq
-using Catalyst
-using DataFrames
-using PEtab
-using Test
-
 function sol_compare_to(cbset, tstops)
     a0, b0, k1, k2 = [1.0, 0.0, 0.8, 0.6]
     _f! = function(du, u, p, t)

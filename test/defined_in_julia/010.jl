@@ -42,12 +42,12 @@ observables = Dict("obs_a" => PEtabObservable(A, :lin, 0.5))
 
 model_rn = PEtabModel(sys, observables, measurements, parameters; speciemap = speciemap,
                       simulation_conditions = simulation_conditions, )
-petab_problem_rn = PEtabODEProblem(model_rn, verbose=false)
+petab_prob_rn = PEtabODEProblem(model_rn, verbose=false)
 model_sys = PEtabModel(sys, observables, measurements, parameters,
      simulation_conditions = simulation_conditions)
-petab_problem_sys = PEtabODEProblem(model_sys, verbose=false)
+petab_prob_sys = PEtabODEProblem(model_sys, verbose=false)
 
-nll_rn = petab_problem_rn.nllh(petab_problem_rn.xnominal_transformed)
-nll_sys = petab_problem_sys.nllh(petab_problem_sys.xnominal_transformed)
+nll_rn = petab_prob_rn.nllh(get_x(petab_prob_rn))
+nll_sys = petab_prob_sys.nllh(get_x(petab_prob_sys))
 @test nll_rn ≈ 1.20628941926143 atol=1e-3
 @test nll_sys ≈ 1.20628941926143 atol=1e-3

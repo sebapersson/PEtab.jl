@@ -1,12 +1,10 @@
-using PEtab, Sundials, OrdinaryDiffEq, StyledStrings, Printf, NonlinearSolve,
-      Distributions, Catalyst, Test
+using PEtab, Sundials, OrdinaryDiffEqRosenbrock, OrdinaryDiffEqBDF, StyledStrings, Printf,
+    NonlinearSolve, Distributions, Catalyst, Test
 
 solver1 = ODESolver(Rodas5P())
 solver2 = ODESolver(CVODE_BDF(); abstol = 1e-3, reltol = 1e-8, maxiters = 1000)
-solver3 = ODESolver(Vern7())
 @test @sprintf("%s", solver1) == "ODESolver: Rodas5P with options (abstol, reltol, maxiters) = (1.0e-08, 1.0e-08, 1e+04)"
 @test @sprintf("%s", solver2) == "ODESolver: CVODE_BDF with options (abstol, reltol, maxiters) = (1.0e-03, 1.0e-08, 1e+03)"
-@test @sprintf("%s", solver3) == "ODESolver: Vern7 with options (abstol, reltol, maxiters) = (1.0e-08, 1.0e-08, 1e+04)"
 
 ss_solver1 = SteadyStateSolver(:Simulate)
 ss_solver2 = SteadyStateSolver(:Simulate; termination_check = :Newton)

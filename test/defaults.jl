@@ -3,7 +3,8 @@
     is handled correctly.
 =#
 
-using PEtab, SciMLSensitivity, OrdinaryDiffEq, Sundials, Test
+using OrdinaryDiffEqBDF, OrdinaryDiffEqRosenbrock, OrdinaryDiffEqSDIRK, PEtab,
+    SciMLSensitivity, Sundials, Test
 
 @testset "Test default options" begin
     # Check that we get correct default setting
