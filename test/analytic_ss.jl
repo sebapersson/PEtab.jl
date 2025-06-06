@@ -5,17 +5,17 @@
     with pre-equilibrium condition, where the steady-state can be solved for analytically.
  =#
 
-using PEtab, OrdinaryDiffEq, SciMLSensitivity, ForwardDiff, LinearAlgebra, Sundials,
+using PEtab, OrdinaryDiffEqRosenbrock, SciMLSensitivity, ForwardDiff, LinearAlgebra, Sundials,
       Test
 
 include(joinpath(@__DIR__, "common.jl"))
 
 function solve_algebraic_ss(model::PEtabModel, solver, tol::Float64, a::T1, b::T1, c::T1, d::T1) where T1<:Real
-    ofun = ODEFunction(model.sys_mutated, first.(model.speciemap), 
+    ofun = ODEFunction(model.sys_mutated, first.(model.speciemap),
                        first.(model.parametermap), jac=true)
     oprob = ODEProblem(ofun, last.(model.speciemap), (0.0, 9.7),
                        last.(model.parametermap))
-    oprob = remake(oprob, p = convert.(eltype(a), oprob.p), 
+    oprob = remake(oprob, p = convert.(eltype(a), oprob.p),
                    u0 = convert.(eltype(a), oprob.u0))
     sols = Array{ODESolution, 1}(undef, 2)
     oprob.p[1], oprob.p[5], oprob.p[6], oprob.p[3] = a, b, c, d
@@ -106,7 +106,9 @@ function test_nllh_grad_hess(model::PEtabModel, osolver::ODESolver, ss_solver::S
                       sensealg=QuadratureAdjoint(autojacvec=ReverseDiffVJP(true)))
     @test all(.≈(g, grad_ref; atol = 1e-3))
     g = _compute_grad(x, model, :Adjoint, osolver; ss_solver = ss_solver,
-                          sensealg=GaussAdjoint(autojacvec=ReverseDiffVJP(true)))
+                      sensealg=GaussAdjoint(autojacvec=ReverseDiffVJP(true)))
+    g = _compute_grad(x, model, :Adjoint, osolver; ss_solver = ss_solver,
+                      sensealg=GaussAdjoint(autojacvec=ReverseDiffVJP(true)))
     @test all(.≈(g, grad_ref; atol = 1e-3))
 
     H = _compute_hess(x, model, :ForwardDiff, osolver; ss_solver = ss_solver)

@@ -375,13 +375,11 @@ function __adjoint_sensitivities!(_du::AbstractVector,
     cb2 = nothing
     adj_prob = nothing
 
-    adj_prob, cb2, rcb = ODEAdjointProblem(sol, sensealg, solver, integrand, t,
-                                           compute_∂G∂u,
-                                           nothing, nothing, nothing, nothing, Val(true);
-                                           checkpoints = checkpoints,
+    adj_prob, cb2, rcb = ODEAdjointProblem(sol, sensealg, solver, integrand, cb, t,
+                                           compute_∂G∂u, nothing, nothing, nothing, nothing,
+                                           Val(true); checkpoints = checkpoints,
                                            callback = callback, abstol = abstol,
                                            reltol = reltol)
-
     tstops = SciMLSensitivity.ischeckpointing(sensealg, sol) ? checkpoints :
              similar(sol.t, 0)
 

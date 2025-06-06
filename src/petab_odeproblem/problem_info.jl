@@ -23,9 +23,10 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
 
     split_use = _get_split_over_conditions(split_over_conditions, model_info)
 
-    odesolver_use = _get_odesolver(odesolver, model_size, gradient_method_use)
-    odesolver_gradient_use = _get_odesolver(odesolver_gradient, model_size,
-                                            gradient_method_use;
+    odesolver_use = _get_odesolver(odesolver, model_size, false, gradient_method_use,
+                                   sensealg_use)
+    odesolver_gradient_use = _get_odesolver(odesolver_gradient, model_size, true,
+                                            gradient_method_use, sensealg_use;
                                             default_solver = odesolver_use)
     _ss_solver = _get_ss_solver(ss_solver)
     _ss_solver_gradient = _get_ss_solver(ss_solver_gradient)
@@ -33,7 +34,20 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
                                                model_size)
     chunksize_use = isnothing(chunksize) ? 0 : chunksize
 
-    _logging(:Build_ODEProblem, verbose)
+    # Cache to avoid allocations to as large degree as possible. TODO: Refactor into single
+    cache = PEtabODEProblemCache(gradient_method_use, hessian_method_use, FIM_method_use,
+                                 sensealg_use, model_info)
+
+    # Several things to note here:
+    # 1. p and u0 needs to be Float64 to avoid potential problems later, as sometimes
+    #  they end up being Int due to SBML model file structure
+    #  ODEFunction must be used because when going directly to ODEProblem MTKParameters
+    #  are used as parameter struct, however, MTKParameters are not yet compatiable
+    # 2. with SciMLSensitivity, and if remake is used to transform to parameter vector
+    #  an error is thrown. The order of p is given by model_info.xindices.xids[:sys],
+    #  (see conditions.jl for details) hence to set correct values for constant
+    #  parameters the parameter map must be reorded.
+    # 3. For ODEFunction an ODESystem is needed, hence ReactionSystems must be converted.
     btime = @elapsed begin
         oprob = _get_odeproblem(model.sys_mutated, model, model_info, specialize_level,
                                 sparse_jacobian_use)

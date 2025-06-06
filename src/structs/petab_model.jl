@@ -9,13 +9,17 @@ observable formula, or noise formula.
 
 ## Keyword Arguments
 
-- `lb::Float64 = 1e-3`: The lower parameter bound for parameter estimation.
-- `ub::Float64 = 1e3`: The upper parameter bound for parameter estimation.
+- `lb::Float64 = 1e-3`: The lower parameter bound for parameter estimation. Must 
+    be specified on the linear scale. For example, if `scale = :log10`, provide the 
+    bound as `1e-3` rather than `log10(1e-3)`.
+- `ub::Float64 = 1e3`: The upper parameter bound for parameter estimation. Must as for 
+    `lb` be provided on linear scale.
 - `scale::Symbol = :log10`: The scale on which to estimate the parameter. Allowed options
-    are `:log10` (default), `:log2` `:log`, and `:lin`. Estimating pest on the `log10`
+    are `:log10` (default), `:log2` `:log`, and `:lin`. Estimating on the `log10`
     scale typically improves performance and is recommended.
 - `prior = nothing`: An optional continuous univariate parameter prior distribution from
-    [Distributions.jl](https://github.com/JuliaStats/Distributions.jl).
+    [Distributions.jl](https://github.com/JuliaStats/Distributions.jl). The prior 
+    overrides any parameter bounds.
 - `prior_on_linear_scale = true`: Whether the prior is on the linear scale (default) or on
     the transformed scale. For example, if `scale = :log10` and
     `prior_on_linear_scale = false`, the prior acts on the transformed value; `log10(x)`.

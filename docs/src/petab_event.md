@@ -15,7 +15,6 @@ This tutorial covers how to specify two types of events: those triggered at spec
 ```@example 1
 using Catalyst, DataFrames, PEtab
 
-t = default_t()
 rn = @reaction_network begin
     @parameters S0 c3=1.0
     @species S(t)=S0
@@ -55,6 +54,7 @@ nothing # hide
 Time-triggered events are activated at specific time points. The trigger value can be either a constant value (e.g., `t == 2.0`) or a model parameter (e.g., `t == c2`). For example, to trigger an event at `t = 2`, where species `S` is updated as `S <- S + 2`, do:
 
 ```@example 1
+t = default_t()
 @unpack S = rn
 event = PEtabEvent(t == 2.0, S + 2, S)
 ```
