@@ -155,7 +155,7 @@ function hess_GN!(out::Matrix{T}, x::Vector{T}, _residuals_not_solveode::Functio
 
     # See comment in gradient.jl on Jacobian of neural-net
     if probinfo.split_over_conditions == true
-        _jac_nn_preode!(probinfo, model_info)
+        _jac_ml_model_preode!(probinfo, model_info)
     end
 
     fill!(out, 0.0)

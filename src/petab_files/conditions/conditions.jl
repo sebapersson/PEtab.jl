@@ -20,31 +20,31 @@ This function extracts which parameter is what type, and builds maps for correct
 the parameter during likelihood computations. It further accounts for parameters potentially
 only appearing in a certain simulation conditions.
 """
-function ParameterIndices(petab_tables::PEtabTables, sys::ModelSystem, parametermap, speciemap, nnmodels::Dict{Symbol, <:NNModel})::ParameterIndices
-    petab_parameters = PEtabParameters(petab_tables[:parameters], petab_tables[:mapping], nnmodels)
-    petab_net_parameters = PEtabNetParameters(petab_tables[:parameters], petab_tables[:mapping], nnmodels)
+function ParameterIndices(petab_tables::PEtabTables, sys::ModelSystem, parametermap, speciemap, ml_models::MLModels)::ParameterIndices
+    petab_parameters = PEtabParameters(petab_tables[:parameters], petab_tables[:mapping], ml_models)
+    petab_net_parameters = PEtabMLParameters(petab_tables[:parameters], petab_tables[:mapping], ml_models)
     petab_measurements = PEtabMeasurements(petab_tables[:measurements], petab_tables[:observables])
-    return ParameterIndices(petab_parameters, petab_net_parameters, petab_measurements, sys, parametermap, speciemap, petab_tables, nnmodels)
+    return ParameterIndices(petab_parameters, petab_net_parameters, petab_measurements, sys, parametermap, speciemap, petab_tables, ml_models)
 end
 function ParameterIndices(petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements, model::PEtabModel)::ParameterIndices
-    @unpack speciemap, parametermap, sys_mutated, petab_tables, nnmodels = model
-    petab_net_parameters = PEtabNetParameters(petab_tables[:parameters], petab_tables[:mapping], nnmodels)
-    return ParameterIndices(petab_parameters, petab_net_parameters, petab_measurements, sys_mutated, parametermap, speciemap, petab_tables, nnmodels)
+    @unpack speciemap, parametermap, sys_mutated, petab_tables, ml_models = model
+    petab_net_parameters = PEtabMLParameters(petab_tables[:parameters], petab_tables[:mapping], ml_models)
+    return ParameterIndices(petab_parameters, petab_net_parameters, petab_measurements, sys_mutated, parametermap, speciemap, petab_tables, ml_models)
 end
-function ParameterIndices(petab_parameters::PEtabParameters, petab_net_parameters::PEtabNetParameters, petab_measurements::PEtabMeasurements, sys::ModelSystem, parametermap, speciemap, petab_tables::PEtabTables, nnmodels::Union{Nothing, Dict{Symbol, <:NNModel}})::ParameterIndices
+function ParameterIndices(petab_parameters::PEtabParameters, petab_net_parameters::PEtabMLParameters, petab_measurements::PEtabMeasurements, sys::ModelSystem, parametermap, speciemap, petab_tables::PEtabTables, ml_models::Union{Nothing, MLModels})::ParameterIndices
     _check_conditionids(petab_tables, petab_measurements)
-    _check_mapping_table(petab_tables, nnmodels, petab_parameters, sys)
+    _check_mapping_table(petab_tables, ml_models, petab_parameters, sys)
 
-    xids = _get_xids(petab_parameters, petab_net_parameters, petab_measurements, sys, petab_tables, speciemap, parametermap, nnmodels)
+    xids = _get_xids(petab_parameters, petab_net_parameters, petab_measurements, sys, petab_tables, speciemap, parametermap, ml_models)
 
     # indices for mapping parameters correctly, e.g. from xest -> xdynamic etc...
     # TODO: SII is going to make this much easier (but the reverse will be harder)
-    xindices_est = _get_xindices_xest(xids, nnmodels)
-    xindices_dynamic = _get_xindices_dynamic(xids, nnmodels)
-    xindices_notsys = _get_xindices_notsys(xids, nnmodels)
+    xindices_est = _get_xindices_xest(xids, ml_models)
+    xindices_dynamic = _get_xindices_dynamic(xids, ml_models)
+    xindices_notsys = _get_xindices_notsys(xids, ml_models)
 
     # Maps for mapping to ODEProblem across conditions
-    odeproblem_map = _get_odeproblem_map(xids, nnmodels)
+    odeproblem_map = _get_odeproblem_map(xids, ml_models)
     condition_maps = _get_condition_maps(sys, parametermap, speciemap, petab_parameters, petab_tables, xids)
     # For each time-point we must build a map that stores if i) noise/obserable parameters
     # are constants, ii) should be estimated, iii) and corresponding index in parameter
@@ -56,7 +56,7 @@ function ParameterIndices(petab_parameters::PEtabParameters, petab_net_parameter
     # If a neural-network sets values for a subset of model parameters, for efficent AD on
     # said network, it is neccesary to pre-compute the input, pre-allocate the output,
     # and build a map for which parameters in xdynamic the network maps to.
-    nn_preode_maps = _get_nn_preode_maps(xids, petab_parameters, petab_tables, nnmodels, sys)
+    nn_preode_maps = _get_nn_preode_maps(xids, petab_parameters, petab_tables, ml_models, sys)
 
     xscale = _get_xscales(xids, petab_parameters)
     _get_xnames_ps!(xids, xscale)

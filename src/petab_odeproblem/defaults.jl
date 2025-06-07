@@ -55,7 +55,7 @@ function _get_size_xdynamic_sys(model_info::ModelInfo)::Int64
             nxdynamics_cond = length(map.ix_dynamic)
         end
     end
-    nxdynamics_nn = _get_n_net_parameters(model_info.model.nnmodels, xindices.xids[:nn_in_ode])
+    nxdynamics_nn = _get_n_ml_model_parameters(model_info.model.ml_models, xindices.xids[:ml_in_ode])
     return nxdynamics_const + nxdynamics_cond + nxdynamics_nn
 end
 

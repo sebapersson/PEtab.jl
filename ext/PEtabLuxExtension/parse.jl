@@ -1,24 +1,24 @@
-function PEtab.load_nnmodels(path_yaml::String)::Dict{Symbol, <:PEtab.NNModel}
+function PEtab.load_ml_models(path_yaml::String)::Dict{Symbol, <:PEtab.MLModel}
     problem_yaml = YAML.load_file(path_yaml)
     dirmodel = dirname(path_yaml)
     neural_nets = problem_yaml["extensions"]["sciml"]["neural_nets"]
-    nnmodels = Dict{Symbol, PEtab.NNModel}()
-    for (netid, netinfo) in neural_nets
+    ml_models = Dict{Symbol, PEtab.MLModel}()
+    for (ml_model_id, netinfo) in neural_nets
         path_net = joinpath(dirname(path_yaml), netinfo["location"])
         net, _ = PEtab.parse_to_lux(path_net)
         # With @compact Lux.jl does not allow freezing post model definition, hence the
         # layers to be frozen are extracted here, as well as their parameter values.
         # Given this information, the model is redefined.
-        _nnmodel = Dict(Symbol(netid) => PEtab.NNModel(net))
-        freeze_info = _get_freeze_info(Symbol(netid), _nnmodel, path_yaml)
+        _ml_model = Dict(Symbol(ml_model_id) => PEtab.MLModel(net))
+        freeze_info = _get_freeze_info(Symbol(ml_model_id), _ml_model, path_yaml)
         net, _ = PEtab.parse_to_lux(path_net; freeze_info = freeze_info)
         static = netinfo["static"]
-        nnmodels[Symbol(netid)] = PEtab.NNModel(net; static = static, dirdata = dirmodel, freeze_info = freeze_info)
+        ml_models[Symbol(ml_model_id)] = PEtab.MLModel(net; static = static, dirdata = dirmodel, freeze_info = freeze_info)
     end
-    return nnmodels
+    return ml_models
 end
 
-function PEtab.NNModel(net::Union{Lux.Chain, Lux.CompactLuxLayer}; st = nothing, static::Bool = true, dirdata = nothing, inputs::Vector{T} = Symbol[], outputs::Vector{T} = Symbol[], input_info::Vector{String} = String[], output_info = String[], freeze_info::Union{Nothing, Dict} = nothing)::NNModel where T <: Union{String, Symbol}
+function PEtab.MLModel(net::Union{Lux.Chain, Lux.CompactLuxLayer}; st = nothing, static::Bool = true, dirdata = nothing, inputs::Vector{T} = Symbol[], outputs::Vector{T} = Symbol[], freeze_info::Union{Nothing, Dict} = nothing)::MLModel where T <: Union{String, Symbol}
     # Set frozen parameters if applicable
     rng = Random.default_rng()
     # st must be of type Float64 for numerical stability
@@ -37,16 +37,16 @@ function PEtab.NNModel(net::Union{Lux.Chain, Lux.CompactLuxLayer}; st = nothing,
     if isnothing(dirdata)
         dirdata = ""
     elseif !isdir(dirdata)
-        throw(PEtab.PEtabInputError("For a NNmodel dirdata keyword argument must be a \
+        throw(PEtab.PEtabInputError("For a ml_model dirdata keyword argument must be a \
             valid directory. This does not hold for $dirdata"))
     end
     if (!isempty(inputs) && isempty(outputs)) || (isempty(inputs) && !isempty(outputs))
-        throw(PEtab.PEtabInputError("If either input or output is provided to a NNModel \
+        throw(PEtab.PEtabInputError("If either input or output is provided to a ml_model \
             then both input and output must be provided"))
     end
     _inputs = Symbol.(inputs)
     _outputs = Symbol.(outputs)
-    return NNModel(net, st, ps, static, dirdata, _inputs, _outputs, input_info, output_info)
+    return MLModel(net, st, ps, static, dirdata, _inputs, _outputs)
 end
 
 function PEtab.parse_to_lux(path_yaml::String; freeze_info::Union{Nothing, Dict} = nothing)
@@ -218,19 +218,19 @@ function _parse_activation_function(step_output::String, step_input::String, ste
     return "$(step_output) = $(actinfo.fn)($args)"
 end
 
-function _get_freeze_info(netid::Symbol, nnmodels::Dict, path_yaml::String)::Dict
+function _get_freeze_info(ml_model_id::Symbol, ml_models::Dict, path_yaml::String)::Dict
     paths = PEtab._get_petab_paths(path_yaml)
     petab_tables = PEtab.read_tables(path_yaml)
-    petab_net_parameters = PEtab.PEtabNetParameters(petab_tables[:parameters], petab_tables[:mapping], nnmodels)
-    inet = findall(x -> x == netid, petab_net_parameters.netid)
+    petab_net_parameters = PEtab.PEtabMLParameters(petab_tables[:parameters], petab_tables[:mapping], ml_models)
+    inet = findall(x -> x == ml_model_id, petab_net_parameters.ml_model_id)
     all(petab_net_parameters.estimate[inet] .== false) && return Dict()
     all(petab_net_parameters.estimate[inet] .== true) && return Dict()
 
     rng = Random.default_rng()
-    ps, _ = Lux.setup(rng, nnmodels[netid].nn)
+    ps, _ = Lux.setup(rng, ml_models[ml_model_id].model)
     ps = ComponentArray(ps) |> f64
-    PEtab.set_ps_net!(ps, netid, nnmodels, paths, petab_tables)
-    netindices = PEtab._get_netindices(netid, petab_net_parameters.mapping_table_id)
+    PEtab.set_ml_model_ps!(ps, ml_model_id, ml_models, paths, petab_tables)
+    netindices = PEtab._get_netindices(ml_model_id, petab_net_parameters.mapping_table_id)
     freeze_info = Dict{Symbol, Dict}()
     for netindex in netindices[2:end]
         mapping_table_id = string(petab_net_parameters.mapping_table_id[netindex])

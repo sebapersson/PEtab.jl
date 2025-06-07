@@ -6,8 +6,8 @@
     the ODE solver, cost function, gradient and hessian is tested
  =#
 
-using PEtab, OrdinaryDiffEqRosenbrock, SciMLSensitivity, ForwardDiff, LinearAlgebra, CSV,
-    DataFrames, Test
+using PEtab, OrdinaryDiffEqRosenbrock, SciMLSensitivity, Sundials, ForwardDiff,
+    LinearAlgebra, CSV, DataFrames, Test
 
 include(joinpath(@__DIR__, "common.jl"))
 

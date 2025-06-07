@@ -1,6 +1,6 @@
 function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::AbstractVector,
                            xnn::Dict{Symbol, ComponentArray}, model_info::ModelInfo,
-                           cache::PEtabODEProblemCache, f_nns_preode::Dict{Symbol, Dict{Symbol, NNPreODE}};
+                           cache::PEtabODEProblemCache, ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreODE}};
                            sensitivites::Bool = false, simid::Union{Nothing, Symbol} = nothing)::ODEProblem
     @unpack xindices, model, nstates = model_info
     simid = isnothing(simid) ? cid : simid
@@ -20,14 +20,14 @@ function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::AbstractVec
 
     # Potential Neural-Network parameters (in this case p must be a ComponentArray) which
     # are inside the ODE
-    for (netid, xnet) in xnn
+    for (ml_model_id, xnet) in xnn
         !(p isa ComponentArray) && continue
-        !haskey(p, netid) && continue
-        p[netid] .= xnet
+        !haskey(p, ml_model_id) && continue
+        p[ml_model_id] .= xnet
     end
 
     # Potential ODE parameters which have their value assigned by a neural-net
-    _set_nn_preode_parameters!(p, xdynamic, xnn, simid, xindices, f_nns_preode)
+    _set_nn_preode_parameters!(p, xdynamic, xnn, simid, xindices, ml_models_pre_ode)
 
     # Initial state can depend on condition specific parameters
     model.u0!((@view u0[1:nstates]), p)
@@ -114,26 +114,26 @@ function _set_cond_const_parameters!(p::AbstractVector, xdynamic::AbstractVector
     return nothing
 end
 
-function _set_nn_preode_parameters!(p::AbstractVector, xdynamic::AbstractVector, xnn, simid::Symbol, xindices::ParameterIndices, f_nns_preode::Dict{Symbol, Dict{Symbol, NNPreODE}})::Nothing
-    !haskey(f_nns_preode, simid) && return nothing
+function _set_nn_preode_parameters!(p::AbstractVector, xdynamic::AbstractVector, xnn, simid::Symbol, xindices::ParameterIndices, ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreODE}})::Nothing
+    !haskey(ml_models_pre_ode, simid) && return nothing
     maps_nns = xindices.maps_nn_preode[simid]
-    for (netid, f_nn_preode) in f_nns_preode[simid]
-        map_nn = maps_nns[netid]
+    for (ml_model_id, ml_model_pre_ode) in ml_models_pre_ode[simid]
+        map_ml_model = maps_nns[ml_model_id]
         # In case of neural nets being computed before the function call,
-        # f_nn_preode.outputs is already computed
-        outputs = get_tmp(f_nn_preode.outputs, p)
-        if f_nn_preode.computed[1] == false
+        # ml_model_pre_ode.outputs is already computed
+        outputs = get_tmp(ml_model_pre_ode.outputs, p)
+        if ml_model_pre_ode.computed[1] == false
             # Only if neural net parameters are estimated, otherwise pnn is not used to
             # set values in x (vector that might used for gradient computations)
-            if haskey(xnn, netid)
-                pnn = xnn[netid]
-                x = _get_f_nn_preode_x(f_nn_preode, xdynamic, pnn, map_nn)
+            if haskey(xnn, ml_model_id)
+                pnn = xnn[ml_model_id]
+                x = _get_ml_model_pre_ode_x(ml_model_pre_ode, xdynamic, pnn, map_ml_model)
             else
-                x = _get_f_nn_preode_x(f_nn_preode, xdynamic, map_nn)
+                x = _get_ml_model_pre_ode_x(ml_model_pre_ode, xdynamic, map_ml_model)
             end
-            f_nn_preode.nn!(outputs, x)
+            ml_model_pre_ode.forward!(outputs, x)
         end
-        p[map_nn.ioutput_sys] .= outputs
+        p[map_ml_model.ioutput_sys] .= outputs
     end
     return nothing
 end

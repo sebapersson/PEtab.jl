@@ -1,4 +1,4 @@
-function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, hybridization_df::DataFrame, nnmodels::Dict{Symbol, <:NNModel} , speciemap_input)
+function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, hybridization_df::DataFrame, ml_models::MLModels , speciemap_input)
     specie_ids = _get_state_ids(sys)
     speciemap_ids = _get_speciemap_ids(sys)
     default_values = _get_default_values(sys)
@@ -23,9 +23,9 @@ function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, hybridizatio
     # maps to a specie
     condition_variables = names(conditions_df)
     net_outputs = String[]
-    for nnmodel in values(nnmodels)
-        nnmodel.static == false && continue
-        for output_id in string.(nnmodel.outputs)
+    for ml_model in values(ml_models)
+        ml_model.static == false && continue
+        for output_id in string.(ml_model.outputs)
             if output_id in specie_ids
                 push!(net_outputs, output_id)
             end

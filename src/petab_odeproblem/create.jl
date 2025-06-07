@@ -236,14 +236,14 @@ function _get_bounds(model_info::ModelInfo, xnames::Vector{Symbol}, xnames_ps::V
         bounds = petab_parameters.upper_bounds[ix]
     end
     transform_x!(bounds, xnames_mech, xindices, to_xscale = true)
-    xmech_bounds = NamedTuple(xnames_mech .=> bounds)
+    xmech_bounds = NamedTuple(xnames_ps[ix_mech] .=> bounds)
 
     # Each network has its bounds as a ComponentArray
     xnames_nn = xnames[setdiff(1:length(xnames), ix_mech)]
     bounds = Vector{ComponentArray}(undef, length(xnames_nn))
-    for (i, netid) in pairs(xnames_nn)
-        nnmodel = model_info.model.nnmodels[netid]
-        bounds[i] = _get_nn_initialparameters(nnmodel)
+    for (i, ml_model_id) in pairs(xnames_nn)
+        ml_model = model_info.model.ml_models[ml_model_id]
+        bounds[i] = _get_ml_model_initialparameters(ml_model)
         if which == :lower
             bounds[i] .= -Inf
         else
@@ -257,7 +257,7 @@ end
 function _get_xnominal(model_info::ModelInfo, xnames::Vector{Symbol},
                        xnames_ps::Vector{Symbol}, transform::Bool)
     @unpack petab_parameters, xindices, model = model_info
-    @unpack nnmodels, paths, petab_tables = model
+    @unpack ml_models, paths, petab_tables = model
 
     # Mechanistic parameters which are returned as a Vector
     ix_mech = _get_ixnames_mech(xnames, petab_parameters)
@@ -272,10 +272,10 @@ function _get_xnominal(model_info::ModelInfo, xnames::Vector{Symbol},
     # Each network has its parameters as a ComponentArray
     xnames_nn = xnames[setdiff(1:length(xnames), ix_mech)]
     xnominal_nn = Vector{ComponentArray}(undef, length(xnames_nn))
-    for (i, netid) in pairs(xnames_nn)
-        nnmodel = model_info.model.nnmodels[netid]
-        psnet = _get_nn_initialparameters(nnmodel)
-        set_ps_net!(psnet, netid, nnmodels, paths, petab_tables)
+    for (i, ml_model_id) in pairs(xnames_nn)
+        ml_model = model_info.model.ml_models[ml_model_id]
+        psnet = _get_ml_model_initialparameters(ml_model)
+        set_ml_model_ps!(psnet, ml_model_id, ml_models, paths, petab_tables)
         xnominal_nn[i] = psnet
     end
     xnn = (xnames_nn .=> xnominal_nn) |> NamedTuple
@@ -291,7 +291,7 @@ function _get_xnominal_mech(xnames_mech::Vector{Symbol}, petab_parameters::PEtab
     return petab_parameters.nominal_value[ix]
 end
 
-function _get_xnames(petab_parameters::PEtabNetParameters)::Vector{Symbol}
+function _get_xnames(petab_parameters::PEtabMLParameters)::Vector{Symbol}
     ix = findall(x -> x == true, petab_parameters.estimate)
     return petab_parameters.parameter_id[ix]
 end

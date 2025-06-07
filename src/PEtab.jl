@@ -46,6 +46,7 @@ include(joinpath("structs", "inference.jl"))
 
 const EstimationResult = Union{PEtabOptimisationResult, PEtabMultistartResult,
                                Vector{<:AbstractFloat}, ComponentArray}
+const MLModels = Dict{Symbol, <:MLModel}
 
 include("common.jl")
 include("logging.jl")
@@ -101,9 +102,9 @@ include(joinpath("parameter_estimation", "startguesses.jl"))
 
 include(joinpath("util.jl"))
 
-include(joinpath("neural_nets", "common.jl"))
-include(joinpath("neural_nets", "compute.jl"))
-include(joinpath("neural_nets", "templates.jl"))
+include(joinpath("ml_models", "common.jl"))
+include(joinpath("ml_models", "pre_ode.jl"))
+include(joinpath("ml_models", "templates.jl"))
 
 #=
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem
@@ -127,18 +128,18 @@ function SDESolver end
 function llh end
 function PEtabSDEProblem end
 function _set_x_measurements_info! end
-function load_nnmodels end
-function _setup_nnmodels end
-function _get_psnets end
-function _get_nn_initialparameters end
-function set_ps_net! end
+function load_ml_models end
+function _setup_ml_models end
+function _get_ml_model_ps end
+function _get_ml_model_initialparameters end
+function set_ml_model_ps! end
 function _reshape_io_data end
-function NNModel end
+function ml_model end
 function parse_to_lux end
 function _reshape_array end
 function _get_initialisation_priors end
 
-export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel, NNModel,
+export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel, MLModel,
        PEtabODEProblem, remake, Fides, PEtabOptimisationResult, IpoptOptions,
        IpoptOptimizer, PEtabParameter, PEtabObservable, PEtabMultistartResult,
        get_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, get_system, PEtabEvent,
@@ -187,6 +188,6 @@ if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabStochasticDiffEq.jl"))
 end
 
-export to_chains, to_prior_scale, PEtabNetParameter
+export to_chains, to_prior_scale, PEtabMLParameter
 
 end

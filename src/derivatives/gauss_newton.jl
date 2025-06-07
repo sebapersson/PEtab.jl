@@ -125,9 +125,9 @@ function _residuals_cond!(residuals::T1, xnoise::T2, xobservable::T2, xnondynami
         # Model observable and noise
         mapxnoise = xindices.mapxnoise[imeasurement]
         mapxobservable = xindices.mapxobservable[imeasurement]
-        h = _h(u, t, p, xobservable, xnondynamic_mech, xnn, xnn_constant, model.h, mapxobservable, obsid, nominal_values, model.nnmodels)
+        h = _h(u, t, p, xobservable, xnondynamic_mech, xnn, xnn_constant, model.h, mapxobservable, obsid, nominal_values, model.ml_models)
         h_transformed = transform_observable(h, measurement_transforms[imeasurement])
-        σ = _sd(u, t, p, xnoise, xnondynamic_mech, xnn, xnn_constant, model.sd, mapxnoise, obsid, nominal_values, model.nnmodels)
+        σ = _sd(u, t, p, xnoise, xnondynamic_mech, xnn, xnn_constant, model.sd, mapxnoise, obsid, nominal_values, model.ml_models)
 
         y_transformed = measurement_transformed[imeasurement]
         residuals[imeasurement] = (h_transformed - y_transformed) / σ

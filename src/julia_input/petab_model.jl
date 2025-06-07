@@ -4,14 +4,14 @@ function PEtabModel(sys::ModelSystem, observables::Dict{String, PEtabObservable}
                     speciemap::Union{Nothing, AbstractVector} = nothing,
                     parametermap::Union{Nothing, AbstractVector} = nothing,
                     events::Union{PEtabEvent, AbstractVector, Nothing} = nothing,
-                    verbose::Bool = false, nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing} = nothing)::PEtabModel
+                    verbose::Bool = false, ml_models::Union{MLModels, Nothing} = nothing)::PEtabModel
     # One simulation condition is needed by the PEtab standard, if there is no such
     # creation a dummy is created
     if isnothing(simulation_conditions)
         simulation_conditions = Dict("__c0__" => Dict())
     end
     return _PEtabModel(sys, simulation_conditions, observables, measurements,
-                       parameters, speciemap, parametermap, events, verbose, nnmodels)
+                       parameters, speciemap, parametermap, events, verbose, ml_models)
 end
 
 function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
@@ -20,7 +20,7 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
                      speciemap::Union{Nothing, AbstractVector},
                      parametermap::Union{Nothing, AbstractVector},
                      events::Union{PEtabEvent, AbstractVector, Nothing}, verbose::Bool,
-                     nnmodels::Union{Dict{Symbol, <:NNModel}, Nothing})::PEtabModel
+                     ml_models::Union{MLModels, Nothing})::PEtabModel
     if sys isa ODESystem
         name = "ODESystemModel"
     elseif sys isa SDESystem
@@ -30,8 +30,8 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     else
         name = "ReactionSystemModel"
     end
-    nnmodels = isnothing(nnmodels) ? Dict{Symbol, NNModel}() : nnmodels
-    _set_nn_parameters!(nnmodels, parameters)
+    ml_models = isnothing(ml_models) ? Dict{Symbol, MLModel}() : ml_models
+    _set_nn_parameters!(ml_models, parameters)
 
     _logging(:Build_PEtabModel, verbose; name = name)
 
@@ -40,15 +40,15 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     observables_df = _observables_to_table(observables)
     conditions_df = _conditions_to_table(simulation_conditions)
     parameters_df = _parameters_to_table(parameters)
-    mappings_df = _mapping_to_table(nnmodels)
-    hybridization_df = _hybridization_to_table(nnmodels, parameters_df, conditions_df)
+    mappings_df = _mapping_to_table(ml_models)
+    hybridization_df = _hybridization_to_table(ml_models, parameters_df, conditions_df)
     petab_tables = Dict{Symbol, Union{DataFrame, Dict}}(:parameters => parameters_df, :conditions => conditions_df, :observables => observables_df, :measurements => measurements_df, :mapping => mappings_df, :hybridization => hybridization_df)
 
     # Build the initial value map (initial values as parameters are set in the reaction sys_mutated)
     sys_mutated = deepcopy(sys)
-    sys_mutated, speciemap_use = _get_speciemap(sys_mutated, conditions_df, hybridization_df, nnmodels, speciemap)
+    sys_mutated, speciemap_use = _get_speciemap(sys_mutated, conditions_df, hybridization_df, ml_models, speciemap)
     parametermap_use = _get_parametermap(sys_mutated, parametermap)
-    xindices = ParameterIndices(petab_tables, sys_mutated, parametermap_use, speciemap_use, nnmodels)
+    xindices = ParameterIndices(petab_tables, sys_mutated, parametermap_use, speciemap_use, ml_models)
     # Warn user if any variable is unassigned (and defaults to zero)
     _check_unassigned_variables(sys, speciemap_use, speciemap, :specie, parameters_df,
                                 conditions_df)
@@ -58,7 +58,7 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     _logging(:Build_u0_h_σ, verbose; exist = false)
     btime = @elapsed begin
         model_SBML = SBMLImporter.ModelSBML(name)
-        hstr, u0!str, u0str, σstr = parse_observables(name, Dict{Symbol, String}(), sys_mutated, petab_tables, xindices, speciemap_use, model_SBML, nnmodels, false)
+        hstr, u0!str, u0str, σstr = parse_observables(name, Dict{Symbol, String}(), sys_mutated, petab_tables, xindices, speciemap_use, model_SBML, ml_models, false)
         compute_h = @RuntimeGeneratedFunction(Meta.parse(hstr))
         compute_u0! = @RuntimeGeneratedFunction(Meta.parse(u0!str))
         compute_u0 = @RuntimeGeneratedFunction(Meta.parse(u0str))
@@ -89,5 +89,5 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     paths = Dict{Symbol, String}()
     return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan,
                       paths, sys, sys_mutated, parametermap_use, speciemap_use,
-                      petab_tables, cbset, true, nnmodels)
+                      petab_tables, cbset, true, ml_models)
 end

@@ -38,7 +38,7 @@ struct MapODEProblem
     sys_to_nn_preode_output::Vector{Int32}
 end
 
-struct NNPreODEMap{T1 <: Array{<:AbstractFloat}}
+struct MLModelPreODEMap{T1 <: Array{<:AbstractFloat}}
     constant_inputs::T1
     iconstant_inputs::Vector{Int32}
     ixdynamic_mech_inputs::Vector{Int32}
@@ -62,7 +62,7 @@ struct ParameterIndices
     mapxnoise::Vector{ObservableNoiseMap}
     map_odeproblem::MapODEProblem
     maps_conidition_id::Dict{Symbol, ConditionMap}
-    maps_nn_preode::Dict{Symbol, Dict{Symbol, NNPreODEMap}}
+    maps_nn_preode::Dict{Symbol, Dict{Symbol, MLModelPreODEMap}}
 end
 
 struct Priors
@@ -91,13 +91,13 @@ struct PEtabParameters
     nparameters_estimate::Int64
 end
 
-struct PEtabNetParameters{T <: Vector{<:Union{String, <:Float64}}}
+struct PEtabMLParameters{T <: Vector{<:Union{String, <:Float64}}}
     nominal_value::T
     lower_bounds::Vector{Float64}
     upper_bounds::Vector{Float64}
     parameter_id::Vector{Symbol}
     estimate::Vector{Bool}
-    netid::Vector{Symbol}
+    ml_model_id::Vector{Symbol}
     mapping_table_id::Vector{String}
     initialisation_priors::Vector{Function}
 end
@@ -168,7 +168,7 @@ end
 struct ModelInfo
     petab_measurements::PEtabMeasurements
     petab_parameters::PEtabParameters
-    petab_net_parameters::PEtabNetParameters
+    petab_net_parameters::PEtabMLParameters
     xindices::ParameterIndices
     simulation_info::SimulationInfo
     priors::Priors
@@ -178,8 +178,8 @@ end
 function ModelInfo(model::PEtabModel, sensealg, custom_values)::ModelInfo
     tables, cbs = model.petab_tables, model.callbacks
     petab_measurements = PEtabMeasurements(tables[:measurements], tables[:observables])
-    petab_parameters = PEtabParameters(tables[:parameters], tables[:mapping], model.nnmodels; custom_values = custom_values)
-    petab_net_parameters = PEtabNetParameters(tables[:parameters], tables[:mapping], model.nnmodels)
+    petab_parameters = PEtabParameters(tables[:parameters], tables[:mapping], model.ml_models; custom_values = custom_values)
+    petab_net_parameters = PEtabMLParameters(tables[:parameters], tables[:mapping], model.ml_models)
     xindices = ParameterIndices(petab_parameters, petab_measurements, model)
     simulation_info = SimulationInfo(cbs, petab_measurements, sensealg = sensealg)
     priors = Priors(xindices, tables[:parameters])
@@ -365,10 +365,10 @@ function SteadyStateSolver(alg::NonlinearAlg, abstol, reltol, maxiters)::SteadyS
                              nothing, nothing, false)
 end
 
-struct NNPreODE{T <: DiffCache}
-    nn!::Function
+struct MLModelPreODE{T <: DiffCache}
+    forward!::Function
     tape::Any
-    jac_nn::Matrix{Float64}
+    jac_ml_model::Matrix{Float64}
     outputs::T
     inputs::T
     x::T
@@ -392,7 +392,7 @@ struct PEtabODEProblemInfo{S1 <: ODESolver, S2 <: ODESolver, C <: PEtabODEProble
     cache::C
     split_over_conditions::Bool
     chunksize::Int64
-    f_nns_preode::Dict{Symbol, Dict{Symbol, NNPreODE}}
+    ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreODE}}
 end
 
 """

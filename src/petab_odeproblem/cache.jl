@@ -1,4 +1,4 @@
-function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol, FIM_method::Symbol, sensealg, model_info::ModelInfo, nnmodels::Union{Dict{Symbol, <:NNModel}}, split_over_conditions::Bool, oprob::ODEProblem)::PEtabODEProblemCache
+function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol, FIM_method::Symbol, sensealg, model_info::ModelInfo, ml_models::Union{MLModels}, split_over_conditions::Bool, oprob::ODEProblem)::PEtabODEProblemCache
     @unpack xindices, model, simulation_info, petab_measurements, petab_parameters, petab_net_parameters = model_info
     nxestimate = length(xindices.xids[:estimate])
     nstates = model_info.nstates
@@ -38,15 +38,15 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol, F
     xnn = Dict{Symbol, DiffCache}()
     xnn_dict = Dict{Symbol, ComponentArray}()
     xnn_constant = Dict{Symbol, ComponentArray}()
-    if !isnothing(nnmodels)
-        for (netid, nnmodel) in nnmodels
-            _p = _get_nn_initialparameters(nnmodel)
-            if netid in xindices.xids[:nn_est]
-                xnn[netid] = DiffCache(similar(_p); levels = level_cache)
-                xnn_dict[netid] = _p
+    if !isnothing(ml_models)
+        for (ml_model_id, ml_model) in ml_models
+            _p = _get_ml_model_initialparameters(ml_model)
+            if ml_model_id in xindices.xids[:ml_est]
+                xnn[ml_model_id] = DiffCache(similar(_p); levels = level_cache)
+                xnn_dict[ml_model_id] = _p
             else
-                set_ps_net!(_p, netid, nnmodel, model.paths, petab_net_parameters)
-                xnn_constant[netid] = _p
+                set_ml_model_ps!(_p, ml_model_id, ml_model, model.paths, petab_net_parameters)
+                xnn_constant[ml_model_id] = _p
             end
         end
     end
@@ -57,7 +57,7 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol, F
     xdynamic_tot = DiffCache(similar(_xdynamic_tot), chunksize, levels = level_cache)
     # For the gradient of parameters that are set via neural-network (needed for efficient
     # gradient of the neural network with the help of the chain rule)
-    grad_nn_preode = zeros(Float64, length(xindices.xids[:nn_preode_outputs]))
+    grad_nn_preode = zeros(Float64, length(xindices.xids[:ml_preode_outputs]))
 
     # Arrays needed in gradient compuations
     xdynamic_grad = zeros(Float64, nxdynamic_tot)
@@ -178,6 +178,6 @@ function _get_nx_forwardeqs(xindices::ParameterIndices, split_over_conditions::B
     else
         return (length(xindices.xindices_dynamic[:xdynamic_to_mech]) +
                 length(xindices.xindices_dynamic[:nn_in_ode]) +
-                length(xindices.xids[:nn_preode_outputs]))
+                length(xindices.xids[:ml_preode_outputs]))
     end
 end

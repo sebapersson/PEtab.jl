@@ -105,9 +105,9 @@ function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic_mec
         # Model observable and noise
         mapxnoise = xindices.mapxnoise[imeasurement]
         mapxobservable = xindices.mapxobservable[imeasurement]
-        h = _h(u, t, p, xobservable, xnondynamic_mech, xnn, xnn_constant, model.h, mapxobservable, obsid, nominal_values, model.nnmodels)
+        h = _h(u, t, p, xobservable, xnondynamic_mech, xnn, xnn_constant, model.h, mapxobservable, obsid, nominal_values, model.ml_models)
         h_transformed = transform_observable(h, measurement_transforms[imeasurement])
-        σ = _sd(u, t, p, xnoise, xnondynamic_mech, xnn, xnn_constant, model.sd, mapxnoise, obsid, nominal_values, model.nnmodels)
+        σ = _sd(u, t, p, xnoise, xnondynamic_mech, xnn, xnn_constant, model.sd, mapxnoise, obsid, nominal_values, model.ml_models)
 
         y_transformed = measurement_transformed[imeasurement]
         residual = (h_transformed - y_transformed) / σ

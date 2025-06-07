@@ -9,16 +9,16 @@ observable formula, or noise formula.
 
 ## Keyword Arguments
 
-- `lb::Float64 = 1e-3`: The lower parameter bound for parameter estimation. Must 
-    be specified on the linear scale. For example, if `scale = :log10`, provide the 
+- `lb::Float64 = 1e-3`: The lower parameter bound for parameter estimation. Must
+    be specified on the linear scale. For example, if `scale = :log10`, provide the
     bound as `1e-3` rather than `log10(1e-3)`.
-- `ub::Float64 = 1e3`: The upper parameter bound for parameter estimation. Must as for 
+- `ub::Float64 = 1e3`: The upper parameter bound for parameter estimation. Must as for
     `lb` be provided on linear scale.
 - `scale::Symbol = :log10`: The scale on which to estimate the parameter. Allowed options
     are `:log10` (default), `:log2` `:log`, and `:lin`. Estimating on the `log10`
     scale typically improves performance and is recommended.
 - `prior = nothing`: An optional continuous univariate parameter prior distribution from
-    [Distributions.jl](https://github.com/JuliaStats/Distributions.jl). The prior 
+    [Distributions.jl](https://github.com/JuliaStats/Distributions.jl). The prior
     overrides any parameter bounds.
 - `prior_on_linear_scale = true`: Whether the prior is on the linear scale (default) or on
     the transformed scale. For example, if `scale = :log10` and
@@ -61,8 +61,8 @@ function PEtabParameter(id::Union{Num, Symbol}; estimate::Bool = true,
                           sample_prior)
 end
 
-struct PEtabNetParameter{T <: AbstractFloat}
-    netid::Symbol
+struct PEtabMLParameter{T <: AbstractFloat}
+    ml_model_id::Symbol
     estimate::Bool
     value::Union{Nothing, ComponentVector{T}}
 end
@@ -154,16 +154,14 @@ end
 
 # TODO: Public so must document
 # TODO: For Julia interface later check if all fields are required
-mutable struct NNModel{T <: Any}
-    const nn::T
+mutable struct MLModel{T <: Any}
+    const model::T
     st::NamedTuple
     const ps::ComponentVector{Float64}
     const static::Bool
     const dirdata::String
     const inputs::Vector{Symbol}
     const outputs::Vector{Symbol}
-    const input_info::Vector{String}
-    const output_info::Vector{String}
 end
 
 """
@@ -217,5 +215,5 @@ struct PEtabModel
     petab_tables::PEtabTables
     callbacks::SciMLBase.DECallback
     defined_in_julia::Bool
-    nnmodels::Dict{Symbol, <:NNModel}
+    ml_models::Dict{Symbol, <:MLModel}
 end

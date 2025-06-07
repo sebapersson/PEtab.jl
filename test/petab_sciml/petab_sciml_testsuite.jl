@@ -3,11 +3,11 @@ include(joinpath(@__DIR__, "helper.jl"))
 @testset "PEtab SciML net import" begin
     for i in 1:51
         testcase = i < 10 ? "00$i" : "0$i"
-        # nnmodel must be loaded here to avoid world-problem
+        # ml_model must be loaded here to avoid world-problem
         dirtest = joinpath(@__DIR__, "test_cases", "net_import", "$testcase")
         yaml_test = YAML.load_file(joinpath(dirtest, "solutions.yaml"))
-        nnmodel, _ = PEtab.parse_to_lux(joinpath(dirtest, yaml_test["net_file"]))
-        test_netimport(testcase, nnmodel)
+        ml_model, _ = PEtab.parse_to_lux(joinpath(dirtest, yaml_test["net_file"]))
+        test_netimport(testcase, ml_model)
     end
 end
 
@@ -15,9 +15,9 @@ end
     for i in 1:28
         test_case = i < 10 ? "00$i" : "0$i"
         path_yaml = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "problem.yaml")
-        nnmodels = PEtab.load_nnmodels(path_yaml)
+        ml_models = PEtab.load_ml_models(path_yaml)
         osolver = ODESolver(Rodas5P(autodiff = false), abstol = 1e-10, reltol = 1e-10, maxiters=Int(1e6))
-        model = PEtabModel(path_yaml; nnmodels = nnmodels)
+        model = PEtabModel(path_yaml; ml_models = ml_models)
         for config in PROB_CONFIGS
             # Edge case for underperforming configuration. So even though support could be
             # added in theory, it is not priority
@@ -44,8 +44,8 @@ end
         test_case = i < 10 ? "00$i" : "0$i"
         path_yaml = joinpath(@__DIR__, "test_cases", "initialization", test_case, "petab",
                              "problem.yaml")
-        nnmodels = PEtab.load_nnmodels(path_yaml)
-        model = PEtabModel(path_yaml; nnmodels = nnmodels, verbose = false)
+        ml_models = PEtab.load_ml_models(path_yaml)
+        model = PEtabModel(path_yaml; ml_models = ml_models, verbose = false)
         test_init(test_case, model)
     end
 end

@@ -160,7 +160,7 @@ function _get_ix_S_simid(ixdynamic_simid, split_over_conditions::Bool, model_inf
         return ixdynamic_simid[:]
     end
     nx_forward_eqs = _get_nx_forwardeqs(model_info.xindices, split_over_conditions)
-    nx_nn_preode_outputs = length(model_info.xindices.xids[:nn_preode_outputs])
+    nx_nn_preode_outputs = length(model_info.xindices.xids[:ml_preode_outputs])
     istart = nx_forward_eqs - nx_nn_preode_outputs + 1
     return vcat(ixdynamic_simid, istart:nx_forward_eqs)
 end

@@ -7,9 +7,9 @@ function _G(u::AbstractVector, p, t::T, i::Integer, imeasurements_t_cid::Vector{
         obsid = observable_id[imeasurement]
         mapxnoise = xindices.mapxnoise[imeasurement]
         mapxobservable = xindices.mapxobservable[imeasurement]
-        h = _h(u, t, p, xobservable, xnondynamic_mech, xnn, xnn_constant, model.h, mapxobservable, obsid, nominal_values, model.nnmodels)
+        h = _h(u, t, p, xobservable, xnondynamic_mech, xnn, xnn_constant, model.h, mapxobservable, obsid, nominal_values, model.ml_models)
         h_transformed = transform_observable(h, measurement_transforms[imeasurement])
-        σ = _sd(u, t, p, xnoise, xnondynamic_mech, xnn, xnn_constant, model.sd, mapxnoise, obsid, nominal_values, model.nnmodels)
+        σ = _sd(u, t, p, xnoise, xnondynamic_mech, xnn, xnn_constant, model.sd, mapxnoise, obsid, nominal_values, model.ml_models)
 
         y_transformed = petab_measurements.measurement_transformed[imeasurement]
         residual = (h_transformed - y_transformed) / σ
@@ -171,17 +171,17 @@ end
 
 function _get_xinput(simid::Symbol, x::Vector{<:AbstractFloat}, ixdynamic_simid, model_info::ModelInfo, probinfo::PEtabODEProblemInfo)
     @unpack xindices, simulation_info = model_info
-    ninode, npreode = length(ixdynamic_simid), length(xindices.xids[:nn_preode_outputs])
+    ninode, npreode = length(ixdynamic_simid), length(xindices.xids[:ml_preode_outputs])
     xinput = zeros(Float64, ninode + npreode)
     @views xinput[1:ninode] .= x[ixdynamic_simid]
-    if isempty(probinfo.f_nns_preode)
+    if isempty(probinfo.ml_models_pre_ode)
         return xinput
     end
-    for (netid, nn_preode) in probinfo.f_nns_preode[simid]
-        map_nn = model_info.xindices.maps_nn_preode[simid][netid]
+    for (ml_model_id, nn_preode) in probinfo.ml_models_pre_ode[simid]
+        map_ml_model = model_info.xindices.maps_nn_preode[simid][ml_model_id]
         outputs = get_tmp(nn_preode.outputs, xinput)
-        ix = map_nn.ix_nn_outputs_grad
-        ix .= map_nn.ix_nn_outputs .+ ninode
+        ix = map_ml_model.ix_nn_outputs_grad
+        ix .= map_ml_model.ix_nn_outputs .+ ninode
         @views xinput[ix] .= outputs
     end
     return xinput
@@ -190,13 +190,13 @@ end
 function _split_xinput!(probinfo::PEtabODEProblemInfo, simid::Symbol, model_info::ModelInfo, xinput::AbstractVector, ixdynamic_simid::Vector{Integer})::Nothing
     xdynamic_tot = get_tmp(probinfo.cache.xdynamic_tot, xinput)
     @views xdynamic_tot[ixdynamic_simid] .= xinput[1:length(ixdynamic_simid)]
-    if isempty(probinfo.f_nns_preode)
+    if isempty(probinfo.ml_models_pre_ode)
         return nothing
     end
-    for (netid, nn_preode) in probinfo.f_nns_preode[simid]
-        map_nn =  model_info.xindices.maps_nn_preode[simid][netid]
+    for (ml_model_id, nn_preode) in probinfo.ml_models_pre_ode[simid]
+        map_ml_model =  model_info.xindices.maps_nn_preode[simid][ml_model_id]
         outputs = get_tmp(nn_preode.outputs, xinput)
-        @views outputs .= xinput[map_nn.ix_nn_outputs_grad]
+        @views outputs .= xinput[map_ml_model.ix_nn_outputs_grad]
     end
     return nothing
 end

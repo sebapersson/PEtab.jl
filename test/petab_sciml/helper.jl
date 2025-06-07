@@ -42,12 +42,12 @@ function test_hybrid(test_case, petab_prob::PEtabODEProblem)
         @test grad_petab[id] ≈ gradmech_ref[iref, :value] atol=tol_grad
     end
     # Neural-net parameters
-    for (netid, nninfo) in petab_prob.model_info.model.nnmodels
-        !(netid in petab_prob.model_info.xindices.xids[:nn_est]) && continue
-        grad_test = grad_petab[netid]
-        path_ref = joinpath(dirtest, yamlfile["grad_files"][string(netid)])
+    for (ml_model_id, mm_model) in petab_prob.model_info.model.ml_models
+        !(ml_model_id in petab_prob.model_info.xindices.xids[:ml_est]) && continue
+        grad_test = grad_petab[ml_model_id]
+        path_ref = joinpath(dirtest, yamlfile["grad_files"][string(ml_model_id)])
         grad_ref = deepcopy(grad_test)
-        PEtab.set_ps_net!(grad_ref, path_ref, nninfo.nn)
+        PEtab.set_ml_model_ps!(grad_ref, path_ref, mm_model.model)
         @test all(.≈(grad_test, grad_ref; atol=tol_grad))
     end
     return nothing
@@ -60,18 +60,18 @@ function test_init(test_case, model::PEtabModel)::Nothing
 
     dirtest = joinpath(@__DIR__, "test_cases", "initialization", test_case)
     yamlfile = YAML.load_file(joinpath(dirtest, "solutions.yaml"))
-    for (netid, nnmodel) in petab_prob.model_info.model.nnmodels
-        netid = :net1
-        !haskey(yamlfile["parameter_files"], string(netid)) && continue
-        path_ref = joinpath(dirtest, yamlfile["parameter_files"][string(netid)])
-        ps_ref = deepcopy(x[netid])
-        PEtab.set_ps_net!(ps_ref, path_ref, nnmodel.nn)
-        @test ps_ref == x[netid]
+    for (ml_model_id, ml_model) in petab_prob.model_info.model.ml_models
+        ml_model_id = :net1
+        !haskey(yamlfile["parameter_files"], string(ml_model_id)) && continue
+        path_ref = joinpath(dirtest, yamlfile["parameter_files"][string(ml_model_id)])
+        ps_ref = deepcopy(x[ml_model_id])
+        PEtab.set_ml_model_ps!(ps_ref, path_ref, ml_model.model)
+        @test ps_ref == x[ml_model_id]
     end
     return nothing
 end
 
-function test_netimport(testcase, nnmodel)::Nothing
+function test_netimport(testcase, ml_model)::Nothing
     @info "Case $testcase"
     if testcase in ["003", "004", "005", "006", "007", "008", "009", "010", "014",
                     "015", "016", "017", "021", "022"]
@@ -82,7 +82,7 @@ function test_netimport(testcase, nnmodel)::Nothing
 
     dirtest = joinpath(@__DIR__, "test_cases", "net_import", "$testcase")
     yaml_test = YAML.load_file(joinpath(dirtest, "solutions.yaml"))
-    _ps, st = Lux.setup(rng, nnmodel)
+    _ps, st = Lux.setup(rng, ml_model)
     ps = ComponentArray(_ps)
 
     # Expected input and output orders (in Julia and PyTorch for correct mapping)
@@ -107,7 +107,7 @@ function test_netimport(testcase, nnmodel)::Nothing
 
         if haskey(yaml_test, "net_ps")
             path_h5 = joinpath(dirtest, yaml_test["net_ps"][j])
-            PEtab.set_ps_net!(ps, path_h5, nnmodel)
+            PEtab.set_ml_model_ps!(ps, path_h5, ml_model)
         end
 
         if haskey(yaml_test, "dropout")
@@ -115,13 +115,13 @@ function test_netimport(testcase, nnmodel)::Nothing
             output = zeros(size(output_ref))
             nsamples = yaml_test["dropout"]
             for i in 1:nsamples
-                _output, st = nnmodel(input, ps, st)
+                _output, st = ml_model(input, ps, st)
                 output .+= _output
             end
             output ./= nsamples
         else
             testtol = 1e-3
-            output, st = nnmodel(input, ps, st)
+            output, st = ml_model(input, ps, st)
         end
         @test all(.≈(output, output_ref; atol = testtol))
     end
@@ -131,7 +131,7 @@ end
 function get_mechanistic_ids(model_info::PEtab.ModelInfo)::Vector{Symbol}
     mechanistic_ids = Symbol[]
     for id in model_info.xindices.xids[:estimate]
-        id in model_info.xindices.xids[:nn] && continue
+        id in model_info.xindices.xids[:ml] && continue
         push!(mechanistic_ids, id)
     end
     return mechanistic_ids

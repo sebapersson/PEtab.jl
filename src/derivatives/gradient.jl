@@ -78,7 +78,7 @@ function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveod
     # Get the Jacobians of Neural-Networks that set values for potential model parameters.
     # By then taking the gradient on the output of these networks, and computing a vjp,
     # the gradient can be computed in minumum number of forward-passes
-    _jac_nn_preode!(probinfo, model_info)
+    _jac_ml_model_preode!(probinfo, model_info)
 
     # A gradient is computed for each condition-id, only using parameter present for
     # said condition
@@ -138,7 +138,7 @@ function grad_forward_eqs!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fu
 
     # See comment above on Jacobian for neural-nets pre ODE-solving
     if probinfo.split_over_conditions == true  || probinfo.sensealg != :ForwardDiff
-        _jac_nn_preode!(probinfo, model_info)
+        _jac_ml_model_preode!(probinfo, model_info)
     end
 
     _grad_forward_eqs!(cache.xdynamic_grad, _solve_conditions!, probinfo, model_info,

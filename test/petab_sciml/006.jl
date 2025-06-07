@@ -10,10 +10,10 @@ nn6 = @compact(
     out = layer3(embed)
     @return out
 end
-nnmodels = Dict(:net1 => NNModel(nn6; static = true, inputs = [:net1_input_pre1, :net1_input_pre2_est], outputs = [:gamma]))
+ml_models = Dict(:net1 => MLModel(nn6; static = true, inputs = [:net1_input_pre1, :net1_input_pre2_est], outputs = [:gamma]))
 path_h5 = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "net1_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn6) |> ComponentArray |> f64
-PEtab.set_ps_net!(pnn, path_h5, nn6)
+PEtab.set_ml_model_ps!(pnn, path_h5, nn6)
 
 function lv6!(du, u, p, t)
     prey, predator = u
@@ -32,7 +32,7 @@ p_beta = PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9)
 p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)
 p_input1 = PEtabParameter(:net1_input_pre1; scale = :lin, lb = 0.0, ub = 15.0, value = 1.0, estimate = false)
 p_input2 = PEtabParameter(:net1_input_pre2_est; scale = :lin, lb = 0.0, ub = 15.0, value = 1.0, estimate = true)
-p_net1 = PEtabNetParameter(:net1, true, pnn)
+p_net1 = PEtabMLParameter(:net1, true, pnn)
 pest = [p_alpha, p_beta, p_delta, p_input1, p_input2, p_net1]
 
 conds = Dict("cond1" => Dict{Symbol, Symbol}())
@@ -44,7 +44,7 @@ obs = Dict("prey_o" => obs_prey, "predator_o" => obs_predator)
 path_m = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "measurements.tsv")
 measurements = CSV.read(path_m, DataFrame)
 
-model = PEtabModel(uprob, obs, measurements, pest; nnmodels = nnmodels,
+model = PEtabModel(uprob, obs, measurements, pest; ml_models = ml_models,
                    simulation_conditions = conds)
 osolver = ODESolver(Rodas5P(autodiff = false), abstol = 1e-10, reltol = 1e-10)
 petab_prob = PEtabODEProblem(model; odesolver = osolver, gradient_method = :ForwardDiff,

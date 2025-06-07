@@ -50,14 +50,14 @@ function _get_map_observable_noise(xids::Vector{Symbol},
     return maps
 end
 
-function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nnmodels::Dict{Symbol, <:NNModel})::MapODEProblem
+function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, ml_models::MLModels)::MapODEProblem
     dynamic_to_sys, sys_to_dynamic = Int32[], Int32[]
     sys_to_dynamic_nn, sys_to_nn_preode_output = Int32[], Int32[]
     for (i, id_xdynmaic) in pairs(xids[:dynamic_mech])
         isys = 1
         for id_sys in xids[:sys]
-            if id_sys in xids[:nn_est]
-                isys += _get_n_net_parameters(nn, [id_sys])
+            if id_sys in xids[:ml_est]
+                isys += _get_n_ml_model_parameters(nn, [id_sys])
                 continue
             end
             if id_sys == id_xdynmaic
@@ -68,11 +68,11 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nnmodels::Dict{
             isys += 1
         end
     end
-    for id_nn_output in xids[:nn_preode_outputs]
+    for id_nn_output in xids[:ml_preode_outputs]
         isys = 1
         for id_sys in xids[:sys]
-            if id_sys in xids[:nn_est]
-                isys += _get_n_net_parameters(nn, [id_sys])
+            if id_sys in xids[:ml_est]
+                isys += _get_n_ml_model_parameters(nn, [id_sys])
                 continue
             end
             if id_sys == id_nn_output
@@ -84,8 +84,8 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, nnmodels::Dict{
     end
     isys = 0
     for id_sys in xids[:sys]
-        if id_sys in xids[:nn_est]
-            sys_to_dynamic_nn = vcat(sys_to_dynamic_nn, _get_xindices_net(id_sys, isys, nnmodels))
+        if id_sys in xids[:ml_est]
+            sys_to_dynamic_nn = vcat(sys_to_dynamic_nn, _get_xindices_net(id_sys, isys, ml_models))
             isys = sys_to_dynamic_nn[end]
             continue
         end
@@ -184,9 +184,9 @@ function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_pa
     return maps
 end
 
-function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, petab_tables::PEtabTables, nnmodels::Dict{Symbol, <:NNModel}, sys::ModelSystem)::Dict{Symbol, Dict{Symbol, NNPreODEMap}}
-    maps = Dict{Symbol, Dict{Symbol, NNPreODEMap}}()
-    isempty(xids[:nn_preode]) && return maps
+function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, petab_tables::PEtabTables, ml_models::MLModels, sys::ModelSystem)::Dict{Symbol, Dict{Symbol, MLModelPreODEMap}}
+    maps = Dict{Symbol, Dict{Symbol, MLModelPreODEMap}}()
+    isempty(xids[:ml_preode]) && return maps
 
     mappings_df = petab_tables[:mapping]
     conditions_df = petab_tables[:conditions]
@@ -194,13 +194,13 @@ function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameter
     nconditions = nrow(conditions_df)
     for i in 1:nconditions
         conditionid = conditions_df[i, :conditionId] |> Symbol
-        maps_nn = Dict{Symbol, NNPreODEMap}()
-        for netid in xids[:nn_preode]
+        maps_nn = Dict{Symbol, MLModelPreODEMap}()
+        for ml_model_id in xids[:ml_preode]
             # Get values for the inputs. For the pre-ODE inputs can either be constant
             # values (numeric) or a parameter, which is treated as a xdynamic parameter
             file_input = false
-            inputs = _get_net_petab_variables(mappings_df, netid, :inputs) .|> Symbol
-            input_values = _get_net_input_values(inputs, netid, nnmodels[netid], DataFrame(conditions_df[i, :]), petab_tables, petab_parameters, sys; keep_numbers = true)
+            inputs = _get_net_petab_variables(mappings_df, ml_model_id, :inputs) .|> Symbol
+            input_values = _get_net_input_values(inputs, ml_model_id, ml_models[ml_model_id], DataFrame(conditions_df[i, :]), petab_tables, petab_parameters, sys; keep_numbers = true)
             ninputs = length(input_values)
             constant_inputs, iconstant_inputs = zeros(Float64, 0), zeros(Int32, 0)
             ixdynamic_mech_inputs, ixdynamic_inputs = zeros(Int32, 0), zeros(Int32, 0)
@@ -209,7 +209,7 @@ function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameter
                     if length(input_values) > 1
                         throw(PEtabInputError("If input to neural net is a file, only one \
                             input can be provided in the mapping table. This does not \
-                            hold for $netid"))
+                            hold for $ml_model_id"))
                     end
                     # TODO: Add support for multiple inputs here, when the time comes
                     input_data = h5read(string(input_variable), "input1") .|> Float64
@@ -244,13 +244,13 @@ function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameter
             nxdynamic_inputs = length(ixdynamic_mech_inputs)
 
             # Indicies for correctly mapping the output. The outputs are stored in a
-            # separate vector of order xids[:nn_preode_outputs], which ix_nn_outputs
+            # separate vector of order xids[:ml_preode_outputs], which ix_nn_outputs
             # stores the index for. The outputs maps to parameters in sys, which
             # ix_output_sys stores. Lastly, for split_over_conditions = true the
             # gradient of the output variables is needed, ix_outputs_grad stores
             # the indices in xdynamic_grad for the outputs (the indices depend on the
             # condition so the Vector is only pre-allocated here).
-            output_variables = _get_net_petab_variables(mappings_df, netid, :outputs)
+            output_variables = _get_net_petab_variables(mappings_df, ml_model_id, :outputs)
             outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
             output_targets = Symbol.(outputs_df.targetId)
             noutputs = length(output_targets)
@@ -258,12 +258,12 @@ function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameter
             ix_output_sys = zeros(Int32, noutputs)
             ix_outputs_grad = zeros(Int32, noutputs)
             for (i, output_target) in pairs(output_targets)
-                io = findfirst(x -> x == output_target, xids[:nn_preode_outputs])
+                io = findfirst(x -> x == output_target, xids[:ml_preode_outputs])
                 ix_nn_outputs[i] = io
                 isys = 1
                 for id_sys in xids[:sys]
-                    if id_sys in xids[:nn_est]
-                        isys += (_get_n_net_parameters(nn, [id_sys]) - 1)
+                    if id_sys in xids[:ml_est]
+                        isys += (_get_n_ml_model_parameters(nn, [id_sys]) - 1)
                     end
                     if id_sys == output_target
                         ix_output_sys[i] = isys
@@ -272,7 +272,7 @@ function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameter
                     isys += 1
                 end
             end
-            maps_nn[netid] = NNPreODEMap(constant_inputs, iconstant_inputs, ixdynamic_mech_inputs, ixdynamic_inputs, ninputs, nxdynamic_inputs, noutputs, ix_nn_outputs, ix_outputs_grad, ix_output_sys, file_input)
+            maps_nn[ml_model_id] = MLModelPreODEMap(constant_inputs, iconstant_inputs, ixdynamic_mech_inputs, ixdynamic_inputs, ninputs, nxdynamic_inputs, noutputs, ix_nn_outputs, ix_outputs_grad, ix_output_sys, file_input)
         end
         maps[conditionid] = maps_nn
     end

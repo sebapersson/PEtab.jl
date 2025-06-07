@@ -20,25 +20,25 @@ function _check_conditionids(petab_tables::PEtabTables, petab_measurements::PEta
     return nothing
 end
 
-function _check_mapping_table(petab_tables::PEtabTables, nnmodels::Union{Nothing, Dict{Symbol, <:NNModel}}, petab_parameters::PEtabParameters, sys::ModelSystem)::Nothing
+function _check_mapping_table(petab_tables::PEtabTables, ml_models::Union{Nothing, MLModels}, petab_parameters::PEtabParameters, sys::ModelSystem)::Nothing
     mappings_df = petab_tables[:mapping]
     isempty(mappings_df) && return nothing
-    isempty(nnmodels) && return nothing
+    isempty(ml_models) && return nothing
 
     # Sanity check assigned assignments for static neural networks
-    for (netid, nnmodel) in nnmodels
-        nnmodel.static == false && continue
-        _check_static_net_inputs(petab_tables, petab_parameters, netid)
-        _check_static_net_outputs(petab_tables, petab_parameters, sys, netid)
+    for (ml_model_id, ml_model) in ml_models
+        ml_model.static == false && continue
+        _check_static_net_inputs(petab_tables, petab_parameters, ml_model_id)
+        _check_static_net_outputs(petab_tables, petab_parameters, sys, ml_model_id)
     end
     return nothing
 end
 
-function _check_static_net_inputs(petab_tables::PEtabTables, petab_parameters::PEtabParameters, netid::Symbol)::Nothing
+function _check_static_net_inputs(petab_tables::PEtabTables, petab_parameters::PEtabParameters, ml_model_id::Symbol)::Nothing
     conditions_df = petab_tables[:conditions]
     hybridization_df = petab_tables[:hybridization]
     mappings_df = petab_tables[:mapping]
-    input_variables = _get_net_petab_variables(mappings_df, netid, :inputs)
+    input_variables = _get_net_petab_variables(mappings_df, ml_model_id, :inputs)
     for input_variable in input_variables
         input_variable in hybridization_df.targetId && continue
         input_variable in names(conditions_df) && continue
@@ -52,14 +52,14 @@ function _check_static_net_inputs(petab_tables::PEtabTables, petab_parameters::P
     return nothing
 end
 
-function _check_static_net_outputs(petab_tables::PEtabTables, petab_parameters::PEtabParameters, sys::ModelSystem, netid::Symbol)::Nothing
+function _check_static_net_outputs(petab_tables::PEtabTables, petab_parameters::PEtabParameters, sys::ModelSystem, ml_model_id::Symbol)::Nothing
     hybridization_df = petab_tables[:hybridization]
     mappings_df = petab_tables[:mapping]
     state_ids = _get_state_ids(sys) .|> Symbol
     xids_sys = _get_xids_sys(sys)
     x_estimate = petab_parameters.parameter_id[petab_parameters.estimate]
 
-    output_variables = _get_net_petab_variables(mappings_df, netid, :outputs)
+    output_variables = _get_net_petab_variables(mappings_df, ml_model_id, :outputs)
     outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
     for i in 1:nrow(outputs_df)
         output_variable = outputs_df.targetValue

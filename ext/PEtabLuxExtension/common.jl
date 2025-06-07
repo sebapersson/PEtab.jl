@@ -11,33 +11,33 @@ function PEtab._reshape_array(x, mapping)
     return xout
 end
 
-function PEtab._setup_nnmodels(nnmodels::Dict{Symbol, <:NNModel})::Dict
+function PEtab._setup_ml_models(ml_models::PEtab.MLModels)::Dict
     rng = Random.default_rng()
     nn = Dict()
-    for (netid, nnmodel) in nnmodels
-        _, _st = Lux.setup(rng, nnmodel[:net])
-        nn[netid] = [_st, nnmodel[:net]]
+    for (ml_model_id, ml_model) in ml_models
+        _, _st = Lux.setup(rng, ml_model[:net])
+        nn[ml_model_id] = [_st, ml_model[:net]]
     end
     return nn
 end
 
-function PEtab._get_psnets(nnmodels_in_ode::Dict)::Dict{Symbol, NamedTuple}
+function PEtab._get_ml_model_ps(ml_models_in_ode::Dict)::Dict{Symbol, NamedTuple}
     rng = Random.default_rng()
     pnns = Dict()
-    for (netid, nnmodel) in nnmodels_in_ode
-        _pnn, _ = Lux.setup(rng, nnmodel.nn)
-        pnns[netid] = _pnn
+    for (ml_model_id, ml_model) in ml_models_in_ode
+        _pnn, _ = Lux.setup(rng, ml_model.model)
+        pnns[ml_model_id] = _pnn
     end
     return pnns
 end
 
-function PEtab._get_n_net_parameters(nnmodel::PEtab.NNModel)
-    return Lux.LuxCore.parameterlength(nnmodel.nn)
+function PEtab._get_n_ml_model_parameters(ml_model::PEtab.MLModel)
+    return Lux.LuxCore.parameterlength(ml_model.model)
 end
 
-function PEtab._get_nn_initialparameters(nnmodel::PEtab.NNModel)::ComponentArray
+function PEtab._get_ml_model_initialparameters(ml_model::PEtab.MLModel)::ComponentArray
     rng = Random.default_rng(1)
-    return Lux.initialparameters(rng, nnmodel.nn) |> ComponentArray .|> Float64
+    return Lux.initialparameters(rng, ml_model.model) |> ComponentArray .|> Float64
 end
 
 function PEtab._reshape_io_data(x::Array{T})::Array{T} where T <: AbstractFloat

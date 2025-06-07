@@ -20,14 +20,14 @@ nn9_2 = @compact(
     out = layer3(embed)
     @return out
 end
-nnmodels = Dict(:net1 => NNModel(nn9_1; static = false, inputs = [:prey, :predator], outputs = [:net1_output1]),
-                :net2 => NNModel(nn9_2; static = false, inputs = [:alpha, :predator], outputs = [:net2_output1]))
+ml_models = Dict(:net1 => MLModel(nn9_1; static = false, inputs = [:prey, :predator], outputs = [:net1_output1]),
+                :net2 => MLModel(nn9_2; static = false, inputs = [:alpha, :predator], outputs = [:net2_output1]))
 path_h5 = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "net1_ps.hdf5")
 pnn1 = Lux.initialparameters(rng, nn9_1) |> ComponentArray |> f64
-PEtab.set_ps_net!(pnn1, path_h5, nn9_1)
+PEtab.set_ml_model_ps!(pnn1, path_h5, nn9_1)
 path_h5 = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "net2_ps.hdf5")
 pnn2 = Lux.initialparameters(rng, nn9_2) |> ComponentArray |> f64
-PEtab.set_ps_net!(pnn2, path_h5, nn9_2)
+PEtab.set_ml_model_ps!(pnn2, path_h5, nn9_2)
 
 function lv9!(du, u, p, t)
     prey, predator = u
@@ -45,8 +45,8 @@ p_alpha = PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3)
 p_beta = PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9)
 p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)
 p_gamma = PEtabParameter(:gamma; scale = :lin, lb = 0.0, ub = 15.0, value = 0.8)
-p_net1 = PEtabNetParameter(:net1, true, pnn1)
-p_net2 = PEtabNetParameter(:net2, true, pnn2)
+p_net1 = PEtabMLParameter(:net1, true, pnn1)
+p_net2 = PEtabMLParameter(:net2, true, pnn2)
 pest = [p_alpha, p_beta, p_delta, p_gamma, p_net1, p_net2]
 
 conds = Dict("cond1" => Dict{Symbol, Symbol}())
@@ -58,7 +58,7 @@ obs = Dict("prey_o" => obs_prey, "predator_o" => obs_predator)
 path_m = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "measurements.tsv")
 measurements = CSV.read(path_m, DataFrame)
 
-model = PEtabModel(uprob, obs, measurements, pest; nnmodels = nnmodels,
+model = PEtabModel(uprob, obs, measurements, pest; ml_models = ml_models,
                    simulation_conditions = conds)
 osolver = ODESolver(Rodas5P(autodiff = false), abstol = 1e-10, reltol = 1e-10)
 petab_prob = PEtabODEProblem(model; odesolver = osolver, gradient_method = :ForwardDiff,

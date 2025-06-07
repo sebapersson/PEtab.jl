@@ -54,7 +54,7 @@ function PEtab._grad_forward_eqs_cond!(grad::Vector{T}, xdynamic_tot::Vector{T},
     # of these are the output of neural-net, they are the inner-derivative needed to
     # compute the gradient of the neural-net. As usual, the outer Jacobian derivative has
     # already been computed, so the only thing left is to combine them
-    if !isempty(xindices.xids[:nn_preode_outputs])
+    if !isempty(xindices.xids[:ml_preode_outputs])
         ix = xindices.map_odeproblem.sys_to_nn_preode_output
         cache.grad_nn_preode .= _grad[ix]
         PEtab._set_grad_x_nn_preode!(grad, simid, probinfo, model_info)

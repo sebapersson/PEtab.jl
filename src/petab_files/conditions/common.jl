@@ -3,7 +3,7 @@ function _get_xindices(xids_subset::Vector{Symbol}, xids_est::Vector{Symbol})::V
 end
 
 function _get_xindices_net(pid::Symbol, istart::Integer, nn)::Vector{Int64}
-    np = _get_n_net_parameters(nn, [pid])
+    np = _get_n_ml_model_parameters(nn, [pid])
     return (istart+1):(istart + np)
 end
 

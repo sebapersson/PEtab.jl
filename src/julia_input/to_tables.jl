@@ -2,9 +2,9 @@ function _parameters_to_table(parameters::Vector)::DataFrame
     # Most validity check occurs later during table parsing
     parameters_df = DataFrame()
     for petab_paramter in parameters
-        if !(petab_paramter isa Union{PEtabParameter, PEtabNetParameter})
+        if !(petab_paramter isa Union{PEtabParameter, PEtabMLParameter})
             throw(PEtab.PEtabInputError("Input parameters to a PEtabModel must either \
-                be a PEtabParameter or a PEtabNetParameter."))
+                be a PEtabParameter or a PEtabMLParameter."))
         end
         row = _parse_petab_parameter(petab_paramter)
         parameters_df = vcat(parameters_df, row)
@@ -58,16 +58,16 @@ function _parse_petab_parameter(petab_parameter::PEtabParameter)::DataFrame
                     estimate = should_estimate)
     return row
 end
-function _parse_petab_parameter(petab_parameter::PEtabNetParameter)::DataFrame
-    @unpack netid, estimate, value = petab_parameter
+function _parse_petab_parameter(petab_parameter::PEtabMLParameter)::DataFrame
+    @unpack ml_model_id, estimate, value = petab_parameter
 
     if isnothing(value)
-        nominal_value = "$(netid)_julia_random"
+        nominal_value = "$(ml_model_id)_julia_random"
     else
-        nominal_value = "$(netid)_julia_provided"
+        nominal_value = "$(ml_model_id)_julia_provided"
     end
     should_estimate = estimate == true ? 1 : 0
-    row = DataFrame(parameterId = "$(netid)_parameters",
+    row = DataFrame(parameterId = "$(ml_model_id)_parameters",
                     parameterScale = "lin",
                     lowerBound = -Inf,
                     upperBound = Inf,
@@ -167,39 +167,39 @@ function _measurements_to_table(measurements::DataFrame, conditions::Dict)::Data
     return measurements_df
 end
 
-function _mapping_to_table(nnmodels::Dict{Symbol, <:NNModel})::DataFrame
-    isempty(nnmodels) && return DataFrame()
+function _mapping_to_table(ml_models::MLModels)::DataFrame
+    isempty(ml_models) && return DataFrame()
     mappings_df = DataFrame()
-    for (netid, nnmodel) in nnmodels
-        for (i, input_id) in pairs(nnmodel.inputs)
-            if nnmodel.static == true
+    for (ml_model_id, ml_model) in ml_models
+        for (i, input_id) in pairs(ml_model.inputs)
+            if ml_model.static == true
                 dftmp = DataFrame(Dict(
-                    "modelEntityId" => "$(netid).inputs[0][$(i-1)]",
+                    "modelEntityId" => "$(ml_model_id).inputs[0][$(i-1)]",
                     "petabEntityId" => string(input_id)))
                 mappings_df = vcat(mappings_df, dftmp)
             else
                 dftmp = DataFrame(Dict(
-                    "modelEntityId" => "$(netid).inputs[0][$(i-1)]",
-                    "petabEntityId" => "__$(netid)__input$(i-1)"))
+                    "modelEntityId" => "$(ml_model_id).inputs[0][$(i-1)]",
+                    "petabEntityId" => "__$(ml_model_id)__input$(i-1)"))
                 mappings_df = vcat(mappings_df, dftmp)
             end
         end
-        for (i, output_id) in pairs(nnmodel.outputs)
-            if nnmodel.static == true
+        for (i, output_id) in pairs(ml_model.outputs)
+            if ml_model.static == true
                 dftmp = DataFrame(Dict(
-                    "modelEntityId" => "$(netid).outputs[0][$(i-1)]",
-                    "petabEntityId" => "__$(netid)__output$(i-1)"))
+                    "modelEntityId" => "$(ml_model_id).outputs[0][$(i-1)]",
+                    "petabEntityId" => "__$(ml_model_id)__output$(i-1)"))
                 mappings_df = vcat(mappings_df, dftmp)
             else
                 dftmp = DataFrame(Dict(
-                    "modelEntityId" => "$(netid).outputs[0][$(i-1)]",
+                    "modelEntityId" => "$(ml_model_id).outputs[0][$(i-1)]",
                     "petabEntityId" => string(output_id)))
                 mappings_df = vcat(mappings_df, dftmp)
             end
         end
         dftmp = DataFrame(Dict(
-                "modelEntityId" => "$(netid).parameters",
-                "petabEntityId" => "$(netid)_parameters"))
+                "modelEntityId" => "$(ml_model_id).parameters",
+                "petabEntityId" => "$(ml_model_id)_parameters"))
         mappings_df = vcat(mappings_df, dftmp)
     end
     if !isempty(mappings_df)
@@ -208,25 +208,25 @@ function _mapping_to_table(nnmodels::Dict{Symbol, <:NNModel})::DataFrame
     return mappings_df
 end
 
-function _hybridization_to_table(nnmodels::Dict{Symbol, <:NNModel}, parameters_df::DataFrame, conditions_df::DataFrame)::DataFrame
+function _hybridization_to_table(ml_models::MLModels, parameters_df::DataFrame, conditions_df::DataFrame)::DataFrame
     hybridization_df = DataFrame()
-    for (netid, nnmodel) in nnmodels
+    for (ml_model_id, ml_model) in ml_models
 
-        for (i, input_id) in pairs(string.(nnmodel.inputs))
-            if nnmodel.static == true
+        for (i, input_id) in pairs(string.(ml_model.inputs))
+            if ml_model.static == true
                 input_id in parameters_df.parameterId && continue
                 input_id in names(conditions_df) && continue
-                dftmp = DataFrame(targetId = input_id, targetValue = "__$(netid)__input$(i-1)")
+                dftmp = DataFrame(targetId = input_id, targetValue = "__$(ml_model_id)__input$(i-1)")
                 hybridization_df = vcat(hybridization_df, dftmp)
             else
-                dftmp = DataFrame(targetId = "__$(netid)__input$(i-1)", targetValue = input_id)
+                dftmp = DataFrame(targetId = "__$(ml_model_id)__input$(i-1)", targetValue = input_id)
                 hybridization_df = vcat(hybridization_df, dftmp)
             end
         end
 
-        for (i, output_id) in pairs(string.(nnmodel.outputs))
-            nnmodel.static == false && continue
-            dftmp = DataFrame(targetId = output_id, targetValue = "__$(netid)__output$(i-1)")
+        for (i, output_id) in pairs(string.(ml_model.outputs))
+            ml_model.static == false && continue
+            dftmp = DataFrame(targetId = output_id, targetValue = "__$(ml_model_id)__output$(i-1)")
             hybridization_df = vcat(hybridization_df, dftmp)
         end
     end

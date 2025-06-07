@@ -55,10 +55,10 @@ function split_x!(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODE
     xnoise .= @view x[xi[:noise]]
     xnondynamic_mech = get_tmp(cache.xnondynamic_mech, x)
     xnondynamic_mech .= @view x[xi[:nondynamic_mech]]
-    for (netid, xnn) in cache.xnn
+    for (ml_model_id, xnn) in cache.xnn
         _xnn = get_tmp(xnn, x)
-        _xnn .= @view x[xi[netid]]
-        cache.xnn_dict[netid] = _xnn
+        _xnn .= @view x[xi[ml_model_id]]
+        cache.xnn_dict[ml_model_id] = _xnn
     end
     if xdynamic_tot == true
         xdynamic_tot = get_tmp(cache.xdynamic_tot, x)
@@ -70,11 +70,11 @@ end
 function split_xdynamic(xdynamic::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache)
     xdynamic_mech = get_tmp(cache.xdynamic_mech, xdynamic)
     xdynamic_mech .= @view xdynamic[xindices.xindices_dynamic[:xdynamic_to_mech]]
-    for (netid, xnn) in cache.xnn
-        netid in xindices.xids[:nn_nondynamic] && continue
+    for (ml_model_id, xnn) in cache.xnn
+        ml_model_id in xindices.xids[:ml_nondynamic] && continue
         _xnn = get_tmp(xnn, xdynamic)
-        _xnn .= @view xdynamic[xindices.xindices_dynamic[netid]]
-        cache.xnn_dict[netid] = _xnn
+        _xnn .= @view xdynamic[xindices.xindices_dynamic[ml_model_id]]
+        cache.xnn_dict[ml_model_id] = _xnn
     end
     return xdynamic_mech, cache.xnn_dict
 end
@@ -213,8 +213,8 @@ function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices;
     # Include parameters that potentially appear as only input to a neural-net. These
     # parameters are by default included in xdynamic (as they gouvern model dynamics)
     if !isempty(xindices.maps_nn_preode)
-        for map_nn in values(xindices.maps_nn_preode[simid])
-            ixdynamic = vcat(ixdynamic, map_nn.ixdynamic_mech_inputs)
+        for map_ml_model in values(xindices.maps_nn_preode[simid])
+            ixdynamic = vcat(ixdynamic, map_ml_model.ixdynamic_mech_inputs)
         end
     end
     if nn_preode == true || full_x == true

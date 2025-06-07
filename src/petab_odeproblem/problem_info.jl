@@ -45,7 +45,6 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
     #  parameters the parameter map must be reorded.
     # 3. For ODEFunction an ODESystem is needed, hence ReactionSystems must be converted.
     btime = @elapsed begin
-        _set_const_parameters!(model, model_info.petab_parameters)
         odeproblem = _get_odeproblem(model.sys_mutated, model, model_info, specialize_level, sparse_jacobian_use)
         odeproblem_gradient = _get_odeproblem_gradient(odeproblem, gradient_method_use, sensealg_use)
     end
@@ -53,7 +52,7 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
 
     # Cache to avoid allocations to as large degree as possible.
     cache = PEtabODEProblemCache(gradient_method_use, hessian_method_use, FIM_method_use,
-                                 sensealg_use, model_info, model.nnmodels, split_use, odeproblem)
+                                 sensealg_use, model_info, model.ml_models, split_use, odeproblem)
 
     # To build the steady-state solvers the ODEProblem (specifically its Jacobian)
     # is needed (which is the same for odeproblem and odeproblem_gradient). Not yet comptiable with
@@ -64,13 +63,13 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
 
     # For models with a neural net that feeds into model parameters, pre-build functions
     # for evaluating the neural-net and its Jacobian
-    f_nns_preode = _get_f_nns_preode(model_info, cache)
+    ml_models_pre_ode = _get_ml_models_pre_ode(model_info, cache)
 
     return PEtabODEProblemInfo(odeproblem, odeproblem_gradient, odesolver_use, odesolver_gradient_use,
                                ss_solver_use, ss_solver_gradient_use, gradient_method_use,
                                hessian_method_use, FIM_method_use, reuse_sensitivities,
                                sparse_jacobian_use, sensealg_use, sensealg_ss_use,
-                               cache, split_use, chunksize_use, f_nns_preode)
+                               cache, split_use, chunksize_use, ml_models_pre_ode)
 end
 
 function _get_odeproblem(sys::ODEProblem, ::PEtabModel, model_info::ModelInfo,
@@ -79,7 +78,7 @@ function _get_odeproblem(sys::ODEProblem, ::PEtabModel, model_info::ModelInfo,
     # Set constant parameter values (not done automatically as for a System based model)
     for (i, id) in pairs(petab_parameters.parameter_id)
         petab_parameters.estimate[i] == true && continue
-        id in xindices.xids[:nn] && continue
+        id in xindices.xids[:ml] && continue
         !haskey(sys.p, id) && continue
         sys.p[id] = petab_parameters.nominal_value[i]
     end
@@ -88,13 +87,14 @@ function _get_odeproblem(sys::ODEProblem, ::PEtabModel, model_info::ModelInfo,
     # adjoint gradient method
     odeproblem = remake(odeproblem, p = odeproblem.p[model_info.xindices.xids[:sys]])
     # Set potential constant neural net parameters in the ODE
-    for netid in xindices.xids[:nn_in_ode]
-        netid in xindices.xids[:nn_est] && continue
-        set_ps_net!((@view odeproblem.p[netid]), netid, model.nnmodels[netid], model.paths, petab_net_parameters)
+    for ml_model_id in xindices.xids[:ml_in_ode]
+        ml_model_id in xindices.xids[:ml_est] && continue
+        set_ml_model_ps!((@view odeproblem.p[ml_model_id]), ml_model_id, model.ml_models[ml_model_id], model.paths, petab_net_parameters)
     end
     return odeproblem
 end
 function _get_odeproblem(::ModelSystem, model::PEtabModel, model_info::ModelInfo, specialize_level, sparse_jacobian::Bool)::ODEProblem
+    _set_const_parameters!(model, model_info.petab_parameters)
     @unpack sys_mutated, speciemap, parametermap, defined_in_julia = model
     _parametermap = _reorder_parametermap(parametermap, model_info.xindices.xids[:sys])
     _u0 = first.(speciemap) .=> 0.0
@@ -110,36 +110,36 @@ function _to_odesystem(sys::ODESystem)::ODESystem
     return sys
 end
 
-function _get_f_nns_preode(model_info::ModelInfo, cache::PEtabODEProblemCache)::Dict{Symbol, Dict{Symbol, NNPreODE}}
-    f_nns_preode = Dict{Symbol, Dict{Symbol, NNPreODE}}()
+function _get_ml_models_pre_ode(model_info::ModelInfo, cache::PEtabODEProblemCache)::Dict{Symbol, Dict{Symbol, MLModelPreODE}}
+    ml_models_pre_ode = Dict{Symbol, Dict{Symbol, MLModelPreODE}}()
     for (cid, maps_nn) in model_info.xindices.maps_nn_preode
-        f_nn_preode = Dict{Symbol, NNPreODE}()
-        for (netid, map_nn) in maps_nn
-            @unpack ninputs, noutputs = map_nn
-            nnmodel = model_info.model.nnmodels[netid]
+        ml_model_pre_ode = Dict{Symbol, MLModelPreODE}()
+        for (ml_model_id, map_ml_model) in maps_nn
+            @unpack ninputs, noutputs = map_ml_model
+            ml_model = model_info.model.ml_models[ml_model_id]
             # If parameters are constant, they only need to be assigned here, as when
             # building the cache xnn_not_est has the correct values.
-            if netid in model_info.xindices.xids[:nn_est]
-                pnn = cache.xnn[netid]
+            if ml_model_id in model_info.xindices.xids[:ml_est]
+                pnn = cache.xnn[ml_model_id]
             else
-                pnn = cache.xnn_constant[netid]
+                pnn = cache.xnn_constant[ml_model_id]
             end
             inputs = DiffCache(zeros(Float64, ninputs), levels = 2)
             outputs = DiffCache(zeros(Float64, noutputs), levels = 2)
-            compute_nn! = let nnmodel = nnmodel, map_nn = map_nn, inputs = inputs, pnn = pnn
-                (out, x) -> _net!(out, x, pnn, inputs, map_nn, nnmodel)
+            compute_forward! = let ml_model = ml_model, map_ml_model = map_ml_model, inputs = inputs, pnn = pnn
+                (out, x) -> _net!(out, x, pnn, inputs, map_ml_model, ml_model)
             end
 
             # ReverseDiff.tape compatible (fastest on CPU, but only works if input is
             # known at compile-time)
-            if map_nn.nxdynamic_inputs == 0
-                if map_nn.file_input == false
-                    inputs_rev = map_nn.constant_inputs[map_nn.iconstant_inputs]
+            if map_ml_model.nxdynamic_inputs == 0
+                if map_ml_model.file_input == false
+                    inputs_rev = map_ml_model.constant_inputs[map_ml_model.iconstant_inputs]
                 else
-                    inputs_rev = map_nn.constant_inputs
+                    inputs_rev = map_ml_model.constant_inputs
                 end
-                compute_nn_rev! = let nnmodel = nnmodel, inputs_rev = inputs_rev
-                    (out, x) -> _net_reversediff!(out, x, inputs_rev, nnmodel)
+                compute_nn_rev! = let ml_model = ml_model, inputs_rev = inputs_rev
+                    (out, x) -> _net_reversediff!(out, x, inputs_rev, ml_model)
                 end
                 out = get_tmp(outputs, 1.0)
                 _pnn = get_tmp(pnn, 1.0)
@@ -148,16 +148,16 @@ function _get_f_nns_preode(model_info::ModelInfo, cache::PEtabODEProblemCache)::
                 tape = nothing
             end
 
-            if netid in model_info.xindices.xids[:nn_est]
-                nx = length(get_tmp(pnn, 1.0)) + map_nn.nxdynamic_inputs
+            if ml_model_id in model_info.xindices.xids[:ml_est]
+                nx = length(get_tmp(pnn, 1.0)) + map_ml_model.nxdynamic_inputs
             else
-                nx = map_nn.nxdynamic_inputs
+                nx = map_ml_model.nxdynamic_inputs
             end
             xarg = DiffCache(zeros(Float64, nx), levels = 2)
-            jac_nn = zeros(Float64, noutputs, nx)
-            f_nn_preode[netid] = NNPreODE(compute_nn!, tape, jac_nn, outputs, inputs, xarg, [false])
+            jac_ml_model = zeros(Float64, noutputs, nx)
+            ml_model_pre_ode[ml_model_id] = MLModelPreODE(compute_forward!, tape, jac_ml_model, outputs, inputs, xarg, [false])
         end
-        f_nns_preode[cid] = f_nn_preode
+        ml_models_pre_ode[cid] = ml_model_pre_ode
     end
-    return f_nns_preode
+    return ml_models_pre_ode
 end
