@@ -1,3 +1,5 @@
 observableId	simulationConditionId	time	measurement
+obs_a	c0	0	2.0
+obs_a	c1	0	2.0
 obs_a	c0	10	2.1
 obs_a	c1	10	3.2

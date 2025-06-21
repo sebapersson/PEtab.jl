@@ -20,7 +20,9 @@ function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, speciemap_in
     end
 
     # Add extra parameter in case any of the conditions map to a model specie (just as must
-    # be done for SBML models)
+    # be done for SBML models). As NaN is allowed value in the conditions table, need to
+    # save model map. See comment in petab_model file for standard format import.
+    speciemap_model = deepcopy(speciemap)
     for condition_variable in names(conditions_df)
         !(condition_variable in specie_ids) && continue
         pid = "__init__" * string(condition_variable) * "__"
@@ -29,7 +31,7 @@ function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, speciemap_in
         speciemap[is] = first(speciemap[is]) => eval(Meta.parse("@parameters $pid"))[1]
     end
 
-    return sys, speciemap
+    return sys, speciemap_model, speciemap
 end
 
 function _get_parametermap(sys::ModelSystem, parametermap_input)
