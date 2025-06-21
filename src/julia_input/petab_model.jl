@@ -26,6 +26,7 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     else
         name = "ReactionSystemModel"
     end
+
     _logging(:Build_PEtabModel, verbose; name = name)
 
     # Convert the input to valid PEtab tables
@@ -35,6 +36,12 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     parameters_df = _parameters_to_table(parameters)
     petab_tables = Dict(:parameters => parameters_df, :conditions => conditions_df,
                         :observables => observables_df, :measurements => measurements_df)
+    return _PEtabModel(sys, petab_tables, name, speciemap, parametermap, events, verbose)
+end
+
+function _PEtabModel(sys::ModelSystem, petab_tables::Dict{Symbol, DataFrame}, name, speciemap, parametermap, events, verbose::Bool)::PEtabModel
+    conditions_df, parameters_df = petab_tables[:conditions], petab_tables[:parameters]
+    observables_df = petab_tables[:observables]
 
     # Build the initial value map (initial values as parameters are set in the reaction sys_mutated)
     sys_mutated = deepcopy(sys)

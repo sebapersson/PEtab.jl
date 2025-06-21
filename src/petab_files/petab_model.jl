@@ -3,6 +3,13 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
                     write_to_file::Bool = false)::PEtabModel
     paths = _get_petab_paths(path_yaml)
     petab_tables = read_tables(path_yaml)
+    return _PEtabModel(paths, petab_tables, build_julia_files, verbose, ifelse_to_callback,
+                       write_to_file)
+end
+
+function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::Dict{Symbol, DataFrame},
+                     build_julia_files::Bool, verbose::Bool, ifelse_to_callback::Bool,
+                     write_to_file::Bool)
     name = splitdir(paths[:dirmodel])[end]
 
     write_to_file && !isdir(paths[:dirjulia]) && mkdir(paths[:dirjulia])
@@ -13,7 +20,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
 
     # Import SBML model with SBMLImporter
     # In case one of the conditions in the PEtab table assigns an initial specie value,
-    # the SBML model must be mutated to add an iniitial value parameter to correctly
+    # the SBML model must be mutated to add an initial value parameter to correctly
     # compute gradients
     model_SBML = SBMLImporter.parse_SBML(paths[:SBML], false; model_as_string = false,
                                          ifelse_to_callback = ifelse_to_callback,
