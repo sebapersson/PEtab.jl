@@ -31,7 +31,8 @@ function solve_conditions!(model_info::ModelInfo, xdynamic::AbstractVector,
         u_t0 = similar(u_ss)
 
         for (i, preeq_id) in pairs(preeq_ids)
-            oprob_preeq = _switch_condition(oprob, preeq_id, xdynamic, model_info, cache, false; sensitivites = sensitivites)
+            oprob_preeq = _switch_condition(oprob, preeq_id, xdynamic, model_info, cache,
+                                            false; sensitivites = sensitivites)
             # Sometimes due to strongly ill-conditioned Jacobian the linear-solve runs
             # into a domain error or bounds error. This is treated as integration error.
             try
@@ -61,7 +62,9 @@ function solve_conditions!(model_info::ModelInfo, xdynamic::AbstractVector,
         simid = simulation_info.conditionids[:simulation][i]
         tsave = _get_tsave(save_observed_t, simulation_info, cid, ntimepoints_save)
         dense = _is_dense(save_observed_t, dense_sol, ntimepoints_save)
-        oprob_cid = _switch_condition(oprob, cid, xdynamic, model_info, cache, posteq_simulation; sensitivites = sensitivites, simid = simid)
+        oprob_cid = _switch_condition(oprob, cid, xdynamic, model_info, cache,
+                                      posteq_simulation; sensitivites = sensitivites,
+                                      simid = simid)
 
         if posteq_simulation == true
             preeq_id = simulation_info.conditionids[:pre_equilibration][i]
@@ -183,7 +186,8 @@ end
 
 # Without @nospecialize stackoverflow in type inference due to large ODE-system
 function solve_no_pre_equlibrium(@nospecialize(oprob::ODEProblem), osolver::ODESolver,
-                                 @nospecialize(simulation_info::SimulationInfo), cid::Symbol,
+                                 @nospecialize(simulation_info::SimulationInfo),
+                                 cid::Symbol,
                                  tsave::Vector{Float64}, dense::Bool,
                                  float_tspan::Bool)::ODESolution
     @unpack abstol, reltol, maxiters, solver, force_dtmin, verbose = osolver

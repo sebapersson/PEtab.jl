@@ -91,7 +91,7 @@ include(joinpath("parameter_estimation", "singlestart.jl"))
 include(joinpath("parameter_estimation", "startguesses.jl"))
 
 include(joinpath("util.jl"))
-#= Reduce time for reading a PEtabModel and for building a PEtabODEProblem
+# Reduce time for reading a PEtabModel and for building a PEtabODEProblem
 @setup_workload begin
     path_yaml = joinpath(@__DIR__, "..", "test", "analytic_ss", "Test_model3.yaml")
     @compile_workload begin
@@ -101,7 +101,6 @@ include(joinpath("util.jl"))
         petab_problem.nllh(petab_problem.xnominal_transformed)
     end
 end
-=#
 
 # Functions that only appear in extension
 function compute_llh end

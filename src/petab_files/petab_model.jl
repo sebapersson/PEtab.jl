@@ -73,7 +73,11 @@ function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::Dict{Symbol, Dat
     _logging(:Build_u0_h_σ, verbose; buildfiles = build_julia_files, exist = exist)
     if !exist || build_julia_files == true
         btime = @elapsed begin
-            hstr, u0!str, u0str, σstr = parse_observables(name, paths, odesystem, petab_tables[:observables], xindices, speciemap, speciemap_sbml, model_SBML, write_to_file)
+            hstr, u0!str, u0str, σstr = parse_observables(name, paths, odesystem,
+                                                          petab_tables[:observables],
+                                                          xindices, speciemap,
+                                                          speciemap_sbml, model_SBML,
+                                                          write_to_file)
         end
         _logging(:Build_u0_h_σ, verbose; time = btime)
     else

@@ -1,10 +1,16 @@
-function parse_observables(modelname::String, paths::Dict{Symbol, String}, sys::ModelSystem, observables_df::DataFrame, xindices::ParameterIndices, speciemap_problem, speciemap_model, model_SBML::SBMLImporter.ModelSBML, write_to_file::Bool)::NTuple{4, String}
+function parse_observables(modelname::String, paths::Dict{Symbol, String}, sys::ModelSystem,
+                           observables_df::DataFrame, xindices::ParameterIndices,
+                           speciemap_problem, speciemap_model,
+                           model_SBML::SBMLImporter.ModelSBML,
+                           write_to_file::Bool)::NTuple{4, String}
     state_ids = _get_state_ids(sys)
 
     _hstr = _parse_h(state_ids, xindices, observables_df, model_SBML)
     _σstr = _parse_σ(state_ids, xindices, observables_df, model_SBML)
-    _u0str = _parse_u0(speciemap_problem, speciemap_model, state_ids, xindices, model_SBML, false)
-    _u0!str = _parse_u0(speciemap_problem, speciemap_model, state_ids, xindices, model_SBML, true)
+    _u0str = _parse_u0(speciemap_problem, speciemap_model, state_ids, xindices, model_SBML,
+                       false)
+    _u0!str = _parse_u0(speciemap_problem, speciemap_model, state_ids, xindices, model_SBML,
+                        true)
     if write_to_file == true
         pathsave = joinpath(paths[:dirjulia], "$(modelname)_h_sd_u0.jl")
         strwrite = *(_hstr, _u0!str, _u0str, _σstr)
@@ -58,7 +64,8 @@ function _parse_σ(state_ids::Vector{String}, xindices::ParameterIndices,
     return σstr
 end
 
-function _parse_u0(speciemap_problem, speciemap_model, state_ids::Vector{String}, xindices::ParameterIndices,
+function _parse_u0(speciemap_problem, speciemap_model, state_ids::Vector{String},
+                   xindices::ParameterIndices,
                    model_SBML::SBMLImporter.ModelSBML, inplace::Bool)
     # As commented in PEtabModel files, for correct gradient the model must be mutated
     # if initial values are assigned in the conditions table. This corresponds to adding
@@ -79,8 +86,10 @@ function _parse_u0(speciemap_problem, speciemap_model, state_ids::Vector{String}
     for id in state_ids
         im_problem = findfirst(x -> x == id, speciemap_problem_ids)
         im_model = findfirst(x -> x == id, speciemap_model_ids)
-        u0formula_problem = _parse_formula(string(speciemap_problem[im_problem].second), state_ids, xindices, model_SBML, :u0)
-        u0formula_model = _parse_formula(string(speciemap_model[im_model].second), state_ids, xindices, model_SBML, :u0)
+        u0formula_problem = _parse_formula(string(speciemap_problem[im_problem].second),
+                                           state_ids, xindices, model_SBML, :u0)
+        u0formula_model = _parse_formula(string(speciemap_model[im_model].second),
+                                         state_ids, xindices, model_SBML, :u0)
         if u0formula_problem == u0formula_model
             u0str *= "\t$id = $(u0formula_problem)\n"
         else

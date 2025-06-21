@@ -43,7 +43,10 @@ function SimulationInfo(callbacks::SciMLBase.DECallback,
     end
 
     could_solve = [true]
-    return SimulationInfo(conditionids, has_pre_equilibration, tstarts, tmaxs, tsaves, imeasurements, imeasurements_t, imeasurements_t_sol, smatrixindices, odesols, odesols_derivative, odesols_preeq, could_solve, callbacks_use, tracked_callbacks, sensealg)
+    return SimulationInfo(conditionids, has_pre_equilibration, tstarts, tmaxs, tsaves,
+                          imeasurements, imeasurements_t, imeasurements_t_sol,
+                          smatrixindices, odesols, odesols_derivative, odesols_preeq,
+                          could_solve, callbacks_use, tracked_callbacks, sensealg)
 end
 
 function _get_conditionids(petab_measurements::PEtabMeasurements)::Dict{Symbol,

@@ -1,4 +1,7 @@
-function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::AbstractVector, model_info::ModelInfo, cache::PEtabODEProblemCache, posteq_simulation::Bool; sensitivites::Bool = false, simid::Union{Nothing, Symbol} = nothing)::ODEProblem
+function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::AbstractVector,
+                           model_info::ModelInfo, cache::PEtabODEProblemCache,
+                           posteq_simulation::Bool; sensitivites::Bool = false,
+                           simid::Union{Nothing, Symbol} = nothing)::ODEProblem
     @unpack xindices, model, nstates = model_info
     simid = isnothing(simid) ? cid : simid
 
@@ -53,11 +56,13 @@ function _is_dense(save_observed_t::Bool, dense_sol::Bool, ntimepoints_save::Int
     end
 end
 
-function _get_cbs(::ODEProblem, simulation_info::SimulationInfo, cid::Symbol, ::Any)::SciMLBase.DECallback
+function _get_cbs(::ODEProblem, simulation_info::SimulationInfo, cid::Symbol,
+                  ::Any)::SciMLBase.DECallback
     return simulation_info.callbacks[cid]
 end
 
-function _get_tspan(oprob::ODEProblem, tstart::Float64, tmax::Float64, solver::SciMLAlgorithm, float_tspan::Bool)::ODEProblem
+function _get_tspan(oprob::ODEProblem, tstart::Float64, tmax::Float64,
+                    solver::SciMLAlgorithm, float_tspan::Bool)::ODEProblem
     # When tmax=Inf and a multistep BDF Julia method, e.g. QNDF, is used tmax must be inf,
     # else if it is a large number such as 1e8 the dt_min is set to a large value making
     # the solver fail. Sundials solvers on the other hand are not compatible with
@@ -81,7 +86,8 @@ function _get_tmax(tmax::Float64, ::Union{Vector{Symbol}, SciMLAlgorithm})::Floa
     return tmax
 end
 
-function _get_preeq_ids(simulation_info::SimulationInfo, cids::Vector{Symbol})::Vector{Symbol}
+function _get_preeq_ids(simulation_info::SimulationInfo,
+                        cids::Vector{Symbol})::Vector{Symbol}
     if cids[1] == :all
         return unique(simulation_info.conditionids[:pre_equilibration])
     else
