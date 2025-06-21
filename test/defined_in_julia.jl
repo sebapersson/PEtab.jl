@@ -20,6 +20,7 @@ using Test, Distributions, PEtab, CSV, DataFrames, ModelingToolkit, Catalyst, Li
     include(joinpath(@__DIR__, "defined_in_julia", "016.jl"))
     include(joinpath(@__DIR__, "defined_in_julia", "017.jl"))
     include(joinpath(@__DIR__, "defined_in_julia", "018.jl"))
+    include(joinpath(@__DIR__, "defined_in_julia", "020.jl"))
     include(joinpath(@__DIR__, "defined_in_julia", "log2.jl"))
     include(joinpath(@__DIR__, "defined_in_julia", "parametermap.jl"))
     include(joinpath(@__DIR__, "defined_in_julia", "priors.jl"))

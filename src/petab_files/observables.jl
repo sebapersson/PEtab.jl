@@ -1,13 +1,10 @@
-function parse_observables(modelname::String, paths::Dict{Symbol, String}, sys::ModelSystem,
-                           observables_df::DataFrame, xindices::ParameterIndices, speciemap,
-                           model_SBML::SBMLImporter.ModelSBML,
-                           write_to_file::Bool)::NTuple{4, String}
+function parse_observables(modelname::String, paths::Dict{Symbol, String}, sys::ModelSystem, observables_df::DataFrame, xindices::ParameterIndices, speciemap_problem, speciemap_model, model_SBML::SBMLImporter.ModelSBML, write_to_file::Bool)::NTuple{4, String}
     state_ids = _get_state_ids(sys)
 
     _hstr = _parse_h(state_ids, xindices, observables_df, model_SBML)
     _σstr = _parse_σ(state_ids, xindices, observables_df, model_SBML)
-    _u0str = _parse_u0(speciemap, state_ids, xindices, model_SBML, false)
-    _u0!str = _parse_u0(speciemap, state_ids, xindices, model_SBML, true)
+    _u0str = _parse_u0(speciemap_problem, speciemap_model, state_ids, xindices, model_SBML, false)
+    _u0!str = _parse_u0(speciemap_problem, speciemap_model, state_ids, xindices, model_SBML, true)
     if write_to_file == true
         pathsave = joinpath(paths[:dirjulia], "$(modelname)_h_sd_u0.jl")
         strwrite = *(_hstr, _u0!str, _u0str, _σstr)
@@ -61,20 +58,36 @@ function _parse_σ(state_ids::Vector{String}, xindices::ParameterIndices,
     return σstr
 end
 
-function _parse_u0(speciemap, state_ids::Vector{String}, xindices::ParameterIndices,
+function _parse_u0(speciemap_problem, speciemap_model, state_ids::Vector{String}, xindices::ParameterIndices,
                    model_SBML::SBMLImporter.ModelSBML, inplace::Bool)
-    speciemap_ids = replace.(string.(first.(speciemap)), "(t)" => "")
+    # As commented in PEtabModel files, for correct gradient the model must be mutated
+    # if initial values are assigned in the conditions table. This corresponds to adding
+    # an extra parameter. However, it is allowed for this parameter to map to NaN, in this
+    # case, the original SBML or user provided initial value formula should be used.
+    # Therefore, an isnan must be a part of the initial formulas, and this isnan is only
+    # valid if post-equilibration is false, as is post-equilibration is true the value
+    # from before a steady-state simulation should be used, which I can only detect if
+    # NaN is set as initial value
+    speciemap_problem_ids = replace.(string.(first.(speciemap_problem)), "(t)" => "")
+    speciemap_model_ids = replace.(string.(first.(speciemap_model)), "(t)" => "")
     if inplace == true
-        u0str = "function compute_u0!(u0::AbstractVector, p::AbstractVector)\n"
+        u0str = "function compute_u0!(u0::AbstractVector, p::AbstractVector, __post_eq)\n"
     else
-        u0str = "function compute_u0(p::AbstractVector)::AbstractVector\n"
+        u0str = "function compute_u0(p::AbstractVector, __post_eq)::AbstractVector\n"
     end
 
     for id in state_ids
-        im = findfirst(x -> x == id, speciemap_ids)
-        u0formula = _parse_formula(string(speciemap[im].second), state_ids, xindices,
-                                   model_SBML, :u0)
-        u0str *= "\t$id = $u0formula\n"
+        im_problem = findfirst(x -> x == id, speciemap_problem_ids)
+        im_model = findfirst(x -> x == id, speciemap_model_ids)
+        u0formula_problem = _parse_formula(string(speciemap_problem[im_problem].second), state_ids, xindices, model_SBML, :u0)
+        u0formula_model = _parse_formula(string(speciemap_model[im_model].second), state_ids, xindices, model_SBML, :u0)
+        if u0formula_problem == u0formula_model
+            u0str *= "\t$id = $(u0formula_problem)\n"
+        else
+            u0str *= "\tif isnan($(u0formula_problem)) && __post_eq == false\n"
+            u0str *= "\t\t$id = $(u0formula_model)\n\telse\n"
+            u0str *= "\t\t$id = $(u0formula_problem)\n\tend\n"
+        end
     end
 
     if inplace == true

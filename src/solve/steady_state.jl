@@ -23,7 +23,7 @@ end
 function simulate_to_ss(@nospecialize(oprob::ODEProblem), osolver::ODESolver,
                         ss_solver::SteadyStateSolver, float_tspan::Bool)::ODESolution
     @unpack abstol, reltol, maxiters, force_dtmin, verbose, solver = osolver
-    _oprob = _get_tspan(oprob, Inf, solver, float_tspan)
+    _oprob = _get_tspan(oprob, 0.0, Inf, solver, float_tspan)
     return solve(_oprob, solver, abstol = abstol, reltol = reltol, maxiters = maxiters,
                  dense = false, callback = ss_solver.callback_ss, verbose = verbose)
 end

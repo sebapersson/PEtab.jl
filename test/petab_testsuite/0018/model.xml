@@ -1,26 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<sbml xmlns="http://www.sbml.org/sbml/level3/version1/core" level="3" version="1">
-  <model substanceUnits="mole" timeUnits="second" extentUnits="mole">
-    <listOfUnitDefinitions>
-      <unitDefinition id="per_second">
-        <listOfUnits>
-          <unit kind="second" exponent="-1" scale="0" multiplier="1"/>
-        </listOfUnits>
-      </unitDefinition>
-    </listOfUnitDefinitions>
+<!-- Created by libAntimony version v2.14.0 with libSBML version 5.20.2. -->
+<sbml xmlns="http://www.sbml.org/sbml/level3/version2/core" level="3" version="2">
+  <model metaid="petab_test_0018" id="petab_test_0018">
     <listOfCompartments>
-      <compartment id="c1" spatialDimensions="3" size="1" units="litre" constant="true"/>
-      <compartment id="compartment" spatialDimensions="3" size="1" units="litre" constant="true"/>
+      <compartment sboTerm="SBO:0000410" id="default_compartment" spatialDimensions="3" size="1" constant="true"/>
     </listOfCompartments>
     <listOfSpecies>
-      <species id="A" compartment="compartment" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="A" compartment="default_compartment" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
     </listOfSpecies>
     <listOfParameters>
-      <parameter id="a0" value="1" units="per_second" constant="false"/>
-      <parameter id="b0" value="1" units="per_second" constant="false"/>
-      <parameter id="k1" value="0" units="per_second" constant="false"/>
-      <parameter id="k2" value="0" units="per_second" constant="false"/>
-      <parameter id="B" value="0" units="per_second" constant="false"/>
+      <parameter id="a0" value="1" constant="true"/>
+      <parameter id="b0" value="1" constant="true"/>
+      <parameter id="k1" value="0" constant="true"/>
+      <parameter id="k2" value="0" constant="true"/>
+      <parameter id="B" constant="false"/>
     </listOfParameters>
     <listOfInitialAssignments>
       <initialAssignment symbol="A">
@@ -60,14 +53,14 @@
               <times/>
               <apply>
                 <minus/>
-                <ci> compartment </ci>
+                <ci> default_compartment </ci>
               </apply>
               <ci> k2 </ci>
               <ci> B </ci>
             </apply>
             <apply>
               <times/>
-              <ci> compartment </ci>
+              <ci> default_compartment </ci>
               <ci> k1 </ci>
               <ci> A </ci>
             </apply>

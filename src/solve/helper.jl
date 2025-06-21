@@ -1,8 +1,4 @@
-function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::T,
-                           model_info::ModelInfo, cache::PEtabODEProblemCache;
-                           sensitivites::Bool = false,
-                           simid::Union{Nothing, Symbol} = nothing)::ODEProblem where {T <:
-                                                                                       AbstractVector}
+function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::AbstractVector, model_info::ModelInfo, cache::PEtabODEProblemCache, posteq_simulation::Bool; sensitivites::Bool = false, simid::Union{Nothing, Symbol} = nothing)::ODEProblem
     @unpack xindices, model, nstates = model_info
     simid = isnothing(simid) ? cid : simid
 
@@ -20,7 +16,7 @@ function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::T,
     p[map_cid.ix_sys] .= xdynamic[map_cid.ix_dynamic]
 
     # Initial state can depend on condition specific parameters
-    model.u0!((@view u0[1:nstates]), p)
+    model.u0!((@view u0[1:nstates]), p; __post_eq = posteq_simulation)
 
     _oprob = remake(oprob, p = p, u0 = u0)
     # In case we solve the forward sensitivity equations we must adjust the initial
@@ -57,13 +53,11 @@ function _is_dense(save_observed_t::Bool, dense_sol::Bool, ntimepoints_save::Int
     end
 end
 
-function _get_cbs(oprob::ODEProblem, simulation_info::SimulationInfo, cid::Symbol,
-                  sensealg)::SciMLBase.DECallback
+function _get_cbs(::ODEProblem, simulation_info::SimulationInfo, cid::Symbol, ::Any)::SciMLBase.DECallback
     return simulation_info.callbacks[cid]
 end
 
-function _get_tspan(oprob::ODEProblem, tmax::Float64, solver::SciMLAlgorithm,
-                    float_tspan::Bool)::ODEProblem
+function _get_tspan(oprob::ODEProblem, tstart::Float64, tmax::Float64, solver::SciMLAlgorithm, float_tspan::Bool)::ODEProblem
     # When tmax=Inf and a multistep BDF Julia method, e.g. QNDF, is used tmax must be inf,
     # else if it is a large number such as 1e8 the dt_min is set to a large value making
     # the solver fail. Sundials solvers on the other hand are not compatible with
@@ -72,23 +66,22 @@ function _get_tspan(oprob::ODEProblem, tmax::Float64, solver::SciMLAlgorithm,
     u0tmp = oprob.u0 |> deepcopy
     tmax = _get_tmax(tmax, solver)
     if float_tspan == true
-        _oprob = remake(oprob, tspan = (0.0, tmax))
+        _oprob = remake(oprob, tspan = (tstart, tmax))
     else
-        _oprob = remake(oprob, tspan = convert.(eltype(oprob.p), (0.0, tmax)))
+        _oprob = remake(oprob, tspan = convert.(eltype(oprob.p), (tstart, tmax)))
     end
     _oprob.u0 .= u0tmp
     return _oprob
 end
 
-function _get_tmax(tmax::Float64, solver::Union{CVODE_BDF, CVODE_Adams})::Float64
+function _get_tmax(tmax::Float64, ::Union{CVODE_BDF, CVODE_Adams})::Float64
     return isinf(tmax) ? 1e8 : tmax
 end
-function _get_tmax(tmax::Float64, solver::Union{Vector{Symbol}, SciMLAlgorithm})::Float64
+function _get_tmax(tmax::Float64, ::Union{Vector{Symbol}, SciMLAlgorithm})::Float64
     return tmax
 end
 
-function _get_preeq_ids(simulation_info::SimulationInfo,
-                        cids::Vector{Symbol})::Vector{Symbol}
+function _get_preeq_ids(simulation_info::SimulationInfo, cids::Vector{Symbol})::Vector{Symbol}
     if cids[1] == :all
         return unique(simulation_info.conditionids[:pre_equilibration])
     else

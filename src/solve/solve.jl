@@ -31,8 +31,7 @@ function solve_conditions!(model_info::ModelInfo, xdynamic::AbstractVector,
         u_t0 = similar(u_ss)
 
         for (i, preeq_id) in pairs(preeq_ids)
-            oprob_preeq = _switch_condition(oprob, preeq_id, xdynamic, model_info, cache;
-                                            sensitivites = sensitivites)
+            oprob_preeq = _switch_condition(oprob, preeq_id, xdynamic, model_info, cache, false; sensitivites = sensitivites)
             # Sometimes due to strongly ill-conditioned Jacobian the linear-solve runs
             # into a domain error or bounds error. This is treated as integration error.
             try
@@ -58,13 +57,13 @@ function solve_conditions!(model_info::ModelInfo, xdynamic::AbstractVector,
             continue
         end
 
+        posteq_simulation = simulation_info.conditionids[:pre_equilibration][i] != :None
         simid = simulation_info.conditionids[:simulation][i]
         tsave = _get_tsave(save_observed_t, simulation_info, cid, ntimepoints_save)
         dense = _is_dense(save_observed_t, dense_sol, ntimepoints_save)
-        oprob_cid = _switch_condition(oprob, cid, xdynamic, model_info, cache;
-                                      sensitivites = sensitivites, simid = simid)
+        oprob_cid = _switch_condition(oprob, cid, xdynamic, model_info, cache, posteq_simulation; sensitivites = sensitivites, simid = simid)
 
-        if simulation_info.conditionids[:pre_equilibration][i] != :None
+        if posteq_simulation == true
             preeq_id = simulation_info.conditionids[:pre_equilibration][i]
             ipreq = findfirst(x -> x == preeq_id, preeq_ids)
             u_ss_preeq, u_t0_preeq = (@view u_ss[:, ipreq]), (@view u_t0[:, ipreq])
@@ -150,10 +149,11 @@ function solve_post_equlibrium(@nospecialize(oprob::ODEProblem), u_ss::T, u_t0::
                                cid::Symbol, tsave::Vector{Float64}, dense::Bool,
                                float_tspan::Bool)::ODESolution where {T <: AbstractVector}
     @unpack abstol, reltol, maxiters, solver, force_dtmin, verbose = osolver
+    @unpack tstarts, tmaxs = simulation_info
 
     # Must be done first, as any call to remake resets initial values for sensitivites
     # to 0 when working with the ForwardSensitivity ODEProblem from SciMLSensitivity
-    _oprob = _get_tspan(oprob, simulation_info.tmaxs[cid], solver, float_tspan)
+    _oprob = _get_tspan(oprob, tstarts[cid], tmaxs[cid], solver, float_tspan)
 
     # Sometimes the PEtab condition-file changes the initial values for a state
     # whose value was changed in the preequilibration-simulation. The condition
@@ -183,12 +183,13 @@ end
 
 # Without @nospecialize stackoverflow in type inference due to large ODE-system
 function solve_no_pre_equlibrium(@nospecialize(oprob::ODEProblem), osolver::ODESolver,
-                                 simulation_info::SimulationInfo, cid::Symbol,
+                                 @nospecialize(simulation_info::SimulationInfo), cid::Symbol,
                                  tsave::Vector{Float64}, dense::Bool,
                                  float_tspan::Bool)::ODESolution
     @unpack abstol, reltol, maxiters, solver, force_dtmin, verbose = osolver
+    @unpack tstarts, tmaxs = simulation_info
 
-    _oprob = _get_tspan(oprob, simulation_info.tmaxs[cid], solver, float_tspan)
+    _oprob = _get_tspan(oprob, tstarts[cid], tmaxs[cid], solver, float_tspan)
     cbs = _get_cbs(_oprob, simulation_info, cid, simulation_info.sensealg)
     return _solve(_oprob, solver, tsave, abstol, reltol, abstol, reltol, dense, maxiters,
                   force_dtmin, verbose, cbs)
