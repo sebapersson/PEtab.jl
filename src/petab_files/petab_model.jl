@@ -146,10 +146,10 @@ function add_u0_parameters!(model_SBML::SBMLImporter.ModelSBML, conditions_df::D
         # it should be treated as a dynamic parameter for indexing. A NaN value is allowed,
         # meaning the parameter should be set by the corresponding SBML formula
         for condition_value in conditions_df[!, condition_variable]
+            ismissing(condition_value) && continue
             condition_value == "NaN" && continue
             condition_value isa Real && continue
             is_number(condition_value) && continue
-            ismissing(condition_value) && continue
             condition_value in keys(model_SBML.parameters) && continue
             if !(condition_value in parameters_df[!, :parameterId])
                 throw(PEtabFileError("The condition table value $condition_variable does \
