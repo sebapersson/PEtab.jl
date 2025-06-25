@@ -184,7 +184,7 @@ end
 # Finds the best n runs in among all runs, and return their indexes.
 function best_runs(res_ms, n)
     best_idxs = sortperm(getfield.(res_ms.runs, :fmin))
-    return best_idxs[(end - min(n, res_ms.nmultistarts) + 1):end]
+    return best_idxs[1:min(n, res_ms.nmultistarts)]
 end
 
 # Converts Infs to the largest non-inf value (and return appropriate markershape vectors).
