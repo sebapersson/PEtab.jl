@@ -1,5 +1,9 @@
 # Breaking updates and feature summaries across releases
 
+## PEtab 3.9.0
+
+Updating plotting functionality. The waterfall plot will now, based on the magnitude of likelihood values, decide between a log or linear scale. Moreover, an automatic re-scaling of the y-axis is now applied if the waterfall plot should be on log-scale, and there are negative likelihood values.
+
 ## PEtab 3.8.0
 
 Update to use Catalyst.jl version 15.
