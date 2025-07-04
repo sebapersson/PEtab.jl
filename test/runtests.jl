@@ -48,12 +48,12 @@ end
     include("show.jl")
 end
 
-@safetestset "Parameter estimation" begin
-  include("calibrate.jl")
-end
-
 @safetestset "Optimisation results plotting" begin
   include("plot_optimisation_results.jl")
+end
+
+@safetestset "Parameter estimation" begin
+  include("calibrate.jl")
 end
 
 @safetestset "Bijectors" begin

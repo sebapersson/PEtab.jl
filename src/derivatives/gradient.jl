@@ -75,6 +75,7 @@ function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveod
 
     # A gradient is computed for each condition-id, only using parameter present for
     # said condition
+    simulation_info.could_solve[1] = true
     fill!(xdynamic_grad, 0.0)
     for (i, cid) in pairs(simulation_info.conditionids[:experiment])
         simid = simulation_info.conditionids[:simulation][i]

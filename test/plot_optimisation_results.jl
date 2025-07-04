@@ -19,7 +19,7 @@ end
 
 # Tests objective function evaluations plot.
 # Tests idxs functionality.
-let
+@testset "Plot objective function" begin
     p_obj = plot(petab_ms_res; plot_type=:objective, idxs=1:5)
     @test p_obj.n == 5
     for i = 1:5

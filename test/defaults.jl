@@ -20,12 +20,16 @@ using PEtab, SciMLSensitivity, OrdinaryDiffEq, Sundials, Test
     @test prob.probinfo.split_over_conditions == false
 
     path = joinpath(@__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
-    model = PEtabModel(path; verbose=false, build_julia_files=false, write_to_file = false)
-    prob = PEtabODEProblem(model; verbose=false)
+    model = PEtabModel(path)
+    prob = PEtabODEProblem(model)
     @test prob.probinfo.gradient_method === :ForwardDiff
     @test prob.probinfo.hessian_method === :ForwardDiff
     @test prob.probinfo.solver.solver isa Rodas5P
     @test prob.probinfo.split_over_conditions == false
+    # Test we can compute gradient for a given input
+    @test_throws PEtab.PEtabInputError PEtabODEProblem(model;  odesolver = ODESolver(CVODE_BDF()))
+    prob = PEtabODEProblem(model; odesolver = ODESolver(CVODE_BDF()), odesolver_gradient = ODESolver(QNDF()))
+    @test prob.probinfo.solver_gradient.solver isa QNDF
 
     # Here split_over_conditions = true as this model has many condition specific parameters
     path = joinpath(@__DIR__, "published_models", "Beer_MolBioSystems2014", "Beer_MolBioSystems2014.yaml")
