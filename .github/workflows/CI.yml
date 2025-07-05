@@ -1,17 +1,17 @@
 name: CI
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     tags: ['*']
   pull_request:
 concurrency:
-  # Skip intermediate builds: always.
-  # Cancel intermediate builds: only if it is a pull request build.
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 jobs:
-  test:
+# ---------------------------------------------------------
+# 1.  Full test-suite – Linux only
+# ---------------------------------------------------------
+  test_full:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -46,11 +46,33 @@ jobs:
         env:
           PYTHON : "${{ env.pythonLocation }}/bin/python"
       - uses: julia-actions/julia-runtest@v1
-        continue-on-error: ${{ matrix.version == 'nightly' }}
       - uses: julia-actions/julia-processcoverage@v1
       - uses: codecov/codecov-action@v4
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+# ---------------------------------------------------------
+# 2.  Core tests – multi-OS
+# ---------------------------------------------------------
+  test_core:
+    name: Core tests – ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+        julia: ['1.11']
+    steps:
+      - uses: actions/checkout@v2
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: ${{ matrix.julia }}
+      - uses: julia-actions/cache@v1
+      - uses: julia-actions/julia-buildpkg@v1
+      # ------ run only the core subset ------
+      - name: Run core test-suite
+        env:
+          CORE_ONLY: "true"      # picked up inside runtests.jl
+        run: julia --project=. -e 'using Pkg; Pkg.test()'
   docs:
     name: Documentation
     runs-on: ubuntu-latest
