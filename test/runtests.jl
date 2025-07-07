@@ -6,17 +6,37 @@ core_only = get(ENV, "CORE_ONLY", "false") == "true"
   include("aqua.jl")
 end
 
-if !core_only
-    @safetestset "Analtyic solution test model" begin
+@safetestset "Analytic solution test model" begin
     include("analytic_solution.jl")
-    end
+end
 
+@safetestset "PEtab test suite" begin
+    include("petab_testsuite.jl")
+end
+
+@safetestset "Define models in Julia" begin
+    include("defined_in_julia.jl")
+end
+
+@safetestset "Parameter estimation" begin
+    include("calibrate_core.jl")
+end
+
+@safetestset "Optimization results plotting" begin
+    include("plot_optimisation_results.jl")
+end
+
+@safetestset "Utility functions" begin
+    include(joinpath(@__DIR__, "util.jl"))
+end
+
+if !core_only
     @safetestset "Model with analytic steady-state" begin
-    include("analytic_ss.jl")
+        include("analytic_ss.jl")
     end
 
     @safetestset "Boehm model with pyPESTO reference" begin
-    include("boehm.jl")
+        include("boehm.jl")
     end
 
     @safetestset "PEtab remake" begin
@@ -24,19 +44,7 @@ if !core_only
     end
 
     @safetestset "Log-likelihood values and gradients for published models" begin
-    include("published_models.jl")
-    end
-
-    @safetestset "Utility functions" begin
-    include(joinpath(@__DIR__, "util.jl"))
-    end
-
-    @safetestset "PEtab test suite" begin
-    include("petab_testsuite.jl")
-    end
-
-    @safetestset "Define models in Julia" begin
-    include("defined_in_julia.jl")
+        include("published_models.jl")
     end
 
     @safetestset "Component Arrays" begin
@@ -51,12 +59,8 @@ if !core_only
         include("show.jl")
     end
 
-    @safetestset "Optimisation results plotting" begin
-    include("plot_optimisation_results.jl")
-    end
-
-    @safetestset "Parameter estimation" begin
-    include("calibrate.jl")
+    @safetestset "Parameter estimation expanded" begin
+        include("calibrate.jl")
     end
 
     @safetestset "Bijectors" begin
