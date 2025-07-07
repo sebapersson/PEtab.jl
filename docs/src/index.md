@@ -21,7 +21,7 @@ PEtab.jl is a Julia package for creating parameter estimation problems for fitti
 
 ## Installation
 
-To install PEtab.jl in the Julia REPL enter
+PEtab.jl is an officially registered Julia package, tested and supported on Linux, macOS and Windows. The easiest way to install it is via the Julia package manager. In the Julia REPL, enter:
 
 ```julia
 julia> ] add PEtab
@@ -33,7 +33,9 @@ or alternatively
 julia> using Pkg; Pkg.add("PEtab")
 ```
 
-PEtab is compatible with Julia version 1.10 and above. For best performance we strongly recommend using the latest Julia version, which most easily can be installed with [juliaup](https://github.com/JuliaLang/juliaup).
+PEtab.jl is compatible with Julia **1.10 and above**. For best performance, we strongly recommend using the latest Julia version, which can be most reliably installed using [juliaup](https://github.com/JuliaLang/juliaup).
+
+If you encounter installation issues, please consult the [troubleshooting guide](@ref install_fail).
 
 ## Getting help
 
