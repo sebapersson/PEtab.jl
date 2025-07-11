@@ -50,7 +50,8 @@
         xmin = res.xmin
     end
     for (obs_idx, obs_id) in enumerate(obsids)
-        (t_observed, h_observed, t_model, h_model) = _get_observable(xmin, prob, cid, preeq_id, obs_id)
+        (t_observed, h_observed, t_model, h_model) = _get_observable(xmin, prob, cid,
+                                                                     preeq_id, obs_id)
 
         # Plot args.
         append!(seriestype, [:scatter, :line])
@@ -99,7 +100,7 @@ function PEtab.get_obs_comparison_plots(res::PEtab.EstimationResult, prob::PEtab
         comparison_dict[exp_id] = Dict()
         for obsid in obsids
             comparison_dict[exp_id][obsid] = plot(res, prob; obsids = [obsid], cid = cid,
-                                               preeq_id = preeq_id, kwargs...)
+                                                  preeq_id = preeq_id, kwargs...)
         end
     end
     return comparison_dict
@@ -123,7 +124,8 @@ This function is primarily used for plotting purposes.
 - `smooth_sol::Bool`: Indicates whether the returned solution is smooth, i.e., there are no
     observable parameters.
 """
-function _get_observable(x, prob::PEtabODEProblem, cid::String, preeq_id::String, obsid::String)
+function _get_observable(x, prob::PEtabODEProblem, cid::String, preeq_id::String,
+                         obsid::String)
     @unpack model_info, probinfo = prob
     # Sanity check that a valid id has been provided
     measurements_df = model_info.model.petab_tables[:measurements]
@@ -181,7 +183,7 @@ function _get_observable(x, prob::PEtabODEProblem, cid::String, preeq_id::String
         end
         t_model = vcat(t_model, sol.t)
         npoints = length(sol.t)
-    # With observable parameters the simulated values can be used instead
+        # With observable parameters the simulated values can be used instead
     else
         t_model = vcat(t_model, measurements_df[idata, :time])
         h_model = vcat(h_model, prob.simulated_values(x)[idata])

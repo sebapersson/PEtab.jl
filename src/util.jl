@@ -94,7 +94,9 @@ See also: [`get_u0`](@ref), [`get_odeproblem`](@ref), [`get_odesol`](@ref).
     For other `get` functions, the  `ODEProblem`, `u0`, or `ODESolution` for the
     specified `cid` is returned
 """
-function get_ps(res::EstimationResult, prob::PEtabODEProblem; cid::Union{String, Symbol, Nothing} = nothing, preeq_id::Union{String, Symbol, Nothing} = nothing, retmap::Bool = true)
+function get_ps(res::EstimationResult, prob::PEtabODEProblem;
+                cid::Union{String, Symbol, Nothing} = nothing,
+                preeq_id::Union{String, Symbol, Nothing} = nothing, retmap::Bool = true)
     _, p = _get_ps_u0(res, prob, cid, preeq_id, retmap)
     return p
 end
