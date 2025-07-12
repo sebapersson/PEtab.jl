@@ -80,7 +80,7 @@ For the `:waterfall` and `:runtime_eval` plot types, all runs are plotted by def
 
 ## Plotting the Model Fit
 
-After fitting the model, it is useful to compare the model output against the measurement data. This can be done by providing both the optimization solution and the `PEtabODEProblem` to the plot command. By default, the plot will show the output solution for all observables for the first simulation condition. However, any subset of observables can be selected using the `obsid` option, and any simulation condition can be specified using the `cid` option.
+After fitting the model, it is useful to compare the model output against the measurement data. This can be done by providing both the optimization solution and the `PEtabODEProblem` to the plot command. By default, the plot will show the output solution for all observables for the first simulation condition. However, any subset of observables can be selected using the `obsid` option, and any simulation condition can be specified using the `cid` option. Moreover, if a problem has potential pre-equilibration IDs, a specific pre-equilibration condition can be selected using the `preeq_id` option.
 
 This tutorial covers how to plot the model fit for different observables and simulation conditions. It assumes you are familiar with PEtab simulation conditions; if not, see this [tutorial](@ref petab_sim_cond). As a working example, we use the Michaelis-Menten enzyme kinetics model from the starting [tutorial](@ref tutorial), which we fit to for two simulation conditions (`cond1` and `cond2`) and two observables (`obs_e` and `obs_p`).  Even though the code below encodes the model as a ReactionSystem, everything works exactly the same if the model is encoded as an `ODESystem`.
 

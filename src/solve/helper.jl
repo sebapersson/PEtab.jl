@@ -85,6 +85,17 @@ end
 function _get_tmax(tmax::Float64, ::Union{Vector{Symbol}, SciMLAlgorithm})::Float64
     return tmax
 end
+function _get_tmax(cid::Union{String, Symbol, Nothing},
+                   preeq_id::Union{String, Symbol, Nothing}, model_info::ModelInfo)::Float64
+    cid = _get_cid(cid, model_info)
+    preeq_id = _get_preeq_id(preeq_id, model_info)
+    if isnothing(preeq_id) || preeq_id == :None
+        exp_id = cid
+    else
+        exp_id = Symbol("$(preeq_id)$(cid)")
+    end
+    return model_info.simulation_info.tmaxs[exp_id]
+end
 
 function _get_preeq_ids(simulation_info::SimulationInfo,
                         cids::Vector{Symbol})::Vector{Symbol}
