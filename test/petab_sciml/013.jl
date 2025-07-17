@@ -22,13 +22,13 @@ nn13_2 = @compact(
 end
 pnn1 = Lux.initialparameters(rng, nn13_1)
 ml_models = Dict(:net1 => MLModel(nn13_1; static = true, inputs = [:input1, :input2], outputs = [:gamma]),
-                :net2 => MLModel(nn13_2; static = false, inputs = [:alpha, :predator], outputs = [:net2_output1]))
+                 :net2 => MLModel(nn13_2; static = false, inputs = [:alpha, :predator], outputs = [:net2_output1]))
 path_h5 = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "net1_ps.hdf5")
 pnn1 = Lux.initialparameters(rng, nn13_1) |> ComponentArray |> f64
-PEtab.set_ml_model_ps!(pnn1, path_h5, nn13_1)
+PEtab.set_ml_model_ps!(pnn1, path_h5, nn13_1, :net1)
 path_h5 = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "net2_ps.hdf5")
 pnn2 = Lux.initialparameters(rng, nn13_2) |> ComponentArray |> f64
-PEtab.set_ml_model_ps!(pnn2, path_h5, nn13_2)
+PEtab.set_ml_model_ps!(pnn2, path_h5, nn13_2, :net2)
 
 function lv13!(du, u, p, t)
     prey, predator = u

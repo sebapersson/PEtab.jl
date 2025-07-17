@@ -13,7 +13,7 @@ end
 ml_models = Dict(:net4 => MLModel(nn19; static = false))
 path_h5 = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "net4_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn19) |> ComponentArray |> f64
-PEtab.set_ml_model_ps!(pnn, path_h5, nn19)
+PEtab.set_ml_model_ps!(pnn, path_h5, nn19, :net4)
 
 function _lv19!(du, u, p, t, ml_models)
     prey, predator = u

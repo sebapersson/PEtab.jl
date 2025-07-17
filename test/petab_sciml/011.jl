@@ -21,13 +21,13 @@ nn11_2 = @compact(
     @return out
 end
 ml_models = Dict(:net1 => MLModel(nn11_1; static = false),
-                :net2 => MLModel(nn11_2; static = true, inputs = [:net2_input_pre1, :net2_input_pre1], outputs = [:beta]))
+                 :net2 => MLModel(nn11_2; static = true, inputs = [:net2_input_pre1, :net2_input_pre1], outputs = [:beta]))
 path_h5 = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "net1_ps.hdf5")
 pnn1 = Lux.initialparameters(rng, nn11_1) |> ComponentArray |> f64
-PEtab.set_ml_model_ps!(pnn1, path_h5, nn11_1)
+PEtab.set_ml_model_ps!(pnn1, path_h5, nn11_1, :net1)
 path_h5 = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "net2_ps.hdf5")
 pnn2 = Lux.initialparameters(rng, nn11_2) |> ComponentArray |> f64
-PEtab.set_ml_model_ps!(pnn2, path_h5, nn11_2)
+PEtab.set_ml_model_ps!(pnn2, path_h5, nn11_2, :net2)
 
 function _lv11!(du, u, p, t, ml_models)
     prey, predator = u

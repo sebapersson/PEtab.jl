@@ -23,10 +23,10 @@ end
 # Setup parameters for network to use during estimation
 path_h5 = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "net1_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn26_frozen) |> ComponentArray |> f64
-PEtab.set_ml_model_ps!(pnn, path_h5, nn26_frozen)
+PEtab.set_ml_model_ps!(pnn, path_h5, nn26_frozen, :net1)
 # Set frozen parameters
 pnn_tmp = Lux.initialparameters(rng, nn26) |> ComponentArray |> f64
-PEtab.set_ml_model_ps!(pnn_tmp, path_h5, nn26)
+PEtab.set_ml_model_ps!(pnn_tmp, path_h5, nn26, :net1)
 st = Lux.initialstates(rng, nn26_frozen) |> f64
 st.layer1.frozen_params.weight .= pnn_tmp.layer1.weight
 # Given this ml_model can be built
