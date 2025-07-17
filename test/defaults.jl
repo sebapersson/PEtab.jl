@@ -10,7 +10,7 @@ using OrdinaryDiffEqBDF, OrdinaryDiffEqRosenbrock, OrdinaryDiffEqSDIRK, PEtab,
     # Check that we get correct default setting
     path = joinpath(@__DIR__, "published_models", "Bachmann_MSB2011", "Bachmann_MSB2011.yaml")
     model = PEtabModel(path; verbose=false, build_julia_files=false, write_to_file = false)
-    prob = PEtabODEProblem(model; verbose=false)
+    prob = PEtabODEProblem(model)
     @test prob.probinfo.gradient_method === :ForwardDiff
     @test prob.probinfo.hessian_method === :GaussNewton
     @test prob.probinfo.solver.solver isa QNDF
@@ -35,7 +35,7 @@ using OrdinaryDiffEqBDF, OrdinaryDiffEqRosenbrock, OrdinaryDiffEqSDIRK, PEtab,
     # Here split_over_conditions = true as this model has many condition specific parameters
     path = joinpath(@__DIR__, "published_models", "Beer_MolBioSystems2014", "Beer_MolBioSystems2014.yaml")
     model = PEtabModel(path; verbose=false, build_julia_files=false, write_to_file = false)
-    prob = PEtabODEProblem(model; verbose=false)
+    prob = PEtabODEProblem(model)
     @test prob.probinfo.gradient_method === :ForwardDiff
     @test prob.probinfo.hessian_method === :ForwardDiff
     @test prob.probinfo.solver.solver isa Rodas5P

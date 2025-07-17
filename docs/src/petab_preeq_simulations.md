@@ -60,10 +60,10 @@ To properly link the measurements to a specific simulation configuration, both t
 
 | simulation_id (str) | pre\_eq\_id (str) | obs_id (str) | time (float) | measurement (float) |
 |---------------------|-------------------|--------------|--------------|---------------------|
-| cond1               | cond_preeq        | obs_p        | 1.0          | 0.7                 |
-| cond1               | cond_preeq        | obs_sum      | 10.0         | 0.1                 |
-| cond2               | cond_preeq        | obs_p        | 1.0          | 1.0                 |
-| cond2               | cond_preeq        | obs_sum      | 20.0         | 1.5                 |
+| cond1               | cond_preeq        | obs_p        | 1.0          | 2.5                 |
+| cond1               | cond_preeq        | obs_sum      | 10.0         | 50.0                |
+| cond2               | cond_preeq        | obs_p        | 1.0          | 2.6                 |
+| cond2               | cond_preeq        | obs_sum      | 20.0         | 51.0                |
 
 For each measurement, the simulation configuration is interpreted as follows: the model is first simulated to a steady state using the condition specified in the `pre_eq_id` column, and then the model is simulated and compared against the data using the condition in the `simulation_id`. In Julia this measurement table would look like:
 
@@ -73,7 +73,7 @@ measurements = DataFrame(simulation_id=["cond1", "cond1", "cond2", "cond2"],
                          pre_eq_id=["cond_preeq", "cond_preeq", "cond_preeq", "cond_preeq"],
                          obs_id=["obs_p", "obs_sum", "obs_p", "obs_sum"],
                          time=[1.0, 10.0, 1.0, 20.0],
-                         measurement=[0.7, 0.1, 1.0, 1.5])                         
+                         measurement=[2.5, 50.0, 2.6, 51.0])
 ```
 
 ## Bringing It All Together

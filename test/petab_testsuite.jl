@@ -5,8 +5,9 @@ function check_test_case(case::String; test_grad::Bool=true)
     path_yaml = joinpath(@__DIR__, "petab_testsuite", case, "_$(case).yaml")
     path_ref = joinpath(@__DIR__, "petab_testsuite", case, "_$(case)_solution.yaml")
 
-    model = PEtabModel(path_yaml)
-    prob = PEtabODEProblem(model; ss_solver = SteadyStateSolver(:Simulate, abstol=1e-12, reltol=1e-10))
+    model = PEtabModel(path_yaml, verbose=false, build_julia_files=true, write_to_file = false)
+    prob = PEtabODEProblem(model; verbose=false,
+                           ss_solver = SteadyStateSolver(:Simulate, abstol=1e-12, reltol=1e-10))
     x = get_x(prob)
 
     nllh = prob.nllh(x)
@@ -30,8 +31,8 @@ function check_test_case(case::String; test_grad::Bool=true)
 end
 
 @testset "PEtab test-suite" begin
-    for i in 1:18
-        test_case = i < 10 ? "000$(i)" : "00$(i)"
-        check_test_case(test_case)
+    for i in 1:20
+        case = i > 9 ? "00$i" : "000$i"
+        test_case(case)
     end
 end

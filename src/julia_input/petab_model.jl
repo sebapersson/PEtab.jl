@@ -43,14 +43,22 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     mappings_df = _mapping_to_table(ml_models)
     hybridization_df = _hybridization_to_table(ml_models, parameters_df, conditions_df)
     petab_tables = Dict{Symbol, Union{DataFrame, Dict}}(:parameters => parameters_df, :conditions => conditions_df, :observables => observables_df, :measurements => measurements_df, :mapping => mappings_df, :hybridization => hybridization_df)
+    return _PEtabModel(sys, petab_tables, name, speciemap, parametermap, events, verbose)
+end
+
+function _PEtabModel(sys::ModelSystem, petab_tables::Dict{Symbol, DataFrame}, name,
+                     speciemap, parametermap, events, verbose::Bool)::PEtabModel
+    conditions_df, parameters_df = petab_tables[:conditions], petab_tables[:parameters]
+    observables_df = petab_tables[:observables]
 
     # Build the initial value map (initial values as parameters are set in the reaction sys_mutated)
     sys_mutated = deepcopy(sys)
     sys_mutated, speciemap_use = _get_speciemap(sys_mutated, conditions_df, hybridization_df, ml_models, speciemap)
     parametermap_use = _get_parametermap(sys_mutated, parametermap)
-    xindices = ParameterIndices(petab_tables, sys_mutated, parametermap_use, speciemap_use, ml_models)
+    xindices = ParameterIndices(petab_tables, sys_mutated, parametermap_use,
+                                speciemap_problem, ml_models)
     # Warn user if any variable is unassigned (and defaults to zero)
-    _check_unassigned_variables(sys, speciemap_use, speciemap, :specie, parameters_df,
+    _check_unassigned_variables(sys, speciemap_problem, speciemap, :specie, parameters_df,
                                 conditions_df)
     _check_unassigned_variables(sys, parametermap_use, parametermap, :parameter,
                                 parameters_df, conditions_df)
@@ -60,9 +68,17 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
         model_SBML = SBMLImporter.ModelSBML(name)
         hstr, u0!str, u0str, σstr = parse_observables(name, Dict{Symbol, String}(), sys_mutated, petab_tables, xindices, speciemap_use, model_SBML, ml_models, false)
         compute_h = @RuntimeGeneratedFunction(Meta.parse(hstr))
-        compute_u0! = @RuntimeGeneratedFunction(Meta.parse(u0!str))
-        compute_u0 = @RuntimeGeneratedFunction(Meta.parse(u0str))
         compute_σ = @RuntimeGeneratedFunction(Meta.parse(σstr))
+        # See comment on define petab_mode.jl for standard format input for why this is
+        # needed
+        _compute_u0! = @RuntimeGeneratedFunction(Meta.parse(u0!str))
+        _compute_u0 = @RuntimeGeneratedFunction(Meta.parse(u0str))
+        compute_u0! = let f_u0! = _compute_u0!
+            (u0, p; __post_eq = false) -> f_u0!(u0, p, __post_eq)
+        end
+        compute_u0 = let f_u0 = _compute_u0
+            (p; __post_eq = false) -> f_u0(p, __post_eq)
+        end
     end
     _logging(:Build_u0_h_σ, verbose; time = btime)
 
@@ -75,7 +91,8 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
         if !isempty(sbml_events)
             model_SBML = SBMLImporter.ModelSBML(name; events = sbml_events)
             float_tspan = _xdynamic_in_event_cond(model_SBML, xindices, petab_tables) |> !
-            psys = _get_xids_sys_order(sys_mutated, speciemap_use, parametermap_use) .|>
+            psys = _get_xids_sys_order(sys_mutated, speciemap_problem, parametermap_use) .|>
+
                 string
             cbset = SBMLImporter.create_callbacks(sys_mutated, model_SBML, name;
                                                   p_PEtab = psys, float_tspan = float_tspan)
@@ -88,6 +105,6 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     # Path only applies when PEtab tables are provided
     paths = Dict{Symbol, String}()
     return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan,
-                      paths, sys, sys_mutated, parametermap_use, speciemap_use,
+                      paths, sys, sys_mutated, parametermap_use, speciemap_problem,
                       petab_tables, cbset, true, ml_models)
 end

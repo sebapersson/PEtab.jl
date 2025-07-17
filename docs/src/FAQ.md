@@ -1,5 +1,33 @@
 # [Frequently Asked Questions](@id FAQ)
 
+## [Why do I encounter installation problems?](@id install_fail)
+
+PEtab.jl is regularly tested on, and should be installable on Linux, macOS and Windows. If you encounter installation issues on these systems, we recommend checking the following two common causes:
+
+1. an incorrectly installed or outdated Julia version,  
+2. outdated package dependencies.
+
+First, ensure that a supported Julia version is used. PEtab.jl is tested with Julia LTS version **1.10** and the latest stable version. Using an earlier version may result in installation failures. To reliably install and manage Julia versions across operating systems, we strongly recommend using [juliaup](https://github.com/JuliaLang/juliaup). If you are constrained to using an older Julia version, for example on an HPC cluster, and encounter problems, please file an issue on [GitHub](https://github.com/sebapersson/PEtab.jl/issues).
+
+Second, installation failures may result from outdated versions of PEtab.jl dependencies. For example, if PEtab.jl is installed into the global Julia environment, older versions of other packages may prevent the latest version from being installed. This can cause installation failures or break tutorials and example code. To avoid this, it is recommended to install PEtab.jl in a new, isolated environment. For example, to install it in an environment named `petab_project`, run the following in the Julia REPL:
+
+```julia
+using Pkg
+Pkg.activate("petab_project")
+Pkg.add("PEtab")
+# Add any additional packages as needed
+```
+
+If you need to install PEtab.jl into an existing environment and encounter issues, updating all packages may resolve the problem:
+
+```julia
+Pkg.update()
+```
+
+This is because PEtab.jl depends on numerous packages from the actively developing Julia [SciML ecosystem](https://sciml.ai/). New releases of these dependencies sometimes introduce breaking changes that are not always caught by test suites (e.g., see [this issue](https://github.com/SciML/Catalyst.jl/issues/1075)). In other words, PEtab.jl is not compatible with all versions of packages like Catalyst.jl, which can cause issues if an incompatible version is already installed in the environment.
+
+Lastly, if you have tried everything above and still experience installation issues, it is likely a bug in PEtab. In this case, please open an issue on [GitHub](https://github.com/sebapersson/PEtab.jl).
+
 ## How do I check that I implemented my parameter estimation problem correctly?
 
 After creating a `PEtabODEProblem`, it is important to check that everything works as expected. Since PEtab.jl creates parameter estimation problems, this means checking that the objective function (the problem likelihood) is computable, because if not, running parameter estimation will only return `NaN` or `Inf`.

@@ -2,14 +2,15 @@
     Test that the PEtab util functions return expected results
 =#
 
-using Catalyst, DataFrames, OrdinaryDiffEqRosenbrock, PEtab, Test
+using Catalyst, PEtab, OrdinaryDiffEqRosenbrock, Catalyst, DataFrames, Test
+
 @testset "util functions" begin
-    # Test ability to retrive model parameters for specific model conditions
+    # Test ability to retreive model parameters for specific model conditions
     # Model without pre-eq or condition specific parameters
     path_yaml = joinpath(@__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
-    model = PEtabModel(path_yaml; build_julia_files=true, write_to_file=false, verbose=false)
-    prob = PEtabODEProblem(model; verbose=false)
-    x = prob.xnominal_transformed .* 0.9
+    model = PEtabModel(path_yaml)
+    prob = PEtabODEProblem(model)
+    x = get_x(prob) .* 0.9
     nllh = prob.nllh(x)
     res = PEtabOptimisationResult(x ./ 0.9, 10.0, x, :Fides, 10, 10.0,
                                   Vector{Vector{Float64}}(undef, 0), Float64[],  true,  nothing)
@@ -35,10 +36,10 @@ using Catalyst, DataFrames, OrdinaryDiffEqRosenbrock, PEtab, Test
 
     # Beer model
     path_yaml = joinpath(@__DIR__, "published_models", "Beer_MolBioSystems2014", "Beer_MolBioSystems2014.yaml")
-    model = PEtabModel(path_yaml; verbose=false, build_julia_files=true)
-    prob = PEtabODEProblem(model; verbose=false, sparse_jacobian=false,
+    model = PEtabModel(path_yaml)
+    prob = PEtabODEProblem(model; sparse_jacobian=false,
                            odesolver=ODESolver(Rodas5P(), abstol=1e-10, reltol=1e-10))
-    x = prob.xnominal_transformed .* 0.9
+    x = get_x(prob) .* 0.9
     nllh = prob.nllh(x)
     res = PEtabOptimisationResult(x ./ 0.9, 10.0, x, :Fides, 10, 10.0,
                                   Vector{Vector{Float64}}(undef, 0), Float64[],  true,  nothing)
@@ -49,18 +50,26 @@ using Catalyst, DataFrames, OrdinaryDiffEqRosenbrock, PEtab, Test
     to_test = Bool[1, 1, 1, 1, 0, 1, 1, 1, 1] # To account for Event variable
     @test all(p[to_test] == p_test[to_test])
 
+    # Brannmark model with pre-eq simulation
     path_yaml = joinpath(@__DIR__, "published_models", "Brannmark_JBC2010", "Brannmark_JBC2010.yaml")
     model = PEtabModel(path_yaml; build_julia_files = true, verbose=false)
     prob = PEtabODEProblem(model, verbose=false)
-    x = prob.xnominal_transformed .* 0.9
+    x = get_x(prob) .* 0.9
     nllh = prob.nllh(x)
     res = PEtabOptimisationResult(x ./ 0.9, 10.0, x, :Fides, 10, 10.0,
                                   Vector{Vector{Float64}}(undef, 0), Float64[],  true,  nothing)
     @unpack u0, p = prob.model_info.simulation_info.odesols[:Dose_0Dose_01].prob
-    p_test = get_ps(res.xmin, prob; cid=:Dose_01, retmap=false)
+    p_test = get_ps(res.xmin, prob; cid=:Dose_01, preeq_id=:Dose_0, retmap=false)
     u0_test = get_u0(res.xmin, prob; cid=:Dose_01, preeq_id=:Dose_0, retmap=false)
     @test all(u0_test .== u0)
     @test all(p == p_test)
+    oprob, _ = get_odeproblem(res, prob; cid=:Dose_01, preeq_id=:Dose_0)
+    @test all(oprob.u0 .== u0)
+    @test all(oprob.p == p_test)
+    @test oprob.tspan[end] == prob.model_info.simulation_info.tmaxs[:Dose_0Dose_01]
+    @test_throws PEtab.PEtabInputError begin
+        oprob, _ = get_odeproblem(res, prob; cid=:Dose_01, preeq_id=:Dose_01)
+    end
 
     # Case where the system is mutated as we have a initial value set in condition. However,
     # get_odeproblem and its functions should return for the non-mutated input system

@@ -120,10 +120,11 @@ function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic_mec
             @warn "Transformed observable is non-finite for measurement $imeasurement"
             return Inf
         end
-        if σ < 0.0
-            @warn "Measurement noise σ is smaller than 0. Consider changing the noise  \
-                   formula so it cannot go below zero. This issue likelly happens due \
-                   to numerical noise when solving the ODE" maxlog=10
+        if σ ≤ 0.0
+            @warn "Measurement noise σ ≤ 0 detected. σ must be > 0 for a valid likelihood, \
+                 so Inf will be returned. It is recommended to adjust the noise formula \
+                 to ensure σ > 0. This warning is likely due to ODE-solver round-off error \
+                 and, if it occurs only rarely, can usually be safely ignored." maxlog=20
             return Inf
         end
 

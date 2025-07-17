@@ -1,6 +1,7 @@
 struct SimulationInfo
     conditionids::Dict{Symbol, Vector{Symbol}}
     has_pre_equilibration::Bool
+    tstarts::Dict{Symbol, Float64}
     tmaxs::Dict{Symbol, Float64}
     tsaves::Dict{Symbol, Vector{Float64}}
     imeasurements::Dict{Symbol, Vector{Int64}}

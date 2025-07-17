@@ -4,12 +4,23 @@ using Catalyst, CSV, DataFrames, Distributions, ForwardDiff, ModelingToolkit,
 #  5 and 12 rely on SBML features and have no direct correspondence to a MTK ODESystem or
 # Catalyst ReactionSystem
 @testset "Defined in Julia" begin
-    for i in 1:18
-        i in [5, 12] && continue
-        @info "Test case $i"
-        test_case = i < 10 ? "00$(i).jl" : "0$(i).jl"
-        include(joinpath(@__DIR__, "defined_in_julia", test_case))
-    end
+    include(joinpath(@__DIR__, "defined_in_julia", "001.jl"))
+    include(joinpath(@__DIR__, "defined_in_julia", "002.jl"))
+    include(joinpath(@__DIR__, "defined_in_julia", "003.jl"))
+    include(joinpath(@__DIR__, "defined_in_julia", "004.jl"))
+    include(joinpath(@__DIR__, "defined_in_julia", "006.jl"))
+    include(joinpath(@__DIR__, "defined_in_julia", "007.jl"))
+    include(joinpath(@__DIR__, "defined_in_julia", "008.jl"))
+    include(joinpath(@__DIR__, "defined_in_julia", "009.jl"))
+    include(joinpath(@__DIR__, "defined_in_julia", "010.jl"))
+    include(joinpath(@__DIR__, "defined_in_julia", "011.jl"))
+    include(joinpath(@__DIR__, "defined_in_julia", "013.jl"))
+    include(joinpath(@__DIR__, "defined_in_julia", "014.jl"))
+    include(joinpath(@__DIR__, "defined_in_julia", "015.jl"))
+    include(joinpath(@__DIR__, "defined_in_julia", "016.jl"))
+    include(joinpath(@__DIR__, "defined_in_julia", "017.jl"))
+    include(joinpath(@__DIR__, "defined_in_julia", "018.jl"))
+    include(joinpath(@__DIR__, "defined_in_julia", "020.jl"))
     include(joinpath(@__DIR__, "defined_in_julia", "log2.jl"))
     include(joinpath(@__DIR__, "defined_in_julia", "parametermap.jl"))
     include(joinpath(@__DIR__, "defined_in_julia", "priors.jl"))
