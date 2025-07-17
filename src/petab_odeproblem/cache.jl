@@ -45,7 +45,7 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol, F
                 xnn[ml_model_id] = DiffCache(similar(_p); levels = level_cache)
                 xnn_dict[ml_model_id] = _p
             else
-                set_ml_model_ps!(_p, ml_model_id, ml_model, model.paths, petab_net_parameters)
+                set_ml_model_ps!(_p, ml_model_id, ml_model, model.paths)
                 xnn_constant[ml_model_id] = _p
             end
         end

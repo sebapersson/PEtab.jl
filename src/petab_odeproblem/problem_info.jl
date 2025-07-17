@@ -89,7 +89,7 @@ function _get_odeproblem(sys::ODEProblem, ::PEtabModel, model_info::ModelInfo,
     # Set potential constant neural net parameters in the ODE
     for ml_model_id in xindices.xids[:ml_in_ode]
         ml_model_id in xindices.xids[:ml_est] && continue
-        set_ml_model_ps!((@view odeproblem.p[ml_model_id]), ml_model_id, model.ml_models[ml_model_id], model.paths, petab_net_parameters)
+        set_ml_model_ps!((@view odeproblem.p[ml_model_id]), ml_model_id, model.ml_models[ml_model_id], model.paths)
     end
     return odeproblem
 end

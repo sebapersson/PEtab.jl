@@ -19,7 +19,7 @@ const PARAMETERS_COLS = Dict("parameterId" => (required = true, types = Abstract
                              "parameterScale" => (required = true, types = AbstractString),
                              "lowerBound" => (required = true, types = Union{Real, Missing}),
                              "upperBound" => (required = true, types = Union{Real, Missing}),
-                             "nominalValue" => (required = true, types = Union{Real, AbstractString}),
+                             "nominalValue" => (required = true, types = Union{Real, AbstractString, Missing}),
                              "estimate" => (required = true, types = Real),
                              "initializationPriorType" => (required = false,
                                                            types = Union{Missing,

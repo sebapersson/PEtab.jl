@@ -50,12 +50,12 @@ function PEtab.MLModel(net::Union{Lux.Chain, Lux.CompactLuxLayer}; st = nothing,
 end
 
 function PEtab.parse_to_lux(path_yaml::String; freeze_info::Union{Nothing, Dict} = nothing)
-    network_yaml = YAML.load_file(path_yaml)["models"][1]
+    network_yaml = YAML.load_file(path_yaml)
     layers = Dict([_parse_layer(l) for l in network_yaml["layers"]])
     input, output, forward_steps = _parse_forward_pass(network_yaml["forward"], layers)
     model_str = _template_nn_model(layers, input, output, forward_steps, freeze_info)
     nn = eval(Meta.parse(model_str)) |> f64
-    return nn, network_yaml["mlmodel_id"]
+    return nn, network_yaml["nn_model_id"]
 end
 
 function _parse_forward_pass(forward_trace::Vector{<:Dict}, layers::Dict)::Tuple{String, String, Vector{String}}

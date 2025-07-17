@@ -76,6 +76,8 @@ function PEtabMLParameters(_parameters_df::DataFrame, mappings_df::DataFrame, ml
     for (i, nominal_value) in pairs(parameters_df[!, :nominalValue])
         if nominal_value isa Real
             nominal_values[i] = nominal_value
+        elseif ismissing(nominal_value)
+            nominal_values[i] = ""
         elseif SBMLImporter.is_number(nominal_value)
             nominal_values[i] = parse(Float64, nominal_value)
         else

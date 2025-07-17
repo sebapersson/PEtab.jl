@@ -76,8 +76,8 @@ function _get_path(yaml_file, dir::String, file::String)::String
     elseif file == "parameter_file"
         path = joinpath(dir, yaml_file[file])
     elseif file == "hybridization_file"
-        if haskey(yaml_file, "extensions") && haskey(yaml_file["extensions"], "sciml") && haskey(yaml_file["extensions"]["sciml"], "hybridization_file")
-            path = joinpath(dir, yaml_file["extensions"]["sciml"]["hybridization_file"])
+        if haskey(yaml_file, "extensions") && haskey(yaml_file["extensions"], "sciml") && haskey(yaml_file["extensions"]["sciml"], "hybridization_files")
+            path = joinpath(dir, yaml_file["extensions"]["sciml"]["hybridization_files"][1])
         else
             path = ""
         end

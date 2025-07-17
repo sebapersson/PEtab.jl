@@ -47,7 +47,7 @@ function test_hybrid(test_case, petab_prob::PEtabODEProblem)
         grad_test = grad_petab[ml_model_id]
         path_ref = joinpath(dirtest, yamlfile["grad_files"][string(ml_model_id)])
         grad_ref = deepcopy(grad_test)
-        PEtab.set_ml_model_ps!(grad_ref, path_ref, mm_model.model)
+        PEtab.set_ml_model_ps!(grad_ref, path_ref, mm_model.model, ml_model_id)
         @test all(.≈(grad_test, grad_ref; atol=tol_grad))
     end
     return nothing
@@ -65,7 +65,7 @@ function test_init(test_case, model::PEtabModel)::Nothing
         !haskey(yamlfile["parameter_files"], string(ml_model_id)) && continue
         path_ref = joinpath(dirtest, yamlfile["parameter_files"][string(ml_model_id)])
         ps_ref = deepcopy(x[ml_model_id])
-        PEtab.set_ml_model_ps!(ps_ref, path_ref, ml_model.model)
+        PEtab.set_ml_model_ps!(ps_ref, path_ref, ml_model.model, ml_model_id)
         @test ps_ref == x[ml_model_id]
     end
     return nothing
@@ -92,14 +92,20 @@ function test_netimport(testcase, ml_model)::Nothing
     output_order_py = yaml_test["output_order_py"]
 
     for j in 1:3
-        _input = h5read(joinpath(dirtest, yaml_test["net_input"][j]), "input")
+        input_file = h5open(joinpath(dirtest, yaml_test["net_input"][j]), "r")
+        _input = HDF5.read_dataset(input_file["inputs"]["input0"], "data")
         input = parse_array(_input, input_order_jl, input_order_py)
+        close(input_file)
         # alpha dropout does not want mixed precision
         if testcase == "020"
             input = input |> f64
         end
-        _output = h5read(joinpath(dirtest, yaml_test["net_output"][j]), "output")
+
+        output_file = h5open(joinpath(dirtest, yaml_test["net_output"][j]), "r")
+        _output = HDF5.read_dataset(output_file["outputs"]["output0"], "data")
         output_ref = parse_array(_output, output_order_jl, output_order_py)
+        close(output_file)
+
         if needs_batch
             input = reshape(input, (size(input)..., 1))
             output_ref = reshape(output_ref, (size(output_ref)..., 1))
@@ -107,7 +113,7 @@ function test_netimport(testcase, ml_model)::Nothing
 
         if haskey(yaml_test, "net_ps")
             path_h5 = joinpath(dirtest, yaml_test["net_ps"][j])
-            PEtab.set_ml_model_ps!(ps, path_h5, ml_model)
+            PEtab.set_ml_model_ps!(ps, path_h5, ml_model, "net0")
         end
 
         if haskey(yaml_test, "dropout")

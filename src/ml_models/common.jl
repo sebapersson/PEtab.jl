@@ -10,16 +10,14 @@ function _get_ml_model_pre_ode_x(nnpre::MLModelPreODE, xdynamic_mech::AbstractVe
     return x
 end
 
-function set_ml_model_ps!(ps::ComponentArray, ml_model_id::Symbol, ml_model::MLModel, paths::Dict{Symbol, String}, petab_net_parameters::PEtabMLParameters)::Nothing
+function set_ml_model_ps!(ps::ComponentArray, ml_model_id::Symbol, ml_model::MLModel, paths::Dict{Symbol, String})::Nothing
     # Case when Julia provided parameter input
     if isempty(paths)
         ps .= ml_model.ps
         return nothing
     end
-
-    netindices = _get_netindices(ml_model_id, petab_net_parameters.mapping_table_id)
-    ps_path = _get_ps_path(ml_model_id, paths, petab_net_parameters.nominal_value[netindices[1]])
-    set_ml_model_ps!(ps, ps_path, ml_model.model)
+    ps_path = _get_ps_path(ml_model_id, paths)
+    set_ml_model_ps!(ps, ps_path, ml_model.model, ml_model_id)
     return nothing
 end
 function set_ml_model_ps!(ps::ComponentArray, ml_model_id::Symbol, ml_models, paths::Dict{Symbol, String}, petab_tables::PEtabTables)::Nothing
@@ -33,20 +31,16 @@ function set_ml_model_ps!(ps::ComponentArray, ml_model_id::Symbol, ml_models, pa
     ml_model = ml_models[ml_model_id]
     petab_net_parameters = PEtabMLParameters(petab_tables[:parameters], petab_tables[:mapping], ml_models)
     netindices = _get_netindices(ml_model_id, petab_net_parameters.mapping_table_id)
-    ps_path = _get_ps_path(ml_model_id, paths, petab_net_parameters.nominal_value[netindices[1]])
-    @assert isfile(ps_path) "Parameter values for net $ml_model_id must be a file"
 
     # Set parameters for entire net, then set values for specific layers
-    PEtab.set_ml_model_ps!(ps, ml_model_id, ml_model, paths, petab_net_parameters)
+    PEtab.set_ml_model_ps!(ps, ml_model_id, ml_model, paths)
     length(netindices) == 1 && return nothing
     for netindex in netindices
         mapping_table_id = string(petab_net_parameters.mapping_table_id[netindex])
+        mapping_table_id == "$(ml_model_id).parameters" && continue
+
         value = petab_net_parameters.nominal_value[netindex]
-        if value isa String
-            _path = _get_ps_path(ml_model_id, paths, value)
-            @assert _path == ps_path "A separate file for a layer is not allowed"
-            continue
-        end
+        isempty(value) && continue
 
         @assert count(".", mapping_table_id) ≤ 2 "Only two . are allowed when specifying network layer"
         if count('[', mapping_table_id) == 1 && count('.', mapping_table_id) == 1
@@ -63,15 +57,28 @@ function set_ml_model_ps!(ps::ComponentArray, ml_model_id::Symbol, ml_models, pa
     return nothing
 end
 
-function _get_ps_path(ml_model_id::Symbol, paths::Dict{Symbol, String}, nominal_value::String)
+function _get_ps_path(ml_model_id::Symbol, paths::Dict{Symbol, String})::String
     yaml_file = YAML.load_file(paths[:yaml])
     array_files = yaml_file["extensions"]["sciml"]["array_files"]
-    if !haskey(array_files, nominal_value)
-        throw(PEtab.PEtabInputError("For neural network $ml_model_id the parameter file \
-            $(nominal_value) has not been defined in the YAML problem file under \
-            array_files"))
+    path_ps_file = String[]
+    for array_file in array_files
+        _path_ps_file = joinpath(paths[:dirmodel], array_file)
+        if !isfile(_path_ps_file)
+            throw(PEtab.PEtabInputError("The provided SciML extension array file \
+                $(array_file) does not exist at $(_path_ps_file)"))
+        end
+        hdf5_file = HDF5.h5open(_path_ps_file, "r")
+        if haskey(hdf5_file["parameters"], "$(ml_model_id)")
+            push!(path_ps_file, _path_ps_file)
+            break
+        end
     end
-    return joinpath(paths[:dirmodel], array_files[nominal_value]["location"])
+
+    if isempty(path_ps_file)
+        throw(PEtab.PEtabInputError("Parameters for neural network $(ml_model_id) has not \
+            been provided in an array file"))
+    end
+    return path_ps_file[1]
 end
 
 function _get_net_petab_variables(mappings_df::DataFrame, ml_model_id::Symbol, type::Symbol)::Vector{String}
