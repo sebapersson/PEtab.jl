@@ -32,6 +32,10 @@ function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, hybridizatio
         end
     end
 
+    # Add extra parameter in case any of the conditions map to a model specie (just as must
+    # be done for SBML models). As NaN is allowed value in the conditions table, need to
+    # save model map. See comment in petab_model file for standard format import.
+    speciemap_model = deepcopy(speciemap)
     for variable in Iterators.flatten((condition_variables, net_outputs))
         !(variable in specie_ids) && continue
         pid = "__init__" * string(variable) * "__"
@@ -45,7 +49,8 @@ function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, hybridizatio
             hybridization_df[ix, :targetId] .= pid
         end
     end
-    return sys, speciemap
+
+    return sys, speciemap_model, speciemap
 end
 
 function _get_parametermap(sys::ModelSystem, parametermap_input)

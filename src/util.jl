@@ -159,7 +159,7 @@ function _get_ps_u0(res::EstimationResult, prob::PEtabODEProblem,
             _cid = cid
         end
         oprob = _switch_condition(odeproblem, _cid, xdynamic, xnn, model_info, cache,
-                                  ml_models_pre_ode; simid = simid)
+                                  ml_models_pre_ode, false; simid = simid)
     else
         _check_ids(cid, preeq_id, model_info)
         # For models with pre-eq in order to correctly return the initial values the model
@@ -167,11 +167,11 @@ function _get_ps_u0(res::EstimationResult, prob::PEtabODEProblem,
         # parameters must be correctly set
         u_ss = Vector{Float64}(undef, length(u0))
         u_t0 = Vector{Float64}(undef, length(u0))
-        oprob_preeq = _switch_condition(odeproblem, preeq_id, xdynamic, xnn, model_info, cache, ml_models_pre_ode)
+        oprob_preeq = _switch_condition(odeproblem, preeq_id, xdynamic, xnn, model_info, cache, ml_models_pre_ode, false)
         _ = solve_pre_equlibrium!(u_ss, u_t0, oprob_preeq, solver, ss_solver, true)
         # Setup the problem with correct initial values
         _cid = string(preeq_id) * string(cid) |> Symbol
-        oprob = _switch_condition(odeproblem, _cid, xdynamic, xnn, model_info, cache, ml_models_pre_ode; simid = cid)
+        oprob = _switch_condition(odeproblem, _cid, xdynamic, xnn, model_info, cache, ml_models_pre_ode, true; simid = cid)
         has_not_changed = oprob.u0 .== u_t0
         oprob.u0[has_not_changed] .= u_ss[has_not_changed]
         oprob.u0[isnan.(oprob.u0)] .= u_ss[isnan.(u0)]

@@ -1,7 +1,4 @@
-function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::AbstractVector,
-                           model_info::ModelInfo, cache::PEtabODEProblemCache,
-                           posteq_simulation::Bool; sensitivites::Bool = false,
-                           simid::Union{Nothing, Symbol} = nothing)::ODEProblem
+function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::AbstractVector, xnn::Dict{Symbol, ComponentArray}, model_info::ModelInfo, cache::PEtabODEProblemCache, ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreODE}}, posteq_simulation::Bool; sensitivites::Bool = false, simid::Union{Nothing, Symbol} = nothing)::ODEProblem
     @unpack xindices, model, nstates = model_info
     simid = isnothing(simid) ? cid : simid
 

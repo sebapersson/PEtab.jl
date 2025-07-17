@@ -1,9 +1,9 @@
 using CSV, DataFrames, FiniteDifferences, PEtab, Test, YAML
 
-function check_test_case(case::String; test_grad::Bool=true)
-    @info "Test case $case"
-    path_yaml = joinpath(@__DIR__, "petab_testsuite", case, "_$(case).yaml")
-    path_ref = joinpath(@__DIR__, "petab_testsuite", case, "_$(case)_solution.yaml")
+function check_test_case(test_case::String; test_grad::Bool=true)
+    @info "Test case $test_case"
+    path_yaml = joinpath(@__DIR__, "petab_testsuite", test_case, "_$(test_case).yaml")
+    path_ref = joinpath(@__DIR__, "petab_testsuite", test_case, "_$(test_case)_solution.yaml")
 
     model = PEtabModel(path_yaml, verbose=false, build_julia_files=true, write_to_file = false)
     prob = PEtabODEProblem(model; verbose=false,
@@ -33,6 +33,6 @@ end
 @testset "PEtab test-suite" begin
     for i in 1:20
         case = i > 9 ? "00$i" : "000$i"
-        test_case(case)
+        check_test_case(case)
     end
 end

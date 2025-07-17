@@ -5,12 +5,12 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
     paths = _get_petab_paths(path_yaml)
     petab_tables = read_tables(path_yaml)
     return _PEtabModel(paths, petab_tables, build_julia_files, verbose, ifelse_to_callback,
-                       write_to_file)
+                       write_to_file, ml_models)
 end
 
-function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::Dict{Symbol, DataFrame},
+function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::PEtabTables,
                      build_julia_files::Bool, verbose::Bool, ifelse_to_callback::Bool,
-                     write_to_file::Bool)
+                     write_to_file::Bool, ml_models::Union{Nothing, MLModels})
     name = splitdir(paths[:dirmodel])[end]
 
     write_to_file && !isdir(paths[:dirjulia]) && mkdir(paths[:dirjulia])
@@ -19,13 +19,20 @@ function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::Dict{Symbol, Dat
     end
     _logging(:Build_PEtabModel, verbose; name = name)
 
-    # Import SBML model with SBMLImporter
-    # In case one of the conditions in the PEtab table assigns an initial specie value,
-    # the SBML model must be mutated to add an initial value parameter to correctly
-    # compute gradients. However, it is allowed for this parameter to take the value
-    # NaN, in this case the importer should resort to the SBML file initial value
-    # mapping. Therefore, for building the u0 function the original specie-map must
-    # also be extracted
+    # Ensure correct type internally for ml_models
+    ml_models = isnothing(ml_models) ? Dict{Symbol, MLModel}() : ml_models
+
+     #=
+        If the SBML model contains a neural-network it must be parsed as an ODEProblem, as
+        MTK does not have good neural-net support yet. Otherwise, model should be parsed as
+        ODESystem as usual. If parsed as ODEProblem assignment rules must be inlined
+
+        In case one of the conditions in the PEtab table assigns an initial specie value,
+        the SBML model must be mutated to add an initial value parameter in order for
+        PEtab.jl to be able to correctly compute gradients
+    =#
+    ml_models_in_ode = _get_ml_models_in_ode(ml_models, paths[:SBML], petab_tables)
+    inline_assignment_rules = !isempty(ml_models_in_ode)
     model_SBML = SBMLImporter.parse_SBML(paths[:SBML], false; model_as_string = false,
                                          ifelse_to_callback = ifelse_to_callback,
                                          inline_assignment_rules = inline_assignment_rules)

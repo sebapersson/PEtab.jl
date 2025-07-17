@@ -166,37 +166,29 @@ function _get_observable(x, prob::PEtabODEProblem, cid::String, preeq_id::String
     map_xobservables = model_info.xindices.mapxobservable[idata]
     smooth_sol = all([map.nparameters == 0 for map in map_xobservables])
 
-        mapxobservables = model_info.xindices.mapxobservable[_idata]
-        smooth_sol = all([map.nparameters == 0 for map in mapxobservables])
-        # For smooth trajectory must solve ODE and compute the observable function
-        if smooth_sol == true
-            PEtab.split_x!(x, model_info.xindices, probinfo.cache)
-            @unpack xobservable, xnondynamic_mech = probinfo.cache
-            xobservable = get_tmp(xobservable, x)
-            xnondynamic_mech = get_tmp(xnondynamic_mech, x)
-            xobservable_ps = PEtab.transform_x(xobservable, model_info.xindices,
-                                               :xobservable, probinfo.cache)
-            xnondynamic_mech_ps = PEtab.transform_x(xnondynamic_mech, model_info.xindices,
-                                                    :xnondynamic_mech, probinfo.cache)
-            for (i, t) in pairs(sol.t)
-                u = sol[:, i]
-                h = PEtab._h(u, t, sol.prob.p, xobservable_ps, xnondynamic_mech_ps, probinfo.cache.xnn_dict, probinfo.cache.xnn_constant, model_info.model.h, mapxobservables[1], Symbol(obsid), collect(prob.xnominal), model_info.model.ml_models)
-                push!(h_model, h)
-            end
-            t_model = vcat(t_model, sol.t)
-            npoints = length(sol.t)
-            # With observable parameters the simulated values can be used instead
-        else
-            t_model = vcat(t_model, measurements_df[_idata, :time])
-            h_model = vcat(h_model, prob.simulated_values(x)[_idata])
-            npoints = length(measurements_df[_idata, :time])
+    # For smooth trajectory must solve ODE and compute the observable function
+    if smooth_sol == true
+        PEtab.split_x!(x, model_info.xindices, probinfo.cache)
+        @unpack xobservable, xnondynamic = probinfo.cache
+        xobservable_ps = PEtab.transform_x(xobservable, model_info.xindices,
+                                           :xobservable_mech, probinfo.cache)
+        xnondynamic_ps = PEtab.transform_x(xnondynamic, model_info.xindices,
+                                           :xnondynamic_mech, probinfo.cache)
+        for (i, t) in pairs(sol.t)
+            u = sol[:, i]
+            h = PEtab._h(u, t, sol.prob.p, xobservable_ps, xnondynamic_ps,
+                         model_info.model.h, map_xobservables[1],
+                         Symbol(obsid), collect(prob.xnominal))
+            push!(h_model, h)
         end
-        if preeq_id == :None
-            _label = [cid for _ in 1:npoints]
-        else
-            _label = ["pre_$(preeq_id)_$(cid)" for _ in 1:npoints]
-        end
-        label_model = vcat(label_model, _label)
+        t_model = vcat(t_model, sol.t)
+        npoints = length(sol.t)
+        # With observable parameters the simulated values can be used instead
+    else
+        t_model = vcat(t_model, measurements_df[idata, :time])
+        h_model = vcat(h_model, prob.simulated_values(x)[idata])
+        npoints = length(measurements_df[idata, :time])
     end
-    return t_observed, h_observed, label_observed, t_model, h_model, label_model
+
+    return t_observed, h_observed, t_model, h_model
 end

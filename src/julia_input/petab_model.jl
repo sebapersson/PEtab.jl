@@ -43,17 +43,17 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     mappings_df = _mapping_to_table(ml_models)
     hybridization_df = _hybridization_to_table(ml_models, parameters_df, conditions_df)
     petab_tables = Dict{Symbol, Union{DataFrame, Dict}}(:parameters => parameters_df, :conditions => conditions_df, :observables => observables_df, :measurements => measurements_df, :mapping => mappings_df, :hybridization => hybridization_df)
-    return _PEtabModel(sys, petab_tables, name, speciemap, parametermap, events, verbose)
+    return _PEtabModel(sys, petab_tables, name, speciemap, parametermap, events, ml_models, verbose)
 end
 
-function _PEtabModel(sys::ModelSystem, petab_tables::Dict{Symbol, DataFrame}, name,
-                     speciemap, parametermap, events, verbose::Bool)::PEtabModel
+function _PEtabModel(sys::ModelSystem, petab_tables::PEtabTables, name,
+                     speciemap, parametermap, events, ml_models::Union{MLModels, Nothing}, verbose::Bool)::PEtabModel
     conditions_df, parameters_df = petab_tables[:conditions], petab_tables[:parameters]
-    observables_df = petab_tables[:observables]
+    hybridization_df = petab_tables[:hybridization]
 
     # Build the initial value map (initial values as parameters are set in the reaction sys_mutated)
     sys_mutated = deepcopy(sys)
-    sys_mutated, speciemap_use = _get_speciemap(sys_mutated, conditions_df, hybridization_df, ml_models, speciemap)
+    sys_mutated, speciemap_model, speciemap_problem = _get_speciemap(sys_mutated, conditions_df, hybridization_df, ml_models, speciemap)
     parametermap_use = _get_parametermap(sys_mutated, parametermap)
     xindices = ParameterIndices(petab_tables, sys_mutated, parametermap_use,
                                 speciemap_problem, ml_models)
@@ -66,7 +66,7 @@ function _PEtabModel(sys::ModelSystem, petab_tables::Dict{Symbol, DataFrame}, na
     _logging(:Build_u0_h_σ, verbose; exist = false)
     btime = @elapsed begin
         model_SBML = SBMLImporter.ModelSBML(name)
-        hstr, u0!str, u0str, σstr = parse_observables(name, Dict{Symbol, String}(), sys_mutated, petab_tables, xindices, speciemap_use, model_SBML, ml_models, false)
+        hstr, u0!str, u0str, σstr = parse_observables(name, Dict{Symbol, String}(), sys_mutated, petab_tables, xindices, speciemap_problem, speciemap_model, model_SBML, ml_models, false)
         compute_h = @RuntimeGeneratedFunction(Meta.parse(hstr))
         compute_σ = @RuntimeGeneratedFunction(Meta.parse(σstr))
         # See comment on define petab_mode.jl for standard format input for why this is
