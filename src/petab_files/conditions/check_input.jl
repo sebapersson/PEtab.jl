@@ -20,7 +20,7 @@ function _check_conditionids(petab_tables::PEtabTables, petab_measurements::PEta
     return nothing
 end
 
-function _check_mapping_table(petab_tables::PEtabTables, ml_models::Union{Nothing, MLModels}, petab_parameters::PEtabParameters, sys::ModelSystem)::Nothing
+function _check_mapping_table(petab_tables::PEtabTables, paths::Dict{Symbol, String}, ml_models::Union{Nothing, MLModels}, petab_parameters::PEtabParameters, sys::ModelSystem)::Nothing
     mappings_df = petab_tables[:mapping]
     isempty(mappings_df) && return nothing
     isempty(ml_models) && return nothing
@@ -28,13 +28,13 @@ function _check_mapping_table(petab_tables::PEtabTables, ml_models::Union{Nothin
     # Sanity check assigned assignments for static neural networks
     for (ml_model_id, ml_model) in ml_models
         ml_model.static == false && continue
-        _check_static_net_inputs(petab_tables, petab_parameters, ml_model_id)
+        _check_static_net_inputs(petab_tables, paths, petab_parameters, ml_model_id)
         _check_static_net_outputs(petab_tables, petab_parameters, sys, ml_model_id)
     end
     return nothing
 end
 
-function _check_static_net_inputs(petab_tables::PEtabTables, petab_parameters::PEtabParameters, ml_model_id::Symbol)::Nothing
+function _check_static_net_inputs(petab_tables::PEtabTables, paths::Dict{Symbol, String}, petab_parameters::PEtabParameters, ml_model_id::Symbol)::Nothing
     conditions_df = petab_tables[:conditions]
     hybridization_df = petab_tables[:hybridization]
     mappings_df = petab_tables[:mapping]
@@ -43,7 +43,7 @@ function _check_static_net_inputs(petab_tables::PEtabTables, petab_parameters::P
         input_variable in hybridization_df.targetId && continue
         input_variable in names(conditions_df) && continue
         Symbol(input_variable) in petab_parameters.parameter_id && continue
-        _input_isfile(input_variable, petab_tables[:yaml]) && continue
+        _input_isfile(input_variable, petab_tables[:yaml], paths) && continue
         throw(PEtab.PEtabInputError("For a static neural network, input variables in \
             assigned to in the mapping table must be assigned value by a parameter in \
             the parameter table, or in the conditions table, or be assigned to a file \

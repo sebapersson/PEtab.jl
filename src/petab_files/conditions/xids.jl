@@ -8,7 +8,7 @@ This is a **very** important function, as parameter type dictates how the gradie
 be computed for any parameter. The assigned parameter categories are later used to
 build all the indices used by PEtab.jl to correctly map parameters.
 """
-function _get_xids(petab_parameters::PEtabParameters, petab_net_parameters::PEtabMLParameters, petab_measurements::PEtabMeasurements, sys::ModelSystem, petab_tables::PEtabTables, speciemap, parametermap, ml_models::MLModels)::Dict{Symbol, Vector{Symbol}}
+function _get_xids(petab_parameters::PEtabParameters, petab_net_parameters::PEtabMLParameters, petab_measurements::PEtabMeasurements, sys::ModelSystem, petab_tables::PEtabTables, paths::Dict{Symbol, String}, speciemap, parametermap, ml_models::MLModels)::Dict{Symbol, Vector{Symbol}}
     @unpack observable_parameters, noise_parameters = petab_measurements
 
     # xids in the ODESystem in correct order
@@ -28,7 +28,7 @@ function _get_xids(petab_parameters::PEtabParameters, petab_net_parameters::PEta
 
     # Parameter which are input to a neural net, and are estimated. These must be
     # separately tracked in order to compute correct gradients
-    xids_ml_input_est = _get_xids_ml_input_est(petab_tables, petab_parameters, sys, ml_models)
+    xids_ml_input_est = _get_xids_ml_input_est(petab_tables, petab_parameters, sys, paths, ml_models)
 
     # Parameters set by a static neural net. Needed to be tracked for gradient computations
     # (as PEtab.jl computes neural net and ODE gradients separately in this case)
@@ -213,7 +213,7 @@ function _get_xids_ml_nondynamic(xids_ml::T, xids_ml_in_ode::T, xids_ml_preode::
     return out
 end
 
-function _get_xids_ml_input_est(petab_tables::PEtabTables, petab_parameters::PEtabParameters, sys::ModelSystem, ml_models::MLModels)::Vector{Symbol}
+function _get_xids_ml_input_est(petab_tables::PEtabTables, petab_parameters::PEtabParameters, sys::ModelSystem, paths::Dict{Symbol, String}, ml_models::MLModels)::Vector{Symbol}
     mappings_df = petab_tables[:mapping]
     conditions_df = petab_tables[:conditions]
     isempty(mappings_df) && return Symbol[]
@@ -222,7 +222,7 @@ function _get_xids_ml_input_est(petab_tables::PEtabTables, petab_parameters::PEt
     for (ml_model_id, ml_model) in ml_models
         ml_model.static == false && continue
         input_variables = _get_net_petab_variables(mappings_df, ml_model_id, :inputs) .|> Symbol
-        input_values = _get_net_input_values(input_variables, ml_model_id, ml_model, conditions_df, petab_tables, petab_parameters, sys)
+        input_values = _get_net_input_values(input_variables, ml_model_id, ml_model, conditions_df, petab_tables, paths, petab_parameters, sys)
         for input_value in input_values
             !(input_value in petab_parameters.parameter_id) && continue
             ip = findfirst(x -> x == input_value, petab_parameters.parameter_id)

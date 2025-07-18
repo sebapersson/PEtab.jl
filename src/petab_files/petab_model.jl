@@ -48,7 +48,7 @@ function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::PEtabTables,
 
     # Indices for mapping parameters and tracking which parameter to estimate, useful
     # when building the coming PEtab functions
-    xindices = ParameterIndices(petab_tables, odesystem, parametermap, speciemap, ml_models)
+    xindices = ParameterIndices(petab_tables, paths, odesystem, parametermap, speciemap, ml_models)
 
     path_u0_h_σ = joinpath(paths[:dirjulia], "$(name)_h_sd_u0.jl")
     exist = isfile(path_u0_h_σ)

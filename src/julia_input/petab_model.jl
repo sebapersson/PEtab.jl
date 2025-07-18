@@ -55,7 +55,7 @@ function _PEtabModel(sys::ModelSystem, petab_tables::PEtabTables, name,
     sys_mutated = deepcopy(sys)
     sys_mutated, speciemap_model, speciemap_problem = _get_speciemap(sys_mutated, conditions_df, hybridization_df, ml_models, speciemap)
     parametermap_use = _get_parametermap(sys_mutated, parametermap)
-    xindices = ParameterIndices(petab_tables, sys_mutated, parametermap_use,
+    xindices = ParameterIndices(petab_tables, Dict{Symbol, String}(), sys_mutated, parametermap_use,
                                 speciemap_problem, ml_models)
     # Warn user if any variable is unassigned (and defaults to zero)
     _check_unassigned_variables(sys, speciemap_problem, speciemap, :specie, parameters_df,

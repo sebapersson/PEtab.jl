@@ -113,7 +113,7 @@ function test_netimport(testcase, ml_model)::Nothing
 
         if haskey(yaml_test, "net_ps")
             path_h5 = joinpath(dirtest, yaml_test["net_ps"][j])
-            PEtab.set_ml_model_ps!(ps, path_h5, ml_model, "net0")
+            PEtab.set_ml_model_ps!(ps, path_h5, ml_model, :net0)
         end
 
         if haskey(yaml_test, "dropout")

@@ -98,7 +98,7 @@ function _get_net_petab_variables(mappings_df::DataFrame, ml_model_id::Symbol, t
     return string.(df[is, "petabEntityId"])
 end
 
-function _get_net_input_values(input_variables::Vector{Symbol}, ml_model_id::Symbol, ml_model::MLModel, conditions_df::DataFrame, petab_tables::PEtabTables, petab_parameters::PEtabParameters, sys::ModelSystem; keep_numbers::Bool = false)::Vector{Symbol}
+function _get_net_input_values(input_variables::Vector{Symbol}, ml_model_id::Symbol, ml_model::MLModel, conditions_df::DataFrame, petab_tables::PEtabTables, paths::Dict{Symbol, String}, petab_parameters::PEtabParameters, sys::ModelSystem; keep_numbers::Bool = false)::Vector{Symbol}
     input_values = Symbol[]
     hybridization_df = petab_tables[:hybridization]
     for input_variable in input_variables
@@ -125,7 +125,7 @@ function _get_net_input_values(input_variables::Vector{Symbol}, ml_model_id::Sym
         # the potential parameter assigning the input
         if input_variable in propertynames(conditions_df)
             for condition_value in Symbol.(conditions_df[!, input_variable])
-                _input_values = _get_net_input_values([condition_value], ml_model_id, ml_model, conditions_df, petab_tables, petab_parameters, sys; keep_numbers = keep_numbers)
+                _input_values = _get_net_input_values([condition_value], ml_model_id, ml_model, conditions_df, petab_tables, paths, petab_parameters, sys; keep_numbers = keep_numbers)
                 input_values = vcat(input_values, _input_values)
             end
             continue
@@ -133,9 +133,9 @@ function _get_net_input_values(input_variables::Vector{Symbol}, ml_model_id::Sym
 
         # If the input variable is a file, the complete path is added here, which simplifies
         # downstream processing
-        if haskey(petab_tables, :yaml) && _input_isfile(input_variable, petab_tables[:yaml])
-            path = _get_input_path(input_variable, petab_tables[:yaml], ml_model.dirdata)
-            push!(input_values, path)
+        if haskey(petab_tables, :yaml) && _input_isfile(input_variable, petab_tables[:yaml], paths)
+            path = _get_input_file_path(input_variable, petab_tables[:yaml], paths)
+            push!(input_values, Symbol(path))
             continue
         end
 
@@ -232,10 +232,28 @@ function _get_xnames_nn(xnames::Vector{Symbol}, model_info::ModelInfo)::Vector{S
     return xnames[setdiff(1:length(xnames), ix_mech)]
 end
 
-function _input_isfile(input_variable::Union{String, Symbol}, yaml_file::Dict)::Bool
+function _input_isfile(input_variable::Union{String, Symbol}, yaml_file::Dict, paths::Dict{Symbol, String})::Bool
+    input_file_path = _get_input_file_path(input_variable, yaml_file, paths)
+    return !isnothing(input_file_path)
+end
+
+function _get_input_file_path(input_variable::Union{String, Symbol}, yaml_file::Dict, paths::Dict{Symbol, String})::Union{String, Nothing}
+    if !haskey(paths, :dirmodel)
+        return nothing
+    end
+
     yaml_file_extensions = yaml_file["extensions"]["sciml"]
-    !haskey(yaml_file_extensions, "array_files") && return false
-    return haskey(yaml_file_extensions["array_files"], string(input_variable))
+    !haskey(yaml_file_extensions, "array_files") && return nothing
+    for array_file_path in joinpath.(paths[:dirmodel], yaml_file_extensions["array_files"])
+        array_file = HDF5.h5open(array_file_path, "r")
+        !haskey(array_file, "inputs") && continue
+        if haskey(array_file["inputs"], "$(input_variable)")
+            close(array_file)
+            return array_file_path
+        end
+        close(array_file)
+    end
+    return nothing
 end
 
 function _get_input_path(input_variable::Union{String, Symbol}, yaml_file::Dict, dir::String)::Symbol
