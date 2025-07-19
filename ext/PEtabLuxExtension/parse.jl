@@ -230,11 +230,11 @@ function _get_freeze_info(ml_model_id::Symbol, ml_models::Dict, path_yaml::Strin
     ps, _ = Lux.setup(rng, ml_models[ml_model_id].model)
     ps = ComponentArray(ps) |> f64
     PEtab.set_ml_model_ps!(ps, ml_model_id, ml_models, paths, petab_tables)
-    netindices = PEtab._get_netindices(ml_model_id, petab_net_parameters.mapping_table_id)
+    ml_model_indices = PEtab._get_ml_model_indices(ml_model_id, petab_net_parameters.mapping_table_id)
     freeze_info = Dict{Symbol, Dict}()
-    for netindex in netindices[2:end]
-        mapping_table_id = string(petab_net_parameters.mapping_table_id[netindex])
-        estimate = petab_net_parameters.estimate[netindex]
+    for ml_model_index in ml_model_indices[2:end]
+        mapping_table_id = string(petab_net_parameters.mapping_table_id[ml_model_index])
+        estimate = petab_net_parameters.estimate[ml_model_index]
 
         @assert count(".", mapping_table_id) ≤ 2 "Only two . are allowed when specifying network layer"
         if count('[', mapping_table_id) == 1 && count('.', mapping_table_id) == 1

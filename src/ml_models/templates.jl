@@ -18,10 +18,10 @@ function _template_nn_in_ode(ml_model_id::Symbol, petab_tables::PEtabTables)::St
     hybridization_df = petab_tables[:hybridization]
     mappings_df = petab_tables[:mapping]
 
-    input_variables = _get_net_petab_variables(mappings_df, ml_model_id, :inputs)
+    input_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs)
     inputs_df = filter(r -> r.targetId in input_variables, hybridization_df)
     input_expressions = inputs_df.targetValue
-    output_variables = _get_net_petab_variables(mappings_df, ml_model_id, :outputs)
+    output_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :outputs)
     outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
     output_targets = ""
     for (i, output_target) in pairs(outputs_df.targetId)

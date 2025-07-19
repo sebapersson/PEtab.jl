@@ -112,7 +112,7 @@ function add_u0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::PE
     net_outputs = String[]
     for (ml_model_id, ml_model) in ml_models
         ml_model.static == false && continue
-        output_variables = _get_net_petab_variables(mappings_df, ml_model_id, :outputs)
+        output_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :outputs)
         outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
         net_outputs = vcat(net_outputs, outputs_df.targetId)
     end
@@ -213,7 +213,7 @@ function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, ml_models_in_ode::D
     hybridization_df = petab_tables[:hybridization]
     mappings_df = petab_tables[:mapping]
     for ml_model_id in keys(ml_models_in_ode)
-        output_variables = _get_net_petab_variables(mappings_df, ml_model_id, :outputs)
+        output_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :outputs)
         outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
         output_targets = outputs_df.targetId
         for output_target in output_targets

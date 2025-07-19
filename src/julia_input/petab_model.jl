@@ -31,7 +31,7 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
         name = "ReactionSystemModel"
     end
     ml_models = isnothing(ml_models) ? Dict{Symbol, MLModel}() : ml_models
-    _set_nn_parameters!(ml_models, parameters)
+    _set_ml_models_ps!(ml_models, parameters)
 
     _logging(:Build_PEtabModel, verbose; name = name)
 

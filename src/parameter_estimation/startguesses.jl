@@ -52,7 +52,7 @@ function get_startguesses(prob::PEtabODEProblem, n::Integer; sample_prior::Bool 
             iout = j + found_starts
             out[iout] = similar(prob.xnominal_transformed)
             @views out[iout][1:length(xmech)] .= xmech
-            for ml_model_id in _get_xnames_nn(xnames, model_info)
+            for ml_model_id in _get_xnames_ml_models(xnames, model_info)
                 @views out[iout][ml_model_id] .= _single_nn_startguess(prob, ml_model_id, rng)
             end
         end
@@ -78,7 +78,7 @@ function _single_startguess(prob::PEtabODEProblem, sample_prior::Bool, allow_inf
     # different modes of start-guess generation
     ix_mech = _get_ixnames_mech(xnames, model_info.petab_parameters)
     xnames_mech = xnames[ix_mech]
-    xnames_nn = _get_xnames_nn(xnames, model_info)
+    xnames_nn = _get_xnames_ml_models(xnames, model_info)
     for k in 1:1000
         @views out[ix_mech] .= _single_mech_startguess(prob, xnames_mech, sample_prior)
         for ml_model_id in xnames_nn
@@ -109,7 +109,7 @@ end
 
 function _single_nn_startguess(prob::PEtabODEProblem, ml_model_id::Symbol, rng)::ComponentArray{Float64}
     petab_net_parameters = prob.model_info.petab_net_parameters
-    netindices = _get_netindices(ml_model_id, petab_net_parameters.parameter_id)
+    netindices = _get_ml_model_indices(ml_model_id, petab_net_parameters.parameter_id)
     out = similar(prob.xnominal_transformed[ml_model_id])
     for netindex in netindices
         id = string(petab_net_parameters.parameter_id[netindex])

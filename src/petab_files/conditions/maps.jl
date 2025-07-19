@@ -199,8 +199,8 @@ function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameter
             # Get values for the inputs. For the pre-ODE inputs can either be constant
             # values (numeric) or a parameter, which is treated as a xdynamic parameter
             file_input = false
-            inputs = _get_net_petab_variables(mappings_df, ml_model_id, :inputs) .|> Symbol
-            input_values = _get_net_input_values(inputs, ml_model_id, ml_models[ml_model_id], DataFrame(conditions_df[i, :]), petab_tables, paths, petab_parameters, sys; keep_numbers = true)
+            inputs = get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs) .|> Symbol
+            input_values = _get_ml_model_input_values(inputs, ml_model_id, ml_models[ml_model_id], DataFrame(conditions_df[i, :]), petab_tables, paths, petab_parameters, sys; keep_numbers = true)
             ninputs = length(input_values)
             constant_inputs, iconstant_inputs = zeros(Float64, 0), zeros(Int32, 0)
             ixdynamic_mech_inputs, ixdynamic_inputs = zeros(Int32, 0), zeros(Int32, 0)
@@ -249,7 +249,7 @@ function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameter
             # gradient of the output variables is needed, ix_outputs_grad stores
             # the indices in xdynamic_grad for the outputs (the indices depend on the
             # condition so the Vector is only pre-allocated here).
-            output_variables = _get_net_petab_variables(mappings_df, ml_model_id, :outputs)
+            output_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :outputs)
             outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
             output_targets = Symbol.(outputs_df.targetId)
             noutputs = length(output_targets)
@@ -276,29 +276,6 @@ function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameter
         maps[conditionid] = maps_nn
     end
     return maps
-end
-
-function _get_input_file_values(input_id::Symbol, file_path::Symbol, conditionid::Symbol)::Array{Float64}
-    input_file = HDF5.h5open(string(file_path), "r")
-    # Find the correct dataset associated with the provided simulation condition
-    for i in keys(input_file["inputs"]["$(input_id)"])
-        group_i = input_file["inputs"]["$(input_id)"][i]
-
-        if !haskey(group_i, "conditionIds")
-            input_values = HDF5.read_dataset(group_i, "data")
-            close(input_file)
-            return input_values
-        end
-
-        conditionids = HDF5.read_dataset(group_i, "conditionIds")
-        !(string(conditionid) in conditionids) && continue
-        input_values = HDF5.read_dataset(group_i, "data")
-        close(input_file)
-        return input_values
-    end
-    throw(PEtabInputError("The file $(file_path) which contains initial values for \
-        neural network input ID $(input_id) does not provide any data for condition \
-        $(condition_id)"))
 end
 
 function _add_ix_sys!(ix::Vector{Int32}, variable::String, xids_sys::Vector{String})::Nothing

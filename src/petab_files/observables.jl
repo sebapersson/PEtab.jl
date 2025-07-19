@@ -183,7 +183,7 @@ function _get_formulas_nn(formula, petab_tables::PEtabTables, state_ids::Vector{
     for (ml_model_id, ml_model) in ml_models
         ml_model.static == true && continue
 
-        output_variables = _get_net_petab_variables(mappings_df, Symbol(ml_model_id), :outputs)
+        output_variables = get_ml_model_petab_variables(mappings_df, Symbol(ml_model_id), :outputs)
         has_nn_output = false
         for output_variable in output_variables
             if SBMLImporter._replace_variable(formula, output_variable, "") != formula
@@ -200,13 +200,13 @@ function _template_nn_formula(ml_model_id::Symbol, petab_tables::PEtabTables, st
     mappings_df = petab_tables[:mapping]
     hybridization_df = petab_tables[:hybridization]
 
-    input_variables = _get_net_petab_variables(mappings_df, ml_model_id, :inputs)
+    input_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs)
     inputs_df = filter(r -> r.targetId in input_variables, hybridization_df)
     input_expressions = inputs_df.targetValue
     inputs = "[" * prod(input_expressions .* ",") * "]"
     inputs = _parse_formula(inputs, state_ids, xindices, model_SBML, type)
 
-    output_variables = _get_net_petab_variables(mappings_df, Symbol(ml_model_id), :outputs)
+    output_variables = get_ml_model_petab_variables(mappings_df, Symbol(ml_model_id), :outputs)
     outputs = prod(output_variables .* ", ")
 
     formula = "\n\t\tml_model_$(ml_model_id) = ml_models[:$(ml_model_id)]\n"

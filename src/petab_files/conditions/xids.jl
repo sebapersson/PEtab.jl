@@ -98,7 +98,7 @@ function _get_xids_ml_preode_output(petab_tables::PEtabTables, ml_models::MLMode
     for (ml_model_id, ml_model) in ml_models
         ml_model.static == false && continue
         isempty(hybridization_df) && continue
-        output_variables = _get_net_petab_variables(mappings_df, ml_model_id, :outputs)
+        output_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :outputs)
         outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
         out = vcat(out, Symbol.(outputs_df.targetId))
     end
@@ -148,7 +148,7 @@ function _get_xids_condition(sys, petab_parameters::PEtabParameters, petab_table
     net_inputs = String[]
     for (ml_model_id, ml_model) in ml_models
         ml_model.static == false && continue
-        input_variables = _get_net_petab_variables(mappings_df, ml_model_id, :inputs) .|> string
+        input_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs) .|> string
         net_inputs = vcat(net_inputs, input_variables)
     end
     problem_variables = Iterators.flatten((xids_sys, species_sys, net_inputs))
@@ -221,8 +221,8 @@ function _get_xids_ml_input_est(petab_tables::PEtabTables, petab_parameters::PEt
     out = Symbol[]
     for (ml_model_id, ml_model) in ml_models
         ml_model.static == false && continue
-        input_variables = _get_net_petab_variables(mappings_df, ml_model_id, :inputs) .|> Symbol
-        input_values = _get_net_input_values(input_variables, ml_model_id, ml_model, conditions_df, petab_tables, paths, petab_parameters, sys)
+        input_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs) .|> Symbol
+        input_values = _get_ml_model_input_values(input_variables, ml_model_id, ml_model, conditions_df, petab_tables, paths, petab_parameters, sys)
         for input_value in input_values
             !(input_value in petab_parameters.parameter_id) && continue
             ip = findfirst(x -> x == input_value, petab_parameters.parameter_id)
