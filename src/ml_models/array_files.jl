@@ -44,24 +44,24 @@ end
 function _get_input_file_values(input_id::Symbol, file_path::Symbol, conditionid::Symbol)::Array{Float64}
     input_file = HDF5.h5open(string(file_path), "r")
     # Find the correct dataset associated with the provided simulation condition
-    for i in keys(input_file["inputs"]["$(input_id)"])
-        group_i = input_file["inputs"]["$(input_id)"][i]
+    for cids in keys(input_file["inputs"]["$(input_id)"])
+        group_input_id = input_file["inputs"]["$(input_id)"]
 
-        if !haskey(group_i, "conditionIds")
-            input_values = HDF5.read_dataset(group_i, "data")
-            close(input_file)
+        # "0" encoding means the data applies across all simulation conditions
+        if cids == "0" && length(keys(input_file["inputs"]["$(input_id)"])) == 1
+            input_values = HDF5.read_dataset(group_input_id, "0")
             return input_values
         end
 
-        conditionids = HDF5.read_dataset(group_i, "conditionIds")
+        conditionids = split(cids, ',')
         !(string(conditionid) in conditionids) && continue
-        input_values = HDF5.read_dataset(group_i, "data")
+        input_values = HDF5.read_dataset(group_input_id, cids)
         close(input_file)
         return input_values
     end
     throw(PEtabInputError("The file $(file_path) which contains initial values for \
         neural network input ID $(input_id) does not provide any data for condition \
-        $(condition_id)"))
+        $(conditionid)"))
 end
 
 function _input_isfile(input_variable::Union{String, Symbol}, yaml_file::Dict, paths::Dict{Symbol, String})::Bool
