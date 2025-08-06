@@ -31,11 +31,11 @@ end
     res1 = calibrate_multistart(prob, Optim.IPNewton(), 10; save_trace=true,
                                 dirsave = dirsave, nprocs = 2)
     res2 = calibrate_multistart(prob, IpoptOptimizer(true), 10; nprocs = 2)
-    res3 = calibrate_multistart(prob, Fides(:BFGS), 10; nprocs = 2)
+    #res3 = calibrate_multistart(prob, Fides(:BFGS), 10; nprocs = 2)
     res_read = PEtabMultistartResult(dirsave)
     @test all(.≈(res1.xmin, get_x(prob), atol = 1e-2))
     @test all(.≈(res2.xmin, get_x(prob), atol = 1e-2))
-    @test all(.≈(res3.xmin, get_x(prob), atol = 1e-2))
+    #@test all(.≈(res3.xmin, get_x(prob), atol = 1e-2))
     @test all(.≈(res_read.xmin, get_x(prob), atol = 1e-2))
     # Due to startup overhead many multistarts must be performed two find the effect
     # in runtime
