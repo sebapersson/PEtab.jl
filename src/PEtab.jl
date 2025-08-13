@@ -30,6 +30,7 @@ using QuasiMonteCarlo
 import Setfield: @set
 using StyledStrings
 import SciMLBase.remake
+import DiffEqBase
 import QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
