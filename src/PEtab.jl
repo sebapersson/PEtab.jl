@@ -28,6 +28,7 @@ using PrecompileTools
 using QuasiMonteCarlo
 using StyledStrings
 import SciMLBase.remake
+import DiffEqBase
 import QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
