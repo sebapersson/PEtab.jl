@@ -37,12 +37,23 @@ See also [`PEtabMultistartResult`](@ref), [`get_startguesses`](@ref), and [`cali
 - `options = DEFAULT_OPTIONS`: Configurable options for `alg`. See the documentation for
     [`calibrate`](@ref).
 """
-function calibrate_multistart(prob::PEtabODEProblem, alg, nmultistarts::Signed; save_trace::Bool = false, dirsave::Union{Nothing, String} = nothing, sampling_method::SamplingAlgorithm = LatinHypercubeSample(), sample_prior::Bool = true, nprocs::Int64 = 1, options = nothing)::PEtab.PEtabMultistartResult
+function calibrate_multistart(prob::PEtabODEProblem, alg, nmultistarts::Signed;
+                              save_trace::Bool = false,
+                              dirsave::Union{Nothing, String} = nothing,
+                              sampling_method::SamplingAlgorithm = LatinHypercubeSample(),
+                              sample_prior::Bool = true, nprocs::Int64 = 1,
+                              options = nothing)::PEtab.PEtabMultistartResult
     rng = Random.default_rng()
-    return calibrate_multistart(rng, prob, alg, nmultistarts; save_trace=save_trace, dirsave=dirsave, sampling_method=sampling_method, sample_prior=sample_prior, nprocs=nprocs, options=options)
+    return calibrate_multistart(rng, prob, alg, nmultistarts; save_trace = save_trace,
+                                dirsave = dirsave, sampling_method = sampling_method,
+                                sample_prior = sample_prior, nprocs = nprocs,
+                                options = options)
 end
 
-function _calibrate_multistart(rng::Random.AbstractRNG, prob::PEtabODEProblem, alg, nmultistarts, dirsave, sampling_method, options, sample_prior::Bool, save_trace::Bool, nprocs::Int64)::PEtabMultistartResult
+function _calibrate_multistart(rng::Random.AbstractRNG, prob::PEtabODEProblem, alg,
+                               nmultistarts, dirsave, sampling_method, options,
+                               sample_prior::Bool, save_trace::Bool,
+                               nprocs::Int64)::PEtabMultistartResult
     paths_save = Dict{Symbol, String}()
     if !isnothing(dirsave)
         !isdir(dirsave) && mkpath(dirsave)

@@ -27,8 +27,9 @@ function get_startguesses(prob::PEtabODEProblem, n::Integer; sample_prior::Bool 
                           allow_inf::Bool = false,
                           sampling_method::SamplingAlgorithm = LatinHypercubeSample())
     rng = Random.default_rng()
-    return get_startguesses(rng, prob, n; sample_prior=sample_prior, allow_inf=allow_inf,
-                            sampling_method=sampling_method)
+    return get_startguesses(rng, prob, n; sample_prior = sample_prior,
+                            allow_inf = allow_inf,
+                            sampling_method = sampling_method)
 end
 function get_startguesses(rng::Random.AbstractRNG, prob::PEtabODEProblem, n::Integer;
                           sample_prior::Bool = true, allow_inf::Bool = false,

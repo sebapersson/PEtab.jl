@@ -1,6 +1,14 @@
-function PEtab.calibrate_multistart(rng::Random.AbstractRNG, prob::PEtab.PEtabODEProblem, alg::PEtab.Fides, nmultistarts::Signed; save_trace::Bool = false, dirsave::Union{Nothing, String} = nothing, sampling_method::SamplingAlgorithm = LatinHypercubeSample(), sample_prior::Bool = true, nprocs::Int64 = 1, options = nothing)::PEtab.PEtabMultistartResult
+function PEtab.calibrate_multistart(rng::Random.AbstractRNG, prob::PEtab.PEtabODEProblem,
+                                    alg::PEtab.Fides, nmultistarts::Signed;
+                                    save_trace::Bool = false,
+                                    dirsave::Union{Nothing, String} = nothing,
+                                    sampling_method::SamplingAlgorithm = LatinHypercubeSample(),
+                                    sample_prior::Bool = true, nprocs::Int64 = 1,
+                                    options = nothing)::PEtab.PEtabMultistartResult
     options = isnothing(options) ? py"{'maxiter' : 1000}"o : options
-    return PEtab._calibrate_multistart(rng, prob, alg, nmultistarts, dirsave, sampling_method, options, sample_prior, save_trace, nprocs)
+    return PEtab._calibrate_multistart(rng, prob, alg, nmultistarts, dirsave,
+                                       sampling_method, options, sample_prior, save_trace,
+                                       nprocs)
 end
 
 function PEtab.calibrate(prob::PEtabODEProblem,
