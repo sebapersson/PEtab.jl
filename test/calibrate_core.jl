@@ -4,7 +4,7 @@
 =#
 
 using PEtab, Distributions, CSV, DataFrames, OrdinaryDiffEqRosenbrock, Catalyst,
-    ComponentArrays, Optim, Ipopt#, Optimization, OptimizationOptimJL, Test
+    ComponentArrays, Optim, Ipopt, Optimization, OptimizationOptimJL, Test
 import Random
 
 @testset "Generate startguesses" begin
