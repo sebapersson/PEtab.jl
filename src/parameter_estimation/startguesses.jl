@@ -1,12 +1,13 @@
 """
-    get_startguesses(prob::PEtabODEProblem, n::Integer; kwargs...)
+    get_startguesses(rng::AbstractRNG, prob::PEtabODEProblem, n::Integer; kwargs...)
 
 Generate `n` random parameter vectors within the parameter bounds in `prob`.
 
-If `n = 1`, a single random vector is returned. For `n > 1`, a vector of random parameter
-vectors is returned. In both cases, parameter vectors are returned as a `ComponentArray`.
-For details on how to interact with a `ComponentArray`, see the documentation and the
-ComponentArrays.jl [documentation](https://github.com/jonniedie/ComponentArrays.jl).
+`rng` is optional and if omitted defaults to `Random.default_rng()`. If `n = 1`, a single
+random vector is returned. For `n > 1`, a vector of random parameter vectors is returned. In
+both cases, parameter vectors are returned as a `ComponentArray`. For details on how to
+interact with a `ComponentArray`, see the documentation and the ComponentArrays.jl
+[documentation](https://github.com/jonniedie/ComponentArrays.jl).
 
 See also [`calibrate`](@ref) and [`calibrate_multistart`](@ref).
 
@@ -25,7 +26,15 @@ See also [`calibrate`](@ref) and [`calibrate_multistart`](@ref).
 function get_startguesses(prob::PEtabODEProblem, n::Integer; sample_prior::Bool = true,
                           allow_inf::Bool = false,
                           sampling_method::SamplingAlgorithm = LatinHypercubeSample())
+    rng = Random.default_rng()
+    return get_startguesses(rng, prob, n; sample_prior=sample_prior, allow_inf=allow_inf,
+                            sampling_method=sampling_method)
+end
+function get_startguesses(rng::Random.AbstractRNG, prob::PEtabODEProblem, n::Integer;
+                          sample_prior::Bool = true, allow_inf::Bool = false,
+                          sampling_method::SamplingAlgorithm = LatinHypercubeSample())
     @unpack lower_bounds, upper_bounds, xnames, model_info = prob
+    @set sampling_method.rng = rng
 
     # Nothing prevents the user from sending in a parameter vector with zero parameters...
     if length(lower_bounds) == 0 && n == 1
@@ -35,7 +44,7 @@ function get_startguesses(prob::PEtabODEProblem, n::Integer; sample_prior::Bool 
     end
     # In this case a single component array is returned
     if n == 1
-        return _single_startguess(prob, sample_prior, allow_inf)
+        return _single_startguess(rng, prob, sample_prior, allow_inf)
     end
 
     # Returning a vector of vector
@@ -51,14 +60,14 @@ function get_startguesses(prob::PEtabODEProblem, n::Integer; sample_prior::Bool 
                                               sampling_method)
             _samples = [_samples[:, i] for i in 1:nsamples]
         else
-            _samples = [_single_startguess(prob, false, allow_inf) for _ in 1:nsamples]
+            _samples = [_single_startguess(rng, prob, false, allow_inf) for _ in 1:nsamples]
         end
         # Account for potential priors
         for _sample in _samples
             sample_prior == false && continue
             for (j, id) in pairs(xnames)
                 !haskey(model_info.priors.initialisation_distribution, id) && continue
-                _sample[j] = _sample_prior(id, model_info)
+                _sample[j] = _sample_prior(rng, id, model_info)
             end
         end
         allow_inf == true && break
@@ -78,16 +87,16 @@ function get_startguesses(prob::PEtabODEProblem, n::Integer; sample_prior::Bool 
     return out
 end
 
-function _single_startguess(prob::PEtabODEProblem, sample_prior::Bool,
-                            allow_inf::Bool)::ComponentArray{Float64}
+function _single_startguess(rng::Random.AbstractRNG, prob::PEtabODEProblem,
+                            sample_prior::Bool, allow_inf::Bool)::ComponentArray{Float64}
     @unpack model_info, xnames, xnominal_transformed, lower_bounds, upper_bounds = prob
     out = similar(xnominal_transformed)
     for k in 1:1000
         for (i, id) in pairs(xnames)
             if sample_prior && haskey(model_info.priors.initialisation_distribution, id)
-                out[i] = _sample_prior(id, model_info)
+                out[i] = _sample_prior(rng, id, model_info)
             else
-                out[i] = rand(Distributions.Uniform(lower_bounds[i], upper_bounds[i]))
+                out[i] = rand(rng, Distributions.Uniform(lower_bounds[i], upper_bounds[i]))
             end
         end
         allow_inf == true && break
@@ -100,10 +109,10 @@ function _single_startguess(prob::PEtabODEProblem, sample_prior::Bool,
     return out
 end
 
-function _sample_prior(id::Symbol, model_info::ModelInfo)::Float64
+function _sample_prior(rng::Random.AbstractRNG, id::Symbol, model_info::ModelInfo)::Float64
     @unpack priors, xindices = model_info
     dist = priors.initialisation_distribution[id]
-    x = rand(dist)
+    x = rand(rng, dist)
     if priors.prior_on_parameter_scale[id] == false
         x = transform_x(x, xindices.xscale[id]; to_xscale = true)
     end

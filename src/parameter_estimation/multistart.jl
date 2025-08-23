@@ -1,12 +1,16 @@
 """
-    calibrate_multistart(prob::PEtabODEProblem, alg, nmultistarts::Integer; nprocs = 1,
-                         dirsave=nothing, kwargs...)::PEtabMultistartResult
+    calibrate_multistart([rng::AbstractRng], prob::PEtabODEProblem, alg, nmultistarts::Integer;
+                         nprocs = 1, dirsave=nothing, kwargs...)::PEtabMultistartResult
 
 Perform `nmultistarts` parameter estimation runs from randomly sampled starting points using
 the optimization algorithm `alg` to estimate the unknown model parameters in `prob`.
 
 A list of available and recommended optimisation algorithms (`alg`) can be found in the
 package documentation and in the [`calibrate`](@ref) documentation.
+
+As with [`get_startguesses`](@ref), the `rng` controlling the generation of starting points
+is optional; if omitted, `Random.default_rng()` is used. For reproducible starting points,
+pass a seeded `rng` (e.g., `MersenneTwister(42)`).
 
 If `nprocs > 1`, the parameter estimation runs are performed in parallel using the
 [`pmap`](https://docs.julialang.org/en/v1/stdlib/Distributed/#Distributed.pmap) function
@@ -28,17 +32,17 @@ See also [`PEtabMultistartResult`](@ref), [`get_startguesses`](@ref), and [`cali
 ## Keyword Arguments
 - `sampling_method = LatinHypercubeSample()`: Method for sampling a diverse (spread out) set
    of starting points. See the documentation for [`get_startguesses`](@ref), which is the
-   function used for sampling.
+   function used for generating starting points.
 - `sample_prior::Bool = true`: See the documentation for [`get_startguesses`](@ref).
-- `seed = nothing`: Seed used when generating starting points.
 - `options = DEFAULT_OPTIONS`: Configurable options for `alg`. See the documentation for
     [`calibrate`](@ref).
 """
-function calibrate_multistart end
+function calibrate_multistart(prob::PEtabODEProblem, alg, nmultistarts::Signed; save_trace::Bool = false, dirsave::Union{Nothing, String} = nothing, sampling_method::SamplingAlgorithm = LatinHypercubeSample(), sample_prior::Bool = true, nprocs::Int64 = 1, options = nothing)::PEtab.PEtabMultistartResult
+    rng = Random.default_rng()
+    return calibrate_multistart(rng, prob, alg, nmultistarts; save_trace=save_trace, dirsave=dirsave, sampling_method=sampling_method, sample_prior=sample_prior, nprocs=nprocs, options=options)
+end
 
-function _calibrate_multistart(prob::PEtabODEProblem, alg, nmultistarts, dirsave,
-                               sampling_method, options, sample_prior::Bool,
-                               save_trace::Bool, nprocs::Int64)::PEtabMultistartResult
+function _calibrate_multistart(rng::Random.AbstractRNG, prob::PEtabODEProblem, alg, nmultistarts, dirsave, sampling_method, options, sample_prior::Bool, save_trace::Bool, nprocs::Int64)::PEtabMultistartResult
     paths_save = Dict{Symbol, String}()
     if !isnothing(dirsave)
         !isdir(dirsave) && mkpath(dirsave)
@@ -56,7 +60,7 @@ function _calibrate_multistart(prob::PEtabODEProblem, alg, nmultistarts, dirsave
         end
     end
 
-    xstarts = get_startguesses(prob, nmultistarts; sampling_method = sampling_method,
+    xstarts = get_startguesses(rng, prob, nmultistarts; sampling_method = sampling_method,
                                sample_prior = sample_prior)
     if !isempty(paths_save)
         xnames = propertynames(xstarts[1]) |> collect

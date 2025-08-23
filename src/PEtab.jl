@@ -14,6 +14,7 @@ using ReverseDiff
 using DiffEqCallbacks
 using Distributed
 using SBMLImporter
+using Setfield: @set
 using StatsBase
 using Sundials
 using Random
