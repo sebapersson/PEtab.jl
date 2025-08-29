@@ -1,5 +1,4 @@
-using PEtab, Distributions, CSV, DataFrames, OrdinaryDiffEq, Catalyst, ComponentArrays,
-      Optim, Ipopt, Optimization, OptimizationOptimJL, PyCall, Test
+using Ipopt, Optim, PEtab, PyCall, Test
 
 @testset "Calibrate single start Fides" begin
     path_yaml = joinpath(@__DIR__, "analytic_solution", "Test_model2.yaml")
@@ -39,8 +38,8 @@ end
     @test all(.≈(res_read.xmin, get_x(prob), atol = 1e-2))
     # Due to startup overhead many multistarts must be performed two find the effect
     # in runtime
-    b1 = @elapsed res1 = calibrate_multistart(prob, Optim.IPNewton(), 2500; nprocs = 1)
-    b2 = @elapsed res2 = calibrate_multistart(prob, Optim.IPNewton(), 2500; nprocs = 2)
+    b1 = @elapsed res1 = calibrate_multistart(prob, Fides(:BFGS), 2500; nprocs = 1)
+    b2 = @elapsed res2 = calibrate_multistart(prob, Fides(:BFGS), 2500; nprocs = 2)
     @test b1 > b2
     rm(dirsave; recursive = true)
 end
