@@ -56,7 +56,7 @@ function get_startguesses(rng::Random.AbstractRNG, prob::PEtabODEProblem, n::Int
         # end up in a never ending loop. To sidestep this if less than 10 starts are
         # left numbers are generated from random Uniform (with potential prior sampling)
         nsamples = n - found_starts
-        xmechs = _multiple_mech_startguess!(nsamples, prob, sample_prior, sampling_method)
+        xmechs = _multiple_mech_startguess!(rng, nsamples, prob, sample_prior, sampling_method)
         for (j, xmech) in pairs(xmechs)
             iout = j + found_starts
             out[iout] = similar(prob.xnominal_transformed)
@@ -79,7 +79,7 @@ function get_startguesses(rng::Random.AbstractRNG, prob::PEtabODEProblem, n::Int
     return out
 end
 
-function _single_startguess(rng::Random.AbstractRNG, prob::PEtabODEProblem, sample_prior::Bool, allow_inf::Bool, rng)::ComponentArray{Float64}
+function _single_startguess(rng::Random.AbstractRNG, prob::PEtabODEProblem, sample_prior::Bool, allow_inf::Bool)::ComponentArray{Float64}
     @unpack model_info, xnames, xnominal_transformed = prob
     out = similar(xnominal_transformed)
 
@@ -95,6 +95,7 @@ function _single_startguess(rng::Random.AbstractRNG, prob::PEtabODEProblem, samp
             else
                 out[i] = rand(rng, Distributions.Uniform(lower_bounds[i], upper_bounds[i]))
             end
+        end
         @views out[ix_mech] .= _single_mech_startguess(prob, xnames_mech, sample_prior)
         for ml_model_id in xnames_nn
             @views out[ml_model_id] .= _single_nn_startguess(prob, ml_model_id, rng)
@@ -109,14 +110,14 @@ function _single_startguess(rng::Random.AbstractRNG, prob::PEtabODEProblem, samp
     return out
 end
 
-function _single_mech_startguess(prob::PEtabODEProblem, xnames_mech::Vector{Symbol}, sample_prior::Bool)::Vector{Float64}
+function _single_mech_startguess(rng::Random.AbstractRNG, prob::PEtabODEProblem, xnames_mech::Vector{Symbol}, sample_prior::Bool)::Vector{Float64}
     @unpack model_info, lower_bounds, upper_bounds = prob
     out = fill(0.0, length(xnames_mech))
     for (i, id) in pairs(xnames_mech)
         if sample_prior && haskey(model_info.priors.initialisation_distribution, id)
-            out[i] = _sample_prior(id, model_info)
+            out[i] = _sample_prior(rng, id, model_info)
         else
-            out[i] = rand(Distributions.Uniform(lower_bounds[i], upper_bounds[i]))
+            out[i] = rand(rng, Distributions.Uniform(lower_bounds[i], upper_bounds[i]))
         end
     end
     return out
@@ -130,20 +131,20 @@ function _single_nn_startguess(prob::PEtabODEProblem, ml_model_id::Symbol, rng):
         id = string(petab_net_parameters.parameter_id[netindex])
         prior = petab_net_parameters.initialisation_priors[netindex]
         if count(".", id) == 0
-            out .= _get_nn_startguess(out, prior, rng)
+            out .= _get_nn_startguess(rng, out, prior)
         elseif count(".", id) == 1
             layerid = Symbol(split(id, ".")[2])
-            @views out[layerid] .= _get_nn_startguess(out[layerid], prior, rng)
+            @views out[layerid] .= _get_nn_startguess(rng, out[layerid], prior)
         else
             layerid = Symbol(split(id, ".")[2])
             pid = Symbol(split(id, ".")[3])
-            @views out[layerid][pid] .= _get_nn_startguess(out[layerid][pid], prior, rng)
+            @views out[layerid][pid] .= _get_nn_startguess(rng, out[layerid][pid], prior)
         end
     end
     return out
 end
 
-function _multiple_mech_startguess!(nsamples::Int64, prob::PEtabODEProblem, sample_prior::Bool, sampling_method::SamplingAlgorithm)::Vector{Vector{Float64}}
+function _multiple_mech_startguess!(rng::Random.AbstractRNG, nsamples::Int64, prob::PEtabODEProblem, sample_prior::Bool, sampling_method::SamplingAlgorithm)::Vector{Vector{Float64}}
     @unpack model_info, xnames, xnominal_transformed, lower_bounds, upper_bounds = prob
     ix_mech = _get_ixnames_mech(xnames, model_info.petab_parameters)
     xnames_mech = xnames[ix_mech]
@@ -151,58 +152,26 @@ function _multiple_mech_startguess!(nsamples::Int64, prob::PEtabODEProblem, samp
         samples = QuasiMonteCarlo.sample(nsamples, lower_bounds[ix_mech], upper_bounds[ix_mech], sampling_method)
         samples = [samples[:, i] for i in 1:nsamples]
     else
-        samples = [_single_mech_startguess(prob, xnames_mech, false)[:] for _ in 1:nsamples]
+        samples = [_single_mech_startguess(rng, prob, xnames_mech, false)[:] for _ in 1:nsamples]
     end
     # Account for potential priors
     for sample in samples
         sample_prior == false && continue
         for (j, id) in pairs(xnames_mech)
             !haskey(model_info.priors.initialisation_distribution, id) && continue
-            sample[j] = _sample_prior(id, model_info)
+            sample[j] = _sample_prior(rng, id, model_info)
         end
     end
     return samples
 end
 
-function _get_nn_startguess(ps, prior, rng)
+function _get_nn_startguess(rng::Random.AbstractRNG, ps, prior)
     if !(ps isa ComponentArray)
         return prior(rng, ps)
     end
     out = similar(ps)
     for id in keys(ps)
-        @views out[id] .= _get_nn_startguess(ps[id], prior, rng)
-    end
-    return out
-end
-
-function _multiple_mech_startguess!(nsamples::Int64, prob::PEtabODEProblem, sample_prior::Bool, sampling_method::SamplingAlgorithm)::Vector{Vector{Float64}}
-    @unpack model_info, xnames, xnominal_transformed, lower_bounds, upper_bounds = prob
-    ix_mech = _get_ixnames_mech(xnames, model_info.petab_parameters)
-    xnames_mech = xnames[ix_mech]
-    if nsamples > 10
-        samples = QuasiMonteCarlo.sample(nsamples, lower_bounds[ix_mech], upper_bounds[ix_mech], sampling_method)
-        samples = [samples[:, i] for i in 1:nsamples]
-    else
-        samples = [_single_mech_startguess(prob, xnames_mech, false)[:] for _ in 1:nsamples]
-    end
-    # Account for potential priors
-    for sample in samples
-        sample_prior == false && continue
-        for (j, id) in pairs(xnames_mech)
-            !haskey(model_info.priors.initialisation_distribution, id) && continue
-            sample[j] = _sample_prior(id, model_info)
-        end
-    end
-    return samples
-end
-
-function _get_nn_startguess(ps, prior, rng)
-    if !(ps isa ComponentArray)
-        return prior(rng, ps)
-    end
-    out = similar(ps)
-    for id in keys(ps)
-        @views out[id] .= _get_nn_startguess(ps[id], prior, rng)
+        @views out[id] .= _get_nn_startguess(rng, ps[id], prior)
     end
     return out
 end
