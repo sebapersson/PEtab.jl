@@ -141,6 +141,7 @@ function ml_model end
 function parse_to_lux end
 function _reshape_array end
 function _get_initialisation_priors end
+function nn_ps_to_h5! end
 
 export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel, MLModel,
        PEtabODEProblem, remake, Fides, PEtabOptimisationResult, IpoptOptions,

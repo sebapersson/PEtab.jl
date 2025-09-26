@@ -1,4 +1,4 @@
-function nn_ps_to_h5!(nn, ps::Union{ComponentArray, NamedTuple}, path::String)::Nothing
+function PEtab.nn_ps_to_h5!(nn, ps::Union{ComponentArray, NamedTuple}, path::String)::Nothing
     if isfile(path)
         rm(path)
     end
