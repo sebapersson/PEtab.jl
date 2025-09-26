@@ -1,5 +1,22 @@
 # Breaking updates and feature summaries across releases
 
+## PEtab 3.10.0
+
+Added support for optional `rng::AbstractRNG` argument to `get_startguesses` and `calibrate_multistart` for reproducible sampling of starting points. If omitted, `Random.default_rng()` is used, so existing call signatures still work:
+
+```julia
+x_start = get_startguesses(prob, 10)
+ms_res = calibrate_multistart(petab_prob, IPNewton(), 50)
+```
+
+Wherever, with this update, an `rng` can be explicitly provided as the first argument:
+
+```julia
+rng = Random.Xoshiro(1)
+x_start = get_startguesses(rng, prob, 10)
+ms_res = calibrate_multistart(rng, petab_prob, IPNewton(), 50)
+```
+
 ## PEtab 3.9.0
 
 Updating plotting functionality. The waterfall plot will now, based on the magnitude of likelihood values, decide between a log or linear scale. Moreover, an automatic re-scaling of the y-axis is now applied if the waterfall plot should be on log-scale, and there are negative likelihood values.

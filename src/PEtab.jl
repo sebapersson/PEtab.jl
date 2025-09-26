@@ -15,6 +15,7 @@ using DiffEqCallbacks
 using Distributed
 using HDF5
 using SBMLImporter
+using Setfield: @set
 using StatsBase
 using Sundials
 using Random

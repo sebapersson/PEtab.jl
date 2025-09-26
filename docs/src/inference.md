@@ -1,4 +1,4 @@
-# Bayesian Inference
+# [Bayesian Inference](@id bayesian_inference)
 
 When performing parameter estimation for a model with PEtab.jl, the unknown model parameters are estimated within a frequentist framework, where the goal is to find the maximum likelihood estimate. When prior knowledge about the parameters is available, Bayesian inference offers an alternative approach to fitting a model to data. The aim of Bayesian inference is to infer the posterior distribution of unknown parameters given the data, $\pi(\mathbf{x} \mid \mathbf{y})$, by running a Markov chain Monte Carlo (MCMC) algorithm to sample from the posterior. A major challenge, aside from creating a good model, is to effectively sample the posterior. PEtab.jl supports Bayesian inference via two packages that implement different sampling algorithms:
 
