@@ -92,10 +92,20 @@ function test_netimport(testcase, ml_model)::Nothing
     output_order_py = yaml_test["output_order_py"]
 
     for j in 1:3
-        input_file = h5open(joinpath(dirtest, yaml_test["net_input"][j]), "r")
-        _input = HDF5.read_dataset(input_file["inputs"]["input0"], "data")
-        input = parse_array(_input, input_order_jl, input_order_py)
-        close(input_file)
+        # A subset of test-cases have multiple input arguments
+        if testcase != "052"
+            input_file = h5open(joinpath(dirtest, yaml_test["net_input"][j]), "r")
+            _input = HDF5.read_dataset(input_file["inputs"]["input0"], "data")
+            input = parse_array(_input, input_order_jl, input_order_py)
+            close(input_file)
+        else
+            input_file1 = h5open(joinpath(dirtest, yaml_test["net_input_arg0"][j]), "r")
+            input_file2 = h5open(joinpath(dirtest, yaml_test["net_input_arg1"][j]), "r")
+            _input1 = HDF5.read_dataset(input_file1["inputs"]["input0"], "data")
+            _input2 = HDF5.read_dataset(input_file2["inputs"]["input0"], "data")
+            input = (_input1, _input2)
+            close.([input_file1, input_file2])
+        end
         # alpha dropout does not want mixed precision
         if testcase == "020"
             input = input |> f64

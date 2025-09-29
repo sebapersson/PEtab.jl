@@ -52,19 +52,27 @@ end
 function PEtab.parse_to_lux(path_yaml::String; freeze_info::Union{Nothing, Dict} = nothing)
     network_yaml = YAML.load_file(path_yaml)
     layers = Dict([_parse_layer(l) for l in network_yaml["layers"]])
-    input, output, forward_steps = _parse_forward_pass(network_yaml["forward"], layers)
-    model_str = _template_nn_model(layers, input, output, forward_steps, freeze_info)
+    inputs, outputs, forward_steps = _parse_forward_pass(network_yaml, layers)
+    model_str = _template_nn_model(layers, inputs, outputs, forward_steps, freeze_info)
     nn = eval(Meta.parse(model_str)) |> f64
     return nn, network_yaml["nn_model_id"]
 end
 
-function _parse_forward_pass(forward_trace::Vector{<:Dict}, layers::Dict)::Tuple{String, String, Vector{String}}
+function _parse_forward_pass(network_yaml::Dict, layers::Dict)::Tuple{String, String, Vector{String}}
+    forward_trace = network_yaml["forward"]
+    input_arguments = network_yaml["inputs"]
     # To avoid naming conflicts, each input and output is given a __x__
-    input_arg = "__" * forward_trace[1]["name"] * "__"
-    output_arg = "__" * forward_trace[end]["args"][1] * "__"
+    n_input_args = length(input_arguments)
+    inputs = ""
+    for i in 1:n_input_args
+        inputs *= "__" * forward_trace[i]["name"] * "__"
+        i == n_input_args && continue
+        inputs *= ", "
+    end
+    outputs = "__" * forward_trace[end]["args"][1] * "__"
 
-    forward_steps = fill("", length(forward_trace[2:end-1]))
-    for (i, stepinfo) in pairs(forward_trace[2:end-1])
+    forward_steps = fill("", length(forward_trace[(n_input_args+1):end-1]))
+    for (i, stepinfo) in pairs(forward_trace[(n_input_args+1):end-1])
         step_input = prod("__" .* stepinfo["args"] .* "__, ")
         # Ensure tuple input if ninputs > 1
         if length(stepinfo["args"]) > 1
@@ -82,7 +90,7 @@ function _parse_forward_pass(forward_trace::Vector{<:Dict}, layers::Dict)::Tuple
             @error "Problem parsing forward step"
         end
     end
-    return input_arg, output_arg, forward_steps
+    return inputs, outputs, forward_steps
 end
 
 function _parse_layer(layer_parse::Dict)

@@ -1,4 +1,4 @@
-function _template_nn_model(layers, input, output, forward_steps, freeze_info::Union{Nothing, Dict})::String
+function _template_nn_model(layers, inputs, output, forward_steps, freeze_info::Union{Nothing, Dict})::String
     model_str = "@compact(\n"
     for (id, layer) in layers
         if isnothing(freeze_info) || !haskey(freeze_info, Symbol(id))
@@ -10,7 +10,7 @@ function _template_nn_model(layers, input, output, forward_steps, freeze_info::U
         model_str *= "\t$(id) = Lux.Experimental.freeze(" * string(layer) *
             ", $(which_params)),\n"
     end
-    model_str *= ") do $(input)\n"
+    model_str *= ") do ($(inputs))\n"
     for forward_step in forward_steps
         model_str *= "\t$(forward_step)\n"
     end

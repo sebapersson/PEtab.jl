@@ -1,7 +1,7 @@
 include(joinpath(@__DIR__, "helper.jl"))
 
 @testset "PEtab SciML net import" begin
-    for i in 1:51
+    for i in 1:52
         testcase = i < 10 ? "00$i" : "0$i"
         # ml_model must be loaded here to avoid world-problem
         dirtest = joinpath(@__DIR__, "test_cases", "net_import", "$testcase")
