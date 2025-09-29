@@ -33,8 +33,6 @@ PEtab.jl is compatible with Julia 1.10 and above. For additional installation de
 
 ## Citation
 
-## Citation
-
 If you use PEtab.jl in work that is published, please cite the paper below:
 
 ```bibtex
