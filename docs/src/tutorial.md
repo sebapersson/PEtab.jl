@@ -9,17 +9,17 @@ As a working example, this tutorial considers the Michaelis-Menten enzyme kineti
 ```math
 S + E \xrightarrow{c_1} SE \\
 SE \xrightarrow{c_2} S + E \\
-SE \xrightarrow{c_3} S + P,
+SE \xrightarrow{c_3} P + E,
 ```
 
 Which, via the [law of mass action](https://en.wikipedia.org/wiki/Law_of_mass_action), can be converted to a system of Ordinary Differential Equations (ODEs):
 
 ```math
 \begin{align*}
-    \frac{\mathrm{d}S}{\mathrm{d}t} &= c_1 S \cdot E - c_2 SE \\
-    \frac{\mathrm{d}E}{\mathrm{d}t} &= c_1 S \cdot E - c_2 SE \\
-    \frac{\mathrm{d}SE}{\mathrm{d}t} &= -c_1 S \cdot E + c_2 SE - c_3 SE \\
-    \frac{\mathrm{d}P}{\mathrm{d}t} &= c_3 SE
+    \frac{\mathrm{d}E}{\mathrm{d}t} &= c_2 SE + c_3 SE - c_1 S \cdot E  \\
+    \frac{\mathrm{d}P}{\mathrm{d}t} &= c_3 SE \\
+    \frac{\mathrm{d}S}{\mathrm{d}t} &= c_2 SE - c_1 S \cdot E \\
+    \frac{\mathrm{d}SE}{\mathrm{d}t} &=  -c_2 SE - c_3 SE + c_1 S \cdot E
 \end{align*}
 ```
 
@@ -115,7 +115,7 @@ using PEtab
 obs_sum = PEtabObservable(S + E, 3.0)
 ```
 
-In `PEtabObservable`, the first argument is the observed formula, and the second argument is the formula for the measurement error. In this case, we assumed a known measurement error (`σ = 3.0`), but often the measurement error is unknown and needs to be estimated. For example, let us assume we have observed `P` ($obs_2$) with an unknown measurement error `sigma`. This in encoded as:
+Note that `@unpack` is a [Julia macro](https://docs.julialang.org/en/v1/manual/metaprogramming/) that can conveniently be used to extract any species from a Catalyst `ReactionSystem` (more details can be found [here](https://docs.sciml.ai/Catalyst/stable/model_creation/dsl_advanced/#dsl_advanced_options_symbolics_and_DSL_unpack)). In `PEtabObservable`, the first argument is the observed formula, and the second argument is the formula for the measurement error. In this case, we assumed a known measurement error (`σ = 3.0`), but often the measurement error is unknown and needs to be estimated. For example, let us assume we have observed `P` ($obs_2$) with an unknown measurement error `sigma`. This in encoded as:
 
 ```@example 1
 @unpack P = rn
@@ -195,11 +195,17 @@ It is important to note that the measurement table follows a [tidy](https://r4ds
 
 ### Bringing It All Together
 
-Given a model, observables, parameters to estimate, and measurement data, it is possible to create a `PEtabODEProblem`, which contains all the information needed for parameter estimation. This is done in a two-step process, where the first step is to create a `PEtabModel`. For our `ReactionSystem` or `ODESystem` model, this is done as:
+Given a model, observables, parameters to estimate, and measurement data, it is possible to create a `PEtabODEProblem`, which contains all the information needed for parameter estimation. This is done in a two-step process, where the first step is to create a `PEtabModel`. For our `ReactionSystem`, this is done as:
+
+```@example 1
+model_rn = PEtabModel(rn, observables, measurements, pest; speciemap = speciemap)
+nothing # hide
+```
+
+For an `ODESystem` the syntax is the same:
 
 ```@example 1
 model_sys = PEtabModel(sys, observables, measurements, pest)
-model_rn = PEtabModel(rn, observables, measurements, pest; speciemap = speciemap)
 nothing # hide
 ```
 
@@ -217,7 +223,7 @@ Overall, the `PEtabODEProblem` contains all the information needed for performin
 
 A `PEtabODEProblem` (which we defined above) contains all the information needed to wrap a numerical optimization library to perform parameter estimation, and details on how to do this can be found [here](@ref wrap_est). However, wrapping existing optimization libraries is cumbersome, therefore PEtab.jl provides wrappers for [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl), [Ipopt](https://coin-or.github.io/Ipopt/), [Optimization.jl](https://github.com/SciML/Optimization.jl), and [Fides.py](https://github.com/fides-dev/fides).
 
-This section of the tutorial covers how to use Optim.jl to estimate parameters given a starting guess `x0`. Moreover, since the objective function to minimize for ODE models often contains multiple local minima, the tutorial also covers how to perform global optimization using multistart parameter estimation.
+This section of the tutorial covers how to use [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl) to estimate parameters given a starting guess `x0`. Moreover, since the objective function to minimize for ODE models often contains multiple local minima, the tutorial also covers how to perform global optimization using multistart parameter estimation.
 
 ### Single-Start Parameter Estimation
 
@@ -243,7 +249,7 @@ x0 = get_startguesses(petab_prob, 1)
 nothing # hide
 ```
 
-Given a starting point `x0`, we can now perform the parameter estimation. As this is a small problem with only 4 parameters to estimate, we use the Interior-point Newton method from Optim.jl (for algorithm recommendations, see [this](@ref options_optimizers) page):
+Given a starting point `x0`, we can now perform the parameter estimation. As this is a small problem with only 4 parameters to estimate, we use the Interior-point Newton method from [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl) (for algorithm recommendations, see [this](@ref options_optimizers) page):
 
 ```@example 1
 using Optim
@@ -323,10 +329,10 @@ This overarching tutorial provides an overview of how to create a parameter esti
 - **Steady-State Initialization**: Sometimes the model should be at a steady state at time zero, before it is simulated and compared against data. To learn how to set up a problem with such pre-equilibration criteria, see [this](@ref define_with_ss) tutorial.
 - **Events**: Sometimes a model may incorporate events like substrate addition at specific time points or parameter changes when a state/species reaches a certain value. To learn how to add model events see [this](@ref define_events) tutorial.
 - **Condition-Specific System/Model Parameters**: Sometimes a subset of model parameters to estimate, such as protein synthesis rates, varies between simulation conditions, while other parameters remain constant across all conditions. To learn how to handle condition-specific parameters, see [this](@ref define_conditions) tutorial.
-- **Time-Point Specific Parameters**: Sometimes one observable is measured with different assays. This can be handled by introducing different observable parameters (e.g., scale and offset) and noise parameters for different measurements. To learn how to add time-point-specific measurement and noise parameters, see [this](@ref time_point_parameters) tutorial.
+- **Timepoint Specific Parameters**: Sometimes one observable is measured with different assays. This can be handled by introducing different observable parameters (e.g., scale and offset) and noise parameters for different measurements. To learn how to add timepoint-specific measurement and noise parameters, see [this](@ref time_point_parameters) tutorial.
 - **Import PEtab Models**: PEtab is a standard table-based format for parameter estimation. If a problem is provided in this standard format, PEtab.jl can import it directly. To learn how to import models in the standard format, see [this](@ref import_petab_problem) tutorial.
 
-Besides creating a parameter estimation problem, this overarching tutorial demonstrated how to perform parameter estimation using [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl). In addition, PEtab.jl also supports using [Ipopt](https://coin-or.github.io/Ipopt/), [Optimization.jl](https://github.com/SciML/Optimization.jl), and [Fides.py](https://github.com/fides-dev/fides). More information on available algorithms for parameter estimation can be found on [this](@ref pest_methods) page. Besides frequentist parameter estimation, PEtab.jl also supports Bayesian inference with state-of-the-art samplers such as [NUTS](https://github.com/TuringLang/Turing.jl) (the same sampler used in [Turing.jl](https://github.com/TuringLang/Turing.jl)) and [AdaptiveMCMC.jl](https://github.com/mvihola/AdaptiveMCMC.jl). For more information, see the Bayesian inference [page].
+Besides creating a parameter estimation problem, this overarching tutorial demonstrated how to perform parameter estimation using [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl). In addition, PEtab.jl also supports using [Ipopt](https://coin-or.github.io/Ipopt/), [Optimization.jl](https://github.com/SciML/Optimization.jl), and [Fides.py](https://github.com/fides-dev/fides). More information on available algorithms for parameter estimation can be found on [this](@ref pest_methods) page. Besides frequentist parameter estimation, PEtab.jl also supports Bayesian inference with state-of-the-art samplers such as [NUTS](https://github.com/TuringLang/Turing.jl) (the same sampler used in [Turing.jl](https://github.com/TuringLang/Turing.jl)) and [AdaptiveMCMC.jl](https://github.com/mvihola/AdaptiveMCMC.jl). For more information, see the Bayesian inference [page](@ref bayesian_inference).
 
 Lastly, when creating a `PEtabODEProblem` there are many configurable options (see the [API](@ref API)). The default options are based on extensive benchmarks for dynamic models in biology, see [this](@ref default_options) page. For how to configure models outside of biology, see [this](@ref nonstiff_models) page. Additionally, for a discussion on available gradient and Hessian methods, see [this](@ref gradient_support) page.
 

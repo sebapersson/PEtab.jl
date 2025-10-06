@@ -67,7 +67,7 @@ function PEtabODEProblem(model::PEtabModel;
         end
         _simulated_values = (x) -> begin
             _ = nllh(x)
-            return model_info.petab_measurements.simulated_values
+            return deepcopy(model_info.petab_measurements.simulated_values)
         end
     end
     _logging(:Build_chi2_res_sim, verbose; time = btime)

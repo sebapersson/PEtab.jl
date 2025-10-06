@@ -3,8 +3,9 @@
     generation, to single-start and multistart parameter estimation.
 =#
 
-using PEtab, Distributions, CSV, DataFrames, OrdinaryDiffEq, Catalyst, ComponentArrays,
-      Optim, Ipopt, Optimization, OptimizationOptimJL, Test
+using PEtab, Distributions, CSV, DataFrames, OrdinaryDiffEqRosenbrock, Catalyst,
+    ComponentArrays, Optim, Ipopt, Optimization, OptimizationOptimJL, Test
+import Random
 
 @testset "Generate startguesses" begin
     # Test startguesses for a hard to integrate ODE model
@@ -45,6 +46,13 @@ using PEtab, Distributions, CSV, DataFrames, OrdinaryDiffEq, Catalyst, Component
     @test std([x.b0 for x in xstarts]) ≈ 0.001 atol=1e-2
     @test all([x.k2 for x in xstarts] .> 0.4)
     @test all([x.k2 for x in xstarts] .< 0.8)
+    # Test seed-provided RNG behaves as expected
+    rng1, rng2, rng3 = Random.Xoshiro(1), Random.Xoshiro(1), Random.Xoshiro(2)
+    x1 = get_startguesses(rng1, prob, 10)
+    x2 = get_startguesses(rng2, prob, 10)
+    x3 = get_startguesses(rng3, prob, 10)
+    @test x1 == x2
+    @test x1 != x3
 end
 
 @testset "Calibrate single start" begin
@@ -78,7 +86,8 @@ end
     prob = PEtabODEProblem(model)
     res1 = calibrate_multistart(prob, Optim.IPNewton(), 10; save_trace=true,
                                 dirsave = dirsave)
-    res2 = calibrate_multistart(prob, IpoptOptimizer(true), 10; save_trace=false)
+    rng = Random.Xoshiro(1)
+    res2 = calibrate_multistart(rng, prob, IpoptOptimizer(true), 10; save_trace=false)
     res_read = PEtabMultistartResult(dirsave)
     @test all(.≈(res1.xmin, get_x(prob), atol = 1e-2))
     @test all(.≈(res2.xmin, get_x(prob), atol = 1e-2))
