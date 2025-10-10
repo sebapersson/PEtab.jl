@@ -25,10 +25,10 @@ using SciMLSensitivity, Sundials
 osolver = ODESolver(CVODE_BDF(); abstol_adj = 1e-3, reltol_adj = 1e-6)
 petab_prob1 = PEtabODEProblem(model; gradient_method = :Adjoint,
                               odesolver = osolver, odesolver_gradient = osolver,
-                              sensealg = InterpolatingAdjoint(autojacvec = EnzymeVJP()))
+                              sensealg = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)))
 petab_prob2 = PEtabODEProblem(model; gradient_method = :Adjoint,
                               odesolver = osolver, odesolver_gradient = osolver,
-                              sensealg = GaussAdjoint(autojacvec = EnzymeVJP()))
+                              sensealg = GaussAdjoint(autojacvec = ReverseDiffVJP(true)))
 nothing # hide
 ```
 
