@@ -13,7 +13,7 @@ function parse_observables(modelname::String, paths::Dict{Symbol, String}, sys::
                         true)
     if write_to_file == true
         pathsave = joinpath(paths[:dirjulia], "$(modelname)_h_sd_u0.jl")
-        strwrite = *(_hstr, _u0!str, _u0str, _σstr)
+        strwrite = prod([_hstr, "\n\n", _u0!str, "\n\n", _u0str, "\n\n", _σstr])
         open(pathsave, "w") do f
             write(f, strwrite)
         end
@@ -38,7 +38,7 @@ function _parse_h(state_ids::Vector{String}, xindices::ParameterIndices,
         hstr *= "\t\treturn $formula \n"
         hstr *= "\tend\n"
     end
-    hstr *= "end\n\n"
+    hstr *= "end"
     return hstr
 end
 
@@ -60,7 +60,7 @@ function _parse_σ(state_ids::Vector{String}, xindices::ParameterIndices,
         σstr *= "\t\treturn $formula \n"
         σstr *= "\tend\n"
     end
-    σstr *= "end\n\n"
+    σstr *= "end"
     return σstr
 end
 
@@ -105,7 +105,7 @@ function _parse_u0(speciemap_problem, speciemap_model, state_ids::Vector{String}
         inplace == false
         u0str *= "\treturn [" * prod(state_ids .* ", ")[1:(end - 2)] * "]\n"
     end
-    u0str *= "end\n\n"
+    u0str *= "end"
     return u0str
 end
 
