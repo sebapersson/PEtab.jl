@@ -44,3 +44,20 @@ If you have any problems using PEtab, here are some helpful tips:
 * Read the [FAQ](@ref FAQ) section in the online documentation.
 * Post your questions in the `#sciml-sysbio` channel on the [Julia Slack](https://julialang.org/slack/). While PEtab.jl is not exclusively for systems biology, the `#sciml-sysbio` channel is where the package authors are most active.
 * If you have encountered unexpected behavior or a bug, please open an issue on [GitHub](https://github.com/sebapersson/PEtab.jl/issues).
+
+## Citation
+
+If you use PEtab.jl in work that is published, please cite the paper below:
+
+```bibtex
+@article{PEtabBioinformatics2025,
+  title={PEtab.jl: advancing the efficiency and utility of dynamic modelling},
+  author={Persson, Sebastian and Fr{\"o}hlich, Fabian and Grein, Stephan and Loman, Torkel and Ognissanti, Damiano and Hasselgren, Viktor and Hasenauer, Jan and Cvijovic, Marija},
+  journal={Bioinformatics},
+  volume={41},
+  number={9},
+  pages={btaf497},
+  year={2025},
+  publisher={Oxford University Press}
+}
+```

@@ -35,10 +35,10 @@ function get_odeproblem(res::EstimationResult, prob::PEtabODEProblem;
                         cid::Union{String, Symbol, Nothing} = nothing,
                         preeq_id::Union{String, Symbol, Nothing} = nothing)
     @unpack model_info, probinfo = prob
-    u0, p = _get_ps_u0(res, prob, cid, preeq_id, false)
+    u0, ps = _get_ps_u0(res, prob, cid, preeq_id, false)
     tmax = _get_tmax(cid, preeq_id, model_info)
     odefun = ODEFunction(_get_system(prob.model_info.model.sys))
-    oprob = ODEProblem(odefun, u0, [0.0, tmax], p)
+    oprob = ODEProblem(odefun, u0, [0.0, tmax], ps)
     return oprob, model_info.model.callbacks
 end
 
@@ -182,9 +182,12 @@ function _get_ps_u0(res::EstimationResult, prob::PEtabODEProblem,
     _u0 = retmap ? Pair.(u0s, u0) : u0
     _p = retmap ? Pair.(ps, p) : p
     # These parameters are added to a mutated system for gradient computations, but
-    # should not be exposed to the user
-    ip = findall(x -> !occursin("__init__", x), string.(ps))
-    return _u0, _p[ip]
+    # should not be exposed to the user if the model is defined in Julia
+    if model.defined_in_julia
+        ip = findall(x -> !occursin("__init__", x), string.(ps))
+        return _u0, _p[ip]
+    end
+    return _u0, _p
 end
 
 """
