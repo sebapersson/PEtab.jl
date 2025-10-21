@@ -73,7 +73,14 @@ function _parse_forward_pass(network_yaml::Dict, layers::Dict)::Tuple{String, St
 
     forward_steps = fill("", length(forward_trace[(n_input_args+1):end-1]))
     for (i, stepinfo) in pairs(forward_trace[(n_input_args+1):end-1])
-        step_input = prod("__" .* stepinfo["args"] .* "__, ")
+        # torch.cat arguments are provided as a Vector{Vector} due to being provided
+        # in tuple inside torch
+        if stepinfo["target"] == "cat"
+            step_input = prod("__" .* stepinfo["args"][1] .* "__, ")
+        else
+            step_input = prod("__" .* stepinfo["args"] .* "__, ")
+        end
+
         # Ensure tuple input if ninputs > 1
         if length(stepinfo["args"]) > 1
             step_input = "($step_input)"
@@ -86,6 +93,8 @@ function _parse_forward_pass(network_yaml::Dict, layers::Dict)::Tuple{String, St
         elseif haskey(ACTIVATION_FUNCTIONS, stepinfo["target"])
             _f = ACTIVATION_FUNCTIONS[stepinfo["target"]]
             forward_steps[i] = _parse_activation_function(step_output, step_input, stepinfo, _f)
+        elseif stepinfo["target"] == "cat"
+            forward_steps[i] = _parse_cat(step_output, step_input)
         else
             @error "Problem parsing forward step"
         end
@@ -224,6 +233,11 @@ function _parse_activation_function(step_output::String, step_input::String, ste
         args = args * "; " * kwargs
     end
     return "$(step_output) = $(actinfo.fn)($args)"
+end
+
+function _parse_cat(step_output::String, step_input::String)::String
+    args = step_input[1:end-2]
+    return "$(step_output) = cat($(args); dims = 1)"
 end
 
 function _get_freeze_info(ml_model_id::Symbol, ml_models::Dict, path_yaml::String)::Dict

@@ -93,7 +93,7 @@ function test_netimport(testcase, ml_model)::Nothing
 
     for j in 1:3
         # A subset of test-cases have multiple input arguments
-        if testcase != "052"
+        if !(testcase in ["052", "053"])
             input_file = h5open(joinpath(dirtest, yaml_test["net_input"][j]), "r")
             _input = HDF5.read_dataset(input_file["inputs"]["input0"], "data")
             input = parse_array(_input, input_order_jl, input_order_py)
