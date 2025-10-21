@@ -72,29 +72,29 @@ function _parse_forward_pass(network_yaml::Dict, layers::Dict)::Tuple{String, St
     outputs = "__" * forward_trace[end]["args"][1] * "__"
 
     forward_steps = fill("", length(forward_trace[(n_input_args+1):end-1]))
-    for (i, stepinfo) in pairs(forward_trace[(n_input_args+1):end-1])
+    for (i, step_info) in pairs(forward_trace[(n_input_args+1):end-1])
         # torch.cat arguments are provided as a Vector{Vector} due to being provided
         # in tuple inside torch
-        if stepinfo["target"] == "cat"
-            step_input = prod("__" .* stepinfo["args"][1] .* "__, ")
+        if step_info["target"] == "cat"
+            step_input = prod("__" .* step_info["args"][1] .* "__, ")
         else
-            step_input = prod("__" .* stepinfo["args"] .* "__, ")
+            step_input = prod("__" .* step_info["args"] .* "__, ")
         end
 
         # Ensure tuple input if ninputs > 1
-        if length(stepinfo["args"]) > 1
+        if length(step_info["args"]) > 1
             step_input = "($step_input)"
         end
-        step_output = "__" * stepinfo["name"] * "__"
+        step_output = "__" * step_info["name"] * "__"
 
-        if haskey(layers, stepinfo["target"])
-            _f = stepinfo["target"]
+        if haskey(layers, step_info["target"])
+            _f = step_info["target"]
             forward_steps[i] = "$(step_output) = $(_f)($(step_input))"
-        elseif haskey(ACTIVATION_FUNCTIONS, stepinfo["target"])
-            _f = ACTIVATION_FUNCTIONS[stepinfo["target"]]
-            forward_steps[i] = _parse_activation_function(step_output, step_input, stepinfo, _f)
-        elseif stepinfo["target"] == "cat"
-            forward_steps[i] = _parse_cat(step_output, step_input)
+        elseif haskey(ACTIVATION_FUNCTIONS, step_info["target"])
+            _f = ACTIVATION_FUNCTIONS[step_info["target"]]
+            forward_steps[i] = _parse_activation_function(step_output, step_input, step_info, _f)
+        elseif step_info["target"] == "cat"
+            forward_steps[i] = _parse_cat(step_output, step_input, step_info)
         else
             @error "Problem parsing forward step"
         end
@@ -200,8 +200,8 @@ function _parse_layer_kwargs(layer_parse, layer_info)::NamedTuple
     return kwargs
 end
 
-function _parse_activation_function(step_output::String, step_input::String, stepinfo::Dict, actinfo::NamedTuple)::String
-    @assert length(stepinfo["args"]) == 1 "To many inputs to activation function $(actinfo.fn)"
+function _parse_activation_function(step_output::String, step_input::String, step_info::Dict, actinfo::NamedTuple)::String
+    @assert length(step_info["args"]) == 1 "To many inputs to activation function $(actinfo.fn)"
     # For activation functions with only 1 arg (e.g. tanh), via Lux.fast_activation Lux.jl
     # tries to find the fastest implementation
     if actinfo[:nargs] == 1 && !haskey(actinfo, :kwargs)
@@ -215,7 +215,7 @@ function _parse_activation_function(step_output::String, step_input::String, ste
     args[1] = step_input
     if actinfo.nargs > 1
         for (argname, argpos) in actinfo.args
-            args[argpos] = string(stepinfo["kwargs"][argname])
+            args[argpos] = string(step_info["kwargs"][argname])
         end
     end
     args = prod(args .* ", ")[1:end-2]
@@ -225,7 +225,7 @@ function _parse_activation_function(step_output::String, step_input::String, ste
     if haskey(actinfo, :kwargs)
         kwargs = String[]
         for (argname, argname_julia) in actinfo.kwargs
-            argval = stepinfo["kwargs"][argname]
+            argval = step_info["kwargs"][argname]
             argval = argname == "dim" ? argval + 1 : argval
             push!(kwargs, "$(argname_julia) = $(argval), ")
         end
@@ -235,9 +235,10 @@ function _parse_activation_function(step_output::String, step_input::String, ste
     return "$(step_output) = $(actinfo.fn)($args)"
 end
 
-function _parse_cat(step_output::String, step_input::String)::String
+function _parse_cat(step_output::String, step_input::String, step_info::Dict)::String
     args = step_input[1:end-2]
-    return "$(step_output) = cat($(args); dims = 1)"
+    dim = step_info["kwargs"]["dim"] + 1
+    return "$(step_output) = cat($(args); dims = $(dim))"
 end
 
 function _get_freeze_info(ml_model_id::Symbol, ml_models::Dict, path_yaml::String)::Dict

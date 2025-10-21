@@ -53,8 +53,8 @@ function ParameterIndices(petab_parameters::PEtabParameters, petab_net_parameter
                                                  petab_parameters; observable = true)
     xnoise_maps = _get_map_observable_noise(xids[:noise], petab_measurements,
                                             petab_parameters; observable = false)
-    # If a neural-network sets values for a subset of model parameters, for efficent AD on
-    # said network, it is neccesary to pre-compute the input, pre-allocate the output,
+    # If a neural-network sets values for a subset of model parameters, for efficient AD on
+    # said network, it is needed to pre-compute the input, pre-allocate the output,
     # and build a map for which parameters in xdynamic the network maps to.
     nn_preode_maps = _get_nn_preode_maps(xids, petab_parameters, petab_tables, paths, ml_models, sys)
 

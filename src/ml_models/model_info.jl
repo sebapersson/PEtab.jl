@@ -19,7 +19,6 @@ function _get_ml_models_in_ode(ml_models::MLModels, path_SBML::String, petab_tab
     libsbml_model = SBMLImporter.SBML.readSBML(path_SBML)
     hybridization_df = petab_tables[:hybridization]
     mappings_df = petab_tables[:mapping]
-    # First sanity check mapping table column names
     # Sanity check that columns in mapping table are correctly named
     pattern = r"(.inputs|.outputs|.parameters)"
     for io_id in string.(mappings_df[!, "modelEntityId"])
@@ -33,14 +32,16 @@ function _get_ml_models_in_ode(ml_models::MLModels, path_SBML::String, petab_tab
     for (ml_model_id, ml_model) in ml_models
         ml_model.static == true && continue
 
-        input_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs)
+        input_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs) |>
+            Iterators.flatten
         if !all([x in hybridization_df.targetId for x in input_variables])
             throw(PEtab.PEtabInputError("For a static=false neural network all input \
                 must be assigned value in the hybridization table. This does not hold for \
                 $ml_model_id"))
         end
 
-        output_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :outputs)
+        output_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :outputs) |>
+            Iterators.flatten
         outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
         isempty(outputs_df) && continue
         if !all([x in keys(libsbml_model.parameters) for x in outputs_df.targetId])

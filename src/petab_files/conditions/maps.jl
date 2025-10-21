@@ -196,60 +196,17 @@ function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameter
         conditionid = conditions_df[i, :conditionId] |> Symbol
         maps_nn = Dict{Symbol, MLModelPreODEMap}()
         for ml_model_id in xids[:ml_preode]
-            # Get values for the inputs. For the pre-ODE inputs can either be constant
-            # values (numeric) or a parameter, which is treated as a xdynamic parameter
-            file_input = false
-            inputs = get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs) .|> Symbol
-            input_values = _get_ml_model_input_values(inputs, ml_model_id, ml_models[ml_model_id], DataFrame(conditions_df[i, :]), petab_tables, paths, petab_parameters, sys; keep_numbers = true)
-            ninputs = length(input_values)
-            constant_inputs, iconstant_inputs = zeros(Float64, 0), zeros(Int32, 0)
-            ixdynamic_mech_inputs, ixdynamic_inputs = zeros(Int32, 0), zeros(Int32, 0)
-            for (i, input_variable) in pairs(input_values)
-                if isfile(string(input_variable))
-                    if length(input_values) > 1
-                        throw(PEtabInputError("If input to neural net is a file, only one \
-                            input can be provided in the mapping table. This does not \
-                            hold for $ml_model_id"))
-                    end
-                    input_data = _get_input_file_values(inputs[i], input_variable, conditionid)
-                    # hdf5 files are in row-major
-                    input_data = permutedims(input_data, reverse(1:ndims(input_data)))
-                    constant_inputs = _reshape_io_data(input_data)
-                    # Given an input file, we need to have a batch
-                    constant_inputs = reshape(constant_inputs, (size(constant_inputs)..., 1))
-                    file_input = true
-                    continue
-                end
+            input_info = _get_ml_preode_inputs(ml_model_id, conditionid, xids, petab_parameters, petab_tables, paths, ml_models, sys)
 
-                if is_number(input_variable)
-                    val = parse(Float64, string(input_variable))
-                    push!(constant_inputs, val)
-                    push!(iconstant_inputs, i)
-                    continue
-                end
-
-                # At this point the value must be a parameter, that is either constant
-                # or estimates
-                ip = findfirst(x -> x == input_variable, petab_parameters.parameter_id)
-                if petab_parameters.estimate[ip] == false
-                    push!(constant_inputs, petab_parameters.nominal_value[ip])
-                    push!(iconstant_inputs, i)
-                    continue
-                end
-                ixmech = findfirst(x -> x == input_variable, xids[:dynamic_mech])
-                push!(ixdynamic_mech_inputs, ixmech)
-                push!(ixdynamic_inputs, i)
-            end
-            nxdynamic_inputs = length(ixdynamic_mech_inputs)
-
-            # Indicies for correctly mapping the output. The outputs are stored in a
+            # Indices for correctly mapping the output. The outputs are stored in a
             # separate vector of order xids[:ml_preode_outputs], which ix_nn_outputs
             # stores the index for. The outputs maps to parameters in sys, which
             # ix_output_sys stores. Lastly, for split_over_conditions = true the
             # gradient of the output variables is needed, ix_outputs_grad stores
             # the indices in xdynamic_grad for the outputs (the indices depend on the
             # condition so the Vector is only pre-allocated here).
-            output_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :outputs)
+            output_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :outputs) |>
+                Iterators.flatten
             outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
             output_targets = Symbol.(outputs_df.targetId)
             noutputs = length(output_targets)
@@ -271,11 +228,77 @@ function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameter
                     isys += 1
                 end
             end
-            maps_nn[ml_model_id] = MLModelPreODEMap(constant_inputs, iconstant_inputs, ixdynamic_mech_inputs, ixdynamic_inputs, ninputs, nxdynamic_inputs, noutputs, ix_nn_outputs, ix_outputs_grad, ix_output_sys, file_input)
+            n_input_arguments = length(get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs))
+            maps_nn[ml_model_id] = MLModelPreODEMap(n_input_arguments, input_info[:constant_inputs], input_info[:iconstant_inputs], input_info[:ixdynamic_mech_inputs], input_info[:ixdynamic_inputs], input_info[:ninputs], input_info[:nxdynamic_inputs], noutputs, ix_nn_outputs, ix_outputs_grad, ix_output_sys, input_info[:file_input])
         end
         maps[conditionid] = maps_nn
     end
     return maps
+end
+
+function _get_ml_preode_inputs(ml_model_id::Symbol, conditionid::Symbol, xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, petab_tables::PEtabTables, paths, ml_models::MLModels, sys::ModelSystem)::Dict
+    mappings_df = petab_tables[:mapping]
+    conditions_df = petab_tables[:conditions]
+    input_arguments = get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs)
+    n_input_arguments = length(input_arguments)
+
+    out = Dict()
+    out[:constant_inputs] = Vector{Array{Float64}}(undef, n_input_arguments)
+    out[:iconstant_inputs] = Vector{Vector{Int32}}(undef, n_input_arguments)
+    out[:ixdynamic_mech_inputs] = Vector{Vector{Int32}}(undef, n_input_arguments)
+    out[:ixdynamic_inputs] = Vector{Vector{Int32}}(undef, n_input_arguments)
+    out[:ninputs] = zeros(Int64, n_input_arguments)
+    out[:nxdynamic_inputs] = zeros(Int64, n_input_arguments)
+    out[:file_input] = zeros(Bool, n_input_arguments)
+    for (i, _input_argument) in pairs(input_arguments)
+        input_argument = Symbol.(_input_argument)
+        i_condition = findfirst(x -> x == string(conditionid), conditions_df.conditionId)
+        input_values = _get_ml_model_input_values(input_argument, ml_model_id, ml_models[ml_model_id], DataFrame(conditions_df[i_condition, :]), petab_tables, paths, petab_parameters, sys; keep_numbers = true)
+
+        out[:constant_inputs][i] = zeros(Float64, 0)
+        out[:iconstant_inputs][i] = zeros(Int32, 0)
+        out[:ixdynamic_mech_inputs][i] = zeros(Int32, 0)
+        out[:ixdynamic_inputs][i] = zeros(Int32, 0)
+        for (j, input_variable) in pairs(input_values)
+            if isfile(string(input_variable))
+                if length(input_values) > 1
+                    throw(PEtabInputError("If input to neural net is a file, only one \
+                        input can be provided in the mapping table. This does not \
+                        hold for $ml_model_id"))
+                end
+                input_data = _get_input_file_values(input_argument[j], input_variable, conditionid)
+                # hdf5 files are in row-major
+                input_data = permutedims(input_data, reverse(1:ndims(input_data)))
+                _constant_inputs = _reshape_io_data(input_data)
+                # Given an input file, we need to have a batch
+                out[:constant_inputs][i] = reshape(_constant_inputs, (size(_constant_inputs)..., 1))
+                out[:file_input][i] = true
+                continue
+            end
+
+            if is_number(input_variable)
+                val = parse(Float64, string(input_variable))
+                push!(out[:constant_inputs][i], val)
+                push!(out[:iconstant_inputs][i], j)
+                continue
+            end
+
+            # At this point the value must be a parameter, that is either constant
+            # or estimated
+            ip = findfirst(x -> x == input_variable, petab_parameters.parameter_id)
+            if petab_parameters.estimate[ip] == false
+                push!(out[:constant_inputs][i], petab_parameters.nominal_value[ip])
+                push!(out[:iconstant_inputs][i], j)
+                continue
+            end
+            ixmech = findfirst(x -> x == input_variable, xids[:dynamic_mech])
+            push!(out[:ixdynamic_mech_inputs][i], ixmech)
+            push!(out[:ixdynamic_inputs][i], j)
+        end
+        out[:nxdynamic_inputs][i] = length(out[:ixdynamic_mech_inputs][i])
+        out[:ninputs][1] = length(input_values)
+    end
+    return out
 end
 
 function _add_ix_sys!(ix::Vector{Int32}, variable::String, xids_sys::Vector{String})::Nothing

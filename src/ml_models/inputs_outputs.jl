@@ -1,18 +1,38 @@
-function get_ml_model_petab_variables(mappings_df::DataFrame, ml_model_id::Symbol, type::Symbol)::Vector{String}
+function get_ml_model_petab_variables(mappings_df::DataFrame, ml_model_id::Symbol, type::Symbol)::Union{Vector{String}, Vector{Vector{String}}}
     entity_col = string.(mappings_df[!, "modelEntityId"])
-    if type == :outputs
-        idf = startswith.(entity_col, "$(ml_model_id).outputs")
-    elseif type == :inputs
-        idf = startswith.(entity_col, "$(ml_model_id).inputs")
-    elseif type == :parameters
-        idf = startswith.(entity_col, "$(ml_model_id).parameters")
+    idf = startswith.(entity_col, "$(ml_model_id).$(type)")
+    if type == :parameters
         return mappings_df[idf, :petabEntityId]
     end
-    df = mappings_df[idf, :]
-    # Sort to get inputs in order output1, output2, ...
-    is = sortperm(string.(df[!, "modelEntityId"]),
-                  by = x -> parse(Int, match(r".*\[(\d+)\]$", x).captures[1]))
-    return string.(df[is, "petabEntityId"])
+
+    # Sort to get PEtab Id inputs/outputs in correct order (both within and between
+    # arguments). File inputs are on the format netId.inputs[ix], while other inputs
+    # are on the format netId.inputs[ix][jx]
+    out = Vector{Vector{String}}(undef, 0)
+    for i in 0:100
+        # Check if file input, and handle separately
+        str_match = "$(ml_model_id).$(type)[$(i)]" * r"$"
+        matches = match.(str_match, string.(mappings_df[!, "modelEntityId"]))
+        if !all(isnothing.(matches))
+            @assert sum(.!isnothing(matches)) == 1 "Duplicates of \
+                $(ml_model_id).$(type)[$(i)] in mapping table"
+            is = findfirst(x -> !isnothing(x), matches)
+            push!(out, [string.(mappings_df[is, "petabEntityId"])])
+            continue
+        end
+
+        str_match = "$(ml_model_id).$(type)[$(i)]" * r"\[(\d+)\]$"
+        matches = match.(str_match, string.(mappings_df[!, "modelEntityId"]))
+        all(isnothing.(matches)) && break
+        df = mappings_df[.!isnothing.(matches), :]
+        is = sortperm(string.(df[!, "modelEntityId"]), by = x -> parse(Int, match(str_match, x).captures[1]))
+        if string.(df[is, "petabEntityId"]) isa Vector{String}
+            push!(out, string.(df[is, "petabEntityId"]))
+        else
+            push!(out, [string.(df[is, "petabEntityId"])])
+        end
+    end
+    return out
 end
 
 function _get_ml_model_input_values(input_variables::Vector{Symbol}, ml_model_id::Symbol, ml_model::MLModel, conditions_df::DataFrame, petab_tables::PEtabTables, paths::Dict{Symbol, String}, petab_parameters::PEtabParameters, sys::ModelSystem; keep_numbers::Bool = false)::Vector{Symbol}

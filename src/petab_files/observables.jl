@@ -30,7 +30,7 @@ function _parse_h(state_ids::Vector{String}, xindices::ParameterIndices, petab_t
         formula = filter(x -> !isspace(x), observables_df[i, :observableFormula] |> string)
         formula = _parse_formula(formula, state_ids, xindices, model_SBML, :observable)
         obs_parameters = _get_observable_parameters(formula)
-        formulas_nn = _get_formulas_nn(formula, petab_tables, state_ids, xindices, model_SBML, ml_models, :observable)
+        formulas_nn = _get_ml_formulas(formula, petab_tables, state_ids, xindices, model_SBML, ml_models, :observable)
         hstr *= "\tif obsid == :$(obsid)\n"
         hstr *= _template_obs_sd_parameters(obs_parameters; obs = true)
         hstr *= formulas_nn
@@ -176,7 +176,7 @@ function _parse_formula(formula::String, state_ids::Vector{String},
     return formula
 end
 
-function _get_formulas_nn(formula, petab_tables::PEtabTables, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, ml_models::MLModels, type::Symbol)::String
+function _get_ml_formulas(formula, petab_tables::PEtabTables, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, ml_models::MLModels, type::Symbol)::String
     formula_nn = ""
     mappings_df = petab_tables[:mapping]
     isempty(mappings_df) && return formula_nn
@@ -185,40 +185,13 @@ function _get_formulas_nn(formula, petab_tables::PEtabTables, state_ids::Vector{
 
         output_variables = get_ml_model_petab_variables(mappings_df, Symbol(ml_model_id), :outputs)
         has_nn_output = false
-        for output_variable in output_variables
+        for output_variable in Iterators.flatten(output_variables)
             if SBMLImporter._replace_variable(formula, output_variable, "") != formula
                 has_nn_output = true
             end
         end
         has_nn_output == false && continue
-        formula_nn *= _template_nn_formula(ml_model_id, petab_tables, state_ids, xindices, model_SBML, type)
+        formula_nn *= _template_ml_observable(ml_model_id, petab_tables, state_ids, xindices, model_SBML, type)
     end
     return formula_nn
-end
-
-function _template_nn_formula(ml_model_id::Symbol, petab_tables::PEtabTables, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, type::Symbol)::String
-    mappings_df = petab_tables[:mapping]
-    hybridization_df = petab_tables[:hybridization]
-
-    input_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs)
-    inputs_df = filter(r -> r.targetId in input_variables, hybridization_df)
-    input_expressions = inputs_df.targetValue
-    inputs = "[" * prod(input_expressions .* ",") * "]"
-    inputs = _parse_formula(inputs, state_ids, xindices, model_SBML, type)
-
-    output_variables = get_ml_model_petab_variables(mappings_df, Symbol(ml_model_id), :outputs)
-    outputs = prod(output_variables .* ", ")
-
-    formula = "\n\t\tml_model_$(ml_model_id) = ml_models[:$(ml_model_id)]\n"
-    if ml_model_id in xindices.xids[:ml_in_ode]
-        formula *= "\t\txnn_$(ml_model_id) = p[:$(ml_model_id)]\n"
-    elseif ml_model_id in xindices.xids[:ml_est]
-        formula *= "\t\txnn_$(ml_model_id) = xnn[:$(ml_model_id)]\n"
-    else
-        formula *= "\t\txnn_$(ml_model_id) = xnn_constant[:$(ml_model_id)]\n"
-    end
-    formula *= "\t\tout, st_$(ml_model_id) = ml_model_$(ml_model_id).model($inputs, xnn_$(ml_model_id), ml_model_$(ml_model_id).st)\n"
-    formula *= "\t\t$(outputs) = out\n"
-    formula *= "\t\tml_model_$(ml_model_id).st = st_$(ml_model_id)\n"
-    return formula
 end

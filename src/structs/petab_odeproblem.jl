@@ -39,18 +39,19 @@ struct MapODEProblem
     sys_to_nn_preode_output::Vector{Int32}
 end
 
-struct MLModelPreODEMap{T1 <: Array{<:AbstractFloat}}
+struct MLModelPreODEMap{T1 <: Vector{<:Array{<:AbstractFloat}}}
+    ninput_arguments::Int64
     constant_inputs::T1
-    iconstant_inputs::Vector{Int32}
-    ixdynamic_mech_inputs::Vector{Int32}
-    ixdynamic_inputs::Vector{Int32}
-    ninputs::Int64
-    nxdynamic_inputs::Int64
+    iconstant_inputs::Vector{Vector{Int32}}
+    ixdynamic_mech_inputs::Vector{Vector{Int32}}
+    ixdynamic_inputs::Vector{Vector{Int32}}
+    ninputs::Vector{Int64}
+    nxdynamic_inputs::Vector{Int64}
     noutputs::Int64
     ix_nn_outputs::Vector{Int32}
     ix_nn_outputs_grad::Vector{Int32}
     ioutput_sys::Vector{Int32}
-    file_input::Bool
+    file_input::Vector{Bool}
 end
 
 struct ParameterIndices
@@ -366,13 +367,13 @@ function SteadyStateSolver(alg::NonlinearAlg, abstol, reltol, maxiters)::SteadyS
                              nothing, nothing, false)
 end
 
-struct MLModelPreODE{T <: DiffCache}
+struct MLModelPreODE{T1 <: DiffCache, T2 <: Vector{<:DiffCache}}
     forward!::Function
     tape::Any
     jac_ml_model::Matrix{Float64}
-    outputs::T
-    inputs::T
-    x::T
+    outputs::T1
+    inputs::T2
+    x::T1
     computed::Vector{Bool}
 end
 

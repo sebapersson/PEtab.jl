@@ -38,7 +38,8 @@ function _check_static_net_inputs(petab_tables::PEtabTables, paths::Dict{Symbol,
     conditions_df = petab_tables[:conditions]
     hybridization_df = petab_tables[:hybridization]
     mappings_df = petab_tables[:mapping]
-    input_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs)
+    input_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs) |>
+        Iterators.flatten
     for input_variable in input_variables
         input_variable in hybridization_df.targetId && continue
         input_variable in names(conditions_df) && continue
@@ -59,7 +60,8 @@ function _check_static_net_outputs(petab_tables::PEtabTables, petab_parameters::
     xids_sys = _get_xids_sys(sys)
     x_estimate = petab_parameters.parameter_id[petab_parameters.estimate]
 
-    output_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :outputs)
+    output_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :outputs) |>
+        Iterators.flatten
     outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
     for i in 1:nrow(outputs_df)
         output_variable = outputs_df.targetValue

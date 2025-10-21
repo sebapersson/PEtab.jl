@@ -199,8 +199,7 @@ function is_number(x::Symbol)::Bool
 end
 
 # TODO: Precompute only once
-function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices;
-                              full_x::Bool = false, nn_preode::Bool = false)::Vector{Integer}
+function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices; full_x::Bool = false, nn_preode::Bool = false)::Vector{Integer}
     xmap_simid = xindices.maps_conidition_id[simid]
     if full_x == false
         ixdynamic = vcat(xindices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic,
@@ -214,7 +213,7 @@ function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices;
     # parameters are by default included in xdynamic (as they gouvern model dynamics)
     if !isempty(xindices.maps_nn_preode)
         for map_ml_model in values(xindices.maps_nn_preode[simid])
-            ixdynamic = vcat(ixdynamic, map_ml_model.ixdynamic_mech_inputs)
+            ixdynamic = vcat(ixdynamic, reduce(vcat, map_ml_model.ixdynamic_mech_inputs))
         end
     end
     if nn_preode == true || full_x == true

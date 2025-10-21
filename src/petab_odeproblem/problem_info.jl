@@ -115,7 +115,7 @@ function _get_ml_models_pre_ode(model_info::ModelInfo, cache::PEtabODEProblemCac
     for (cid, maps_nn) in model_info.xindices.maps_nn_preode
         ml_model_pre_ode = Dict{Symbol, MLModelPreODE}()
         for (ml_model_id, map_ml_model) in maps_nn
-            @unpack ninputs, noutputs = map_ml_model
+            @unpack ninput_arguments, ninputs, noutputs = map_ml_model
             ml_model = model_info.model.ml_models[ml_model_id]
             # If parameters are constant, they only need to be assigned here, as when
             # building the cache xnn_not_est has the correct values.
@@ -124,22 +124,20 @@ function _get_ml_models_pre_ode(model_info::ModelInfo, cache::PEtabODEProblemCac
             else
                 pnn = cache.xnn_constant[ml_model_id]
             end
-            inputs = DiffCache(zeros(Float64, ninputs), levels = 2)
+            inputs = [DiffCache(zeros(Float64, n), levels = 2) for n in ninputs]
             outputs = DiffCache(zeros(Float64, noutputs), levels = 2)
             compute_forward! = let ml_model = ml_model, map_ml_model = map_ml_model, inputs = inputs, pnn = pnn
                 (out, x) -> _net!(out, x, pnn, inputs, map_ml_model, ml_model)
             end
 
             # ReverseDiff.tape compatible (fastest on CPU, but only works if input is
-            # known at compile-time)
-            if map_ml_model.nxdynamic_inputs == 0
-                if map_ml_model.file_input == false
-                    inputs_rev = map_ml_model.constant_inputs[map_ml_model.iconstant_inputs]
-                else
-                    inputs_rev = map_ml_model.constant_inputs
-                end
-                compute_nn_rev! = let ml_model = ml_model, inputs_rev = inputs_rev
-                    (out, x) -> _net_reversediff!(out, x, inputs_rev, ml_model)
+            # known at compile-time). If there are multiple input arguments, they need
+            # to be provided as a tuple, due to how ML models are imported
+            if sum(map_ml_model.nxdynamic_inputs) == 0
+                _inputs = (_get_input(map_ml_model, i) for i in eachindex(inputs))
+                inputs_reverse = ninput_arguments == 1 ? first(_inputs) : Tuple(_inputs)
+                compute_nn_rev! = let ml_model = ml_model, inputs_reverse = inputs_reverse
+                    (out, x) -> _net_reversediff!(out, x, inputs_reverse, ml_model)
                 end
                 out = get_tmp(outputs, 1.0)
                 _pnn = get_tmp(pnn, 1.0)
@@ -149,9 +147,9 @@ function _get_ml_models_pre_ode(model_info::ModelInfo, cache::PEtabODEProblemCac
             end
 
             if ml_model_id in model_info.xindices.xids[:ml_est]
-                nx = length(get_tmp(pnn, 1.0)) + map_ml_model.nxdynamic_inputs
+                nx = length(get_tmp(pnn, 1.0)) + sum(map_ml_model.nxdynamic_inputs)
             else
-                nx = map_ml_model.nxdynamic_inputs
+                nx = sum(map_ml_model.nxdynamic_inputs)
             end
             xarg = DiffCache(zeros(Float64, nx), levels = 2)
             jac_ml_model = zeros(Float64, noutputs, nx)
