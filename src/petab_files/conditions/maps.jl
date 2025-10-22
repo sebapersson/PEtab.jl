@@ -296,7 +296,7 @@ function _get_ml_preode_inputs(ml_model_id::Symbol, conditionid::Symbol, xids::D
             push!(out[:ixdynamic_inputs][i], j)
         end
         out[:nxdynamic_inputs][i] = length(out[:ixdynamic_mech_inputs][i])
-        out[:ninputs][1] = length(input_values)
+        out[:ninputs][i] = length(input_values)
     end
     return out
 end

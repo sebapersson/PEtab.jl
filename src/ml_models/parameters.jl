@@ -64,16 +64,14 @@ end
 function _get_ml_model_pre_ode_x(nnpre::MLModelPreODE, xdynamic_mech::AbstractVector, pnn::ComponentArray, map_ml_model::MLModelPreODEMap)::AbstractVector
     x = get_tmp(nnpre.x, xdynamic_mech)
     n_inputs = sum(map_ml_model.nxdynamic_inputs)
-    ix = reduce(vcat, map_ml_model.ixdynamic_mech_inputs)
-    x[1:n_inputs] = xdynamic_mech[ix]
+    x[1:n_inputs] .= xdynamic_mech[reduce(vcat, map_ml_model.ixdynamic_mech_inputs)]
     @views x[(n_inputs+1):end] .= pnn
     return x
 end
 function _get_ml_model_pre_ode_x(nnpre::MLModelPreODE, xdynamic_mech::AbstractVector, map_ml_model::MLModelPreODEMap)::AbstractVector
     x = get_tmp(nnpre.x, xdynamic_mech)
     n_inputs = sum(map_ml_model.nxdynamic_inputs)
-    ix = reduce(vcat, map_ml_model.ixdynamic_mech_inputs)
-    x[1:n_inputs] = xdynamic_mech[ix]
+    x[1:n_inputs] .= xdynamic_mech[reduce(vcat, map_ml_model.ixdynamic_mech_inputs)]
     return x
 end
 
