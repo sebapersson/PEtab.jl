@@ -154,13 +154,13 @@ end
 
 # TODO: Public so must document
 # TODO: For Julia interface later check if all fields are required
-mutable struct MLModel{T <: Any}
-    const model::T
+mutable struct MLModel{T1 <: Any, T2 <: Union{Vector{Symbol}, Vector{Vector{Symbol}}}}
+    const model::T1
     st::NamedTuple
     const ps::ComponentVector{Float64}
     const static::Bool
     const dirdata::String
-    const inputs::Vector{Symbol}
+    const inputs::T2
     const outputs::Vector{Symbol}
 end
 

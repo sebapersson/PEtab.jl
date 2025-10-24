@@ -171,36 +171,12 @@ function _mapping_to_table(ml_models::MLModels)::DataFrame
     isempty(ml_models) && return DataFrame()
     mappings_df = DataFrame()
     for (ml_model_id, ml_model) in ml_models
-        for (i, input_id) in pairs(ml_model.inputs)
-            if ml_model.static == true
-                dftmp = DataFrame(Dict(
-                    "modelEntityId" => "$(ml_model_id).inputs[0][$(i-1)]",
-                    "petabEntityId" => string(input_id)))
-                mappings_df = vcat(mappings_df, dftmp)
-            else
-                dftmp = DataFrame(Dict(
-                    "modelEntityId" => "$(ml_model_id).inputs[0][$(i-1)]",
-                    "petabEntityId" => "__$(ml_model_id)__input$(i-1)"))
-                mappings_df = vcat(mappings_df, dftmp)
-            end
-        end
-        for (i, output_id) in pairs(ml_model.outputs)
-            if ml_model.static == true
-                dftmp = DataFrame(Dict(
-                    "modelEntityId" => "$(ml_model_id).outputs[0][$(i-1)]",
-                    "petabEntityId" => "__$(ml_model_id)__output$(i-1)"))
-                mappings_df = vcat(mappings_df, dftmp)
-            else
-                dftmp = DataFrame(Dict(
-                    "modelEntityId" => "$(ml_model_id).outputs[0][$(i-1)]",
-                    "petabEntityId" => string(output_id)))
-                mappings_df = vcat(mappings_df, dftmp)
-            end
-        end
-        dftmp = DataFrame(Dict(
-                "modelEntityId" => "$(ml_model_id).parameters",
-                "petabEntityId" => "$(ml_model_id)_parameters"))
-        mappings_df = vcat(mappings_df, dftmp)
+        _inputs_df = _get_mapping_table_io(ml_model.inputs, ml_model_id, ml_model, :inputs)
+        _outputs_df = _get_mapping_table_io(ml_model.outputs, ml_model_id, ml_model, :outputs)
+        _parameters_df = DataFrame(Dict(
+            "modelEntityId" => "$(ml_model_id).parameters",
+            "petabEntityId" => "$(ml_model_id)_parameters"))
+        mappings_df = reduce(vcat, (mappings_df, _inputs_df, _outputs_df, _parameters_df))
     end
     if !isempty(mappings_df)
         _check_table(mappings_df, :mapping)
@@ -208,27 +184,67 @@ function _mapping_to_table(ml_models::MLModels)::DataFrame
     return mappings_df
 end
 
+function _get_mapping_table_io(io_arguments::Vector{Vector{Symbol}}, ml_model_id::Symbol, ml_model::MLModel, io_type::Symbol)::DataFrame
+    mappings_df = DataFrame()
+    for (i, io_argument) in pairs(io_arguments)
+        _mappings_df = _get_mapping_table_io(io_argument, ml_model_id, ml_model, io_type; i_arg=(i-1))
+        mappings_df = vcat(mappings_df, _mappings_df)
+    end
+    return mappings_df
+end
+function _get_mapping_table_io(io_argument::Vector{Symbol}, ml_model_id::Symbol, ml_model::MLModel, io_type::Symbol; i_arg=0)::DataFrame
+    mappings_df = DataFrame()
+    for (i, io_id) in pairs(io_argument)
+        if (io_type == :inputs && ml_model.static) || (io_type == :outputs && !ml_model.static)
+            _mappings_df = DataFrame(Dict(
+                "modelEntityId" => "$(ml_model_id).$(io_type)[$(i_arg)][$(i-1)]",
+                "petabEntityId" => "$(io_id)"))
+        else
+            _mappings_df = DataFrame(Dict(
+                "modelEntityId" => "$(ml_model_id).$(io_type)[$(i_arg)][$(i-1)]",
+                "petabEntityId" => "__$(ml_model_id)__$(io_type)$(i_arg)__$(i-1)"))
+        end
+        mappings_df = vcat(mappings_df, _mappings_df)
+    end
+    return mappings_df
+end
+
 function _hybridization_to_table(ml_models::MLModels, parameters_df::DataFrame, conditions_df::DataFrame)::DataFrame
     hybridization_df = DataFrame()
     for (ml_model_id, ml_model) in ml_models
+        _inputs_df = _get_hybridization_table_io(ml_model.inputs, ml_model_id, ml_model, parameters_df, conditions_df, :inputs)
+        _outputs_df = _get_hybridization_table_io(ml_model.outputs, ml_model_id, ml_model, parameters_df, conditions_df, :outputs)
+        hybridization_df = reduce(vcat, (hybridization_df, _inputs_df, _outputs_df))
+    end
+    return hybridization_df
+end
 
-        for (i, input_id) in pairs(string.(ml_model.inputs))
-            if ml_model.static == true
-                input_id in parameters_df.parameterId && continue
-                input_id in names(conditions_df) && continue
-                dftmp = DataFrame(targetId = input_id, targetValue = "__$(ml_model_id)__input$(i-1)")
-                hybridization_df = vcat(hybridization_df, dftmp)
-            else
-                dftmp = DataFrame(targetId = "__$(ml_model_id)__input$(i-1)", targetValue = input_id)
-                hybridization_df = vcat(hybridization_df, dftmp)
-            end
+function _get_hybridization_table_io(io_arguments::Vector{Vector{Symbol}}, ml_model_id::Symbol, ml_model::MLModel, parameters_df::DataFrame, conditions_df::DataFrame, io_type::Symbol)
+    hybridization_df = DataFrame()
+    for (i, io_argument) in pairs(io_arguments)
+        _hybridization_df = _get_hybridization_table_io(io_argument, ml_model_id, ml_model, parameters_df, conditions_df, io_type; i_arg=(i-1))
+        hybridization_df = vcat(hybridization_df, _hybridization_df)
+    end
+    return hybridization_df
+end
+function _get_hybridization_table_io(io_argument::Vector{Symbol}, ml_model_id::Symbol, ml_model::MLModel, parameters_df::DataFrame, conditions_df::DataFrame, io_type::Symbol; i_arg=0)::DataFrame
+    if (ml_model.static == false && io_type == :outputs)
+        return DataFrame()
+    end
+    hybridization_df = DataFrame()
+    for (i, io_id) in pairs(string.(io_argument))
+        if (io_type == :inputs && ml_model.static) || io_type == :outputs
+            io_id in parameters_df.parameterId && continue
+            io_id in names(conditions_df) && continue
+            _hybridization_df = DataFrame(
+                targetId = io_id,
+                targetValue = "__$(ml_model_id)__$(io_type)$(i_arg)__$(i-1)")
+        else
+            _hybridization_df = DataFrame(
+                targetId = "__$(ml_model_id)__$(io_type)$(i_arg)__$(i-1)",
+                targetValue = io_id)
         end
-
-        for (i, output_id) in pairs(string.(ml_model.outputs))
-            ml_model.static == false && continue
-            dftmp = DataFrame(targetId = output_id, targetValue = "__$(ml_model_id)__output$(i-1)")
-            hybridization_df = vcat(hybridization_df, dftmp)
-        end
+        hybridization_df = vcat(hybridization_df, _hybridization_df)
     end
     return hybridization_df
 end

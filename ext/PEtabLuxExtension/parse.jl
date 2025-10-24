@@ -18,7 +18,7 @@ function PEtab.load_ml_models(path_yaml::String)::Dict{Symbol, <:PEtab.MLModel}
     return ml_models
 end
 
-function PEtab.MLModel(net::Union{Lux.Chain, Lux.CompactLuxLayer}; st = nothing, static::Bool = true, dirdata = nothing, inputs::Vector{T} = Symbol[], outputs::Vector{T} = Symbol[], freeze_info::Union{Nothing, Dict} = nothing)::MLModel where T <: Union{String, Symbol}
+function PEtab.MLModel(net::Union{Lux.Chain, Lux.CompactLuxLayer}; st = nothing, static::Bool = true, dirdata = nothing, inputs::Union{Vector{T}, Vector{Vector{T}}} = Symbol[], outputs::Vector{T} = Symbol[], freeze_info::Union{Nothing, Dict} = nothing)::MLModel where T <: Union{String, Symbol}
     # Set frozen parameters if applicable
     rng = Random.default_rng()
     # st must be of type Float64 for numerical stability
@@ -44,8 +44,8 @@ function PEtab.MLModel(net::Union{Lux.Chain, Lux.CompactLuxLayer}; st = nothing,
         throw(PEtab.PEtabInputError("If either input or output is provided to a ml_model \
             then both input and output must be provided"))
     end
-    _inputs = Symbol.(inputs)
-    _outputs = Symbol.(outputs)
+    _inputs = [Symbol.(input) for input in inputs]
+    _outputs = [Symbol.(output) for output in outputs]
     return MLModel(net, st, ps, static, dirdata, _inputs, _outputs)
 end
 
