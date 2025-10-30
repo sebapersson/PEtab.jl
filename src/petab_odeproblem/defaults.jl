@@ -152,8 +152,7 @@ function _get_sensealg_ss(sensealg_ss, sensealg, ::ModelInfo, gradient_method)::
     return nothing
 end
 
-function _get_odeproblem_gradient(odeproblem::ODEProblem, gradient_method::Symbol,
-                                  sensealg)::ODEProblem
+function _get_odeproblem_gradient(odeproblem::ODEProblem, ::Symbol, ::Any)::ODEProblem
     # This is only relevant when sensealg is from SciMLSensitivity, but the code cannot
     # reach this point with sensealg ForwardSensitivity() or ForwardDiffSensitivity()
     # with SciMLSensitivity loaded, and if SciMLSensitivity is not loaded _get_sensealg

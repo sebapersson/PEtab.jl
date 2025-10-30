@@ -233,8 +233,7 @@ function _get_nllh_solveode(probinfo::PEtabODEProblemInfo, model_info::ModelInfo
             xnoise, xobservable, xnondynamic_mech = _get_x_notsystem(pinfo.cache, 1.0)
             (x) -> begin
                 xmech, xnn = split_xdynamic(x, minfo.xindices, probinfo.cache)
-                return nllh_solveode(xmech, xnoise, xobservable, xnondynamic_mech, xnn, pinfo,
-                                     minfo; grad_xdynamic = grad_xdynamic, cids = [:all])
+                return nllh_solveode(xmech, xnoise, xobservable, xnondynamic_mech, xnn, pinfo, minfo; grad_xdynamic = grad_xdynamic, cids = [:all])
             end
         end
     else
