@@ -46,22 +46,18 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     return _PEtabModel(sys, petab_tables, name, speciemap, parametermap, events, ml_models, verbose)
 end
 
-function _PEtabModel(sys::ModelSystem, petab_tables::PEtabTables, name,
-                     speciemap, parametermap, events, ml_models::Union{MLModels, Nothing}, verbose::Bool)::PEtabModel
+function _PEtabModel(sys::ModelSystem, petab_tables::PEtabTables, name, speciemap, parametermap, events, ml_models::Union{MLModels, Nothing}, verbose::Bool; float_tspan::Union{Bool, Nothing} = nothing)::PEtabModel
     conditions_df, parameters_df = petab_tables[:conditions], petab_tables[:parameters]
     hybridization_df = petab_tables[:hybridization]
 
     # Build the initial value map (initial values as parameters are set in the reaction sys_mutated)
     sys_mutated = deepcopy(sys)
     sys_mutated, speciemap_model, speciemap_problem = _get_speciemap(sys_mutated, conditions_df, hybridization_df, ml_models, speciemap)
-    parametermap_use = _get_parametermap(sys_mutated, parametermap)
-    xindices = ParameterIndices(petab_tables, Dict{Symbol, String}(), sys_mutated, parametermap_use,
-                                speciemap_problem, ml_models)
+    sys_mutated, parametermap_use = _get_parametermap(sys_mutated, parametermap, conditions_df, parameters_df)
+    xindices = ParameterIndices(petab_tables, Dict{Symbol, String}(), sys_mutated, parametermap_use, speciemap_problem, ml_models)
     # Warn user if any variable is unassigned (and defaults to zero)
-    _check_unassigned_variables(sys, speciemap_problem, speciemap, :specie, parameters_df,
-                                conditions_df)
-    _check_unassigned_variables(sys, parametermap_use, parametermap, :parameter,
-                                parameters_df, conditions_df)
+    _check_unassigned_variables(sys, speciemap_problem, speciemap, :specie, parameters_df, conditions_df)
+    _check_unassigned_variables(sys, parametermap_use, parametermap, :parameter, parameters_df, conditions_df)
 
     _logging(:Build_u0_h_σ, verbose; exist = false)
     btime = @elapsed begin
@@ -84,20 +80,26 @@ function _PEtabModel(sys::ModelSystem, petab_tables::PEtabTables, name,
 
     # The callback parsing is part of SBMLImporter. Basically, PEtabEvents are rewritten
     # to SBMLImporter.EventSBML, which then via a dummy ModelSBML (tmp) is parsed into
-    # callback
+    # callback.
+    # When remaking a problem (e.g., PEtabODEProblem -> curriculum problem),
+    # events have already been parsed and will be provided as callback-set
+    # TODO: Refactor such as PEtabModel always save original input, will simplify remake
+    # TODO: logic
     _logging(:Build_callbacks, verbose)
     btime = @elapsed begin
-        sbml_events = parse_events(events, sys_mutated)
-        if !isempty(sbml_events)
-            model_SBML = SBMLImporter.ModelSBML(name; events = sbml_events)
-            float_tspan = _xdynamic_in_event_cond(model_SBML, xindices, petab_tables) |> !
-            psys = _get_xids_sys_order(sys_mutated, speciemap_problem, parametermap_use) .|>
-
-                string
-            cbset = SBMLImporter.create_callbacks(sys_mutated, model_SBML, name;
-                                                  p_PEtab = psys, float_tspan = float_tspan)
+        if isnothing(float_tspan)
+            sbml_events = parse_events(events, sys_mutated)
+            if !isempty(sbml_events)
+                model_SBML = SBMLImporter.ModelSBML(name; events = sbml_events)
+                float_tspan = _xdynamic_in_event_cond(model_SBML, xindices, petab_tables) |> !
+                psys = _get_xids_sys_order(sys_mutated, speciemap_problem, parametermap_use) .|>string
+                cbset = SBMLImporter.create_callbacks(sys_mutated, model_SBML, name;
+                                                    p_PEtab = psys, float_tspan = float_tspan)
+            else
+                cbset, float_tspan = CallbackSet(), true
+            end
         else
-            cbset, float_tspan = CallbackSet(), true
+            cbset = events
         end
     end
     _logging(:Build_callbacks, verbose; time = btime)

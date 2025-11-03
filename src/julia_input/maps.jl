@@ -53,8 +53,10 @@ function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, hybridizatio
     return sys, speciemap_model, speciemap
 end
 
-function _get_parametermap(sys::ModelSystem, parametermap_input)
-    sys isa ODEProblem && return nothing
+function _get_parametermap(sys::ModelSystem, parametermap_input, conditions_df::DataFrame, parameters_df::DataFrame)
+    if sys isa ODEProblem
+        return sys, parametermap_input
+    end
 
     parametermap = [Num(p) => 0.0 for p in parameters(sys)]
     # User are allowed to specify default numerical values in the system
@@ -63,27 +65,40 @@ function _get_parametermap(sys::ModelSystem, parametermap_input)
         !haskey(default_values, pid) && continue
         value = default_values[pid]
         if !(value isa Real)
-            throw(PEtabInuptError("When setting a parameter to a fixed value in the " *
-                                  "model system it must be set to a constant " *
-                                  "numberic value. This does not hold for $pid " *
-                                  "which is set to $value"))
+            throw(PEtabInuptError("When setting a parameter to a fixed value in the \
+                                   model system it must be set to a constant \
+                                   numberic value. This does not hold for $pid \
+                                   which is set to $value"))
         end
         parametermap[i] = first(parametermap[i]) => value
     end
 
-    if isnothing(parametermap_input)
-        return parametermap
-    end
-    parameterids = first.(parametermap) .|> string
-    for (i, inputid) in pairs(string.(first.(parametermap_input)))
-        if !(inputid in parameterids)
-            throw(PEtab.PEtabFormatError("Parameter $inputid does not appear among the  " *
-                                         "model parameters in the dynamic model"))
+    if !isnothing(parametermap_input)
+        parameterids = first.(parametermap) .|> string
+        for (i, inputid) in pairs(string.(first.(parametermap_input)))
+            if !(inputid in parameterids)
+                throw(PEtab.PEtabFormatError("Parameter $inputid does not appear among the \
+                                            model parameters in the dynamic model"))
+            end
+            ip = findfirst(x -> x == inputid, parameterids)
+            parametermap[ip] = parametermap[ip].first => parametermap_input[i].second
         end
-        ip = findfirst(x -> x == inputid, parameterids)
-        parametermap[ip] = parametermap[ip].first => parametermap_input[i].second
     end
-    return parametermap
+
+    # Check if for any of condition, initial values are given by a parameter set to
+    # be estimated. In that case, the parameter must be added to the system as it is
+    # a dynamic parameter
+    specie_ids = _get_state_ids(sys)
+    for specie_id in specie_ids
+        !(specie_id in names(conditions_df)) && continue
+        for condition_value in conditions_df[!, specie_id]
+            !(condition_value in parameters_df.parameterId) && continue
+            condition_value in string.(first.(parametermap)) && continue
+            push!(parametermap, eval(Meta.parse("@parameters $(condition_value)"))[1] => 0.0)
+            sys = _add_parameter(sys, condition_value)
+        end
+    end
+    return sys, parametermap
 end
 
 function _check_unassigned_variables(sys::ModelSystem, variablemap, mapinput,
