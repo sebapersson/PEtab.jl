@@ -49,15 +49,33 @@ function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, hybridizatio
             hybridization_df[ix, :targetId] .= pid
         end
     end
-
     return sys, speciemap_model, speciemap
 end
 
-function _get_parametermap(sys::ModelSystem, parametermap_input, conditions_df::DataFrame, parameters_df::DataFrame)
-    if sys isa ODEProblem
-        return sys, parametermap_input
+function _get_parametermap(sys::ODEProblem, ::Any, conditions_df::DataFrame, parameters_df::DataFrame, ml_models::MLModels)
+    specie_ids = string.(keys(sys.u0))
+    for specie_id in specie_ids
+        !(specie_id in names(conditions_df)) && continue
+        for condition_value in conditions_df[!, specie_id]
+            !(condition_value in parameters_df.parameterId) && continue
+            condition_value in string.(keys(sys.p)) && continue
+            sys = _add_parameter(sys, condition_value)
+        end
     end
-
+    # Need to re-order sys.p such that ML-model are last for correct indexing
+    if isempty(ml_models) || !any([ml_id in keys(ml_models) for ml_id in keys(ml_models)])
+        return sys, nothing
+    end
+    pkeys = keys(sys.p)
+    ml_ids = collect(keys(ml_models))
+    ml_ode_ids = filter(in(pkeys), ml_ids)
+    mech_ids = (k for k in pkeys if k ∉ ml_ode_ids)
+    p_ode = (; (k => sys.p[k] for k in mech_ids)...,
+            (k => sys.p[k] for k in ml_ode_ids)...)
+    sys = remake(sys, p = ComponentArray(p_ode))
+    return sys, nothing
+end
+function _get_parametermap(sys::ModelSystem, parametermap_input, conditions_df::DataFrame, parameters_df::DataFrame, ::MLModels)
     parametermap = [Num(p) => 0.0 for p in parameters(sys)]
     # User are allowed to specify default numerical values in the system
     default_values = ModelingToolkit.get_defaults(sys)
@@ -101,9 +119,7 @@ function _get_parametermap(sys::ModelSystem, parametermap_input, conditions_df::
     return sys, parametermap
 end
 
-function _check_unassigned_variables(sys::ModelSystem, variablemap, mapinput,
-                                     whichmap::Symbol, parameters_df::DataFrame,
-                                     conditions_df::DataFrame)::Nothing
+function _check_unassigned_variables(sys::ModelSystem, variablemap, mapinput, whichmap::Symbol, parameters_df::DataFrame, conditions_df::DataFrame)::Nothing
     if whichmap == :parameter && sys isa ODEProblem
         return nothing
     end
@@ -132,7 +148,7 @@ function _check_unassigned_variables(sys::ModelSystem, variablemap, mapinput,
     end
 end
 
-# TODO: Add for SDEProblem and ODEProblem
+# TODO: Add for SDEProblem
 function _add_parameter(sys::ReactionSystem, parameter)
     _p = Symbol(parameter)
     addparam!(sys, only(@parameters($_p)))

@@ -46,14 +46,14 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     return _PEtabModel(sys, petab_tables, name, speciemap, parametermap, events, ml_models, verbose)
 end
 
-function _PEtabModel(sys::ModelSystem, petab_tables::PEtabTables, name, speciemap, parametermap, events, ml_models::Union{MLModels, Nothing}, verbose::Bool; float_tspan::Union{Bool, Nothing} = nothing)::PEtabModel
+function _PEtabModel(sys::ModelSystem, petab_tables::PEtabTables, name, speciemap, parametermap, events, ml_models::MLModels, verbose::Bool; float_tspan::Union{Bool, Nothing} = nothing)::PEtabModel
     conditions_df, parameters_df = petab_tables[:conditions], petab_tables[:parameters]
     hybridization_df = petab_tables[:hybridization]
 
     # Build the initial value map (initial values as parameters are set in the reaction sys_mutated)
     sys_mutated = deepcopy(sys)
     sys_mutated, speciemap_model, speciemap_problem = _get_speciemap(sys_mutated, conditions_df, hybridization_df, ml_models, speciemap)
-    sys_mutated, parametermap_use = _get_parametermap(sys_mutated, parametermap, conditions_df, parameters_df)
+    sys_mutated, parametermap_use = _get_parametermap(sys_mutated, parametermap, conditions_df, parameters_df, ml_models)
     xindices = ParameterIndices(petab_tables, Dict{Symbol, String}(), sys_mutated, parametermap_use, speciemap_problem, ml_models)
     # Warn user if any variable is unassigned (and defaults to zero)
     _check_unassigned_variables(sys, speciemap_problem, speciemap, :specie, parameters_df, conditions_df)

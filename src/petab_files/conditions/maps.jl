@@ -57,7 +57,7 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, ml_models::MLMo
         isys = 1
         for id_sys in xids[:sys]
             if id_sys in xids[:ml_est]
-                isys += _get_n_ml_model_parameters(nn, [id_sys])
+                isys += _get_n_ml_model_parameters(ml_models, [id_sys])
                 continue
             end
             if id_sys == id_xdynmaic
@@ -72,7 +72,7 @@ function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}}, ml_models::MLMo
         isys = 1
         for id_sys in xids[:sys]
             if id_sys in xids[:ml_est]
-                isys += _get_n_ml_model_parameters(nn, [id_sys])
+                isys += _get_n_ml_model_parameters(ml_models, [id_sys])
                 continue
             end
             if id_sys == id_nn_output
