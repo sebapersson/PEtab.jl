@@ -15,7 +15,7 @@ function test_hybrid(test_case, petab_prob::PEtabODEProblem)
     @unpack split_over_conditions, gradient_method = petab_prob.probinfo
     @info "Case $(test_case) and gradient method $(gradient_method) and split = $(split_over_conditions)"
     # Reference values
-    dirtest = joinpath(@__DIR__, "test_cases", "hybrid", test_case)
+    dirtest = joinpath(@__DIR__, "test_cases", "sciml_problem_import", test_case)
     path_solutions = joinpath(dirtest, "solutions.yaml")
     yamlfile = YAML.load_file(path_solutions)
     llh_ref, tol_llh = yamlfile["llh"], yamlfile["tol_llh"]
@@ -80,7 +80,7 @@ function test_netimport(testcase, ml_model)::Nothing
         needs_batch = false
     end
 
-    dirtest = joinpath(@__DIR__, "test_cases", "net_import", "$testcase")
+    dirtest = joinpath(@__DIR__, "test_cases", "ml_model_import", "$testcase")
     yaml_test = YAML.load_file(joinpath(dirtest, "solutions.yaml"))
     _ps, st = Lux.setup(rng, ml_model)
     ps = ComponentArray(_ps)
