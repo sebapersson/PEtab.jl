@@ -34,7 +34,10 @@ function get_startguesses(rng::Random.AbstractRNG, prob::PEtabODEProblem, n::Int
                           sample_prior::Bool = true, allow_inf::Bool = false,
                           sampling_method::SamplingAlgorithm = LatinHypercubeSample())
     @unpack lower_bounds, upper_bounds, xnames, model_info = prob
-    @set sampling_method.rng = rng
+    # Only a subset of QuasiMonteCarlo samplers have rng (e.g., Sobol does not)
+    if hasproperty(sampling_method, :rng)
+        @set sampling_method.rng = rng
+    end
 
     # Nothing prevents the user from sending in a parameter vector with zero parameters...
     if length(lower_bounds) == 0 && n == 1
