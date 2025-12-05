@@ -1,0 +1,37 @@
+conditionId	conditionName	ActD	CISoe	SOCS3oe	Epo	init_CIS_multiplier	init_EpoRJAK2_CIS	init_SHP1_multiplier	init_SOCS3_multiplier
+model1_data1	Long	1	0	0	1.25E-07	0	0	0	0
+model1_data2	Concentration	1	0	0	1.25E-07	0	0	0	0
+model1_data3	RNA	1	0	0	1.25E-07	0	0	0	0
+model1_data4	ActD	1	0	0	1.25E-07	0	0	0	0
+model1_data5	ActD	0	0	0	1.25E-07	0	0	0	0
+model1_data6	Fine	1	0	0	1.25E-06	0	0	0	0
+model1_data7	CISoe	1	0	0	1.25E-07	0	0	0	0
+model1_data8	CISoe	1	1	0	1.25E-07	1	1	0	0
+model1_data9	CISoe pEpoR	1	0	0	1.25E-07	0	0	0	0
+model1_data10	CISoe pEpoR	1	1	0	1.25E-07	1	1	0	0
+model1_data11	SOCS3oe	1	0	0	1.25E-07	0	0	0	0
+model1_data12	SOCS3oe	1	0	1	1.25E-07	0	0	0	1
+model1_data13	SHP1oe	1	0	0	1.25E-07	0	0	0	0
+model1_data14	SHP1oe	1	0	0	1.25E-07	0	0	1	0
+model1_data15	dose response 7 min	1	0	0	2.5E-05	0	0	0	0
+model1_data16	dose response 7 min	1	0	0	2.5E-06	0	0	0	0
+model1_data17	dose response 7 min	1	0	0	2.5E-07	0	0	0	0
+model1_data18	dose response 7 min	1	0	0	2.5E-08	0	0	0	0
+model1_data19	dose response 7 min	1	0	0	2.5E-09	0	0	0	0
+model1_data20	dose response 30 min	1	0	0	1.25E-06	0	0	0	0
+model1_data21	dose response 30 min	1	0	0	1.25E-07	0	0	0	0
+model1_data22	dose response 30 min	1	0	0	2.5E-06	0	0	0	0
+model1_data23	dose response 30 min	1	0	0	2.5E-07	0	0	0	0
+model1_data24	dose response 30 min	1	0	0	2.5E-08	0	0	0	0
+model1_data25	dose response 30 min	1	0	0	2.5E-09	0	0	0	0
+model1_data26	dose response 10 min	1	0	0	1.25E-07	0	0	0	0
+model1_data27	dose response 10 min	1	0	0	1.25E-08	0	0	0	0
+model1_data30	dose response 10 min	1	0	0	2.5E-06	0	0	0	0
+model1_data31	dose response 10 min	1	0	0	2.5E-07	0	0	0	0
+model1_data32	dose response 10 min	1	0	0	2.5E-08	0	0	0	0
+model1_data33	dose response 10 min	1	0	0	2.5E-09	0	0	0	0
+model1_data38	dose response 90 min	1	0	0	1.25E-07	0	0	0	0
+model1_data39	dose response 90 min	1	0	0	2.5E-06	0	0	0	0
+model1_data40	dose response 90 min	1	0	0	2.5E-07	0	0	0	0
+model1_data41	dose response 90 min	1	0	0	2.5E-08	0	0	0	0
+model1_data42	dose response 90 min	1	0	0	2.5E-09	0	0	0	0
