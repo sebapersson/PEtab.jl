@@ -21,7 +21,7 @@ function _logtarget_gradient(x_inference::AbstractVector{T}, _nllh_gradient::Fun
                                                                          Vector{T}} where {T <:
                                                                                            Real}
     x_nllh = to_nllh_scale(x_inference, inference_info)
-    nllh, logtarget_grad = _nllh_gradient(x_nllh)
+    nllh, logtarget_grad = _nllh_gradient(x_nllh; prior = false)
 
     # Logposterior with Jacobian correction for transformed parameters
     logtarget = nllh * -1 + PEtab.compute_prior(x_inference, inference_info)
