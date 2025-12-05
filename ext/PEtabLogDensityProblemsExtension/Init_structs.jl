@@ -13,7 +13,9 @@ function PEtab.PEtabLogDensity(petab_problem::PEtabODEProblem)::PEtab.PEtabLogDe
         _logtarget(x_inference, nllh, inference_info)
     end
 
-    logtarget_gradient = (x_inference) -> let nllh_grad = nllh_grad, inference_info = inference_info, _prior_correction = _prior_correction
+    logtarget_gradient = (x_inference) -> let nllh_grad = nllh_grad,
+        inference_info = inference_info, _prior_correction = _prior_correction
+
         _logtarget_gradient(x_inference, nllh_grad, _prior_correction, inference_info)
     end
 

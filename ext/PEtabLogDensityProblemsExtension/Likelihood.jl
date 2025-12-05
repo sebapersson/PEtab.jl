@@ -4,7 +4,9 @@ function PEtab.compute_llh(x_inference::AbstractVector{T}, nllh::Function,
     return nllh(x; prior = false) * -1
 end
 
-function PEtab.correct_gradient!(grad::T, x_inference::T, x_nllh::T, inference_info::PEtab.InferenceInfo)::Nothing where {T <: AbstractVector}
+function PEtab.correct_gradient!(grad::T, x_inference::T, x_nllh::T,
+                                 inference_info::PEtab.InferenceInfo)::Nothing where {T <:
+                                                                                      AbstractVector}
     grad .*= -1
     # Gradient needs to be transformed back to the scale which inference
     # is performed on. Two-step,
