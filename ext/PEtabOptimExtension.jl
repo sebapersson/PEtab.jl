@@ -2,7 +2,7 @@ module PEtabOptimExtension
 
 using Optim
 import QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
-using Random
+import Random
 using Setfield
 using Catalyst: @unpack
 using ComponentArrays
@@ -10,21 +10,19 @@ using PEtab
 
 const DEFAULT_OPT = Optim.Options(iterations = 1000, show_trace = false,
                                   allow_f_increases = true, successive_f_tol = 3,
-                                  f_tol = 1e-8, g_tol = 1e-6, x_tol = 0.0)
+                                  f_reltol = 1e-8, g_tol = 1e-6, x_abstol = 0.0)
 
-function PEtab.calibrate_multistart(prob::PEtabODEProblem,
+function PEtab.calibrate_multistart(rng::Random.AbstractRNG, prob::PEtabODEProblem,
                                     alg::Union{Optim.LBFGS, Optim.BFGS, Optim.IPNewton},
                                     nmultistarts::Signed; save_trace::Bool = false,
                                     dirsave::Union{Nothing, String} = nothing,
                                     sampling_method::SamplingAlgorithm = LatinHypercubeSample(),
                                     sample_prior::Bool = true, nprocs::Int64 = 1,
-                                    seed::Union{Nothing, Signed} = nothing,
-                                    options::Optim.Options = DEFAULT_OPT)::PEtab.PEtabMultistartResult
-    if !isnothing(seed)
-        Random.seed!(seed)
-    end
-    return PEtab._calibrate_multistart(prob, alg, nmultistarts, dirsave, sampling_method,
-                                       options, sample_prior, save_trace, nprocs)
+                                    options::Union{Optim.Options, Nothing} = nothing)::PEtab.PEtabMultistartResult
+    options = isnothing(options) ? DEFAULT_OPT : options
+    return PEtab._calibrate_multistart(rng, prob, alg, nmultistarts, dirsave,
+                                       sampling_method, options, sample_prior, save_trace,
+                                       nprocs)
 end
 
 function PEtab.calibrate(prob::PEtabODEProblem,

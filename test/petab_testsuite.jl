@@ -8,7 +8,7 @@ function test_case(case::String; test_grad::Bool=true)
     model = PEtabModel(path_yaml, verbose=false, build_julia_files=true, write_to_file = false)
     prob = PEtabODEProblem(model; verbose=false,
                            ss_solver = SteadyStateSolver(:Simulate, abstol=1e-12, reltol=1e-10))
-    x = prob.xnominal_transformed
+    x = get_x(prob)
 
     nllh = prob.nllh(x)
     χ₂ = prob.chi2(x)
@@ -31,22 +31,8 @@ function test_case(case::String; test_grad::Bool=true)
 end
 
 @testset "PEtab test-suite" begin
-    test_case("0001")
-    test_case("0002")
-    test_case("0003")
-    test_case("0004")
-    test_case("0005")
-    test_case("0006")
-    test_case("0007")
-    test_case("0008")
-    test_case("0009")
-    test_case("0010")
-    test_case("0011")
-    test_case("0012")
-    test_case("0013")
-    test_case("0014")
-    test_case("0015")
-    test_case("0016")
-    test_case("0017")
-    test_case("0018")
+    for i in 1:20
+        case = i > 9 ? "00$i" : "000$i"
+        test_case(case)
+    end
 end

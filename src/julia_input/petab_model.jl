@@ -26,6 +26,7 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     else
         name = "ReactionSystemModel"
     end
+
     _logging(:Build_PEtabModel, verbose; name = name)
 
     # Convert the input to valid PEtab tables
@@ -35,14 +36,24 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     parameters_df = _parameters_to_table(parameters)
     petab_tables = Dict(:parameters => parameters_df, :conditions => conditions_df,
                         :observables => observables_df, :measurements => measurements_df)
+    return _PEtabModel(sys, petab_tables, name, speciemap, parametermap, events, verbose)
+end
+
+function _PEtabModel(sys::ModelSystem, petab_tables::Dict{Symbol, DataFrame}, name,
+                     speciemap, parametermap, events, verbose::Bool)::PEtabModel
+    conditions_df, parameters_df = petab_tables[:conditions], petab_tables[:parameters]
+    observables_df = petab_tables[:observables]
 
     # Build the initial value map (initial values as parameters are set in the reaction sys_mutated)
     sys_mutated = deepcopy(sys)
-    sys_mutated, speciemap_use = _get_speciemap(sys_mutated, conditions_df, speciemap)
+    sys_mutated, speciemap_model, speciemap_problem = _get_speciemap(sys_mutated,
+                                                                     conditions_df,
+                                                                     speciemap)
     parametermap_use = _get_parametermap(sys_mutated, parametermap)
-    xindices = ParameterIndices(petab_tables, sys_mutated, parametermap_use, speciemap_use)
+    xindices = ParameterIndices(petab_tables, sys_mutated, parametermap_use,
+                                speciemap_problem)
     # Warn user if any variable is unassigned (and defaults to zero)
-    _check_unassigned_variables(sys, speciemap_use, speciemap, :specie, parameters_df,
+    _check_unassigned_variables(sys, speciemap_problem, speciemap, :specie, parameters_df,
                                 conditions_df)
     _check_unassigned_variables(sys, parametermap_use, parametermap, :parameter,
                                 parameters_df, conditions_df)
@@ -51,13 +62,21 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     btime = @elapsed begin
         model_SBML = SBMLImporter.ModelSBML(name)
         hstr, u0!str, u0str, σstr = parse_observables(name, Dict{Symbol, String}(),
-                                                      sys_mutated, observables_df,
-                                                      xindices, speciemap_use, model_SBML,
-                                                      false)
+                                                      sys_mutated, observables_df, xindices,
+                                                      speciemap_problem, speciemap_model,
+                                                      model_SBML, false)
         compute_h = @RuntimeGeneratedFunction(Meta.parse(hstr))
-        compute_u0! = @RuntimeGeneratedFunction(Meta.parse(u0!str))
-        compute_u0 = @RuntimeGeneratedFunction(Meta.parse(u0str))
         compute_σ = @RuntimeGeneratedFunction(Meta.parse(σstr))
+        # See comment on define petab_mode.jl for standard format input for why this is
+        # needed
+        _compute_u0! = @RuntimeGeneratedFunction(Meta.parse(u0!str))
+        _compute_u0 = @RuntimeGeneratedFunction(Meta.parse(u0str))
+        compute_u0! = let f_u0! = _compute_u0!
+            (u0, p; __post_eq = false) -> f_u0!(u0, p, __post_eq)
+        end
+        compute_u0 = let f_u0 = _compute_u0
+            (p; __post_eq = false) -> f_u0(p, __post_eq)
+        end
     end
     _logging(:Build_u0_h_σ, verbose; time = btime)
 
@@ -69,7 +88,8 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
         sbml_events = parse_events(events, sys_mutated)
         model_SBML = SBMLImporter.ModelSBML(name; events = sbml_events)
         float_tspan = _xdynamic_in_event_cond(model_SBML, xindices, petab_tables) |> !
-        psys = _get_sys_parameters(sys_mutated, speciemap_use, parametermap_use) .|> string
+        psys = _get_sys_parameters(sys_mutated, speciemap_problem, parametermap_use) .|>
+               string
         cbset = SBMLImporter.create_callbacks(sys_mutated, model_SBML, name;
                                               p_PEtab = psys, float_tspan = float_tspan)
     end
@@ -78,7 +98,7 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     # Path only applies when PEtab tables are provided
     paths = Dict{Symbol, String}()
     return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan,
-                      paths, sys, sys_mutated, parametermap_use, speciemap_use,
+                      paths, sys, sys_mutated, parametermap_use, speciemap_problem,
                       petab_tables,
                       cbset, true)
 end

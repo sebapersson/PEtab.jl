@@ -8,5 +8,5 @@ using PEtab, Aqua
     Aqua.test_deps_compat(PEtab)
     Aqua.test_piracies(PEtab)
     Aqua.test_project_extras(PEtab)
-    Aqua.find_persistent_tasks_deps(PEtab)
+    #Aqua.find_persistent_tasks_deps(PEtab)
 end

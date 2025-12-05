@@ -19,7 +19,7 @@ end
 
 # Tests objective function evaluations plot.
 # Tests idxs functionality.
-let
+@testset "Plot objective function" begin
     p_obj = plot(petab_ms_res; plot_type=:objective, idxs=1:5)
     @test p_obj.n == 5
     for i = 1:5
@@ -167,4 +167,50 @@ let
     @test c1_P == c1_P_plt.series_list[1].plotattributes[:y]
     @test c2_E == c2_E_plt.series_list[1].plotattributes[:y]
     @test c2_P == c2_P_plt.series_list[1].plotattributes[:y]
+end
+
+# Check model fit plotting works for models with pre-eq simulations
+let
+    rn = @reaction_network begin
+        @parameters S0 c3=1.0
+        @species S(t)=S0
+        c1, S + E --> SE
+        c2, SE --> S + E
+        c3, SE --> P + E
+    end
+    speciemap = [:E => 50.0, :SE => 0.0, :P => 0.0]
+
+    @unpack E, S, P = rn
+    @parameters sigma
+    obs_sum = PEtabObservable(S + E, 3.0)
+    obs_p = PEtabObservable(P, sigma)
+    observables = Dict("obs_p" => obs_p, "obs_sum" => obs_sum)
+    p_c1 = PEtabParameter(:c1)
+    p_c2 = PEtabParameter(:c2)
+    p_sigma = PEtabParameter(:sigma)
+    pest = [p_c1, p_c2, p_sigma]
+    cond1 = Dict(:S0 => 3.0)
+    cond2 = Dict(:S0 => 5.0)
+    cond_preeq = Dict(:S0 => 2.0)
+    conds = Dict("cond_preeq" => cond_preeq, "cond1" => cond1, "cond2" => cond2)
+    measurements = DataFrame(simulation_id=["cond1", "cond1", "cond2", "cond2"],
+                            pre_eq_id=["cond_preeq", "cond_preeq", "cond_preeq", "cond_preeq"],
+                            obs_id=["obs_p", "obs_sum", "obs_p", "obs_sum"],
+                            time=[1.0, 10.0, 1.0, 20.0],
+                            measurement=[2.5, 50.0, 2.6, 51.0])
+
+    model = PEtabModel(rn, observables, measurements, pest;
+                    simulation_conditions = conds, speciemap = speciemap)
+    petab_prob = PEtabODEProblem(model)
+    x = [0.2070820996670734, 2.6802649314502975, -1.0764046246919647]
+    sol = get_odesol(x, petab_prob; cid = :cond1, preeq_id = :cond_preeq)
+    p = plot(x, petab_prob; linewidth = 2.0, cid = :cond1)
+    @test all(sol[:P] .== p.series_list[2].plotattributes[:y])
+    p = plot(x, petab_prob; linewidth = 2.0, cid = :cond1, preeq_id = :cond_preeq)
+    @test all(sol[:P] .== p.series_list[2].plotattributes[:y])
+    @test_throws AssertionError begin
+        p = plot(x, petab_prob; linewidth = 2.0, cid = :cond1, preeq_id = :cond2)
+    end
+    plots = get_obs_comparison_plots(x, petab_prob)
+    @test all(collect(keys(plots)) .== ["pre_cond_preeq_main_cond2", "pre_cond_preeq_main_cond1"])
 end

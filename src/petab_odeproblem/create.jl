@@ -67,7 +67,7 @@ function PEtabODEProblem(model::PEtabModel;
         end
         _simulated_values = (x) -> begin
             _ = nllh(x)
-            return model_info.petab_measurements.simulated_values
+            return deepcopy(model_info.petab_measurements.simulated_values)
         end
     end
     _logging(:Build_chi2_res_sim, verbose; time = btime)
@@ -220,7 +220,7 @@ function _get_nllh_grad(gradient_method::Symbol, grad::Function, _prior::Functio
         x_notode = @view _x[model_info.xindices.xindices[:not_system]]
         nllh = _nllh_not_solveode(x_notode)
         if prior
-            nllh += _prior(_x)
+            nllh -= _prior(_x)
         end
         return nllh, g
     end

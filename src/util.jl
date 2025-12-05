@@ -35,10 +35,10 @@ function get_odeproblem(res::EstimationResult, prob::PEtabODEProblem;
                         cid::Union{String, Symbol, Nothing} = nothing,
                         preeq_id::Union{String, Symbol, Nothing} = nothing)
     @unpack model_info, probinfo = prob
-    u0, p = _get_ps_u0(res, prob, cid, preeq_id, false)
-    tmax = model_info.simulation_info.tmaxs[_get_cid(cid, model_info)]
+    u0, ps = _get_ps_u0(res, prob, cid, preeq_id, false)
+    tmax = _get_tmax(cid, preeq_id, model_info)
     odefun = ODEFunction(_get_system(prob.model_info.model.sys))
-    oprob = ODEProblem(odefun, u0, [0.0, tmax], p)
+    oprob = ODEProblem(odefun, u0, [0.0, tmax], ps)
     return oprob, model_info.model.callbacks
 end
 
@@ -68,7 +68,6 @@ function get_system(res::EstimationResult, prob::PEtabODEProblem;
         sys = prn.rn
     end
     u0, p = _get_ps_u0(res, prob, cid, preeq_id, true)
-    # TODO: Test this!!
     return sys, u0, p, callbacks
 end
 
@@ -96,8 +95,9 @@ See also: [`get_u0`](@ref), [`get_odeproblem`](@ref), [`get_odesol`](@ref).
     specified `cid` is returned
 """
 function get_ps(res::EstimationResult, prob::PEtabODEProblem;
-                cid::Union{String, Symbol, Nothing} = nothing, retmap::Bool = true)
-    _, p = _get_ps_u0(res, prob, cid, nothing, retmap)
+                cid::Union{String, Symbol, Nothing} = nothing,
+                preeq_id::Union{String, Symbol, Nothing} = nothing, retmap::Bool = true)
+    _, p = _get_ps_u0(res, prob, cid, preeq_id, retmap)
     return p
 end
 
@@ -158,19 +158,21 @@ function _get_ps_u0(res::EstimationResult, prob::PEtabODEProblem,
             simid = nothing
             _cid = cid
         end
-        oprob = _switch_condition(odeproblem, _cid, xdynamic, model_info, cache;
+        oprob = _switch_condition(odeproblem, _cid, xdynamic, model_info, cache, false;
                                   simid = simid)
     else
+        _check_ids(cid, preeq_id, model_info)
         # For models with pre-eq in order to correctly return the initial values the model
         # must first be simulated to steady state, and following the steady-state the
         # parameters must be correctly set
         u_ss = Vector{Float64}(undef, length(u0))
         u_t0 = Vector{Float64}(undef, length(u0))
-        oprob_preeq = _switch_condition(odeproblem, preeq_id, xdynamic, model_info, cache)
+        oprob_preeq = _switch_condition(odeproblem, preeq_id, xdynamic, model_info, cache,
+                                        false)
         _ = solve_pre_equlibrium!(u_ss, u_t0, oprob_preeq, solver, ss_solver, true)
         # Setup the problem with correct initial values
         _cid = string(preeq_id) * string(cid) |> Symbol
-        oprob = _switch_condition(odeproblem, _cid, xdynamic, model_info, cache;
+        oprob = _switch_condition(odeproblem, _cid, xdynamic, model_info, cache, true;
                                   simid = cid)
         has_not_changed = oprob.u0 .== u_t0
         oprob.u0[has_not_changed] .= u_ss[has_not_changed]
@@ -182,9 +184,12 @@ function _get_ps_u0(res::EstimationResult, prob::PEtabODEProblem,
     _u0 = retmap ? Pair.(u0s, u0) : u0
     _p = retmap ? Pair.(ps, p) : p
     # These parameters are added to a mutated system for gradient computations, but
-    # should not be exposed to the user
-    ip = findall(x -> !occursin("__init__", x), string.(ps))
-    return _u0, _p[ip]
+    # should not be exposed to the user if the model is defined in Julia
+    if model.defined_in_julia
+        ip = findall(x -> !occursin("__init__", x), string.(ps))
+        return _u0, _p[ip]
+    end
+    return _u0, _p
 end
 
 """
@@ -271,6 +276,19 @@ function _get_preeq_id(preeq_id::Union{Nothing, Symbol, String},
         preeq_id = Symbol(preeq_id)
     end
     return preeq_id
+end
+
+function _check_ids(cid::Symbol, preeq_id::Symbol, model_info)::Nothing
+    exp_id = Symbol("$(preeq_id)$(cid)")
+    if !(exp_id in model_info.simulation_info.conditionids[:experiment])
+        throw(PEtabInputError("The provided combination of simulation ID (`cid = $cid`) \
+            and pre-equilibration ID (`preeq_id = $(preeq_id)`) does not appear in the \
+            measurement table. The `get_*` functions (e.g., `get_ps`, `get_u0`, \
+            `get_odeproblem`, `get_odesol`) can only return values for combinations of \
+            pre-equilibration and simulation conditions that are present in the \
+            measurement table."))
+    end
+    return nothing
 end
 
 function _get_system(sys::ReactionSystem)::ODESystem

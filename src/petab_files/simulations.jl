@@ -4,8 +4,11 @@ function SimulationInfo(callbacks::SciMLBase.DECallback,
     conditionids = _get_conditionids(petab_measurements)
     has_pre_equilibration = !all(conditionids[:pre_equilibration] .== :None)
 
-    # Precompute values needed by the ODE-solver, such as tmax, tsave...
+    # Precompute values needed by the ODE-solver, such as tmax, tsave, tstarts...
+    # Tstarts is not needed for standard PEtab, but is required if wanting to train
+    # a problem with multiple shooting using PEtabTraining
     tmaxs = _get_tmaxs(conditionids, petab_measurements)
+    tstarts = _get_tstarts(conditionids)
     tsaves = _get_tsaves(conditionids, petab_measurements)
 
     # Indicies for getting measurement points for each condition. The second is a vector
@@ -40,10 +43,10 @@ function SimulationInfo(callbacks::SciMLBase.DECallback,
     end
 
     could_solve = [true]
-    return SimulationInfo(conditionids, has_pre_equilibration, tmaxs, tsaves, imeasurements,
-                          imeasurements_t, imeasurements_t_sol, smatrixindices, odesols,
-                          odesols_derivative, odesols_preeq, could_solve, callbacks_use,
-                          tracked_callbacks, sensealg)
+    return SimulationInfo(conditionids, has_pre_equilibration, tstarts, tmaxs, tsaves,
+                          imeasurements, imeasurements_t, imeasurements_t_sol,
+                          smatrixindices, odesols, odesols_derivative, odesols_preeq,
+                          could_solve, callbacks_use, tracked_callbacks, sensealg)
 end
 
 function _get_conditionids(petab_measurements::PEtabMeasurements)::Dict{Symbol,
@@ -99,6 +102,14 @@ function _get_tmaxs(conditionids::Dict{Symbol, Vector{Symbol}},
         tmaxs[experiment_id] = maximum(petab_measurements.time[it])
     end
     return tmaxs
+end
+
+function _get_tstarts(conditionids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, Float64}
+    tstarts = Dict{Symbol, Float64}()
+    for experiment_id in conditionids[:experiment]
+        tstarts[experiment_id] = 0.0
+    end
+    return tstarts
 end
 
 function _get_imeasurements(conditionids::Dict{Symbol, Vector{Symbol}},

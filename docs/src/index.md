@@ -21,7 +21,7 @@ PEtab.jl is a Julia package for creating parameter estimation problems for fitti
 
 ## Installation
 
-To install PEtab.jl in the Julia REPL enter
+PEtab.jl is an officially registered Julia package, tested and supported on Linux, macOS and Windows. The easiest way to install it is via the Julia package manager. In the Julia REPL, enter:
 
 ```julia
 julia> ] add PEtab
@@ -33,7 +33,9 @@ or alternatively
 julia> using Pkg; Pkg.add("PEtab")
 ```
 
-PEtab is compatible with Julia version 1.10 and above. For best performance we strongly recommend using the latest Julia version, which most easily can be installed with [juliaup](https://github.com/JuliaLang/juliaup).
+PEtab.jl is compatible with Julia **1.10 and above**. For best performance, we strongly recommend using the latest Julia version, which can be most reliably installed using [juliaup](https://github.com/JuliaLang/juliaup).
+
+If you encounter installation issues, please consult the [troubleshooting guide](@ref install_fail).
 
 ## Getting help
 
@@ -42,3 +44,20 @@ If you have any problems using PEtab, here are some helpful tips:
 * Read the [FAQ](@ref FAQ) section in the online documentation.
 * Post your questions in the `#sciml-sysbio` channel on the [Julia Slack](https://julialang.org/slack/). While PEtab.jl is not exclusively for systems biology, the `#sciml-sysbio` channel is where the package authors are most active.
 * If you have encountered unexpected behavior or a bug, please open an issue on [GitHub](https://github.com/sebapersson/PEtab.jl/issues).
+
+## Citation
+
+If you use PEtab.jl in work that is published, please cite the paper below:
+
+```bibtex
+@article{PEtabBioinformatics2025,
+  title={PEtab.jl: advancing the efficiency and utility of dynamic modelling},
+  author={Persson, Sebastian and Fr{\"o}hlich, Fabian and Grein, Stephan and Loman, Torkel and Ognissanti, Damiano and Hasselgren, Viktor and Hasenauer, Jan and Cvijovic, Marija},
+  journal={Bioinformatics},
+  volume={41},
+  number={9},
+  pages={btaf497},
+  year={2025},
+  publisher={Oxford University Press}
+}
+```

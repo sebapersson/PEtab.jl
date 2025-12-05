@@ -2,23 +2,22 @@ module PEtabIpoptExtension
 
 using Ipopt
 import QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
-using Random
+import Random
 using Catalyst: @unpack
 using ComponentArrays
 using PEtab
 
-function PEtab.calibrate_multistart(prob::PEtabODEProblem, alg::IpoptOptimizer,
-                                    nmultistarts::Signed; save_trace::Bool = false,
+function PEtab.calibrate_multistart(rng::Random.AbstractRNG, prob::PEtabODEProblem,
+                                    alg::IpoptOptimizer, nmultistarts::Signed;
+                                    save_trace::Bool = false,
                                     dirsave::Union{Nothing, String} = nothing,
                                     sampling_method::SamplingAlgorithm = LatinHypercubeSample(),
                                     sample_prior::Bool = true, nprocs::Int64 = 1,
-                                    seed::Union{Nothing, Signed} = nothing,
-                                    options::IpoptOptions = IpoptOptions())::PEtab.PEtabMultistartResult
-    if !isnothing(seed)
-        Random.seed!(seed)
-    end
-    return PEtab._calibrate_multistart(prob, alg, nmultistarts, dirsave, sampling_method,
-                                       options, sample_prior, save_trace, nprocs)
+                                    options::Union{Nothing, IpoptOptions} = nothing)::PEtab.PEtabMultistartResult
+    options = isnothing(options) ? IpoptOptions() : options
+    return PEtab._calibrate_multistart(rng, prob, alg, nmultistarts, dirsave,
+                                       sampling_method, options, sample_prior, save_trace,
+                                       nprocs)
 end
 
 function PEtab.calibrate(prob::PEtabODEProblem,

@@ -10,6 +10,7 @@ using ReverseDiff
 using SciMLSensitivity
 using PEtab
 import ArrayInterface
+import DiffEqBase
 
 const AdjointAlg = Union{QuadratureAdjoint, InterpolatingAdjoint, GaussAdjoint}
 const ForwardAlg = Union{ForwardSensitivity, ForwardDiffSensitivity}

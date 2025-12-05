@@ -14,6 +14,7 @@ using ReverseDiff
 using DiffEqCallbacks
 using Distributed
 using SBMLImporter
+using Setfield: @set
 using StatsBase
 using Sundials
 using Random
@@ -28,6 +29,7 @@ using PrecompileTools
 using QuasiMonteCarlo
 using StyledStrings
 import SciMLBase.remake
+import DiffEqBase
 import QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
@@ -91,7 +93,6 @@ include(joinpath("parameter_estimation", "singlestart.jl"))
 include(joinpath("parameter_estimation", "startguesses.jl"))
 
 include(joinpath("util.jl"))
-
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem
 @setup_workload begin
     path_yaml = joinpath(@__DIR__, "..", "test", "analytic_ss", "Test_model3.yaml")
