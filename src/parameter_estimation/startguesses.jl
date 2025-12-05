@@ -51,25 +51,25 @@ function get_startguesses(rng::Random.AbstractRNG, prob::PEtabODEProblem, n::Int
     end
 
     # Returning a vector of vector
-    out = Vector{ComponentArray{Float64}}(undef, n)
+    out = Vector{ComponentArray{Float64}}(undef, 0)
     found_starts = 0
     for i in 1:1000
         # QuasiMonteCarlo is deterministic, so for sufficiently few start-guesses we can
         # end up in a never ending loop. To sidestep this if less than 10 starts are
         # left numbers are generated from random Uniform (with potential prior sampling)
         nsamples = n - found_starts
-        xmechs = _multiple_mech_startguess!(rng, nsamples, prob, sample_prior, sampling_method)
-        for (j, xmech) in pairs(xmechs)
-            iout = j + found_starts
-            out[iout] = similar(prob.xnominal_transformed)
-            @views out[iout][1:length(xmech)] .= xmech
+        samples_mech = _multiple_mech_startguess!(rng, nsamples, prob, sample_prior, sampling_method)
+        samples = [similar(prob.xnominal_transformed) for _ in eachindex(samples_mech)]
+        for (j, sample) in pairs(samples)
+            @views sample[1:length(samples_mech[j])] .= samples_mech[j]
             for ml_model_id in _get_xnames_ml_models(xnames, model_info)
-                @views out[iout][ml_model_id] .= _single_nn_startguess(rng, prob, ml_model_id, rng)
+                @views sample[ml_model_id] .= _single_nn_startguess(rng, prob, ml_model_id)
             end
         end
         allow_inf == true && break
-        for x in out
-            isinf(prob.nllh(x)) && continue
+        for sample in samples
+            isinf(prob.nllh(sample)) && continue
+            push!(out, sample)
             found_starts += 1
         end
         found_starts == n && break
@@ -82,7 +82,7 @@ function get_startguesses(rng::Random.AbstractRNG, prob::PEtabODEProblem, n::Int
 end
 
 function _single_startguess(rng::Random.AbstractRNG, prob::PEtabODEProblem, sample_prior::Bool, allow_inf::Bool)::ComponentArray{Float64}
-    @unpack model_info, xnames, xnominal_transformed = prob
+    @unpack lower_bounds, upper_bounds, model_info, xnames, xnominal_transformed = prob
     out = similar(xnominal_transformed)
 
     # Neural net and mechanistic parameters needs to be treated differently, as they have
@@ -98,7 +98,7 @@ function _single_startguess(rng::Random.AbstractRNG, prob::PEtabODEProblem, samp
                 out[i] = rand(rng, Distributions.Uniform(lower_bounds[i], upper_bounds[i]))
             end
         end
-        @views out[ix_mech] .= _single_mech_startguess(prob, xnames_mech, sample_prior)
+        @views out[ix_mech] .= _single_mech_startguess(rng, prob, xnames_mech, sample_prior)
         for ml_model_id in xnames_nn
             @views out[ml_model_id] .= _single_nn_startguess(prob, ml_model_id, rng)
         end
