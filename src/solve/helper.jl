@@ -13,21 +13,18 @@ function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::AbstractVec
     p .= oprob.p
     @views u0 .= oprob.u0[1:length(u0)]
 
-    # Condition specific parameters
-    map_cid = xindices.maps_conidition_id[simid]
-    p[map_cid.isys_constant_values] .= map_cid.constant_values
-    p[map_cid.ix_sys] .= xdynamic[map_cid.ix_dynamic]
-
-    # Initial state can depend on condition specific parameters
+    # p must be set before u0, as u0 can depend on p
+    condition_map! = xindices.condition_maps[simid]
+    condition_map!(p, xdynamic)
     model.u0!((@view u0[1:nstates]), p; __post_eq = posteq_simulation)
-
     _oprob = remake(oprob, p = p, u0 = u0)
+
     # In case we solve the forward sensitivity equations we must adjust the initial
     # sensitives by computing the jacobian at t0, and note we have larger than usual
     # u0 as it includes the sensitivites. Must come after the remake as the remake
     # resets u0 values for the sensitivites
     if sensitivites == true
-        St0::Matrix{Float64} = zeros(Float64, nstates, length(p))
+        St0 = zeros(Float64, nstates, length(p))
         ForwardDiff.jacobian!(St0, model.u0, p)
         _oprob.u0 .= vcat(u0, vec(St0))
     end
@@ -105,11 +102,4 @@ function _get_preeq_ids(simulation_info::SimulationInfo,
         which_id = findall(x -> x in simulation_info.conditionids[:experiment], cids)
         return unique(simulation_info.conditionids[:pre_equilibration][which_id])
     end
-end
-
-function _set_cond_const_parameters!(p::AbstractVector, xdynamic::AbstractVector,
-                                     xindices::ParameterIndices)::Nothing
-    map_oprob = xindices.map_odeproblem
-    @views p[map_oprob.sys_to_dynamic] .= xdynamic[map_oprob.dynamic_to_sys]
-    return nothing
 end

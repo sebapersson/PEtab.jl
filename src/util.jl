@@ -143,10 +143,6 @@ function _get_ps_u0(res::EstimationResult, prob::PEtabODEProblem,
     u0 = odeproblem.u0[:]
     u0s = first.(model_info.model.speciemap)[1:length(u0)]
 
-    # Set constant model parameters
-    _set_cond_const_parameters!(p, xdynamic, xindices)
-    odeproblem.p .= p
-
     # In case of no pre-eq condition we are done after changing to the condition the
     # specific condition
     if isnothing(preeq_id)

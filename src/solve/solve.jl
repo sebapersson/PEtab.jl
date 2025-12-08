@@ -20,7 +20,6 @@ function solve_conditions!(model_info::ModelInfo, xdynamic::AbstractVector,
 
     oprob = remake(_oprob, p = convert.(eltype(xdynamic), _oprob.p),
                    u0 = convert.(eltype(xdynamic), _oprob.u0))
-    _set_cond_const_parameters!(oprob.p, xdynamic, xindices)
 
     # In case the model is first simulated to a steady state
     if simulation_info.has_pre_equilibration == true
@@ -109,14 +108,14 @@ function solve_conditions!(sols::AbstractMatrix, xdynamic::AbstractVector,
                            cids::Vector{Symbol} = [:all], ntimepoints_save::Int64 = 0,
                            save_observed_t::Bool = true, dense_sol::Bool = false,
                            track_callback::Bool = false, sensitivites::Bool = false,
-                           sensitivites_AD::Bool = false)::Nothing
+                           sensitivities_AD::Bool = false)::Nothing
     cache = probinfo.cache
-    if sensitivites_AD == true && cache.nxdynamic[1] != length(xdynamic)
+    if sensitivities_AD == true && cache.nxdynamic[1] != length(xdynamic)
         _xdynamic = xdynamic[cache.xdynamic_output_order]
     else
         _xdynamic = xdynamic
     end
-    derivative = sensitivites_AD || sensitivites
+    derivative = sensitivities_AD || sensitivites
     sucess = solve_conditions!(model_info, _xdynamic, probinfo; cids = cids,
                                ntimepoints_save = ntimepoints_save, dense_sol = dense_sol,
                                save_observed_t = save_observed_t, derivative = derivative,

@@ -25,11 +25,7 @@ function to_nllh_scale(x_inference::AbstractVector,
             x_nllh[i] = log(x_nllh[i])
             continue
         end
-
-        # TODO: Obviously
-        @error "We should not be here at all - ajaj"
     end
-
     return x_nllh
 end
 
@@ -52,8 +48,6 @@ function PEtab.to_prior_scale(x_nllh::AbstractVector,
             x_prior[i] = exp10(x)
         elseif parameters_scale[i] === :log
             x_prior[i] = exp(x)
-        else
-            @error "Ajajajaj"
         end
     end
     return x_prior

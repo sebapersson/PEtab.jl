@@ -25,10 +25,10 @@ function _get_model_size(sys::ModelSystem,
     # have a size of 80, but only 10 parameters are estimated per condition. In these
     # cases the model is not large in the parameter sense, and adjoint should not be
     # used, rather ForwardDiff with split_over_conditions = true
-    nps = _get_size_xdynamic_sys(model_info)
-    if nODEs ≤ 15 && nps ≤ 20
+    n_xdynamic_sys = _get_n_xdynamic_sys(model_info)
+    if nODEs ≤ 15 && n_xdynamic_sys ≤ 20
         return :Small
-    elseif nODEs ≤ 50 && nps ≤ 70
+    elseif nODEs ≤ 50 && n_xdynamic_sys ≤ 70
         return :Medium
     else
         return :Large
@@ -38,7 +38,7 @@ end
 function _get_split_over_conditions(split::Union{Nothing, Bool},
                                     model_info::ModelInfo)::Bool
     !isnothing(split) && return split
-    nxdynamic_sys = _get_size_xdynamic_sys(model_info)
+    nxdynamic_sys = _get_n_xdynamic_sys(model_info)
     nxdynamic = length(model_info.xindices.xids[:dynamic])
     if nxdynamic ≥ 2 * nxdynamic_sys
         return true
@@ -47,16 +47,18 @@ function _get_split_over_conditions(split::Union{Nothing, Bool},
     end
 end
 
-function _get_size_xdynamic_sys(model_info::ModelInfo)::Int64
-    xindices = model_info.xindices
-    nxdynamics_const = length(xindices.map_odeproblem.dynamic_to_sys)
-    nxdynamics_cond = 0
-    for map in values(xindices.maps_conidition_id)
-        if length(map.ix_dynamic) > nxdynamics_cond
-            nxdynamics_cond = length(map.ix_dynamic)
+function _get_n_xdynamic_sys(model_info::ModelInfo)::Int64
+    n_constant = 0
+    n_xdynamic_sys = 0
+    for (i, condition_map) in pairs(collect(values(model_info.xindices.condition_maps)))
+        if i == 1
+            n_constant = length(condition_map.isys_all_conditions)
+        end
+        if (n_constant + length(condition_map.ix_condition)) > n_xdynamic_sys
+            n_xdynamic_sys = n_constant + length(condition_map.ix_condition)
         end
     end
-    return nxdynamics_const + nxdynamics_cond
+    return n_xdynamic_sys
 end
 
 function _get_gradient_method(method::Union{Symbol, Nothing}, model_size::Symbol,

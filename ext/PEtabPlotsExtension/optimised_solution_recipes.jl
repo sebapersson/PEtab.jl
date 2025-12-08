@@ -163,7 +163,7 @@ function _get_observable(x, prob::PEtabODEProblem, cid::String, preeq_id::String
     else
         sol = PEtab.get_odesol(_x, prob; cid = cid, preeq_id = preeq_id)
     end
-    map_xobservables = model_info.xindices.mapxobservable[idata]
+    map_xobservables = model_info.xindices.xobservable_maps[idata]
     smooth_sol = all([map.nparameters == 0 for map in map_xobservables])
 
     # For smooth trajectory must solve ODE and compute the observable function

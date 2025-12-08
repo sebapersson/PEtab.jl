@@ -21,9 +21,9 @@ function test_callbacks(events, cbset, tstops, float_tspan::Bool)
 
     # PEtab-parameter to "estimate"
     parameters = [PEtabParameter(:a0, value=1.0, scale=:lin),
-                        PEtabParameter(:b0, value=0.0, scale=:lin),
-                        PEtabParameter(:k1, value=0.8, scale=:lin),
-                        PEtabParameter(:k2, value=0.6, scale=:lin, estimate=false)]
+                  PEtabParameter(:b0, value=0.0, scale=:lin),
+                  PEtabParameter(:k1, value=0.8, scale=:lin),
+                  PEtabParameter(:k2, value=0.6, scale=:lin, estimate=false)]
 
     # Observable equation
     @unpack A = rn

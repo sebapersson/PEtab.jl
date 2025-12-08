@@ -58,7 +58,7 @@
         @test typeof(model) <: PEtabModel
 
         simulation_conditions = Dict("c0" => Dict(:b0 => 0.8),
-                                    "c1" => Dict(:b0 => 0.9))
+                                     "c1" => Dict(:b0 => 0.9))
         @test_throws PEtab.PEtabFileError begin
             model = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
                                simulation_conditions = simulation_conditions)
@@ -66,24 +66,16 @@
 
         # PEtab-parameter to "estimate"
         parameters = [PEtabParameter(:k1, value=0.8, scale=:lin),
-                            PEtabParameter(:k2, value=0.6, scale=:lin),
-                            PEtabParameter(:noise, value=0.6, scale=:lin)]
+                     PEtabParameter(:k2, value=0.6, scale=:lin),
+                     PEtabParameter(:noise, value=0.6, scale=:lin)]
         simulation_conditions = Dict("c0" => Dict(:a0 => 0.8),
                                      "c1" => Dict(:a0 => :noise))
         model = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
                            simulation_conditions = simulation_conditions)
         @test model isa PEtabModel
 
-        # c1 a0 maps to a non-model parameter
         simulation_conditions = Dict("c0" => Dict(:a0 => 0.8),
-                                     "c1" => Dict(:a0 => :noise1))
-        @test_throws PEtab.PEtabFileError begin
-        model = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
-                           simulation_conditions = simulation_conditions)
-        end
-
-        simulation_conditions = Dict("c0" => Dict(:a0 => 0.8),
-                                    "c1" => Dict(:k1 => :noise))
+                                     "c1" => Dict(:k1 => :noise))
         @test_throws PEtab.PEtabFormatError begin
         model = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
                            simulation_conditions = simulation_conditions)

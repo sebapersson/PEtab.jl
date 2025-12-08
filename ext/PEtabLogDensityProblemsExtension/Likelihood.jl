@@ -1,7 +1,7 @@
-function PEtab.compute_llh(x_inference::AbstractVector{T}, compute_nllh::Function,
+function PEtab.compute_llh(x_inference::AbstractVector{T}, nllh::Function,
                            inference_info::PEtab.InferenceInfo)::T where {T <: Real}
-    θ = to_nllh_scale(x_inference, inference_info)
-    return compute_nllh(θ) * -1
+    x = to_nllh_scale(x_inference, inference_info)
+    return nllh(x; prior = false) * -1
 end
 
 function PEtab.correct_gradient!(grad::T, x_inference::T, x_nllh::T,

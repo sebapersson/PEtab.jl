@@ -29,10 +29,7 @@ function ParameterIndices(petab_parameters::PEtabParameters,
     return ParameterIndices(petab_parameters, petab_measurements, sys_mutated, parametermap,
                             speciemap, petab_tables[:conditions])
 end
-function ParameterIndices(petab_parameters::PEtabParameters,
-                          petab_measurements::PEtabMeasurements, sys, parametermap,
-                          speciemap,
-                          conditions_df::DataFrame)::ParameterIndices
+function ParameterIndices(petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements, sys, parametermap, speciemap, conditions_df::DataFrame)::ParameterIndices
     _check_conditionids(conditions_df, petab_measurements)
     xids = _get_xids(petab_parameters, petab_measurements, sys, conditions_df, speciemap,
                      parametermap)
@@ -41,23 +38,18 @@ function ParameterIndices(petab_parameters::PEtabParameters,
     # TODO: SII is going to make this much easier (but the reverse will be harder)
     xindices = _get_xindices(xids)
     xindices_notsys = _get_xindices_notsys(xids)
-    odeproblem_map = _get_odeproblem_map(xids)
-    condition_maps = _get_condition_maps(sys, parametermap, speciemap, petab_parameters,
-                                         conditions_df, xids)
+    condition_maps = _get_condition_maps(sys, parametermap, speciemap, petab_parameters, conditions_df, xids)
     # For each time-point we must build a map that stores if i) noise/obserable parameters
     # are constants, ii) should be estimated, iii) and corresponding index in parameter
     # vector if they should be estimated
-    xobservable_maps = _get_map_observable_noise(xids[:observable], petab_measurements,
-                                                 petab_parameters; observable = true)
-    xnoise_maps = _get_map_observable_noise(xids[:noise], petab_measurements,
-                                            petab_parameters;
-                                            observable = false)
+    xobservable_maps = _get_xnoise_xobservable_maps(xids[:observable], petab_measurements, petab_parameters; observable = true)
+    xnoise_maps = _get_xnoise_xobservable_maps(xids[:noise], petab_measurements, petab_parameters; observable = false)
 
     xscale = _get_xscales(xids, petab_parameters)
     _get_xnames_ps!(xids, xscale)
 
     return ParameterIndices(xindices, xids, xindices_notsys, xscale, xobservable_maps,
-                            xnoise_maps, odeproblem_map, condition_maps)
+                            xnoise_maps, condition_maps)
 end
 
 function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements,
@@ -178,8 +170,8 @@ function _get_xids_condition(sys, petab_parameters::PEtabParameters,
     for colname in names(conditions_df)
         colname in ["conditionName", "conditionId"] && continue
         if !(colname in Iterators.flatten((xids_sys, species_sys)))
-            throw(PEtabFileError("Parameter $colname that dictates an experimental " *
-                                 "condition does not appear among the model variables"))
+            throw(PEtabFileError("Parameter $colname that dictates an experimental \
+                                  condition does not appear among the model variables"))
         end
         for condition_variable in Symbol.(conditions_df[!, colname])
             is_number(condition_variable) && continue
@@ -194,7 +186,7 @@ function _get_xids_condition(sys, petab_parameters::PEtabParameters,
     return xids_condition
 end
 
-function _get_map_observable_noise(xids::Vector{Symbol},
+function _get_xnoise_xobservable_maps(xids::Vector{Symbol},
                                    petab_measurements::PEtabMeasurements,
                                    petab_parameters::PEtabParameters;
                                    observable::Bool)::Vector{ObservableNoiseMap}
@@ -246,87 +238,90 @@ function _get_map_observable_noise(xids::Vector{Symbol},
     return maps
 end
 
-function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}})::MapODEProblem
-    dynamic_to_sys = findall(x -> x in xids[:sys], xids[:dynamic]) |> Vector{Int64}
-    ids = xids[:dynamic][dynamic_to_sys]
-    sys_to_dynamic = Int64[findfirst(x -> x == id, xids[:sys]) for id in ids]
-    return MapODEProblem(sys_to_dynamic, dynamic_to_sys)
-end
-
 function _get_condition_maps(sys, parametermap, speciemap,
                              petab_parameters::PEtabParameters,
                              conditions_df::DataFrame,
                              xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, ConditionMap}
-    species_sys = _get_state_ids(sys)
-    xids_sys, xids_dynamic = xids[:sys] .|> string, xids[:dynamic] .|> string
-    xids_model = Iterators.flatten((xids_sys, species_sys))
+    xids_sys = string.(xids[:sys])
+    xids_dynamic = string.(xids[:dynamic])
+    specie_ids = _get_state_ids(sys)
+    model_ids = Iterators.flatten((xids_sys, specie_ids))
 
-    nconditions = nrow(conditions_df)
-    maps = Dict{Symbol, ConditionMap}()
-    for i in 1:nconditions
-        conditionid = conditions_df[i, :conditionId] |> Symbol
-        constant_values, isys_constant_values = Float64[], Int32[]
-        ix_dynamic, ix_sys = Int32[], Int32[]
-        for variable in names(conditions_df)
-            variable in ["conditionName", "conditionId"] && continue
-            value = conditions_df[i, variable]
-            # Sometimes value can be parsed as string even though it is a Number due to
-            # how DataFrames parses columns
-            if value isa String && is_number(value)
-                value = parse(Float64, value)
-            end
+    ix_all_conditions, isys_all_conditions = _get_all_conditions_map(xids)
+    condition_maps = Dict{Symbol, ConditionMap}()
+    for (i, conditionid) in pairs(Symbol.(conditions_df[!, :conditionId]))
+        target_ids = String[]
+        target_value_formulas = String[]
+        isys_condition = Int32[]
+        for target_id in names(conditions_df)
+            target_id in ["conditionName", "conditionId"] && continue
+            target_value = conditions_df[i, target_id]
+            push!(target_ids, target_id)
 
-            # When the value in the condidtion table maps to a numeric value
-            if value isa Real && variable in xids_model
-                push!(constant_values, value |> Float64)
-                _add_ix_sys!(isys_constant_values, variable, xids_sys)
+            # If target_value is missing the default model value should be used, which
+            # are encoded in the parameter- and specie-maps
+            # in the parameter- and speciemaps
+            if ismissing(target_value) && target_id in model_ids
+                default_value = _get_default_map_value(target_id, parametermap, speciemap)
+                push!(target_value_formulas, string(default_value))
+                _add_ix_sys!(isys_condition, target_id, xids_sys)
                 continue
             end
 
-            # If value is missing the default SBML values should be used. These are encoded
-            # in the parameter- and state-maps
-            if ismissing(value) && variable in xids_model
-                default_value = _get_default_map_value(variable, parametermap, speciemap)
-                push!(constant_values, default_value)
-                _add_ix_sys!(isys_constant_values, variable, xids_sys)
+            # NaN values apply for pre-equilibration and implies a specie should use the
+            # value obtained from the forward simulation
+            is_nan = (target_value isa Real && isnan(target_value)) || target_value == "NaN"
+            if is_nan && target_id in specie_ids
+                push!(target_value_formulas, "NaN")
+                _add_ix_sys!(isys_condition, target_id, xids_sys)
                 continue
+            elseif is_nan && target_id in model_ids
+                throw(PEtabFileError("If a row in conditions file is NaN then the column \
+                                      header must be a specie"))
             end
 
-            # When the value in the condtitions table maps to a parameter to estimate
-            if value in xids_dynamic && variable in xids_model
-                push!(ix_dynamic, findfirst(x -> x == value, xids_dynamic))
-                _add_ix_sys!(ix_sys, variable, xids_sys)
-                continue
-            end
-
-            # When the value in the conditions table maps to a constant parameter
-            if Symbol(value) in petab_parameters.parameter_id && variable in xids_model
-                iconstant = findfirst(x -> x == Symbol(value),
-                                      petab_parameters.parameter_id)
-                push!(constant_values, petab_parameters.nominal_value[iconstant])
-                _add_ix_sys!(isys_constant_values, variable, xids_sys)
-                continue
-            end
-
-            # NaN values are relevant for pre-equilibration and denotes a controll variable
-            # should use the value obtained from the forward simulation
-            if value isa Real && isnan(value) && variable in species_sys
-                push!(constant_values, NaN)
-                _add_ix_sys!(isys_constant_values, variable, xids_sys)
-                continue
-            elseif value isa Real && isnan(value) && variable in xids_model
-                throw(PEtabFileError("If a row in conditions file is NaN then the column " *
-                                     "header must be a state"))
-            end
-            throw(PEtabFileError("For condition $conditionid, the value of $variable, " *
-                                 "$value, does not correspond to any model parameter, " *
-                                 "species, or PEtab parameter. The condition variable " *
-                                 "must be a valid model id or a numeric value"))
+            # At this point a valid PEtab formula is assumed, TODO figure out how to catch
+            # invalid formuals
+            push!(target_value_formulas, string(target_value))
+            _add_ix_sys!(isys_condition, target_id, xids_sys)
         end
-        maps[conditionid] = ConditionMap(constant_values, isys_constant_values, ix_dynamic,
-                                         ix_sys)
+
+        # In the formulas replace any xdynamic parameters. Bookeeping of which parameters
+        # occur is important for runtime performance with split gradient methods.
+        ix_condition = Int32[]
+        for i in eachindex(target_value_formulas)
+            for (j, xid) in pairs(xids_dynamic)
+                _formula = SBMLImporter._replace_variable(target_value_formulas[i], xid, "xdynamic[$(j)]")
+                target_value_formulas[i] == _formula && continue
+                push!(ix_condition, j)
+                target_value_formulas[i] = _formula
+            end
+            # Hard-code potential parameters which are not estimated
+            for j in eachindex(petab_parameters.estimate)
+                petab_parameters.estimate[j] == true && continue
+                xid = string(petab_parameters.parameter_id[j])
+                value = petab_parameters.nominal_value[j]
+                _formula = SBMLImporter._replace_variable(target_value_formulas[i], xid, "$(value)")
+                target_value_formulas[i] = _formula
+            end
+        end
+
+        target_value_functions = Vector{Function}(undef, length(target_value_formulas))
+        for i in eachindex(target_value_functions)
+            formula = _template_target_value(target_value_formulas[i], conditionid, target_ids[i])
+            target_value_functions[i] = @RuntimeGeneratedFunction(Meta.parse(formula))
+        end
+
+        condition_maps[conditionid] = ConditionMap(isys_condition, ix_condition, target_value_functions, ix_all_conditions, isys_all_conditions, zeros(0, 0))
     end
-    return maps
+    return condition_maps
+end
+
+function _get_all_conditions_map(xids::Dict{Symbol, Vector{Symbol}})::NTuple{2, Vector{Int32}}
+    isys_all_conditions = findall(x -> x in xids[:sys], xids[:dynamic]) |> Vector{Int32}
+    ids = xids[:dynamic][isys_all_conditions]
+    ix_all_conditions = Int32[findfirst(x -> x == id, xids[:sys]) for id in ids]
+    return ix_all_conditions, isys_all_conditions
 end
 
 function _add_ix_sys!(ix::Vector{Int32}, variable::String,
@@ -373,8 +368,8 @@ function _check_conditionids(conditions_df::DataFrame,
     measurementids = unique(vcat(pre_equilibration_condition_id, simulation_condition_id))
     for conditionid in (conditions_df[!, :conditionId] .|> Symbol)
         conditionid in measurementids && continue
-        @warn "Simulation condition id $conditionid does not appear in the measurements " *
-              "table. Therefore no measurement corresponds to this id."
+        @warn "Simulation condition id $conditionid does not appear in the measurements \
+               table. Therefore no measurement corresponds to this id."
     end
     return nothing
 end
@@ -440,4 +435,10 @@ function _get_xnames_ps!(xids::Dict{Symbol, Vector{Symbol}}, xscale)::Nothing
     end
     xids[:estimate_ps] = out
     return nothing
+end
+
+function _template_target_value(formula::String, condition_id::Symbol, target_id::String)::String
+    out = "function _map_$(target_id)_$(condition_id)(xdynamic)\n"
+    out *= "\treturn $(formula)\nend"
+    return out
 end
