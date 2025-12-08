@@ -54,6 +54,6 @@ function PEtab._grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T},
     # Adjust if gradient is non-linear scale (e.g. log and log10). TODO: Refactor
     # this function later
     PEtab.grad_to_xscale!(grad, _grad, ∂G∂p, xdynamic, xindices, simid,
-                          sensitivites_AD = false)
+                          sensitivities_AD = false)
     return nothing
 end

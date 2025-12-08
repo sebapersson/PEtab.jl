@@ -142,6 +142,6 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::V
     # Adjust if gradient is non-linear scale (e.g. log and log10). TODO: Refactor
     # this function later
     grad_to_xscale!(grad, forward_eqs_grad, ∂G∂p, xdynamic, xindices, simid,
-                    sensitivites_AD = true)
+                    sensitivities_AD = true)
     return nothing
 end

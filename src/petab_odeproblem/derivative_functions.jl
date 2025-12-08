@@ -47,7 +47,7 @@ function _get_grad_forward_eqs(probinfo::PEtabODEProblemInfo,
 
     if sensealg == :ForwardDiff && split_over_conditions == false
         _solve_conditions! = let pinfo = probinfo, minfo = model_info
-            (sols, x) -> solve_conditions!(sols, x, pinfo, minfo; sensitivites_AD = true)
+            (sols, x) -> solve_conditions!(sols, x, pinfo, minfo; sensitivities_AD = true)
         end
         cfg = ForwardDiff.JacobianConfig(_solve_conditions!, odesols, xdynamic,
                                          chunksize_use)
@@ -56,7 +56,7 @@ function _get_grad_forward_eqs(probinfo::PEtabODEProblemInfo,
     if sensealg == :ForwardDiff && split_over_conditions == true
         _solve_conditions! = let pinfo = probinfo, minfo = model_info
             (sols, x, cid) -> solve_conditions!(sols, x, pinfo, minfo; cids = cid,
-                                                sensitivites_AD = true)
+                                                sensitivities_AD = true)
         end
         cfg = ForwardDiff.JacobianConfig(_solve_conditions!, odesols, xdynamic,
                                          chunksize_use)
@@ -167,13 +167,13 @@ function _get_hess_gaussnewton(probinfo::PEtabODEProblemInfo, model_info::ModelI
     if split_over_conditions == false
         _solve_conditions! = let pinfo = probinfo, minfo = model_info
             (sols, x) -> solve_conditions!(sols, x, pinfo, minfo; cids = [:all],
-                                           sensitivites_AD = true)
+                                           sensitivities_AD = true)
         end
     end
     if split_over_conditions == true
         _solve_conditions! = let pinfo = probinfo, minfo = model_info
             (sols, x, cid) -> solve_conditions!(sols, x, pinfo, minfo; cids = cid,
-                                                sensitivites_AD = true)
+                                                sensitivities_AD = true)
         end
     end
     chunksize_use = _get_chunksize(chunksize, xdynamic)

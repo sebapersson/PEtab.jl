@@ -118,12 +118,12 @@ function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic::T,
         end
 
         # Model observable and noise
-        mapxnoise = xindices.mapxnoise[imeasurement]
-        mapxobservable = xindices.mapxobservable[imeasurement]
-        h = _h(u, t, p, xobservable, xnondynamic, model.h, mapxobservable, obsid,
+        xnoise_maps = xindices.xnoise_maps[imeasurement]
+        xobservable_maps = xindices.xobservable_maps[imeasurement]
+        h = _h(u, t, p, xobservable, xnondynamic, model.h, xobservable_maps, obsid,
                nominal_values)
         h_transformed = transform_observable(h, measurement_transforms[imeasurement])
-        σ = _sd(u, t, p, xnoise, xnondynamic, model.sd, mapxnoise, obsid,
+        σ = _sd(u, t, p, xnoise, xnondynamic, model.sd, xnoise_maps, obsid,
                 nominal_values)
 
         y_transformed = measurement_transformed[imeasurement]

@@ -73,7 +73,7 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic::Vector{T},
             @views forward_eqs_grad[ixdynamic_simid] .= transpose(_S) * ∂G∂u
             _jac = @view jac[:, imeasurement]
             grad_to_xscale!(_jac, forward_eqs_grad, ∂G∂p, xdynamic, xindices, simid,
-                            sensitivites_AD = true)
+                            sensitivities_AD = true)
         end
     end
     return nothing
@@ -127,12 +127,12 @@ function _residuals_cond!(residuals::T1, xnoise::T2, xobservable::T2, xnondynami
         p = sol.prob.p .|> SBMLImporter._to_float
 
         # Model observable and noise
-        mapxnoise = xindices.mapxnoise[imeasurement]
-        mapxobservable = xindices.mapxobservable[imeasurement]
-        h = _h(u, t, p, xobservable, xnondynamic, model.h, mapxobservable, obsid,
+        xnoise_maps = xindices.xnoise_maps[imeasurement]
+        xobservable_maps = xindices.xobservable_maps[imeasurement]
+        h = _h(u, t, p, xobservable, xnondynamic, model.h, xobservable_maps, obsid,
                nominal_values)
         h_transformed = transform_observable(h, measurement_transforms[imeasurement])
-        σ = _sd(u, t, p, xnoise, xnondynamic, model.sd, mapxnoise, obsid,
+        σ = _sd(u, t, p, xnoise, xnondynamic, model.sd, xnoise_maps, obsid,
                 nominal_values)
 
         y_transformed = measurement_transformed[imeasurement]

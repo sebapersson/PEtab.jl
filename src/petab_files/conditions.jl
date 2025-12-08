@@ -29,10 +29,7 @@ function ParameterIndices(petab_parameters::PEtabParameters,
     return ParameterIndices(petab_parameters, petab_measurements, sys_mutated, parametermap,
                             speciemap, petab_tables[:conditions])
 end
-function ParameterIndices(petab_parameters::PEtabParameters,
-                          petab_measurements::PEtabMeasurements, sys, parametermap,
-                          speciemap,
-                          conditions_df::DataFrame)::ParameterIndices
+function ParameterIndices(petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements, sys, parametermap, speciemap, conditions_df::DataFrame)::ParameterIndices
     _check_conditionids(conditions_df, petab_measurements)
     xids = _get_xids(petab_parameters, petab_measurements, sys, conditions_df, speciemap,
                      parametermap)
@@ -41,23 +38,18 @@ function ParameterIndices(petab_parameters::PEtabParameters,
     # TODO: SII is going to make this much easier (but the reverse will be harder)
     xindices = _get_xindices(xids)
     xindices_notsys = _get_xindices_notsys(xids)
-    odeproblem_map = _get_odeproblem_map(xids)
-    condition_maps = _get_condition_maps(sys, parametermap, speciemap, petab_parameters,
-                                         conditions_df, xids)
+    condition_maps = _get_condition_maps(sys, parametermap, speciemap, petab_parameters, conditions_df, xids)
     # For each time-point we must build a map that stores if i) noise/obserable parameters
     # are constants, ii) should be estimated, iii) and corresponding index in parameter
     # vector if they should be estimated
-    xobservable_maps = _get_map_observable_noise(xids[:observable], petab_measurements,
-                                                 petab_parameters; observable = true)
-    xnoise_maps = _get_map_observable_noise(xids[:noise], petab_measurements,
-                                            petab_parameters;
-                                            observable = false)
+    xobservable_maps = _get_xnoise_xobservable_maps(xids[:observable], petab_measurements, petab_parameters; observable = true)
+    xnoise_maps = _get_xnoise_xobservable_maps(xids[:noise], petab_measurements, petab_parameters; observable = false)
 
     xscale = _get_xscales(xids, petab_parameters)
     _get_xnames_ps!(xids, xscale)
 
     return ParameterIndices(xindices, xids, xindices_notsys, xscale, xobservable_maps,
-                            xnoise_maps, odeproblem_map, condition_maps)
+                            xnoise_maps, condition_maps)
 end
 
 function _get_xids(petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements,
@@ -178,8 +170,8 @@ function _get_xids_condition(sys, petab_parameters::PEtabParameters,
     for colname in names(conditions_df)
         colname in ["conditionName", "conditionId"] && continue
         if !(colname in Iterators.flatten((xids_sys, species_sys)))
-            throw(PEtabFileError("Parameter $colname that dictates an experimental " *
-                                 "condition does not appear among the model variables"))
+            throw(PEtabFileError("Parameter $colname that dictates an experimental \
+                                  condition does not appear among the model variables"))
         end
         for condition_variable in Symbol.(conditions_df[!, colname])
             is_number(condition_variable) && continue
@@ -194,7 +186,7 @@ function _get_xids_condition(sys, petab_parameters::PEtabParameters,
     return xids_condition
 end
 
-function _get_map_observable_noise(xids::Vector{Symbol},
+function _get_xnoise_xobservable_maps(xids::Vector{Symbol},
                                    petab_measurements::PEtabMeasurements,
                                    petab_parameters::PEtabParameters;
                                    observable::Bool)::Vector{ObservableNoiseMap}
@@ -246,27 +238,22 @@ function _get_map_observable_noise(xids::Vector{Symbol},
     return maps
 end
 
-function _get_odeproblem_map(xids::Dict{Symbol, Vector{Symbol}})::MapODEProblem
-    dynamic_to_sys = findall(x -> x in xids[:sys], xids[:dynamic]) |> Vector{Int64}
-    ids = xids[:dynamic][dynamic_to_sys]
-    sys_to_dynamic = Int64[findfirst(x -> x == id, xids[:sys]) for id in ids]
-    return MapODEProblem(sys_to_dynamic, dynamic_to_sys)
-end
-
 function _get_condition_maps(sys, parametermap, speciemap,
                              petab_parameters::PEtabParameters,
                              conditions_df::DataFrame,
                              xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, ConditionMap}
-    species_sys = _get_state_ids(sys)
-    xids_sys, xids_dynamic = xids[:sys] .|> string, xids[:dynamic] .|> string
-    xids_model = Iterators.flatten((xids_sys, species_sys))
+    xids_sys = string.(xids[:sys])
+    xids_dynamic = string.(xids[:dynamic])
+    specie_ids = _get_state_ids(sys)
+    model_ids = Iterators.flatten((xids_sys, specie_ids))
 
-    nconditions = nrow(conditions_df)
+    ix_all_conditions, isys_all_conditions = _get_all_conditions_map(xids)
     maps = Dict{Symbol, ConditionMap}()
-    for i in 1:nconditions
-        conditionid = conditions_df[i, :conditionId] |> Symbol
-        constant_values, isys_constant_values = Float64[], Int32[]
-        ix_dynamic, ix_sys = Int32[], Int32[]
+    for (i, conditionid) in pairs(Symbol.(conditions_df[!, :conditionId]))
+        condition_constants = Float64[]
+        isys_condition_constants = Int32[]
+        ix_condition = Int32[]
+        isys_condition = Int32[]
         for variable in names(conditions_df)
             variable in ["conditionName", "conditionId"] && continue
             value = conditions_df[i, variable]
@@ -277,56 +264,62 @@ function _get_condition_maps(sys, parametermap, speciemap,
             end
 
             # When the value in the condidtion table maps to a numeric value
-            if value isa Real && variable in xids_model
-                push!(constant_values, value |> Float64)
-                _add_ix_sys!(isys_constant_values, variable, xids_sys)
+            if value isa Real && variable in model_ids
+                push!(condition_constants, value |> Float64)
+                _add_ix_sys!(isys_condition_constants, variable, xids_sys)
                 continue
             end
 
             # If value is missing the default SBML values should be used. These are encoded
             # in the parameter- and state-maps
-            if ismissing(value) && variable in xids_model
+            if ismissing(value) && variable in model_ids
                 default_value = _get_default_map_value(variable, parametermap, speciemap)
-                push!(constant_values, default_value)
-                _add_ix_sys!(isys_constant_values, variable, xids_sys)
+                push!(condition_constants, default_value)
+                _add_ix_sys!(isys_condition_constants, variable, xids_sys)
                 continue
             end
 
             # When the value in the condtitions table maps to a parameter to estimate
-            if value in xids_dynamic && variable in xids_model
-                push!(ix_dynamic, findfirst(x -> x == value, xids_dynamic))
-                _add_ix_sys!(ix_sys, variable, xids_sys)
+            if value in xids_dynamic && variable in model_ids
+                push!(ix_condition, findfirst(x -> x == value, xids_dynamic))
+                _add_ix_sys!(isys_condition, variable, xids_sys)
                 continue
             end
 
             # When the value in the conditions table maps to a constant parameter
-            if Symbol(value) in petab_parameters.parameter_id && variable in xids_model
+            if Symbol(value) in petab_parameters.parameter_id && variable in model_ids
                 iconstant = findfirst(x -> x == Symbol(value),
                                       petab_parameters.parameter_id)
-                push!(constant_values, petab_parameters.nominal_value[iconstant])
-                _add_ix_sys!(isys_constant_values, variable, xids_sys)
+                push!(condition_constants, petab_parameters.nominal_value[iconstant])
+                _add_ix_sys!(isys_condition_constants, variable, xids_sys)
                 continue
             end
 
             # NaN values are relevant for pre-equilibration and denotes a controll variable
             # should use the value obtained from the forward simulation
             if value isa Real && isnan(value) && variable in species_sys
-                push!(constant_values, NaN)
-                _add_ix_sys!(isys_constant_values, variable, xids_sys)
+                push!(condition_constants, NaN)
+                _add_ix_sys!(isys_condition_constants, variable, xids_sys)
                 continue
-            elseif value isa Real && isnan(value) && variable in xids_model
-                throw(PEtabFileError("If a row in conditions file is NaN then the column " *
-                                     "header must be a state"))
+            elseif value isa Real && isnan(value) && variable in model_ids
+                throw(PEtabFileError("If a row in conditions file is NaN then the column \
+                                      header must be a state"))
             end
-            throw(PEtabFileError("For condition $conditionid, the value of $variable, " *
-                                 "$value, does not correspond to any model parameter, " *
-                                 "species, or PEtab parameter. The condition variable " *
-                                 "must be a valid model id or a numeric value"))
+            throw(PEtabFileError("For condition $conditionid, the value of $variable, \
+                                  $value, does not correspond to any model parameter, \
+                                  species, or PEtab parameter. The condition variable \
+                                  must be a valid model id or a numeric value"))
         end
-        maps[conditionid] = ConditionMap(constant_values, isys_constant_values, ix_dynamic,
-                                         ix_sys)
+        maps[conditionid] = ConditionMap(condition_constants, isys_condition_constants, ix_condition, isys_condition, ix_all_conditions, isys_all_conditions, zeros(0, 0))
     end
     return maps
+end
+
+function _get_all_conditions_map(xids::Dict{Symbol, Vector{Symbol}})::NTuple{2, Vector{Int32}}
+    isys_all_conditions = findall(x -> x in xids[:sys], xids[:dynamic]) |> Vector{Int32}
+    ids = xids[:dynamic][isys_all_conditions]
+    ix_all_conditions = Int32[findfirst(x -> x == id, xids[:sys]) for id in ids]
+    return ix_all_conditions, isys_all_conditions
 end
 
 function _add_ix_sys!(ix::Vector{Int32}, variable::String,

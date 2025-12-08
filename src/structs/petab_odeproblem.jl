@@ -26,15 +26,19 @@ struct ObservableNoiseMap
 end
 
 struct ConditionMap
-    constant_values::Vector{Float64}
-    isys_constant_values::Vector{Int32}
-    ix_dynamic::Vector{Int32}
-    ix_sys::Vector{Int32}
+    condition_constants::Vector{Float64}
+    isys_condition_constants::Vector{Int32}
+    ix_condition::Vector{Int32}
+    isys_condition::Vector{Int32}
+    ix_all_conditions::Vector{Int32}
+    isys_all_conditions::Vector{Int32}
+    jac::Matrix{Float64}
 end
-
-struct MapODEProblem
-    sys_to_dynamic::Vector{Int32}
-    dynamic_to_sys::Vector{Int32}
+function (map::ConditionMap)(p::AbstractVector, xdynamic::AbstractVector)::Nothing
+    @views p[map.ix_all_conditions] .= xdynamic[map.isys_all_conditions]
+    @views p[map.isys_condition] .= xdynamic[map.ix_condition]
+    p[map.isys_condition_constants] .= map.condition_constants
+    return nothing
 end
 
 struct ParameterIndices
@@ -42,10 +46,9 @@ struct ParameterIndices
     xids::Dict{Symbol, Vector{Symbol}}
     xindices_notsys::Dict{Symbol, Vector{Int32}}
     xscale::Dict{Symbol, Symbol}
-    mapxobservable::Vector{ObservableNoiseMap}
-    mapxnoise::Vector{ObservableNoiseMap}
-    map_odeproblem::MapODEProblem
-    maps_conidition_id::Dict{Symbol, ConditionMap}
+    xobservable_maps::Vector{ObservableNoiseMap}
+    xnoise_maps::Vector{ObservableNoiseMap}
+    condition_maps::Dict{Symbol, ConditionMap}
 end
 
 struct Priors

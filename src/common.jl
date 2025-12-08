@@ -106,22 +106,22 @@ function transform_observable(val::T, transform::Symbol)::T where {T <: Real}
 end
 
 function _sd(u::AbstractVector, t::Float64, p::AbstractVector, xnoise::T, xnondynamic::T,
-             petab_sd::Function, mapxnoise::ObservableNoiseMap, observable_id::Symbol,
+             petab_sd::Function, xnoise_maps::ObservableNoiseMap, observable_id::Symbol,
              nominal_values::Vector{Float64})::Real where {T <: AbstractVector}
-    if mapxnoise.single_constant == true
-        σ = mapxnoise.constant_values[1]
+    if xnoise_maps.single_constant == true
+        σ = xnoise_maps.constant_values[1]
     else
-        σ = petab_sd(u, t, p, xnoise, xnondynamic, nominal_values, observable_id, mapxnoise)
+        σ = petab_sd(u, t, p, xnoise, xnondynamic, nominal_values, observable_id, xnoise_maps)
     end
     return σ
 end
 
 function _h(u::AbstractVector, t::Float64, p::AbstractVector, xobservable::T,
-            xnondynamic::T, petab_h::Function, mapxobservable::ObservableNoiseMap,
+            xnondynamic::T, petab_h::Function, xobservable_maps::ObservableNoiseMap,
             observable_id::Symbol,
             nominal_values::Vector{Float64})::Real where {T <: AbstractVector}
     return petab_h(u, t, p, xobservable, xnondynamic, nominal_values, observable_id,
-                   mapxobservable)
+                   xobservable_maps)
 end
 
 # Function to extract observable or noise parameters when computing h or σ
@@ -158,16 +158,4 @@ function is_number(x::Union{AbstractString, SubString{String}})::Bool
 end
 function is_number(x::Symbol)::Bool
     is_number(x |> string)
-end
-
-function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices;
-                              full_x::Bool = false)::Vector{Integer}
-    xmap_simid = xindices.maps_conidition_id[simid]
-    if full_x == false
-        ixdynamic = vcat(xindices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic)
-    else
-        ixdynamic = vcat(xindices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic,
-                         xindices.xindices[:not_system])
-    end
-    return unique(ixdynamic)
 end
