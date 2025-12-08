@@ -26,18 +26,18 @@ struct ObservableNoiseMap
 end
 
 struct ConditionMap
-    condition_constants::Vector{Float64}
-    isys_condition_constants::Vector{Int32}
-    ix_condition::Vector{Int32}
     isys_condition::Vector{Int32}
+    ix_condition::Vector{Int32}
+    target_value_functions::Vector{Function}
     ix_all_conditions::Vector{Int32}
     isys_all_conditions::Vector{Int32}
     jac::Matrix{Float64}
 end
-function (map::ConditionMap)(p::AbstractVector, xdynamic::AbstractVector)::Nothing
-    @views p[map.ix_all_conditions] .= xdynamic[map.isys_all_conditions]
-    @views p[map.isys_condition] .= xdynamic[map.ix_condition]
-    p[map.isys_condition_constants] .= map.condition_constants
+function (condition_map::ConditionMap)(p::AbstractVector, xdynamic::AbstractVector)::Nothing
+    @views p[condition_map.ix_all_conditions] .= xdynamic[condition_map.isys_all_conditions]
+    for (i, target_value_function) in pairs(condition_map.target_value_functions)
+        p[condition_map.isys_condition[i]] = target_value_function(xdynamic)
+    end
     return nothing
 end
 

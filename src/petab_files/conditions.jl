@@ -248,71 +248,73 @@ function _get_condition_maps(sys, parametermap, speciemap,
     model_ids = Iterators.flatten((xids_sys, specie_ids))
 
     ix_all_conditions, isys_all_conditions = _get_all_conditions_map(xids)
-    maps = Dict{Symbol, ConditionMap}()
+    condition_maps = Dict{Symbol, ConditionMap}()
     for (i, conditionid) in pairs(Symbol.(conditions_df[!, :conditionId]))
-        condition_constants = Float64[]
-        isys_condition_constants = Int32[]
-        ix_condition = Int32[]
+        target_ids = String[]
+        target_value_formulas = String[]
         isys_condition = Int32[]
-        for variable in names(conditions_df)
-            variable in ["conditionName", "conditionId"] && continue
-            value = conditions_df[i, variable]
-            # Sometimes value can be parsed as string even though it is a Number due to
-            # how DataFrames parses columns
-            if value isa String && is_number(value)
-                value = parse(Float64, value)
-            end
+        for target_id in names(conditions_df)
+            target_id in ["conditionName", "conditionId"] && continue
+            target_value = conditions_df[i, target_id]
+            push!(target_ids, target_id)
 
-            # When the value in the condidtion table maps to a numeric value
-            if value isa Real && variable in model_ids
-                push!(condition_constants, value |> Float64)
-                _add_ix_sys!(isys_condition_constants, variable, xids_sys)
+            # If target_value is missing the default model value should be used, which
+            # are encoded in the parameter- and specie-maps
+            # in the parameter- and speciemaps
+            if ismissing(target_value) && target_id in model_ids
+                default_value = _get_default_map_value(target_id, parametermap, speciemap)
+                push!(target_value_formulas, string(default_value))
+                _add_ix_sys!(isys_condition, target_id, xids_sys)
                 continue
             end
 
-            # If value is missing the default SBML values should be used. These are encoded
-            # in the parameter- and state-maps
-            if ismissing(value) && variable in model_ids
-                default_value = _get_default_map_value(variable, parametermap, speciemap)
-                push!(condition_constants, default_value)
-                _add_ix_sys!(isys_condition_constants, variable, xids_sys)
+            # NaN values apply for pre-equilibration and implies a specie should use the
+            # value obtained from the forward simulation
+            is_nan = (target_value isa Real && isnan(target_value)) || target_value == "NaN"
+            if is_nan && target_id in specie_ids
+                push!(target_value_formulas, "NaN")
+                _add_ix_sys!(isys_condition, target_id, xids_sys)
                 continue
-            end
-
-            # When the value in the condtitions table maps to a parameter to estimate
-            if value in xids_dynamic && variable in model_ids
-                push!(ix_condition, findfirst(x -> x == value, xids_dynamic))
-                _add_ix_sys!(isys_condition, variable, xids_sys)
-                continue
-            end
-
-            # When the value in the conditions table maps to a constant parameter
-            if Symbol(value) in petab_parameters.parameter_id && variable in model_ids
-                iconstant = findfirst(x -> x == Symbol(value),
-                                      petab_parameters.parameter_id)
-                push!(condition_constants, petab_parameters.nominal_value[iconstant])
-                _add_ix_sys!(isys_condition_constants, variable, xids_sys)
-                continue
-            end
-
-            # NaN values are relevant for pre-equilibration and denotes a controll variable
-            # should use the value obtained from the forward simulation
-            if value isa Real && isnan(value) && variable in species_sys
-                push!(condition_constants, NaN)
-                _add_ix_sys!(isys_condition_constants, variable, xids_sys)
-                continue
-            elseif value isa Real && isnan(value) && variable in model_ids
+            elseif is_nan && target_id in model_ids
                 throw(PEtabFileError("If a row in conditions file is NaN then the column \
-                                      header must be a state"))
+                                      header must be a specie"))
             end
-            throw(PEtabFileError("For condition $conditionid, the value of $variable, \
-                                  $value, does not correspond to any model parameter, \
-                                  species, or PEtab parameter. The condition variable \
-                                  must be a valid model id or a numeric value"))
+
+            # At this point a valid PEtab formula is assumed, TODO figure out how to catch
+            # invalid formuals
+            push!(target_value_formulas, string(target_value))
+            _add_ix_sys!(isys_condition, target_id, xids_sys)
         end
-        maps[conditionid] = ConditionMap(condition_constants, isys_condition_constants, ix_condition, isys_condition, ix_all_conditions, isys_all_conditions, zeros(0, 0))
+
+        # In the formulas replace any xdynamic parameters. Bookeeping of which parameters
+        # occur is important for runtime performance with split gradient methods.
+        ix_condition = Int32[]
+        for i in eachindex(target_value_formulas)
+            for (j, xid) in pairs(xids_dynamic)
+                _formula = SBMLImporter._replace_variable(target_value_formulas[i], xid, "xdynamic[$(j)]")
+                target_value_formulas[i] == _formula && continue
+                push!(ix_condition, j)
+                target_value_formulas[i] = _formula
+            end
+            # Hard-code potential parameters which are not estimated
+            for j in eachindex(petab_parameters.estimate)
+                petab_parameters.estimate[j] == true && continue
+                xid = string(petab_parameters.parameter_id[j])
+                value = petab_parameters.nominal_value[j]
+                _formula = SBMLImporter._replace_variable(target_value_formulas[i], xid, "$(value)")
+                target_value_formulas[i] = _formula
+            end
+        end
+
+        target_value_functions = Vector{Function}(undef, length(target_value_formulas))
+        for i in eachindex(target_value_functions)
+            formula = _template_target_value(target_value_formulas[i], conditionid, target_ids[i])
+            target_value_functions[i] = @RuntimeGeneratedFunction(Meta.parse(formula))
+        end
+
+        condition_maps[conditionid] = ConditionMap(isys_condition, ix_condition, target_value_functions, ix_all_conditions, isys_all_conditions, zeros(0, 0))
     end
-    return maps
+    return condition_maps
 end
 
 function _get_all_conditions_map(xids::Dict{Symbol, Vector{Symbol}})::NTuple{2, Vector{Int32}}
@@ -366,8 +368,8 @@ function _check_conditionids(conditions_df::DataFrame,
     measurementids = unique(vcat(pre_equilibration_condition_id, simulation_condition_id))
     for conditionid in (conditions_df[!, :conditionId] .|> Symbol)
         conditionid in measurementids && continue
-        @warn "Simulation condition id $conditionid does not appear in the measurements " *
-              "table. Therefore no measurement corresponds to this id."
+        @warn "Simulation condition id $conditionid does not appear in the measurements \
+               table. Therefore no measurement corresponds to this id."
     end
     return nothing
 end
@@ -433,4 +435,10 @@ function _get_xnames_ps!(xids::Dict{Symbol, Vector{Symbol}}, xscale)::Nothing
     end
     xids[:estimate_ps] = out
     return nothing
+end
+
+function _template_target_value(formula::String, condition_id::Symbol, target_id::String)::String
+    out = "function _map_$(target_id)_$(condition_id)(xdynamic)\n"
+    out *= "\treturn $(formula)\nend"
+    return out
 end
