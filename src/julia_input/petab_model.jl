@@ -99,6 +99,5 @@ function _PEtabModel(sys::ModelSystem, petab_tables::Dict{Symbol, DataFrame}, na
     paths = Dict{Symbol, String}()
     return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan,
                       paths, sys, sys_mutated, parametermap_use, speciemap_problem,
-                      petab_tables,
-                      cbset, true)
+                      petab_tables, cbset, true)
 end

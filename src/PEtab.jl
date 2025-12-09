@@ -49,6 +49,7 @@ include("common.jl")
 include("logging.jl")
 include("show.jl")
 
+include(joinpath("petab_files", "callbacks.jl"))
 include(joinpath("petab_files", "common.jl"))
 include(joinpath("petab_files", "conditions.jl"))
 include(joinpath("petab_files", "measurements.jl"))

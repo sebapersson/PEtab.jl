@@ -24,14 +24,14 @@ function _parse_event(event::PEtabEvent, name::String,
         condition = "t == " * condition
 
     elseif condition in state_ids
-        throw(PEtabFormatError("The PEtabEvent even trigger ($condition) cannot be a " *
-                               "model state. It must be a Boolean expression, a " *
-                               "numeric value or a single parameter"))
+        throw(PEtabFormatError("The PEtabEvent even trigger ($condition) cannot be a \
+                                model state. It must be a Boolean expression, a \
+                                numeric value or a single parameter"))
 
     elseif !any(occursin.(["==", "!=", ">", "<", "≥", "≤"], condition))
-        throw(PEtabFormatError("The PEtab event trigger ($condition) must be a Boolean " *
-                               "expression (contain ==, !=, >, <, ≤, or ≥), or be a " *
-                               "numeric value or a single parameter"))
+        throw(PEtabFormatError("The PEtab event trigger ($condition) must be a Boolean \
+                                expression (contain ==, !=, >, <, ≤, or ≥), or be a \
+                                numeric value or a single parameter"))
     end
 
     # Input needs to be a Vector for downstream processing (both for target and effect)
@@ -48,8 +48,8 @@ function _parse_event(event::PEtabEvent, name::String,
 
     # Sanity check, target
     if length(targets) != length(affects)
-        throw(PEtabFormatError("The number of PEtabEvent targets ($(targets)) must " *
-                               "equal the number of PEtabEvent affects ($(affects))"))
+        throw(PEtabFormatError("The number of PEtabEvent targets ($(targets)) must \
+                                equal the number of PEtabEvent affects ($(affects))"))
     end
     # Sanity check affect
     targets = replace.(string.(targets), "(t)" => "")

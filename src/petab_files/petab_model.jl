@@ -4,12 +4,12 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
     paths = _get_petab_paths(path_yaml)
     petab_tables = read_tables(path_yaml)
     return _PEtabModel(paths, petab_tables, build_julia_files, verbose, ifelse_to_callback,
-                       write_to_file)
+                       write_to_file, PEtabEvent[])
 end
 
 function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::Dict{Symbol, DataFrame},
                      build_julia_files::Bool, verbose::Bool, ifelse_to_callback::Bool,
-                     write_to_file::Bool)
+                     write_to_file::Bool, petab_events::Vector{PEtabEvent})
     name = splitdir(paths[:dirmodel])[end]
 
     write_to_file && !isdir(paths[:dirjulia]) && mkdir(paths[:dirjulia])
@@ -103,16 +103,13 @@ function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::Dict{Symbol, Dat
     # should not be converted to floats in case dual numbers (for gradients) are propagated
     _logging(:Build_callbacks, verbose)
     btime = @elapsed begin
-        float_tspan = _xdynamic_in_event_cond(model_SBML, xindices, petab_tables) |> !
-        psys = _get_sys_parameters(odesystem, speciemap, parametermap) .|> string
-        cbset = SBMLImporter.create_callbacks(odesystem, model_SBML, name;
-                                              p_PEtab = psys, float_tspan = float_tspan)
+        cbs, float_tspan = _parse_events(model_SBML, petab_events, odesystem, speciemap, parametermap, name, xindices, petab_tables)
     end
     _logging(:Build_callbacks, verbose; time = btime)
 
     return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan,
                       paths, odesystem, deepcopy(odesystem), parametermap, speciemap,
-                      petab_tables, cbset, false)
+                      petab_tables, cbs, false, petab_events)
 end
 
 function add_u0_parameters!(model_SBML::SBMLImporter.ModelSBML, conditions_df::DataFrame,

@@ -186,8 +186,7 @@ end
 # Without @nospecialize stackoverflow in type inference due to large ODE-system
 function solve_no_pre_equlibrium(@nospecialize(oprob::ODEProblem), osolver::ODESolver,
                                  @nospecialize(simulation_info::SimulationInfo),
-                                 cid::Symbol,
-                                 tsave::Vector{Float64}, dense::Bool,
+                                 cid::Symbol, tsave::Vector{Float64}, dense::Bool,
                                  float_tspan::Bool)::ODESolution
     @unpack abstol, reltol, maxiters, solver, force_dtmin, verbose = osolver
     @unpack tstarts, tmaxs = simulation_info

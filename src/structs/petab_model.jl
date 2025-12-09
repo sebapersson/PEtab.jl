@@ -9,16 +9,16 @@ observable formula, or noise formula.
 
 ## Keyword Arguments
 
-- `lb::Float64 = 1e-3`: The lower parameter bound for parameter estimation. Must 
-    be specified on the linear scale. For example, if `scale = :log10`, provide the 
+- `lb::Float64 = 1e-3`: The lower parameter bound for parameter estimation. Must
+    be specified on the linear scale. For example, if `scale = :log10`, provide the
     bound as `1e-3` rather than `log10(1e-3)`.
-- `ub::Float64 = 1e3`: The upper parameter bound for parameter estimation. Must as for 
+- `ub::Float64 = 1e3`: The upper parameter bound for parameter estimation. Must as for
     `lb` be provided on linear scale.
 - `scale::Symbol = :log10`: The scale on which to estimate the parameter. Allowed options
     are `:log10` (default), `:log2` `:log`, and `:lin`. Estimating on the `log10`
     scale typically improves performance and is recommended.
 - `prior = nothing`: An optional continuous univariate parameter prior distribution from
-    [Distributions.jl](https://github.com/JuliaStats/Distributions.jl). The prior 
+    [Distributions.jl](https://github.com/JuliaStats/Distributions.jl). The prior
     overrides any parameter bounds.
 - `prior_on_linear_scale = true`: Whether the prior is on the linear scale (default) or on
     the transformed scale. For example, if `scale = :log10` and
@@ -144,6 +144,20 @@ struct PEtabEvent
     condition::Any
     affect::Any
     target::Any
+    trigger_time::Float64
+    condition_ids::Vector{Symbol}
+end
+function PEtabEvent(condition, affect, target; trigger_time = Inf, conditions_ids::Union{Vector{String}, Vector{Symbol}} = Symbol[])
+    return PEtabEvent(condition, affect, target, trigger_time, Symbol.(conditions_ids))
+end
+function PEtabEvent(condition_event_df::DataFrame, trigger_time::Real, simulation_condition_id::String)
+    targets = condition_event_df.targetId
+    condition = "t == $(trigger_time)"
+    affects = fill("", length(targets))
+    for (i, target_value) in pairs(condition_event_df.targetValue)
+        affects[i] = string(target_value)
+    end
+    return PEtabEvent(condition, affects, targets, trigger_time, [Symbol(simulation_condition_id)])
 end
 
 """
@@ -195,6 +209,7 @@ struct PEtabModel
     parametermap::Any
     speciemap::Any
     petab_tables::Dict{Symbol, DataFrame}
-    callbacks::SciMLBase.DECallback
+    callbacks::Dict{Symbol, SciMLBase.DECallback}
     defined_in_julia::Bool
+    petab_events::Vector{PEtabEvent}
 end
