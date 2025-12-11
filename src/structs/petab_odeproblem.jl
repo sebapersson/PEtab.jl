@@ -131,6 +131,7 @@ struct PEtabMeasurements{T <: Vector{<:Union{<:String, <:AbstractFloat}}}
     simulation_condition_id::Vector{Symbol}
     noise_parameters::T
     observable_parameters::Vector{String}
+    simulation_start_time::Vector{Float64}
 end
 
 struct ModelInfo
@@ -143,13 +144,13 @@ struct ModelInfo
     nstates::Int32
 end
 function ModelInfo(model::PEtabModel, sensealg, custom_values)::ModelInfo
-    tables, cbs = model.petab_tables, model.callbacks
-    petab_measurements = PEtabMeasurements(tables[:measurements], tables[:observables])
-    petab_parameters = PEtabParameters(tables[:parameters], custom_values = custom_values)
+    @unpack petab_tables, callbacks, petab_events = model
+    petab_measurements = PEtabMeasurements(petab_tables[:measurements], petab_tables[:observables])
+    petab_parameters = PEtabParameters(petab_tables[:parameters], custom_values = custom_values)
     xindices = ParameterIndices(petab_parameters, petab_measurements, model)
-    simulation_info = SimulationInfo(cbs, petab_measurements, sensealg = sensealg)
-    priors = Priors(xindices, tables[:parameters])
-    nstates = length(unknowns(model.sys_mutated)) |> Int32
+    simulation_info = SimulationInfo(callbacks, petab_measurements, petab_events; sensealg = sensealg)
+    priors = Priors(xindices, petab_tables[:parameters])
+    nstates = Int32(length(unknowns(model.sys_mutated)))
     return ModelInfo(petab_measurements, petab_parameters, xindices, simulation_info,
                      priors, model, nstates)
 end
@@ -301,14 +302,15 @@ struct SteadyStateSolver{T1 <:
     callback_ss::CA
     nprob::T3
     pseudoinverse::Bool
+    tmin_simulate::Vector{Float64}
 end
 function SteadyStateSolver(method::Symbol; termination_check::Symbol = :wrms,
                            rootfinding_alg::NonlinearAlg = nothing, abstol = nothing,
                            reltol = nothing, pseudoinverse::Bool = false,
                            maxiters::Union{Nothing, Int64} = nothing)::SteadyStateSolver
     if !(method in [:Rootfinding, :Simulate])
-        throw(PEtabInputError("Allowed methods for computing steady state are :Rootfinding " *
-                              ":Simulate not $method"))
+        throw(PEtabInputError("Allowed methods for computing steady state are :Rootfinding \
+                               :Simulate not $method"))
     end
     if method === :Simulate
         return SteadyStateSolver(termination_check, abstol, reltol, maxiters, pseudoinverse)
@@ -319,17 +321,17 @@ end
 function SteadyStateSolver(termination_check::Symbol, abstol, reltol, maxiters,
                            pseudoinverse::Bool)::SteadyStateSolver
     if !(termination_check in [:Newton, :wrms])
-        throw(PEtabInputError("When steady states are computed via simulations " *
-                              "allowed termination methods are :Newton or :wrms not " *
-                              "$check_termination"))
+        throw(PEtabInputError("When steady states are computed via simulations \
+                               allowed termination methods are :Newton or :wrms not \
+                               $check_termination"))
     end
     return SteadyStateSolver(:Simulate, nothing, termination_check, abstol, reltol,
-                             maxiters, nothing, nothing, pseudoinverse)
+                             maxiters, nothing, nothing, pseudoinverse, [Inf])
 end
 function SteadyStateSolver(alg::NonlinearAlg, abstol, reltol, maxiters)::SteadyStateSolver
     _alg = isnothing(alg) ? NonlinearSolve.TrustRegion() : alg
     return SteadyStateSolver(:Rootfinding, _alg, :nothing, abstol, reltol, maxiters,
-                             nothing, nothing, false)
+                             nothing, nothing, false, [Inf])
 end
 
 struct PEtabODEProblemInfo{S1 <: ODESolver, S2 <: ODESolver, C <: PEtabODEProblemCache}

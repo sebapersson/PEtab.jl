@@ -1,6 +1,4 @@
-function SimulationInfo(callbacks::SciMLBase.DECallback,
-                        petab_measurements::PEtabMeasurements;
-                        sensealg)::SimulationInfo
+function SimulationInfo(cbs::Dict{Symbol, SciMLBase.DECallback}, petab_measurements::PEtabMeasurements, petab_events::Vector{PEtabEvent}; sensealg)::SimulationInfo
     conditionids = _get_conditionids(petab_measurements)
     has_pre_equilibration = !all(conditionids[:pre_equilibration] .== :None)
 
@@ -8,13 +6,12 @@ function SimulationInfo(callbacks::SciMLBase.DECallback,
     # Tstarts is not needed for standard PEtab, but is required if wanting to train
     # a problem with multiple shooting using PEtabTraining
     tmaxs = _get_tmaxs(conditionids, petab_measurements)
-    tstarts = _get_tstarts(conditionids)
-    tsaves = _get_tsaves(conditionids, petab_measurements)
+    tstarts = _get_tstarts(conditionids, petab_measurements)
+    tsaves = _get_tsaves(conditionids, petab_measurements, cbs, petab_events)
 
     # Indicies for getting measurement points for each condition. The second is a vector
     # of vector that accounts for multiple measurements per time-point which needs to
     # be accounted for in gradient compuations
-    # TODO: imeasurements is redundant
     imeasurements = _get_imeasurements(conditionids, petab_measurements)
     imeasurements_t = _get_imeasurements_t(imeasurements, petab_measurements)
     # Time indicies in ODESolution for each measurement
@@ -33,26 +30,25 @@ function SimulationInfo(callbacks::SciMLBase.DECallback,
     odesols_preeq = Dict{Symbol, Union{ODESolution, SciMLBase.NonlinearSolution}}()
     odesols_derivative = Dict{Symbol, ODESolution}()
 
-    # Some models, e.g those with time dependent piecewise statements, have callbacks
-    # encoded. For adjoint sensitivity analysis these most be tracked
-    # sensitivity analysis we need to track these callbacks, hence they must be stored in simulation_info.
-    callbacks_use = Dict{Symbol, SciMLBase.DECallback}()
-    tracked_callbacks = Dict{Symbol, SciMLBase.DECallback}()
-    for id in conditionids[:experiment]
-        callbacks_use[id] = deepcopy(callbacks)
+    # Some models, e.g those with time dependent piecewise statements, have cbs encoded.
+    # For adjoint sensitivity analysis these most be tracked
+    tracked_cbs = Dict{Symbol, SciMLBase.DECallback}()
+    conditions_df_ids = Iterators.flatten((conditionids[:simulation],
+        filter(x -> x != :None, conditionids[:pre_equilibration])))
+    for id in unique(conditions_df_ids)
+        tracked_cbs[id] = deepcopy(cbs[id])
     end
 
     could_solve = [true]
     return SimulationInfo(conditionids, has_pre_equilibration, tstarts, tmaxs, tsaves,
                           imeasurements, imeasurements_t, imeasurements_t_sol,
                           smatrixindices, odesols, odesols_derivative, odesols_preeq,
-                          could_solve, callbacks_use, tracked_callbacks, sensealg)
+                          could_solve, cbs, tracked_cbs, sensealg)
 end
 
-function _get_conditionids(petab_measurements::PEtabMeasurements)::Dict{Symbol,
-                                                                        Vector{Symbol}}
+function _get_conditionids(petab_measurements::PEtabMeasurements)::Dict{Symbol, Vector{Symbol}}
     @unpack pre_equilibration_condition_id, simulation_condition_id = petab_measurements
-    # An experimental id is uniqely defined by a pre-equlibrium and simulation id, where
+    # An experimental id is uniquely defined by a pre-equilibrium and simulation id, where
     # the former can be empty. For each experimental id we need to store the corresponding
     # pre and simulation id, and their concatenation
     pre_equilibration_ids = Symbol[]
@@ -82,13 +78,29 @@ function _get_conditionids(petab_measurements::PEtabMeasurements)::Dict{Symbol,
                 :experiment => experiment_ids)
 end
 
-function _get_tsaves(conditionids::Dict{Symbol, Vector{Symbol}},
-                     petab_measurements::PEtabMeasurements)::Dict{Symbol, Vector{Float64}}
+function _get_tsaves(conditionids::Dict{Symbol, Vector{Symbol}}, petab_measurements::PEtabMeasurements, cbs::Dict{Symbol, SciMLBase.DECallback}, petab_events::Vector{PEtabEvent})::Dict{Symbol, Vector{Float64}}
     tsave = Dict{Symbol, Vector{Float64}}()
     for (i, experiment_id) in pairs(conditionids[:experiment])
-        preeqids, cids = conditionids[:pre_equilibration][i], conditionids[:simulation][i]
-        it = _get_tindices(preeqids, cids, petab_measurements)
-        tsave[experiment_id] = sort(unique(petab_measurements.time[it]))
+        pre_equilibration_id = conditionids[:pre_equilibration][i]
+        simulation_id = conditionids[:simulation][i]
+        it = _get_tindices(pre_equilibration_id, simulation_id, petab_measurements)
+        tsave_experiment = sort(unique(petab_measurements.time[it]))
+
+        # If a PEtabEvent is triggered at a tsave value, following the PEtab standard model
+        # output should be saved after event completions. To this end, the trigger time
+        # must be removed from tsave_experiment. Now, save_positions cannot be modified
+        # in the callback as the callbacks parsed from SBML have initialize field, which
+        # means that setting save_positions[2] = true results in an extra time-point
+        # being saved a t0. Rather, the affect! function for PEtab events include a
+        # save_u variable which can be set.
+        i_events = _get_petab_events_simulation_id(petab_events, simulation_id)
+        for j in eachindex(i_events)
+            trigger_time = petab_events[i_events[j]].trigger_time
+            !(trigger_time in tsave_experiment) && continue
+            tsave_experiment = filter(x -> x != trigger_time, tsave_experiment)
+            cbs[simulation_id].discrete_callbacks[j].affect!._save_u[1] = true
+        end
+        tsave[experiment_id] = tsave_experiment
     end
     return tsave
 end
@@ -104,10 +116,12 @@ function _get_tmaxs(conditionids::Dict{Symbol, Vector{Symbol}},
     return tmaxs
 end
 
-function _get_tstarts(conditionids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, Float64}
+function _get_tstarts(conditionids::Dict{Symbol, Vector{Symbol}}, petab_measurements::PEtabMeasurements)::Dict{Symbol, Float64}
     tstarts = Dict{Symbol, Float64}()
-    for experiment_id in conditionids[:experiment]
-        tstarts[experiment_id] = 0.0
+    for (i, experiment_id) in pairs(conditionids[:experiment])
+        preeqids, cids = conditionids[:pre_equilibration][i], conditionids[:simulation][i]
+        it = _get_tindices(preeqids, cids, petab_measurements)
+        tstarts[experiment_id] = petab_measurements.simulation_start_time[it[1]]
     end
     return tstarts
 end

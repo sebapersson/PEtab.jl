@@ -53,9 +53,9 @@ function _is_dense(save_observed_t::Bool, dense_sol::Bool, ntimepoints_save::Int
     end
 end
 
-function _get_cbs(::ODEProblem, simulation_info::SimulationInfo, cid::Symbol,
+function _get_cbs(::ODEProblem, simulation_info::SimulationInfo, simulation_id::Symbol,
                   ::Any)::SciMLBase.DECallback
-    return simulation_info.callbacks[cid]
+    return simulation_info.callbacks[simulation_id]
 end
 
 function _get_tspan(oprob::ODEProblem, tstart::Float64, tmax::Float64,
@@ -102,4 +102,13 @@ function _get_preeq_ids(simulation_info::SimulationInfo,
         which_id = findall(x -> x in simulation_info.conditionids[:experiment], cids)
         return unique(simulation_info.conditionids[:pre_equilibration][which_id])
     end
+end
+
+function _set_check_trigger_init!(cbs::SciMLBase.DECallback, value::Bool)::Nothing
+    for cb in (cbs.discrete_callbacks..., cbs.continuous_callbacks...)
+        isnothing(cb.initialize) && continue
+        !hasproperty(cb.initialize, :_check_trigger_init) && continue
+        cb.initialize._check_trigger_init[1] = value
+    end
+    return nothing
 end

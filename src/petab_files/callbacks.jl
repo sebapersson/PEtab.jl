@@ -27,10 +27,10 @@ function _parse_events(model_SBML::SBMLImporter.ModelSBML, petab_events::Vector{
 
         petab_callbacks = DiscreteCallback[]
         for cb in cbs_petab.discrete_callbacks
-            affect_petab_event! = let _cbs_sbml = cbs_sbml, _affect_petab! = cb.affect!
-                (integrator) -> _affect_petab_v2_event!(integrator, _affect_petab!, _cbs_sbml)
+            affect_petab_event! = let _cbs_sbml = cbs_sbml, _affect_petab! = cb.affect!, _save_u = [false]
+                (integrator) -> _affect_petab_v2_event!(integrator, _affect_petab!, _cbs_sbml, _save_u)
             end
-            cb_petab = DiscreteCallback(cb.condition, affect_petab_event!)
+            cb_petab = DiscreteCallback(cb.condition, affect_petab_event!; initialize = cb.initialize, save_positions = (false, false))
             push!(petab_callbacks, cb_petab)
         end
         cbs[condition_id] = CallbackSet(petab_callbacks..., cbs_sbml.discrete_callbacks..., cbs_sbml.continuous_callbacks...)
@@ -38,12 +38,52 @@ function _parse_events(model_SBML::SBMLImporter.ModelSBML, petab_events::Vector{
     return cbs, float_tspan
 end
 
-function _affect_petab_v2_event!(integrator, _affect_petab_cb!::Function, cbs_sbml::CallbackSet)::Nothing
+function _affect_petab_v2_event!(integrator, _affect_petab_cb!::Function, cbs_sbml::CallbackSet, save_u::Vector{Bool})::Nothing
+    u_tmp1 = deepcopy(integrator.u)
+    p_tmp1 = deepcopy(integrator.p)
+    u_tmp2 = similar(u_tmp1)
+    p_tmp2 = similar(p_tmp1)
+
     _affect_petab_cb!(integrator)
+
+    # PEtab events can trigger SBML events by flipping the event trigger from false to
+    # true. This is not something a Julia ContinuousCallback can capture, therefore
+    # here it must be checked whether an event has been triggered.
     for cb in cbs_sbml.continuous_callbacks
-        if cb.condition(integrator.u, integrator.t, integrator) == 0.0
-            cb.affect!(integrator)
+        condition_after = cb.condition(integrator.u, integrator.t, integrator)
+
+        u_tmp2 .= integrator.u
+        p_tmp2 .= integrator.p
+        integrator.u .= u_tmp1
+        integrator.p .= p_tmp1
+        condition_before = cb.condition(integrator.u, integrator.t, integrator)
+        integrator.u .= u_tmp2
+        integrator.p .= p_tmp2
+
+        # Event can be triggered by passing the condition from pos-neg, and from neg-pos
+        if !isnothing(cb.affect!) && !isnothing(cb.affect_neg!)
+            if signbit(condition_before) != signbit(condition_after)
+                cb.affect!(integrator)
+            end
         end
+
+        # Even only triggered when passing from neg-pos
+        if !isnothing(cb.affect!) && isnothing(cb.affect_neg!)
+            if condition_before < 0.0 && condition_after > 0.0
+                cb.affect!(integrator)
+            end
+        end
+
+        # Even only triggered when passing from pos-neg
+        if isnothing(cb.affect!) && !isnothing(cb.affect_neg!)
+            if condition_before > 0.0 && condition_after < 0.0
+                cb.affect_neg!(integrator)
+            end
+        end
+    end
+
+    if save_u[1] == true
+        SciMLBase.savevalues!(integrator, true)
     end
     return nothing
 end

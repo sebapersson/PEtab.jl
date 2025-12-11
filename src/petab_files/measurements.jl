@@ -55,6 +55,15 @@ function PEtabMeasurements(measurements_df::DataFrame,
         measurements_t[i] = transform_observable(val, transformations[i])
     end
 
+    # PEtab v2 introduces none-zero simulation start times. In the conversion of PEtab
+    # v2 to PEtab v1 tables this additional information is encoded as an extra column
+    # in the measurements table, which is then parsed in SimulationInfo
+    if "simulationStartTime" in names(measurements_df)
+        simulation_start_time = measurements_df.simulationStartTime
+    else
+        simulation_start_time = zeros(Float64, nmeasurements)
+    end
+
     # Values associated with the measurement values
     # TODO: These should be moved
     chi2_values = zeros(Float64, nmeasurements)
@@ -64,5 +73,5 @@ function PEtabMeasurements(measurements_df::DataFrame,
     return PEtabMeasurements(measurements, measurements_t, simulated_values, chi2_values,
                              residuals, transformations, time, observable_ids,
                              pre_equilibration_ids, condition_ids, noise_parameters,
-                             observable_parameters)
+                             observable_parameters, simulation_start_time)
 end

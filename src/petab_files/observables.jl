@@ -90,6 +90,7 @@ function _parse_u0(speciemap_problem, speciemap_model, state_ids::Vector{String}
                                            state_ids, xindices, model_SBML, :u0)
         u0formula_model = _parse_formula(string(speciemap_model[im_model].second),
                                          state_ids, xindices, model_SBML, :u0)
+
         if u0formula_problem == u0formula_model
             u0str *= "\t$id = $(u0formula_problem)\n"
         else

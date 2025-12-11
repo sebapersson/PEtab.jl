@@ -3,6 +3,7 @@ function SteadyStateSolver(ss_solver::SteadyStateSolver, oprob::ODEProblem,
     abstol = isnothing(ss_solver.abstol) ? osolver.abstol * 100 : ss_solver.abstol
     reltol = isnothing(ss_solver.reltol) ? osolver.reltol * 100 : ss_solver.reltol
     maxiters = isnothing(ss_solver.maxiters) ? osolver.maxiters : ss_solver.maxiters
+    tmin_simulate = [0.1]
     @unpack pseudoinverse, method, termination_check, rootfinding_alg = ss_solver
     if method === :Simulate
         if termination_check === :Newton
@@ -13,19 +14,25 @@ function SteadyStateSolver(ss_solver::SteadyStateSolver, oprob::ODEProblem,
             jac = zeros(Float64, 0, 0)
         end
         condss = (u, t, integrator) -> condition_ss(u, t, integrator, abstol, reltol,
-                                                    newton, oprob.f.jac, jac, pseudoinverse)
+                                                    newton, oprob.f.jac, jac, pseudoinverse,
+                                                    tmin_simulate)
         callback_ss = DiscreteCallback(condss, affect_ss!, save_positions = (false, true))
     else
         callback_ss = nothing
     end
     return SteadyStateSolver(method, rootfinding_alg, termination_check, abstol, reltol,
-                             maxiters, callback_ss, NonlinearProblem(oprob), pseudoinverse)
+                             maxiters, callback_ss, NonlinearProblem(oprob), pseudoinverse,
+                             tmin_simulate)
 end
 
 # Callback in case steady-state is found via  model simulation
 function condition_ss(u, t, integrator, abstol::Float64, reltol::Float64,
                       newton::Bool, jacobian!::Function, jac::AbstractMatrix,
-                      pseudoinverse::Bool)::Bool
+                      pseudoinverse::Bool, tmin_simulate::Vector{Float64})::Bool
+    if t < tmin_simulate[1]
+        return false
+    end
+
     testval = first(get_tmp_cache(integrator))
     DiffEqBase.get_du!(testval, integrator)
 
@@ -33,7 +40,7 @@ function condition_ss(u, t, integrator, abstol::Float64, reltol::Float64,
     local Δu
     # Check Termination via a Newton-step. For this to work Jacobian should be invertiable
     if newton == true
-        # Important all computatations are performed with Floats. TODO: Figure out how
+        # Important all computations are performed with Floats. TODO: Figure out how
         # to deal with dual numbers
         _u = SBMLImporter._to_float.(u)
         _p = SBMLImporter._to_float.(integrator.p)
