@@ -1,8 +1,9 @@
 using PEtab, Test, OrdinaryDiffEqRosenbrock, LinearAlgebra
 
 function test_petab_remake(model::PEtabModel, xchange, what_check; testtol = 1e-3)
+    osolver = ODESolver(Rodas5P(), abstol=1e-12, reltol=1e-12)
     if :GradientForwardDiff in what_check
-        prob1 = PEtabODEProblem(model; odesolver=ODESolver(Rodas5P()), chunksize=2, verbose=false)
+        prob1 = PEtabODEProblem(model; odesolver=osolver, chunksize=2, verbose=false)
         prob2 = remake(prob1, xchange)
 
         # Fix set xest for other functions
@@ -17,7 +18,7 @@ function test_petab_remake(model::PEtabModel, xchange, what_check; testtol = 1e-
     end
 
     if :GradientForwardEquations in what_check
-        prob1 = PEtabODEProblem(model; odesolver=ODESolver(Rodas5P()), chunksize=2, gradient_method=:ForwardEquations, sensealg=:ForwardDiff, verbose=false)
+        prob1 = PEtabODEProblem(model; odesolver=osolver, chunksize=2, gradient_method=:ForwardEquations, sensealg=:ForwardDiff, verbose=false)
         prob2 = remake(prob1, xchange)
 
         imatch = findall(in(prob2.xnames), prob1.xnames)
@@ -27,7 +28,7 @@ function test_petab_remake(model::PEtabModel, xchange, what_check; testtol = 1e-
     end
 
     if :GaussNewton in what_check
-        prob1 = PEtabODEProblem(model; odesolver=ODESolver(Rodas5P()), chunksize=2, gradient_method=:ForwardDiff, hessian_method=:GaussNewton, sensealg=:ForwardDiff, verbose=false)
+        prob1 = PEtabODEProblem(model; odesolver=osolver, chunksize=2, gradient_method=:ForwardDiff, hessian_method=:GaussNewton, sensealg=:ForwardDiff, verbose=false)
         prob2 = remake(prob1, xchange)
 
         imatch = findall(in(prob2.xnames), prob1.xnames)
@@ -43,7 +44,7 @@ function test_petab_remake(model::PEtabModel, xchange, what_check; testtol = 1e-
     end
 
     if :Hessian in what_check
-        prob1 = PEtabODEProblem(model; odesolver=ODESolver(Rodas5P()), chunksize=2, hessian_method=:ForwardDiff, verbose=false)
+        prob1 = PEtabODEProblem(model; odesolver=osolver, chunksize=2, hessian_method=:ForwardDiff, verbose=false)
         prob2 = remake(prob1, xchange)
 
         imatch = findall(in(prob2.xnames), prob1.xnames)
@@ -60,7 +61,7 @@ function test_petab_remake(model::PEtabModel, xchange, what_check; testtol = 1e-
     end
 
     if :FIM in what_check
-        prob1 = PEtabODEProblem(model; odesolver=ODESolver(Rodas5P()), chunksize=2, hessian_method=:ForwardDiff, verbose=false)
+        prob1 = PEtabODEProblem(model; odesolver=osolver, chunksize=2, hessian_method=:ForwardDiff, verbose=false)
         prob2 = remake(prob1, xchange)
 
         imatch = findall(in(prob2.xnames), prob1.xnames)

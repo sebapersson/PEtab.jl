@@ -86,6 +86,7 @@ function _get_model_path_v2(yaml_file::Dict, dirmodel::String)::String
     return path_model
 end
 
+_get_version(path_yaml::String)::String = _get_version(YAML.load_file(path_yaml))
 function _get_version(yaml_file::Dict)::String
     petab_version = string(yaml_file["format_version"])
     if petab_version in ["1", "1.0.0"]

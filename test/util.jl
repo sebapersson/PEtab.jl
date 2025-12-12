@@ -2,7 +2,7 @@
     Test that the PEtab util functions return expected results
 =#
 
-using Catalyst, PEtab, OrdinaryDiffEqRosenbrock, Catalyst, DataFrames, Test
+using Catalyst, DataFrames, OrdinaryDiffEqRosenbrock, PEtab, Test
 
 @testset "util functions" begin
     # Test ability to retreive model parameters for specific model conditions

@@ -59,6 +59,7 @@ include(joinpath("petab_files", "petab_model.jl"))
 include(joinpath("petab_files", "read.jl"))
 include(joinpath("petab_files", "simulations.jl"))
 include(joinpath("petab_files", "table_info.jl"))
+include(joinpath("petab_files", "v2_to_v1_tables.jl"))
 
 include(joinpath("julia_input", "events.jl"))
 include(joinpath("julia_input", "maps.jl"))
@@ -95,7 +96,6 @@ include(joinpath("parameter_estimation", "startguesses.jl"))
 
 include(joinpath("util.jl"))
 
-#=
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem
 @setup_workload begin
     path_yaml = joinpath(@__DIR__, "..", "test", "analytic_ss", "Test_model3.yaml")
@@ -106,7 +106,6 @@ include(joinpath("util.jl"))
         petab_problem.nllh(petab_problem.xnominal_transformed)
     end
 end
-=#
 
 # Functions that only appear in extension
 function compute_llh end
