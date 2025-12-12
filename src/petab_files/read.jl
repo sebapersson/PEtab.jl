@@ -87,7 +87,7 @@ function _get_model_path_v2(yaml_file::Dict, dirmodel::String)::String
 end
 
 function _get_version(yaml_file::Dict)::String
-    petab_version = yaml_file["format_version"]
+    petab_version = string(yaml_file["format_version"])
     if petab_version in ["1", "1.0.0"]
         return "1.0.0"
     elseif petab_version in ["2", "2.0.0"]

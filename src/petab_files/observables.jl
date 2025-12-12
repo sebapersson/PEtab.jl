@@ -23,9 +23,9 @@ end
 
 function _parse_h(state_ids::Vector{String}, xindices::ParameterIndices,
                   observables_df::DataFrame, model_SBML::SBMLImporter.ModelSBML)::String
-    hstr = "function compute_h(u::AbstractVector, t::Real, p::AbstractVector, \
-            xobservable::AbstractVector, xnondynamic::AbstractVector, \
-            nominal_values::Vector{Float64}, obsid::Symbol, \
+    hstr = "function compute_h(__u_model::AbstractVector, t::Real, \
+            __p_model::AbstractVector, xobservable::AbstractVector, \
+             xnondynamic::AbstractVector, nominal_values::Vector{Float64}, obsid::Symbol, \
             map::ObservableNoiseMap)::Real\n"
 
     observable_ids = string.(observables_df[!, :observableId])
@@ -44,9 +44,9 @@ end
 
 function _parse_σ(state_ids::Vector{String}, xindices::ParameterIndices,
                   observables_df::DataFrame, model_SBML::SBMLImporter.ModelSBML)::String
-    σstr = "function compute_σ(u::AbstractVector, t::Real, p::AbstractVector, \
-            xnoise::AbstractVector, xnondynamic::AbstractVector, \
-            nominal_values::Vector{Float64}, obsid::Symbol, \
+    σstr = "function compute_σ(__u_model::AbstractVector, t::Real, \
+            __p_model::AbstractVector, xnoise::AbstractVector, \
+            xnondynamic::AbstractVector,  nominal_values::Vector{Float64}, obsid::Symbol, \
             map::ObservableNoiseMap)::Real\n"
 
     # Write the formula for standard deviations to file
@@ -78,9 +78,10 @@ function _parse_u0(speciemap_problem, speciemap_model, state_ids::Vector{String}
     speciemap_problem_ids = replace.(string.(first.(speciemap_problem)), "(t)" => "")
     speciemap_model_ids = replace.(string.(first.(speciemap_model)), "(t)" => "")
     if inplace == true
-        u0str = "function compute_u0!(u0::AbstractVector, p::AbstractVector, __post_eq)\n"
+        u0str = "function compute_u0!(__u0_model::AbstractVector, \
+                __p_model::AbstractVector, __post_eq)\n"
     else
-        u0str = "function compute_u0(p::AbstractVector, __post_eq)::AbstractVector\n"
+        u0str = "function compute_u0(__p_model::AbstractVector, __post_eq)::AbstractVector\n"
     end
 
     for id in state_ids
@@ -101,7 +102,7 @@ function _parse_u0(speciemap_problem, speciemap_model, state_ids::Vector{String}
     end
 
     if inplace == true
-        u0str *= "\tu0 .= " * prod(state_ids .* ", ")[1:(end - 2)] * "\n"
+        u0str *= "\t__u0_model .= " * prod(state_ids .* ", ")[1:(end - 2)] * "\n"
     else
         inplace == false
         u0str *= "\treturn [" * prod(state_ids .* ", ")[1:(end - 2)] * "]\n"
@@ -157,19 +158,19 @@ function _parse_formula(formula::String, state_ids::Vector{String},
     if type == :observable
         ids_replace = [
             :observable => "xobservable",
-            :sys => "p",
+            :sys => "__p_model",
             :nondynamic => "xnondynamic",
             :petab => "nominal_values"
         ]
     elseif type == :noise
         ids_replace = [
             :noise => "xnoise",
-            :sys => "p",
+            :sys => "__p_model",
             :nondynamic => "xnondynamic",
             :petab => "nominal_values"
         ]
     elseif type == :u0
-        ids_replace = [:sys => "p"]
+        ids_replace = [:sys => "__p_model"]
     end
     for (idtype, varname) in ids_replace
         for (i, id) in pairs(string.(xindices.xids[idtype]))
@@ -177,7 +178,7 @@ function _parse_formula(formula::String, state_ids::Vector{String},
         end
     end
     for (i, id) in pairs(state_ids)
-        formula = SBMLImporter._replace_variable(formula, id, "u[$i]")
+        formula = SBMLImporter._replace_variable(formula, id, "__u_model[$i]")
     end
     # In PEtab time is given by time, but it is t in Julia. For u0 time is zero
     if type == :u0

@@ -39,7 +39,7 @@ function get_odeproblem(res::EstimationResult, prob::PEtabODEProblem;
     tmax = _get_tmax(cid, preeq_id, model_info)
     odefun = ODEFunction(_get_system(prob.model_info.model.sys))
     oprob = ODEProblem(odefun, u0, [0.0, tmax], ps)
-    return oprob, model_info.model.callbacks
+    return oprob, model_info.model.callbacks[_get_cid(cid, model_info)]
 end
 
 """
@@ -146,10 +146,10 @@ function _get_ps_u0(res::EstimationResult, prob::PEtabODEProblem,
     # In case of no pre-eq condition we are done after changing to the condition the
     # specific condition
     if isnothing(preeq_id)
-        if model_info.simulation_info.has_pre_equilibration
+        if simulation_info.has_pre_equilibration
             simid = cid
             # Needs a cid for the cache handling even when extracgint ps
-            _cid = model_info.simulation_info.conditionids[:experiment][1]
+            _cid = simulation_info.conditionids[:experiment][1]
         else
             simid = nothing
             _cid = cid
@@ -165,9 +165,9 @@ function _get_ps_u0(res::EstimationResult, prob::PEtabODEProblem,
         u_t0 = Vector{Float64}(undef, length(u0))
         oprob_preeq = _switch_condition(odeproblem, preeq_id, xdynamic, model_info, cache,
                                         false)
-        _ = solve_pre_equlibrium!(u_ss, u_t0, oprob_preeq, solver, ss_solver, true)
+        _ = solve_pre_equilibrium!!(u_ss, u_t0, oprob_preeq, simulation_info, solver, ss_solver, preeq_id, true)
         # Setup the problem with correct initial values
-        _cid = string(preeq_id) * string(cid) |> Symbol
+        _cid = Symbol("$(preeq_id)$(cid)")
         oprob = _switch_condition(odeproblem, _cid, xdynamic, model_info, cache, true;
                                   simid = cid)
         has_not_changed = oprob.u0 .== u_t0

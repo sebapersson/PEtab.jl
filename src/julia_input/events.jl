@@ -1,11 +1,7 @@
-function parse_events(events::Union{PEtabEvent, AbstractVector, Nothing},
-                      sys::ModelSystem)::Dict{String, SBMLImporter.EventSBML}
+function parse_events(events::Vector{PEtabEvent}, sys::ModelSystem)::Dict{String, SBMLImporter.EventSBML}
     sbml_events = Dict{String, SBMLImporter.EventSBML}()
-    isnothing(events) && return sbml_events
-    # Need to be a vector for downstream processing
-    if events isa PEtabEvent
-        events = [events]
-    end
+    isempty(events) && return sbml_events
+
     for (i, event) in pairs(events)
         name = "event" * string(i)
         sbml_events[name] = _parse_event(event, name, sys)

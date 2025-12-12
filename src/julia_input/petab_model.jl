@@ -10,6 +10,14 @@ function PEtabModel(sys::ModelSystem, observables::Dict{String, PEtabObservable}
     if isnothing(simulation_conditions)
         simulation_conditions = Dict("__c0__" => Dict())
     end
+
+    # Downstream processing is easier if provided as a Vector
+    if isnothing(events)
+        events = PEtabEvent[]
+    elseif events isa PEtabEvent
+        events = [events]
+    end
+
     return _PEtabModel(sys, simulation_conditions, observables, measurements,
                        parameters, speciemap, parametermap, events, verbose)
 end
@@ -19,8 +27,7 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
                      parameters::Vector{PEtabParameter},
                      speciemap::Union{Nothing, AbstractVector},
                      parametermap::Union{Nothing, AbstractVector},
-                     events::Union{PEtabEvent, AbstractVector, Nothing},
-                     verbose::Bool)::PEtabModel
+                     events::Vector{PEtabEvent}, verbose::Bool)::PEtabModel
     if sys isa ODESystem
         name = "ODESystemModel"
     else
@@ -82,7 +89,8 @@ function _PEtabModel(sys::ModelSystem, petab_tables::Dict{Symbol, DataFrame}, na
 
     # The callback parsing is part of SBMLImporter. Basically, PEtabEvents are rewritten
     # to SBMLImporter.EventSBML, which then via a dummy ModelSBML (tmp) is parsed into
-    # callback
+    # callback.
+    # TODO: Allow condition specific events later
     _logging(:Build_callbacks, verbose)
     btime = @elapsed begin
         sbml_events = parse_events(events, sys_mutated)
@@ -92,6 +100,10 @@ function _PEtabModel(sys::ModelSystem, petab_tables::Dict{Symbol, DataFrame}, na
                string
         cbset = SBMLImporter.create_callbacks(sys_mutated, model_SBML, name;
                                               p_PEtab = psys, float_tspan = float_tspan)
+        cbs = Dict{Symbol, CallbackSet}()
+        for condition_id in Symbol.(conditions_df.conditionId)
+            cbs[condition_id] = deepcopy(cbset)
+        end
     end
     _logging(:Build_callbacks, verbose; time = btime)
 
@@ -99,5 +111,5 @@ function _PEtabModel(sys::ModelSystem, petab_tables::Dict{Symbol, DataFrame}, na
     paths = Dict{Symbol, String}()
     return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan,
                       paths, sys, sys_mutated, parametermap_use, speciemap_problem,
-                      petab_tables, cbset, true)
+                      petab_tables, cbs, true, events)
 end
