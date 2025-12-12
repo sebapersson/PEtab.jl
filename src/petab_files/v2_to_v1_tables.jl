@@ -28,28 +28,19 @@ function v2_to_v1_tables(path_yaml::String, ifelse_to_callback::Bool)
     model_SBML = SBMLImporter.parse_SBML(petab_paths[:SBML], false; model_as_string = false,
         ifelse_to_callback = ifelse_to_callback, inline_assignment_rules = false)
 
-    # TODO: Run through checking pipeline
-    if isempty(petab_paths[:experiment])
-        experiments_v2_df = DataFrame(experimentId = String[])
-    else
-        experiments_v2_df = CSV.read(petab_paths[:experiment], DataFrame; stringtype = String)
-    end
-    if isempty(petab_paths[:conditions])
-        conditions_v2_df = DataFrame()
-    else
-        conditions_v2_df = CSV.read(petab_paths[:conditions], DataFrame; stringtype = String)
-    end
-    measurements_v2_df = CSV.read(petab_paths[:measurements], DataFrame; stringtype = String)
-    parameters_v2_df = CSV.read(petab_paths[:parameters], DataFrame; stringtype = String)
-    observables_v2_df = CSV.read(petab_paths[:observables], DataFrame; stringtype = String)
+    experiments_v2_df = _read_table(petab_paths[:experiment], :experiments_v2)
+    conditions_v2_df = _read_table(petab_paths[:conditions], :conditions_v2)
+    measurements_v2_df = _read_table(petab_paths[:measurements], :measurements_v2)
+    observables_v2_df = _read_table(petab_paths[:observables], :observables_v2)
+    parameters_v2_df = _read_table(petab_paths[:parameters], :parameters_v2)
 
     parameters_v1_df = _parameters_v2_v1(parameters_v2_df)
     observables_v1_df = _observables_v2_to_v1(observables_v2_df)
     conditions_v1_df, petab_events = _conditions_v2_to_v1(experiments_v2_df, conditions_v2_df, model_SBML)
     measurements_v1_df = _measurements_v2_to_v1(measurements_v2_df, experiments_v2_df, conditions_v2_df)
 
-    petab_tables = Dict(:parameters => parameters_v1_df, :conditions => conditions_v1_df, :observables => observables_v1_df, :measurements => measurements_v1_df)
-    return petab_tables, petab_events
+    petab_v1_tables = Dict(:parameters => parameters_v1_df, :conditions => conditions_v1_df, :observables => observables_v1_df, :measurements => measurements_v1_df)
+    return petab_v1_tables, petab_events
 end
 
 function _parameters_v2_v1(parameters_v2_df::DataFrame)::DataFrame

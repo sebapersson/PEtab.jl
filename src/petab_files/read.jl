@@ -1,9 +1,9 @@
-function read_tables(path_yaml::String)::Dict{Symbol, DataFrame}
+function read_tables_v1(path_yaml::String)::Dict{Symbol, DataFrame}
     paths = _get_petab_paths(path_yaml)
-    parameters_df = _read_table(paths[:parameters], :parameters)
-    conditions_df = _read_table(paths[:conditions], :conditions)
-    observables_df = _read_table(paths[:observables], :observables)
-    measurements_df = _read_table(paths[:measurements], :measurements)
+    parameters_df = _read_table(paths[:parameters], :parameters_v1)
+    conditions_df = _read_table(paths[:conditions], :conditions_v1)
+    observables_df = _read_table(paths[:observables], :observables_v1)
+    measurements_df = _read_table(paths[:measurements], :measurements_v1)
     return Dict(:parameters => parameters_df, :conditions => conditions_df,
                 :observables => observables_df, :measurements => measurements_df)
 end
@@ -39,6 +39,14 @@ function _get_petab_paths(path_yaml::AbstractString)::Dict{Symbol, String}
 end
 
 function _read_table(path::String, file::Symbol)::DataFrame
+    # Optional tables in PEtab v2
+    if isempty(path) && file == :experiments_v2
+        return DataFrame(experimentId = String[])
+    end
+    if isempty(path) && file == :conditions_v2
+        return DataFrame()
+    end
+
     df = CSV.read(path, DataFrame; stringtype = String)
     _check_table(df, file)
     return df
@@ -104,15 +112,7 @@ end
 Check that a PEtab table has the required columns, and each column has correct types.
 """
 function _check_table(df, table::Symbol)::Nothing
-    if table == :measurements
-        colsinfo = MEASUREMENT_COLS
-    elseif table == :conditions
-        colsinfo = CONDITIONS_COLS
-    elseif table == :parameters
-        colsinfo = PARAMETERS_COLS
-    elseif table == :observables
-        colsinfo = OBSERVABLES_COLS
-    end
+    colsinfo = COLUMN_INFO[table]
 
     for (name, colinfo) in colsinfo
         if colinfo[:required] == true
@@ -126,7 +126,7 @@ function _check_table(df, table::Symbol)::Nothing
     # For the condition table the columns (except conditionId/Name) correspond to parameter,
     # compartment or specie ids. As these column names depends on the problem, they cannot
     # be hard-coded, and must thus be handled as a special case
-    if table == :conditions
+    if table == :conditions_v1
         icheck = findall(x -> x ∉ ["conditionId", "conditionName"], names(df))
         for name in names(df)[icheck]
             _check_column_types(df, name, Union{AbstractString, Real, Missing}, :conditions)

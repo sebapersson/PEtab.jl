@@ -6,7 +6,7 @@ function test_v2(test_case::String)
     path_ref = joinpath(@__DIR__, "petab_v2_testsuite", test_case, "_$(test_case)_solution.yaml")
 
     ss_solver = SteadyStateSolver(:Simulate, abstol=1e-12, reltol=1e-10)
-    model = PEtabModel(path_yaml; verbose = false)
+    model = PEtabModel(path_yaml)
     prob = PEtabODEProblem(model; ss_solver = ss_solver)
     x = get_x(prob)
 

@@ -4,7 +4,7 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
     petab_version = _get_version(path_yaml)
 
     if petab_version == "1.0.0"
-        petab_tables = read_tables(path_yaml)
+        petab_tables = read_tables_v1(path_yaml)
         petab_events = PEtabEvent[]
     else
         petab_tables, petab_events = v2_to_v1_tables(path_yaml, ifelse_to_callback)
