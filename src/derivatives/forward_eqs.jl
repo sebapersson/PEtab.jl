@@ -28,15 +28,14 @@ function _grad_forward_eqs!(grad::Vector{T}, _solve_conditions!::Function,
             continue
         end
         _grad_forward_eqs_cond!(grad, xdynamic_ps, xnoise_ps, xobservable_ps,
-                                xnondynamic_ps,
-                                icid, sensealg, probinfo, model_info)
+                                xnondynamic_ps, icid, sensealg, probinfo, model_info)
     end
     return nothing
 end
 
 function solve_sensitivites!(model_info::ModelInfo, _solve_conditions!::Function,
-                             xdynamic::Vector{<:AbstractFloat}, sensealg::Symbol,
-                             probinfo::PEtabODEProblemInfo, cids::Vector{Symbol},
+                             xdynamic::Vector{<:AbstractFloat}, ::Symbol,
+                             probinfo::PEtabODEProblemInfo, ::Vector{Symbol},
                              cfg::ForwardDiff.JacobianConfig, isremade::Bool = false)::Bool
     @unpack split_over_conditions, cache = probinfo
     @unpack simulation_info, xindices = model_info
@@ -48,7 +47,7 @@ function solve_sensitivites!(model_info::ModelInfo, _solve_conditions!::Function
 
     if split_over_conditions == false
         # remade = false, no parameters in xdynamic are fixed, but for computations to
-        # work nxdynamic must be set to default value temporarly
+        # work nxdynamic must be set to default value temporarily
         if isremade == false || length(xdynamic_grad) == nxdynamic[1]
             tmp = cache.nxdynamic[1]
             cache.nxdynamic[1] = length(xdynamic)
@@ -101,12 +100,11 @@ end
 
 function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vector{T},
                                  xobservable::Vector{T}, xnondynamic::Vector{T},
-                                 icid::Int64, sensealg::Symbol,
-                                 probinfo::PEtabODEProblemInfo,
+                                 icid::Int64, ::Symbol, probinfo::PEtabODEProblemInfo,
                                  model_info::ModelInfo)::Nothing where {T <: AbstractFloat}
     @unpack xindices, simulation_info, model = model_info
     @unpack petab_parameters, petab_measurements = model_info
-    @unpack imeasurements_t, tsaves, smatrixindices = simulation_info
+    @unpack imeasurements_t, tsaves_no_cbs, smatrixindices = simulation_info
     cache = probinfo.cache
 
     # Simulation ids
@@ -125,7 +123,7 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::V
     @unpack p, u, ∂G∂p, ∂G∂p_, ∂G∂u, S, forward_eqs_grad = cache
     fill!(forward_eqs_grad, 0.0)
     fill!(∂G∂p, 0.0)
-    for (it, tsave) in pairs(tsaves[cid])
+    for (it, tsave) in pairs(tsaves_no_cbs[cid])
         u .= sol[:, it] .|> SBMLImporter._to_float
         ∂G∂u!(∂G∂u, u, p, tsave, it)
         ∂G∂p!(∂G∂p_, u, p, tsave, it)
@@ -139,8 +137,7 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::V
         ∂G∂p .+= ∂G∂p_
     end
 
-    # Adjust if gradient is non-linear scale (e.g. log and log10). TODO: Refactor
-    # this function later
+    # Adjust if gradient is non-linear scale (e.g. log and log10).
     grad_to_xscale!(grad, forward_eqs_grad, ∂G∂p, xdynamic, xindices, simid,
                     sensitivities_AD = true)
     return nothing

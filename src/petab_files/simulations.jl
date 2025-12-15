@@ -3,25 +3,28 @@ function SimulationInfo(cbs::Dict{Symbol, SciMLBase.DECallback}, petab_measureme
     has_pre_equilibration = !all(conditionids[:pre_equilibration] .== :None)
 
     # Precompute values needed by the ODE-solver, such as tmax, tsave, tstarts...
-    # Tstarts is not needed for standard PEtab, but is required if wanting to train
-    # a problem with multiple shooting using PEtabTraining
+    # tsaves_no_cbs is needed to pre-allocate arrays of right save for ForwardEquation
+    # gradients (as it needs to know the length of the ODESolution)
     tmaxs = _get_tmaxs(conditionids, petab_measurements)
     tstarts = _get_tstarts(conditionids, petab_measurements)
     tsaves = _get_tsaves(conditionids, petab_measurements, cbs, petab_events)
+    tsaves_no_cbs = _get_tsaves(conditionids, petab_measurements, cbs, petab_events; exclude_events = true)
 
-    # Indicies for getting measurement points for each condition. The second is a vector
+    # Indices for getting measurement points for each condition. The second is a vector
     # of vector that accounts for multiple measurements per time-point which needs to
     # be accounted for in gradient compuations
     imeasurements = _get_imeasurements(conditionids, petab_measurements)
     imeasurements_t = _get_imeasurements_t(imeasurements, petab_measurements)
+
     # Time indicies in ODESolution for each measurement
     imeasurements_t_sol = _get_imeasurements_t_sol(imeasurements, petab_measurements)
-    # When computing forward sensitivites via forward mode automatic differentiation we get a
-    # big sensitivity matrix accross all experimental conditions, where S[i:(i+nStates)]
-    # corresponds to the sensitivites at a specific time-point. Here the indicies for each
+
+    # When computing forward sensitivities via forward mode automatic differentiation we get
+    # a big sensitivity matrix across all experimental conditions, where S[i:(i+nStates)]
+    # corresponds to the sensitivities at a specific time-point. Here the indices for each
     # experimental condition is computed. Note, this assumes that we solve the ODE:s in the
     # order of experimental_id (which is true)
-    smatrixindices = _get_smatrixindices(conditionids[:experiment], tsaves)
+    smatrixindices = _get_smatrixindices(conditionids[:experiment], tsaves_no_cbs)
 
     # When computing the gradient/Hessian for parameter not in the ODE-system with autodiff,
     # we do not need to solve (trace) the ODE solution. We only need an ODESolution.
@@ -41,7 +44,7 @@ function SimulationInfo(cbs::Dict{Symbol, SciMLBase.DECallback}, petab_measureme
 
     could_solve = [true]
     return SimulationInfo(conditionids, has_pre_equilibration, tstarts, tmaxs, tsaves,
-                          imeasurements, imeasurements_t, imeasurements_t_sol,
+                          tsaves_no_cbs, imeasurements, imeasurements_t, imeasurements_t_sol,
                           smatrixindices, odesols, odesols_derivative, odesols_preeq,
                           could_solve, cbs, tracked_cbs, sensealg)
 end
@@ -78,7 +81,7 @@ function _get_conditionids(petab_measurements::PEtabMeasurements)::Dict{Symbol, 
                 :experiment => experiment_ids)
 end
 
-function _get_tsaves(conditionids::Dict{Symbol, Vector{Symbol}}, petab_measurements::PEtabMeasurements, cbs::Dict{Symbol, SciMLBase.DECallback}, petab_events::Vector{PEtabEvent})::Dict{Symbol, Vector{Float64}}
+function _get_tsaves(conditionids::Dict{Symbol, Vector{Symbol}}, petab_measurements::PEtabMeasurements, cbs::Dict{Symbol, SciMLBase.DECallback}, petab_events::Vector{PEtabEvent}; exclude_events::Bool = false)::Dict{Symbol, Vector{Float64}}
     tsave = Dict{Symbol, Vector{Float64}}()
     for (i, experiment_id) in pairs(conditionids[:experiment])
         pre_equilibration_id = conditionids[:pre_equilibration][i]
@@ -93,13 +96,16 @@ function _get_tsaves(conditionids::Dict{Symbol, Vector{Symbol}}, petab_measureme
         # means that setting save_positions[2] = true results in an extra time-point
         # being saved a t0. Rather, the affect! function for PEtab events include a
         # save_u variable which can be set.
-        i_events = _get_petab_events_simulation_id(petab_events, simulation_id)
-        for j in eachindex(i_events)
-            trigger_time = petab_events[i_events[j]].trigger_time
-            !(trigger_time in tsave_experiment) && continue
-            tsave_experiment = filter(x -> x != trigger_time, tsave_experiment)
-            cbs[simulation_id].discrete_callbacks[j].affect!._save_u[1] = true
+        if exclude_events == false
+            i_events = _get_petab_events_simulation_id(petab_events, simulation_id)
+            for j in eachindex(i_events)
+                trigger_time = petab_events[i_events[j]].trigger_time
+                !(trigger_time in tsave_experiment) && continue
+                tsave_experiment = filter(x -> x != trigger_time, tsave_experiment)
+                cbs[simulation_id].discrete_callbacks[j].affect!._save_u[1] = true
+            end
         end
+
         tsave[experiment_id] = tsave_experiment
     end
     return tsave
@@ -187,7 +193,8 @@ function _get_smatrixindices(experiment_ids::Vector{Symbol},
     smatrixindices = Dict{Symbol, UnitRange{Int64}}()
     for experiment_id in experiment_ids
         tsave = tsaves[experiment_id]
-        smatrix_index = istart:(istart - 1 + length(tsave)) |> UnitRange{Int64}
+        smatrix_index = istart:(istart - 1 + length(tsave)) |>
+            UnitRange{Int64}
         smatrixindices[experiment_id] = smatrix_index
         istart = smatrix_index[end] + 1
     end

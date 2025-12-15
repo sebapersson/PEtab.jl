@@ -174,9 +174,10 @@ function _get_xids_condition(sys, petab_parameters::PEtabParameters,
                                   condition does not appear among the model variables"))
         end
         for condition_value in conditions_df[!, colname]
+            ismissing(condition_value) && continue
             condition_value isa Real && continue
             is_number(condition_value) && continue
-            ismissing(condition_value) && continue
+
             for parameter_id in petab_parameters.parameter_id
                 if _estimate_parameter(parameter_id, petab_parameters) == false
                     continue
