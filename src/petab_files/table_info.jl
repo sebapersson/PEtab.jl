@@ -102,3 +102,21 @@ const VALID_SCALES = ["lin", "log10", "log", "log2"]
 const PETAB_FUNCTIONS = Dict("pow" => SBMLImporter.FunctionSBML(["__x__", "__y__"],
                                                                 "(__x__)^(__y__)"))
 const PETAB_FUNCTIONS_NAMES = ["pow"]
+
+const PETAB_PRIORS = Dict(
+    "parameterScaleNormal" => (x_scale=true, n_parameters=2, dist=Distributions.Normal),
+    "parameterScaleLaplace" => (x_scale=true, n_parameters=2, dist=Distributions.Laplace),
+    "normal" => (x_scale=false, n_parameters=2, dist=Distributions.Normal),
+    "logNormal" => (x_scale=false, n_parameters=2, dist=Distributions.LogNormal),
+    "log-normal" => (x_scale=false, n_parameters=2, dist=Distributions.LogNormal),
+    "laplace" => (x_scale=false, n_parameters=2, dist=Distributions.Laplace),
+    "logLaplace" => (x_scale=false, n_parameters=2, dist=LogLaplace),
+    "log-laplace" => (x_scale=false, n_parameters=2, dist=LogLaplace),
+    "gamma" => (x_scale=false, n_parameters=2, dist=Distributions.Gamma),
+    "cauchy" => (x_scale=false, n_parameters=2, dist=Distributions.Cauchy),
+    "chisquare" => (x_scale=false, n_parameters=1, dist=Distributions.Chisq),
+    "exponential" => (x_scale=false, n_parameters=1, dist=Distributions.Exponential),
+    "log-uniform" => (x_scale=false, n_parameters=2, dist=Distributions.LogUniform),
+    "rayleigh" => (x_scale=false, n_parameters=1, dist=Distributions.Rayleigh),
+    "uniform" => (x_scale=false, n_parameters=2, dist=Distributions.Uniform)
+)

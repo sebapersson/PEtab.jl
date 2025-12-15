@@ -26,7 +26,7 @@ function _get_petab_paths(path_yaml::AbstractString)::Dict{Symbol, String}
         return Dict(:SBML => path_SBML, :parameters => path_parameters,
                     :conditions => path_conditions, :observables => path_observables,
                     :measurements => path_measurements, :dirmodel => dirmodel,
-                    :dirjulia => dirjulia)
+                    :dirjulia => dirjulia, :yaml => path_yaml)
     end
 
     path_SBML = _get_model_path_v2(yaml_file, dirmodel)
@@ -35,7 +35,7 @@ function _get_petab_paths(path_yaml::AbstractString)::Dict{Symbol, String}
     path_parameters = _get_path(yaml_file, dirmodel, "parameter_files")
     path_conditions = _get_path(yaml_file, dirmodel, "condition_files")
     path_experiments = _get_path(yaml_file, dirmodel, "experiment_files")
-    return Dict(:SBML => path_SBML, :parameters => path_parameters, :experiment => path_experiments, :conditions => path_conditions, :observables => path_observables, :measurements => path_measurements, :dirmodel => dirmodel, :dirjulia => dirjulia)
+    return Dict(:SBML => path_SBML, :parameters => path_parameters, :experiment => path_experiments, :conditions => path_conditions, :observables => path_observables, :measurements => path_measurements, :dirmodel => dirmodel, :dirjulia => dirjulia, :yaml => path_yaml)
 end
 
 function _read_table(path::String, file::Symbol)::DataFrame

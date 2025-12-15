@@ -10,7 +10,8 @@ function test_v2(test_case::String)
     prob = PEtabODEProblem(model; ss_solver = ss_solver)
     x = get_x(prob)
 
-    nllh = prob.nllh(x)
+    nllh = prob.nllh(x; prior = false)
+    nllh_prior = prob.nllh(x; prior = true)
     χ₂ = prob.chi2(x)
     simvals = prob.simulated_values(x)
 
@@ -23,11 +24,15 @@ function test_v2(test_case::String)
     @test nllh ≈ nllh_ref atol = nllh_tol
     @test χ₂ ≈ χ₂_ref atol = χ₂_tol
     @test all(.≈(simvals, simvals_ref; atol = simvals_tol))
+    if haskey(reference_yaml, "unnorm_log_posterior")
+        nllh_prior_ref = reference_yaml["unnorm_log_posterior"]
+        @test nllh_prior ≈ -1 * nllh_prior_ref atol=nllh_tol
+    end
 end
 
 completed_tests = ["0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009",
                    "0010", "0011", "0012", "0013", "0014", "0015", "0016", "0017", "0018",
-                   "0020", "0021", "0022", "0023"]
+                   "0020", "0021", "0022", "0023", "0024", "0025"]
 for test_case in completed_tests
     test_v2(test_case)
 end

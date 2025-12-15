@@ -45,7 +45,7 @@ function _parameters_to_table(parameters::Vector{PEtabParameter})::DataFrame
         parameters_df[!, :priorOnLinearScale] .= priors_on_linear_scale
         parameters_df[!, :initializationPriorType] .= initialisation_priors
     end
-    _check_table(parameters_df, :parameters)
+    _check_table(parameters_df, :parameters_v1)
     return parameters_df
 end
 
@@ -66,7 +66,7 @@ function _observables_to_table(observables::Dict{String, <:PEtabObservable})::Da
                         noiseDistribution = "normal")
         append!(observables_df, row)
     end
-    _check_table(observables_df, :observables)
+    _check_table(observables_df, :observables_v1)
     return observables_df
 end
 
@@ -100,7 +100,7 @@ function _conditions_to_table(conditions::Dict)::DataFrame
         append!(conditions_df, row)
     end
 
-    _check_table(conditions_df, :conditions)
+    _check_table(conditions_df, :conditions_v1)
     return conditions_df
 end
 
@@ -136,6 +136,6 @@ function _measurements_to_table(measurements::DataFrame, conditions::Dict)::Data
 
     # As the measurement table now follows the PEtab standard it can be checked with the
     # standard validation function
-    _check_table(measurements_df, :measurements)
+    _check_table(measurements_df, :measurements_v1)
     return measurements_df
 end

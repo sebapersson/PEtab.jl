@@ -149,7 +149,7 @@ function ModelInfo(model::PEtabModel, sensealg, custom_values)::ModelInfo
     petab_parameters = PEtabParameters(petab_tables[:parameters], custom_values = custom_values)
     xindices = ParameterIndices(petab_parameters, petab_measurements, model)
     simulation_info = SimulationInfo(callbacks, petab_measurements, petab_events; sensealg = sensealg)
-    priors = Priors(xindices, petab_tables[:parameters])
+    priors = Priors(xindices, model)
     nstates = Int32(length(unknowns(model.sys_mutated)))
     return ModelInfo(petab_measurements, petab_parameters, xindices, simulation_info,
                      priors, model, nstates)

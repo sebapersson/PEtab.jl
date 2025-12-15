@@ -66,6 +66,7 @@ include(joinpath("julia_input", "maps.jl"))
 include(joinpath("julia_input", "petab_model.jl"))
 include(joinpath("julia_input", "to_tables.jl"))
 
+include(joinpath("nllh_prior", "log_laplace.jl"))
 include(joinpath("nllh_prior", "nllh.jl"))
 include(joinpath("nllh_prior", "prior.jl"))
 

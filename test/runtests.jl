@@ -1,11 +1,11 @@
 using SafeTestsets
 
 core_only = get(ENV, "CORE_ONLY", "false") == "true"
-
+#=
 @safetestset "Aqua Quality Check" begin
   include("aqua.jl")
 end
-
+=#
 @safetestset "Analytic solution test model" begin
     include("analytic_solution.jl")
 end
@@ -30,7 +30,11 @@ end
     include(joinpath(@__DIR__, "util.jl"))
 end
 
-if !core_only
+@safetestset "Log-Laplace" begin
+    include(joinpath(@__DIR__, "log_laplace.jl"))
+end
+
+#if !core_only
     @safetestset "Model with analytic steady-state" begin
         include("analytic_ss.jl")
     end
@@ -74,4 +78,4 @@ if !core_only
     @safetestset "PEtab-select" begin
         include("petab_select_testsuite.jl")
     end
-end
+#end

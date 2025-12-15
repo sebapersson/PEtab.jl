@@ -33,3 +33,35 @@ end
 function (logpotential::PEtab.PEtabLogDensity)(x)
     return logpotential.logtarget(x)
 end
+
+"""
+    LogLaplace(μ,θ)
+
+The *log-Laplace distribution* with location `μ` and scale `θ` has probability density function
+
+```math
+f(x; \\mu, \\theta) = \\frac{1}{2 \\theta x} \\exp \\left(- \\frac{|ln \\, x - \\mu|}{\\theta} \\right)
+```
+
+## External links
+
+* [Log-Laplace distribution on Wikipedia](https://en.wikipedia.org/wiki/Log-Laplace_distribution)
+
+## Implementation note
+
+LogLaplace does not yet have support in Distributions.jl, so to support it for
+Bayesian inference PEtab.jl implements support for ids pdf, logpdf cdf, logcdf, median
+and sampling
+"""
+struct LogLaplace{T<:Real} <: Distributions.ContinuousUnivariateDistribution
+    μ::T
+    θ::T
+    LogLaplace{T}(µ::T, θ::T) where {T} = new{T}(µ, θ)
+end
+function LogLaplace(μ::T, θ::T; check_args::Bool=true) where {T <: Real}
+    Distributions.@check_args LogLaplace (μ, μ > zero(μ)) (θ, θ > zero(θ))
+    return LogLaplace{T}(μ, θ)
+end
+LogLaplace(μ::Real, θ::Real; check_args::Bool=true) = LogLaplace(promote(μ, θ)...; check_args=check_args)
+
+Distributions.@distr_support LogLaplace 0.0 Inf

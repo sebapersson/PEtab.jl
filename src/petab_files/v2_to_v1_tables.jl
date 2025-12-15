@@ -48,6 +48,26 @@ function _parameters_v2_v1(parameters_v2_df::DataFrame)::DataFrame
     if !(:parameterScale in propertynames(parameters_v2_df))
         parameters_v1_df[:, :parameterScale] .= "lin"
     end
+
+    if (:priorDistribution in propertynames(parameters_v2_df) &&
+        any(.!ismissing.(parameters_v2_df.priorDistribution)))
+
+        rename!(parameters_v1_df, Dict(:priorDistribution => "objectivePriorType"))
+        rename!(parameters_v1_df, Dict(:priorParameters => "objectivePriorParameters"))
+
+        # In v2, if priors are provided for one parameters all parameters with missing
+        # priors are assigned Uniform(lb, ub)
+        for row_idx in 1:nrow(parameters_v1_df)
+            !ismissing(parameters_v1_df[row_idx, :objectivePriorType]) && continue
+            parameters_v1_df[row_idx, :estimate] == false && continue
+
+            lb = parameters_v1_df[row_idx, :lowerBound]
+            ub = parameters_v1_df[row_idx, :upperBound]
+            parameters_v1_df[row_idx, :objectivePriorType] = "uniform"
+            parameters_v1_df[row_idx, :objectivePriorParameters] = "$(lb);$(ub)"
+        end
+    end
+
     return parameters_v1_df
 end
 
