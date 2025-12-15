@@ -155,15 +155,19 @@ function add_u0_parameters!(model_SBML::SBMLImporter.ModelSBML, conditions_df::D
             condition_value == "NaN" && continue
             condition_value isa Real && continue
             is_number(condition_value) && continue
-            condition_value in keys(model_SBML.parameters) && continue
-            if !(condition_value in parameters_df[!, :parameterId])
-                throw(PEtabFileError("The condition table value $condition_variable does \
-                                      not correspond to any parameter in the SBML file \
-                                      parameters file"))
+            # Potential parameters case
+            for parameter_id in parameters_df.parameterId
+                # Whether the formula contains the parameter
+                _formula = SBMLImporter._replace_variable(condition_value, parameter_id, "")
+                _formula == condition_value && continue
+
+                haskey(model_SBML.parameters, parameter_id) && continue
+
+                parameter = SBMLImporter.ParameterSBML(condition_value, true, "0.0", "",
+                                                       false, false, false, false, false,
+                                                       false)
+                model_SBML.parameters[parameter_id] = parameter
             end
-            parameter = SBMLImporter.ParameterSBML(condition_value, true, "0.0", "", false,
-                                                   false, false, false, false, false)
-            model_SBML.parameters[condition_value] = parameter
         end
     end
     return nothing

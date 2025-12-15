@@ -150,15 +150,6 @@ end
 function PEtabEvent(condition, affect, target; trigger_time = Inf, conditions_ids::Union{Vector{String}, Vector{Symbol}} = Symbol[])
     return PEtabEvent(condition, affect, target, trigger_time, Symbol.(conditions_ids))
 end
-function PEtabEvent(condition_event_df::DataFrame, trigger_time::Real, simulation_condition_id::String)
-    targets = condition_event_df.targetId
-    condition = "t == $(trigger_time)"
-    affects = fill("", length(targets))
-    for (i, target_value) in pairs(condition_event_df.targetValue)
-        affects[i] = string(target_value)
-    end
-    return PEtabEvent(condition, affects, targets, trigger_time, [Symbol(simulation_condition_id)])
-end
 
 """
     PEtabModel(sys, observables::Dict{String, PEtabObservable}, measurements::DataFrame,

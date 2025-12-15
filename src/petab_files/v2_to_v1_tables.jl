@@ -233,11 +233,29 @@ function _parse_petab_v2_events!(petab_events::Vector{PEtabEvent}, experiment_df
     t0 = _get_t0_experiment(experiment_df)
     experiment_events_df = filter(r -> r.time ∉ [-Inf, t0], experiment_df)
 
-    for row_idx in 1:nrow(experiment_events_df)
-        condition_id = experiment_events_df.conditionId[row_idx]
-        trigger_time = experiment_events_df.time[row_idx]
-        condition_event_df = filter(r -> r.conditionId == condition_id, conditions_v2_df)
-        event = PEtabEvent(condition_event_df, trigger_time, simulation_condition_id)
+    isempty(experiment_events_df) && return nothing
+
+    # PEtab events must not change the same target. Therefore, events that trigger at the
+    # same time can be merged into a single `PEtabEvent`. Merging ensures outputs are saved
+    # after the final event in the group (which matters when events coincide
+    # with measurement times) and thus simplifies downstream processing.
+    for t in unique(experiment_events_df.time)
+        experiments_event_t_df = filter(r -> r.time == t, experiment_events_df)
+
+        trigger_time = experiments_event_t_df.time[1]
+        condition = "t == $(trigger_time)"
+
+        targets = String[]
+        affects = String[]
+        for row_idx in 1:nrow(experiments_event_t_df)
+            condition_id = experiment_events_df.conditionId[row_idx]
+            condition_event_df = filter(r -> r.conditionId == condition_id, conditions_v2_df)
+
+            affects = vcat(affects, string.(condition_event_df.targetValue))
+            targets = vcat(targets, condition_event_df.targetId)
+        end
+
+        event = PEtabEvent(condition, affects, targets, trigger_time, [Symbol(simulation_condition_id)])
         push!(petab_events, event)
     end
     return nothing

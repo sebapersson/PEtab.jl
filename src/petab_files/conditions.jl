@@ -173,14 +173,22 @@ function _get_xids_condition(sys, petab_parameters::PEtabParameters,
             throw(PEtabFileError("Parameter $colname that dictates an experimental \
                                   condition does not appear among the model variables"))
         end
-        for condition_variable in Symbol.(conditions_df[!, colname])
-            is_number(condition_variable) && continue
-            condition_variable == :missing && continue
-            if _estimate_parameter(condition_variable, petab_parameters) == false
-                continue
+        for condition_value in conditions_df[!, colname]
+            condition_value isa Real && continue
+            is_number(condition_value) && continue
+            ismissing(condition_value) && continue
+            for parameter_id in petab_parameters.parameter_id
+                if _estimate_parameter(parameter_id, petab_parameters) == false
+                    continue
+                end
+
+                # Whether the formula contains a PEtab parameter
+                _formula = SBMLImporter._replace_variable(condition_value, "$(parameter_id)", "")
+                _formula == condition_value && continue
+
+                parameter_id in xids_condition && continue
+                push!(xids_condition, parameter_id)
             end
-            condition_variable in xids_condition && continue
-            push!(xids_condition, condition_variable)
         end
     end
     return xids_condition

@@ -82,6 +82,18 @@ function _affect_petab_v2_event!(integrator, _affect_petab_cb!::Function, cbs_sb
         end
     end
 
+    # For immediate discrete callbacks (SBML events triggered at the current time), ensure
+    # the event does not re-trigger after this affect function runs. Otherwise,
+    # `CallbackSet`'s priority handling will cause the event to fire again. Note, triggering
+    # the SBML event via this `CallbackSet` would break the time-saving, as by default the
+    # solution is not saved after SBML events.
+    for cb in cbs_sbml.discrete_callbacks
+        cb.condition(integrator.u, integrator.t, integrator) == false && continue
+
+        cb.condition.from_neg[1] = false
+        cb.affect!(integrator)
+    end
+
     if save_u[1] == true
         SciMLBase.savevalues!(integrator, true)
     end
