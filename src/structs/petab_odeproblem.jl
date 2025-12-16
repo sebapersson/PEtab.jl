@@ -120,12 +120,12 @@ struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
 end
 
 struct PEtabMeasurements{T <: Vector{<:Union{<:String, <:AbstractFloat}}}
-    measurement::Vector{Float64}
-    measurement_transformed::Vector{Float64}
+    measurements::Vector{Float64}
+    measurements_transformed::Vector{Float64}
     simulated_values::Vector{Float64}
     chi2_values::Vector{Float64}
     residuals::Vector{Float64}
-    measurement_transforms::Vector{Symbol}
+    noise_distributions::Vector{Symbol}
     time::Vector{Float64}
     observable_id::Vector{Symbol}
     pre_equilibration_condition_id::Vector{Symbol}

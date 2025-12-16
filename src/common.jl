@@ -93,18 +93,6 @@ function transform_x(x::T, scale::Symbol; to_xscale::Bool = false)::T where {T <
     end
 end
 
-function transform_observable(val::T, transform::Symbol)::T where {T <: Real}
-    if transform == :lin
-        return val
-    elseif transform == :log10
-        return val > 0 ? log10(val) : Inf
-    elseif transform == :log
-        return val > 0 ? log(val) : Inf
-    elseif transform == :log2
-        return val > 0 ? log2(val) : Inf
-    end
-end
-
 function _sd(u::AbstractVector, t::Float64, p::AbstractVector, xnoise::T, xnondynamic::T,
              petab_sd::Function, xnoise_maps::ObservableNoiseMap, observable_id::Symbol,
              nominal_values::Vector{Float64})::Real where {T <: AbstractVector}

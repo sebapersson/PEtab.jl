@@ -3,30 +3,31 @@ function _G(u::AbstractVector, p::AbstractVector, t::T, i::Integer,
             xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic::Vector{T},
             residuals::Bool) where {T <: AbstractFloat}
     @unpack petab_measurements, xindices, petab_parameters, model = model_info
-    @unpack measurement_transforms, observable_id = petab_measurements
-    nominal_values = petab_parameters.nominal_value
-    out = 0.0
-    for imeasurement in imeasurements_t_cid[i]
-        obsid = observable_id[imeasurement]
-        xnoise_maps = xindices.xnoise_maps[imeasurement]
-        xobservable_maps = xindices.xobservable_maps[imeasurement]
-        h = _h(u, t, p, xobservable, xnondynamic, model.h, xobservable_maps, obsid,
-               nominal_values)
-        h_transformed = transform_observable(h, measurement_transforms[imeasurement])
-        σ = _sd(u, t, p, xnoise, xnondynamic, model.sd, xnoise_maps, obsid, nominal_values)
+    @unpack measurements_transformed, measurements, noise_distributions, observable_id = petab_measurements
+    @unpack nominal_value = petab_parameters
 
-        y_transformed = petab_measurements.measurement_transformed[imeasurement]
-        residual = (h_transformed - y_transformed) / σ
+    out = 0.0
+    for im in imeasurements_t_cid[i]
+        obsid = observable_id[im]
+        xnoise_maps = xindices.xnoise_maps[im]
+        xobservable_maps = xindices.xobservable_maps[im]
+
+        h = _h(u, t, p, xobservable, xnondynamic, model.h, xobservable_maps, obsid,
+               nominal_value)
+        σ = _sd(u, t, p, xnoise, xnondynamic, model.sd, xnoise_maps, obsid, nominal_value)
+
         if residuals == true
+            h_transformed = _transform_h(h, noise_distributions[im])
+            residual = (h_transformed - measurements_transformed[im]) / σ
             out += residual
             continue
         end
-        out += _nllh_obs(residual, σ, y_transformed, measurement_transforms[imeasurement])
+        out += _nllh_obs(h, σ, measurements[im], noise_distributions[im])
     end
     return out
 end
 
-function _get_∂G∂_!(probinfo::PEtabODEProblemInfo, model_info::ModelInfo, cid::Symbol,
+function _get_∂G∂_!(::PEtabODEProblemInfo, model_info::ModelInfo, cid::Symbol,
                     xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic::Vector{T};
                     residuals::Bool = false)::Tuple{Function,
                                                     Function} where {T <: AbstractFloat}

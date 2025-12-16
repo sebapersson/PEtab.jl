@@ -118,25 +118,25 @@ function _residuals_cond!(residuals::T1, xnoise::T2, xobservable::T2, xnondynami
         return false
     end
 
-    @unpack time, measurement_transforms, measurement_transformed, observable_id = petab_measurements
+    @unpack time, measurements_transformed, noise_distributions, observable_id = petab_measurements
     @unpack imeasurements, imeasurements_t_sol = simulation_info
     nominal_values = petab_parameters.nominal_value
-    for imeasurement in imeasurements[cid]
-        t, obsid = time[imeasurement], observable_id[imeasurement]
-        u = sol[:, imeasurements_t_sol[imeasurement]] .|> SBMLImporter._to_float
+    for im in imeasurements[cid]
+        t, obsid = time[im], observable_id[im]
+        u = sol[:, imeasurements_t_sol[im]] .|> SBMLImporter._to_float
         p = sol.prob.p .|> SBMLImporter._to_float
 
         # Model observable and noise
-        xnoise_maps = xindices.xnoise_maps[imeasurement]
-        xobservable_maps = xindices.xobservable_maps[imeasurement]
+        xnoise_maps = xindices.xnoise_maps[im]
+        xobservable_maps = xindices.xobservable_maps[im]
         h = _h(u, t, p, xobservable, xnondynamic, model.h, xobservable_maps, obsid,
                nominal_values)
-        h_transformed = transform_observable(h, measurement_transforms[imeasurement])
+        h_transformed = _transform_h(h, noise_distributions[im])
         σ = _sd(u, t, p, xnoise, xnondynamic, model.sd, xnoise_maps, obsid,
                 nominal_values)
 
-        y_transformed = measurement_transformed[imeasurement]
-        residuals[imeasurement] = (h_transformed - y_transformed) / σ
+        y_transformed = measurements_transformed[im]
+        residuals[im] = (h_transformed - y_transformed) / σ
     end
     return true
 end
