@@ -10,7 +10,7 @@ end
 
 t = default_t()
 D = default_time_deriv()
-@mtkmodel SYS begin
+@mtkmodel SYS9 begin
     @parameters begin
         a0
         b0
@@ -26,7 +26,7 @@ D = default_time_deriv()
         D(B) ~ k1*A - k2*B
     end
 end
-@mtkbuild sys = SYS()
+@mtkbuild sys = SYS9()
 
 measurements = DataFrame(pre_eq_id=["preeq_c0", "preeq_c0"],
                          simulation_id=["c0", "c0"],

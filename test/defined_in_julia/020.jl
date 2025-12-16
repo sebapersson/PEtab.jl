@@ -8,7 +8,7 @@ end
 
 t = default_t()
 D = default_time_deriv()
-@mtkmodel SYS begin
+@mtkmodel SYS19 begin
     @parameters begin
         k1
         k2
@@ -22,7 +22,7 @@ D = default_time_deriv()
         D(B) ~ k1*A - k2*B
     end
 end
-@mtkbuild sys = SYS()
+@mtkbuild sys = SYS19()
 speciemap = [:A => 1.0, :B => 3.0] # Constant initial value for B
 
 # Measurement data

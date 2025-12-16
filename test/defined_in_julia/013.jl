@@ -9,7 +9,7 @@ end
 
 t = default_t()
 D = default_time_deriv()
-@mtkmodel SYS begin
+@mtkmodel SYS13 begin
     @parameters begin
         k1
         k2
@@ -24,7 +24,7 @@ D = default_time_deriv()
         D(B) ~ k1*A - k2*B
     end
 end
-@mtkbuild sys = SYS()
+@mtkbuild sys = SYS13()
 
 speciemap = [:A => 1.0]
 
