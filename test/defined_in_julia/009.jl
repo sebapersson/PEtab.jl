@@ -38,8 +38,8 @@ simulation_conditions = Dict("c0" => Dict(:k1 => 0.8),
                              "preeq_c0" => Dict(:k1 => 0.3))
 
 parameters = [PEtabParameter(:a0, value=1.0, scale=:lin),
-                    PEtabParameter(:b0, value=0.0, scale=:lin),
-                    PEtabParameter(:k2, value=0.6, scale=:lin)]
+              PEtabParameter(:b0, value=0.0, scale=:lin),
+              PEtabParameter(:k2, value=0.6, scale=:lin)]
 
 @unpack A = rn
 observables = Dict("obs_a" => PEtabObservable(A, 0.5))

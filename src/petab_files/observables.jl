@@ -1,12 +1,12 @@
 function parse_observables(modelname::String, paths::Dict{Symbol, String}, sys::ModelSystem,
                            observables_df::DataFrame, xindices::ParameterIndices,
-                           speciemap_problem, speciemap_model,
+                           speciemap_problem, speciemap_model, sys_observable_ids::Vector{Symbol},
                            model_SBML::SBMLImporter.ModelSBML,
                            write_to_file::Bool)::NTuple{4, String}
     state_ids = _get_state_ids(sys)
 
-    _hstr = _parse_h(state_ids, xindices, observables_df, model_SBML)
-    _σstr = _parse_σ(state_ids, xindices, observables_df, model_SBML)
+    _hstr = _parse_h(state_ids, sys_observable_ids, xindices, observables_df, model_SBML)
+    _σstr = _parse_σ(state_ids, sys_observable_ids, xindices, observables_df, model_SBML)
     _u0str = _parse_u0(speciemap_problem, speciemap_model, state_ids, xindices, model_SBML,
                        false)
     _u0!str = _parse_u0(speciemap_problem, speciemap_model, state_ids, xindices, model_SBML,
@@ -21,17 +21,16 @@ function parse_observables(modelname::String, paths::Dict{Symbol, String}, sys::
     return _hstr, _u0!str, _u0str, _σstr
 end
 
-function _parse_h(state_ids::Vector{String}, xindices::ParameterIndices,
-                  observables_df::DataFrame, model_SBML::SBMLImporter.ModelSBML)::String
+function _parse_h(state_ids::Vector{String}, sys_observable_ids::Vector{Symbol}, xindices::ParameterIndices, observables_df::DataFrame, model_SBML::SBMLImporter.ModelSBML)::String
     hstr = "function compute_h(__u_model::AbstractVector, t::Real, \
             __p_model::AbstractVector, xobservable::AbstractVector, \
              xnondynamic::AbstractVector, nominal_values::Vector{Float64}, obsid::Symbol, \
-            map::ObservableNoiseMap)::Real\n"
+            map::ObservableNoiseMap, __sys_observables)::Real\n"
 
     observable_ids = string.(observables_df[!, :observableId])
     for (i, obsid) in pairs(observable_ids)
         formula = filter(x -> !isspace(x), observables_df[i, :observableFormula] |> string)
-        formula = _parse_formula(formula, state_ids, xindices, model_SBML, :observable)
+        formula = _parse_formula(formula, state_ids, sys_observable_ids, xindices, model_SBML, :observable)
         obs_parameters = _get_observable_parameters(formula)
         hstr *= "\tif obsid == :$(obsid)\n"
         hstr *= _template_obs_sd_parameters(obs_parameters; obs = true)
@@ -42,18 +41,17 @@ function _parse_h(state_ids::Vector{String}, xindices::ParameterIndices,
     return hstr
 end
 
-function _parse_σ(state_ids::Vector{String}, xindices::ParameterIndices,
-                  observables_df::DataFrame, model_SBML::SBMLImporter.ModelSBML)::String
+function _parse_σ(state_ids::Vector{String}, sys_observable_ids::Vector{Symbol}, xindices::ParameterIndices, observables_df::DataFrame, model_SBML::SBMLImporter.ModelSBML)::String
     σstr = "function compute_σ(__u_model::AbstractVector, t::Real, \
             __p_model::AbstractVector, xnoise::AbstractVector, \
             xnondynamic::AbstractVector,  nominal_values::Vector{Float64}, obsid::Symbol, \
-            map::ObservableNoiseMap)::Real\n"
+            map::ObservableNoiseMap, __sys_observables)::Real\n"
 
     # Write the formula for standard deviations to file
     observable_ids = string.(observables_df[!, :observableId])
     for (i, obsid) in pairs(observable_ids)
         formula = filter(x -> !isspace(x), observables_df[i, :noiseFormula] |> string)
-        formula = _parse_formula(formula, state_ids, xindices, model_SBML, :noise)
+        formula = _parse_formula(formula, state_ids, sys_observable_ids, xindices, model_SBML, :noise)
         noise_parameters = _get_noise_parameters(formula)
         σstr *= "\tif obsid == :$(obsid)\n"
         σstr *= _template_obs_sd_parameters(noise_parameters; obs = false)
@@ -88,9 +86,9 @@ function _parse_u0(speciemap_problem, speciemap_model, state_ids::Vector{String}
         im_problem = findfirst(x -> x == id, speciemap_problem_ids)
         im_model = findfirst(x -> x == id, speciemap_model_ids)
         u0formula_problem = _parse_formula(string(speciemap_problem[im_problem].second),
-                                           state_ids, xindices, model_SBML, :u0)
+                                           state_ids, Symbol[], xindices, model_SBML, :u0)
         u0formula_model = _parse_formula(string(speciemap_model[im_model].second),
-                                         state_ids, xindices, model_SBML, :u0)
+                                         state_ids, Symbol[], xindices, model_SBML, :u0)
 
         if u0formula_problem == u0formula_model
             u0str *= "\t$id = $(u0formula_problem)\n"
@@ -140,9 +138,15 @@ function _template_obs_sd_parameters(parameters::Vector{String}; obs::Bool)::Str
     end
 end
 
-function _parse_formula(formula::String, state_ids::Vector{String},
-                        xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML,
-                        type::Symbol)::String
+function _parse_formula(formula::String, state_ids::Vector{String}, sys_observable_ids::Vector{Symbol}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, type::Symbol)::String
+    # If the formula is defined as part of the observables in the system, the pre-built
+    # symbolic funciton is the most efficient to use. This applies to SBML assignment
+    # rules and observables defined via the PEtab interface
+    if type in [:noise, :observable] && Symbol(formula) in sys_observable_ids
+        formula = "__sys_observables[Symbol(\"$(formula)\")](__u_model, __p_model, t)"
+        return formula
+    end
+
     formula = SBMLImporter.insert_functions(formula, PETAB_FUNCTIONS, PETAB_FUNCTIONS_NAMES)
     # It is possible to have math expressions on the form 3.0a instead of 3.0*a, this makes
     # the parsing harder and is fixed with this regex. The second regex is to adjust

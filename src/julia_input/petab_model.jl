@@ -56,6 +56,9 @@ function _PEtabModel(sys::ModelSystem, petab_tables::Dict{Symbol, DataFrame}, na
     sys_mutated, speciemap_model, speciemap_problem = _get_speciemap(sys_mutated,
                                                                      conditions_df,
                                                                      speciemap)
+    sys_observables = _get_sys_observables(sys_mutated)
+    sys_observable_ids = collect(keys(sys_observables))
+
     parametermap_use = _get_parametermap(sys_mutated, parametermap)
     xindices = ParameterIndices(petab_tables, sys_mutated, parametermap_use,
                                 speciemap_problem)
@@ -71,7 +74,8 @@ function _PEtabModel(sys::ModelSystem, petab_tables::Dict{Symbol, DataFrame}, na
         hstr, u0!str, u0str, σstr = parse_observables(name, Dict{Symbol, String}(),
                                                       sys_mutated, observables_df, xindices,
                                                       speciemap_problem, speciemap_model,
-                                                      model_SBML, false)
+                                                      sys_observable_ids, model_SBML,
+                                                      false)
         compute_h = @RuntimeGeneratedFunction(Meta.parse(hstr))
         compute_σ = @RuntimeGeneratedFunction(Meta.parse(σstr))
         # See comment on define petab_mode.jl for standard format input for why this is
@@ -111,5 +115,5 @@ function _PEtabModel(sys::ModelSystem, petab_tables::Dict{Symbol, DataFrame}, na
     paths = Dict{Symbol, String}()
     return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan,
                       paths, sys, sys_mutated, parametermap_use, speciemap_problem,
-                      petab_tables, cbs, true, events)
+                      petab_tables, cbs, true, events, sys_observables)
 end

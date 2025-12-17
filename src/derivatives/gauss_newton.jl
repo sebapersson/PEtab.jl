@@ -129,10 +129,10 @@ function _residuals_cond!(residuals::T1, xnoise::T2, xobservable::T2, xnondynami
         # Model observable and noise
         xnoise_maps = xindices.xnoise_maps[im]
         xobservable_maps = xindices.xobservable_maps[im]
-        h = _h(u, t, p, xobservable, xnondynamic, model.h, xobservable_maps, obsid,
+        h = _h(u, t, p, xobservable, xnondynamic, model, xobservable_maps, obsid,
                nominal_values)
         h_transformed = _transform_h(h, noise_distributions[im])
-        σ = _sd(u, t, p, xnoise, xnondynamic, model.sd, xnoise_maps, obsid,
+        σ = _sd(u, t, p, xnoise, xnondynamic, model, xnoise_maps, obsid,
                 nominal_values)
 
         y_transformed = measurements_transformed[im]

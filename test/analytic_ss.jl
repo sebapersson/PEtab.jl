@@ -38,7 +38,7 @@ function nllh_algebraic_ss(x, model::PEtabModel, solver, tol)
     sols = solve_algebraic_ss(model, solver, tol, a, b, c, d)
     nllh = 0.0
     for i in eachindex(petab_measurements.time)
-        y_obs = petab_measurements.measurement[i]
+        y_obs = petab_measurements.measurements[i]
         t = petab_measurements.time[i]
         if petab_measurements.simulation_condition_id[i] == :double
             y_model = sols[1](t)[1]

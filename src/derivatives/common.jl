@@ -12,9 +12,9 @@ function _G(u::AbstractVector, p::AbstractVector, t::T, i::Integer,
         xnoise_maps = xindices.xnoise_maps[im]
         xobservable_maps = xindices.xobservable_maps[im]
 
-        h = _h(u, t, p, xobservable, xnondynamic, model.h, xobservable_maps, obsid,
+        h = _h(u, t, p, xobservable, xnondynamic, model, xobservable_maps, obsid,
                nominal_value)
-        σ = _sd(u, t, p, xnoise, xnondynamic, model.sd, xnoise_maps, obsid, nominal_value)
+        σ = _sd(u, t, p, xnoise, xnondynamic, model, xnoise_maps, obsid, nominal_value)
 
         if residuals == true
             h_transformed = _transform_h(h, noise_distributions[im])

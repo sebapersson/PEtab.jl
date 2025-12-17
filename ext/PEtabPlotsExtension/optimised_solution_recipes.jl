@@ -177,7 +177,7 @@ function _get_observable(x, prob::PEtabODEProblem, cid::String, preeq_id::String
         for (i, t) in pairs(sol.t)
             u = sol[:, i]
             h = PEtab._h(u, t, sol.prob.p, xobservable_ps, xnondynamic_ps,
-                         model_info.model.h, map_xobservables[1],
+                         model_info.model, map_xobservables[1],
                          Symbol(obsid), collect(prob.xnominal))
             push!(h_model, h)
         end

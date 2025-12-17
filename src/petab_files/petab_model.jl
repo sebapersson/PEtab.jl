@@ -74,6 +74,9 @@ function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::Dict{Symbol, Dat
     # when building the coming PEtab functions
     xindices = ParameterIndices(petab_tables, odesystem, parametermap, speciemap)
 
+    sys_observables = _get_sys_observables(odesystem)
+    sys_observable_ids = collect(keys(sys_observables))
+
     _logging(:Build_ODESystem, verbose; time = btime)
 
     path_u0_h_σ = joinpath(paths[:dirjulia], "$(name)_h_sd_u0.jl")
@@ -84,7 +87,8 @@ function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::Dict{Symbol, Dat
             hstr, u0!str, u0str, σstr = parse_observables(name, paths, odesystem,
                                                           petab_tables[:observables],
                                                           xindices, speciemap,
-                                                          speciemap_sbml, model_SBML,
+                                                          speciemap_sbml,
+                                                          sys_observable_ids, model_SBML,
                                                           write_to_file)
         end
         _logging(:Build_u0_h_σ, verbose; time = btime)
@@ -117,7 +121,7 @@ function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::Dict{Symbol, Dat
 
     return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan,
                       paths, odesystem, deepcopy(odesystem), parametermap, speciemap,
-                      petab_tables, cbs, false, petab_events)
+                      petab_tables, cbs, false, petab_events, sys_observables)
 end
 
 function add_u0_parameters!(model_SBML::SBMLImporter.ModelSBML, conditions_df::DataFrame,
@@ -206,4 +210,16 @@ function _get_sbml_speciemap(model_SBML::SBMLImporter.ModelSBML)
     get_rn = @RuntimeGeneratedFunction(Meta.parse(modelstr))
     _, speciemap, _ = get_rn("https://xkcd.com/303/")
     return speciemap
+end
+
+function _get_sys_observables(sys::ReactionSystem)::Dict{Symbol, Function}
+    return _get_sys_observables(_get_system(sys))
+end
+function _get_sys_observables(sys::ODESystem)::Dict{Symbol, Function}
+    sys_observables = Dict{Symbol, Function}()
+    for _observable in observables(sys)
+        index_obs = Symbol(replace(string(_observable), "(t)" => ""))
+        sys_observables[index_obs] = SymbolicIndexingInterface.observed(sys, index_obs)
+    end
+    return sys_observables
 end

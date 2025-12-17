@@ -101,6 +101,8 @@ function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic::T,
         obsid = observable_id[imeasurement]
         noise_distribution = noise_distributions[imeasurement]
 
+        # TODO: This must enter inside the _h and _sd function. Then I can meta-program
+        # TODO: retreival of the observable itself.
         # grad_forward_eqs and grad_forward_AD are only true when we compute the gradient
         # via the nllh_not_solve (gradient for not ODE-system parameters), in this setting
         # only the ODESolution is required as Float, hence any dual must be converted
@@ -123,10 +125,10 @@ function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic::T,
         # Model observable and noise
         xnoise_maps = xindices.xnoise_maps[imeasurement]
         xobservable_maps = xindices.xobservable_maps[imeasurement]
-        h = _h(u, t, p, xobservable, xnondynamic, model.h, xobservable_maps, obsid,
+        h = _h(u, t, p, xobservable, xnondynamic, model, xobservable_maps, obsid,
                nominal_values)
         h_transformed = _transform_h(h, noise_distribution)
-        σ = _sd(u, t, p, xnoise, xnondynamic, model.sd, xnoise_maps, obsid, nominal_values)
+        σ = _sd(u, t, p, xnoise, xnondynamic, model, xnoise_maps, obsid, nominal_values)
 
         residual = (h_transformed - measurements_transformed[imeasurement]) / σ
         update_petab_measurements!(petab_measurements, h, h_transformed, σ, residual,

@@ -36,8 +36,8 @@ measurements = DataFrame(simulation_id=["c0", "c0"],
 simulation_conditions = Dict("c0" => Dict(:B => :par))
 
 parameters = [PEtabParameter(:k1, value=0.8, scale=:lin),
-                    PEtabParameter(:k2, value=0.6, scale=:lin),
-                    PEtabParameter(:par, value=7.0, scale=:lin)]
+              PEtabParameter(:k2, value=0.6, scale=:lin),
+              PEtabParameter(:par, value=7.0, scale=:lin)]
 
 @unpack A = rn
 observables = Dict("obs_a" => PEtabObservable(A, 0.5))

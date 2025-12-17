@@ -215,4 +215,5 @@ struct PEtabModel
     callbacks::Dict{Symbol, SciMLBase.DECallback}
     defined_in_julia::Bool
     petab_events::Vector{PEtabEvent}
+    sys_observables::Dict{Symbol, Function}
 end

@@ -5,6 +5,7 @@
 rn = @reaction_network begin
     @parameters a0 b0
     @species A(t)=a0 B(t)=b0
+    @observables obs_a ~ A
     (k1, k2), A <--> B
 end
 
@@ -20,10 +21,13 @@ D = default_time_deriv()
     @variables begin
         A(t) = a0
         B(t) = b0
+        # Observables
+        obs_a(t)
     end
     @equations begin
         D(A) ~ -k1*A + k2*B
         D(B) ~ k1*A - k2*B
+        obs_a ~ A
     end
 end
 @mtkbuild sys = SYS1()
@@ -41,14 +45,13 @@ parameters = [PEtabParameter(:a0, value=1.0, scale=:lin),
               PEtabParameter(:k2, value=0.6, scale=:lin)]
 
 # Observable equation
-@unpack A = rn
-observables = Dict("obs_a" => PEtabObservable(A, 0.5))
+petab_observables = Dict("obs_a" => PEtabObservable(:obs_a, 0.5))
 
 # Create a PEtabODEProblem ReactionNetwork
-model_rn = PEtabModel(rn, observables, measurements, parameters)
+model_rn = PEtabModel(rn, petab_observables, measurements, parameters)
 petab_problem_rn = PEtabODEProblem(model_rn)
 # Create a PEtabODEProblem ODESystem
-model_sys = PEtabModel(sys, observables, measurements, parameters)
+model_sys = PEtabModel(sys, petab_observables, measurements, parameters)
 petab_problem_sys = PEtabODEProblem(model_sys)
 
 # Compute negative log-likelihood
