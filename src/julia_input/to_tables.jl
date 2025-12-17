@@ -70,7 +70,9 @@ function _observables_to_table(observables::Dict{String, <:PEtabObservable})::Da
     return observables_df
 end
 
-function _conditions_to_table(conditions::Dict)::DataFrame
+function _conditions_to_table(conditions::Dict, sys::ModelSystem)::DataFrame
+    specie_ids = _get_state_ids(sys)
+
     # Check that for each condition the same states/parameters are assigned values.
     # Required by the PEtab standard to avoid default values problems. Other checks
     # like validating conditions are assigned to model paramters are handled later after
@@ -97,7 +99,17 @@ function _conditions_to_table(conditions::Dict)::DataFrame
         for (variable_id, variable_value) in condition_variables
             row[!, variable_id] = [variable_value |> string]
         end
-        append!(conditions_df, row)
+        conditions_df = DataFrames.vcat(conditions_df, row, cols = :union)
+    end
+
+    for model_id in names(conditions_df)
+        !(model_id in specie_ids) && continue
+
+        for row_idx in 1:nrow(conditions_df)
+            !ismissing(conditions_df[row_idx, model_id]) && continue
+            conditions_df[!, model_id] .= string.(conditions_df[!, model_id])
+            conditions_df[row_idx, model_id] = "NaN"
+        end
     end
 
     _check_table(conditions_df, :conditions_v1)

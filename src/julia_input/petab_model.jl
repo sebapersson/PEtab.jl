@@ -39,7 +39,7 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     # Convert the input to valid PEtab tables
     measurements_df = _measurements_to_table(measurements, simulation_conditions)
     observables_df = _observables_to_table(observables)
-    conditions_df = _conditions_to_table(simulation_conditions)
+    conditions_df = _conditions_to_table(simulation_conditions, sys)
     parameters_df = _parameters_to_table(parameters)
     petab_tables = Dict(:parameters => parameters_df, :conditions => conditions_df,
                         :observables => observables_df, :measurements => measurements_df)
