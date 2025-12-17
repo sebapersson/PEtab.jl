@@ -72,27 +72,6 @@ end
 
 function _conditions_to_table(conditions::Dict, sys::ModelSystem)::DataFrame
     specie_ids = _get_state_ids(sys)
-
-    # Check that for each condition the same states/parameters are assigned values.
-    # Required by the PEtab standard to avoid default values problems. Other checks
-    # like validating conditions are assigned to model paramters are handled later after
-    # transformation to a table
-    if length(conditions) > 1
-        conditionids = keys(conditions) |> collect
-        reference_variables = conditions[conditionids[1]] |> keys |> collect .|> string
-        for conditionid in conditionids
-            condition_variables = conditions[conditionid] |> keys |> collect .|> string
-            if all(sort(condition_variables) .== sort(reference_variables))
-                continue
-            end
-            throw(PEtab.PEtabFormatError("Not all simulation conditions assign values " *
-                                         "to the same variables. If for example " *
-                                         "parameter c₁ is assigned for condition cond1 " *
-                                         "it must also be assigned for condition cond2 " *
-                                         ", as well as any other condition"))
-        end
-    end
-
     conditions_df = DataFrame()
     for (condition_id, condition_variables) in conditions
         row = DataFrame(conditionId = condition_id)

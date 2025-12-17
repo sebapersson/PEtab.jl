@@ -135,22 +135,25 @@ function PEtabObservable(obs_formula, noise_formula;
 end
 
 """
-    PEtabEvent(condition, affects, targets)
+    PEtabEvent(condition, affect, target; condition_ids = [:all])
 
-A model event triggered by `condition` that sets the value of `targets` to that of
-`affects`.
+Model event that triggers when `condition` transitions from `false` to `true`. When
+triggered, sets the value(s) of `target` to those specified by `affect`.
 
-For a collection of examples with corresponding plots, see the documentation.
+For examples and plots, see the documentation.
 
 ## Arguments
 - `condition`: A Boolean expression that triggers the event when it transitions from
     `false` to `true`. For example, if `t == c1`, the event is triggered when the model
-    time `t` equals `c1`. For `S > 2.0`, the event triggers when specie `S` passes 2.0
-    from below.
-- `affects`: An equation of of model species and parameters that describes the effect of
+    time `t` equals the value of model parameter `c1`. For `S > 2.0`, the event triggers
+    when model specie `S` passes 2.0 from below.
+- `affects`: An equation of model species and parameters that describes the effect of
     the event. It can be a single expression or a vector if there are multiple targets.
-- `targets`: Model species or parameters that the event acts on. Must match the dimension
-    of `affects`.
+- `targets`: Model species/states and/or parameters that the event acts on. Must match
+    the dimension of `affects`.
+- `conditions_ids::Vector{Symbol}` (optional): Simulation condition(s) to which the event
+    applies. If set to `[:all]` (default), the event is applied to all simulation
+    conditions.
 """
 struct PEtabEvent
     condition::Any
@@ -159,8 +162,8 @@ struct PEtabEvent
     trigger_time::Float64
     condition_ids::Vector{Symbol}
 end
-function PEtabEvent(condition, affect, target; trigger_time = Inf, conditions_ids::Union{Vector{String}, Vector{Symbol}} = Symbol[])
-    return PEtabEvent(condition, affect, target, trigger_time, Symbol.(conditions_ids))
+function PEtabEvent(condition, affect, target; trigger_time = NaN, condition_ids::Union{Vector{String}, Vector{Symbol}} = Symbol[])
+    return PEtabEvent(condition, affect, target, trigger_time, Symbol.(condition_ids))
 end
 
 """

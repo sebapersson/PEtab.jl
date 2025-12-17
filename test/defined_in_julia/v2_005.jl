@@ -11,7 +11,7 @@ rn = @reaction_network begin
         B(t) = 0.0
     end
     @observables begin
-        obs_a ~ A + offset_A
+        model_obs ~ A + offset_A
     end
     (k1, k2), A <--> B
 end
@@ -28,12 +28,12 @@ D = default_time_deriv()
         A(t) = 1.0
         B(t) = 0.0
         # Observable
-        obs_a(t)
+        model_obs(t)
     end
     @equations begin
         D(A) ~ -k1*A + k2*B
         D(B) ~ k1*A - k2*B
-        obs_a ~ A + offset_A
+        model_obs ~ A + offset_A
     end
 end
 @mtkbuild sys = SYS_v2_5()
@@ -54,7 +54,7 @@ parameters = [PEtabParameter(:k1, value=0.8, scale=:lin),
               PEtabParameter(:offset_A_c1, value=3.0, scale=:lin)]
 
 # Observable equation
-observables = Dict("obs_a" => PEtabObservable(:obs_a, 1.0))
+observables = Dict("obs_a" => PEtabObservable(:model_obs, 1.0))
 
 # Create a PEtabODEProblem ReactionNetwork
 model_rn = PEtabModel(rn, observables, measurements, parameters;

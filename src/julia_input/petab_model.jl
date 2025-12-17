@@ -59,13 +59,13 @@ function _PEtabModel(sys::ModelSystem, petab_tables::Dict{Symbol, DataFrame}, na
     sys_observables = _get_sys_observables(sys_mutated)
     sys_observable_ids = collect(keys(sys_observables))
 
-    parametermap_use = _get_parametermap(sys_mutated, parametermap)
-    xindices = ParameterIndices(petab_tables, sys_mutated, parametermap_use,
+    parametermap_problem = _get_parametermap(sys_mutated, parametermap)
+    xindices = ParameterIndices(petab_tables, sys_mutated, parametermap_problem,
                                 speciemap_problem)
     # Warn user if any variable is unassigned (and defaults to zero)
     _check_unassigned_variables(sys, speciemap_problem, speciemap, :specie, parameters_df,
                                 conditions_df)
-    _check_unassigned_variables(sys, parametermap_use, parametermap, :parameter,
+    _check_unassigned_variables(sys, parametermap_problem, parametermap, :parameter,
                                 parameters_df, conditions_df)
 
     _logging(:Build_u0_h_σ, verbose; exist = false)
@@ -91,29 +91,19 @@ function _PEtabModel(sys::ModelSystem, petab_tables::Dict{Symbol, DataFrame}, na
     end
     _logging(:Build_u0_h_σ, verbose; time = btime)
 
-    # The callback parsing is part of SBMLImporter. Basically, PEtabEvents are rewritten
-    # to SBMLImporter.EventSBML, which then via a dummy ModelSBML (tmp) is parsed into
-    # callback.
-    # TODO: Allow condition specific events later
+    # The callback parsing is part of SBMLImporter, which rewrite any PEtabEvent into
+    # EventSBML, which via a dummy ModelSBML (tmp) is parsed into callback. Events are
+    # allowed to be condition specific
     _logging(:Build_callbacks, verbose)
     btime = @elapsed begin
-        sbml_events = parse_events(events, sys_mutated)
-        model_SBML = SBMLImporter.ModelSBML(name; events = sbml_events)
-        float_tspan = _xdynamic_in_event_cond(model_SBML, xindices, petab_tables) |> !
-        psys = _get_sys_parameters(sys_mutated, speciemap_problem, parametermap_use) .|>
-               string
-        cbset = SBMLImporter.create_callbacks(sys_mutated, model_SBML, name;
-                                              p_PEtab = psys, float_tspan = float_tspan)
-        cbs = Dict{Symbol, CallbackSet}()
-        for condition_id in Symbol.(conditions_df.conditionId)
-            cbs[condition_id] = deepcopy(cbset)
-        end
+        _set_trigger_time!(events)
+        cbs, float_tspan = _parse_events(events, sys_mutated, speciemap_problem, parametermap_problem, name, xindices, petab_tables)
     end
     _logging(:Build_callbacks, verbose; time = btime)
 
     # Path only applies when PEtab tables are provided
     paths = Dict{Symbol, String}()
     return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan,
-                      paths, sys, sys_mutated, parametermap_use, speciemap_problem,
+                      paths, sys, sys_mutated, parametermap_problem, speciemap_problem,
                       petab_tables, cbs, true, events, sys_observables)
 end

@@ -27,19 +27,19 @@
     @testset "Non-specified parameters" begin
         simulation_conditions = Dict("c0" => Dict(), "c1" => Dict())
         parameters = [PEtabParameter(:k1, value=0.8, scale=:lin),
-                            PEtabParameter(:k2, value=0.6, scale=:lin)]
-        strwarn = "The parameter a0 has not been assigned a value among PEtabParameters, " *
-                  "simulation conditions, or in the parameter map. It default to 0."
-        @test_warn strwarn begin
+                      PEtabParameter(:k2, value=0.6, scale=:lin)]
+        str_warn = "The parameter a0 has not been assigned a value among PEtabParameters, \
+                    simulation conditions, or in the parameter map. It default to 0."
+        @test_warn str_warn begin
             model = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
                                simulation_conditions = simulation_conditions)
         end
 
         simulation_conditions = Dict("c0" => Dict(:a0 => 1.0), "c1" => Dict(:a0 => 2.0))
         parameters = [PEtabParameter(:k1, value=0.8, scale=:lin)]
-        strwarn = "The parameter k2 has not been assigned a value among PEtabParameters, " *
-                  "simulation conditions, or in the parameter map. It default to 0."
-        @test_warn strwarn begin
+        str_warn = "The parameter k2 has not been assigned a value among PEtabParameters, \
+                    simulation conditions, or in the parameter map. It default to 0."
+        @test_warn str_warn begin
             model = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
                                simulation_conditions = simulation_conditions)
         end
@@ -66,8 +66,8 @@
 
         # PEtab-parameter to "estimate"
         parameters = [PEtabParameter(:k1, value=0.8, scale=:lin),
-                     PEtabParameter(:k2, value=0.6, scale=:lin),
-                     PEtabParameter(:noise, value=0.6, scale=:lin)]
+                      PEtabParameter(:k2, value=0.6, scale=:lin),
+                      PEtabParameter(:noise, value=0.6, scale=:lin)]
         simulation_conditions = Dict("c0" => Dict(:a0 => 0.8),
                                      "c1" => Dict(:a0 => :noise))
         model = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
@@ -76,10 +76,6 @@
 
         simulation_conditions = Dict("c0" => Dict(:a0 => 0.8),
                                      "c1" => Dict(:k1 => :noise))
-        @test_throws PEtab.PEtabFormatError begin
-        model = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
-                           simulation_conditions = simulation_conditions)
-        end
     end
 
     @testset "Measurement data format" begin
