@@ -11,11 +11,13 @@ end
 
 function _parse_event(event::PEtabEvent, name::String,
                       sys::ModelSystem)::SBMLImporter.EventSBML
+    @unpack condition, target_ids, target_values = event
+
     state_ids = _get_state_ids(sys) .|> string
     xids_sys = parameters(sys) .|> string
 
     # Sanity check the condition trigger
-    condition = replace(string(event.condition), "(t)" => "")
+    condition = replace(condition, "(t)" => "")
     if is_number(condition) || condition in xids_sys
         condition = "t == " * condition
 
@@ -30,34 +32,16 @@ function _parse_event(event::PEtabEvent, name::String,
                                 numeric value or a single parameter"))
     end
 
-    # Input needs to be a Vector for downstream processing (both for target and effect)
-    if typeof(event.target) <: AbstractVector
-        targets = event.target
-    else
-        targets = [event.target]
-    end
-    if typeof(event.affect) <: AbstractVector
-        affects = event.affect
-    else
-        affects = [event.affect]
-    end
-
-    # Sanity check, target
-    if length(targets) != length(affects)
-        throw(PEtabFormatError("The number of PEtabEvent targets ($(targets)) must \
-                                equal the number of PEtabEvent affects ($(affects))"))
-    end
-    # Sanity check affect
-    targets = replace.(string.(targets), "(t)" => "")
-    for target in targets
-        if target in state_ids || target in xids_sys
+    target_ids = replace.(target_ids, "(t)" => "")
+    for target_id in target_ids
+        if target_id in state_ids || target_id in xids_sys
             continue
         end
-        throw(PEtabFormatError("PEtabEvent target ($target) must be a model state or " *
-                               "a model parameter"))
+        throw(PEtabFormatError("PEtabEvent target ($target_id) must be a model state or \
+                                a model parameter"))
     end
 
-    formulas = replace.(string.(targets) .* " = " .* string.(affects), "(t)" => "")
+    formulas = replace.(target_ids .* " = " .* target_values, "(t)" => "")
     return SBMLImporter.EventSBML(name, condition, formulas, false, false, false, false,
                                   false, false, false, false)
 end

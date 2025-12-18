@@ -40,12 +40,12 @@ cond3 = PEtabCondition(:c1, ["A", :B], [k1 + k2, "k1 / k2"])
 @test "$cond2" == "PEtabCondition: [A, B] = [k1, k2]"
 @test "$cond3" == "PEtabCondition: [A, B] = [k1 + k2, k1 / k2]"
 
-event1 = PEtabEvent(:k1, [1.0, B + 2], [:A, B])
-event2 = PEtabEvent(sigma == t, [1.0, B + 2], [A, B])
-event3 = PEtabEvent(A ≤ 4.0, B + 2, B)
-@test "$event1" == "PEtabEvent: Condition k1 and affect [A, B(t)] = [1.0, 2 + B(t)]"
-@test "$event2" == "PEtabEvent: Condition sigma == t and affect [A(t), B(t)] = [1.0, 2 + B(t)]"
-@test "$event3" == "PEtabEvent: Condition A(t) <= 4.0 and affect B(t) = 2 + B(t)"
+event1 = PEtabEvent(:k1, [:A, B], [1.0, B + 2])
+event2 = PEtabEvent(sigma == t, [A, B], [1.0, B + 2])
+event3 = PEtabEvent(A ≤ 4.0, B, B + 2)
+@test "$event1" == "PEtabEvent: Condition k1 and assignments [A, B(t)] = [1.0, 2 + B(t)]"
+@test "$event2" == "PEtabEvent: Condition sigma == t and assignments [A(t), B(t)] = [1.0, 2 + B(t)]"
+@test "$event3" == "PEtabEvent: Condition A(t) <= 4.0 and assignment B(t) = 2 + B(t)"
 
 path1 = joinpath(@__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
 path2 = joinpath(@__DIR__, "published_models", "Brannmark_JBC2010", "Brannmark_JBC2010.yaml")

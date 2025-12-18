@@ -135,9 +135,9 @@ function PEtabObservable(obs_formula, noise_formula;
 end
 
 """
-    PEtabCondition(condition_id, target_id, target_value; t0 = 0.0)
+    PEtabCondition(condition_id, target_ids, target_values; t0 = 0.0)
 
-A simulation condition that overrides `target_id` with `target_value` under `condition_id`.
+A simulation condition that overrides `target_ids` with `target_values` under `condition_id`.
 
 Used to set control parameters for different experimental conditions. For examples, see
 the online documentation.
@@ -164,10 +164,10 @@ struct PEtabCondition
     target_values::Vector{String}
     t0::Float64
 end
-function PEtabCondition(condition_id::Union{Symbol, String}, target_id::Union{Num, Symbol, String}, target_value::Union{Num, Real, String, Symbol}; t0::Real = 0.0)
+function PEtabCondition(condition_id::UserFormula, target_id::UserFormula, target_value::Union{UserFormula, Real}; t0::Real = 0.0)
     PEtabCondition(string(condition_id), [string(target_id)], [string(target_value)], t0)
 end
-function PEtabCondition(condition_id::Union{Symbol, String}, target_ids::AbstractVector, target_values::AbstractVector; t0::Real = 0.0)
+function PEtabCondition(condition_id::UserFormula, target_ids::AbstractVector, target_values::AbstractVector; t0::Real = 0.0)
     if length(target_ids) != length(target_values)
         throw(PEtabFormatError("For condition $(condition_id), the number of target ids \
             ($(length(target_ids))) must equal the number of target values \
@@ -177,10 +177,10 @@ function PEtabCondition(condition_id::Union{Symbol, String}, target_ids::Abstrac
 end
 
 """
-    PEtabEvent(condition, affect, target; condition_ids = [:all])
+    PEtabEvent(condition, target_ids, target_values; condition_ids = [:all])
 
-Model event that triggers when `condition` transitions from `false` to `true`. When
-triggered, sets the value(s) of `target` to those specified by `affect`.
+Model event triggered when `condition` transitions from `false` to `true`, setting the value
+of `target_ids` to `target_values`.
 
 For examples, see the online documentation.
 
@@ -189,25 +189,33 @@ For examples, see the online documentation.
     `false` to `true`. For example, if `t == c1`, the event is triggered when the model
     time `t` equals the value of model parameter `c1`. For `S > 2.0`, the event triggers
     when model specie `S` passes 2.0 from below.
-- `target_id`: Entity id or ids to assign value a: a single id or a `Vector` of ids.
+- `target_ids`: Entity id or ids to assign value a, either a single id or a `Vector` of ids.
     Ids (provided as `String` or `Symbol`) may be model specie ids and/or model parameters.
-- `target_value`: Value/expression assigned to `target_id`. A `String` or a `Symbolics`
+- `target_values`: Value/expression assigned to `target_id`. A `String` or a `Symbolics`
     equation which may use standard Julia functions (e.g. `exp`, `log`, `sin`).
     Must match the length of `target_id` when `target_id` is a vector. Any variables
-    referenced must be model parameters
-- `conditions_ids::Vector{Symbol}` (optional): Simulation condition(s) to which the event
-    applies. If set to `[:all]` (default), the event is applied to all simulation
-    conditions.
+    referenced must be model parameters or model species.
+- `condition_ids` (optional): Simulation condition(s) ids (provided as `String` or `Symbol`)
+    to which the event applies. If set to `[:all]` (default), the event is applied to all
+    simulation conditions.
 """
 struct PEtabEvent
-    condition::Any
-    affect::Any
-    target::Any
+    condition::String
+    target_ids::Vector{String}
+    target_values::Vector{String}
     trigger_time::Float64
     condition_ids::Vector{Symbol}
 end
-function PEtabEvent(condition, affect, target; trigger_time = NaN, condition_ids::Union{Vector{String}, Vector{Symbol}} = Symbol[])
-    return PEtabEvent(condition, affect, target, trigger_time, Symbol.(condition_ids))
+function PEtabEvent(condition::Union{UserFormula, Real}, target_ids::UserFormula, target_values::Union{UserFormula, Real}; trigger_time::Real = NaN, condition_ids::Union{Vector{String}, Vector{Symbol}} = Symbol[])
+    return PEtabEvent(string(condition), [string(target_ids)], [string(target_values)], trigger_time, Symbol.(condition_ids))
+end
+function PEtabEvent(condition::Union{UserFormula, Real}, target_ids::AbstractVector, target_values::AbstractVector; trigger_time::Real = NaN, condition_ids::Union{Vector{String}, Vector{Symbol}} = Symbol[])
+    if length(target_ids) != length(target_values)
+        throw(PEtabFormatError("For a PEtabEvent, the number of target ids \
+            ($(length(target_ids))) must equal the number of target values \
+            ($(length(target_values)))."))
+    end
+    return PEtabEvent(string(condition), string.(target_ids), string.(target_values), trigger_time, Symbol.(condition_ids))
 end
 
 """

@@ -245,17 +245,17 @@ function _parse_petab_v2_events!(petab_events::Vector{PEtabEvent}, experiment_df
         trigger_time = experiments_event_t_df.time[1]
         condition = "t == $(trigger_time)"
 
-        targets = String[]
-        affects = String[]
+        target_ids = String[]
+        target_values = String[]
         for row_idx in 1:nrow(experiments_event_t_df)
             condition_id = experiment_events_df.conditionId[row_idx]
             condition_event_df = filter(r -> r.conditionId == condition_id, conditions_v2_df)
 
-            affects = vcat(affects, string.(condition_event_df.targetValue))
-            targets = vcat(targets, condition_event_df.targetId)
+            target_values = vcat(target_values, string.(condition_event_df.targetValue))
+            target_ids = vcat(target_ids, condition_event_df.targetId)
         end
 
-        event = PEtabEvent(condition, affects, targets, trigger_time, [Symbol(simulation_condition_id)])
+        event = PEtabEvent(condition, target_ids, target_values, trigger_time, [Symbol(simulation_condition_id)])
         push!(petab_events, event)
     end
     return nothing

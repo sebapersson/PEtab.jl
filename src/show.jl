@@ -80,33 +80,38 @@ function show(io::IO, observable::PEtabObservable)
     print(io, styled"$(header)$(opt)")
 end
 function show(io::IO, event::PEtabEvent)
-    @unpack condition, target, affect = event
+    @unpack condition, target_ids, target_values = event
     header = styled"{PURPLE:{bold:PEtabEvent:}} "
     if is_number(string(condition))
         _cond = "t == " * string(condition)
     else
-        _cond = condition |> string
+        _cond = condition
     end
-    if target isa Vector
+
+    if length(target_ids) > 1
         target_str = "["
-        for tg in target
-            target_str *= (tg |> string) * ", "
+        for id in target_ids
+            target_str *= (id * ", ")
         end
         target_str = target_str[1:(end - 2)] * "]"
     else
-        target_str = target |> string
+        target_str = target_ids[1]
     end
-    if affect isa Vector
-        affect_str = "["
-        for af in affect
-            affect_str *= (af |> string) * ", "
+    if length(target_values) > 1
+        target_value_str = "["
+        for value in target_values
+            target_value_str *= (value * ", ")
         end
-        affect_str = affect_str[1:(end - 2)] * "]"
+        target_value_str = target_value_str[1:(end - 2)] * "]"
     else
-        affect_str = affect |> string
+        target_value_str = target_values[1]
     end
-    effect_str = target_str * " = " * affect_str
-    opt = styled"{emphasis:Condition} $_cond and {emphasis:affect} $effect_str"
+    effect_str = target_str * " = " * target_value_str
+    if length(target_ids) > 1
+        opt = styled"{emphasis:Condition} $_cond and {emphasis:assignments} $effect_str"
+    else
+        opt = styled"{emphasis:Condition} $_cond and {emphasis:assignment} $effect_str"
+    end
     print(io, styled"$(header)$(opt)")
 end
 function show(io::IO, condition::PEtabCondition)

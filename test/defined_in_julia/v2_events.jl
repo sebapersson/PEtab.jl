@@ -34,7 +34,7 @@ sol_e2 = solve(ode_prob_ref, Rodas5P(), abstol = 1e-8, reltol = 1e-8, saveat = [
 nllh_ref = sum(0.5 .* (sol_e1[:A] - measurements.measurement[1:2]).^2 .+ 0.5log(2π)) +
     sum(0.5 .* (sol_e2[:A] - measurements.measurement[3:4]).^2 .+ 0.5log(2π))
 
-event_e1 = PEtabEvent(7.0, "A + 5", "A"; condition_ids = [:e1])
+event_e1 = PEtabEvent(7.0, "A", "A + 5"; condition_ids = [:e1])
 petab_model = PEtabModel(rn, observables, measurements, parameters; verbose = true,
     simulation_conditions = simulation_conditions, events = event_e1)
 petab_prob = PEtabODEProblem(petab_model)
@@ -48,7 +48,7 @@ nllh = petab_prob.nllh(get_x(petab_prob))
 nllh_ref = sum(0.5 .* (sol_e1[:A] - measurements.measurement[1:2]).^2 .+ 0.5log(2π)) +
     sum(0.5 .* (sol_e1[:A] - measurements.measurement[3:4]).^2 .+ 0.5log(2π))
 
-event_e1_e2 = PEtabEvent(7.0, "A + 5", "A")
+event_e1_e2 = PEtabEvent(7.0, "A", "A + 5")
 petab_model = PEtabModel(rn, observables, measurements, parameters;
     simulation_conditions = simulation_conditions, events = event_e1_e2)
 petab_prob = PEtabODEProblem(petab_model)
@@ -73,14 +73,14 @@ sol_e2 = solve(ode_prob_ref, Rodas5P(), abstol = 1e-8, reltol = 1e-8, saveat = [
 nllh_ref = sum(0.5 .* (sol_e1[:A] - measurements.measurement[1:2]).^2 .+ 0.5log(2π)) +
     sum(0.5 .* (sol_e2[:A] - measurements.measurement[3:4]).^2 .+ 0.5log(2π))
 
-event1 = PEtabEvent("t == 7.0", "A + 5", "A"; condition_ids = [:e1])
-event2 = PEtabEvent("7.0 == t", "A + 5", "A"; condition_ids = [:e1])
-event3 = PEtabEvent(7.0, "A + 5", "A"; condition_ids = [:e1])
+event1 = PEtabEvent("t == 7.0", "A", "A + 5"; condition_ids = [:e1])
+event2 = PEtabEvent("7.0 == t", "A", "A + 5"; condition_ids = [:e1])
+event3 = PEtabEvent(7.0, "A", "A + 5"; condition_ids = [:e1])
 @test PEtab._get_trigger_time(event1) == 7.0
 @test PEtab._get_trigger_time(event2) == 7.0
 @test PEtab._get_trigger_time(event3) == 7.0
 
-event_e1 = PEtabEvent(10.0, "A + 5", "A"; condition_ids = [:e1])
+event_e1 = PEtabEvent(10.0, "A", "A + 5"; condition_ids = [:e1])
 petab_model = PEtabModel(rn, observables, measurements, parameters;
     simulation_conditions = simulation_conditions, events = event_e1)
 petab_prob = PEtabODEProblem(petab_model)
