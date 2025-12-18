@@ -1,14 +1,17 @@
 function PEtabModel(sys::ModelSystem, observables::Dict{String, PEtabObservable},
                     measurements::DataFrame, parameters::Vector{PEtabParameter};
-                    simulation_conditions::Union{Nothing, Dict} = nothing,
+                    simulation_conditions::Union{PEtabCondition, Vector{PEtabCondition}, Nothing} = nothing,
                     speciemap::Union{Nothing, AbstractVector} = nothing,
                     parametermap::Union{Nothing, AbstractVector} = nothing,
-                    events::Union{PEtabEvent, AbstractVector, Nothing} = nothing,
+                    events::Union{PEtabEvent, Vector{PEtabEvent}, Nothing} = nothing,
                     verbose::Bool = false)::PEtabModel
-    # One simulation condition is needed by the PEtab standard, if there is no such
+    # One simulation condition is needed by the PEtab v1 standard. For downstream processing
+    # easier if is a Vector
     # creation a dummy is created
     if isnothing(simulation_conditions)
-        simulation_conditions = Dict("__c0__" => Dict())
+        simulation_conditions = [PEtabCondition(:__c0__, "", "")]
+    elseif simulation_conditions isa PEtabCondition
+        simulation_conditions = [simulation_conditions]
     end
 
     # Downstream processing is easier if provided as a Vector
@@ -22,7 +25,7 @@ function PEtabModel(sys::ModelSystem, observables::Dict{String, PEtabObservable}
                        parameters, speciemap, parametermap, events, verbose)
 end
 
-function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
+function _PEtabModel(sys::ModelSystem, simulation_conditions::Vector{PEtabCondition},
                      observables::Dict{String, <:PEtabObservable}, measurements::DataFrame,
                      parameters::Vector{PEtabParameter},
                      speciemap::Union{Nothing, AbstractVector},
@@ -37,12 +40,13 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
     _logging(:Build_PEtabModel, verbose; name = name)
 
     # Convert the input to valid PEtab tables
-    measurements_df = _measurements_to_table(measurements, simulation_conditions)
+    measurements_df = _measurements_to_table(measurements)
     observables_df = _observables_to_table(observables)
     conditions_df = _conditions_to_table(simulation_conditions, sys)
     parameters_df = _parameters_to_table(parameters)
     petab_tables = Dict(:parameters => parameters_df, :conditions => conditions_df,
                         :observables => observables_df, :measurements => measurements_df)
+
     return _PEtabModel(sys, petab_tables, name, speciemap, parametermap, events, verbose)
 end
 

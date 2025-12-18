@@ -32,8 +32,8 @@ measurements = DataFrame(simulation_id=["e1", "e1", "e2", "e2", "e1", "e2"],
                          measurement=[0.01, 0.1, 0.02, 0.2, 0.01, 0.01])
 
 # Single experimental condition
-simulation_conditions = Dict("e1" => Dict(),
-                             "e2" => Dict(:A => 0.9))
+simulation_conditions = [PEtabCondition(:e1, "", ""),
+                         PEtabCondition(:e2, :A, 0.9)]
 
 # PEtab-parameter to "estimate"
 parameters = [PEtabParameter(:k1, value=0.8, scale=:lin),

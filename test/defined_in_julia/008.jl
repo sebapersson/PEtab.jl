@@ -33,7 +33,7 @@ measurements = DataFrame(simulation_id=["c0", "c0", "c0"],
                          time=[0.0, 10.0, 10.0],
                          measurement=[0.7, 0.1, 0.2])
 
-simulation_conditions = Dict("c0" => Dict())
+simulation_conditions = [PEtabCondition(:c0, "", "")]
 
 parameters = [PEtabParameter(:a0, value=1.0, scale=:lin),
                     PEtabParameter(:b0, value=0.0, scale=:lin),
@@ -50,7 +50,7 @@ model_sys = PEtabModel(sys, observables, measurements, parameters,
      simulation_conditions = simulation_conditions)
 petab_problem_sys = PEtabODEProblem(model_sys, verbose=false)
 
-nll_rn = petab_problem_rn.nllh(petab_problem_rn.xnominal_transformed)
-nll_sys = petab_problem_sys.nllh(petab_problem_sys.xnominal_transformed)
+nll_rn = petab_problem_rn.nllh(get_x(petab_problem_rn))
+nll_sys = petab_problem_sys.nllh(get_x(petab_problem_sys))
 @test nll_rn ≈ 1.17778328012676 atol=1e-3
 @test nll_sys ≈ 1.17778328012676 atol=1e-3

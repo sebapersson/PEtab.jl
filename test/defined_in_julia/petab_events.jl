@@ -201,7 +201,7 @@ end
                              time=[0, 10.0, 10.0],
                              measurement=[0.7, 0.1, 0.15],
                              noise_parameters=0.5)
-    simulation_conditions = Dict("e1" => Dict(), "e2" => Dict())
+    simulation_conditions = [PEtabCondition(:e1, "", ""), PEtabCondition(:e2, "", "")]
 
     @test_throws PEtab.PEtabFormatError begin
         events = [PEtabEvent(3, 5.0, :A), PEtabEvent(3, 5.0, :B)]

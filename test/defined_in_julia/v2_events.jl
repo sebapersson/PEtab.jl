@@ -21,7 +21,7 @@ ode_prob_ref = ODEProblem(rn, [:A => 5.0, :B => 1.0], (0.0, 10.0), [:k1 => 0.8, 
 observables = Dict("obs_a" => PEtabObservable("A", 1.0))
 parameters = [PEtabParameter(:k1, value=0.8, scale=:lin),
               PEtabParameter(:k2, value=0.6, scale=:lin)]
-simulation_conditions = Dict("e1" => Dict(), "e2" => Dict())
+simulation_conditions = [PEtabCondition(:e1, "", ""), PEtabCondition(:e2, "", "")]
 measurements = DataFrame(simulation_id=["e1", "e1", "e2", "e2"],
                          obs_id=["obs_a", "obs_a", "obs_a", "obs_a"],
                          time=[5.0, 10.0, 5.0, 10.0],

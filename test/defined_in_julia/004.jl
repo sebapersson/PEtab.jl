@@ -36,7 +36,7 @@ measurements = DataFrame(simulation_id=["c0", "c0"],
                          observable_parameters=["0.5;2", "0.5;2"])
 
 # Single experimental condition
-simulation_conditions = Dict("c0" => Dict())
+simulation_conditions = [PEtabCondition(:c0, "", "")]
 
 # PEtab-parameter to "estimate"
 parameters = [PEtabParameter(:a0, value=1.0, scale=:lin),
@@ -61,7 +61,7 @@ model_sys = PEtabModel(sys, observables, measurements, parameters,
 petab_problem_sys = PEtabODEProblem(model_sys, verbose=false)
 
 # Compute negative log-likelihood
-nll_rn = petab_problem_rn.nllh(petab_problem_rn.xnominal_transformed)
-nll_sys = petab_problem_sys.nllh(petab_problem_sys.xnominal_transformed)
+nll_rn = petab_problem_rn.nllh(get_x(petab_problem_rn))
+nll_sys = petab_problem_sys.nllh(get_x(petab_problem_sys))
 @test nll_rn ≈ 5.69297960953693 atol=1e-3
 @test nll_sys ≈ 5.69297960953693 atol=1e-3

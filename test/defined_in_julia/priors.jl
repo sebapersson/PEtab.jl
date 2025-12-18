@@ -34,7 +34,7 @@ measurements = DataFrame(simulation_id=["c0", "c0"],
                          noise_parameters=0.5)
 
 # Single experimental condition
-simulation_conditions = Dict("c0" => Dict())
+simulation_conditions = PEtabCondition(:c0, "", "")
 
 # Observable equation
 @unpack A = rn

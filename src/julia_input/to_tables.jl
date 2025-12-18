@@ -70,15 +70,25 @@ function _observables_to_table(observables::Dict{String, <:PEtabObservable})::Da
     return observables_df
 end
 
-function _conditions_to_table(conditions::Dict, sys::ModelSystem)::DataFrame
+function _conditions_to_table(conditions::Vector{PEtabCondition}, sys::ModelSystem)::DataFrame
+    condition_ids = getfield.(conditions, :condition_id)
+    if condition_ids != unique(condition_ids)
+        throw(PEtabFormatError("Simulation condition ids ($(condition_ids)) are not \
+            unique; each PEtabCondition must have a unique id."))
+    end
+
     specie_ids = _get_state_ids(sys)
     conditions_df = DataFrame()
-    for (condition_id, condition_variables) in conditions
-        row = DataFrame(conditionId = condition_id)
-        for (variable_id, variable_value) in condition_variables
-            row[!, variable_id] = [variable_value |> string]
+
+    for condition in conditions
+        @unpack condition_id, target_ids, target_values = condition
+        target_ids = replace.(target_ids, "(t)" => "")
+        conditions_row = DataFrame(conditionId = condition_id)
+        for i in eachindex(target_ids)
+            isempty(target_ids[i]) && continue
+            conditions_row[!, target_ids[i]] .= target_values[i]
         end
-        conditions_df = DataFrames.vcat(conditions_df, row, cols = :union)
+        conditions_df = DataFrames.vcat(conditions_df, conditions_row, cols = :union)
     end
 
     for model_id in names(conditions_df)
@@ -95,7 +105,7 @@ function _conditions_to_table(conditions::Dict, sys::ModelSystem)::DataFrame
     return conditions_df
 end
 
-function _measurements_to_table(measurements::DataFrame, conditions::Dict)::DataFrame
+function _measurements_to_table(measurements::DataFrame)::DataFrame
     measurements_df = deepcopy(measurements)
     # Reformat column names to follow PEtab standard
     if "pre_eq_id" in names(measurements_df)
@@ -113,13 +123,8 @@ function _measurements_to_table(measurements::DataFrame, conditions::Dict)::Data
     if "noise_parameters" in names(measurements_df)
         rename!(measurements_df, "noise_parameters" => "noiseParameters")
     end
+
     if "simulation_id" in names(measurements_df)
-        defaultcond = conditions == Dict("__c0__" => Dict())
-        if defaultcond == true && !all(measurements_df[!, :simulation_id] .== "__c0__")
-            throw(PEtab.PEtabFormatError("Simulation conditions have been provided, but " *
-                                         "the simulation condition ids do not appear in " *
-                                         "in the measurement table"))
-        end
         rename!(measurements_df, "simulation_id" => "simulationConditionId")
     elseif !("simulationConditionId" in names(measurements_df))
         measurements_df[!, "simulationConditionId"] .= "__c0__"

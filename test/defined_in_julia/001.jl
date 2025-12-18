@@ -55,7 +55,7 @@ model_sys = PEtabModel(sys, petab_observables, measurements, parameters)
 petab_problem_sys = PEtabODEProblem(model_sys)
 
 # Compute negative log-likelihood
-nll_rn = petab_problem_rn.nllh(petab_problem_rn.xnominal_transformed)
-nll_sys = petab_problem_sys.nllh(petab_problem_sys.xnominal_transformed)
+nll_rn = petab_problem_rn.nllh(get_x(petab_problem_rn))
+nll_sys = petab_problem_sys.nllh(get_x(petab_problem_sys))
 @test nll_rn ≈ 0.84750169713188 atol=1e-3
 @test nll_sys ≈ 0.84750169713188 atol=1e-3

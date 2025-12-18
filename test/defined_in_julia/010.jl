@@ -32,8 +32,8 @@ measurements = DataFrame(pre_eq_id=["preeq_c0", "preeq_c0"],
                          time=[1.0, 10.0],
                          measurement=[0.7, 0.1])
 
-simulation_conditions = Dict("c0" => Dict(:k1 => 0.8, :B => 1.0),
-                             "preeq_c0" => Dict(:k1 => 0.3, :B => 0.0))
+simulation_conditions = [PEtabCondition(:c0, [:k1, :B], [0.8, 1.0])
+                         PEtabCondition(:preeq_c0, ["k1", "B"], ["0.3", "0.0"])]
 
 parameters = [PEtabParameter(:k2, value=0.6, scale=:lin)]
 
@@ -47,7 +47,7 @@ model_sys = PEtabModel(sys, observables, measurements, parameters,
      simulation_conditions = simulation_conditions)
 petab_problem_sys = PEtabODEProblem(model_sys, verbose=false)
 
-nll_rn = petab_problem_rn.nllh(petab_problem_rn.xnominal_transformed)
-nll_sys = petab_problem_sys.nllh(petab_problem_sys.xnominal_transformed)
+nll_rn = petab_problem_rn.nllh(get_x(petab_problem_rn))
+nll_sys = petab_problem_sys.nllh(get_x(petab_problem_sys))
 @test nll_rn ≈ 1.20628941926143 atol=1e-3
 @test nll_sys ≈ 1.20628941926143 atol=1e-3

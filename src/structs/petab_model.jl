@@ -72,7 +72,7 @@ median, i.e., measurements are assumed equally likely to lie above or below the 
 
 ## Arguments
 
-- `observable_formula`: Observable expression (String or Symbolics equation) supporting
+- `observable_formula`: Observable expression (`String` or `Symbolics` equation) supporting
     standard Julia functions (e.g. `exp`, `log`, `sin`, `cos`). Variables in the formula
     must be model species, model parameters, or a `PEtabParameter`. May include
     time-point-specific observable parameters (see documentation).
@@ -135,22 +135,61 @@ function PEtabObservable(obs_formula, noise_formula;
 end
 
 """
+    PEtabCondition(condition_id, target_id, target_value)
+
+A simulation condition that overrides `target_id` with `target_value` under `condition_id`.
+
+Used to set control parameters for different experimental conditions. For examples, see
+the online documentation.
+
+## Arguments
+
+- `condition_id::Union{String, Symbol}`: Simulation condition identifier.
+- `target_id`: Entity id or ids to override: a single id or a `Vector` of ids.
+    Ids (provided as `String` or `Symbol`) may be model specie ids and/or model parameter
+    ids for model parameters that are not estimated.
+- `target_value`: Value/expression assigned to `target_id`. A `String` or a `Symbolics`
+    expression which may use standard Julia functions (e.g. `exp`, `log`, `sin`).
+    Must match the length of `target_id` when `target_id` is a vector. Any variables
+    referenced must be model parameters or `PEtabParameter`(s) (specie
+    variables are not allowed).
+"""
+struct PEtabCondition
+    condition_id::String
+    target_ids::Vector{String}
+    target_values::Vector{String}
+end
+function PEtabCondition(condition_id::Union{Symbol, String}, target_id::Union{Num, Symbol, String}, target_value::Union{Num, Real, String, Symbol})
+    PEtabCondition(string(condition_id), [string(target_id)], [string(target_value)])
+end
+function PEtabCondition(condition_id::Union{Symbol, String}, target_ids::AbstractVector, target_values::AbstractVector)
+    if length(target_ids) != length(target_values)
+        throw(PEtabFormatError("For condition $(condition_id), the number of target ids \
+            ($(length(target_ids))) must equal the number of target values \
+            ($(length(target_values)))."))
+    end
+    return PEtabCondition(string(condition_id), string.(target_ids), string.(target_values))
+end
+
+"""
     PEtabEvent(condition, affect, target; condition_ids = [:all])
 
 Model event that triggers when `condition` transitions from `false` to `true`. When
 triggered, sets the value(s) of `target` to those specified by `affect`.
 
-For examples and plots, see the documentation.
+For examples, see the online documentation.
 
 ## Arguments
 - `condition`: A Boolean expression that triggers the event when it transitions from
     `false` to `true`. For example, if `t == c1`, the event is triggered when the model
     time `t` equals the value of model parameter `c1`. For `S > 2.0`, the event triggers
     when model specie `S` passes 2.0 from below.
-- `affects`: An equation of model species and parameters that describes the effect of
-    the event. It can be a single expression or a vector if there are multiple targets.
-- `targets`: Model species/states and/or parameters that the event acts on. Must match
-    the dimension of `affects`.
+- `target_id`: Entity id or ids to assign value a: a single id or a `Vector` of ids.
+    Ids (provided as `String` or `Symbol`) may be model specie ids and/or model parameters.
+- `target_value`: Value/expression assigned to `target_id`. A `String` or a `Symbolics`
+    equation which may use standard Julia functions (e.g. `exp`, `log`, `sin`).
+    Must match the length of `target_id` when `target_id` is a vector. Any variables
+    referenced must be model parameters
 - `conditions_ids::Vector{Symbol}` (optional): Simulation condition(s) to which the event
     applies. If set to `[:all]` (default), the event is applied to all simulation
     conditions.
