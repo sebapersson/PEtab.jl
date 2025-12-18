@@ -1,13 +1,13 @@
-using CSV, DataFrames, PEtab, Test, YAML
+using CSV, DataFrames, FiniteDifferences, PEtab, Test, YAML
 
-function test_v2(test_case::String)
+function test_v2(test_case::String; test_gradient::Bool = true)
     @info "Test case $(test_case)"
     path_yaml = joinpath(@__DIR__, "petab_v2_testsuite", test_case, "_$(test_case).yaml")
     path_ref = joinpath(@__DIR__, "petab_v2_testsuite", test_case, "_$(test_case)_solution.yaml")
 
     ss_solver = SteadyStateSolver(:Simulate, abstol=1e-12, reltol=1e-10)
     model = PEtabModel(path_yaml)
-    prob = PEtabODEProblem(model; ss_solver = ss_solver)
+    prob = PEtabODEProblem(model; ss_solver = ss_solver, gradient_method = :ForwardDiff)
     x = get_x(prob)
 
     nllh = prob.nllh(x; prior = false)
@@ -28,11 +28,32 @@ function test_v2(test_case::String)
         nllh_prior_ref = reference_yaml["unnorm_log_posterior"]
         @test nllh_prior ≈ -1 * nllh_prior_ref atol=nllh_tol
     end
+
+    if test_gradient && test_case != "0023"
+        # Need to avoid values on the edge of the support for finite differencing to work
+        if :p_log_uniform in keys(x)
+            x.p_log_uniform = 4.0
+        end
+
+        prob_forward_eqs = PEtabODEProblem(model; ss_solver = ss_solver,
+            gradient_method = :ForwardEquations, sensealg = :ForwardDiff)
+
+        grad_ref = FiniteDifferences.grad(central_fdm(5, 1), prob.nllh, x)[1]
+        grad1 = prob.grad(x)
+        grad2 = prob_forward_eqs.grad(x)
+        @test all(.≈(grad1, grad_ref, atol = 1e-3))
+        @test all(.≈(grad2, grad_ref, atol = 1e-3))
+    end
 end
 
+# TODO: The logic might be off with handling initial value parameters, line 152
 completed_tests = ["0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009",
                    "0010", "0011", "0012", "0013", "0014", "0015", "0016", "0017", "0018",
-                   "0020", "0021", "0022", "0023", "0024", "0025"]
-for test_case in completed_tests
-    test_v2(test_case)
+                   "0020", "0021", "0022", "0023", "0024", "0025", "0026", "0027", "0028",
+                   "0029", "0030", "0031"]
+
+@testset "V2 test suite" begin
+    for test_case in completed_tests
+        test_v2(test_case)
+    end
 end
