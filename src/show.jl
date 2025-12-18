@@ -109,6 +109,31 @@ function show(io::IO, event::PEtabEvent)
     opt = styled"{emphasis:Condition} $_cond and {emphasis:affect} $effect_str"
     print(io, styled"$(header)$(opt)")
 end
+function show(io::IO, condition::PEtabCondition)
+    @unpack condition_id, target_ids, target_values = condition
+    header = styled"{PURPLE:{bold:PEtabCondition:}} "
+
+    if length(target_ids) > 1
+        target_str = "["
+        for id in target_ids
+            target_str *= (id * ", ")
+        end
+        target_str = target_str[1:(end - 2)] * "]"
+    else
+        target_str = target_ids[1]
+    end
+    if length(target_values) > 1
+        target_value_str = "["
+        for value in target_values
+            target_value_str *= (value * ", ")
+        end
+        target_value_str = target_value_str[1:(end - 2)] * "]"
+    else
+        target_value_str = target_values[1]
+    end
+    opt = styled"$(target_str) = $(target_value_str)"
+    print(io, styled"$(header)$(opt)")
+end
 function show(io::IO, model::PEtabModel)
     nstates = @sprintf("%d", length(unknowns(model.sys_mutated)))
     nparameters = @sprintf("%d", length(parameters(model.sys_mutated)))
