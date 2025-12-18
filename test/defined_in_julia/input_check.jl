@@ -78,6 +78,14 @@
             _ = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
                            simulation_conditions = simulation_conditions)
         end
+
+        # t0 for a condition excludes measurement points
+        simulation_conditions = [PEtabCondition(:c0, :a0, 0.8; t0 = 8.0),
+                                 PEtabCondition(:c0, :a0, :noise)]
+        @test_throws PEtab.PEtabFormatError begin
+            _ = PEtabModel(rn, observables, measurements, parameters; speciemap=speciemap,
+                           simulation_conditions = simulation_conditions)
+        end
     end
 
     @testset "Measurement data format" begin

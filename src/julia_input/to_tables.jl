@@ -105,7 +105,7 @@ function _conditions_to_table(conditions::Vector{PEtabCondition}, sys::ModelSyst
     return conditions_df
 end
 
-function _measurements_to_table(measurements::DataFrame)::DataFrame
+function _measurements_to_table(measurements::DataFrame, conditions::Vector{PEtabCondition})::DataFrame
     measurements_df = deepcopy(measurements)
     # Reformat column names to follow PEtab standard
     if "pre_eq_id" in names(measurements_df)
@@ -128,6 +128,19 @@ function _measurements_to_table(measurements::DataFrame)::DataFrame
         rename!(measurements_df, "simulation_id" => "simulationConditionId")
     elseif !("simulationConditionId" in names(measurements_df))
         measurements_df[!, "simulationConditionId"] .= "__c0__"
+    end
+
+    measurements_df[!, :simulationStartTime] .= 0.0
+    for condition in conditions
+        @unpack condition_id, t0 = condition
+        row_idx = findall(x -> x == condition_id, measurements_df.simulationConditionId)
+        measurements_df.simulationStartTime[row_idx] .= t0
+
+        if !all(measurements_df.time[row_idx] .≥ t0)
+            throw(PEtabFormatError("Measurements for simulation condition $(condition_id) \
+                contain time points before its simulation start time ($(t0)). All \
+                measurement times for a condition must be ≥ the condition's start time."))
+        end
     end
 
     # As the measurement table now follows the PEtab standard it can be checked with the

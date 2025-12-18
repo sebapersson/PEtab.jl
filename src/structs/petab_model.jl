@@ -135,7 +135,7 @@ function PEtabObservable(obs_formula, noise_formula;
 end
 
 """
-    PEtabCondition(condition_id, target_id, target_value)
+    PEtabCondition(condition_id, target_id, target_value; t0 = 0.0)
 
 A simulation condition that overrides `target_id` with `target_value` under `condition_id`.
 
@@ -153,22 +153,27 @@ the online documentation.
     Must match the length of `target_id` when `target_id` is a vector. Any variables
     referenced must be model parameters or `PEtabParameter`(s) (specie
     variables are not allowed).
+
+## Keyword Arguments
+
+- `t0`: Model simulation start time for `condition_id` (defaults to `0.0`).
 """
 struct PEtabCondition
     condition_id::String
     target_ids::Vector{String}
     target_values::Vector{String}
+    t0::Float64
 end
-function PEtabCondition(condition_id::Union{Symbol, String}, target_id::Union{Num, Symbol, String}, target_value::Union{Num, Real, String, Symbol})
-    PEtabCondition(string(condition_id), [string(target_id)], [string(target_value)])
+function PEtabCondition(condition_id::Union{Symbol, String}, target_id::Union{Num, Symbol, String}, target_value::Union{Num, Real, String, Symbol}; t0::Real = 0.0)
+    PEtabCondition(string(condition_id), [string(target_id)], [string(target_value)], t0)
 end
-function PEtabCondition(condition_id::Union{Symbol, String}, target_ids::AbstractVector, target_values::AbstractVector)
+function PEtabCondition(condition_id::Union{Symbol, String}, target_ids::AbstractVector, target_values::AbstractVector; t0::Real = 0.0)
     if length(target_ids) != length(target_values)
         throw(PEtabFormatError("For condition $(condition_id), the number of target ids \
             ($(length(target_ids))) must equal the number of target values \
             ($(length(target_values)))."))
     end
-    return PEtabCondition(string(condition_id), string.(target_ids), string.(target_values))
+    return PEtabCondition(string(condition_id), string.(target_ids), string.(target_values), t0)
 end
 
 """
