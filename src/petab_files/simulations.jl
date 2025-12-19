@@ -186,17 +186,13 @@ function _get_imeasurements_t(imeasurements::Dict{Symbol, Vector{Int64}},
     return imeasurements_t
 end
 
-function _get_smatrixindices(experiment_ids::Vector{Symbol},
-                             tsaves::Dict{Symbol, Vector{Float64}})::Dict{Symbol,
-                                                                          UnitRange{Int64}}
-    istart = 1
+function _get_smatrixindices(experiment_ids::Vector{Symbol}, tsaves::Dict{Symbol, Vector{Float64}})::Dict{Symbol, UnitRange{Int64}}
     smatrixindices = Dict{Symbol, UnitRange{Int64}}()
-    for experiment_id in experiment_ids
-        tsave = tsaves[experiment_id]
-        smatrix_index = istart:(istart - 1 + length(tsave)) |>
-            UnitRange{Int64}
-        smatrixindices[experiment_id] = smatrix_index
-        istart = smatrix_index[end] + 1
+    istart, iend = 1, 0
+    for cid in experiment_ids
+        iend += length(tsaves[cid])
+        smatrixindices[cid] = istart:iend
+        istart = iend + 1
     end
     return smatrixindices
 end

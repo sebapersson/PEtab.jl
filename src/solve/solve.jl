@@ -135,13 +135,11 @@ function solve_conditions!(sols::AbstractMatrix, xdynamic::AbstractVector,
     else
         odesols = simulation_info.odesols
     end
-    istart, iend = 1, 0
     for cid in simulation_info.conditionids[:experiment]
-        iend += length(simulation_info.tsaves_no_cbs[cid])
+        odesol_indices = simulation_info.smatrixindices[cid]
         if cids[1] == :all || cid in cids
-            @views sols[:, istart:iend] .= Array(odesols[cid])
+            @views sols[:, odesol_indices] .= Array(odesols[cid])
         end
-        istart = iend + 1
     end
     return nothing
 end
