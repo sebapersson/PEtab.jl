@@ -69,13 +69,20 @@ function show(io::IO, parameter::PEtabParameter)
     print(io, styled"$(header)$(opt)")
 end
 function show(io::IO, observable::PEtabObservable)
-    @unpack obs, noise_formula, transformation = observable
-    header = styled"{PURPLE:{bold:PEtabObservable:}} "
-    opt1 = styled"{emphasis:h} = $(obs) and {emphasis:sd} = $(noise_formula)"
-    if transformation in [:log, :log10]
-        opt = styled"$opt1 with log-normal measurement noise"
-    else
-        opt = styled"$opt1 with normal measurement noise"
+    @unpack observable_formula, observable_id, noise_formula, distribution = observable
+    header = styled"{PURPLE:{bold:PEtabObservable}} {emphasis:$(observable_id)}: "
+    if distribution == Normal
+        opt = "data ~ Normal(μ=$(observable_formula), σ=$(noise_formula))"
+    elseif distribution == LogNormal
+        opt = "log(data) ~ Normal(μ=log($(observable_formula)), σ=$(noise_formula))"
+    elseif distribution == Log2Normal
+        opt = "log2(data) ~ Normal(μ=log2($(observable_formula)), σ=$(noise_formula))"
+    elseif distribution == Log10Normal
+        opt = "log10(data) ~ Normal(μ=log10($(observable_formula)), σ=$(noise_formula))"
+    elseif distribution == Laplace
+        opt = "data ~ Laplace(μ=$(observable_formula), θ=$(noise_formula))"
+    elseif distribution == LogLaplace
+        opt = "log(data) ~ Laplace(μ=log($(observable_formula)), θ=$(noise_formula))"
     end
     print(io, styled"$(header)$(opt)")
 end
@@ -116,7 +123,7 @@ function show(io::IO, event::PEtabEvent)
 end
 function show(io::IO, condition::PEtabCondition)
     @unpack condition_id, target_ids, target_values = condition
-    header = styled"{PURPLE:{bold:PEtabCondition:}} "
+    header = styled"{PURPLE:{bold:PEtabCondition}} {emphasis:$(condition_id)}: "
 
     if length(target_ids) > 1
         target_str = "["

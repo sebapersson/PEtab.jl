@@ -1,8 +1,9 @@
-function PEtabModel(sys::ModelSystem, observables::Dict{String, PEtabObservable},
+function PEtabModel(sys::ModelSystem,
+                    observables::Union{PEtabObservable, Vector{PEtabObservable}},
                     measurements::DataFrame, parameters::Vector{PEtabParameter};
                     simulation_conditions::Union{PEtabCondition, Vector{PEtabCondition}, Nothing} = nothing,
-                    speciemap::Union{Nothing, AbstractVector} = nothing,
-                    parametermap::Union{Nothing, AbstractVector} = nothing,
+                    speciemap::Union{AbstractVector, Nothing} = nothing,
+                    parametermap::Union{AbstractVector, Nothing} = nothing,
                     events::Union{PEtabEvent, Vector{PEtabEvent}, Nothing} = nothing,
                     verbose::Bool = false)::PEtabModel
     # One simulation condition is needed by the PEtab v1 standard. For downstream processing
@@ -14,11 +15,15 @@ function PEtabModel(sys::ModelSystem, observables::Dict{String, PEtabObservable}
         simulation_conditions = [simulation_conditions]
     end
 
-    # Downstream processing is easier if provided as a Vector
+    # Downstream processing is easier if provided as a Vector for both events and
+    # observables
     if isnothing(events)
         events = PEtabEvent[]
     elseif events isa PEtabEvent
         events = [events]
+    end
+    if observables isa PEtabObservable
+        observables = [observables]
     end
 
     return _PEtabModel(sys, simulation_conditions, observables, measurements,
@@ -26,7 +31,7 @@ function PEtabModel(sys::ModelSystem, observables::Dict{String, PEtabObservable}
 end
 
 function _PEtabModel(sys::ModelSystem, simulation_conditions::Vector{PEtabCondition},
-                     observables::Dict{String, <:PEtabObservable}, measurements::DataFrame,
+                     observables::Vector{PEtabObservable}, measurements::DataFrame,
                      parameters::Vector{PEtabParameter},
                      speciemap::Union{Nothing, AbstractVector},
                      parametermap::Union{Nothing, AbstractVector},

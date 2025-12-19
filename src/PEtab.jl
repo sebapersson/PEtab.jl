@@ -45,7 +45,7 @@ include(joinpath("structs", "parameter_estimation.jl"))
 include(joinpath("structs", "inference.jl"))
 
 const EstimationResult = Union{PEtabOptimisationResult, PEtabMultistartResult,
-                               Vector{<:AbstractFloat}, ComponentArray}
+                               Vector{<:Real}, ComponentArray}
 
 include("common.jl")
 include("logging.jl")

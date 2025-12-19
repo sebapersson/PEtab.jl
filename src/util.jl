@@ -138,6 +138,8 @@ function _get_ps_u0(res::EstimationResult, prob::PEtabODEProblem,
     xdynamic, _, _, _ = split_x(x_transformed, xindices)
 
     # System parameters and their associated ids
+    odeproblem = remake(odeproblem, p = convert.(eltype(xdynamic), odeproblem.p),
+        u0 = convert.(eltype(xdynamic), odeproblem.u0))
     p = odeproblem.p[:]
     ps = xindices.xids[:sys]
     u0 = odeproblem.u0[:]

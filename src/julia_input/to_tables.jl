@@ -49,21 +49,40 @@ function _parameters_to_table(parameters::Vector{PEtabParameter})::DataFrame
     return parameters_df
 end
 
-function _observables_to_table(observables::Dict{String, <:PEtabObservable})::DataFrame
+function _observables_to_table(observables::Vector{PEtabObservable})::DataFrame
+    observable_ids = getfield.(observables, :observable_id)
+    if observable_ids != unique(observable_ids)
+        throw(PEtabFormatError("Observable ids ($(observable_ids)) are not \
+            unique; each PEtabObservable must have a unique id."))
+    end
+
     observables_df = DataFrame()
-    for (id, observable) in observables
-        @unpack transformation, obs, noise_formula = observable
-        _transformation = isnothing(transformation) ? "lin" : string(transformation)
-        if !(_transformation in VALID_SCALES)
-            throw(PEtabFormatError("Transformation $_transformation is not an allowed " *
-                                   "for a PEtabObservable. Allowed transformations " *
-                                   "are $(VALID_SCALES)"))
+
+    for observable in observables
+        @unpack observable_id, observable_formula, noise_formula, distribution = observable
+
+        if distribution in [Distributions.Normal, Distributions.Laplace]
+            _transformation = "lin"
+            _dist = distribution == Distributions.Laplace ? "laplace" : "normal"
+
+        elseif distribution in [Distributions.LogNormal, LogLaplace]
+            _transformation = "log"
+            _dist = distribution == Distributions.Laplace ? "laplace" : "normal"
+
+        elseif distribution == Log10Normal
+            _transformation = "log10"
+            _dist = "normal"
+
+        elseif distribution == Log2Normal
+            _transformation = "log2"
+            _dist = "normal"
         end
-        row = DataFrame(observableId = id,
-                        observableFormula = replace(string(obs), "(t)" => ""),
+
+        row = DataFrame(observableId = observable_id,
+                        observableFormula = replace(observable_formula, "(t)" => ""),
                         observableTransformation = _transformation,
-                        noiseFormula = replace(string(noise_formula), "(t)" => ""),
-                        noiseDistribution = "normal")
+                        noiseFormula = replace(noise_formula, "(t)" => ""),
+                        noiseDistribution = _dist)
         append!(observables_df, row)
     end
     _check_table(observables_df, :observables_v1)

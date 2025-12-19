@@ -62,7 +62,7 @@ function PEtabParameter(id::Union{Num, Symbol}; estimate::Bool = true,
 end
 
 """
-    PEtabObservable(observable_formula, noise_formula; distribution = Normal)
+    PEtabObservable(observable_id, observable_formula, noise_formula; distribution = Normal)
 
 Observation model linking model output (`observable_formula`) to measurement data via a
 likelihood defined by `distribution` with noise/scale given by `noise_formula`.
@@ -72,6 +72,8 @@ median, i.e., measurements are assumed equally likely to lie above or below the 
 
 ## Arguments
 
+- `observable_id`: Observable identifier (`String` or `Symbol`). Used to link rows in the
+  measurement table (column `obs_id`) to this observable.
 - `observable_formula`: Observable expression (`String` or `Symbolics` equation) supporting
     standard Julia functions (e.g. `exp`, `log`, `sin`, `cos`). Variables in the formula
     must be model species, model parameters, or a `PEtabParameter`. May include
@@ -82,9 +84,10 @@ median, i.e., measurements are assumed equally likely to lie above or below the 
 ## Keyword Arguments
 
 - `distribution`: Distribution of the measurement noise. Valid options are `Normal`,
-    `Laplace`, `LogNormal`, and `LogLaplace`. See below for mathematical definition.
+    `Laplace`, `LogNormal`, `Log2Normal`, `Log10Normal` and `LogLaplace`. See below for
+    mathematical definition.
 
-## Mathematical definition
+## Mathematical description
 
 For a measurement `m`, model output `y = observable_formula`, and a noise parameter
 `σ = noise_formula`, `PEtabObservable` defines the likelihood linking the model output to
@@ -106,6 +109,9 @@ For `distribution = Laplace`, the measurement is assumed to be Laplace distribut
 \\pi(m \\mid y, \\sigma) = \\frac{1}{2\\sigma}\\mathrm{exp}\\bigg( -\\frac{|m - y|}{\\sigma} \\bigg)
 ```
 
+For `distribution = Log2Normal` or `distribution = Log10Normal` similar to `LogNormal` the
+`log2` and `log10` respectively are assumed to be normally distributed.
+
 For `distribution = LogNormal`, the log of the measurement is assumed to be Normal
 distributed with `\\mathrm{log}(m) \\sim \\mathcal{N}(\\mathrm{log}(y), \\sigma^2)`
 (requires `m > 0` and `y > 0`). The likelihood formula is:
@@ -125,26 +131,33 @@ distributed with `\\mathrm{log}(m) \\sim \\mathcal{L}(\\mathrm{log}(y), \\sigma)
 For numerical stability, PEtab.jl works with the log-likelihood in practice.
 """
 struct PEtabObservable
-    obs::Any
-    transformation::Union{Nothing, Symbol}
-    noise_formula::Any
+    observable_id::String
+    observable_formula::String
+    noise_formula::String
+    distribution
 end
-function PEtabObservable(obs_formula, noise_formula;
-                         transformation::Symbol = :lin)::PEtabObservable
-    return PEtabObservable(obs_formula, transformation, noise_formula)
+function PEtabObservable(observable_id::UserFormula, observable_formula::UserFormula, noise_formula::Union{UserFormula, Real};
+                         distribution = Distributions.Normal)
+    supported_dist = [getfield.(values(NOISE_DISTRIBUTIONS), :dist)]
+    if !(distribution in supported_dist[1])
+        throw(PEtabFormatError("Unsupported noise distribution: $(distribution). Supported \
+            distributions are $(string.(supported_dist)...)"))
+    end
+    return PEtabObservable(string(observable_id), string(observable_formula), string(noise_formula), distribution)
 end
 
 """
     PEtabCondition(condition_id, target_ids, target_values; t0 = 0.0)
 
-A simulation condition that overrides `target_ids` with `target_values` under `condition_id`.
+Simulation condition that overrides `target_ids` with `target_values`.
 
 Used to set control parameters for different experimental conditions. For examples, see
 the online documentation.
 
 ## Arguments
 
-- `condition_id::Union{String, Symbol}`: Simulation condition identifier.
+- `condition_id::Union{String, Symbol}`: Simulation condition identifier. Used to link rows
+    in the measurement table (column `simulation_id`) to this observable.
 - `target_id`: Entity id or ids to override: a single id or a `Vector` of ids.
     Ids (provided as `String` or `Symbol`) may be model specie ids and/or model parameter
     ids for model parameters that are not estimated.
