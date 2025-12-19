@@ -2,10 +2,32 @@
     Test that the PEtab util functions return expected results
 =#
 
-using Catalyst, DataFrames, OrdinaryDiffEqRosenbrock, PEtab, Test
+using Catalyst, DataFrames, FiniteDifferences, ForwardDiff, OrdinaryDiffEqRosenbrock,
+    PEtab, Test
+
+function __sum_ps(x, prob)
+    ps = get_ps(x, prob; retmap = false)
+    return sum(ps)
+end
+
+function __sum_u0(x, prob)
+    u0 = get_ps(x, prob; retmap = true)
+    return sum(last.(u0))
+end
+
+function __sum_ode_problem(x, prob)
+    oprob, _ = get_odeproblem(x, prob)
+    return sum(solve(oprob, Rodas5P(), abstol = 1e-8, reltol = 1e-8, saveat = 1:10:240))
+end
+
+function __sum_sol(x, prob)
+    sol = get_odesol(x, prob)
+    sol = solve(sol.prob, Rodas5P(), abstol = 1e-8, reltol = 1e-8, saveat = 1:10:240)
+    return sum(sol)
+end
 
 @testset "util functions" begin
-    # Test ability to retreive model parameters for specific model conditions
+    # Test ability to retrieve model parameters for specific model conditions
     # Model without pre-eq or condition specific parameters
     path_yaml = joinpath(@__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
     model = PEtabModel(path_yaml)
@@ -78,14 +100,11 @@ using Catalyst, DataFrames, OrdinaryDiffEqRosenbrock, PEtab, Test
     end
     u0 = [:X1 => 1.0]
     @unpack X1 = rs
-    obs_X1 = PEtabObservable(X1, 0.5)
-    observables = Dict("obs_X1" => obs_X1)
+    observables = PEtabObservable("obs_X1", X1, 0.5)
     par_k1 = PEtabParameter(:k1)
     par_k2 = PEtabParameter(:k2)
     params = [par_k1, par_k2]
-    c1 = Dict(:X2 => 1.0)
-    c2 = Dict(:X2 => 2.0)
-    simulation_conditions = Dict("c1" => c1, "c2" => c2)
+    simulation_conditions = [PEtabCondition(:c1, :X2, 1.0), PEtabCondition(:c2, :X2, 2.0)]
     m_c1 = DataFrame(simulation_id = "c1", obs_id="obs_X1", time=[1.0, 2.0, 3.0], measurement=[1.1, 1.2, 1.3])
     m_c2 = DataFrame(simulation_id = "c2", obs_id="obs_X1", time=[1.0, 2.0, 3.0], measurement=[1.2, 1.4, 1.6])
     measurements = vcat(m_c1, m_c2)
@@ -105,4 +124,27 @@ using Catalyst, DataFrames, OrdinaryDiffEqRosenbrock, PEtab, Test
     oprob_sys = ODEProblem(osys, u0, (0.0, 1.0), ps)
     @test oprob_sys.p.tunable == oprob.p
     @test oprob_sys.u0 == oprob.u0
+
+    # Verify Dual numbers can be propagated through get functions
+    path_yaml = joinpath(@__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
+    prob = PEtabModel(path_yaml) |>
+        PEtabODEProblem
+    x = get_x(prob) .* 0.9
+    _sum_ps = (x) -> __sum_ps(x, prob)
+    _sum_u0 = (x) -> __sum_u0(x, prob)
+    _sum_ode_problem = (x) -> __sum_ode_problem(x, prob)
+    _sum_sol = (x) -> __sum_sol(x, prob)
+    # Reference via Finite-diff
+    grad_ps_ref = FiniteDifferences.grad(central_fdm(5, 1), _sum_ps, x)[1]
+    grad_u0_ref = FiniteDifferences.grad(central_fdm(5, 1), _sum_u0, x[:])[1]
+    grad_prob_ref = FiniteDifferences.grad(central_fdm(5, 1), _sum_ode_problem, x)[1]
+    grad_sol_ref = FiniteDifferences.grad(central_fdm(5, 1), _sum_sol, x[:])[1]
+    grad_ps = ForwardDiff.gradient(_sum_ps, x)
+    grad_u0 = ForwardDiff.gradient(_sum_u0, x[:])
+    grad_prob = ForwardDiff.gradient(_sum_ode_problem, x)
+    grad_sol = ForwardDiff.gradient(_sum_sol, x[:])
+    @test all(.≈(grad_ps_ref, grad_ps, atol = 1e-3))
+    @test all(.≈(grad_u0_ref, grad_u0, atol = 1e-3))
+    @test all(.≈(grad_prob_ref, grad_prob, atol = 1e-3))
+    @test all(.≈(grad_sol_ref, grad_sol, atol = 1e-3))
 end

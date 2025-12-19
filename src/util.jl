@@ -15,9 +15,10 @@ function get_odesol(res::EstimationResult, prob::PEtabODEProblem;
     @unpack model_info, probinfo = prob
     _cid = _get_cid(cid, model_info)
     _preeq_id = _get_preeq_id(preeq_id, model_info)
-    oprob, cbset = get_odeproblem(res, prob; cid = _cid, preeq_id = _preeq_id)
+    oprob, cbs = get_odeproblem(res, prob; cid = _cid, preeq_id = _preeq_id)
+
     @unpack solver, abstol, reltol = probinfo.solver
-    return solve(oprob, solver, abstol = abstol, reltol = reltol, callback = cbset)
+    return solve(oprob, solver, abstol = abstol, reltol = reltol, callback = cbs)
 end
 
 """
