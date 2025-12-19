@@ -42,15 +42,15 @@ measurements = DataFrame(simulation_id=["c0", "c0"],
                          time=[10.0, 10.0],
                          measurement=[0.2, 0.8])
 
-simulation_conditions = [PEtabCondition(:c0, "", "")]
+simulation_conditions = [PEtabCondition(:c0)]
 
 parameters = [PEtabParameter(:a0, value=1.0, scale=:lin),
               PEtabParameter(:b0, value=0.0, scale=:lin),
               PEtabParameter(:k1, value=0.8, scale=:lin),
               PEtabParameter(:k2, value=0.6, scale=:lin)]
 
-petab_observables = Dict("obs_a" => PEtabObservable(:obs_a, 0.5),
-                         "obs_b" => PEtabObservable(:obs_b, 0.6, transformation=:log10))
+petab_observables = [PEtabObservable("obs_a", :obs_a, 0.5),
+                     PEtabObservable(:obs_b, :obs_b, 0.6; distribution=PEtab.Log10Normal)]
 
 model_rn = PEtabModel(rn, petab_observables, measurements, parameters;
                       simulation_conditions = simulation_conditions)

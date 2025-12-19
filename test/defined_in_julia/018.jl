@@ -30,14 +30,14 @@ measurements = DataFrame(simulation_id=["c0", "c0", "c0", "c0"],
                          time=[0.0, 1.0, 10.0, 0.0],
                          measurement=[0.1, 0.7, 0.1, 0.1])
 
-simulation_conditions = [PEtabCondition(:preeq_c0, ["k1", "A", "B"], [0.3, 0.0, 2.0]),
-                         PEtabCondition(:c0, [:k1, :A, :B], [0.8, 1.0, NaN])]
+simulation_conditions = [PEtabCondition(:preeq_c0, "k1" => 0.3, "A" => 0.0, "B" => 2.0),
+                         PEtabCondition(:c0, :k1 => 0.8, :A => 1.0, :B => NaN)]
 
 parameters = [PEtabParameter(:k2, value=0.6, scale=:lin)]
 
 @unpack A, B = rn
-observables = Dict("obs_a" => PEtabObservable(A, 0.5),
-                   "obs_b" => PEtabObservable(B, 0.2))
+observables = [PEtabObservable("obs_a", A, 0.5),
+               PEtabObservable("obs_b", B, 0.2)]
 
 model_rn = PEtabModel(rn, observables, measurements, parameters;
                       simulation_conditions = simulation_conditions)

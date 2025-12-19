@@ -25,7 +25,7 @@ function test_callbacks(events, cbset, tstops, float_tspan::Bool)
                   PEtabParameter(:k2, value=0.6, scale=:lin, estimate=false)]
 
     @unpack A = rn
-    observables = Dict("obs_a" => PEtabObservable(A, 0.5))
+    observables = PEtabObservable("obs_a", A, 0.5)
 
     # Control case without any callback
     model = PEtabModel(rn, observables, measurements, parameters, events=events)
@@ -49,7 +49,7 @@ end
 
     # At t == 5 A += 5
     @unpack A = rn
-    event = PEtabEvent(5.0, A, A + 5)
+    event = PEtabEvent(5.0, A => A + 5)
     _condition1(u, t, integrator) = t == 5
     _affect1!(integrator) = integrator.u[1] += 5
     cbset = DiscreteCallback(_condition1, _affect1!)
@@ -58,7 +58,7 @@ end
 
     # At t == 5 A = 5
     @unpack A = rn
-    event = PEtabEvent(5.0, A, 5)
+    event = PEtabEvent(5.0, A => 5)
     _condition2(u, t, integrator) = t == 5
     _affect2!(integrator) = integrator.u[1] = 5
     cbset = DiscreteCallback(_condition2, _affect2!)
@@ -67,7 +67,7 @@ end
 
     # When A < 0.8 add A = 1
     @unpack A = rn
-    event = PEtabEvent(A < 0.8, A, 1.0)
+    event = PEtabEvent(A < 0.8, A => 1.0)
     _condition3(u, t, integrator) = u[1] - 0.8
     _affect3!(integrator) = integrator.u[1] = 1.0
     cbset = ContinuousCallback(_condition3, _affect3!)
@@ -76,7 +76,7 @@ end
 
     # When A > 0.8 add A = 1, nothing should happen as A comes from the wrong direction
     @unpack A = rn
-    event = PEtabEvent(A > 0.8, A, 1.0)
+    event = PEtabEvent(A > 0.8, A => 1.0)
     _condition4(u, t, integrator) = u[1] - 0.8
     _affect4!(integrator) = integrator.u[1] = 1.0
     cbset = ContinuousCallback(_condition4, _affect4!, affect_neg! = nothing)
@@ -85,7 +85,7 @@ end
 
     # When A > 0.8 add A = 2.0, when B > 0.3 add B -> 5 (should trigger both)
     @unpack A, B = rn
-    events = [PEtabEvent(A > 0.8, A, 2.0), PEtabEvent(B > 0.3, B, 5.0)]
+    events = [PEtabEvent(A > 0.8, A => 2.0), PEtabEvent(B > 0.3, B => 5.0)]
     condition5(u, t, integrator) = u[1] - 0.8
     affect5!(integrator) = integrator.u[1] = 2.0
     condition6(u, t, integrator) = u[2] - 0.3
@@ -98,7 +98,7 @@ end
 
     # When A == 0.8 add A = 2.0
     @unpack A = rn
-    event = PEtabEvent(A == 0.8, A, 2.0)
+    event = PEtabEvent(A == 0.8, A => 2.0)
     _condition7(u, t, integrator) = u[1] - 0.8
     _affect7!(integrator) = integrator.u[1] = 2.0
     cbset = ContinuousCallback(_condition7, _affect7!)
@@ -107,7 +107,7 @@ end
 
     # When t == 4.0 change k2 -> 1.0
     @parameters t
-    event = PEtabEvent(t == 4.0, :k2, 1.0)
+    event = PEtabEvent(t == 4.0, :k2 => 1.0)
     _condition8(u, t, integrator) = t == 4.0
     _affect8!(integrator) = integrator.p[2] = 1.0
     cbset = DiscreteCallback(_condition8, _affect8!)
@@ -117,7 +117,7 @@ end
     # When t == k2 change A -> 1.0
     @parameters t
     @unpack k2 = rn
-    event = PEtabEvent(t == k2, :A, 1.0)
+    event = PEtabEvent(t == k2, :A => 1.0)
     _condition9(u, t, integrator) = t == integrator.p[2]
     _affect9!(integrator) = integrator.u[1] = 1.0
     cbset = DiscreteCallback(_condition9, _affect9!)
@@ -126,7 +126,7 @@ end
 
     # When t == k1 change A -> 1.0
     @parameters t
-    event = PEtabEvent(:k1, :A, 1.0)
+    event = PEtabEvent(:k1, :A => 1.0)
     _condition10(u, t, integrator) = t == integrator.p[1]
     _affect10!(integrator) = integrator.u[1] = 1.0
     cbset = DiscreteCallback(_condition10, _affect10!)
@@ -136,7 +136,7 @@ end
     # When t == k1 change A -> 1.0, B -> B + 2 (multiple targets and affects)
     @parameters t
     @unpack B = rn
-    event = PEtabEvent(:k1, [:A, B], [1.0, B + 2])
+    event = PEtabEvent(:k1, :A => 1.0, B => B + 2)
     _condition11(u, t, integrator) = t == integrator.p[1]
     function _affect11!(integrator)
          integrator.u[1] = 1.0
@@ -148,7 +148,7 @@ end
 
     # When t = 1.5 change A -> 3.0, and when B == 1 -> B -> 3.0 (mix events)
     @unpack B = rn
-    events = [PEtabEvent(:k1, :A, 3.0), PEtabEvent(B == 1.0, B, 3.0)]
+    events = [PEtabEvent(:k1, :A => 3.0), PEtabEvent(B == 1.0, B => 3.0)]
     condition12(u, t, integrator) = t == integrator.p[1]
     affect12!(integrator) = integrator.u[1] = 3.0
     condition13(u, t, integrator) = u[2] - 1.0
@@ -168,30 +168,25 @@ end
                   PEtabParameter(:k1, value=0.8, scale=:lin),
                   PEtabParameter(:k2, value=0.6, scale=:lin, estimate=false)]
     @unpack A = rn
-    observables = Dict("obs_a" => PEtabObservable(A, 0.5))
+    observables = PEtabObservable(:obs_a, A, 0.5)
 
     @test_throws PEtab.PEtabFormatError begin
-        event = PEtabEvent(0.5, :C, 5.0) # Target does not exist
+        event = PEtabEvent(0.5, :C => 5.0) # Target does not exist
         model = PEtabModel(rn, observables, measurements, parameters, events=event)
     end
 
     @test_throws PEtab.PEtabFormatError begin
-        event = PEtabEvent(:B, :A, 5.0) # Trigger cannot not only be a state
+        event = PEtabEvent(:B, :A => 5.0) # Trigger cannot not only be a state
         PEtabModel(rn, observables, measurements, parameters, events=event)
     end
 
     @test_throws PEtab.PEtabFormatError begin
-        event = PEtabEvent(:k1, [:A], [1.0, 2.0])
+        event = PEtabEvent(:k1, 1.0 => 2.0)
         PEtabModel(rn, observables, measurements, parameters, events=event)
     end
 
     @test_throws PEtab.PEtabFormatError begin
-        event = PEtabEvent(:k1, [:A, :B], [1.0])
-        PEtabModel(rn, observables, measurements, parameters, events=event)
-    end
-
-    @test_throws PEtab.PEtabFormatError begin
-        event = PEtabEvent(A + 3, :A, 5.0)
+        event = PEtabEvent(A + 3, :A => 5.0)
         PEtabModel(rn, observables, measurements, parameters, events=event)
     end
 
@@ -201,31 +196,31 @@ end
                              time=[0, 10.0, 10.0],
                              measurement=[0.7, 0.1, 0.15],
                              noise_parameters=0.5)
-    simulation_conditions = [PEtabCondition(:e1, "", ""), PEtabCondition(:e2, "", "")]
+    simulation_conditions = [PEtabCondition(:e1), PEtabCondition(:e2)]
 
     @test_throws PEtab.PEtabFormatError begin
-        events = [PEtabEvent(3, :A, 5.0), PEtabEvent(3, :B, 5.0)]
+        events = [PEtabEvent(3, :A => 5.0), PEtabEvent(3, :B => 5.0)]
         model = PEtabModel(rn, observables, measurements, parameters, events=events,
             simulation_conditions = simulation_conditions)
     end
 
     @test_throws PEtab.PEtabFormatError begin
-        events = [PEtabEvent(3, :A, 5.0; condition_ids = [:e1, :e2]),
-                  PEtabEvent(3, :B, 5.0; condition_ids = [:e2])]
+        events = [PEtabEvent(3, :A => 5.0; condition_ids = [:e1, :e2]),
+                  PEtabEvent(3, :B => 5.0; condition_ids = [:e2])]
         model = PEtabModel(rn, observables, measurements, parameters, events=events,
             simulation_conditions = simulation_conditions)
     end
 
     @test_throws PEtab.PEtabFormatError begin
-        events = [PEtabEvent(3, :A, 5.0; condition_ids = [:e1, :e2]),
-                  PEtabEvent(3, :B, 5.0)]
+        events = [PEtabEvent(3, :A => 5.0; condition_ids = [:e1, :e2]),
+                  PEtabEvent(3, :B => 5.0)]
         model = PEtabModel(rn, observables, measurements, parameters, events=events,
             simulation_conditions = simulation_conditions)
     end
 
     # Should not throw
-    events = [PEtabEvent(3, :A, 5.0; condition_ids = [:e1]),
-              PEtabEvent(3, :B, 5.0; condition_ids = [:e2])]
+    events = [PEtabEvent(3, :A => 5.0; condition_ids = [:e1]),
+              PEtabEvent(3, :B => 5.0; condition_ids = [:e2])]
     model = PEtabModel(rn, observables, measurements, parameters, events=events,
         simulation_conditions = simulation_conditions)
     @test model isa PEtabModel

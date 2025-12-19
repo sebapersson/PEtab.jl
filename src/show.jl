@@ -88,63 +88,35 @@ function show(io::IO, observable::PEtabObservable)
 end
 function show(io::IO, event::PEtabEvent)
     @unpack condition, target_ids, target_values = event
-    header = styled"{PURPLE:{bold:PEtabEvent:}} "
+    header = styled"{PURPLE:{bold:PEtabEvent}} "
     if is_number(string(condition))
         _cond = "t == " * string(condition)
     else
         _cond = condition
     end
 
-    if length(target_ids) > 1
-        target_str = "["
-        for id in target_ids
-            target_str *= (id * ", ")
-        end
-        target_str = target_str[1:(end - 2)] * "]"
-    else
-        target_str = target_ids[1]
+    assignments = ""
+    for i in eachindex(target_ids)
+        assignments *= "$(target_ids[i]) => $(target_values[i]), "
     end
-    if length(target_values) > 1
-        target_value_str = "["
-        for value in target_values
-            target_value_str *= (value * ", ")
-        end
-        target_value_str = target_value_str[1:(end - 2)] * "]"
-    else
-        target_value_str = target_values[1]
-    end
-    effect_str = target_str * " = " * target_value_str
-    if length(target_ids) > 1
-        opt = styled"{emphasis:Condition} $_cond and {emphasis:assignments} $effect_str"
-    else
-        opt = styled"{emphasis:Condition} $_cond and {emphasis:assignment} $effect_str"
-    end
+    assignments = assignments[1:end-2]
+
+    opt = styled"when $(_cond): $(assignments)"
     print(io, styled"$(header)$(opt)")
 end
 function show(io::IO, condition::PEtabCondition)
     @unpack condition_id, target_ids, target_values = condition
-    header = styled"{PURPLE:{bold:PEtabCondition}} {emphasis:$(condition_id)}: "
+    header = styled"{PURPLE:{bold:PEtabCondition}} {emphasis:$(condition_id)}:"
+    if isempty(target_ids)
+        return print(io, styled"$(header)")
+    end
 
-    if length(target_ids) > 1
-        target_str = "["
-        for id in target_ids
-            target_str *= (id * ", ")
-        end
-        target_str = target_str[1:(end - 2)] * "]"
-    else
-        target_str = target_ids[1]
+    opt = ""
+    for i in eachindex(target_ids)
+        opt *= "$(target_ids[i]) => $(target_values[i]), "
     end
-    if length(target_values) > 1
-        target_value_str = "["
-        for value in target_values
-            target_value_str *= (value * ", ")
-        end
-        target_value_str = target_value_str[1:(end - 2)] * "]"
-    else
-        target_value_str = target_values[1]
-    end
-    opt = styled"$(target_str) = $(target_value_str)"
-    print(io, styled"$(header)$(opt)")
+    opt = opt[1:end-2]
+    print(io, styled"$(header) $(opt)")
 end
 function show(io::IO, model::PEtabModel)
     nstates = @sprintf("%d", length(unknowns(model.sys_mutated)))

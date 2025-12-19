@@ -40,8 +40,7 @@ function get_prob_saturated(pest)::PEtabODEProblem
 
     ## Setup the parameter estimation problem
     @parameters sigma
-    obs_X = PEtabObservable(:x, sigma)
-    observables = Dict("obs_X" => obs_X)
+    observables = PEtabObservable("obs_X", :x, sigma)
 
     measurements = DataFrame(
         obs_id="obs_X",

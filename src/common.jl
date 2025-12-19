@@ -147,3 +147,25 @@ end
 function is_number(x::Symbol)::Bool
     is_number(x |> string)
 end
+
+function _check_target_id(target_id, i::Integer, condition_id)::Nothing
+    if target_id isa UserFormula
+        return nothing
+    end
+
+    _start = !isnothing(condition_id) ? "For condition $(condition_id)" : "For PEtabEvent"
+    throw(PEtabFormatError("$(_start), target id for assignment \
+        $(i) must be a `Num`, `Symbol` or `String`; got $(typeof(target_id)) with \
+        value $(target_id)."))
+end
+
+function _check_target_value(target_value, i::Integer, condition_id)
+    if target_value isa Union{UserFormula, Real}
+        return nothing
+    end
+
+    _start = !isnothing(condition_id) ? "For condition $(condition_id)" : "For PEtabEvent"
+    throw(PEtabFormatError("$(_start), target value for assignment  $(i) must be a \
+        `String` `Symbol`, a `Real`, or a symbolic expression (`Num`); got \
+        $(typeof(target_value)) with value $(target_value)."))
+end

@@ -45,7 +45,7 @@ parameters = [PEtabParameter(:a0, value=1.0, scale=:lin),
               PEtabParameter(:k2, value=0.6, scale=:lin)]
 
 # Observable equation
-petab_observables = Dict("obs_a" => PEtabObservable(:obs_a, 0.5))
+petab_observables = PEtabObservable("obs_a", :obs_a, 0.5)
 
 # Create a PEtabODEProblem ReactionNetwork
 model_rn = PEtabModel(rn, petab_observables, measurements, parameters)

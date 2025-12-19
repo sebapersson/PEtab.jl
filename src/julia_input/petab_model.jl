@@ -10,7 +10,7 @@ function PEtabModel(sys::ModelSystem,
     # easier if is a Vector
     # creation a dummy is created
     if isnothing(simulation_conditions)
-        simulation_conditions = [PEtabCondition(:__c0__, "", "")]
+        simulation_conditions = [PEtabCondition(:__c0__)]
     elseif simulation_conditions isa PEtabCondition
         simulation_conditions = [simulation_conditions]
     end

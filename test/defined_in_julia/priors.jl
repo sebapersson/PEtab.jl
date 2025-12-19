@@ -34,12 +34,12 @@ measurements = DataFrame(simulation_id=["c0", "c0"],
                          noise_parameters=0.5)
 
 # Single experimental condition
-simulation_conditions = PEtabCondition(:c0, "", "")
+simulation_conditions = PEtabCondition(:c0)
 
 # Observable equation
 @unpack A = rn
 @parameters sigma
-observables = Dict("obs_a" => PEtabObservable(A, sigma))
+observables = PEtabObservable("obs_a", A, sigma)
 
 # PEtab-parameter to "estimate"
 parameters = [PEtabParameter(:sigma, value=1.0, scale=:lin, prior=LogNormal(0.6, 1.0)),

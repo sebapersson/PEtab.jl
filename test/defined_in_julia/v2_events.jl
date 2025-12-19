@@ -18,10 +18,10 @@ _affect_ref1!(integrator) = integrator.u[1] += 5
 cb_ref = DiscreteCallback(_condition_ref1, _affect_ref1!, save_positions = (false, false))
 ode_prob_ref = ODEProblem(rn, [:A => 5.0, :B => 1.0], (0.0, 10.0), [:k1 => 0.8, :k2 => 0.6])
 
-observables = Dict("obs_a" => PEtabObservable("A", 1.0))
+observables = PEtabObservable(:obs_a, "A", 1.0)
 parameters = [PEtabParameter(:k1, value=0.8, scale=:lin),
               PEtabParameter(:k2, value=0.6, scale=:lin)]
-simulation_conditions = [PEtabCondition(:e1, "", ""), PEtabCondition(:e2, "", "")]
+simulation_conditions = [PEtabCondition(:e1), PEtabCondition(:e2)]
 measurements = DataFrame(simulation_id=["e1", "e1", "e2", "e2"],
                          obs_id=["obs_a", "obs_a", "obs_a", "obs_a"],
                          time=[5.0, 10.0, 5.0, 10.0],
@@ -34,7 +34,7 @@ sol_e2 = solve(ode_prob_ref, Rodas5P(), abstol = 1e-8, reltol = 1e-8, saveat = [
 nllh_ref = sum(0.5 .* (sol_e1[:A] - measurements.measurement[1:2]).^2 .+ 0.5log(2π)) +
     sum(0.5 .* (sol_e2[:A] - measurements.measurement[3:4]).^2 .+ 0.5log(2π))
 
-event_e1 = PEtabEvent(7.0, "A", "A + 5"; condition_ids = [:e1])
+event_e1 = PEtabEvent(7.0, "A" => "A + 5"; condition_ids = [:e1])
 petab_model = PEtabModel(rn, observables, measurements, parameters; verbose = true,
     simulation_conditions = simulation_conditions, events = event_e1)
 petab_prob = PEtabODEProblem(petab_model)
@@ -48,7 +48,7 @@ nllh = petab_prob.nllh(get_x(petab_prob))
 nllh_ref = sum(0.5 .* (sol_e1[:A] - measurements.measurement[1:2]).^2 .+ 0.5log(2π)) +
     sum(0.5 .* (sol_e1[:A] - measurements.measurement[3:4]).^2 .+ 0.5log(2π))
 
-event_e1_e2 = PEtabEvent(7.0, "A", "A + 5")
+event_e1_e2 = PEtabEvent(7.0, "A" => "A + 5")
 petab_model = PEtabModel(rn, observables, measurements, parameters;
     simulation_conditions = simulation_conditions, events = event_e1_e2)
 petab_prob = PEtabODEProblem(petab_model)
@@ -73,14 +73,14 @@ sol_e2 = solve(ode_prob_ref, Rodas5P(), abstol = 1e-8, reltol = 1e-8, saveat = [
 nllh_ref = sum(0.5 .* (sol_e1[:A] - measurements.measurement[1:2]).^2 .+ 0.5log(2π)) +
     sum(0.5 .* (sol_e2[:A] - measurements.measurement[3:4]).^2 .+ 0.5log(2π))
 
-event1 = PEtabEvent("t == 7.0", "A", "A + 5"; condition_ids = [:e1])
-event2 = PEtabEvent("7.0 == t", "A", "A + 5"; condition_ids = [:e1])
-event3 = PEtabEvent(7.0, "A", "A + 5"; condition_ids = [:e1])
+event1 = PEtabEvent("t == 7.0", "A" => "A + 5"; condition_ids = [:e1])
+event2 = PEtabEvent("7.0 == t", "A" => "A + 5"; condition_ids = [:e1])
+event3 = PEtabEvent(7.0, "A" => "A + 5"; condition_ids = [:e1])
 @test PEtab._get_trigger_time(event1) == 7.0
 @test PEtab._get_trigger_time(event2) == 7.0
 @test PEtab._get_trigger_time(event3) == 7.0
 
-event_e1 = PEtabEvent(10.0, "A", "A + 5"; condition_ids = [:e1])
+event_e1 = PEtabEvent(10.0, "A" => "A + 5"; condition_ids = [:e1])
 petab_model = PEtabModel(rn, observables, measurements, parameters;
     simulation_conditions = simulation_conditions, events = event_e1)
 petab_prob = PEtabODEProblem(petab_model)

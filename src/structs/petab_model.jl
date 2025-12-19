@@ -74,16 +74,20 @@ median, i.e., measurements are assumed equally likely to lie above or below the 
 
 - `observable_id`: Observable identifier (`String` or `Symbol`). Used to link rows in the
   measurement table (column `obs_id`) to this observable.
-- `observable_formula`: Observable expression (`String` or `Symbolics` equation) supporting
-    standard Julia functions (e.g. `exp`, `log`, `sin`, `cos`). Variables in the formula
-    must be model species, model parameters, or a `PEtabParameter`. May include
-    time-point-specific observable parameters (see documentation).
+- `observable_formula`: Observable expression. Two supported forms:
+    - `Model-observable`: A `Symbol` identifier matching an observable defined in a Catalyst
+      `ReactionSystem` `@observables` block, or a non-differential variable defined in a
+      ModelingToolkit `ODESystem` `@variables` block.
+    - `expression`: A `String`, `:Symbol`, `Real`, or a Symbolics expression (`Num`). Can
+      include  standard Julia functions (e.g. `exp`, `log`, `sin`, `cos`). Variables may
+      reference model species, model parameters, or `PEtabParameter`s. Can include
+      time-point-specific parameters (see documentation).
 - `noise_formula`: Noise/scale expression (String or Symbolics equation), same rules as
-    `observable_formula`. May include time-point-specific noise parameters (see documentation).
+    `observable_formula`. May include time-point-specific parameters (see documentation).
 
 ## Keyword Arguments
 
-- `distribution`: Distribution of the measurement noise. Valid options are `Normal`,
+- `distribution`: Measurement noise distribution. Valid options are `Normal` (default),
     `Laplace`, `LogNormal`, `Log2Normal`, `Log10Normal` and `LogLaplace`. See below for
     mathematical definition.
 
@@ -98,7 +102,7 @@ For `distribution = Normal`, the measurement is assumed to be normally distribut
 
 ```math
 \\pi(m \\mid y, \\sigma) = \\frac{1}{\\sqrt{2\\pi \\sigma^2}}\\mathrm{exp}\\bigg( -\\frac{(m - y)^2}{2\\sigma^2} \\bigg)
-````
+```
 
 If `\\sigma = 1`, this likelihood reduces to the least-squares objective function.
 
@@ -109,9 +113,6 @@ For `distribution = Laplace`, the measurement is assumed to be Laplace distribut
 \\pi(m \\mid y, \\sigma) = \\frac{1}{2\\sigma}\\mathrm{exp}\\bigg( -\\frac{|m - y|}{\\sigma} \\bigg)
 ```
 
-For `distribution = Log2Normal` or `distribution = Log10Normal` similar to `LogNormal` the
-`log2` and `log10` respectively are assumed to be normally distributed.
-
 For `distribution = LogNormal`, the log of the measurement is assumed to be Normal
 distributed with `\\mathrm{log}(m) \\sim \\mathcal{N}(\\mathrm{log}(y), \\sigma^2)`
 (requires `m > 0` and `y > 0`). The likelihood formula is:
@@ -119,6 +120,9 @@ distributed with `\\mathrm{log}(m) \\sim \\mathcal{N}(\\mathrm{log}(y), \\sigma^
 ```math
 \\pi(m \\mid y, \\sigma) = \\frac{1}{\\sqrt{2\\pi \\sigma^2}\\, m}\\mathrm{exp}\\bigg( -\\frac{\\big(\\mathrm{log}(m) - \\mathrm{log}(y)\\big)^2}{2\\sigma^2} \\bigg)
 ```
+
+For `distribution = Log2Normal` or `distribution = Log10Normal` similar to the `LogNormal`,
+`log2(m)` and `log10(m)` is assumed to be normally distributed.
 
 For `distribution = LogLaplace`, the log of the measurement is assumed to be Laplace
 distributed with `\\mathrm{log}(m) \\sim \\mathcal{L}(\\mathrm{log}(y), \\sigma)`
@@ -147,29 +151,27 @@ function PEtabObservable(observable_id::UserFormula, observable_formula::UserFor
 end
 
 """
-    PEtabCondition(condition_id, target_ids, target_values; t0 = 0.0)
+    PEtabCondition(condition_id, assignments::Pair...; t0 = 0.0)
 
-Simulation condition that overrides `target_ids` with `target_values`.
+Simulation condition that overrides model entities according to `assignments` under
+`condition_id`.
 
-Used to set control parameters for different experimental conditions. For examples, see
+Used to set control parameters for different experimental conditions. For example, see
 the online documentation.
 
-## Arguments
+# Arguments
+- `condition_id::Union{String,Symbol}`: Simulation condition identifier. Measurement rows
+    are linked to this condition via the measurement table column `simulation_id`.
+- `assignments`: One or more assignments of the form `target_id => target_value`.
+    - `target_id`: Entity id to override (`Num`, `String` or `Symbol`). Can be a model
+      species id or a model parameter id for a parameter that is not estimated.
+    - `target_value`: Value/expression assigned to `target_id`. A `String`, `Real`, or a
+      Symbolics expression (`Num`) which can use standard Julia functions (e.g. `exp`, `log`,
+      `sin`, `cos`). Any variables referenced must be model parameters or `PEtabParameter`s
+      (species variables are not allowed).
 
-- `condition_id::Union{String, Symbol}`: Simulation condition identifier. Used to link rows
-    in the measurement table (column `simulation_id`) to this observable.
-- `target_id`: Entity id or ids to override: a single id or a `Vector` of ids.
-    Ids (provided as `String` or `Symbol`) may be model specie ids and/or model parameter
-    ids for model parameters that are not estimated.
-- `target_value`: Value/expression assigned to `target_id`. A `String` or a `Symbolics`
-    expression which may use standard Julia functions (e.g. `exp`, `log`, `sin`).
-    Must match the length of `target_id` when `target_id` is a vector. Any variables
-    referenced must be model parameters or `PEtabParameter`(s) (specie
-    variables are not allowed).
-
-## Keyword Arguments
-
-- `t0`: Model simulation start time for `condition_id` (defaults to `0.0`).
+# Keyword Arguments
+- `t0`: Simulation start time for the condition (default: `0.0`).
 """
 struct PEtabCondition
     condition_id::String
@@ -177,40 +179,50 @@ struct PEtabCondition
     target_values::Vector{String}
     t0::Float64
 end
-function PEtabCondition(condition_id::UserFormula, target_id::UserFormula, target_value::Union{UserFormula, Real}; t0::Real = 0.0)
-    PEtabCondition(string(condition_id), [string(target_id)], [string(target_value)], t0)
-end
-function PEtabCondition(condition_id::UserFormula, target_ids::AbstractVector, target_values::AbstractVector; t0::Real = 0.0)
-    if length(target_ids) != length(target_values)
-        throw(PEtabFormatError("For condition $(condition_id), the number of target ids \
-            ($(length(target_ids))) must equal the number of target values \
-            ($(length(target_values)))."))
+function PEtabCondition(condition_id::Union{Symbol, AbstractString}, assignments::Pair...;
+                        t0::Real = 0.0)
+    condition_id = string(condition_id)
+    if isempty(assignments)
+        return PEtabCondition(condition_id, String[], String[], t0)
     end
-    return PEtabCondition(string(condition_id), string.(target_ids), string.(target_values), t0)
+
+    target_ids = first.(assignments)
+    for (i, target_id) in pairs(target_ids)
+        _check_target_id(target_id, i, condition_id)
+    end
+    target_ids = collect(string.(target_ids))
+
+    target_values = last.(assignments)
+    for (i, target_value) in pairs(target_values)
+        _check_target_value(target_value, i, condition_id)
+    end
+    target_values = collect(string.(target_values))
+
+    return PEtabCondition(condition_id, target_ids, target_values, t0)
 end
 
 """
-    PEtabEvent(condition, target_ids, target_values; condition_ids = [:all])
+    PEtabEvent(condition, assignments::Pair...; condition_ids = [:all])
 
-Model event triggered when `condition` transitions from `false` to `true`, setting the value
-of `target_ids` to `target_values`.
+Model event triggered when `condition` transitions from `false` to `true`, applying the
+updates in `assignments`.
 
-For examples, see the online documentation.
+For example usage, see the online package documentation.
 
-## Arguments
-- `condition`: A Boolean expression that triggers the event when it transitions from
-    `false` to `true`. For example, if `t == c1`, the event is triggered when the model
-    time `t` equals the value of model parameter `c1`. For `S > 2.0`, the event triggers
-    when model specie `S` passes 2.0 from below.
-- `target_ids`: Entity id or ids to assign value a, either a single id or a `Vector` of ids.
-    Ids (provided as `String` or `Symbol`) may be model specie ids and/or model parameters.
-- `target_values`: Value/expression assigned to `target_id`. A `String` or a `Symbolics`
-    equation which may use standard Julia functions (e.g. `exp`, `log`, `sin`).
-    Must match the length of `target_id` when `target_id` is a vector. Any variables
-    referenced must be model parameters or model species.
-- `condition_ids` (optional): Simulation condition(s) ids (provided as `String` or `Symbol`)
-    to which the event applies. If set to `[:all]` (default), the event is applied to all
-    simulation conditions.
+# Arguments
+- `condition`: Boolean expression that triggers the event on a `false` → `true` transition.
+  Examples: `t == 3.0` triggers when simulation time `t` equals parameter `3.0`; `S > 2.0`
+  triggers when species `S` crosses `2.0` from below.
+- `assignments`: One or more assignments of the form `targe_id => target_value`.
+    - `target_id`: Entity id to set (`Num`, `String` or `Symbol`). Can be a model
+      specie id or a model parameter id.
+    - `target_value`: Value/expression assigned to `target_id`. A `String`, `Real`, or a
+      Symbolics expression (`Num`) which can use standard Julia functions (e.g. `exp`, `log`,
+      `sin`, `cos`). Any variables referenced must be model species or model parameters.
+
+# Keyword Arguments
+- `condition_ids`: Simulation condition identifiers (`String/Symbol`) as declared by any
+    `PEtabCondition`s. If [:all] (default), the event is applied to all conditions.
 """
 struct PEtabEvent
     condition::String
@@ -219,16 +231,25 @@ struct PEtabEvent
     trigger_time::Float64
     condition_ids::Vector{Symbol}
 end
-function PEtabEvent(condition::Union{UserFormula, Real}, target_ids::UserFormula, target_values::Union{UserFormula, Real}; trigger_time::Real = NaN, condition_ids::Union{Vector{String}, Vector{Symbol}} = Symbol[])
-    return PEtabEvent(string(condition), [string(target_ids)], [string(target_values)], trigger_time, Symbol.(condition_ids))
-end
-function PEtabEvent(condition::Union{UserFormula, Real}, target_ids::AbstractVector, target_values::AbstractVector; trigger_time::Real = NaN, condition_ids::Union{Vector{String}, Vector{Symbol}} = Symbol[])
-    if length(target_ids) != length(target_values)
-        throw(PEtabFormatError("For a PEtabEvent, the number of target ids \
-            ($(length(target_ids))) must equal the number of target values \
-            ($(length(target_values)))."))
+function PEtabEvent(condition::Union{UserFormula, Real}, assignments::Pair...; trigger_time::Real = NaN, condition_ids::Union{Vector{String}, Vector{Symbol}} = Symbol[])
+    if isempty(assignments)
+        throw(PEtabFormatError("For a PEtabEvent, at least one assignment pair \
+            (target_id => target_value) must be provided."))
     end
-    return PEtabEvent(string(condition), string.(target_ids), string.(target_values), trigger_time, Symbol.(condition_ids))
+
+    target_ids = first.(assignments)
+    for (i, target_id) in pairs(target_ids)
+        _check_target_id(target_id, i, nothing)
+    end
+    target_ids = collect(string.(target_ids))
+
+    target_values = last.(assignments)
+    for (i, target_value) in pairs(target_values)
+        _check_target_value(target_value, i, nothing)
+    end
+    target_values = collect(string.(target_values))
+
+    return PEtabEvent(string(condition), target_ids, target_values, trigger_time, Symbol.(condition_ids))
 end
 
 """

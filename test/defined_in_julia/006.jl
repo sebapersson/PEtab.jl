@@ -34,7 +34,7 @@ measurements = DataFrame(simulation_id=["c0", "c0"],
                          measurement=[0.7, 0.1],
                          observable_parameters=[10.0, 15.0])
 
-simulation_conditions = [PEtabCondition(:c0, "", "")]
+simulation_conditions = [PEtabCondition(:c0)]
 
 parameters = [PEtabParameter(:a0, value=1.0, scale=:lin),
               PEtabParameter(:b0, value=0.0, scale=:lin),
@@ -43,7 +43,7 @@ parameters = [PEtabParameter(:a0, value=1.0, scale=:lin),
 
 @unpack A = rn
 @parameters observableParameter1_obs_a
-observables = Dict("obs_a" => PEtabObservable(observableParameter1_obs_a * A, 1.0))
+observables = PEtabObservable(:obs_a, observableParameter1_obs_a * A, 1.0)
 
 model_rn = PEtabModel(rn, observables, measurements, parameters;
                       simulation_conditions = simulation_conditions)

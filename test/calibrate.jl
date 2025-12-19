@@ -35,7 +35,7 @@ using PEtab, Distributions, CSV, DataFrames, OrdinaryDiffEqRosenbrock, Catalyst,
                 PEtabParameter(:k1, value=0.8, scale=:lin),
                 PEtabParameter(:k2, value=0.6, scale=:lin, lb = 0.4, ub = 0.8)]
     @unpack A = rn
-    observables = Dict("obs_a" => PEtabObservable(A, 0.5))
+    observables = PEtabObservable(:obs_a, A, 0.5)
     model = PEtabModel(rn, observables, measurements, parameters; verbose=false)
     prob = PEtabODEProblem(model; verbose=false)
     xstarts = get_startguesses(prob, 10000)

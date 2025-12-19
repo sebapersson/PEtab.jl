@@ -95,18 +95,16 @@ let
 
     # Make PETab problem.
     @unpack E,P = rn
-    obs_E = PEtabObservable(E, 0.5)
-    obs_p = PEtabObservable(P, 0.5)
-    observables = Dict("obs_E" => obs_E, "obs_p" => obs_p)
+    observables = [PEtabObservable("obs_E", E, 0.5),
+                   PEtabObservable("obs_p", P, 0.5)]
 
     par_kB = PEtabParameter(:kB)
     par_kD = PEtabParameter(:kD)
     par_kP = PEtabParameter(:kP)
     params = [par_kB, par_kD, par_kP]
 
-    c1 = Dict(:S => 1.0)
-    c2 = Dict(:S => 0.5)
-    simulation_conditions = Dict("c1" => c1, "c2" => c2)
+    simulation_conditions = [PEtabCondition(:c1, :S => 1.0),
+                             PEtabCondition(:c2, :S => 0.5)]
 
     m_c1_E = DataFrame(simulation_id="c1", obs_id="obs_E", time=c1_t, measurement=c1_E)
     m_c1_P = DataFrame(simulation_id="c1", obs_id="obs_p", time=c1_t, measurement=c1_P)
@@ -182,17 +180,15 @@ let
 
     @unpack E, S, P = rn
     @parameters sigma
-    obs_sum = PEtabObservable(S + E, 3.0)
-    obs_p = PEtabObservable(P, sigma)
-    observables = Dict("obs_p" => obs_p, "obs_sum" => obs_sum)
+    observables = [PEtabObservable("obs_p", P, sigma),
+                   PEtabObservable("obs_sum", S + E, 3.0)]
     p_c1 = PEtabParameter(:c1)
     p_c2 = PEtabParameter(:c2)
     p_sigma = PEtabParameter(:sigma)
     pest = [p_c1, p_c2, p_sigma]
-    cond1 = Dict(:S0 => 3.0)
-    cond2 = Dict(:S0 => 5.0)
-    cond_preeq = Dict(:S0 => 2.0)
-    conds = Dict("cond_preeq" => cond_preeq, "cond1" => cond1, "cond2" => cond2)
+    conds = [PEtabCondition(:cond1, :S0 => 3.0),
+             PEtabCondition(:cond2, :S0 => 5.0),
+             PEtabCondition(:cond_preeq, :S0 => 2.0)]
     measurements = DataFrame(simulation_id=["cond1", "cond1", "cond2", "cond2"],
                             pre_eq_id=["cond_preeq", "cond_preeq", "cond_preeq", "cond_preeq"],
                             obs_id=["obs_p", "obs_sum", "obs_p", "obs_sum"],

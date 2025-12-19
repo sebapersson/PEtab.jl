@@ -104,7 +104,8 @@ end
     par_k1 = PEtabParameter(:k1)
     par_k2 = PEtabParameter(:k2)
     params = [par_k1, par_k2]
-    simulation_conditions = [PEtabCondition(:c1, :X2, 1.0), PEtabCondition(:c2, :X2, 2.0)]
+    simulation_conditions = [PEtabCondition(:c1, :X2 => 1.0),
+                             PEtabCondition(:c2, :X2 => 2.0)]
     m_c1 = DataFrame(simulation_id = "c1", obs_id="obs_X1", time=[1.0, 2.0, 3.0], measurement=[1.1, 1.2, 1.3])
     m_c2 = DataFrame(simulation_id = "c2", obs_id="obs_X1", time=[1.0, 2.0, 3.0], measurement=[1.2, 1.4, 1.6])
     measurements = vcat(m_c1, m_c2)

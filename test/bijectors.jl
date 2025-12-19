@@ -109,8 +109,7 @@ end
     end
     u0 = [:X1 => 1.0]
     @unpack X1 = rs
-    obs_X1 = PEtabObservable(X1, 0.5)
-    observables = Dict("obs_X1" => obs_X1)
+    observables = PEtabObservable(:obs_X1, X1, 0.5)
     par_k1 = PEtabParameter(:k1; scale = :lin, prior = Normal(1.0, 1.0), value = 1.1)
     par_k2 = PEtabParameter(:k2; scale = :lin, prior = Normal(1.0, 1.0), value = 0.9)
     params = [par_k1, par_k2]

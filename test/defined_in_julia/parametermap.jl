@@ -36,14 +36,14 @@ measurements = DataFrame(simulation_id=["c0", "c0"],
                          measurement=[0.7, 0.1],
                          noise_parameters=0.5)
 
-simulation_conditions = PEtabCondition(:c0, "", "")
+simulation_conditions = PEtabCondition(:c0)
 
 parameters = [PEtabParameter(:a0, value=1.0, scale=:lin),
-                    PEtabParameter(:b0, value=0.0, scale=:lin),
-                    PEtabParameter(:k1, value=0.8, scale=:log10)]
+              PEtabParameter(:b0, value=0.0, scale=:lin),
+              PEtabParameter(:k1, value=0.8, scale=:log10)]
 
 @unpack A = rn
-observables = Dict("obs_a" => PEtabObservable(A, 0.5))
+observables = PEtabObservable("obs_a", A, 0.5)
 
 model_rn = PEtabModel(rn, observables, measurements, parameters, parametermap=parametermap,
                       simulation_conditions = simulation_conditions)

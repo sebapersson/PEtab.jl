@@ -45,8 +45,8 @@ measurements = DataFrame(simulation_id=["e1", "e2"],
                          measurement=[2.1, 3.2])
 
 # Single experimental condition
-simulation_conditions = [PEtabCondition(:e1, "", ""),
-                         PEtabCondition(:e2, :offset_A, :offset_A_c1)]
+simulation_conditions = [PEtabCondition(:e1),
+                         PEtabCondition(:e2, :offset_A => :offset_A_c1)]
 
 # PEtab-parameter to "estimate"
 parameters = [PEtabParameter(:k1, value=0.8, scale=:lin),
@@ -54,7 +54,7 @@ parameters = [PEtabParameter(:k1, value=0.8, scale=:lin),
               PEtabParameter(:offset_A_c1, value=3.0, scale=:lin)]
 
 # Observable equation
-observables = Dict("obs_a" => PEtabObservable(:model_obs, 1.0))
+observables = PEtabObservable("obs_a", :model_obs, 1.0)
 
 # Create a PEtabODEProblem ReactionNetwork
 model_rn = PEtabModel(rn, observables, measurements, parameters;

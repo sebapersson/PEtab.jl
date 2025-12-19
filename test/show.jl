@@ -23,29 +23,41 @@ p3 = PEtabParameter(:k3; scale = :log, lb = 1e-2, prior = LogNormal(1.0, 1.0))
 t = default_t()
 @variables A(t) B(t)
 @parameters sigma
-obs1 = PEtabObservable(:a, 1.0)
-obs2 = PEtabObservable(A + B, sigma)
-obs3 = PEtabObservable((A + B)/B, sigma * B; transformation = :log10)
-@test "$obs1" == "PEtabObservable: h = a and sd = 1.0 with normal measurement noise"
-@test "$obs2" == "PEtabObservable: h = B(t) + A(t) and sd = sigma with normal measurement noise"
-@test "$obs3" == "PEtabObservable: h = (B(t) + A(t)) / B(t) and sd = sigma*B(t) with log-normal measurement noise"
+obs1 = PEtabObservable(:o1, :a, 1.0)
+obs2 = PEtabObservable("o1", A + B, sigma)
+obs3 = PEtabObservable("o1", A + B, sigma * B)
+obs4 = PEtabObservable(:o1, :a, 1.0; distribution = LogNormal)
+obs5 = PEtabObservable(:o1, :a, 1.0; distribution = PEtab.Log2Normal)
+obs6 = PEtabObservable(:o1, :a, 1.0; distribution = PEtab.Log10Normal)
+obs7 = PEtabObservable(:o1, :a, 1.0; distribution = Laplace)
+obs8 = PEtabObservable(:o1, :a, 1.0; distribution = PEtab.LogLaplace)
+@test "$obs1" == "PEtabObservable o1: data ~ Normal(μ=a, σ=1.0)"
+@test "$obs2" == "PEtabObservable o1: data ~ Normal(μ=B(t) + A(t), σ=sigma)"
+@test "$obs3" == "PEtabObservable o1: data ~ Normal(μ=B(t) + A(t), σ=sigma*B(t))"
+@test "$obs4" == "PEtabObservable o1: log(data) ~ Normal(μ=log(a), σ=1.0)"
+@test "$obs5" == "PEtabObservable o1: log2(data) ~ Normal(μ=log2(a), σ=1.0)"
+@test "$obs6" == "PEtabObservable o1: log10(data) ~ Normal(μ=log10(a), σ=1.0)"
+@test "$obs7" == "PEtabObservable o1: data ~ Laplace(μ=a, θ=1.0)"
+@test "$obs8" == "PEtabObservable o1: log(data) ~ Laplace(μ=log(a), θ=1.0)"
 
 t = default_t()
 @variables A(t) B(t)
 @parameters k1 k2
-cond1 = PEtabCondition(:c1, A, 1.0)
-cond2 = PEtabCondition(:c1, [:A, :B], [:k1, :k2])
-cond3 = PEtabCondition(:c1, ["A", :B], [k1 + k2, "k1 / k2"])
-@test "$cond1" == "PEtabCondition: A(t) = 1.0"
-@test "$cond2" == "PEtabCondition: [A, B] = [k1, k2]"
-@test "$cond3" == "PEtabCondition: [A, B] = [k1 + k2, k1 / k2]"
+cond1 = PEtabCondition(:c1, A => 1.0)
+cond2 = PEtabCondition(:c1, :A => :k1, :B => :k2)
+cond3 = PEtabCondition(:c1, "A" => exp(k1 + k2), :B => "k1 / k2")
+cond4 = PEtabCondition(:c1)
+@test "$cond1" == "PEtabCondition c1: A(t) => 1.0"
+@test "$cond2" == "PEtabCondition c1: A => k1, B => k2"
+@test "$cond3" == "PEtabCondition c1: A => exp(k1 + k2), B => k1 / k2"
+@test "$cond4" == "PEtabCondition c1:"
 
-event1 = PEtabEvent(:k1, [:A, B], [1.0, B + 2])
-event2 = PEtabEvent(sigma == t, [A, B], [1.0, B + 2])
-event3 = PEtabEvent(A ≤ 4.0, B, B + 2)
-@test "$event1" == "PEtabEvent: Condition k1 and assignments [A, B(t)] = [1.0, 2 + B(t)]"
-@test "$event2" == "PEtabEvent: Condition sigma == t and assignments [A(t), B(t)] = [1.0, 2 + B(t)]"
-@test "$event3" == "PEtabEvent: Condition A(t) <= 4.0 and assignment B(t) = 2 + B(t)"
+event1 = PEtabEvent(:k1, :A => 1.0, B => B + 2)
+event2 = PEtabEvent(sigma == t, A => 1.0, B => B + 2)
+event3 = PEtabEvent(A ≤ 4.0, B => B + 2)
+@test "$event1" == "PEtabEvent when k1: A => 1.0, B(t) => 2 + B(t)"
+@test "$event2" == "PEtabEvent when sigma == t: A(t) => 1.0, B(t) => 2 + B(t)"
+@test "$event3" == "PEtabEvent when A(t) <= 4.0: B(t) => 2 + B(t)"
 
 path1 = joinpath(@__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
 path2 = joinpath(@__DIR__, "published_models", "Brannmark_JBC2010", "Brannmark_JBC2010.yaml")
