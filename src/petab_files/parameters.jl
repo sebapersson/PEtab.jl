@@ -68,7 +68,7 @@ function Priors(xindices::ParameterIndices, model::PEtabModel)::Priors
 
         # Prior provided via the Julia interface
         if occursin("__Julia__", prior_id)
-            on_parameter_scale[id] = !parameters_df[row_idx, :priorOnLinearScale]
+            on_parameter_scale[id] = false
             priors[id] = _parse_julia_prior(prior_id)
 
         # Prior via the PEtab tables
@@ -137,7 +137,7 @@ end
 function _parse_julia_prior(_prior::String)::Distribution{Univariate, Continuous}
     _prior = replace(_prior, "__Julia__" => "")
     # In expressions like Normal{Float64}(μ=0.3, σ=3.0) remove variables to obtain
-    # Normal{Float64}(0.3, 3.0)
+    # Normal{Float64}(0.3, 3.0). TODO: Update to support PEtab export
     _prior = replace(_prior, r"\b\w+\s*=\s*" => "")
     _prior = replace(_prior, "Truncated" => "truncated")
     _prior = replace(_prior, ";" => ",")

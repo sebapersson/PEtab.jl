@@ -99,31 +99,3 @@ end
         @test reference_stats.nt.std[3] ≈ adaptive_stats.nt.std[3] atol=1e-2
     end
 end
-
-@testset "Check inference transformed parameters" begin
-    # Try mixing
-    _b1 = PEtabParameter(:b1, value=1.0, lb=0.0, ub=5.0, scale=:log10, prior_on_linear_scale=true, prior=Uniform(0.0, 5.0))
-    _b2 = PEtabParameter(:b2, value=0.2, lb=0.0, ub=5.0, scale=:log, prior=Uniform(-3, log(5.0)), prior_on_linear_scale=false)
-    _sigma = PEtabParameter(:sigma, value=0.03, lb=1e-3, ub=1e2, scale=:log10, prior=Uniform(-3, 2.0), prior_on_linear_scale=false)
-    pest = [_b1, _b2, _sigma]
-    prob = get_prob_saturated(pest)
-
-    reference_stats = get_reference_stats(joinpath(@__DIR__, "inference_results", "Saturated_chain_tparam.csv"))
-
-    # AdaptiveMCMC
-    Random.seed!(1234)
-    target = PEtabLogDensity(prob)
-    xprior = to_prior_scale(prob.xnominal_transformed, target)
-    xinference = target.inference_info.bijectors(xprior)
-    res = adaptive_rwm(xinference, target.logtarget, 200000; progress=false)
-    chain_adapt = to_chains(res, target)
-    adaptive_stats = summarystats(chain_adapt)
-    @testset "Adaptive MCMC" begin
-        @test reference_stats.nt.mean[1] ≈ adaptive_stats.nt.mean[1] atol=2e-1
-        @test reference_stats.nt.mean[2] ≈ adaptive_stats.nt.mean[2] atol=5e-2
-        @test reference_stats.nt.mean[3] ≈ adaptive_stats.nt.mean[3] atol=1e-2
-        @test reference_stats.nt.std[1] ≈ adaptive_stats.nt.std[1] atol=5e-1
-        @test reference_stats.nt.std[2] ≈ adaptive_stats.nt.std[2] atol=5e-2
-        @test reference_stats.nt.std[3] ≈ adaptive_stats.nt.std[3] atol=1e-2
-    end
-end

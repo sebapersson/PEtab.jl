@@ -56,16 +56,23 @@ function show(io::IO, ss_solver::SteadyStateSolver)
     print(io, styled"$(str)$(options)")
 end
 function show(io::IO, parameter::PEtabParameter)
-    header = styled"{PURPLE:{bold:PEtabParameter:}} {emphasis:$(parameter.parameter)} "
-    @unpack scale, lb, ub, prior = parameter
-    opt = @sprintf("estimated on %s-scale with bounds [%.1e, %.1e]", scale, lb, ub)
-    if !isnothing(prior)
-        prior_str = replace(prior |> string, r"\{[^}]+\}" => "")
-        if length(prior_str) ≥ 14 && prior_str[1:14] == "Distributions."
-            prior_str = replace(prior_str, "Distributions." => "")
-        end
-        opt *= @sprintf(" and prior %s", prior_str)
+    @unpack parameter_id, scale, estimate, prior, value, lb, ub = parameter
+    header = styled"{PURPLE:{bold:PEtabParameter}} {emphasis:$(parameter_id)}: "
+
+    if estimate == false
+        opt = @sprintf("fixed = %.2e", value)
     end
+
+    if estimate == true && isnothing(prior)
+        opt = @sprintf("estimate (scale = %s, bounds = [%.1e, %.1e])", scale, lb, ub)
+    end
+
+    if estimate == true && !isnothing(prior)
+        prior_str = replace(string(prior), r"\{[^}]+\}" => "")
+        prior_str = replace(prior_str, "Distributions." => "")
+        opt = @sprintf("estimate (scale = %s, prior(%s) = %s)", scale, parameter_id, prior_str)
+    end
+
     print(io, styled"$(header)$(opt)")
 end
 function show(io::IO, observable::PEtabObservable)

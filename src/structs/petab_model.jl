@@ -1,64 +1,71 @@
 """
-    PEtabParameter(x; kwargs...)
+    PEtabParameter(parameter_id; kwargs...)
 
-Parameter estimation information for parameter `x`.
+Parameter-estimation data for parameter `parameter_id` (bounds, scale, prior, and whether
+to estimate).
 
-All parameters to be estimated in a `PEtabODEProblem` must be declared as a
-`PEtabParameter`, and `x` must be the name of a parameter that appears in the model,
-observable formula, or noise formula.
+All parameters estimated in a `PEtabODEProblem` must be declared as `PEtabParameter`.
+`parameter_id` must correspond to a model parameter and/or appear in an `observable_formula`
+or `noise_formula` of a `PEtabObservable`.
 
 ## Keyword Arguments
+* `scale::Symbol = :log10`: Scale the parameter is estimated on. One of `:log10` (default),
+    `:log2`, `:log`, or `:lin`. Estimating on a log scale often improves performance and is
+    recommended.
+- `lb = 1e-3`: Lower bound for parameter estimation, specified on the **linear** scale.
+    For example, if `scale = :log10`, pass `lb = 1e-3` (not `log10(1e-3)`).
+- `ub = 1e3`: Upper bound for estimation, with same convention as `lb`.
+- `prior = nothing`: Optional prior distribution acting on the **linear** parameter scale
+    (i.e. even if `scale = :log10`, the prior is on `x`, not on `log10(x)`). If the prior’s
+    support extends beyond `lb/ub` bounds, it is truncated by `[lb, ub]` (use `lb = -Inf`
+    and `ub = Inf` to avoid truncation). Any continuous univariate distribution
+    from [Distributions.jl](https://github.com/JuliaStats/Distributions.jl) is supported.
+- `estimate::Bool = true`: Whether the parameter is estimated (default `true`) or treated
+    as a constant (`false`).
+- `value = nothing`: Value used when `estimate = false`, and the value returned by
+    `get_x`. Defaults to the midpoint of `[lb, ub]`.
 
-- `lb::Float64 = 1e-3`: The lower parameter bound for parameter estimation. Must
-    be specified on the linear scale. For example, if `scale = :log10`, provide the
-    bound as `1e-3` rather than `log10(1e-3)`.
-- `ub::Float64 = 1e3`: The upper parameter bound for parameter estimation. Must as for
-    `lb` be provided on linear scale.
-- `scale::Symbol = :log10`: The scale on which to estimate the parameter. Allowed options
-    are `:log10` (default), `:log2` `:log`, and `:lin`. Estimating on the `log10`
-    scale typically improves performance and is recommended.
-- `prior = nothing`: An optional continuous univariate parameter prior distribution from
-    [Distributions.jl](https://github.com/JuliaStats/Distributions.jl). The prior
-    overrides any parameter bounds.
-- `prior_on_linear_scale = true`: Whether the prior is on the linear scale (default) or on
-    the transformed scale. For example, if `scale = :log10` and
-    `prior_on_linear_scale = false`, the prior acts on the transformed value; `log10(x)`.
-- `estimate = true`: Whether the parameter should be estimated (default) or treated as a
-    constant.
-- `value = nothing`: Value to use if `estimate = false`, and value retreived by the `get_x`
-    function. Defaults to the midpoint between `lb` and `ub`.
+## Priors and Parameter Estimation
 
-## Description
-
-If a prior ``\\pi(x_i)`` is provided, the parameter estimation problem becomes a maximum a
-posteriori problem instead of a maximum likelihood problem. Practically, instead of
-minimizing the negative log-likelihood,``-\\ell(x)``, the negative posterior is minimized:
+If at least one parameter in a `PEtabODEProblem` has a `prior` specified, parameter
+estimation uses a maximum-a-posteriori (MAP) objective:
 
 ```math
-\\min_{\\mathbf{x}} -\\ell(\\mathbf{x}) - \\sum_{i} \\pi(x_i)
+\\min_{\\mathbf{x}} -\\ell(\\mathbf{x}) - \\sum_{i \\in \\mathcal{I}} \\log \\pi_i(x_i)
 ```
 
-For all parameters ``i`` with a prior.
+where ``\\mathcal{I}`` indexes parameters with an explicit prior density ``\\pi_i``.
+Parameters with `prior = nothing` are assigned a `Uniform(lb, ub)` prior. If no parameter
+has a prior, parameter estimation reduces to the maximum-likelihood (ML) objective
+``-\\ell(\\mathbf{x})``.
 """
 struct PEtabParameter
-    parameter::Union{Num, Symbol}
+    parameter_id::String
     estimate::Bool
     value::Union{Nothing, Float64}
     lb::Union{Nothing, Float64}
     ub::Union{Nothing, Float64}
     prior::Union{Nothing, Distribution{Univariate, Continuous}}
-    prior_on_linear_scale::Bool
     scale::Symbol
     sample_prior::Bool
 end
-function PEtabParameter(id::Union{Num, Symbol}; estimate::Bool = true,
+function PEtabParameter(parameter_id::UserFormula; estimate::Bool = true,
                         value::Union{Nothing, Float64} = nothing, sample_prior::Bool = true,
-                        lb::Union{Nothing, Float64} = 1e-3,
-                        ub::Union{Nothing, Float64} = 1e3,
+                        lb::Real = 1e-3, ub::Real = 1e3,
                         prior::Union{Nothing, Distribution{Univariate, Continuous}} = nothing,
-                        prior_on_linear_scale::Bool = true, scale::Symbol = :log10)
-    return PEtabParameter(id, estimate, value, lb, ub, prior, prior_on_linear_scale, scale,
-                          sample_prior)
+                        scale::Symbol = :log10)
+    if !isnothing(prior)
+        prior_support = Distributions.support(prior)
+        if lb > prior_support.lb || ub < prior_support.ub
+            prior = truncated(prior, lb, ub)
+        end
+    end
+
+    if isnothing(value)
+        value = (lb + ub) .* 0.5
+    end
+
+    return PEtabParameter(string(parameter_id), estimate, value, lb, ub, prior, scale, sample_prior)
 end
 
 """

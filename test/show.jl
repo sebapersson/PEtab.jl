@@ -1,5 +1,5 @@
 using PEtab, Sundials, OrdinaryDiffEqRosenbrock, StyledStrings, NonlinearSolve,
-      Distributions, Catalyst, Test
+    Distributions, Catalyst, Test
 
 solver1 = ODESolver(Rodas5P())
 solver2 = ODESolver(CVODE_BDF(); abstol = 1e-3, reltol = 1e-8, maxiters = 1000)
@@ -16,9 +16,13 @@ ss_solver3 = SteadyStateSolver(:Rootfinding)
 p1 = PEtabParameter(:k1)
 p2 = PEtabParameter(:k2; scale = :lin)
 p3 = PEtabParameter(:k3; scale = :log, lb = 1e-2, prior = LogNormal(1.0, 1.0))
-@test "$p1" == "PEtabParameter: k1 estimated on log10-scale with bounds [1.0e-03, 1.0e+03]"
-@test "$p2" == "PEtabParameter: k2 estimated on lin-scale with bounds [1.0e-03, 1.0e+03]"
-@test "$p3" == "PEtabParameter: k3 estimated on log-scale with bounds [1.0e-02, 1.0e+03] and prior LogNormal(μ=1.0, σ=1.0)"
+p4 = PEtabParameter(:k4; scale = :lin, lb = 0.0, ub = Inf, prior = LogNormal(1.0, 1.0))
+p5 = PEtabParameter(:k5; value = 3.0, estimate = false)
+@test "$p1" == "PEtabParameter k1: estimate (scale = log10, bounds = [1.0e-03, 1.0e+03])"
+@test "$p2" == "PEtabParameter k2: estimate (scale = lin, bounds = [1.0e-03, 1.0e+03])"
+@test "$p3" == "PEtabParameter k3: estimate (scale = log, prior(k3) = Truncated(LogNormal(μ=1.0, σ=1.0); lower=0.01, upper=1000.0))"
+@test "$p4" == "PEtabParameter k4: estimate (scale = lin, prior(k4) = LogNormal(μ=1.0, σ=1.0))"
+@test "$p5" == "PEtabParameter k5: fixed = 3.00e+00"
 
 t = default_t()
 @variables A(t) B(t)

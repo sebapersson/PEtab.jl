@@ -2,7 +2,7 @@ function _parameters_to_table(parameters::Vector{PEtabParameter})::DataFrame
     # Most validity check occurs later during table parsing
     parameters_df = DataFrame()
     for petab_paramter in parameters
-        @unpack parameter, scale, lb, ub, value, estimate = petab_paramter
+        @unpack parameter_id, scale, lb, ub, value, estimate = petab_paramter
 
         parameterScale = isnothing(scale) ? "lin" : string(scale)
         if !(parameterScale in VALID_SCALES)
@@ -19,7 +19,7 @@ function _parameters_to_table(parameters::Vector{PEtabParameter})::DataFrame
 
         nominalValue = isnothing(value) ? (lowerBound + upperBound) / 2.0 : value
         should_estimate = estimate == true ? 1 : 0
-        row = DataFrame(parameterId = parameter |> string,
+        row = DataFrame(parameterId = parameter_id,
                         parameterScale = parameterScale,
                         lowerBound = lowerBound,
                         upperBound = upperBound,
@@ -27,24 +27,26 @@ function _parameters_to_table(parameters::Vector{PEtabParameter})::DataFrame
                         estimate = should_estimate)
         append!(parameters_df, row)
     end
-    # Add potential prior columns
-    if !all(isnothing.(getfield.(parameters, :prior)))
-        priors = fill("", length(parameters))
-        initialisation_priors = priors |> deepcopy
-        priors_on_linear_scale = Vector{Union{Bool, String}}(undef, length(priors))
-        fill!(priors_on_linear_scale, "")
-        for (i, petab_parameter) in pairs(parameters)
-            @unpack prior, prior_on_linear_scale, sample_prior = petab_parameter
-            isnothing(prior) && continue
-            priors[i] = "__Julia__" * string(prior)
-            priors_on_linear_scale[i] = prior_on_linear_scale
-            sample_prior == false && continue
-            initialisation_priors[i] = priors[i]
-        end
-        parameters_df[!, :objectivePriorType] .= priors
-        parameters_df[!, :priorOnLinearScale] .= priors_on_linear_scale
-        parameters_df[!, :initializationPriorType] .= initialisation_priors
+
+    if all(isnothing.(getfield.(parameters, :prior)))
+        _check_table(parameters_df, :parameters_v1)
+        return parameters_df
     end
+
+    priors = fill("", length(parameters))
+    initialization_priors = fill("", length(parameters))
+    for (i, petab_parameter) in pairs(parameters)
+        @unpack prior, sample_prior = petab_parameter
+        isnothing(prior) && continue
+
+        priors[i] = "__Julia__" * string(prior)
+        if sample_prior == true
+            initialization_priors[i] = priors[i]
+        end
+    end
+    parameters_df[!, :objectivePriorType] .= priors
+    parameters_df[!, :initializationPriorType] .= initialization_priors
+
     _check_table(parameters_df, :parameters_v1)
     return parameters_df
 end
