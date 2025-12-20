@@ -71,6 +71,13 @@ end
 function show(io::IO, observable::PEtabObservable)
     @unpack observable_formula, observable_id, noise_formula, distribution = observable
     header = styled"{PURPLE:{bold:PEtabObservable}} {emphasis:$(observable_id)}: "
+    if any(occursin.(["+", "-"], observable_formula))
+        observable_formula = "($(observable_formula))"
+    end
+    if any(occursin.(["+", "-"], noise_formula))
+        noise_formula = "($(noise_formula))"
+    end
+
     if distribution == Normal
         opt = "data ~ Normal(μ=$(observable_formula), σ=$(noise_formula))"
     elseif distribution == LogNormal

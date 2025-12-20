@@ -68,7 +68,8 @@ let
     p_parallel_coord.series_list[1].plotattributes[:y] == 1:length(xnames)
 end
 
-# Tests the plots comparing the fitted solution to the measurements.
+# Tests the plots comparing the fitted solution to the measurements. Bot model fit and
+# residuals
 let
     # Declare model
     rn = @reaction_network begin
@@ -85,18 +86,21 @@ let
     oprob_true_c1 = ODEProblem(rn,  [:S => 1.0; u0], (0.0, 10.0), p_true)
     true_sol_c1 = solve(oprob_true_c1, Rodas5P())
     data_sol_c1 = solve(oprob_true_c1, Rodas5P(); saveat=1.0)
-    c1_t, c1_E, c1_P = data_sol_c1.t[2:end], (0.8 .+ 0.4*rand(10)) .* data_sol_c1[:E][2:end], (0.8 .+ 0.4*rand(10)) .* data_sol_c1[:P][2:end]
+    c1_t = data_sol_c1.t[2:end]
+    c1_E = (0.8 .+ 0.4*rand(10)) .* data_sol_c1[:E][2:end]
+    c1_P = (0.8 .+ 0.4*rand(10)) .* data_sol_c1[:P][2:end]
 
     # Condition 2.
     oprob_true_c2 = ODEProblem(rn,  [:S => 0.5; u0], (0.0, 10.0), p_true)
     true_sol_c2 = solve(oprob_true_c2, Rodas5P())
     data_sol_c2 = solve(oprob_true_c2, Rodas5P(); saveat=1.0)
-    c2_t, c2_E, c2_P = data_sol_c2.t[2:end], (0.8 .+ 0.4*rand(10)) .* data_sol_c2[:E][2:end], (0.8 .+ 0.4*rand(10)) .* data_sol_c2[:P][2:end]
+    c2_t = data_sol_c2.t[2:end]
+    c2_E = (0.8 .+ 0.4*rand(10)) .* data_sol_c2[:E][2:end]
+    c2_P = (0.8 .+ 0.4*rand(10)) .* data_sol_c2[:P][2:end]
 
-    # Make PETab problem.
-    @unpack E,P = rn
-    observables = [PEtabObservable("obs_E", E, 0.5),
-                   PEtabObservable("obs_p", P, 0.5)]
+    # Make PEtab problem.
+    observables = [PEtabObservable("obs_E", :E, 0.5),
+                   PEtabObservable("obs_p", :P, 0.5)]
 
     par_kB = PEtabParameter(:kB)
     par_kD = PEtabParameter(:kD)
@@ -115,7 +119,7 @@ let
     # Fit solution
     model = PEtabModel(rn , observables, measurements, params; speciemap=u0,
                        simulation_conditions = simulation_conditions)
-    prob = PEtabODEProblem(model; verbose = false)
+    prob = PEtabODEProblem(model)
     res = calibrate_multistart(prob, IPNewton(), 20)
 
     # Check comparison dictionary.
@@ -165,6 +169,31 @@ let
     @test c1_P == c1_P_plt.series_list[1].plotattributes[:y]
     @test c2_E == c2_E_plt.series_list[1].plotattributes[:y]
     @test c2_P == c2_P_plt.series_list[1].plotattributes[:y]
+
+    # Test Residuals plotting
+    c1_E_plt = plot(res, prob; obsids=["obs_E"], cid="c1", plot_type = :residuals)
+    c1_P_plt = plot(res, prob; obsids=["obs_p"], cid="c1", plot_type = :residuals)
+    c1_E_P_plt = plot(res, prob; cid="c1", plot_type = :residuals)
+
+    c2_E_plt = plot(res.xmin, prob; obsids=["obs_E"], cid="c2", obsid_label = true, plot_type = :standardized_residuals)
+    c2_P_plt = plot(res, prob; obsids=["obs_p"], cid="c2", plot_type = :standardized_residuals)
+    c2_E_P_plt = plot(res, prob; cid="c2", plot_type = :standardized_residuals)
+
+    model_residuals = prob.simulated_values(res.xmin) - measurements.measurement
+    model_residuals_stand = model_residuals ./ 0.5
+    @test c1_t == c1_E_plt.series_list[1].plotattributes[:x]
+    @test c1_t == c1_P_plt.series_list[1].plotattributes[:x]
+    @test c1_t == c1_E_P_plt.series_list[1].plotattributes[:x]
+
+    @test model_residuals[1:10] == c1_E_plt.series_list[1].plotattributes[:y]
+    @test model_residuals[11:20] == c1_P_plt.series_list[1].plotattributes[:y]
+    @test model_residuals[1:10] == c1_E_P_plt.series_list[1].plotattributes[:y]
+    @test model_residuals[11:20] == c1_E_P_plt.series_list[2].plotattributes[:y]
+
+    @test model_residuals_stand[21:30] == c2_E_plt.series_list[1].plotattributes[:y]
+    @test model_residuals_stand[31:40] == c2_P_plt.series_list[1].plotattributes[:y]
+    @test model_residuals_stand[21:30] == c2_E_P_plt.series_list[1].plotattributes[:y]
+    @test model_residuals_stand[31:40] == c2_E_P_plt.series_list[2].plotattributes[:y]
 end
 
 # Check model fit plotting works for models with pre-eq simulations
@@ -209,4 +238,14 @@ let
     end
     plots = get_obs_comparison_plots(x, petab_prob)
     @test all(collect(keys(plots)) .== ["pre_cond_preeq_main_cond2", "pre_cond_preeq_main_cond1"])
+
+    model_residuals = petab_prob.simulated_values(x) - measurements.measurement
+    model_residuals_stand = petab_prob.residuals(x)
+    p = plot(x, petab_prob; linewidth = 2.0, cid = :cond1, preeq_id = :cond_preeq, plot_type = :residuals)
+    @test model_residuals[1] == p.series_list[1].plotattributes[:y][1]
+    @test model_residuals[2] == p.series_list[2].plotattributes[:y][1]
+
+    p = plot(x, petab_prob; linewidth = 2.0, cid = :cond2, preeq_id = :cond_preeq, plot_type = :standardized_residuals)
+    @test model_residuals_stand[3] == p.series_list[1].plotattributes[:y][1]
+    @test model_residuals_stand[4] == p.series_list[2].plotattributes[:y][1]
 end
