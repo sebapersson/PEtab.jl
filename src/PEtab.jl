@@ -87,6 +87,7 @@ include(joinpath("petab_odeproblem", "cache.jl"))
 include(joinpath("petab_odeproblem", "create.jl"))
 include(joinpath("petab_odeproblem", "defaults.jl"))
 include(joinpath("petab_odeproblem", "derivative_functions.jl"))
+include(joinpath("petab_odeproblem", "export.jl"))
 include(joinpath("petab_odeproblem", "problem_info.jl"))
 include(joinpath("petab_odeproblem", "remake.jl"))
 include(joinpath("petab_odeproblem", "ss_solver.jl"))
@@ -121,7 +122,7 @@ export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
        PEtabParameter, PEtabCondition, PEtabObservable, PEtabMultistartResult,
        get_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, get_system, PEtabEvent,
        PEtabLogDensity, solve_all_conditions, get_x, calibrate, calibrate_multistart,
-       petab_select, get_obs_comparison_plots
+       petab_select, get_obs_comparison_plots, export_petab
 
 """
     to_prior_scale(xpetab, target::PEtabLogDensity)

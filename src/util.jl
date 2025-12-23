@@ -130,12 +130,7 @@ function _get_ps_u0(res::EstimationResult, prob::PEtabODEProblem,
     cid = _get_cid(cid, model_info)
     preeq_id = _get_preeq_id(preeq_id, model_info)
 
-    # Extract model parameters
-    if res isa Vector || res isa ComponentArray
-        x_transformed = transform_x(res, xindices.xids[:estimate], xindices)
-    else
-        x_transformed = transform_x(res.xmin, xindices.xids[:estimate], xindices)
-    end
+    x_transformed = transform_x(_get_x(res), xindices.xids[:estimate], xindices)
     xdynamic, _, _, _ = split_x(x_transformed, xindices)
 
     # System parameters and their associated ids
@@ -295,4 +290,9 @@ function _get_system(sys::ReactionSystem)::ODESystem
 end
 function _get_system(sys::ODESystem)::ODESystem
     return sys
+end
+
+_get_x(x::Union{AbstractVector, ComponentVector}) = x
+function _get_x(x::Union{PEtabOptimisationResult, PEtabMultistartResult})
+    return x.xmin
 end
