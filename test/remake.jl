@@ -133,8 +133,8 @@ function test_remake_condition_ids(path_yaml, condition_ids_test, split_conditio
             split_over_conditions = split_conditions)
         x_ref = get_x(prob_ref1)
 
-        prob_remade1 = remake(prob_original1, conditions)
-        prob_remade2 = remake(prob_original2, conditions)
+        prob_remade1 = remake(prob_original1; condition_ids=conditions)
+        prob_remade2 = remake(prob_original2; condition_ids=conditions)
         x_remade = get_x(prob_remade1)
 
         @test prob_ref1.nllh(x_ref) ≈ prob_remade1.nllh(x_remade) atol = 1e-8
@@ -216,12 +216,12 @@ path_yaml = joinpath(@__DIR__, "published_models", "Bruno_JExpBot2016", "Bruno_J
 
     prob = PEtabModel(path_yaml) |>
         PEtabODEProblem
-    prob_remade = remake(prob, Symbol[])
+    prob_remade = remake(prob)
     @test prob.nllh(get_x(prob)) == prob_remade.nllh(get_x(prob))
 
     condition_ids = [(pre_eq = :Dose_0, simulation = :Dose_0)]
-    @test_throws PEtab.PEtabFormatError remake(prob, condition_ids)
-    @test_throws PEtab.PEtabFormatError remake(prob, [:hej])
+    @test_throws PEtab.PEtabFormatError remake(prob; condition_ids=condition_ids)
+    @test_throws PEtab.PEtabFormatError remake(prob; condition_ids=[:hej])
 end
 
 path_yaml = joinpath(@__DIR__, "published_models", "Brannmark_JBC2010", "Brannmark_JBC2010.yaml")
@@ -235,8 +235,8 @@ path_yaml = joinpath(@__DIR__, "published_models", "Brannmark_JBC2010", "Brannma
 
     prob = PEtabModel(path_yaml) |>
         PEtabODEProblem
-    prob_remade = remake(prob, NamedTuple[])
+    prob_remade = remake(prob; condition_ids=NamedTuple[])
     @test prob.nllh(get_x(prob)) == prob_remade.nllh(get_x(prob))
-    @test_throws PEtab.PEtabFormatError remake(prob, [:hej])
-    @test_throws PEtab.PEtabFormatError remake(prob, [(pre_eq = :Dose_1, simulation = :Dose_0)])
+    @test_throws PEtab.PEtabFormatError remake(prob; condition_ids=[:hej])
+    @test_throws PEtab.PEtabFormatError remake(prob; condition_ids=[(pre_eq = :Dose_1, simulation = :Dose_0)])
 end
