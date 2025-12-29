@@ -169,3 +169,10 @@ function _check_target_value(target_value, i::Integer, condition_id)
         `String` `Symbol`, a `Real`, or a symbolic expression (`Num`); got \
         $(typeof(target_value)) with value $(target_value)."))
 end
+
+function _get_experiment_id(simulation_id::Union{String, Symbol}, ::Nothing)::Symbol
+    return Symbol(simulation_id)
+end
+function _get_experiment_id(simulation_id::Union{String, Symbol}, pre_equilibration_id::Union{String, Symbol})::Symbol
+    return Symbol("$(pre_equilibration_id)$(simulation_id)")
+end

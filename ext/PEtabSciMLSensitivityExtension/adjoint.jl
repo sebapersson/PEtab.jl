@@ -42,7 +42,7 @@ function _grad_adjoint_xdynamic!(grad::Vector{<:AbstractFloat},
         return nothing
     end
 
-    # In case of pre-equilibration a VJP between λt0 and the sensitivites at steady state
+    # In case of pre-equilibration a VJP between λt0 and the sensitivities at steady state
     # must be computed.
     if simulation_info.has_pre_equilibration == true
         vjps_ss = _get_vjps_ss(probinfo, simulation_info, sensealg_ss, cids)
@@ -191,7 +191,7 @@ function _grad_adjoint_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vecto
         ∂G∂p .+= ∂G∂p_
     end
     # In case we do not simulate the ODE for a steady state first we can compute
-    # the initial sensitivites easily via automatic differantitatiom
+    # the initial sensitivities easily via automatic differantitatiom
     if simulation_info.has_pre_equilibration == false
         ForwardDiff.jacobian!(St0, model.u0!, sol.prob.u0, sol.prob.p)
         adjoint_grad .= dp .+ transpose(St0) * du

@@ -1,29 +1,29 @@
-function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::AbstractVector,
+function _switch_condition(oprob::ODEProblem, experiment_id::Symbol, xdynamic::AbstractVector,
                            model_info::ModelInfo, cache::PEtabODEProblemCache,
-                           posteq_simulation::Bool; sensitivites::Bool = false,
-                           simid::Union{Nothing, Symbol} = nothing)::ODEProblem
+                           posteq_simulation::Bool; sensitivities::Bool = false,
+                           simulation_id::Union{Nothing, Symbol} = nothing)::ODEProblem
     @unpack xindices, model, nstates = model_info
-    simid = isnothing(simid) ? cid : simid
+    simulation_id = isnothing(simulation_id) ? experiment_id : simulation_id
 
     # Each simulation condition needs to have its own associated u0 and p vector, as these
     # vectors can be used in latter computations when computing the observables, hence
     # nothing is allowed to be over-written by another condition
-    p = get_tmp(cache.pode[cid], oprob.p)
-    u0 = get_tmp(cache.u0ode[cid], oprob.p)
+    p = get_tmp(cache.pode[experiment_id], oprob.p)
+    u0 = get_tmp(cache.u0ode[experiment_id], oprob.p)
     p .= oprob.p
     @views u0 .= oprob.u0[1:length(u0)]
 
     # p must be set before u0, as u0 can depend on p
-    condition_map! = xindices.condition_maps[simid]
+    condition_map! = xindices.condition_maps[simulation_id]
     condition_map!(p, xdynamic)
     model.u0!((@view u0[1:nstates]), p; __post_eq = posteq_simulation)
     _oprob = remake(oprob, p = p, u0 = u0)
 
     # In case we solve the forward sensitivity equations we must adjust the initial
     # sensitives by computing the jacobian at t0, and note we have larger than usual
-    # u0 as it includes the sensitivites. Must come after the remake as the remake
-    # resets u0 values for the sensitivites
-    if sensitivites == true
+    # u0 as it includes the sensitivities. Must come after the remake as the remake
+    # resets u0 values for the sensitivities
+    if sensitivities == true
         St0 = zeros(Float64, nstates, length(p))
         ForwardDiff.jacobian!(St0, model.u0, p)
         _oprob.u0 .= vcat(u0, vec(St0))
@@ -31,11 +31,11 @@ function _switch_condition(oprob::ODEProblem, cid::Symbol, xdynamic::AbstractVec
     return _oprob
 end
 
-function _get_tsave(save_observed_t::Bool, simulation_info::SimulationInfo, cid::Symbol,
+function _get_tsave(save_observed_t::Bool, simulation_info::SimulationInfo, experiment_id::Symbol,
                     ntimepoints_save::Integer)::Vector{Float64}
-    tmax = simulation_info.tmaxs[cid]
+    tmax = simulation_info.tmaxs[experiment_id]
     if save_observed_t == true
-        return simulation_info.tsaves[cid]
+        return simulation_info.tsaves[experiment_id]
     elseif ntimepoints_save > 0
         return collect(LinRange(0.0, tmax, ntimepoints_save))
     else
@@ -82,16 +82,11 @@ end
 function _get_tmax(tmax::Float64, ::Union{Vector{Symbol}, SciMLAlgorithm})::Float64
     return tmax
 end
-function _get_tmax(cid::Union{String, Symbol, Nothing},
-                   preeq_id::Union{String, Symbol, Nothing}, model_info::ModelInfo)::Float64
-    cid = _get_cid(cid, model_info)
-    preeq_id = _get_preeq_id(preeq_id, model_info)
-    if isnothing(preeq_id) || preeq_id == :None
-        exp_id = cid
-    else
-        exp_id = Symbol("$(preeq_id)$(cid)")
-    end
-    return model_info.simulation_info.tmaxs[exp_id]
+function _get_tmax(condition::Union{ConditionExp, Nothing}, model_info::ModelInfo)::Float64
+    simulation_id = _get_simulation_id(condition, model_info)
+    pre_equilibration_id = _get_pre_equilibration_id(condition, model_info)
+    experiment_id = _get_experiment_id(simulation_id, pre_equilibration_id)
+    return model_info.simulation_info.tmaxs[experiment_id]
 end
 
 function _get_preeq_ids(simulation_info::SimulationInfo,

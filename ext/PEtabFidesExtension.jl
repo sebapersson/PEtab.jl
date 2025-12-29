@@ -4,25 +4,25 @@ using Fides: HessianUpdate, CustomHessian, FidesOptions, FidesProblem, InputVect
 using Catalyst: @unpack
 using ComponentArrays: ComponentArray
 using PEtab
-using QuasiMonteCarlo: LatinHypercubeSample
+using QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
+import Random
 
-function PEtab.calibrate_multistart(prob::PEtabODEProblem, alg::HessianUpdate,
-                                    nmultistarts::Signed; save_trace::Bool = false,
+const DEFAULT_OPT = FidesOptions()
+
+function PEtab.calibrate_multistart(rng::Random.AbstractRNG, prob::PEtabODEProblem,
+                                    alg::HessianUpdate, nmultistarts::Signed;
+                                    save_trace::Bool = false,
                                     dirsave::Union{Nothing, String} = nothing,
-                                    sampling_method::PEtab.SamplingAlgorithm = LatinHypercubeSample(),
+                                    sampling_method::SamplingAlgorithm = LatinHypercubeSample(),
                                     sample_prior::Bool = true, nprocs::Int64 = 1,
                                     seed::Union{Nothing, Signed} = nothing,
-                                    options::FidesOptions = FidesOptions())::PEtab.PEtabMultistartResult
-    if !isnothing(seed)
-        Random.seed!(seed)
-    end
-    return PEtab._calibrate_multistart(prob, alg, nmultistarts, dirsave, sampling_method,
-                                       options, sample_prior, save_trace, nprocs)
+                                    options::Union{FidesOptions, Nothing} = DEFAULT_OPT)::PEtab.PEtabMultistartResult
+    options = isnothing(options) ? DEFAULT_OPT : options
+    return PEtab._calibrate_multistart(rng, prob, alg, nmultistarts, dirsave, sampling_method, options, sample_prior, save_trace, nprocs)
 end
 
 function PEtab.calibrate(prob::PEtabODEProblem, x::InputVector, alg::HessianUpdate;
-                         save_trace::Bool = false,
-                         options::FidesOptions = FidesOptions())::PEtab.PEtabOptimisationResult
+                         save_trace::Bool = false, options::FidesOptions = FidesOptions())::PEtab.PEtabOptimisationResult
     if save_trace == true
         @warn "For Fides the x and f trace cannot currently be saved (we are working on it)" maxlog=10
         save_trace = false

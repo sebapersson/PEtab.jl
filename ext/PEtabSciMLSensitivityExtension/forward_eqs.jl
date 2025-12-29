@@ -8,7 +8,7 @@ function PEtab._get_odeproblem_gradient(odeproblem::ODEProblem, ::Symbol,
                                         odeproblem.p, sensealg = sensealg)
 end
 
-function PEtab.solve_sensitivites!(::PEtab.ModelInfo, _solve_conditions!::Function,
+function PEtab.solve_sensitivities!(::PEtab.ModelInfo, _solve_conditions!::Function,
                                    xdynamic::Vector{<:AbstractFloat}, sensealg::ForwardAlg,
                                    probinfo::PEtab.PEtabODEProblemInfo,
                                    cids::Vector{Symbol}, cfg::Nothing,

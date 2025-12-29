@@ -12,7 +12,7 @@ function _jac_residuals_xdynamic!(jac::AbstractMatrix, _solve_conditions!::Funct
     xdynamic_ps = transform_x(cache.xdynamic, xindices, :xdynamic, cache)
 
     if reuse_sensitivities == false
-        success = solve_sensitivites!(model_info, _solve_conditions!, xdynamic_ps,
+        success = solve_sensitivities!(model_info, _solve_conditions!, xdynamic_ps,
                                       :ForwardDiff, probinfo, cids, cfg, isremade)
         if success != true
             @warn "Failed to solve sensitivity equations"

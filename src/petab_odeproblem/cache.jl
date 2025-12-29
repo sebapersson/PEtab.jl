@@ -58,7 +58,7 @@ function PEtabODEProblemCache(gradient_method::Symbol,
         u = zeros(Float64, 0)
     end
 
-    # In case the sensitivites are computed via automatic differentitation we need to
+    # In case the sensitivities are computed via automatic differentitation we need to
     # pre-allocate a sensitivity matrix accross all conditions
     forward_eqs_AD = gradient_method === :ForwardEquations && sensealg === :ForwardDiff
     if forward_eqs_AD || GN_hess

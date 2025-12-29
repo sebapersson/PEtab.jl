@@ -1,46 +1,46 @@
 """
-    get_odesol(res, prob::PEtabODEProblem; kwargs...)::ODESolution
+    get_odesol(res, prob::PEtabODEProblem; condition = nothing)::ODESolution
 
 Retrieve the `ODESolution` from simulating the ODE model in `prob`. `res` can
 be a parameter estimation result (e.g., `PEtabMultistartResult`) or a `Vector` with
 parameters in the order expected by `prob` (see [`get_x`](@ref)).
 
-For information on keyword arguements see [`get_ps`](@ref).
+For information on keyword arguments see [`get_ps`](@ref).
 
 See also: [`get_u0`](@ref) and [`get_odeproblem`](@ref).
 """
 function get_odesol(res::EstimationResult, prob::PEtabODEProblem;
-                    cid::Union{String, Symbol, Nothing} = nothing,
-                    preeq_id::Union{String, Symbol, Nothing} = nothing)::ODESolution
+                    condition::Union{ConditionExp, Nothing} = nothing)::ODESolution
     @unpack model_info, probinfo = prob
-    _cid = _get_cid(cid, model_info)
-    _preeq_id = _get_preeq_id(preeq_id, model_info)
-    oprob, cbs = get_odeproblem(res, prob; cid = _cid, preeq_id = _preeq_id)
+    oprob, cbs = get_odeproblem(res, prob; condition = condition)
 
     @unpack solver, abstol, reltol = probinfo.solver
     return solve(oprob, solver, abstol = abstol, reltol = reltol, callback = cbs)
 end
 
 """
-    get_odeproblem(res, prob::PEtabODEProblem; kwargs...) -> (sys, callbacks)
+    get_odeproblem(res, prob::PEtabODEProblem; condition = nothing) -> (ode_prob, cbs)
 
-Retrieve the `ODEProblem` and callbacks (`CallbackSet`) for simulating the ODE model in
+Retrieve the `ODEProblem` and cbs (`CallbackSet`) for simulating the ODE model in
 `prob`. `res` can be a parameter estimation result (e.g., `PEtabMultistartResult`) or a
 `Vector` with parameters in the order expected by `prob` (see [`get_x`](@ref)).
 
-For information on keyword arguements see [`get_ps`](@ref).
+For information on keyword arguments see [`get_ps`](@ref).
 
 See also: [`get_u0`](@ref) and [`get_odesol`](@ref).
 """
 function get_odeproblem(res::EstimationResult, prob::PEtabODEProblem;
-                        cid::Union{String, Symbol, Nothing} = nothing,
-                        preeq_id::Union{String, Symbol, Nothing} = nothing)
+                        condition::Union{ConditionExp, Nothing} = nothing)
     @unpack model_info, probinfo = prob
-    u0, ps = _get_ps_u0(res, prob, cid, preeq_id, false)
-    tmax = _get_tmax(cid, preeq_id, model_info)
+    simulation_id = _get_simulation_id(condition, model_info)
+
+    u0, ps = _get_ps_u0(res, prob, condition, false)
+    tmax = _get_tmax(condition, model_info)
+    cbs = model_info.model.callbacks[simulation_id]
+
     odefun = ODEFunction(_get_system(prob.model_info.model.sys))
-    oprob = ODEProblem(odefun, u0, [0.0, tmax], ps)
-    return oprob, model_info.model.callbacks[_get_cid(cid, model_info)]
+    odeprob = ODEProblem(odefun, u0, [0.0, tmax], ps)
+    return odeprob, cbs
 end
 
 """
@@ -60,75 +60,67 @@ For information on keyword arguments, see [`get_ps`](@ref).
 See also: [`get_u0`](@ref) and [`get_odesol`](@ref).
 """
 function get_system(res::EstimationResult, prob::PEtabODEProblem;
-                    cid::Union{String, Symbol, Nothing} = nothing,
-                    preeq_id::Union{String, Symbol, Nothing} = nothing)
-    @unpack model_info, probinfo = prob
-    @unpack sys, callbacks, paths = model_info.model
+                    condition::Union{ConditionExp, Nothing} = nothing)
+    @unpack sys, callbacks, paths = prob.model_info.model
     if haskey(paths, :SBML)
         prn, _ = load_SBML(paths[:SBML])
         sys = prn.rn
     end
-    u0, p = _get_ps_u0(res, prob, cid, preeq_id, true)
+    u0, p = _get_ps_u0(res, prob, condition, true)
     return sys, u0, p, callbacks
 end
 
 """
-    get_ps(res, prob::PEtabODEProblem; kwargs...)
-
-Retrieve the `ODEProblem` parameter values for simulating the ODE model in `prob`. `res` can
-be a parameter estimation result (e.g., `PEtabMultistartResult`) or a `Vector` with
-parameters in the order expected by `prob` (see [`get_x`](@ref)).
-
-See also: [`get_u0`](@ref), [`get_odeproblem`](@ref), [`get_odesol`](@ref).
-
-## Keyword Arguments
-
-- `retmap=true`: Whether to return the values as a map in the form `[k1 => val1, ...]`. Such
-    a map can be directly used when building an `ODEProblem`. If `false`, a `Vector` is
-    returned. This keyword is only applicable for `get_u0` and `get_ps`.
-- `cid::Symbol`: Which simulation condition to return parameters for. If not provided,
-    defaults to the first simulation condition. For other `get` functions, the
-    `ODEProblem`, `u0`, or `ODESolution` for the specified `cid` is returned.
-- `preeq_id`: Which potential pre-equilibration (steady-state) simulation id to use.
-    If a valid `preeq_id` is provided, the ODE is first simulated to steady state for
-    `preeq_id`. Then the model shifts to `cid`, and the parameters for `cid` are returned.
-    For other `get` functions, the  `ODEProblem`, `u0`, or `ODESolution` for the
-    specified `cid` is returned
-"""
-function get_ps(res::EstimationResult, prob::PEtabODEProblem;
-                cid::Union{String, Symbol, Nothing} = nothing,
-                preeq_id::Union{String, Symbol, Nothing} = nothing, retmap::Bool = true)
-    _, p = _get_ps_u0(res, prob, cid, preeq_id, retmap)
-    return p
-end
-
-"""
-    get_u0(res, prob::PEtabODEProblem; kwargs...)
+    get_u0(res, prob::PEtabODEProblem; condition = nothing, retmap = true)
 
 Retrieve the `ODEProblem` initial values for simulating the ODE model in `prob`. `res` can
 be a parameter estimation result (e.g., `PEtabMultistartResult`) or a `Vector` with
 parameters in the order expected by `prob` (see [`get_x`](@ref)).
 
-For information on keyword arguements see [`get_ps`](@ref).
+For information on keyword arguments see [`get_ps`](@ref).
 
 See also [`get_odeproblem`](@ref) and [`get_odesol`](@ref).
 """
-function get_u0(res::EstimationResult, prob::PEtabODEProblem; retmap::Bool = true,
-                cid::Union{String, Symbol, Nothing} = nothing,
-                preeq_id::Union{String, Symbol, Nothing} = nothing)
-    u0, _ = _get_ps_u0(res, prob, cid, preeq_id, retmap)
+function get_u0(res::EstimationResult, prob::PEtabODEProblem;
+                condition::Union{ConditionExp, Nothing} = nothing, retmap::Bool = true)
+    u0, _ = _get_ps_u0(res, prob, condition, retmap)
     return u0
 end
 
+"""
+    get_ps(res, prob::PEtabODEProblem; condition = nothing, retmap = true)
+
+Retrieve parameter values for simulating the ODE model in `prob`. `res` may be a parameter
+estimation result (e.g. `PEtabMultistartResult`) or a parameter vector in the order
+expected by `prob` (see [`get_x`](@ref)).
+
+# Keyword Arguments
+- `condition`: Simulation condition to retrieve parameters for. Ids are `Symbol`/
+  `String`. If `nothing` (default), the first simulation condition is used. Format depends
+  on whether the model has pre-equilibration:
+  - No pre-equilibration: `simulation_id` (e.g. `:cond1`).
+  - With pre-equilibration: `pre_eq_id => simulation_id` (e.g. `:pre_eq1 => :cond1`).
+- `retmap = true`: If `true`, return a vector of pairs `[k1 => v1, ...]` suitable for
+  passing as `p` when constructing an `ODEProblem`. If `false`, return a parameter vector.
+  Only applicable for `get_ps` and `get_u0`.
+
+See also: [`get_u0`](@ref), [`get_odeproblem`](@ref), [`get_odesol`](@ref).
+"""
+function get_ps(res::EstimationResult, prob::PEtabODEProblem;
+                condition::Union{ConditionExp, Nothing} = nothing, retmap::Bool = true)
+    _, p = _get_ps_u0(res, prob, condition, retmap)
+    return p
+end
+
 function _get_ps_u0(res::EstimationResult, prob::PEtabODEProblem,
-                    cid::Union{Nothing, Symbol, String},
-                    preeq_id::Union{Nothing, Symbol, String}, retmap::Bool)
+                    condition::Union{ConditionExp, Nothing}, retmap::Bool)
     @unpack probinfo, model_info = prob
-    @unpack xindices, model, simulation_info = prob.model_info
+    @unpack xindices, model, simulation_info = model_info
     @unpack solver, ss_solver, cache, odeproblem = probinfo
 
-    cid = _get_cid(cid, model_info)
-    preeq_id = _get_preeq_id(preeq_id, model_info)
+    simulation_id = _get_simulation_id(condition, model_info)
+    pre_equilibration_id = _get_pre_equilibration_id(condition, model_info)
+    _check_condition_ids(simulation_id, pre_equilibration_id, model_info)
 
     x_transformed = transform_x(_get_x(res), xindices.xids[:estimate], xindices)
     xdynamic, _, _, _ = split_x(x_transformed, xindices)
@@ -141,40 +133,28 @@ function _get_ps_u0(res::EstimationResult, prob::PEtabODEProblem,
     u0 = odeproblem.u0[:]
     u0s = first.(model_info.model.speciemap)[1:length(u0)]
 
-    # In case of no pre-eq condition we are done after changing to the condition the
-    # specific condition
-    if isnothing(preeq_id)
-        if simulation_info.has_pre_equilibration
-            simid = cid
-            # Needs a cid for the cache handling even when extracgint ps
-            _cid = simulation_info.conditionids[:experiment][1]
-        else
-            simid = nothing
-            _cid = cid
-        end
-        oprob = _switch_condition(odeproblem, _cid, xdynamic, model_info, cache, false;
-                                  simid = simid)
+    if isnothing(pre_equilibration_id)
+        oprob = _switch_condition(odeproblem, simulation_id, xdynamic, model_info, cache,
+                                  false)
+
     else
-        _check_ids(cid, preeq_id, model_info)
-        # For models with pre-eq in order to correctly return the initial values the model
-        # must first be simulated to steady state, and following the steady-state the
-        # parameters must be correctly set
+        # For models with pre-eq the model must first be simulated to steady state, and
+        # following the steady-state the parameters must be correctly set
         u_ss = Vector{Float64}(undef, length(u0))
         u_t0 = Vector{Float64}(undef, length(u0))
-        oprob_preeq = _switch_condition(odeproblem, preeq_id, xdynamic, model_info, cache,
-                                        false)
-        _ = solve_pre_equilibrium!!(u_ss, u_t0, oprob_preeq, simulation_info, solver, ss_solver, preeq_id, true)
-        # Setup the problem with correct initial values
-        _cid = Symbol("$(preeq_id)$(cid)")
-        oprob = _switch_condition(odeproblem, _cid, xdynamic, model_info, cache, true;
-                                  simid = cid)
+        oprob_preeq = _switch_condition(odeproblem, pre_equilibration_id, xdynamic,
+                                        model_info, cache, false)
+        _ = solve_pre_equilibrium!!(u_ss, u_t0, oprob_preeq, simulation_info, solver, ss_solver, pre_equilibration_id, true)
+
+        experiment_id = _get_experiment_id(simulation_id, pre_equilibration_id)
+        oprob = _switch_condition(odeproblem, experiment_id, xdynamic, model_info, cache, true; simulation_id = simulation_id)
         has_not_changed = oprob.u0 .== u_t0
         oprob.u0[has_not_changed] .= u_ss[has_not_changed]
         oprob.u0[isnan.(oprob.u0)] .= u_ss[isnan.(u0)]
     end
 
-    u0 = oprob.u0 |> deepcopy
-    p = oprob.p |> deepcopy
+    u0 = deepcopy(oprob.u0)
+    p = deepcopy(oprob.p)
     _u0 = retmap ? Pair.(u0s, u0) : u0
     _p = retmap ? Pair.(ps, p) : p
     # These parameters are added to a mutated system for gradient computations, but
@@ -253,34 +233,45 @@ function solve_all_conditions(x, prob::PEtabODEProblem, osolver; abstol = 1e-8,
     return model_info.simulation_info.odesols
 end
 
-function _get_cid(cid::Union{Nothing, Symbol, String}, model_info::ModelInfo)::Symbol
+function _get_simulation_id(condition::Union{ConditionExp, Nothing}, model_info::ModelInfo)::Symbol
+    if isnothing(condition)
+        return model_info.simulation_info.conditionids[:simulation][1]
+    end
+
+    return condition isa Pair ? Symbol(condition.second) : Symbol(condition)
+end
+
+function _get_pre_equilibration_id(condition::Union{ConditionExp, Nothing}, model_info::ModelInfo)::Union{Symbol, Nothing}
     simulation_info = model_info.simulation_info
-    if isnothing(cid)
-        cid = simulation_info.conditionids[:simulation][1]
+    if isnothing(condition) && simulation_info.has_pre_equilibration
+        return model_info.simulation_info.conditionids[:pre_equilibration][1]
     end
-    if cid isa String
-        cid = Symbol(cid)
+
+    if !(condition isa Pair)
+        return nothing
+    else
+        return Symbol(condition.first)
     end
-    return cid
 end
 
-function _get_preeq_id(preeq_id::Union{Nothing, Symbol, String},
-                       model_info::ModelInfo)::Union{Symbol, Nothing}
-    if !isnothing(preeq_id) && preeq_id isa String
-        preeq_id = Symbol(preeq_id)
+function _check_condition_ids(simulation_id::Symbol, ::Nothing, model_info::ModelInfo)::Nothing
+    valid_ids = model_info.simulation_info.conditionids[:experiment]
+    if !in(simulation_id, valid_ids)
+        throw(PEtabInputError("Condition id `$(simulation_id)` not found in the PEtab \
+            problem. Valid ids: $(valid_ids)."))
     end
-    return preeq_id
+    return nothing
 end
+function _check_condition_ids(simulation_id::Symbol, pre_equilibration_id::Symbol, model_info::ModelInfo)::Nothing
+    @unpack conditionids = model_info.simulation_info
+    experiment_id = _get_experiment_id(simulation_id, pre_equilibration_id)
 
-function _check_ids(cid::Symbol, preeq_id::Symbol, model_info)::Nothing
-    exp_id = Symbol("$(preeq_id)$(cid)")
-    if !(exp_id in model_info.simulation_info.conditionids[:experiment])
-        throw(PEtabInputError("The provided combination of simulation ID (`cid = $cid`) \
-            and pre-equilibration ID (`preeq_id = $(preeq_id)`) does not appear in the \
-            measurement table. The `get_*` functions (e.g., `get_ps`, `get_u0`, \
-            `get_odeproblem`, `get_odesol`) can only return values for combinations of \
-            pre-equilibration and simulation conditions that are present in the \
-            measurement table."))
+    valid_ids = conditionids[:experiment]
+    valid_pairs = conditionids[:pre_equilibration] .=> conditionids[:simulation]
+    if !in(experiment_id, valid_ids)
+        throw(PEtabInputError("Combination pre-equilibration id and simulation id \
+            $(pre_equilibration_id => simulation_id) ids not found in the PEtab problem. \
+            Valid pairs are: $(valid_pairs)."))
     end
     return nothing
 end
@@ -293,6 +284,6 @@ function _get_system(sys::ODESystem)::ODESystem
 end
 
 _get_x(x::Union{AbstractVector, ComponentVector}) = x
-function _get_x(x::Union{PEtabOptimisationResult, PEtabMultistartResult})
-    return x.xmin
+function _get_x(res::Union{PEtabOptimisationResult, PEtabMultistartResult})
+    return res.xmin
 end

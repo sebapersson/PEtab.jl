@@ -64,7 +64,7 @@ function _get_grad_forward_eqs(probinfo::PEtabODEProblemInfo,
 
     if sensealg != :ForwardDiff
         _solve_conditions! = let pinfo = probinfo, minfo = model_info
-            (x, cid) -> solve_conditions!(minfo, x, pinfo; cids = cid, sensitivites = true)
+            (x, cid) -> solve_conditions!(minfo, x, pinfo; cids = cid, sensitivities = true)
         end
         cfg = nothing
     end

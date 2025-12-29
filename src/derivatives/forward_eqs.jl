@@ -10,8 +10,8 @@ function _grad_forward_eqs!(grad::Vector{T}, _solve_conditions!::Function,
     xnondynamic_ps = transform_x(cache.xnondynamic, xindices, :xnondynamic, cache)
     xdynamic_ps = transform_x(cache.xdynamic, xindices, :xdynamic, cache)
 
-    # Solve the expanded ODE system for the sensitivites
-    success = solve_sensitivites!(model_info, _solve_conditions!, xdynamic_ps, sensealg,
+    # Solve the expanded ODE system for the sensitivities
+    success = solve_sensitivities!(model_info, _solve_conditions!, xdynamic_ps, sensealg,
                                   probinfo, cids, cfg, isremade)
     if success != true
         @warn "Failed to solve sensitivity equations"
@@ -33,7 +33,7 @@ function _grad_forward_eqs!(grad::Vector{T}, _solve_conditions!::Function,
     return nothing
 end
 
-function solve_sensitivites!(model_info::ModelInfo, _solve_conditions!::Function,
+function solve_sensitivities!(model_info::ModelInfo, _solve_conditions!::Function,
                              xdynamic::Vector{<:AbstractFloat}, ::Symbol,
                              probinfo::PEtabODEProblemInfo, ::Vector{Symbol},
                              cfg::ForwardDiff.JacobianConfig, isremade::Bool = false)::Bool

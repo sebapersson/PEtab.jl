@@ -66,13 +66,13 @@ end
     res = PEtabOptimisationResult(x ./ 0.9, 10.0, x, :Fides, 10, 10.0,
                                   Vector{Vector{Float64}}(undef, 0), Float64[],  true,  nothing)
     @unpack u0, p = prob.model_info.simulation_info.odesols[:typeIDT1_ExpID1].prob
-    u0_test = get_u0(res, prob; cid=:typeIDT1_ExpID1, retmap=false)
-    p_test = get_ps(res, prob; cid=:typeIDT1_ExpID1, retmap=false)
+    u0_test = get_u0(res, prob; condition = :typeIDT1_ExpID1, retmap = false)
+    p_test = get_ps(res, prob; condition = :typeIDT1_ExpID1, retmap = false)
     @test all(u0_test .== u0)
     to_test = Bool[1, 1, 1, 1, 0, 1, 1, 1, 1] # To account for Event variable
     @test all(p[to_test] == p_test[to_test])
 
-    # Brannmark model with pre-eq simulation
+    # Model with pre-eq simulation
     path_yaml = joinpath(@__DIR__, "published_models", "Brannmark_JBC2010", "Brannmark_JBC2010.yaml")
     model = PEtabModel(path_yaml; build_julia_files = true, verbose=false)
     prob = PEtabODEProblem(model, verbose=false)
@@ -81,16 +81,16 @@ end
     res = PEtabOptimisationResult(x ./ 0.9, 10.0, x, :Fides, 10, 10.0,
                                   Vector{Vector{Float64}}(undef, 0), Float64[],  true,  nothing)
     @unpack u0, p = prob.model_info.simulation_info.odesols[:Dose_0Dose_01].prob
-    p_test = get_ps(res.xmin, prob; cid=:Dose_01, preeq_id=:Dose_0, retmap=false)
-    u0_test = get_u0(res.xmin, prob; cid=:Dose_01, preeq_id=:Dose_0, retmap=false)
+    p_test = get_ps(res.xmin, prob; condition = :Dose_0 => :Dose_01, retmap = false)
+    u0_test = get_u0(res.xmin, prob; condition = "Dose_0" => "Dose_01", retmap = false)
     @test all(u0_test .== u0)
     @test all(p == p_test)
-    oprob, _ = get_odeproblem(res, prob; cid=:Dose_01, preeq_id=:Dose_0)
+    oprob, _ = get_odeproblem(res, prob; condition = :Dose_0 => :Dose_01)
     @test all(oprob.u0 .== u0)
     @test all(oprob.p == p_test)
     @test oprob.tspan[end] == prob.model_info.simulation_info.tmaxs[:Dose_0Dose_01]
     @test_throws PEtab.PEtabInputError begin
-        oprob, _ = get_odeproblem(res, prob; cid=:Dose_01, preeq_id=:Dose_01)
+        oprob, _ = get_odeproblem(res, prob; condition = :Dose_01 => :Dose_01)
     end
 
     # Case where the system is mutated as we have a initial value set in condition. However,
@@ -114,17 +114,20 @@ end
     prob = PEtabODEProblem(model; verbose = false)
     prob.nllh(log10.([1.0, 2.0]))
     oprob_mutated = prob.model_info.simulation_info.odesols[:c2].prob
-    oprob, _ = get_odeproblem(log10.([1.0, 2.0]), prob; cid=:c2)
+    oprob, _ = get_odeproblem(log10.([1.0, 2.0]), prob; condition =:c2)
     @test length(oprob.p) == 2
     @test all(oprob.p .== oprob_mutated.p[[1, 3]])
     @test all(oprob.p[[2, 1]] .== oprob_mutated.u0)
     # Test that get_system correctly returns a ReactionSystem
-    rn, u0, ps, _ = get_system(log10.([1.0, 2.0]), prob; cid=:c2)
+    rn, u0, ps, _ = get_system(log10.([1.0, 2.0]), prob; condition = :c2)
     @test rn isa Catalyst.ReactionSystem
     osys = convert(ODESystem, rn) |> structural_simplify |> complete
     oprob_sys = ODEProblem(osys, u0, (0.0, 1.0), ps)
     @test oprob_sys.p.tunable == oprob.p
     @test oprob_sys.u0 == oprob.u0
+    @test_throws PEtab.PEtabInputError begin
+        oprob, _ = get_odeproblem(res, prob; condition = :c3)
+    end
 
     # Verify Dual numbers can be propagated through get functions
     path_yaml = joinpath(@__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")

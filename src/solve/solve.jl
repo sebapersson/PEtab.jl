@@ -2,11 +2,11 @@ function solve_conditions!(model_info::ModelInfo, xdynamic::AbstractVector,
                            probinfo::PEtabODEProblemInfo; cids::Vector{Symbol} = [:all],
                            ntimepoints_save::Int64 = 0, save_observed_t::Bool = true,
                            dense_sol::Bool = false, track_callback::Bool = false,
-                           sensitivites::Bool = false, derivative::Bool = false)::Bool
+                           sensitivities::Bool = false, derivative::Bool = false)::Bool
     @unpack simulation_info, model, xindices = model_info
     @unpack float_tspan = model
     cache = probinfo.cache
-    if derivative == true || sensitivites == true || track_callback == true
+    if derivative == true || sensitivities == true || track_callback == true
         odesols = simulation_info.odesols_derivatives
         ss_solver = probinfo.ss_solver_gradient
         osolver = probinfo.solver_gradient
@@ -31,7 +31,7 @@ function solve_conditions!(model_info::ModelInfo, xdynamic::AbstractVector,
 
         for (i, preeq_id) in pairs(preeq_ids)
             oprob_preeq = _switch_condition(oprob, preeq_id, xdynamic, model_info, cache,
-                                            false; sensitivites = sensitivites)
+                                            false; sensitivities = sensitivities)
             # Sometimes due to strongly ill-conditioned Jacobian the linear-solve runs
             # into a domain error or bounds error. This is treated as integration error.
             try
@@ -62,8 +62,8 @@ function solve_conditions!(model_info::ModelInfo, xdynamic::AbstractVector,
         tsave = _get_tsave(save_observed_t, simulation_info, cid, ntimepoints_save)
         dense = _is_dense(save_observed_t, dense_sol, ntimepoints_save)
         oprob_cid = _switch_condition(oprob, cid, xdynamic, model_info, cache,
-                                      posteq_simulation; sensitivites = sensitivites,
-                                      simid = simid)
+                                      posteq_simulation; sensitivities = sensitivities,
+                                      simulation_id = simid)
 
         if posteq_simulation == true
             preeq_id = simulation_info.conditionids[:pre_equilibration][i]
@@ -109,7 +109,7 @@ function solve_conditions!(sols::AbstractMatrix, xdynamic::AbstractVector,
                            probinfo::PEtabODEProblemInfo, model_info::ModelInfo;
                            cids::Vector{Symbol} = [:all], ntimepoints_save::Int64 = 0,
                            save_observed_t::Bool = true, dense_sol::Bool = false,
-                           track_callback::Bool = false, sensitivites::Bool = false,
+                           track_callback::Bool = false, sensitivities::Bool = false,
                            sensitivities_AD::Bool = false)::Nothing
     cache = probinfo.cache
     if sensitivities_AD == true && cache.nxdynamic[1] != length(xdynamic)
@@ -117,11 +117,11 @@ function solve_conditions!(sols::AbstractMatrix, xdynamic::AbstractVector,
     else
         _xdynamic = xdynamic
     end
-    derivative = sensitivities_AD || sensitivites
+    derivative = sensitivities_AD || sensitivities
     sucess = solve_conditions!(model_info, _xdynamic, probinfo; cids = cids,
                                ntimepoints_save = ntimepoints_save, dense_sol = dense_sol,
                                save_observed_t = save_observed_t, derivative = derivative,
-                               sensitivites = sensitivites, track_callback = track_callback)
+                               sensitivities = sensitivities, track_callback = track_callback)
     if sucess != true
         fill!(sols, 0.0)
         return nothing
@@ -148,7 +148,7 @@ function solve_post_equlibrium(@nospecialize(oprob::ODEProblem), u_ss::T, u_t0::
     @unpack abstol, reltol, maxiters, solver, force_dtmin, verbose = osolver
     @unpack tstarts, tmaxs = simulation_info
 
-    # Must be done first, as any call to remake resets initial values for sensitivites
+    # Must be done first, as any call to remake resets initial values for sensitivities
     # to 0 when working with the ForwardSensitivity ODEProblem from SciMLSensitivity
     _oprob = _get_tspan(oprob, tstarts[cid], tmaxs[cid], solver, float_tspan)
 

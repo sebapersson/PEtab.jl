@@ -1,8 +1,8 @@
 """
-    remake(prob::PEtabODEProblem; condition_ids=Symbol[]) -> PEtabODEProblem
+    remake(prob::PEtabODEProblem; conditions=Symbol[]) -> PEtabODEProblem
 
 Create a new `PEtabODEProblem` that uses a subset of the original problem’s simulation
-condition ids, as specified by `condition_ids`.
+condition ids, as specified by `conditions`.
 
 Intended for performant subsetting (e.g. evaluating `nllh/grad/hessian` on only a
 subset of simulation conditions). It is faster than constructing a new `PEtabODEProblem`
@@ -12,13 +12,13 @@ since generated code is reused (no recompilation).
 - `prob`: The `PEtabODEProblem` to subset.
 
 # Keyword Arguments
-- `condition_ids`: Simulation condition identifiers to keep (must match the condition ids
+- `conditions`: Simulation condition identifiers to keep (must match the condition ids
   defined in `prob`). If empty (default), `prob` is returned unchanged. The required format
   depends on whether the model has pre-equilibration:
   - No pre-equilibration: `Vector{Symbol}` of simulation condition ids, e.g,
     `[:cond1, :cond2, ...]`
-  - With pre-equilibration: `Vector{NamedTuple}` of pre-eq/simulation pairs, e.g.
-    `[(pre_eq = :pre_id1, simulation = :sim_id1), ...]`.
+  - With pre-equilibration: `Vector{Pair}` of pre-eq/simulation pairs, e.g.
+    `[:pre_id1 => :sim_id1, ...]`.
 
 ## Example
 ```julia
@@ -26,11 +26,11 @@ since generated code is reused (no recompilation).
 prob_sub = remake(prob; condition_ids = [:cond1, :cond3])
 ```
 """
-function remake(prob::PEtabODEProblem; condition_ids::Union{Vector{<:NamedTuple}, Vector{Symbol}} = Symbol[])::PEtabODEProblem
-    if isempty(condition_ids)
+function remake(prob::PEtabODEProblem; conditions::Union{Vector{<:Pair}, Vector{Symbol}} = Symbol[])::PEtabODEProblem
+    if isempty(conditions)
         return deepcopy(prob)
     end
-    return _remake(prob, condition_ids)
+    return _remake(prob, conditions)
 end
 function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
     # It only makes sense to remake (from compilation point if view) if parameters that
@@ -234,54 +234,37 @@ function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
                            xnominal, xnominal_transformed, lb, ub)
 end
 
-function _remake(prob::PEtabODEProblem, condition_ids::Vector{Symbol})
+function _remake(prob::PEtabODEProblem, conditions::Vector{Symbol})
     @unpack simulation_info = prob.model_info
     if simulation_info.has_pre_equilibration
         throw(PEtabFormatError("This PEtab problem uses pre-equilibration, so \
-            `condition_ids` passed to `remake`  must specify pre-eq/simulation pairs, e.g. \
-             `[(pre_eq = :pre_id1, simulation = :sim_id1), ...]`."))
+            `conditions` passed to `remake`  must specify pre-eq/simulation pairs, e.g. \
+             `[:pre_id1 => :sim_id1), ...]`."))
     end
 
-    valid = simulation_info.conditionids[:experiment]
-    for cid in condition_ids
-        cid in valid && continue
-        throw(PEtabFormatError("Simulation condition id `$(cid)` in `condition_ids` \
-            passed to `remake` is not defined in this PEtab problem. Valid ids are $(valid)"
-        ))
+    for simulation_id in conditions
+        _check_condition_ids(simulation_id, nothing, prob.model_info)
     end
 
-    index_delete = findall(x -> x ∉ condition_ids, valid)
+    valid_ids = simulation_info.conditionids[:experiment]
+    index_delete = findall(x -> x ∉ conditions, valid_ids)
     return _remake_condition_ids(prob, index_delete)
 end
-function _remake(prob::PEtabODEProblem, condition_ids::Vector{<:NamedTuple})::PEtabODEProblem
+function _remake(prob::PEtabODEProblem, conditions::Vector{<:Pair})::PEtabODEProblem
     @unpack simulation_info = prob.model_info
     if !simulation_info.has_pre_equilibration
         throw(PEtabFormatError("This PEtab problem does not use pre-equilibration, so \
-            `condition_ids` passed to `remake`  must be a `Vector{Symbol}`, e.g. \
+            `conditions` passed to `remake`  must be a `firstVector{Symbol}`, e.g. \
             `[:cond1, :cond2, ...]`."))
     end
 
-    for cid in condition_ids
-        (cid isa @NamedTuple{pre_eq::Symbol, simulation::Symbol} ||
-         cid isa @NamedTuple{simulation::Symbol, pre_eq::Symbol}) && continue
-        throw(PEtabFormatError("For PEtab problems with pre-equilibration, each entry in \
-            `condition_ids` passed to `remake` must be a `NamedTuple` with keys `pre_eq` \
-             and `simulation`, e.g. `(pre_eq = :pre_id1, simulation = :sim_id1)`. \
-            Got $(cid)."))
+    for experiment_id in conditions
+        _check_condition_ids(experiment_id.second, experiment_id.first, prob.model_info)
     end
 
-    _pre_eq_ids = getfield.(condition_ids, :pre_eq)
-    _simulation_ids = getfield.(condition_ids, :simulation)
-    _experiment_ids = Symbol.(string.(_pre_eq_ids) .* string.(_simulation_ids))
-
-    valid = simulation_info.conditionids[:experiment]
-    for (i, experiment_id) in pairs(_experiment_ids)
-        experiment_id in valid && continue
-        throw(PEtabFormatError("Condition pair $(condition_ids[i]) in `condition_ids` \
-            passed to `remake` is not defined in the original PEtab problem."))
-    end
-
-    index_delete = findall(x -> x ∉ _experiment_ids, valid)
+    valid_ids = simulation_info.conditionids[:experiment]
+    experiment_ids = [_get_experiment_id(e.second, e.first) for e in conditions]
+    index_delete = findall(x -> x ∉ experiment_ids, valid_ids)
     return _remake_condition_ids(prob, index_delete)
 end
 
