@@ -15,8 +15,8 @@ ss_solver3 = SteadyStateSolver(:Rootfinding)
 
 p1 = PEtabParameter(:k1)
 p2 = PEtabParameter(:k2; scale = :lin)
-p3 = PEtabParameter(:k3; scale = :log, lb = 1e-2, prior = LogNormal(1.0, 1.0))
-p4 = PEtabParameter(:k4; scale = :lin, lb = 0.0, ub = Inf, prior = LogNormal(1.0, 1.0))
+p3 = PEtabParameter(:k3; scale = :log, lb = 1e-2, ub = 1000.0, prior = LogNormal(1.0, 1.0))
+p4 = PEtabParameter(:k4; scale = :lin, prior = LogNormal(1.0, 1.0))
 p5 = PEtabParameter(:k5; value = 3.0, estimate = false)
 @test "$p1" == "PEtabParameter k1: estimate (scale = log10, bounds = [1.0e-03, 1.0e+03])"
 @test "$p2" == "PEtabParameter k2: estimate (scale = lin, bounds = [1.0e-03, 1.0e+03])"

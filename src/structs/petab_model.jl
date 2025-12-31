@@ -5,21 +5,23 @@ Parameter-estimation data for parameter `parameter_id` (bounds, scale, prior, an
 to estimate).
 
 All parameters estimated in a `PEtabODEProblem` must be declared as `PEtabParameter`.
-`parameter_id` must correspond to a model parameter and/or appear in an `observable_formula`
-or `noise_formula` of a `PEtabObservable`.
+`parameter_id` must correspond to a model parameter and/or a parameter appearing in an
+`observable_formula` or `noise_formula` of a `PEtabObservable`.
 
 ## Keyword Arguments
 * `scale::Symbol = :log10`: Scale the parameter is estimated on. One of `:log10` (default),
     `:log2`, `:log`, or `:lin`. Estimating on a log scale often improves performance and is
     recommended.
-- `lb = 1e-3`: Lower bound for parameter estimation, specified on the **linear** scale.
-    For example, if `scale = :log10`, pass `lb = 1e-3` (not `log10(1e-3)`).
-- `ub = 1e3`: Upper bound for estimation, with same convention as `lb`.
+- `lb`: Lower bound, specified on the **linear** scale (e.g. with `scale = :log10`, pass
+    `lb = 1e-3`, not `log10(1e-3)`). Defaults to `1e-3` without a `prior`, otherwise to the
+    lower bound of the prior support.
+- `ub`: Upper bound, same convention as `lb`. Defaults to `1e3` without a `prior`,
+    otherwise to the upper bound of the prior support.
 - `prior = nothing`: Optional prior distribution acting on the **linear** parameter scale
     (i.e. even if `scale = :log10`, the prior is on `x`, not on `log10(x)`). If the prior’s
-    support extends beyond `lb/ub` bounds, it is truncated by `[lb, ub]` (use `lb = -Inf`
-    and `ub = Inf` to avoid truncation). Any continuous univariate distribution
-    from [Distributions.jl](https://github.com/JuliaStats/Distributions.jl) is supported.
+    support extends beyond `lb/ub` bounds, it is truncated by `[lb, ub]`. Any continuous
+    univariate distribution from
+    [Distributions.jl](https://github.com/JuliaStats/Distributions.jl) is supported.
 - `estimate::Bool = true`: Whether the parameter is estimated (default `true`) or treated
     as a constant (`false`).
 - `value = nothing`: Value used when `estimate = false`, and the value returned by
@@ -35,9 +37,8 @@ estimation uses a maximum-a-posteriori (MAP) objective:
 ```
 
 where ``\\mathcal{I}`` indexes parameters with an explicit prior density ``\\pi_i``.
-Parameters with `prior = nothing` are assigned a `Uniform(lb, ub)` prior. If no parameter
-has a prior, parameter estimation reduces to the maximum-likelihood (ML) objective
-``-\\ell(\\mathbf{x})``.
+If no parameter has a prior, parameter estimation reduces to the maximum-likelihood (ML)
+objective ``-\\ell(\\mathbf{x})``.
 """
 struct PEtabParameter
     parameter_id::String
@@ -51,18 +52,30 @@ struct PEtabParameter
 end
 function PEtabParameter(parameter_id::UserFormula; estimate::Bool = true,
                         value::Union{Nothing, Float64} = nothing, sample_prior::Bool = true,
-                        lb::Real = 1e-3, ub::Real = 1e3,
+                        lb::Union{Nothing, Real} = nothing, ub::Union{Nothing, Real} = nothing,
                         prior::Union{Nothing, Distribution{Univariate, Continuous}} = nothing,
                         scale::Symbol = :log10)
+    if isnothing(prior)
+        lb = isnothing(lb) ? 1e-3 : lb
+        ub = isnothing(ub) ? 1e3 : ub
+    end
+
     if !isnothing(prior)
         prior_support = Distributions.support(prior)
+        lb = isnothing(lb) ? prior_support.lb : lb
+        ub = isnothing(ub) ? prior_support.ub : ub
+
         if lb > prior_support.lb || ub < prior_support.ub
             prior = truncated(prior, lb, ub)
         end
     end
 
     if isnothing(value)
-        value = (lb + ub) .* 0.5
+        if any(isinf.(abs.([lb, ub])))
+            value = 1.0
+        else
+            value = (lb + ub) .* 0.5
+        end
     end
 
     return PEtabParameter(string(parameter_id), estimate, value, lb, ub, prior, scale, sample_prior)
@@ -98,7 +111,7 @@ median, i.e., measurements are assumed equally likely to lie above or below the 
     `Laplace`, `LogNormal`, `Log2Normal`, `Log10Normal` and `LogLaplace`. See below for
     mathematical definition.
 
-## Mathematical description
+## Mathematical description of distribution
 
 For a measurement `m`, model output `y = observable_formula`, and a noise parameter
 `σ = noise_formula`, `PEtabObservable` defines the likelihood linking the model output to
@@ -163,19 +176,19 @@ end
 Simulation condition that overrides model entities according to `assignments` under
 `condition_id`.
 
-Used to set control parameters for different experimental conditions. For example, see
+Used to set control parameters for different experimental conditions. For examples, see
 the online documentation.
 
 # Arguments
-- `condition_id::Union{String,Symbol}`: Simulation condition identifier. Measurement rows
-    are linked to this condition via the measurement table column `simulation_id`.
+- `condition_id::Union{String, Symbol}`: Simulation condition identifier. Measurements
+    are linked to this condition via the column `simulation_id` in the measurement table.
 - `assignments`: One or more assignments of the form `target_id => target_value`.
     - `target_id`: Entity id to override (`Num`, `String` or `Symbol`). Can be a model
-      species id or a model parameter id for a parameter that is not estimated.
+      specie or a model parameter for a parameter that is not estimated.
     - `target_value`: Value/expression assigned to `target_id`. A `String`, `Real`, or a
       Symbolics expression (`Num`) which can use standard Julia functions (e.g. `exp`, `log`,
       `sin`, `cos`). Any variables referenced must be model parameters or `PEtabParameter`s
-      (species variables are not allowed).
+      (model species variables are not allowed).
 
 # Keyword Arguments
 - `t0`: Simulation start time for the condition (default: `0.0`).
