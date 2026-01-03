@@ -1,3 +1,17 @@
+"""
+    PEtabModel(path_yaml; kwargs...)
+
+Import a PEtab problem in the standard (YAML + tables) format from `path_yaml` as a
+`PEtabModel` for parameter estimation.
+
+# Keyword Arguments
+- `ifelse_to_callback::Bool = true`: Rewrite `ifelse` (SBML piecewise) expressions as
+  [callbacks](https://github.com/SciML/DiffEqCallbacks.jl). Typically improves simulation
+  performance.
+- `write_to_file::Bool = false`: Write generated Julia functions to
+  `dirname(path_yaml)/Julia_model_files/` (useful for debugging).
+- `verbose::Bool = false`: Print progress while building the model.
+"""
 function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
                     verbose::Bool = false, ifelse_to_callback::Bool = true,
                     write_to_file::Bool = false)::PEtabModel

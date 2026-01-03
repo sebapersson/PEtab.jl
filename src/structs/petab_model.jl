@@ -8,7 +8,7 @@ All parameters estimated in a `PEtabODEProblem` must be declared as `PEtabParame
 `parameter_id` must correspond to a model parameter and/or a parameter appearing in an
 `observable_formula` or `noise_formula` of a `PEtabObservable`.
 
-## Keyword Arguments
+# Keyword Arguments
 * `scale::Symbol = :log10`: Scale the parameter is estimated on. One of `:log10` (default),
     `:log2`, `:log`, or `:lin`. Estimating on a log scale often improves performance and is
     recommended.
@@ -27,7 +27,7 @@ All parameters estimated in a `PEtabODEProblem` must be declared as `PEtabParame
 - `value = nothing`: Value used when `estimate = false`, and the value returned by
     `get_x`. Defaults to the midpoint of `[lb, ub]`.
 
-## Priors and Parameter Estimation
+# Priors and Parameter Estimation
 
 If at least one parameter in a `PEtabODEProblem` has a `prior` specified, parameter
 estimation uses a maximum-a-posteriori (MAP) objective:
@@ -87,13 +87,12 @@ end
 Observation model linking model output (`observable_formula`) to measurement data via a
 likelihood defined by `distribution` with noise/scale given by `noise_formula`.
 
-For any supported likelihood `distribution`, `observable_formula` is the distribution
-median, i.e., measurements are assumed equally likely to lie above or below the model output.
+For examples, see the online package documentation.
 
-## Arguments
+# Arguments
 
-- `observable_id`: Observable identifier (`String` or `Symbol`). Used to link rows in the
-  measurement table (column `obs_id`) to this observable.
+- `observable_id::Union{String, Symbol}`: Observable identifier. Measurements
+    are linked to this observable via the column `obs_id` in the measurement table.
 - `observable_formula`: Observable expression. Two supported forms:
     - `Model-observable`: A `Symbol` identifier matching an observable defined in a Catalyst
       `ReactionSystem` `@observables` block, or a non-differential variable defined in a
@@ -101,17 +100,17 @@ median, i.e., measurements are assumed equally likely to lie above or below the 
     - `expression`: A `String`, `:Symbol`, `Real`, or a Symbolics expression (`Num`). Can
       include  standard Julia functions (e.g. `exp`, `log`, `sin`, `cos`). Variables may
       reference model species, model parameters, or `PEtabParameter`s. Can include
-      time-point-specific parameters (see documentation).
+      time-point-specific parameters (see documentation for examples).
 - `noise_formula`: Noise/scale expression (String or Symbolics equation), same rules as
     `observable_formula`. May include time-point-specific parameters (see documentation).
 
-## Keyword Arguments
+# Keyword Arguments
 
 - `distribution`: Measurement noise distribution. Valid options are `Normal` (default),
     `Laplace`, `LogNormal`, `Log2Normal`, `Log10Normal` and `LogLaplace`. See below for
     mathematical definition.
 
-## Mathematical description of distribution
+# Mathematical description
 
 For a measurement `m`, model output `y = observable_formula`, and a noise parameter
 `σ = noise_formula`, `PEtabObservable` defines the likelihood linking the model output to
@@ -176,22 +175,22 @@ end
 Simulation condition that overrides model entities according to `assignments` under
 `condition_id`.
 
-Used to set control parameters for different experimental conditions. For examples, see
-the online documentation.
+Used to set initial values and/or model parameters for different experimental conditions.
+For examples, see the online package documentation.
 
 # Arguments
 - `condition_id::Union{String, Symbol}`: Simulation condition identifier. Measurements
     are linked to this condition via the column `simulation_id` in the measurement table.
 - `assignments`: One or more assignments of the form `target_id => target_value`.
-    - `target_id`: Entity id to override (`Num`, `String` or `Symbol`). Can be a model
-      specie or a model parameter for a parameter that is not estimated.
+    - `target_id`: Entity to assign (`Symbol`, `String`, or Symbolics `Num`). Can be a model
+      state id or model parameter id for a parameter that is not estimated.
     - `target_value`: Value/expression assigned to `target_id`. A `String`, `Real`, or a
       Symbolics expression (`Num`) which can use standard Julia functions (e.g. `exp`, `log`,
       `sin`, `cos`). Any variables referenced must be model parameters or `PEtabParameter`s
-      (model species variables are not allowed).
+      (model state variables are not allowed).
 
 # Keyword Arguments
-- `t0`: Simulation start time for the condition (default: `0.0`).
+- `t0 = 0.0`: Simulation start time for the condition.
 """
 struct PEtabCondition
     condition_id::String
@@ -227,22 +226,29 @@ end
 Model event triggered when `condition` transitions from `false` to `true`, applying the
 updates in `assignments`.
 
-For example usage, see the online package documentation.
+For examples, see the online package documentation.
 
 # Arguments
 - `condition`: Boolean expression that triggers the event on a `false` → `true` transition.
-  Examples: `t == 3.0` triggers when simulation time `t` equals parameter `3.0`; `S > 2.0`
-  triggers when species `S` crosses `2.0` from below.
-- `assignments`: One or more assignments of the form `targe_id => target_value`.
-    - `target_id`: Entity id to set (`Num`, `String` or `Symbol`). Can be a model
-      specie id or a model parameter id.
-    - `target_value`: Value/expression assigned to `target_id`. A `String`, `Real`, or a
-      Symbolics expression (`Num`) which can use standard Julia functions (e.g. `exp`, `log`,
-      `sin`, `cos`). Any variables referenced must be model species or model parameters.
+  For example, `t == 3.0` triggers at `t = 3.0`; `S > 2.0` triggers when species `S` crosses
+  `2.0` from below.
+- `assignments`: One or more updates of the form `target_id => target_value`.
+  - `target_id`: Entity to update (`Symbol`, `String`, or Symbolics `Num`). May be a model
+    state id or model parameter id.
+  - `target_value`: Value/expression assigned to `target_id` (`Real`, `String`, or Symbolics
+    `Num`). May use standard Julia functions (e.g. `exp`, `log`, `sin`, `cos`) and reference
+    model states/parameters.
 
 # Keyword Arguments
-- `condition_ids`: Simulation condition identifiers (`String/Symbol`) as declared by any
-    `PEtabCondition`s. If [:all] (default), the event is applied to all conditions.
+- `condition_ids`: Simulation condition identifiers (as declared by `PEtabCondition`) for
+    which the event applies. If `[:all]` (default), the event applies to all conditions.
+
+# Event evaluation order
+
+`target_value` expressions are evaluated at the `condition` trigger point using pre-event
+model values, meaning all assignments are applied simultaneously (updates do not see each
+other’s new values). If a time-triggered event fires at the same time as a measurement, the
+model observable compared against data is evaluated **after** applying the event.
 """
 struct PEtabEvent
     condition::String
@@ -271,43 +277,6 @@ function PEtabEvent(condition::Union{UserFormula, Real}, assignments::Pair...; t
 
     return PEtabEvent(string(condition), target_ids, target_values, trigger_time, Symbol.(condition_ids))
 end
-
-"""
-    PEtabModel(sys, observables::Dict{String, PEtabObservable}, measurements::DataFrame,
-               parameters::Vector{PEtabParameter}; kwargs...)
-
-From a `ReactionSystem` or an `ODESystem` model, `observables` that link the model to
-`measurements` and `parameters` to estimate, create a `PEtabModel` for parameter estimation.
-
-For examples on how to create a `PEtabModel`, see the documentation.
-
-See also [`PEtabObservable`](@ref), [`PEtabParameter`](@ref), and [`PEtabEvent`](@ref).
-
-## Keyword Arguments
-
-- `simulation_conditions = nothing`: An optional dictionary specifying initial specie values
-    and/or model parameters for each simulation condition. Only required if the model has
-    multiple simulation conditions.
-- `events = nothing`: Optional model events (callbacks) provided as `PEtabEvent`. Multiple
-    events should be provided as a `Vector` of `PEtabEvent`.
-- `verbose::Bool = false`: Whether to print progress while building the `PEtabModel`.
-
-
-    PEtabModel(path_yaml; kwargs...)
-
-Import a PEtab problem in the standard format with YAML file at `path_yaml` into a
-`PEtabModel` for parameter estimation.
-
-For examples on how to import a PEtab problem, see the documentation.
-
-## Keyword Arguments
-- `ifelse_to_callback::Bool = true`: Whether to rewrite `ifelse` (SBML piecewise)
-    expressions to [callbacks](https://github.com/SciML/DiffEqCallbacks.jl). This improves
-    simulation runtime. It is strongly recommended to set this to `true`.
-- `verbose::Bool = false`: Whether to print progress while building the `PEtabModel`.
-- `write_to_file::Bool = false`: Whether to write the generated Julia functions to files in
-   the same directory as the PEtab problem. Useful for debugging.
-"""
 struct PEtabModel
     name::String
     h::Function

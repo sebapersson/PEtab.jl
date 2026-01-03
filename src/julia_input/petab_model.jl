@@ -1,14 +1,43 @@
+"""
+    PEtabModel(sys, observables, measurements::DataFrame, parameters; kwargs...)
+
+Create a `PEtabModel` for parameter estimation from model system `sys`, `observables`
+linking model output to `measurements`, and `parameters` to estimate.
+
+If there are multiple `observables`, `parameters`, `simulation_conditions`, and/or `events`,
+pass them as a `Vector` (e.g. `Vector{PEtabObservable}`).
+
+For examples, see the online package documentation.
+
+# Arguments
+- `sys`: Model system (`ReactionSystem` or `ODESystem`).
+- `observables`: `PEtabObservable`(s) linking model output to measurements.
+- `measurements`: Measurement table (see documentation for required columns).
+- `parameters`: `PEtabParameter`(s) to estimate.
+
+# Keyword Arguments
+- `simulation_conditions = nothing`: Optional `PEtabCondition`(s) specifying
+  condition-specific overrides (initial values and/or model parameters).
+- `events = nothing`: Optional `PEtabEvent`(s) defining model events/callbacks.
+- `speciemap`: Optional vector of pairs `[:state_id => value, ...]` setting default initial
+  values for model states/species. Only needed if values are not already defined in the
+  model system (recommended) or provided elsewhere in the PEtab problem.
+- `parametermap`: Like `speciemap`, but for model parameters.
+- `verbose::Bool = false`: Print progress while building the model.
+
+See also: [`PEtabObservable`](@ref), [`PEtabParameter`](@ref), [`PEtabCondition`](@ref),
+and [`PEtabEvent`](@ref).
+"""
 function PEtabModel(sys::ModelSystem,
                     observables::Union{PEtabObservable, Vector{PEtabObservable}},
-                    measurements::DataFrame, parameters::Vector{PEtabParameter};
+                    measurements::DataFrame,
+                    parameters::Union{PEtabParameter, Vector{PEtabParameter}};
                     simulation_conditions::Union{PEtabCondition, Vector{PEtabCondition}, Nothing} = nothing,
                     speciemap::Union{AbstractVector, Nothing} = nothing,
                     parametermap::Union{AbstractVector, Nothing} = nothing,
                     events::Union{PEtabEvent, Vector{PEtabEvent}, Nothing} = nothing,
                     verbose::Bool = false)::PEtabModel
-    # One simulation condition is needed by the PEtab v1 standard. For downstream processing
-    # easier if is a Vector
-    # creation a dummy is created
+    # One simulation condition is needed by the PEtab v1 standard.
     if isnothing(simulation_conditions)
         simulation_conditions = [PEtabCondition(:__c0__)]
     elseif simulation_conditions isa PEtabCondition
@@ -24,6 +53,9 @@ function PEtabModel(sys::ModelSystem,
     end
     if observables isa PEtabObservable
         observables = [observables]
+    end
+    if parameters isa PEtabParameter
+        parameters = [parameters]
     end
 
     return _PEtabModel(sys, simulation_conditions, observables, measurements,
