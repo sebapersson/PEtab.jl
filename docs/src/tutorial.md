@@ -388,17 +388,20 @@ common use cases, see the following extended tutorials:
 - **Import PEtab models**: Load problems provided in the PEtab standard table format. See
   [Import PEtab standard format](@ref import_petab_problem).
 - **Model definition**: More on defining `ReactionSystem` and `ODESystem` models can be
-  found in the Catalyst.jl and ModelingToolkit.jl documentation respectively.
+  found in the [Catalyst.jl](https://docs.sciml.ai/Catalyst/stable/) and
+  [ModelingToolkit.jl](https://docs.sciml.ai/ModelingToolkit/dev/) documentation
+  respectively.
 
 In addition to defining a parameter estimation problem, this tutorial showed how to fit
 parameters using Fides.jl. For more on parameter estimation, see:
 
-- **Extended tutorial**: A more detailed tutorial on optimization algorithms and their
-  configuration (see [Optimization algorithms](@ref options_optimizers)).
-- **Other optimizers**: Supported optimizers (Ipopt, Optim.jl, and Optimization.jl) are
-  covered in [Parameter estimation methods](@ref pest_methods).
-- **Plotting results**: Plotting options for parameter estimation results (see [Plotting
-  parameter estimation results](@ref pest_plotting)).
+- **Extended estimation tutorial**: Extended tutorial on estimation functionality (e.g.
+  multi-start, Optimization.jl integration). See [Parameter estimation extended
+  tutorial](@ref pest_methods).
+- **Available optimization algorithms**: Supported algorithms and recommended defaults. See
+  [Available optimization algorithms](@ref options_optimizers).
+- **Plotting results**: Plotting options for parameter estimation output. See [Plotting
+  parameter estimation results](@ref pest_plotting).
 - **Bayesian inference**: Sampling-based inference (e.g. NUTS and AdaptiveMCMC; see the
   Bayesian inference page).
 
@@ -413,7 +416,6 @@ options, see [Derivative methods](@ref gradient_support).
 using Catalyst, ModelingToolkit, PEtab
 using ModelingToolkit: t_nounits as t, D_nounits as D
 
-using Catalyst
 rn = @reaction_network begin
     @parameters begin
       S0

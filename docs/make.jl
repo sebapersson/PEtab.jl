@@ -31,7 +31,7 @@ makedocs(;
                 "Observable and noise parameters" => "define_problem/observable_noise_parameters.md",
                 "Importing PEtab standard format" => "define_problem/standard_format.md"],
         "Parameter Estimation" => Any[
-            "Parameter Estimation Methods" => "pest_method.md",
+            "Parameter estimation tutorial" => "parameter_estimation/extended_tutorial.md",
             "Plotting Estimation Results" => "pest_plot.md",
             "Available and Recommended Algorithms" => "pest_algs.md",
             "Model Selection with PEtab-select" => "pest_select.md",

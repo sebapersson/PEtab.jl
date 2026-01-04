@@ -1,8 +1,21 @@
-# Model Selection with PEtab Select
+# [Model Selection (PEtab Select)](@id petab_select)
 
-Sometimes we have competing hypotheses (model structures) that we want to compare to ultimately select the best model/hypothesis. There are [various approaches](https://en.wikipedia.org/wiki/Stepwise_regression) for model selection, such as forward search, backward search, and exhaustive search, where models are compared based on information criteria like AIC or BIC. Additionally, there are efficient algorithms that combine both backward and forward search, such as Famos [gabel2019famos](@cite). All these model selection methods are supported by the Python package [PEtab Select](https://github.com/PEtab-dev/petab_select), for which PEtab.jl provides an interface.
+Sometimes we have competing hypotheses (model structures) that we want to compare to
+ultimately select the best model/hypothesis. There are
+[various approaches](https://en.wikipedia.org/wiki/Stepwise_regression) for model selection,
+such as forward search, backward search, and exhaustive search, where models are compared
+based on information criteria like AIC or BIC. Additionally, there are efficient algorithms
+that combine both backward and forward search, such as Famos [gabel2019famos](@cite). All
+these model selection methods are supported by the Python package
+[PEtab Select](https://github.com/PEtab-dev/petab_select), for which PEtab.jl provides an
+interface.
 
-This advanced documentation page assumes that you know how to import and crate PEtab problems in the standard format (a tutorial can be found [here](@ref import_petab_problem)) as well as the basics of multi-start parameter estimation with PEtab.jl (a tutorial can be found [here](@ref pest_methods)). Additionally, since PEtab Select is a Python package, to run this code you need to have [PEtabSelect.jl](https://github.com/sebapersson/PEtabSelect.jl) installed.
+This advanced documentation page assumes that you know how to import and crate PEtab
+problems in the standard format (a tutorial can be found [here](@ref import_petab_problem))
+as well as the basics of multi-start parameter estimation with PEtab.jl (a tutorial can be
+found [here](@ref pest_methods)). Additionally, since PEtab Select is a Python package, to
+run this code you need to have
+[PEtabSelect.jl](https://github.com/sebapersson/PEtabSelect.jl) installed.
 
 ## Model Selection Example
 
@@ -12,13 +25,16 @@ PEtab.jl provides support for PEtab Select through the `petab_select` function:
 petab_select
 ```
 
-As an example, for a simple signaling model (files can be downloaded from [here](https://github.com/sebapersson/PEtab.jl/tree/main/docs/src/assets/petab_select)), you can run PEtab Select with the `IPNewton()` algorithm:
+As an example, for a simple signaling model (files can be downloaded from
+[here](https://github.com/sebapersson/PEtab.jl/tree/main/docs/src/assets/petab_select)), you
+can run PEtab Select with the `IPNewton()` algorithm:
 
 ```julia
 using Optim, PEtab, PEtabSelect
 path_yaml = joinpath(@__DIR__, "assets", "petab_select", "petab_select_problem.yaml")
 path_res = petab_select(path_yaml, IPNewton(); nmultistarts=10)
 ```
+
 ```julia
 ┌ Info: PEtab select problem info
 │ Method: brute_force
