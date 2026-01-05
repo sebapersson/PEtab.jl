@@ -258,7 +258,7 @@ returned solution object, see the Optimization.jl
 This extended tutorial showed how to estimate parameters with PEtab.jl. The parameter
 estimation documentation also covers:
 
-- **Available optimization algorithms**: Supported algorithms and recommended defaults. See
+- **Available optimization algorithms**: Supported and recommended algorithms. See
   [Available optimization algorithms](@ref options_optimizers).
 - **Plotting results**: Plotting options for parameter estimation output. See [Plotting
   parameter estimation results](@ref pest_plotting).

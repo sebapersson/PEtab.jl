@@ -64,21 +64,6 @@ nothing # hide
 optimal performance, and to ensure the correct evaluation of the objective function and in
 particular its gradient especially its [frohlich2017parameter](@cite).
 
-Good structure, but there are a few API/consistency issues to fix:
-
-- `events=event` should likely be `events = [event]` (unless your keyword accepts a single
-  event; your tutorials elsewhere use vectors).
-- Your second example `PEtabEvent(t == c2, 5.0, :c1)` doesn’t match the earlier signature
-  you showed (`PEtabEvent(condition, assignments...; condition_ids=...)`). It should be an
-  assignment pair, e.g. `:c1 => 2.0`.
-- In the second “plot” block you reuse `x` but don’t recompute it after remaking
-  `petab_prob`.
-- Minor wording/grammar (“Simulating ODE model…”).
-- The last note is a bit confusing; I’d rephrase to the actual rule: assignments are
-  `target => value`, and both can be `Symbol`/`Num`/`String` depending on what you accept.
-
-Here’s a polished, consistent version you can copy (keeping your intent):
-
 ## Time-triggered events
 
 Time-triggered events fire at a specified trigger time. The trigger time can be a constant
@@ -122,21 +107,6 @@ sol = get_odesol(x, petab_prob)
 plot(sol; linewidth = 2.0)
 ```
 
-It’s closer, but there are still a few correctness/clarity problems:
-
-- You say “takes the value of `2.0`” but use `0.2`.
-- “incremented every time” is wrong for `:S => 1.0` (that _sets_ S to 1.0). If you want
-  increment, use `:S => S + 1`.
-- You accidentally flipped the “true→false” again. It’s **false → true**.
-- Your inequality examples are swapped: you _say_ `S > 0.2` but the code uses `S < 0.2`, and
-  vice versa.
-- `events=event` should likely be `events = [event]` for consistency with the rest of docs.
-- In the later examples you rebuild `petab_prob` but reuse `x` from the old one; recompute
-  `x`.
-
-Here’s a polished version that matches what you’re trying to explain, and is consistent with
-your API:
-
 ## State-triggered events
 
 State-triggered events fire when the event condition transitions from `false` to `true`. For
@@ -178,9 +148,6 @@ petab_prob = PEtabODEProblem(model)
 sol = get_odesol(x, petab_prob)
 plot(sol; linewidth = 2.0)
 ```
-
-This section is understandable and basically correct, but I’d tweak a few things for
-consistency and avoid small gotchas:
 
 ## Multiple event targets
 

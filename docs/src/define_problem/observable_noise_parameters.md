@@ -1,9 +1,9 @@
 # [Observable and noise parameters](@id petab_observable_options)
 
-A `PEtabObservable` linking model outputs to measured data may depend on non-model
-quantities such as scaling or offset parameters (e.g. when measurements are reported on a
-relative scale and require a mapping). These parameters can also vary between measurements,
-for example when data were collected using different assays.
+A `PEtabObservable` links model outputs to measured data and may depend on additional
+(non-model) quantities such as scaling or offset parameters (e.g. when measurements are
+relative but the model output is absolute scale). These parameters may also vary between
+measurements, for example when data were collected using different assays.
 
 In PEtab.jl, this is handled via **observable parameters** and **noise parameters**. This
 tutorial shows how to define these parameters and how to optionally make them time-point
