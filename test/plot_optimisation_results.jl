@@ -129,12 +129,12 @@ let
     issetequal(keys(comp_dict["c2"]), ["obs_E", "obs_p"])
 
     # Make plots
-    c1_E_plt = plot(res, prob; obsids=["obs_E"], condition = "c1")
-    c1_P_plt = plot(res, prob; obsids=["obs_p"], condition = "c1")
+    c1_E_plt = plot(res, prob; observable_ids=["obs_E"], condition = "c1")
+    c1_P_plt = plot(res, prob; observable_ids=["obs_p"], condition = "c1")
     c1_E_P_plt = plot(res, prob; condition = :c1)
 
-    c2_E_plt = plot(res.xmin, prob; obsids=["obs_E"], condition = "c2", obsid_label = true)
-    c2_P_plt = plot(res, prob; obsids=["obs_p"], condition = "c2")
+    c2_E_plt = plot(res.xmin, prob; observable_ids=["obs_E"], condition = "c2", obsid_label = true)
+    c2_P_plt = plot(res, prob; observable_ids=["obs_p"], condition = "c2")
     c2_E_P_plt = plot(res, prob; condition = "c2")
 
     # Fetch sols.
@@ -171,12 +171,12 @@ let
     @test c2_P == c2_P_plt.series_list[1].plotattributes[:y]
 
     # Test Residuals plotting
-    c1_E_plt = plot(res, prob; obsids=["obs_E"], condition = "c1", plot_type = :residuals)
-    c1_P_plt = plot(res, prob; obsids=["obs_p"], condition = "c1", plot_type = :residuals)
+    c1_E_plt = plot(res, prob; observable_ids=["obs_E"], condition = "c1", plot_type = :residuals)
+    c1_P_plt = plot(res, prob; observable_ids=["obs_p"], condition = "c1", plot_type = :residuals)
     c1_E_P_plt = plot(res, prob; condition = "c1", plot_type = :residuals)
 
-    c2_E_plt = plot(res.xmin, prob; obsids=["obs_E"], condition = "c2", obsid_label = true, plot_type = :standardized_residuals)
-    c2_P_plt = plot(res, prob; obsids=["obs_p"], condition = "c2", plot_type = :standardized_residuals)
+    c2_E_plt = plot(res.xmin, prob; observable_ids=["obs_E"], condition = "c2", obsid_label = true, plot_type = :standardized_residuals)
+    c2_P_plt = plot(res, prob; observable_ids=["obs_p"], condition = "c2", plot_type = :standardized_residuals)
     c2_E_P_plt = plot(res, prob; condition = "c2", plot_type = :standardized_residuals)
 
     model_residuals = prob.simulated_values(res.xmin) - measurements.measurement

@@ -7,7 +7,7 @@ const ALLOWED_SOLUTION_PLOTS = [
 # Plots the optimized solution, and compares it to the data. Either by directly plotting
 # the model fit, or by plotting the residuals
 @recipe function f(res::PEtab.EstimationResult, prob::PEtabODEProblem;
-                   plot_type = :model_fit, obsids = nothing, condition = nothing,
+                   plot_type = :model_fit, observable_ids = nothing, condition = nothing,
                    obsid_label = false)
     model_info = prob.model_info
 
@@ -17,10 +17,10 @@ const ALLOWED_SOLUTION_PLOTS = [
     end
 
     observables_df = prob.model_info.model.petab_tables[:observables]
-    if isnothing(obsids)
-        obsids = observables_df[!, :observableId]
+    if isnothing(observable_ids)
+        observable_ids = observables_df[!, :observableId]
     else
-        obsids = string.(obsids)
+        observable_ids = string.(observable_ids)
     end
 
     simulation_id = PEtab._get_simulation_id(condition, model_info)
@@ -37,9 +37,9 @@ const ALLOWED_SOLUTION_PLOTS = [
     end
 
     if plot_type == :model_fit
-        plot_info = _plot_model_fit(xmin, prob, simulation_id, pre_equilibration_id, obsids, obsid_label)
+        plot_info = _plot_model_fit(xmin, prob, simulation_id, pre_equilibration_id, observable_ids, obsid_label)
     else
-        plot_info = _plot_residuals(xmin, prob, simulation_id, pre_equilibration_id, obsids, plot_type, obsid_label)
+        plot_info = _plot_residuals(xmin, prob, simulation_id, pre_equilibration_id, observable_ids, plot_type, obsid_label)
     end
 
     seriestype --> plot_info.seriestype
@@ -55,7 +55,7 @@ function PEtab.get_obs_comparison_plots(res::PEtab.EstimationResult, prob::PEtab
     comparison_dict = Dict()
     conditions_ids = prob.model_info.simulation_info.conditionids
     simulation_ids = string.(conditions_ids[:simulation])
-    obsids = prob.model_info.model.petab_tables[:observables][!, :observableId]
+    observable_ids = prob.model_info.model.petab_tables[:observables][!, :observableId]
     for (i, simulation_id) in pairs(simulation_ids)
         pre_equilibration_id = conditions_ids[:pre_equilibration][i]
         if pre_equilibration_id == :None
@@ -66,14 +66,14 @@ function PEtab.get_obs_comparison_plots(res::PEtab.EstimationResult, prob::PEtab
             experiment_id = "$(pre_equilibration_id)=>$(simulation_id)"
         end
         comparison_dict[experiment_id] = Dict()
-        for obsid in obsids
-            comparison_dict[experiment_id][obsid] = plot(res, prob; obsids = [obsid], condition = condition, kwargs...)
+        for obsid in observable_ids
+            comparison_dict[experiment_id][obsid] = plot(res, prob; observable_ids = [obsid], condition = condition, kwargs...)
         end
     end
     return comparison_dict
 end
 
-function _plot_model_fit(xmin, prob, simulation_id, pre_equilibration_id, obsids, obsid_label)
+function _plot_model_fit(xmin, prob, simulation_id, pre_equilibration_id, observable_ids, obsid_label)
     observables_df = prob.model_info.model.petab_tables[:observables]
 
     # Prepares empty vectors with required plot inputs.
@@ -84,7 +84,7 @@ function _plot_model_fit(xmin, prob, simulation_id, pre_equilibration_id, obsids
     y_vals = []
 
     # Loops through all observables, computing the required plot inputs.
-    for (obs_idx, obs_id) in enumerate(obsids)
+    for (obs_idx, obs_id) in enumerate(observable_ids)
         model_fits = _get_observable(xmin, prob, simulation_id, pre_equilibration_id, obs_id)
         # Plot args.
         append!(_seriestype, [:scatter, :line])
@@ -107,7 +107,7 @@ function _plot_model_fit(xmin, prob, simulation_id, pre_equilibration_id, obsids
     end
 
     # Set reshaped plot arguments
-    n_obs = length(obsids)
+    n_obs = length(observable_ids)
     _seriestype = reshape(_seriestype, 1, 2n_obs)
     _color = reshape(_color, 1, 2n_obs)
     _label = reshape(_label, 1, 2n_obs)
@@ -115,7 +115,7 @@ function _plot_model_fit(xmin, prob, simulation_id, pre_equilibration_id, obsids
             seriestype = _seriestype, y_label ="Model and observed values")
 end
 
-function _plot_residuals(xmin, prob, simulation_id, pre_equilibration_id, obsids, plot_type, obsid_label)
+function _plot_residuals(xmin, prob, simulation_id, pre_equilibration_id, observable_ids, plot_type, obsid_label)
     observables_df = prob.model_info.model.petab_tables[:observables]
 
     if plot_type == :residuals
@@ -132,7 +132,7 @@ function _plot_residuals(xmin, prob, simulation_id, pre_equilibration_id, obsids
     y_vals = []
 
     # Loops through all observables, computing the required plot inputs.
-    for (obs_idx, obs_id) in enumerate(obsids)
+    for (obs_idx, obs_id) in enumerate(observable_ids)
         idata = _get_index_data(simulation_id, pre_equilibration_id, obs_id, prob.model_info)
         isempty(idata) && continue
 
@@ -160,7 +160,7 @@ function _plot_residuals(xmin, prob, simulation_id, pre_equilibration_id, obsids
     end
 
     # Set reshaped plot arguments
-    n_obs = length(obsids)
+    n_obs = length(observable_ids)
     _seriestype = reshape(_seriestype, 1, n_obs)
     _color = reshape(_color, 1, n_obs)
     _label = reshape(_label, 1, n_obs)
@@ -238,14 +238,14 @@ end
 function _get_index_data(simulation_id, pre_equilibration_id, obsid, model_info)
     measurements_df = model_info.model.petab_tables[:measurements]
     simulation_ids = measurements_df[!, :simulationConditionId]
-    obsids = measurements_df[!, :observableId]
+    observable_ids = measurements_df[!, :observableId]
 
     # Identify which data-points in measurement data to plot
     if isnothing(pre_equilibration_id)
-        idata = findall(simulation_ids .== string(simulation_id) .&& obsids .== obsid)
+        idata = findall(simulation_ids .== string(simulation_id) .&& observable_ids .== obsid)
     else
         pre_equilibration_ids = measurements_df[!, :preequilibrationConditionId]
-        idata = findall(simulation_ids .== string(simulation_id) .&& obsids .== obsid .&& string(pre_equilibration_id) .== pre_equilibration_ids)
+        idata = findall(simulation_ids .== string(simulation_id) .&& observable_ids .== obsid .&& string(pre_equilibration_id) .== pre_equilibration_ids)
     end
     return idata
 end

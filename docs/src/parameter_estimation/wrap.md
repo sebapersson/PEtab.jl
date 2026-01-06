@@ -4,11 +4,12 @@ A `PEtabODEProblem` contains all information needed to use an optimizer directly
 parameter estimation. While PEtab.jl provides high-level functions for single-start
 estimation ([`calibrate`](@ref)) and multi-start estimation
 ([`calibrate_multistart`](@ref)), direct use can be useful for unsupported optimization
-packages or custom workflows.
+packages and/or custom workflows.
 
-This tutorial demonstrates this approach using the `IPNewton` method from
-[Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl). As a running example, the
-Michaelis–Menten model from the [starting tutorial](@ref tutorial) is used.
+This tutorial demonstrates how to use the `IPNewton` method from
+[Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl) directly via a `PEtabODEProblem`. As
+a running example, the Michaelis–Menten model from the [starting tutorial](@ref tutorial) is
+used.
 
 ```@example 1
 using Catalyst, PEtab
@@ -94,9 +95,9 @@ The input `x` is typically a `ComponentArray`, but `Vector` inputs are also supp
 type of output matches the input). More details on what is available in a `PEtabODEProblem`
 can be found in the [API documentation](@ref API)
 
-For ODE models, parameter bounds are often important: without bounds, the optimizer may
-explore regions where the ODE solver fails, increasing runtime [frohlich2022fides](@cite).
-Bounds are available as:
+Lastly, for ODE models, parameter bounds are often important: without bounds, the optimizer
+often explores regions where the ODE solver fails, increasing runtime
+[frohlich2022fides](@cite). The bounds in `petab_prob`can be accessed with:
 
 ```@example 1
 lb, ub = petab_prob.lower_bounds, petab_prob.upper_bounds
@@ -104,7 +105,7 @@ nothing # hide
 ```
 
 `lb` and `ub` are `ComponentArray`s. If an optimizer does not support `ComponentArray`,
-convert them to `Vector`s with `collect`; e.g., `collect(lb)`.
+convert them to `Vector`s with `collect` (see below).
 
 ## Wrapping Optim.jl `IPNewton`
 
