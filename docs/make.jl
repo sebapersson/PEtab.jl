@@ -32,10 +32,10 @@ makedocs(;
                 "Importing PEtab standard format" => "define_problem/standard_format.md"],
         "Parameter Estimation" => Any[
             "Parameter estimation tutorial" => "parameter_estimation/extended_tutorial.md",
-            "Plotting Estimation Results" => "pest_plot.md",
+            "Plotting parameter estimation results" => "parameter_estimation/plots.md",
             "Optimization algorithms and recommendations" => "parameter_estimation/optimizers.md",
             "Model Selection with PEtab-select" => "pest_select.md",
-            "Wrapping Optimization Packages" => "pest_custom.md"],
+            "Using optimizers directly" => "parameter_estimation/wrap.md"],
         "Bayesian Inference" => "inference.md",
         "API" => "API.md",
         "Gradient and Hessian Methods" => "grad_hess_methods.md",
