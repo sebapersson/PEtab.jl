@@ -176,11 +176,9 @@ p_c1 = PEtabParameter(:c1)
 
 By default, parameters are assigned bounds `[1e-3, 1e3]` and estimated on a `log10` scale.
 These defaults typically improve parameter estimation performance performance
-[frohlich2022fides](@cite), [raue2013lessons](@cite), [hass2019benchmark](@cite)). Bounds
-and scale can be changed via keyword arguments.
-
-Parameters can also be assigned priors. For example, to assign a `LogNormal(1.0, 0.3)` prior
-to `c2`:
+[frohlich2022fides, raue2013lessons, hass2019benchmark](@cite)). Bounds and scale can be
+changed via keyword arguments. Parameters can also be assigned priors. For example, to
+assign a `LogNormal(1.0, 0.3)` prior to `c2`:
 
 ```@example 1
 using Distributions
@@ -334,7 +332,8 @@ multistart optimization.
 
 In multi-start estimation, the optimizer is run from multiple random starting points to
 reduce the risk of converging to a local minimum. This simple global optimization strategy
-has proved effective for ODE models [raue2013lessons, villaverde2019benchmarking](@cite).
+has proved effective for ODE models
+[raue2013lessons, villaverde2019benchmarking, persson2025petab](@cite).
 
 PEtab.jl provides `calibrate_multistart`, which generates starting points (by default using
 Latin hypercube sampling within bounds) and runs the optimizer. For example, to run `n = 50`

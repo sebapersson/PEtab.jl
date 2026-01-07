@@ -34,7 +34,7 @@ makedocs(;
             "Parameter estimation tutorial" => "parameter_estimation/extended_tutorial.md",
             "Plotting parameter estimation results" => "parameter_estimation/plots.md",
             "Optimization algorithms and recommendations" => "parameter_estimation/optimizers.md",
-            "Model Selection with PEtab-select" => "pest_select.md",
+            "Model selection with PEtab Select" => "parameter_estimation/model_selection.md",
             "Using optimizers directly" => "parameter_estimation/wrap.md"],
         "Bayesian Inference" => "inference.md",
         "API" => "API.md",

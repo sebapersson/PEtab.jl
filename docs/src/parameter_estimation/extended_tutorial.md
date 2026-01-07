@@ -15,12 +15,12 @@ Specifically, the parameter-estimation problem targeted is
 ```
 
 where `-ℓ(x)` is a negative log-likelihood (see [`PEtabObservable`](@ref) for mathematical
-definition are defined) and `lb`/`ub` are parameter bounds.
+definition) and `lb`/`ub` are parameter bounds.
 
 This extended tutorial covers PEtab.jl’s single-start and multi-start parameter estimation
 workflows. It also shows how to construct an `OptimizationProblem` to solve the problem
-using Optimization.jl As a running example, we use the Michaelis–Menten model from the
-[starting tutorial](@ref tutorial).
+using the Optimization.jl interface. As a running example, we use the Michaelis–Menten model
+from the [starting tutorial](@ref tutorial).
 
 ```@example 1
 using Catalyst, PEtab
@@ -139,7 +139,7 @@ better strategy for finding the global minimum is multi-start parameter estimati
 
 Multi-start parameter estimation runs a local optimizer from multiple randomly sampled
 starting points. This approach empirically performs well for ODE models
-[raue2013lessons](@cite).
+[raue2013lessons, persson2025petab](@cite).
 
 The first step is to generate `n` starting points within the parameter bounds. Pure random
 sampling tends to cluster, so PEtab.jl supports quasi-Monte Carlo sampling (Latin hypercube
