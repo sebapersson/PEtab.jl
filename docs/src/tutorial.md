@@ -55,8 +55,8 @@ A PEtab parameter estimation problem (`PEtabODEProblem`) is defined by:
    priors, bounds, and scale).
 4. **Measurements**: Measurement data as a `DataFrame` in the format described below.
 5. **Simulation conditions (optional)**: `PEtabCondition`s for measurements collected under
-   different experimental conditions, where simulations use different control parameter
-   values (see [Simulation conditions tutorial](@ref petab_sim_cond)).
+   different experimental conditions, where simulations use different control parameters
+   and/or initial values (see [Simulation conditions tutorial](@ref petab_sim_cond)).
 
 ### Defining the dynamic model
 
@@ -135,12 +135,10 @@ parameter/state left without a value (and not estimated) defaults to `0.0`.
 
 ### Defining observables
 
-To link model states/parameters to measurement data, each measured quantity needs an
-**observable formula** and a **noise/scale formula**. This is specified with
-`PEtabObservable`.
-
-Since the model system already defines observables (`obs1`, `obs2` above), we can reference
-them by name. For example, assume we measure `obs1 = S + E` with known noise `σ = 3.0`:
+To link model outputs to measurements, each measured quantity needs an **observable
+formula** and a **noise formula**. This is specified with `PEtabObservable`. Since the model
+system already defines observables (`obs1`, `obs2` above), they can be referenced by name.
+For example, assume `obs1 = S + E` is measured with known noise `σ = 3.0`:
 
 ```@example 1
 petab_obs1 = PEtabObservable(:petab_obs1, :obs1, 3.0)
@@ -148,8 +146,9 @@ petab_obs1 = PEtabObservable(:petab_obs1, :obs1, 3.0)
 
 The first argument is the observable id used to link measurement rows in the measurement
 table (see below) to this `PEtabObservable`. The second argument (`:obs1`) references the
-observable defined in the model system. By default, Normal noise is assumed; other
-distributions can be selected via the `distribution` keyword.
+observable defined in the model system, and the third is the noise parameter. By default,
+measurements are assumed Normally distributed (other distributions can be selected via the
+`distribution` keyword).
 
 The noise level can also be estimated. Assume we measure `obs2 = P` with unknown noise
 parameter `sigma`:
@@ -174,11 +173,11 @@ Parameters to estimate are specified with `PEtabParameter`. For example, to esti
 p_c1 = PEtabParameter(:c1)
 ```
 
-By default, parameters are assigned bounds `[1e-3, 1e3]` and estimated on a `log10` scale.
-These defaults typically improve parameter estimation performance performance
-[frohlich2022fides, raue2013lessons, hass2019benchmark](@cite)). Bounds and scale can be
-changed via keyword arguments. Parameters can also be assigned priors. For example, to
-assign a `LogNormal(1.0, 0.3)` prior to `c2`:
+By default, parameters are assigned bounds `[1e-3, 1e3]` and estimated on a `log10` scale
+(can be changed via keyword arguments).These defaults typically improve parameter estimation
+performance performance [frohlich2022fides, raue2013lessons, hass2019benchmark](@cite)),
+Parameters can also be assigned priors. For example, to assign a `LogNormal(1.0, 0.3)` prior
+to `c2`:
 
 ```@example 1
 using Distributions
@@ -376,9 +375,9 @@ common use cases, see the following extended tutorials:
   petab_sim_cond).
 - **Steady-state initialization**: Enforce a steady state before the model is matched
   against data (pre-equilibration). See [Pre-equilibration](@ref define_with_ss).
-- **Condition-specific parameters**: Estimate parameters whose values differ between
-  simulation conditions, while other parameters are shared across conditions. See
-  [Simulation condition-specific parameters](@ref define_conditions).
+- **Condition-specific parameters**: Subset of model parameters which are estimated take
+  different across simulation conditions. See [Simulation condition-specific
+  parameters](@ref condition_parameters).
 - **Observable and noise parameters**: Observable/noise parameters in `PEtabObservable`
   formulas that are not part of the model system (e.g. scale/offset), optionally
   time-point-specific. See [Observable and noise parameters](@ref petab_observable_options).
@@ -404,10 +403,12 @@ parameters using Fides.jl. For more on parameter estimation, see:
 - **Bayesian inference**: Sampling-based inference (e.g. NUTS and AdaptiveMCMC; see the
   Bayesian inference page).
 
-Lastly, `PEtabODEProblem` has many configurable options. The defaults are based on
-benchmarks for dynamic models in biology (see [Defaults](@ref default_options)). For models
-outside biology, see [Non-stiff models](@ref nonstiff_models). For gradient and Hessian
-options, see [Derivative methods](@ref gradient_support).
+Lastly, `PEtabODEProblem` has many configurable options. Defaults are based on extensive
+benchmarks (see [Default `PEtabODEProblem` options](@ref default_options)), and available
+gradient/Hessian settings are summarized in [Derivative methods](@ref gradient_support).
+While these defaults are typically performant, they are not optimal for every model;
+performance tips and tuning guidelines are provided in the **Configuration and performance**
+section of the docs.
 
 ## Copy pasteable example
 
