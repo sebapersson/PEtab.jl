@@ -36,7 +36,7 @@ makedocs(;
             "Optimization algorithms and recommendations" => "parameter_estimation/optimizers.md",
             "Model selection with PEtab Select" => "parameter_estimation/model_selection.md",
             "Using optimizers directly" => "parameter_estimation/wrap.md"],
-        "Bayesian Inference" => "inference.md",
+        "Bayesian inference" => "inference.md",
         "API" => "API.md",
         "Configuration and performance" => Any[
             "Default PEtabODEProblem options" => "configuration/default_options.md",
