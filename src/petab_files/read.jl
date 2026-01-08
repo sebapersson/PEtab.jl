@@ -10,7 +10,7 @@ end
 
 function read_tables_v2(path_yaml::String)::Dict{Symbol, DataFrame}
     petab_paths = _get_petab_paths(path_yaml)
-    experiments_df = _read_table(petab_paths[:experiment], :experiments_v2)
+    experiments_df = _read_table(petab_paths[:experiments], :experiments_v2)
     conditions_df = _read_table(petab_paths[:conditions], :conditions_v2)
     measurements_df = _read_table(petab_paths[:measurements], :measurements_v2)
     observables_df = _read_table(petab_paths[:observables], :observables_v2)
@@ -43,7 +43,7 @@ function _get_petab_paths(path_yaml::AbstractString)::Dict{Symbol, String}
     else
         path_SBML = _get_model_path_v2(yaml_file, dirmodel)
         path_experiments = _get_path(yaml_file, dirmodel, "experiment_files")
-        petab_paths[:experiment] = path_experiments
+        petab_paths[:experiments] = path_experiments
     end
     petab_paths[:SBML] = path_SBML
     return petab_paths

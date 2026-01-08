@@ -17,9 +17,8 @@ function export_petab(dir_export::AbstractString, prob::PEtabODEProblem, res::Es
     @unpack model, xindices = model_info
 
     if model.defined_in_julia == true
-        throw(ArgumentError("Cannot export this `PEtabODEProblem`: it was constructed via \
-            the Julia interface. `export_petab` currently supports only problems that were
-            provided in the PEtab standard format"))
+        throw(ArgumentError("Cannot export this `PEtabODEProblem`: as `export_petab` \
+            currently supports only problems provided in the PEtab standard format"))
     end
 
     if !isdir(dir_export)
@@ -32,6 +31,9 @@ function export_petab(dir_export::AbstractString, prob::PEtabODEProblem, res::Es
     _cp_petab_file(dir_export, model.paths[:conditions])
     _cp_petab_file(dir_export, model.paths[:observables])
     _cp_petab_file(dir_export, model.paths[:measurements])
+    if haskey(model.paths, :experiments)
+        _cp_petab_file(dir_export, model.paths[:experiments])
+    end
 
     # PEtab parameters are always exported on linear scale
     x_transformed = transform_x(_get_x(res), xindices.xids[:estimate], xindices)
@@ -49,6 +51,9 @@ function export_petab(dir_export::AbstractString, prob::PEtabODEProblem, res::Es
 end
 
 function _cp_petab_file(dir_export::String, path_original::String)::Nothing
+    if isempty(path_original)
+        return nothing
+    end
     path_new = joinpath(dir_export, basename(path_original))
     cp(path_original, path_new; force = true)
     return nothing
