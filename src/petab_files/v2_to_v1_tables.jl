@@ -28,18 +28,13 @@ function v2_to_v1_tables(path_yaml::String, ifelse_to_callback::Bool)
     model_SBML = SBMLImporter.parse_SBML(petab_paths[:SBML], false; model_as_string = false,
         ifelse_to_callback = ifelse_to_callback, inline_assignment_rules = false)
 
-    experiments_v2_df = _read_table(petab_paths[:experiment], :experiments_v2)
-    conditions_v2_df = _read_table(petab_paths[:conditions], :conditions_v2)
-    measurements_v2_df = _read_table(petab_paths[:measurements], :measurements_v2)
-    observables_v2_df = _read_table(petab_paths[:observables], :observables_v2)
-    parameters_v2_df = _read_table(petab_paths[:parameters], :parameters_v2)
+    petab_v2_tables = read_tables_v2(path_yaml)
+    parameters_v1_df = _parameters_v2_v1(petab_v2_tables[:parameters])
+    observables_v1_df = _observables_v2_to_v1(petab_v2_tables[:observables])
+    conditions_v1_df, petab_events = _conditions_v2_to_v1(petab_v2_tables[:experiments], petab_v2_tables[:conditions], model_SBML)
+    measurements_v1_df = _measurements_v2_to_v1(petab_v2_tables[:measurements], petab_v2_tables[:experiments], petab_v2_tables[:conditions])
 
-    parameters_v1_df = _parameters_v2_v1(parameters_v2_df)
-    observables_v1_df = _observables_v2_to_v1(observables_v2_df)
-    conditions_v1_df, petab_events = _conditions_v2_to_v1(experiments_v2_df, conditions_v2_df, model_SBML)
-    measurements_v1_df = _measurements_v2_to_v1(measurements_v2_df, experiments_v2_df, conditions_v2_df)
-
-    petab_v1_tables = Dict(:parameters => parameters_v1_df, :conditions => conditions_v1_df, :observables => observables_v1_df, :measurements => measurements_v1_df)
+    petab_v1_tables = Dict(:parameters => parameters_v1_df, :conditions => conditions_v1_df, :observables => observables_v1_df, :measurements => measurements_v1_df, :experiments => petab_v2_tables[:experiments])
     return petab_v1_tables, petab_events
 end
 

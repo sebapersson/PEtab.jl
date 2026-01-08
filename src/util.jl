@@ -1,5 +1,5 @@
 """
-    get_odesol(res, prob::PEtabODEProblem; condition = nothing)::ODESolution
+    get_odesol(res, prob::PEtabODEProblem; kwargs...)::ODESolution
 
 Retrieve the `ODESolution` from simulating the ODE model in `prob`. `res` can
 be a parameter estimation result (e.g., `PEtabMultistartResult`) or a `Vector` with
@@ -10,16 +10,17 @@ For information on keyword arguments see [`get_ps`](@ref).
 See also: [`get_u0`](@ref) and [`get_odeproblem`](@ref).
 """
 function get_odesol(res::EstimationResult, prob::PEtabODEProblem;
-                    condition::Union{ConditionExp, Nothing} = nothing)::ODESolution
+                    condition::Union{ConditionExp, Nothing} = nothing,
+                    experiment::Union{ConditionExp, Nothing} = nothing)::ODESolution
     @unpack model_info, probinfo = prob
-    oprob, cbs = get_odeproblem(res, prob; condition = condition)
+    oprob, cbs = get_odeproblem(res, prob; condition = condition, experiment = experiment)
 
     @unpack solver, abstol, reltol = probinfo.solver
     return solve(oprob, solver, abstol = abstol, reltol = reltol, callback = cbs)
 end
 
 """
-    get_odeproblem(res, prob::PEtabODEProblem; condition = nothing) -> (ode_prob, cbs)
+    get_odeproblem(res, prob::PEtabODEProblem; kwargs...) -> (ode_prob, cbs)
 
 Retrieve the `ODEProblem` and cbs (`CallbackSet`) for simulating the ODE model in
 `prob`. `res` can be a parameter estimation result (e.g., `PEtabMultistartResult`) or a
@@ -30,12 +31,13 @@ For information on keyword arguments see [`get_ps`](@ref).
 See also: [`get_u0`](@ref) and [`get_odesol`](@ref).
 """
 function get_odeproblem(res::EstimationResult, prob::PEtabODEProblem;
-                        condition::Union{ConditionExp, Nothing} = nothing)
+                        condition::Union{ConditionExp, Nothing} = nothing,
+                        experiment::Union{ConditionExp, Nothing} = nothing)
     @unpack model_info, probinfo = prob
-    simulation_id = _get_simulation_id(condition, model_info)
+    u0, ps = _get_ps_u0(res, prob, condition, experiment, false)
 
-    u0, ps = _get_ps_u0(res, prob, condition, false)
-    tmax = _get_tmax(condition, model_info)
+    simulation_id = _get_simulation_id(condition, experiment, model_info)
+    tmax = _get_tmax(condition, experiment, model_info)
     cbs = model_info.model.callbacks[simulation_id]
 
     odefun = ODEFunction(_get_system(prob.model_info.model.sys))
@@ -60,18 +62,21 @@ For information on keyword arguments, see [`get_ps`](@ref).
 See also: [`get_u0`](@ref) and [`get_odesol`](@ref).
 """
 function get_system(res::EstimationResult, prob::PEtabODEProblem;
-                    condition::Union{ConditionExp, Nothing} = nothing)
-    @unpack sys, callbacks, paths = prob.model_info.model
+                    condition::Union{ConditionExp, Nothing} = nothing,
+                    experiment::Union{ConditionExp, Nothing} = nothing)
+    @unpack sys, paths, callbacks = prob.model_info.model
     if haskey(paths, :SBML)
         prn, _ = load_SBML(paths[:SBML])
         sys = prn.rn
     end
-    u0, p = _get_ps_u0(res, prob, condition, true)
-    return sys, u0, p, callbacks
+
+    u0, p = _get_ps_u0(res, prob, condition, experiment, true)
+    simulation_id = _get_simulation_id(condition, experiment, prob.model_info)
+    return sys, u0, p, callbacks[simulation_id]
 end
 
 """
-    get_u0(res, prob::PEtabODEProblem; condition = nothing, retmap = true)
+    get_u0(res, prob::PEtabODEProblem; kwargs...)
 
 Retrieve the `ODEProblem` initial values for simulating the ODE model in `prob`. `res` can
 be a parameter estimation result (e.g., `PEtabMultistartResult`) or a `Vector` with
@@ -81,45 +86,53 @@ For information on keyword arguments see [`get_ps`](@ref).
 
 See also [`get_odeproblem`](@ref) and [`get_odesol`](@ref).
 """
-function get_u0(res::EstimationResult, prob::PEtabODEProblem;
-                condition::Union{ConditionExp, Nothing} = nothing, retmap::Bool = true)
-    u0, _ = _get_ps_u0(res, prob, condition, retmap)
+function get_u0(res::EstimationResult, prob::PEtabODEProblem; retmap::Bool = true,
+                condition::Union{ConditionExp, Nothing} = nothing,
+                experiment::Union{ConditionExp, Nothing} = nothing)
+    u0, _ = _get_ps_u0(res, prob, condition, experiment, retmap)
     return u0
 end
 
 """
-    get_ps(res, prob::PEtabODEProblem; condition = nothing, retmap = true)
+    get_ps(res, prob::PEtabODEProblem; kwargs...)
 
-Retrieve parameter values for simulating the ODE model in `prob`. `res` may be a parameter
-estimation result (e.g. `PEtabMultistartResult`) or a parameter vector in the order
-expected by `prob` (see [`get_x`](@ref)).
+Return parameter values for simulating the ODE model in `prob`.
 
-# Keyword Arguments
-- `condition`: Simulation condition to retrieve parameters for. Ids are `Symbol`/
-  `String`. If `nothing` (default), the first simulation condition is used. Format depends
-  on whether the model has pre-equilibration:
-  - No pre-equilibration: `simulation_id` (e.g. `:cond1`).
-  - With pre-equilibration: `pre_eq_id => simulation_id` (e.g. `:pre_eq1 => :cond1`).
-- `retmap = true`: If `true`, return a vector of pairs `[k1 => v1, ...]` suitable for
-  passing as `p` when constructing an `ODEProblem`. If `false`, return a parameter vector.
-  Only applicable for `get_ps` and `get_u0`.
+`res` can be a parameter-estimation result (e.g. `PEtabMultistartResult`) or a parameter
+vector in the internal order expected by `prob` (see [`get_x`](@ref)).
+
+# Keyword arguments
+- `condition`: Simulation condition to retrieve parameters for. Used for PEtab v1 problems
+  and problems defined via the Julia interface. If the model has pre-equilibration, pass
+  `pre_eq_id => simulation_id`; otherwise pass `simulation_id`. IDs may be `String` or
+  `Symbol`.
+- `experiment`: Experiment id (`String` or `Symbol`). Used to retrieve parameters for the
+  corresponding experimental time-course in PEtab v2 problems.
+- `retmap = true`: If `true`, return a vector of pairs `p = [k1 => v1, ...]` suitable for
+  `ODEProblem(; p)`. If `false`, return a parameter vector.
+
+!!! note
+    `condition` and `experiment` are mutually exclusive (provide at most one).
 
 See also: [`get_u0`](@ref), [`get_odeproblem`](@ref), [`get_odesol`](@ref).
 """
-function get_ps(res::EstimationResult, prob::PEtabODEProblem;
-                condition::Union{ConditionExp, Nothing} = nothing, retmap::Bool = true)
-    _, p = _get_ps_u0(res, prob, condition, retmap)
+function get_ps(res::EstimationResult, prob::PEtabODEProblem; retmap::Bool = true,
+                condition::Union{ConditionExp, Nothing} = nothing,
+                experiment::Union{ConditionExp, Nothing} = nothing)
+    _, p = _get_ps_u0(res, prob, condition, experiment, retmap)
     return p
 end
 
 function _get_ps_u0(res::EstimationResult, prob::PEtabODEProblem,
-                    condition::Union{ConditionExp, Nothing}, retmap::Bool)
+                    condition::Union{ConditionExp, Nothing},
+                    experiment::Union{ConditionExp, Nothing}, retmap::Bool)
     @unpack probinfo, model_info = prob
     @unpack xindices, model, simulation_info = model_info
     @unpack solver, ss_solver, cache, odeproblem = probinfo
 
-    simulation_id = _get_simulation_id(condition, model_info)
-    pre_equilibration_id = _get_pre_equilibration_id(condition, model_info)
+    _check_experiment_id(condition, experiment, model_info)
+    simulation_id = _get_simulation_id(condition, experiment, model_info)
+    pre_equilibration_id = _get_pre_equilibration_id(condition, experiment, model_info)
     _check_condition_ids(simulation_id, pre_equilibration_id, model_info)
 
     x_transformed = transform_x(_get_x(res), xindices.xids[:estimate], xindices)
@@ -233,24 +246,40 @@ function solve_all_conditions(x, prob::PEtabODEProblem, osolver; abstol = 1e-8,
     return model_info.simulation_info.odesols
 end
 
-function _get_simulation_id(condition::Union{ConditionExp, Nothing}, model_info::ModelInfo)::Symbol
-    if isnothing(condition)
-        return model_info.simulation_info.conditionids[:simulation][1]
+
+function _get_simulation_id(condition::Union{ConditionExp, Nothing}, experiment::Union{ConditionExp, Nothing}, model_info::ModelInfo)::Symbol
+    conditionids = model_info.simulation_info.conditionids
+    if isnothing(experiment) && isnothing(condition)
+        return conditionids[:simulation][1]
     end
 
-    return condition isa Pair ? Symbol(condition.second) : Symbol(condition)
+    if !isnothing(condition) && isnothing(experiment)
+        return condition isa Pair ? Symbol(condition.second) : Symbol(condition)
+    end
+
+    ic = findfirst(startswith("$(experiment)_"), string.(conditionids[:simulation]))
+    return conditionids[:simulation][ic]
 end
 
-function _get_pre_equilibration_id(condition::Union{ConditionExp, Nothing}, model_info::ModelInfo)::Union{Symbol, Nothing}
-    simulation_info = model_info.simulation_info
-    if isnothing(condition) && simulation_info.has_pre_equilibration
-        return model_info.simulation_info.conditionids[:pre_equilibration][1]
+function _get_pre_equilibration_id(condition::Union{ConditionExp, Nothing}, experiment::Union{ConditionExp, Nothing}, model_info::ModelInfo)::Union{Symbol, Nothing}
+    @unpack has_pre_equilibration, conditionids = model_info.simulation_info
+    if isnothing(condition) && isnothing(experiment) && has_pre_equilibration
+        return conditionids[:pre_equilibration][1]
     end
 
-    if !(condition isa Pair)
-        return nothing
+    if !isnothing(condition) && isnothing(experiment)
+        if !(condition isa Pair)
+            return nothing
+        else
+            return Symbol(condition.first)
+        end
+    end
+
+    ic = findfirst(startswith("$(experiment)_"), string.(conditionids[:pre_equilibration]))
+    if isnothing(ic)
+        nothing
     else
-        return Symbol(condition.first)
+        return conditionids[:pre_equilibration][ic]
     end
 end
 
@@ -272,6 +301,42 @@ function _check_condition_ids(simulation_id::Symbol, pre_equilibration_id::Symbo
         throw(PEtabInputError("Combination pre-equilibration id and simulation id \
             $(pre_equilibration_id => simulation_id) ids not found in the PEtab problem. \
             Valid pairs are: $(valid_pairs)."))
+    end
+    return nothing
+end
+
+function _check_experiment_id(condition::Union{ConditionExp, Nothing}, experiment::Union{ConditionExp, Nothing}, model_info::ModelInfo)::Nothing
+    if isnothing(experiment) && isnothing(condition)
+        return nothing
+    end
+    if model_info.model.defined_in_julia == true
+        petab_version = "1.0.0"
+    else
+        petab_version = _get_version(model_info.model.paths[:yaml])
+    end
+
+    if petab_version == "1.0.0" && !isnothing(experiment)
+        throw(ArgumentError("`experiment` keyword is only valid for problem in the PEtab \
+            v2 standard format"))
+    end
+    if petab_version == "1.0.0"
+        return nothing
+    end
+
+    if !isnothing(condition)
+        throw(ArgumentError("For PEtab v2 problems the `condition` keyword is not \
+            supported; use `experiment` to select an experimental timecourse."))
+    end
+
+    if isempty(model_info.model.petab_tables[:experiments]) && !isnothing(experiment)
+        throw(PEtabInputError("PEtab problem contains no experiment IDs (empty experiments \
+            table); specifying experiment is invalid. Use experiment = nothing."))
+    end
+
+    valid_ids = model_info.model.petab_tables[:experiments].experimentId
+    if !(string(experiment) in valid_ids)
+        throw(PEtabInputError("Experiment id $(experiment) not found in the PEtab \
+            problem's experiments table. Valid ids are: $(Symbol.(valid_ids))."))
     end
     return nothing
 end

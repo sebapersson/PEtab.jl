@@ -37,8 +37,8 @@ end
     res = PEtabOptimisationResult(x ./ 0.9, 10.0, x, :Fides, 10, 10.0,
                                   Vector{Vector{Float64}}(undef, 0), Float64[],  true,  nothing)
     @unpack u0, p = prob.model_info.simulation_info.odesols[:model1_data1].prob
-    u0_test = get_u0(res, prob; retmap=false)
-    p_test = get_ps(res, prob; retmap=false)
+    u0_test = get_u0(res, prob; retmap = false)
+    p_test = get_ps(res, prob; retmap = false)
     oprob, _ = get_odeproblem(res, prob)
     sol = get_odesol(res, prob)
     @test all(u0_test .== u0)
@@ -55,6 +55,8 @@ end
     oprob = ODEProblem(osys, u0, [solref.t[1], solref.t[end]], ps)
     @test oprob.p.tunable == solref.prob.p
     @test oprob.u0 == solref.prob.u0
+    # Test throws correctly
+    @test_throws ArgumentError get_ps(res, prob; experiment = :e0)
 
     # Beer model
     path_yaml = joinpath(@__DIR__, "published_models", "Beer_MolBioSystems2014", "Beer_MolBioSystems2014.yaml")
@@ -151,4 +153,48 @@ end
     @test all(.≈(grad_u0_ref, grad_u0, atol = 1e-3))
     @test all(.≈(grad_prob_ref, grad_prob, atol = 1e-3))
     @test all(.≈(grad_sol_ref, grad_sol, atol = 1e-3))
+
+    # PEtab v2 problems use experiment for time-course
+    path_yaml = joinpath(@__DIR__, "petab_v2_testsuite", "0002", "_0002.yaml")
+    model = PEtabModel(path_yaml)
+    prob = PEtabODEProblem(model)
+    x = get_x(prob)
+    _ = prob.nllh(x)
+    ode1 = prob.model_info.simulation_info.odesols[:e1_c0].prob
+    ode2 = prob.model_info.simulation_info.odesols[:e2_c1].prob
+    # Test all the get functions
+    u0_e1 = get_u0(x, prob; retmap = false)
+    u0_e2 = get_u0(x, prob; experiment = :e2, retmap = false)
+    ps_e1 = get_ps(x, prob; retmap = false)
+    ps_e2 = get_ps(x, prob; experiment = :e2, retmap = false)
+    ode_e1, _ = get_odeproblem(x, prob; experiment = :e1)
+    sol_e1 = get_odesol(x, prob; experiment = :e1)
+    @test ode1.u0 == u0_e1
+    @test ode2.u0 == u0_e2
+    @test ode1.p == ps_e1
+    @test ode2.p == ps_e2
+    @test ode_e1.p == ode1.p
+    @test ode_e1.u0 == ode1.u0
+    @test ode_e1.p == sol_e1.prob.p
+    @test ode_e1.u0 == sol_e1.prob.u0
+    # Test error handling
+    @test_throws ArgumentError get_ps(x, prob; condition = :e1)
+    @test_throws ArgumentError get_ps(x, prob; condition = :e1, experiment = :e1)
+    @test_throws PEtab.PEtabInputError get_ps(x, prob; experiment = :e5)
+
+    # PEtab v2 problem with pre-equlibration
+    path_yaml = joinpath(@__DIR__, "petab_v2_testsuite", "0009", "_0009.yaml")
+    model = PEtabModel(path_yaml)
+    prob = PEtabODEProblem(model)
+    x = get_x(prob)
+    _ = prob.nllh(x)
+    ode = prob.model_info.simulation_info.odesols[:e0_preeq_c0e0_c0].prob
+    @test ode.p == get_ps(x, prob; retmap = false)
+    @test all(.≈(ode.u0, get_u0(x, prob; experiment = :e0, retmap = false), atol = 1e-8))
+
+    path_yaml = joinpath(@__DIR__, "petab_v2_testsuite", "0001", "_0001.yaml")
+    model = PEtabModel(path_yaml)
+    prob = PEtabODEProblem(model)
+    x = get_x(prob)
+    @test_throws PEtab.PEtabInputError get_ps(x, prob; experiment = :e0)
 end

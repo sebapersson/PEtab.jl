@@ -8,7 +8,7 @@ const ALLOWED_SOLUTION_PLOTS = [
 # the model fit, or by plotting the residuals
 @recipe function f(res::PEtab.EstimationResult, prob::PEtabODEProblem;
                    plot_type = :model_fit, observable_ids = nothing, condition = nothing,
-                   obsid_label = false)
+                   obsid_label = false, experiment = nothing)
     model_info = prob.model_info
 
     if !in(plot_type, ALLOWED_SOLUTION_PLOTS)
@@ -23,14 +23,17 @@ const ALLOWED_SOLUTION_PLOTS = [
         observable_ids = string.(observable_ids)
     end
 
-    simulation_id = PEtab._get_simulation_id(condition, model_info)
-    pre_equilibration_id = PEtab._get_pre_equilibration_id(condition, model_info)
+    PEtab._check_experiment_id(condition, experiment, model_info)
+    simulation_id = PEtab._get_simulation_id(condition, experiment, model_info)
+    pre_equilibration_id = PEtab._get_pre_equilibration_id(condition, experiment, model_info)
     PEtab._check_condition_ids(simulation_id, pre_equilibration_id, model_info)
 
     xmin = PEtab._get_x(res)
 
     # Get plot options
-    if isnothing(pre_equilibration_id)
+    if !isnothing(experiment)
+        title --> "Experiment: $(experiment)"
+    elseif isnothing(pre_equilibration_id)
         title --> "Condition: $(simulation_id)"
     else
         title --> "Condition: $(pre_equilibration_id) => $(simulation_id)"

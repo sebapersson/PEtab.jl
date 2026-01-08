@@ -82,9 +82,9 @@ end
 function _get_tmax(tmax::Float64, ::Union{Vector{Symbol}, SciMLAlgorithm})::Float64
     return tmax
 end
-function _get_tmax(condition::Union{ConditionExp, Nothing}, model_info::ModelInfo)::Float64
-    simulation_id = _get_simulation_id(condition, model_info)
-    pre_equilibration_id = _get_pre_equilibration_id(condition, model_info)
+function _get_tmax(condition::Union{ConditionExp, Nothing}, experiment::Union{ConditionExp, Nothing}, model_info::ModelInfo)::Float64
+    simulation_id = _get_simulation_id(condition, experiment, model_info)
+    pre_equilibration_id = _get_pre_equilibration_id(condition, experiment, model_info)
     experiment_id = _get_experiment_id(simulation_id, pre_equilibration_id)
     return model_info.simulation_info.tmaxs[experiment_id]
 end
