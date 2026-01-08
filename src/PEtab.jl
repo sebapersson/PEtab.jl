@@ -123,7 +123,7 @@ export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
        PEtabParameter, PEtabCondition, PEtabObservable, PEtabMultistartResult,
        get_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, get_system, PEtabEvent,
        PEtabLogDensity, solve_all_conditions, get_x, calibrate, calibrate_multistart,
-       petab_select, get_obs_comparison_plots, export_petab
+       petab_select, get_obs_comparison_plots, export_petab, describe
 
 """
     to_prior_scale(xpetab, target::PEtabLogDensity)

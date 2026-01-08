@@ -8,7 +8,7 @@ StyledStrings.addface!(:PURPLE => StyledStrings.Face(foreground = 0x8f4093))
 
 function _get_solver_show(solver::ODESolver)::Tuple{String, String}
     @unpack abstol, reltol, maxiters = solver
-    options = @sprintf("(abstol, reltol, maxiters) = (%.1e, %.1e, %.0e)", abstol, reltol,
+    options = @sprintf("abstol=%.1e, reltol=%.1e, maxiters=%.0e", abstol, reltol,
                        maxiters)
     # First needed to handle expressions on the form OrdinaryDiffEq.Rodas5P...
     _solver = string(solver.solver)
@@ -47,7 +47,7 @@ end
 
 function show(io::IO, solver::ODESolver)
     _solver, options = _get_solver_show(solver)
-    str = styled"{PURPLE:{bold:ODESolver:}} {emphasis:$(_solver)} with options $options"
+    str = styled"{PURPLE:{bold:ODESolver}} {emphasis:$(_solver)}: $options"
     print(io, str)
 end
 function show(io::IO, ss_solver::SteadyStateSolver)
@@ -133,10 +133,7 @@ function show(io::IO, condition::PEtabCondition)
     print(io, styled"$(header) $(opt)")
 end
 function show(io::IO, model::PEtabModel)
-    nstates = @sprintf("%d", length(unknowns(model.sys_mutated)))
-    nparameters = @sprintf("%d", length(parameters(model.sys_mutated)))
-    header = styled"{PURPLE:{bold:PEtabModel:}} {emphasis:$(model.name)} with $nstates states \
-                    and $nparameters parameters"
+    header = styled"{PURPLE:{bold:PEtabModel}} $(model.name)"
     if haskey(model.paths, :dirjulia) && !isempty(model.paths[:dirjulia])
         opt = @sprintf("\nGenerated Julia model files are at %s", model.paths[:dirjulia])
     else
@@ -147,52 +144,33 @@ end
 function show(io::IO, prob::PEtabODEProblem)
     @unpack probinfo, model_info, nparameters_estimate = prob
     name = model_info.model.name
-    nstates = @sprintf("%d", length(unknowns(model_info.model.sys_mutated)))
     nest = @sprintf("%d", nparameters_estimate)
-
-    header = styled"{PURPLE:{bold:PEtabODEProblem:}} {emphasis:$(name)} with ODE-states \
-                    $nstates and $nest parameters to estimate"
-
-    optheader = styled"\n---------------- {PURPLE:{bold:Problem options}} ---------------\n"
-    opt1 = styled"Gradient method: {emphasis:$(probinfo.gradient_method)}\n"
-    opt2 = styled"Hessian method: {emphasis:$(probinfo.hessian_method)}\n"
-    solver1, options1 = _get_solver_show(probinfo.solver)
-    solver2, options2 = _get_solver_show(probinfo.solver_gradient)
-    opt3 = styled"ODE-solver nllh: {emphasis:$(solver1)}\n"
-    opt4 = styled"ODE-solver gradient: {emphasis:$(solver2)}"
-    if model_info.simulation_info.has_pre_equilibration == false
-        print(io, styled"$(header)$(optheader)$(opt1)$(opt2)$(opt3)$(opt4)")
-        return nothing
-    end
-    ss_solver1 = _get_ss_solver_show(probinfo.ss_solver; onlyheader = true)
-    ss_solver2 = _get_ss_solver_show(probinfo.ss_solver_gradient, onlyheader = true)
-    opt5 = styled"\nss-solver: $(ss_solver1)\n"
-    opt6 = styled"ss-solver gradient: $(ss_solver2)"
-    print(io, styled"$(header)$(optheader)$(opt1)$(opt2)$(opt3)$(opt4)$(opt5)$(opt6)")
+    header = styled"{PURPLE:{bold:PEtabODEProblem}} {emphasis:$(name)}: $nest parameters \
+        to estimate\n(for more statistics, call `describe(petab_prob)`)"
+    print(io, styled"$(header)")
 end
+
 function show(io::IO, res::PEtabOptimisationResult)
-    header = styled"{PURPLE:{bold:PEtabOptimisationResult}}"
-    optheader = styled"\n---------------- {PURPLE:{bold:Summary}} ---------------\n"
-    opt1 = @sprintf("min(f)                = %.2e\n", res.fmin)
-    opt2 = @sprintf("Parameters estimated  = %d\n", length(res.x0))
-    opt3 = @sprintf("Optimiser iterations  = %d\n", res.niterations)
-    opt4 = @sprintf("Runtime               = %.1es\n", res.runtime)
-    opt5 = @sprintf("Optimiser algorithm   = %s\n", res.alg)
-    print(io, styled"$(header)$(optheader)$(opt1)$(opt2)$(opt3)$(opt4)$(opt5)")
+    header = styled"{PURPLE:{bold:PEtabOptimisationResult}}\n"
+    opt1 = @sprintf("  min(f)                = %.2e\n", res.fmin)
+    opt2 = @sprintf("  Parameters estimated  = %d\n", length(res.x0))
+    opt3 = @sprintf("  Optimiser iterations  = %d\n", res.niterations)
+    opt4 = @sprintf("  Runtime               = %.1es\n", res.runtime)
+    opt5 = @sprintf("  Optimiser algorithm   = %s\n", res.alg)
+    print(io, styled"$(header)$(opt1)$(opt2)$(opt3)$(opt4)$(opt5)")
 end
 function show(io::IO, res::PEtabMultistartResult)
-    header = styled"{PURPLE:{bold:PEtabMultistartResult}}"
-    optheader = styled"\n---------------- {PURPLE:{bold:Summary}} ---------------\n"
-    opt1 = @sprintf("min(f)                = %.2e\n", res.fmin)
-    opt2 = @sprintf("Parameters estimated  = %d\n", length(res.xmin))
-    opt3 = @sprintf("Number of multistarts = %d\n", res.nmultistarts)
-    opt4 = @sprintf("Optimiser algorithm   = %s\n", res.alg)
+    header = styled"{PURPLE:{bold:PEtabMultistartResult}}\n"
+    opt1 = @sprintf("  min(f)                = %.2e\n", res.fmin)
+    opt2 = @sprintf("  Parameters estimated  = %d\n", length(res.xmin))
+    opt3 = @sprintf("  Number of multistarts = %d\n", res.nmultistarts)
+    opt4 = @sprintf("  Optimiser algorithm   = %s\n", res.alg)
     if !isnothing(res.dirsave)
-        opt5 = @sprintf("Results saved at %s\n", res.dirsave)
+        opt5 = @sprintf("  Results saved at %s\n", res.dirsave)
     else
         opt5 = ""
     end
-    print(io, styled"$(header)$(optheader)$(opt1)$(opt2)$(opt3)$(opt4)$(opt5)")
+    print(io, styled"$(header)$(opt1)$(opt2)$(opt3)$(opt4)$(opt5)")
 end
 function show(io::IO, alg::IpoptOptimizer)
     print(io, "Ipopt(LBFGS = $(alg.LBFGS))")
@@ -200,4 +178,56 @@ end
 function show(io::IO, target::PEtabLogDensity)
     out = styled"{PURPLE:{bold:PEtabLogDensity}} with $(target.dim) parameters to infer"
     print(io, out)
+end
+
+"""
+    describe(prob::PEtabODEProblem)
+
+Print summary and configuration statistics for `prob`
+"""
+function describe(prob::PEtabODEProblem)
+    print(_describe(prob))
+end
+
+function _describe(prob::PEtabODEProblem; styled::Bool = true)
+    # Get problem statistics
+    @unpack probinfo, model_info, nparameters_estimate = prob
+    model = prob.model_info.model
+    name = model_info.model.name
+    nstates = @sprintf("%d", length(unknowns(model.sys_mutated)))
+    nparameters = @sprintf("%d", length(parameters(model.sys_mutated)))
+    nest = @sprintf("%d", nparameters_estimate)
+    n_observables = length(unique(model.petab_tables[:measurements].observableId))
+    n_conditions = length(model_info.simulation_info.conditionids[:experiment])
+
+    header = styled"{PURPLE:{bold:PEtabODEProblem}} {emphasis:$(name)}\n"
+    opt_head = styled"{underline:Problem statistics}\n"
+    opt1 = "  Parameters to estimate: $nest\n"
+    opt2 = "  ODE: $nstates states, $nparameters parameters\n"
+    opt3 = "  Observables: $(n_observables)\n"
+    opt4 = "  Simulation conditions: $(n_conditions)\n"
+    model_stat = styled"$(opt_head)$(opt1)$(opt2)$(opt3)$(opt4)\n"
+
+    opt_head = styled"{underline:Configuration}\n"
+    opt1 = styled"  Gradient method: $(probinfo.gradient_method)\n"
+    opt2 = styled"  Hessian method: $(probinfo.hessian_method)\n"
+    solver1, options1 = _get_solver_show(probinfo.solver)
+    solver2, options2 = _get_solver_show(probinfo.solver_gradient)
+    opt3 = styled"  ODE solver (nllh): $solver1 ($options1)\n"
+    opt4 = styled"  ODE solver (grad): $solver2 ($options2)"
+    if model_info.simulation_info.has_pre_equilibration == true
+        ss_solver1 = _get_ss_solver_show(probinfo.ss_solver; onlyheader = true)
+        ss_solver2 = _get_ss_solver_show(probinfo.ss_solver_gradient, onlyheader = true)
+        opt5 = "\n  ss-solver (nllh): $(ss_solver1)\n"
+        opt6 = "  ss-solver (grad): $(ss_solver2)\n"
+    else
+        opt5 = ""
+        opt6 = ""
+    end
+    comp_stat = styled"$(opt_head)$(opt1)$(opt2)$(opt3)$(opt4)$(opt5)$(opt6)"
+    if styled
+        return styled"$(header)$(model_stat)$(comp_stat)"
+    else
+        return "$(header)$(model_stat)$(comp_stat)"
+    end
 end
