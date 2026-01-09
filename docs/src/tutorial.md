@@ -252,6 +252,12 @@ From a `PEtabModel`, a `PEtabODEProblem` is created as:
 petab_prob = PEtabODEProblem(model_rn)
 ```
 
+For which a printed summary is obtainable with:
+
+```@example 1
+description(petab_prob)
+```
+
 The printed summary shows information such as the number of parameters to estimate, the
 default ODE solver, and default gradients/Hessians computation methods computed. These
 defaults are tuned for typical biological models (see the [Defaults](@ref default_options)
