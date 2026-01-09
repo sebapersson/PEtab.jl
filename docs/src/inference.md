@@ -29,7 +29,7 @@ Here, we instead consider a model defined directly in Julia: a simple saturated 
 model. First, let’s define the model and simulate data:
 
 ```@example 1
-using Distributions, ModelingToolkit, OrdinaryDiffEq, Plots
+using Distributions, ModelingToolkit, Plots
 using DataFrames, PEtab
 using ModelingToolkit: t_nounits as t, D_nounits as D
 

@@ -12,8 +12,8 @@ Differential Equation (ODE) models to data in Julia.
   [SBMLImporter.jl](https://github.com/sebapersson/SBMLImporter.jl)). Problems can include
   wide range of features, such as multiple observables and/or simulation conditions, events,
   and pre-equilibration (steady-state initialization).
-- Import and work with problems in the [PEtab](https://petab.readthedocs.io/en/latest/)
-  standard format.
+- Import and work with problems in both version 1 and 2 of the
+  [PEtab](https://petab.readthedocs.io/en/latest/) standard format.
 - Built on the SciML ecosystem, with access to modern stiff and non-stiff ODE solvers from
   [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl), and efficient gradients
   (forward-mode and adjoint) for small and large models.

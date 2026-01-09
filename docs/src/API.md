@@ -6,15 +6,21 @@ CollapsedDocStrings=true
 
 ## PEtabModel
 
-A `PEtabModel` for parameter estimation/inference can be created by importing a PEtab parameter estimation problem in the [standard format](https://petab.readthedocs.io/en/latest/), or it can be directly defined in Julia. For the latter, observables that link the model to measurement data are provided by `PEtabObservable`, parameters to estimate are defined by `PEtabParameter`, and any potential events (callbacks) are specified as `PEtabEvent`.
+A `PEtabModel` for parameter estimation or inference can be imported from the
+[PEtab standard format](https://petab.readthedocs.io/en/latest/), or defined directly in
+Julia. In the Julia interface, observables that link model outputs to data are specified
+with `PEtabObservable`, estimated parameters with `PEtabParameter`, simulation conditions
+with `PEtabConditions`, and events/callbacks with `PEtabEvent`.
 
 ```@docs
 PEtabObservable
 PEtabParameter
+PEtabCondition
 PEtabEvent
 ```
 
-Then, given a dynamic model (as `ReactionSystem` or `ODESystem`), measurement data as a `DataFrame`, and potential simulation conditions as a `Dict` (see [this](@ref petab_sim_cond) tutorial), a `PEtabModel` can be created:
+Given a dynamic model (as a `ReactionSystem` or `ODESystem`), measurement data as a
+`DataFrame`, and optional simulation conditions, a `PEtabModel` can be created with:
 
 ```@docs
 PEtabModel
@@ -22,27 +28,34 @@ PEtabModel
 
 ## PEtabODEProblem
 
-From a `PEtabModel`, a `PEtabODEProblem` can:
+From a `PEtabModel`, a `PEtabODEProblem` can be created with:
 
 ```@docs
 PEtabODEProblem
 ```
 
-A `PEtabODEProblem` has numerous configurable options. Two of the most important options are the `ODESolver` and, for models with steady-state simulations, the `SteadyStateSolver`:
+A detailed overview of problem size and configuration is available via:
+
+```@docs
+describe(::PEtabODEProblem)
+```
+
+A `PEtabODEProblem` has many configurable options. Two important options are the `ODESolver`
+and, for problems with steady-state simulations, the `SteadyStateSolver`:
 
 ```@docs
 ODESolver
 SteadyStateSolver
 ```
 
-PEtab.jl provides several functions for interacting with a `PEtabODEProblem`:
+Utility functions for interacting with a `PEtabODEProblem` are:
 
 ```@docs
 get_x
-remake(::PEtabODEProblem, ::Dict)
+remake(::PEtabODEProblem)
 ```
 
-And additionally, functions for interacting with the underlying dynamic model (`ODEProblem`) within a `PEtabODEProblem`:
+Utilities for interacting with the underlying dynamic model (`ODEProblem`) are:
 
 ```@docs
 get_u0
@@ -53,16 +66,17 @@ get_odesol
 solve_all_conditions
 ```
 
-## Parameter Estimation
+## Parameter estimation
 
-A `PEtabODEProblem` contains all the necessary information for wrapping a suitable numerical optimization library, but for convenience, PEtab.jl provides wrappers for several available optimizers. In particular, single-start parameter estimation is provided via `calibrate`:
+A `PEtabODEProblem` contains everything needed to use an optimizer directly, but PEtab.jl
+also provides convenience wrappers. For single-start parameter estimation:
 
 ```@docs
 calibrate
 PEtabOptimisationResult
 ```
 
-Multi-start (recommended method) parameter estimation, is provided via `calibrate_multistart`:
+For multi-start parameter estimation:
 
 ```@docs
 calibrate_multistart
@@ -70,34 +84,43 @@ get_startguesses
 PEtabMultistartResult
 ```
 
-Lastly, model selection is provided via `petab_select`:
+And finally model selection (PEtab-Select interface):
 
 ```@docs
 petab_select
 ```
 
-For each case case, PEtab.jl supports the usage of optimization algorithms from [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl), [Ipopt.jl](https://github.com/jump-dev/Ipopt.jl), and [Fides.jl](https://fides-dev.github.io/Fides.jl/stable/):
+For calibration, optimizers from [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl),
+[Ipopt.jl](https://github.com/jump-dev/Ipopt.jl), and
+[Fides.jl](https://fides-dev.github.io/Fides.jl/stable/). Ipopt-specific configuration is
+available via:
 
 ```@docs
 IpoptOptimizer
 IpoptOptions
 ```
 
-Parameter estimation results can be visualized using the plot-recipes detailed in [this](@ref optimization_output_plotting) page, and with `get_obs_comparison_plots`:
+Parameter-estimation results can be visualized using the plotting recipes described on
+[Plotting parameter estimation results](@ref optimization_output_plotting), and with:
 
 ```@docs
 get_obs_comparison_plots
 ```
 
-As an alternative to the PEtab.jl interface to parameter estimation, a `PEtabODEProblem` can be converted to an `OptimizationProblem` to access the algorithms available via [Optimization.jl](https://github.com/SciML/Optimization.jl):
+As an alternative workflow, a `PEtabODEProblem` can be converted to an `OptimizationProblem`
+to access solvers via [Optimization.jl](https://github.com/SciML/Optimization.jl):
 
 ```@docs
 PEtab.OptimizationProblem
 ```
 
-## Bayesian Inference
+## Bayesian inference
 
-PEtab.jl offers wrappers to perform Bayesian inference using state-of-the-art methods such as [NUTS](https://github.com/TuringLang/Turing.jl) (the same sampler used in [Turing.jl](https://github.com/TuringLang/Turing.jl)) or [AdaptiveMCMC.jl](https://github.com/mvihola/AdaptiveMCMC.jl). It should be noted that this part of PEtab.jl is planned to be moved to a separate package, so the syntax will change and be made more user-friendly in the future.
+PEtab.jl supports Bayesian inference by exposing a `PEtabLogDensity` compatible with the
+`LogDensityProblems.jl` interface, which can be sampled with
+[AdvancedHMC.jl](https://github.com/TuringLang/AdvancedHMC.jl) (including NUTS) or
+[AdaptiveMCMC.jl](https://github.com/mvihola/AdaptiveMCMC.jl). This functionality is planned
+to move into a separate package, so the API will change in the future.
 
 ```@docs
 PEtabLogDensity
