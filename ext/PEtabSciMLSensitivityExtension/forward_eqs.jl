@@ -11,8 +11,7 @@ end
 function PEtab.solve_sensitivities!(::PEtab.ModelInfo, _solve_conditions!::Function,
                                    xdynamic::Vector{<:AbstractFloat}, sensealg::ForwardAlg,
                                    probinfo::PEtab.PEtabODEProblemInfo,
-                                   cids::Vector{Symbol}, cfg::Nothing,
-                                   isremade::Bool = false)::Bool
+                                   cids::Vector{Symbol}, cfg::Nothing)::Bool
     success = _solve_conditions!(xdynamic, cids)
     return success
 end

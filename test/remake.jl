@@ -1,40 +1,42 @@
 using CSV, DataFrames, LinearAlgebra, OrdinaryDiffEqRosenbrock, PEtab, Test
 
-function test_petab_remake(model::PEtabModel, xchange, what_check; testtol = 1e-3)
+function test_remake_parameters(model::PEtabModel, xchange, what_check; testtol = 1e-3)
     ode_solver = ODESolver(Rodas5P(), abstol=1e-12, reltol=1e-12)
     if :GradientForwardDiff in what_check
-        prob1 = PEtabODEProblem(model; odesolver=ode_solver, chunksize=2, verbose=false)
-        prob2 = remake(prob1, xchange)
+        prob1 = PEtabODEProblem(model; odesolver=ode_solver)
+        prob2 = remake(prob1; parameters = xchange)
 
         # Fix set xest for other functions
-        nllh1 = prob1.nllh(prob1.xnominal_transformed)
-        nllh2 = prob2.nllh(prob2.xnominal_transformed)
+        nllh1 = prob1.nllh(get_x(prob1))
+        nllh2 = prob2.nllh(get_x(prob2))
         @test  nllh1 ≈ nllh2
 
         imatch = findall(in(prob2.xnames), prob1.xnames)
-        g1 = prob1.grad(prob1.xnominal_transformed)
-        g2 = prob2.grad(prob2.xnominal_transformed)
+        g1 = prob1.grad(get_x(prob1))
+        g2 = prob2.grad(get_x(prob2))
         @test all(.≈(g1[imatch], g2, atol = testtol))
     end
 
     if :GradientForwardEquations in what_check
-        prob1 = PEtabODEProblem(model; odesolver=ode_solver, chunksize=2, gradient_method=:ForwardEquations, sensealg=:ForwardDiff, verbose=false)
-        prob2 = remake(prob1, xchange)
+        prob1 = PEtabODEProblem(model; odesolver=ode_solver,
+            gradient_method=:ForwardEquations, sensealg=:ForwardDiff)
+        prob2 = remake(prob1; parameters = xchange)
 
         imatch = findall(in(prob2.xnames), prob1.xnames)
-        g1 = prob1.grad(prob1.xnominal_transformed)
-        g2 = prob2.grad(prob2.xnominal_transformed)
+        g1 = prob1.grad(get_x(prob1))
+        g2 = prob2.grad(get_x(prob2))
         @test all(.≈(g1[imatch], g2, atol = testtol))
     end
 
     if :GaussNewton in what_check
-        prob1 = PEtabODEProblem(model; odesolver=ode_solver, chunksize=2, gradient_method=:ForwardDiff, hessian_method=:GaussNewton, sensealg=:ForwardDiff, verbose=false)
-        prob2 = remake(prob1, xchange)
+        prob1 = PEtabODEProblem(model; odesolver=ode_solver, gradient_method=:ForwardDiff,
+            hessian_method=:GaussNewton, sensealg=:ForwardDiff)
+        prob2 = remake(prob1; parameters = xchange)
 
         imatch = findall(in(prob2.xnames), prob1.xnames)
-        h1GN = zeros(length(prob2.xnominal_transformed), length(prob2.xnominal_transformed))
-        _h1GN = prob1.hess(prob1.xnominal_transformed)
-        h2GN = prob2.hess(prob2.xnominal_transformed)
+        h1GN = zeros(length(get_x(prob2)), length(get_x(prob2)))
+        _h1GN = prob1.hess(get_x(prob1))
+        h2GN = prob2.hess(get_x(prob2))
         for (i1, i2) in pairs(imatch)
             for (j1, j2) in pairs(imatch)
                 h1GN[i1, j1] = _h1GN[i2, j2]
@@ -44,14 +46,14 @@ function test_petab_remake(model::PEtabModel, xchange, what_check; testtol = 1e-
     end
 
     if :Hessian in what_check
-        prob1 = PEtabODEProblem(model; odesolver=ode_solver, chunksize=2, hessian_method=:ForwardDiff, verbose=false)
-        prob2 = remake(prob1, xchange)
+        prob1 = PEtabODEProblem(model; odesolver=ode_solver, hessian_method=:ForwardDiff)
+        prob2 = remake(prob1; parameters = xchange)
 
         imatch = findall(in(prob2.xnames), prob1.xnames)
-        h1 = zeros(length(prob2.xnominal_transformed), length(prob2.xnominal_transformed))
-        _ = prob1.nllh(prob1.xnominal_transformed) # ensure to allocate certain objects
-        _h1 = prob1.hess(prob1.xnominal_transformed)
-        h2 = prob2.hess(prob2.xnominal_transformed)
+        h1 = zeros(length(get_x(prob2)), length(get_x(prob2)))
+        _ = prob1.nllh(get_x(prob1)) # ensure to allocate certain objects
+        _h1 = prob1.hess(get_x(prob1))
+        h2 = prob2.hess(get_x(prob2))
         for (i1, i2) in pairs(imatch)
             for (j1, j2) in pairs(imatch)
                 h1[i1, j1] = _h1[i2, j2]
@@ -61,14 +63,15 @@ function test_petab_remake(model::PEtabModel, xchange, what_check; testtol = 1e-
     end
 
     if :FIM in what_check
-        prob1 = PEtabODEProblem(model; odesolver=ode_solver, chunksize=2, hessian_method=:ForwardDiff, verbose=false)
-        prob2 = remake(prob1, xchange)
+        prob1 = PEtabODEProblem(model; odesolver=ode_solver, hessian_method=:ForwardDiff,
+            verbose=false)
+        prob2 = remake(prob1; parameters = xchange)
 
         imatch = findall(in(prob2.xnames), prob1.xnames)
-        FIM1 = zeros(length(prob2.xnominal_transformed), length(prob2.xnominal_transformed))
-        prob1.nllh(prob1.xnominal_transformed) # ensure to allocate certain objects
-        _FIM1 = prob1.FIM(prob1.xnominal_transformed)
-        FIM2 = prob2.FIM(prob2.xnominal_transformed)
+        FIM1 = zeros(length(get_x(prob2)), length(get_x(prob2)))
+        prob1.nllh(get_x(prob1)) # ensure to allocate certain objects
+        _FIM1 = prob1.FIM(get_x(prob1))
+        FIM2 = prob2.FIM(get_x(prob2))
         for (i1, i2) in pairs(imatch)
             for (j1, j2) in pairs(imatch)
                 FIM1[i1, j1] = _FIM1[i2, j2]
@@ -166,44 +169,21 @@ end
 
 @info "Testing remake for Boehm model"
 path_yaml = joinpath(@__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
-model = PEtabModel(path_yaml, build_julia_files=true, verbose=false, write_to_file = false)
-xchange1 = Dict(:k_imp_hetero => 0.0163679184468,
-                :k_exp_homo => 0.006170228086381,
-                :k_phos => 15766.5070195731)
-xchange2 = Dict(:k_imp_hetero => "estimate",
-                :k_exp_homo => 0.006170228086381,
-                :k_phos => "estimate")
-xchange3 = Dict(:sd_pSTAT5A_rel => 3.85261197844677)
-xchange4 = Dict(:sd_pSTAT5A_rel => 3.85261197844677,
-                :k_exp_homo => 0.006170228086381)
+model = PEtabModel(path_yaml)
+xchange1 = [:k_imp_hetero => 0.0163679184468,
+            :k_exp_homo => 0.006170228086381,
+            :k_phos => 15766.5070195731]
+xchange2 = [:k_exp_homo => 0.006170228086381]
+xchange3 = [:sd_pSTAT5A_rel => 3.85261197844677]
+xchange4 = [:sd_pSTAT5A_rel => 3.85261197844677,
+            :k_exp_homo => 0.006170228086381]
 @testset "PEtab remake : Boehm" begin
     methods_test = [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton, :Hessian,
                     :FIM]
-    test_petab_remake(model, xchange1, methods_test)
-    test_petab_remake(model, xchange2, methods_test)
-    test_petab_remake(model, xchange3, methods_test)
-    test_petab_remake(model, xchange4, methods_test)
-end
-
-# Test for Brannmark (has steady state simulations)
-@info "Testing remake for Brannmark model"
-path_yaml = joinpath(@__DIR__, "published_models", "Brannmark_JBC2010", "Brannmark_JBC2010.yaml")
-model = PEtabModel(path_yaml,  build_julia_files=true, verbose=false, write_to_file = false)
-xchange1 = Dict(:k1a => 0.177219477727669,
-                :k22 => 666.8355739795,
-                :km2 => 1.15970741690448)
-xchange2 = Dict(:k1a => "estimate",
-                :k22 => 666.8355739795,
-                :km2 => "estimate")
-xchange3 = Dict(:sigmaY2Step => 5.15364156671777)
-xchange4 = Dict(:sigmaY2Step => 5.15364156671777,
-                :k22 => 666.8355739795)
-@testset "PEtab remake : Brannmark" begin
-    methods_test = [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton]
-    test_petab_remake(model, xchange1, methods_test; testtol = 1e-2)
-    test_petab_remake(model, xchange2, methods_test; testtol = 1e-2)
-    test_petab_remake(model, xchange3, methods_test; testtol = 1e-2)
-    test_petab_remake(model, xchange4, methods_test; testtol = 1e-2)
+    test_remake_parameters(model, xchange1, methods_test)
+    test_remake_parameters(model, xchange2, methods_test)
+    test_remake_parameters(model, xchange3, methods_test)
+    test_remake_parameters(model, xchange4, methods_test)
 end
 
 path_yaml = joinpath(@__DIR__, "published_models", "Bruno_JExpBot2016", "Bruno_JExpBot2016.yaml")

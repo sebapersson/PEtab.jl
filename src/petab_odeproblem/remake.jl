@@ -1,184 +1,137 @@
 """
-    remake(prob::PEtabODEProblem; conditions=Symbol[]) -> PEtabODEProblem
+    remake(prob::PEtabODEProblem; conditions=Symbol[], parameters=nothing) -> PEtabODEProblem
 
-Create a new `PEtabODEProblem` that uses a subset of the original problem’s simulation
-condition ids, as specified by `conditions`.
+Create a new `PEtabODEProblem` from `prob`, restricted to a subset of simulation conditions
+and/or with a subset of parameters to estimate in `prob` fixed to constant values.
 
-Intended for performant subsetting (e.g. evaluating `nllh/grad/hessian` on only a
-subset of simulation conditions). It is faster than constructing a new `PEtabODEProblem`
-since generated code is reused (no recompilation).
+Intended for efficient subsetting (e.g. evaluating `nllh`/`grad!`/`hess!` on a subset of
+conditions, or with a reduced set of parameters to estimate). Typically faster than
+constructing a new `PEtabODEProblem`, since compiled functions from `prob` are reused
+(avoids recompilation).
 
-# Arguments
-- `prob`: The `PEtabODEProblem` to subset.
+# Keyword arguments
+- `conditions`: Simulation conditions to keep. If empty (default), all conditions are kept.
+  Format depends on whether the model has pre-equilibration:
+  - No pre-equilibration: Provide `Vector{Symbol}` of simulation condition ids (e.g.
+    `[:cond1, :cond2]`).
+  - With pre-equilibration: Provide `Vector{Pair}` of `pre_eq_id => simulation_id`
+    (e.g. `[:pre1 => :cond1, :pre1 => :cond2]`).
+- `parameters`: Parameters to fix to constant values, as a vector of pairs
+  `[:p1 => val1, :p2 => val2, ...]`. Only parameters that are estimated in `prob` can be
+  fixed. Values are given on the **linear** scale; e.g. if a parameter is estimated on
+  `:log10`, pass `val` (not `log10(val)`).
 
-# Keyword Arguments
-- `conditions`: Simulation condition identifiers to keep (must match the condition ids
-  defined in `prob`). If empty (default), `prob` is returned unchanged. The required format
-  depends on whether the model has pre-equilibration:
-  - No pre-equilibration: `Vector{Symbol}` of simulation condition ids, e.g,
-    `[:cond1, :cond2, ...]`
-  - With pre-equilibration: `Vector{Pair}` of pre-eq/simulation pairs, e.g.
-    `[:pre_id1 => :sim_id1, ...]`.
-
-## Example
+## Examples
 ```julia
-# keep only simulation conditions :cond1 and :cond3
-prob_sub = remake(prob; condition_ids = [:cond1, :cond3])
+# Keep only simulation conditions :cond1 and :cond3
+prob_sub = remake(prob; conditions = [:cond1, :cond3])
+```
+```julia
+# Fix parameters k1 and k2
+prob_sub = remake(prob; parameters = [:k1 => 3.0, :k2 => 4.0])
 ```
 """
-function remake(prob::PEtabODEProblem; conditions::Union{Vector{<:Pair}, Vector{Symbol}} = Symbol[])::PEtabODEProblem
-    if isempty(conditions)
+function remake(prob::PEtabODEProblem; conditions::Union{Vector{<:Pair}, Vector{Symbol}} = Symbol[], parameters::Vector{<:Pair{Symbol, <:Real}} = Pair{Symbol, Real}[])::PEtabODEProblem
+    if isempty(conditions) && isempty(parameters)
         return deepcopy(prob)
     end
-    return _remake(prob, conditions)
+
+    if !isempty(conditions)
+        prob = _remake_conditions(prob, conditions)
+    end
+
+    if !isempty(parameters)
+        prob = _remake_parameters(prob, parameters)
+    end
+    return prob
 end
-function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
+
+function _remake_parameters(prob::PEtabODEProblem, parameters::Vector{<:Pair{Symbol, <:Real}})::PEtabODEProblem
     # It only makes sense to remake (from compilation point if view) if parameters that
-    # before were to be estimated are set to fixated. In PEtab-select setting some
-    # parameters can also be set to estimate, these can be removed here.
-    for xid in keys(xchange)
-        if xchange[xid] == "estimate" && !(xid in prob.xnames)
-            throw(PEtabInputError("When remaking a PEtabODEProblem new parameters, here " *
-                                  "$xid, which is not set to be estimated in the PEtab " *
-                                  "table cannot be set to be estimated. Instead build " *
-                                  "a new PEtabODEProblem with $xid set to be estimated"))
-        elseif xchange[xid] == "estimate"
-            delete!(xchange, xid)
+    # before were to be estimated are set to fixated.
+    for (parameter_id, _) in parameters
+        if !in(parameter_id, prob.xnames)
+            throw(PEtabInputError("Parameter '$(parameter_id)' is not marked as estimated \
+                in the provided PEtabODEProblem and cannot be fixed via `remake`."))
         end
     end
 
     # Map the fixated values to the parameter scale (they are assumed to be on the linear)
     # scale (e.g. not log10 which might be needed by the PEtab-problem)
     @unpack model_info, probinfo = prob
-    split_over_conditions = probinfo.split_over_conditions
-    xids_fixate = keys(xchange) |> collect
-    x_fixate = zeros(Float64, length(xids_fixate))
-    for (i, xid) in pairs(xids_fixate)
-        scale = model_info.xindices.xscale[xid]
-        x_fixate[i] = transform_x(xchange[xid], scale; to_xscale = true)
+    x_fixed = zeros(Float64, length(parameters))
+    for (i, parameter_id) in pairs(first.(parameters))
+        scale = model_info.xindices.xscale[parameter_id]
+        x_fixed[i] = transform_x(parameters[i].second, scale; to_xscale = true)
     end
 
-    # In case we fixate more parameters than there are chunks we might only want to
-    # evaluate ForwardDiff over a subset of chunks. To this end we here make sure
-    # "fixed" parameter are moved to the end of the parameter vector to not run ForwardDiff
-    # over these
-    xids_dynamic = model_info.xindices.xids[:dynamic]
-    ixdynamic_fixate = Int64[]
-    for xid in xids_fixate
-        ix = findfirst(x -> x == xid, xids_dynamic)
-        isnothing(ix) && continue
-        push!(ixdynamic_fixate, ix)
-    end
-    if !isempty(ixdynamic_fixate)
-        k = 1
-        # Make sure the parameter which are to be "estimated" end up in the front of the
-        # parameter vector when running ForwardDiff
-        for i in eachindex(xids_dynamic)
-            i in ixdynamic_fixate && continue
-            probinfo.cache.xdynamic_input_order[k] = i
-            probinfo.cache.xdynamic_output_order[i] = k
-            k += 1
-        end
-        # Make sure the parameter which are fixated ends up in the end of the parameter
-        # vector for ForwardDiff
-        for i in eachindex(xids_dynamic)
-            !(i in ixdynamic_fixate) && continue
-            probinfo.cache.xdynamic_input_order[k] = i
-            probinfo.cache.xdynamic_output_order[i] = k
-            k += 1
-        end
-        probinfo.cache.nxdynamic[1] = length(xids_dynamic) - length(ixdynamic_fixate)
 
-        # Aviod  problems with autodiff=true for ODE solvers when computing gradient
-        solver_gradient = probinfo.solver_gradient.solver
-        if solver_gradient isa Rodas5P
-            probinfo.solver_gradient.solver = Rodas5P(autodiff = false)
-        elseif solver_gradient isa Rodas5
-            probinfo.solver_gradient.solver = Rodas5(autodiff = false)
-        elseif solver_gradient isa Rodas4
-            probinfo.solver_gradient.solver = Rodas4(autodiff = false)
-        elseif solver_gradient isa Rodas4P
-            probinfo.solver_gradient.solver = Rodas4P(autodiff = false)
-        end
-    else
-        probinfo.cache.xdynamic_input_order .= 1:length(xids_dynamic)
-        probinfo.cache.xdynamic_output_order .= 1:length(xids_dynamic)
-        probinfo.cache.nxdynamic[1] = length(xids_dynamic)
-    end
+    # Updated struct fields for the new problem
+    ix = findall(x -> !(x in first.(parameters)), prob.xnames)
+    xnames_new = propertynames(prob.xnominal)[ix]
+    xnames_ps_new = propertynames(prob.xnominal_transformed)[ix]
+    lb_new = _to_component_array(prob.lower_bounds[xnames_ps_new])
+    ub_new = _to_component_array(prob.upper_bounds[xnames_ps_new])
+    xnominal_new = _to_component_array(prob.xnominal[xnames_new])
+    xnominal_transformed_new = _to_component_array(prob.xnominal_transformed[xnames_ps_new])
+    nestimate_new = length(xnames_new)
+    # Ensure xnames is of correct type; Vector{Symbol}
+    xnames_new = isempty(xnames_new) ? Symbol[] : [xnames_new...]
+    xnames_ps_new = isempty(xnames_ps_new) ? Symbol[] : [xnames_ps_new...]
 
-    # Parameters and other things for the remade problem. ix_names are needed here as
-    # in the PEtabODEProblem nominal values and bounds are ComponentArrays.
-    # empty_to_component_array is needed as a vector is returned
-    ix = findall(x -> !(x in xids_fixate), prob.xnames)
-    ix_names = propertynames(prob.xnominal)[ix]
-    ix_names_ps = propertynames(prob.xnominal_transformed)[ix]
-    lb = prob.lower_bounds[ix_names_ps] |> _to_component_array
-    ub = prob.upper_bounds[ix_names_ps] |> _to_component_array
-    xnames = prob.xnames[ix]
-    xnominal = prob.xnominal[ix_names] |> _to_component_array
-    xnominal_transformed = prob.xnominal_transformed[ix_names_ps] |> _to_component_array
-    nestimate = length(xnames)
-
-    # Set priors to be skipped (first reset to not skip any evaluated parameters)
+    # Set priors to be skipped
     priors = model_info.priors
     filter!(x -> isnothing(x), priors.skip)
-    for xid in xids_fixate
-        push!(priors.skip, xid)
+    for parameter_id in xnames_new
+        parameter_id in priors.skip && continue
+        push!(priors.skip, parameter_id)
     end
 
     # Needed for the new problem (as under the hood we still use the full Hessian and
     # gradient, so these need to be pre-allocated)
     _xest_full = similar(prob.xnominal) |> collect
     _grad_full = similar(prob.xnominal) |> collect
-    _hess_full = zeros(Float64, length(_xest_full), length(_xest_full))
+    _H_full = zeros(Float64, length(_xest_full), length(_xest_full))
     _FIM_full = zeros(Float64, length(_xest_full), length(_xest_full))
-    ix_fixate = [findfirst(x -> x == id, prob.xnames) for id in xids_fixate]
-    imap = [findfirst(x -> x == xnames[i], prob.xnames) for i in eachindex(xnames)]
+    ix_fixed = [findfirst(x -> x == id, prob.xnames) for id in first.(parameters)]
+    imap = [findfirst(x -> x == xnames_new[i], prob.xnames) for i in eachindex(xnames_new)]
 
     # PEtabODEProblem functions
     _prior = (x) -> begin
-        xest_full = _set_xest(_xest_full, x, ix_fixate, x_fixate, imap)
+        xest_full = _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
         return prob.prior(xest_full)
     end
     _grad_prior = (x) -> begin
-        xest_full = _set_xest(_xest_full, x, ix_fixate, x_fixate, imap)
+        xest_full = _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
         g = prob.grad_prior(xest_full)
         return g[imap]
     end
     _hess_prior = (x) -> begin
-        xest_full = _set_xest(_xest_full, x, ix_fixate, x_fixate, imap)
+        xest_full = _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
         _H = prob.grad_hess(xest_full)
         H = zeros(eltype(H), length(x), length(x))
-        for (i1, i2) in pairs(imap)
-            for (j1, j2) in pairs(imap)
-                H[i1, j1] = _H[i2, j2]
-            end
-        end
+        _map_matrix!(H, _H, imap)
         return H
     end
     _nllh = (x) -> begin
-        xest_full = _set_xest(_xest_full, x, ix_fixate, x_fixate, imap)
+        xest_full = _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
         return prob.nllh(xest_full)
     end
     _simulated_values = (x; as_array = false) -> begin
-        xest_full = _set_xest(xest_full, x, ix_fixate, x_fixate, imap)
-        return prob.simulated_values(_xest_full)
+        xest_full = _set_xest(xest_full, x, ix_fixed, x_fixed, imap)
+        return prob.simulated_values(xest_full)
     end
     _chi2 = (x) -> begin
-        xest_full = _set_xest(_xest_full, x, ix_fixate, x_fixate, imap)
+        xest_full = _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
         return prob.chi2(xest_full)
     end
     _residuals = (x) -> begin
-        xest_full = _set_xest(_xest_full, x, ix_fixate, x_fixate, imap)
+        xest_full = _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
         return prob.residuals(xest_full)
     end
     _grad! = (g, x) -> begin
-        xest_full = _set_xest(_xest_full, x, ix_fixate, x_fixate, imap)
-        if (probinfo.gradient_method in [:ForwardDiff, :ForwardEquations])
-            prob.grad!(_grad_full, xest_full; isremade = true)
-        else
-            prob.grad!(_grad_full, xest_full)
-        end
+        xest_full = _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
+        prob.grad!(_grad_full, xest_full)
         g .= _grad_full[imap]
         return nothing
     end
@@ -188,23 +141,14 @@ function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
         return g
     end
     _nllh_grad = (x) -> begin
-        xest_full = _set_xest(_xest_full, x, ix_fixate, x_fixate, imap)
+        xest_full = _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
         nllh, _grad_full = prob.nllh_grad(xest_full)
         return nllh, _grad_full[imap]
     end
     _hess! = (H, x) -> begin
-        xest_full = _set_xest(_xest_full, x, ix_fixate, x_fixate, imap)
-        if (probinfo.hessian_method == :GaussNewton) && split_over_conditions == false
-            prob.hess!(_hess_full, xest_full; isremade = true)
-        else
-            prob.hess!(_hess_full, xest_full)
-        end
-        # Can use double index with first and second
-        for (i1, i2) in pairs(imap)
-            for (j1, j2) in pairs(imap)
-                H[i1, j1] = _hess_full[i2, j2]
-            end
-        end
+        xest_full = _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
+        prob.hess!(_H_full, xest_full)
+        _map_matrix!(H, _H_full, imap)
         return nothing
     end
     _hess = (x) -> begin
@@ -213,14 +157,9 @@ function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
         return H
     end
     _FIM! = (FIM, x) -> begin
-        xest_full = _set_xest(_xest_full, x, ix_fixate, x_fixate, imap)
+        xest_full = _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
         prob.FIM!(_FIM_full, xest_full)
-        # Can use double index with first and second
-        @inbounds for (i1, i2) in pairs(imap)
-            for (j1, j2) in pairs(imap)
-                FIM[i1, j1] = _FIM_full[i2, j2]
-            end
-        end
+        _map_matrix!(FIM, _FIM_full, imap)
         return nothing
     end
     _FIM = (x) -> begin
@@ -230,11 +169,12 @@ function remake(prob::PEtabODEProblem, xchange::Dict)::PEtabODEProblem
     end
     return PEtabODEProblem(_nllh, _chi2, _grad!, _grad, _hess!, _hess, _FIM!, _FIM,
                            _nllh_grad, _prior, _grad_prior, _hess_prior, _simulated_values,
-                           _residuals, prob.probinfo, prob.model_info, nestimate, xnames,
-                           xnominal, xnominal_transformed, lb, ub)
+                           _residuals, prob.probinfo, prob.model_info, nestimate_new,
+                           xnames_new, xnominal_new, xnominal_transformed_new, lb_new,
+                           ub_new)
 end
 
-function _remake(prob::PEtabODEProblem, conditions::Vector{Symbol})
+function _remake_conditions(prob::PEtabODEProblem, conditions::Vector{Symbol})
     @unpack simulation_info = prob.model_info
     if simulation_info.has_pre_equilibration
         throw(PEtabFormatError("This PEtab problem uses pre-equilibration, so \
@@ -250,7 +190,7 @@ function _remake(prob::PEtabODEProblem, conditions::Vector{Symbol})
     index_delete = findall(x -> x ∉ conditions, valid_ids)
     return _remake_condition_ids(prob, index_delete)
 end
-function _remake(prob::PEtabODEProblem, conditions::Vector{<:Pair})::PEtabODEProblem
+function _remake_conditions(prob::PEtabODEProblem, conditions::Vector{<:Pair})::PEtabODEProblem
     @unpack simulation_info = prob.model_info
     if !simulation_info.has_pre_equilibration
         throw(PEtabFormatError("This PEtab problem does not use pre-equilibration, so \
@@ -277,9 +217,9 @@ function _remake_condition_ids(prob::PEtabODEProblem, index_delete::Vector{Int64
     return _prob
 end
 
-function _set_xest(_xest_full, x, ix_fixate, x_fixate, imap)
+function _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
     xest_full = convert.(eltype(x), _xest_full)
-    xest_full[ix_fixate] .= x_fixate
+    xest_full[ix_fixed] .= x_fixed
     xest_full[imap] .= x
     return xest_full
 end
@@ -289,5 +229,13 @@ function _to_component_array(x)::ComponentArray{Float64}
         return ComponentArray{Float64}()
     else
         return x
+    end
+end
+
+function _map_matrix!(x_subset, x_full, imap)
+    for (i1, i2) in pairs(imap)
+        for (j1, j2) in pairs(imap)
+            x_subset[i1, j1] = x_full[i2, j2]
+        end
     end
 end

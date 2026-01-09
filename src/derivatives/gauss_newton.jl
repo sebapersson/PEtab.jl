@@ -2,8 +2,7 @@
 function _jac_residuals_xdynamic!(jac::AbstractMatrix, _solve_conditions!::Function,
                                   probinfo::PEtabODEProblemInfo,
                                   model_info::ModelInfo, cfg::ForwardDiff.JacobianConfig;
-                                  cids::Vector{Symbol} = [:all],
-                                  isremade::Bool = false)::Nothing
+                                  cids::Vector{Symbol} = [:all])::Nothing
     @unpack cache, sensealg, reuse_sensitivities = probinfo
     @unpack xindices, simulation_info = model_info
     xnoise_ps = transform_x(cache.xnoise, xindices, :xnoise, cache)
@@ -13,7 +12,7 @@ function _jac_residuals_xdynamic!(jac::AbstractMatrix, _solve_conditions!::Funct
 
     if reuse_sensitivities == false
         success = solve_sensitivities!(model_info, _solve_conditions!, xdynamic_ps,
-                                      :ForwardDiff, probinfo, cids, cfg, isremade)
+                                      :ForwardDiff, probinfo, cids, cfg)
         if success != true
             @warn "Failed to solve sensitivity equations"
             fill!(jac, 0.0)

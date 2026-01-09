@@ -18,9 +18,8 @@ function _get_grad_forward_AD(probinfo::PEtabODEProblemInfo,
         _grad! = let _nllh_not_solveode = _nllh_not_solveode,
             _nllh_solveode = _nllh_solveode, cfg = cfg, minfo = model_info, pinfo = probinfo
 
-            (grad, x; isremade = false) -> grad_forward_AD!(grad, x, _nllh_not_solveode,
-                                                            _nllh_solveode, cfg, pinfo,
-                                                            minfo; isremade = isremade)
+            (grad, x) -> grad_forward_AD!(grad, x, _nllh_not_solveode, _nllh_solveode, cfg,
+                                          pinfo, minfo)
         end
     end
 
@@ -31,8 +30,8 @@ function _get_grad_forward_AD(probinfo::PEtabODEProblemInfo,
         _grad! = let _nllh_not_solveode = _nllh_not_solveode,
             _nllh_solveode = _nllh_solveode, minfo = model_info, pinfo = probinfo
 
-            (g, x; isremade = false) -> grad_forward_AD_split!(g, x, _nllh_not_solveode,
-                                                               _nllh_solveode, pinfo, minfo)
+            (g, x) -> grad_forward_AD_split!(g, x, _nllh_not_solveode, _nllh_solveode,
+                                             pinfo, minfo)
         end
     end
     return _grad!
@@ -76,10 +75,8 @@ function _get_grad_forward_eqs(probinfo::PEtabODEProblemInfo,
         _solve_conditions! = _solve_conditions!, minfo = model_info, pinfo = probinfo,
         cfg = cfg
 
-        (g, x; isremade = false) -> grad_forward_eqs!(g, x, _nllh_not_solveode,
-                                                      _solve_conditions!, pinfo, minfo,
-                                                      cfg; cids = [:all],
-                                                      isremade = isremade)
+        (g, x) -> grad_forward_eqs!(g, x, _nllh_not_solveode, _solve_conditions!, pinfo,
+                                    minfo, cfg; cids = [:all])
     end
     return _grad!
 end
@@ -199,11 +196,8 @@ function _get_hess_gaussnewton(probinfo::PEtabODEProblemInfo, model_info::ModelI
         pinfo = probinfo, minfo = model_info, cfg = cfg, cfg_notsolve = cfg_notsolve,
         ret_jacobian = ret_jacobian, _solve_conditions! = _solve_conditions!
 
-        (H, x; isremade = false) -> hess_GN!(H, x, _residuals_not_solveode,
-                                             _solve_conditions!, pinfo, minfo, cfg,
-                                             cfg_notsolve; cids = [:all],
-                                             isremade = isremade,
-                                             ret_jacobian = ret_jacobian)
+        (H, x) -> hess_GN!(H, x, _residuals_not_solveode, _solve_conditions!, pinfo, minfo,
+                           cfg, cfg_notsolve; cids = [:all], ret_jacobian = ret_jacobian)
     end
     return _hess_nllh!
 end

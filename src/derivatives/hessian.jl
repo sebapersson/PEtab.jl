@@ -147,8 +147,7 @@ function hess_GN!(out::Matrix{T}, x::Vector{T}, _residuals_not_solveode::Functio
                   _solve_conditions!::Function, probinfo::PEtabODEProblemInfo,
                   model_info::ModelInfo, cfg::ForwardDiff.JacobianConfig,
                   cfg_not_solve_ode::ForwardDiff.JacobianConfig; ret_jacobian::Bool = false,
-                  cids::Vector{Symbol} = [:all],
-                  isremade::Bool = false)::Nothing where {T <: AbstractFloat}
+                  cids::Vector{Symbol} = [:all])::Nothing where {T <: AbstractFloat}
     @unpack xindices, priors = model_info
     cache = probinfo.cache
     @unpack jacobian_gn, residuals_gn = cache
@@ -158,7 +157,7 @@ function hess_GN!(out::Matrix{T}, x::Vector{T}, _residuals_not_solveode::Functio
     split_x!(x, xindices, cache)
     _jac = @view jacobian_gn[xindices.xindices[:dynamic], :]
     _jac_residuals_xdynamic!(_jac, _solve_conditions!, probinfo, model_info, cfg;
-                             cids = cids, isremade = isremade)
+                             cids = cids)
     # Happens when at least one forward pass fails
     if !isempty(cache.xdynamic) && all(_jac .== 0.0)
         return nothing

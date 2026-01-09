@@ -30,6 +30,7 @@ using QuasiMonteCarlo
 import SymbolicIndexingInterface
 using StyledStrings
 import SciMLBase.remake
+import StatsBase.describe
 import DiffEqBase
 import QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
 
@@ -75,7 +76,6 @@ include(joinpath("nllh_prior", "prior.jl"))
 
 include(joinpath("derivatives", "common.jl"))
 include(joinpath("derivatives", "forward_eqs.jl"))
-include(joinpath("derivatives", "forward_ad_chunks.jl"))
 include(joinpath("derivatives", "gauss_newton.jl"))
 include(joinpath("derivatives", "gradient.jl"))
 include(joinpath("derivatives", "hessian.jl"))

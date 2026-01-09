@@ -23,8 +23,7 @@ function PEtab.petab_select(path_yaml::String, alg; options = nothing,
     #=
         Compiling a PEtabODEProblem takes time. Thus, the model-space file is used to
         build (from parameter viewpoint) the biggest possible PEtabModel. Then remake is
-        called  on the "big" PEtabODEProblem. Remake does a lot of tricks to not trigger
-        a re-compilation.
+        called  on the "big" PEtabODEProblem, avoiding re-compilation
     =#
     dirmodel = splitdir(path_yaml)[1]
     yaml_file = YAML.load_file(path_yaml)
@@ -97,9 +96,14 @@ end
 function _calibrate_candidate!(model, select_problem, petab_prob::PEtabODEProblem, alg,
                                nmultistarts::Integer, options, sampling_method)::Nothing
     subspace_id = PEtabSelect.get_model_subspace_id(model)
-    model_parameters = PEtabSelect.get_model_parameters(model)
+
+    _model_parameters = PEtabSelect.get_model_parameters(model)
+    model_parameters = keys(_model_parameters) .=> values(_model_parameters)
+    model_parameters = filter(x -> x.second != "estimate", model_parameters) |>
+        Vector{Pair{Symbol, Real}}
+
     @info "Calibrating model $subspace_id"
-    prob = PEtab.remake(petab_prob, model_parameters)
+    prob = PEtab.remake(petab_prob; parameters = model_parameters)
     if isnothing(options)
         res = PEtab.calibrate_multistart(prob, alg, nmultistarts;
                                          sampling_method = sampling_method)

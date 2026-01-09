@@ -1,8 +1,7 @@
 function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Function,
                           _nllh_solveode::Function, cfg::ForwardDiff.GradientConfig,
                           probinfo::PEtabODEProblemInfo, model_info::ModelInfo;
-                          cids::Vector{Symbol} = [:all],
-                          isremade::Bool = false)::Nothing where {T <: AbstractFloat}
+                          cids::Vector{Symbol} = [:all])::Nothing where {T <: AbstractFloat}
     cache = probinfo.cache
     @unpack simulation_info, xindices, priors = model_info
     @unpack xdynamic_grad, xnotode_grad, xdynamic, nxdynamic = cache
@@ -15,40 +14,18 @@ function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fun
     # must be accounted for in gradient computations
     fill!(grad, 0.0)
     split_x!(x, xindices, cache)
-    if isremade == false || length(xdynamic) == nxdynamic[1]
-        tmp = nxdynamic[1]
-        nxdynamic[1] = length(xdynamic)
-        try
-            # In case of no length(xdynamic) = 0 the ODE must still be solved to get
-            # the gradient of nondynamic parameters
-            if length(xdynamic_grad) != 0
-                ForwardDiff.gradient!(xdynamic_grad, _nllh_solveode, xdynamic, cfg)
-                @views grad[xindices.xindices[:dynamic]] .= xdynamic_grad
-            else
-                _ = _nllh_solveode(xdynamic)
-            end
-        catch
-            fill!(grad, 0.0)
-            return nothing
+    try
+        # In case of no length(xdynamic) = 0 the ODE must still be solved to get
+        # the gradient of nondynamic parameters
+        if length(xdynamic_grad) != 0
+            ForwardDiff.gradient!(xdynamic_grad, _nllh_solveode, xdynamic, cfg)
+            @views grad[xindices.xindices[:dynamic]] .= xdynamic_grad
+        else
+            _ = _nllh_solveode(xdynamic)
         end
-        nxdynamic[1] = tmp
-    else
-        try
-            if nxdynamic[1] != 0
-                C = length(cfg.seeds)
-                chunk = ForwardDiff.Chunk(C)
-                nforward_passes = ceil(nxdynamic[1] / C) |> Int64
-                _xdynamic = xdynamic[cache.xdynamic_input_order]
-                forwarddiff_gradient_chunks(_nllh_solveode, xdynamic_grad, _xdynamic,
-                                            chunk; nforward_passes = nforward_passes)
-                @views grad[xindices.xindices[:dynamic]] .= xdynamic_grad[cache.xdynamic_output_order]
-            else
-                _ = _nllh_solveode(xdynamic)
-            end
-        catch
-            fill!(grad, 0.0)
-            return nothing
-        end
+    catch
+        fill!(grad, 0.0)
+        return nothing
     end
 
     # In case ODE could not be solved return zero gradient
@@ -66,8 +43,7 @@ end
 
 function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Function,
                                 _nllh_solveode::Function, probinfo::PEtabODEProblemInfo,
-                                model_info::ModelInfo; cids = [:all],
-                                isremade::Bool = false)::Nothing where {T <: AbstractFloat}
+                                model_info::ModelInfo; cids = [:all])::Nothing where {T <: AbstractFloat}
     @unpack simulation_info, xindices, priors = model_info
     cache = probinfo.cache
     split_x!(x, xindices, cache)
@@ -116,15 +92,14 @@ function grad_forward_eqs!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fu
                            _solve_conditions!::Function, probinfo::PEtabODEProblemInfo,
                            model_info::ModelInfo,
                            cfg::Union{ForwardDiff.JacobianConfig, Nothing};
-                           cids::Vector{Symbol} = [:all],
-                           isremade::Bool = false)::Nothing where {T <: AbstractFloat}
+                           cids::Vector{Symbol} = [:all])::Nothing where {T <: AbstractFloat}
     @unpack sensealg, cache, split_over_conditions = probinfo
     @unpack priors, xindices = model_info
     @unpack petab_parameters, priors, petab_measurements = model_info
     split_x!(x, xindices, cache)
 
     _grad_forward_eqs!(cache.xdynamic_grad, _solve_conditions!, probinfo, model_info,
-                       cfg; cids = cids, isremade = isremade)
+                       cfg; cids = cids)
     @views grad[xindices.xindices[:dynamic]] .= cache.xdynamic_grad
 
     # Happens when at least one forward pass fails
