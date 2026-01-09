@@ -214,3 +214,18 @@ path_yaml = joinpath(@__DIR__, "published_models", "Brannmark_JBC2010", "Brannma
     @test_throws PEtab.PEtabFormatError remake(prob; conditions = [:hej])
     @test_throws PEtab.PEtabInputError remake(prob; conditions = [:Dose_1 => :Dose_0])
 end
+
+# Remake for v2 problems. As they rely on the funcionality as condition ids, only
+# testing correct ids are removed
+path_yaml = joinpath(@__DIR__, "petab_v2_testsuite", "0002", "_0002.yaml")
+model = PEtabModel(path_yaml)
+prob = PEtabODEProblem(model)
+prob_remade = remake(prob; experiments = [:e1])
+@test prob_remade.model_info.simulation_info.conditionids[:experiment] == [:e1_c0]
+
+# Test errors
+@test_throws ArgumentError remake(prob; conditions = [:e1])
+prob = joinpath(@__DIR__, "published_models", "Bruno_JExpBot2016", "Bruno_JExpBot2016.yaml") |>
+    PEtabModel |>
+    PEtabODEProblem
+@test_throws ArgumentError remake(prob; experiments = [:model1_data1])

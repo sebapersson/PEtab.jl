@@ -106,6 +106,13 @@ function _get_model_path_v2(yaml_file::Dict, dirmodel::String)::String
 end
 
 _get_version(path_yaml::String)::String = _get_version(YAML.load_file(path_yaml))
+function _get_version(model_info::ModelInfo)
+    if model_info.model.defined_in_julia == true
+        return "1.0.0"
+    else
+        return _get_version(model_info.model.paths[:yaml])
+    end
+end
 function _get_version(yaml_file::Dict)::String
     petab_version = string(yaml_file["format_version"])
     if petab_version in ["1", "1.0.0"]

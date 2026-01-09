@@ -16,6 +16,8 @@ constructing a new `PEtabODEProblem`, since compiled functions from `prob` are r
     `[:cond1, :cond2]`).
   - With pre-equilibration: Provide `Vector{Pair}` of `pre_eq_id => simulation_id`
     (e.g. `[:pre1 => :cond1, :pre1 => :cond2]`).
+- `experiments`: Experimental time course ids to keep, as Vector{`Symbol`}. Only applicable
+  for problems in PEtab v2 standard format.
 - `parameters`: Parameters to fix to constant values, as a vector of pairs
   `[:p1 => val1, :p2 => val2, ...]`. Only parameters that are estimated in `prob` can be
   fixed. Values are given on the **linear** scale; e.g. if a parameter is estimated on
@@ -31,15 +33,28 @@ prob_sub = remake(prob; conditions = [:cond1, :cond3])
 prob_sub = remake(prob; parameters = [:k1 => 3.0, :k2 => 4.0])
 ```
 """
-function remake(prob::PEtabODEProblem; conditions::Union{Vector{<:Pair}, Vector{Symbol}} = Symbol[], parameters::Vector{<:Pair{Symbol, <:Real}} = Pair{Symbol, Real}[])::PEtabODEProblem
-    if isempty(conditions) && isempty(parameters)
+function remake(prob::PEtabODEProblem; conditions::Union{Vector{<:Pair}, Vector{Symbol}} = Symbol[], experiments = Symbol[], parameters::Vector{<:Pair{Symbol, <:Real}} = Pair{Symbol, Real}[])::PEtabODEProblem
+    if isempty(conditions) && isempty(parameters) && isempty(experiments)
         return deepcopy(prob)
     end
 
+    petab_version = _get_version(prob.model_info)
+    if petab_version == "2.0.0" && !isempty(conditions)
+        throw(ArgumentError("For PEtab v2 problems the `conditions` keyword is not \
+            supported for `remake`; use `experiments` to subset experimental time-courses."))
+    end
+    if petab_version == "1.0.0" && !isempty(experiments)
+        throw(ArgumentError("For PEtab v1 problems or problems defined in Julia, the \
+            `experiments` keyword is not supported for `remake`; use `conditions` to \
+            subset simulation conditions"))
+    end
+
+    if !isempty(experiments)
+        prob = _remake_experiments(prob, experiments)
+    end
     if !isempty(conditions)
         prob = _remake_conditions(prob, conditions)
     end
-
     if !isempty(parameters)
         prob = _remake_parameters(prob, parameters)
     end
@@ -64,7 +79,6 @@ function _remake_parameters(prob::PEtabODEProblem, parameters::Vector{<:Pair{Sym
         scale = model_info.xindices.xscale[parameter_id]
         x_fixed[i] = transform_x(parameters[i].second, scale; to_xscale = true)
     end
-
 
     # Updated struct fields for the new problem
     ix = findall(x -> !(x in first.(parameters)), prob.xnames)
@@ -172,6 +186,24 @@ function _remake_parameters(prob::PEtabODEProblem, parameters::Vector{<:Pair{Sym
                            _residuals, prob.probinfo, prob.model_info, nestimate_new,
                            xnames_new, xnominal_new, xnominal_transformed_new, lb_new,
                            ub_new)
+end
+
+function _remake_experiments(prob::PEtabODEProblem, experiments::Vector{Symbol})
+    conditions_v1 = Any[]
+    for experiment in experiments
+        _check_experiment_id(nothing, experiment, prob.model_info)
+        simulation_id = _get_simulation_id(nothing, experiment, prob.model_info)
+        pre_equilibration_id = _get_pre_equilibration_id(nothing, experiment, prob.model_info)
+        if isnothing(pre_equilibration_id)
+            push!(conditions_v1, simulation_id)
+        else
+            push!(conditions_v1, pre_equilibration_id => simulation_id)
+        end
+    end
+
+    # Ensure correct types for _remake_conditions
+    conditions_v1 = [conditions_v1...]
+    return _remake_conditions(prob, conditions_v1)
 end
 
 function _remake_conditions(prob::PEtabODEProblem, conditions::Vector{Symbol})

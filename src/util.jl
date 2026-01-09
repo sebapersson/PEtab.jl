@@ -106,8 +106,8 @@ vector in the internal order expected by `prob` (see [`get_x`](@ref)).
   and problems defined via the Julia interface. If the model has pre-equilibration, pass
   `pre_eq_id => simulation_id`; otherwise pass `simulation_id`. IDs may be `String` or
   `Symbol`.
-- `experiment`: Experiment id (`String` or `Symbol`). Used to retrieve parameters for the
-  corresponding experimental time-course in PEtab v2 problems.
+- `experiment`: Experiment time course to retrieve parameters for (`String` or `Symbol`).
+  Only applicable for problem in the PEtab v2 standard format.
 - `retmap = true`: If `true`, return a vector of pairs `p = [k1 => v1, ...]` suitable for
   `ODEProblem(; p)`. If `false`, return a parameter vector.
 
@@ -309,12 +309,8 @@ function _check_experiment_id(condition::Union{ConditionExp, Nothing}, experimen
     if isnothing(experiment) && isnothing(condition)
         return nothing
     end
-    if model_info.model.defined_in_julia == true
-        petab_version = "1.0.0"
-    else
-        petab_version = _get_version(model_info.model.paths[:yaml])
-    end
 
+    petab_version = _get_version(model_info)
     if petab_version == "1.0.0" && !isnothing(experiment)
         throw(ArgumentError("`experiment` keyword is only valid for problem in the PEtab \
             v2 standard format"))
