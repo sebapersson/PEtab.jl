@@ -36,12 +36,11 @@ println("Number of parameters to estimate = ", length(petab_prob.xnames))
 ```
 
 For small ODE systems, `gradient_method = :ForwardDiff` is typically fastest, and
-`hessian_method = :ForwardDiff` is often feasible (see [Derivative methods (gradients and
-Hessians)](@ref gradient_support)). By default, PEtab.jl computes derivatives with a single
-`ForwardDiff.gradient` call over all simulation conditions. For condition-specific
-parameters this can be wasteful: if `n` directional passes are needed for the full parameter
-vector, condition `i` may only require `n_i < n` passes because many parameters are inactive
-in that condition.
+`hessian_method = :ForwardDiff` is often feasible. By default, PEtab.jl computes
+derivatives with a single `ForwardDiff.gradient` call over all simulation conditions. For
+condition-specific parameters this can be wasteful: if n directional passes are needed for
+the full parameter vector, condition i may only require n_i < n passes because many
+parameters are inactive in that condition.
 
 To reduce this overhead, `split_over_conditions = true` computes derivatives per condition
 (one ForwardDiff call per simulation condition). Here, the effect on gradient runtime is

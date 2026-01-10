@@ -24,7 +24,8 @@ a YAML file tying them together. To import a problem, the YAML path is needed:
 ```@example 1
 using PEtab
 # path_yaml depends on where the model is saved
-path_yaml = joinpath(@__DIR__, "..", "assets", "boehm", "Boehm_JProteomeRes2014.yaml")
+path_yaml = joinpath(@__DIR__, "assets", "boehm", "Boehm_JProteomeRes2014.yaml")
+path_yaml = joinpath(@__DIR__, "..", "..", "assets", "boehm", "Boehm_JProteomeRes2014.yaml") # hide
 model = PEtabModel(path_yaml)
 nothing # hide
 ```

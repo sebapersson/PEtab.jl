@@ -24,7 +24,8 @@ published model loaded into a `PEtabMultistartResult` (files can be downloaded
 ```@example 1
 using PEtab, Plots
 # path_res depends on where result is stored
-path_res = joinpath(@__DIR__, "..", "assets", "optimization_results", "boehm")
+path_res = joinpath(@__DIR__, "assets", "optimization_results", "boehm") # hide
+path_res = joinpath(@__DIR__, "..", "..", "assets", "optimization_results", "boehm") # hide
 ms_res = PEtabMultistartResult(path_res)
 default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm, size = (600*1.25, 400 * 1.25), palette = ["#CC79A7", "#009E73", "#0072B2", "#D55E00", "#999999", "#E69F00", "#56B4E9", "#F0E442"], linewidth=4.0) # hide
 nothing # hide

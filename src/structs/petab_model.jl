@@ -186,8 +186,8 @@ For examples, see the online package documentation.
     - `target_id`: Entity to assign (`Symbol`, `String`, or Symbolics `Num`). Can be a model
       state id or model parameter id for a parameter that is not estimated.
     - `target_value`: Value/expression assigned to `target_id`. A `String`, `Real`, or a
-      Symbolics expression (`Num`) which can use standard Julia functions (e.g. `exp`, `log`,
-      `sin`, `cos`). Any variables referenced must be model parameters or `PEtabParameter`s
+      Symbolics expression (`Num`) which can use standard Julia functions (e.g. exp, log,
+      sin, cos). Any variables referenced must be model parameters or `PEtabParameter`s
       (model state variables are not allowed).
 
 # Keyword Arguments
@@ -237,7 +237,7 @@ For examples, see the online package documentation.
   - `target_id`: Entity to update (`Symbol`, `String`, or Symbolics `Num`). May be a model
     state id or model parameter id.
   - `target_value`: Value/expression assigned to `target_id` (`Real`, `String`, or Symbolics
-    `Num`). May use standard Julia functions (e.g. `exp`, `log`, `sin`, `cos`) and reference
+    `Num`). May use standard Julia functions (e.g. exp, log, sin, cos) and reference
     model states/parameters.
 
 # Keyword Arguments

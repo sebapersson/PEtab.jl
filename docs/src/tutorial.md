@@ -1,6 +1,6 @@
-# [Tutorial](@id tutorial)
+# [Getting started tutorial](@id tutorial)
 
-This starting tutorial shows how to define a parameter-estimation problem in PEtab.jl
+This introductory tutorial shows how to define a parameter-estimation problem in PEtab.jl
 (create a `PEtabODEProblem`) and estimate its parameters.
 
 ## Input problem
@@ -407,8 +407,8 @@ Lastly, `PEtabODEProblem` has many configurable options. Defaults are based on e
 benchmarks (see [Default PEtabODEProblem options](@ref default_options))
 [persson2025petab](@cite), and available gradient/Hessian settings are summarized in
 [Derivative methods](@ref gradient_support). While these defaults are often performant,
-they are not optimal for every problem. See the **Configuration and performance** section
-for performance tips and tuning guidelines.
+they are not optimal for every problem. See the **Configuration** section for performance
+tips and tuning guidelines.
 
 ## Copy pasteable example
 

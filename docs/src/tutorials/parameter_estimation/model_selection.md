@@ -31,7 +31,8 @@ PEtab Select can be run as:
 
 ```@example 1
 using Optim, PEtab, PEtabSelect
-path_yaml = joinpath(@__DIR__, "..", "assets", "petab_select", "petab_select_problem.yaml")
+path_yaml = joinpath(@__DIR__, "assets", "petab_select", "petab_select_problem")
+path_yaml = joinpath(@__DIR__, "..", "..", "assets", "petab_select", "petab_select_problem.yaml") # hide
 path_res = petab_select(path_yaml, IPNewton(); nmultistarts = 10)
 nothing # hide
 ```
