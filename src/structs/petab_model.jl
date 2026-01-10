@@ -12,16 +12,17 @@ All parameters estimated in a `PEtabODEProblem` must be declared as `PEtabParame
 * `scale::Symbol = :log10`: Scale the parameter is estimated on. One of `:log10` (default),
     `:log2`, `:log`, or `:lin`. Estimating on a log scale often improves performance and is
     recommended.
-- `lb`: Lower bound, specified on the **linear** scale (e.g. with `scale = :log10`, pass
-    `lb = 1e-3`, not `log10(1e-3)`). Defaults to `1e-3` without a `prior`, otherwise to the
+- `lb`: Lower bound, specified on the **linear** scale; e.g. with `scale = :log10`, pass
+    `lb = 1e-3`, not `log10(1e-3)`. Defaults to `1e-3` without a `prior`, otherwise to the
     lower bound of the prior support.
 - `ub`: Upper bound, same convention as `lb`. Defaults to `1e3` without a `prior`,
     otherwise to the upper bound of the prior support.
 - `prior = nothing`: Optional prior distribution acting on the **linear** parameter scale
     (i.e. even if `scale = :log10`, the prior is on `x`, not on `log10(x)`). If the prior’s
-    support extends beyond `lb/ub` bounds, it is truncated by `[lb, ub]`. Any continuous
-    univariate distribution from
-    [Distributions.jl](https://github.com/JuliaStats/Distributions.jl) is supported.
+    support extends beyond provided `lb/ub` bounds, it is truncated by `[lb, ub]`. Any
+    continuous univariate distribution from
+    [Distributions.jl](https://github.com/JuliaStats/Distributions.jl) is supported,
+    including truncated distributions.
 - `estimate::Bool = true`: Whether the parameter is estimated (default `true`) or treated
     as a constant (`false`).
 - `value = nothing`: Value used when `estimate = false`, and the value returned by
@@ -123,29 +124,29 @@ For `distribution = Normal`, the measurement is assumed to be normally distribut
 \\pi(m \\mid y, \\sigma) = \\frac{1}{\\sqrt{2\\pi \\sigma^2}}\\mathrm{exp}\\bigg( -\\frac{(m - y)^2}{2\\sigma^2} \\bigg)
 ```
 
-If `\\sigma = 1`, this likelihood reduces to the least-squares objective function.
+If ``\\sigma = 1``, this likelihood reduces to the least-squares objective function.
 
 For `distribution = Laplace`, the measurement is assumed to be Laplace distributed with
-`m \\sim \\mathcal{L}(y, \\sigma)`. The likelihood formula is:
+``m \\sim \\mathcal{L}(y, \\sigma)``. The likelihood formula is:
 
 ```math
 \\pi(m \\mid y, \\sigma) = \\frac{1}{2\\sigma}\\mathrm{exp}\\bigg( -\\frac{|m - y|}{\\sigma} \\bigg)
 ```
 
 For `distribution = LogNormal`, the log of the measurement is assumed to be Normal
-distributed with `\\mathrm{log}(m) \\sim \\mathcal{N}(\\mathrm{log}(y), \\sigma^2)`
-(requires `m > 0` and `y > 0`). The likelihood formula is:
+distributed with ``\\mathrm{log}(m) \\sim \\mathcal{N}(\\mathrm{log}(y), \\sigma^2)``
+(requires ``m > 0`` and ``y > 0``). The likelihood formula is:
 
 ```math
 \\pi(m \\mid y, \\sigma) = \\frac{1}{\\sqrt{2\\pi \\sigma^2}\\, m}\\mathrm{exp}\\bigg( -\\frac{\\big(\\mathrm{log}(m) - \\mathrm{log}(y)\\big)^2}{2\\sigma^2} \\bigg)
 ```
 
-For `distribution = Log2Normal` or `distribution = Log10Normal` similar to the `LogNormal`,
-`log2(m)` and `log10(m)` is assumed to be normally distributed.
+For `distribution = Log2Normal|Log10Normal`, similar to the `LogNormal`, `log2(m)` and
+`log10(m)` are assumed to be normally distributed.
 
 For `distribution = LogLaplace`, the log of the measurement is assumed to be Laplace
-distributed with `\\mathrm{log}(m) \\sim \\mathcal{L}(\\mathrm{log}(y), \\sigma)`
-(requires `m > 0` and `y > 0`). The likelihood formula is:
+distributed with ``\\mathrm{log}(m) \\sim \\mathcal{L}(\\mathrm{log}(y), \\sigma)``
+(requires ``m > 0`` and ``y > 0``). The likelihood formula is:
 
 ```math
 \\pi(m \\mid y, \\sigma) = \\frac{1}{2\\sigma\\, m}\\mathrm{exp}\\bigg( -\\frac{\\big|\\mathrm{log}(m) - \\mathrm{log}(y)\\big|}{\\sigma} \\bigg)
@@ -248,7 +249,7 @@ For examples, see the online package documentation.
 `target_value` expressions are evaluated at the `condition` trigger point using pre-event
 model values, meaning all assignments are applied simultaneously (updates do not see each
 other’s new values). If a time-triggered event fires at the same time as a measurement, the
-model observable compared against data is evaluated **after** applying the event.
+model observable is evaluated **after** applying the event.
 """
 struct PEtabEvent
     condition::String

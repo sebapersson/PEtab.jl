@@ -37,11 +37,12 @@ function get_odeproblem(res::EstimationResult, prob::PEtabODEProblem;
     u0, ps = _get_ps_u0(res, prob, condition, experiment, false)
 
     simulation_id = _get_simulation_id(condition, experiment, model_info)
+    tstart = _get_start(condition, experiment, model_info)
     tmax = _get_tmax(condition, experiment, model_info)
     cbs = model_info.model.callbacks[simulation_id]
 
     odefun = ODEFunction(_get_system(prob.model_info.model.sys))
-    odeprob = ODEProblem(odefun, u0, [0.0, tmax], ps)
+    odeprob = ODEProblem(odefun, u0, [tstart, tmax], ps)
     return odeprob, cbs
 end
 

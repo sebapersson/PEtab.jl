@@ -116,8 +116,8 @@ function VJP_ss(du::AbstractVector, _sol::ODESolution, solver::SciMLAlgorithm,
                     force_dtmin = force_dtmin, maxiters = maxiters, save_everystep = true,
                     save_start = true)
     integrand = AdjointSensitivityIntegrand(_sol, adj_sol, sensealg, nothing)
-    res, err = SciMLSensitivity.quadgk(integrand, _sol.prob.tspan[1], _sol.t[end],
-                                       atol = abstol, rtol = reltol)
+    res, _ = SciMLSensitivity.quadgk(integrand, _sol.prob.tspan[1], _sol.t[end],
+                                     atol = abstol, rtol = reltol)
     return res'
 end
 function VJP_ss(du::AbstractVector, _sol::ODESolution, solver::SciMLAlgorithm,
@@ -133,7 +133,7 @@ function VJP_ss(du::AbstractVector, _sol::ODESolution, solver::SciMLAlgorithm,
     adj_sol = solve(adj_prob, solver; abstol = abstol, reltol = reltol,
                     force_dtmin = force_dtmin, maxiters = maxiters,
                     save_everystep = true, save_start = true)
-    out = adj_sol[end][(n_model_states + 1):end]
+    out = adj_sol.u[end][(n_model_states + 1):end]
     return out
 end
 
@@ -330,7 +330,7 @@ function __adjoint_sensitivities!(_du::AbstractVector,
         end
     end
 
-    _du .= adj_sol[end]
+    _du .= adj_sol.u[end]
     _dp .= res'
     return true
 end
@@ -371,7 +371,7 @@ function __adjoint_sensitivities!(_du::AbstractVector,
                     callback = CallbackSet(cb, cb2), kwargs...)
     res = integrand_values.integrand
 
-    _du .= adj_sol[end]
+    _du .= adj_sol.u[end]
     _dp .= SciMLSensitivity.__maybe_adjoint(res)'
     return true
 end

@@ -89,6 +89,13 @@ function _get_tmax(condition::Union{ConditionExp, Nothing}, experiment::Union{Co
     return model_info.simulation_info.tmaxs[experiment_id]
 end
 
+function _get_start(condition::Union{ConditionExp, Nothing}, experiment::Union{ConditionExp, Nothing}, model_info::ModelInfo)::Float64
+    simulation_id = _get_simulation_id(condition, experiment, model_info)
+    pre_equilibration_id = _get_pre_equilibration_id(condition, experiment, model_info)
+    experiment_id = _get_experiment_id(simulation_id, pre_equilibration_id)
+    return model_info.simulation_info.tstarts[experiment_id]
+end
+
 function _get_preeq_ids(simulation_info::SimulationInfo,
                         cids::Vector{Symbol})::Vector{Symbol}
     if cids[1] == :all
