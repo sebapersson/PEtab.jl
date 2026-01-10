@@ -4,8 +4,8 @@ PEtab.jl’s parameter-estimation workflow is frequentist and targets a maximum-
 maximum a posteriori, when priors are included) estimate. When prior knowledge about the
 parameters is available, Bayesian inference offers an alternative approach to model fitting
 by inferring the posterior distribution of the parameters given data,
-$\pi(\mathbf{x}\mid \mathbf{y})$, typically via Markov chain Monte Carlo (MCMC) sampling.
-PEtab.jl supports Bayesian inference through two sampler families:
+$\pi(\mathbf{x}\mid \mathbf{y})$. Typically the posterior is sampled via Markov chain Monte
+Carlo (MCMC) sampling, and PEtab.jl supports inference through two sampler families:
 
 - **Adaptive Metropolis–Hastings** samplers from
   [AdaptiveMCMC.jl](https://github.com/mvihola/AdaptiveMCMC.jl)
@@ -16,10 +16,11 @@ PEtab.jl supports Bayesian inference through two sampler families:
 
 This tutorial shows how to (i) define priors in a `PEtabODEProblem`, and (ii) run Bayesian
 inference with AdaptiveMCMC.jl and AdvancedHMC.jl. Note that this functionality is planned
-to move into a separate package, and the API may change.
+to move into a separate package, and the API will change in the future.
 
-!!! note To use Bayesian inference functionality, load Bijectors.jl, LogDensityProblems.jl,
-and LogDensityProblemsAD.jl.
+!!! note
+    To use Bayesian inference functionality, load Bijectors.jl, LogDensityProblems.jl,
+    and LogDensityProblemsAD.jl.
 
 ## Creating a Bayesian inference problem
 
@@ -29,8 +30,8 @@ Here, we instead consider a model defined directly in Julia: a simple saturated 
 model. First, let’s define the model and simulate data:
 
 ```@example 1
-using Distributions, ModelingToolkit, Plots
-using DataFrames, PEtab
+using DataFrames, Distributions, OrdinaryDiffEqRosenbrock,
+    ModelingToolkit, PEtab, Plots
 using ModelingToolkit: t_nounits as t, D_nounits as D
 
 @mtkmodel SYS begin
@@ -56,7 +57,7 @@ import Random # hide
 Random.seed!(1234) # hide
 oprob = ODEProblem(sys, [0.0], (0.0, 2.5), [1.0, 0.2])
 tsave = range(0.0, 2.5, 101)
-sol = solve(oprob, Rodas4(); abstol=1e-12, reltol=1e-12, saveat=tsave)
+sol = solve(oprob, Rodas5P(); abstol=1e-12, reltol=1e-12, saveat=tsave)
 obs = sol[:x] .+ rand(Normal(0.0, 0.03), length(tsave))
 measurements = DataFrame(obs_id="obs_x", time=sol.t, measurement=obs)
 
@@ -125,8 +126,8 @@ xprior = to_prior_scale(petab_prob.xnominal_transformed, target)
 xinference = target.inference_info.bijectors(xprior)
 ```
 
-!!! warning The initial value passed to the sampler must be on the inference scale
-(`xinference`).
+!!! warning
+    The initial value passed to the sampler must be on the inference scale (`xinference`).
 
 ## Bayesian inference with AdvancedHMC.jl (NUTS)
 
@@ -162,8 +163,8 @@ using Plots, StatsPlots
 plot(chain_hmc)
 ```
 
-!!! note `PEtab.to_chains` converts samples back to the **prior (linear) scale** (not the
-unconstrained inference scale).
+!!! note
+    `PEtab.to_chains` converts samples back to the **prior (linear) scale** (not the unconstrained inference scale).
 
 ## Bayesian inference with AdaptiveMCMC.jl
 

@@ -1,3 +1,7 @@
+```@meta
+CollapsedDocStrings=true
+```
+
 # [Optimization algorithms and recommendations](@id options_optimizers)
 
 For [`calibrate`](@ref) and [`calibrate_multistart`](@ref), PEtab.jl supports optimizers
@@ -13,11 +17,11 @@ performance is problem-dependent and no method is universally best. Still, bench
 have identified methods that often work well for ODE models in biology (and likely beyond)
 [raue2013lessons, hass2019benchmark, villaverde2019benchmarking](@cite). In brief, the
 choice is driven by model size: for small models an accurate Hessian (or good approximation)
-is often feasible, while for larger models it typically is not (see [gradient and Hessian
-support](@ref gradient_support)). Thus, we recommend:
+is often feasible to compute, while for larger models it typically is not (see
+[gradient and Hessian support](@ref gradient_support)). Thereby, we recommend:
 
-- **Small models** (<10 ODEs and <20 estimated parameters): `Optim.IPNewton()` with an exact
-  Hessian (`hessian_method = :ForwardDiff` in the `PEtabODEProblem`).
+- **Small models** (<10 ODEs and <20 estimated parameters): `Optim.IPNewton()` with the
+  exact Hessian (`hessian_method = :ForwardDiff` in the `PEtabODEProblem`).
 - **Medium-sized models** (≈10-20 ODEs and <75 estimated parameters):
   `Fides.CustomHessian()` with a Gauss-Newton Hessian approximation
   (`hessian_method = :GaussNewton` in the `PEtabODEProblem`). Gauss-Newton often outperforms
@@ -65,7 +69,7 @@ PEtab.jl supports three algorithms from
 
 Solver settings are passed via `options = Optim.Options(...)` (see the Optim.jl
 [documenation](https://julianlsolvers.github.io/Optim.jl/stable/user/config/#Solver-options)
-page).For example, to run `Optim.LBFGS()` for 10_000 iterations:
+page). For example, to run `Optim.LBFGS()` for 10_000 iterations:
 
 ```julia
 using Optim
@@ -101,12 +105,13 @@ res = calibrate(petab_prob, x0, IpoptOptimizer(true);
 For details and the full option list, see the Ipopt documentation and the original
 publication [wachter2006implementation](@cite).
 
-!!! note To use Ipopt, load [Ipopt.jl](https://github.com/jump-dev/Ipopt.jl) with
-`using Ipopt` before running parameter estimation.
+!!! note
+    To use Ipopt, load [Ipopt.jl](https://github.com/jump-dev/Ipopt.jl) with
+    `using Ipopt` before running parameter estimation.
 
 ## References
 
 ```@bibliography
-Pages = ["pest_method.md"]
+Pages = ["optimizers.md"]
 Canonical = false
 ```

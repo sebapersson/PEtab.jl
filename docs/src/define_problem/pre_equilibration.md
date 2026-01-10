@@ -1,6 +1,6 @@
 # [Pre-equilibration (steady-state initialization)](@id define_with_ss)
 
-In some setting (e.g. perturbation experiments), the model is assumed to be at steady state
+Sometime (e.g. perturbation experiments), the model is assumed to be at steady state
 at time zero. This can be modeled by first simulating to steady state (pre-equilibration)
 and then running the main simulation used for model fitting (optionally with changed control
 parameters).
@@ -14,18 +14,16 @@ Michaelis–Menten model from the [starting tutorial](@ref tutorial).
 using Catalyst, PEtab
 
 rn = @reaction_network begin
-    @parameters begin
-      S0
-      c3 = 1.0
-    end
+    @parameters S0 c3=3.0
     @species begin
-      S(t) = S0
-      E(t) = 50.0
-      P(t) = 0.0
+        S(t) = S0
+        E(t) = 50.0
+        SE(t) = 0.0
+        P(t) = 0.0
     end
     @observables begin
-      obs1 ~ S + E
-      obs2 ~ P
+        obs1 ~ S + E
+        obs2 ~ P
     end
     c1, S + E --> SE
     c2, SE --> S + E
@@ -39,9 +37,9 @@ observables = [petab_obs1, petab_obs2]
 
 p_c1 = PEtabParameter(:c1)
 p_c2 = PEtabParameter(:c2)
-p_s0 = PEtabParameter(:S0)
+p_S0 = PEtabParameter(:S0)
 p_sigma = PEtabParameter(:sigma)
-pest = [p_c1, p_c2, p_s0, p_sigma]
+pest = [p_c1, p_c2, p_S0, p_sigma]
 nothing # hide
 ```
 
@@ -57,7 +55,7 @@ cond2 = PEtabCondition(:cond2, :S0 => 5.0)
 nothing # hide
 ```
 
-Assume further that before simulating `:cond1` and `:cond2`, the system should be simulated
+Further, assume that before simulating `:cond1` and `:cond2`, the system should be simulated
 to steady state starting from `S0 = 2.0`. This pre-equilibration condition is defined as:
 
 ```@example 1
@@ -108,6 +106,7 @@ the `simulation_conditions` keyword:
 model = PEtabModel(rn, observables, measurements, pest;
     simulation_conditions = simulation_conditions)
 petab_prob = PEtabODEProblem(model)
+describe(petab_prob)
 ```
 
 As noted in the printed summary, the `PEtabODEProblem` now includes a `SteadyStateSolver`.
@@ -117,9 +116,10 @@ The default solver is typically a good choice, but it can be customized when con
 ## Additional pre-equilibration configurations
 
 In the example above, all measurements share the same pre-equilibration condition. PEtab.jl
-also supports more flexible setups:
+also supports:
 
-- **Different pre-equilibration conditions**: Define multiple pre-equilibration conditions
-  with `PEtabCondition` and specify the appropriate id per row in `pre_eq_id`.
-- **No pre-equilibration for some measurements**: Leave `pre_eq_id` empty in the measurement
-  table for measurements without pre-equilibration.
+- **Different pre-equilibration conditions**: For this, define multiple pre-equilibration
+    conditions with `PEtabCondition` and specify the appropriate id in the `pre_eq_id` of
+    the measurement table.
+- **No pre-equilibration for subset of measurements**: For this, leave `pre_eq_id` empty in
+    the measurement table for measurements without pre-equilibration.

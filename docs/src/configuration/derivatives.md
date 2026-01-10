@@ -9,8 +9,8 @@ options.
 PEtab.jl supports three gradient methods for `PEtabODEProblem`: forward-mode automatic
 differentiation (`:ForwardDiff`), forward-sensitivity equations (`:ForwardEquations`), and
 adjoint sensitivity analysis (`:Adjoint`). Introductions to the underlying mathematics and
-autodiff can be found in [sapienza2024differentiable](@cite) and
-[blondel2024elements](@cite). Below is a brief overview.
+autodiff can be found in [sapienza2024differentiable, blondel2024elements](@cite). Below is
+a brief overview.
 
 - `:ForwardDiff`: Uses [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) to
   compute gradients with forward-mode automatic differentiation [revels2016forward](@cite).
@@ -18,12 +18,12 @@ autodiff can be found in [sapienza2024differentiable](@cite) and
   default is usually good, but tuning can yield small speedups; this method is often fastest
   for small models [mester2022differential, persson2025petab](@cite).
 - `:ForwardEquations`: Computes gradients via forward sensitivities by solving an expanded
-  ODE system. The main option is `sensealg`. The default uses ForwardDiff-based sensitivity
-  computation and is often fastest. PEtab.jl also supports `ForwardSensitivity()` and
-  `ForwardDiffSensitivity()` from
-  [SciMLSensitivity.jl](https://github.com/SciML/SciMLSensitivity.jl); see the
-  SciMLSensitivity [documentation](https://github.com/SciML/SciMLSensitivity.jl) for details
-  and tunable options.
+  ODE system. The main option is `sensealg`. The default is `sensealg=:ForwarDiff`, which
+  uses ForwardDiff-based sensitivity and is often the fastest. PEtab.jl also supports
+  `ForwardSensitivity()` and `ForwardDiffSensitivity()` from SciMLSensitivity.jl for
+  `sensealg`; see the SciMLSensitivity
+  [documentation](https://github.com/SciML/SciMLSensitivity.jl) for details and tunable
+  options.
 - `:Adjoint`: Computes gradients via adjoint sensitivity analysis by solving an adjoint
   problem backward in time. Benchmarks often find adjoints most efficient for large models
   [frohlich2017scalable, ma2021comparison](@cite). The main option is `sensealg`, selecting
@@ -31,9 +31,9 @@ autodiff can be found in [sapienza2024differentiable](@cite) and
   `QuadratureAdjoint`). See the SciMLSensitivity
   [documentation](https://github.com/SciML/SciMLSensitivity.jl) for tunable options.
 
-!!! note "Using SciMLSensitivity methods" To use SciMLSensitivity-based methods (e.g.
-adjoints), load the package with `using SciMLSensitivity` before creating the
-`PEtabODEProblem`.
+!!! note "Using SciMLSensitivity methods"
+    To use SciMLSensitivity-based methods (e.g. adjoints), load the package with
+    `using SciMLSensitivity` before creating the `PEtabODEProblem`.
 
 ## Hessian methods
 
@@ -44,13 +44,14 @@ approximation (`:GaussNewton`). Below is a brief overview.
 - `:ForwardDiff`: Computes the full Hessian via forward-mode automatic differentiation with
   [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl). The main tuning option is
   `chunksize`. This method has quadratic cost in the number of estimated parameters
-  (`O(n^2)`), and is typically only feasible up to around `n ≈ 20`. When feasible, access to
-  the full Hessian can improve convergence, especially in multi-start estimation.
+  ($\mathcal{O}(n^2)$), and is typically only feasible up to around `n ≈ 20` parameters.
+  When feasible, access to the full Hessian can improve convergence, especially in
+  multi-start estimation [persson2025petab](@cite).
 - `:BlockForwardDiff`: Computes a block-diagonal Hessian approximation using forward-mode
   automatic differentiation with
   [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl). In many PEtab problems,
-  parameters can be split into ODE parameters `\mathbf{x}_p` and non-ODE parameters
-  `\mathbf{x}_q`. This method computes each block Hessian while setting cross-terms to zero:
+  parameters can be split into ODE parameters $\mathbf{x}_p$ and non-ODE parameters
+  $\mathbf{x}_q$. This method computes each block Hessian while setting cross-terms to zero:
 
 ```math
 \mathbf{H}_{\text{block}} =
@@ -71,6 +72,6 @@ approximation (`:GaussNewton`). Below is a brief overview.
 ## References
 
 ```@bibliography
-Pages = ["grad_hess_methods.md"]
+Pages = ["derivatives.md"]
 Canonical = false
 ```

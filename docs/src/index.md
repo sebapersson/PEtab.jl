@@ -1,39 +1,42 @@
 # PEtab.jl
 
-PEtab.jl is a Julia package for creating parameter estimation problems for fitting Ordinary
-Differential Equation (ODE) models to data in Julia.
+PEtab.jl is a Julia package for creating parameter-estimation problems for fitting ordinary differential equation (ODE) models to data.
 
 ## Main features
 
-- Define parameter-estimation problems directly in Julia, with models provided as
+- Define problems directly in Julia, with models provided as
   [Catalyst.jl](https://github.com/SciML/Catalyst.jl) `ReactionSystem`,
   [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) `ODESystem`, or as
   [SBML](https://sbml.org/) (via
-  [SBMLImporter.jl](https://github.com/sebapersson/SBMLImporter.jl)). Problems can include
-  wide range of features, such as multiple observables and/or simulation conditions, events,
-  and pre-equilibration (steady-state initialization).
-- Import and work with problems in both version 1 and 2 of the
+  [SBMLImporter.jl](https://github.com/sebapersson/SBMLImporter.jl)). Problems can be
+  defined with a wide range of features, such as multiple observables and/or simulation
+  conditions, events, and pre-equilibration (steady-state initialization).
+- Import and work with PEtab problems in both v1 and v2 of the
   [PEtab](https://petab.readthedocs.io/en/latest/) standard format.
-- Built on the SciML ecosystem, with access to modern stiff and non-stiff ODE solvers from
-  [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl), and efficient gradients
-  (forward-mode and adjoint) for small and large models.
-- High performance, often faster than the state-of-the-art toolbox AMICI by ~2× for gradient
+- Built on the SciML ecosystem, with access to performant stiff and non-stiff ODE
+  solvers from [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl), and
+  efficient gradients via forward-mode automatic differentiation (small models) and adjoint
+  sensitivities (large models).
+- High performant, often faster than the state-of-the-art toolbox AMICI by ~2× for gradient
   and parameter-estimation workloads [persson2025petab](@cite).
 - High-level wrappers for parameter estimation via Optim.jl, Ipopt.jl, Fides.jl, and
   Optimization.jl.
-- Bayesian inference via [AdvancedHMC.jl](https://github.com/TuringLang/AdvancedHMC.jl)
-  (including NUTS) and AdaptiveMCMC.jl.
+- High-level wrapper for Bayesian inference via
+  [AdvancedHMC.jl](https://github.com/TuringLang/AdvancedHMC.jl) (including NUTS) and
+  AdaptiveMCMC.jl.
 
-!!! note "Star us on GitHub!" If you find the package useful in your work please consider
-giving us a star on [GitHub](https://github.com/sebapersson/PEtab.jl). This will help us
-secure funding in the future to continue maintaining the package.
+!!! note "Star us on GitHub!"
+    If you find the package useful in your work please consider giving us a star on
+    [GitHub](https://github.com/sebapersson/PEtab.jl). This will help us secure funding in
+    the future to continue maintaining the package.
 
-!!! tip "Latest news: PEtab.jl v3.0" Version 3.0 is a breaking release that added support
-for ModelingToolkit v9 and Catalyst v14. Along with updating these packages, PEtab.jl
-underwent a major update, with new functionality added as well as the renaming of several
-functions to be more consistent with the naming convention in the SciML ecosystem. See the
-[HISTORY](https://github.com/sebapersson/PEtab.jl/blob/main/HISTORY.md) file for more
-details.
+!!! tip "Latest news: PEtab.jl v3.0"
+    Version 3.0 is a breaking release that added support for ModelingToolkit v9 and
+    Catalyst v14. Along with updating these packages, PEtab.jl underwent a major update,
+    with new functionality added as well as the renaming of several functions to be more
+    consistent with the naming convention in the SciML ecosystem. See the
+    [HISTORY](https://github.com/sebapersson/PEtab.jl/blob/main/HISTORY.md) file for more
+    details.
 
 ## Installation
 

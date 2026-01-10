@@ -14,18 +14,16 @@ used.
 ```@example 1
 using Catalyst, PEtab
 rn = @reaction_network begin
-    @parameters begin
-      S0
-      c3 = 1.0
-    end
+    @parameters S0 c3=3.0
     @species begin
-      S(t) = S0
-      E(t) = 50.0
-      P(t) = 0.0
+        S(t) = S0
+        E(t) = 50.0
+        SE(t) = 0.0
+        P(t) = 0.0
     end
     @observables begin
-      obs1 ~ S + E
-      obs2 ~ P
+        obs1 ~ S + E
+        obs2 ~ P
     end
     c1, S + E --> SE
     c2, SE --> S + E
@@ -41,9 +39,9 @@ observables = [petab_obs1, petab_obs2]
 # Parameters to estimate
 p_c1 = PEtabParameter(:c1)
 p_c2 = PEtabParameter(:c2)
-p_s0 = PEtabParameter(:S0)
+p_S0 = PEtabParameter(:S0)
 p_sigma = PEtabParameter(:sigma)
-pest = [p_c1, p_c2, p_s0, p_sigma]
+pest = [p_c1, p_c2, p_S0, p_sigma]
 
 # Measurements; simulate with 'true' parameters
 using DataFrames, OrdinaryDiffEqRosenbrock
@@ -79,21 +77,21 @@ addition, the `PEtabODEProblem` provides both in-place and out-of-place gradient
 
 ```@example 1
 g_inplace = similar(x)
-petab_prob.grad!(g_inplace, x; prior = true)
-g_outplace = petab_prob.grad(x; prior = true)
+petab_prob.grad!(g_inplace, x)
+g_outplace = petab_prob.grad(x)
 ```
 
 and Hessians:
 
 ```@example 1
 h_inplace = zeros(length(x), length(x))
-petab_prob.hess!(h_inplace, x; prior = true)
-h_outplace = petab_prob.hess(x; prior = true)
+petab_prob.hess!(h_inplace, x)
+h_outplace = petab_prob.hess(x)
 ```
 
-The input `x` is typically a `ComponentArray`, but `Vector` inputs are also supported (the
-type of output matches the input). More details on what is available in a `PEtabODEProblem`
-can be found in the [API documentation](@ref API)
+The input `x` is typically a `ComponentArray`, but `Vector` inputs are also supported. More
+details on what is available in a `PEtabODEProblem` can be found in the
+[API documentation](@ref API)
 
 Lastly, for ODE models, parameter bounds are often important: without bounds, the optimizer
 often explores regions where the ODE solver fails, increasing runtime
@@ -131,6 +129,6 @@ opt_res = Optim.optimize(df, dfc, x0, IPNewton())
 ## References
 
 ```@bibliography
-Pages = ["pest_custom.md"]
+Pages = ["wrap.md"]
 Canonical = false
 ```

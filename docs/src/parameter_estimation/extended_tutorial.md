@@ -25,18 +25,16 @@ from the [starting tutorial](@ref tutorial).
 ```@example 1
 using Catalyst, PEtab
 rn = @reaction_network begin
-    @parameters begin
-      S0
-      c3 = 1.0
-    end
+    @parameters S0 c3=3.0
     @species begin
-      S(t) = S0
-      E(t) = 50.0
-      P(t) = 0.0
+        S(t) = S0
+        E(t) = 50.0
+        SE(t) = 0.0
+        P(t) = 0.0
     end
     @observables begin
-      obs1 ~ S + E
-      obs2 ~ P
+        obs1 ~ S + E
+        obs2 ~ P
     end
     c1, S + E --> SE
     c2, SE --> S + E
@@ -52,9 +50,9 @@ observables = [petab_obs1, petab_obs2]
 # Parameters to estimate
 p_c1 = PEtabParameter(:c1)
 p_c2 = PEtabParameter(:c2)
-p_s0 = PEtabParameter(:S0)
+p_S0 = PEtabParameter(:S0)
 p_sigma = PEtabParameter(:sigma)
-pest = [p_c1, p_c2, p_s0, p_sigma]
+pest = [p_c1, p_c2, p_S0, p_sigma]
 
 # Measurements; simulate with 'true' parameters
 using DataFrames, OrdinaryDiffEqRosenbrock
@@ -72,6 +70,7 @@ measurements = vcat(df1, df2)
 # Create the PEtabODEProblem
 petab_model = PEtabModel(rn, observables, measurements, pest)
 petab_prob = PEtabODEProblem(petab_model)
+nothing # hide
 ```
 
 ## Single-start parameter estimation
@@ -80,20 +79,13 @@ Single-start parameter estimation runs a local optimizer from an initial paramet
 `x0`. In PEtab.jl, parameters must be provided in the internal order expected by the
 objective. The easiest way to construct a correctly ordered start vector is [`get_x`](@ref):
 
-```@docs; canonical=false
-get_x
-```
-
-For the running example:
-
 ```@example 1
 x0 = get_x(petab_prob)
 ```
 
 `x0` is a `ComponentArray`, so parameters can be accessed by name. Names are also prefixed
 by parameter scale, and by default parameters are estimated on a `log10` scale as it often
-improves estimation performance [raue2013lessons, hass2019benchmark](@cite). When modifying
-`x0`, provide values on the estimation scale; to set `c1 = 10.0`:
+improves estimation performance [raue2013lessons, hass2019benchmark](@cite). Values should be modified on the estimation scale:
 
 ```@example 1
 x0.log10_c1 = log10(10.0)
@@ -117,14 +109,7 @@ res = calibrate(petab_prob, x0, Optim.IPNewton())
 ```
 
 `calibrate` returns a [`PEtabOptimisationResult`](@ref) containing the optimized parameters
-and common diagnostics:
-
-```@docs; canonical=false
-PEtabOptimisationResult
-```
-
-To visualize the fit and other diagnostics, see [Plotting optimization results](@ref
-optimization_output_plotting). For example, the model fit can be plotted with:
+and common diagnostics. To visualize the fit and other diagnostics, see [Plotting optimization results](@ref pest_plotting). For example, the model fit can be plotted with:
 
 ```@example 1
 using Plots
@@ -143,7 +128,7 @@ starting points. This approach empirically performs well for ODE models
 
 The first step is to generate `n` starting points within the parameter bounds. Pure random
 sampling tends to cluster, so PEtab.jl supports quasi-Monte Carlo sampling (Latin hypercube
-by default), which typically gives more space-filling points:
+by default), which typically gives more space-filling points that improves estimation performance [raue2013lessons](@cite):
 
 ```@example 1
 using Distributions, QuasiMonteCarlo, Plots
@@ -158,15 +143,8 @@ plot(p1, p2)
 plot(p1, p2; size=(800, 400)) # hide
 ```
 
-Latin hypercube sampling often also improve performance [raue2013lessons](@cite). For a
-`PEtabODEProblem`, hypercube start guesses (respecting bounds and parameter scales) can be
-generated with [`get_startguesses`](@ref):
-
-```@docs; canonical=false
-get_startguesses
-```
-
-For the running example:
+For a `PEtabODEProblem`, hypercube start guesses (respecting bounds and parameter scales)
+can be generated with [`get_startguesses`](@ref):
 
 ```@example 1
 using StableRNGs
@@ -175,20 +153,19 @@ x0s = get_startguesses(rng, petab_prob, 50)
 nothing # hide
 ```
 
-Passing an `rng` makes start-guess generation reproducible. Given `x0s`, multi-start
-estimation can be performed by calling [`calibrate`](@ref) repeatedly. For convenience,
-`calibrate_multistart` combines start-guess generation and estimation:
+Given `x0s`, multi-start estimation can be performed by calling [`calibrate`](@ref)
+repeatedly. For convenience, `calibrate_multistart` combines start-guess generation and
+estimation:
 
 ```@docs; canonical=false
 calibrate_multistart
 ```
 
-Two important keyword arguments are `nprocs` and `dirsave`. `nprocs` controls how many runs
-are executed in parallel (via `pmap` from Distributed.jl). Using `nprocs > 1` often reduces
-wall-clock time for problems taking >5 minutes. `dirsave` optionally saves results as runs
-finish and is **strongly recommended** to not loose intermediate results.
-
-For example, to run 50 multi-starts with Optim.jl’s `IPNewton`:
+Two important keyword arguments to `calibrate_multistart` are `nprocs` and `dirsave`.
+`nprocs` controls how many runs are executed in parallel (via `pmap` from Distributed.jl).
+Using `nprocs > 1` often reduces wall-clock time for problems taking >5 minutes. `dirsave`
+optionally saves results as runs finish and is **strongly recommended** to not loose
+intermediate results. For example, to run 50 multi-starts with Optim.jl’s `IPNewton`:
 
 ```@example 1
 ms_res = calibrate_multistart(petab_prob, Optim.IPNewton(), 50;
@@ -197,15 +174,9 @@ ms_res = calibrate_multistart(petab_prob, Optim.IPNewton(), 50;
 ```
 
 Results are returned as a `PEtabMultistartResult`, which contains per-run statistics and the
-best solution:
-
-```@docs; canonical=false
-PEtabMultistartResult
-```
-
-Different ways to visualize results are found in [Plotting optimization results](@ref
-optimization_output_plotting). For example, a common diagnostic is a waterfall plot of the
-final objective values across runs:
+best solution. Different ways to visualize results are found in
+[Plotting optimization results](@ref pest_plotting). A common diagnostic is a waterfall
+plot of the final objective values across runs:
 
 ```@example 1
 plot(ms_res; plot_type=:waterfall)
@@ -256,22 +227,22 @@ returned solution object, see the Optimization.jl
 ## Next steps
 
 This extended tutorial showed how to estimate parameters with PEtab.jl. The parameter
-estimation documentation also covers:
+estimation tutorials also covers:
 
-- **Available optimization algorithms**: Supported and recommended algorithms. See
-  [Available optimization algorithms](@ref options_optimizers).
-- **Plotting results**: Plotting options for parameter estimation output. See [Plotting
-  parameter estimation results](@ref pest_plotting).
-- **Wrapping an optimization package**: How to use a `PEtabODEProblem` directly optimization
-  package (e.g. Optim.jl). See [Wrapping optimization packages](@ref wrap_est).
-- **Automatic model selection**: Model selection with PEtab-Select
-  [pathirana2025petab](@cite). See [Model selection (PEtab-select)](@ref petab_select).
-- **Litterature references**: Good introductions on parameter estimation for ODE models can
-  be found in [raue2013lessons](@cite) and [villaverde2022protocol](@cite).
+- [Available optimization algorithms](@ref options_optimizers): Supported and recommended
+  algorithms.
+- [Plotting parameter estimation results](@ref pest_plotting): Plotting options for
+  parameter estimation output.
+- [Wrapping optimization packages](@ref wrap_est): How to use a `PEtabODEProblem` directly
+  with an optimization package such as Optim.jl.
+- [Model selection (PEtab-select)](@ref petab_select): Automatic model selection with
+  PEtab-Select [pathirana2025petab](@cite).
+- Litterature references: Good introductions on parameter estimation for ODE models can
+  be found in [raue2013lessons, villaverde2022protocol](@cite).
 
 ## References
 
 ```@bibliography
-Pages = ["pest_method.md"]
+Pages = ["extended_tutorial.md"]
 Canonical = false
 ```

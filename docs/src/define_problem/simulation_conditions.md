@@ -4,10 +4,11 @@ CollapsedDocStrings=true
 
 # [Simulation conditions](@id petab_sim_cond)
 
-Measurements are often collected under different experimental conditions, which in the model
-correspond to simulating with different initial values and/or control parameter values.
+Sometimes measurements are collected under different experimental conditions, which in the
+model correspond to simulating with different initial values and/or control parameter
+values.
 
-This is handled via **simulation conditions** defined via `PEtabCondition`.This tutorial
+This is handled via **simulation conditions** defined via `PEtabCondition`. This tutorial
 shows how to specify simulation conditions. As a running example, we use the
 Michaelis-Menten model from the [starting tutorial](@ref tutorial).
 
@@ -15,18 +16,16 @@ Michaelis-Menten model from the [starting tutorial](@ref tutorial).
 using Catalyst, PEtab
 
 rn = @reaction_network begin
-    @parameters begin
-      S0
-      c3 = 1.0
-    end
+    @parameters S0 c3=3.0
     @species begin
-      S(t) = S0
-      E(t) = 50.0
-      P(t) = 0.0
+        S(t) = S0
+        E(t) = 50.0
+        SE(t) = 0.0
+        P(t) = 0.0
     end
     @observables begin
-      obs1 ~ S + E
-      obs2 ~ P
+        obs1 ~ S + E
+        obs2 ~ P
     end
     c1, S + E --> SE
     c2, SE --> S + E
@@ -40,9 +39,9 @@ observables = [petab_obs1, petab_obs2]
 
 p_c1 = PEtabParameter(:c1)
 p_c2 = PEtabParameter(:c2)
-p_s0 = PEtabParameter(:S0)
+p_S0 = PEtabParameter(:S0)
 p_sigma = PEtabParameter(:sigma)
-pest = [p_c1, p_c2, p_s0, p_sigma]
+pest = [p_c1, p_c2, p_S0, p_sigma]
 using Plots # hide
 default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm, size = (600*1.25, 400 * 1.25), palette = ["#CC79A7", "#009E73", "#0072B2", "#D55E00", "#999999", "#E69F00", "#56B4E9", "#F0E442"], linewidth=4.0) # hide
 nothing # hide
@@ -56,19 +55,19 @@ Simulation conditions are specified with `PEtabCondition`:
 PEtabCondition
 ```
 
-Each `PEtabCondition` defines a unique condition id (used to link rows in the measurement
-table, see below) and one or more overrides of the form `target_id => target_value`. For
-example, assume two conditions: in `:cond1`, the initial value of `E` is `0.0` and the value
-of parameter `c3` is `0.5`, while in `:cond2`, `E = 100.0` and `c3 = 2.0`:
+Specifically, each `PEtabCondition` defines a unique condition id (used to link rows in the
+measurement table) and one or more assignments of the form `target_id => target_value`. For
+example, assume two conditions: in `:cond1`, the initial value of `E` is `40.0` and the
+value of parameter `c3` is `0.5`, while in `:cond2`, `E = 100.0` and `c3 = 2.0`:
 
 ```@example 1
-cond1 = PEtabCondition(:cond1, :E => 0.0, :c3 => 0.5)
+cond1 = PEtabCondition(:cond1, :E => 40.0, :c3 => 0.5)
 cond2 = PEtabCondition(:cond2, :E => 100.0, :c3 => 2.0)
 simulation_conditions = [cond1, cond2]
 ```
 
 All conditions should be collected in a `Vector`. If a model state or parameter is not
-overridden in a given condition, its default value from the model is used.
+assigned in a given condition, its default value from the model is used.
 
 ## Mapping measurements to simulation conditions
 
@@ -82,8 +81,8 @@ Given simulation conditions, each measurement must be linked to a simulation con
 | cond2               | petab_obs2   | 1.0          | 1.0                 |
 | cond2               | petab_obs1   | 20.0         | 1.5                 |
 
-The ids in `simulation_id` must match the condition ids defined above with `PEtabCondition`.
-In Julia:
+**Note** that the ids in `simulation_id` must match the ids defined above with
+`PEtabCondition`. In Julia:
 
 ```@example 1
 using DataFrames
@@ -123,7 +122,7 @@ plot(p1, p2; size = (800, 400)) # hide
 
 ## Changing model simulation start time
 
-By default, for each each simulation condition the model is simulated from `t0 = 0.0`. This
+By default, the model is simulated from `t0 = 0.0` for each each simulation condition. This
 can be changed via the `t0` keyword in `PEtabCondition`. For example, to simulate the model
 from `t0 = 5.0` for `:cond1`:
 
@@ -148,6 +147,6 @@ plot(p1, p2)
 plot(p1, p2; size = (800, 400)) # hide
 ```
 
-!!! tip "Change simulation start time without simulation conditions" If a model does not use
-simulation conditions, simulation start time can be changed by creating an empty condition:
-`cond = PEtabCondition(:cond1; t0 = 5.0)`
+!!! tip "Change simulation start time without simulation conditions"
+    If a model does not use simulation conditions, simulation start time can be changed by
+    creating an empty condition: `cond = PEtabCondition(:cond1; t0 = 5.0)`

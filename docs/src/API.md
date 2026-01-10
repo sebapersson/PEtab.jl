@@ -6,7 +6,7 @@ CollapsedDocStrings=true
 
 ## PEtabModel
 
-A `PEtabModel` for parameter estimation or inference can be imported from the
+A `PEtabModel` for model fitting can be imported from the
 [PEtab standard format](https://petab.readthedocs.io/en/latest/), or defined directly in
 Julia. In the Julia interface, observables that link model outputs to data are specified
 with `PEtabObservable`, estimated parameters with `PEtabParameter`, simulation conditions
@@ -48,7 +48,8 @@ ODESolver
 SteadyStateSolver
 ```
 
-Utility functions for interacting with a `PEtabODEProblem` are:
+Utility functions for interacting with a `PEtabODEProblem` (including efficient subsetting
+via `remake`) are:
 
 ```@docs
 get_x
@@ -58,8 +59,8 @@ remake(::PEtabODEProblem)
 Utilities for interacting with the underlying dynamic model (`ODEProblem`) are:
 
 ```@docs
-get_u0
 get_ps
+get_u0
 get_system
 get_odeproblem
 get_odesol
@@ -101,7 +102,7 @@ IpoptOptions
 ```
 
 Parameter-estimation results can be visualized using the plotting recipes described on
-[Plotting parameter estimation results](@ref optimization_output_plotting), and with:
+[Plotting parameter estimation results](@ref pest_plotting), and with:
 
 ```@docs
 get_obs_comparison_plots
@@ -112,6 +113,12 @@ to access solvers via [Optimization.jl](https://github.com/SciML/Optimization.jl
 
 ```@docs
 PEtab.OptimizationProblem
+```
+
+Parameter-estimation results for problems in the PEtab standard format can be exported with:
+
+```@docs
+export_petab
 ```
 
 ## Bayesian inference

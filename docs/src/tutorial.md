@@ -1,7 +1,7 @@
 # [Tutorial](@id tutorial)
 
 This starting tutorial shows how to define a parameter-estimation problem in PEtab.jl
-(`PEtabODEProblem`) and estimate its parameters.
+(create a `PEtabODEProblem`) and estimate its parameters.
 
 ## Input problem
 
@@ -32,7 +32,7 @@ We assume initial conditions for `[S, E, SE, P]`:
 S(t_0) = S_0,\quad E(t_0) = 50.0,\quad SE(t_0) = 0.0,\quad P(t_0) = 0.0.
 ```
 
-and that we have measurements of two observables `S + E` and `P`:
+and that we have measurements of two observables:
 
 ```math
 \begin{align*}
@@ -41,7 +41,7 @@ and that we have measurements of two observables `S + E` and `P`:
 \end{align*}
 ```
 
-We estimate `[c1, c2, S0]` and assume `c3 = 1.0` is known. The tutorial builds the
+We estimate `[c1, c2, S0]` and assume `c3 = 1.0` is known. This tutorial builds the
 corresponding `PEtabODEProblem` and estimates these parameters.
 
 ## Creating a parameter estimation problem
@@ -50,7 +50,7 @@ A PEtab parameter estimation problem (`PEtabODEProblem`) is defined by:
 
 1. **Dynamic model**: A Catalyst `ReactionSystem` or ModelingToolkit `ODESystem`.
 2. **Observables**: `PEtabObservable`s that map model states/parameters to measured
-   quantities, including noise models (formula + distribution).
+   quantities, including noise models (observable + noise formula).
 3. **Parameters**: `PEtabParameter`s specifying which parameters are estimated (and optional
    priors, bounds, and scale).
 4. **Measurements**: Measurement data as a `DataFrame` in the format described below.
@@ -69,18 +69,16 @@ For the Michaelis–Menten problem above, the `ReactionSystem` representation is
 ```@example 1
 using Catalyst
 rn = @reaction_network begin
-    @parameters begin
-      S0
-      c3 = 1.0
-    end
+    @parameters S0 c3=3.0
     @species begin
-      S(t) = S0
-      E(t) = 50.0
-      P(t) = 0.0
+        S(t) = S0
+        E(t) = 50.0
+        SE(t) = 0.0
+        P(t) = 0.0
     end
     @observables begin
-      obs1 ~ S + E
-      obs2 ~ P
+        obs1 ~ S + E
+        obs2 ~ P
     end
     c1, S + E --> SE
     c2, SE --> S + E
@@ -141,10 +139,11 @@ system already defines observables (`obs1`, `obs2` above), they can be reference
 For example, assume `obs1 = S + E` is measured with known noise `σ = 3.0`:
 
 ```@example 1
+using PEtab
 petab_obs1 = PEtabObservable(:petab_obs1, :obs1, 3.0)
 ```
 
-The first argument is the observable id used to link measurement rows in the measurement
+The first argument is the `observable_id` used to link measurement rows in the measurement
 table (see below) to this `PEtabObservable`. The second argument (`:obs1`) references the
 observable defined in the model system, and the third is the noise parameter. By default,
 measurements are assumed Normally distributed (other distributions can be selected via the
@@ -174,23 +173,22 @@ p_c1 = PEtabParameter(:c1)
 ```
 
 By default, parameters are assigned bounds `[1e-3, 1e3]` and estimated on a `log10` scale
-(can be changed via keyword arguments).These defaults typically improve parameter estimation
-performance performance [frohlich2022fides, raue2013lessons, hass2019benchmark](@cite)),
-Parameters can also be assigned priors. For example, to assign a `LogNormal(1.0, 0.3)` prior
-to `c2`:
+(can be changed via keyword arguments). These defaults typically improve parameter
+estimation performance performance
+[frohlich2022fides, raue2013lessons, hass2019benchmark](@cite)), Parameters can also be
+assigned priors. For example, to assign a `LogNormal(1.0, 0.3)` prior to `c2`:
 
 ```@example 1
 using Distributions
 p_c2 = PEtabParameter(:c2; prior = LogNormal(1.0, 0.3))
 ```
 
-All parameters to estimate should be defined similarly, and finally collected into a
-`Vector`:
+All parameters to estimate should be defined similarly, and collected into a `Vector`:
 
 ```@example 1
-p_s0 = PEtabParameter(:S0)
+p_S0 = PEtabParameter(:S0)
 p_sigma = PEtabParameter(:sigma)
-pest = [p_c1, p_c2, p_s0, p_sigma]
+pest = [p_c1, p_c2, p_S0, p_sigma]
 ```
 
 ### Measurement data format
@@ -255,7 +253,7 @@ petab_prob = PEtabODEProblem(model_rn)
 For which a printed summary is obtainable with:
 
 ```@example 1
-description(petab_prob)
+describe(petab_prob)
 ```
 
 The printed summary shows information such as the number of parameters to estimate, the
@@ -366,32 +364,29 @@ be plotted as:
 plot(ms_res, petab_prob; linewidth = 2.0)
 ```
 
-!!! tip "Parallelize multi-start runs" `calibrate_multistart` can often be sped up by
-running starts in parallel via the `nprocs` keyword (see this tutorial [Multistart
-estimation](@ref multistart_est)).
+!!! tip "Parallelize multi-start runs"
+    `calibrate_multistart` can often be sped up by running starts in parallel via the
+    `nprocs` keyword (see [this tutorial](@ref multistart_est)).
 
 ## Next steps
 
-This tutorial introduced how to define a `PEtabODEProblem`. For available options when
-building a `PEtabODEProblem` (e.g. for `PEtabParameter`), see the [API](@ref API). For
-common use cases, see the following extended tutorials:
+This tutorial introduced how to define a `PEtabODEProblem`. For all available options when
+building a problem (e.g. options for `PEtabParameter`), see the [API](@ref API). For
+additional supported features when setting up a parameter-estimation problem, see
+the following tutorials:
 
-- **Simulation conditions**: Measurements collected under different experimental conditions
-  (e.g. simulations use different initial values). See [Simulation conditions](@ref
-  petab_sim_cond).
-- **Steady-state initialization**: Enforce a steady state before the model is matched
-  against data (pre-equilibration). See [Pre-equilibration](@ref define_with_ss).
-- **Condition-specific parameters**: Subset of model parameters which are estimated take
-  different across simulation conditions. See [Simulation condition-specific
-  parameters](@ref condition_parameters).
-- **Observable and noise parameters**: Observable/noise parameters in `PEtabObservable`
-  formulas that are not part of the model system (e.g. scale/offset), optionally
-  time-point-specific. See [Observable and noise parameters](@ref petab_observable_options).
-- **Events**: Time- or state-triggered events/callbacks. See [Events/callbacks](@ref
-  define_events).
-- **Import PEtab models**: Load problems provided in the PEtab standard table format. See
-  [Import PEtab standard format](@ref import_petab_problem).
-- **Model definition**: More on defining `ReactionSystem` and `ODESystem` models can be
+- [Simulation conditions](@ref petab_sim_cond): Measurements collected under different
+  experimental conditions (e.g. simulations use different initial values).
+- [Pre-equilibration](@ref define_with_ss): Enforce a steady state before the model is
+  matched against data (pre-equilibration).
+- [Simulation condition-specific parameters](@ref condition_parameters): Subset of model
+  parameters which are estimated take different across simulation conditions.
+- [Observable and noise parameters](@ref petab_observable_options): Observable/noise
+  parameters in `PEtabObservable` formulas that are not part of the model system (e.g. scale/offset), optionally time-point-specific.
+- [Events/callbacks](@ref define_events): Time- or state-triggered events/callbacks.
+- [Import PEtab standard format](@ref import_petab_problem): Load problems from PEtab
+  standard format.
+- Model definition: More on defining `ReactionSystem` and `ODESystem` models can be
   found in the [Catalyst.jl](https://docs.sciml.ai/Catalyst/stable/) and
   [ModelingToolkit.jl](https://docs.sciml.ai/ModelingToolkit/dev/) documentation
   respectively.
@@ -399,42 +394,39 @@ common use cases, see the following extended tutorials:
 In addition to defining a parameter estimation problem, this tutorial showed how to fit
 parameters using Fides.jl. For more on parameter estimation, see:
 
-- **Extended estimation tutorial**: Extended tutorial on estimation functionality (e.g.
-  multi-start, Optimization.jl integration). See [Parameter estimation extended
-  tutorial](@ref pest_methods).
-- **Available optimization algorithms**: Supported algorithms and recommended defaults. See
-  [Available optimization algorithms](@ref options_optimizers).
-- **Plotting results**: Plotting options for parameter estimation output. See [Plotting
-  parameter estimation results](@ref pest_plotting).
-- **Bayesian inference**: Sampling-based inference (e.g. NUTS and AdaptiveMCMC; see the
-  Bayesian inference page).
+- [Parameter estimation extended tutorial](@ref pest_methods): Extended tutorial on
+  estimation functionality (e.g. multi-start, Optimization.jl integration).
+- [Available optimization algorithms](@ref options_optimizers): Supported algorithms and
+  recommended defaults.
+- [Plotting parameter estimation results](@ref pest_plotting): Plotting options for
+  parameter estimation output.
+- [Bayesian inference](@ref bayesian_inference): Sampling-based inference (e.g. NUTS and
+  AdaptiveMCMC).
 
 Lastly, `PEtabODEProblem` has many configurable options. Defaults are based on extensive
-benchmarks (see [Default `PEtabODEProblem` options](@ref default_options)), and available
-gradient/Hessian settings are summarized in [Derivative methods](@ref gradient_support).
-While these defaults are typically performant, they are not optimal for every model;
-performance tips and tuning guidelines are provided in the **Configuration and performance**
-section of the docs.
+benchmarks (see [Default PEtabODEProblem options](@ref default_options))
+[persson2025petab](@cite), and available gradient/Hessian settings are summarized in
+[Derivative methods](@ref gradient_support). While these defaults are often performant,
+they are not optimal for every problem. See the **Configuration and performance** section
+for performance tips and tuning guidelines.
 
 ## Copy pasteable example
 
-```@example 1
+```@example 2
 using Catalyst, ModelingToolkit, PEtab
 using ModelingToolkit: t_nounits as t, D_nounits as D
 
 rn = @reaction_network begin
-    @parameters begin
-      S0
-      c3 = 1.0
-    end
+    @parameters S0 c3=3.0
     @species begin
-      S(t) = S0
-      E(t) = 50.0
-      P(t) = 0.0
+        S(t) = S0
+        E(t) = 50.0
+        SE(t) = 0.0
+        P(t) = 0.0
     end
     @observables begin
-      obs1 ~ S + E
-      obs2 ~ P
+        obs1 ~ S + E
+        obs2 ~ P
     end
     c1, S + E --> SE
     c2, SE --> S + E
@@ -480,9 +472,9 @@ observables = [petab_obs1, petab_obs2]
 using Distributions
 p_c1 = PEtabParameter(:c1)
 p_c2 = PEtabParameter(:c2; prior = LogNormal(1.0, 0.3))
-p_s0 = PEtabParameter(:S0)
+p_S0 = PEtabParameter(:S0)
 p_sigma = PEtabParameter(:sigma)
-pest = [p_c1, p_c2, p_s0, p_sigma]
+pest = [p_c1, p_c2, p_S0, p_sigma]
 
 # Measurements; simulate with 'true' parameters
 using OrdinaryDiffEqRosenbrock, DataFrames

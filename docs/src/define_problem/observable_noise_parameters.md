@@ -1,27 +1,25 @@
 # [Observable and noise parameters](@id petab_observable_options)
 
-A `PEtabObservable` links model outputs to measured data and may depend on additional
-(non-model) quantities such as scaling or offset parameters (e.g. when measurements are
-relative but the model output is absolute scale). These parameters may also vary between
-measurements, for example when data were collected using different assays.
+A `PEtabObservable` links model outputs to measured data can sometimes depend on non-model
+parameters such as scaling and/or offset parameters (e.g. when measurements are
+relative but the model output is absolute scale). Such parameters also sometimes vary
+between measurements, for example when data were collected using different assays.
 
-In PEtab.jl, this is handled via **observable parameters** and **noise parameters**. This
-tutorial shows how to define these parameters and how to optionally make them time-point
-specific. As a running example, we use the Michaelis–Menten model from the [starting
-tutorial](@ref tutorial).
+This is handled via **observable parameters** and **noise parameters**. This tutorial shows
+how to define these parameters and how to optionally make them time-point specific. As a
+running example, we use the Michaelis–Menten model from the
+[starting tutorial](@ref tutorial).
 
 ```@example 1
 using Catalyst, PEtab
 
 rn = @reaction_network begin
-    @parameters begin
-      S0
-      c3 = 1.0
-    end
+    @parameters S0 c3=3.0
     @species begin
-      S(t) = S0
-      E(t) = 50.0
-      P(t) = 0.0
+        S(t) = S0
+        E(t) = 50.0
+        SE(t) = 0.0
+        P(t) = 0.0
     end
     c1, S + E --> SE
     c2, SE --> S + E
@@ -30,7 +28,7 @@ end
 
 p_c1 = PEtabParameter(:c1)
 p_c2 = PEtabParameter(:c2)
-p_s0 = PEtabParameter(:S0)
+p_S0 = PEtabParameter(:S0)
 nothing # hide
 ```
 
@@ -46,7 +44,8 @@ the observable `P` is measured on a relative scale, requiring a scale and offset
 p_scale_p  = PEtabParameter(:scale_p)
 p_offset_p = PEtabParameter(:offset_p; estimate = false, value = 2.0)
 p_sigma    = PEtabParameter(:sigma)
-pest = [p_c1, p_c2, p_s0, p_scale_p, p_offset_p, p_sigma]
+pest = [p_c1, p_c2, p_S0, p_scale_p, p_offset_p, p_sigma]
+nothing # hide
 ```
 
 Then define the observables using these parameters:
@@ -69,21 +68,22 @@ measurements = DataFrame(
     measurement = [0.7, 0.1, 1.0, 1.5],
 )
 petab_model = PEtabModel(rn, observables, measurements, pest)
-petab_prob = PEtabODEProblem(model)
+petab_prob = PEtabODEProblem(petab_model)
 nothing # hide
 ```
 
-!!! note "When formulas use non-model quantities" If the observable or noise formula depends
-on non-model quantities (e.g. scale/offset), define it in `PEtabObservable` (as above)
-rather than inside the model system. This lets PEtab.jl treat such parameters as non-dynamic
-and compute gradients efficiently.
+!!! note "When formulas use non-model quantities"
+    If the observable or noise formula depends on non-model quantities (e.g. scale/offset),
+    define it in `PEtabObservable` (as above) rather than inside the model system. This
+    lets PEtab.jl treat such parameters as non-dynamic and compute gradients more
+    efficiently.
 
 ## Time-point-specific observable and noise parameters
 
-Time-point-specific parameters are defined by (1) using special parameter names in the
-`PEtabObservable` formulas, and (2) providing their values per measurement row in the
-measurement table. For instance, assume the first observable (`P`) is on a relative scale
-with two time-point-specific observable parameters (scale and offset), and `:petab_obs2`
+Time-point-specific parameters are defined by (i) using special parameter names in the
+`PEtabObservable` formulas, and (ii) providing their values in the measurement table. For
+instance, assume the first observable (`P`) is on a relative scale with two
+time-point-specific observable parameters (scale and offset), and `:petab_obs2`
 uses a time-point-specific noise parameter:
 
 ```@example 1
@@ -95,8 +95,9 @@ observables = [obs1, obs2]
 nothing # hide
 ```
 
-!!! note "Required naming convention" Time-point-specific parameters must be named
-`observableParameter{n}` and `noiseParameter{n}`, with `n` starting from 1.
+!!! note "Required naming convention"
+    Time-point-specific parameters must be named `observableParameter{n}` and
+    `noiseParameter{n}`, with `n` starting from 1.
 
 Values for time-point-specific parameters are provided per measurement row via the optional
 columns `observable_parameters` and `noise_parameters` (column names matter, but not order).
@@ -113,7 +114,8 @@ Note, for the `observable_parameters` and `noise_parameters` columns:
 
 - Leave the column empty (`missing`) if an observable has no parameters of that type.
 - Multiple values are separated by `;` (e.g. `"3.0;4.0"`).
-- `PEtabParameter` ids are allowed (e.g. `"sigma"`), and mixed entries like `"sigma;1.0"`.
+- `PEtabParameter` ids are allowed (e.g. `"sigma"`), and mixed entries like `"sigma;1.0"`
+    are also allowed.
 - If an observable uses time-point-specific parameters, values must be provided for each
   measurement of that observable.
 
@@ -129,7 +131,6 @@ measurements = DataFrame(
     noise_parameters = ["sigma", "1.0", "sigma", "0.5"],
 )
 
-model = PEtabModel(rn, observables, measurements, pest)
-petab_prob = PEtabODEProblem(model)
-nothing # hide
+petab_model = PEtabModel(rn, observables, measurements, pest)
+petab_prob = PEtabODEProblem(petab_model)
 ```

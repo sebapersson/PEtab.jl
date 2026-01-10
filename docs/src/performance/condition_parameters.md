@@ -8,16 +8,14 @@ often be reduced substantially by setting `split_over_conditions = true` when co
 
 This page explains when and why this helps, and assumes familiarity with condition-specific
 parameters (see [Simulation condition-specific parameters](@ref condition_parameters)). As a
-working example, a published model is used (the Beer model [beer2014creating](@cite)),
-available in the PEtab standard format (see [Importing PEtab problems](@ref
-import_petab_problem)). Given the PEtab files (downloadable from
+working example, the published Beer model [beer2014creating](@cite) available in the PEtab standard format is used (see [Importing PEtab problems](@ref import_petab_problem)). Given the PEtab files (downloadable from
 [here](https://github.com/sebapersson/PEtab.jl/tree/main/docs/src/assets/beer)), the problem
 can be imported with:
 
 ```@example 1
 using PEtab
 # path_yaml depends on where the problem is saved
-path_yaml = joinpath(@__DIR__, "assets", "beer", "Beer_MolBioSystems2014.yaml")
+path_yaml = joinpath(@__DIR__, "..", "assets", "beer", "Beer_MolBioSystems2014.yaml")
 model = PEtabModel(path_yaml)
 nothing # hide
 ```
@@ -25,9 +23,9 @@ nothing # hide
 ## Efficient handling of condition-specific parameters
 
 The Beer problem has 4 species and 9 ODE parameters, but 72 parameters are estimated because
-many parameters are condition-specific. For example, `cond1` has `τ_cond1` and `cond2` has
-`τ_cond2`, which both map to the ODE parameter `τ`. This is reflected by the model
-statistics are:
+many parameters are simulation condition-specific. For example, `cond1` has `τ_cond1` and
+`cond2` has `τ_cond2`, which both map to the ODE parameter `τ`. This is reflected by the
+model statistics are:
 
 ```@example 1
 using Catalyst
@@ -88,6 +86,6 @@ benchmark `split_over_conditions = true` vs `false`.
 ## References
 
 ```@bibliography
-Pages = ["Beer.md"]
+Pages = ["condition_parameters.md"]
 Canonical = false
 ```

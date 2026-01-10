@@ -1,6 +1,6 @@
-# [Simulation condition-specific parameters](@id define_conditions)
+# [Simulation condition-specific parameters](@id condition_parameters)
 
-In some settings, model parameters should be estimated as different values depending on the
+Sometimes, model parameters should be estimated to different values depending on the
 simulation condition. For example, `c1` may have one value in `:cond1` and another in
 `:cond2`.
 
@@ -13,18 +13,16 @@ the Michaelis–Menten model from the [starting tutorial](@ref tutorial).
 using Catalyst, PEtab
 
 rn = @reaction_network begin
-    @parameters begin
-      S0
-      c3 = 1.0
-    end
+    @parameters S0 c3=3.0
     @species begin
-      S(t) = S0
-      E(t) = 50.0
-      P(t) = 0.0
+        S(t) = S0
+        E(t) = 50.0
+        SE(t) = 0.0
+        P(t) = 0.0
     end
     @observables begin
-      obs1 ~ S + E
-      obs2 ~ P
+        obs1 ~ S + E
+        obs2 ~ P
     end
     c1, S + E --> SE
     c2, SE --> S + E
@@ -37,7 +35,7 @@ petab_obs2 = PEtabObservable(:petab_obs2, :obs2, sigma)
 observables = [petab_obs1, petab_obs2]
 
 p_c2 = PEtabParameter(:c2)
-p_s0 = PEtabParameter(:S0)
+p_S0 = PEtabParameter(:S0)
 p_sigma = PEtabParameter(:sigma)
 using Plots # hide
 default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm, size = (600*1.25, 400 * 1.25), palette = ["#CC79A7", "#009E73", "#0072B2", "#D55E00", "#999999", "#E69F00", "#56B4E9", "#F0E442"], linewidth=4.0) # hide
@@ -46,10 +44,10 @@ nothing # hide
 
 ## Specifying condition-specific parameters
 
-Condition-specific parameters are handled by (1) defining separate `PEtabParameter`s, and
-(2) mapping the model parameter to the appropriate model parameter in each simulation
-condition. For instance, assume the model parameter `c1` should take the value of `c1_cond1`
-in `:cond1` and `c1_cond2` in `:cond2`. Then, first define the parameters
+Condition-specific parameters are handled by (i) defining separate `PEtabParameter`s and
+(ii) mapping them to the same model parameter in each simulation condition. For instance,
+assume the model parameter `c1` should take the value of `c1_cond1` in `:cond1` and
+`c1_cond2` in `:cond2`. First, define the parameters:
 
 ```@example 1
 p_c1_cond1 = PEtabParameter(:c1_cond1; value = 1.0)
@@ -92,7 +90,7 @@ nothing # hide
 
 With this setup, `c1` is given by `c1_cond1` when simulating `:cond1` and by `c1_cond2` when
 simulating `:cond2` (with both `c1_cond1` and `c1_cond2` being estimated). The different
-`c1` value across condition can be seen by simulated the ODE model:
+`c1` values across conditions can been seen from plotting the model:
 
 ```@example 1
 using Plots
@@ -107,8 +105,8 @@ plot(p1, p2; size = (800, 400)) # hide
 
 ## Additional possible configurations
 
-Above, the condition-specific parameters `[c1_cond1, c1_cond2]` map to a single model
-parameter. Such parameters can also map to multiple model parameters. For example:
+Above, the `PEtabParameter`s `[c1_cond1, c1_cond2]` map to a single model parameter. PEtab
+parameters can also map to multiple model parameters. For example:
 
 ```julia
 @parameters c1_cond1
@@ -121,15 +119,15 @@ The mapping can also be any valid Julia expression using standard functions such
 ```julia
 @parameters c1_cond1
 cond1 = PEtabCondition(:cond1, :c1 => 1.0 + sin(c1_cond1))
-cond1 = PEtabCondition(:cond1, :c1 => "1.0 + exp(c1_cond1)")
+cond1 = PEtabCondition(:cond1, :c1 => "1.0 + sin(c1_cond1)")
 ```
 
-As above, expressions can be provided as a Symbolics expression (first above, recommended)
-or as a `String`.
+Expressions can here be provided as a Symbolics expression (first above, recommended) or as
+a `String`.
 
 ## Performance tip
 
 For models with many condition-specific parameters, runtime performance may improve by
-setting `split_over_conditions=true` (PEtab.jl tries to determine when to do this
-automatically, but it is a hard problem) when building the `PEtabODEProblem`. For more
-information on this, see [this](@ref Beer_tut) example.
+setting `split_over_conditions=true` when building the `PEtabODEProblem` ((PEtab.jl tries
+to determine when to do this automatically, but it is a hard problem) ). For more
+information, see [this](@ref Beer_tut) example.

@@ -1,15 +1,18 @@
 # [Default PEtabODEProblem options](@id default_options)
 
-A `PEtabODEProblem` supports multiple gradient/Hessian computation methods as well as the
-ODE solvers from [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl), which
-leads to many valid `PEtabODEProblem` configurations. To simplify usage, PEtab.jl provides
-default options based on an extensive benchmark study [persson2025petab](@cite). This page
-summarizes these defaults. In brief, defaults depend primarily by model size (number of ODEs
-and number of estimated parameters), since ODE solver performance and especially
-gradient-computation methods depend strongly on problem size.
+A `PEtabODEProblem` supports multiple gradient/Hessian computation methods and the ODE
+solvers from [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl). This leads to
+many valid `PEtabODEProblem` configurations, and to simplify usage, default options are
+provided based on an extensive benchmark study [persson2025petab](@cite). This page
+summarizes these defaults.
 
-!!! tip "Non-stiff models" Defaults are tuned for biological, typically stiff models. For
-non-stiff models, see [Speeding up non-stiff models](@ref nonstiff_models).
+In brief, defaults depend primarily by model size (number of ODEs and number of estimated
+parameters), since ODE solver performance and especially gradient-computation methods
+depend strongly on problem size.
+
+!!! tip "Non-stiff models"
+    Defaults are tuned for biological, typically stiff models. For non-stiff models, see
+    [Speeding up non-stiff models](@ref nonstiff_models).
 
 ## Small models (≤20 parameters and ≤15 ODEs)
 
@@ -26,11 +29,11 @@ petab_prob = PEtabODEProblem(model;
 The rationale is:
 
 - **ODE solver:** For small stiff models, the Rosenbrock solver `Rodas5P()` is typically
-  fast, robust (rare simulation failures), and accurate. Julia’s BDF solvers (e.g. `QNDF()`)
-  can also work well, but are often less robust in this regime.
+  fast, robust (rare with simulation failures), and accurate. Julia’s BDF solvers (e.g.
+  `QNDF()`) can also work well, but are often less robust.
 - **Gradient method:** Forward-mode automatic differentiation via
-  [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) is usually the fastest
-  option for small models, often faster than sensitivity-equation approaches implemented in
+  [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) is the fastest option for
+  small models, often faster than sensitivity-equation approaches implemented in
   tools such as AMICI. Performance can sometimes be improved by tuning the ForwardDiff chunk
   size, but the optimal value is model-dependent.
 - **Hessian method:** Computing the full Hessian with
@@ -54,20 +57,21 @@ The rationale is:
 
 - **ODE solver:** For medium-sized stiff models, multi-step BDF solvers such as `QNDF()` are
   often faster than Rosenbrock solvers [stadter2021benchmarking, persson2025petab](@cite).
-  Note, for models with many events, `QNDF()` is often slow and in such cases `KenCarp4()`
-  is a reliable alternative.
+  Note, for models with many events, BDF solvers are often slow and in such cases
+  `KenCarp4()` is a reliable alternative.
 - **Gradient method:** Forward-mode automatic differentiation via
   [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) is typically the most
-  efficient choice in this regime.
+  fasest choice in this regime.
 - **Hessian method:** Computing the full Hessian with
   [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) is often too expensive. A
-  Gauss–Newton approximation is usually a good compromise and often outperforms (L)BFGS in
-  practice [frohlich2022fides](@cite).
+  Gauss–Newton approximation is usually a good compromise and often outperforms (L)BFGS
+  approximations in practice [frohlich2022fides, persson2025petab](@cite).
 
-!!! note "Reusing sensitivities" For optimizers that evaluate gradient and Gauss-Newton
-Hessian together (e.g. Fides.jl), setting `gradient_method = :ForwardEquations` with
-`reuse_sensitivities = true` will reduce runtime. See Fides.jl in [Optimization algorithms
-and recommendations](@ref options_optimizers) for details.
+!!! note "Reusing sensitivities"
+    For optimizers that evaluate gradient and Gauss-Newton Hessian together (e.g.
+    Fides.jl), setting `gradient_method = :ForwardEquations` with
+    `reuse_sensitivities = true` will reduce runtime. See Fides.jl in
+    [Optimization algorithms and recommendations](@ref options_optimizers) for details.
 
 ## Large models (≥75 parameters or ≥75 ODEs)
 

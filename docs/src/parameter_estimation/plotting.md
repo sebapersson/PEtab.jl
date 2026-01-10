@@ -1,6 +1,6 @@
-# [Plotting parameter estimation results](@id optimization_output_plotting)
+# [Plotting parameter estimation results](@id pest_plotting)
 
-After parameter estimation, it is important to plot the results to evaluate:
+After parameter estimation, plotting the results can help evaluate:
 
 - whether the model fits the data,
 - whether better-fitting parameter sets were missed (suggesting convergence to a local
@@ -23,7 +23,8 @@ published model loaded into a `PEtabMultistartResult` (files can be downloaded
 
 ```@example 1
 using PEtab, Plots
-path_res = joinpath(@__DIR__, "assets", "optimization_results", "boehm")
+# path_res depends on where result is stored
+path_res = joinpath(@__DIR__, "..", "assets", "optimization_results", "boehm")
 ms_res = PEtabMultistartResult(path_res)
 default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm, size = (600*1.25, 400 * 1.25), palette = ["#CC79A7", "#009E73", "#0072B2", "#D55E00", "#999999", "#E69F00", "#56B4E9", "#F0E442"], linewidth=4.0) # hide
 nothing # hide
@@ -45,13 +46,14 @@ corresponding points are marked with crosses.
 
 For multi-start plots, runs are colored by a clustering procedure that groups runs
 converging to the same local minimum (details and tunable options are documented [here](@ref
-optimization_output_plotting_multirun_indexing)). When many runs are performed, the plot can
-become cluttered; by default only the 10 best runs are shown, which can be [customized](@ref
-optimization_output_plotting_multirun_indexing).
+pest_plotting_multirun_indexing)). When many runs are performed, the plot can become
+cluttered, therefore only the 10 best runs are shown (can be
+[customized](@ref pest_plotting_multirun_indexing)).
 
-!!! note For `plot_type = :objective` (as well as `:best_objective`, `:waterfall`, and
-`:runtime_eval`), PEtab.jl automatically chooses a linear or logarithmic y-axis. These
-defaults can be overridden with `yaxis_scale` and `obj_shift`.
+!!! note "y-axis scale"
+    For `plot_type = :objective` (as well as `:best_objective`, `:waterfall`, and
+    `:runtime_eval`), PEtab.jl automatically chooses a linear or logarithmic y-axis. These
+    defaults can be overridden with `yaxis_scale` and `obj_shift`.
 
 ### Best objective value plot
 
@@ -103,7 +105,7 @@ objective value for each run:
 plot(ms_res; plot_type = :runtime_eval)
 ```
 
-### [Multi-start run color clustering](@id optimization_output_plotting_multirun_clustering)
+### [Multi-start run color clustering](@id pest_plotting_multirun_clustering)
 
 For multi-start results (e.g. from `calibrate_multistart`), plots can contain many runs. By
 default, PEtab.jl applies a clustering step to group runs that likely converged to the same
@@ -117,7 +119,7 @@ signature
 - input: `Vector{PEtabOptimisationResult}`
 - output: `Vector{Int}` of the same length, with one cluster label per run.
 
-### [Sub-selecting runs to plot](@id optimization_output_plotting_multirun_indexing)
+### [Sub-selecting runs to plot](@id pest_plotting_multirun_indexing)
 
 For multi-start results, plots such as `:objective`, `:best_objective`, and
 `:parallel_coordinates` can become cluttered when many runs are present. By default, these
@@ -144,11 +146,7 @@ and two observables (`obs_e`, `obs_p`).
 ```@example 2
 using Catalyst
 rn = @reaction_network begin
-    @species begin
-        E(t) = 1.0
-        SE(t) = 0.0
-        P(t) = 0.0
-    end
+    @species E(t)=1.0 SE(t)=0.0 P(t)=0.0
     kB, S + E --> SE
     kD, SE --> S + E
     kP, SE --> P + E
@@ -157,7 +155,7 @@ u0 = [:E => 1.0, :SE => 0.0, :P => 0.0]
 p_true = [:kB => 1.0, :kD => 0.1, :kP => 0.5]
 
 # Simulate data.
-using OrdinaryDiffEqRosebrock
+using OrdinaryDiffEqRosenbrock
 # cond1
 oprob_true_cond1 = ODEProblem(rn, [:S => 1.0; u0], (0.0, 10.0), p_true)
 true_sol_cond1 = solve(oprob_true_cond1, Rodas5P())
@@ -182,13 +180,13 @@ observables = [
 
 pest = [
   PEtabParameter(:kB),
-  PEtabParameter(:kD)
+  PEtabParameter(:kD),
   PEtabParameter(:kP)
 ]
 
 simulation_conditions = [
   PEtabCondition(:cond1, :S => 1.0),
-  PEtabCondition(:cond1, :S => 0.5)
+  PEtabCondition(:cond2, :S => 0.5)
 ]
 
 using DataFrames
@@ -260,8 +258,9 @@ observable ID. For example, to retrieve the plot for `E` in `cond1`:
 comp_dict["cond1"]["obs_e"]
 ```
 
-!!! tip "Pre-equilibration" For models with pre-equilibration, specify the condition as
-`pre_eq_id => simulation_id`.
+!!! note "Pre-equilibration"
+    For models with pre-equilibration, specify the condition as
+    `pre_eq_id => simulation_id`.
 
 ### Residuals
 
@@ -282,6 +281,6 @@ plot(res, petab_prob; plot_type = :standardized_residuals, observable_ids = ["ob
 ## References
 
 ```@bibliography
-Pages = ["pest_plot.md"]
+Pages = ["plotting.md"]
 Canonical = false
 ```

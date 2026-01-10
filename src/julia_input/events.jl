@@ -42,6 +42,6 @@ function _parse_event(event::PEtabEvent, name::String,
     end
 
     formulas = replace.(target_ids .* " = " .* target_values, "(t)" => "")
-    return SBMLImporter.EventSBML(name, condition, formulas, false, false, false, false,
+    return SBMLImporter.EventSBML(name, condition, formulas, true, false, false, false,
                                   false, false, false, false)
 end
