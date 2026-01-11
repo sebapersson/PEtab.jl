@@ -27,3 +27,6 @@ Manifest.toml
 .CondaPkg
 
 src/Optimizers/*
+
+docs/node_modules
+docs/package-lock.json

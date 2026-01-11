@@ -113,7 +113,7 @@ As noted in the printed summary, the `PEtabODEProblem` now includes a `SteadySta
 The default solver is typically a good choice, but it can be customized when constructing
 `PEtabODEProblem`; see the [API documentation](@ref API).
 
-## Additional pre-equilibration configurations
+## Additional configurations
 
 In the example above, all measurements share the same pre-equilibration condition. PEtab.jl
 also supports:

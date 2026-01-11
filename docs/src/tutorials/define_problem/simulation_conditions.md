@@ -10,12 +10,16 @@ values.
 
 This is handled via **simulation conditions** defined via `PEtabCondition`. This tutorial
 shows how to specify simulation conditions. As a running example, we use the
-Michaelis-Menten model from the [starting tutorial](@ref tutorial).
+Michaelis-Menten model from the [starting tutorial](@ref tutorial):
+
+:::tabs
+
+== Model as ReactionSystem
 
 ```@example 1
 using Catalyst, PEtab
 
-rn = @reaction_network begin
+sys = @reaction_network begin
     @parameters S0 c3=3.0
     @species begin
         S(t) = S0
@@ -44,8 +48,57 @@ p_sigma = PEtabParameter(:sigma)
 pest = [p_c1, p_c2, p_S0, p_sigma]
 using Plots # hide
 default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm, size = (600*1.25, 400 * 1.25), palette = ["#CC79A7", "#009E73", "#0072B2", "#D55E00", "#999999", "#E69F00", "#56B4E9", "#F0E442"], linewidth=4.0) # hide
+```
+
+== Model as ODESystem
+
+```@example 2
+using ModelingToolkit, PEtab
+using ModelingToolkit: t_nounits as t, D_nounits as D
+
+@mtkmodel SYS begin
+    @parameters begin
+        S0
+        c1
+        c2
+        c3 = 1.0
+    end
+    @variables begin
+        S(t) = S0
+        E(t) = 50.0
+        SE(t) = 0.0
+        P(t) = 0.0
+        # Observables
+        obs1(t)
+        obs2(t)
+    end
+    @equations begin
+        # Dynamics
+        D(S) ~ -c1 * S * E + c2 * SE
+        D(E) ~ -c1 * S * E + c2 * SE + c3 * SE
+        D(SE) ~ c1 * S * E - c2 * SE - c3 * SE
+        D(P) ~ c3 * SE
+        # Observables
+        obs1 ~ S + E
+        obs2 ~ P
+    end
+end
+@mtkbuild sys = SYS()
+
+@parameters sigma
+petab_obs1 = PEtabObservable(:petab_obs1, :obs1, 3.0)
+petab_obs2 = PEtabObservable(:petab_obs2, :obs2, sigma)
+observables = [petab_obs1, petab_obs2]
+
+p_c1 = PEtabParameter(:c1)
+p_c2 = PEtabParameter(:c2)
+p_S0 = PEtabParameter(:S0)
+p_sigma = PEtabParameter(:sigma)
+pest = [p_c1, p_c2, p_S0, p_sigma]
 nothing # hide
 ```
+
+:::
 
 ## Defining simulation conditions
 
@@ -101,9 +154,10 @@ Given a `Vector` of simulation conditions and `measurements` in the format above
 conditions via the `simulation_conditions` keyword:
 
 ```@example 1
-model = PEtabModel(rn, observables, measurements, pest;
+model = PEtabModel(sys, observables, measurements, pest;
     simulation_conditions = simulation_conditions)
 petab_prob = PEtabODEProblem(model)
+nothing # hide
 ```
 
 Plotting the model solution under `:cond1` and `:cond2` shows the effect of the different
@@ -120,7 +174,7 @@ plot(p1, p2)
 plot(p1, p2; size = (800, 400)) # hide
 ```
 
-## Changing model simulation start time
+## Changing simulation start time
 
 By default, the model is simulated from `t0 = 0.0` for each each simulation condition. This
 can be changed via the `t0` keyword in `PEtabCondition`. For example, to simulate the model
@@ -133,7 +187,7 @@ cond1 = PEtabCondition(:cond1, :E => 0.0, :c3 => 0.5; t0 = 5.0)
 As seen by plotting, the simulation for `:cond1` now starts at `t = 5.0`:
 
 ```@example 1
-model = PEtabModel(rn, observables, measurements, pest;
+model = PEtabModel(sys, observables, measurements, pest;
     simulation_conditions = [cond1, cond2])
 petab_prob = PEtabODEProblem(model)
 
