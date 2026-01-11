@@ -34,7 +34,7 @@ makedocs(
             ],
             "Parameter estimation" => Any[
                 "Parameter estimation tutorial" => "tutorials/parameter_estimation/extended_tutorial.md",
-                "Plotting parameter estimation results" => "tutorials/parameter_estimation/plotting.md",
+                "Plotting estimation results" => "tutorials/parameter_estimation/plotting.md",
                 "Optimization algorithms and recommendations" => "tutorials/parameter_estimation/optimizers.md",
                 "Model selection with PEtab Select" => "tutorials/parameter_estimation/model_selection.md",
                 "Using optimizers directly" => "tutorials/parameter_estimation/wrap.md",

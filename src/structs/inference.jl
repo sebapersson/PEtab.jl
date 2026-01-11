@@ -50,7 +50,7 @@ f(x; \\mu, \\theta) = \\frac{1}{2 \\theta x} \\exp \\left(- \\frac{|ln \\, x - \
 ## Implementation note
 
 LogLaplace does not yet have support in Distributions.jl, so to support it for
-Bayesian inference PEtab.jl implements support for ids pdf, logpdf cdf, logcdf, median
+Bayesian inference PEtab.jl implements support its pdf, logpdf cdf, logcdf, median
 and sampling
 """
 struct LogLaplace{T<:Real} <: Distributions.ContinuousUnivariateDistribution

@@ -134,3 +134,9 @@ PEtabLogDensity
 to_prior_scale
 to_chains
 ```
+
+In addition to priors from [Distributions.jl](https://github.com/JuliaStats/Distributions.jl), PEtab.jl also supports a `LogLaplace` prior:
+
+```@docs
+LogLaplace
+```
