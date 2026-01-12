@@ -49,6 +49,7 @@ makedocs(
             "Speeding up condition-specific parameters" => "performance/condition_parameters.md",
             "Speeding up large models with adjoints" => "performance/adjoint.md",
         ],
+        "Contributing" => "contributing.md",
         "References" => "references.md",
         "FAQ" => "FAQ.md",
     ],

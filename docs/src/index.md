@@ -69,8 +69,8 @@ If you have any problems using PEtab, here are some helpful tips:
 - Post your questions in the `#sciml-sysbio` channel on the
   [Julia Slack](https://julialang.org/slack/). While PEtab.jl is not exclusively for systems
   biology, the `#sciml-sysbio` channel is where the package authors are most active.
-- If you have encountered unexpected behavior or a bug, please open an issue on
-  [GitHub](https://github.com/sebapersson/PEtab.jl/issues).
+- If you encounter unexpected behavior or a bug, please see how to file an issue on the
+  [Contributing page](@ref contribute).
 
 ## Citation
 

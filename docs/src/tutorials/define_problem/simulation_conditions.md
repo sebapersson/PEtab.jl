@@ -122,7 +122,6 @@ simulation_conditions = [cond1, cond2]
 All conditions should be collected in a `Vector`. If a model state or parameter is not
 assigned in a given condition, its default value from the model is used.
 
-## Mapping measurements to simulation conditions
 
 Given simulation conditions, each measurement must be linked to a simulation condition via a
 `simulation_id` column in the measurement `DataFrame` (column names matter, but not order):
@@ -146,8 +145,6 @@ measurements = DataFrame(
     measurement   = [0.7, 0.1, 1.0, 1.5],
 )
 ```
-
-## Bringing it all together
 
 Given a `Vector` of simulation conditions and `measurements` in the format above, a
 `PEtabModel` accounting for multiple simulation conditions can be created by passing the
@@ -174,7 +171,7 @@ plot(p1, p2)
 plot(p1, p2; size = (800, 400)) # hide
 ```
 
-## Changing simulation start time
+## Simulation start time
 
 By default, the model is simulated from `t0 = 0.0` for each each simulation condition. This
 can be changed via the `t0` keyword in `PEtabCondition`. For example, to simulate the model
