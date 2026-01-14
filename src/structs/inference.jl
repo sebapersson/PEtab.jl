@@ -80,7 +80,6 @@ f(x; \\mu, \\sigma) = \\frac{1}{x \\sqrt{2 \\pi \\sigma^2 \\mathrm{log}(10) }}
 \\quad x > 0
 ```
 
-
 ## Implementation note
 
 Only the `logpdf` method is implemented for `Log10Normal` to preserve PEtab v1

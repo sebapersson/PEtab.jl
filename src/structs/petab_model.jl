@@ -141,8 +141,8 @@ distributed with ``\\mathrm{log}(m) \\sim \\mathcal{N}(\\mathrm{log}(y), \\sigma
 \\pi(m \\mid y, \\sigma) = \\frac{1}{\\sqrt{2\\pi \\sigma^2}\\, m}\\mathrm{exp}\\bigg( -\\frac{\\big(\\mathrm{log}(m) - \\mathrm{log}(y)\\big)^2}{2\\sigma^2} \\bigg)
 ```
 
-For `distribution = Log2Normal|Log10Normal`, similar to the `LogNormal`, `log2(m)` and
-`log10(m)` are assumed to be normally distributed.
+For `distribution = Log2Normal|Log10Normal`, similar to the `LogNormal`, ``\\log_2(m)`` and
+``\\log_{10}(m)`` are assumed to be normally distributed.
 
 For `distribution = LogLaplace`, the log of the measurement is assumed to be Laplace
 distributed with ``\\mathrm{log}(m) \\sim \\mathcal{L}(\\mathrm{log}(y), \\sigma)``
