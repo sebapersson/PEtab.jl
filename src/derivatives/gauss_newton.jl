@@ -13,7 +13,7 @@ function _jac_residuals_xdynamic!(jac::AbstractMatrix, _solve_conditions!::Funct
 
     if reuse_sensitivities == false
         success = solve_sensitivites!(model_info, _solve_conditions!, xdynamic_tot_ps,
-                                      :ForwardDiff, probinfo, cids, cfg, isremade)
+                                      :ForwardDiff, probinfo, cids, cfg)
         if success != true
             @warn "Failed to solve sensitivity equations"
             fill!(jac, 0.0)
@@ -78,7 +78,7 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic_tot::Vector{T}, x
                 _set_grad_x_nn_preode!(_jac, simid, probinfo, model_info)
             end
             grad_to_xscale!(_jac, forward_eqs_grad, ∂G∂p, xdynamic_tot, xindices, simid,
-                            sensitivites_AD = true, nn_preode = nn_preode)
+                            sensitivities_AD = true, nn_preode = nn_preode)
         end
     end
     return nothing
@@ -121,12 +121,11 @@ function _residuals_cond!(residuals::T1, xnoise::T2, xobservable::T2, xnondynami
         u = sol[:, imeasurements_t_sol[im]] .|> SBMLImporter._to_float
         p = sol.prob.p .|> SBMLImporter._to_float
 
-        # Model observable and noise
-        mapxnoise = xindices.mapxnoise[imeasurement]
-        mapxobservable = xindices.mapxobservable[imeasurement]
-        h = _h(u, t, p, xobservable, xnondynamic_mech, xnn, xnn_constant, model.h, mapxobservable, obsid, nominal_values, model.ml_models)
-        h_transformed = transform_observable(h, measurement_transforms[imeasurement])
-        σ = _sd(u, t, p, xnoise, xnondynamic_mech, xnn, xnn_constant, model.sd, mapxnoise, obsid, nominal_values, model.ml_models)
+        xnoise_maps = xindices.xnoise_maps[im]
+        xobservable_maps = xindices.xobservable_maps[im]
+        h = _h(u, t, p, xobservable, xnondynamic_mech, xnn, xnn_constant, model, xobservable_maps, obsid, nominal_values)
+        h_transformed = _transform_h(h, noise_distributions[im])
+        σ = _sd(u, t, p, xnoise, xnondynamic_mech, xnn, xnn_constant, model, xnoise_maps, obsid, nominal_values)
 
         y_transformed = measurements_transformed[im]
         residuals[im] = (h_transformed - y_transformed) / σ

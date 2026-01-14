@@ -1,45 +1,60 @@
-function read_tables_v1(path_yaml::String)::Dict{Symbol, DataFrame}
+
+function read_tables_v1(path_yaml::String)::PEtabTables
     paths = _get_petab_paths(path_yaml)
-    parameters_df = _read_table(paths, :parameters)
-    conditions_df = _read_table(paths, :conditions)
-    observables_df = _read_table(paths, :observables)
-    measurements_df = _read_table(paths, :measurements)
-    mappings_df = _read_table(paths, :mapping)
-    hybridization_df = _read_table(paths, :hybridization)
+    parameters_df = _read_table(paths[:parameters], :parameters_v1)
+    conditions_df = _read_table(paths[:conditions], :conditions_v1)
+    observables_df = _read_table(paths[:observables], :observables_v1)
+    measurements_df = _read_table(paths[:measurements], :measurements_v1)
     yaml_file = YAML.load_file(path_yaml)
-    tables = Dict{Symbol, Union{DataFrame, Dict}}(:parameters => parameters_df,
-        :conditions => conditions_df, :observables => observables_df,
-        :measurements => measurements_df, :mapping => mappings_df,
-        :hybridization => hybridization_df, :yaml => yaml_file)
-    return tables
+    return Dict{Symbol, Union{DataFrame, Dict}}(
+        :parameters => parameters_df, :conditions => conditions_df,
+        :observables => observables_df, :measurements => measurements_df,
+        :yaml => yaml_file, :mapping => DataFrame(), :hybridization => DataFrame()
+    )
 end
 
-function read_tables_v2(path_yaml::String)::Dict{Symbol, DataFrame}
+function read_tables_v2(path_yaml::String)::PEtabTables
     petab_paths = _get_petab_paths(path_yaml)
     experiments_df = _read_table(petab_paths[:experiments], :experiments_v2)
     conditions_df = _read_table(petab_paths[:conditions], :conditions_v2)
     measurements_df = _read_table(petab_paths[:measurements], :measurements_v2)
     observables_df = _read_table(petab_paths[:observables], :observables_v2)
     parameters_df = _read_table(petab_paths[:parameters], :parameters_v2)
-    return Dict(:parameters => parameters_df, :conditions => conditions_df,
-                :observables => observables_df, :measurements => measurements_df,
-                :experiments => experiments_df)
+    yaml_file = YAML.load_file(path_yaml)
+    return Dict{Symbol, Union{DataFrame, Dict}}(
+        :parameters => parameters_df, :conditions => conditions_df,
+        :observables => observables_df, :measurements => measurements_df,
+        :experiments => experiments_df, :yaml => yaml_file, :mapping => DataFrame(),
+        :hybridization => DataFrame()
+    )
 end
-
 
 function _get_petab_paths(path_yaml::AbstractString)::Dict{Symbol, String}
     if !isfile(path_yaml)
         throw(PEtabFileError("PEtab problem YAML file does not exist at path $(path_yaml)"))
     end
     yaml_file = YAML.load_file(path_yaml)
-    version = yaml_file["format_version"]
-    @assert version in [1, 2] "Incorrect PEtab version in yaml file"
     dirmodel = dirname(path_yaml)
-    if version == 1
-        return _parse_yaml_v1(yaml_file, path_yaml, dirmodel)
+    dirjulia = joinpath(dirmodel, "Julia_model_files")
+
+    path_measurements = _get_path(yaml_file, dirmodel, "measurement_files")
+    path_observables = _get_path(yaml_file, dirmodel, "observable_files")
+    path_parameters = _get_path(yaml_file, dirmodel, "parameter_files")
+    path_conditions = _get_path(yaml_file, dirmodel, "condition_files")
+    petab_paths = Dict(:parameters => path_parameters, :conditions => path_conditions,
+        :observables => path_observables, :measurements => path_measurements,
+        :dirmodel => dirmodel, :dirjulia => dirjulia, :yaml => path_yaml)
+
+    petab_version = _get_version(yaml_file)
+    if petab_version == "1.0.0"
+        path_SBML = _get_path(yaml_file, dirmodel, "sbml_files")
     else
-        return _parse_yaml_v2(yaml_file, path_yaml, dirmodel)
+        path_SBML = _get_model_path_v2(yaml_file, dirmodel)
+        path_experiments = _get_path(yaml_file, dirmodel, "experiment_files")
+        petab_paths[:experiments] = path_experiments
     end
+    petab_paths[:SBML] = path_SBML
+    return petab_paths
 end
 
 function _parse_yaml_v1(yaml_file, path_yaml::String, dirmodel::String)::Dict{Symbol, String}

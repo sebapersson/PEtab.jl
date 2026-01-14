@@ -74,7 +74,7 @@ end
 
 function _get_odeproblem(sys::ODEProblem, ::PEtabModel, model_info::ModelInfo,
                          specialize_level, ::Bool)::ODEProblem
-    @unpack petab_parameters, petab_net_parameters, xindices, model = model_info
+    @unpack petab_parameters, petab_ml_parameters, xindices, model = model_info
     # Set constant parameter values (not done automatically as for a System based model)
     for (i, id) in pairs(petab_parameters.parameter_id)
         petab_parameters.estimate[i] == true && continue
@@ -112,7 +112,7 @@ end
 
 function _get_ml_models_pre_ode(model_info::ModelInfo, cache::PEtabODEProblemCache)::Dict{Symbol, Dict{Symbol, MLModelPreODE}}
     ml_models_pre_ode = Dict{Symbol, Dict{Symbol, MLModelPreODE}}()
-    for (cid, maps_nn) in model_info.xindices.maps_nn_preode
+    for (cid, maps_nn) in model_info.xindices.map_ml_preode
         ml_model_pre_ode = Dict{Symbol, MLModelPreODE}()
         for (ml_model_id, map_ml_model) in maps_nn
             @unpack ninput_arguments, ninputs, noutputs = map_ml_model

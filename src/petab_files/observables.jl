@@ -1,12 +1,12 @@
 function parse_observables(modelname::String, paths::Dict{Symbol, String}, sys::ModelSystem,
-                           observables_df::DataFrame, xindices::ParameterIndices,
+                           petab_tables::PEtabTables, xindices::ParameterIndices,
                            speciemap_problem, speciemap_model, sys_observable_ids::Vector{Symbol},
-                           model_SBML::SBMLImporter.ModelSBML,
+                           model_SBML::SBMLImporter.ModelSBML, ml_models::MLModels,
                            write_to_file::Bool)::NTuple{4, String}
     state_ids = _get_state_ids(sys)
 
-    _hstr = _parse_h(state_ids, sys_observable_ids, xindices, observables_df, model_SBML)
-    _σstr = _parse_σ(state_ids, sys_observable_ids, xindices, observables_df, model_SBML)
+    _hstr = _parse_h(state_ids, sys_observable_ids, xindices, petab_tables, model_SBML, ml_models)
+    _σstr = _parse_σ(state_ids, sys_observable_ids, xindices, petab_tables[:observables], model_SBML)
     _u0str = _parse_u0(speciemap_problem, speciemap_model, state_ids, xindices, model_SBML,
                        false)
     _u0!str = _parse_u0(speciemap_problem, speciemap_model, state_ids, xindices, model_SBML,
@@ -21,11 +21,12 @@ function parse_observables(modelname::String, paths::Dict{Symbol, String}, sys::
     return _hstr, _u0!str, _u0str, _σstr
 end
 
-function _parse_h(state_ids::Vector{String}, sys_observable_ids::Vector{Symbol}, xindices::ParameterIndices, observables_df::DataFrame, model_SBML::SBMLImporter.ModelSBML)::String
+function _parse_h(state_ids::Vector{String}, sys_observable_ids::Vector{Symbol}, xindices::ParameterIndices, petab_tables::PEtabTables, model_SBML::SBMLImporter.ModelSBML, ml_models::MLModels)::String
     hstr = "function compute_h(__u_model::AbstractVector, t::Real, \
-            __p_model::AbstractVector, xobservable::AbstractVector, \
-             xnondynamic::AbstractVector, nominal_values::Vector{Float64}, obsid::Symbol, \
-            map::ObservableNoiseMap, __sys_observables)::Real\n"
+           __p_model::AbstractVector, xobservable::AbstractVector, \
+           xnondynamic_mech::AbstractVector, xnn, xnn_constant, \
+           nominal_values::Vector{Float64}, obsid::Symbol, \
+           map::ObservableNoiseMap, __sys_observables, ml_models)::Real\n"
 
     observables_df = petab_tables[:observables]
     observable_ids = string.(observables_df[!, :observableId])
@@ -47,8 +48,9 @@ end
 function _parse_σ(state_ids::Vector{String}, sys_observable_ids::Vector{Symbol}, xindices::ParameterIndices, observables_df::DataFrame, model_SBML::SBMLImporter.ModelSBML)::String
     σstr = "function compute_σ(__u_model::AbstractVector, t::Real, \
             __p_model::AbstractVector, xnoise::AbstractVector, \
-            xnondynamic::AbstractVector,  nominal_values::Vector{Float64}, obsid::Symbol, \
-            map::ObservableNoiseMap, __sys_observables)::Real\n"
+            xnondynamic_mech::AbstractVector, xnn, xnn_constant, \
+            nominal_values::Vector{Float64}, obsid::Symbol, map::ObservableNoiseMap, \
+            __sys_observables, nn)::Real\n"
 
     # Write the formula for standard deviations to file
     observable_ids = string.(observables_df[!, :observableId])
@@ -166,14 +168,14 @@ function _parse_formula(formula::String, state_ids::Vector{String}, sys_observab
         ids_replace = [
             :observable => "xobservable",
             :sys => "__p_model",
-            :nondynamic => "xnondynamic",
+            :nondynamic_mech => "xnondynamic_mech",
             :petab => "nominal_values"
         ]
     elseif type == :noise
         ids_replace = [
             :noise => "xnoise",
             :sys => "__p_model",
-            :nondynamic => "xnondynamic",
+            :nondynamic_mech => "xnondynamic_mech",
             :petab => "nominal_values"
         ]
     elseif type == :u0

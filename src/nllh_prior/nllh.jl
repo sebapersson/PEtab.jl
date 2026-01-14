@@ -108,11 +108,11 @@ function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic_mec
         end
 
         # Model observable and noise
-        mapxnoise = xindices.mapxnoise[imeasurement]
-        mapxobservable = xindices.mapxobservable[imeasurement]
-        h = _h(u, t, p, xobservable, xnondynamic_mech, xnn, xnn_constant, model.h, mapxobservable, obsid, nominal_values, model.ml_models)
-        h_transformed = transform_observable(h, measurement_transforms[imeasurement])
-        σ = _sd(u, t, p, xnoise, xnondynamic_mech, xnn, xnn_constant, model.sd, mapxnoise, obsid, nominal_values, model.ml_models)
+        xnoise_maps = xindices.xnoise_maps[imeasurement]
+        xobservable_maps = xindices.xobservable_maps[imeasurement]
+        h = _h(u, t, p, xobservable, xnondynamic_mech, xnn, xnn_constant, model, xobservable_maps, obsid, nominal_values)
+        h_transformed = _transform_h(h, noise_distribution)
+        σ = _sd(u, t, p, xnoise, xnondynamic_mech, xnn, xnn_constant, model, xnoise_maps, obsid, nominal_values)
 
         residual = (h_transformed - measurements_transformed[imeasurement]) / σ
         update_petab_measurements!(petab_measurements, h, h_transformed, σ, residual,

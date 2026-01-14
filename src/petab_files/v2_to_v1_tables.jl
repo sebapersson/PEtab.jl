@@ -34,7 +34,12 @@ function v2_to_v1_tables(path_yaml::String, ifelse_to_callback::Bool)
     conditions_v1_df, petab_events = _conditions_v2_to_v1(petab_v2_tables[:experiments], petab_v2_tables[:conditions], model_SBML)
     measurements_v1_df = _measurements_v2_to_v1(petab_v2_tables[:measurements], petab_v2_tables[:experiments], petab_v2_tables[:conditions])
 
-    petab_v1_tables = Dict(:parameters => parameters_v1_df, :conditions => conditions_v1_df, :observables => observables_v1_df, :measurements => measurements_v1_df, :experiments => petab_v2_tables[:experiments])
+    petab_v1_tables = Dict{Symbol, Union{DataFrame, Dict}}(
+        :parameters => parameters_v1_df, :conditions => conditions_v1_df,
+        :observables => observables_v1_df, :measurements => measurements_v1_df,
+        :experiments => petab_v2_tables[:experiments], :yaml => petab_v2_tables[:yaml],
+        :mapping => petab_v2_tables[:mapping], :hybridization => petab_v2_tables[:hybridization]
+    )
     return petab_v1_tables, petab_events
 end
 

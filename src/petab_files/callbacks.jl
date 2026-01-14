@@ -3,7 +3,7 @@ function _parse_events(model_SBML::SBMLImporter.ModelSBML, petab_events::Vector{
     conditions_df = petab_tables[:conditions]
 
     float_tspan = _xdynamic_in_event_cond(model_SBML, xindices, petab_tables) |> !
-    p_sys = string.(_get_sys_parameters(sys, speciemap, parametermap))
+    p_sys = string.(_get_xids_sys_order(sys, speciemap, parametermap))
     cbs_sbml = SBMLImporter.create_callbacks(sys, model_SBML, name; p_PEtab = p_sys, float_tspan = float_tspan)
     if isempty(petab_events)
         for condition_id in Symbol.(conditions_df.conditionId)
@@ -41,7 +41,7 @@ function _parse_events(petab_events::Vector{PEtabEvent}, sys::ModelSystem, speci
     cbs = Dict{Symbol, CallbackSet}()
     conditions_df = petab_tables[:conditions]
 
-    psys = string.(_get_sys_parameters(sys, speciemap, parametermap))
+    psys = string.(_get_xids_sys_order(sys, speciemap, parametermap))
 
     # Whether t-span should be float or not depends on all events
     sbml_events = parse_events(petab_events, sys)

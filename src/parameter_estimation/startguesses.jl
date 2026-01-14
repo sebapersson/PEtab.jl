@@ -126,12 +126,12 @@ function _single_mech_startguess(rng::Random.AbstractRNG, prob::PEtabODEProblem,
 end
 
 function _single_nn_startguess(prob::PEtabODEProblem, ml_model_id::Symbol, rng)::ComponentArray{Float64}
-    petab_net_parameters = prob.model_info.petab_net_parameters
-    netindices = _get_ml_model_indices(ml_model_id, petab_net_parameters.parameter_id)
+    petab_ml_parameters = prob.model_info.petab_ml_parameters
+    netindices = _get_ml_model_indices(ml_model_id, petab_ml_parameters.parameter_id)
     out = similar(prob.xnominal_transformed[ml_model_id])
     for netindex in netindices
-        id = string(petab_net_parameters.parameter_id[netindex])
-        prior = petab_net_parameters.initialisation_priors[netindex]
+        id = string(petab_ml_parameters.parameter_id[netindex])
+        prior = petab_ml_parameters.initialisation_priors[netindex]
         if count(".", id) == 0
             out .= _get_nn_startguess(rng, out, prior)
         elseif count(".", id) == 1

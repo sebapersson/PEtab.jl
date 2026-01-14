@@ -221,7 +221,7 @@ function _grad_adjoint_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnoise::V
 
     # Adjust if gradient is non-linear scale (e.g. log and log10).
     PEtab.grad_to_xscale!(grad, adjoint_grad, ∂G∂p, xdynamic_tot, xindices, simid,
-                          adjoint = true)
+                          sensitivities_AD = false)
     return true
 end
 

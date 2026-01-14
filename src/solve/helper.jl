@@ -1,7 +1,9 @@
 function _switch_condition(oprob::ODEProblem, experiment_id::Symbol, xdynamic::AbstractVector,
-                           model_info::ModelInfo, cache::PEtabODEProblemCache,
-                           posteq_simulation::Bool; sensitivities::Bool = false,
-                           simulation_id::Union{Nothing, Symbol} = nothing)::ODEProblem
+                           xnn::Dict{Symbol, ComponentArray}, model_info::ModelInfo,
+                           cache::PEtabODEProblemCache,
+                           ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreODE}},
+                           posteq_simulation::Bool;
+                           sensitivities::Bool = false, simulation_id::Union{Nothing, Symbol} = nothing)::ODEProblem
     @unpack xindices, model, nstates = model_info
     simulation_id = isnothing(simulation_id) ? experiment_id : simulation_id
 
@@ -16,10 +18,6 @@ function _switch_condition(oprob::ODEProblem, experiment_id::Symbol, xdynamic::A
     # p must be set before u0, as u0 can depend on p
     condition_map! = xindices.condition_maps[simulation_id]
     condition_map!(p, xdynamic)
-    # Condition specific parameters
-    map_cid = xindices.maps_conidition_id[simid]
-    p[map_cid.isys_constant_values] .= map_cid.constant_values
-    p[map_cid.ix_sys] .= xdynamic[map_cid.ix_dynamic]
 
     # Potential Neural-Network parameters (in this case p must be a ComponentArray) which
     # are inside the ODE
@@ -30,7 +28,7 @@ function _switch_condition(oprob::ODEProblem, experiment_id::Symbol, xdynamic::A
     end
 
     # Potential ODE parameters which have their value assigned by a neural-net
-    _set_nn_preode_parameters!(p, xdynamic, xnn, simid, xindices, ml_models_pre_ode)
+    _set_ml_preode_parameters!(p, xdynamic, xnn, simulation_id, xindices, ml_models_pre_ode)
 
     # Initial state can depend on condition specific parameters
     model.u0!((@view u0[1:nstates]), p; __post_eq = posteq_simulation)
@@ -128,6 +126,30 @@ function _set_check_trigger_init!(cbs::SciMLBase.DECallback, value::Bool)::Nothi
         isnothing(cb.initialize) && continue
         !hasproperty(cb.initialize, :_check_trigger_init) && continue
         cb.initialize._check_trigger_init[1] = value
+    end
+    return nothing
+end
+
+function _set_ml_preode_parameters!(p::AbstractVector, xdynamic::AbstractVector, xnn, simulation_id::Symbol, xindices::ParameterIndices, ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreODE}})::Nothing
+    !haskey(ml_models_pre_ode, simulation_id) && return nothing
+    maps_nns = xindices.maps_nn_preode[simulation_id]
+    for (ml_model_id, ml_model_pre_ode) in ml_models_pre_ode[simulation_id]
+        map_ml_model = maps_nns[ml_model_id]
+        # In case of neural nets being computed before the function call,
+        # ml_model_pre_ode.outputs is already computed
+        outputs = get_tmp(ml_model_pre_ode.outputs, p)
+        if ml_model_pre_ode.computed[1] == false
+            # Only if neural net parameters are estimated, otherwise pnn is not used to
+            # set values in x (vector that might used for gradient computations)
+            if haskey(xnn, ml_model_id)
+                pnn = xnn[ml_model_id]
+                x = _get_ml_model_pre_ode_x(ml_model_pre_ode, xdynamic, pnn, map_ml_model)
+            else
+                x = _get_ml_model_pre_ode_x(ml_model_pre_ode, xdynamic, map_ml_model)
+            end
+            ml_model_pre_ode.forward!(outputs, x)
+        end
+        p[map_ml_model.ioutput_sys] .= outputs
     end
     return nothing
 end

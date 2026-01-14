@@ -137,23 +137,33 @@ function transform_x(x::T, scale::Symbol; to_xscale::Bool = false)::T where {T <
     end
 end
 
-function _sd(u::AbstractVector, t::Float64, p::AbstractVector, xnoise::T, xnondynamic::T,
-             model::PEtabModel, xnoise_maps::ObservableNoiseMap, observable_id::Symbol,
-             nominal_values::Vector{Float64})::Real where {T <: AbstractVector}
+function _sd(
+        u::AbstractVector, t::Float64, p::AbstractVector, xnoise::T, xnondynamic_mech::T,
+        xnn::Dict{Symbol, ComponentArray}, xnn_constant::Dict{Symbol, ComponentArray},
+        model::PEtabModel, xnoise_maps::ObservableNoiseMap, observable_id::Symbol,
+        nominal_values::Vector{Float64}
+    )::Real where {T <: AbstractVector}
     if xnoise_maps.single_constant == true
         σ = xnoise_maps.constant_values[1]
     else
-        σ = model.sd(u, t, p, xnoise, xnondynamic, nominal_values, observable_id, xnoise_maps, model.sys_observables)
+        σ = model.sd(
+            u, t, p, xnoise, xnondynamic_mech, xnn, xnn_constant, nominal_values,
+            observable_id, xnoise_maps, model.sys_observables, model.ml_models
+        )
     end
     return σ
 end
 
-function _h(u::AbstractVector, t::Float64, p::AbstractVector, xobservable::T,
-            xnondynamic::T, model::PEtabModel, xobservable_maps::ObservableNoiseMap,
-            observable_id::Symbol,
-            nominal_values::Vector{Float64})::Real where {T <: AbstractVector}
-    return model.h(u, t, p, xobservable, xnondynamic, nominal_values, observable_id,
-                   xobservable_maps, model.sys_observables)
+function _h(
+        u::AbstractVector, t::Float64, p::AbstractVector, xobservable::T,
+        xnondynamic_mech::T,  xnn::Dict{Symbol, ComponentArray},
+        xnn_constant::Dict{Symbol, ComponentArray}, model::PEtabModel,
+        xobservable_maps::ObservableNoiseMap, observable_id::Symbol,
+        nominal_values::Vector{Float64},
+    )::Real where {T <: AbstractVector}
+    return model.h(
+        u, t, p, xobservable, xnondynamic_mech, xnn, xnn_constant, nominal_values,
+        observable_id, xobservable_maps, model.sys_observables, model.ml_models)
 end
 
 # Function to extract observable or noise parameters when computing h or σ
@@ -194,19 +204,21 @@ end
 
 # TODO: Precompute only once
 function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices; full_x::Bool = false, nn_preode::Bool = false)::Vector{Integer}
-    xmap_simid = xindices.maps_conidition_id[simid]
+    @unpack isys_all_conditions, ix_condition = xindices.condition_maps[simid]
     if full_x == false
-        ixdynamic = vcat(xindices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic,
-                         xindices.xindices_dynamic[:nn_in_ode])
+        ixdynamic = vcat(
+            isys_all_conditions, ix_condition, xindices.xindices_dynamic[:nn_in_ode]
+        )
     else
-        ixdynamic = vcat(xindices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic,
-                         xindices.xindices_dynamic[:nn_in_ode],
-                         xindices.xindices[:not_system_tot])
+        ixdynamic = vcat(
+            isys_all_conditions, ix_condition, xindices.xindices_dynamic[:nn_in_ode],
+            xindices.xindices[:not_system_tot]
+        )
     end
     # Include parameters that potentially appear as only input to a neural-net. These
     # parameters are by default included in xdynamic (as they gouvern model dynamics)
-    if !isempty(xindices.maps_nn_preode)
-        for map_ml_model in values(xindices.maps_nn_preode[simid])
+    if !isempty(xindices.map_ml_preode)
+        for map_ml_model in values(xindices.map_ml_preode[simid])
             ixdynamic = vcat(ixdynamic, reduce(vcat, map_ml_model.ixdynamic_mech_inputs))
         end
     end

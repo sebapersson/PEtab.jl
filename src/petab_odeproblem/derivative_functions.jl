@@ -37,8 +37,9 @@ function _get_grad_forward_AD(probinfo::PEtabODEProblemInfo,
     return _grad!
 end
 
-function _get_grad_forward_eqs(probinfo::PEtabODEProblemInfo,
-                               model_info::ModelInfo)::Function
+function _get_grad_forward_eqs(
+        probinfo::PEtabODEProblemInfo, model_info::ModelInfo
+    )::Function
     @unpack split_over_conditions, gradient_method, chunksize = probinfo
     @unpack sensealg, cache = probinfo
     @unpack xdynamic_grad, odesols = cache
@@ -63,7 +64,12 @@ function _get_grad_forward_eqs(probinfo::PEtabODEProblemInfo,
 
     if sensealg != :ForwardDiff
         _solve_conditions! = let pinfo = probinfo, minfo = model_info
-            (x, cid) -> solve_conditions!(minfo, x, pinfo; cids = cid, sensitivities = true)
+            (x, cid) -> begin
+                xdynamic_mech, xnn = split_xdynamic(x, minfo.xindices, pinfo.cache)
+                return solve_conditions!(
+                    minfo, xdynamic_mech, xnn, pinfo; cids = cid, sensitivities = true
+                )
+            end
         end
         cfg = nothing
     end

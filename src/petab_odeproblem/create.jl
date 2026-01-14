@@ -224,7 +224,7 @@ function _get_nllh_grad(gradient_method::Symbol, grad::Function, _prior::Functio
 end
 
 function _get_bounds(model_info::ModelInfo, xnames::Vector{Symbol}, xnames_ps::Vector{Symbol}, which::Symbol)
-    @unpack petab_parameters, petab_net_parameters, xindices = model_info
+    @unpack petab_parameters, petab_ml_parameters, xindices = model_info
 
     # Mechanistic parameters has its bounds like a Vector
     ix_mech = _get_ixnames_mech(xnames, petab_parameters)

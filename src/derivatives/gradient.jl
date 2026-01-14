@@ -15,41 +15,22 @@ function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fun
     fill!(grad, 0.0)
     split_x!(x, xindices, cache; xdynamic_tot = true)
     xdynamic = get_tmp(cache.xdynamic_tot, x)
-    if isremade == false || length(xdynamic) == nxdynamic[1]
-        tmp = nxdynamic[1]
-        nxdynamic[1] = length(xdynamic)
-        try
-            # In case of no length(xdynamic) = 0 the ODE must still be solved to get
-            # the gradient of nondynamic parameters
-            if length(xdynamic_grad) != 0
-                ForwardDiff.gradient!(xdynamic_grad, _nllh_solveode, xdynamic, cfg)
-                @views grad[xindices.xindices_dynamic[:xest_to_xdynamic]] .= xdynamic_grad
-            else
-                _ = _nllh_solveode(xdynamic)
-            end
-        catch
-            fill!(grad, 0.0)
-            return nothing
+    tmp = nxdynamic[1]
+    nxdynamic[1] = length(xdynamic)
+    #try
+        # In case of no length(xdynamic) = 0 the ODE must still be solved to get
+        # the gradient of nondynamic parameters
+        if length(xdynamic_grad) != 0
+            ForwardDiff.gradient!(xdynamic_grad, _nllh_solveode, xdynamic, cfg)
+            @views grad[xindices.xindices_dynamic[:xest_to_xdynamic]] .= xdynamic_grad
+        else
+            _ = _nllh_solveode(xdynamic)
         end
-        nxdynamic[1] = tmp
-    else
-        try
-            if nxdynamic[1] != 0
-                C = length(cfg.seeds)
-                chunk = ForwardDiff.Chunk(C)
-                nforward_passes = ceil(nxdynamic[1] / C) |> Int64
-                _xdynamic = xdynamic[cache.xdynamic_input_order]
-                forwarddiff_gradient_chunks(_nllh_solveode, xdynamic_grad, _xdynamic,
-                                            chunk; nforward_passes = nforward_passes)
-                @views grad[xindices.xindices_dynamic[:xest_to_xdynamic]] .= xdynamic_grad[cache.xdynamic_output_order]
-            else
-                _ = _nllh_solveode(xdynamic)
-            end
-        catch
-            fill!(grad, 0.0)
-            return nothing
-        end
-    end
+    #catch
+    #    fill!(grad, 0.0)
+    #    return nothing
+    #end
+    nxdynamic[1] = tmp
 
     # In case ODE could not be solved return zero gradient
     if simulation_info.could_solve[1] != true
@@ -139,7 +120,7 @@ function grad_forward_eqs!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fu
     end
 
     _grad_forward_eqs!(cache.xdynamic_grad, _solve_conditions!, probinfo, model_info,
-                       cfg; cids = cids, isremade = isremade)
+                       cfg; cids = cids)
     @views grad[xindices.xindices_dynamic[:xest_to_xdynamic]] .= cache.xdynamic_grad
 
     # Happens when at least one forward pass fails

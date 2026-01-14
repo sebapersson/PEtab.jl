@@ -1,5 +1,5 @@
 function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol, FIM_method::Symbol, sensealg, model_info::ModelInfo, ml_models::Union{MLModels}, split_over_conditions::Bool, oprob::ODEProblem)::PEtabODEProblemCache
-    @unpack xindices, model, simulation_info, petab_measurements, petab_parameters, petab_net_parameters = model_info
+    @unpack xindices, model, simulation_info, petab_measurements, petab_parameters, petab_ml_parameters = model_info
     nxestimate = length(xindices.xids[:estimate])
     nstates = model_info.nstates
     if model.sys_mutated isa ODEProblem
@@ -94,14 +94,15 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol, F
 
     # In case the sensitivites are computed via automatic differentitation we need to
     # pre-allocate a sensitivity matrix accross all conditions.
-    forward_eqs_AD = gradient_method === :ForwardEquations && sensealg === :ForwardDiff
+    forward_eqs_AD = (gradient_method === :ForwardEquations && sensealg === :ForwardDiff)
     nx_forwardeqs = _get_nx_forwardeqs(xindices, split_over_conditions)
     if forward_eqs_AD || GN_hess
         ntimepoints_save = simulation_info.tsaves_no_cbs |>
             values .|>
             length |>
             sum
-        S = zeros(Float64, ntimepoints_save * nstates, length(xdynamic))
+        S = zeros(Float64, ntimepoints_save * nstates, nx_forwardeqs)
+        forward_eqs_grad = zeros(Float64, nx_forwardeqs)
         odesols = zeros(Float64, nstates, ntimepoints_save)
     else
         S = zeros(Float64, 0, 0)

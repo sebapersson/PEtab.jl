@@ -14,7 +14,8 @@ Import a PEtab problem in the standard (YAML + tables) format from `path_yaml` a
 """
 function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
                     verbose::Bool = false, ifelse_to_callback::Bool = true,
-                    write_to_file::Bool = false)::PEtabModel
+                    write_to_file::Bool = false,
+                    ml_models::Union{MLModels, Nothing} = nothing)::PEtabModel
     petab_version = _get_version(path_yaml)
 
     if petab_version == "1.0.0"
@@ -26,12 +27,13 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
 
     paths = _get_petab_paths(path_yaml)
     return _PEtabModel(paths, petab_tables, build_julia_files, verbose, ifelse_to_callback,
-                       write_to_file, petab_events)
+                       write_to_file, petab_events, ml_models)
 end
 
 function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::PEtabTables,
                      build_julia_files::Bool, verbose::Bool, ifelse_to_callback::Bool,
-                     write_to_file::Bool, petab_events::Vector{PEtabEvent})
+                     write_to_file::Bool, petab_events::Vector{PEtabEvent},
+                     ml_models)
     name = splitdir(paths[:dirmodel])[end]
 
     write_to_file && !isdir(paths[:dirjulia]) && mkdir(paths[:dirjulia])
@@ -52,28 +54,30 @@ function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::PEtabTables,
         the SBML model must be mutated to add an initial value parameter in order for
         PEtab.jl to be able to correctly compute gradients
     =#
-    ml_models_in_ode = _get_ml_models_in_ode(ml_models, paths[:SBML], petab_tables)
-    inline_assignment_rules = !isempty(ml_models_in_ode)
-    model_SBML = SBMLImporter.parse_SBML(paths[:SBML], false; model_as_string = false,
-                                         ifelse_to_callback = ifelse_to_callback,
-                                         inline_assignment_rules = inline_assignment_rules)
-    speciemap_sbml = _get_sbml_speciemap(model_SBML)
-    add_u0_parameters!(model_SBML, petab_tables, ml_models)
-    pathmodel = joinpath(paths[:dirjulia], name * ".jl")
-    exist = isfile(pathmodel)
-    if isempty(ml_models_in_ode)
-        odesystem, speciemap, parametermap = _get_odesys(model_SBML, paths, exist, build_julia_files, write_to_file, verbose)
-    else
-        odesystem, speciemap, parametermap = _get_odeproblem(model_SBML, ml_models_in_ode, petab_tables)
+    _logging(:Build_ODESystem, verbose)
+    btime = @elapsed begin
+        ml_models_in_ode = _get_ml_models_in_ode(ml_models, paths[:SBML], petab_tables)
+        inline_assignment_rules = !isempty(ml_models_in_ode)
+        model_SBML = SBMLImporter.parse_SBML(paths[:SBML], false; model_as_string = false,
+                                            ifelse_to_callback = ifelse_to_callback,
+                                            inline_assignment_rules = inline_assignment_rules)
+        speciemap_sbml = _get_sbml_speciemap(model_SBML)
+        add_u0_parameters!(model_SBML, petab_tables, ml_models)
+        pathmodel = joinpath(paths[:dirjulia], name * ".jl")
+        exist = isfile(pathmodel)
+        if isempty(ml_models_in_ode)
+            odesystem, speciemap, parametermap = _get_odesys(model_SBML, paths, exist, build_julia_files, write_to_file, verbose)
+        else
+            odesystem, speciemap, parametermap = _get_odeproblem(model_SBML, ml_models_in_ode, petab_tables)
+        end
+
+        # Indices for mapping parameters and tracking which parameter to estimate, useful
+        # when building the coming PEtab functions
+        xindices = ParameterIndices(petab_tables, paths, odesystem, parametermap, speciemap, ml_models)
+
+        sys_observables = _get_sys_observables(odesystem)
+        sys_observable_ids = collect(keys(sys_observables))
     end
-
-    # Indices for mapping parameters and tracking which parameter to estimate, useful
-    # when building the coming PEtab functions
-    xindices = ParameterIndices(petab_tables, odesystem, parametermap, speciemap)
-
-    sys_observables = _get_sys_observables(odesystem)
-    sys_observable_ids = collect(keys(sys_observables))
-
     _logging(:Build_ODESystem, verbose; time = btime)
 
     path_u0_h_σ = joinpath(paths[:dirjulia], "$(name)_h_sd_u0.jl")
@@ -81,12 +85,10 @@ function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::PEtabTables,
     _logging(:Build_u0_h_σ, verbose; buildfiles = build_julia_files, exist = exist)
     if !exist || build_julia_files == true
         btime = @elapsed begin
-            hstr, u0!str, u0str, σstr = parse_observables(name, paths, odesystem,
-                                                          petab_tables[:observables],
-                                                          xindices, speciemap,
-                                                          speciemap_sbml,
-                                                          sys_observable_ids, model_SBML,
-                                                          write_to_file)
+            hstr, u0!str, u0str, σstr = parse_observables(
+                name, paths, odesystem, petab_tables, xindices, speciemap, speciemap_sbml,
+                sys_observable_ids, model_SBML, ml_models, write_to_file
+            )
         end
         _logging(:Build_u0_h_σ, verbose; time = btime)
     else
@@ -118,14 +120,12 @@ function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::PEtabTables,
 
     return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan,
                       paths, odesystem, deepcopy(odesystem), parametermap, speciemap,
-                      petab_tables, cbs, false, petab_events, sys_observables)
+                      petab_tables, cbs, false, petab_events, sys_observables, ml_models)
 end
 
 function add_u0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::PEtabTables, ml_models::MLModels)::Nothing
     conditions_df = petab_tables[:conditions]
     parameters_df = petab_tables[:parameters]
-    mappings_df = petab_tables[:mapping]
-    hybridization_df = petab_tables[:hybridization]
 
     specieids = keys(model_SBML.species)
     rateruleids = model_SBML.rate_rule_variables
@@ -136,6 +136,8 @@ function add_u0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::PE
     # value must be converted to a parameter
     net_outputs = String[]
     for (ml_model_id, ml_model) in ml_models
+        mappings_df = petab_tables[:mapping]
+        hybridization_df = petab_tables[:hybridization]
         ml_model.static == false && continue
         output_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :outputs) |>
             Iterators.flatten

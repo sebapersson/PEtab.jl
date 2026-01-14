@@ -42,6 +42,21 @@ function (condition_map::ConditionMap)(p::AbstractVector, xdynamic::AbstractVect
     return nothing
 end
 
+struct MLModelPreODEMap{T1 <: Vector{<:Array{<:AbstractFloat}}}
+    ninput_arguments::Int64
+    constant_inputs::T1
+    iconstant_inputs::Vector{Vector{Int32}}
+    ixdynamic_mech_inputs::Vector{Vector{Int32}}
+    ixdynamic_inputs::Vector{Vector{Int32}}
+    ninputs::Vector{Int64}
+    nxdynamic_inputs::Vector{Int64}
+    noutputs::Int64
+    ix_nn_outputs::Vector{Int32}
+    ix_nn_outputs_grad::Vector{Int32}
+    ioutput_sys::Vector{Int32}
+    file_input::Vector{Bool}
+end
+
 struct ParameterIndices
     xindices::Dict{Symbol, Vector{Int32}}
     xids::Dict{Symbol, Vector{Symbol}}
@@ -51,6 +66,7 @@ struct ParameterIndices
     xobservable_maps::Vector{ObservableNoiseMap}
     xnoise_maps::Vector{ObservableNoiseMap}
     condition_maps::Dict{Symbol, ConditionMap}
+    map_ml_preode::Dict{Symbol, Dict{Symbol, MLModelPreODEMap}}
 end
 
 struct Priors
@@ -157,7 +173,7 @@ end
 struct ModelInfo
     petab_measurements::PEtabMeasurements
     petab_parameters::PEtabParameters
-    petab_net_parameters::PEtabMLParameters
+    petab_ml_parameters::PEtabMLParameters
     xindices::ParameterIndices
     simulation_info::SimulationInfo
     priors::Priors
@@ -167,13 +183,13 @@ end
 function ModelInfo(model::PEtabModel, sensealg, custom_values)::ModelInfo
     @unpack petab_tables, callbacks, petab_events = model
     petab_measurements = PEtabMeasurements(petab_tables[:measurements], petab_tables[:observables])
-    petab_parameters = PEtabParameters(petab_tables[:parameters], custom_values = custom_values)
+    petab_parameters = PEtabParameters(petab_tables[:parameters], petab_tables[:mapping], model.ml_models; custom_values = custom_values)
+    petab_ml_parameters = PEtabMLParameters(petab_tables[:parameters], petab_tables[:mapping], model.ml_models)
     xindices = ParameterIndices(petab_parameters, petab_measurements, model)
     simulation_info = SimulationInfo(callbacks, petab_measurements, petab_events; sensealg = sensealg)
     priors = Priors(xindices, model)
     nstates = Int32(length(unknowns(model.sys_mutated)))
-    return ModelInfo(petab_measurements, petab_parameters, xindices, simulation_info,
-                     priors, model, nstates)
+    return ModelInfo(petab_measurements, petab_parameters, petab_ml_parameters, xindices, simulation_info, priors, model, nstates)
 end
 
 """
@@ -206,7 +222,7 @@ online documentation.
 - `reltol_adj = reltol`: Relative tolerance for the adjoint solve (only relevant when
   `gradient_method = :Adjoint`).
 """
-struct ODESolver
+mutable struct ODESolver
     solver::SciMLAlgorithm
     solver_adj::SciMLAlgorithm
     abstol::Float64
@@ -343,6 +359,15 @@ function SteadyStateSolver(alg::NonlinearAlg, abstol, reltol, maxiters)::SteadyS
                              nothing, nothing, false, [Inf])
 end
 
+struct MLModelPreODE{T1 <: DiffCache, T2 <: Vector{<:DiffCache}}
+    forward!::Function
+    tape::Any
+    jac_ml_model::Matrix{Float64}
+    outputs::T1
+    inputs::T2
+    x::T1
+    computed::Vector{Bool}
+end
 struct PEtabODEProblemInfo{S1 <: ODESolver, S2 <: ODESolver, C <: PEtabODEProblemCache}
     odeproblem::ODEProblem
     odeproblem_gradient::ODEProblem
@@ -362,8 +387,6 @@ struct PEtabODEProblemInfo{S1 <: ODESolver, S2 <: ODESolver, C <: PEtabODEProble
     chunksize::Int64
     ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreODE}}
 end
-
-
 
 """
     PEtabODEProblem(model::PEtabModel; kwargs...) -> PEtabODEProblem

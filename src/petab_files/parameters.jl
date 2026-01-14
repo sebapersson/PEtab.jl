@@ -88,7 +88,14 @@ function PEtabMLParameters(_parameters_df::DataFrame, mappings_df::DataFrame, ml
     return PEtabMLParameters(nominal_values, lower_bounds, upper_bounds, parameter_ids, estimate, ml_model_ids, mapping_table_ids, Vector{Function}(undef, 0))
 end
 
-function Priors(xindices::ParameterIndices, parameters_df::DataFrame)::Priors
+function Priors(xindices::ParameterIndices, model::PEtabModel)::Priors
+    if model.defined_in_julia == false
+        petab_version = _get_version(model.paths[:yaml])
+    else
+        petab_version = "1.0.0"
+    end
+    parameters_df = model.petab_tables[:parameters]
+
     # In case there are no model priors
     if !(:objectivePriorType in propertynames(parameters_df))
         return Priors()

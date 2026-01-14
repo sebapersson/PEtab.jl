@@ -9,9 +9,8 @@ function _G(u::AbstractVector, p, t::T, i::Integer, imeasurements_t_cid::Vector{
         xnoise_maps = xindices.xnoise_maps[im]
         xobservable_maps = xindices.xobservable_maps[im]
 
-        h = _h(u, t, p, xobservable, xnondynamic, model, xobservable_maps, obsid,
-               nominal_value)
-        σ = _sd(u, t, p, xnoise, xnondynamic, model, xnoise_maps, obsid, nominal_value)
+        h = _h(u, t, p, xobservable, xnondynamic_mech, xnn, xnn_constant, model, xobservable_maps, obsid, nominal_value)
+        σ = _sd(u, t, p, xnoise, xnondynamic_mech, xnn, xnn_constant, model, xnoise_maps, obsid, nominal_value)
 
         if residuals == true
             h_transformed = _transform_h(h, noise_distributions[im])
@@ -61,9 +60,19 @@ function _get_∂G∂_!(model_info::ModelInfo, cid::Symbol, xnoise::Vector{T}, x
 end
 
 #
-function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector{T}, xdynamic::Vector{T}, xindices::ParameterIndices, simid::Symbol; sensitivities_AD::Bool = false)::Nothing where {T <: AbstractFloat}
+function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector{T}, xdynamic::Vector{T}, xindices::ParameterIndices, simid::Symbol; sensitivities_AD::Bool = false, nn_preode::Bool = false)::Nothing where {T <: AbstractFloat}
     @unpack xids, xscale, condition_maps = xindices
     condition_map! = condition_maps[simid]
+
+    # TODO: Refactor handling of this!
+    # Neural net parameters for a neural net before the ODE dynamics. These gradient
+    # components only considered for ForwardEquations full AD, where it is not possible to
+    # use the chain-rule to separately differentitate each componenent, and these parameters
+    # are differentiated using full AD.
+    if nn_preode == true
+        xi = xindices.xindices_dynamic[:nn_preode]
+        @views grad_xscale[xi] .+= grad_linscale[xi]
+    end
 
     # TODO: Jacobian should be pre-allocated, doable as I should have all the dimensions when building the ConditionMap
     # In case of ForwardDiff sensitivities (sensitivities_AD == true) grad_linscale follow
@@ -73,7 +82,7 @@ function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector
     if sensitivities_AD == true
         J = ForwardDiff.jacobian(condition_map!, similar(∂G∂p), xdynamic)
         grad_linscale .+= transpose(transpose(∂G∂p) * J)
-        _grad_to_xscale!(grad_xscale, grad_linscale, xdynamic, xids[:dynamic], xscale)
+        _grad_to_xscale!(grad_xscale, grad_linscale, xdynamic, xids[:dynamic_mech], xscale)
         return nothing
     end
 
@@ -82,7 +91,7 @@ function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector
     # correction needed for both
     J = ForwardDiff.jacobian(condition_map!, similar(∂G∂p), xdynamic)
     _grad_linscale = transpose(transpose(grad_linscale + ∂G∂p) * J)
-    _grad_to_xscale!(grad_xscale, _grad_linscale, xdynamic, xids[:dynamic], xscale)
+    _grad_to_xscale!(grad_xscale, _grad_linscale, xdynamic, xids[:dynamic_mech], xscale)
     return nothing
 end
 
@@ -126,7 +135,7 @@ function _get_xinput(simid::Symbol, x::Vector{<:AbstractFloat}, ixdynamic_simid,
         return xinput
     end
     for (ml_model_id, nn_preode) in probinfo.ml_models_pre_ode[simid]
-        map_ml_model = model_info.xindices.maps_nn_preode[simid][ml_model_id]
+        map_ml_model = model_info.xindices.map_ml_preode[simid][ml_model_id]
         outputs = get_tmp(nn_preode.outputs, xinput)
         ix = map_ml_model.ix_nn_outputs_grad
         ix .= map_ml_model.ix_nn_outputs .+ ninode
@@ -142,7 +151,7 @@ function _split_xinput!(probinfo::PEtabODEProblemInfo, simid::Symbol, model_info
         return nothing
     end
     for (ml_model_id, nn_preode) in probinfo.ml_models_pre_ode[simid]
-        map_ml_model =  model_info.xindices.maps_nn_preode[simid][ml_model_id]
+        map_ml_model =  model_info.xindices.map_ml_preode[simid][ml_model_id]
         outputs = get_tmp(nn_preode.outputs, xinput)
         @views outputs .= xinput[map_ml_model.ix_nn_outputs_grad]
     end

@@ -60,7 +60,7 @@ function _jac_ml_model_preode!(probinfo::PEtabODEProblemInfo, model_info::ModelI
             @unpack tape, jac_ml_model, outputs, computed, forward! = ml_model_pre_ode
             # Parameter mapping. If one of the inputs is a parameter to estimate, the
             # Jacobian is also computed of the input parameter.
-            map_ml_model = model_info.xindices.maps_nn_preode[cid][ml_model_id]
+            map_ml_model = model_info.xindices.map_ml_preode[cid][ml_model_id]
             x_ml_model = get_tmp(cache.xnn[ml_model_id], 1.0)
 
             _outputs = get_tmp(outputs, x_ml_model)
@@ -81,9 +81,9 @@ end
 
 function _set_grad_x_nn_preode!(xdynamic_grad::AbstractVector, simid::Symbol, probinfo::PEtabODEProblemInfo, model_info::ModelInfo)::Nothing
     isempty(probinfo.ml_models_pre_ode) && return nothing
-    @unpack xindices_dynamic, maps_nn_preode = model_info.xindices
+    @unpack xindices_dynamic, map_ml_preode = model_info.xindices
     for (ml_model_id, ml_model_pre_ode) in probinfo.ml_models_pre_ode[simid]
-        map_ml_model = maps_nn_preode[simid][ml_model_id]
+        map_ml_model = map_ml_preode[simid][ml_model_id]
         grad_nn_output = probinfo.cache.grad_nn_preode[map_ml_model.ix_nn_outputs]
         # Needed to account for neural-net parameter potentially not being estimated
         ix = reduce(vcat, map_ml_model.ixdynamic_mech_inputs)

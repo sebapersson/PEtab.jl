@@ -38,7 +38,7 @@ function _get_split_over_conditions(split::Union{Nothing, Bool},
                                     model_info::ModelInfo)::Bool
     !isnothing(split) && return split
     nxdynamic_sys = _get_n_xdynamic_sys(model_info)
-    nxdynamic = length(model_info.xindices.xids[:dynamic])
+    nxdynamic = length(model_info.xindices.xids[:dynamic_mech])
     if nxdynamic ≥ 2 * nxdynamic_sys
         return true
     else

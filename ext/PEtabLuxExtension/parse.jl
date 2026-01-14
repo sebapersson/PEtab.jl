@@ -244,20 +244,20 @@ end
 function _get_freeze_info(ml_model_id::Symbol, ml_models::Dict, path_yaml::String)::Dict
     paths = PEtab._get_petab_paths(path_yaml)
     petab_tables = PEtab.read_tables(path_yaml)
-    petab_net_parameters = PEtab.PEtabMLParameters(petab_tables[:parameters], petab_tables[:mapping], ml_models)
-    inet = findall(x -> x == ml_model_id, petab_net_parameters.ml_model_id)
-    all(petab_net_parameters.estimate[inet] .== false) && return Dict()
-    all(petab_net_parameters.estimate[inet] .== true) && return Dict()
+    petab_ml_parameters = PEtab.PEtabMLParameters(petab_tables[:parameters], petab_tables[:mapping], ml_models)
+    inet = findall(x -> x == ml_model_id, petab_ml_parameters.ml_model_id)
+    all(petab_ml_parameters.estimate[inet] .== false) && return Dict()
+    all(petab_ml_parameters.estimate[inet] .== true) && return Dict()
 
     rng = Random.default_rng()
     ps, _ = Lux.setup(rng, ml_models[ml_model_id].model)
     ps = ComponentArray(ps) |> f64
     PEtab.set_ml_model_ps!(ps, ml_model_id, ml_models, paths, petab_tables)
-    ml_model_indices = PEtab._get_ml_model_indices(ml_model_id, petab_net_parameters.mapping_table_id)
+    ml_model_indices = PEtab._get_ml_model_indices(ml_model_id, petab_ml_parameters.mapping_table_id)
     freeze_info = Dict{Symbol, Dict}()
     for ml_model_index in ml_model_indices[2:end]
-        mapping_table_id = string(petab_net_parameters.mapping_table_id[ml_model_index])
-        estimate = petab_net_parameters.estimate[ml_model_index]
+        mapping_table_id = string(petab_ml_parameters.mapping_table_id[ml_model_index])
+        estimate = petab_ml_parameters.estimate[ml_model_index]
 
         @assert count(".", mapping_table_id) ≤ 2 "Only two . are allowed when specifying network layer"
         if count('[', mapping_table_id) == 1 && count('.', mapping_table_id) == 1

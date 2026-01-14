@@ -33,17 +33,17 @@ function set_ml_model_ps!(ps::ComponentArray, ml_model_id::Symbol, ml_models, pa
 
     # Case for PEtab standard format provided
     ml_model = ml_models[ml_model_id]
-    petab_net_parameters = PEtabMLParameters(petab_tables[:parameters], petab_tables[:mapping], ml_models)
-    netindices = _get_ml_model_indices(ml_model_id, petab_net_parameters.mapping_table_id)
+    petab_ml_parameters = PEtabMLParameters(petab_tables[:parameters], petab_tables[:mapping], ml_models)
+    netindices = _get_ml_model_indices(ml_model_id, petab_ml_parameters.mapping_table_id)
 
     # Set parameters for entire net, then set values for specific layers
     PEtab.set_ml_model_ps!(ps, ml_model_id, ml_model, paths)
     length(netindices) == 1 && return nothing
     for netindex in netindices
-        mapping_table_id = string(petab_net_parameters.mapping_table_id[netindex])
+        mapping_table_id = string(petab_ml_parameters.mapping_table_id[netindex])
         mapping_table_id == "$(ml_model_id).parameters" && continue
 
-        value = petab_net_parameters.nominal_value[netindex]
+        value = petab_ml_parameters.nominal_value[netindex]
         isempty(value) && continue
 
         @assert count(".", mapping_table_id) ≤ 2 "Only two . are allowed when specifying network layer"

@@ -1,5 +1,5 @@
 """
-    _get_xids(petab_parameters, petab_net_parameters, petab_measurements, sys, petab_tables,
+    _get_xids(petab_parameters, petab_ml_parameters, petab_measurements, sys, petab_tables,
         speciemap, parametermap, ml_models)
 
 Categorize all models parameters.
@@ -8,7 +8,7 @@ This is a **very** important function, as parameter type dictates how the gradie
 be computed for any parameter. The assigned parameter categories are later used to
 build all the indices used by PEtab.jl to correctly map parameters.
 """
-function _get_xids(petab_parameters::PEtabParameters, petab_net_parameters::PEtabMLParameters, petab_measurements::PEtabMeasurements, sys::ModelSystem, petab_tables::PEtabTables, paths::Dict{Symbol, String}, speciemap, parametermap, ml_models::MLModels)::Dict{Symbol, Vector{Symbol}}
+function _get_xids(petab_parameters::PEtabParameters, petab_ml_parameters::PEtabMLParameters, petab_measurements::PEtabMeasurements, sys::ModelSystem, petab_tables::PEtabTables, paths::Dict{Symbol, String}, speciemap, parametermap, ml_models::MLModels)::Dict{Symbol, Vector{Symbol}}
     @unpack observable_parameters, noise_parameters = petab_measurements
 
     # xids in the ODESystem in correct order
@@ -49,7 +49,7 @@ function _get_xids(petab_parameters::PEtabParameters, petab_net_parameters::PEta
     xids_not_system_mech = unique(vcat(xids_observable, xids_noise, xids_nondynamic_mech))
 
     # Bookeep parameters to estimate
-    xids_ml_est = _get_xids_ml_est(xids_ml, petab_net_parameters)
+    xids_ml_est = _get_xids_ml_est(xids_ml, petab_ml_parameters)
     xids_estimate = vcat(xids_dynamic_mech, xids_not_system_mech, xids_ml_est)
     xids_petab = petab_parameters.parameter_id
     return Dict(:dynamic_mech => xids_dynamic_mech, :noise => xids_noise, :ml => xids_ml, :ml_est => xids_ml_est, :observable => xids_observable, :nondynamic_mech => xids_nondynamic_mech, :not_system_mech => xids_not_system_mech, :sys => xids_sys, :estimate => xids_estimate, :petab => xids_petab, :ml_in_ode => xids_ml_in_ode, :ml_preode => xids_ml_preode, :ml_preode_outputs => xids_ml_preode_output, :ml_nondynamic => xids_ml_nondynamic)
@@ -57,10 +57,14 @@ end
 
 function _get_xids_dynamic_mech(xids_observable::T, xids_noise::T, xids_nondynamic_mech::T, xids_ml::T, petab_parameters::PEtabParameters)::T where {T <: Vector{Symbol}}
     dynamics_xids = Symbol[]
-    _ids = Iterators.flatten((xids_observable, xids_noise, xids_nondynamic_mech, xids_ml))
+    other_ids = Iterators.flatten((xids_observable, xids_noise, xids_nondynamic_mech, xids_ml))
     for id in petab_parameters.parameter_id
-        _estimate_parameter(id, petab_parameters) == false && continue
-        id in _ids && continue
+        if _estimate_parameter(id, petab_parameters) == false
+            continue
+        end
+        if id in other_ids
+            continue
+        end
         push!(dynamics_xids, id)
     end
     return dynamics_xids
@@ -147,6 +151,7 @@ function _get_xids_condition(sys, petab_parameters::PEtabParameters, petab_table
     xids_sys = parameters(sys) .|> string
     species_sys = _get_state_ids(sys)
     net_inputs = String[]
+
     for (ml_model_id, ml_model) in ml_models
         ml_model.static == false && continue
         input_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs) |>
@@ -154,30 +159,35 @@ function _get_xids_condition(sys, petab_parameters::PEtabParameters, petab_table
             string
         net_inputs = Iterators.flatten((net_inputs, input_variables))
     end
-    problem_variables = Iterators.flatten((xids_sys, species_sys, net_inputs))
 
     xids_condition = Symbol[]
     for colname in names(conditions_df)
         colname in ["conditionName", "conditionId"] && continue
-        if !(colname in problem_variables)
+        if !(colname in Iterators.flatten((xids_sys, species_sys)))
             throw(PEtabFileError("Parameter $colname that dictates an experimental \
                                   condition does not appear among the model variables"))
         end
-        for condition_variable in Symbol.(conditions_df[!, colname])
-            is_number(condition_variable) && continue
-            condition_variable == :missing && continue
+        for condition_value in conditions_df[!, colname]
+            ismissing(condition_value) && continue
+            condition_value isa Real && continue
+            is_number(condition_value) && continue
 
-            should_est = _estimate_parameter(condition_variable, petab_parameters)
-            if should_est == false
-                continue
+            for parameter_id in petab_parameters.parameter_id
+                estimate = _estimate_parameter(parameter_id, petab_parameters)
+                for net_input in net_inputs
+                    _formula = SBMLImporter._replace_variable(condition_value, "$(net_input)", "")
+                    _formula == condition_value && continue
+                    throw(PEtabFileError("Neural net input variable $(condition_variable) \
+                        setting value of $colname is a simulation condition is not \
+                        allowed to be estiamted"))
+                end
+
+                estimate == false && continue
+                _formula = SBMLImporter._replace_variable(condition_value, "$(parameter_id)", "")
+                _formula == condition_value && continue
+                parameter_id in xids_condition && continue
+                push!(xids_condition, parameter_id)
             end
-            if string(colname) in net_inputs && should_est == true
-                throw(PEtabFileError("Neural net input variable $(condition_variable) for \
-                                      condition variable $colname is not allowed to be a \
-                                      parameter that is estimated"))
-            end
-            condition_variable in xids_condition && continue
-            push!(xids_condition, condition_variable)
         end
     end
     return xids_condition
@@ -275,11 +285,11 @@ function _get_xscales(xids::Dict{T, Vector{T}}, petab_parameters::PEtabParameter
     return Dict(xids[:estimate] .=> s)
 end
 
-function _get_xids_ml_est(xids_ml::Vector{Symbol}, petab_net_parameters::PEtabMLParameters)::Vector{Symbol}
+function _get_xids_ml_est(xids_ml::Vector{Symbol}, petab_ml_parameters::PEtabMLParameters)::Vector{Symbol}
     out = Symbol[]
     for ml_model_id in xids_ml
-        ip = findall(x -> x == ml_model_id, petab_net_parameters.ml_model_id)
-        for estimate in petab_net_parameters.estimate[ip]
+        ip = findall(x -> x == ml_model_id, petab_ml_parameters.ml_model_id)
+        for estimate in petab_ml_parameters.estimate[ip]
             estimate == false && continue
             push!(out, ml_model_id)
             break

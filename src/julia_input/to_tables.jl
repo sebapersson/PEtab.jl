@@ -1,4 +1,4 @@
-function _parameters_to_table(parameters::Vector)::DataFrame
+function _parameters_to_table(parameters::Vector{PEtabParameter})::DataFrame
     # Most validity check occurs later during table parsing
     parameters_df = DataFrame()
     for petab_paramter in parameters
@@ -15,9 +15,6 @@ function _parameters_to_table(parameters::Vector)::DataFrame
         if lowerBound > upperBound
             throw(PEtabFormatError("Lower bound $lowerBound is larger than upper bound " *
                                    "$upperBound for paramter $parameter"))
-        if !(petab_paramter isa Union{PEtabParameter, PEtabMLParameter})
-            throw(PEtab.PEtabInputError("Input parameters to a PEtabModel must either \
-                be a PEtabParameter or a PEtabMLParameter."))
         end
 
         nominalValue = isnothing(value) ? (lowerBound + upperBound) / 2.0 : value
@@ -52,50 +49,6 @@ function _parameters_to_table(parameters::Vector)::DataFrame
 
     _check_table(parameters_df, :parameters_v1)
     return parameters_df
-end
-
-function _parse_petab_parameter(petab_parameter::PEtabParameter)::DataFrame
-    @unpack parameter, scale, lb, ub, value, estimate = petab_parameter
-
-    parameter_scale = isnothing(scale) ? "lin" : string(scale)
-    if !(parameter_scale in VALID_SCALES)
-        throw(PEtabFormatError("Scale $parameter_scale is not allowed for parameter \
-            $parameter. Allowed scales are $(VALID_SCALES)"))
-    end
-
-    lower_bound = isnothing(lb) ? 1e-3 : lb
-    upper_bound = isnothing(ub) ? 1e3 : ub
-    if lower_bound > upper_bound
-        throw(PEtabFormatError("Lower bound $lower_bound is larger than upper bound \
-            $upper_bound for paramter $parameter"))
-    end
-
-    nominal_value = isnothing(value) ? (lower_bound + upper_bound) / 2.0 : value
-    should_estimate = estimate == true ? 1 : 0
-    row = DataFrame(parameterId = "$(parameter)",
-                    parameterScale = parameter_scale,
-                    lowerBound = lower_bound,
-                    upperBound = upper_bound,
-                    nominalValue = nominal_value,
-                    estimate = should_estimate)
-    return row
-end
-function _parse_petab_parameter(petab_parameter::PEtabMLParameter)::DataFrame
-    @unpack ml_model_id, estimate, value = petab_parameter
-
-    if isnothing(value)
-        nominal_value = "$(ml_model_id)_julia_random"
-    else
-        nominal_value = "$(ml_model_id)_julia_provided"
-    end
-    should_estimate = estimate == true ? 1 : 0
-    row = DataFrame(parameterId = "$(ml_model_id)_parameters",
-                    parameterScale = "lin",
-                    lowerBound = -Inf,
-                    upperBound = Inf,
-                    nominalValue = nominal_value,
-                    estimate = should_estimate)
-    return row
 end
 
 function _observables_to_table(observables::Vector{PEtabObservable})::DataFrame

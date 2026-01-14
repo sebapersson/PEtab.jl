@@ -278,6 +278,17 @@ function PEtabEvent(condition::Union{UserFormula, Real}, assignments::Pair...; t
 
     return PEtabEvent(string(condition), target_ids, target_values, trigger_time, Symbol.(condition_ids))
 end
+
+mutable struct MLModel{T1 <: Any, T2 <: Union{Vector{Symbol}, Vector{Vector{Symbol}}}}
+    const model::T1
+    st::NamedTuple
+    const ps::ComponentVector{Float64}
+    const static::Bool
+    const dirdata::String
+    const inputs::T2
+    const outputs::Vector{Symbol}
+end
+
 struct PEtabModel
     name::String
     h::Function
@@ -295,4 +306,5 @@ struct PEtabModel
     defined_in_julia::Bool
     petab_events::Vector{PEtabEvent}
     sys_observables::Dict{Symbol, Function}
+    ml_models::Dict{Symbol, <:MLModel}
 end
