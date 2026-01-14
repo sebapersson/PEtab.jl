@@ -1,4 +1,4 @@
-function read_tables(path_yaml::String)::PEtabTables
+function read_tables_v1(path_yaml::String)::Dict{Symbol, DataFrame}
     paths = _get_petab_paths(path_yaml)
     parameters_df = _read_table(paths, :parameters)
     conditions_df = _read_table(paths, :conditions)
@@ -14,9 +14,22 @@ function read_tables(path_yaml::String)::PEtabTables
     return tables
 end
 
+function read_tables_v2(path_yaml::String)::Dict{Symbol, DataFrame}
+    petab_paths = _get_petab_paths(path_yaml)
+    experiments_df = _read_table(petab_paths[:experiments], :experiments_v2)
+    conditions_df = _read_table(petab_paths[:conditions], :conditions_v2)
+    measurements_df = _read_table(petab_paths[:measurements], :measurements_v2)
+    observables_df = _read_table(petab_paths[:observables], :observables_v2)
+    parameters_df = _read_table(petab_paths[:parameters], :parameters_v2)
+    return Dict(:parameters => parameters_df, :conditions => conditions_df,
+                :observables => observables_df, :measurements => measurements_df,
+                :experiments => experiments_df)
+end
+
+
 function _get_petab_paths(path_yaml::AbstractString)::Dict{Symbol, String}
     if !isfile(path_yaml)
-        throw(PEtabFileError("yaml file $(path_yaml) does not exist"))
+        throw(PEtabFileError("PEtab problem YAML file does not exist at path $(path_yaml)"))
     end
     yaml_file = YAML.load_file(path_yaml)
     version = yaml_file["format_version"]
@@ -31,63 +44,100 @@ end
 
 function _parse_yaml_v1(yaml_file, path_yaml::String, dirmodel::String)::Dict{Symbol, String}
     dirjulia = joinpath(dirmodel, "Julia_model_files")
-    path_SBML = _get_path(yaml_file, dirmodel, "sbml_files")
+
     path_measurements = _get_path(yaml_file, dirmodel, "measurement_files")
     path_observables = _get_path(yaml_file, dirmodel, "observable_files")
+    path_parameters = _get_path(yaml_file, dirmodel, "parameter_files")
     path_conditions = _get_path(yaml_file, dirmodel, "condition_files")
-    path_parameters = _get_path(yaml_file, dirmodel, "parameter_file")
-    return Dict(:SBML => path_SBML, :parameters => path_parameters,
-                :conditions => path_conditions, :observables => path_observables,
-                :measurements => path_measurements, :dirmodel => dirmodel,
-                :dirjulia => dirjulia, :yaml => path_yaml)
+    petab_paths = Dict(:parameters => path_parameters, :conditions => path_conditions,
+        :observables => path_observables, :measurements => path_measurements,
+        :dirmodel => dirmodel, :dirjulia => dirjulia, :yaml => path_yaml)
+
+    petab_version = _get_version(yaml_file)
+    if petab_version == "1.0.0"
+        path_SBML = _get_path(yaml_file, dirmodel, "sbml_files")
+    else
+        path_SBML = _get_model_path_v2(yaml_file, dirmodel)
+        path_experiments = _get_path(yaml_file, dirmodel, "experiment_files")
+        petab_paths[:experiments] = path_experiments
+    end
+    petab_paths[:SBML] = path_SBML
+    return petab_paths
 end
 
-function _parse_yaml_v2(yaml_file, path_yaml::String, dirmodel::String)::Dict{Symbol, String}
-    dirjulia = joinpath(dirmodel, "Julia_model_files")
-    path_SBML = _get_path(yaml_file, dirmodel, "sbml_files")
-    path_measurements = _get_path(yaml_file, dirmodel, "measurement_files")
-    path_observables = _get_path(yaml_file, dirmodel, "observable_files")
-    path_conditions = _get_path(yaml_file, dirmodel, "condition_files")
-    path_parameters = _get_path(yaml_file, dirmodel, "parameter_file")
-    path_mapping = _get_path(yaml_file, dirmodel, "mapping_files")
-    path_hybridization = _get_path(yaml_file, dirmodel, "hybridization_file")
-    return Dict(:SBML => path_SBML, :parameters => path_parameters,
-                :conditions => path_conditions, :observables => path_observables,
-                :measurements => path_measurements, :dirmodel => dirmodel,
-                :dirjulia => dirjulia, :mapping => path_mapping,
-                :hybridization => path_hybridization, :yaml => path_yaml)
-end
+function _read_table(path::String, file::Symbol)::DataFrame
+    # Optional tables in PEtab v2
+    if isempty(path) && file == :experiments_v2
+        return DataFrame(experimentId = String[])
+    end
+    if isempty(path) && file == :conditions_v2
+        return DataFrame()
+    end
 
-function _read_table(paths::Dict{Symbol, String}, file::Symbol)::DataFrame
-    # Optional files that are allowed to be empty
-    !haskey(paths, file) && return DataFrame()
-    df = CSV.read(paths[file], DataFrame; stringtype = String)
+    df = CSV.read(path, DataFrame; stringtype = String)
     _check_table(df, file)
     return df
 end
 
-function _get_path(yaml_file, dir::String, file::String)::String
-    # For version 2.0 different model languges are supported
-    if file == "sbml_files" && haskey(yaml_file["problems"][1], "model_files")
-        key = collect(keys(yaml_file["problems"][1]["model_files"]))[1]
-        model_info = yaml_file["problems"][1]["model_files"][key]
-        @assert model_info["language"] == "sbml" "Only SBML models are supported"
-        path = joinpath(dir, model_info["location"])
-    elseif file == "parameter_file"
-        path = joinpath(dir, yaml_file[file])
-    elseif file == "hybridization_file"
-        if haskey(yaml_file, "extensions") && haskey(yaml_file["extensions"], "sciml") && haskey(yaml_file["extensions"]["sciml"], "hybridization_files")
-            path = joinpath(dir, yaml_file["extensions"]["sciml"]["hybridization_files"][1])
-        else
-            path = ""
+function _get_path(yaml_file::Dict, dirmodel::String, file::String)::String
+    petab_version = _get_version(yaml_file)
+
+    # Condition and Experiment files are optional in PEtab v2
+    if petab_version == "2.0.0"
+        if isempty(yaml_file[file]) && file in ["condition_files", "experiment_files"]
+            return ""
         end
+        path = joinpath(dirmodel, yaml_file[file][1])
+    elseif !(petab_version == "1.0.0" && file == "parameter_files")
+        path = joinpath(dirmodel, yaml_file["problems"][1][file][1])
     else
-        path = joinpath(dir, yaml_file["problems"][1][file][1])
+        path = joinpath(dirmodel, yaml_file["parameter_file"])
     end
-    if !isempty(path) && !isfile(path)
-        throw(PEtabFileError("$path is not a valid path for the $file table"))
+    if !isfile(path)
+        throw(PEtabFileError("$(path) is not a valid path for the $file tables"))
     end
     return path
+end
+
+function _get_model_path_v2(yaml_file::Dict, dirmodel::String)::String
+    model_files = yaml_file["model_files"]
+    if length(keys(model_files)) != 1
+        throw(PEtabFileError("PEtab.jl currently only supports 1 model file. If your \
+            application has a need for multiple models, please open an issue on GitHub"))
+    end
+
+    model_id = collect(keys(model_files))[1]
+    model_language = model_files[model_id]["language"]
+    if model_language != "sbml"
+        throw(PEtabFileError("PEtab.jl does not support $(model_language) models. \
+            Currently only SBML models are supported. In case the provided model cannot \
+            be re-written to an SBML model, please open an issue on GitHub"))
+    end
+
+    path_model = joinpath(dirmodel, model_files[model_id]["location"])
+    if !isfile(path_model)
+        throw(PEtabFileError("$(path_model) is not a valid path for the model file"))
+    end
+    return path_model
+end
+
+_get_version(path_yaml::String)::String = _get_version(YAML.load_file(path_yaml))
+function _get_version(model_info::ModelInfo)
+    if model_info.model.defined_in_julia == true
+        return "1.0.0"
+    else
+        return _get_version(model_info.model.paths[:yaml])
+    end
+end
+function _get_version(yaml_file::Dict)::String
+    petab_version = string(yaml_file["format_version"])
+    if petab_version in ["1", "1.0.0"]
+        return "1.0.0"
+    elseif petab_version in ["2", "2.0.0"]
+        return "2.0.0"
+    end
+    throw(PEtabFileError("Invalid PEtab version in problem YAML file. Valid versions \
+            are 1, 1.0.0, 2, or 2.0.0 not the provided $(petab_version)"))
 end
 
 """
@@ -95,20 +145,8 @@ end
 
 Check that a PEtab table has the required columns, and each column has correct types.
 """
-function _check_table(df::DataFrame, table::Symbol)::Nothing
-    if table == :measurements
-        colsinfo = MEASUREMENT_COLS
-    elseif table == :conditions
-        colsinfo = CONDITIONS_COLS
-    elseif table == :parameters
-        colsinfo = PARAMETERS_COLS
-    elseif table == :observables
-        colsinfo = OBSERVABLES_COLS
-    elseif table == :mapping
-        colsinfo = MAPPING_COLS
-    elseif table == :hybridization
-        colsinfo = HYBRIDIZATION_COLS
-    end
+function _check_table(df, table::Symbol)::Nothing
+    colsinfo = COLUMN_INFO[table]
 
     for (name, colinfo) in colsinfo
         if colinfo[:required] == true
@@ -122,7 +160,7 @@ function _check_table(df::DataFrame, table::Symbol)::Nothing
     # For the condition table the columns (except conditionId/Name) correspond to parameter,
     # compartment or specie ids. As these column names depends on the problem, they cannot
     # be hard-coded, and must thus be handled as a special case
-    if table == :conditions
+    if table == :conditions_v1
         icheck = findall(x -> x ∉ ["conditionId", "conditionName"], names(df))
         for name in names(df)[icheck]
             _check_column_types(df, name, Union{AbstractString, Real, Missing}, :conditions)

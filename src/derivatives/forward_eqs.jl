@@ -1,8 +1,7 @@
 function _grad_forward_eqs!(grad::Vector{T}, _solve_conditions!::Function,
                             probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
                             cfg::Union{ForwardDiff.JacobianConfig, Nothing};
-                            cids::Vector{Symbol} = [:all],
-                            isremade::Bool = false)::Nothing where {T <: AbstractFloat}
+                            cids::Vector{Symbol} = [:all])::Nothing where {T <: AbstractFloat}
     @unpack cache, sensealg = probinfo
     @unpack xindices, simulation_info = model_info
     xnoise, xobservable, xnondynamic_mech, xdynamic = _get_x_not_nn(cache, 1.0)
@@ -48,35 +47,17 @@ function solve_sensitivites!(model_info::ModelInfo, _solve_conditions!::Function
 
     if split_over_conditions == false
         # remade = false, no parameters in xdynamic are fixed, but for computations to
-        # work nxdynamic must be set to default value temporarly
-        if isremade == false || length(xdynamic_grad) == nxdynamic[1]
-            tmp = cache.nxdynamic[1]
-            cache.nxdynamic[1] = length(xdynamic_tot)
-            # Need ODE solution for gradient for the non xdynamic parameters even when
-            # xdynamic is empty
-            if !isempty(xdynamic_tot)
-                ForwardDiff.jacobian!(S, _solve_conditions!, odesols, xdynamic_tot, cfg)
-            else
-                _solve_conditions!(cache.odesols, xdynamic_tot)
-            end
-            cache.nxdynamic[1] = tmp
+        # work nxdynamic must be set to default value temporarily
+        tmp = cache.nxdynamic[1]
+        cache.nxdynamic[1] = length(xdynamic)
+        # Need ODE solution for gradient for the non xdynamic parameters even when
+        # xdynamic is empty
+        if !isempty(xdynamic)
+            ForwardDiff.jacobian!(S, _solve_conditions!, odesols, xdynamic, cfg)
+        else
+            _solve_conditions!(cache.odesols, xdynamic)
         end
-
-        # Subset of dynamic parameters fixed, and Forward-AD can be run with fewer chunks
-        if !(isremade == false || length(xdynamic_grad) == nxdynamic[1])
-            # As above, must always obtain an ODESolution
-            if cache.nxdynamic[1] != 0
-                C = length(cfg.seeds)
-                chunk = ForwardDiff.Chunk(C)
-                nforward_passes = Int64(ceil(cache.nxdynamic[1] / C))
-                _xdynamic_tot = xdynamic_tot[cache.xdynamic_input_order]
-                forwarddiff_jacobian_chunks(_solve_conditions!, odesols, S, _xdynamic_tot,
-                                            chunk; nforward_passes = nforward_passes)
-                @views S .= cache.S[:, cache.xdynamic_output_order]
-            else
-                _solve_conditions!(cache.odesols, xdynamic_tot)
-            end
-        end
+        cache.nxdynamic[1] = tmp
     end
 
     # Most efficient if xdynamic contains many parameters specific to a certain condition
@@ -128,7 +109,7 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnois
     @unpack p, u, ∂G∂p, ∂G∂p_, ∂G∂u, S, forward_eqs_grad = cache
     fill!(forward_eqs_grad, 0.0)
     fill!(∂G∂p, 0.0)
-    for (it, tsave) in pairs(tsaves[cid])
+    for (it, tsave) in pairs(tsaves_no_cbs[cid])
         u .= sol[:, it] .|> SBMLImporter._to_float
         ∂G∂u!(∂G∂u, u, p, tsave, it)
         ∂G∂p!(∂G∂p_, u, p, tsave, it)

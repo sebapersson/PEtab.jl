@@ -19,7 +19,7 @@ parameters = [PEtabParameter(:k1, value=0.8, scale=:log2),
 
 # Observable equation
 @unpack A = rn
-observables = Dict("obs_a" => PEtabObservable(A, 0.5, transformation=:log2))
+observables = PEtabObservable("obs_a", A, 0.5; distribution=PEtab.Log2Normal)
 
 # Create a PEtabODEProblem ReactionNetwork
 model_rn = PEtabModel(rn, observables, measurements, parameters)

@@ -2,9 +2,8 @@
 function _jac_residuals_xdynamic!(jac::AbstractMatrix, _solve_conditions!::Function,
                                   probinfo::PEtabODEProblemInfo,
                                   model_info::ModelInfo, cfg::ForwardDiff.JacobianConfig;
-                                  cids::Vector{Symbol} = [:all],
-                                  isremade::Bool = false)::Nothing
-    @unpack cache, reuse_sensitivities = probinfo
+                                  cids::Vector{Symbol} = [:all])::Nothing
+    @unpack cache, sensealg, reuse_sensitivities = probinfo
     @unpack xindices, simulation_info = model_info
     xnoise, xobservable, xnondynamic_mech, xdynamic = _get_x_not_nn(cache, 1.0)
     xnoise_ps = transform_x(xnoise, xindices, :xnoise, cache)
@@ -114,12 +113,12 @@ function _residuals_cond!(residuals::T1, xnoise::T2, xobservable::T2, xnondynami
         return false
     end
 
-    @unpack time, measurement_transforms, measurement_transformed, observable_id = petab_measurements
+    @unpack time, measurements_transformed, noise_distributions, observable_id = petab_measurements
     @unpack imeasurements, imeasurements_t_sol = simulation_info
     nominal_values = petab_parameters.nominal_value
-    for imeasurement in imeasurements[cid]
-        t, obsid = time[imeasurement], observable_id[imeasurement]
-        u = sol[:, imeasurements_t_sol[imeasurement]] .|> SBMLImporter._to_float
+    for im in imeasurements[cid]
+        t, obsid = time[im], observable_id[im]
+        u = sol[:, imeasurements_t_sol[im]] .|> SBMLImporter._to_float
         p = sol.prob.p .|> SBMLImporter._to_float
 
         # Model observable and noise
@@ -129,8 +128,8 @@ function _residuals_cond!(residuals::T1, xnoise::T2, xobservable::T2, xnondynami
         h_transformed = transform_observable(h, measurement_transforms[imeasurement])
         σ = _sd(u, t, p, xnoise, xnondynamic_mech, xnn, xnn_constant, model.sd, mapxnoise, obsid, nominal_values, model.ml_models)
 
-        y_transformed = measurement_transformed[imeasurement]
-        residuals[imeasurement] = (h_transformed - y_transformed) / σ
+        y_transformed = measurements_transformed[im]
+        residuals[im] = (h_transformed - y_transformed) / σ
     end
     return true
 end

@@ -1,23 +1,25 @@
 function _G(u::AbstractVector, p, t::T, i::Integer, imeasurements_t_cid::Vector{Vector{Int64}}, model_info::ModelInfo, xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic_mech::Vector{T}, xnn::Dict{Symbol, ComponentArray}, xnn_constant::Dict{Symbol, ComponentArray}, residuals::Bool) where {T <: AbstractFloat}
     @unpack petab_measurements, xindices, petab_parameters, model = model_info
-    @unpack measurement_transforms, observable_id = petab_measurements
-    nominal_values = petab_parameters.nominal_value
-    out = 0.0
-    for imeasurement in imeasurements_t_cid[i]
-        obsid = observable_id[imeasurement]
-        mapxnoise = xindices.mapxnoise[imeasurement]
-        mapxobservable = xindices.mapxobservable[imeasurement]
-        h = _h(u, t, p, xobservable, xnondynamic_mech, xnn, xnn_constant, model.h, mapxobservable, obsid, nominal_values, model.ml_models)
-        h_transformed = transform_observable(h, measurement_transforms[imeasurement])
-        σ = _sd(u, t, p, xnoise, xnondynamic_mech, xnn, xnn_constant, model.sd, mapxnoise, obsid, nominal_values, model.ml_models)
+    @unpack measurements_transformed, measurements, noise_distributions, observable_id = petab_measurements
+    @unpack nominal_value = petab_parameters
 
-        y_transformed = petab_measurements.measurement_transformed[imeasurement]
-        residual = (h_transformed - y_transformed) / σ
+    out = 0.0
+    for im in imeasurements_t_cid[i]
+        obsid = observable_id[im]
+        xnoise_maps = xindices.xnoise_maps[im]
+        xobservable_maps = xindices.xobservable_maps[im]
+
+        h = _h(u, t, p, xobservable, xnondynamic, model, xobservable_maps, obsid,
+               nominal_value)
+        σ = _sd(u, t, p, xnoise, xnondynamic, model, xnoise_maps, obsid, nominal_value)
+
         if residuals == true
+            h_transformed = _transform_h(h, noise_distributions[im])
+            residual = (h_transformed - measurements_transformed[im]) / σ
             out += residual
             continue
         end
-        out += _nllh_obs(residual, σ, y_transformed, measurement_transforms[imeasurement])
+        out += _nllh_obs(h, σ, measurements[im], noise_distributions[im])
     end
     return out
 end
@@ -58,73 +60,29 @@ function _get_∂G∂_!(model_info::ModelInfo, cid::Symbol, xnoise::Vector{T}, x
     return ∂G∂u!, ∂G∂p!
 end
 
-# TODO: ∂G∂p does not handle if neural network appears in observable
-# Adjust the gradient from linear scale to current scale for x-vector
-function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector{T},
-                         xdynamic::Vector{T}, xindices::ParameterIndices, simid::Symbol;
-                         sensitivites_AD::Bool = false, nn_preode::Bool = false,
-                         adjoint::Bool = false)::Nothing where {T <: AbstractFloat}
-    @unpack dynamic_to_sys, sys_to_dynamic, sys_to_dynamic_nn = xindices.map_odeproblem
-    @unpack xids, xscale = xindices
-    @unpack ix_sys, ix_dynamic = xindices.maps_conidition_id[simid]
-    # Neural net parameters for a neural net before the ODE dynamics. These gradient
-    # components only considered for ForwardEquations full AD, where it is not possible to
-    # use the chain-rule to separately differentitate each componenent, and these parameters
-    # are differentiated using full AD.
-    if nn_preode == true
-        xi = xindices.xindices_dynamic[:nn_preode]
-        @views grad_xscale[xi] .+= grad_linscale[xi]
-    end
-    # Neural net parameters. These should not be transformed (are on linear scale),
-    # For everything except sensitivites_AD these are provided in the order of odeproblem.p
-    # and are mapped via sys_to_dynamic_nn
-    xi = xindices.xindices_dynamic[:nn_in_ode]
-    if sensitivites_AD == true
-        @views grad_xscale[xi] .+= grad_linscale[xi] + ∂G∂p[sys_to_dynamic_nn]
-    else
-        @views grad_xscale[xi] .+= grad_linscale[sys_to_dynamic_nn] + ∂G∂p[sys_to_dynamic_nn]
+#
+function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector{T}, xdynamic::Vector{T}, xindices::ParameterIndices, simid::Symbol; sensitivities_AD::Bool = false)::Nothing where {T <: AbstractFloat}
+    @unpack xids, xscale, condition_maps = xindices
+    condition_map! = condition_maps[simid]
+
+    # TODO: Jacobian should be pre-allocated, doable as I should have all the dimensions when building the ConditionMap
+    # In case of ForwardDiff sensitivities (sensitivities_AD == true) grad_linscale follow
+    # the same indexing as grad_xscale (that of xdynamic) with xdynamic mapped to p within
+    # an AD call. ∂G∂p follows the same indexing as ODEProblem.p, where xdynamic is
+    # mapped to p for ∂G∂p outside an AD call -> Jacobian correction needed
+    if sensitivities_AD == true
+        J = ForwardDiff.jacobian(condition_map!, similar(∂G∂p), xdynamic)
+        grad_linscale .+= transpose(transpose(∂G∂p) * J)
+        _grad_to_xscale!(grad_xscale, grad_linscale, xdynamic, xids[:dynamic], xscale)
+        return nothing
     end
 
-    # Adjust for parameters that appear in each simulation condition (not unique to simid).
-    # Note that ∂G∂p is on the scale of ODEProblem.p which might not be the same scale
-    # as parameters appear in the gradient on linear-scale
-    if sensitivites_AD == true
-        grad_p1 = grad_linscale[dynamic_to_sys] .+ ∂G∂p[sys_to_dynamic]
-    else
-        grad_p1 = grad_linscale[sys_to_dynamic] .+ ∂G∂p[sys_to_dynamic]
-    end
-    @views _grad_to_xscale!(grad_xscale[dynamic_to_sys], grad_p1, xdynamic[dynamic_to_sys],
-                            xids[:dynamic_mech][dynamic_to_sys], xscale)
-
-    # For forward sensitives via autodiff ∂G∂p is on the same scale as ode_problem.p, while
-    # S-matrix is on the same scale as xdynamic. To be able to handle condition specific
-    # parameters mapping to several ode_problem.p parameters the sensitivity matrix part
-    # and ∂G∂p must be treated seperately. Further, as condition specific variables can map
-    # to several parameters in the ODESystem, the for-loop is needed
-    if sensitivites_AD == true
-        ix = unique(ix_dynamic)
-        @views _grad_to_xscale!(grad_xscale[ix], grad_linscale[ix], xdynamic[ix],
-                                xids[:dynamic_mech][ix], xscale)
-        @views out = _grad_to_xscale(∂G∂p[ix_sys], xdynamic[ix_dynamic],
-                                     xids[:dynamic_mech][ix_dynamic], xscale)
-        for (i, imap) in pairs(ix)
-            grad_xscale[imap] += out[i]
-        end
-    end
-
-    # Here both ∂G∂p and grad_linscale are on the same scale a ODEProblem.p. Again
-    # condition specific variables can map to several parameters in the ODESystem,
-    # thus the for-loop
-    if adjoint == true || sensitivites_AD == false
-        @views _grad_to_xscale!(grad_xscale[ix_sys], grad_linscale[ix_sys],
-                                xdynamic[ix_dynamic], xids[:dynamic_mech][ix_dynamic], xscale)
-        @views out = _grad_to_xscale(grad_linscale[ix_sys] .+ ∂G∂p[ix_sys],
-                                     xdynamic[ix_dynamic],
-                                     xids[:dynamic_mech][ix_dynamic], xscale)
-        for (i, imap) in pairs(ix_sys)
-            grad_xscale[imap] += out[i]
-        end
-    end
+    # In case of sensitivities_AD == false, but grad_linscale and ∂G∂p follow the same
+    # indexing as ODEProblem.p, with xdynamic mapped to p outside AD calls -> Jacobian
+    # correction needed for both
+    J = ForwardDiff.jacobian(condition_map!, similar(∂G∂p), xdynamic)
+    _grad_linscale = transpose(transpose(grad_linscale + ∂G∂p) * J)
+    _grad_to_xscale!(grad_xscale, _grad_linscale, xdynamic, xids[:dynamic], xscale)
     return nothing
 end
 
@@ -137,25 +95,15 @@ function _grad_to_xscale!(grad_xscale::AbstractVector{T}, grad_linscale::Abstrac
     return nothing
 end
 
-function _grad_to_xscale(grad_linscale::AbstractVector{T}, x::AbstractVector{T},
-                         xids::AbstractVector{Symbol},
-                         xscale::Dict{Symbol, Symbol})::Vector{T} where {T <: AbstractFloat}
-    grad_xscale = similar(grad_linscale)
-    for (i, xid) in pairs(xids)
-        grad_xscale[i] = _grad_to_xscale(grad_linscale[i], x[i], xscale[xid])
-    end
-    return grad_xscale
-end
-function _grad_to_xscale(grad_linscale_val::T, x_val::T,
-                         xscale::Symbol)::T where {T <: AbstractFloat}
+function _grad_to_xscale(grad_linscale::T, x::T, xscale::Symbol)::T where {T <: AbstractFloat}
     if xscale === :log10
-        return log(10) * grad_linscale_val * x_val
+        return log(10) * grad_linscale * x
     elseif xscale === :lin
-        return grad_linscale_val
+        return grad_linscale
     elseif xscale == :log2
-        return log(2) * grad_linscale_val * x_val
+        return log(2) * grad_linscale * x
     elseif xscale === :log
-        return grad_linscale_val * x_val
+        return grad_linscale * x
     end
 end
 

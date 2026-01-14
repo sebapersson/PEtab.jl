@@ -137,29 +137,23 @@ function transform_x(x::T, scale::Symbol; to_xscale::Bool = false)::T where {T <
     end
 end
 
-function transform_observable(val::T, transform::Symbol)::T where {T <: Real}
-    if transform == :lin
-        return val
-    elseif transform == :log10
-        return val > 0 ? log10(val) : Inf
-    elseif transform == :log
-        return val > 0 ? log(val) : Inf
-    elseif transform == :log2
-        return val > 0 ? log2(val) : Inf
-    end
-end
-
-function _sd(u::AbstractVector, t::Float64, p::AbstractVector, xnoise::T, xnondynamic_mech::T, xnn::Dict{Symbol, ComponentArray}, xnn_constant::Dict{Symbol, ComponentArray}, petab_sd::Function, mapxnoise::ObservableNoiseMap, observable_id::Symbol, nominal_values::Vector{Float64}, nn)::Real where {T <: AbstractVector}
-    if mapxnoise.single_constant == true
-        σ = mapxnoise.constant_values[1]
+function _sd(u::AbstractVector, t::Float64, p::AbstractVector, xnoise::T, xnondynamic::T,
+             model::PEtabModel, xnoise_maps::ObservableNoiseMap, observable_id::Symbol,
+             nominal_values::Vector{Float64})::Real where {T <: AbstractVector}
+    if xnoise_maps.single_constant == true
+        σ = xnoise_maps.constant_values[1]
     else
-        σ = petab_sd(u, t, p, xnoise, xnondynamic_mech, xnn, xnn_constant, nominal_values, observable_id, mapxnoise, nn)
+        σ = model.sd(u, t, p, xnoise, xnondynamic, nominal_values, observable_id, xnoise_maps, model.sys_observables)
     end
     return σ
 end
 
-function _h(u::AbstractVector, t::Float64, p::AbstractVector, xobservable::T, xnondynamic_mech::T, xnn::Dict{Symbol, ComponentArray}, xnn_constant::Dict{Symbol, ComponentArray}, petab_h::Function, mapxobservable::ObservableNoiseMap, observable_id::Symbol, nominal_values::Vector{Float64}, nn)::Real where {T <: AbstractVector}
-    return petab_h(u, t, p, xobservable, xnondynamic_mech, xnn, xnn_constant, nominal_values, observable_id, mapxobservable, nn)
+function _h(u::AbstractVector, t::Float64, p::AbstractVector, xobservable::T,
+            xnondynamic::T, model::PEtabModel, xobservable_maps::ObservableNoiseMap,
+            observable_id::Symbol,
+            nominal_values::Vector{Float64})::Real where {T <: AbstractVector}
+    return model.h(u, t, p, xobservable, xnondynamic, nominal_values, observable_id,
+                   xobservable_maps, model.sys_observables)
 end
 
 # Function to extract observable or noise parameters when computing h or σ

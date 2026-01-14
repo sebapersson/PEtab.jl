@@ -1,16 +1,37 @@
+"""
+    PEtabModel(path_yaml; kwargs...)
+
+Import a PEtab problem in the standard (YAML + tables) format from `path_yaml` as a
+`PEtabModel` for parameter estimation.
+
+# Keyword Arguments
+- `ifelse_to_callback::Bool = true`: Rewrite `ifelse` (SBML piecewise) expressions as
+  [callbacks](https://github.com/SciML/DiffEqCallbacks.jl). Typically improves simulation
+  performance.
+- `write_to_file::Bool = false`: Write generated Julia functions to
+  `dirname(path_yaml)/Julia_model_files/` (useful for debugging).
+- `verbose::Bool = false`: Print progress while building the model.
+"""
 function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
                     verbose::Bool = false, ifelse_to_callback::Bool = true,
-                    write_to_file::Bool = false,
-                    ml_models::Union{MLModels, Nothing} = nothing)::PEtabModel
+                    write_to_file::Bool = false)::PEtabModel
+    petab_version = _get_version(path_yaml)
+
+    if petab_version == "1.0.0"
+        petab_tables = read_tables_v1(path_yaml)
+        petab_events = PEtabEvent[]
+    else
+        petab_tables, petab_events = v2_to_v1_tables(path_yaml, ifelse_to_callback)
+    end
+
     paths = _get_petab_paths(path_yaml)
-    petab_tables = read_tables(path_yaml)
     return _PEtabModel(paths, petab_tables, build_julia_files, verbose, ifelse_to_callback,
-                       write_to_file, ml_models)
+                       write_to_file, petab_events)
 end
 
 function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::PEtabTables,
                      build_julia_files::Bool, verbose::Bool, ifelse_to_callback::Bool,
-                     write_to_file::Bool, ml_models::Union{Nothing, MLModels})
+                     write_to_file::Bool, petab_events::Vector{PEtabEvent})
     name = splitdir(paths[:dirmodel])[end]
 
     write_to_file && !isdir(paths[:dirjulia]) && mkdir(paths[:dirjulia])
@@ -48,15 +69,24 @@ function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::PEtabTables,
 
     # Indices for mapping parameters and tracking which parameter to estimate, useful
     # when building the coming PEtab functions
-    xindices = ParameterIndices(petab_tables, paths, odesystem, parametermap, speciemap, ml_models)
+    xindices = ParameterIndices(petab_tables, odesystem, parametermap, speciemap)
+
+    sys_observables = _get_sys_observables(odesystem)
+    sys_observable_ids = collect(keys(sys_observables))
+
+    _logging(:Build_ODESystem, verbose; time = btime)
 
     path_u0_h_σ = joinpath(paths[:dirjulia], "$(name)_h_sd_u0.jl")
     exist = isfile(path_u0_h_σ)
     _logging(:Build_u0_h_σ, verbose; buildfiles = build_julia_files, exist = exist)
     if !exist || build_julia_files == true
         btime = @elapsed begin
-            hstr, u0!str, u0str, σstr = parse_observables(name, paths, odesystem, petab_tables, xindices, speciemap,
-                                                          speciemap_sbml, model_SBML, ml_models, write_to_file)
+            hstr, u0!str, u0str, σstr = parse_observables(name, paths, odesystem,
+                                                          petab_tables[:observables],
+                                                          xindices, speciemap,
+                                                          speciemap_sbml,
+                                                          sys_observable_ids, model_SBML,
+                                                          write_to_file)
         end
         _logging(:Build_u0_h_σ, verbose; time = btime)
     else
@@ -82,18 +112,13 @@ function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::PEtabTables,
     # should not be converted to floats in case dual numbers (for gradients) are propagated
     _logging(:Build_callbacks, verbose)
     btime = @elapsed begin
-        float_tspan = _xdynamic_in_event_cond(model_SBML, xindices, petab_tables) |> !
-        psys = _get_xids_sys_order(odesystem, speciemap, parametermap) .|> string
-        specie_ids = _get_state_ids(odesystem)
-        cbset = SBMLImporter.create_callbacks(odesystem, model_SBML, name;
-                                              p_PEtab = psys, float_tspan = float_tspan,
-                                              _specie_ids = specie_ids)
+        cbs, float_tspan = _parse_events(model_SBML, petab_events, odesystem, speciemap, parametermap, name, xindices, petab_tables)
     end
     _logging(:Build_callbacks, verbose; time = btime)
 
     return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan,
                       paths, odesystem, deepcopy(odesystem), parametermap, speciemap,
-                      petab_tables, cbset, false, ml_models)
+                      petab_tables, cbs, false, petab_events, sys_observables)
 end
 
 function add_u0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::PEtabTables, ml_models::MLModels)::Nothing
@@ -155,15 +180,19 @@ function add_u0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::PE
             condition_value == "NaN" && continue
             condition_value isa Real && continue
             is_number(condition_value) && continue
-            condition_value in keys(model_SBML.parameters) && continue
-            if !(condition_value in parameters_df[!, :parameterId])
-                throw(PEtabFileError("The condition table value $condition_variable does \
-                                      not correspond to any parameter in the SBML file \
-                                      parameters file"))
+            # Potential parameters case
+            for parameter_id in parameters_df.parameterId
+                # Whether the formula contains the parameter
+                _formula = SBMLImporter._replace_variable(condition_value, parameter_id, "")
+                _formula == condition_value && continue
+
+                haskey(model_SBML.parameters, parameter_id) && continue
+
+                parameter = SBMLImporter.ParameterSBML(condition_value, true, "0.0", "",
+                                                       false, false, false, false, false,
+                                                       false)
+                model_SBML.parameters[parameter_id] = parameter
             end
-            parameter = SBMLImporter.ParameterSBML(condition_value, true, "0.0", "", false,
-                                                   false, false, false, false, false)
-            model_SBML.parameters[condition_value] = parameter
         end
     end
     return nothing
@@ -284,4 +313,16 @@ function _get_sbml_speciemap(model_SBML::SBMLImporter.ModelSBML)
     get_rn = @RuntimeGeneratedFunction(Meta.parse(modelstr))
     _, speciemap, _ = get_rn("https://xkcd.com/303/")
     return speciemap
+end
+
+function _get_sys_observables(sys::ReactionSystem)::Dict{Symbol, Function}
+    return _get_sys_observables(_get_system(sys))
+end
+function _get_sys_observables(sys::ODESystem)::Dict{Symbol, Function}
+    sys_observables = Dict{Symbol, Function}()
+    for _observable in observables(sys)
+        index_obs = Symbol(replace(string(_observable), "(t)" => ""))
+        sys_observables[index_obs] = SymbolicIndexingInterface.observed(sys, index_obs)
+    end
+    return sys_observables
 end

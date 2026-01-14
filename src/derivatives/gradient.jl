@@ -1,8 +1,7 @@
 function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Function,
                           _nllh_solveode::Function, cfg::ForwardDiff.GradientConfig,
                           probinfo::PEtabODEProblemInfo, model_info::ModelInfo;
-                          cids::Vector{Symbol} = [:all],
-                          isremade::Bool = false)::Nothing where {T <: AbstractFloat}
+                          cids::Vector{Symbol} = [:all])::Nothing where {T <: AbstractFloat}
     cache = probinfo.cache
     @unpack simulation_info, xindices, priors = model_info
     @unpack xdynamic_grad, xnotode_grad, nxdynamic = cache
@@ -67,8 +66,7 @@ end
 
 function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Function,
                                 _nllh_solveode::Function, probinfo::PEtabODEProblemInfo,
-                                model_info::ModelInfo; cids = [:all],
-                                isremade::Bool = false)::Nothing where {T <: AbstractFloat}
+                                model_info::ModelInfo; cids = [:all])::Nothing where {T <: AbstractFloat}
     @unpack simulation_info, xindices, priors = model_info
     cache = probinfo.cache
     split_x!(x, xindices, cache; xdynamic_tot = true)
@@ -129,8 +127,7 @@ function grad_forward_eqs!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fu
                            _solve_conditions!::Function, probinfo::PEtabODEProblemInfo,
                            model_info::ModelInfo,
                            cfg::Union{ForwardDiff.JacobianConfig, Nothing};
-                           cids::Vector{Symbol} = [:all],
-                           isremade::Bool = false)::Nothing where {T <: AbstractFloat}
+                           cids::Vector{Symbol} = [:all])::Nothing where {T <: AbstractFloat}
     @unpack sensealg, cache, split_over_conditions = probinfo
     @unpack priors, xindices = model_info
     @unpack petab_parameters, priors, petab_measurements = model_info

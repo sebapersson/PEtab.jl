@@ -97,9 +97,11 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol, F
     forward_eqs_AD = gradient_method === :ForwardEquations && sensealg === :ForwardDiff
     nx_forwardeqs = _get_nx_forwardeqs(xindices, split_over_conditions)
     if forward_eqs_AD || GN_hess
-        ntimepoints_save = simulation_info.tsaves |> values .|> length |> sum
-        S = zeros(Float64, ntimepoints_save * nstates, nx_forwardeqs)
-        forward_eqs_grad = zeros(Float64, nx_forwardeqs)
+        ntimepoints_save = simulation_info.tsaves_no_cbs |>
+            values .|>
+            length |>
+            sum
+        S = zeros(Float64, ntimepoints_save * nstates, length(xdynamic))
         odesols = zeros(Float64, nstates, ntimepoints_save)
     else
         S = zeros(Float64, 0, 0)

@@ -30,6 +30,10 @@ end
     include(joinpath(@__DIR__, "util.jl"))
 end
 
+@safetestset "Log-Laplace" begin
+    include(joinpath(@__DIR__, "log_laplace.jl"))
+end
+
 if !core_only
     @safetestset "Model with analytic steady-state" begin
         include("analytic_ss.jl")

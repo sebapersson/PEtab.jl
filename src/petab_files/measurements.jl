@@ -18,7 +18,7 @@ function PEtabMeasurements(measurements_df::DataFrame,
     pre_equilibration_ids = fill(:None, nmeasurements)
     noise_parameters = fill("", nmeasurements)
     observable_parameters = fill("", nmeasurements)
-    transformations = fill(:lin, nmeasurements)
+    noise_distributions = fill(:Normal, nmeasurements)
 
     _parse_table_column!(measurements, measurements_df[!, :measurement], Float64)
     _parse_table_column!(time, measurements_df[!, :time], Float64)
@@ -37,14 +37,31 @@ function PEtabMeasurements(measurements_df::DataFrame,
         dfcol = measurements_df[!, :observableParameters]
         _parse_table_column!(observable_parameters, dfcol, string)
     end
-    # Special handling as transformation must be obtained from observables_df
+
+    # Special handling as data distribution must be obtained from observables_df
     if :observableTransformation in propertynames(observables_df)
-        for (i, transformation) in pairs(observables_df[!, :observableTransformation])
-            id = observables_df[i, :observableId] |> Symbol
-            if !ismissing(transformation)
-                transformations[observable_ids .== id] .= Symbol(transformation)
+        for (row_idx, transformation) in pairs(observables_df[!, :observableTransformation])
+            if :noiseDistribution in propertynames(observables_df) && !ismissing(observables_df.noiseDistribution[row_idx])
+                _distribution = if ismissing(observables_df.noiseDistribution[row_idx])
+                    :Normal
+                else
+                    observables_df.noiseDistribution[row_idx] |>
+                        uppercasefirst |>
+                        Symbol
+                end
             else
-                transformations[observable_ids .== id] .= :lin
+                _distribution = :Normal
+            end
+
+            row_jdx = observable_ids .== Symbol(observables_df[row_idx, :observableId])
+            if ismissing(transformation)
+                noise_distributions[row_jdx] .= _distribution
+            elseif transformation == "log"
+                noise_distributions[row_jdx] .= Symbol("Log$(_distribution)")
+            elseif transformation == "log10"
+                noise_distributions[row_jdx] .= Symbol("Log10$(_distribution)")
+            elseif transformation == "log2"
+                noise_distributions[row_jdx] .= Symbol("Log2$(_distribution)")
             end
         end
     end
@@ -52,7 +69,16 @@ function PEtabMeasurements(measurements_df::DataFrame,
     # To avoid computing the transformed measurment values, they are pre-computed
     measurements_t = similar(measurements)
     for (i, val) in pairs(measurements)
-        measurements_t[i] = transform_observable(val, transformations[i])
+        measurements_t[i] = _transform_h(val, noise_distributions[i])
+    end
+
+    # PEtab v2 introduces none-zero simulation start times. In the conversion of PEtab
+    # v2 to PEtab v1 tables this additional information is encoded as an extra column
+    # in the measurements table, which is then parsed in SimulationInfo
+    if "simulationStartTime" in names(measurements_df)
+        simulation_start_time = measurements_df.simulationStartTime
+    else
+        simulation_start_time = zeros(Float64, nmeasurements)
     end
 
     # Values associated with the measurement values
@@ -62,7 +88,7 @@ function PEtabMeasurements(measurements_df::DataFrame,
     residuals = zeros(Float64, nmeasurements)
 
     return PEtabMeasurements(measurements, measurements_t, simulated_values, chi2_values,
-                             residuals, transformations, time, observable_ids,
+                             residuals, noise_distributions, time, observable_ids,
                              pre_equilibration_ids, condition_ids, noise_parameters,
-                             observable_parameters)
+                             observable_parameters, simulation_start_time)
 end

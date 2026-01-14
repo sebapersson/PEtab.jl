@@ -10,11 +10,11 @@ function _compute_prior(θ)
     k1, k2 = exp10(_k1), exp10(_k2)
 
     prior_sigma = LogNormal(0.6, 1.0)
-    prior_k1 = truncated(Normal(-0.8, 0.2), -1.0, 1.0)
+    prior_k1 = truncated(Normal(-0.8, 0.2), exp10(-0.8), exp10(0.2))
     prior_k2 = LogNormal(0.6, 1.0)
 
     logprior = logpdf(prior_sigma, sigma)
-    logprior += logpdf(prior_k1, _k1)
+    logprior += logpdf(prior_k1, k1)
     logprior += logpdf(prior_k2, k2)
     return logprior * -1
 end
@@ -34,19 +34,19 @@ measurements = DataFrame(simulation_id=["c0", "c0"],
                          noise_parameters=0.5)
 
 # Single experimental condition
-simulation_conditions = Dict("c0" => Dict())
+simulation_conditions = PEtabCondition(:c0)
 
 # Observable equation
 @unpack A = rn
 @parameters sigma
-observables = Dict("obs_a" => PEtabObservable(A, sigma))
+observables = PEtabObservable("obs_a", A, sigma)
 
 # PEtab-parameter to "estimate"
 parameters = [PEtabParameter(:sigma, value=1.0, scale=:lin, prior=LogNormal(0.6, 1.0)),
               PEtabParameter(:a0, value=1.0, scale=:lin),
               PEtabParameter(:b0, value=0.0, scale=:lin),
-              PEtabParameter(:k1, value=0.8, scale=:log10, prior_on_linear_scale=false,
-                             prior=truncated(Normal(-0.8, 0.2), -1.0, 1.0)),
+              PEtabParameter(:k1, value=0.8, scale=:log10, lb = exp10(-0.8), ub = exp10(0.2),
+                             prior = Normal(-0.8, 0.2)),
               PEtabParameter(:k2, value=0.6, scale=:log10, prior=LogNormal(0.6, 1.0))]
 
 # Create a PEtabODEProblem ReactionNetwork

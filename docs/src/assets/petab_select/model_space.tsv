@@ -1,2 +1,9 @@
-model_subspace_id	petab_yaml	k1	k2	k3
-M1_1	petab/petab_problem.yaml	0.2	0.1	0
+model_subspace_id	model_subspace_petab_yaml	k1	k2	k3
+M1_0	petab/petab_problem.yaml	0.2	0.1	0
+M1_1	petab/petab_problem.yaml	0.2	0.1	estimate
+M1_2	petab/petab_problem.yaml	0.2	estimate	0
+M1_3	petab/petab_problem.yaml	estimate	0.1	0
+M1_4	petab/petab_problem.yaml	0.2	estimate	estimate
+M1_5	petab/petab_problem.yaml	estimate	0.1	estimate
+M1_6	petab/petab_problem.yaml	estimate	estimate	0
+M1_7	petab/petab_problem.yaml	estimate	estimate	estimate

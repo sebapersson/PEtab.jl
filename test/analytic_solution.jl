@@ -6,8 +6,8 @@
     the ODE solver, cost function, gradient and hessian is tested
  =#
 
-using PEtab, OrdinaryDiffEqRosenbrock, SciMLSensitivity, Sundials, ForwardDiff,
-    LinearAlgebra, CSV, DataFrames, Test
+using PEtab, OrdinaryDiffEqRosenbrock, SciMLSensitivity, ForwardDiff, LinearAlgebra, CSV,
+    DataFrames, Sundials, Test
 
 include(joinpath(@__DIR__, "common.jl"))
 
@@ -82,22 +82,23 @@ function test_nllh_grad_hess(model::PEtabModel, osolver::ODESolver)::Nothing
     tmp = osolver.solver
     osolver.solver = CVODE_BDF()
     g = _compute_grad(x, model, :ForwardEquations, osolver; sensealg = ForwardSensitivity())
-    @test all(.≈(g, grad_ref; atol = 1e-2))
+    @test all(.≈(g, grad_ref; atol = 1e-3))
     osolver.solver = tmp
+    @test all(.≈(g, grad_ref; atol = 1e-3))
     g = _compute_grad(x, model, :Adjoint, osolver;
                       sensealg=QuadratureAdjoint(autojacvec=ReverseDiffVJP(false)))
     @test all(.≈(normalize(g), normalize(grad_ref); atol = 1e-3))
 
     H = _compute_hess(x, model, :ForwardDiff, osolver)
-    @test all(.≈(H, hess_ref; atol = 1e-2))
+    @test all(.≈(H, hess_ref; atol = 5e-3))
     H = _compute_hess(x, model, :ForwardDiff, osolver; split = true)
-    @test all(.≈(H, hess_ref; atol = 1e-2))
+    @test all(.≈(H, hess_ref; atol = 5e-3))
     H = _compute_hess(x, model, :BlockForwardDiff, osolver)
-    @test all(.≈(H[1:2, 1:2], hess_ref[1:2, 1:2]; atol = 1e-2))
-    @test all(.≈(H[3:4, 3:4], hess_ref[3:4, 3:4]; atol = 1e-2))
+    @test all(.≈(H[1:2, 1:2], hess_ref[1:2, 1:2]; atol = 5e-3))
+    @test all(.≈(H[3:4, 3:4], hess_ref[3:4, 3:4]; atol = 5e-3))
     H = _compute_hess(x, model, :BlockForwardDiff, osolver; split = true)
-    @test all(.≈(H[1:2, 1:2], hess_ref[1:2, 1:2]; atol = 1e-2))
-    @test all(.≈(H[3:4, 3:4], hess_ref[3:4, 3:4]; atol = 1e-2))
+    @test all(.≈(H[1:2, 1:2], hess_ref[1:2, 1:2]; atol = 5e-3))
+    @test all(.≈(H[3:4, 3:4], hess_ref[3:4, 3:4]; atol = 5e-3))
     return nothing
 end
 
@@ -113,7 +114,7 @@ model = create_model_inside_function()
 end
 
 @testset "nllh, grad, and hess" begin
-    test_nllh_grad_hess(model, ODESolver(Rodas5P(), abstol=1e-14, reltol=1e-14))
+    test_nllh_grad_hess(model, ODESolver(Rodas5P(), abstol=1e-15, reltol=1e-15))
 end
 
 @testset "grad residuals" begin
@@ -127,6 +128,6 @@ model2 = PEtabModel(joinpath(@__DIR__, "analytic_solution", "Test_model2.yaml"),
                     build_julia_files=false, verbose=true, write_to_file = false)
 prob = PEtabODEProblem(model; verbose = true)
 @testset "ODE solver" begin
-    test_odesolver(model2, ODESolver(Rodas5P(), abstol=1e-9, reltol=1e-9))
+    test_odesolver(model, ODESolver(Rodas5P(), abstol=1e-9, reltol=1e-9))
 end
 rm(model.paths[:dirjulia]; recursive = true)

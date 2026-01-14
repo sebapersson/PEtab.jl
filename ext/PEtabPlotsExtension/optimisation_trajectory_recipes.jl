@@ -22,7 +22,7 @@ const PLOT_TYPES_MS = [
 
     # Checks that a recognised plot type was used.
     if !in(plot_type, PLOT_TYPES)
-        error("Argument plot_type have an unrecognised value ($(plot_type)). Alternative \
+        error("Argument plot_type have an unrecognised value ($(plot_type)). Allowed \
                values are: $(PLOT_TYPES).")
     end
 
