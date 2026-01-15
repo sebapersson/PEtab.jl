@@ -123,8 +123,7 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnois
         ∂G∂p .+= ∂G∂p_
     end
 
-    # Transfer the nn-output parameters gradient to cache, which is later correctly
-    # adjusted in grad_to_xscale!
+    # Gradient of ML parameters
     if split_over_conditions == true && !isempty(cache.grad_nn_preode)
         cache.grad_nn_preode .= forward_eqs_grad[(length(ixdynamic_simid)+1):end]
         _set_grad_x_nn_preode!(grad, simid, probinfo, model_info)

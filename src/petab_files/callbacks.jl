@@ -1,10 +1,15 @@
-function _parse_events(model_SBML::SBMLImporter.ModelSBML, petab_events::Vector{PEtabEvent}, sys::ODESystem, speciemap, parametermap, name, xindices::ParameterIndices, petab_tables)::Tuple{Dict{Symbol, CallbackSet}, Bool}
+function _parse_events(model_SBML::SBMLImporter.ModelSBML, petab_events::Vector{PEtabEvent}, sys::Union{ODEProblem, ODESystem}, speciemap, parametermap, name, xindices::ParameterIndices, petab_tables)::Tuple{Dict{Symbol, CallbackSet}, Bool}
     cbs = Dict{Symbol, CallbackSet}()
     conditions_df = petab_tables[:conditions]
 
     float_tspan = _xdynamic_in_event_cond(model_SBML, xindices, petab_tables) |> !
     p_sys = string.(_get_xids_sys_order(sys, speciemap, parametermap))
-    cbs_sbml = SBMLImporter.create_callbacks(sys, model_SBML, name; p_PEtab = p_sys, float_tspan = float_tspan)
+    state_ids = _get_state_ids(sys)
+    cbs_sbml = SBMLImporter.create_callbacks(
+        sys, model_SBML, name; p_PEtab = p_sys, float_tspan = float_tspan,
+        _specie_ids = state_ids
+    )
+
     if isempty(petab_events)
         for condition_id in Symbol.(conditions_df.conditionId)
             cbs[condition_id] = deepcopy(cbs_sbml)

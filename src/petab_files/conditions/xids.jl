@@ -150,20 +150,21 @@ function _get_xids_condition(sys, petab_parameters::PEtabParameters, petab_table
     conditions_df = petab_tables[:conditions]
     xids_sys = parameters(sys) .|> string
     species_sys = _get_state_ids(sys)
-    net_inputs = String[]
 
+    # TODO: Make this a function
+    net_inputs = String[]
     for (ml_model_id, ml_model) in ml_models
         ml_model.static == false && continue
-        input_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs) |>
+        _net_inputs = get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs) |>
             Iterators.flatten .|>
             string
-        net_inputs = Iterators.flatten((net_inputs, input_variables))
+        net_inputs = vcat(net_inputs, _net_inputs)
     end
 
     xids_condition = Symbol[]
     for colname in names(conditions_df)
         colname in ["conditionName", "conditionId"] && continue
-        if !(colname in Iterators.flatten((xids_sys, species_sys)))
+        if !(colname in Iterators.flatten((xids_sys, species_sys, net_inputs)))
             throw(PEtabFileError("Parameter $colname that dictates an experimental \
                                   condition does not appear among the model variables"))
         end
@@ -179,7 +180,7 @@ function _get_xids_condition(sys, petab_parameters::PEtabParameters, petab_table
                     _formula == condition_value && continue
                     throw(PEtabFileError("Neural net input variable $(condition_variable) \
                         setting value of $colname is a simulation condition is not \
-                        allowed to be estiamted"))
+                        allowed to be estimated"))
                 end
 
                 estimate == false && continue

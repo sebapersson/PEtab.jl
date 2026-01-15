@@ -66,7 +66,7 @@ struct ParameterIndices
     xobservable_maps::Vector{ObservableNoiseMap}
     xnoise_maps::Vector{ObservableNoiseMap}
     condition_maps::Dict{Symbol, ConditionMap}
-    map_ml_preode::Dict{Symbol, Dict{Symbol, MLModelPreODEMap}}
+    maps_ml_preode::Dict{Symbol, Dict{Symbol, MLModelPreODEMap}}
 end
 
 struct Priors
@@ -188,7 +188,7 @@ function ModelInfo(model::PEtabModel, sensealg, custom_values)::ModelInfo
     xindices = ParameterIndices(petab_parameters, petab_measurements, model)
     simulation_info = SimulationInfo(callbacks, petab_measurements, petab_events; sensealg = sensealg)
     priors = Priors(xindices, model)
-    nstates = Int32(length(unknowns(model.sys_mutated)))
+    nstates = Int32(length(_get_state_ids(model.sys_mutated)))
     return ModelInfo(petab_measurements, petab_parameters, petab_ml_parameters, xindices, simulation_info, priors, model, nstates)
 end
 

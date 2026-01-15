@@ -126,6 +126,8 @@ end
 function add_u0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::PEtabTables, ml_models::MLModels)::Nothing
     conditions_df = petab_tables[:conditions]
     parameters_df = petab_tables[:parameters]
+    mappings_df = petab_tables[:mapping]
+    hybridization_df = petab_tables[:hybridization]
 
     specieids = keys(model_SBML.species)
     rateruleids = model_SBML.rate_rule_variables
@@ -136,8 +138,6 @@ function add_u0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::PE
     # value must be converted to a parameter
     net_outputs = String[]
     for (ml_model_id, ml_model) in ml_models
-        mappings_df = petab_tables[:mapping]
-        hybridization_df = petab_tables[:hybridization]
         ml_model.static == false && continue
         output_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :outputs) |>
             Iterators.flatten
@@ -327,4 +327,7 @@ function _get_sys_observables(sys::ODESystem)::Dict{Symbol, Function}
         sys_observables[index_obs] = SymbolicIndexingInterface.observed(sys, index_obs)
     end
     return sys_observables
+end
+function _get_sys_observables(::ODEProblem)::Dict{Symbol, Function}
+    return Dict{Symbol, Function}()
 end

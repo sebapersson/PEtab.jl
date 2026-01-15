@@ -34,7 +34,7 @@ function _parse_h(state_ids::Vector{String}, sys_observable_ids::Vector{Symbol},
         formula = filter(x -> !isspace(x), observables_df[i, :observableFormula] |> string)
         formula = _parse_formula(formula, state_ids, sys_observable_ids, xindices, model_SBML, :observable)
         obs_parameters = _get_observable_parameters(formula)
-        formulas_nn = _get_ml_formulas(formula, petab_tables, state_ids, xindices, model_SBML, ml_models, :observable)
+        formulas_nn = _get_ml_formulas(formula, petab_tables, state_ids, sys_observable_ids, xindices, model_SBML, ml_models, :observable)
         hstr *= "\tif obsid == :$(obsid)\n"
         hstr *= _template_obs_sd_parameters(obs_parameters; obs = true)
         hstr *= formulas_nn
@@ -198,7 +198,7 @@ function _parse_formula(formula::String, state_ids::Vector{String}, sys_observab
     return formula
 end
 
-function _get_ml_formulas(formula, petab_tables::PEtabTables, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, ml_models::MLModels, type::Symbol)::String
+function _get_ml_formulas(formula, petab_tables::PEtabTables, state_ids::Vector{String}, sys_observable_ids::Vector{Symbol}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, ml_models::MLModels, type::Symbol)::String
     formula_nn = ""
     mappings_df = petab_tables[:mapping]
     isempty(mappings_df) && return formula_nn
@@ -213,7 +213,7 @@ function _get_ml_formulas(formula, petab_tables::PEtabTables, state_ids::Vector{
             end
         end
         has_nn_output == false && continue
-        formula_nn *= _template_ml_observable(ml_model_id, petab_tables, state_ids, xindices, model_SBML, type)
+        formula_nn *= _template_ml_observable(ml_model_id, petab_tables, state_ids, sys_observable_ids, xindices, model_SBML, type)
     end
     return formula_nn
 end

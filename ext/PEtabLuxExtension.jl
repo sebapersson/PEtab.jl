@@ -10,6 +10,7 @@ using Lux
 using PEtab
 using Random
 using YAML
+using PEtab: MLModel
 
 include(joinpath(@__DIR__, "PEtabLuxExtension", "netinfo.jl"))
 

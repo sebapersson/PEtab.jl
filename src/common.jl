@@ -217,8 +217,8 @@ function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices; full_x:
     end
     # Include parameters that potentially appear as only input to a neural-net. These
     # parameters are by default included in xdynamic (as they gouvern model dynamics)
-    if !isempty(xindices.map_ml_preode)
-        for map_ml_model in values(xindices.map_ml_preode[simid])
+    if !isempty(xindices.maps_ml_preode)
+        for map_ml_model in values(xindices.maps_ml_preode[simid])
             ixdynamic = vcat(ixdynamic, reduce(vcat, map_ml_model.ixdynamic_mech_inputs))
         end
     end

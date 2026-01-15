@@ -243,7 +243,7 @@ end
 
 function _get_freeze_info(ml_model_id::Symbol, ml_models::Dict, path_yaml::String)::Dict
     paths = PEtab._get_petab_paths(path_yaml)
-    petab_tables = PEtab.read_tables(path_yaml)
+    petab_tables = PEtab.read_tables_v2(path_yaml)
     petab_ml_parameters = PEtab.PEtabMLParameters(petab_tables[:parameters], petab_tables[:mapping], ml_models)
     inet = findall(x -> x == ml_model_id, petab_ml_parameters.ml_model_id)
     all(petab_ml_parameters.estimate[inet] .== false) && return Dict()

@@ -71,7 +71,7 @@ const PARAMETERS_V2_COLS = Dict(
     "parameterScale" => (required = false, types = AbstractString),
     "lowerBound" => (required = true, types = Union{Real, Missing}),
     "upperBound" => (required = true, types = Union{Real, Missing}),
-    "nominalValue" => (required = true, types = Real),
+    "nominalValue" => (required = true, types = Union{Real, Missing}),
     "estimate" => (required = true, types = Real),
     "priorDistribution" => (required = false, types = Union{Missing, AbstractString}),
     "priorParameters" => (required = false,
@@ -84,6 +84,16 @@ const EXPERIMENTS_V2_COLS = Dict(
     "conditionId" => (required = true, types = Union{AbstractString, Missing})
 )
 
+const MAPPING_COLS = Dict(
+    "modelEntityId" => (required = true, types = AbstractString),
+    "petabEntityId" => (required = true, types = AbstractString)
+)
+
+const HYBRIDIZATION_COLS = Dict(
+    "targetId" => (required = true, types = AbstractString),
+    "targetValue" => (required = true, types = AbstractString)
+)
+
 const COLUMN_INFO = Dict(
     :measurements_v1 => MEASUREMENT_V1_COLS,
     :conditions_v1 => CONDITIONS_V1_COLS,
@@ -93,14 +103,14 @@ const COLUMN_INFO = Dict(
     :measurements_v2 => MEASUREMENT_V2_COLS,
     :conditions_v2 => CONDITIONS_V2_COLS,
     :parameters_v2 => PARAMETERS_V2_COLS,
-    :observables_v2 => OBSERVABLES_V2_COLS
+    :observables_v2 => OBSERVABLES_V2_COLS,
+    :mapping => MAPPING_COLS,
+    :hybridization => HYBRIDIZATION_COLS
 )
 
-const MAPPING_COLS = Dict("modelEntityId" => (required = true, types = AbstractString),
-                          "petabEntityId" => (required = true, types = AbstractString))
-
-const HYBRIDIZATION_COLS = Dict("targetId" => (required = true, types = AbstractString),
-                                "targetValue" => (required = true, types = AbstractString))
+const OPTIONAL_V2_FILES = [
+    "condition_files", "experiment_files", "hybridization_files", "mapping_files"
+]
 
 const VALID_SCALES = ["lin", "log10", "log", "log2"]
 

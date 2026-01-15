@@ -50,11 +50,20 @@ function _get_map_observable_noise(xids::Vector{Symbol},
     return maps
 end
 
-function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_parameters::PEtabParameters, conditions_df::DataFrame, xids::Dict{Symbol, Vector{Symbol}})::Dict{Symbol, ConditionMap}
+function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_parameters::PEtabParameters, conditions_df::DataFrame, mappings_df::DataFrame, xids::Dict{Symbol, Vector{Symbol}}, ml_models::MLModels)::Dict{Symbol, ConditionMap}
     xids_sys = string.(xids[:sys])
     xids_dynamic_mech = string.(xids[:dynamic_mech])
     specie_ids = _get_state_ids(sys)
     model_ids = Iterators.flatten((xids_sys, specie_ids))
+
+    net_inputs = String[]
+    for (ml_model_id, ml_model) in ml_models
+        ml_model.static == false && continue
+        _net_inputs = get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs) |>
+            Iterators.flatten .|>
+            string
+        net_inputs = vcat(net_inputs, _net_inputs)
+    end
 
     ix_all_conditions, isys_all_conditions = _get_all_conditions_map(xids)
     condition_maps = Dict{Symbol, ConditionMap}()
@@ -64,6 +73,8 @@ function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_pa
         isys_condition = Int32[]
         for target_id in names(conditions_df)
             target_id in ["conditionName", "conditionId"] && continue
+            target_id in net_inputs && continue
+
             target_value = conditions_df[i, target_id]
             push!(target_ids, target_id)
 
@@ -89,8 +100,7 @@ function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_pa
                                       header must be a specie"))
             end
 
-            # At this point a valid PEtab formula is assumed, TODO figure out how to catch
-            # invalid formuals
+            # At this point a valid PEtab formula is assumed
             push!(target_value_formulas, string(target_value))
             _add_ix_sys!(isys_condition, target_id, xids_sys)
         end

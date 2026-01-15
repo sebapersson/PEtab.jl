@@ -136,6 +136,20 @@ function compute_prior end
 function get_correction end
 function correct_gradient! end
 
+# For ML models
+function load_ml_models end
+function _setup_ml_models end
+function _get_ml_model_ps end
+function _get_ml_model_initialparameters end
+function set_ml_model_ps! end
+function _reshape_io_data end
+function ml_model end
+function parse_to_lux end
+function _reshape_array end
+function _get_initialisation_priors end
+function nn_ps_to_h5! end
+function MLModel end
+
 export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
        PEtabODEProblem, remake, PEtabOptimisationResult, IpoptOptions, IpoptOptimizer,
        PEtabParameter, PEtabCondition, PEtabObservable, PEtabMultistartResult,

@@ -38,6 +38,7 @@ function _check_static_net_inputs(petab_tables::PEtabTables, paths::Dict{Symbol,
     conditions_df = petab_tables[:conditions]
     hybridization_df = petab_tables[:hybridization]
     mappings_df = petab_tables[:mapping]
+
     input_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs) |>
         Iterators.flatten
     for input_variable in input_variables

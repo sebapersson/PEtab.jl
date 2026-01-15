@@ -49,7 +49,7 @@ function _template_ml_in_ode(ml_model_id::Symbol, petab_tables::PEtabTables)::St
     return formula
 end
 
-function _template_ml_observable(ml_model_id::Symbol, petab_tables::PEtabTables, state_ids::Vector{String}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, type::Symbol)::String
+function _template_ml_observable(ml_model_id::Symbol, petab_tables::PEtabTables, state_ids::Vector{String},  sys_observable_ids::Vector{Symbol}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, type::Symbol)::String
     mappings_df = petab_tables[:mapping]
     hybridization_df = petab_tables[:hybridization]
 
@@ -64,7 +64,7 @@ function _template_ml_observable(ml_model_id::Symbol, petab_tables::PEtabTables,
             inputs *= ", "
         end
     end
-    inputs = _parse_formula(inputs, state_ids, xindices, model_SBML, type)
+    inputs = _parse_formula(inputs, state_ids, sys_observable_ids, xindices, model_SBML, type)
 
     output_variables = get_ml_model_petab_variables(mappings_df, Symbol(ml_model_id), :outputs) |>
         Iterators.flatten
@@ -72,7 +72,7 @@ function _template_ml_observable(ml_model_id::Symbol, petab_tables::PEtabTables,
 
     formula = "\n\t\tml_model_$(ml_model_id) = ml_models[:$(ml_model_id)]\n"
     if ml_model_id in xindices.xids[:ml_in_ode]
-        formula *= "\t\txnn_$(ml_model_id) = p[:$(ml_model_id)]\n"
+        formula *= "\t\txnn_$(ml_model_id) = __p_model[:$(ml_model_id)]\n"
     elseif ml_model_id in xindices.xids[:ml_est]
         formula *= "\t\txnn_$(ml_model_id) = xnn[:$(ml_model_id)]\n"
     else

@@ -20,12 +20,15 @@ function read_tables_v2(path_yaml::String)::PEtabTables
     measurements_df = _read_table(petab_paths[:measurements], :measurements_v2)
     observables_df = _read_table(petab_paths[:observables], :observables_v2)
     parameters_df = _read_table(petab_paths[:parameters], :parameters_v2)
+    mappings_df = _read_table(petab_paths[:mapping], :mapping)
+    hybridization_df = _read_table(petab_paths[:hybridization], :hybridization)
+
     yaml_file = YAML.load_file(path_yaml)
     return Dict{Symbol, Union{DataFrame, Dict}}(
         :parameters => parameters_df, :conditions => conditions_df,
         :observables => observables_df, :measurements => measurements_df,
-        :experiments => experiments_df, :yaml => yaml_file, :mapping => DataFrame(),
-        :hybridization => DataFrame()
+        :experiments => experiments_df, :yaml => yaml_file, :mapping => mappings_df,
+        :hybridization => hybridization_df
     )
 end
 
@@ -50,8 +53,9 @@ function _get_petab_paths(path_yaml::AbstractString)::Dict{Symbol, String}
         path_SBML = _get_path(yaml_file, dirmodel, "sbml_files")
     else
         path_SBML = _get_model_path_v2(yaml_file, dirmodel)
-        path_experiments = _get_path(yaml_file, dirmodel, "experiment_files")
-        petab_paths[:experiments] = path_experiments
+        petab_paths[:experiments] = _get_path(yaml_file, dirmodel, "experiment_files")
+        petab_paths[:mapping] = _get_path(yaml_file, dirmodel, "mapping_files")
+        petab_paths[:hybridization] = _get_path(yaml_file, dirmodel, "hybridization_files")
     end
     petab_paths[:SBML] = path_SBML
     return petab_paths
@@ -88,6 +92,12 @@ function _read_table(path::String, file::Symbol)::DataFrame
     if isempty(path) && file == :conditions_v2
         return DataFrame()
     end
+    if isempty(path) && file == :mapping
+        return DataFrame()
+    end
+    if isempty(path) && file == :hybridization
+        return DataFrame()
+    end
 
     df = CSV.read(path, DataFrame; stringtype = String)
     _check_table(df, file)
@@ -98,16 +108,31 @@ function _get_path(yaml_file::Dict, dirmodel::String, file::String)::String
     petab_version = _get_version(yaml_file)
 
     # Condition and Experiment files are optional in PEtab v2
-    if petab_version == "2.0.0"
-        if isempty(yaml_file[file]) && file in ["condition_files", "experiment_files"]
+    if petab_version == "2.0.0" && file != "hybridization_files"
+        has_file = !(!haskey(yaml_file, file) || isempty(yaml_file[file]))
+        if !has_file && file in OPTIONAL_V2_FILES
             return ""
         end
         path = joinpath(dirmodel, yaml_file[file][1])
+
+    elseif petab_version == "2.0.0" && file == "hybridization_files"
+        has_file = (
+            haskey(yaml_file, "extensions") &&
+            haskey(yaml_file["extensions"], "sciml") &&
+            haskey(yaml_file["extensions"]["sciml"], file)
+        )
+        if !has_file && file in OPTIONAL_V2_FILES
+            return ""
+        end
+        path = joinpath(dirmodel, yaml_file["extensions"]["sciml"][file][1])
+
     elseif !(petab_version == "1.0.0" && file == "parameter_files")
         path = joinpath(dirmodel, yaml_file["problems"][1][file][1])
+
     else
         path = joinpath(dirmodel, yaml_file["parameter_file"])
     end
+
     if !isfile(path)
         throw(PEtabFileError("$(path) is not a valid path for the $file tables"))
     end

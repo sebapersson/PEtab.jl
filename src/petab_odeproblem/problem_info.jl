@@ -112,7 +112,7 @@ end
 
 function _get_ml_models_pre_ode(model_info::ModelInfo, cache::PEtabODEProblemCache)::Dict{Symbol, Dict{Symbol, MLModelPreODE}}
     ml_models_pre_ode = Dict{Symbol, Dict{Symbol, MLModelPreODE}}()
-    for (cid, maps_nn) in model_info.xindices.map_ml_preode
+    for (cid, maps_nn) in model_info.xindices.maps_ml_preode
         ml_model_pre_ode = Dict{Symbol, MLModelPreODE}()
         for (ml_model_id, map_ml_model) in maps_nn
             @unpack ninput_arguments, ninputs, noutputs = map_ml_model

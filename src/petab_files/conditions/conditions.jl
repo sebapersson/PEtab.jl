@@ -36,6 +36,7 @@ function ParameterIndices(petab_parameters::PEtabParameters, petab_ml_parameters
     _check_mapping_table(petab_tables, paths, ml_models, petab_parameters, sys)
 
     conditions_df = petab_tables[:conditions]
+    mappings_df = petab_tables[:mapping]
 
     xids = _get_xids(petab_parameters, petab_ml_parameters, petab_measurements, sys, petab_tables, paths, speciemap, parametermap, ml_models)
 
@@ -44,7 +45,7 @@ function ParameterIndices(petab_parameters::PEtabParameters, petab_ml_parameters
     xindices_est = _get_xindices_xest(xids, ml_models)
     xindices_dynamic = _get_xindices_dynamic(xids, ml_models)
     xindices_notsys = _get_xindices_notsys(xids, ml_models)
-    condition_maps = _get_condition_maps(sys, parametermap, speciemap, petab_parameters, conditions_df, xids)
+    condition_maps = _get_condition_maps(sys, parametermap, speciemap, petab_parameters, conditions_df, mappings_df, xids, ml_models)
 
     # For each time-point we must build a map that stores if i) noise/obserable parameters
     # are constants, ii) should be estimated, iii) and corresponding index in parameter

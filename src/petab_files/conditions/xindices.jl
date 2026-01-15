@@ -56,6 +56,38 @@ function _get_xindices_dynamic(xids::Dict{Symbol, Vector{Symbol}}, ml_models::ML
         xindices[pid] = _get_xindices_net(pid, istart, ml_models)
         istart = xindices[pid][end]
     end
+
+    # Indices for extracting which parameters are given by a ML model
+    ix_sys_nn_preode_output = Int32[]
+    for output_id in xids[:ml_preode_outputs]
+        isys = 1
+        for id_sys in xids[:sys]
+            if id_sys in xids[:ml_est]
+                isys += _get_n_ml_model_parameters(ml_models, [id_sys])
+                continue
+            end
+            if id_sys == output_id
+                push!(ix_sys_nn_preode_output, isys)
+                break
+            end
+            isys += 1
+        end
+    end
+    xindices[:ml_preode_outputs] = ix_sys_nn_preode_output
+
+    # Indices for mapping ODEProblem.p ML parameters to xdynamic
+    isys = 0
+    xi_sys_to_dynamic_nn = Int32[]
+    for id_sys in xids[:sys]
+        if id_sys in xids[:ml_est]
+            xi_sys_to_dynamic_nn = vcat(xi_sys_to_dynamic_nn, _get_xindices_net(id_sys, isys, ml_models))
+            isys = xi_sys_to_dynamic_nn[end]
+            continue
+        end
+        isys += 1
+    end
+    xindices[:sys_to_dynamic_nn] = xi_sys_to_dynamic_nn
+
     # nn_preode outputs are for effiency added to xdynamic, and these parameters are
     # sent to the end of the vector
     np = length(xindices[:xest_to_xdynamic])

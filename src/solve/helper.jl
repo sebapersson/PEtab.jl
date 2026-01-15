@@ -132,7 +132,7 @@ end
 
 function _set_ml_preode_parameters!(p::AbstractVector, xdynamic::AbstractVector, xnn, simulation_id::Symbol, xindices::ParameterIndices, ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreODE}})::Nothing
     !haskey(ml_models_pre_ode, simulation_id) && return nothing
-    maps_nns = xindices.maps_nn_preode[simulation_id]
+    maps_nns = xindices.maps_ml_preode[simulation_id]
     for (ml_model_id, ml_model_pre_ode) in ml_models_pre_ode[simulation_id]
         map_ml_model = maps_nns[ml_model_id]
         # In case of neural nets being computed before the function call,

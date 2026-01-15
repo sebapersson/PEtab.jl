@@ -74,14 +74,30 @@ function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector
         @views grad_xscale[xi] .+= grad_linscale[xi]
     end
 
+    # ML parameters inside the ODE. These should not be transformed to parameters scale
+    # (only allowed to be on linear scale)
+    @unpack nn_in_ode, sys_to_dynamic_nn = xindices.xindices_dynamic
+    if sensitivities_AD == true
+        @views @. grad_xscale[nn_in_ode] += grad_linscale[nn_in_ode] + ∂G∂p[sys_to_dynamic_nn]
+    else
+        @views @. grad_xscale[nn_in_ode] += grad_linscale[sys_to_dynamic_nn] + ∂G∂p[sys_to_dynamic_nn]
+    end
+
     # TODO: Jacobian should be pre-allocated, doable as I should have all the dimensions when building the ConditionMap
     # In case of ForwardDiff sensitivities (sensitivities_AD == true) grad_linscale follow
     # the same indexing as grad_xscale (that of xdynamic) with xdynamic mapped to p within
     # an AD call. ∂G∂p follows the same indexing as ODEProblem.p, where xdynamic is
     # mapped to p for ∂G∂p outside an AD call -> Jacobian correction needed
-    if sensitivities_AD == true
+    if sensitivities_AD == true && nn_preode == true
         J = ForwardDiff.jacobian(condition_map!, similar(∂G∂p), xdynamic)
         grad_linscale .+= transpose(transpose(∂G∂p) * J)
+        _grad_to_xscale!(grad_xscale, grad_linscale, xdynamic, xids[:dynamic_mech], xscale)
+        return nothing
+    elseif sensitivities_AD == true && nn_preode == false
+        n_dynamic_mech = length(xids[:dynamic_mech])
+        _xdynamic = xdynamic[1:n_dynamic_mech]
+        J = ForwardDiff.jacobian(condition_map!, similar(∂G∂p), _xdynamic)
+        grad_linscale[1:n_dynamic_mech] .+= transpose(transpose(∂G∂p) * J)
         _grad_to_xscale!(grad_xscale, grad_linscale, xdynamic, xids[:dynamic_mech], xscale)
         return nothing
     end
@@ -135,7 +151,7 @@ function _get_xinput(simid::Symbol, x::Vector{<:AbstractFloat}, ixdynamic_simid,
         return xinput
     end
     for (ml_model_id, nn_preode) in probinfo.ml_models_pre_ode[simid]
-        map_ml_model = model_info.xindices.map_ml_preode[simid][ml_model_id]
+        map_ml_model = model_info.xindices.maps_ml_preode[simid][ml_model_id]
         outputs = get_tmp(nn_preode.outputs, xinput)
         ix = map_ml_model.ix_nn_outputs_grad
         ix .= map_ml_model.ix_nn_outputs .+ ninode
@@ -151,7 +167,7 @@ function _split_xinput!(probinfo::PEtabODEProblemInfo, simid::Symbol, model_info
         return nothing
     end
     for (ml_model_id, nn_preode) in probinfo.ml_models_pre_ode[simid]
-        map_ml_model =  model_info.xindices.map_ml_preode[simid][ml_model_id]
+        map_ml_model =  model_info.xindices.maps_ml_preode[simid][ml_model_id]
         outputs = get_tmp(nn_preode.outputs, xinput)
         @views outputs .= xinput[map_ml_model.ix_nn_outputs_grad]
     end

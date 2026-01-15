@@ -75,11 +75,11 @@ function PEtabODEProblem(model::PEtabModel;
     # Relevant information for the unknown model parameters
     xnames = model_info.xindices.xids[:estimate]
     xnames_ps = model_info.xindices.xids[:estimate_ps]
-    nestimate = length(xnames)
     lb = _get_bounds(model_info, xnames, xnames_ps, :lower)
     ub = _get_bounds(model_info, xnames, xnames_ps, :upper)
     xnominal = _get_xnominal(model_info, xnames, xnames_ps, false)
     xnominal_transformed = _get_xnominal(model_info, xnames, xnames_ps, true)
+    nestimate = length(xnominal)
 
     return PEtabODEProblem(nllh, _chi2, grad!, grad, hess!, hess, FIM!, FIM, nllh_grad,
                            prior, grad_prior, hess_prior, _simulated_values, _residuals,

@@ -52,7 +52,7 @@ function PEtab._grad_forward_eqs_cond!(
     # compute the gradient of the neural-net. As usual, the outer Jacobian derivative has
     # already been computed, so the only thing left is to combine them
     if !isempty(xindices.xids[:ml_preode_outputs])
-        ix = xindices.map_odeproblem.sys_to_nn_preode_output
+        ix = xindices.xindices_dynamic[:ml_preode_outputs]
         cache.grad_nn_preode .= _grad[ix]
         PEtab._set_grad_x_nn_preode!(grad, simid, probinfo, model_info)
     end
