@@ -1,6 +1,6 @@
-function PEtab.set_ml_model_ps!(ps::ComponentArray, path_h5::String, nn, ml_model_id::Symbol)::Nothing
+function PEtab.set_ml_model_ps!(ps::ComponentArray, path_h5::String, nn, ml_id::Symbol)::Nothing
     file = h5open(path_h5, "r")
-    net_parameters = file["parameters"]["$(ml_model_id)"]
+    net_parameters = file["parameters"]["$(ml_id)"]
     st = Lux.initialstates(Random.default_rng(1), nn)
     for (layerid, layer) in pairs(nn.layers)
         ps_layer = ps[layerid]

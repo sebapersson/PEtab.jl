@@ -1,3 +1,4 @@
+# TODO: Should be doable to do a fast function here is input is known constant
 function _net!(out, x, x_ml_model::DiffCache, inputs::Vector{<:DiffCache}, map_ml_model::MLModelPreODEMap, ml_model::MLModel)::Nothing
     _x_ml_model = get_tmp(x_ml_model, x)
     _x_ml_model .= x[(sum(map_ml_model.nxdynamic_inputs) + 1):end]
@@ -30,6 +31,7 @@ function _net_reversediff!(out, x_ml_model, inputs, ml_model::MLModel)::Nothing
     return nothing
 end
 
+# TODO: Can simplify by generating a function, as with ConditionMap?
 function _get_input(map_ml_model::MLModelPreODEMap, iarg::Int64)
     if map_ml_model.file_input[iarg] == false
         input = map_ml_model.constant_inputs[iarg][map_ml_model.iconstant_inputs[iarg]]
@@ -44,7 +46,7 @@ function _get_input(inputs::DiffCache, x, map_ml_model::MLModelPreODEMap, iarg::
         _inputs[map_ml_model.iconstant_inputs[iarg]] .= map_ml_model.constant_inputs[iarg]
         _inputs[map_ml_model.ixdynamic_inputs[iarg]] .= x[1:map_ml_model.nxdynamic_inputs[iarg]]
     else
-        _inputs = convert.(eltype(x), map_ml_model.constant_inputs[iarg])
+        _inputs = map_ml_model.constant_inputs[iarg]
     end
     return _inputs
 end
@@ -52,16 +54,16 @@ end
 function _jac_ml_model_preode!(probinfo::PEtabODEProblemInfo, model_info::ModelInfo)::Nothing
     @unpack cache = probinfo
     for (cid, ml_models_pre_ode) in probinfo.ml_models_pre_ode
-        for (ml_model_id, ml_model_pre_ode) in ml_models_pre_ode
+        for (ml_id, ml_model_pre_ode) in ml_models_pre_ode
             # Only relevant if neural-network parameters are estimated, otherwise a normal
             # reverse pass of the code is fast
-            !haskey(cache.xnn, ml_model_id) && continue
+            !haskey(cache.xnn, ml_id) && continue
 
             @unpack tape, jac_ml_model, outputs, computed, forward! = ml_model_pre_ode
             # Parameter mapping. If one of the inputs is a parameter to estimate, the
             # Jacobian is also computed of the input parameter.
-            map_ml_model = model_info.xindices.maps_ml_preode[cid][ml_model_id]
-            x_ml_model = get_tmp(cache.xnn[ml_model_id], 1.0)
+            map_ml_model = model_info.xindices.maps_ml_preode[cid][ml_id]
+            x_ml_model = get_tmp(cache.xnn[ml_id], 1.0)
 
             _outputs = get_tmp(outputs, x_ml_model)
             if sum(map_ml_model.nxdynamic_inputs) > 0
@@ -83,13 +85,13 @@ function _set_grad_x_nn_preode!(xdynamic_grad::AbstractVector, simid::Symbol, pr
     isempty(probinfo.ml_models_pre_ode) && return nothing
 
     @unpack xindices_dynamic, maps_ml_preode = model_info.xindices
-    for (ml_model_id, ml_model_pre_ode) in probinfo.ml_models_pre_ode[simid]
-        map_ml_model = maps_ml_preode[simid][ml_model_id]
+    for (ml_id, ml_model_pre_ode) in probinfo.ml_models_pre_ode[simid]
+        map_ml_model = maps_ml_preode[simid][ml_id]
         grad_nn_output = probinfo.cache.grad_nn_preode[map_ml_model.ix_nn_outputs]
         # Needed to account for neural-net parameter potentially not being estimated
         ix = reduce(vcat, map_ml_model.ixdynamic_mech_inputs)
-        if haskey(xindices_dynamic, ml_model_id)
-            ix = vcat(ix, xindices_dynamic[ml_model_id])
+        if haskey(xindices_dynamic, ml_id)
+            ix = vcat(ix, xindices_dynamic[ml_id])
         end
         xdynamic_grad[collect(ix)] .+= vec(grad_nn_output' * ml_model_pre_ode.jac_ml_model)
     end

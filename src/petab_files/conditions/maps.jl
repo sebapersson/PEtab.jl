@@ -1,12 +1,13 @@
-function _get_map_observable_noise(xids::Vector{Symbol},
-                                   petab_measurements::PEtabMeasurements,
-                                   petab_parameters::PEtabParameters;
-                                   observable::Bool)::Vector{ObservableNoiseMap}
+function _get_map_observable_noise(
+        xids::Vector{Symbol}, petab_measurements::PEtabMeasurements,
+        petab_parameters::PEtabParameters; observable::Bool
+    )::Vector{ObservableNoiseMap}
     if observable == true
         parameter_rows = petab_measurements.observable_parameters
     else
         parameter_rows = petab_measurements.noise_parameters
     end
+
     maps = Vector{ObservableNoiseMap}(undef, length(parameter_rows))
     for (i, parameter_row) in pairs(parameter_rows)
         # No observable/noise parameter for observation i
@@ -50,19 +51,24 @@ function _get_map_observable_noise(xids::Vector{Symbol},
     return maps
 end
 
-function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_parameters::PEtabParameters, conditions_df::DataFrame, mappings_df::DataFrame, xids::Dict{Symbol, Vector{Symbol}}, ml_models::MLModels)::Dict{Symbol, ConditionMap}
+function _get_condition_maps(
+        sys::ModelSystem, parametermap, speciemap, petab_parameters::PEtabParameters,
+        petab_tables::PEtabTables, xids::Dict{Symbol, Vector{Symbol}}, ml_models::MLModels
+    )::Dict{Symbol, ConditionMap}
+    conditions_df, mappings_df = _get_petab_tables(petab_tables, [:conditions, :mapping])
+
     xids_sys = string.(xids[:sys])
     xids_dynamic_mech = string.(xids[:dynamic_mech])
-    specie_ids = _get_state_ids(sys)
-    model_ids = Iterators.flatten((xids_sys, specie_ids))
+    state_ids = _get_state_ids(sys)
+    model_ids = Iterators.flatten((xids_sys, state_ids))
 
-    net_inputs = String[]
-    for (ml_model_id, ml_model) in ml_models
+    ml_inputs = String[]
+    for (ml_id, ml_model) in ml_models
         ml_model.static == false && continue
-        _net_inputs = get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs) |>
+        _ml_inputs = _get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs) |>
             Iterators.flatten .|>
             string
-        net_inputs = vcat(net_inputs, _net_inputs)
+        ml_inputs = vcat(ml_inputs, _ml_inputs)
     end
 
     ix_all_conditions, isys_all_conditions = _get_all_conditions_map(xids)
@@ -73,7 +79,7 @@ function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_pa
         isys_condition = Int32[]
         for target_id in names(conditions_df)
             target_id in ["conditionName", "conditionId"] && continue
-            target_id in net_inputs && continue
+            target_id in ml_inputs && continue
 
             target_value = conditions_df[i, target_id]
             push!(target_ids, target_id)
@@ -91,7 +97,7 @@ function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_pa
             # NaN values apply for pre-equilibration and implies a specie should use the
             # value obtained from the forward simulation
             is_nan = (target_value isa Real && isnan(target_value)) || target_value == "NaN"
-            if is_nan && target_id in specie_ids
+            if is_nan && target_id in state_ids
                 push!(target_value_formulas, "NaN")
                 _add_ix_sys!(isys_condition, target_id, xids_sys)
                 continue
@@ -136,7 +142,6 @@ function _get_condition_maps(sys::ModelSystem, parametermap, speciemap, petab_pa
     return condition_maps
 end
 
-# TODO: This might need fixing later!
 function _get_all_conditions_map(xids::Dict{Symbol, Vector{Symbol}})::NTuple{2, Vector{Int32}}
     isys_all_conditions = findall(x -> x in xids[:sys], xids[:dynamic_mech]) |> Vector{Int32}
     ids = xids[:dynamic_mech][isys_all_conditions]
@@ -155,8 +160,8 @@ function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameter
     for i in 1:nconditions
         conditionid = conditions_df[i, :conditionId] |> Symbol
         maps_nn = Dict{Symbol, MLModelPreODEMap}()
-        for ml_model_id in xids[:ml_preode]
-            input_info = _get_ml_preode_inputs(ml_model_id, conditionid, xids, petab_parameters, petab_tables, paths, ml_models, sys)
+        for ml_id in xids[:ml_preode]
+            input_info = _get_ml_preode_inputs(ml_id, conditionid, xids, petab_parameters, petab_tables, paths, ml_models, sys)
 
             # Indices for correctly mapping the output. The outputs are stored in a
             # separate vector of order xids[:ml_preode_outputs], which ix_nn_outputs
@@ -165,7 +170,7 @@ function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameter
             # gradient of the output variables is needed, ix_outputs_grad stores
             # the indices in xdynamic_grad for the outputs (the indices depend on the
             # condition so the Vector is only pre-allocated here).
-            output_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :outputs) |>
+            output_variables = _get_ml_model_io_petab_ids(mappings_df, ml_id, :outputs) |>
                 Iterators.flatten
             outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
             output_targets = Symbol.(outputs_df.targetId)
@@ -188,18 +193,18 @@ function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameter
                     isys += 1
                 end
             end
-            n_input_arguments = length(get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs))
-            maps_nn[ml_model_id] = MLModelPreODEMap(n_input_arguments, input_info[:constant_inputs], input_info[:iconstant_inputs], input_info[:ixdynamic_mech_inputs], input_info[:ixdynamic_inputs], input_info[:ninputs], input_info[:nxdynamic_inputs], noutputs, ix_nn_outputs, ix_outputs_grad, ix_output_sys, input_info[:file_input])
+            n_input_arguments = length(_get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs))
+            maps_nn[ml_id] = MLModelPreODEMap(n_input_arguments, input_info[:constant_inputs], input_info[:iconstant_inputs], input_info[:ixdynamic_mech_inputs], input_info[:ixdynamic_inputs], input_info[:ninputs], input_info[:nxdynamic_inputs], noutputs, ix_nn_outputs, ix_outputs_grad, ix_output_sys, input_info[:file_input])
         end
         maps[conditionid] = maps_nn
     end
     return maps
 end
 
-function _get_ml_preode_inputs(ml_model_id::Symbol, conditionid::Symbol, xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, petab_tables::PEtabTables, paths, ml_models::MLModels, sys::ModelSystem)::Dict
+function _get_ml_preode_inputs(ml_id::Symbol, conditionid::Symbol, xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, petab_tables::PEtabTables, paths, ml_models::MLModels, sys::ModelSystem)::Dict
     mappings_df = petab_tables[:mapping]
     conditions_df = petab_tables[:conditions]
-    input_arguments = get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs)
+    input_arguments = _get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs)
     n_input_arguments = length(input_arguments)
 
     out = Dict()
@@ -213,7 +218,7 @@ function _get_ml_preode_inputs(ml_model_id::Symbol, conditionid::Symbol, xids::D
     for (i, _input_argument) in pairs(input_arguments)
         input_argument = Symbol.(_input_argument)
         i_condition = findfirst(x -> x == string(conditionid), conditions_df.conditionId)
-        input_values = _get_ml_model_input_values(input_argument, ml_model_id, ml_models[ml_model_id], DataFrame(conditions_df[i_condition, :]), petab_tables, paths, petab_parameters, sys; keep_numbers = true)
+        input_values = _get_ml_model_input_values(input_argument, ml_id, ml_models[ml_id], DataFrame(conditions_df[i_condition, :]), petab_tables, paths, petab_parameters, sys; keep_numbers = true)
 
         out[:constant_inputs][i] = zeros(Float64, 0)
         out[:iconstant_inputs][i] = zeros(Int32, 0)
@@ -224,7 +229,7 @@ function _get_ml_preode_inputs(ml_model_id::Symbol, conditionid::Symbol, xids::D
                 if length(input_values) > 1
                     throw(PEtabInputError("If input to neural net is a file, only one \
                         input can be provided in the mapping table. This does not \
-                        hold for $ml_model_id"))
+                        hold for $ml_id"))
                 end
                 input_data = _get_input_file_values(input_argument[j], input_variable, conditionid)
                 # hdf5 files are in row-major

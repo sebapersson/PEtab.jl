@@ -3,17 +3,17 @@ function PEtab.load_ml_models(path_yaml::String)::Dict{Symbol, <:PEtab.MLModel}
     dirmodel = dirname(path_yaml)
     neural_nets = problem_yaml["extensions"]["sciml"]["neural_nets"]
     ml_models = Dict{Symbol, PEtab.MLModel}()
-    for (ml_model_id, netinfo) in neural_nets
+    for (ml_id, netinfo) in neural_nets
         path_net = joinpath(dirname(path_yaml), netinfo["location"])
         net, _ = PEtab.parse_to_lux(path_net)
         # With @compact Lux.jl does not allow freezing post model definition, hence the
         # layers to be frozen are extracted here, as well as their parameter values.
         # Given this information, the model is redefined.
-        _ml_model = Dict(Symbol(ml_model_id) => PEtab.MLModel(net))
-        freeze_info = _get_freeze_info(Symbol(ml_model_id), _ml_model, path_yaml)
+        _ml_model = Dict(Symbol(ml_id) => PEtab.MLModel(net))
+        freeze_info = _get_freeze_info(Symbol(ml_id), _ml_model, path_yaml)
         net, _ = PEtab.parse_to_lux(path_net; freeze_info = freeze_info)
         static = netinfo["static"]
-        ml_models[Symbol(ml_model_id)] = PEtab.MLModel(net; static = static, dirdata = dirmodel, freeze_info = freeze_info)
+        ml_models[Symbol(ml_id)] = PEtab.MLModel(net; static = static, dirdata = dirmodel, freeze_info = freeze_info)
     end
     return ml_models
 end
@@ -241,19 +241,19 @@ function _parse_cat(step_output::String, step_input::String, step_info::Dict)::S
     return "$(step_output) = cat($(args); dims = $(dim))"
 end
 
-function _get_freeze_info(ml_model_id::Symbol, ml_models::Dict, path_yaml::String)::Dict
+function _get_freeze_info(ml_id::Symbol, ml_models::Dict, path_yaml::String)::Dict
     paths = PEtab._get_petab_paths(path_yaml)
     petab_tables = PEtab.read_tables_v2(path_yaml)
     petab_ml_parameters = PEtab.PEtabMLParameters(petab_tables[:parameters], petab_tables[:mapping], ml_models)
-    inet = findall(x -> x == ml_model_id, petab_ml_parameters.ml_model_id)
+    inet = findall(x -> x == ml_id, petab_ml_parameters.ml_id)
     all(petab_ml_parameters.estimate[inet] .== false) && return Dict()
     all(petab_ml_parameters.estimate[inet] .== true) && return Dict()
 
     rng = Random.default_rng()
-    ps, _ = Lux.setup(rng, ml_models[ml_model_id].model)
+    ps, _ = Lux.setup(rng, ml_models[ml_id].model)
     ps = ComponentArray(ps) |> f64
-    PEtab.set_ml_model_ps!(ps, ml_model_id, ml_models, paths, petab_tables)
-    ml_model_indices = PEtab._get_ml_model_indices(ml_model_id, petab_ml_parameters.mapping_table_id)
+    PEtab.set_ml_model_ps!(ps, ml_id, ml_models, paths, petab_tables)
+    ml_model_indices = PEtab._get_ml_model_indices(ml_id, petab_ml_parameters.mapping_table_id)
     freeze_info = Dict{Symbol, Dict}()
     for ml_model_index in ml_model_indices[2:end]
         mapping_table_id = string(petab_ml_parameters.mapping_table_id[ml_model_index])

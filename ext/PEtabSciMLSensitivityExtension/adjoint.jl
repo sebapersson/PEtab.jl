@@ -5,7 +5,7 @@ function grad_adjoint!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode!::Funct
     @unpack simulation_info, simulation_info, xindices, priors = model_info
     @unpack cache = probinfo
     PEtab.split_x!(x, xindices, cache; xdynamic_tot = true)
-    @unpack xdynamic_grad, xnotode_grad = cache
+    @unpack xdynamic_grad, x_not_system_grad = cache
 
     # Get the Jacobians of Neural-Networks that set values for potential model parameters.
     # By then taking the gradient on the output of these networks, and computing a vjp,
@@ -22,9 +22,9 @@ function grad_adjoint!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode!::Funct
     end
 
     # None-dynamic parameter not part of ODE (only need an ODE solution for gradient)
-    x_notode = @view x[xindices.xindices[:not_system_tot]]
-    ForwardDiff.gradient!(xnotode_grad, _nllh_not_solveode!, x_notode)
-    @views grad[xindices.xindices[:not_system_tot]] .= xnotode_grad
+    x_not_system = @view x[xindices.xindices[:not_system_tot]]
+    ForwardDiff.gradient!(x_not_system_grad, _nllh_not_solveode!, x_not_system)
+    @views grad[xindices.xindices[:not_system_tot]] .= x_not_system_grad
 
     # Reset such that neural-nets pre ODE no longer have status of having been evaluated
     PEtab._reset_nn_preode!(probinfo)

@@ -68,7 +68,7 @@ function _PEtabModel(sys::ModelSystem, simulation_conditions::Dict,
                      speciemap::Union{Nothing, AbstractVector},
                      parametermap::Union{Nothing, AbstractVector},
                      events::Union{PEtabEvent, AbstractVector, Nothing}, verbose::Bool,
-                     ml_models::Union{MLModels, Nothing})::PEtabModel
+                     ml_models::MLModels)::PEtabModel
     if sys isa ODESystem
         name = "ODESystemModel"
     elseif sys isa SDESystem

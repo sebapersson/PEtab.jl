@@ -2,46 +2,46 @@
 function _set_ml_models_ps!(ml_models::MLModels, parameters)::Nothing
     for petab_parameter in parameters
         !(petab_parameter isa PEtabMLParameter) && continue
-        @unpack ml_model_id, value = petab_parameter
-        if !haskey(ml_models, ml_model_id)
-            throw(PEtab.PEtabInputError("For neural network $(ml_model_id) a PEtabMLParameter \
+        @unpack ml_id, value = petab_parameter
+        if !haskey(ml_models, ml_id)
+            throw(PEtab.PEtabInputError("For neural network $(ml_id) a PEtabMLParameter \
                 has been provided, but not as required a NetModel via the ml_models \
                 keyword."))
         end
         isnothing(value) && continue
-        ml_models[ml_model_id].ps .= value
+        ml_models[ml_id].ps .= value
     end
     return nothing
 end
 
-function set_ml_model_ps!(ps::ComponentArray, ml_model_id::Symbol, ml_model::MLModel, paths::Dict{Symbol, String})::Nothing
+function set_ml_model_ps!(ps::ComponentArray, ml_id::Symbol, ml_model::MLModel, paths::Dict{Symbol, String})::Nothing
     # Case when Julia provided parameter input
     if isempty(paths)
         ps .= ml_model.ps
         return nothing
     end
-    ps_path = _get_ps_path(ml_model_id, paths)
-    set_ml_model_ps!(ps, ps_path, ml_model.model, ml_model_id)
+    ps_path = _get_ps_path(ml_id, paths)
+    set_ml_model_ps!(ps, ps_path, ml_model.model, ml_id)
     return nothing
 end
-function set_ml_model_ps!(ps::ComponentArray, ml_model_id::Symbol, ml_models, paths::Dict{Symbol, String}, petab_tables::PEtabTables)::Nothing
+function set_ml_model_ps!(ps::ComponentArray, ml_id::Symbol, ml_models, paths::Dict{Symbol, String}, petab_tables::PEtabTables)::Nothing
     # Case when Julia provided parameter input
     if isempty(paths)
-        ps .= ml_models[ml_model_id].ps
+        ps .= ml_models[ml_id].ps
         return nothing
     end
 
     # Case for PEtab standard format provided
-    ml_model = ml_models[ml_model_id]
+    ml_model = ml_models[ml_id]
     petab_ml_parameters = PEtabMLParameters(petab_tables[:parameters], petab_tables[:mapping], ml_models)
-    netindices = _get_ml_model_indices(ml_model_id, petab_ml_parameters.mapping_table_id)
+    netindices = _get_ml_model_indices(ml_id, petab_ml_parameters.mapping_table_id)
 
     # Set parameters for entire net, then set values for specific layers
-    PEtab.set_ml_model_ps!(ps, ml_model_id, ml_model, paths)
+    PEtab.set_ml_model_ps!(ps, ml_id, ml_model, paths)
     length(netindices) == 1 && return nothing
     for netindex in netindices
         mapping_table_id = string(petab_ml_parameters.mapping_table_id[netindex])
-        mapping_table_id == "$(ml_model_id).parameters" && continue
+        mapping_table_id == "$(ml_id).parameters" && continue
 
         value = petab_ml_parameters.nominal_value[netindex]
         isempty(value) && continue
@@ -75,7 +75,7 @@ function _get_ml_model_pre_ode_x(nnpre::MLModelPreODE, xdynamic_mech::AbstractVe
     return x
 end
 
-function _get_n_ml_model_parameters(ml_models::Union{MLModels, Nothing}, xids::Vector{Symbol})::Int64
+function _get_n_ml_model_parameters(ml_models::MLModels, xids::Vector{Symbol})::Int64
     isnothing(ml_models) && return 0
     nparameters = 0
     for xid in xids

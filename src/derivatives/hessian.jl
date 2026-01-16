@@ -90,9 +90,9 @@ function hess_block!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Function
         return nothing
     end
 
-    ix_notode = xindices.xindices[:not_system_tot]
-    x_notode = @view x[ix_notode]
-    @views ForwardDiff.hessian!(hess[ix_notode, ix_notode], _nllh_not_solveode, x_notode)
+    ix_not_system = xindices.xindices[:not_system_tot]
+    x_not_system = @view x[ix_not_system]
+    @views ForwardDiff.hessian!(hess[ix_not_system, ix_not_system], _nllh_not_solveode, x_not_system)
     return nothing
 end
 
@@ -137,9 +137,9 @@ function hess_block_split!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Fu
         return nothing
     end
 
-    ix_notode = xindices.xindices[:not_system_tot]
-    x_notode = @view x[ix_notode]
-    @views ForwardDiff.hessian!(hess[ix_notode, ix_notode], _nllh_not_solveode, x_notode)
+    ix_not_system = xindices.xindices[:not_system_tot]
+    x_not_system = @view x[ix_not_system]
+    @views ForwardDiff.hessian!(hess[ix_not_system, ix_not_system], _nllh_not_solveode, x_not_system)
     return nothing
 end
 
@@ -168,9 +168,9 @@ function hess_GN!(out::Matrix{T}, x::Vector{T}, _residuals_not_solveode::Functio
         return nothing
     end
 
-    x_notode = @view x[xindices.xindices[:not_system_tot]]
+    x_not_system = @view x[xindices.xindices[:not_system_tot]]
     @views ForwardDiff.jacobian!(jacobian_gn[xindices.xindices[:not_system_tot], :]',
-                                 _residuals_not_solveode, residuals_gn, x_notode,
+                                 _residuals_not_solveode, residuals_gn, x_not_system,
                                  cfg_not_solve_ode)
 
     # In case of testing we might want to return the jacobian, else we are interested

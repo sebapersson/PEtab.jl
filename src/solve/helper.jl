@@ -21,10 +21,10 @@ function _switch_condition(oprob::ODEProblem, experiment_id::Symbol, xdynamic::A
 
     # Potential Neural-Network parameters (in this case p must be a ComponentArray) which
     # are inside the ODE
-    for (ml_model_id, xnet) in xnn
+    for (ml_id, xnet) in xnn
         !(p isa ComponentArray) && continue
-        !haskey(p, ml_model_id) && continue
-        p[ml_model_id] .= xnet
+        !haskey(p, ml_id) && continue
+        p[ml_id] .= xnet
     end
 
     # Potential ODE parameters which have their value assigned by a neural-net
@@ -133,16 +133,16 @@ end
 function _set_ml_preode_parameters!(p::AbstractVector, xdynamic::AbstractVector, xnn, simulation_id::Symbol, xindices::ParameterIndices, ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreODE}})::Nothing
     !haskey(ml_models_pre_ode, simulation_id) && return nothing
     maps_nns = xindices.maps_ml_preode[simulation_id]
-    for (ml_model_id, ml_model_pre_ode) in ml_models_pre_ode[simulation_id]
-        map_ml_model = maps_nns[ml_model_id]
+    for (ml_id, ml_model_pre_ode) in ml_models_pre_ode[simulation_id]
+        map_ml_model = maps_nns[ml_id]
         # In case of neural nets being computed before the function call,
         # ml_model_pre_ode.outputs is already computed
         outputs = get_tmp(ml_model_pre_ode.outputs, p)
         if ml_model_pre_ode.computed[1] == false
             # Only if neural net parameters are estimated, otherwise pnn is not used to
             # set values in x (vector that might used for gradient computations)
-            if haskey(xnn, ml_model_id)
-                pnn = xnn[ml_model_id]
+            if haskey(xnn, ml_id)
+                pnn = xnn[ml_id]
                 x = _get_ml_model_pre_ode_x(ml_model_pre_ode, xdynamic, pnn, map_ml_model)
             else
                 x = _get_ml_model_pre_ode_x(ml_model_pre_ode, xdynamic, map_ml_model)

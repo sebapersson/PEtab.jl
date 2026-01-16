@@ -1,27 +1,24 @@
-function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Function,
-                          _nllh_solveode::Function, cfg::ForwardDiff.GradientConfig,
-                          probinfo::PEtabODEProblemInfo, model_info::ModelInfo;
-                          cids::Vector{Symbol} = [:all])::Nothing where {T <: AbstractFloat}
-    cache = probinfo.cache
+function grad_forward_AD!(
+        grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Function, _nllh_solveode::Function,
+        cfg::ForwardDiff.GradientConfig, probinfo::PEtabODEProblemInfo, model_info::ModelInfo;
+        cids::Vector{Symbol} = [:all]
+    )::Nothing where {T <: AbstractFloat}
     @unpack simulation_info, xindices, priors = model_info
-    @unpack xdynamic_grad, xnotode_grad, nxdynamic = cache
+    @unpack cache = probinfo
+    @unpack xdynamic_grad, x_not_system_grad = cache
 
     # As a subset of ForwardDiff chunks might fail, return code status is checked via
     # simulation info
     simulation_info.could_solve[1] = true
 
-    # When remaking the problem order of parameters a subset of xdynamic is fixed which
-    # must be accounted for in gradient computations
     fill!(grad, 0.0)
     split_x!(x, xindices, cache; xdynamic_tot = true)
-    xdynamic = get_tmp(cache.xdynamic_tot, x)
-    tmp = nxdynamic[1]
-    nxdynamic[1] = length(xdynamic)
+    xdynamic_tot = get_tmp(cache.xdynamic_tot, x)
     #try
         # In case of no length(xdynamic) = 0 the ODE must still be solved to get
         # the gradient of nondynamic parameters
         if length(xdynamic_grad) != 0
-            ForwardDiff.gradient!(xdynamic_grad, _nllh_solveode, xdynamic, cfg)
+            ForwardDiff.gradient!(xdynamic_grad, _nllh_solveode, xdynamic_tot, cfg)
             @views grad[xindices.xindices_dynamic[:xest_to_xdynamic]] .= xdynamic_grad
         else
             _ = _nllh_solveode(xdynamic)
@@ -30,7 +27,6 @@ function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fun
     #    fill!(grad, 0.0)
     #    return nothing
     #end
-    nxdynamic[1] = tmp
 
     # In case ODE could not be solved return zero gradient
     if simulation_info.could_solve[1] != true
@@ -39,9 +35,9 @@ function grad_forward_AD!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fun
     end
 
     # None-dynamic parameter not part of ODE (only need an ODE solution for gradient)
-    x_notode = @view x[xindices.xindices[:not_system_tot]]
-    ForwardDiff.gradient!(xnotode_grad, _nllh_not_solveode, x_notode)
-    @views grad[xindices.xindices[:not_system_tot]] .= xnotode_grad
+    x_not_system = @view x[xindices.xindices[:not_system_tot]]
+    ForwardDiff.gradient!(x_not_system_grad, _nllh_not_solveode, x_not_system)
+    @views grad[xindices.xindices[:not_system_tot]] .= x_not_system_grad
     return nothing
 end
 
@@ -51,7 +47,7 @@ function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveod
     @unpack simulation_info, xindices, priors = model_info
     cache = probinfo.cache
     split_x!(x, xindices, cache; xdynamic_tot = true)
-    @unpack xdynamic_grad, xnotode_grad = cache
+    @unpack xdynamic_grad, x_not_system_grad = cache
     _xdynamic_tot = get_tmp(cache.xdynamic_tot, 1.0)
 
     # Get the Jacobians of Neural-Networks that set values for potential model parameters.
@@ -94,9 +90,9 @@ function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveod
     end
     @views grad[xindices.xindices_dynamic[:xest_to_xdynamic]] .= cache.xdynamic_grad
 
-    x_notode = @view x[xindices.xindices[:not_system_tot]]
-    ForwardDiff.gradient!(xnotode_grad, _nllh_not_solveode, x_notode)
-    @views grad[xindices.xindices[:not_system_tot]] .= xnotode_grad
+    x_not_system = @view x[xindices.xindices[:not_system_tot]]
+    ForwardDiff.gradient!(x_not_system_grad, _nllh_not_solveode, x_not_system)
+    @views grad[xindices.xindices[:not_system_tot]] .= x_not_system_grad
 
     # Reset such that neural-nets pre ODE no longer have status of having been evaluated
     _reset_nn_preode!(probinfo)
@@ -130,9 +126,9 @@ function grad_forward_eqs!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fu
     end
 
     # None-dynamic parameter not part of ODE (only need an ODE solution for gradient)
-    x_notode = @view x[xindices.xindices[:not_system_tot]]
-    ForwardDiff.gradient!(cache.xnotode_grad, _nllh_not_solveode, x_notode)
-    @views grad[xindices.xindices[:not_system_tot]] .= cache.xnotode_grad
+    x_not_system = @view x[xindices.xindices[:not_system_tot]]
+    ForwardDiff.gradient!(cache.x_not_system_grad, _nllh_not_solveode, x_not_system)
+    @views grad[xindices.xindices[:not_system_tot]] .= cache.x_not_system_grad
 
     # Reset such that neural-nets pre ODE no longer have status of having been evaluated
     _reset_nn_preode!(probinfo)

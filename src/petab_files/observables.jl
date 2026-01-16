@@ -202,10 +202,10 @@ function _get_ml_formulas(formula, petab_tables::PEtabTables, state_ids::Vector{
     formula_nn = ""
     mappings_df = petab_tables[:mapping]
     isempty(mappings_df) && return formula_nn
-    for (ml_model_id, ml_model) in ml_models
+    for (ml_id, ml_model) in ml_models
         ml_model.static == true && continue
 
-        output_variables = get_ml_model_petab_variables(mappings_df, Symbol(ml_model_id), :outputs)
+        output_variables = _get_ml_model_io_petab_ids(mappings_df, Symbol(ml_id), :outputs)
         has_nn_output = false
         for output_variable in Iterators.flatten(output_variables)
             if SBMLImporter._replace_variable(formula, output_variable, "") != formula
@@ -213,7 +213,7 @@ function _get_ml_formulas(formula, petab_tables::PEtabTables, state_ids::Vector{
             end
         end
         has_nn_output == false && continue
-        formula_nn *= _template_ml_observable(ml_model_id, petab_tables, state_ids, sys_observable_ids, xindices, model_SBML, type)
+        formula_nn *= _template_ml_observable(ml_id, petab_tables, state_ids, sys_observable_ids, xindices, model_SBML, type)
     end
     return formula_nn
 end

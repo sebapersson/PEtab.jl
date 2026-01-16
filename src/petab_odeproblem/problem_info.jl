@@ -87,9 +87,9 @@ function _get_odeproblem(sys::ODEProblem, ::PEtabModel, model_info::ModelInfo,
     # adjoint gradient method
     odeproblem = remake(odeproblem, p = odeproblem.p[model_info.xindices.xids[:sys]])
     # Set potential constant neural net parameters in the ODE
-    for ml_model_id in xindices.xids[:ml_in_ode]
-        ml_model_id in xindices.xids[:ml_est] && continue
-        set_ml_model_ps!((@view odeproblem.p[ml_model_id]), ml_model_id, model.ml_models[ml_model_id], model.paths)
+    for ml_id in xindices.xids[:ml_in_ode]
+        ml_id in xindices.xids[:ml_est] && continue
+        set_ml_model_ps!((@view odeproblem.p[ml_id]), ml_id, model.ml_models[ml_id], model.paths)
     end
     return odeproblem
 end
@@ -114,15 +114,15 @@ function _get_ml_models_pre_ode(model_info::ModelInfo, cache::PEtabODEProblemCac
     ml_models_pre_ode = Dict{Symbol, Dict{Symbol, MLModelPreODE}}()
     for (cid, maps_nn) in model_info.xindices.maps_ml_preode
         ml_model_pre_ode = Dict{Symbol, MLModelPreODE}()
-        for (ml_model_id, map_ml_model) in maps_nn
+        for (ml_id, map_ml_model) in maps_nn
             @unpack ninput_arguments, ninputs, noutputs = map_ml_model
-            ml_model = model_info.model.ml_models[ml_model_id]
+            ml_model = model_info.model.ml_models[ml_id]
             # If parameters are constant, they only need to be assigned here, as when
             # building the cache xnn_not_est has the correct values.
-            if ml_model_id in model_info.xindices.xids[:ml_est]
-                pnn = cache.xnn[ml_model_id]
+            if ml_id in model_info.xindices.xids[:ml_est]
+                pnn = cache.xnn[ml_id]
             else
-                pnn = cache.xnn_constant[ml_model_id]
+                pnn = cache.xnn_constant[ml_id]
             end
             inputs = [DiffCache(zeros(Float64, n), levels = 2) for n in ninputs]
             outputs = DiffCache(zeros(Float64, noutputs), levels = 2)
@@ -146,14 +146,14 @@ function _get_ml_models_pre_ode(model_info::ModelInfo, cache::PEtabODEProblemCac
                 tape = nothing
             end
 
-            if ml_model_id in model_info.xindices.xids[:ml_est]
+            if ml_id in model_info.xindices.xids[:ml_est]
                 nx = length(get_tmp(pnn, 1.0)) + sum(map_ml_model.nxdynamic_inputs)
             else
                 nx = sum(map_ml_model.nxdynamic_inputs)
             end
             xarg = DiffCache(zeros(Float64, nx), levels = 2)
             jac_ml_model = zeros(Float64, noutputs, nx)
-            ml_model_pre_ode[ml_model_id] = MLModelPreODE(compute_forward!, tape, jac_ml_model, outputs, inputs, xarg, [false])
+            ml_model_pre_ode[ml_id] = MLModelPreODE(compute_forward!, tape, jac_ml_model, outputs, inputs, xarg, [false])
         end
         ml_models_pre_ode[cid] = ml_model_pre_ode
     end

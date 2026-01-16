@@ -39,14 +39,14 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol, F
     xnn_dict = Dict{Symbol, ComponentArray}()
     xnn_constant = Dict{Symbol, ComponentArray}()
     if !isnothing(ml_models)
-        for (ml_model_id, ml_model) in ml_models
+        for (ml_id, ml_model) in ml_models
             _p = _get_ml_model_initialparameters(ml_model)
-            if ml_model_id in xindices.xids[:ml_est]
-                xnn[ml_model_id] = DiffCache(similar(_p); levels = level_cache)
-                xnn_dict[ml_model_id] = _p
+            if ml_id in xindices.xids[:ml_est]
+                xnn[ml_id] = DiffCache(similar(_p); levels = level_cache)
+                xnn_dict[ml_id] = _p
             else
-                set_ml_model_ps!(_p, ml_model_id, ml_model, model.paths)
-                xnn_constant[ml_model_id] = _p
+                set_ml_model_ps!(_p, ml_id, ml_model, model.paths)
+                xnn_constant[ml_id] = _p
             end
         end
     end
@@ -61,7 +61,7 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol, F
 
     # Arrays needed in gradient compuations
     xdynamic_grad = zeros(Float64, nxdynamic_tot)
-    xnotode_grad = zeros(Float64, length(xindices.xindices[:not_system_tot]))
+    x_not_system_grad = zeros(Float64, length(xindices.xindices[:not_system_tot]))
     # For forward sensitivity equations and adjoint sensitivity analysis partial
     # derivatives are computed symbolically
     symbolic_needed_grads = gradient_method in [:Adjoint, :ForwardEquations]
@@ -164,7 +164,7 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol, F
 
     return PEtabODEProblemCache(xdynamic_mech, xnoise, xobservable, xnondynamic_mech, xdynamic_mech_ps,
                                 xnoise_ps, xobservable_ps, xnondynamic_mech_ps, xdynamic_grad,
-                                xnotode_grad, jacobian_gn, residuals_gn, forward_eqs_grad,
+                                x_not_system_grad, jacobian_gn, residuals_gn, forward_eqs_grad,
                                 adjoint_grad, St0, ∂h∂u, ∂σ∂u, ∂h∂p, ∂σ∂p, ∂G∂p, ∂G∂p_,
                                 ∂G∂u, dp, du, p, u, S, odesols, pode, u0ode,
                                 xdynamic_input_order, xdynamic_output_order, nxdynamic,

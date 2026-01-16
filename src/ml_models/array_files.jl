@@ -1,4 +1,4 @@
-function _get_ps_path(ml_model_id::Symbol, paths::Dict{Symbol, String})::String
+function _get_ps_path(ml_id::Symbol, paths::Dict{Symbol, String})::String
     yaml_file = YAML.load_file(paths[:yaml])
     array_files = yaml_file["extensions"]["sciml"]["array_files"]
     path_ps_file = String[]
@@ -9,14 +9,14 @@ function _get_ps_path(ml_model_id::Symbol, paths::Dict{Symbol, String})::String
                 $(array_file) does not exist at $(_path_ps_file)"))
         end
         hdf5_file = HDF5.h5open(_path_ps_file, "r")
-        if haskey(hdf5_file["parameters"], "$(ml_model_id)")
+        if haskey(hdf5_file["parameters"], "$(ml_id)")
             push!(path_ps_file, _path_ps_file)
             break
         end
     end
 
     if isempty(path_ps_file)
-        throw(PEtab.PEtabInputError("Parameters for neural network $(ml_model_id) has not \
+        throw(PEtab.PEtabInputError("Parameters for neural network $(ml_id) has not \
             been provided in an array file"))
     end
     return path_ps_file[1]

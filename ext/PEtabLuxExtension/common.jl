@@ -14,9 +14,9 @@ end
 function PEtab._setup_ml_models(ml_models::PEtab.MLModels)::Dict
     rng = Random.default_rng()
     nn = Dict()
-    for (ml_model_id, ml_model) in ml_models
+    for (ml_id, ml_model) in ml_models
         _, _st = Lux.setup(rng, ml_model[:net])
-        nn[ml_model_id] = [_st, ml_model[:net]]
+        nn[ml_id] = [_st, ml_model[:net]]
     end
     return nn
 end
@@ -24,9 +24,9 @@ end
 function PEtab._get_ml_model_ps(ml_models_in_ode::Dict)::Dict{Symbol, NamedTuple}
     rng = Random.default_rng()
     pnns = Dict()
-    for (ml_model_id, ml_model) in ml_models_in_ode
+    for (ml_id, ml_model) in ml_models_in_ode
         _pnn, _ = Lux.setup(rng, ml_model.model)
-        pnns[ml_model_id] = _pnn
+        pnns[ml_id] = _pnn
     end
     return pnns
 end

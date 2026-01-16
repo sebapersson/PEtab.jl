@@ -62,8 +62,8 @@ function get_startguesses(rng::Random.AbstractRNG, prob::PEtabODEProblem, n::Int
         samples = [similar(prob.xnominal_transformed) for _ in eachindex(samples_mech)]
         for (j, sample) in pairs(samples)
             @views sample[1:length(samples_mech[j])] .= samples_mech[j]
-            for ml_model_id in _get_xnames_ml_models(xnames, model_info)
-                @views sample[ml_model_id] .= _single_nn_startguess(rng, prob, ml_model_id)
+            for ml_id in _get_xnames_ml_models(xnames, model_info)
+                @views sample[ml_id] .= _single_nn_startguess(rng, prob, ml_id)
             end
         end
         allow_inf == true && break
@@ -99,8 +99,8 @@ function _single_startguess(rng::Random.AbstractRNG, prob::PEtabODEProblem, samp
             end
         end
         @views out[ix_mech] .= _single_mech_startguess(rng, prob, xnames_mech, sample_prior)
-        for ml_model_id in xnames_nn
-            @views out[ml_model_id] .= _single_nn_startguess(prob, ml_model_id, rng)
+        for ml_id in xnames_nn
+            @views out[ml_id] .= _single_nn_startguess(prob, ml_id, rng)
         end
         allow_inf == true && break
         !isinf(prob.nllh(out)) && break
@@ -125,10 +125,10 @@ function _single_mech_startguess(rng::Random.AbstractRNG, prob::PEtabODEProblem,
     return out
 end
 
-function _single_nn_startguess(prob::PEtabODEProblem, ml_model_id::Symbol, rng)::ComponentArray{Float64}
+function _single_nn_startguess(prob::PEtabODEProblem, ml_id::Symbol, rng)::ComponentArray{Float64}
     petab_ml_parameters = prob.model_info.petab_ml_parameters
-    netindices = _get_ml_model_indices(ml_model_id, petab_ml_parameters.parameter_id)
-    out = similar(prob.xnominal_transformed[ml_model_id])
+    netindices = _get_ml_model_indices(ml_id, petab_ml_parameters.parameter_id)
+    out = similar(prob.xnominal_transformed[ml_id])
     for netindex in netindices
         id = string(petab_ml_parameters.parameter_id[netindex])
         prior = petab_ml_parameters.initialisation_priors[netindex]

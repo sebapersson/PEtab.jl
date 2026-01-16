@@ -273,11 +273,11 @@ function split_x_notsystem(x, xindices::ParameterIndices, cache::PEtabODEProblem
     xnoise .= @view x[xindices.xindices_notsys[:noise]]
     xobservable .= @view x[xindices.xindices_notsys[:observable]]
     xnondynamic_mech .= @view x[xindices.xindices_notsys[:nondynamic_mech]]
-    for ml_model_id in xindices.xids[:ml_nondynamic]
-        !(ml_model_id in xindices.xids[:ml_est]) && continue
-        xnn = get_tmp(cache.xnn[ml_model_id], x)
-        xnn .= x[xindices.xindices_notsys[ml_model_id]]
-        cache.xnn_dict[ml_model_id] = xnn
+    for ml_id in xindices.xids[:ml_nondynamic]
+        !(ml_id in xindices.xids[:ml_est]) && continue
+        xnn = get_tmp(cache.xnn[ml_id], x)
+        xnn .= x[xindices.xindices_notsys[ml_id]]
+        cache.xnn_dict[ml_id] = xnn
     end
     return xnoise, xobservable, xnondynamic_mech, cache.xnn_dict
 end

@@ -93,6 +93,7 @@ function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector
         grad_linscale .+= transpose(transpose(∂G∂p) * J)
         _grad_to_xscale!(grad_xscale, grad_linscale, xdynamic, xids[:dynamic_mech], xscale)
         return nothing
+
     elseif sensitivities_AD == true && nn_preode == false
         n_dynamic_mech = length(xids[:dynamic_mech])
         _xdynamic = xdynamic[1:n_dynamic_mech]
@@ -102,7 +103,7 @@ function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector
         return nothing
     end
 
-    # In case of sensitivities_AD == false, but grad_linscale and ∂G∂p follow the same
+    # In case of sensitivities_AD == false, grad_linscale and ∂G∂p follow the same
     # indexing as ODEProblem.p, with xdynamic mapped to p outside AD calls -> Jacobian
     # correction needed for both
     J = ForwardDiff.jacobian(condition_map!, similar(∂G∂p), xdynamic)
@@ -150,8 +151,8 @@ function _get_xinput(simid::Symbol, x::Vector{<:AbstractFloat}, ixdynamic_simid,
     if isempty(probinfo.ml_models_pre_ode)
         return xinput
     end
-    for (ml_model_id, nn_preode) in probinfo.ml_models_pre_ode[simid]
-        map_ml_model = model_info.xindices.maps_ml_preode[simid][ml_model_id]
+    for (ml_id, nn_preode) in probinfo.ml_models_pre_ode[simid]
+        map_ml_model = model_info.xindices.maps_ml_preode[simid][ml_id]
         outputs = get_tmp(nn_preode.outputs, xinput)
         ix = map_ml_model.ix_nn_outputs_grad
         ix .= map_ml_model.ix_nn_outputs .+ ninode
@@ -166,8 +167,8 @@ function _split_xinput!(probinfo::PEtabODEProblemInfo, simid::Symbol, model_info
     if isempty(probinfo.ml_models_pre_ode)
         return nothing
     end
-    for (ml_model_id, nn_preode) in probinfo.ml_models_pre_ode[simid]
-        map_ml_model =  model_info.xindices.maps_ml_preode[simid][ml_model_id]
+    for (ml_id, nn_preode) in probinfo.ml_models_pre_ode[simid]
+        map_ml_model =  model_info.xindices.maps_ml_preode[simid][ml_id]
         outputs = get_tmp(nn_preode.outputs, xinput)
         @views outputs .= xinput[map_ml_model.ix_nn_outputs_grad]
     end

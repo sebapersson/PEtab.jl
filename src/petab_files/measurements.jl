@@ -3,8 +3,15 @@
 
     Process the PEtab measurements table into a type-stable Julia struct.
 """
-function PEtabMeasurements(measurements_df::DataFrame,
-                           observables_df::DataFrame)::PEtabMeasurements
+function PEtabMeasurements(petab_tables::PEtabTables)
+    measurements_df, observables_df = _get_petab_tables(
+        petab_tables, [:measurements, :observables]
+    )
+    PEtabMeasurements(measurements_df, observables_df)
+end
+function PEtabMeasurements(
+        measurements_df::DataFrame, observables_df::DataFrame
+    )::PEtabMeasurements
     if :observableTransformation in propertynames(observables_df)
         _check_values_column(observables_df, VALID_SCALES, :observableTransformation,
                              "observables"; allow_missing = true)

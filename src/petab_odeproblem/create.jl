@@ -213,8 +213,8 @@ function _get_nllh_grad(gradient_method::Symbol, grad::Function, _prior::Functio
     _nllh_grad = (x; prior = true) -> begin
         _x = x |> collect
         g = grad(x; prior = prior)
-        x_notode = @view _x[model_info.xindices.xindices[:not_system_mech]]
-        nllh = _nllh_not_solveode(x_notode)
+        x_not_system = @view _x[model_info.xindices.xindices[:not_system_mech]]
+        nllh = _nllh_not_solveode(x_not_system)
         if prior
             nllh -= _prior(_x)
         end
@@ -241,8 +241,8 @@ function _get_bounds(model_info::ModelInfo, xnames::Vector{Symbol}, xnames_ps::V
     # Each network has its bounds as a ComponentArray
     xnames_nn = xnames[setdiff(1:length(xnames), ix_mech)]
     bounds = Vector{ComponentArray}(undef, length(xnames_nn))
-    for (i, ml_model_id) in pairs(xnames_nn)
-        ml_model = model_info.model.ml_models[ml_model_id]
+    for (i, ml_id) in pairs(xnames_nn)
+        ml_model = model_info.model.ml_models[ml_id]
         bounds[i] = _get_ml_model_initialparameters(ml_model)
         if which == :lower
             bounds[i] .= -Inf
@@ -272,10 +272,10 @@ function _get_xnominal(model_info::ModelInfo, xnames::Vector{Symbol},
     # Each network has its parameters as a ComponentArray
     xnames_nn = xnames[setdiff(1:length(xnames), ix_mech)]
     xnominal_nn = Vector{ComponentArray}(undef, length(xnames_nn))
-    for (i, ml_model_id) in pairs(xnames_nn)
-        ml_model = model_info.model.ml_models[ml_model_id]
+    for (i, ml_id) in pairs(xnames_nn)
+        ml_model = model_info.model.ml_models[ml_id]
         psnet = _get_ml_model_initialparameters(ml_model)
-        set_ml_model_ps!(psnet, ml_model_id, ml_models, paths, petab_tables)
+        set_ml_model_ps!(psnet, ml_id, ml_models, paths, petab_tables)
         xnominal_nn[i] = psnet
     end
     xnn = (xnames_nn .=> xnominal_nn) |> NamedTuple

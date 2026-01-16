@@ -21,22 +21,30 @@ the parameter during likelihood computations. It further accounts for parameters
 only appearing in a certain simulation conditions.
 """
 function ParameterIndices(petab_tables::PEtabTables, paths::Dict{Symbol, String}, sys::ModelSystem, parametermap, speciemap, ml_models::MLModels)::ParameterIndices
-    petab_parameters = PEtabParameters(petab_tables[:parameters], petab_tables[:mapping], ml_models)
-    petab_ml_parameters = PEtabMLParameters(petab_tables[:parameters], petab_tables[:mapping], ml_models)
-    petab_measurements = PEtabMeasurements(petab_tables[:measurements], petab_tables[:observables])
-    return ParameterIndices(petab_parameters, petab_ml_parameters, petab_measurements, sys, parametermap, speciemap, petab_tables, paths, ml_models)
+    petab_parameters = PEtabParameters(petab_tables, ml_models)
+    petab_ml_parameters = PEtabMLParameters(petab_tables, ml_models)
+    petab_measurements = PEtabMeasurements(petab_tables)
+    return ParameterIndices(
+        petab_parameters, petab_ml_parameters, petab_measurements, sys, parametermap,
+        speciemap, petab_tables, paths, ml_models
+    )
 end
 function ParameterIndices(petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements, model::PEtabModel)::ParameterIndices
     @unpack speciemap, parametermap, sys_mutated, petab_tables, paths, ml_models = model
-    petab_ml_parameters = PEtabMLParameters(petab_tables[:parameters], petab_tables[:mapping], ml_models)
-    return ParameterIndices(petab_parameters, petab_ml_parameters, petab_measurements, sys_mutated, parametermap, speciemap, petab_tables, paths, ml_models)
+    petab_ml_parameters = PEtabMLParameters(petab_tables, ml_models)
+    return ParameterIndices(
+        petab_parameters, petab_ml_parameters, petab_measurements, sys_mutated,
+        parametermap, speciemap, petab_tables, paths, ml_models
+    )
 end
-function ParameterIndices(petab_parameters::PEtabParameters, petab_ml_parameters::PEtabMLParameters, petab_measurements::PEtabMeasurements, sys::ModelSystem, parametermap, speciemap, petab_tables::PEtabTables, paths::Dict{Symbol, String}, ml_models::Union{Nothing, MLModels})::ParameterIndices
-    _check_conditionids(petab_tables, petab_measurements)
+function ParameterIndices(
+        petab_parameters::PEtabParameters, petab_ml_parameters::PEtabMLParameters,
+        petab_measurements::PEtabMeasurements, sys::ModelSystem, parametermap, speciemap,
+        petab_tables::PEtabTables, paths::Dict{Symbol, String},
+        ml_models::Union{Nothing, MLModels}
+    )::ParameterIndices
+    _check_condition_table(petab_tables, petab_measurements)
     _check_mapping_table(petab_tables, paths, ml_models, petab_parameters, sys)
-
-    conditions_df = petab_tables[:conditions]
-    mappings_df = petab_tables[:mapping]
 
     xids = _get_xids(petab_parameters, petab_ml_parameters, petab_measurements, sys, petab_tables, paths, speciemap, parametermap, ml_models)
 
@@ -45,7 +53,7 @@ function ParameterIndices(petab_parameters::PEtabParameters, petab_ml_parameters
     xindices_est = _get_xindices_xest(xids, ml_models)
     xindices_dynamic = _get_xindices_dynamic(xids, ml_models)
     xindices_notsys = _get_xindices_notsys(xids, ml_models)
-    condition_maps = _get_condition_maps(sys, parametermap, speciemap, petab_parameters, conditions_df, mappings_df, xids, ml_models)
+    condition_maps = _get_condition_maps(sys, parametermap, speciemap, petab_parameters, petab_tables, xids, ml_models)
 
     # For each time-point we must build a map that stores if i) noise/obserable parameters
     # are constants, ii) should be estimated, iii) and corresponding index in parameter

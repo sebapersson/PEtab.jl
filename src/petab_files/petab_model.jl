@@ -15,7 +15,7 @@ Import a PEtab problem in the standard (YAML + tables) format from `path_yaml` a
 function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
                     verbose::Bool = false, ifelse_to_callback::Bool = true,
                     write_to_file::Bool = false,
-                    ml_models::Union{MLModels, Nothing} = nothing)::PEtabModel
+                    ml_models::MLModels = nothing)::PEtabModel
     petab_version = _get_version(path_yaml)
 
     if petab_version == "1.0.0"
@@ -137,9 +137,9 @@ function add_u0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::PE
     # Neural net output variables can set initial values, in this case the initial
     # value must be converted to a parameter
     net_outputs = String[]
-    for (ml_model_id, ml_model) in ml_models
+    for (ml_id, ml_model) in ml_models
         ml_model.static == false && continue
-        output_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :outputs) |>
+        output_variables = _get_ml_model_io_petab_ids(mappings_df, ml_id, :outputs) |>
             Iterators.flatten
         outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
         net_outputs = vcat(net_outputs, outputs_df.targetId)
@@ -244,8 +244,8 @@ end
 function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, ml_models_in_ode::Dict, petab_tables::PEtabTables)
     hybridization_df = petab_tables[:hybridization]
     mappings_df = petab_tables[:mapping]
-    for ml_model_id in keys(ml_models_in_ode)
-        output_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :outputs) |>
+    for ml_id in keys(ml_models_in_ode)
+        output_variables = _get_ml_model_io_petab_ids(mappings_df, ml_id, :outputs) |>
             Iterators.flatten
         outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
         output_targets = outputs_df.targetId
@@ -268,8 +268,8 @@ function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, ml_models_in_ode::D
     psnets = _get_ml_model_ps(ml_models_in_ode)
     ps_mech_values = parse.(Float64, last.(model_SBML_prob.psmap))
     psode = (; (Symbol.(first.(model_SBML_prob.psmap)) .=> ps_mech_values)...)
-    for (ml_model_id, psnet) in psnets
-        psode = merge(psode, (;ml_model_id => psnet, ))
+    for (ml_id, psnet) in psnets
+        psode = merge(psode, (;ml_id => psnet, ))
     end
     psode = ComponentArray(psode)
     # For internal mapping, initial values need to be provided as a ComponentArray
@@ -285,9 +285,9 @@ end
 
 _parse_ml_models(::Nothing, ::String)::Nothing = nothing
 function _parse_ml_models(ml_models::MLModels, dirdata::String)::Nothing
-    for (ml_model_id, ml_model) in ml_models
+    for (ml_id, ml_model) in ml_models
         _ml_model = @set ml_model.dirdata = dirdata
-        ml_models[ml_model_id] = _ml_model
+        ml_models[ml_id] = _ml_model
     end
     return ml_models
 end

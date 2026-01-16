@@ -101,7 +101,7 @@ struct PEtabMLParameters{T <: Vector{<:Union{String, <:Float64}}}
     upper_bounds::Vector{Float64}
     parameter_id::Vector{Symbol}
     estimate::Vector{Bool}
-    ml_model_id::Vector{Symbol}
+    ml_id::Vector{Symbol}
     mapping_table_id::Vector{String}
     initialisation_priors::Vector{Function}
 end
@@ -123,7 +123,7 @@ struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
     xobservable_ps::T2
     xnondynamic_mech_ps::T2
     xdynamic_grad::T1
-    xnotode_grad::T1
+    x_not_system_grad::T1
     jacobian_gn::T4
     residuals_gn::T1
     forward_eqs_grad::T1

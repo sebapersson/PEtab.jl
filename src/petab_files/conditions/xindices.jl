@@ -15,9 +15,9 @@ function _get_xindices_xest(xids::Dict{Symbol, Vector{Symbol}}, ml_models::MLMod
     end
     # As above, also track not part of ODESystem
     xi_not_system_tot = deepcopy(xi_not_system_mech)
-    for ml_model_id in xids[:ml_nondynamic]
-        !(ml_model_id in xids[:ml_est]) && continue
-        xi_not_system_tot = vcat(xi_not_system_tot, xindices_est[ml_model_id])
+    for ml_id in xids[:ml_nondynamic]
+        !(ml_id in xids[:ml_est]) && continue
+        xi_not_system_tot = vcat(xi_not_system_tot, xindices_est[ml_id])
     end
     xindices_est[:not_system_tot] = xi_not_system_tot
     return xindices_est

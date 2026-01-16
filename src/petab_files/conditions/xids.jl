@@ -99,10 +99,10 @@ function _get_xids_ml_preode_output(petab_tables::PEtabTables, ml_models::MLMode
     out = Symbol[]
     mappings_df = petab_tables[:mapping]
     hybridization_df = petab_tables[:hybridization]
-    for (ml_model_id, ml_model) in ml_models
+    for (ml_id, ml_model) in ml_models
         ml_model.static == false && continue
         isempty(hybridization_df) && continue
-        output_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :outputs) |>
+        output_variables = _get_ml_model_io_petab_ids(mappings_df, ml_id, :outputs) |>
             Iterators.flatten
         outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
         out = vcat(out, Symbol.(outputs_df.targetId))
@@ -153,9 +153,9 @@ function _get_xids_condition(sys, petab_parameters::PEtabParameters, petab_table
 
     # TODO: Make this a function
     net_inputs = String[]
-    for (ml_model_id, ml_model) in ml_models
+    for (ml_id, ml_model) in ml_models
         ml_model.static == false && continue
-        _net_inputs = get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs) |>
+        _net_inputs = _get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs) |>
             Iterators.flatten .|>
             string
         net_inputs = vcat(net_inputs, _net_inputs)
@@ -211,9 +211,9 @@ end
 
 function _get_xids_ml_preode(ml_models::MLModels)::Vector{Symbol}
     out = Symbol[]
-    for (ml_model_id, ml_model) in ml_models
+    for (ml_id, ml_model) in ml_models
         ml_model.static == false && continue
-        push!(out, ml_model_id)
+        push!(out, ml_id)
     end
     return out
 end
@@ -233,12 +233,12 @@ function _get_xids_ml_input_est(petab_tables::PEtabTables, petab_parameters::PEt
     isempty(mappings_df) && return Symbol[]
 
     out = Symbol[]
-    for (ml_model_id, ml_model) in ml_models
+    for (ml_id, ml_model) in ml_models
         ml_model.static == false && continue
-        input_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs) |>
+        input_variables = _get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs) |>
             Iterators.flatten .|>
             Symbol
-        input_values = _get_ml_model_input_values(input_variables, ml_model_id, ml_model, conditions_df, petab_tables, paths, petab_parameters, sys)
+        input_values = _get_ml_model_input_values(input_variables, ml_id, ml_model, conditions_df, petab_tables, paths, petab_parameters, sys)
         for input_value in input_values
             !(input_value in petab_parameters.parameter_id) && continue
             ip = findfirst(x -> x == input_value, petab_parameters.parameter_id)
@@ -288,11 +288,11 @@ end
 
 function _get_xids_ml_est(xids_ml::Vector{Symbol}, petab_ml_parameters::PEtabMLParameters)::Vector{Symbol}
     out = Symbol[]
-    for ml_model_id in xids_ml
-        ip = findall(x -> x == ml_model_id, petab_ml_parameters.ml_model_id)
+    for ml_id in xids_ml
+        ip = findall(x -> x == ml_id, petab_ml_parameters.ml_id)
         for estimate in petab_ml_parameters.estimate[ip]
             estimate == false && continue
-            push!(out, ml_model_id)
+            push!(out, ml_id)
             break
         end
     end

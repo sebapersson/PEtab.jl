@@ -24,32 +24,32 @@ function _get_ml_models_in_ode(ml_models::MLModels, path_SBML::String, petab_tab
     for io_id in string.(mappings_df[!, "modelEntityId"])
         if !occursin(pattern, io_id)
             throw(PEtabInputError("In mapping table, in modelEntityId column allowed \
-                                   values are only ml_model_id.inputs..., ml_model_id.outputs... \
-                                   and ml_model_id.parameters... $io_id is invalid"))
+                                   values are only ml_id.inputs..., ml_id.outputs... \
+                                   and ml_id.parameters... $io_id is invalid"))
         end
     end
 
-    for (ml_model_id, ml_model) in ml_models
+    for (ml_id, ml_model) in ml_models
         ml_model.static == true && continue
 
-        input_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :inputs) |>
+        input_variables = _get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs) |>
             Iterators.flatten
         if !all([x in hybridization_df.targetId for x in input_variables])
             throw(PEtab.PEtabInputError("For a static=false neural network all input \
                 must be assigned value in the hybridization table. This does not hold for \
-                $ml_model_id"))
+                $ml_id"))
         end
 
-        output_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :outputs) |>
+        output_variables = _get_ml_model_io_petab_ids(mappings_df, ml_id, :outputs) |>
             Iterators.flatten
         outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
         isempty(outputs_df) && continue
         if !all([x in keys(libsbml_model.parameters) for x in outputs_df.targetId])
             throw(PEtab.PEtabInputError("For a static=false neural network all output \
                 variables in hybridization table must map to SBML model parameters. This does
-                not hold for $ml_model_id"))
+                not hold for $ml_id"))
         end
-        out[ml_model_id] = ml_model
+        out[ml_id] = ml_model
     end
     return out
 end
@@ -59,15 +59,15 @@ function _get_ml_models_in_ode_ids(ml_models::MLModels, path_SBML::String, petab
     return collect(keys(ml_models_in_ode))
 end
 
-function _get_ml_model_ids(mappings_df::DataFrame)::Vector{String}
+function _get_ml_ids(mappings_df::DataFrame)::Vector{String}
     isempty(mappings_df) && return String[]
     return split.(string.(mappings_df[!, "modelEntityId"]), ".") .|>
         first .|>
         string
 end
 
-function _get_ml_model_indices(ml_model_id::Symbol, mapping_table_ids::Vector{String})::Vector{Int64}
-    ix = findall(x -> startswith(x, string(ml_model_id)), mapping_table_ids)
+function _get_ml_model_indices(ml_id::Symbol, mapping_table_ids::Vector{String})::Vector{Int64}
+    ix = findall(x -> startswith(x, string(ml_id)), mapping_table_ids)
     return sort(ix, by = i -> count(c -> c == '[' || c == '.', mapping_table_ids[i]))
 end
 

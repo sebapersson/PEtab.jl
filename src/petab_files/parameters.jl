@@ -1,4 +1,8 @@
-function PEtabParameters(_parameters_df::DataFrame, mappings_df::DataFrame, ml_models::Union{MLModels, Nothing}; custom_values::Union{Nothing, Dict} = nothing)::PEtabParameters
+function PEtabParameters(petab_tables::PEtabTables, ml_models::MLModels)
+    parameters_df, mappings_df = _get_petab_tables( petab_tables, [:parameters, :mapping])
+    return PEtabParameters(parameters_df, mappings_df, ml_models)
+end
+function PEtabParameters(_parameters_df::DataFrame, mappings_df::DataFrame, ml_models::MLModels; custom_values::Union{Nothing, Dict} = nothing)::PEtabParameters
     # Neural-net parameters are parsed in different function, as they have different
     # intialisation, etc...
     imech = _get_parameters_ix(_parameters_df, mappings_df, ml_models, :mechanistic)
@@ -50,7 +54,11 @@ function PEtabParameters(_parameters_df::DataFrame, mappings_df::DataFrame, ml_m
                            paramter_scales, estimate, nparameters_estimate)
 end
 
-function PEtabMLParameters(_parameters_df::DataFrame, mappings_df::DataFrame, ml_models::Union{MLModels, Nothing})::PEtabMLParameters
+function PEtabMLParameters(petab_tables::PEtabTables, ml_models::MLModels)
+    parameters_df, mappings_df = _get_petab_tables( petab_tables, [:parameters, :mapping])
+    return PEtabMLParameters(parameters_df, mappings_df, ml_models)
+end
+function PEtabMLParameters(_parameters_df::DataFrame, mappings_df::DataFrame, ml_models::MLModels)::PEtabMLParameters
     inet = _get_parameters_ix(_parameters_df, mappings_df, ml_models, :net)
     parameters_df = _parameters_df[inet, 1:end]
 
@@ -58,7 +66,7 @@ function PEtabMLParameters(_parameters_df::DataFrame, mappings_df::DataFrame, ml
 
     nparameters = nrow(parameters_df)
     parameter_ids = fill(Symbol(), nrow(parameters_df))
-    ml_model_ids = fill(Symbol(), nrow(parameters_df))
+    ml_ids = fill(Symbol(), nrow(parameters_df))
     lower_bounds = fill(-Inf, nparameters)
     upper_bounds = fill(Inf, nparameters)
     estimate = fill(false, nparameters)
@@ -68,7 +76,7 @@ function PEtabMLParameters(_parameters_df::DataFrame, mappings_df::DataFrame, ml
     _parse_table_column!(estimate, parameters_df[!, :estimate], Bool)
     _parse_bound_column!(lower_bounds, parameters_df[!, :lowerBound], estimate)
     _parse_bound_column!(upper_bounds, parameters_df[!, :upperBound], estimate)
-    _get_ml_model_ids!(ml_model_ids, parameter_ids, mappings_df, ml_models)
+    _get_ml_ids!(ml_ids, parameter_ids, mappings_df, ml_models)
     _get_mapping_table_ids!(mapping_table_ids, parameter_ids, mappings_df)
 
     # Nominal-value for net parameters can be either a file name, of a numerical value
@@ -85,7 +93,7 @@ function PEtabMLParameters(_parameters_df::DataFrame, mappings_df::DataFrame, ml
         end
     end
 
-    return PEtabMLParameters(nominal_values, lower_bounds, upper_bounds, parameter_ids, estimate, ml_model_ids, mapping_table_ids, Vector{Function}(undef, 0))
+    return PEtabMLParameters(nominal_values, lower_bounds, upper_bounds, parameter_ids, estimate, ml_ids, mapping_table_ids, Vector{Function}(undef, 0))
 end
 
 function Priors(xindices::ParameterIndices, model::PEtabModel)::Priors
@@ -193,30 +201,32 @@ end
 
 function _get_parameters_ix(parameters_df::DataFrame, mappings_df::DataFrame, ml_models::MLModels, which_ps::Symbol)::Vector{Int64}
     @assert which_ps in [:mechanistic, :net] "Error in PEtabParameters parsing"
-    net_ps_variables = String[]
-    for ml_model_id in keys(ml_models)
-        _net_ps_variables = get_ml_model_petab_variables(mappings_df, ml_model_id, :parameters)
-        net_ps_variables = vcat(net_ps_variables, _net_ps_variables)
+    ml_models_ps_ids = String[]
+    for ml_id in keys(ml_models)
+        ml_models_ps_ids = vcat(
+            ml_models_ps_ids, _get_ml_model_parameter_ids(mappings_df, ml_id)
+        )
     end
 
     out = Int64[]
     for (i, parameter_id) in pairs(parameters_df.parameterId)
-        if which_ps == :net && parameter_id in net_ps_variables
+        if which_ps == :net && parameter_id in ml_models_ps_ids
             push!(out, i)
-        elseif which_ps == :mechanistic && !(parameter_id in net_ps_variables)
+        elseif which_ps == :mechanistic && !(parameter_id in ml_models_ps_ids)
             push!(out, i)
         end
     end
     return out
 end
 
-function _get_ml_model_ids!(ml_model_ids::Vector{Symbol}, parameter_ids::Vector{Symbol}, mappings_df::DataFrame, ml_models::Dict)::Nothing
+function _get_ml_ids!(ml_ids::Vector{Symbol}, parameter_ids::Vector{Symbol}, mappings_df::DataFrame, ml_models::Dict)::Nothing
     for (i, parameter_id) in pairs(string.(parameter_ids))
-        for ml_model_id in keys(ml_models)
-            if !(parameter_id in get_ml_model_petab_variables(mappings_df, ml_model_id, :parameters))
+        for ml_id in keys(ml_models)
+            ml_parameters = _get_ml_model_parameter_ids(mappings_df, ml_id)
+            if !(parameter_id in ml_parameters)
                 continue
             end
-            ml_model_ids[i] = ml_model_id
+            ml_ids[i] = ml_id
             break
         end
     end
@@ -229,4 +239,9 @@ function _get_mapping_table_ids!(mapping_table_ids::Vector{String}, parameter_id
         mapping_table_ids[i] = mappings_df.modelEntityId[ix]
     end
     return nothing
+end
+
+function _get_ml_model_parameter_ids(mappings_df::DataFrame, ml_id::Symbol)::Vector{String}
+    idx = startswith.(mappings_df.modelEntityId, "$(ml_id).$(parameters)")
+    return mappings_df[idx, :petabEntityId]
 end

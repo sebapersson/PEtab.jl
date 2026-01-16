@@ -41,8 +41,11 @@ end
 
 function split_x(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache)
     split_x!(x, xindices, cache)
-    @unpack xdynamic_mech, xobservable, xnoise, xnondynamic_mech = cache
-    return get_tmp(xdynamic_mech, x), get_tmp(xobservable, x), get_tmp(xnoise, x), get_tmp(xnondynamic_mech, x), cache.xnn_dict
+    @unpack xdynamic_mech, xobservable, xnoise, xnondynamic_mech, xnn_dict = cache
+    return (
+        get_tmp(xdynamic_mech, x), get_tmp(xobservable, x), get_tmp(xnoise, x),
+        get_tmp(xnondynamic_mech, x), xnn_dict
+    )
 end
 
 function split_x!(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache; xdynamic_tot::Bool = false)::Nothing
@@ -55,10 +58,10 @@ function split_x!(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODE
     xnoise .= @view x[xi[:noise]]
     xnondynamic_mech = get_tmp(cache.xnondynamic_mech, x)
     xnondynamic_mech .= @view x[xi[:nondynamic_mech]]
-    for (ml_model_id, xnn) in cache.xnn
+    for (ml_id, xnn) in cache.xnn
         _xnn = get_tmp(xnn, x)
-        _xnn .= @view x[xi[ml_model_id]]
-        cache.xnn_dict[ml_model_id] = _xnn
+        _xnn .= @view x[xi[ml_id]]
+        cache.xnn_dict[ml_id] = _xnn
     end
     if xdynamic_tot == true
         xdynamic_tot = get_tmp(cache.xdynamic_tot, x)
@@ -70,11 +73,11 @@ end
 function split_xdynamic(xdynamic::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache)
     xdynamic_mech = get_tmp(cache.xdynamic_mech, xdynamic)
     xdynamic_mech .= @view xdynamic[xindices.xindices_dynamic[:xdynamic_to_mech]]
-    for (ml_model_id, xnn) in cache.xnn
-        ml_model_id in xindices.xids[:ml_nondynamic] && continue
+    for (ml_id, xnn) in cache.xnn
+        ml_id in xindices.xids[:ml_nondynamic] && continue
         _xnn = get_tmp(xnn, xdynamic)
-        _xnn .= @view xdynamic[xindices.xindices_dynamic[ml_model_id]]
-        cache.xnn_dict[ml_model_id] = _xnn
+        _xnn .= @view xdynamic[xindices.xindices_dynamic[ml_id]]
+        cache.xnn_dict[ml_id] = _xnn
     end
     return xdynamic_mech, cache.xnn_dict
 end
@@ -226,4 +229,11 @@ function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices; full_x:
         ixdynamic = vcat(ixdynamic, xindices.xindices_dynamic[:nn_preode])
     end
     return unique(ixdynamic)
+end
+
+function _get_petab_tables(petab_tables::PEtabTables, table::Symbol)
+    return _get_petab_tables(petab_tables, [table])
+end
+function _get_petab_tables(petab_tables::PEtabTables, tables::Vector{Symbol})
+    return [petab_tables[table] for table in tables]
 end
