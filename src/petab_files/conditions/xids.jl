@@ -20,9 +20,9 @@ function _get_xids(petab_parameters::PEtabParameters, petab_ml_parameters::PEtab
     # the order of xids_ml_in_ode for adjoint indexing to be correct.
     _xids_ml = _get_xids_ml(ml_models)
     xids_ml_in_ode = _get_xids_ml_in_ode(_xids_ml, sys)
-    xids_ml_preode = _get_xids_ml_preode(ml_models)
-    xids_ml_nondynamic = _get_xids_ml_nondynamic(_xids_ml, xids_ml_in_ode, xids_ml_preode)
-    xids_ml = unique(vcat(xids_ml_in_ode, xids_ml_preode, xids_ml_nondynamic))
+    xids_ml_pre_simulate = _get_xids_ml_pre_simulate(ml_models)
+    xids_ml_nondynamic = _get_xids_ml_nondynamic(_xids_ml, xids_ml_in_ode, xids_ml_pre_simulate)
+    xids_ml = unique(vcat(xids_ml_in_ode, xids_ml_pre_simulate, xids_ml_nondynamic))
     ix = [findfirst(x -> x == id, xids_sys) for id in xids_ml_in_ode]
     xids_sys[sort(ix)] .= xids_ml_in_ode
 
@@ -32,7 +32,7 @@ function _get_xids(petab_parameters::PEtabParameters, petab_ml_parameters::PEtab
 
     # Parameters set by a static neural net. Needed to be tracked for gradient computations
     # (as PEtab.jl computes neural net and ODE gradients separately in this case)
-    xids_ml_preode_output = _get_xids_ml_preode_output(petab_tables, ml_models)
+    xids_ml_pre_simulate_output = _get_xids_ml_pre_simulate_output(petab_tables, ml_models)
 
     # Mechanistic (none neural-net parameters). Note non-dynamic parameters are those that
     # only appear in the observable and noise functions, but are not defined noise or
@@ -52,7 +52,7 @@ function _get_xids(petab_parameters::PEtabParameters, petab_ml_parameters::PEtab
     xids_ml_est = _get_xids_ml_est(xids_ml, petab_ml_parameters)
     xids_estimate = vcat(xids_dynamic_mech, xids_not_system_mech, xids_ml_est)
     xids_petab = petab_parameters.parameter_id
-    return Dict(:dynamic_mech => xids_dynamic_mech, :noise => xids_noise, :ml => xids_ml, :ml_est => xids_ml_est, :observable => xids_observable, :nondynamic_mech => xids_nondynamic_mech, :not_system_mech => xids_not_system_mech, :sys => xids_sys, :estimate => xids_estimate, :petab => xids_petab, :ml_in_ode => xids_ml_in_ode, :ml_preode => xids_ml_preode, :ml_preode_outputs => xids_ml_preode_output, :ml_nondynamic => xids_ml_nondynamic)
+    return Dict(:est_to_dynamic_mech => xids_dynamic_mech, :noise => xids_noise, :ml => xids_ml, :ml_est => xids_ml_est, :observable => xids_observable, :nondynamic_mech => xids_nondynamic_mech, :not_system_mech => xids_not_system_mech, :sys => xids_sys, :estimate => xids_estimate, :petab => xids_petab, :ml_in_ode => xids_ml_in_ode, :ml_pre_simulate => xids_ml_pre_simulate, :sys_ml_pre_simulate_outputs => xids_ml_pre_simulate_output, :ml_nondynamic => xids_ml_nondynamic)
 end
 
 function _get_xids_dynamic_mech(xids_observable::T, xids_noise::T, xids_nondynamic_mech::T, xids_ml::T, petab_parameters::PEtabParameters)::T where {T <: Vector{Symbol}}
@@ -95,7 +95,7 @@ function _get_xids_sys(sys::ModelSystem)::Vector{Symbol}
     return sys isa ODEProblem ? collect(keys(sys.p)) : Symbol.(parameters(sys))
 end
 
-function _get_xids_ml_preode_output(petab_tables::PEtabTables, ml_models::MLModels)::Vector{Symbol}
+function _get_xids_ml_pre_simulate_output(petab_tables::PEtabTables, ml_models::MLModels)::Vector{Symbol}
     out = Symbol[]
     mappings_df = petab_tables[:mapping]
     hybridization_df = petab_tables[:hybridization]
@@ -194,7 +194,7 @@ function _get_xids_condition(sys, petab_parameters::PEtabParameters, petab_table
     return xids_condition
 end
 
-function _get_xids_ml(ml_models::Union{Nothing, MLModels})::Vector{Symbol}
+function _get_xids_ml(ml_models::MLModels)::Vector{Symbol}
     isnothing(ml_models) && return Symbol[]
     return collect(keys(ml_models)) .|> Symbol
 end
@@ -209,7 +209,7 @@ function _get_xids_ml_in_ode(xids_ml::Vector{Symbol}, sys)::Vector{Symbol}
     return xids_ml_in_ode
 end
 
-function _get_xids_ml_preode(ml_models::MLModels)::Vector{Symbol}
+function _get_xids_ml_pre_simulate(ml_models::MLModels)::Vector{Symbol}
     out = Symbol[]
     for (ml_id, ml_model) in ml_models
         ml_model.static == false && continue
@@ -218,10 +218,10 @@ function _get_xids_ml_preode(ml_models::MLModels)::Vector{Symbol}
     return out
 end
 
-function _get_xids_ml_nondynamic(xids_ml::T, xids_ml_in_ode::T, xids_ml_preode::T)::T where T <: Vector{Symbol}
+function _get_xids_ml_nondynamic(xids_ml::T, xids_ml_in_ode::T, xids_ml_pre_simulate::T)::T where T <: Vector{Symbol}
     out = Symbol[]
     for id in xids_ml
-        id in Iterators.flatten((xids_ml_in_ode, xids_ml_preode)) && continue
+        id in Iterators.flatten((xids_ml_in_ode, xids_ml_pre_simulate)) && continue
         push!(out, id)
     end
     return out

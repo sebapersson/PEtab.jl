@@ -8,17 +8,17 @@ function _grad_forward_eqs!(grad::Vector{T}, _solve_conditions!::Function,
     xnoise_ps = transform_x(xnoise, xindices, :xnoise, cache)
     xobservable_ps = transform_x(xobservable, xindices, :xobservable, cache)
     xnondynamic_mech_ps = transform_x(xnondynamic_mech, xindices, :xnondynamic_mech, cache)
-    xdynamic_tot_ps = transform_x(xdynamic, xindices, :xdynamic_tot, cache)
+    xdynamic_ps = transform_x(xdynamic, xindices, :xdynamic, cache)
 
     # Solve the expanded ODE system for the sensitivites
-    success = solve_sensitivites!(model_info, _solve_conditions!, xdynamic_tot_ps, sensealg,
+    success = solve_sensitivites!(model_info, _solve_conditions!, xdynamic_ps, sensealg,
                                   probinfo, cids, cfg)
     if success != true
         @warn "Failed to solve sensitivity equations"
         fill!(grad, 0.0)
         return nothing
     end
-    if isempty(xdynamic_tot_ps)
+    if isempty(xdynamic_ps)
         return nothing
     end
 
@@ -27,14 +27,14 @@ function _grad_forward_eqs!(grad::Vector{T}, _solve_conditions!::Function,
         if cids[1] != :all && !(imulation_info.conditionids[:experiment][cid] in cids)
             continue
         end
-        _grad_forward_eqs_cond!(grad, xdynamic_tot_ps, xnoise_ps, xobservable_ps,
+        _grad_forward_eqs_cond!(grad, xdynamic_ps, xnoise_ps, xobservable_ps,
                                 xnondynamic_mech_ps, icid, sensealg, probinfo, model_info)
     end
     return nothing
 end
 
 function solve_sensitivites!(model_info::ModelInfo, _solve_conditions!::Function,
-                             xdynamic_tot::Vector{<:AbstractFloat}, ::Symbol,
+                             xdynamic::Vector{<:AbstractFloat}, ::Symbol,
                              probinfo::PEtabODEProblemInfo, ::Vector{Symbol},
                              cfg::ForwardDiff.JacobianConfig)::Bool
     @unpack split_over_conditions, cache = probinfo
@@ -49,13 +49,13 @@ function solve_sensitivites!(model_info::ModelInfo, _solve_conditions!::Function
         # remade = false, no parameters in xdynamic are fixed, but for computations to
         # work nxdynamic must be set to default value temporarily
         tmp = cache.nxdynamic[1]
-        cache.nxdynamic[1] = length(xdynamic_tot)
+        cache.nxdynamic[1] = length(xdynamic)
         # Need ODE solution for gradient for the non xdynamic parameters even when
         # xdynamic is empty
-        if !isempty(xdynamic_tot)
-            ForwardDiff.jacobian!(S, _solve_conditions!, odesols, xdynamic_tot, cfg)
+        if !isempty(xdynamic)
+            ForwardDiff.jacobian!(S, _solve_conditions!, odesols, xdynamic, cfg)
         else
-            _solve_conditions!(cache.odesols, xdynamic_tot)
+            _solve_conditions!(cache.odesols, xdynamic)
         end
         cache.nxdynamic[1] = tmp
     end
@@ -65,12 +65,12 @@ function solve_sensitivites!(model_info::ModelInfo, _solve_conditions!::Function
         Stmp = similar(S)
         for (i, cid) in pairs(simulation_info.conditionids[:experiment])
             simid = simulation_info.conditionids[:simulation][i]
-            ixdynamic_simid = _get_ixdynamic_simid(simid, xindices; nn_preode = false)
-            xinput = _get_xinput(simid, xdynamic_tot, ixdynamic_simid, model_info, probinfo)
+            ixdynamic_simid = _get_ixdynamic_simid(simid, xindices; nn_pre_simulate = false)
+            xinput = _get_xinput(simid, xdynamic, ixdynamic_simid, model_info, probinfo)
             _S_condition! = (odesols, _xinput) -> begin
                 _split_xinput!(probinfo, simid, model_info, _xinput, ixdynamic_simid)
-                _xdynamic_tot = get_tmp(probinfo.cache.xdynamic_tot, _xinput)
-                _solve_conditions!(odesols, _xdynamic_tot, [cid])
+                _xdynamic = get_tmp(probinfo.cache.xdynamic, _xinput)
+                _solve_conditions!(odesols, _xdynamic, [cid])
             end
             ix_S_simid = _get_ix_S_simid(ixdynamic_simid, split_over_conditions, model_info)
             @views ForwardDiff.jacobian!(Stmp[:, ix_S_simid], _S_condition!, odesols,
@@ -81,7 +81,7 @@ function solve_sensitivites!(model_info::ModelInfo, _solve_conditions!::Function
     return simulation_info.could_solve[1]
 end
 
-function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnoise::Vector{T},
+function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vector{T},
                                  xobservable::Vector{T}, xnondynamic_mech::Vector{T},
                                  icid::Int64, ::Symbol,
                                  probinfo::PEtabODEProblemInfo,
@@ -95,8 +95,8 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnois
     cid = simulation_info.conditionids[:experiment][icid]
     simid = simulation_info.conditionids[:simulation][icid]
     smatrixindices_cid = smatrixindices[cid]
-    nn_preode = probinfo.split_over_conditions == false
-    ixdynamic_simid = _get_ixdynamic_simid(simid, xindices, nn_preode = nn_preode)
+    nn_pre_simulate = probinfo.split_over_conditions == false
+    ixdynamic_simid = _get_ixdynamic_simid(simid, xindices, nn_pre_simulate = nn_pre_simulate)
     ix_S_simid = _get_ix_S_simid(ixdynamic_simid, split_over_conditions, model_info)
     sol = simulation_info.odesols_derivatives[cid]
 
@@ -124,14 +124,14 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnois
     end
 
     # Gradient of ML parameters
-    if split_over_conditions == true && !isempty(cache.grad_nn_preode)
-        cache.grad_nn_preode .= forward_eqs_grad[(length(ixdynamic_simid)+1):end]
-        _set_grad_x_nn_preode!(grad, simid, probinfo, model_info)
+    if split_over_conditions == true && !isempty(cache.grad_nn_pre_simulate)
+        cache.grad_nn_pre_simulate .= forward_eqs_grad[(length(ixdynamic_simid)+1):end]
+        _set_grad_x_nn_pre_simulate!(grad, simid, probinfo, model_info)
     end
 
     # Adjust if gradient is non-linear scale (e.g. log and log10).
-    grad_to_xscale!(grad, forward_eqs_grad, ∂G∂p, xdynamic_tot, xindices, simid;
-                    sensitivities_AD = true, nn_preode = nn_preode)
+    grad_to_xscale!(grad, forward_eqs_grad, ∂G∂p, xdynamic, xindices, simid;
+                    sensitivities_AD = true, nn_pre_simulate = nn_pre_simulate)
     return nothing
 end
 
@@ -140,7 +140,7 @@ function _get_ix_S_simid(ixdynamic_simid, split_over_conditions::Bool, model_inf
         return ixdynamic_simid[:]
     end
     nx_forward_eqs = _get_nx_forwardeqs(model_info.xindices, split_over_conditions)
-    nx_nn_preode_outputs = length(model_info.xindices.xids[:ml_preode_outputs])
-    istart = nx_forward_eqs - nx_nn_preode_outputs + 1
+    nx_nn_pre_simulate_outputs = length(model_info.xindices.xids[:sys_ml_pre_simulate_outputs])
+    istart = nx_forward_eqs - nx_nn_pre_simulate_outputs + 1
     return vcat(ixdynamic_simid, istart:nx_forward_eqs)
 end

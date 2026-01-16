@@ -9,10 +9,10 @@ function _jac_residuals_xdynamic!(jac::AbstractMatrix, _solve_conditions!::Funct
     xnoise_ps = transform_x(xnoise, xindices, :xnoise, cache)
     xobservable_ps = transform_x(xobservable, xindices, :xobservable, cache)
     xnondynamic_mech_ps = transform_x(xnondynamic_mech, xindices, :xnondynamic_mech, cache)
-    xdynamic_tot_ps = transform_x(xdynamic, xindices, :xdynamic_tot, cache)
+    xdynamic_ps = transform_x(xdynamic, xindices, :xdynamic, cache)
 
     if reuse_sensitivities == false
-        success = solve_sensitivites!(model_info, _solve_conditions!, xdynamic_tot_ps,
+        success = solve_sensitivites!(model_info, _solve_conditions!, xdynamic_ps,
                                       :ForwardDiff, probinfo, cids, cfg)
         if success != true
             @warn "Failed to solve sensitivity equations"
@@ -20,7 +20,7 @@ function _jac_residuals_xdynamic!(jac::AbstractMatrix, _solve_conditions!::Funct
             return nothing
         end
     end
-    if isempty(xdynamic_tot_ps)
+    if isempty(xdynamic_ps)
         fill!(jac, 0.0)
         return nothing
     end
@@ -30,13 +30,13 @@ function _jac_residuals_xdynamic!(jac::AbstractMatrix, _solve_conditions!::Funct
         if cids[1] != :all && !(imulation_info.conditionids[:experiment][icid] in cids)
             continue
         end
-        _jac_residuals_cond!(jac, xdynamic_tot_ps, xnoise_ps, xobservable_ps,
+        _jac_residuals_cond!(jac, xdynamic_ps, xnoise_ps, xobservable_ps,
                              xnondynamic_mech_ps, icid, probinfo, model_info)
     end
     return nothing
 end
 
-function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic_tot::Vector{T}, xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic_mech::Vector{T}, icid::Int64, probinfo::PEtabODEProblemInfo, model_info::ModelInfo) where {T <: AbstractFloat}
+function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic::Vector{T}, xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic_mech::Vector{T}, icid::Int64, probinfo::PEtabODEProblemInfo, model_info::ModelInfo) where {T <: AbstractFloat}
     @unpack xindices, simulation_info, model = model_info
     @unpack petab_parameters, petab_measurements = model_info
     @unpack imeasurements_t, tsaves, smatrixindices = simulation_info
@@ -46,8 +46,8 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic_tot::Vector{T}, x
     cid = simulation_info.conditionids[:experiment][icid]
     simid = simulation_info.conditionids[:simulation][icid]
     smatrixindices_cid = smatrixindices[cid]
-    nn_preode = probinfo.split_over_conditions == false
-    ixdynamic_simid = _get_ixdynamic_simid(simid, xindices, nn_preode = nn_preode)
+    nn_pre_simulate = probinfo.split_over_conditions == false
+    ixdynamic_simid = _get_ixdynamic_simid(simid, xindices, nn_pre_simulate = nn_pre_simulate)
     ix_S_simid = _get_ix_S_simid(ixdynamic_simid, split_over_conditions, model_info)
     sol = simulation_info.odesols_derivatives[cid]
 
@@ -74,11 +74,11 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic_tot::Vector{T}, x
             # Jacobian for Gauss-Newton
             if split_over_conditions == true
                 ix = (length(ixdynamic_simid)+1):length(forward_eqs_grad)
-                cache.grad_nn_preode .= forward_eqs_grad[ix]
-                _set_grad_x_nn_preode!(_jac, simid, probinfo, model_info)
+                cache.grad_nn_pre_simulate .= forward_eqs_grad[ix]
+                _set_grad_x_nn_pre_simulate!(_jac, simid, probinfo, model_info)
             end
-            grad_to_xscale!(_jac, forward_eqs_grad, ∂G∂p, xdynamic_tot, xindices, simid,
-                            sensitivities_AD = true, nn_preode = nn_preode)
+            grad_to_xscale!(_jac, forward_eqs_grad, ∂G∂p, xdynamic, xindices, simid,
+                            sensitivities_AD = true, nn_pre_simulate = nn_pre_simulate)
         end
     end
     return nothing

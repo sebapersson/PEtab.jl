@@ -48,35 +48,41 @@ function split_x(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODEP
     )
 end
 
-function split_x!(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache; xdynamic_tot::Bool = false)::Nothing
-    xi = xindices.xindices
-    xdynamic = get_tmp(cache.xdynamic_mech, x)
-    xdynamic .= @view x[xi[:dynamic_mech]]
+function split_x!(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache; xdynamic_full::Bool = false)::Nothing
+    @unpack indices_est = xindices
+
+    xdynamic_mech = get_tmp(cache.xdynamic_mech, x)
+    xdynamic_mech .= @view x[indices_est[:est_to_dynamic_mech]]
+
     xobservable = get_tmp(cache.xobservable, x)
-    xobservable .= @view x[xi[:observable]]
+    xobservable .= @view x[indices_est[:est_to_observable]]
+
     xnoise = get_tmp(cache.xnoise, x)
-    xnoise .= @view x[xi[:noise]]
+    xnoise .= @view x[indices_est[:est_to_noise]]
+
     xnondynamic_mech = get_tmp(cache.xnondynamic_mech, x)
-    xnondynamic_mech .= @view x[xi[:nondynamic_mech]]
-    for (ml_id, xnn) in cache.xnn
-        _xnn = get_tmp(xnn, x)
-        _xnn .= @view x[xi[ml_id]]
-        cache.xnn_dict[ml_id] = _xnn
+    xnondynamic_mech .= @view x[indices_est[:est_to_nondynamic_mech]]
+
+    for (ml_id, x_ml) in cache.xnn
+        _x_ml = get_tmp(x_ml, x)
+        _x_ml .= @view x[indices_est[ml_id]]
+        cache.xnn_dict[ml_id] = _x_ml
     end
-    if xdynamic_tot == true
-        xdynamic_tot = get_tmp(cache.xdynamic_tot, x)
-        xdynamic_tot .= @view x[xindices.xindices_dynamic[:xest_to_xdynamic]]
+
+    if xdynamic_full == true
+        xdynamic = get_tmp(cache.xdynamic, x)
+        xdynamic .= @view x[xindices.indices_est[:est_to_dynamic]]
     end
     return nothing
 end
 
 function split_xdynamic(xdynamic::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache)
     xdynamic_mech = get_tmp(cache.xdynamic_mech, xdynamic)
-    xdynamic_mech .= @view xdynamic[xindices.xindices_dynamic[:xdynamic_to_mech]]
+    xdynamic_mech .= @view xdynamic[xindices.indices_dynamic[:dynamic_to_mech]]
     for (ml_id, xnn) in cache.xnn
         ml_id in xindices.xids[:ml_nondynamic] && continue
         _xnn = get_tmp(xnn, xdynamic)
-        _xnn .= @view xdynamic[xindices.xindices_dynamic[ml_id]]
+        _xnn .= @view xdynamic[xindices.indices_dynamic[ml_id]]
         cache.xnn_dict[ml_id] = _xnn
     end
     return xdynamic_mech, cache.xnn_dict
@@ -92,8 +98,8 @@ end
 
 function transform_x(x::AbstractVector, xindices::ParameterIndices, whichx::Symbol,
                      cache::PEtabODEProblemCache; to_xscale::Bool = false)::AbstractVector
-    if whichx === :xdynamic_mech || whichx === :xdynamic_tot
-        xids = xindices.xids[:dynamic_mech]
+    if whichx === :xdynamic_mech || whichx === :xdynamic
+        xids = xindices.xids[:est_to_dynamic_mech]
         x_ps = get_tmp(cache.xdynamic_ps, x)
     elseif whichx === :xnoise
         xids = xindices.xids[:noise]
@@ -108,13 +114,13 @@ function transform_x(x::AbstractVector, xindices::ParameterIndices, whichx::Symb
     for (i, xid) in pairs(xids)
         x_ps[i] = transform_x(x[i], xindices.xscale[xid]; to_xscale = to_xscale)
     end
-    # For xdynamic_tot (mechanistic + neural net parameters) it does not make sense to
+    # For xdynamic (mechanistic + neural net parameters) it does not make sense to
     # transform the neural-net parameters, hence, in this approach only the mechanistic
     # parameters are transformed, then they are added to the total vector
-    if whichx === :xdynamic_tot
-        xdynamic_tot = get_tmp(cache.xdynamic_tot, x)
-        xdynamic_tot[xindices.xindices_dynamic[:xdynamic_to_mech]] .= x_ps
-        return xdynamic_tot
+    if whichx === :xdynamic
+        xdynamic = get_tmp(cache.xdynamic, x)
+        xdynamic[xindices.indices_dynamic[:dynamic_to_mech]] .= x_ps
+        return xdynamic
     else
         return x_ps
     end
@@ -206,27 +212,29 @@ function is_number(x::Symbol)::Bool
 end
 
 # TODO: Precompute only once
-function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices; full_x::Bool = false, nn_preode::Bool = false)::Vector{Integer}
+function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices; full_x::Bool = false, nn_pre_simulate::Bool = false)::Vector{Integer}
     @unpack isys_all_conditions, ix_condition = xindices.condition_maps[simid]
     if full_x == false
         ixdynamic = vcat(
-            isys_all_conditions, ix_condition, xindices.xindices_dynamic[:nn_in_ode]
+            isys_all_conditions, ix_condition, xindices.indices_dynamic[:dynamic_to_ml_sys]
         )
     else
         ixdynamic = vcat(
-            isys_all_conditions, ix_condition, xindices.xindices_dynamic[:nn_in_ode],
-            xindices.xindices[:not_system_tot]
+            isys_all_conditions, ix_condition, xindices.indices_dynamic[:dynamic_to_ml_sys],
+            xindices.indices_est[:est_to_not_system]
         )
     end
     # Include parameters that potentially appear as only input to a neural-net. These
     # parameters are by default included in xdynamic (as they gouvern model dynamics)
-    if !isempty(xindices.maps_ml_preode)
-        for map_ml_model in values(xindices.maps_ml_preode[simid])
+    if !isempty(xindices.maps_ml_pre_simulate)
+        for map_ml_model in values(xindices.maps_ml_pre_simulate[simid])
             ixdynamic = vcat(ixdynamic, reduce(vcat, map_ml_model.ixdynamic_mech_inputs))
         end
     end
-    if nn_preode == true || full_x == true
-        ixdynamic = vcat(ixdynamic, xindices.xindices_dynamic[:nn_preode])
+    if nn_pre_simulate == true || full_x == true
+        ixdynamic = vcat(
+            ixdynamic, xindices.indices_dynamic[:dynamic_to_ml_pre_simulate]
+        )
     end
     return unique(ixdynamic)
 end
@@ -236,4 +244,10 @@ function _get_petab_tables(petab_tables::PEtabTables, table::Symbol)
 end
 function _get_petab_tables(petab_tables::PEtabTables, tables::Vector{Symbol})
     return [petab_tables[table] for table in tables]
+end
+
+function _get_nx_estimate(xindices::ParameterIndices)::Int64
+    nestimate = length(xindices.indices_est[:est_to_not_system]) +
+                length(xindices.indices_est[:est_to_dynamic])
+    return nestimate
 end

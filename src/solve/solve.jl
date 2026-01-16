@@ -110,15 +110,15 @@ function solve_conditions!(
     end
     return true
 end
-function solve_conditions!(sols::AbstractMatrix, xdynamic_tot::AbstractVector,
+function solve_conditions!(sols::AbstractMatrix, xdynamic::AbstractVector,
                            probinfo::PEtabODEProblemInfo, model_info::ModelInfo;
                            cids::Vector{Symbol} = [:all], ntimepoints_save::Int64 = 0,
                            save_observed_t::Bool = true, dense_sol::Bool = false,
                            track_callback::Bool = false, sensitivities::Bool = false,
                            sensitivities_AD::Bool = false)::Nothing
     cache = probinfo.cache
-    _xdynamic_mech, xnn = split_xdynamic(xdynamic_tot, model_info.xindices, cache)
-    if sensitivities_AD == true && cache.nxdynamic[1] != length(xdynamic_tot)
+    _xdynamic_mech, xnn = split_xdynamic(xdynamic, model_info.xindices, cache)
+    if sensitivities_AD == true && cache.nxdynamic[1] != length(xdynamic)
         xdynamic_mech = _xdynamic_mech[cache.xdynamic_output_order]
     else
         xdynamic_mech = _xdynamic_mech

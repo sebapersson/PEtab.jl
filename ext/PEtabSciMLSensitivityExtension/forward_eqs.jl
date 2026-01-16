@@ -10,15 +10,15 @@ end
 
 function PEtab.solve_sensitivites!(
         ::PEtab.ModelInfo, _solve_conditions!::Function,
-        xdynamic_tot::Vector{<:AbstractFloat}, ::ForwardAlg, ::PEtab.PEtabODEProblemInfo,
+        xdynamic::Vector{<:AbstractFloat}, ::ForwardAlg, ::PEtab.PEtabODEProblemInfo,
         cids::Vector{Symbol}, ::Nothing
     )::Bool
-    success = _solve_conditions!(xdynamic_tot, cids)
+    success = _solve_conditions!(xdynamic, cids)
     return success
 end
 
 function PEtab._grad_forward_eqs_cond!(
-        grad::Vector{T}, xdynamic_tot::Vector{T}, xnoise::Vector{T}, xobservable::Vector{T},
+        grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vector{T}, xobservable::Vector{T},
         xnondynamic_mech::Vector{T}, icid::Int64, ::ForwardAlg,
         probinfo::PEtab.PEtabODEProblemInfo, model_info::PEtab.ModelInfo
     )::Nothing where {T <: AbstractFloat}
@@ -51,15 +51,15 @@ function PEtab._grad_forward_eqs_cond!(
     # of these are the output of neural-net, they are the inner-derivative needed to
     # compute the gradient of the neural-net. As usual, the outer Jacobian derivative has
     # already been computed, so the only thing left is to combine them
-    if !isempty(xindices.xids[:ml_preode_outputs])
-        ix = xindices.xindices_dynamic[:ml_preode_outputs]
-        cache.grad_nn_preode .= _grad[ix]
-        PEtab._set_grad_x_nn_preode!(grad, simid, probinfo, model_info)
+    if !isempty(xindices.xids[:sys_ml_pre_simulate_outputs])
+        ix = xindices.indices_dynamic[:sys_ml_pre_simulate_outputs]
+        cache.grad_nn_pre_simulate .= _grad[ix]
+        PEtab._set_grad_x_nn_pre_simulate!(grad, simid, probinfo, model_info)
     end
 
     # Adjust if gradient is non-linear scale (e.g. log and log10). TODO: Refactor
     # this function later
-    PEtab.grad_to_xscale!(grad, _grad, ∂G∂p, xdynamic_tot, xindices, simid,
+    PEtab.grad_to_xscale!(grad, _grad, ∂G∂p, xdynamic, xindices, simid,
                           sensitivities_AD = false)
     return nothing
 end

@@ -1,6 +1,6 @@
 function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol, FIM_method::Symbol, sensealg, model_info::ModelInfo, ml_models::Union{MLModels}, split_over_conditions::Bool, oprob::ODEProblem)::PEtabODEProblemCache
     @unpack xindices, model, simulation_info, petab_measurements, petab_parameters, petab_ml_parameters = model_info
-    nxestimate = length(xindices.xids[:estimate])
+    n_estimate = _get_nx_estimate(xindices)
     nstates = model_info.nstates
     if model.sys_mutated isa ODEProblem
         nxode = length(oprob.p)
@@ -9,7 +9,7 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol, F
     end
 
     # Parameters for DiffCache
-    chunksize = nxestimate + nxestimate^2
+    chunksize = n_estimate + n_estimate^2
     chunksize = chunksize > 100 ? 100 : chunksize
     if hessian_method ∈ [:ForwardDiff, :BlockForwardDiff, :GaussNewton]
         level_cache = 2
@@ -19,7 +19,7 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol, F
         level_cache = 0
     end
     # Parameters on linear scale
-    _xdynamic_mech = zeros(Float64, length(xindices.xids[:dynamic_mech]))
+    _xdynamic_mech = zeros(Float64, length(xindices.xids[:est_to_dynamic_mech]))
     _xobservable = zeros(Float64, length(xindices.xids[:observable]))
     _xnoise = zeros(Float64, length(xindices.xids[:noise]))
     _xnondynamic_mech = zeros(Float64, length(xindices.xids[:nondynamic_mech]))
@@ -52,16 +52,16 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol, F
     end
 
     # For all dynamic parameters (mechanistic + nn parameters)
-    nxdynamic_tot = _get_nxdynamic(xindices)
-    _xdynamic_tot = zeros(Float64, nxdynamic_tot)
-    xdynamic_tot = DiffCache(similar(_xdynamic_tot), chunksize, levels = level_cache)
+    nxdynamic = length(xindices.indices_est[:est_to_dynamic])
+    _xdynamic = zeros(Float64, nxdynamic)
+    xdynamic = DiffCache(similar(_xdynamic), chunksize, levels = level_cache)
     # For the gradient of parameters that are set via neural-network (needed for efficient
     # gradient of the neural network with the help of the chain rule)
-    grad_nn_preode = zeros(Float64, length(xindices.xids[:ml_preode_outputs]))
+    grad_nn_pre_simulate = zeros(Float64, length(xindices.xids[:sys_ml_pre_simulate_outputs]))
 
     # Arrays needed in gradient compuations
-    xdynamic_grad = zeros(Float64, nxdynamic_tot)
-    x_not_system_grad = zeros(Float64, length(xindices.xindices[:not_system_tot]))
+    xdynamic_grad = zeros(Float64, nxdynamic)
+    x_not_system_grad = zeros(Float64, length(xindices.indices_est[:est_to_not_system]))
     # For forward sensitivity equations and adjoint sensitivity analysis partial
     # derivatives are computed symbolically
     symbolic_needed_grads = gradient_method in [:Adjoint, :ForwardEquations]
@@ -112,7 +112,7 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol, F
 
     # For Gauss-Newton the model residuals are computed
     if GN_hess
-        nxtot = nxdynamic_tot + length(xindices.xindices[:not_system_tot])
+        nxtot = nxdynamic + length(xindices.indices_est[:est_to_not_system])
         jacobian_gn = zeros(Float64, nxtot, length(petab_measurements.time))
         residuals_gn = zeros(Float64, length(petab_measurements.time))
     else
@@ -139,9 +139,9 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol, F
     # compute the gradient of a problem with reduced number of parameters where to run
     # fewer chunks with ForwardDiff.jl we only run enough chunks to reach nxdynamic
     # TODO: When get here
-    xdynamic_input_order::Vector{Int64} = collect(1:length(_xdynamic_mech))
-    xdynamic_output_order::Vector{Int64} = collect(1:length(_xdynamic_mech))
-    nxdynamic::Vector{Int64} = Int64[length(_xdynamic_tot)]
+    xdynamic_input_order = collect(1:length(_xdynamic_mech))
+    xdynamic_output_order = collect(1:length(_xdynamic_mech))
+    nxdynamic = Int64[length(_xdynamic)]
 
     # Preallocate arrays used when solving the ODE model
     if simulation_info.has_pre_equilibration == true
@@ -162,25 +162,24 @@ function PEtabODEProblemCache(gradient_method::Symbol, hessian_method::Symbol, F
         end
     end
 
-    return PEtabODEProblemCache(xdynamic_mech, xnoise, xobservable, xnondynamic_mech, xdynamic_mech_ps,
-                                xnoise_ps, xobservable_ps, xnondynamic_mech_ps, xdynamic_grad,
-                                x_not_system_grad, jacobian_gn, residuals_gn, forward_eqs_grad,
-                                adjoint_grad, St0, ∂h∂u, ∂σ∂u, ∂h∂p, ∂σ∂p, ∂G∂p, ∂G∂p_,
-                                ∂G∂u, dp, du, p, u, S, odesols, pode, u0ode,
-                                xdynamic_input_order, xdynamic_output_order, nxdynamic,
-                                xnn, xnn_dict, xnn_constant, xdynamic_tot, grad_nn_preode)
-end
-
-function _get_nxdynamic(xindices::ParameterIndices)::Int64
-    return length(xindices.xindices_dynamic[:xest_to_xdynamic])
+    return PEtabODEProblemCache(
+        xdynamic_mech, xnoise, xobservable, xnondynamic_mech, xdynamic_mech_ps, xnoise_ps,
+        xobservable_ps, xnondynamic_mech_ps, xdynamic_grad, x_not_system_grad, jacobian_gn,
+        residuals_gn, forward_eqs_grad, adjoint_grad, St0, ∂h∂u, ∂σ∂u, ∂h∂p, ∂σ∂p, ∂G∂p,
+        ∂G∂p_, ∂G∂u, dp, du, p, u, S, odesols, pode, u0ode, xdynamic_input_order,
+        xdynamic_output_order, nxdynamic, xnn, xnn_dict, xnn_constant, xdynamic,
+        grad_nn_pre_simulate
+    )
 end
 
 function _get_nx_forwardeqs(xindices::ParameterIndices, split_over_conditions::Bool)::Int64
     if split_over_conditions == false
-        return length(xindices.xindices_dynamic[:xest_to_xdynamic])
+        return length(xindices.indices_est[:est_to_dynamic])
     else
-        return (length(xindices.xindices_dynamic[:xdynamic_to_mech]) +
-                length(xindices.xindices_dynamic[:nn_in_ode]) +
-                length(xindices.xids[:ml_preode_outputs]))
+        return (
+            length(xindices.indices_dynamic[:dynamic_to_mech]) +
+            length(xindices.indices_dynamic[:dynamic_to_ml_sys]) +
+            length(xindices.indices_dynamic[:sys_ml_pre_simulate_outputs])
+        )
     end
 end

@@ -58,15 +58,15 @@ struct MLModelPreODEMap{T1 <: Vector{<:Array{<:AbstractFloat}}}
 end
 
 struct ParameterIndices
-    xindices::Dict{Symbol, Vector{Int32}}
     xids::Dict{Symbol, Vector{Symbol}}
-    xindices_notsys::Dict{Symbol, Vector{Int32}}
-    xindices_dynamic::Dict{Symbol, Vector{Int32}}
+    indices_est::Dict{Symbol, Vector{Int32}}
+    indices_dynamic::Dict{Symbol, Vector{Int32}}
+    indices_not_system::Dict{Symbol, Vector{Int32}}
     xscale::Dict{Symbol, Symbol}
     xobservable_maps::Vector{ObservableNoiseMap}
     xnoise_maps::Vector{ObservableNoiseMap}
     condition_maps::Dict{Symbol, ConditionMap}
-    maps_ml_preode::Dict{Symbol, Dict{Symbol, MLModelPreODEMap}}
+    maps_ml_pre_simulate::Dict{Symbol, Dict{Symbol, MLModelPreODEMap}}
 end
 
 struct Priors
@@ -150,8 +150,8 @@ struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
     xnn::T7
     xnn_dict::Dict{Symbol, ComponentArray}
     xnn_constant::Dict{Symbol, ComponentArray}
-    xdynamic_tot::T2
-    grad_nn_preode::Vector{Float64}
+    xdynamic::T2
+    grad_nn_pre_simulate::Vector{Float64}
 end
 
 struct PEtabMeasurements{T <: Vector{<:Union{<:String, <:AbstractFloat}}}

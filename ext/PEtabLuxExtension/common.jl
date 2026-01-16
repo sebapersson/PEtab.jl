@@ -31,7 +31,7 @@ function PEtab._get_ml_model_ps(ml_models_in_ode::Dict)::Dict{Symbol, NamedTuple
     return pnns
 end
 
-function PEtab._get_n_ml_model_parameters(ml_model::PEtab.MLModel)
+function PEtab._get_n_ml_parameters(ml_model::PEtab.MLModel)
     return Lux.LuxCore.parameterlength(ml_model.model)
 end
 

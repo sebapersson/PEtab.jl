@@ -91,14 +91,15 @@ end
     Hessian functions
 =#
 
-function _get_hess_forward_AD(probinfo::PEtabODEProblemInfo,
-                              model_info::ModelInfo)::Function
+function _get_hess_forward_AD(
+        probinfo::PEtabODEProblemInfo, model_info::ModelInfo
+    )::Function
     @unpack split_over_conditions, chunksize = probinfo
     if split_over_conditions == false
         _nllh = let pinfo = probinfo, minfo = model_info
             (x) -> nllh(x, pinfo, minfo, [:all], true, false)
         end
-        nestimate = _get_nx_estimate(model_info)
+        nestimate = _get_nx_estimate(model_info.xindices)
         chunksize_use = _get_chunksize(chunksize, zeros(nestimate))
         cfg = ForwardDiff.HessianConfig(_nllh, zeros(nestimate), chunksize_use)
         _hess_nllh! = let _nllh = _nllh, cfg = cfg, minfo = model_info
@@ -191,10 +192,10 @@ function _get_hess_gaussnewton(probinfo::PEtabODEProblemInfo, model_info::ModelI
         end
     end
 
-    xnot_ode = zeros(Float64, length(model_info.xindices.xindices[:not_system_tot]))
-    cfg_notsolve = ForwardDiff.JacobianConfig(_residuals_not_solveode,
-                                              cache.residuals_gn, xnot_ode,
-                                              ForwardDiff.Chunk(xnot_ode))
+    xnot_ode = zeros(Float64, length(model_info.xindices.indices_est[:est_to_not_system]))
+    cfg_notsolve = ForwardDiff.JacobianConfig(
+        _residuals_not_solveode, cache.residuals_gn, xnot_ode, ForwardDiff.Chunk(xnot_ode)
+    )
     _hess_nllh! = let _residuals_not_solveode = _residuals_not_solveode,
         pinfo = probinfo, minfo = model_info, cfg = cfg, cfg_notsolve = cfg_notsolve,
         ret_jacobian = ret_jacobian, _solve_conditions! = _solve_conditions!
@@ -224,8 +225,10 @@ function _get_nllh_not_solveode(probinfo::PEtabODEProblemInfo, model_info::Model
     return _nllh_not_solveode
 end
 
-function _get_nllh_solveode(probinfo::PEtabODEProblemInfo, model_info::ModelInfo;
-                            grad_xdynamic::Bool = false, cid::Bool = false)::Function
+function _get_nllh_solveode(
+        probinfo::PEtabODEProblemInfo, model_info::ModelInfo; grad_xdynamic::Bool = false,
+        cid::Bool = false
+    )::Function
     if cid == false
         _nllh_solveode = let pinfo = probinfo, minfo = model_info
             xnoise, xobservable, xnondynamic_mech = _get_x_notsystem(pinfo.cache, 1.0)
@@ -260,23 +263,20 @@ function _get_x_not_nn(cache::PEtabODEProblemCache, x::T)::NTuple{4, AbstractVec
     return xnoise, xobservable, xnondynamic_mech, xdynamic
 end
 
-function _get_nx_estimate(model_info::ModelInfo)::Int64
-    nestimate = length(model_info.xindices.xindices[:not_system_tot]) +
-                length(model_info.xindices.xindices_dynamic[:xest_to_xdynamic])
-    return nestimate
-end
-
 function split_x_notsystem(x, xindices::ParameterIndices, cache::PEtabODEProblemCache)
     xnoise = get_tmp(cache.xnoise, x)
+    xnoise .= @view x[xindices.indices_not_system[:not_system_to_noise]]
+
     xobservable = get_tmp(cache.xobservable, x)
+    xobservable .= @view x[xindices.indices_not_system[:not_system_to_observable]]
+
     xnondynamic_mech = get_tmp(cache.xnondynamic_mech, x)
-    xnoise .= @view x[xindices.xindices_notsys[:noise]]
-    xobservable .= @view x[xindices.xindices_notsys[:observable]]
-    xnondynamic_mech .= @view x[xindices.xindices_notsys[:nondynamic_mech]]
+    xnondynamic_mech .= @view x[xindices.indices_not_system[:not_system_to_nondynamic_mech]]
+
     for ml_id in xindices.xids[:ml_nondynamic]
         !(ml_id in xindices.xids[:ml_est]) && continue
         xnn = get_tmp(cache.xnn[ml_id], x)
-        xnn .= x[xindices.xindices_notsys[ml_id]]
+        xnn .= x[xindices.indices_not_system[ml_id]]
         cache.xnn_dict[ml_id] = xnn
     end
     return xnoise, xobservable, xnondynamic_mech, cache.xnn_dict

@@ -65,7 +65,7 @@ function hess_block!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Function
                      cids::Vector{Symbol} = [:all])::Nothing where {T <: AbstractFloat}
     @unpack simulation_info, xindices, priors = model_info
     cache = probinfo.cache
-    split_x!(x, xindices, cache; xdynamic_tot = true)
+    split_x!(x, xindices, cache; xdynamic_full = true)
     xdynamic_grad = cache.xdynamic_grad
 
     # If Hessian computation failed a zero Hessian is returned.
@@ -75,9 +75,9 @@ function hess_block!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Function
         # Even if xdynamic is empty the ODE must be solved to get the Hessian of the
         # parameters not appearing in the ODE
         if !isempty(xdynamic_grad)
-            ix = xindices.xindices_dynamic[:xest_to_xdynamic]
-            xdynamic_tot = get_tmp(probinfo.cache.xdynamic_tot, x)
-            @views ForwardDiff.hessian!(hess[ix, ix], _nllh_solveode, xdynamic_tot, cfg)
+            ix = xindices.indices_dynamic[:est_to_dynamic]
+            xdynamic = get_tmp(probinfo.cache.xdynamic, x)
+            @views ForwardDiff.hessian!(hess[ix, ix], _nllh_solveode, xdynamic, cfg)
         else
             _nllh_solveode(xdynamic_grad)
         end
@@ -90,7 +90,7 @@ function hess_block!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Function
         return nothing
     end
 
-    ix_not_system = xindices.xindices[:not_system_tot]
+    ix_not_system = xindices.indices_est[:est_to_not_system]
     x_not_system = @view x[ix_not_system]
     @views ForwardDiff.hessian!(hess[ix_not_system, ix_not_system], _nllh_not_solveode, x_not_system)
     return nothing
@@ -103,7 +103,7 @@ function hess_block_split!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Fu
                                                                           AbstractFloat}
     @unpack simulation_info, xindices, priors = model_info
     cache = probinfo.cache
-    split_x!(x, xindices, cache; xdynamic_tot = true)
+    split_x!(x, xindices, cache; xdynamic_full = true)
 
     # If Hessian computation failed a zero Hessian is returned. Here a Hessian is computed
     # for each condition-id, only using parameter present for said condition
@@ -111,14 +111,14 @@ function hess_block_split!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Fu
     fill!(hess, 0.0)
     for (i, cid) in pairs(simulation_info.conditionids[:experiment])
         simid = simulation_info.conditionids[:simulation][i]
-        ixdynamic_simid = _get_ixdynamic_simid(simid, xindices; nn_preode = true)
+        ixdynamic_simid = _get_ixdynamic_simid(simid, xindices; nn_pre_simulate = true)
         xinput = x[ixdynamic_simid]
 
         hess_tmp = zeros(eltype(x), length(xinput), length(xinput))
         _nllh_cid = (_xinput) -> begin
-            xdynamic_tot = get_tmp(cache.xdynamic_tot, _xinput)
-            @views xdynamic_tot[ixdynamic_simid] .= _xinput
-            return _nllh_solveode(xdynamic_tot, [cid])
+            xdynamic = get_tmp(cache.xdynamic, _xinput)
+            @views xdynamic[ixdynamic_simid] .= _xinput
+            return _nllh_solveode(xdynamic, [cid])
         end
         try
             ForwardDiff.hessian!(hess_tmp, _nllh_cid, xinput)
@@ -137,7 +137,7 @@ function hess_block_split!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Fu
         return nothing
     end
 
-    ix_not_system = xindices.xindices[:not_system_tot]
+    ix_not_system = xindices.indices_est[:est_to_not_system]
     x_not_system = @view x[ix_not_system]
     @views ForwardDiff.hessian!(hess[ix_not_system, ix_not_system], _nllh_not_solveode, x_not_system)
     return nothing
@@ -154,13 +154,13 @@ function hess_GN!(out::Matrix{T}, x::Vector{T}, _residuals_not_solveode::Functio
 
     # See comment in gradient.jl on Jacobian of neural-net
     if probinfo.split_over_conditions == true
-        _jac_ml_model_preode!(probinfo, model_info)
+        _jac_ml_model_pre_simulate!(probinfo, model_info)
     end
 
     fill!(out, 0.0)
     fill!(jacobian_gn, 0.0)
-    split_x!(x, xindices, cache; xdynamic_tot = true)
-    _jac = @view jacobian_gn[xindices.xindices_dynamic[:xest_to_xdynamic], :]
+    split_x!(x, xindices, cache; xdynamic_full = true)
+    _jac = @view jacobian_gn[xindices.indices_dynamic[:est_to_dynamic], :]
     _jac_residuals_xdynamic!(_jac, _solve_conditions!, probinfo, model_info, cfg;
                              cids = cids)
     # Happens when at least one forward pass fails
@@ -168,8 +168,8 @@ function hess_GN!(out::Matrix{T}, x::Vector{T}, _residuals_not_solveode::Functio
         return nothing
     end
 
-    x_not_system = @view x[xindices.xindices[:not_system_tot]]
-    @views ForwardDiff.jacobian!(jacobian_gn[xindices.xindices[:not_system_tot], :]',
+    x_not_system = @view x[xindices.indices_est[:est_to_not_system]]
+    @views ForwardDiff.jacobian!(jacobian_gn[xindices.indices_est[:est_to_not_system], :]',
                                  _residuals_not_solveode, residuals_gn, x_not_system,
                                  cfg_not_solve_ode)
 
@@ -181,6 +181,6 @@ function hess_GN!(out::Matrix{T}, x::Vector{T}, _residuals_not_solveode::Functio
         out .= jacobian_gn
     end
     # Reset such that neural-nets pre ODE no longer have status of having been evaluated
-    _reset_nn_preode!(probinfo)
+    _reset_nn_pre_simulate!(probinfo)
     return nothing
 end

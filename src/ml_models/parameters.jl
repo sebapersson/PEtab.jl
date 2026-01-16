@@ -75,12 +75,12 @@ function _get_ml_model_pre_ode_x(nnpre::MLModelPreODE, xdynamic_mech::AbstractVe
     return x
 end
 
-function _get_n_ml_model_parameters(ml_models::MLModels, xids::Vector{Symbol})::Int64
+function _get_n_ml_parameters(ml_models::MLModels, xids::Vector{Symbol})::Int64
     isnothing(ml_models) && return 0
     nparameters = 0
     for xid in xids
         !haskey(ml_models, xid) && continue
-        nparameters += _get_n_ml_model_parameters(ml_models[xid])
+        nparameters += _get_n_ml_parameters(ml_models[xid])
     end
     return nparameters
 end

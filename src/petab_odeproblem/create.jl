@@ -79,7 +79,7 @@ function PEtabODEProblem(model::PEtabModel;
     ub = _get_bounds(model_info, xnames, xnames_ps, :upper)
     xnominal = _get_xnominal(model_info, xnames, xnames_ps, false)
     xnominal_transformed = _get_xnominal(model_info, xnames, xnames_ps, true)
-    nestimate = length(xnominal)
+    nestimate = _get_nx_estimate(model_info.xindices)
 
     return PEtabODEProblem(nllh, _chi2, grad!, grad, hess!, hess, FIM!, FIM, nllh_grad,
                            prior, grad_prior, hess_prior, _simulated_values, _residuals,
@@ -213,7 +213,7 @@ function _get_nllh_grad(gradient_method::Symbol, grad::Function, _prior::Functio
     _nllh_grad = (x; prior = true) -> begin
         _x = x |> collect
         g = grad(x; prior = prior)
-        x_not_system = @view _x[model_info.xindices.xindices[:not_system_mech]]
+        x_not_system = @view _x[model_info.xindices.indices_est[:not_system_mech]]
         nllh = _nllh_not_solveode(x_not_system)
         if prior
             nllh -= _prior(_x)

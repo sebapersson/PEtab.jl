@@ -28,7 +28,7 @@ function _switch_condition(oprob::ODEProblem, experiment_id::Symbol, xdynamic::A
     end
 
     # Potential ODE parameters which have their value assigned by a neural-net
-    _set_ml_preode_parameters!(p, xdynamic, xnn, simulation_id, xindices, ml_models_pre_ode)
+    _set_ml_pre_simulate_parameters!(p, xdynamic, xnn, simulation_id, xindices, ml_models_pre_ode)
 
     # Initial state can depend on condition specific parameters
     model.u0!((@view u0[1:nstates]), p; __post_eq = posteq_simulation)
@@ -130,9 +130,9 @@ function _set_check_trigger_init!(cbs::SciMLBase.DECallback, value::Bool)::Nothi
     return nothing
 end
 
-function _set_ml_preode_parameters!(p::AbstractVector, xdynamic::AbstractVector, xnn, simulation_id::Symbol, xindices::ParameterIndices, ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreODE}})::Nothing
+function _set_ml_pre_simulate_parameters!(p::AbstractVector, xdynamic::AbstractVector, xnn, simulation_id::Symbol, xindices::ParameterIndices, ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreODE}})::Nothing
     !haskey(ml_models_pre_ode, simulation_id) && return nothing
-    maps_nns = xindices.maps_ml_preode[simulation_id]
+    maps_nns = xindices.maps_ml_pre_simulate[simulation_id]
     for (ml_id, ml_model_pre_ode) in ml_models_pre_ode[simulation_id]
         map_ml_model = maps_nns[ml_id]
         # In case of neural nets being computed before the function call,

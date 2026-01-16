@@ -40,9 +40,8 @@ function _get_map_observable_noise(
                 constant_values[j] = petab_parameters.nominal_value[ix]
                 continue
             end
-            throw(PEtabFileError("Id $value in noise or observable column in measurement " *
-                                 "file does not correspond to any id in the parameters " *
-                                 "table"))
+            throw(PEtabFileError("Id $value in noise or observable column in measurement \
+                file does not correspond to any id in the parameters table"))
         end
         single_constant = nvalues_row == 1 && estimate[1] == false
         maps[i] = ObservableNoiseMap(estimate, xindices, constant_values, nvalues_row,
@@ -58,7 +57,7 @@ function _get_condition_maps(
     conditions_df, mappings_df = _get_petab_tables(petab_tables, [:conditions, :mapping])
 
     xids_sys = string.(xids[:sys])
-    xids_dynamic_mech = string.(xids[:dynamic_mech])
+    xids_dynamic_mech = string.(xids[:est_to_dynamic_mech])
     state_ids = _get_state_ids(sys)
     model_ids = Iterators.flatten((xids_sys, state_ids))
 
@@ -143,15 +142,15 @@ function _get_condition_maps(
 end
 
 function _get_all_conditions_map(xids::Dict{Symbol, Vector{Symbol}})::NTuple{2, Vector{Int32}}
-    isys_all_conditions = findall(x -> x in xids[:sys], xids[:dynamic_mech]) |> Vector{Int32}
-    ids = xids[:dynamic_mech][isys_all_conditions]
+    isys_all_conditions = findall(x -> x in xids[:sys], xids[:est_to_dynamic_mech]) |> Vector{Int32}
+    ids = xids[:est_to_dynamic_mech][isys_all_conditions]
     ix_all_conditions = Int32[findfirst(x -> x == id, xids[:sys]) for id in ids]
     return ix_all_conditions, isys_all_conditions
 end
 
-function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, petab_tables::PEtabTables, paths, ml_models::MLModels, sys::ModelSystem)::Dict{Symbol, Dict{Symbol, MLModelPreODEMap}}
+function _get_nn_pre_simulate_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, petab_tables::PEtabTables, paths, ml_models::MLModels, sys::ModelSystem)::Dict{Symbol, Dict{Symbol, MLModelPreODEMap}}
     maps = Dict{Symbol, Dict{Symbol, MLModelPreODEMap}}()
-    isempty(xids[:ml_preode]) && return maps
+    isempty(xids[:ml_pre_simulate]) && return maps
 
     mappings_df = petab_tables[:mapping]
     conditions_df = petab_tables[:conditions]
@@ -160,11 +159,11 @@ function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameter
     for i in 1:nconditions
         conditionid = conditions_df[i, :conditionId] |> Symbol
         maps_nn = Dict{Symbol, MLModelPreODEMap}()
-        for ml_id in xids[:ml_preode]
-            input_info = _get_ml_preode_inputs(ml_id, conditionid, xids, petab_parameters, petab_tables, paths, ml_models, sys)
+        for ml_id in xids[:ml_pre_simulate]
+            input_info = _get_ml_pre_simulate_inputs(ml_id, conditionid, xids, petab_parameters, petab_tables, paths, ml_models, sys)
 
             # Indices for correctly mapping the output. The outputs are stored in a
-            # separate vector of order xids[:ml_preode_outputs], which ix_nn_outputs
+            # separate vector of order xids[:sys_ml_pre_simulate_outputs], which ix_nn_outputs
             # stores the index for. The outputs maps to parameters in sys, which
             # ix_output_sys stores. Lastly, for split_over_conditions = true the
             # gradient of the output variables is needed, ix_outputs_grad stores
@@ -179,12 +178,12 @@ function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameter
             ix_output_sys = zeros(Int32, noutputs)
             ix_outputs_grad = zeros(Int32, noutputs)
             for (i, output_target) in pairs(output_targets)
-                io = findfirst(x -> x == output_target, xids[:ml_preode_outputs])
+                io = findfirst(x -> x == output_target, xids[:sys_ml_pre_simulate_outputs])
                 ix_nn_outputs[i] = io
                 isys = 1
                 for id_sys in xids[:sys]
                     if id_sys in xids[:ml_est]
-                        isys += (_get_n_ml_model_parameters(nn, [id_sys]) - 1)
+                        isys += (_get_n_ml_parameters(nn, [id_sys]) - 1)
                     end
                     if id_sys == output_target
                         ix_output_sys[i] = isys
@@ -201,7 +200,7 @@ function _get_nn_preode_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameter
     return maps
 end
 
-function _get_ml_preode_inputs(ml_id::Symbol, conditionid::Symbol, xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, petab_tables::PEtabTables, paths, ml_models::MLModels, sys::ModelSystem)::Dict
+function _get_ml_pre_simulate_inputs(ml_id::Symbol, conditionid::Symbol, xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, petab_tables::PEtabTables, paths, ml_models::MLModels, sys::ModelSystem)::Dict
     mappings_df = petab_tables[:mapping]
     conditions_df = petab_tables[:conditions]
     input_arguments = _get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs)
@@ -256,7 +255,7 @@ function _get_ml_preode_inputs(ml_id::Symbol, conditionid::Symbol, xids::Dict{Sy
                 push!(out[:iconstant_inputs][i], j)
                 continue
             end
-            ixmech = findfirst(x -> x == input_variable, xids[:dynamic_mech])
+            ixmech = findfirst(x -> x == input_variable, xids[:est_to_dynamic_mech])
             push!(out[:ixdynamic_mech_inputs][i], ixmech)
             push!(out[:ixdynamic_inputs][i], j)
         end

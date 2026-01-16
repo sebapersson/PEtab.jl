@@ -4,16 +4,16 @@ function grad_adjoint!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode!::Funct
                        cids::Vector{Symbol} = [:all])::Nothing where {T <: AbstractFloat}
     @unpack simulation_info, simulation_info, xindices, priors = model_info
     @unpack cache = probinfo
-    PEtab.split_x!(x, xindices, cache; xdynamic_tot = true)
+    PEtab.split_x!(x, xindices, cache; xdynamic_full = true)
     @unpack xdynamic_grad, x_not_system_grad = cache
 
     # Get the Jacobians of Neural-Networks that set values for potential model parameters.
     # By then taking the gradient on the output of these networks, and computing a vjp,
     # the gradient can be computed rapidly via the chain-rule
-    PEtab._jac_ml_model_preode!(probinfo, model_info)
+    PEtab._jac_ml_model_pre_simulate!(probinfo, model_info)
 
     _grad_adjoint_xdynamic!(xdynamic_grad, probinfo, model_info; cids = cids)
-    @views grad[xindices.xindices_dynamic[:xest_to_xdynamic]] .= xdynamic_grad
+    @views grad[xindices.indices_est[:est_to_dynamic]] .= xdynamic_grad
 
     # Happens when at least one forward pass fails and I set the gradient to 1e8
     if !isempty(xdynamic_grad) && all(xdynamic_grad .== 0.0)
@@ -22,12 +22,12 @@ function grad_adjoint!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode!::Funct
     end
 
     # None-dynamic parameter not part of ODE (only need an ODE solution for gradient)
-    x_not_system = @view x[xindices.xindices[:not_system_tot]]
+    x_not_system = @view x[xindices.indices_est[:est_to_not_system]]
     ForwardDiff.gradient!(x_not_system_grad, _nllh_not_solveode!, x_not_system)
-    @views grad[xindices.xindices[:not_system_tot]] .= x_not_system_grad
+    @views grad[xindices.indices_est[:est_to_not_system]] .= x_not_system_grad
 
     # Reset such that neural-nets pre ODE no longer have status of having been evaluated
-    PEtab._reset_nn_preode!(probinfo)
+    PEtab._reset_nn_pre_simulate!(probinfo)
     return nothing
 end
 
@@ -41,9 +41,9 @@ function _grad_adjoint_xdynamic!(grad::Vector{<:AbstractFloat},
     xnoise_ps = PEtab.transform_x(xnoise, xindices, :xnoise, cache)
     xobservable_ps = PEtab.transform_x(xobservable, xindices, :xobservable, cache)
     xnondynamic_mech_ps = PEtab.transform_x(xnondynamic_mech, xindices, :xnondynamic_mech, cache)
-    xdynamic_tot_ps = PEtab.transform_x(xdynamic, xindices, :xdynamic_tot, cache)
+    xdynamic_ps = PEtab.transform_x(xdynamic, xindices, :xdynamic, cache)
 
-    xdynamic_ps, xnn = PEtab.split_xdynamic(xdynamic_tot_ps, xindices, cache)
+    xdynamic_ps, xnn = PEtab.split_xdynamic(xdynamic_ps, xindices, cache)
     success = PEtab.solve_conditions!(model_info, xdynamic_ps, xnn, probinfo; cids = cids,
                                       dense_sol = true, save_observed_t = false,
                                       track_callback = true)
@@ -70,7 +70,7 @@ function _grad_adjoint_xdynamic!(grad::Vector{<:AbstractFloat},
             vjp_cid_ss = identity
         end
 
-        success = _grad_adjoint_cond!(grad, xdynamic_tot_ps, xnoise_ps, xobservable_ps,
+        success = _grad_adjoint_cond!(grad, xdynamic_ps, xnoise_ps, xobservable_ps,
                                       xnondynamic_mech_ps, icid, probinfo, model_info,
                                       vjp_cid_ss)
         if success == false
@@ -147,7 +147,7 @@ function VJP_ss(du::AbstractVector, _sol::ODESolution, solver::SciMLAlgorithm,
     return out
 end
 
-function _grad_adjoint_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnoise::Vector{T},
+function _grad_adjoint_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vector{T},
                              xobservable::Vector{T}, xnondynamic_mech::Vector{T}, icid::Int64,
                              probinfo::PEtab.PEtabODEProblemInfo,
                              model_info::PEtab.ModelInfo,
@@ -213,14 +213,14 @@ function _grad_adjoint_cond!(grad::Vector{T}, xdynamic_tot::Vector{T}, xnoise::V
     # of these are the output of neural-net, they are the inner-derivative needed to
     # compute the gradient of the neural-net. As usual, the outer Jacobian derivative has
     # already been computed, so the only thing left is to combine them
-    if !isempty(xindices.xids[:ml_preode_outputs])
-        ix = xindices.xindices_dynamic[:ml_preode_outputs]
-        cache.grad_nn_preode .= adjoint_grad[ix]
-        PEtab._set_grad_x_nn_preode!(grad, simid, probinfo, model_info)
+    if !isempty(xindices.xids[:sys_ml_pre_simulate_outputs])
+        ix = xindices.indices_dynamic[:sys_ml_pre_simulate_outputs]
+        cache.grad_nn_pre_simulate .= adjoint_grad[ix]
+        PEtab._set_grad_x_nn_pre_simulate!(grad, simid, probinfo, model_info)
     end
 
     # Adjust if gradient is non-linear scale (e.g. log and log10).
-    PEtab.grad_to_xscale!(grad, adjoint_grad, ∂G∂p, xdynamic_tot, xindices, simid,
+    PEtab.grad_to_xscale!(grad, adjoint_grad, ∂G∂p, xdynamic, xindices, simid,
                           sensitivities_AD = false)
     return true
 end

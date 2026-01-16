@@ -51,7 +51,7 @@ function _get_input(inputs::DiffCache, x, map_ml_model::MLModelPreODEMap, iarg::
     return _inputs
 end
 
-function _jac_ml_model_preode!(probinfo::PEtabODEProblemInfo, model_info::ModelInfo)::Nothing
+function _jac_ml_model_pre_simulate!(probinfo::PEtabODEProblemInfo, model_info::ModelInfo)::Nothing
     @unpack cache = probinfo
     for (cid, ml_models_pre_ode) in probinfo.ml_models_pre_ode
         for (ml_id, ml_model_pre_ode) in ml_models_pre_ode
@@ -62,7 +62,7 @@ function _jac_ml_model_preode!(probinfo::PEtabODEProblemInfo, model_info::ModelI
             @unpack tape, jac_ml_model, outputs, computed, forward! = ml_model_pre_ode
             # Parameter mapping. If one of the inputs is a parameter to estimate, the
             # Jacobian is also computed of the input parameter.
-            map_ml_model = model_info.xindices.maps_ml_preode[cid][ml_id]
+            map_ml_model = model_info.xindices.maps_ml_pre_simulate[cid][ml_id]
             x_ml_model = get_tmp(cache.xnn[ml_id], 1.0)
 
             _outputs = get_tmp(outputs, x_ml_model)
@@ -81,24 +81,24 @@ function _jac_ml_model_preode!(probinfo::PEtabODEProblemInfo, model_info::ModelI
     return nothing
 end
 
-function _set_grad_x_nn_preode!(xdynamic_grad::AbstractVector, simid::Symbol, probinfo::PEtabODEProblemInfo, model_info::ModelInfo)::Nothing
+function _set_grad_x_nn_pre_simulate!(xdynamic_grad::AbstractVector, simid::Symbol, probinfo::PEtabODEProblemInfo, model_info::ModelInfo)::Nothing
     isempty(probinfo.ml_models_pre_ode) && return nothing
 
-    @unpack xindices_dynamic, maps_ml_preode = model_info.xindices
+    @unpack indices_dynamic, maps_ml_pre_simulate = model_info.xindices
     for (ml_id, ml_model_pre_ode) in probinfo.ml_models_pre_ode[simid]
-        map_ml_model = maps_ml_preode[simid][ml_id]
-        grad_nn_output = probinfo.cache.grad_nn_preode[map_ml_model.ix_nn_outputs]
+        map_ml_model = maps_ml_pre_simulate[simid][ml_id]
+        grad_nn_output = probinfo.cache.grad_nn_pre_simulate[map_ml_model.ix_nn_outputs]
         # Needed to account for neural-net parameter potentially not being estimated
         ix = reduce(vcat, map_ml_model.ixdynamic_mech_inputs)
-        if haskey(xindices_dynamic, ml_id)
-            ix = vcat(ix, xindices_dynamic[ml_id])
+        if haskey(indices_dynamic, ml_id)
+            ix = vcat(ix, indices_dynamic[ml_id])
         end
         xdynamic_grad[collect(ix)] .+= vec(grad_nn_output' * ml_model_pre_ode.jac_ml_model)
     end
     return nothing
 end
 
-function _reset_nn_preode!(probinfo::PEtabODEProblemInfo)::Nothing
+function _reset_nn_pre_simulate!(probinfo::PEtabODEProblemInfo)::Nothing
     for ml_models_pre_ode in values(probinfo.ml_models_pre_ode)
         for ml_model_pre_ode in values(ml_models_pre_ode)
             ml_model_pre_ode.computed[1] = false
