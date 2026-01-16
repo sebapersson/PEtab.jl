@@ -50,7 +50,7 @@ function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveod
     @unpack xdynamic_grad, x_not_system_grad = cache
     _xdynamic = get_tmp(cache.xdynamic, 1.0)
 
-    # Get the Jacobians of Neural-Networks that set values for potential model parameters.
+    # Get the Jacobian of Neural-Networks that set values for potential model parameters.
     # By then taking the gradient on the output of these networks, and computing a vjp,
     # the gradient can be computed in minumum number of forward-passes
     _jac_ml_model_pre_simulate!(probinfo, model_info)
@@ -61,7 +61,7 @@ function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveod
     fill!(xdynamic_grad, 0.0)
     for (i, cid) in pairs(simulation_info.conditionids[:experiment])
         simid = simulation_info.conditionids[:simulation][i]
-        ixdynamic_simid = _get_ixdynamic_simid(simid, xindices; nn_pre_simulate = false)
+        ixdynamic_simid = _get_ixdynamic_simid(simid, xindices; ml_pre_simulate = false)
         xinput = _get_xinput(simid, _xdynamic, ixdynamic_simid, model_info, probinfo)
         _nllh = (_xinput) -> begin
             _split_xinput!(probinfo, simid, model_info, _xinput, ixdynamic_simid)
@@ -75,7 +75,7 @@ function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveod
                 xdynamic_grad[ixdynamic_simid] .+= _grad[1:length(ixdynamic_simid)]
                 if length(_grad) > length(ixdynamic_simid)
                     cache.grad_ml_pre_simulate_outputs .= _grad[(length(ixdynamic_simid)+1):end]
-                    _set_grad_x_nn_pre_simulate!(xdynamic_grad, simid, probinfo, model_info)
+                    _set_grax_x_ml_pre_simulate!(xdynamic_grad, simid, probinfo, model_info)
                 end
             else
                 _nllh(xinput)
@@ -95,7 +95,7 @@ function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveod
     @views grad[xindices.indices_est[:est_to_not_system]] .= x_not_system_grad
 
     # Reset such that neural-nets pre ODE no longer have status of having been evaluated
-    _reset_nn_pre_simulate!(probinfo)
+    reset_ml_pre_simulate!(probinfo)
     return nothing
 end
 
@@ -131,6 +131,6 @@ function grad_forward_eqs!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fu
     @views grad[xindices.indices_est[:est_to_not_system]] .= cache.x_not_system_grad
 
     # Reset such that neural-nets pre ODE no longer have status of having been evaluated
-    _reset_nn_pre_simulate!(probinfo)
+    reset_ml_pre_simulate!(probinfo)
     return nothing
 end

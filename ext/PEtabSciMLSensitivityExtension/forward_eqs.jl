@@ -54,7 +54,7 @@ function PEtab._grad_forward_eqs_cond!(
     if !isempty(xindices.xids[:sys_ml_pre_simulate_outputs])
         ix = xindices.indices_dynamic[:sys_ml_pre_simulate_outputs]
         cache.grad_ml_pre_simulate_outputs .= _grad[ix]
-        PEtab._set_grad_x_nn_pre_simulate!(grad, simid, probinfo, model_info)
+        PEtab._set_grax_x_ml_pre_simulate!(grad, simid, probinfo, model_info)
     end
 
     # Adjust if gradient is non-linear scale (e.g. log and log10). TODO: Refactor

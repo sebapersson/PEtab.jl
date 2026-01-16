@@ -77,12 +77,12 @@ function ParameterIndices(
     # If a neural-network sets values for a subset of model parameters, for efficient AD on
     # said network, it is needed to pre-compute the input, pre-allocate the output,
     # and build a map for which parameters in xdynamic the network maps to.
-    nn_pre_simulate_maps = _get_nn_pre_simulate_maps(xids, petab_parameters, petab_tables, paths, ml_models, sys)
+    ml_pre_simulate_maps = _get_ml_pre_simulate_maps(xids, petab_parameters, petab_tables, paths, ml_models, sys)
 
     xscale = _get_xscales(xids, petab_parameters)
     _get_xnames_ps!(xids, xscale)
     return ParameterIndices(
         xids, indices_est, indices_dynamic, indices_not_system, xscale, xobservable_maps,
-        xnoise_maps, condition_maps, nn_pre_simulate_maps
+        xnoise_maps, condition_maps, ml_pre_simulate_maps
     )
 end

@@ -110,52 +110,53 @@ function _to_odesystem(sys::ODESystem)::ODESystem
     return sys
 end
 
-function _get_ml_models_pre_ode(model_info::ModelInfo, cache::PEtabODEProblemCache)::Dict{Symbol, Dict{Symbol, MLModelPreODE}}
-    ml_models_pre_ode = Dict{Symbol, Dict{Symbol, MLModelPreODE}}()
-    for (cid, maps_nn) in model_info.xindices.maps_ml_pre_simulate
-        ml_model_pre_ode = Dict{Symbol, MLModelPreODE}()
-        for (ml_id, map_ml_model) in maps_nn
-            @unpack ninput_arguments, ninputs, noutputs = map_ml_model
+function _get_ml_models_pre_ode(model_info::ModelInfo, cache::PEtabODEProblemCache)::Dict{Symbol, Dict{Symbol, MLModelPreSimulate}}
+    ml_models_pre_ode = Dict{Symbol, Dict{Symbol, MLModelPreSimulate}}()
+
+    for (condition_id, maps_pre_simulate) in model_info.xindices.maps_ml_pre_simulate
+        ml_model_pre_ode = Dict{Symbol, MLModelPreSimulate}()
+        for (ml_id, map_pre_simulate) in maps_pre_simulate
+            @unpack n_input_args, ix_dynamic_mech, n_outputs = map_pre_simulate
             ml_model = model_info.model.ml_models[ml_id]
-            # If parameters are constant, they only need to be assigned here, as when
-            # building the cache x_ml_not_est has the correct values.
+
+            # If parameters are constant can assign to faster method
             if ml_id in model_info.xindices.xids[:ml_est]
                 x_ml = cache.x_ml_models_cache[ml_id]
             else
                 x_ml = cache.x_ml_models_constant[ml_id]
             end
-            inputs = [DiffCache(zeros(Float64, n), levels = 2) for n in ninputs]
-            outputs = DiffCache(zeros(Float64, noutputs), levels = 2)
-            compute_forward! = let ml_model = ml_model, map_ml_model = map_ml_model, inputs = inputs, x_ml = x_ml
-                (out, x) -> _net!(out, x, x_ml, inputs, map_ml_model, ml_model)
+            outputs = DiffCache(zeros(Float64, n_outputs), levels = 2)
+            compute_forward! = let _ml_model = ml_model, _map_pre_simulate = map_pre_simulate, _x_ml = x_ml
+                (out, x) -> _net!(out, x, _x_ml, _map_pre_simulate, _ml_model)
             end
 
-            # ReverseDiff.tape compatible (fastest on CPU, but only works if input is
-            # known at compile-time). If there are multiple input arguments, they need
-            # to be provided as a tuple, due to how ML models are imported
-            if sum(map_ml_model.nxdynamic_inputs) == 0
-                _inputs = (_get_input(map_ml_model, i) for i in eachindex(inputs))
-                inputs_reverse = ninput_arguments == 1 ? first(_inputs) : Tuple(_inputs)
-                compute_nn_rev! = let ml_model = ml_model, inputs_reverse = inputs_reverse
-                    (out, x) -> _net_reversediff!(out, x, inputs_reverse, ml_model)
+            # If all inputs are constant, for computing the gradient can pre-compile
+            # the Jacobian of the ML model with ReverseDiff.tape
+            if isempty(ix_dynamic_mech)
+                inputs = map_pre_simulate.get_input(Float64[], map_pre_simulate)
+                compute_nn_rev! = let _ml_model = ml_model, _inputs = inputs
+                    (out, x) -> _net_reversediff!(out, x, _inputs, _ml_model)
                 end
                 out = get_tmp(outputs, 1.0)
-                _x_ml = get_tmp(x_ml, 1.0)
-                tape = ReverseDiff.JacobianTape(compute_nn_rev!, out, _x_ml)
+                x = get_tmp(x_ml, 1.0)
+                tape = ReverseDiff.JacobianTape(compute_nn_rev!, out, x)
             else
                 tape = nothing
             end
 
             if ml_id in model_info.xindices.xids[:ml_est]
-                nx = length(get_tmp(x_ml, 1.0)) + sum(map_ml_model.nxdynamic_inputs)
+                nx = length(get_tmp(x_ml, 1.0)) + length(ix_dynamic_mech)
             else
-                nx = sum(map_ml_model.nxdynamic_inputs)
+                nx = length(ix_dynamic_mech)
             end
-            xarg = DiffCache(zeros(Float64, nx), levels = 2)
-            jac_ml_model = zeros(Float64, noutputs, nx)
-            ml_model_pre_ode[ml_id] = MLModelPreODE(compute_forward!, tape, jac_ml_model, outputs, inputs, xarg, [false])
+
+            x_jac = DiffCache(zeros(Float64, nx), levels = 2)
+            jac_ml_model = zeros(Float64, n_outputs, nx)
+            ml_model_pre_ode[ml_id] = MLModelPreSimulate(
+                compute_forward!, tape, jac_ml_model, outputs, x_jac, [false]
+            )
         end
-        ml_models_pre_ode[cid] = ml_model_pre_ode
+        ml_models_pre_ode[condition_id] = ml_model_pre_ode
     end
     return ml_models_pre_ode
 end

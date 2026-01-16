@@ -60,7 +60,7 @@ function _get_∂G∂_!(model_info::ModelInfo, cid::Symbol, xnoise::Vector{T}, x
 end
 
 #
-function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector{T}, xdynamic::Vector{T}, xindices::ParameterIndices, simid::Symbol; sensitivities_AD::Bool = false, nn_pre_simulate::Bool = false)::Nothing where {T <: AbstractFloat}
+function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector{T}, xdynamic::Vector{T}, xindices::ParameterIndices, simid::Symbol; sensitivities_AD::Bool = false, ml_pre_simulate::Bool = false)::Nothing where {T <: AbstractFloat}
     @unpack xids, xscale, condition_maps = xindices
     condition_map! = condition_maps[simid]
 
@@ -69,7 +69,7 @@ function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector
     # components only considered for ForwardEquations full AD, where it is not possible to
     # use the chain-rule to separately differentitate each componenent, and these parameters
     # are differentiated using full AD.
-    if nn_pre_simulate == true
+    if ml_pre_simulate == true
         xi = xindices.indices_dynamic[:dynamic_to_ml_pre_simulate]
         @views grad_xscale[xi] .+= grad_linscale[xi]
     end
@@ -88,13 +88,13 @@ function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector
     # the same indexing as grad_xscale (that of xdynamic) with xdynamic mapped to p within
     # an AD call. ∂G∂p follows the same indexing as ODEProblem.p, where xdynamic is
     # mapped to p for ∂G∂p outside an AD call -> Jacobian correction needed
-    if sensitivities_AD == true && nn_pre_simulate == true
+    if sensitivities_AD == true && ml_pre_simulate == true
         J = ForwardDiff.jacobian(condition_map!, similar(∂G∂p), xdynamic)
         grad_linscale .+= transpose(transpose(∂G∂p) * J)
         _grad_to_xscale!(grad_xscale, grad_linscale, xdynamic, xids[:est_to_dynamic_mech], xscale)
         return nothing
 
-    elseif sensitivities_AD == true && nn_pre_simulate == false
+    elseif sensitivities_AD == true && ml_pre_simulate == false
         n_dynamic_mech = length(xids[:est_to_dynamic_mech])
         _xdynamic = xdynamic[1:n_dynamic_mech]
         J = ForwardDiff.jacobian(condition_map!, similar(∂G∂p), _xdynamic)
@@ -143,34 +143,44 @@ function _could_solveode_nllh(simulation_info::SimulationInfo)::Bool
     return true
 end
 
-function _get_xinput(simid::Symbol, x::Vector{<:AbstractFloat}, ixdynamic_simid, model_info::ModelInfo, probinfo::PEtabODEProblemInfo)
+function _get_xinput(
+        simid::Symbol, x::Vector{<:AbstractFloat}, ixdynamic_simid, model_info::ModelInfo,
+        probinfo::PEtabODEProblemInfo
+    )
     @unpack xindices, simulation_info = model_info
     ninode, npre_simulate = length(ixdynamic_simid), length(xindices.xids[:sys_ml_pre_simulate_outputs])
     xinput = zeros(Float64, ninode + npre_simulate)
     @views xinput[1:ninode] .= x[ixdynamic_simid]
+
     if isempty(probinfo.ml_models_pre_ode)
         return xinput
     end
-    for (ml_id, nn_pre_simulate) in probinfo.ml_models_pre_ode[simid]
+
+    for (ml_id, ml_model_pre_simulate) in probinfo.ml_models_pre_ode[simid]
         map_ml_model = model_info.xindices.maps_ml_pre_simulate[simid][ml_id]
-        outputs = get_tmp(nn_pre_simulate.outputs, xinput)
-        ix = map_ml_model.ix_nn_outputs_grad
-        ix .= map_ml_model.ix_nn_outputs .+ ninode
+        outputs = get_tmp(ml_model_pre_simulate.outputs, xinput)
+        ix = map_ml_model.ix_ml_outputs .+ ninode
         @views xinput[ix] .= outputs
     end
     return xinput
 end
 
-function _split_xinput!(probinfo::PEtabODEProblemInfo, simid::Symbol, model_info::ModelInfo, xinput::AbstractVector, ixdynamic_simid::Vector{Integer})::Nothing
+function _split_xinput!(
+        probinfo::PEtabODEProblemInfo, simid::Symbol, model_info::ModelInfo,
+        xinput::AbstractVector, ixdynamic_simid::Vector{Integer}
+    )::Nothing
     xdynamic = get_tmp(probinfo.cache.xdynamic, xinput)
     @views xdynamic[ixdynamic_simid] .= xinput[1:length(ixdynamic_simid)]
+
     if isempty(probinfo.ml_models_pre_ode)
         return nothing
     end
-    for (ml_id, nn_pre_simulate) in probinfo.ml_models_pre_ode[simid]
+
+    for (ml_id, ml_model_pre_simulate) in probinfo.ml_models_pre_ode[simid]
         map_ml_model =  model_info.xindices.maps_ml_pre_simulate[simid][ml_id]
-        outputs = get_tmp(nn_pre_simulate.outputs, xinput)
-        @views outputs .= xinput[map_ml_model.ix_nn_outputs_grad]
+        outputs = get_tmp(ml_model_pre_simulate.outputs, xinput)
+        ix = map_ml_model.ix_ml_outputs .+ length(ixdynamic_simid)
+        @views outputs .= xinput[ix]
     end
     return nothing
 end

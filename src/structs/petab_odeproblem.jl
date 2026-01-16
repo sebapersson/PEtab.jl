@@ -42,19 +42,14 @@ function (condition_map::ConditionMap)(p::AbstractVector, xdynamic::AbstractVect
     return nothing
 end
 
-struct MLModelPreODEMap{T1 <: Vector{<:Array{<:AbstractFloat}}}
-    ninput_arguments::Int64
+struct MLModelPreSimulateMap{T1 <: Vector{<:Array{<:AbstractFloat}}}
+    n_input_args::Int64
+    get_input::Function
     constant_inputs::T1
-    iconstant_inputs::Vector{Vector{Int32}}
-    ixdynamic_mech_inputs::Vector{Vector{Int32}}
-    ixdynamic_inputs::Vector{Vector{Int32}}
-    ninputs::Vector{Int64}
-    nxdynamic_inputs::Vector{Int64}
-    noutputs::Int64
-    ix_nn_outputs::Vector{Int32}
-    ix_nn_outputs_grad::Vector{Int32}
-    ioutput_sys::Vector{Int32}
-    file_input::Vector{Bool}
+    ix_dynamic_mech::Vector{Int32}
+    n_outputs::Int64
+    ix_ml_outputs::Vector{Int32}
+    ix_sys_outputs::Vector{Int32}
 end
 
 struct ParameterIndices
@@ -66,7 +61,7 @@ struct ParameterIndices
     xobservable_maps::Vector{ObservableNoiseMap}
     xnoise_maps::Vector{ObservableNoiseMap}
     condition_maps::Dict{Symbol, ConditionMap}
-    maps_ml_pre_simulate::Dict{Symbol, Dict{Symbol, MLModelPreODEMap}}
+    maps_ml_pre_simulate::Dict{Symbol, Dict{Symbol, MLModelPreSimulateMap}}
 end
 
 struct Priors
@@ -356,12 +351,11 @@ function SteadyStateSolver(alg::NonlinearAlg, abstol, reltol, maxiters)::SteadyS
                              nothing, nothing, false, [Inf])
 end
 
-struct MLModelPreODE{T1 <: DiffCache, T2 <: Vector{<:DiffCache}}
+struct MLModelPreSimulate{T1 <: DiffCache}
     forward!::Function
     tape::Any
     jac_ml_model::Matrix{Float64}
     outputs::T1
-    inputs::T2
     x::T1
     computed::Vector{Bool}
 end
@@ -382,7 +376,7 @@ struct PEtabODEProblemInfo{S1 <: ODESolver, S2 <: ODESolver, C <: PEtabODEProble
     cache::C
     split_over_conditions::Bool
     chunksize::Int64
-    ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreODE}}
+    ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreSimulate}}
 end
 
 """

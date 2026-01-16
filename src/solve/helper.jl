@@ -1,7 +1,7 @@
 function _switch_condition(
         oprob::ODEProblem, experiment_id::Symbol, xdynamic::AbstractVector,
         x_ml_models::Dict{Symbol, ComponentArray}, model_info::ModelInfo,
-        cache::PEtabODEProblemCache, ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreODE}},
+        cache::PEtabODEProblemCache, ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreSimulate}},
         posteq_simulation::Bool; sensitivities::Bool = false,
         simulation_id::Union{Nothing, Symbol} = nothing
     )::ODEProblem
@@ -135,7 +135,7 @@ function _set_check_trigger_init!(cbs::SciMLBase.DECallback, value::Bool)::Nothi
     return nothing
 end
 
-function _set_ml_pre_simulate_parameters!(p::AbstractVector, xdynamic::AbstractVector, x_ml_models::Dict{Symbol, ComponentArray}, simulation_id::Symbol, xindices::ParameterIndices, ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreODE}})::Nothing
+function _set_ml_pre_simulate_parameters!(p::AbstractVector, xdynamic::AbstractVector, x_ml_models::Dict{Symbol, ComponentArray}, simulation_id::Symbol, xindices::ParameterIndices, ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreSimulate}})::Nothing
     !haskey(ml_models_pre_ode, simulation_id) && return nothing
     maps_nns = xindices.maps_ml_pre_simulate[simulation_id]
     for (ml_id, ml_model_pre_ode) in ml_models_pre_ode[simulation_id]
@@ -154,7 +154,7 @@ function _set_ml_pre_simulate_parameters!(p::AbstractVector, xdynamic::AbstractV
             end
             ml_model_pre_ode.forward!(outputs, x)
         end
-        p[map_ml_model.ioutput_sys] .= outputs
+        p[map_ml_model.ix_sys_outputs] .= outputs
     end
     return nothing
 end

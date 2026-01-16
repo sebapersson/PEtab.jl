@@ -61,17 +61,17 @@ function set_ml_model_ps!(ps::ComponentArray, ml_id::Symbol, ml_models, paths::D
     return nothing
 end
 
-function _get_ml_model_pre_ode_x(nnpre::MLModelPreODE, xdynamic_mech::AbstractVector, x_ml::ComponentArray, map_ml_model::MLModelPreODEMap)::AbstractVector
-    x = get_tmp(nnpre.x, xdynamic_mech)
-    n_inputs = sum(map_ml_model.nxdynamic_inputs)
-    x[1:n_inputs] .= xdynamic_mech[reduce(vcat, map_ml_model.ixdynamic_mech_inputs)]
+function _get_ml_model_pre_ode_x(ml_model_pre_simulate::MLModelPreSimulate, xdynamic_mech::AbstractVector, x_ml::ComponentArray, map_ml_model::MLModelPreSimulateMap)::AbstractVector
+    x = get_tmp(ml_model_pre_simulate.x, xdynamic_mech)
+    n_inputs = length(map_ml_model.ix_dynamic_mech)
+    x[1:n_inputs] .= xdynamic_mech[map_ml_model.ix_dynamic_mech]
     @views x[(n_inputs+1):end] .= x_ml
     return x
 end
-function _get_ml_model_pre_ode_x(nnpre::MLModelPreODE, xdynamic_mech::AbstractVector, map_ml_model::MLModelPreODEMap)::AbstractVector
-    x = get_tmp(nnpre.x, xdynamic_mech)
-    n_inputs = sum(map_ml_model.nxdynamic_inputs)
-    x[1:n_inputs] .= xdynamic_mech[reduce(vcat, map_ml_model.ixdynamic_mech_inputs)]
+function _get_ml_model_pre_ode_x(ml_model_pre_simulate::MLModelPreSimulate, xdynamic_mech::AbstractVector, map_ml_model::MLModelPreSimulateMap)::AbstractVector
+    x = get_tmp(ml_model_pre_simulate.x, xdynamic_mech)
+    n_inputs = length(map_ml_model.ix_dynamic_mech)
+    x[1:n_inputs] .= xdynamic_mech[map_ml_model.ix_dynamic_mech]
     return x
 end
 

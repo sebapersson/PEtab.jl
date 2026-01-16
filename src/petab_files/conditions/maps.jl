@@ -70,9 +70,13 @@ function _get_condition_maps(
         ml_inputs = vcat(ml_inputs, _ml_inputs)
     end
 
-    ix_all_conditions, isys_all_conditions = _get_all_conditions_map(xids)
+    isys_all_conditions = findall(x -> x in xids[:sys], xids[:est_to_dynamic_mech]) |>
+        Vector{Int32}
+    ids = xids[:est_to_dynamic_mech][isys_all_conditions]
+    ix_all_conditions = Int32[findfirst(x -> x == id, xids[:sys]) for id in ids]
+
     condition_maps = Dict{Symbol, ConditionMap}()
-    for (i, conditionid) in pairs(Symbol.(conditions_df[!, :conditionId]))
+    for (i, condition_id) in pairs(Symbol.(conditions_df[!, :conditionId]))
         target_ids = String[]
         target_value_formulas = String[]
         isys_condition = Int32[]
@@ -132,137 +136,150 @@ function _get_condition_maps(
 
         target_value_functions = Vector{Function}(undef, length(target_value_formulas))
         for i in eachindex(target_value_functions)
-            formula = _template_target_value(target_value_formulas[i], conditionid, target_ids[i])
+            formula = _template_target_value(target_value_formulas[i], condition_id, target_ids[i])
             target_value_functions[i] = @RuntimeGeneratedFunction(Meta.parse(formula))
         end
 
-        condition_maps[conditionid] = ConditionMap(isys_condition, ix_condition, target_value_functions, ix_all_conditions, isys_all_conditions, zeros(0, 0))
+        condition_maps[condition_id] = ConditionMap(isys_condition, ix_condition, target_value_functions, ix_all_conditions, isys_all_conditions, zeros(0, 0))
     end
     return condition_maps
 end
 
-function _get_all_conditions_map(xids::Dict{Symbol, Vector{Symbol}})::NTuple{2, Vector{Int32}}
-    isys_all_conditions = findall(x -> x in xids[:sys], xids[:est_to_dynamic_mech]) |> Vector{Int32}
-    ids = xids[:est_to_dynamic_mech][isys_all_conditions]
-    ix_all_conditions = Int32[findfirst(x -> x == id, xids[:sys]) for id in ids]
-    return ix_all_conditions, isys_all_conditions
-end
-
-function _get_nn_pre_simulate_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, petab_tables::PEtabTables, paths, ml_models::MLModels, sys::ModelSystem)::Dict{Symbol, Dict{Symbol, MLModelPreODEMap}}
-    maps = Dict{Symbol, Dict{Symbol, MLModelPreODEMap}}()
+function _get_ml_pre_simulate_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, petab_tables::PEtabTables, paths, ml_models::MLModels, sys::ModelSystem)::Dict{Symbol, Dict{Symbol, MLModelPreSimulateMap}}
+    maps = Dict{Symbol, Dict{Symbol, MLModelPreSimulateMap}}()
     isempty(xids[:ml_pre_simulate]) && return maps
 
-    mappings_df = petab_tables[:mapping]
-    conditions_df = petab_tables[:conditions]
-    hybridization_df = petab_tables[:hybridization]
-    nconditions = nrow(conditions_df)
-    for i in 1:nconditions
-        conditionid = conditions_df[i, :conditionId] |> Symbol
-        maps_nn = Dict{Symbol, MLModelPreODEMap}()
+    mappings_df, conditions_df, hybridization_df = _get_petab_tables(
+        petab_tables, [:mapping, :conditions, :hybridization]
+    )
+
+    for i in 1:nrow(conditions_df)
+        condition_id = Symbol(conditions_df[i, :conditionId])
+
+        maps_ml = Dict{Symbol, MLModelPreSimulateMap}()
         for ml_id in xids[:ml_pre_simulate]
-            input_info = _get_ml_pre_simulate_inputs(ml_id, conditionid, xids, petab_parameters, petab_tables, paths, ml_models, sys)
+
+            _f_input, constant_inputs, i_dynamic_mech = _get_ml_pre_simulate_inputs(
+                ml_id, condition_id, xids, petab_parameters, petab_tables, paths,
+                ml_models, sys
+            )
+            f_input = @RuntimeGeneratedFunction(Meta.parse(_f_input))
+            n_input_args = length(constant_inputs)
 
             # Indices for correctly mapping the output. The outputs are stored in a
-            # separate vector of order xids[:sys_ml_pre_simulate_outputs], which ix_nn_outputs
-            # stores the index for. The outputs maps to parameters in sys, which
-            # ix_output_sys stores. Lastly, for split_over_conditions = true the
-            # gradient of the output variables is needed, ix_outputs_grad stores
-            # the indices in xdynamic_grad for the outputs (the indices depend on the
-            # condition so the Vector is only pre-allocated here).
-            output_variables = _get_ml_model_io_petab_ids(mappings_df, ml_id, :outputs) |>
-                Iterators.flatten
-            outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
+            # separate vector of order xids[:sys_ml_pre_simulate_outputs]. The outputs
+            # maps to parameters in sys, which ix_output_sys stores. Lastly, for
+            # split_over_conditions = true the gradient of the output variables is needed,
+            # ix_outputs_grad stores the indices in xdynamic_grad for the outputs (the
+            # indices depend on the condition so the Vector is only pre-allocated here).
+            output_ids = Iterators.flatten(
+                _get_ml_model_io_petab_ids(mappings_df, ml_id, :outputs)
+            )
+            outputs_df = filter(r -> r.targetValue in output_ids, hybridization_df)
             output_targets = Symbol.(outputs_df.targetId)
-            noutputs = length(output_targets)
-            ix_nn_outputs = zeros(Int32, noutputs)
-            ix_output_sys = zeros(Int32, noutputs)
-            ix_outputs_grad = zeros(Int32, noutputs)
+            n_outputs = length(output_targets)
+
+            ix_ml_outputs = zeros(Int32, n_outputs)
+            ix_sys_outputs = zeros(Int32, n_outputs)
             for (i, output_target) in pairs(output_targets)
-                io = findfirst(x -> x == output_target, xids[:sys_ml_pre_simulate_outputs])
-                ix_nn_outputs[i] = io
+                ix_ml_outputs[i] = findfirst(
+                    x -> x == output_target, xids[:sys_ml_pre_simulate_outputs]
+                )
+
                 isys = 1
                 for id_sys in xids[:sys]
                     if id_sys in xids[:ml_est]
                         isys += (_get_n_ml_parameters(nn, [id_sys]) - 1)
                     end
                     if id_sys == output_target
-                        ix_output_sys[i] = isys
+                        ix_sys_outputs[i] = isys
                         break
                     end
                     isys += 1
                 end
             end
-            n_input_arguments = length(_get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs))
-            maps_nn[ml_id] = MLModelPreODEMap(n_input_arguments, input_info[:constant_inputs], input_info[:iconstant_inputs], input_info[:ixdynamic_mech_inputs], input_info[:ixdynamic_inputs], input_info[:ninputs], input_info[:nxdynamic_inputs], noutputs, ix_nn_outputs, ix_outputs_grad, ix_output_sys, input_info[:file_input])
+
+            maps_ml[ml_id] = MLModelPreSimulateMap(
+                n_input_args, f_input, constant_inputs, i_dynamic_mech,  n_outputs,
+                ix_ml_outputs, ix_sys_outputs
+            )
         end
-        maps[conditionid] = maps_nn
+        maps[condition_id] = maps_ml
     end
     return maps
 end
 
-function _get_ml_pre_simulate_inputs(ml_id::Symbol, conditionid::Symbol, xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, petab_tables::PEtabTables, paths, ml_models::MLModels, sys::ModelSystem)::Dict
-    mappings_df = petab_tables[:mapping]
-    conditions_df = petab_tables[:conditions]
-    input_arguments = _get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs)
-    n_input_arguments = length(input_arguments)
+function _get_ml_pre_simulate_inputs(
+        ml_id::Symbol, condition_id::Symbol, xids::Dict{Symbol, Vector{Symbol}},
+        petab_parameters::PEtabParameters, petab_tables::PEtabTables, paths,
+        ml_models::MLModels, sys::ModelSystem
+    )
+    mappings_df, conditions_df, = _get_petab_tables(petab_tables, [:mapping, :conditions])
 
-    out = Dict()
-    out[:constant_inputs] = Vector{Array{Float64}}(undef, n_input_arguments)
-    out[:iconstant_inputs] = Vector{Vector{Int32}}(undef, n_input_arguments)
-    out[:ixdynamic_mech_inputs] = Vector{Vector{Int32}}(undef, n_input_arguments)
-    out[:ixdynamic_inputs] = Vector{Vector{Int32}}(undef, n_input_arguments)
-    out[:ninputs] = zeros(Int64, n_input_arguments)
-    out[:nxdynamic_inputs] = zeros(Int64, n_input_arguments)
-    out[:file_input] = zeros(Bool, n_input_arguments)
-    for (i, _input_argument) in pairs(input_arguments)
-        input_argument = Symbol.(_input_argument)
-        i_condition = findfirst(x -> x == string(conditionid), conditions_df.conditionId)
-        input_values = _get_ml_model_input_values(input_argument, ml_id, ml_models[ml_id], DataFrame(conditions_df[i_condition, :]), petab_tables, paths, petab_parameters, sys; keep_numbers = true)
+    # Arrays used to track input mappings
+    input_ids = _get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs)
+    n_input_args = length(input_ids)
+    constant_inputs = Vector{Array{Float64}}(undef, n_input_args)
+    input_formulas = Vector{Vector{String}}(undef, n_input_args)
+    file_input = fill(false, n_input_args)
+    i_dynamic_mech = Int32[]
 
-        out[:constant_inputs][i] = zeros(Float64, 0)
-        out[:iconstant_inputs][i] = zeros(Int32, 0)
-        out[:ixdynamic_mech_inputs][i] = zeros(Int32, 0)
-        out[:ixdynamic_inputs][i] = zeros(Int32, 0)
-        for (j, input_variable) in pairs(input_values)
-            if isfile(string(input_variable))
+    for (i, input_id) in pairs(input_ids)
+        condition_row = filter(r -> r.conditionId == string(condition_id), conditions_df) |>
+            DataFrame
+        input_values = _get_ml_model_input_values(
+            Symbol.(input_id), ml_id, ml_models[ml_id], condition_row, petab_tables, paths,
+            petab_parameters, sys; keep_numbers = true
+        )
+
+        input_formulas[i] = fill("", length(input_values))
+        constant_inputs[i] = zeros(Float64, 0)
+        for (j, input_value) in pairs(input_values)
+            # If an argument has a file-input, it is the only allowed input for said arg
+            if isfile(string(input_value))
                 if length(input_values) > 1
                     throw(PEtabInputError("If input to neural net is a file, only one \
                         input can be provided in the mapping table. This does not \
                         hold for $ml_id"))
                 end
-                input_data = _get_input_file_values(input_argument[j], input_variable, conditionid)
-                # hdf5 files are in row-major
+
+                # hdf5 files are in row-major, requiring re-shaping
+                input_data = _get_input_file_values(input_argument[j], input_value, condition_id)
                 input_data = permutedims(input_data, reverse(1:ndims(input_data)))
-                _constant_inputs = _reshape_io_data(input_data)
-                # Given an input file, we need to have a batch
-                out[:constant_inputs][i] = reshape(_constant_inputs, (size(_constant_inputs)..., 1))
-                out[:file_input][i] = true
-                continue
+                input_data = _reshape_io_data(input_data)
+                input_data = reshape(input_data, (size(input_data)..., 1))
+                constant_inputs[i] = input_data
+                input_formulas[i][j] = "map.constant_inputs[$(i)][$(j)]"
+                file_input[i] = true
+                break
             end
 
-            if is_number(input_variable)
-                val = parse(Float64, string(input_variable))
-                push!(out[:constant_inputs][i], val)
-                push!(out[:iconstant_inputs][i], j)
-                continue
+            # At this point, a valid PEtab-formula is assumed, for which constant values
+            # will be inserted
+            input_formula = string(input_value)
+            for (k, parameter_id) in pairs(string.(petab_parameters.parameter_id))
+                petab_parameters.estimate[k] == true && continue
+                value = petab_parameters.nominal_value[k]
+                input_formula = SBMLImporter._replace_variable(
+                    input_formula, parameter_id, "$(value)"
+                )
+            end
+            # Potential parameters from x_dynamic
+            for (k, id) in pairs(string.(xids[:est_to_dynamic_mech]))
+                ix = length(i_dynamic_mech) + 1
+                _formula = SBMLImporter._replace_variable(input_formula, id, "xdynamic[$ix]")
+                input_formula == _formula && continue
+                push!(i_dynamic_mech, k)
+                input_formula = _formula
             end
 
-            # At this point the value must be a parameter, that is either constant
-            # or estimated
-            ip = findfirst(x -> x == input_variable, petab_parameters.parameter_id)
-            if petab_parameters.estimate[ip] == false
-                push!(out[:constant_inputs][i], petab_parameters.nominal_value[ip])
-                push!(out[:iconstant_inputs][i], j)
-                continue
-            end
-            ixmech = findfirst(x -> x == input_variable, xids[:est_to_dynamic_mech])
-            push!(out[:ixdynamic_mech_inputs][i], ixmech)
-            push!(out[:ixdynamic_inputs][i], j)
+            input_formulas[i][j] = input_formula
         end
-        out[:nxdynamic_inputs][i] = length(out[:ixdynamic_mech_inputs][i])
-        out[:ninputs][i] = length(input_values)
     end
-    return out
+
+    unique!(i_dynamic_mech)
+    f_input = _template_ml_input(input_formulas, file_input, condition_id, ml_id, i_dynamic_mech)
+    return f_input, constant_inputs, i_dynamic_mech
 end
 
 function _add_ix_sys!(ix::Vector{Int32}, variable::String, xids_sys::Vector{String})::Nothing
@@ -304,5 +321,34 @@ end
 function _template_target_value(formula::String, condition_id::Symbol, target_id::String)::String
     out = "function _map_$(target_id)_$(condition_id)(xdynamic)\n"
     out *= "\treturn $(formula)\nend"
+    return out
+end
+
+function _template_ml_input(input_formulas, file_input::Vector{Bool}, condition_id, ml_id, i_dynamic_mech::Vector{Int32})
+    out = "function _map_input_$(condition_id)_$(ml_id)(xdynamic, map_pre_simulate)\n"
+    for i in eachindex(input_formulas)
+        if file_input[i] == true
+            out *= "\tout_$(i) = map.constant_inputs[$i][1]"
+            continue
+        end
+
+        if isempty(i_dynamic_mech)
+            out *= "\tout_$(i) = zeros(Float64, $(length(input_formulas[i])))\n"
+        else
+            out *= "\tout_$(i) = zeros(eltype(xdynamic), $(length(input_formulas[i])))\n"
+        end
+
+        for (j, formula) in pairs(input_formulas[i])
+            out *= "\tout_$(i)[$(j)] = $(formula)\n"
+        end
+    end
+
+    if length(input_formulas) == 1
+        out *= "\treturn out_1\n"
+    else
+        out_args = prod("out_" .* string.(1:length(input_formulas)) .* ", ")
+        out *= "\treturn ($(out_args))\n"
+    end
+    out *= "end\n"
     return out
 end

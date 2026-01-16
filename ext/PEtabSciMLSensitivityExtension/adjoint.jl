@@ -27,7 +27,7 @@ function grad_adjoint!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode!::Funct
     @views grad[xindices.indices_est[:est_to_not_system]] .= x_not_system_grad
 
     # Reset such that neural-nets pre ODE no longer have status of having been evaluated
-    PEtab._reset_nn_pre_simulate!(probinfo)
+    PEtab.reset_ml_pre_simulate!(probinfo)
     return nothing
 end
 
@@ -216,7 +216,7 @@ function _grad_adjoint_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vecto
     if !isempty(xindices.xids[:sys_ml_pre_simulate_outputs])
         ix = xindices.indices_dynamic[:sys_ml_pre_simulate_outputs]
         cache.grad_ml_pre_simulate_outputs .= adjoint_grad[ix]
-        PEtab._set_grad_x_nn_pre_simulate!(grad, simid, probinfo, model_info)
+        PEtab._set_grax_x_ml_pre_simulate!(grad, simid, probinfo, model_info)
     end
 
     # Adjust if gradient is non-linear scale (e.g. log and log10).
