@@ -74,7 +74,7 @@ function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveod
                 _grad = ForwardDiff.gradient(_nllh, xinput)
                 xdynamic_grad[ixdynamic_simid] .+= _grad[1:length(ixdynamic_simid)]
                 if length(_grad) > length(ixdynamic_simid)
-                    cache.grad_nn_pre_simulate .= _grad[(length(ixdynamic_simid)+1):end]
+                    cache.grad_ml_pre_simulate_outputs .= _grad[(length(ixdynamic_simid)+1):end]
                     _set_grad_x_nn_pre_simulate!(xdynamic_grad, simid, probinfo, model_info)
                 end
             else

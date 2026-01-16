@@ -41,10 +41,10 @@ end
 
 function split_x(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache)
     split_x!(x, xindices, cache)
-    @unpack xdynamic_mech, xobservable, xnoise, xnondynamic_mech, xnn_dict = cache
+    @unpack xdynamic_mech, xobservable, xnoise, xnondynamic_mech, x_ml_models = cache
     return (
         get_tmp(xdynamic_mech, x), get_tmp(xobservable, x), get_tmp(xnoise, x),
-        get_tmp(xnondynamic_mech, x), xnn_dict
+        get_tmp(xnondynamic_mech, x), x_ml_models
     )
 end
 
@@ -63,10 +63,10 @@ function split_x!(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODE
     xnondynamic_mech = get_tmp(cache.xnondynamic_mech, x)
     xnondynamic_mech .= @view x[indices_est[:est_to_nondynamic_mech]]
 
-    for (ml_id, x_ml) in cache.xnn
-        _x_ml = get_tmp(x_ml, x)
-        _x_ml .= @view x[indices_est[ml_id]]
-        cache.xnn_dict[ml_id] = _x_ml
+    for (ml_id, x_ml_cache) in cache.x_ml_models_cache
+        x_ml = get_tmp(x_ml_cache, x)
+        x_ml .= @view x[indices_est[ml_id]]
+        cache.x_ml_models[ml_id] = x_ml
     end
 
     if xdynamic_full == true
@@ -76,16 +76,19 @@ function split_x!(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODE
     return nothing
 end
 
-function split_xdynamic(xdynamic::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache)
+function split_xdynamic(
+        xdynamic::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache
+    )
     xdynamic_mech = get_tmp(cache.xdynamic_mech, xdynamic)
     xdynamic_mech .= @view xdynamic[xindices.indices_dynamic[:dynamic_to_mech]]
-    for (ml_id, xnn) in cache.xnn
-        ml_id in xindices.xids[:ml_nondynamic] && continue
-        _xnn = get_tmp(xnn, xdynamic)
-        _xnn .= @view xdynamic[xindices.indices_dynamic[ml_id]]
-        cache.xnn_dict[ml_id] = _xnn
+
+    for (ml_id, x_ml_cache) in cache.x_ml_models_cache
+        in(ml_id, xindices.xids[:ml_nondynamic]) && continue
+        x_ml = get_tmp(x_ml_cache, xdynamic)
+        x_ml .= @view xdynamic[xindices.indices_dynamic[ml_id]]
+        cache.x_ml_models[ml_id] = x_ml
     end
-    return xdynamic_mech, cache.xnn_dict
+    return xdynamic_mech, cache.x_ml_models
 end
 
 function transform_x!(x::AbstractVector, xids::Vector{Symbol}, xindices::ParameterIndices;
@@ -148,7 +151,7 @@ end
 
 function _sd(
         u::AbstractVector, t::Float64, p::AbstractVector, xnoise::T, xnondynamic_mech::T,
-        xnn::Dict{Symbol, ComponentArray}, xnn_constant::Dict{Symbol, ComponentArray},
+        x_ml_models::Dict{Symbol, ComponentArray}, x_ml_models_constant::Dict{Symbol, ComponentArray},
         model::PEtabModel, xnoise_maps::ObservableNoiseMap, observable_id::Symbol,
         nominal_values::Vector{Float64}
     )::Real where {T <: AbstractVector}
@@ -156,7 +159,7 @@ function _sd(
         σ = xnoise_maps.constant_values[1]
     else
         σ = model.sd(
-            u, t, p, xnoise, xnondynamic_mech, xnn, xnn_constant, nominal_values,
+            u, t, p, xnoise, xnondynamic_mech, x_ml_models, x_ml_models_constant, nominal_values,
             observable_id, xnoise_maps, model.sys_observables, model.ml_models
         )
     end
@@ -165,13 +168,13 @@ end
 
 function _h(
         u::AbstractVector, t::Float64, p::AbstractVector, xobservable::T,
-        xnondynamic_mech::T,  xnn::Dict{Symbol, ComponentArray},
-        xnn_constant::Dict{Symbol, ComponentArray}, model::PEtabModel,
+        xnondynamic_mech::T,  x_ml_models::Dict{Symbol, ComponentArray},
+        x_ml_models_constant::Dict{Symbol, ComponentArray}, model::PEtabModel,
         xobservable_maps::ObservableNoiseMap, observable_id::Symbol,
         nominal_values::Vector{Float64},
     )::Real where {T <: AbstractVector}
     return model.h(
-        u, t, p, xobservable, xnondynamic_mech, xnn, xnn_constant, nominal_values,
+        u, t, p, xobservable, xnondynamic_mech, x_ml_models, x_ml_models_constant, nominal_values,
         observable_id, xobservable_maps, model.sys_observables, model.ml_models)
 end
 
@@ -251,3 +254,6 @@ function _get_nx_estimate(xindices::ParameterIndices)::Int64
                 length(xindices.indices_est[:est_to_dynamic])
     return nestimate
 end
+
+_get_n_parameters_sys(sys::ODEProblem)::Int64 = length(sys.p)
+_get_n_parameters_sys(sys::ModelSystem)::Int64 = length(_get_xids_sys(sys))

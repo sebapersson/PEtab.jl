@@ -250,8 +250,8 @@ function _get_bounds(model_info::ModelInfo, xnames::Vector{Symbol}, xnames_ps::V
             bounds[i] .= Inf
         end
     end
-    xnn_bounds = (xnames_nn .=> bounds) |> NamedTuple
-    return merge(xmech_bounds, xnn_bounds) |> ComponentArray
+    x_ml_bounds = (xnames_nn .=> bounds) |> NamedTuple
+    return merge(xmech_bounds, x_ml_bounds) |> ComponentArray
 end
 
 function _get_xnominal(model_info::ModelInfo, xnames::Vector{Symbol},
@@ -278,8 +278,8 @@ function _get_xnominal(model_info::ModelInfo, xnames::Vector{Symbol},
         set_ml_model_ps!(psnet, ml_id, ml_models, paths, petab_tables)
         xnominal_nn[i] = psnet
     end
-    xnn = (xnames_nn .=> xnominal_nn) |> NamedTuple
-    return ComponentArray(merge(xmech, xnn))
+    x_ml_models = NamedTuple(xnames_nn .=> xnominal_nn)
+    return ComponentArray(merge(xmech, x_ml_models))
 end
 
 function _get_ixnames_mech(xnames::Vector{Symbol}, petab_parameters::PEtabParameters)::Vector{Int64}

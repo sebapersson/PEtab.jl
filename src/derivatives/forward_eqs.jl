@@ -42,22 +42,17 @@ function solve_sensitivites!(model_info::ModelInfo, _solve_conditions!::Function
 
     # Need to track for each condition and ForwardDiff chunk if the ODE could be solved
     simulation_info.could_solve[1] = true
-    @unpack S, odesols, nxdynamic, xdynamic_grad = cache
+    @unpack S, odesols = cache
     fill!(S, 0.0)
 
     if split_over_conditions == false
-        # remade = false, no parameters in xdynamic are fixed, but for computations to
-        # work nxdynamic must be set to default value temporarily
-        tmp = cache.nxdynamic[1]
-        cache.nxdynamic[1] = length(xdynamic)
         # Need ODE solution for gradient for the non xdynamic parameters even when
         # xdynamic is empty
         if !isempty(xdynamic)
             ForwardDiff.jacobian!(S, _solve_conditions!, odesols, xdynamic, cfg)
         else
-            _solve_conditions!(cache.odesols, xdynamic)
+            _solve_conditions!(odesols, xdynamic)
         end
-        cache.nxdynamic[1] = tmp
     end
 
     # Most efficient if xdynamic contains many parameters specific to a certain condition
@@ -102,7 +97,7 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::V
 
     # Partial derivatives needed for computing the gradient (derived from the chain-rule)
     ∂G∂u!, ∂G∂p! = _get_∂G∂_!(model_info, cid, xnoise, xobservable, xnondynamic_mech,
-                              cache.xnn_dict, cache.xnn_constant)
+                              cache.x_ml_models, cache.x_ml_models_constant)
 
     nstates = model_info.nstates
     cache.p .= sol.prob.p .|> SBMLImporter._to_float
@@ -124,8 +119,8 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::V
     end
 
     # Gradient of ML parameters
-    if split_over_conditions == true && !isempty(cache.grad_nn_pre_simulate)
-        cache.grad_nn_pre_simulate .= forward_eqs_grad[(length(ixdynamic_simid)+1):end]
+    if split_over_conditions == true && !isempty(cache.grad_ml_pre_simulate_outputs)
+        cache.grad_ml_pre_simulate_outputs .= forward_eqs_grad[(length(ixdynamic_simid)+1):end]
         _set_grad_x_nn_pre_simulate!(grad, simid, probinfo, model_info)
     end
 
@@ -139,7 +134,7 @@ function _get_ix_S_simid(ixdynamic_simid, split_over_conditions::Bool, model_inf
     if split_over_conditions == false
         return ixdynamic_simid[:]
     end
-    nx_forward_eqs = _get_nx_forwardeqs(model_info.xindices, split_over_conditions)
+    nx_forward_eqs = _get_nx_forward_eqs(model_info.xindices, split_over_conditions)
     nx_nn_pre_simulate_outputs = length(model_info.xindices.xids[:sys_ml_pre_simulate_outputs])
     istart = nx_forward_eqs - nx_nn_pre_simulate_outputs + 1
     return vcat(ixdynamic_simid, istart:nx_forward_eqs)

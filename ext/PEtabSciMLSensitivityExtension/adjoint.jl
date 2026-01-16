@@ -43,8 +43,8 @@ function _grad_adjoint_xdynamic!(grad::Vector{<:AbstractFloat},
     xnondynamic_mech_ps = PEtab.transform_x(xnondynamic_mech, xindices, :xnondynamic_mech, cache)
     xdynamic_ps = PEtab.transform_x(xdynamic, xindices, :xdynamic, cache)
 
-    xdynamic_ps, xnn = PEtab.split_xdynamic(xdynamic_ps, xindices, cache)
-    success = PEtab.solve_conditions!(model_info, xdynamic_ps, xnn, probinfo; cids = cids,
+    xdynamic_ps, x_ml_models = PEtab.split_xdynamic(xdynamic_ps, xindices, cache)
+    success = PEtab.solve_conditions!(model_info, xdynamic_ps, x_ml_models, probinfo; cids = cids,
                                       dense_sol = true, save_observed_t = false,
                                       track_callback = true)
     if success == false
@@ -165,7 +165,7 @@ function _grad_adjoint_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vecto
     callback = tracked_callbacks[simid]
 
     # Partial derivatives needed for computing the gradient (derived from the chain-rule)
-    ∂G∂u!, ∂G∂p! = PEtab._get_∂G∂_!(model_info, cid, xnoise, xobservable, xnondynamic_mech, cache.xnn_dict, cache.xnn_constant)
+    ∂G∂u!, ∂G∂p! = PEtab._get_∂G∂_!(model_info, cid, xnoise, xobservable, xnondynamic_mech, cache.x_ml_models, cache.x_ml_models_constant)
 
     # The PEtab standard allow cases where we only observe data at t0, that is we do not
     # solve the ODE. Here adjoint_sensitivities fails (naturally). In this case we compute
@@ -215,7 +215,7 @@ function _grad_adjoint_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vecto
     # already been computed, so the only thing left is to combine them
     if !isempty(xindices.xids[:sys_ml_pre_simulate_outputs])
         ix = xindices.indices_dynamic[:sys_ml_pre_simulate_outputs]
-        cache.grad_nn_pre_simulate .= adjoint_grad[ix]
+        cache.grad_ml_pre_simulate_outputs .= adjoint_grad[ix]
         PEtab._set_grad_x_nn_pre_simulate!(grad, simid, probinfo, model_info)
     end
 

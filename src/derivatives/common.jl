@@ -1,4 +1,4 @@
-function _G(u::AbstractVector, p, t::T, i::Integer, imeasurements_t_cid::Vector{Vector{Int64}}, model_info::ModelInfo, xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic_mech::Vector{T}, xnn::Dict{Symbol, ComponentArray}, xnn_constant::Dict{Symbol, ComponentArray}, residuals::Bool) where {T <: AbstractFloat}
+function _G(u::AbstractVector, p, t::T, i::Integer, imeasurements_t_cid::Vector{Vector{Int64}}, model_info::ModelInfo, xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic_mech::Vector{T}, x_ml_models::Dict{Symbol, ComponentArray}, x_ml_models_constant::Dict{Symbol, ComponentArray}, residuals::Bool) where {T <: AbstractFloat}
     @unpack petab_measurements, xindices, petab_parameters, model = model_info
     @unpack measurements_transformed, measurements, noise_distributions, observable_id = petab_measurements
     @unpack nominal_value = petab_parameters
@@ -9,8 +9,8 @@ function _G(u::AbstractVector, p, t::T, i::Integer, imeasurements_t_cid::Vector{
         xnoise_maps = xindices.xnoise_maps[im]
         xobservable_maps = xindices.xobservable_maps[im]
 
-        h = _h(u, t, p, xobservable, xnondynamic_mech, xnn, xnn_constant, model, xobservable_maps, obsid, nominal_value)
-        σ = _sd(u, t, p, xnoise, xnondynamic_mech, xnn, xnn_constant, model, xnoise_maps, obsid, nominal_value)
+        h = _h(u, t, p, xobservable, xnondynamic_mech, x_ml_models, x_ml_models_constant, model, xobservable_maps, obsid, nominal_value)
+        σ = _sd(u, t, p, xnoise, xnondynamic_mech, x_ml_models, x_ml_models_constant, model, xnoise_maps, obsid, nominal_value)
 
         if residuals == true
             h_transformed = _transform_h(h, noise_distributions[im])
@@ -23,19 +23,19 @@ function _G(u::AbstractVector, p, t::T, i::Integer, imeasurements_t_cid::Vector{
     return out
 end
 
-function _get_∂G∂_!(model_info::ModelInfo, cid::Symbol, xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic_mech::Vector{T}, xnn::Dict{Symbol, ComponentArray}, xnn_constant::Dict{Symbol, ComponentArray}; residuals::Bool = false)::NTuple{2, Function} where {T <: AbstractFloat}
+function _get_∂G∂_!(model_info::ModelInfo, cid::Symbol, xnoise::Vector{T}, xobservable::Vector{T}, xnondynamic_mech::Vector{T}, x_ml_models::Dict{Symbol, ComponentArray}, x_ml_models_constant::Dict{Symbol, ComponentArray}; residuals::Bool = false)::NTuple{2, Function} where {T <: AbstractFloat}
     if residuals == false
         it = model_info.simulation_info.imeasurements_t[cid]
         ∂G∂u! = (out, u, p, t, i) -> begin
             _fu = (u) -> begin
-                _G(u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic_mech, xnn, xnn_constant, false)
+                _G(u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic_mech, x_ml_models, x_ml_models_constant, false)
             end
             ForwardDiff.gradient!(out, _fu, u)
             return nothing
         end
         ∂G∂p! = (out, u, p, t, i) -> begin
             _fp = (p) -> begin
-                _G(u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic_mech, xnn, xnn_constant, false)
+                _G(u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic_mech, x_ml_models, x_ml_models_constant, false)
             end
             ForwardDiff.gradient!(out, _fp, p)
             return nothing
@@ -43,14 +43,14 @@ function _get_∂G∂_!(model_info::ModelInfo, cid::Symbol, xnoise::Vector{T}, x
     else
         ∂G∂u! = (out, u, p, t, i, it) -> begin
             _fu = (u) -> begin
-                _G(u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic_mech, xnn, xnn_constant, true)
+                _G(u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic_mech, x_ml_models, x_ml_models_constant, true)
             end
             ForwardDiff.gradient!(out, _fu, u)
             return nothing
         end
         ∂G∂p! = (out, u, p, t, i, it) -> begin
             _fp = (p) -> begin
-                _G(u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic_mech, xnn, xnn_constant, true)
+                _G(u, p, t, i, it, model_info, xnoise, xobservable, xnondynamic_mech, x_ml_models, x_ml_models_constant, true)
             end
             ForwardDiff.gradient!(out, _fp, p)
             return nothing

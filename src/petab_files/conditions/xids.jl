@@ -91,8 +91,11 @@ function _get_xids_sys_order(sys::ModelSystem, speciemap, parametermap)::Vector{
     return Symbol.(out)
 end
 
+function _get_xids_sys(sys::ODEProblem)::Vector{Symbol}
+    return collect(keys(sys.p))
+end
 function _get_xids_sys(sys::ModelSystem)::Vector{Symbol}
-    return sys isa ODEProblem ? collect(keys(sys.p)) : Symbol.(parameters(sys))
+    return Symbol.(parameters(sys))
 end
 
 function _get_xids_ml_pre_simulate_output(petab_tables::PEtabTables, ml_models::MLModels)::Vector{Symbol}

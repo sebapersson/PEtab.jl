@@ -118,16 +118,16 @@ function _get_ml_models_pre_ode(model_info::ModelInfo, cache::PEtabODEProblemCac
             @unpack ninput_arguments, ninputs, noutputs = map_ml_model
             ml_model = model_info.model.ml_models[ml_id]
             # If parameters are constant, they only need to be assigned here, as when
-            # building the cache xnn_not_est has the correct values.
+            # building the cache x_ml_not_est has the correct values.
             if ml_id in model_info.xindices.xids[:ml_est]
-                pnn = cache.xnn[ml_id]
+                x_ml = cache.x_ml_models_cache[ml_id]
             else
-                pnn = cache.xnn_constant[ml_id]
+                x_ml = cache.x_ml_models_constant[ml_id]
             end
             inputs = [DiffCache(zeros(Float64, n), levels = 2) for n in ninputs]
             outputs = DiffCache(zeros(Float64, noutputs), levels = 2)
-            compute_forward! = let ml_model = ml_model, map_ml_model = map_ml_model, inputs = inputs, pnn = pnn
-                (out, x) -> _net!(out, x, pnn, inputs, map_ml_model, ml_model)
+            compute_forward! = let ml_model = ml_model, map_ml_model = map_ml_model, inputs = inputs, x_ml = x_ml
+                (out, x) -> _net!(out, x, x_ml, inputs, map_ml_model, ml_model)
             end
 
             # ReverseDiff.tape compatible (fastest on CPU, but only works if input is
@@ -140,14 +140,14 @@ function _get_ml_models_pre_ode(model_info::ModelInfo, cache::PEtabODEProblemCac
                     (out, x) -> _net_reversediff!(out, x, inputs_reverse, ml_model)
                 end
                 out = get_tmp(outputs, 1.0)
-                _pnn = get_tmp(pnn, 1.0)
-                tape = ReverseDiff.JacobianTape(compute_nn_rev!, out, _pnn)
+                _x_ml = get_tmp(x_ml, 1.0)
+                tape = ReverseDiff.JacobianTape(compute_nn_rev!, out, _x_ml)
             else
                 tape = nothing
             end
 
             if ml_id in model_info.xindices.xids[:ml_est]
-                nx = length(get_tmp(pnn, 1.0)) + sum(map_ml_model.nxdynamic_inputs)
+                nx = length(get_tmp(x_ml, 1.0)) + sum(map_ml_model.nxdynamic_inputs)
             else
                 nx = sum(map_ml_model.nxdynamic_inputs)
             end

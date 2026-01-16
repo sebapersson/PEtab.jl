@@ -61,11 +61,11 @@ function set_ml_model_ps!(ps::ComponentArray, ml_id::Symbol, ml_models, paths::D
     return nothing
 end
 
-function _get_ml_model_pre_ode_x(nnpre::MLModelPreODE, xdynamic_mech::AbstractVector, pnn::ComponentArray, map_ml_model::MLModelPreODEMap)::AbstractVector
+function _get_ml_model_pre_ode_x(nnpre::MLModelPreODE, xdynamic_mech::AbstractVector, x_ml::ComponentArray, map_ml_model::MLModelPreODEMap)::AbstractVector
     x = get_tmp(nnpre.x, xdynamic_mech)
     n_inputs = sum(map_ml_model.nxdynamic_inputs)
     x[1:n_inputs] .= xdynamic_mech[reduce(vcat, map_ml_model.ixdynamic_mech_inputs)]
-    @views x[(n_inputs+1):end] .= pnn
+    @views x[(n_inputs+1):end] .= x_ml
     return x
 end
 function _get_ml_model_pre_ode_x(nnpre::MLModelPreODE, xdynamic_mech::AbstractVector, map_ml_model::MLModelPreODEMap)::AbstractVector

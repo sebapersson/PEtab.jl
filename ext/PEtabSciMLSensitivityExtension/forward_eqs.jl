@@ -33,7 +33,7 @@ function PEtab._grad_forward_eqs_cond!(
     sol = simulation_info.odesols_derivatives[cid]
 
     # Partial derivatives needed for computing the gradient (derived from the chain-rule)
-    ∂G∂u!, ∂G∂p! = PEtab._get_∂G∂_!(model_info, cid, xnoise, xobservable, xnondynamic_mech, cache.xnn_dict, cache.xnn_constant)
+    ∂G∂u!, ∂G∂p! = PEtab._get_∂G∂_!(model_info, cid, xnoise, xobservable, xnondynamic_mech, cache.x_ml_models, cache.x_ml_models_constant)
 
     p = sol.prob.p
     ∂G∂p, ∂G∂p_ = zeros(Float64, length(p)), zeros(Float64, length(p))
@@ -53,7 +53,7 @@ function PEtab._grad_forward_eqs_cond!(
     # already been computed, so the only thing left is to combine them
     if !isempty(xindices.xids[:sys_ml_pre_simulate_outputs])
         ix = xindices.indices_dynamic[:sys_ml_pre_simulate_outputs]
-        cache.grad_nn_pre_simulate .= _grad[ix]
+        cache.grad_ml_pre_simulate_outputs .= _grad[ix]
         PEtab._set_grad_x_nn_pre_simulate!(grad, simid, probinfo, model_info)
     end
 

@@ -1,9 +1,10 @@
-function _switch_condition(oprob::ODEProblem, experiment_id::Symbol, xdynamic::AbstractVector,
-                           xnn::Dict{Symbol, ComponentArray}, model_info::ModelInfo,
-                           cache::PEtabODEProblemCache,
-                           ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreODE}},
-                           posteq_simulation::Bool;
-                           sensitivities::Bool = false, simulation_id::Union{Nothing, Symbol} = nothing)::ODEProblem
+function _switch_condition(
+        oprob::ODEProblem, experiment_id::Symbol, xdynamic::AbstractVector,
+        x_ml_models::Dict{Symbol, ComponentArray}, model_info::ModelInfo,
+        cache::PEtabODEProblemCache, ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreODE}},
+        posteq_simulation::Bool; sensitivities::Bool = false,
+        simulation_id::Union{Nothing, Symbol} = nothing
+    )::ODEProblem
     @unpack xindices, model, nstates = model_info
     simulation_id = isnothing(simulation_id) ? experiment_id : simulation_id
 
@@ -21,14 +22,16 @@ function _switch_condition(oprob::ODEProblem, experiment_id::Symbol, xdynamic::A
 
     # Potential Neural-Network parameters (in this case p must be a ComponentArray) which
     # are inside the ODE
-    for (ml_id, xnet) in xnn
+    for (ml_id, xnet) in x_ml_models
         !(p isa ComponentArray) && continue
         !haskey(p, ml_id) && continue
         p[ml_id] .= xnet
     end
 
     # Potential ODE parameters which have their value assigned by a neural-net
-    _set_ml_pre_simulate_parameters!(p, xdynamic, xnn, simulation_id, xindices, ml_models_pre_ode)
+    _set_ml_pre_simulate_parameters!(
+        p, xdynamic, x_ml_models, simulation_id, xindices, ml_models_pre_ode
+    )
 
     # Initial state can depend on condition specific parameters
     model.u0!((@view u0[1:nstates]), p; __post_eq = posteq_simulation)
@@ -46,8 +49,10 @@ function _switch_condition(oprob::ODEProblem, experiment_id::Symbol, xdynamic::A
     return _oprob
 end
 
-function _get_tsave(save_observed_t::Bool, simulation_info::SimulationInfo, experiment_id::Symbol,
-                    ntimepoints_save::Integer)::Vector{Float64}
+function _get_tsave(
+        save_observed_t::Bool, simulation_info::SimulationInfo, experiment_id::Symbol,
+        ntimepoints_save::Integer
+    )::Vector{Float64}
     tmax = simulation_info.tmaxs[experiment_id]
     if save_observed_t == true
         return simulation_info.tsaves[experiment_id]
@@ -130,7 +135,7 @@ function _set_check_trigger_init!(cbs::SciMLBase.DECallback, value::Bool)::Nothi
     return nothing
 end
 
-function _set_ml_pre_simulate_parameters!(p::AbstractVector, xdynamic::AbstractVector, xnn, simulation_id::Symbol, xindices::ParameterIndices, ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreODE}})::Nothing
+function _set_ml_pre_simulate_parameters!(p::AbstractVector, xdynamic::AbstractVector, x_ml_models::Dict{Symbol, ComponentArray}, simulation_id::Symbol, xindices::ParameterIndices, ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreODE}})::Nothing
     !haskey(ml_models_pre_ode, simulation_id) && return nothing
     maps_nns = xindices.maps_ml_pre_simulate[simulation_id]
     for (ml_id, ml_model_pre_ode) in ml_models_pre_ode[simulation_id]
@@ -139,11 +144,11 @@ function _set_ml_pre_simulate_parameters!(p::AbstractVector, xdynamic::AbstractV
         # ml_model_pre_ode.outputs is already computed
         outputs = get_tmp(ml_model_pre_ode.outputs, p)
         if ml_model_pre_ode.computed[1] == false
-            # Only if neural net parameters are estimated, otherwise pnn is not used to
+            # Only if neural net parameters are estimated, otherwise x_ml is not used to
             # set values in x (vector that might used for gradient computations)
-            if haskey(xnn, ml_id)
-                pnn = xnn[ml_id]
-                x = _get_ml_model_pre_ode_x(ml_model_pre_ode, xdynamic, pnn, map_ml_model)
+            if haskey(x_ml_models, ml_id)
+                x_ml = x_ml_models[ml_id]
+                x = _get_ml_model_pre_ode_x(ml_model_pre_ode, xdynamic, x_ml, map_ml_model)
             else
                 x = _get_ml_model_pre_ode_x(ml_model_pre_ode, xdynamic, map_ml_model)
             end

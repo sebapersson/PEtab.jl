@@ -23,7 +23,7 @@ end
 # inputs are estimated, that is, are known at compile-time it is possible to compile the
 # function and enjoy good performance on the CPU. If one of the inputs depend on parameters
 # to estimate, ForwardDiff can be used instead (and hopefully in the future Enzyme can
-# make all this code obselete)
+# make all this code obsolete)
 function _net_reversediff!(out, x_ml_model, inputs, ml_model::MLModel)::Nothing
     _out, st = ml_model.model(inputs, x_ml_model, ml_model.st)
     ml_model.st = st
@@ -57,13 +57,13 @@ function _jac_ml_model_pre_simulate!(probinfo::PEtabODEProblemInfo, model_info::
         for (ml_id, ml_model_pre_ode) in ml_models_pre_ode
             # Only relevant if neural-network parameters are estimated, otherwise a normal
             # reverse pass of the code is fast
-            !haskey(cache.xnn, ml_id) && continue
+            !haskey(cache.x_ml_models, ml_id) && continue
 
             @unpack tape, jac_ml_model, outputs, computed, forward! = ml_model_pre_ode
             # Parameter mapping. If one of the inputs is a parameter to estimate, the
             # Jacobian is also computed of the input parameter.
             map_ml_model = model_info.xindices.maps_ml_pre_simulate[cid][ml_id]
-            x_ml_model = get_tmp(cache.xnn[ml_id], 1.0)
+            x_ml_model = get_tmp(cache.x_ml_models_cache[ml_id], 1.0)
 
             _outputs = get_tmp(outputs, x_ml_model)
             if sum(map_ml_model.nxdynamic_inputs) > 0
@@ -87,7 +87,7 @@ function _set_grad_x_nn_pre_simulate!(xdynamic_grad::AbstractVector, simid::Symb
     @unpack indices_dynamic, maps_ml_pre_simulate = model_info.xindices
     for (ml_id, ml_model_pre_ode) in probinfo.ml_models_pre_ode[simid]
         map_ml_model = maps_ml_pre_simulate[simid][ml_id]
-        grad_nn_output = probinfo.cache.grad_nn_pre_simulate[map_ml_model.ix_nn_outputs]
+        grad_nn_output = probinfo.cache.grad_ml_pre_simulate_outputs[map_ml_model.ix_nn_outputs]
         # Needed to account for neural-net parameter potentially not being estimated
         ix = reduce(vcat, map_ml_model.ixdynamic_mech_inputs)
         if haskey(indices_dynamic, ml_id)

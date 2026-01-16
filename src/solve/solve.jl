@@ -1,8 +1,9 @@
 function solve_conditions!(
-        model_info::ModelInfo, xdynamic::AbstractVector, xnn::Dict{Symbol, ComponentArray},
-        probinfo::PEtabODEProblemInfo; cids::Vector{Symbol} = [:all], ntimepoints_save::Int64 = 0, save_observed_t::Bool = true,
-        dense_sol::Bool = false, track_callback::Bool = false, sensitivities::Bool = false,
-        derivative::Bool = false
+        model_info::ModelInfo, xdynamic::AbstractVector,
+        x_ml_models::Dict{Symbol, ComponentArray}, probinfo::PEtabODEProblemInfo;
+        cids::Vector{Symbol} = [:all], ntimepoints_save::Int64 = 0,
+        save_observed_t::Bool = true, dense_sol::Bool = false, track_callback::Bool = false,
+        sensitivities::Bool = false, derivative::Bool = false
     )::Bool
     @unpack simulation_info, model, xindices = model_info
     @unpack float_tspan = model
@@ -33,7 +34,7 @@ function solve_conditions!(
 
         for (i, preeq_id) in pairs(preeq_ids)
             oprob_preeq = _switch_condition(
-                oprob, preeq_id, xdynamic, xnn, model_info, cache, ml_models_pre_ode,
+                oprob, preeq_id, xdynamic, x_ml_models, model_info, cache, ml_models_pre_ode,
                 false; sensitivities = sensitivities
             )
             # Sometimes due to strongly ill-conditioned Jacobian the linear-solve runs
@@ -66,7 +67,7 @@ function solve_conditions!(
         tsave = _get_tsave(save_observed_t, simulation_info, cid, ntimepoints_save)
         dense = _is_dense(save_observed_t, dense_sol, ntimepoints_save)
         oprob_cid = _switch_condition(
-            oprob, cid, xdynamic, xnn, model_info, cache, ml_models_pre_ode,
+            oprob, cid, xdynamic, x_ml_models, model_info, cache, ml_models_pre_ode,
             posteq_simulation; sensitivities = sensitivities, simulation_id = simid
         )
 
@@ -117,14 +118,9 @@ function solve_conditions!(sols::AbstractMatrix, xdynamic::AbstractVector,
                            track_callback::Bool = false, sensitivities::Bool = false,
                            sensitivities_AD::Bool = false)::Nothing
     cache = probinfo.cache
-    _xdynamic_mech, xnn = split_xdynamic(xdynamic, model_info.xindices, cache)
-    if sensitivities_AD == true && cache.nxdynamic[1] != length(xdynamic)
-        xdynamic_mech = _xdynamic_mech[cache.xdynamic_output_order]
-    else
-        xdynamic_mech = _xdynamic_mech
-    end
+    xdynamic_mech, x_ml_models = split_xdynamic(xdynamic, model_info.xindices, cache)
     derivative = sensitivities_AD || sensitivities
-    sucess = solve_conditions!(model_info, xdynamic_mech, xnn, probinfo; cids = cids,
+    sucess = solve_conditions!(model_info, xdynamic_mech, x_ml_models, probinfo; cids = cids,
                                ntimepoints_save = ntimepoints_save, dense_sol = dense_sol,
                                save_observed_t = save_observed_t, derivative = derivative,
                                sensitivities = sensitivities, track_callback = track_callback)

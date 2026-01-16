@@ -41,8 +41,8 @@ function _template_ml_in_ode(ml_id::Symbol, petab_tables::PEtabTables)::String
     outputs_p = prod(output_variables .* ", ")
     outputs_net = "out, st_$(ml_id)"
     formula = "\n\tml_model_$(ml_id) = ml_models[:$(ml_id)]\n"
-    formula *= "\txnn_$(ml_id) = p[:$(ml_id)]\n"
-    formula *= "\t$(outputs_net) = ml_model_$(ml_id).model($inputs, xnn_$(ml_id), ml_model_$(ml_id).st)\n"
+    formula *= "\tx_ml_$(ml_id) = p[:$(ml_id)]\n"
+    formula *= "\t$(outputs_net) = ml_model_$(ml_id).model($inputs, x_ml_$(ml_id), ml_model_$(ml_id).st)\n"
     formula *= "\tml_model_$(ml_id).st = st_$(ml_id)\n"
     formula *= "\t$(outputs_p) = out\n"
     formula *= "$(output_targets)\n\n"
@@ -72,13 +72,13 @@ function _template_ml_observable(ml_id::Symbol, petab_tables::PEtabTables, state
 
     formula = "\n\t\tml_model_$(ml_id) = ml_models[:$(ml_id)]\n"
     if ml_id in xindices.xids[:ml_in_ode]
-        formula *= "\t\txnn_$(ml_id) = __p_model[:$(ml_id)]\n"
+        formula *= "\t\tx_ml_$(ml_id) = __p_model[:$(ml_id)]\n"
     elseif ml_id in xindices.xids[:ml_est]
-        formula *= "\t\txnn_$(ml_id) = xnn[:$(ml_id)]\n"
+        formula *= "\t\tx_ml_$(ml_id) = x_ml_models[:$(ml_id)]\n"
     else
-        formula *= "\t\txnn_$(ml_id) = xnn_constant[:$(ml_id)]\n"
+        formula *= "\t\tx_ml_$(ml_id) = x_ml_models_constant[:$(ml_id)]\n"
     end
-    formula *= "\t\tout, st_$(ml_id) = ml_model_$(ml_id).model($inputs, xnn_$(ml_id), ml_model_$(ml_id).st)\n"
+    formula *= "\t\tout, st_$(ml_id) = ml_model_$(ml_id).model($inputs, x_ml_$(ml_id), ml_model_$(ml_id).st)\n"
     formula *= "\t\t$(outputs) = out\n"
     formula *= "\t\tml_model_$(ml_id).st = st_$(ml_id)\n"
     return formula

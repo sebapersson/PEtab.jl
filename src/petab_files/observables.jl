@@ -24,7 +24,7 @@ end
 function _parse_h(state_ids::Vector{String}, sys_observable_ids::Vector{Symbol}, xindices::ParameterIndices, petab_tables::PEtabTables, model_SBML::SBMLImporter.ModelSBML, ml_models::MLModels)::String
     hstr = "function compute_h(__u_model::AbstractVector, t::Real, \
            __p_model::AbstractVector, xobservable::AbstractVector, \
-           xnondynamic_mech::AbstractVector, xnn, xnn_constant, \
+           xnondynamic_mech::AbstractVector, x_ml_models, x_ml_models_constant, \
            nominal_values::Vector{Float64}, obsid::Symbol, \
            map::ObservableNoiseMap, __sys_observables, ml_models)::Real\n"
 
@@ -48,7 +48,7 @@ end
 function _parse_σ(state_ids::Vector{String}, sys_observable_ids::Vector{Symbol}, xindices::ParameterIndices, observables_df::DataFrame, model_SBML::SBMLImporter.ModelSBML)::String
     σstr = "function compute_σ(__u_model::AbstractVector, t::Real, \
             __p_model::AbstractVector, xnoise::AbstractVector, \
-            xnondynamic_mech::AbstractVector, xnn, xnn_constant, \
+            xnondynamic_mech::AbstractVector, x_ml_models, x_ml_models_constant, \
             nominal_values::Vector{Float64}, obsid::Symbol, map::ObservableNoiseMap, \
             __sys_observables, nn)::Real\n"
 

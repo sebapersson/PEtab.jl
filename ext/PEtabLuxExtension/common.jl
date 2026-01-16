@@ -23,12 +23,12 @@ end
 
 function PEtab._get_ml_model_ps(ml_models_in_ode::Dict)::Dict{Symbol, NamedTuple}
     rng = Random.default_rng()
-    pnns = Dict()
+    x_mls = Dict()
     for (ml_id, ml_model) in ml_models_in_ode
-        _pnn, _ = Lux.setup(rng, ml_model.model)
-        pnns[ml_id] = _pnn
+        _x_ml, _ = Lux.setup(rng, ml_model.model)
+        x_mls[ml_id] = _x_ml
     end
-    return pnns
+    return x_mls
 end
 
 function PEtab._get_n_ml_parameters(ml_model::PEtab.MLModel)

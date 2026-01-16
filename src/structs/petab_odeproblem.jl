@@ -144,14 +144,11 @@ struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
     odesols::T4
     pode::T5
     u0ode::T6
-    xdynamic_input_order::Vector{Int64}
-    xdynamic_output_order::Vector{Int64}
-    nxdynamic::Vector{Int64}
-    xnn::T7
-    xnn_dict::Dict{Symbol, ComponentArray}
-    xnn_constant::Dict{Symbol, ComponentArray}
+    x_ml_models_cache::T7
+    x_ml_models::Dict{Symbol, ComponentArray}
+    x_ml_models_constant::Dict{Symbol, ComponentArray}
     xdynamic::T2
-    grad_nn_pre_simulate::Vector{Float64}
+    grad_ml_pre_simulate_outputs::Vector{Float64}
 end
 
 struct PEtabMeasurements{T <: Vector{<:Union{<:String, <:AbstractFloat}}}
