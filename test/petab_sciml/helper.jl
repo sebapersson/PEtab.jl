@@ -42,12 +42,12 @@ function test_hybrid(test_case, petab_prob::PEtabODEProblem)
         @test grad_petab[id] ≈ gradmech_ref[iref, :value] atol=tol_grad
     end
     # Neural-net parameters
-    for (ml_model_id, mm_model) in petab_prob.model_info.model.ml_models
-        !(ml_model_id in petab_prob.model_info.xindices.xids[:ml_est]) && continue
-        grad_test = grad_petab[ml_model_id]
-        path_ref = joinpath(dirtest, yamlfile["grad_files"][string(ml_model_id)])
+    for (ml_id, mm_model) in petab_prob.model_info.model.ml_models
+        !(ml_id in petab_prob.model_info.xindices.xids[:ml_est]) && continue
+        grad_test = grad_petab[ml_id]
+        path_ref = joinpath(dirtest, yamlfile["grad_files"][string(ml_id)])
         grad_ref = deepcopy(grad_test)
-        PEtab.set_ml_model_ps!(grad_ref, path_ref, mm_model.model, ml_model_id)
+        PEtab.set_ml_model_ps!(grad_ref, path_ref, mm_model.model, ml_id)
         @test all(.≈(grad_test, grad_ref; atol=tol_grad))
     end
     return nothing
@@ -60,13 +60,13 @@ function test_init(test_case, model::PEtabModel)::Nothing
 
     dirtest = joinpath(@__DIR__, "test_cases", "initialization", test_case)
     yamlfile = YAML.load_file(joinpath(dirtest, "solutions.yaml"))
-    for (ml_model_id, ml_model) in petab_prob.model_info.model.ml_models
-        ml_model_id = :net1
-        !haskey(yamlfile["parameter_files"], string(ml_model_id)) && continue
-        path_ref = joinpath(dirtest, yamlfile["parameter_files"][string(ml_model_id)])
-        ps_ref = deepcopy(x[ml_model_id])
-        PEtab.set_ml_model_ps!(ps_ref, path_ref, ml_model.model, ml_model_id)
-        @test ps_ref == x[ml_model_id]
+    for (ml_id, ml_model) in petab_prob.model_info.model.ml_models
+        ml_id = :net1
+        !haskey(yamlfile["parameter_files"], string(ml_id)) && continue
+        path_ref = joinpath(dirtest, yamlfile["parameter_files"][string(ml_id)])
+        ps_ref = deepcopy(x[ml_id])
+        PEtab.set_ml_model_ps!(ps_ref, path_ref, ml_model.model, ml_id)
+        @test ps_ref == x[ml_id]
     end
     return nothing
 end
