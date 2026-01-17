@@ -75,7 +75,7 @@ function hess_block!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Function
         # Even if xdynamic is empty the ODE must be solved to get the Hessian of the
         # parameters not appearing in the ODE
         if !isempty(xdynamic_grad)
-            ix = xindices.indices_dynamic[:est_to_dynamic]
+            ix = xindices.indices_est[:est_to_dynamic]
             xdynamic = get_tmp(probinfo.cache.xdynamic, x)
             @views ForwardDiff.hessian!(hess[ix, ix], _nllh_solveode, xdynamic, cfg)
         else
@@ -160,7 +160,7 @@ function hess_GN!(out::Matrix{T}, x::Vector{T}, _residuals_not_solveode::Functio
     fill!(out, 0.0)
     fill!(jacobian_gn, 0.0)
     split_x!(x, xindices, cache; xdynamic_full = true)
-    _jac = @view jacobian_gn[xindices.indices_dynamic[:est_to_dynamic], :]
+    _jac = @view jacobian_gn[xindices.indices_est[:est_to_dynamic], :]
     _jac_residuals_xdynamic!(_jac, _solve_conditions!, probinfo, model_info, cfg;
                              cids = cids)
     # Happens when at least one forward pass fails
@@ -180,6 +180,7 @@ function hess_GN!(out::Matrix{T}, x::Vector{T}, _residuals_not_solveode::Functio
     else
         out .= jacobian_gn
     end
+
     # Reset such that neural-nets pre ODE no longer have status of having been evaluated
     reset_ml_pre_simulate!(probinfo)
     return nothing

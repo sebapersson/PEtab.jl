@@ -15,7 +15,7 @@ Import a PEtab problem in the standard (YAML + tables) format from `path_yaml` a
 function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
                     verbose::Bool = false, ifelse_to_callback::Bool = true,
                     write_to_file::Bool = false,
-                    ml_models::MLModels = nothing)::PEtabModel
+                    ml_models::Union{Nothing, MLModels} = nothing)::PEtabModel
     petab_version = _get_version(path_yaml)
 
     if petab_version == "1.0.0"
