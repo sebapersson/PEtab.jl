@@ -114,8 +114,12 @@ be set up as:
 ```@example 1
 using Optim
 x0 = collect(get_x(petab_prob))
-df  = TwiceDifferentiable(petab_prob.nllh, petab_prob.grad!, petab_prob.hess!, x0)
-dfc = TwiceDifferentiableConstraints(collect(lb), collect(ub))
+df  = TwiceDifferentiable(
+    petab_prob.nllh, petab_prob.grad!, petab_prob.hess!, x0
+)
+dfc = TwiceDifferentiableConstraints(
+    collect(lb), collect(ub)
+)
 nothing # hide
 ```
 

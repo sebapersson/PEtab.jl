@@ -82,8 +82,10 @@ A `PEtabModel` accounting for condition specific parameters can then be created 
 the conditions via the `simulation_conditions` keyword:
 
 ```@example 1; ansicolor=false
-model = PEtabModel(rn, observables, measurements, pest;
-    simulation_conditions = simulation_conditions)
+model = PEtabModel(
+    rn, observables, measurements, pest;
+    simulation_conditions = simulation_conditions
+)
 petab_prob = PEtabODEProblem(model)
 nothing # hide
 ```

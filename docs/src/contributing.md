@@ -59,12 +59,10 @@ Before submitting a PR:
     ] test
    ```
 
-5. Format code with [Runic.jl](https://github.com/fredrikekre/Runic.jl).
-6. Submit a pull request and reference the related issue (if applicable).
+5. Submit a pull request and reference the related issue (if applicable).
 
 ### Pull request checklist
 
-- [ ] Code follows the project style ([Runic.jl](https://github.com/fredrikekre/Runic.jl))
 - [ ] Tests added/updated as appropriate
 - [ ] Documentation updated as needed
 - [ ] Linked to an issue (if applicable)

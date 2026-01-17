@@ -103,8 +103,10 @@ Given a `Vector` of simulation conditions and `measurements` in the format above
 the `simulation_conditions` keyword:
 
 ```@example 1
-model = PEtabModel(rn, observables, measurements, pest;
-    simulation_conditions = simulation_conditions)
+model = PEtabModel(
+    rn, observables, measurements, pest;
+    simulation_conditions = simulation_conditions
+)
 petab_prob = PEtabODEProblem(model)
 describe(petab_prob)
 ```

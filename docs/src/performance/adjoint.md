@@ -17,7 +17,8 @@ as:
 ```@example 1
 using PEtab
 # path_yaml depends on where the problem is stored
-path_yaml = joinpath(@__DIR__, "..", "assets", "bachmann", "Bachmann_MSB2011.yaml")
+path_yaml = joinpath(@__DIR__, "bachmann", "Bachmann_MSB2011.yaml")
+path_yaml = joinpath(@__DIR__, "..", "assets", "bachmann", "Bachmann_MSB2011.yaml") # hide
 model = PEtabModel(path_yaml)
 nothing # hide
 ```
@@ -43,13 +44,15 @@ and `GaussAdjoint`:
 using SciMLSensitivity, Sundials
 solver = ODESolver(CVODE_BDF(); abstol_adj = 1e-3, reltol_adj = 1e-6)
 
-petab_prob1 = PEtabODEProblem(model;
+petab_prob1 = PEtabODEProblem(
+    model;
     gradient_method = :Adjoint,
     odesolver = solver,
     odesolver_gradient = solver,
     sensealg = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
 )
-petab_prob2 = PEtabODEProblem(model;
+petab_prob2 = PEtabODEProblem(
+    model;
     gradient_method = :Adjoint,
     odesolver = solver,
     odesolver_gradient = solver,

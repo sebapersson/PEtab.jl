@@ -44,13 +44,16 @@ configuration is:
 
 ```julia
 using Fides
-petab_prob = PEtabODEProblem(model;
+petab_prob = PEtabODEProblem(
+    model;
     gradient_method = :ForwardEquations,
     hessian_method = :GaussNewton,
     reuse_sensitivities = true,
 )
-res = calibrate(petab_prob, x0, Fides.CustomHessian();
-                options = FidesOptions(maxiter = 1000))
+res = calibrate(
+    petab_prob, x0, Fides.CustomHessian();
+    options = FidesOptions(maxiter = 1000)
+)
 ```
 
 Fides solver options are set with `FidesOptions` (see the Fides
@@ -73,8 +76,10 @@ page). For example, to run `Optim.LBFGS()` for 10_000 iterations:
 
 ```julia
 using Optim
-res = calibrate(petab_prob, x0, Optim.LBFGS();
-                options = Optim.Options(iterations = 10_000))
+res = calibrate(
+    petab_prob, x0, Optim.LBFGS();
+    options = Optim.Options(iterations = 10_000)
+)
 ```
 
 ## Ipopt
@@ -98,8 +103,10 @@ For example, to run Ipopt for 1000 iterations using the L-BFGS Hessian approxima
 
 ```julia
 using Ipopt
-res = calibrate(petab_prob, x0, IpoptOptimizer(true);
-                options = IpoptOptions(max_iter = 1000))
+res = calibrate(
+    petab_prob, x0, IpoptOptimizer(true);
+    options = IpoptOptions(max_iter = 1000)
+)
 ```
 
 For details and the full option list, see the Ipopt documentation and the original

@@ -137,8 +137,13 @@ Random.seed!(123) # hide
 lb, ub = [-1.0, -1.0], [1.0, 1.0]
 s_uniform = QuasiMonteCarlo.sample(100, lb, ub, Uniform())
 s_lhs     = QuasiMonteCarlo.sample(100, lb, ub, LatinHypercubeSample())
-p1 = plot(s_uniform[1, :], s_uniform[2, :]; title="Uniform sampling", seriestype=:scatter, label=false)
-p2 = plot(s_lhs[1, :], s_lhs[2, :]; title="Latin hypercube sampling", seriestype=:scatter, label=false)
+p1 = plot(
+    s_uniform[1, :], s_uniform[2, :]; title = "Uniform sampling",
+    seriestype = :scatter, label = false
+)
+p2 = plot(
+    s_lhs[1, :], s_lhs[2, :]; title = "Hypercube sampling",
+    seriestype=:scatter, label=false)
 plot(p1, p2)
 plot(p1, p2; size=(800, 400)) # hide
 ```
@@ -168,9 +173,10 @@ optionally saves results as runs finish and is **strongly recommended** to not l
 intermediate results. For example, to run 50 multi-starts with Optim.jl’s `IPNewton`:
 
 ```@example 1
-ms_res = calibrate_multistart(petab_prob, Optim.IPNewton(), 50;
-                              nprocs = 2,
-                              dirsave = "path_to_save_directory")
+ms_res = calibrate_multistart(
+  petab_prob, Optim.IPNewton(), 50; nprocs = 2,
+  dirsave = "path_to_save_directory"
+)
 ```
 
 Results are returned as a `PEtabMultistartResult`, which contains per-run statistics and the

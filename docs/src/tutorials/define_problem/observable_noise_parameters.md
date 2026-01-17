@@ -89,9 +89,10 @@ uses a time-point-specific noise parameter:
 ```@example 1
 @unpack S, E, P = rn
 @parameters observableParameter1 observableParameter2 noiseParameter1
-obs1 = PEtabObservable(:petab_obs1, observableParameter1 * P + observableParameter2, 1.0)
-obs2 = PEtabObservable(:petab_obs2, S + E, noiseParameter1)
-observables = [obs1, obs2]
+observables = [
+    PEtabObservable(:petab_obs1, observableParameter1 * P + observableParameter2, 1.0),
+    PEtabObservable(:petab_obs2, S + E, noiseParameter1)
+]
 nothing # hide
 ```
 
