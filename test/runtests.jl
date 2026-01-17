@@ -10,8 +10,12 @@ end
     include("analytic_solution.jl")
 end
 
-@safetestset "PEtab test suite" begin
-    include("petab_testsuite.jl")
+@safetestset "PEtab v1 test suite" begin
+    include("petab_v1_testsuite.jl")
+end
+
+@safetestset "PEtab v2 test suite" begin
+    include("petab_v2_testsuite.jl")
 end
 
 @safetestset "Define models in Julia" begin

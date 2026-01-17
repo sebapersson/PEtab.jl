@@ -186,7 +186,7 @@ online documentation.
 - `reltol_adj = reltol`: Relative tolerance for the adjoint solve (only relevant when
   `gradient_method = :Adjoint`).
 """
-struct ODESolver
+mutable struct ODESolver
     solver::SciMLAlgorithm
     solver_adj::SciMLAlgorithm
     abstol::Float64

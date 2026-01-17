@@ -2,8 +2,8 @@ using PEtab, YAML, FiniteDifferences, CSV, DataFrames, Test
 
 function test_case(case::String; test_grad::Bool=true)
     @info "Test case $case"
-    path_yaml = joinpath(@__DIR__, "petab_testsuite", case, "_$(case).yaml")
-    path_ref = joinpath(@__DIR__, "petab_testsuite", case, "_$(case)_solution.yaml")
+    path_yaml = joinpath(@__DIR__, "petab_v1_testsuite", case, "_$(case).yaml")
+    path_ref = joinpath(@__DIR__, "petab_v1_testsuite", case, "_$(case)_solution.yaml")
 
     model = PEtabModel(path_yaml, verbose=false, build_julia_files=true, write_to_file = false)
     prob = PEtabODEProblem(model; verbose=false,
