@@ -47,6 +47,10 @@ if !core_only
         include("boehm.jl")
     end
 
+    @safetestset "PEtab export" begin
+        include("export.jl")
+    end
+
     @safetestset "PEtab remake" begin
     include("remake.jl")
     end

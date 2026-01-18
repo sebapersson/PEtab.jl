@@ -35,7 +35,7 @@ measurements = DataFrame(pre_eq_id=["preeq_c0", "preeq_c0"],
 simulation_conditions = [PEtabCondition(:c0, :k1 => 0.8, :B => 1.0)
                          PEtabCondition(:preeq_c0, "k1" => "0.3", "B" => 0.0)]
 
-parameters = [PEtabParameter(:k2, value=0.6, scale=:lin)]
+parameters = PEtabParameter(:k2, value=0.6, scale=:lin)
 
 @unpack A = rn
 observables = PEtabObservable("obs_a", A, 0.5)
