@@ -16,7 +16,7 @@ PEtab.jl is a Julia package for creating parameter-estimation problems for fitti
 - Built on the SciML ecosystem, with access to performant stiff and non-stiff ODE
   solvers from [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl), and
   efficient gradients via forward-mode automatic differentiation (small models) and adjoint
-  sensitivities (large models).
+  sensitivity analysis (large models).
 - High performant, often faster than the state-of-the-art toolbox AMICI by ~2× for gradient
   and parameter-estimation workloads [persson2025petab](@cite).
 - High-level wrappers for parameter estimation via Optim.jl, Ipopt.jl, Fides.jl, and
@@ -33,8 +33,9 @@ PEtab.jl is a Julia package for creating parameter-estimation problems for fitti
 !!! tip "Latest news: PEtab.jl v4.0"
     PEtab.jl v4.0 is a breaking release adding support for the PEtab format v2 and
     introducing a revised Julia API for defining parameter estimation problems. Several new
-    features were also added; see
-    [HISTORY](https://github.com/sebapersson/PEtab.jl/blob/main/HISTORY.md) for details.
+    features were also added; see the
+    [HISTORY](https://github.com/sebapersson/PEtab.jl/blob/main/HISTORY.md) file for
+    details.
 
 ## Installation
 
