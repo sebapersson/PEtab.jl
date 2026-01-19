@@ -214,7 +214,9 @@ function _get_ml_pre_simulate_inputs(
         petab_parameters::PEtabParameters, petab_tables::PEtabTables, paths,
         ml_models::MLModels, sys::ModelSystem
     )
-    mappings_df, conditions_df, = _get_petab_tables(petab_tables, [:mapping, :conditions])
+    mappings_df, conditions_df, experiments_df = _get_petab_tables(
+        petab_tables, [:mapping, :conditions, :experiments]
+    )
 
     # Arrays used to track input mappings
     input_ids = _get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs)
@@ -244,12 +246,13 @@ function _get_ml_pre_simulate_inputs(
                 end
 
                 # hdf5 files are in row-major, requiring re-shaping
-                input_data = _get_input_file_values(input_argument[j], input_value, condition_id)
+                v2_condition_id = _get_petab_v2_condition_id(condition_id, experiments_df)
+                input_data = _get_input_file_values(input_id[1], input_value, v2_condition_id)
                 input_data = permutedims(input_data, reverse(1:ndims(input_data)))
                 input_data = _reshape_io_data(input_data)
                 input_data = reshape(input_data, (size(input_data)..., 1))
                 constant_inputs[i] = input_data
-                input_formulas[i][j] = "map.constant_inputs[$(i)][$(j)]"
+                input_formulas[i][j] = "map_pre_simulate.constant_inputs[$(i)]"
                 file_input[i] = true
                 break
             end
@@ -328,7 +331,7 @@ function _template_ml_input(input_formulas, file_input::Vector{Bool}, condition_
     out = "function _map_input_$(condition_id)_$(ml_id)(xdynamic, map_pre_simulate)\n"
     for i in eachindex(input_formulas)
         if file_input[i] == true
-            out *= "\tout_$(i) = map.constant_inputs[$i][1]"
+            out *= "\tout_$(i) = $(input_formulas[i][1])\n"
             continue
         end
 
@@ -351,4 +354,17 @@ function _template_ml_input(input_formulas, file_input::Vector{Bool}, condition_
     end
     out *= "end\n"
     return out
+end
+
+function _get_petab_v2_condition_id(condition_id::Symbol, experiments_df::DataFrame)::Symbol
+    isempty(experiments_df) && return condition_id
+
+    condition_id = string(condition_id)
+    for experiment_id in experiments_df.experimentId
+        if startswith(condition_id, "$(experiment_id)_")
+            condition_id_v2 = replace(condition_id, "$(experiment_id)_" => "")
+            return Symbol(condition_id_v2)
+        end
+    end
+    return Symbol(condition_id)
 end

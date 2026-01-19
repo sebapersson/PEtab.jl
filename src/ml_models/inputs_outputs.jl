@@ -10,9 +10,9 @@ function _get_ml_model_io_petab_ids(
         regex = "$(ml_id).$(type)[$(i)]" * r"$"
         matches = match.(regex, mappings_df.modelEntityId)
         if !all(isnothing.(matches))
-            @assert sum(.!isnothing(matches)) == 1 "Duplicates of \
-                $(ml_id).$(type)[$(i)] in mapping table"
-            push!(out, mappings_df.petabEntityId[findfirst(!isnothing(x), matches)])
+            @assert sum(.!isnothing(matches)) == 1 "Duplicates of $(ml_id).$(type)[$(i)] \
+                in mapping table"
+            push!(out, [mappings_df.petabEntityId[findfirst(!isnothing, matches)]])
             continue
         end
 
