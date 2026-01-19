@@ -17,6 +17,7 @@ v1, and introduces a major usability-focused API cleanup. Major changes:
   PythonCall, removing the need to manage a Python environment manually.
 - `remake` updated to support subsetting simulation conditions.
 - Updated how simulation conditions are selected in `get_` and `plot` functions.
+- Updated `plot`-recipes to support residuals of model fit.
 - Improved printing of PEtab structs; added `describe` for `PEtabODEProblem`.
 
 ### Defining a `PEtabModel`
@@ -161,6 +162,16 @@ using PyCall
 ENV["PYTHON"] = "path_to_python"
 import Pkg; Pkg.build("PyCall")
 petab_select(path_yaml, IPNewton(); nmultistarts=10)
+```
+
+### Plotting
+
+It is now possible to plot the residuals, and standardized (normalized by standard
+deviation) residuals:
+
+```julia
+plot(x, prob; plot_type = :residuals)
+plot(x, prob; plot_type = :standardized_residuals)
 ```
 
 ### PEtab format v2 support
