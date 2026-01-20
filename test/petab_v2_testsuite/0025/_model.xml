@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created by libAntimony version v3.1.1 with libSBML version 5.20.5. -->
+<sbml xmlns="http://www.sbml.org/sbml/level3/version2/core" level="3" version="2">
+  <model metaid="petab_test_0025" id="petab_test_0025">
+    <listOfParameters>
+      <parameter id="p_uniform" value="5" constant="true"/>
+      <parameter id="p_normal" value="5" constant="true"/>
+      <parameter id="p_log_normal" value="5" constant="true"/>
+      <parameter id="p_cauchy" value="5" constant="true"/>
+      <parameter id="p_chisquare" value="5" constant="true"/>
+      <parameter id="p_exponential" value="5" constant="true"/>
+      <parameter id="p_gamma" value="5" constant="true"/>
+      <parameter id="p_laplace" value="5" constant="true"/>
+      <parameter id="p_log_laplace" value="5" constant="true"/>
+      <parameter id="p_log_uniform" value="5" constant="true"/>
+      <parameter id="p_rayleigh" value="5" constant="true"/>
+    </listOfParameters>
+  </model>
+</sbml>

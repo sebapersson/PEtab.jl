@@ -1,0 +1,6 @@
+conditionId	targetId	targetValue
+preeq_c0	k1	0.3
+preeq_c0	B	2.0
+preeq_c0	A	0.0
+c0	k1	0.8
+c0	A	1.0

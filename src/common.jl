@@ -93,35 +93,23 @@ function transform_x(x::T, scale::Symbol; to_xscale::Bool = false)::T where {T <
     end
 end
 
-function transform_observable(val::T, transform::Symbol)::T where {T <: Real}
-    if transform == :lin
-        return val
-    elseif transform == :log10
-        return val > 0 ? log10(val) : Inf
-    elseif transform == :log
-        return val > 0 ? log(val) : Inf
-    elseif transform == :log2
-        return val > 0 ? log2(val) : Inf
-    end
-end
-
 function _sd(u::AbstractVector, t::Float64, p::AbstractVector, xnoise::T, xnondynamic::T,
-             petab_sd::Function, mapxnoise::ObservableNoiseMap, observable_id::Symbol,
+             model::PEtabModel, xnoise_maps::ObservableNoiseMap, observable_id::Symbol,
              nominal_values::Vector{Float64})::Real where {T <: AbstractVector}
-    if mapxnoise.single_constant == true
-        σ = mapxnoise.constant_values[1]
+    if xnoise_maps.single_constant == true
+        σ = xnoise_maps.constant_values[1]
     else
-        σ = petab_sd(u, t, p, xnoise, xnondynamic, nominal_values, observable_id, mapxnoise)
+        σ = model.sd(u, t, p, xnoise, xnondynamic, nominal_values, observable_id, xnoise_maps, model.sys_observables)
     end
     return σ
 end
 
 function _h(u::AbstractVector, t::Float64, p::AbstractVector, xobservable::T,
-            xnondynamic::T, petab_h::Function, mapxobservable::ObservableNoiseMap,
+            xnondynamic::T, model::PEtabModel, xobservable_maps::ObservableNoiseMap,
             observable_id::Symbol,
             nominal_values::Vector{Float64})::Real where {T <: AbstractVector}
-    return petab_h(u, t, p, xobservable, xnondynamic, nominal_values, observable_id,
-                   mapxobservable)
+    return model.h(u, t, p, xobservable, xnondynamic, nominal_values, observable_id,
+                   xobservable_maps, model.sys_observables)
 end
 
 # Function to extract observable or noise parameters when computing h or σ
@@ -160,14 +148,31 @@ function is_number(x::Symbol)::Bool
     is_number(x |> string)
 end
 
-function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices;
-                              full_x::Bool = false)::Vector{Integer}
-    xmap_simid = xindices.maps_conidition_id[simid]
-    if full_x == false
-        ixdynamic = vcat(xindices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic)
-    else
-        ixdynamic = vcat(xindices.map_odeproblem.dynamic_to_sys, xmap_simid.ix_dynamic,
-                         xindices.xindices[:not_system])
+function _check_target_id(target_id, i::Integer, condition_id)::Nothing
+    if target_id isa UserFormula
+        return nothing
     end
-    return unique(ixdynamic)
+
+    _start = !isnothing(condition_id) ? "For condition $(condition_id)" : "For PEtabEvent"
+    throw(PEtabFormatError("$(_start), target id for assignment \
+        $(i) must be a `Num`, `Symbol` or `String`; got $(typeof(target_id)) with \
+        value $(target_id)."))
+end
+
+function _check_target_value(target_value, i::Integer, condition_id)
+    if target_value isa Union{UserFormula, Real}
+        return nothing
+    end
+
+    _start = !isnothing(condition_id) ? "For condition $(condition_id)" : "For PEtabEvent"
+    throw(PEtabFormatError("$(_start), target value for assignment  $(i) must be a \
+        `String` `Symbol`, a `Real`, or a symbolic expression (`Num`), e.g., \
+        \"A + 3\"; got $(typeof(target_value)) with value $(target_value)."))
+end
+
+function _get_experiment_id(simulation_id::Union{String, Symbol}, ::Nothing)::Symbol
+    return Symbol(simulation_id)
+end
+function _get_experiment_id(simulation_id::Union{String, Symbol}, pre_equilibration_id::Union{String, Symbol})::Symbol
+    return Symbol("$(pre_equilibration_id)$(simulation_id)")
 end

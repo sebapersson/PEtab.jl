@@ -1,0 +1,14 @@
+parameterId	lowerBound	upperBound	nominalValue	estimate	priorDistribution	priorParameters
+p_uniform	0.0	10.0	5.0	true	uniform	2.0;8.0
+p_normal	0.0	10.0	5.0	true	normal	4.0;2.0
+p_log_normal	0.0	10.0	5.0	true	log-normal	5.0;2.0
+p_cauchy	0.0	10.0	5.0	true	cauchy	3.0;5.0
+p_chisquare	0.0	10.0	5.0	true	chisquare	4.0
+p_exponential	0.0	10.0	5.0	true	exponential	3.0
+p_gamma	0.0	10.0	5.0	true	gamma	3.0;5.0
+p_laplace	0.0	10.0	5.0	true	laplace	3.0;5.0
+p_log_laplace	0.0	10.0	5.0	true	log-laplace	3.0;5.0
+p_log_uniform	0.0	10.0	5.0	true	log-uniform	3.0;5.0
+p_rayleigh	0.0	10.0	5.0	true	rayleigh	3.0
+p1	0.0	2.0	1.0	true		
+p_fixed			1.0	false		

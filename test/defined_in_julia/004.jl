@@ -10,7 +10,7 @@ end
 
 t = default_t()
 D = default_time_deriv()
-@mtkmodel SYS begin
+@mtkmodel SYS4 begin
     @parameters begin
         a0
         b0
@@ -26,7 +26,7 @@ D = default_time_deriv()
         D(B) ~ k1*A - k2*B
     end
 end
-@mtkbuild sys = SYS()
+@mtkbuild sys = SYS4()
 
 # Measurement data
 measurements = DataFrame(simulation_id=["c0", "c0"],
@@ -36,7 +36,7 @@ measurements = DataFrame(simulation_id=["c0", "c0"],
                          observable_parameters=["0.5;2", "0.5;2"])
 
 # Single experimental condition
-simulation_conditions = Dict("c0" => Dict())
+simulation_conditions = [PEtabCondition(:c0)]
 
 # PEtab-parameter to "estimate"
 parameters = [PEtabParameter(:a0, value=1.0, scale=:lin),
@@ -49,7 +49,7 @@ parameters = [PEtabParameter(:a0, value=1.0, scale=:lin),
 # Observable equation
 @unpack A = rn
 @parameters scaling_A offset_A
-observables = Dict("obs_a" => PEtabObservable(scaling_A * A + offset_A, 1.0))
+observables = PEtabObservable("obs_a", scaling_A * A + offset_A, 1.0)
 
 # Create a PEtabODEProblem ReactionNetwork
 model_rn = PEtabModel(rn, observables, measurements, parameters;
@@ -61,7 +61,7 @@ model_sys = PEtabModel(sys, observables, measurements, parameters,
 petab_problem_sys = PEtabODEProblem(model_sys, verbose=false)
 
 # Compute negative log-likelihood
-nll_rn = petab_problem_rn.nllh(petab_problem_rn.xnominal_transformed)
-nll_sys = petab_problem_sys.nllh(petab_problem_sys.xnominal_transformed)
+nll_rn = petab_problem_rn.nllh(get_x(petab_problem_rn))
+nll_sys = petab_problem_sys.nllh(get_x(petab_problem_sys))
 @test nll_rn ≈ 5.69297960953693 atol=1e-3
 @test nll_sys ≈ 5.69297960953693 atol=1e-3

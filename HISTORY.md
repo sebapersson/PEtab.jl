@@ -1,5 +1,191 @@
 # Breaking updates and feature summaries across releases
 
+## PEtab.jl 4.0.0
+
+PEtab.jl v4 is a breaking release driven by the PEtab standard format updating to format
+v2. This release adds support for PEtab v2 while maintaining backward compatibility with
+v1, and introduces a major usability-focused API cleanup. Major changes:
+
+- Documentation overhaul (including migration to DocumenterVitepress).
+- Internal refactor to improve maintainability; code relying on PEtab.jl internals
+  may break.
+- Unified Julia API for defining `PEtabModel`: `PEtabObservable`, `PEtabParameter`,
+  `PEtabCondition` (simulation conditions), and `PEtabEvent` now follow consistent
+  construction patterns.
+- Removed the PyCall extension. Python-dependent functionality (PEtabSelect and Fides
+  optimizers) now uses Julia wrapper packages (`PEtabSelect.jl`, `Fides.jl`) via
+  PythonCall, removing the need to manage a Python environment manually.
+- `remake` updated to support subsetting simulation conditions.
+- Updated how simulation conditions are selected in `get_` and `plot` functions.
+- Updated `plot`-recipes to support residuals of model fit.
+- Improved printing of PEtab structs; added `describe` for `PEtabODEProblem`.
+
+### Defining a `PEtabModel`
+
+The API for specifying observables, parameters, conditions, and events has been unified.
+Previously the following syntax was used to provide them to a `PEtabModel`:
+
+- observables: `Dict{String,PEtabObservable}`
+- parameters: `Vector{PEtabParameter}`
+- conditions: `Dict{String,Dict}`
+- events: `Vector{PEtabEvent}`
+
+All of these are now provided as `Vector`s of the corresponding structs:
+`Vector{PEtabObservable}`, `Vector{PEtabParameter}`, `Vector{PEtabCondition}`, and
+`Vector{PEtabEvent}`. Constructors also follow a unified pattern,
+`PEtab...(id, formulas...)`.
+
+#### Observables
+
+Observables are now defined as:
+
+```julia
+PEtabObservable(observable_id, observable_formula, noise_formula) # new
+PEtabObservable(observable_formula, noise_formula)                # old
+```
+
+`PEtabObservable` no longer supports the `transformation` keyword. Instead, `distribution`
+specifies the measurement noise model. For example, log-normal noise is defined as:
+
+```julia
+using Distributions
+PEtabObservable(...; distribution = LogNormal) # new
+PEtabObservable(...; transform = :log)         # old
+```
+
+Additional distributions are also supported (including `Laplace` and `LogLaplace`). Lastly,
+observable formulas now support taking the ID to an observable defined in the model-system
+(`ODESystem` or `ReactionSystem`) as input (see starting tutorial).
+
+#### Parameters
+
+Parameters are still defined with `PEtabParameter`. The keyword `prior_on_linear_scale` has
+been removed: priors are now always interpreted on the linear scale. For example, if `c1`
+is estimated on `log10` scale, the prior is placed on `c1` (not on `log(c1)`).
+
+#### Simulation conditions
+
+Simulation conditions are now defined with `PEtabCondition`:
+
+```julia
+cond1 = PEtabCondition(:cond1, target_id1 => target_value1, ...) # new
+cond1 = Dict("cond1" => Dict(:target_id1 => target_value1, ...)) # old
+```
+
+Conditions are passed to `PEtabModel` as a `Vector{PEtabCondition}`. A non-zero simulation
+start time can be set via `t0`, e.g. `PEtabCondition(...; t0=1.0)`. Formulas are also now
+allowed in condition assignments:
+
+```julia
+@parameters k1 k2
+cond1 = PEtabCondition(:cond1, :c1 => k1 + sin(k2))
+```
+
+#### Events
+
+Events are defined as before, but the assignment syntax is now consistent with
+`PEtabCondition`:
+
+```julia
+PEtabEvent(condition, target_id => target_value) # new
+PEtabEvent(condition, target_value, target_id)   # old
+```
+
+Events can now be restricted to a subset of simulation conditions via `conditions`, e.g.
+`PEtabEvent(...; conditions=[:cond1, :cond2])`.
+
+### Selecting conditions in `get_` and `plot`
+
+Condition selection keywords were updated to avoid ambiguous argument combinations. Without
+pre-equilibration:
+
+```julia
+get_u0(x, prob; condition = :cond1) # new
+get_u0(x, prob; cid = :cond1)       # old
+```
+
+With pre-equilibration:
+
+```julia
+get_u0(x, prob; condition = :pre_eq1 => :cond1) # new
+get_u0(x, prob; cid = :cond1, pre_eq_id = :pre_eq1) # old
+```
+
+Plotting uses the same updated keyword:
+
+```julia
+plot(res, prob; condition = :cond1) # new
+plot(res, prob; cid = :cond1)       # old
+```
+
+### `remake`
+
+`remake` now supports subsetting both parameters and simulation conditions. Fixing
+parameter values:
+
+```julia
+remake(prob; parameters = [:k1 => 3.0, :k2 => 4.0]) # new
+remake(prob; xchange = Dict(:k1 => 1.0))            # old
+```
+
+Subsetting simulation conditions:
+
+```julia
+remake(prob; conditions = [:cond1, :cond2])  # without pre-equilibration
+remake(prob; conditions = [:pre_eq1 => :cond1, :pre_eq2 => :cond2]) # with pre-equilibration
+```
+
+### Parameter estimation (Fides, PEtabSelect)
+
+The trust-region Fides optimizers is now provided via
+[Fides.jl](https://github.com/fides-dev/Fides.jl), removing the PyCall dependency:
+
+```julia
+# new
+using Fides
+res = calibrate(petab_prob, x0, Fides.BFGS())
+# old
+using PyCall
+ENV["PYTHON"] = "path_to_python"
+import Pkg; Pkg.build("PyCall")
+res = calibrate(petab_prob, x0, Fides(:BFGS))
+```
+
+Similarly, PEtab-select is now accessed through `PEtabSelect.jl`:
+
+```julia
+# new
+using PEtabSelect
+petab_select(path_yaml, IPNewton(); nmultistarts=10)
+# old
+using PyCall
+ENV["PYTHON"] = "path_to_python"
+import Pkg; Pkg.build("PyCall")
+petab_select(path_yaml, IPNewton(); nmultistarts=10)
+```
+
+### Plotting
+
+It is now possible to plot the residuals, and standardized (normalized by standard
+deviation) residuals:
+
+```julia
+plot(x, prob; plot_type = :residuals)
+plot(x, prob; plot_type = :standardized_residuals)
+```
+
+### PEtab format v2 support
+
+PEtab.jl v4 adds PEtab v2 support while maintaining compatibility with v1. In PEtab v2,
+simulations are organized into experiments, not conditions. For PEtab v2 problems, `get_`
+and `plot` use the `experiment` keyword instead of `condition`, e.g.
+`get_u0(...; experiment=:e1)` and `plot(x, prob; experiment=:e1)`.
+
+### Printing and `describe`
+
+Printing for PEtab structs (e.g. `PEtabODEProblem`, `PEtabModel`) was updated. The
+`describe` function was added to summarize key statistics for a `PEtabODEProblem`.
+
 ## PEtab 3.11.0
 
 Update to ModelingToolkit.jl version 9.84.

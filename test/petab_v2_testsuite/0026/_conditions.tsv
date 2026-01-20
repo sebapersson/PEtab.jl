@@ -1,0 +1,3 @@
+conditionId	targetId	targetValue
+c0	A	initial_A1 + initial_A2
+c0	B	initial_B1/initial_B2

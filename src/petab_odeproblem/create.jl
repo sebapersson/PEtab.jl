@@ -136,10 +136,10 @@ function _get_grad(method, probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
     end
 
     _grad! = let _grad_nllh! = _grad_nllh!, grad_prior = grad_prior
-        (g, x; prior = true, isremade = false) -> begin
+        (g, x; prior = true) -> begin
             _x = x |> collect
             _g = similar(_x)
-            _grad_nllh!(_g, _x; isremade = isremade)
+            _grad_nllh!(_g, _x)
             if prior
                 # nllh -> negative prior
                 _g .+= grad_prior(_x) .* -1
@@ -149,9 +149,9 @@ function _get_grad(method, probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
         end
     end
     _grad = let _grad! = _grad!
-        (x; prior = true, isremade = false) -> begin
+        (x; prior = true) -> begin
             gradient = similar(x)
-            _grad!(gradient, x; prior = prior, isremade = isremade)
+            _grad!(gradient, x; prior = prior)
             return gradient
         end
     end
@@ -176,11 +176,11 @@ function _get_hess(probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
     end
 
     _hess! = let _hess_nllh! = _hess_nllh!, hess_prior = hess_prior
-        (H, x; prior = true, isremade = false) -> begin
+        (H, x; prior = true) -> begin
             _x = x |> collect
             _H = H |> collect
             if hessian_method == :GassNewton
-                _hess_nllh!(_H, _x; isremade = isremade)
+                _hess_nllh!(_H, _x)
             else
                 _hess_nllh!(_H, _x)
             end

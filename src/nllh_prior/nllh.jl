@@ -92,12 +92,17 @@ function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic::T,
         return Inf
     end
 
-    @unpack time, measurement_transforms, observable_id, measurement_transformed = petab_measurements
+    @unpack time, measurements, measurements_transformed, observable_id, noise_distributions = petab_measurements
     @unpack imeasurements, imeasurements_t_sol = simulation_info
     nominal_values = petab_parameters.nominal_value
     nllh = 0.0
     for imeasurement in imeasurements[cid]
-        t, obsid = time[imeasurement], observable_id[imeasurement]
+        t = time[imeasurement]
+        obsid = observable_id[imeasurement]
+        noise_distribution = noise_distributions[imeasurement]
+
+        # TODO: This must enter inside the _h and _sd function. Then I can meta-program
+        # TODO: retreival of the observable itself.
         # grad_forward_eqs and grad_forward_AD are only true when we compute the gradient
         # via the nllh_not_solve (gradient for not ODE-system parameters), in this setting
         # only the ODESolution is required as Float, hence any dual must be converted
@@ -118,37 +123,36 @@ function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic::T,
         end
 
         # Model observable and noise
-        mapxnoise = xindices.mapxnoise[imeasurement]
-        mapxobservable = xindices.mapxobservable[imeasurement]
-        h = _h(u, t, p, xobservable, xnondynamic, model.h, mapxobservable, obsid,
+        xnoise_maps = xindices.xnoise_maps[imeasurement]
+        xobservable_maps = xindices.xobservable_maps[imeasurement]
+        h = _h(u, t, p, xobservable, xnondynamic, model, xobservable_maps, obsid,
                nominal_values)
-        h_transformed = transform_observable(h, measurement_transforms[imeasurement])
-        σ = _sd(u, t, p, xnoise, xnondynamic, model.sd, mapxnoise, obsid,
-                nominal_values)
+        h_transformed = _transform_h(h, noise_distribution)
+        σ = _sd(u, t, p, xnoise, xnondynamic, model, xnoise_maps, obsid, nominal_values)
 
-        y_transformed = measurement_transformed[imeasurement]
-        residual = (h_transformed - y_transformed) / σ
+        residual = (h_transformed - measurements_transformed[imeasurement]) / σ
         update_petab_measurements!(petab_measurements, h, h_transformed, σ, residual,
                                    imeasurement)
 
         # By default a positive ODE solution is not enforced. Therefore it is possible
         # to get negative numbers in h_transformed which would throw an error
         if isinf(h_transformed)
-            @warn "Transformed observable is non-finite for measurement $imeasurement"
+            @warn "Transformed observable is non-finite for measurement \
+                $imeasurement"  maxlog=20
             return Inf
         end
         if σ ≤ 0.0
-            @warn "Measurement noise σ ≤ 0 detected. σ must be > 0 for a valid likelihood, \
+            @warn "Computed noise σ ≤ 0 detected. σ must be > 0 for a valid likelihood, \
                  so Inf will be returned. It is recommended to adjust the noise formula \
-                 to ensure σ > 0. This warning is likely due to ODE-solver round-off error \
-                 and, if it occurs only rarely, can usually be safely ignored." maxlog=20
+                 in the PEtab observable to ensure σ > 0. This warning is likely due to \
+                 ODE-solver round-off error and, if it occurs only rarely, can usually be \
+                 safely ignored." maxlog=20
             return Inf
         end
 
         # For residuals == true we only care about residuals
         if residuals == false
-            nllh += _nllh_obs(residual, σ, y_transformed,
-                              measurement_transforms[imeasurement])
+            nllh += _nllh_obs(h, σ, measurements[imeasurement], noise_distribution)
         else
             nllh += residual
         end
@@ -156,20 +160,10 @@ function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic::T,
     return nllh
 end
 
-function _nllh_obs(residual::T, σ::Real, y_transformed::Float64,
-                   transform::Symbol)::T where {T <: Real}
-    # Note: log(10)*log10(x) = log(x) and log(2)*log2(x) = log(x)
-    if transform == :lin
-        return log(σ) + 0.5 * log(2π) + 0.5 * residual^2
-    elseif transform === :log10
-        return log(σ) + 0.5 * log(2π) + log(log(10)) + log(10) * y_transformed +
-               0.5 * residual^2
-    elseif transform === :log2
-        return log(σ) + 0.5 * log(2π) + log(log(2)) + log(2) * y_transformed +
-               0.5 * residual^2
-    elseif transform === :log
-        return log(σ) + 0.5 * log(2π) + y_transformed + 0.5 * residual^2
-    end
+function _nllh_obs(h::Real, σ::Real, y::Float64, distribution::Symbol)::Real
+    @unpack dist, transform = NOISE_DISTRIBUTIONS[distribution]
+    _dist = dist(transform(h), σ)
+    return logpdf(_dist, y) .* -1
 end
 
 function update_petab_measurements!(petab_measurements::PEtabMeasurements, h::T, hT::T,
@@ -177,12 +171,11 @@ function update_petab_measurements!(petab_measurements::PEtabMeasurements, h::T,
                                     imeasurement::Integer)::Nothing where {T <:
                                                                            AbstractFloat}
     petab_measurements.simulated_values[imeasurement] = h
-    mT = petab_measurements.measurement_transformed[imeasurement]
+    mT = petab_measurements.measurements_transformed[imeasurement]
     petab_measurements.chi2_values[imeasurement] = (hT - mT)^2 / σ^2
     petab_measurements.residuals[imeasurement] = res
     return nothing
 end
-function update_petab_measurements!(petab_measurements::PEtabMeasurements, h, hT, σ,
-                                    residual, imeasurement)::Nothing
+function update_petab_measurements!(::PEtabMeasurements, ::Any, ::Any, ::Any, ::Any, ::Any)::Nothing
     return nothing
 end

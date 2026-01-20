@@ -42,7 +42,7 @@ function _grad_adjoint_xdynamic!(grad::Vector{<:AbstractFloat},
         return nothing
     end
 
-    # In case of pre-equilibration a VJP between λt0 and the sensitivites at steady state
+    # In case of pre-equilibration a VJP between λt0 and the sensitivities at steady state
     # must be computed.
     if simulation_info.has_pre_equilibration == true
         vjps_ss = _get_vjps_ss(probinfo, simulation_info, sensealg_ss, cids)
@@ -116,8 +116,8 @@ function VJP_ss(du::AbstractVector, _sol::ODESolution, solver::SciMLAlgorithm,
                     force_dtmin = force_dtmin, maxiters = maxiters, save_everystep = true,
                     save_start = true)
     integrand = AdjointSensitivityIntegrand(_sol, adj_sol, sensealg, nothing)
-    res, err = SciMLSensitivity.quadgk(integrand, _sol.prob.tspan[1], _sol.t[end],
-                                       atol = abstol, rtol = reltol)
+    res, _ = SciMLSensitivity.quadgk(integrand, _sol.prob.tspan[1], _sol.t[end],
+                                     atol = abstol, rtol = reltol)
     return res'
 end
 function VJP_ss(du::AbstractVector, _sol::ODESolution, solver::SciMLAlgorithm,
@@ -133,7 +133,7 @@ function VJP_ss(du::AbstractVector, _sol::ODESolution, solver::SciMLAlgorithm,
     adj_sol = solve(adj_prob, solver; abstol = abstol, reltol = reltol,
                     force_dtmin = force_dtmin, maxiters = maxiters,
                     save_everystep = true, save_start = true)
-    out = adj_sol[end][(n_model_states + 1):end]
+    out = adj_sol.u[end][(n_model_states + 1):end]
     return out
 end
 
@@ -152,7 +152,7 @@ function _grad_adjoint_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vecto
     cid = simulation_info.conditionids[:experiment][icid]
     simid = simulation_info.conditionids[:simulation][icid]
     sol = simulation_info.odesols_derivatives[cid]
-    callback = tracked_callbacks[cid]
+    callback = tracked_callbacks[simid]
 
     # Partial derivatives needed for computing the gradient (derived from the chain-rule)
     ∂G∂u!, ∂G∂p! = PEtab._get_∂G∂_!(probinfo, model_info, cid, xnoise, xobservable,
@@ -191,7 +191,7 @@ function _grad_adjoint_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vecto
         ∂G∂p .+= ∂G∂p_
     end
     # In case we do not simulate the ODE for a steady state first we can compute
-    # the initial sensitivites easily via automatic differantitatiom
+    # the initial sensitivities easily via automatic differantitatiom
     if simulation_info.has_pre_equilibration == false
         ForwardDiff.jacobian!(St0, model.u0!, sol.prob.u0, sol.prob.p)
         adjoint_grad .= dp .+ transpose(St0) * du
@@ -202,7 +202,7 @@ function _grad_adjoint_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vecto
 
     # Adjust if gradient is non-linear scale (e.g. log and log10).
     PEtab.grad_to_xscale!(grad, adjoint_grad, ∂G∂p, xdynamic, xindices, simid,
-                          adjoint = true)
+                          sensitivities_AD = false)
     return true
 end
 
@@ -330,7 +330,7 @@ function __adjoint_sensitivities!(_du::AbstractVector,
         end
     end
 
-    _du .= adj_sol[end]
+    _du .= adj_sol.u[end]
     _dp .= res'
     return true
 end
@@ -371,7 +371,7 @@ function __adjoint_sensitivities!(_du::AbstractVector,
                     callback = CallbackSet(cb, cb2), kwargs...)
     res = integrand_values.integrand
 
-    _du .= adj_sol[end]
+    _du .= adj_sol.u[end]
     _dp .= SciMLSensitivity.__maybe_adjoint(res)'
     return true
 end

@@ -1,0 +1,13 @@
+modelId	observableId	experimentId	time	measurement	observableParameters	noiseParameters
+	obs_C	experiment1	0.0	0.0		
+	obs_amount_S	experiment1	0.0	0.0		
+	obs_conc_S	experiment1	0.0	0.0		
+	obs_C	experiment1	5.0	5.0		
+	obs_amount_S	experiment1	5.0	5.0		
+	obs_conc_S	experiment1	5.0	5.0		
+	obs_C	experiment1	10.0	10.0		
+	obs_amount_S	experiment1	10.0	10.0		
+	obs_conc_S	experiment1	10.0	10.0		
+	obs_C	experiment1	15.0	15.0		
+	obs_amount_S	experiment1	15.0	15.0		
+	obs_conc_S	experiment1	15.0	15.0		

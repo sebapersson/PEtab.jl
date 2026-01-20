@@ -1,0 +1,5 @@
+observableId	observableName	observableFormula	noiseFormula	noiseDistribution	observablePlaceholders	noisePlaceholders
+obs_a		a	1.00000000000000	normal		
+obs_A		A	1.00000000000000	normal		
+obs_b		b	1.00000000000000	normal		
+obs_B		B	1.00000000000000	normal		

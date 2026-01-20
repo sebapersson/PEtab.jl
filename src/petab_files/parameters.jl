@@ -41,7 +41,14 @@ function PEtabParameters(parameters_df::DataFrame;
                            paramter_scales, estimate, nparameters_estimate)
 end
 
-function Priors(xindices::ParameterIndices, parameters_df::DataFrame)::Priors
+function Priors(xindices::ParameterIndices, model::PEtabModel)::Priors
+    if model.defined_in_julia == false
+        petab_version = _get_version(model.paths[:yaml])
+    else
+        petab_version = "1.0.0"
+    end
+    parameters_df = model.petab_tables[:parameters]
+
     # In case there are no model priors
     if !(:objectivePriorType in propertynames(parameters_df))
         return Priors()
@@ -53,46 +60,45 @@ function Priors(xindices::ParameterIndices, parameters_df::DataFrame)::Priors
     initialisation_dists = Dict{Symbol, Distribution{Univariate, Continuous}}()
 
     for id in xindices.xids[:estimate]
-        irow = findfirst(x -> x == string(id), string.(parameters_df[!, :parameterId]))
-        _prior = parameters_df[irow, :objectivePriorType]
-        if ismissing(_prior) || isempty(_prior)
+        row_idx = findfirst(x -> x == string(id), string.(parameters_df[!, :parameterId]))
+        prior_id = parameters_df[row_idx, :objectivePriorType]
+        if ismissing(prior_id) || isempty(prior_id)
             continue
         end
 
         # Prior provided via the Julia interface
-        if occursin("__Julia__", _prior)
-            on_parameter_scale[id] = !parameters_df[irow, :priorOnLinearScale]
-            priors[id] = _parse_julia_prior(_prior)
+        if occursin("__Julia__", prior_id)
+            on_parameter_scale[id] = false
+            priors[id] = _parse_julia_prior(prior_id)
 
-            # Prior via the PEtab tables
+        # Prior via the PEtab tables
         else
-            prior_parameters = split(parameters_df[irow, :objectivePriorParameters], ";")
+            if !haskey(PETAB_PRIORS, prior_id)
+                supported_priors = join(collect(keys(PETAB_PRIORS)), ", ")
+                throw(PEtabFileError("Unsupported prior $( prior_id ) for parameter $(id) in \
+                    the PEtab parameter table. Supported priors are: $(supported_priors). \
+                    See the PEtab standard documentation for details."))
+            end
+
+            prior_parameters = split(parameters_df[row_idx, :objectivePriorParameters], ";")
             prior_parameters = parse.(Float64, prior_parameters)
-            # Different PEtab priros
-            if _prior == "parameterScaleNormal"
-                on_parameter_scale[id] = true
-                μ, σ = prior_parameters
-                priors[id] = Normal(μ, σ)
-            elseif _prior == "parameterScaleLaplace"
-                on_parameter_scale[id] = true
-                μ, θ = prior_parameters
-                priors[id] = Laplace(μ, θ)
-            elseif _prior == "normal"
-                on_parameter_scale[id] = false
-                μ, σ = prior_parameters
-                priors[id] = Normal(μ, σ)
-            elseif _prior == "laplace"
-                on_parameter_scale[id] = false
-                μ, θ = prior_parameters
-                priors[id] = Laplace(μ, θ)
-            elseif _prior == "logNormal"
-                on_parameter_scale[id] = false
-                μ, σ = prior_parameters
-                priors[id] = LogNormal(μ, σ)
-            elseif _prior == "logLaplace"
-                throw(PEtabFileError("Julia does not yet support log-laplace distribution"))
-            else
-                throw(PEtabFileError("$(_prior) is not a valid PEtab prior"))
+            if length(prior_parameters) != PETAB_PRIORS[prior_id].n_parameters
+                nps = PETAB_PRIORS[prior_id].n_parameters
+                throw(PEtabFileError("Prior $( prior_id) for parameter $(id) expects \
+                    $(nps) parameter(s), but $(length(prior_parameters)) were provided in \
+                    the  PEtab parameter table. Provide the expected number of values \
+                    separated by ; in the parameter table."))
+            end
+
+            on_parameter_scale[id] = PETAB_PRIORS[prior_id].x_scale
+            priors[id] = PETAB_PRIORS[prior_id].dist(prior_parameters...)
+
+            # PEtab v2 priors are truncated by the parameters upper and lower bound
+            lb = parameters_df[row_idx, :lowerBound]
+            ub = parameters_df[row_idx, :upperBound]
+            prior_support = Distributions.support(priors[id])
+            if petab_version == "2.0.0" && (lb > prior_support.lb || ub < prior_support.ub)
+                priors[id] = truncated(priors[id], lb, ub)
             end
         end
 
@@ -119,8 +125,8 @@ function _add_initialisation_prior!(initialisation_dists::T, priors::T, id::Symb
         return nothing
     end
 
-    irow = findfirst(x -> x == string(id), string.(parameters_df[!, :parameterId]))
-    initialisation_prior = parameters_df[irow, :initializationPriorType]
+    row_idx = findfirst(x -> x == string(id), string.(parameters_df[!, :parameterId]))
+    initialisation_prior = parameters_df[row_idx, :initializationPriorType]
     if ismissing(initialisation_prior) || isempty(initialisation_prior)
         return nothing
     end
@@ -131,7 +137,7 @@ end
 function _parse_julia_prior(_prior::String)::Distribution{Univariate, Continuous}
     _prior = replace(_prior, "__Julia__" => "")
     # In expressions like Normal{Float64}(μ=0.3, σ=3.0) remove variables to obtain
-    # Normal{Float64}(0.3, 3.0)
+    # Normal{Float64}(0.3, 3.0). TODO: Update to support PEtab export
     _prior = replace(_prior, r"\b\w+\s*=\s*" => "")
     _prior = replace(_prior, "Truncated" => "truncated")
     _prior = replace(_prior, ";" => ",")

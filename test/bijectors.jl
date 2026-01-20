@@ -102,17 +102,17 @@ end
     test_custom_llh_and_gradient(x_nllh, x_inference, _inference_info)
 end
 
-# Test PEtabLogDensity computes everything correctly for non-uniform priors
+# Test PEtabLogDensity computes everything correctly for non-uniform priors on unbounded
+# domain without need for corrections
 @testset "PEtabLogDensity" begin
     rs = @reaction_network begin
         (k1, k2), X1 <--> X2
     end
     u0 = [:X1 => 1.0]
     @unpack X1 = rs
-    obs_X1 = PEtabObservable(X1, 0.5)
-    observables = Dict("obs_X1" => obs_X1)
-    par_k1 = PEtabParameter(:k1; scale = :lin, prior = Normal(1.0, 1.0), value = 1.1)
-    par_k2 = PEtabParameter(:k2; scale = :lin, prior = Normal(1.0, 1.0), value = 0.9)
+    observables = PEtabObservable(:obs_X1, X1, 0.5)
+    par_k1 = PEtabParameter(:k1; scale = :lin, prior = Normal(1.0, 1.0), value = 1.1, lb = -Inf, ub = Inf)
+    par_k2 = PEtabParameter(:k2; scale = :lin, prior = Normal(0.5, 3.0), value = 0.9, lb = -Inf, ub = Inf)
     params = [par_k1, par_k2]
     measurements = DataFrame(obs_id="obs_X1", time=[1.0, 2.0, 3.0], measurement=[1.1, 1.2, 1.3])
     model = PEtabModel(rs, observables, measurements, params; speciemap=u0)

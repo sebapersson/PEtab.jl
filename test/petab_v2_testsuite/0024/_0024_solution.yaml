@@ -1,0 +1,23 @@
+chi2: 0.0
+llh: -0.91893853320467
+log_prior:
+  p1: -0.69314718055995
+  p_cauchy: -2.15728237835358
+  p_chisquare: -2.23558885282238
+  p_exponential: -2.72895309496787
+  p_gamma: -2.17348344324312
+  p_laplace: -2.19557833470717
+  p_log_laplace: -3.35750526098019
+  p_log_normal: -2.23619159741645
+  p_log_uniform: -0.93771092034198
+  p_normal: -1.71269052620973
+  p_rayleigh: -1.9728021416671
+  p_uniform: -1.79175946922805
+simulation_files:
+- _simulations.tsv
+tol_chi2: 0.001
+tol_llh: 0.001
+tol_log_prior: 1.0e-14
+tol_simulations: 0.001
+tol_unnorm_log_posterior: 0.001
+unnorm_log_posterior: -25.111631733702236

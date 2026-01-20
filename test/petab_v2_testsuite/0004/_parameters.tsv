@@ -1,0 +1,7 @@
+parameterId	lowerBound	upperBound	nominalValue	estimate
+a0	0	10	1.0	true
+b0	0	10	0.0	true
+k1	0	10	0.8	true
+k2	0	10	0.6	true
+scaling_A	0	10	0.5	true
+offset_A	0	10	2.0	true

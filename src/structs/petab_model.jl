@@ -1,187 +1,283 @@
 """
-    PEtabParameter(x; kwargs...)
+    PEtabParameter(parameter_id; kwargs...)
 
-Parameter estimation information for parameter `x`.
+Parameter-estimation data for parameter `parameter_id` (bounds, scale, prior, and whether
+to estimate).
 
-All parameters to be estimated in a `PEtabODEProblem` must be declared as a
-`PEtabParameter`, and `x` must be the name of a parameter that appears in the model,
-observable formula, or noise formula.
+All parameters estimated in a `PEtabODEProblem` must be declared as `PEtabParameter`.
+`parameter_id` must correspond to a model parameter and/or a parameter appearing in an
+`observable_formula` or `noise_formula` of a `PEtabObservable`.
 
-## Keyword Arguments
+# Keyword Arguments
+* `scale::Symbol = :log10`: Scale the parameter is estimated on. One of `:log10` (default),
+    `:log2`, `:log`, or `:lin`. Estimating on a log scale often improves performance and is
+    recommended.
+- `lb`: Lower bound, specified on the **linear** scale; e.g. with `scale = :log10`, pass
+    `lb = 1e-3`, not `log10(1e-3)`. Defaults to `1e-3` without a `prior`, otherwise to the
+    lower bound of the prior support.
+- `ub`: Upper bound, same convention as `lb`. Defaults to `1e3` without a `prior`,
+    otherwise to the upper bound of the prior support.
+- `prior = nothing`: Optional prior distribution acting on the **linear** parameter scale
+    (i.e. even if `scale = :log10`, the prior is on `x`, not on `log10(x)`). If the prior’s
+    support extends beyond provided `lb/ub` bounds, it is truncated by `[lb, ub]`. Any
+    continuous univariate distribution from
+    [Distributions.jl](https://github.com/JuliaStats/Distributions.jl) is supported,
+    including truncated distributions.
+- `estimate::Bool = true`: Whether the parameter is estimated (default `true`) or treated
+    as a constant (`false`).
+- `value = nothing`: Value used when `estimate = false`, and the value returned by
+    `get_x`. Defaults to the midpoint of `[lb, ub]`.
 
-- `lb::Float64 = 1e-3`: The lower parameter bound for parameter estimation. Must 
-    be specified on the linear scale. For example, if `scale = :log10`, provide the 
-    bound as `1e-3` rather than `log10(1e-3)`.
-- `ub::Float64 = 1e3`: The upper parameter bound for parameter estimation. Must as for 
-    `lb` be provided on linear scale.
-- `scale::Symbol = :log10`: The scale on which to estimate the parameter. Allowed options
-    are `:log10` (default), `:log2` `:log`, and `:lin`. Estimating on the `log10`
-    scale typically improves performance and is recommended.
-- `prior = nothing`: An optional continuous univariate parameter prior distribution from
-    [Distributions.jl](https://github.com/JuliaStats/Distributions.jl). The prior 
-    overrides any parameter bounds.
-- `prior_on_linear_scale = true`: Whether the prior is on the linear scale (default) or on
-    the transformed scale. For example, if `scale = :log10` and
-    `prior_on_linear_scale = false`, the prior acts on the transformed value; `log10(x)`.
-- `estimate = true`: Whether the parameter should be estimated (default) or treated as a
-    constant.
-- `value = nothing`: Value to use if `estimate = false`, and value retreived by the `get_x`
-    function. Defaults to the midpoint between `lb` and `ub`.
+# Priors and Parameter Estimation
 
-## Description
-
-If a prior ``\\pi(x_i)`` is provided, the parameter estimation problem becomes a maximum a
-posteriori problem instead of a maximum likelihood problem. Practically, instead of
-minimizing the negative log-likelihood,``-\\ell(x)``, the negative posterior is minimized:
+If at least one parameter in a `PEtabODEProblem` has a `prior` specified, parameter
+estimation uses a maximum-a-posteriori (MAP) objective:
 
 ```math
-\\min_{\\mathbf{x}} -\\ell(\\mathbf{x}) - \\sum_{i} \\pi(x_i)
+\\min_{\\mathbf{x}} -\\ell(\\mathbf{x}) - \\sum_{i \\in \\mathcal{I}} \\log \\pi_i(x_i)
 ```
 
-For all parameters ``i`` with a prior.
+where ``\\mathcal{I}`` indexes parameters with an explicit prior density ``\\pi_i``.
+If no parameter has a prior, parameter estimation reduces to the maximum-likelihood (ML)
+objective ``-\\ell(\\mathbf{x})``.
 """
 struct PEtabParameter
-    parameter::Union{Num, Symbol}
+    parameter_id::String
     estimate::Bool
     value::Union{Nothing, Float64}
     lb::Union{Nothing, Float64}
     ub::Union{Nothing, Float64}
     prior::Union{Nothing, Distribution{Univariate, Continuous}}
-    prior_on_linear_scale::Bool
     scale::Symbol
     sample_prior::Bool
 end
-function PEtabParameter(id::Union{Num, Symbol}; estimate::Bool = true,
+function PEtabParameter(parameter_id::UserFormula; estimate::Bool = true,
                         value::Union{Nothing, Float64} = nothing, sample_prior::Bool = true,
-                        lb::Union{Nothing, Float64} = 1e-3,
-                        ub::Union{Nothing, Float64} = 1e3,
+                        lb::Union{Nothing, Real} = nothing, ub::Union{Nothing, Real} = nothing,
                         prior::Union{Nothing, Distribution{Univariate, Continuous}} = nothing,
-                        prior_on_linear_scale::Bool = true, scale::Symbol = :log10)
-    return PEtabParameter(id, estimate, value, lb, ub, prior, prior_on_linear_scale, scale,
-                          sample_prior)
+                        scale::Symbol = :log10)
+    if isnothing(prior)
+        lb = isnothing(lb) ? 1e-3 : lb
+        ub = isnothing(ub) ? 1e3 : ub
+    end
+
+    if !isnothing(prior)
+        prior_support = Distributions.support(prior)
+        lb = isnothing(lb) ? prior_support.lb : lb
+        ub = isnothing(ub) ? prior_support.ub : ub
+
+        if lb > prior_support.lb || ub < prior_support.ub
+            prior = truncated(prior, lb, ub)
+        end
+    end
+
+    if isnothing(value)
+        if any(isinf.(abs.([lb, ub])))
+            value = 1.0
+        else
+            value = (lb + ub) .* 0.5
+        end
+    end
+
+    return PEtabParameter(string(parameter_id), estimate, value, lb, ub, prior, scale, sample_prior)
 end
 
 """
-    PEtabObservable(obs_formula, noise_formula; kwargs...)
+    PEtabObservable(observable_id, observable_formula, noise_formula; distribution = Normal)
 
-Formulas defining the likelihood that links the model output to the measurement data.
+Observation model linking model output (`observable_formula`) to measurement data via a
+likelihood defined by `distribution` with noise/scale given by `noise_formula`.
 
-`obs_formula` describes how the model output relates to the measurement data, while
-`noise_formula` describes the standard deviation (measurement error) and can be an equation
-or a numerical value. Both the observable and noise formulas can be a valid Julia equation.
-Variables used in these formulas must be either model species, model parameters, or
-parameters defined as `PEtabParameter`. The formulas can also include time-point-specific
-noise and observable parameters; for more information, see the documentation.
+For examples, see the online package documentation.
 
-## Keyword Argument
+# Arguments
 
-- `transformation`: The transformation applied to the observable and its corresponding
-    measurements. Valid options are `:lin` (normal measurement noise), `:log`, `log2` or
-    `:log10` (log-normal measurement noise). See below for more details.
+- `observable_id::Union{String, Symbol}`: Observable identifier. Measurements
+    are linked to this observable via the column `obs_id` in the measurement table.
+- `observable_formula`: Observable expression. Two supported forms:
+    - `Model-observable`: A `Symbol` identifier matching an observable defined in a Catalyst
+      `ReactionSystem` `@observables` block, or a non-differential variable defined in a
+      ModelingToolkit `ODESystem` `@variables` block.
+    - `expression`: A `String`, `:Symbol`, `Real`, or a Symbolics expression (`Num`). Can
+      include  standard Julia functions (e.g. `exp`, `log`, `sin`, `cos`). Variables may
+      reference model species, model parameters, or `PEtabParameter`s. Can include
+      time-point-specific parameters (see documentation for examples).
+- `noise_formula`: Noise/scale expression (String or Symbolics equation), same rules as
+    `observable_formula`. May include time-point-specific parameters (see documentation).
 
-## Description
+# Keyword Arguments
 
-For a measurement `y`, an observable `h = obs_formula`, and a standard deviation
-`σ = noise_formula`, the `PEtabObservable` defines the likelihood that links the
-model output to the measurement data: ``\\pi(y \\mid h, \\sigma)``. For
-`transformation = :lin`, the measurement noise is assumed to be normally distributed, and
-the likelihood is given by:
+- `distribution`: Measurement noise distribution. Valid options are `Normal` (default),
+    `Laplace`, `LogNormal`, `Log2Normal`, `Log10Normal` and `LogLaplace`. See below for
+    mathematical definition.
+
+# Mathematical description
+
+For a measurement `m`, model output `y = observable_formula`, and a noise parameter
+`σ = noise_formula`, `PEtabObservable` defines the likelihood linking the model output to
+the measurement data: ``\\pi(m \\mid y, \\sigma)``.
+
+For `distribution = Normal`, the measurement is assumed to be normally distributed with
+``m \\sim \\mathcal{N}(y, \\sigma^2)``. The likelihood formula is:
 
 ```math
-\\pi(y|h, \\sigma) = \\frac{1}{\\sqrt{2\\pi \\sigma^2}}\\mathrm{exp}\\bigg( -\\frac{(y - h)^2}{2\\sigma^2} \\bigg)
+\\pi(m \\mid y, \\sigma) = \\frac{1}{\\sqrt{2\\pi \\sigma^2}}\\mathrm{exp}\\bigg( -\\frac{(m - y)^2}{2\\sigma^2} \\bigg)
 ```
 
-As a special case, if ``\\sigma = 1``, this likelihood reduces to the least-squares
-objective function. For `transformation = :log`, the measurement noise is assumed to be
-log-normally distributed, and the likelihood is given by:
+If ``\\sigma = 1``, this likelihood reduces to the least-squares objective function.
+
+For `distribution = Laplace`, the measurement is assumed to be Laplace distributed with
+``m \\sim \\mathcal{L}(y, \\sigma)``. The likelihood formula is:
+
 ```math
-\\pi(y|h, \\sigma) = \\frac{1}{\\sqrt{2\\pi \\sigma^2 y^2}}\\mathrm{exp}\\bigg( -\\frac{\\big(\\mathrm{log}(y) - \\mathrm{log}(h)\\big)^2}{2\\sigma^2} \\bigg)
+\\pi(m \\mid y, \\sigma) = \\frac{1}{2\\sigma}\\mathrm{exp}\\bigg( -\\frac{|m - y|}{\\sigma} \\bigg)
 ```
 
-For `transformation = :log10`, the measurement noise is assumed to be log10-normally
-distributed, and the likelihood is given by:
+For `distribution = LogNormal`, the log of the measurement is assumed to be Normal
+distributed with ``\\mathrm{log}(m) \\sim \\mathcal{N}(\\mathrm{log}(y), \\sigma^2)``
+(requires ``m > 0`` and ``y > 0``). The likelihood formula is:
+
 ```math
-\\pi(y|h, \\sigma) = \\frac{1}{\\sqrt{2\\pi \\sigma^2 y^2}\\mathrm{log}(10) }\\mathrm{exp}\\bigg( -\\frac{\\big(\\mathrm{log}_{10}(y) - \\mathrm{log}_{10}(h)\\big)^2}{2\\sigma^2} \\bigg)
+\\pi(m \\mid y, \\sigma) = \\frac{1}{\\sqrt{2\\pi \\sigma^2}\\, m}\\mathrm{exp}\\bigg( -\\frac{\\big(\\mathrm{log}(m) - \\mathrm{log}(y)\\big)^2}{2\\sigma^2} \\bigg)
 ```
 
-Lastly, for `transformation = :log2`, the measurement noise is assumed to be log2-normally
-distributed, and the likelihood is given by:
+For `distribution = Log2Normal|Log10Normal`, similar to the `LogNormal`, ``\\log_2(m)`` and
+``\\log_{10}(m)`` are assumed to be normally distributed.
+
+For `distribution = LogLaplace`, the log of the measurement is assumed to be Laplace
+distributed with ``\\mathrm{log}(m) \\sim \\mathcal{L}(\\mathrm{log}(y), \\sigma)``
+(requires ``m > 0`` and ``y > 0``). The likelihood formula is:
+
 ```math
-\\pi(y|h, \\sigma) = \\frac{1}{\\sqrt{2\\pi \\sigma^2 y^2}\\mathrm{log}(2) }\\mathrm{exp}\\bigg( -\\frac{\\big(\\mathrm{log}_{2}(y) - \\mathrm{log}_{2}(h)\\big)^2}{2\\sigma^2} \\bigg)
+\\pi(m \\mid y, \\sigma) = \\frac{1}{2\\sigma\\, m}\\mathrm{exp}\\bigg( -\\frac{\\big|\\mathrm{log}(m) - \\mathrm{log}(y)\\big|}{\\sigma} \\bigg)
 ```
 
-For numerical stabillity, PEtab.jl works with the log-likelihood in practice.
+For numerical stability, PEtab.jl works with the log-likelihood in practice.
 """
 struct PEtabObservable
-    obs::Any
-    transformation::Union{Nothing, Symbol}
-    noise_formula::Any
+    observable_id::String
+    observable_formula::String
+    noise_formula::String
+    distribution
 end
-function PEtabObservable(obs_formula, noise_formula;
-                         transformation::Symbol = :lin)::PEtabObservable
-    return PEtabObservable(obs_formula, transformation, noise_formula)
+function PEtabObservable(observable_id::UserFormula, observable_formula::UserFormula, noise_formula::Union{UserFormula, Real};
+                         distribution = Distributions.Normal)
+    supported_dist = [getfield.(values(NOISE_DISTRIBUTIONS), :dist)]
+    if !(distribution in supported_dist[1])
+        throw(PEtabFormatError("Unsupported noise distribution: $(distribution). Supported \
+            distributions are $(string.(supported_dist)...)"))
+    end
+    return PEtabObservable(string(observable_id), string(observable_formula), string(noise_formula), distribution)
 end
 
 """
-    PEtabEvent(condition, affects, targets)
+    PEtabCondition(condition_id, assignments::Pair...; t0 = 0.0)
 
-A model event triggered by `condition` that sets the value of `targets` to that of
-`affects`.
+Simulation condition that overrides model entities according to `assignments` under
+`condition_id`.
 
-For a collection of examples with corresponding plots, see the documentation.
+Used to set initial values and/or model parameters for different experimental conditions.
+For examples, see the online package documentation.
 
-## Arguments
-- `condition`: A Boolean expression that triggers the event when it transitions from
-    `false` to `true`. For example, if `t == c1`, the event is triggered when the model
-    time `t` equals `c1`. For `S > 2.0`, the event triggers when specie `S` passes 2.0
-    from below.
-- `affects`: An equation of of model species and parameters that describes the effect of
-    the event. It can be a single expression or a vector if there are multiple targets.
-- `targets`: Model species or parameters that the event acts on. Must match the dimension
-    of `affects`.
+# Arguments
+- `condition_id::Union{String, Symbol}`: Simulation condition identifier. Measurements
+    are linked to this condition via the column `simulation_id` in the measurement table.
+- `assignments`: One or more assignments of the form `target_id => target_value`.
+    - `target_id`: Entity to assign (`Symbol`, `String`, or Symbolics `Num`). Can be a model
+      state id or model parameter id for a parameter that is not estimated.
+    - `target_value`: Value/expression assigned to `target_id`. A `String`, `Real`, or a
+      Symbolics expression (`Num`) which can use standard Julia functions (e.g. exp, log,
+      sin, cos). Any variables referenced must be model parameters or `PEtabParameter`s
+      (model state variables are not allowed).
+
+# Keyword Arguments
+- `t0 = 0.0`: Simulation start time for the condition.
+"""
+struct PEtabCondition
+    condition_id::String
+    target_ids::Vector{String}
+    target_values::Vector{String}
+    t0::Float64
+end
+function PEtabCondition(condition_id::Union{Symbol, AbstractString}, assignments::Pair...;
+                        t0::Real = 0.0)
+    condition_id = string(condition_id)
+    if isempty(assignments)
+        return PEtabCondition(condition_id, String[], String[], t0)
+    end
+
+    target_ids = first.(assignments)
+    for (i, target_id) in pairs(target_ids)
+        _check_target_id(target_id, i, condition_id)
+    end
+    target_ids = collect(string.(target_ids))
+
+    target_values = last.(assignments)
+    for (i, target_value) in pairs(target_values)
+        _check_target_value(target_value, i, condition_id)
+    end
+    target_values = collect(string.(target_values))
+
+    return PEtabCondition(condition_id, target_ids, target_values, t0)
+end
+
+"""
+    PEtabEvent(condition, assignments::Pair...; condition_ids = [:all])
+
+Model event triggered when `condition` transitions from `false` to `true`, applying the
+updates in `assignments`.
+
+For examples, see the online package documentation.
+
+# Arguments
+- `condition`: Boolean expression that triggers the event on a `false` → `true` transition.
+  For example, `t == 3.0` triggers at `t = 3.0`; `S > 2.0` triggers when species `S` crosses
+  `2.0` from below.
+- `assignments`: One or more updates of the form `target_id => target_value`.
+  - `target_id`: Entity to update (`Symbol`, `String`, or Symbolics `Num`). May be a model
+    state id or model parameter id.
+  - `target_value`: Value/expression assigned to `target_id` (`Real`, `String`, or Symbolics
+    `Num`). May use standard Julia functions (e.g. exp, log, sin, cos) and reference
+    model states/parameters.
+
+# Keyword Arguments
+- `condition_ids`: Simulation condition identifiers (as declared by `PEtabCondition`) for
+    which the event applies. If `[:all]` (default), the event applies to all conditions.
+
+# Event evaluation order
+
+`target_value` expressions are evaluated at the `condition` trigger point using pre-event
+model values, meaning all assignments are applied simultaneously (updates do not see each
+other’s new values). If a time-triggered event fires at the same time as a measurement, the
+model observable is evaluated **after** applying the event.
 """
 struct PEtabEvent
-    condition::Any
-    affect::Any
-    target::Any
+    condition::String
+    target_ids::Vector{String}
+    target_values::Vector{String}
+    trigger_time::Float64
+    condition_ids::Vector{Symbol}
 end
+function PEtabEvent(condition::Union{UserFormula, Real}, assignments::Pair...; trigger_time::Real = NaN, condition_ids::Union{Vector{String}, Vector{Symbol}} = Symbol[])
+    if isempty(assignments)
+        throw(PEtabFormatError("For a PEtabEvent, at least one assignment pair \
+            (target_id => target_value) must be provided."))
+    end
 
-"""
-    PEtabModel(sys, observables::Dict{String, PEtabObservable}, measurements::DataFrame,
-               parameters::Vector{PEtabParameter}; kwargs...)
+    target_ids = first.(assignments)
+    for (i, target_id) in pairs(target_ids)
+        _check_target_id(target_id, i, nothing)
+    end
+    target_ids = collect(string.(target_ids))
 
-From a `ReactionSystem` or an `ODESystem` model, `observables` that link the model to
-`measurements` and `parameters` to estimate, create a `PEtabModel` for parameter estimation.
+    target_values = last.(assignments)
+    for (i, target_value) in pairs(target_values)
+        _check_target_value(target_value, i, nothing)
+    end
+    target_values = collect(string.(target_values))
 
-For examples on how to create a `PEtabModel`, see the documentation.
-
-See also [`PEtabObservable`](@ref), [`PEtabParameter`](@ref), and [`PEtabEvent`](@ref).
-
-## Keyword Arguments
-
-- `simulation_conditions = nothing`: An optional dictionary specifying initial specie values
-    and/or model parameters for each simulation condition. Only required if the model has
-    multiple simulation conditions.
-- `events = nothing`: Optional model events (callbacks) provided as `PEtabEvent`. Multiple
-    events should be provided as a `Vector` of `PEtabEvent`.
-- `verbose::Bool = false`: Whether to print progress while building the `PEtabModel`.
-
-
-    PEtabModel(path_yaml; kwargs...)
-
-Import a PEtab problem in the standard format with YAML file at `path_yaml` into a
-`PEtabModel` for parameter estimation.
-
-For examples on how to import a PEtab problem, see the documentation.
-
-## Keyword Arguments
-- `ifelse_to_callback::Bool = true`: Whether to rewrite `ifelse` (SBML piecewise)
-    expressions to [callbacks](https://github.com/SciML/DiffEqCallbacks.jl). This improves
-    simulation runtime. It is strongly recommended to set this to `true`.
-- `verbose::Bool = false`: Whether to print progress while building the `PEtabModel`.
-- `write_to_file::Bool = false`: Whether to write the generated Julia functions to files in
-   the same directory as the PEtab problem. Useful for debugging.
-"""
+    return PEtabEvent(string(condition), target_ids, target_values, trigger_time, Symbol.(condition_ids))
+end
 struct PEtabModel
     name::String
     h::Function
@@ -195,6 +291,8 @@ struct PEtabModel
     parametermap::Any
     speciemap::Any
     petab_tables::Dict{Symbol, DataFrame}
-    callbacks::SciMLBase.DECallback
+    callbacks::Dict{Symbol, SciMLBase.DECallback}
     defined_in_julia::Bool
+    petab_events::Vector{PEtabEvent}
+    sys_observables::Dict{Symbol, Function}
 end

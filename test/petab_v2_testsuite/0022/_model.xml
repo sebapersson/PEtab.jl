@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created by libAntimony version v3.1.1 with libSBML version 5.20.5. -->
+<sbml xmlns="http://www.sbml.org/sbml/level3/version2/core" level="3" version="2">
+  <model metaid="petab_test_0022" id="petab_test_0022">
+    <listOfCompartments>
+      <compartment sboTerm="SBO:0000410" id="default_compartment" spatialDimensions="3" size="2" constant="true"/>
+    </listOfCompartments>
+    <listOfSpecies>
+      <species id="A" compartment="default_compartment" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="a" compartment="default_compartment" hasOnlySubstanceUnits="true" boundaryCondition="false" constant="false"/>
+      <species id="B" compartment="default_compartment" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="b" compartment="default_compartment" hasOnlySubstanceUnits="true" boundaryCondition="false" constant="false"/>
+    </listOfSpecies>
+    <listOfParameters>
+      <parameter id="initial_conc_A" value="2" constant="true"/>
+      <parameter id="initial_conc_B" value="1" constant="true"/>
+      <parameter id="k1" value="2" constant="true"/>
+      <parameter id="k2" value="1" constant="true"/>
+    </listOfParameters>
+    <listOfInitialAssignments>
+      <initialAssignment symbol="A">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <ci> initial_conc_A </ci>
+        </math>
+      </initialAssignment>
+      <initialAssignment symbol="a">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <times/>
+            <ci> initial_conc_A </ci>
+            <ci> default_compartment </ci>
+          </apply>
+        </math>
+      </initialAssignment>
+      <initialAssignment symbol="B">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <ci> initial_conc_B </ci>
+        </math>
+      </initialAssignment>
+      <initialAssignment symbol="b">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <times/>
+            <ci> initial_conc_B </ci>
+            <ci> default_compartment </ci>
+          </apply>
+        </math>
+      </initialAssignment>
+    </listOfInitialAssignments>
+    <listOfRules>
+      <rateRule variable="A">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <minus/>
+            <apply>
+              <times/>
+              <ci> k2 </ci>
+              <ci> B </ci>
+            </apply>
+            <apply>
+              <times/>
+              <ci> k1 </ci>
+              <ci> A </ci>
+            </apply>
+          </apply>
+        </math>
+      </rateRule>
+      <rateRule variable="a">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <minus/>
+            <apply>
+              <times/>
+              <ci> k2 </ci>
+              <ci> b </ci>
+            </apply>
+            <apply>
+              <times/>
+              <ci> k1 </ci>
+              <ci> a </ci>
+            </apply>
+          </apply>
+        </math>
+      </rateRule>
+      <rateRule variable="B">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <apply>
+              <times/>
+              <apply>
+                <minus/>
+                <ci> k2 </ci>
+              </apply>
+              <ci> B </ci>
+            </apply>
+            <apply>
+              <times/>
+              <ci> k1 </ci>
+              <ci> A </ci>
+            </apply>
+          </apply>
+        </math>
+      </rateRule>
+      <rateRule variable="b">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <apply>
+              <times/>
+              <apply>
+                <minus/>
+                <ci> k2 </ci>
+              </apply>
+              <ci> b </ci>
+            </apply>
+            <apply>
+              <times/>
+              <ci> k1 </ci>
+              <ci> a </ci>
+            </apply>
+          </apply>
+        </math>
+      </rateRule>
+    </listOfRules>
+  </model>
+</sbml>

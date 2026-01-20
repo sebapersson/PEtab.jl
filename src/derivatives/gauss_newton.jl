@@ -2,8 +2,7 @@
 function _jac_residuals_xdynamic!(jac::AbstractMatrix, _solve_conditions!::Function,
                                   probinfo::PEtabODEProblemInfo,
                                   model_info::ModelInfo, cfg::ForwardDiff.JacobianConfig;
-                                  cids::Vector{Symbol} = [:all],
-                                  isremade::Bool = false)::Nothing
+                                  cids::Vector{Symbol} = [:all])::Nothing
     @unpack cache, sensealg, reuse_sensitivities = probinfo
     @unpack xindices, simulation_info = model_info
     xnoise_ps = transform_x(cache.xnoise, xindices, :xnoise, cache)
@@ -12,8 +11,8 @@ function _jac_residuals_xdynamic!(jac::AbstractMatrix, _solve_conditions!::Funct
     xdynamic_ps = transform_x(cache.xdynamic, xindices, :xdynamic, cache)
 
     if reuse_sensitivities == false
-        success = solve_sensitivites!(model_info, _solve_conditions!, xdynamic_ps,
-                                      :ForwardDiff, probinfo, cids, cfg, isremade)
+        success = solve_sensitivities!(model_info, _solve_conditions!, xdynamic_ps,
+                                      :ForwardDiff, probinfo, cids, cfg)
         if success != true
             @warn "Failed to solve sensitivity equations"
             fill!(jac, 0.0)
@@ -73,7 +72,7 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic::Vector{T},
             @views forward_eqs_grad[ixdynamic_simid] .= transpose(_S) * ∂G∂u
             _jac = @view jac[:, imeasurement]
             grad_to_xscale!(_jac, forward_eqs_grad, ∂G∂p, xdynamic, xindices, simid,
-                            sensitivites_AD = true)
+                            sensitivities_AD = true)
         end
     end
     return nothing
@@ -118,25 +117,25 @@ function _residuals_cond!(residuals::T1, xnoise::T2, xobservable::T2, xnondynami
         return false
     end
 
-    @unpack time, measurement_transforms, measurement_transformed, observable_id = petab_measurements
+    @unpack time, measurements_transformed, noise_distributions, observable_id = petab_measurements
     @unpack imeasurements, imeasurements_t_sol = simulation_info
     nominal_values = petab_parameters.nominal_value
-    for imeasurement in imeasurements[cid]
-        t, obsid = time[imeasurement], observable_id[imeasurement]
-        u = sol[:, imeasurements_t_sol[imeasurement]] .|> SBMLImporter._to_float
+    for im in imeasurements[cid]
+        t, obsid = time[im], observable_id[im]
+        u = sol[:, imeasurements_t_sol[im]] .|> SBMLImporter._to_float
         p = sol.prob.p .|> SBMLImporter._to_float
 
         # Model observable and noise
-        mapxnoise = xindices.mapxnoise[imeasurement]
-        mapxobservable = xindices.mapxobservable[imeasurement]
-        h = _h(u, t, p, xobservable, xnondynamic, model.h, mapxobservable, obsid,
+        xnoise_maps = xindices.xnoise_maps[im]
+        xobservable_maps = xindices.xobservable_maps[im]
+        h = _h(u, t, p, xobservable, xnondynamic, model, xobservable_maps, obsid,
                nominal_values)
-        h_transformed = transform_observable(h, measurement_transforms[imeasurement])
-        σ = _sd(u, t, p, xnoise, xnondynamic, model.sd, mapxnoise, obsid,
+        h_transformed = _transform_h(h, noise_distributions[im])
+        σ = _sd(u, t, p, xnoise, xnondynamic, model, xnoise_maps, obsid,
                 nominal_values)
 
-        y_transformed = measurement_transformed[imeasurement]
-        residuals[imeasurement] = (h_transformed - y_transformed) / σ
+        y_transformed = measurements_transformed[im]
+        residuals[im] = (h_transformed - y_transformed) / σ
     end
     return true
 end

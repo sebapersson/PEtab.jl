@@ -1,0 +1,4 @@
+conditionId	targetId	targetValue
+condition2	a	20.0
+condition2	A	5.0
+condition2	default_compartment	4.0
