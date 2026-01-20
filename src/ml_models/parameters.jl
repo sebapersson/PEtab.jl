@@ -34,10 +34,11 @@ function set_ml_model_ps!(ps::ComponentArray, ml_id::Symbol, ml_models, paths::D
     # Case for PEtab standard format provided
     ml_model = ml_models[ml_id]
     petab_ml_parameters = PEtabMLParameters(petab_tables[:parameters], petab_tables[:mapping], ml_models)
-    netindices = _get_ml_model_indices(ml_id, petab_ml_parameters.mapping_table_id)
 
     # Set parameters for entire net, then set values for specific layers
     PEtab.set_ml_model_ps!(ps, ml_id, ml_model, paths)
+
+    netindices = _get_ml_model_indices(ml_id, petab_ml_parameters.mapping_table_id)
     length(netindices) == 1 && return nothing
     for netindex in netindices
         mapping_table_id = string(petab_ml_parameters.mapping_table_id[netindex])
@@ -46,16 +47,12 @@ function set_ml_model_ps!(ps::ComponentArray, ml_id::Symbol, ml_models, paths::D
         value = petab_ml_parameters.nominal_value[netindex]
         isempty(value) && continue
 
-        @assert count(".", mapping_table_id) ≤ 2 "Only two . are allowed when specifying network layer"
-        if count('[', mapping_table_id) == 1 && count('.', mapping_table_id) == 1
-            layerid = match(r"parameters\[(\w+)\]", mapping_table_id).captures[1] |>
-                Symbol
-            @views ps[layerid] .= value
+        layer_id = _get_layer_id(mapping_table_id)
+        array_id = _get_array_id(mapping_table_id)
+        if isempty(array_id)
+            @views ps[Symbol(layer_id)] .= value
         else
-            layerid = match(r"parameters\[(\w+)\]", mapping_table_id).captures[1] |>
-                Symbol
-            arrayid = Symbol(split(mapping_table_id, ".")[3])
-            @views ps[layerid][arrayid] .= value
+            @views ps[Symbol(layer_id)][Symbol(array_id)] .= value
         end
     end
     return nothing
@@ -83,4 +80,16 @@ function _get_n_ml_parameters(ml_models::MLModels, xids::Vector{Symbol})::Int64
         nparameters += _get_n_ml_parameters(ml_models[xid])
     end
     return nparameters
+end
+
+function _get_layer_id(s::AbstractString)::String
+    m = match(r"\.parameters\[(?<layer>[^\]]+)\](?:\.(?<arr>[^.]+))?$", s)
+    m === nothing && throw(ArgumentError("Invalid format (expected ...parameters[layer].array or ...parameters[layer]): $s"))
+    return m["layer"]
+end
+
+function _get_array_id(s::AbstractString)::String
+    m = match(r"\.parameters\[(?<layer>[^\]]+)\](?:\.(?<arr>[^.]+))?$", s)
+    m === nothing && throw(ArgumentError("Invalid format (expected ...parameters[layer].array or ...parameters[layer]): $s"))
+    return something(m["arr"], "")
 end

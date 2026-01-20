@@ -65,19 +65,17 @@ struct ParameterIndices
 end
 
 struct Priors
-    logpdf::Dict{Symbol, Function}
-    distribution::Dict{Symbol, Distribution{Univariate, Continuous}}
-    initialisation_distribution::Dict{Symbol, Distribution{Univariate, Continuous}}
-    prior_on_parameter_scale::Dict{<:Symbol, <:Bool}
-    has_priors::Bool
-    skip::Vector{Symbol}
+    ix_prior::Vector{Int32}
+    logpdfs::Vector{Function}
+    distributions::Vector{Distribution{Univariate, Continuous}}
+    priors_on_parameter_scale::Vector{Bool}
+    skip::Vector{Bool}
 end
 function Priors()
-    # In case the models does not have priors
-    return Priors(Dict{Symbol, Function}(),
-                  Dict{Symbol, Distribution{Univariate, Continuous}}(),
-                  Dict{Symbol, Distribution{Univariate, Continuous}}(),
-                  Dict{Symbol, Bool}(), false, Symbol[])
+    # In case the model does not have priors
+    return Priors(
+        Int32[], Function[], Distribution{Univariate, Continuous}[], Bool[], Bool[]
+    )
 end
 
 struct PEtabParameters
@@ -98,7 +96,6 @@ struct PEtabMLParameters{T <: Vector{<:Union{String, <:Float64}}}
     estimate::Vector{Bool}
     ml_id::Vector{Symbol}
     mapping_table_id::Vector{String}
-    initialisation_priors::Vector{Function}
 end
 
 struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},

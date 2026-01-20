@@ -133,7 +133,12 @@ function transform_x(x::T, xnames::Vector{Symbol}, xindices::ParameterIndices;
     out = similar(x)
     isempty(x) && return out
     for (i, xname) in pairs(xnames)
-        out[i] = transform_x(x[i], xindices.xscale[xname]; to_xscale = to_xscale)
+        if !in(xname, xindices.xids[:ml_est])
+            out[i] = transform_x(x[i], xindices.xscale[xname]; to_xscale = to_xscale)
+        else
+            ix = xindices.indices_est[xname]
+            out[ix] .= x[ix]
+        end
     end
     return out
 end
