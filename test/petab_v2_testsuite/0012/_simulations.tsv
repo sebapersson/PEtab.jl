@@ -1,0 +1,5 @@
+modelId	observableId	experimentId	time	simulation	observableParameters	noiseParameters
+	conc_a	e0	0.0	1.0		
+	conc_a	e0	10.0	0.8571429759326742		
+	amount_a	e0	0.0	4.0		
+	amount_a	e0	10.0	3.4285719037306968		

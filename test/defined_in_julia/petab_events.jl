@@ -218,6 +218,9 @@ end
             simulation_conditions = simulation_conditions)
     end
 
+    @test_throws PEtab.PEtabFormatError PEtabEvent(3.0, :A => [3.0])
+    @test_throws PEtab.PEtabFormatError PEtabEvent(3.0)
+
     # Should not throw
     events = [PEtabEvent(3, :A => 5.0; condition_ids = [:e1]),
               PEtabEvent(3, :B => 5.0; condition_ids = [:e2])]

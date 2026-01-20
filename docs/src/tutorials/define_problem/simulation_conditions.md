@@ -151,8 +151,10 @@ Given a `Vector` of simulation conditions and `measurements` in the format above
 conditions via the `simulation_conditions` keyword:
 
 ```@example 1
-model = PEtabModel(sys, observables, measurements, pest;
-    simulation_conditions = simulation_conditions)
+model = PEtabModel(
+    sys, observables, measurements, pest;
+    simulation_conditions = simulation_conditions
+)
 petab_prob = PEtabODEProblem(model)
 nothing # hide
 ```
@@ -184,8 +186,10 @@ cond1 = PEtabCondition(:cond1, :E => 0.0, :c3 => 0.5; t0 = 5.0)
 As seen by plotting, the simulation for `:cond1` now starts at `t = 5.0`:
 
 ```@example 1
-model = PEtabModel(sys, observables, measurements, pest;
-    simulation_conditions = [cond1, cond2])
+model = PEtabModel(
+    sys, observables, measurements, pest;
+    simulation_conditions = [cond1, cond2]
+)
 petab_prob = PEtabODEProblem(model)
 
 x = get_x(petab_prob)

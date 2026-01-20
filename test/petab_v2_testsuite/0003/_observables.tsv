@@ -1,0 +1,2 @@
+observableId	observableFormula	noiseFormula	observablePlaceholders
+obs_a	obs_a_scale * A + obs_a_offset	0.5	obs_a_scale;obs_a_offset

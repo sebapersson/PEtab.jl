@@ -5,8 +5,10 @@ using PEtab
 
 DocMeta.setdocmeta!(PEtab, :DocTestSetup, :(using PEtab); recursive = false)
 
-bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"),
-                           style=:numeric)
+bib = CitationBibliography(
+    joinpath(@__DIR__, "src", "refs.bib"),
+    style = :numeric
+)
 
 makedocs(
     modules = [PEtab],
@@ -15,7 +17,7 @@ makedocs(
     authors = "Sebastian Persson, and contributors",
     checkdocs = :exports,
     warnonly = false,
-    plugins=[bib],
+    plugins = [bib],
     format = DocumenterVitepress.MarkdownVitepress(
         repo = "https://github.com/sebapersson/PEtab.jl",
     ),

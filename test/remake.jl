@@ -229,3 +229,4 @@ prob = joinpath(@__DIR__, "published_models", "Bruno_JExpBot2016", "Bruno_JExpBo
     PEtabModel |>
     PEtabODEProblem
 @test_throws ArgumentError remake(prob; experiments = [:model1_data1])
+@test_throws PEtab.PEtabInputError remake(prob, parameters = [:k3 => 3.0])

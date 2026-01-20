@@ -15,7 +15,8 @@ can be imported with:
 ```@example 1
 using PEtab
 # path_yaml depends on where the problem is saved
-path_yaml = joinpath(@__DIR__, "..", "assets", "beer", "Beer_MolBioSystems2014.yaml")
+path_yaml = joinpath(@__DIR__, "beer", "Beer_MolBioSystems2014.yaml")
+path_yaml = joinpath(@__DIR__, "..", "assets", "beer", "Beer_MolBioSystems2014.yaml") # hide
 model = PEtabModel(path_yaml)
 nothing # hide
 ```

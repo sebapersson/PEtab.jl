@@ -86,3 +86,8 @@ hess = petab_prob_rn.hess(x)
 @test all(.≈(grad, nllh_grad + prior_grad; atol = 1e-3))
 @test all(.≈(hess[1:4, 1:4], nllh_hess[1:4, 1:4] + prior_hess[1:4, 1:4]; atol = 1e-3))
 @test all(.≈(hess[5, 5], nllh_hess[5, 5] + prior_hess[5, 5]; atol = 1e-3))
+
+# On topic of distributions, check PEtabObservable throws correctly
+@test_throws PEtab.PEtabFormatError begin
+    PEtabObservable(:obs1, "A + 3.0", 3.0; distribution = Distributions.Gamma)
+end

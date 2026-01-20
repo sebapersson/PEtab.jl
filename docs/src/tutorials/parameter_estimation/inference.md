@@ -75,10 +75,11 @@ Priors are assigned via `PEtabParameter` using any continuous distribution from
 [Distributions.jl](https://github.com/JuliaStats/Distributions.jl). For example:
 
 ```@example 1
-p_b1 = PEtabParameter(:b1, value=1.0, scale=:lin, prior=Uniform(0.0, 5.0))
-p_b2 = PEtabParameter(:b2, value=0.2, prior=LogNormal(1.0, 1.0))
-p_sigma = PEtabParameter(:sigma, value=0.03, scale=:lin, prior=Gamma(1.0, 1.0))
-pest = [p_b1, p_b2, p_sigma]
+pest = [
+    PEtabParameter(:b1, value=1.0, scale=:lin, prior=Uniform(0.0, 5.0)),
+    PEtabParameter(:b2, value=0.2, prior=LogNormal(1.0, 1.0)),
+    PEtabParameter(:sigma, value=0.03, scale=:lin, prior=Gamma(1.0, 1.0))
+]
 ```
 
 Priors are evaluated on the parameter’s **linear** (non-transformed) scale. For example,
@@ -138,11 +139,9 @@ using AdvancedHMC
 # δ = 0.8 is the target acceptance rate (default in Stan)
 sampler = NUTS(0.8)
 Random.seed!(1234) # hide
-res = sample(target, sampler, 2000;
-    n_adapts = 1000,
-    initial_params = xinference,
-    drop_warmup = true,
-    progress = false,
+res = sample(
+    target, sampler, 2000; n_adapts = 1000, initial_params = xinference,
+    drop_warmup = true, progress = false,
 )
 nothing # hide
 ```

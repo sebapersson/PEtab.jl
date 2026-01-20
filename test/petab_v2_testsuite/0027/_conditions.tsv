@@ -1,0 +1,3 @@
+conditionId	targetId	targetValue
+c0	offset_A	offset_A1_c0 + offset_A2_c0
+c1	offset_A	0.333333333333333*offset_A1_c1

@@ -201,10 +201,12 @@ example, assume two simulation conditions:
 cond1 = PEtabCondition(:cond1, :S => 5.0)
 cond2 = PEtabCondition(:cond2, :S => 2.0)
 simulation_conditions = [cond1, cond2]
-measurements = DataFrame(simulation_id=["cond1", "cond1", "cond2", "cond2"],
-                         obs_id=["obs_P", "obs_Sum", "obs_P", "obs_Sum"],
-                         time=[1.0, 10.0, 1.0, 20.0],
-                         measurement=[0.7, 0.1, 1.0, 1.5])
+measurements = DataFrame(
+    simulation_id=["cond1", "cond1", "cond2", "cond2"],
+    obs_id=["obs_P", "obs_Sum", "obs_P", "obs_Sum"],
+    time=[1.0, 10.0, 1.0, 20.0],
+    measurement=[0.7, 0.1, 1.0, 1.5]
+)
 nothing # hide
 ```
 
@@ -217,8 +219,10 @@ event = PEtabEvent(t == 2.0, :S => 3.0; condition_ids = [:cond2])
 From plotting the solution, the event clearly only triggers in `:cond2`:
 
 ```@example 1
-model = PEtabModel(rn, observables, measurements, pest; events=event,
-    simulation_conditions = simulation_conditions)
+model = PEtabModel(
+    rn, observables, measurements, pest; events=event,
+    simulation_conditions = simulation_conditions
+)
 petab_prob = PEtabODEProblem(model)
 
 sol_cond1 = get_odesol(x, petab_prob; condition = :cond1)

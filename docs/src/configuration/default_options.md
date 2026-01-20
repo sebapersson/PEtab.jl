@@ -19,7 +19,8 @@ depend strongly on problem size.
 The default configuration for small models is:
 
 ```julia
-petab_prob = PEtabODEProblem(model;
+petab_prob = PEtabODEProblem(
+    model;
     odesolver = ODESolver(Rodas5P()),
     gradient_method = :ForwardDiff,
     hessian_method = :ForwardDiff,
@@ -46,7 +47,8 @@ The rationale is:
 The default configuration for medium-sized models is:
 
 ```julia
-petab_prob = PEtabODEProblem(model;
+petab_prob = PEtabODEProblem(
+    model;
     odesolver = ODESolver(QNDF()),
     gradient_method = :ForwardDiff,
     hessian_method = :GaussNewton,
@@ -80,7 +82,8 @@ solver choice and gradient configuration can strongly affect runtime. Still, the
 configuration is:
 
 ```julia
-petab_prob = PEtabODEProblem(model;
+petab_prob = PEtabODEProblem(
+    model;
     odesolver = ODESolver(CVODE_BDF()),
     gradient_method = :Adjoint,
     sensealg = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true))

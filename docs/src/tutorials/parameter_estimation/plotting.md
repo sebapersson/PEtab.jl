@@ -155,50 +155,48 @@ end
 u0 = [:E => 1.0, :SE => 0.0, :P => 0.0]
 p_true = [:kB => 1.0, :kD => 0.1, :kP => 0.5]
 
-# Simulate data.
+# Simulate data
 using OrdinaryDiffEqRosenbrock
 # cond1
 oprob_true_cond1 = ODEProblem(rn, [:S => 1.0; u0], (0.0, 10.0), p_true)
 true_sol_cond1 = solve(oprob_true_cond1, Rodas5P())
 data_sol_cond1 = solve(oprob_true_cond1, Rodas5P(); saveat=1.0)
-cond1_t, cond1_e, cond1_p = (data_sol_cond1.t[2:end], (0.8 .+ 0.1*randn(10)) .*
-                             data_sol_cond1[:E][2:end], (0.8 .+ 0.1*randn(10)) .*
-                             data_sol_cond1[:P][2:end])
+cond1_t = data_sol_cond1.t[2:end]
+cond1_e = (0.8 .+ 0.1*randn(10)) .* data_sol_cond1[:E][2:end]
+cond1_p = (0.8 .+ 0.1*randn(10)) .* data_sol_cond1[:P][2:end]
 # cond2
 oprob_true_cond2 = ODEProblem(rn, [:S => 0.5; u0], (0.0, 10.0), p_true)
 true_sol_cond2 = solve(oprob_true_cond2, Rodas5P())
 data_sol_cond2 = solve(oprob_true_cond2, Rodas5P(); saveat=1.0)
-cond2_t, cond2_e, cond2_p = (data_sol_cond2.t[2:end], (0.8 .+ 0.1*randn(10)) .*
-                             data_sol_cond2[:E][2:end], (0.8 .+ 0.1*randn(10)) .*
-                             data_sol_cond2[:P][2:end])
+cond2_t = data_sol_cond2.t[2:end]
+cond2_e = (0.8 .+ 0.1*randn(10)) .* data_sol_cond2[:E][2:end]
+cond2_p = (0.8 .+ 0.1*randn(10)) .* data_sol_cond2[:P][2:end]
 
+# Build parameter estimation problem
 using PEtab
 @unpack E, P = rn
 observables = [
     PEtabObservable(:obs_e, E, 0.5),
     PEtabObservable(:obs_p, P, 0.5)
 ]
-
 pest = [
   PEtabParameter(:kB),
   PEtabParameter(:kD),
   PEtabParameter(:kP)
 ]
-
 simulation_conditions = [
   PEtabCondition(:cond1, :S => 1.0),
   PEtabCondition(:cond2, :S => 0.5)
 ]
-
 using DataFrames
-m_cond1_e = DataFrame(simulation_id="cond1", obs_id="obs_e", time=cond1_t,
-                      measurement=cond1_e)
-m_cond1_p = DataFrame(simulation_id="cond1", obs_id="obs_p", time=cond1_t,
-                      measurement=cond1_p)
-m_cond2_e = DataFrame(simulation_id="cond2", obs_id="obs_e", time=cond2_t,
-                      measurement=cond2_e)
-m_cond2_p = DataFrame(simulation_id="cond2", obs_id="obs_p", time=cond2_t,
-                      measurement=cond2_p)
+m_cond1_e = DataFrame(simulation_id="cond1", obs_id="obs_e",
+  time=cond1_t, measurement=cond1_e)
+m_cond1_p = DataFrame(simulation_id="cond1", obs_id="obs_p",
+  time=cond1_t, measurement=cond1_p)
+m_cond2_e = DataFrame(simulation_id="cond2", obs_id="obs_e",
+  time=cond2_t, measurement=cond2_e)
+m_cond2_p = DataFrame(simulation_id="cond2", obs_id="obs_p",
+  time=cond2_t, measurement=cond2_p)
 measurements = vcat(m_cond1_e, m_cond1_p, m_cond2_e, m_cond2_p)
 
 model = PEtabModel(rn ,observables, measurements, pest;
@@ -218,13 +216,19 @@ plotted as:
 ```@example 2
 using Plots
 default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm, size = (600*1.25, 400 * 1.25), palette = ["#CC79A7", "#009E73", "#0072B2", "#D55E00", "#999999", "#E69F00", "#56B4E9", "#F0E442"], linewidth=4.0) # hide
-plot(res, petab_prob; observable_ids = ["obs_p"], condition = :cond1, linewidth = 2.0)
+plot(
+    res, petab_prob; observable_ids = ["obs_p"],
+    condition = :cond1, linewidth = 2.0
+)
 ```
 
 To plot both observables for the second simulation condition (`cond2`):
 
 ```@example 2
-plot(res, petab_prob; observable_ids = ["obs_e", "obs_p"], condition = :cond2, linewidth = 2.0)
+plot(
+    res, petab_prob; observable_ids = ["obs_e", "obs_p"],
+    condition = :cond2, linewidth = 2.0
+)
 ```
 
 Here, `observable_ids` is optional since plotting all observables is the default. By
@@ -232,7 +236,10 @@ default, the observable formula is used in the legend. If formulas are long, the
 become cluttered and setting `obsid_label = true` enables labeling by observable ID instead:
 
 ```@example 2
-plot(res, petab_prob; observable_ids = ["obs_e", "obs_p"], condition = :cond2, linewidth = 2.0, obsid_label = true)
+plot(
+    res, petab_prob; observable_ids = ["obs_e", "obs_p"],
+    condition = :cond2, linewidth = 2.0, obsid_label = true
+)
 ```
 
 When an estimation result (`res`) is provided, the fit for the best-found parameter vector
@@ -242,7 +249,10 @@ is plotted. The fit for any parameter vector in the order expected by the `PEtab
 
 ```@example 2
 x0 = res.runs[1].x0
-plot(x0, petab_prob; observable_ids = ["obs_e", "obs_p"], condition = :cond2, linewidth = 2.0)
+plot(
+    x0, petab_prob; observable_ids = ["obs_e", "obs_p"],
+    condition = :cond2, linewidth = 2.0
+)
 ```
 
 To generate plots for all combinations of observables and simulation conditions, use:
@@ -269,14 +279,20 @@ Residuals can be plotted in the same way as model-fit plots by setting
 `plot_type = :residuals`. For example, to plot residuals for both observables in `cond1`:
 
 ```@example 2
-plot(res, petab_prob; plot_type = :residuals, observable_ids = ["obs_e", "obs_p"], condition = :cond1, linewidth = 2.0)
+plot(
+    res, petab_prob; plot_type = :residuals,
+    condition = :cond1, linewidth = 2.0
+)
 ```
 
 Standardized residuals (normalized by the measurement noise) can be plotted with
 `plot_type = :standardized_residuals`:
 
 ```@example 2
-plot(res, petab_prob; plot_type = :standardized_residuals, observable_ids = ["obs_e", "obs_p"], condition = :cond1, linewidth = 2.0)
+plot(
+    res, petab_prob; plot_type = :standardized_residuals,
+    condition = :cond1, linewidth = 2.0
+)
 ```
 
 ## References

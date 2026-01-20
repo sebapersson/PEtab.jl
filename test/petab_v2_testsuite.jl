@@ -46,14 +46,15 @@ function test_v2(test_case::String; test_gradient::Bool = true)
     end
 end
 
-# TODO: The logic might be off with handling initial value parameters, line 152
-completed_tests = ["0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009",
-                   "0010", "0011", "0012", "0013", "0014", "0015", "0016", "0017", "0018",
-                   "0020", "0021", "0022", "0023", "0024", "0025", "0026", "0027", "0028",
-                   "0029", "0030", "0031"]
+
+supported_tests = [
+    "0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009", "0010", "0011",
+    "0012", "0013", "0014", "0015", "0016", "0017", "0018", "0020", "0021", "0022", "0023",
+    "0024", "0025", "0026", "0027", "0028", "0029", "0030", "0031"
+]
 
 @testset "V2 test suite" begin
-    for test_case in completed_tests
+    for test_case in supported_tests
         test_v2(test_case)
     end
 end
