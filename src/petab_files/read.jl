@@ -22,9 +22,6 @@ end
 
 
 function _get_petab_paths(path_yaml::AbstractString)::Dict{Symbol, String}
-    if !isfile(path_yaml)
-        throw(PEtabFileError("PEtab problem YAML file does not exist at path $(path_yaml)"))
-    end
     yaml_file = YAML.load_file(path_yaml)
     dirmodel = dirname(path_yaml)
     dirjulia = joinpath(dirmodel, "Julia_model_files")

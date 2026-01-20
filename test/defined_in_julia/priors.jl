@@ -87,3 +87,8 @@ hess = petab_problem_rn.hess(x)
 @test norm(grad - (nllh_grad + prior_grad)) < 1e-8
 @test norm(hess[1:4, 1:4] - (nllh_hess[1:4, 1:4] + prior_hess[1:4, 1:4])) < 1e-8
 @test norm(hess[5, 5] - (nllh_hess[5, 5] + prior_hess[5, 5])) < 1e-8
+
+# On topic of distributions, check PEtabObservable throws correctly
+@test_throws PEtab.PEtabFormatError begin
+    PEtabObservable(:obs1, "A + 3.0", 3.0; distribution = Distributions.Gamma)
+end

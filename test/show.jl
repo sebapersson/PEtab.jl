@@ -59,9 +59,11 @@ cond4 = PEtabCondition(:c1)
 event1 = PEtabEvent(:k1, :A => 1.0, B => B + 2)
 event2 = PEtabEvent(sigma == t, A => 1.0, B => B + 2)
 event3 = PEtabEvent(A ≤ 4.0, B => B + 2)
+event4 = PEtabEvent(3.0, B => B + 2)
 @test "$event1" == "PEtabEvent when k1: A => 1.0, B(t) => 2 + B(t)"
 @test "$event2" == "PEtabEvent when sigma == t: A(t) => 1.0, B(t) => 2 + B(t)"
 @test "$event3" == "PEtabEvent when A(t) <= 4.0: B(t) => 2 + B(t)"
+@test "$event4" == "PEtabEvent when t == 3.0: B(t) => 2 + B(t)"
 
 path1 = joinpath(@__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
 path2 = joinpath(@__DIR__, "published_models", "Brannmark_JBC2010", "Brannmark_JBC2010.yaml")

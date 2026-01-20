@@ -166,8 +166,8 @@ function _check_target_value(target_value, i::Integer, condition_id)
 
     _start = !isnothing(condition_id) ? "For condition $(condition_id)" : "For PEtabEvent"
     throw(PEtabFormatError("$(_start), target value for assignment  $(i) must be a \
-        `String` `Symbol`, a `Real`, or a symbolic expression (`Num`); got \
-        $(typeof(target_value)) with value $(target_value)."))
+        `String` `Symbol`, a `Real`, or a symbolic expression (`Num`), e.g., \
+        \"A + 3\"; got $(typeof(target_value)) with value $(target_value)."))
 end
 
 function _get_experiment_id(simulation_id::Union{String, Symbol}, ::Nothing)::Symbol

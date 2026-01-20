@@ -25,7 +25,8 @@ using PEtab, Optim, Fides, PEtabSelect, YAML, Test, OrdinaryDiffEqRosenbrock
     path_yaml = joinpath(@__DIR__, "petab_select", "0003", "petab_select_problem.yaml")
     path_exepected = joinpath(@__DIR__, "petab_select", "0003", "expected.yaml")
     path_save = petab_select(path_yaml, Fides.CustomHessian(), nmultistarts=10;
-                             odesolver = ODESolver(Rodas5P(); verbose = false))
+                             odesolver = ODESolver(Rodas5P(); verbose = false),
+                             options = FidesOptions(maxiter = 1000))
     expected_res = YAML.load_file(path_exepected)
     data_res = YAML.load_file(path_save)
     @test expected_res["criteria"]["NLLH"] ≈ data_res["criteria"]["NLLH"] atol=1e-3
