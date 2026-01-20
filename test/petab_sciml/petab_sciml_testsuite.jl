@@ -11,12 +11,8 @@ include(joinpath(@__DIR__, "helper.jl"))
     end
 end
 
-# TODO: Fix naming
-# TODO: Refactor ml_models folder
-# TODO: Parameter indices -> parameter-mappings
-
 @testset "PEtab SciML hybrid models" begin
-    for i in 1:31
+    for i in 1:34
         # TODO: Need to handle the file structure
         if i in [14, 15]
             continue

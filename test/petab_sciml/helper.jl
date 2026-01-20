@@ -18,8 +18,12 @@ function test_hybrid(test_case, petab_prob::PEtabODEProblem)
     dirtest = joinpath(@__DIR__, "test_cases", "sciml_problem_import", test_case)
     path_solutions = joinpath(dirtest, "solutions.yaml")
     yamlfile = YAML.load_file(path_solutions)
-    llh_ref, tol_llh = yamlfile["llh"], yamlfile["tol_llh"]
-    tol_grad = yamlfile["tol_grad_llh"]
+    if haskey(yamlfile, "llh")
+        objective_ref, tol_objective = yamlfile["llh"], yamlfile["tol_llh"]
+    else
+        objective_ref, tol_objective = yamlfile["log_posterior"], yamlfile["tol_log_posterior"]
+    end
+    tol_grad = yamlfile["tol_grad"]
     gradfile_mech = yamlfile["grad_files"]["mech"]
     gradmech_ref = CSV.read(joinpath(dirtest, gradfile_mech), DataFrame)
     simfile, tol_sim = yamlfile["simulation_files"][1], yamlfile["tol_simulations"]
@@ -33,7 +37,7 @@ function test_hybrid(test_case, petab_prob::PEtabODEProblem)
     llh_petab = petab_prob.nllh(x) * -1
     grad_petab = petab_prob.grad(x) .* -1
     sim_petab = petab_prob.simulated_values(x)
-    @test llh_petab ≈ llh_ref atol=tol_llh
+    @test llh_petab ≈ objective_ref atol=tol_objective
     @test all(.≈(sim_petab, simref.simulation; atol=tol_sim))
     # Mechanistic parameters in gradient
     mechids = get_mechanistic_ids(petab_prob.model_info)
