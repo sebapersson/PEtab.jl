@@ -44,6 +44,12 @@ function _get_ml_model_input_values(
             continue
         end
 
+        # Julia user provided array input
+        if input_id == :_ARRAY_INPUT
+            push!(input_values, input_id)
+            continue
+        end
+
         if input_id in petab_parameters.parameter_id
             push!(input_values, input_id)
             continue

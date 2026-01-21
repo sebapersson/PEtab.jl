@@ -52,6 +52,7 @@ function _check_static_net_inputs(
     for input_id in input_ids
         input_id in hybridization_df.targetId && continue
         input_id in names(conditions_df) && continue
+        input_id == "_ARRAY_INPUT" && continue
         _input_isfile(input_id, yaml_file, paths) && continue
         Symbol(input_id) in petab_parameters.parameter_id && continue
 

@@ -257,6 +257,22 @@ function _get_ml_pre_simulate_inputs(
                 break
             end
 
+            # In case an array value is provided to apply for all simulation conditions
+            if input_ids[i][j] == "_ARRAY_INPUT"
+                constant_inputs[i] = ml_models[ml_id].array_inputs[Symbol("__arg$(i)")]
+                input_formulas[i][j] = "map_pre_simulate.constant_inputs[$(i)]"
+                file_input[i] = true
+                break
+            end
+
+            # Condition specific array input
+            if input_value == :_ARRAY_INPUT
+                constant_inputs[i] = ml_models[ml_id].array_inputs[Symbol("$(condition_id)_$(i)")]
+                input_formulas[i][j] = "map_pre_simulate.constant_inputs[$(i)]"
+                file_input[i] = true
+                break
+            end
+
             # At this point, a valid PEtab-formula is assumed, for which constant values
             # will be inserted
             input_formula = string(input_value)

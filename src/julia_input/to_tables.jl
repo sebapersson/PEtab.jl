@@ -74,7 +74,7 @@ function _observables_to_table(observables::Vector{PEtabObservable})::DataFrame
     return observables_df
 end
 
-function _conditions_to_table(conditions::Vector{PEtabCondition}, sys::ModelSystem)::DataFrame
+function _conditions_to_table(conditions::Vector{PEtabCondition}, sys::ModelSystem, ml_models::MLModels)::DataFrame
     condition_ids = getfield.(conditions, :condition_id)
     if condition_ids != unique(condition_ids)
         throw(PEtabFormatError("Simulation condition ids ($(condition_ids)) are not \
@@ -88,9 +88,11 @@ function _conditions_to_table(conditions::Vector{PEtabCondition}, sys::ModelSyst
         @unpack condition_id, target_ids, target_values = condition
         target_ids = replace.(target_ids, "(t)" => "")
         conditions_row = DataFrame(conditionId = condition_id)
-        for i in eachindex(target_ids)
-            isempty(target_ids[i]) && continue
-            conditions_row[!, target_ids[i]] .= target_values[i]
+        for (i, target_id) in pairs(target_ids)
+            isempty(target_id) && continue
+            conditions_row[!, target_id] .= _parse_target_value(
+                target_values[i], target_id, condition_id, i, ml_models
+            )
         end
         conditions_df = DataFrames.vcat(conditions_df, conditions_row, cols = :union)
     end
@@ -104,6 +106,9 @@ function _conditions_to_table(conditions::Vector{PEtabCondition}, sys::ModelSyst
             conditions_df[row_idx, model_id] = "NaN"
         end
     end
+
+    # TODO: If ML model is assigned one condition, it needs to be assigned for all of
+    # TODO: of them.
 
     _check_table(conditions_df, :conditions_v1)
     return conditions_df
@@ -219,6 +224,10 @@ function _get_hybridization_table_io(io_argument::Vector{Symbol}, ml_id::Symbol,
     end
     hybridization_df = DataFrame()
     for (i, io_id) in pairs(string.(io_argument))
+        if io_type == :inputs && io_id == "_ARRAY_INPUT"
+            continue
+        end
+
         if (io_type == :inputs && ml_model.static) || io_type == :outputs
             io_id in parameters_df.parameterId && continue
             io_id in names(conditions_df) && continue
@@ -271,4 +280,37 @@ function _parse_petab_parameter(petab_parameter::PEtabMLParameter)::DataFrame
         parameterId = "$(ml_id)_parameters", parameterScale = "lin", lowerBound = -Inf,
         upperBound = Inf, nominalValue = nominal_value, estimate = should_estimate
     )
+end
+
+function _parse_target_value(
+        target_value::Array{<:Real}, target_id::String, condition_id::String, ::Integer,
+        ml_models::MLModels
+    )::String
+    # Only allowed for ML model inputs
+    _ml_models = values(ml_models)
+    ml_model_inputs = reduce(vcat, getfield.(_ml_models, :inputs))
+    if !in(Symbol(target_id), ml_model_inputs)
+        throw(PEtabInputError("Assigning an array in a PEtabCondition is only valid \
+            when the target variable is an ML model input. For condition '$condition_id', \
+            the target '$target_id' is not an ML model input variable."))
+    end
+
+    for ml_model in values(ml_models)
+        ml_model.static == false && continue
+        if ml_model.inputs isa Vector{Symbol}
+            !in(Symbol(target_id), ml_model_inputs) && continue
+            arg_idx = 1
+        else
+            !in(Symbol(target_id), reduce(vcat, ml_model.inputs)) && continue
+            arg_idx = findfirst(x -> x == [Symbol(target_id)], ml_model_inputs)
+        end
+        ml_model.array_inputs[Symbol("$(condition_id)_$(arg_idx)")] = target_value
+    end
+    return "_ARRAY_INPUT"
+end
+function _parse_target_value(
+        target_value, ::String, condition_id::String, i::Integer, ml_models::MLModels
+    )::String
+    _check_target_value(target_value, i, condition_id)
+    return string(target_value)
 end

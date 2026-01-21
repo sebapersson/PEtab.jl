@@ -196,7 +196,7 @@ For examples, see the online package documentation.
 struct PEtabCondition
     condition_id::String
     target_ids::Vector{String}
-    target_values::Vector{String}
+    target_values
     t0::Float64
 end
 function PEtabCondition(condition_id::Union{Symbol, AbstractString}, assignments::Pair...;
@@ -213,11 +213,6 @@ function PEtabCondition(condition_id::Union{Symbol, AbstractString}, assignments
     target_ids = collect(string.(target_ids))
 
     target_values = last.(assignments)
-    for (i, target_value) in pairs(target_values)
-        _check_target_value(target_value, i, condition_id)
-    end
-    target_values = collect(string.(target_values))
-
     return PEtabCondition(condition_id, target_ids, target_values, t0)
 end
 
@@ -297,6 +292,7 @@ mutable struct MLModel{T1 <: Any, T2 <: Union{Vector{Symbol}, Vector{Vector{Symb
     const dirdata::String
     const inputs::T2
     const outputs::Vector{Symbol}
+    const array_inputs::Dict{Symbol, Array{<:Real}}
 end
 
 struct PEtabModel

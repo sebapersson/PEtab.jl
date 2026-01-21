@@ -94,7 +94,7 @@ function _PEtabModel(
     # Convert the input to valid PEtab tables
     measurements_df = _measurements_to_table(measurements, simulation_conditions)
     observables_df = _observables_to_table(observables)
-    conditions_df = _conditions_to_table(simulation_conditions, sys)
+    conditions_df = _conditions_to_table(simulation_conditions, sys, ml_models)
     parameters_df = _parameters_to_table(parameters)
     mappings_df = _mapping_to_table(ml_models)
     hybridization_df = _hybridization_to_table(ml_models, parameters_df, conditions_df)
