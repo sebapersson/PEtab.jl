@@ -274,14 +274,38 @@ function PEtabEvent(condition::Union{UserFormula, Real}, assignments::Pair...; t
     return PEtabEvent(string(condition), target_ids, target_values, trigger_time, Symbol.(condition_ids))
 end
 
+"""
+    PEtabMLParameter(ml_id; prior=nothing, priors=Dict())
+
+ML parameter block with optional priors for a `ComponentArray` whose entries are named
+`"layerId.arrayId"` (e.g. `"layer1.weight"`).
+
+# Keywords
+- `prior`: Global fallback prior for any parameters not covered by `priors`.
+- `priors`: Layer/array overrides. Keys are strings:
+  - `"layerId"` applies to all arrays in that layer
+  - `"layerId.arrayId"` applies to that specific array
+
+# Prior Precedence
+
+Priors have the following precedence: `"layerId.arrayId"` > `"layerId"` > `prior`.
+"""
 struct PEtabMLParameter{T <: AbstractFloat}
     ml_id::Symbol
     estimate::Bool
     value::Union{Nothing, ComponentVector{T}}
-    prior::Nothing
+    prior::Union{Nothing, Distribution{Univariate, Continuous}}
+    priors::Dict{String, <:Distribution{Univariate, Continuous}}
 end
-function PEtabMLParameter(ml_id, estimate, value)
-    return PEtabMLParameter(ml_id, estimate, value, nothing)
+function PEtabMLParameter(
+        ml_id, estimate, value;
+        prior::Union{Nothing, Distribution{Univariate, Continuous}} = nothing,
+        priors::Union{Nothing, Dict{String, <:Distribution{Univariate, Continuous}}} = nothing
+    )
+    if isnothing(priors)
+        priors = Dict{String, Distribution{Univariate, Continuous}}()
+    end
+    return PEtabMLParameter(ml_id, estimate, value, prior, priors)
 end
 
 mutable struct MLModel{T1 <: Any, T2 <: Union{Vector{Symbol}, Vector{Vector{Symbol}}}}

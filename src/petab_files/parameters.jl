@@ -177,7 +177,12 @@ function Priors(xindices::ParameterIndices, model::PEtabModel)::Priors
                 ix_ml = ComponentArrays.label2index(x_ml, label) .+ (i_start - 1)
             end
 
-            prior = _parse_petab_prior(row_idx, parameters_df)
+            prior_id = parameters_df.objectivePriorType[row_idx]
+            if occursin("__Julia__", prior_id)
+                prior = _parse_julia_prior(prior_id)
+            else
+                prior = _parse_petab_prior(row_idx, parameters_df)
+            end
             _logpdf = _get_logpdf(prior)
 
             for ix in ix_ml

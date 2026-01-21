@@ -1,3 +1,9 @@
+
+# TODO: If ML model is assigned one condition, it needs to be assigned for all of
+# TODO: of them.
+# TODO: Check array and layer ids exist for setting priors
+# TODO: Check all ML parameters have been assigned a parameter object
+
 function _parameters_to_table(parameters::Vector)::DataFrame
     # Most validity check occurs later during table parsing
     parameters_df = DataFrame()
@@ -8,27 +14,8 @@ function _parameters_to_table(parameters::Vector)::DataFrame
         end
 
         row = _parse_petab_parameter(petab_parameter)
-        DataFrames.append!(parameters_df, row; cols = :union)
+        parameters_df = DataFrames.vcat(parameters_df, row; cols = :union)
     end
-
-    if all(isnothing.(getfield.(parameters, :prior)))
-        _check_table(parameters_df, :parameters_v1)
-        return parameters_df
-    end
-
-    priors = fill("", length(parameters))
-    initialization_priors = fill("", length(parameters))
-    for (i, petab_parameter) in pairs(parameters)
-        @unpack prior, sample_prior = petab_parameter
-        isnothing(prior) && continue
-
-        priors[i] = "__Julia__" * string(prior)
-        if sample_prior == true
-            initialization_priors[i] = priors[i]
-        end
-    end
-    parameters_df[!, :objectivePriorType] .= priors
-    parameters_df[!, :initializationPriorType] .= initialization_priors
 
     _check_table(parameters_df, :parameters_v1)
     return parameters_df
@@ -107,9 +94,6 @@ function _conditions_to_table(conditions::Vector{PEtabCondition}, sys::ModelSyst
         end
     end
 
-    # TODO: If ML model is assigned one condition, it needs to be assigned for all of
-    # TODO: of them.
-
     _check_table(conditions_df, :conditions_v1)
     return conditions_df
 end
@@ -158,17 +142,34 @@ function _measurements_to_table(measurements::DataFrame, conditions::Vector{PEta
     return measurements_df
 end
 
-function _mapping_to_table(ml_models::MLModels)::DataFrame
+function _mapping_to_table(ml_models::MLModels, parameters::Vector)::DataFrame
     isempty(ml_models) && return DataFrame()
     mappings_df = DataFrame()
     for (ml_id, ml_model) in ml_models
         _inputs_df = _get_mapping_table_io(ml_model.inputs, ml_id, ml_model, :inputs)
         _outputs_df = _get_mapping_table_io(ml_model.outputs, ml_id, ml_model, :outputs)
-        _parameters_df = DataFrame(Dict(
-            "modelEntityId" => "$(ml_id).parameters",
-            "petabEntityId" => "$(ml_id)_parameters"))
-        mappings_df = reduce(vcat, (mappings_df, _inputs_df, _outputs_df, _parameters_df))
+        mappings_df = reduce(vcat, (mappings_df, _inputs_df, _outputs_df))
     end
+
+    for parameter in parameters
+        parameter isa PEtabParameter && continue
+
+        @unpack ml_id, priors = parameter
+        _parameters_df = DataFrame(
+            modelEntityId = "$(ml_id).parameters",
+            petabEntityId = "$(ml_id)_parameters"
+        )
+        for prior_id in keys(priors)
+            row = DataFrame(
+                modelEntityId = _get_nested_parameter_id(prior_id, ml_id; model_entity = true),
+                petabEntityId = _get_nested_parameter_id(prior_id, ml_id; model_entity = false)
+            )
+            DataFrames.append!(_parameters_df, row)
+        end
+        mappings_df = vcat(mappings_df, _parameters_df)
+    end
+
+
     if !isempty(mappings_df)
         _check_table(mappings_df, :mapping)
     end
@@ -245,7 +246,7 @@ function _get_hybridization_table_io(io_argument::Vector{Symbol}, ml_id::Symbol,
 end
 
 function _parse_petab_parameter(petab_parameter::PEtabParameter)::DataFrame
-    @unpack parameter_id, scale, lb, ub, value, estimate = petab_parameter
+    @unpack parameter_id, scale, lb, ub, value, estimate, prior = petab_parameter
 
     parameterScale = isnothing(scale) ? "lin" : string(scale)
     if !(parameterScale in VALID_SCALES)
@@ -262,13 +263,18 @@ function _parse_petab_parameter(petab_parameter::PEtabParameter)::DataFrame
 
     nominalValue = isnothing(value) ? (lowerBound + upperBound) / 2.0 : value
     should_estimate = estimate == true ? 1 : 0
-    return DataFrame(
+    row = DataFrame(
         parameterId = parameter_id, parameterScale = parameterScale, lowerBound = lowerBound,
         upperBound = upperBound, nominalValue = nominalValue, estimate = should_estimate
     )
+
+    if !isnothing(prior)
+        row[!, :objectivePriorType] .= "__Julia__" * string(prior)
+    end
+    return row
 end
 function _parse_petab_parameter(petab_parameter::PEtabMLParameter)::DataFrame
-    @unpack ml_id, estimate, value = petab_parameter
+    @unpack ml_id, estimate, value, prior, priors = petab_parameter
 
     if isnothing(value)
         nominal_value = "$(ml_id)_julia_random"
@@ -276,10 +282,25 @@ function _parse_petab_parameter(petab_parameter::PEtabMLParameter)::DataFrame
         nominal_value = "$(ml_id)_julia_provided"
     end
     should_estimate = estimate == true ? 1 : 0
-    return DataFrame(
+    rows =  DataFrame(
         parameterId = "$(ml_id)_parameters", parameterScale = "lin", lowerBound = -Inf,
         upperBound = Inf, nominalValue = nominal_value, estimate = should_estimate
     )
+
+    if !isnothing(prior)
+        rows[!, :objectivePriorType] .= "__Julia__" * string(prior)
+    end
+
+    for (id, prior) in priors
+        parameter_id = _get_nested_parameter_id(id, ml_id)
+        row = DataFrame(
+            parameterId = parameter_id, parameterScale = "lin", lowerBound = -Inf,
+            upperBound = Inf, nominalValue = nominal_value, estimate = should_estimate,
+            objectivePriorType = "__Julia__" * string(prior)
+        )
+        DataFrames.append!(rows, row; cols = :union)
+    end
+    return rows
 end
 
 function _parse_target_value(
@@ -313,4 +334,26 @@ function _parse_target_value(
     )::String
     _check_target_value(target_value, i, condition_id)
     return string(target_value)
+end
+
+function _get_nested_parameter_id(id, ml_id; model_entity::Bool = false)
+    if count('.', id) > 1
+        throw(PEtabInputError("When specifying a prior for a nested ML identifier, \
+            the input must be in the format 'layerId.arrayId'. '$id' does not match \
+            this format."))
+    elseif count('.', id) == 0
+        if model_entity == true
+            parameter_id = "$(ml_id).parameters[$(id)]"
+        else
+            parameter_id = "$(ml_id)_parameters_$(id)"
+        end
+    else
+        layer_id, array_id = split(id, '.')
+        if model_entity == true
+            parameter_id = "$(ml_id).parameters[$(layer_id)].$(array_id)"
+        else
+            parameter_id = "$(ml_id)_parameters_$(layer_id)_$(array_id)"
+        end
+    end
+    return parameter_id
 end

@@ -96,7 +96,7 @@ function _PEtabModel(
     observables_df = _observables_to_table(observables)
     conditions_df = _conditions_to_table(simulation_conditions, sys, ml_models)
     parameters_df = _parameters_to_table(parameters)
-    mappings_df = _mapping_to_table(ml_models)
+    mappings_df = _mapping_to_table(ml_models, parameters)
     hybridization_df = _hybridization_to_table(ml_models, parameters_df, conditions_df)
     petab_tables = Dict{Symbol, Union{DataFrame, Dict}}(
         :parameters => parameters_df, :conditions => conditions_df,
