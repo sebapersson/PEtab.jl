@@ -64,6 +64,11 @@ function _get_input_file_values(input_id::String, file_path::Symbol, condition_i
 end
 
 function _input_isfile(input_variable::Union{String, Symbol}, yaml_file::Dict, paths::Dict{Symbol, String})::Bool
+    # When defined in Julia
+    if isempty(yaml_file)
+        return false
+    end
+
     input_file_path = _get_input_file_path(input_variable, yaml_file, paths)
     return !isnothing(input_file_path)
 end

@@ -1,4 +1,5 @@
 test_case = "003"
+dir_case = joinpath(@__DIR__, "test_cases", "sciml_problem_import", test_case, "petab")
 
 nn3 = @compact(
     layer1 = Dense(2, 5, Lux.tanh),
@@ -11,7 +12,7 @@ nn3 = @compact(
     @return out
 end
 ml_models = Dict(:net1 => MLModel(nn3; static = true, inputs = [:net1_input1, :net1_input2], outputs = [:gamma]))
-path_h5 = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "net1_ps.hdf5")
+path_h5 = joinpath(dir_case, "net1_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn1) |> ComponentArray |> f64
 PEtab.set_ml_model_ps!(pnn, path_h5, nn3, :net1)
 
@@ -27,27 +28,35 @@ u0 = ComponentArray(prey = 0.44249296, predator = 4.6280594)
 p_mechanistic = ComponentArray(alpha = 1.3, delta = 1.8, beta = 0.9, gamma = 0.8)
 uprob = ODEProblem(lv3!, u0, (0.0, 10.0), p_mechanistic)
 
-p_alpha = PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3)
-p_beta = PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9)
-p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)
-p_input1 = PEtabParameter(:net1_input_pre1; scale = :lin, lb = 0.0, ub = 15.0, value = 1.0, estimate = false)
-p_input2 = PEtabParameter(:net1_input_pre2; scale = :lin, lb = 0.0, ub = 15.0, value = 1.0, estimate = false)
-p_net1 = PEtabMLParameter(:net1, true, pnn)
-pest = [p_alpha, p_beta, p_delta, p_input1, p_input2, p_net1]
+pest = [
+    PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3),
+    PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9),
+    PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8),
+    PEtabParameter(:net1_input_pre1; scale = :lin, value = 1.0, estimate = false),
+    PEtabParameter(:net1_input_pre2; scale = :lin, value = 1.0, estimate = false),
+    PEtabMLParameter(:net1, true, pnn)
+]
 
-conds = Dict("cond1" => Dict(:net1_input1 => 10.0, :net1_input2 => 20.0),
-             "cond2" => Dict(:net1_input1 => :net1_input_pre1, :net1_input2 => :net1_input_pre2))
+conditions = [
+    PEtabCondition(:e1, :net1_input1 => 10.0, :net1_input2 => 20.0),
+    PEtabCondition(:e2, :net1_input1 => :net1_input_pre1, :net1_input2 => :net1_input_pre2)
+]
 
-obs_prey = PEtabObservable(:prey, 0.05)
-obs_predator = PEtabObservable(:predator, 0.05)
-obs = Dict("prey_o" => obs_prey, "predator_o" => obs_predator)
+observables = [
+    PEtabObservable(:prey_o, :prey, 0.05),
+    PEtabObservable(:predator_o, :predator, 0.05)
+]
 
-path_m = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "measurements.tsv")
+path_m = joinpath(dir_case, "measurements.tsv")
 measurements = CSV.read(path_m, DataFrame)
+rename!(measurements, "experimentId" => "simulation_id")
 
-model = PEtabModel(uprob, obs, measurements, pest; ml_models = ml_models,
-                   simulation_conditions = conds)
-osolver = ODESolver(Rodas5P(autodiff = false), abstol = 1e-10, reltol = 1e-10)
-petab_prob = PEtabODEProblem(model; odesolver = osolver, gradient_method = :ForwardDiff,
-                             split_over_conditions = true)
+model = PEtabModel(
+    uprob, observables, measurements, pest;
+    ml_models = ml_models, simulation_conditions = conditions
+)
+petab_prob = PEtabODEProblem(
+    model; odesolver = ode_solver, gradient_method = :ForwardDiff,
+    split_over_conditions = true
+)
 test_hybrid(test_case, petab_prob)

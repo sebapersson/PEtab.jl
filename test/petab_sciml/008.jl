@@ -1,4 +1,5 @@
 test_case = "008"
+dir_case = joinpath(@__DIR__, "test_cases", "sciml_problem_import", test_case, "petab")
 
 nn8_1 = @compact(
     layer1 = Dense(2, 5, Lux.tanh),
@@ -22,10 +23,10 @@ nn8_2 = @compact(
 end
 ml_models = Dict(:net1 => MLModel(nn8_1, inputs = [:net1_input_pre1, :net1_input_pre2], outputs = [:gamma]),
                  :net2 => MLModel(nn8_2, inputs = [:net2_input_pre1, :net2_input_pre2], outputs = [:beta]))
-path_h5 = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "net1_ps.hdf5")
+path_h5 = joinpath(dir_case, "net1_ps.hdf5")
 pnn1 = Lux.initialparameters(rng, nn8_1) |> ComponentArray |> f64
 PEtab.set_ml_model_ps!(pnn1, path_h5, nn8_1, :net1)
-path_h5 = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "net2_ps.hdf5")
+path_h5 = joinpath(dir_case, "net2_ps.hdf5")
 pnn2 = Lux.initialparameters(rng, nn8_2) |> ComponentArray |> f64
 PEtab.set_ml_model_ps!(pnn2, path_h5, nn8_2, :net2)
 
@@ -51,18 +52,23 @@ p_net1 = PEtabMLParameter(:net1, true, pnn1)
 p_net2 = PEtabMLParameter(:net2, true, pnn2)
 pest = [p_alpha, p_delta, p_input1, p_input2, p_input3, p_input4, p_net1, p_net2]
 
-conds = Dict("cond1" => Dict{Symbol, Symbol}())
+conditions = PEtabCondition(:e1)
 
-obs_prey = PEtabObservable(:prey, 0.05)
-obs_predator = PEtabObservable(:predator, 0.05)
-obs = Dict("prey_o" => obs_prey, "predator_o" => obs_predator)
+observables = [
+    PEtabObservable(:prey_o, :prey, 0.05),
+    PEtabObservable(:predator_o, :predator, 0.05)
+]
 
-path_m = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "measurements.tsv")
+path_m = joinpath(dir_case, "measurements.tsv")
 measurements = CSV.read(path_m, DataFrame)
+rename!(measurements, "experimentId" => "simulation_id")
 
-model = PEtabModel(uprob, obs, measurements, pest; ml_models = ml_models,
-                   simulation_conditions = conds)
-osolver = ODESolver(Rodas5P(autodiff = false), abstol = 1e-10, reltol = 1e-10)
-petab_prob = PEtabODEProblem(model; odesolver = osolver, gradient_method = :ForwardDiff,
-                             split_over_conditions = true)
+model = PEtabModel(
+    uprob, observables, measurements, pest; ml_models = ml_models,
+    simulation_conditions = conditions
+)
+petab_prob = PEtabODEProblem(
+    model; odesolver = ode_solver, gradient_method = :ForwardDiff,
+    split_over_conditions = true
+)
 test_hybrid(test_case, petab_prob)

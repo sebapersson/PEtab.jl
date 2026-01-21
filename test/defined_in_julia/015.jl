@@ -53,7 +53,7 @@ model_sys = PEtabModel(sys, observables, measurements, parameters,
      simulation_conditions = simulation_conditions)
 petab_prob_sys = PEtabODEProblem(model_sys, verbose=false)
 
-nll_rn = petab_problem_rn.nllh(get_x(petab_problem_rn))
-nll_sys = petab_problem_sys.nllh(get_x(petab_problem_sys))
+nll_rn = petab_prob_rn.nllh(get_x(petab_prob_rn))
+nll_sys = petab_prob_sys.nllh(get_x(petab_prob_sys))
 @test nll_rn ≈ 5.06071208119597 atol=1e-3
 @test nll_sys ≈ 5.06071208119597 atol=1e-3

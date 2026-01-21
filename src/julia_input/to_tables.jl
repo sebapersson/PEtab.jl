@@ -1,31 +1,14 @@
-function _parameters_to_table(parameters::Vector{PEtabParameter})::DataFrame
+function _parameters_to_table(parameters::Vector)::DataFrame
     # Most validity check occurs later during table parsing
     parameters_df = DataFrame()
-    for petab_paramter in parameters
-        @unpack parameter_id, scale, lb, ub, value, estimate = petab_paramter
-
-        parameterScale = isnothing(scale) ? "lin" : string(scale)
-        if !(parameterScale in VALID_SCALES)
-            throw(PEtabFormatError("Scale $parameterScale is not allowed for parameter " *
-                                   "$parameter. Allowed scales are $(VALID_SCALES)"))
+    for petab_parameter in parameters
+        if !(petab_parameter isa Union{PEtabParameter, PEtabMLParameter})
+            throw(PEtab.PEtabInputError("Input parameters to a PEtabModel must either \
+                be a PEtabParameter or a PEtabMLParameter."))
         end
 
-        lowerBound = isnothing(lb) ? 1e-3 : lb
-        upperBound = isnothing(ub) ? 1e3 : ub
-        if lowerBound > upperBound
-            throw(PEtabFormatError("Lower bound $lowerBound is larger than upper bound " *
-                                   "$upperBound for paramter $parameter"))
-        end
-
-        nominalValue = isnothing(value) ? (lowerBound + upperBound) / 2.0 : value
-        should_estimate = estimate == true ? 1 : 0
-        row = DataFrame(parameterId = parameter_id,
-                        parameterScale = parameterScale,
-                        lowerBound = lowerBound,
-                        upperBound = upperBound,
-                        nominalValue = nominalValue,
-                        estimate = should_estimate)
-        append!(parameters_df, row)
+        row = _parse_petab_parameter(petab_parameter)
+        DataFrames.append!(parameters_df, row; cols = :union)
     end
 
     if all(isnothing.(getfield.(parameters, :prior)))
@@ -250,4 +233,42 @@ function _get_hybridization_table_io(io_argument::Vector{Symbol}, ml_id::Symbol,
         hybridization_df = vcat(hybridization_df, _hybridization_df)
     end
     return hybridization_df
+end
+
+function _parse_petab_parameter(petab_parameter::PEtabParameter)::DataFrame
+    @unpack parameter_id, scale, lb, ub, value, estimate = petab_parameter
+
+    parameterScale = isnothing(scale) ? "lin" : string(scale)
+    if !(parameterScale in VALID_SCALES)
+        throw(PEtabFormatError("Scale $parameterScale is not allowed for parameter \
+            $parameter. Allowed scales are $(VALID_SCALES)"))
+    end
+
+    lowerBound = isnothing(lb) ? 1e-3 : lb
+    upperBound = isnothing(ub) ? 1e3 : ub
+    if lowerBound > upperBound
+        throw(PEtabFormatError("Lower bound $lowerBound is larger than upper bound \
+            $upperBound for paramter $parameter"))
+    end
+
+    nominalValue = isnothing(value) ? (lowerBound + upperBound) / 2.0 : value
+    should_estimate = estimate == true ? 1 : 0
+    return DataFrame(
+        parameterId = parameter_id, parameterScale = parameterScale, lowerBound = lowerBound,
+        upperBound = upperBound, nominalValue = nominalValue, estimate = should_estimate
+    )
+end
+function _parse_petab_parameter(petab_parameter::PEtabMLParameter)::DataFrame
+    @unpack ml_id, estimate, value = petab_parameter
+
+    if isnothing(value)
+        nominal_value = "$(ml_id)_julia_random"
+    else
+        nominal_value = "$(ml_id)_julia_provided"
+    end
+    should_estimate = estimate == true ? 1 : 0
+    return DataFrame(
+        parameterId = "$(ml_id)_parameters", parameterScale = "lin", lowerBound = -Inf,
+        upperBound = Inf, nominalValue = nominal_value, estimate = should_estimate
+    )
 end

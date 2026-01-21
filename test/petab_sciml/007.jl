@@ -1,4 +1,5 @@
 test_case = "007"
+dir_case = joinpath(@__DIR__, "test_cases", "sciml_problem_import", test_case, "petab")
 
 nn7 = @compact(
     layer1 = Dense(2, 5, Lux.tanh),
@@ -11,7 +12,7 @@ nn7 = @compact(
     @return out
 end
 ml_models = Dict(:net1 => MLModel(nn7; static = true, inputs = [:net1_input1, :net1_input2], outputs = [:prey]))
-path_h5 = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "net1_ps.hdf5")
+path_h5 = joinpath(dir_case, "net1_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn7) |> ComponentArray |> f64
 PEtab.set_ml_model_ps!(pnn, path_h5, nn7, :net1)
 
@@ -36,18 +37,23 @@ p_input2 = PEtabParameter(:net1_input2; scale = :lin, lb = 0.0, ub = 15.0, value
 p_net1 = PEtabMLParameter(:net1, true, pnn)
 pest = [p_alpha, p_beta, p_delta, p_gamma, p_input1, p_input2, p_net1]
 
-conds = Dict("cond1" => Dict{Symbol, Symbol}())
+conditions = PEtabCondition(:e1)
 
-obs_prey = PEtabObservable(:prey, 0.05)
-obs_predator = PEtabObservable(:predator, 0.05)
-obs = Dict("prey_o" => obs_prey, "predator_o" => obs_predator)
+observables = [
+    PEtabObservable(:prey_o, :prey, 0.05),
+    PEtabObservable(:predator_o, :predator, 0.05)
+]
 
-path_m = joinpath(@__DIR__, "test_cases", "hybrid", test_case, "petab", "measurements.tsv")
+path_m = joinpath(dir_case, "measurements.tsv")
 measurements = CSV.read(path_m, DataFrame)
+rename!(measurements, "experimentId" => "simulation_id")
 
-model = PEtabModel(uprob, obs, measurements, pest; ml_models = ml_models,
-                   simulation_conditions = conds)
-osolver = ODESolver(Rodas5P(autodiff = false), abstol = 1e-10, reltol = 1e-10)
-petab_prob = PEtabODEProblem(model; odesolver = osolver, gradient_method = :ForwardDiff,
-                             split_over_conditions = true)
+model = PEtabModel(
+    uprob, observables, measurements, pest; ml_models = ml_models,
+    simulation_conditions = conditions
+)
+petab_prob = PEtabODEProblem(
+    model; odesolver = ode_solver, gradient_method = :ForwardDiff,
+    split_over_conditions = true
+)
 test_hybrid(test_case, petab_prob)

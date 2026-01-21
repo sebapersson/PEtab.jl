@@ -132,8 +132,10 @@ function Priors(xindices::ParameterIndices, model::PEtabModel)::Priors
 
         # Prior provided via the Julia interface
         if occursin("__Julia__", prior_id)
+            prior = _parse_julia_prior(prior_id)
             push!(priors, _parse_julia_prior(prior_id))
             push!(priors_on_parameter_scale, false)
+            push!(logpdfs, _get_logpdf(prior))
 
         # Prior via the PEtab tables
         else
@@ -147,9 +149,8 @@ function Priors(xindices::ParameterIndices, model::PEtabModel)::Priors
 
             push!(priors, prior)
             push!(priors_on_parameter_scale, PETAB_PRIORS[prior_id].x_scale)
+            push!(logpdfs, _get_logpdf(prior))
         end
-
-        push!(logpdfs, _get_logpdf(prior))
     end
 
     # ML parameters

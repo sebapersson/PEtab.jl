@@ -262,3 +262,32 @@ end
 
 _get_n_parameters_sys(sys::ODEProblem)::Int64 = length(sys.p)
 _get_n_parameters_sys(sys::ModelSystem)::Int64 = length(_get_xids_sys(sys))
+
+function _check_target_id(target_id, i::Integer, condition_id)::Nothing
+    if target_id isa UserFormula
+        return nothing
+    end
+
+    _start = !isnothing(condition_id) ? "For condition $(condition_id)" : "For PEtabEvent"
+    throw(PEtabFormatError("$(_start), target id for assignment \
+        $(i) must be a `Num`, `Symbol` or `String`; got $(typeof(target_id)) with \
+        value $(target_id)."))
+end
+
+function _check_target_value(target_value, i::Integer, condition_id)
+    if target_value isa Union{UserFormula, Real}
+        return nothing
+    end
+
+    _start = !isnothing(condition_id) ? "For condition $(condition_id)" : "For PEtabEvent"
+    throw(PEtabFormatError("$(_start), target value for assignment  $(i) must be a \
+        `String` `Symbol`, a `Real`, or a symbolic expression (`Num`), e.g., \
+        \"A + 3\"; got $(typeof(target_value)) with value $(target_value)."))
+end
+
+function _get_experiment_id(simulation_id::Union{String, Symbol}, ::Nothing)::Symbol
+    return Symbol(simulation_id)
+end
+function _get_experiment_id(simulation_id::Union{String, Symbol}, pre_equilibration_id::Union{String, Symbol})::Symbol
+    return Symbol("$(pre_equilibration_id)$(simulation_id)")
+end

@@ -1,4 +1,10 @@
-function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, hybridization_df::DataFrame, ml_models::MLModels , speciemap_input)
+function _get_speciemap(
+        sys::ModelSystem, petab_tables::PEtabTables, ml_models::MLModels , speciemap_input
+    )
+    hybridization_df, conditions_df = _get_petab_tables(
+        petab_tables, [:hybridization, :conditions]
+    )
+
     specie_ids = _get_state_ids(sys)
     speciemap_ids = _get_speciemap_ids(sys)
     default_values = _get_default_values(sys)
@@ -52,20 +58,12 @@ function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, hybridizatio
     return sys, speciemap_model, speciemap
 end
 
-function _get_parametermap(sys::ODEProblem, ::Any, conditions_df::DataFrame, parameters_df::DataFrame, ml_models::MLModels)
-    specie_ids = string.(keys(sys.u0))
-    for specie_id in specie_ids
-        !(specie_id in names(conditions_df)) && continue
-        for condition_value in conditions_df[!, specie_id]
-            !(condition_value in parameters_df.parameterId) && continue
-            condition_value in string.(keys(sys.p)) && continue
-            sys = _add_parameter(sys, condition_value)
-        end
-    end
+function _get_parametermap(sys::ODEProblem, ::Any, ml_models::MLModels)
     # Need to re-order sys.p such that ML-model are last for correct indexing
     if isempty(ml_models) || !any([ml_id in keys(ml_models) for ml_id in keys(ml_models)])
         return sys, nothing
     end
+
     pkeys = keys(sys.p)
     ml_ids = collect(keys(ml_models))
     ml_ode_ids = filter(in(pkeys), ml_ids)
@@ -75,61 +73,56 @@ function _get_parametermap(sys::ODEProblem, ::Any, conditions_df::DataFrame, par
     sys = remake(sys, p = ComponentArray(p_ode))
     return sys, nothing
 end
-function _get_parametermap(sys::ModelSystem, parametermap_input, conditions_df::DataFrame, parameters_df::DataFrame, ::MLModels)
+function _get_parametermap(sys::ModelSystem, parametermap_input, ::MLModels)
     parametermap = [Num(p) => 0.0 for p in parameters(sys)]
+
     # User are allowed to specify default numerical values in the system
     default_values = ModelingToolkit.get_defaults(sys)
     for (i, pid) in pairs(first.(parametermap))
         !haskey(default_values, pid) && continue
         value = default_values[pid]
         if !(value isa Real)
-            throw(PEtabInuptError("When setting a parameter to a fixed value in the \
-                                   model system it must be set to a constant \
-                                   numberic value. This does not hold for $pid \
-                                   which is set to $value"))
+            throw(PEtabInuptError("When setting a parameter to a fixed value in the " *
+                                  "model system it must be set to a constant " *
+                                  "numberic value. This does not hold for $pid " *
+                                  "which is set to $value"))
         end
         parametermap[i] = first(parametermap[i]) => value
     end
 
-    if !isnothing(parametermap_input)
-        parameterids = first.(parametermap) .|> string
-        for (i, inputid) in pairs(string.(first.(parametermap_input)))
-            if !(inputid in parameterids)
-                throw(PEtab.PEtabFormatError("Parameter $inputid does not appear among the \
-                                            model parameters in the dynamic model"))
-            end
-            ip = findfirst(x -> x == inputid, parameterids)
-            parametermap[ip] = parametermap[ip].first => parametermap_input[i].second
-        end
+    if isnothing(parametermap_input)
+        return sys, parametermap
     end
-
-    # Check if for any of condition, initial values are given by a parameter set to
-    # be estimated. In that case, the parameter must be added to the system as it is
-    # a dynamic parameter
-    specie_ids = _get_state_ids(sys)
-    for specie_id in specie_ids
-        !(specie_id in names(conditions_df)) && continue
-        for condition_value in conditions_df[!, specie_id]
-            !(condition_value in parameters_df.parameterId) && continue
-            condition_value in string.(first.(parametermap)) && continue
-            push!(parametermap, eval(Meta.parse("@parameters $(condition_value)"))[1] => 0.0)
-            sys = _add_parameter(sys, condition_value)
+    parameterids = first.(parametermap) .|> string
+    for (i, inputid) in pairs(string.(first.(parametermap_input)))
+        if !(inputid in parameterids)
+            throw(PEtab.PEtabFormatError("Parameter $inputid does not appear among the  " *
+                                         "model parameters in the dynamic model"))
         end
+        ip = findfirst(x -> x == inputid, parameterids)
+        parametermap[ip] = parametermap[ip].first => parametermap_input[i].second
     end
     return sys, parametermap
 end
 
-function _check_unassigned_variables(sys::ModelSystem, variablemap, mapinput, whichmap::Symbol, parameters_df::DataFrame, conditions_df::DataFrame)::Nothing
+function _check_unassigned_variables(
+        sys::ModelSystem, variable_map, mapinput, whichmap::Symbol, petab_tables::PEtabTables
+    )::Nothing
+    conditions_df, parameters_df = _get_petab_tables(
+        petab_tables, [:conditions, :parameters]
+    )
+
     if whichmap == :parameter && sys isa ODEProblem
         return nothing
     end
+
     default_values = _get_default_values(sys)
     if !isnothing(mapinput)
         ids_input = replace.(first.(mapinput) .|> string, "(t)" => "")
     else
         ids_input = nothing
     end
-    for (variableid, value) in variablemap
+    for (variableid, value) in variable_map
         value = value |> string
         value != "0.0" && continue
         haskey(default_values, variableid) && continue

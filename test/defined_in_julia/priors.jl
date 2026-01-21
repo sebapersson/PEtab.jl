@@ -42,17 +42,18 @@ simulation_conditions = PEtabCondition(:c0)
 observables = PEtabObservable("obs_a", A, sigma)
 
 # PEtab-parameter to "estimate"
-parameters = [PEtabParameter(:sigma, value=1.0, scale=:lin, prior=LogNormal(0.6, 1.0)),
-              PEtabParameter(:a0, value=1.0, scale=:lin),
-              PEtabParameter(:b0, value=0.0, scale=:lin),
-              PEtabParameter(:k1, value=0.8, scale=:log10, lb = exp10(-0.8), ub = exp10(0.2),
-                             prior = Normal(-0.8, 0.2)),
-              PEtabParameter(:k2, value=0.6, scale=:log10, prior=LogNormal(0.6, 1.0))]
+parameters = [
+    PEtabParameter(:sigma, value=1.0, scale=:lin, prior=LogNormal(0.6, 1.0)),
+    PEtabParameter(:a0, value=1.0, scale=:lin),
+    PEtabParameter(:b0, value=0.0, scale=:lin),
+    PEtabParameter(:k1, value=0.8, scale=:log10, lb = exp10(-0.8), ub = exp10(0.2), prior = Normal(-0.8, 0.2)),
+    PEtabParameter(:k2, value=0.6, scale=:log10, prior=LogNormal(0.6, 1.0))
+]
 
 # Create a PEtabODEProblem ReactionNetwork
 model_rn = PEtabModel(rn, observables, measurements, parameters;
                       simulation_conditions = simulation_conditions)
-petab_prob_rn = PEtabODEProblem(model_rn, verbose=false)
+petab_prob_rn = PEtabODEProblem(model_rn)
 
 # Compute gradient + hessian for nllh and prior
 x = get_x(petab_prob_rn)
@@ -74,8 +75,10 @@ hess = petab_prob_rn.hess(x)
 @test all(.≈(hess, nllh_hess + prior_hess; atol = 1e-3))
 
 # The same test but for the Blockhessian approximation, and another gradient method
-petab_prob_rn = PEtabODEProblem(model_rn, verbose=false, hessian_method=:BlockForwardDiff,
-                                gradient_method=:ForwardEquations)
+petab_prob_rn = PEtabODEProblem(
+    model_rn, verbose=false, hessian_method=:BlockForwardDiff,
+    gradient_method=:ForwardEquations
+)
 nllh = petab_prob_rn.nllh(x; prior = false)
 nllh_grad = petab_prob_rn.grad(x; prior = false)
 nllh_hess = petab_prob_rn.hess(x; prior = false)

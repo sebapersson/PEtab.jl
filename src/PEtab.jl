@@ -52,6 +52,7 @@ include(joinpath("structs", "inference.jl"))
 const EstimationResult = Union{PEtabOptimisationResult, PEtabMultistartResult,
                                Vector{<:Real}, ComponentArray}
 const MLModels = Dict{Symbol, <:MLModel}
+const UserParameter = Union{PEtabParameter, PEtabMLParameter}
 
 include("common.jl")
 include("logging.jl")

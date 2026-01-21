@@ -279,6 +279,16 @@ function PEtabEvent(condition::Union{UserFormula, Real}, assignments::Pair...; t
     return PEtabEvent(string(condition), target_ids, target_values, trigger_time, Symbol.(condition_ids))
 end
 
+struct PEtabMLParameter{T <: AbstractFloat}
+    ml_id::Symbol
+    estimate::Bool
+    value::Union{Nothing, ComponentVector{T}}
+    prior::Nothing
+end
+function PEtabMLParameter(ml_id, estimate, value)
+    return PEtabMLParameter(ml_id, estimate, value, nothing)
+end
+
 mutable struct MLModel{T1 <: Any, T2 <: Union{Vector{Symbol}, Vector{Vector{Symbol}}}}
     const model::T1
     st::NamedTuple

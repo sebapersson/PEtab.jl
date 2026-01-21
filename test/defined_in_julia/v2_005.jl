@@ -59,13 +59,13 @@ observables = PEtabObservable("obs_a", :model_obs, 1.0)
 # Create a PEtabODEProblem ReactionNetwork
 model_rn = PEtabModel(rn, observables, measurements, parameters;
                       simulation_conditions = simulation_conditions)
-petab_problem_rn = PEtabODEProblem(model_rn)
+petab_prob_rn = PEtabODEProblem(model_rn)
 # Create a PEtabODEProblem ODESystem
 model_sys = PEtabModel(sys, observables, measurements, parameters;
                        simulation_conditions = simulation_conditions)
-petab_problem_sys = PEtabODEProblem(model_sys)
+petab_prob_sys = PEtabODEProblem(model_sys)
 
-nll_rn = petab_problem_rn.nllh(get_x(petab_problem_rn))
-nll_sys = petab_problem_sys.nllh(get_x(petab_problem_sys))
+nll_rn = petab_prob_rn.nllh(get_x(petab_prob_rn))
+nll_sys = petab_prob_sys.nllh(get_x(petab_prob_sys))
 @test nll_rn ≈ 1.91797937195749 atol=1e-3
 @test nll_sys ≈ 1.91797937195749 atol=1e-3

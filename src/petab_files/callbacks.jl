@@ -46,7 +46,8 @@ function _parse_events(petab_events::Vector{PEtabEvent}, sys::ModelSystem, speci
     cbs = Dict{Symbol, CallbackSet}()
     conditions_df = petab_tables[:conditions]
 
-    psys = string.(_get_xids_sys_order(sys, speciemap, parametermap))
+    p_sys = string.(_get_xids_sys_order(sys, speciemap, parametermap))
+    state_ids = _get_state_ids(sys)
 
     # Whether t-span should be float or not depends on all events
     sbml_events = parse_events(petab_events, sys)
@@ -65,8 +66,10 @@ function _parse_events(petab_events::Vector{PEtabEvent}, sys::ModelSystem, speci
 
         _sbml_events = parse_events(_events_condition, sys)
         _model_SBML = SBMLImporter.ModelSBML(name; events = _sbml_events)
-        _cbs = SBMLImporter.create_callbacks(sys, _model_SBML, name;
-                                             p_PEtab = psys, float_tspan = float_tspan)
+        _cbs = SBMLImporter.create_callbacks(
+            sys, _model_SBML, name; p_PEtab = p_sys, float_tspan = float_tspan,
+            _specie_ids = state_ids
+        )
 
         # DiscreteCallbacks must be assigned a _save_u flagging whether solution should
         # be saved after the event has fired. Following PEtab v2, this happens if the event
