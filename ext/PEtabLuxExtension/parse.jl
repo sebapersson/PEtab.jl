@@ -18,7 +18,7 @@ function PEtab.load_ml_models(path_yaml::String)::Dict{Symbol, <:PEtab.MLModel}
     return ml_models
 end
 
-function PEtab.MLModel(net::Union{Lux.Chain, Lux.CompactLuxLayer}; st = nothing, static::Bool = true, dirdata = nothing, inputs::Union{Vector{T}, Vector{Vector{T}}} = Symbol[], outputs::Vector{T} = Symbol[], freeze_info::Union{Nothing, Dict} = nothing)::MLModel where T <: Union{String, Symbol}
+function PEtab.MLModel(net::Union{Lux.Chain, Lux.CompactLuxLayer}; st = nothing, static::Bool = true, dirdata = nothing, inputs::Union{Vector{T}, Vector{Vector{T}}, Array{<:Real}} = Symbol[], outputs::Vector{T} = Symbol[], freeze_info::Union{Nothing, Dict} = nothing)::MLModel where T <: Union{String, Symbol}
     # Set frozen parameters if applicable
     rng = Random.default_rng()
     # st must be of type Float64 for numerical stability
@@ -26,6 +26,7 @@ function PEtab.MLModel(net::Union{Lux.Chain, Lux.CompactLuxLayer}; st = nothing,
         st = Lux.initialstates(rng, net)
     end
     st = st |> f64
+
     ps = Lux.initialparameters(rng, net) |> ComponentArray |> f64
     if !isnothing(freeze_info)
         for (layer_id, array_info) in freeze_info
@@ -34,19 +35,27 @@ function PEtab.MLModel(net::Union{Lux.Chain, Lux.CompactLuxLayer}; st = nothing,
             end
         end
     end
+
     if isnothing(dirdata)
         dirdata = ""
     elseif !isdir(dirdata)
         throw(PEtab.PEtabInputError("For a ml_model dirdata keyword argument must be a \
             valid directory. This does not hold for $dirdata"))
     end
+
     if (!isempty(inputs) && isempty(outputs)) || (isempty(inputs) && !isempty(outputs))
         throw(PEtab.PEtabInputError("If either input or output is provided to a ml_model \
             then both input and output must be provided"))
     end
-    _inputs = [Symbol.(input) for input in inputs]
+
+    array_inputs = Dict{Symbol, Array{<:Real}}()
+    if inputs isa Array{<:Real}
+        _inputs = [_parse_input!(array_inputs, inputs, 1)]
+    else
+        _inputs = [_parse_input!(array_inputs, input, i) for (i, input) in pairs(inputs)]
+    end
     _outputs = [Symbol.(output) for output in outputs]
-    return MLModel(net, st, ps, static, dirdata, _inputs, _outputs)
+    return MLModel(net, st, ps, static, dirdata, _inputs, _outputs, array_inputs)
 end
 
 function PEtab.parse_to_lux(path_yaml::String; freeze_info::Union{Nothing, Dict} = nothing)
@@ -283,4 +292,13 @@ function _get_freeze_info(ml_id::Symbol, ml_models::Dict, path_yaml::String)::Di
         end
     end
     return freeze_info
+end
+
+function _parse_input!(array_inputs::Dict{Symbol, Array{<:Real}}, input, iarg)
+    if input isa Array{<:Real} && length(size(input)) > 1
+        array_inputs[Symbol("__arg$(iarg)")] = input
+        return :_ARRAY_INPUT
+    else
+        return Symbol.(input)
+    end
 end

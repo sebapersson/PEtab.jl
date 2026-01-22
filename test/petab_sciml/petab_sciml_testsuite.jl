@@ -13,11 +13,6 @@ end
 
 @testset "PEtab SciML hybrid models" begin
     for i in 1:34
-        # TODO: Need to handle the file structure
-        if i in [14, 15]
-            continue
-        end
-
         test_case = i < 10 ? "00$i" : "0$i"
         path_yaml = joinpath(@__DIR__, "test_cases", "sciml_problem_import", test_case, "petab", "problem.yaml")
         ml_models = PEtab.load_ml_models(path_yaml)

@@ -1,6 +1,6 @@
 using CSV, DataFrames, FiniteDifferences, PEtab, Test, YAML
 
-function test_case(case::String; test_grad::Bool=true)
+function check_test_case(case::String; test_grad::Bool=true)
     @info "Test case $case"
     path_yaml = joinpath(@__DIR__, "petab_v1_testsuite", case, "_$(case).yaml")
     path_ref = joinpath(@__DIR__, "petab_v1_testsuite", case, "_$(case)_solution.yaml")
