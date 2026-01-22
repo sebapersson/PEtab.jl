@@ -1,9 +1,3 @@
-
-# TODO: If ML model is assigned one condition, it needs to be assigned for all of
-# TODO: of them.
-# TODO: Check array and layer ids exist for setting priors
-# TODO: Check all ML parameters have been assigned a parameter object
-
 function _parameters_to_table(parameters::Vector)::DataFrame
     # Most validity check occurs later during table parsing
     parameters_df = DataFrame()

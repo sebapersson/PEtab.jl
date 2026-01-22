@@ -1,3 +1,6 @@
+using ModelingToolkit
+using ModelingToolkit: t_nounits as t, D_nounits as D
+
 test_case = "003"
 dir_case = joinpath(@__DIR__, "test_cases", "sciml_problem_import", test_case, "petab")
 
@@ -13,20 +16,26 @@ nn3 = @compact(
 end
 ml_models = Dict(:net1 => MLModel(nn3; static = true, inputs = [:net1_input1, :net1_input2], outputs = [:gamma]))
 path_h5 = joinpath(dir_case, "net1_ps.hdf5")
-pnn = Lux.initialparameters(rng, nn1) |> ComponentArray |> f64
+pnn = Lux.initialparameters(rng, nn3) |> ComponentArray |> f64
 PEtab.set_ml_model_ps!(pnn, path_h5, nn3, :net1)
 
-function lv3!(du, u, p, t)
-    prey, predator = u
-    @unpack alpha, delta, beta, gamma = p
-    du[1] = alpha * prey - beta * prey * predator # prey
-    du[2] = gamma * predator * prey - delta * predator # predator
-    return nothing
+@mtkmodel _SYS3 begin
+    @parameters begin
+        alpha
+        delta
+        beta
+        gamma
+    end
+    @variables begin
+        prey(t) = 0.44249296
+        predator(t) = 4.6280594
+    end
+    @equations begin
+        D(prey) ~ alpha * prey - beta * prey * predator
+        D(predator) ~ gamma * predator * prey - delta * predator
+    end
 end
-
-u0 = ComponentArray(prey = 0.44249296, predator = 4.6280594)
-p_mechanistic = ComponentArray(alpha = 1.3, delta = 1.8, beta = 0.9, gamma = 0.8)
-uprob = ODEProblem(lv3!, u0, (0.0, 10.0), p_mechanistic)
+@mtkbuild sys = _SYS3()
 
 pest = [
     PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3),
@@ -52,7 +61,7 @@ measurements = CSV.read(path_m, DataFrame)
 rename!(measurements, "experimentId" => "simulation_id")
 
 model = PEtabModel(
-    uprob, observables, measurements, pest;
+    sys, observables, measurements, pest;
     ml_models = ml_models, simulation_conditions = conditions
 )
 petab_prob = PEtabODEProblem(

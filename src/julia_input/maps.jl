@@ -108,8 +108,8 @@ end
 function _check_unassigned_variables(
         sys::ModelSystem, variable_map, mapinput, whichmap::Symbol, petab_tables::PEtabTables
     )::Nothing
-    conditions_df, parameters_df = _get_petab_tables(
-        petab_tables, [:conditions, :parameters]
+    conditions_df, parameters_df, hybridization_df = _get_petab_tables(
+        petab_tables, [:conditions, :parameters, :hybridization]
     )
 
     if whichmap == :parameter && sys isa ODEProblem
@@ -136,8 +136,12 @@ function _check_unassigned_variables(
         end
         id in parameters_df[!, :parameterId] && continue
         id in names(conditions_df) && continue
-        @warn "The $(whichmap) $id has not been assigned a value among PEtabParameters, " *
-              "simulation conditions, or in the $(whichmap) map. It default to 0."
+        if !isempty(hybridization_df) && id in hybridization_df.targetId
+            continue
+        end
+
+        @warn "The $(whichmap) $id has not been assigned a value among PEtabParameters, \
+               simulation conditions, or in the $(whichmap) map. It default to 0."
     end
 end
 

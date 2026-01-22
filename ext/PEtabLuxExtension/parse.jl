@@ -295,7 +295,7 @@ function _get_freeze_info(ml_id::Symbol, ml_models::Dict, path_yaml::String)::Di
 end
 
 function _parse_input!(array_inputs::Dict{Symbol, Array{<:Real}}, input, iarg)
-    if input isa Array{<:Real} && length(size(input)) > 1
+    if input isa Array{<:Real}
         array_inputs[Symbol("__arg$(iarg)")] = input
         return :_ARRAY_INPUT
     else
