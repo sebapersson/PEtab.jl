@@ -30,3 +30,5 @@ src/Optimizers/*
 
 docs/node_modules
 docs/package-lock.json
+
+__pycache__
