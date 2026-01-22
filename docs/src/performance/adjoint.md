@@ -62,7 +62,7 @@ nothing # hide
 ```
 
 Note that SciMLSensitivity must be loaded to use adjoints. The adjoint ODE-solver tolerances
-are set via `abstol_adj`/`reltol_adj` in `ODESolver` and apply only to the adjoint solve.R
+are set via `abstol_adj`/`reltol_adj` in `ODESolver` and apply only to the adjoint solve.
 Relaxing the adjoint tolerances (relative to the default `1e-8`) can improve
 robustness (fewer failed gradient evaluations). Runtime can then be compared as:
 
