@@ -65,7 +65,7 @@ include(joinpath("petab_files", "conditions", "check_input.jl"))
 include(joinpath("petab_files", "conditions", "common.jl"))
 include(joinpath("petab_files", "conditions", "conditions.jl"))
 include(joinpath("petab_files", "conditions", "maps.jl"))
-include(joinpath("petab_files", "conditions", "xids.jl"))
+include(joinpath("petab_files", "conditions", "ids.jl"))
 include(joinpath("petab_files", "conditions", "indices.jl"))
 include(joinpath("petab_files", "measurements.jl"))
 include(joinpath("petab_files", "observables.jl"))
@@ -141,7 +141,7 @@ function correct_gradient! end
 function load_ml_models end
 function _get_lux_ps end
 function _get_ml_model_initialparameters end
-function set_ml_model_ps! end
+function _set_ml_model_ps! end
 function _reshape_io_data end
 function ml_model end
 function parse_to_lux end

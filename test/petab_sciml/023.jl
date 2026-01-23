@@ -24,10 +24,10 @@ end
 # Setup parameters for network to use during estimation
 path_h5 = joinpath(dir_case, "net1_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn23_frozen) |> ComponentArray |> f64
-PEtab.set_ml_model_ps!(pnn, path_h5, nn23_frozen, :net1)
+PEtab._set_ml_model_ps!(pnn, path_h5, nn23_frozen, :net1)
 # Set frozen parameters
 pnn_tmp = Lux.initialparameters(rng, nn23) |> ComponentArray |> f64
-PEtab.set_ml_model_ps!(pnn_tmp, path_h5, nn23, :net1)
+PEtab._set_ml_model_ps!(pnn_tmp, path_h5, nn23, :net1)
 st = Lux.initialstates(rng, nn23_frozen) |> f64
 st.layer1.frozen_params.weight .= pnn_tmp.layer1.weight
 st.layer1.frozen_params.bias .= pnn_tmp.layer1.bias

@@ -182,6 +182,6 @@ function hess_GN!(out::Matrix{T}, x::Vector{T}, _residuals_not_solveode::Functio
     end
 
     # Reset such that neural-nets pre ODE no longer have status of having been evaluated
-    reset_ml_pre_simulate!(probinfo)
+    _reset_ml_pre_simulate!(probinfo)
     return nothing
 end

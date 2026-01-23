@@ -203,7 +203,7 @@ function _parse_freeze(ml_model::PEtab.MLModel, path_yaml::String)::Dict
     rng = Random.default_rng()
     ps, _ = Lux.setup(rng, ml_model.lux_model)
     ps = ComponentArray(ps) |> f64
-    PEtab.set_ml_model_ps!(ps, ml_id, PEtab.MLModels(ml_model), paths, petab_tables)
+    PEtab._set_ml_model_ps!(ps, ml_id, PEtab.MLModels(ml_model), paths, petab_tables)
 
     ml_model_indices = PEtab._get_ml_model_indices(ml_id, petab_ml_parameters.mapping_table_id)
     freeze_info = Dict{Symbol, Dict}()

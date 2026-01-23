@@ -75,6 +75,7 @@ function _get_ml_model_indices(ml_id::Symbol, mapping_table_ids::Vector{String})
     return sort(ix, by = i -> count(c -> c == '[' || c == '.', mapping_table_ids[i]))
 end
 
+# TODO: Might remove this guy!
 function _get_xnames_ml_models(xnames::Vector{Symbol}, model_info::ModelInfo)::Vector{Symbol}
     ix_mech = _get_ixnames_mech(xnames, model_info.petab_parameters)
     return xnames[setdiff(1:length(xnames), ix_mech)]

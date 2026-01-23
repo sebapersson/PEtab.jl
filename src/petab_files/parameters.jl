@@ -1,12 +1,15 @@
 function PEtabParameters(petab_tables::PEtabTables, ml_models::MLModels)
-    parameters_df, mappings_df = _get_petab_tables( petab_tables, [:parameters, :mapping])
+    parameters_df, mappings_df = _get_petab_tables(petab_tables, [:parameters, :mapping])
     return PEtabParameters(parameters_df, mappings_df, ml_models)
 end
-function PEtabParameters(_parameters_df::DataFrame, mappings_df::DataFrame, ml_models::MLModels; custom_values::Union{Nothing, Dict} = nothing)::PEtabParameters
+function PEtabParameters(
+        _parameters_df::DataFrame, mappings_df::DataFrame, ml_models::MLModels;
+        custom_values::Union{Nothing, Dict} = nothing
+    )::PEtabParameters
     # Neural-net parameters are parsed in different function, as they have different
     # initialization, etc...
-    imech = _get_parameters_ix(_parameters_df, mappings_df, ml_models, :mechanistic)
-    parameters_df = _parameters_df[imech, 1:end]
+    idx_mech = _get_parameters_ix(_parameters_df, mappings_df, ml_models, :mechanistic)
+    parameters_df = _parameters_df[idx_mech, 1:end]
 
     _check_values_column(parameters_df, VALID_SCALES, :parameterScale, "parameters")
     _check_values_column(parameters_df, [0, 1], :estimate, "parameters")
@@ -16,13 +19,13 @@ function PEtabParameters(_parameters_df::DataFrame, mappings_df::DataFrame, ml_m
     if parameters_df[1, :nominalValue] isa String
         parameters_df[!, :nominalValue] .= parse.(Float64, parameters_df[!, :nominalValue])
     end
-    nparameters = nrow(parameters_df)
+    nps = nrow(parameters_df)
     parameter_ids = fill(Symbol(), nrow(parameters_df))
-    lower_bounds = fill(-Inf, nparameters)
-    upper_bounds = fill(Inf, nparameters)
-    nominal_values = zeros(Float64, nparameters)
-    parameter_scales = fill(Symbol(), nparameters)
-    estimate = fill(false, nparameters)
+    lower_bounds = fill(-Inf, nps)
+    upper_bounds = fill(Inf, nps)
+    nominal_values = zeros(Float64, nps)
+    parameter_scales = fill(Symbol(), nps)
+    estimate = fill(false, nps)
 
     _parse_table_column!(nominal_values, parameters_df[!, :nominalValue], Float64)
     _parse_table_column!(parameter_ids, parameters_df[!, :parameterId], Symbol)
@@ -30,7 +33,7 @@ function PEtabParameters(_parameters_df::DataFrame, mappings_df::DataFrame, ml_m
     _parse_table_column!(estimate, parameters_df[!, :estimate], Bool)
     _parse_bound_column!(lower_bounds, parameters_df[!, :lowerBound], estimate)
     _parse_bound_column!(upper_bounds, parameters_df[!, :upperBound], estimate)
-    nparameters_estimate = sum(estimate) |> Int64
+    nps_estimate = sum(estimate) |> Int64
 
     # When doing model selection it can be necessary to change the parameter values
     # without changing in the PEtab files. To get all subsequent parameter running
@@ -52,7 +55,7 @@ function PEtabParameters(_parameters_df::DataFrame, mappings_df::DataFrame, ml_m
 
     return PEtabParameters(
         nominal_values, lower_bounds, upper_bounds, parameter_ids, parameter_scales,
-        estimate, nparameters_estimate
+        estimate, nps_estimate
     )
 end
 
@@ -60,29 +63,31 @@ function PEtabMLParameters(petab_tables::PEtabTables, ml_models::MLModels)
     parameters_df, mappings_df = _get_petab_tables( petab_tables, [:parameters, :mapping])
     return PEtabMLParameters(parameters_df, mappings_df, ml_models)
 end
-function PEtabMLParameters(_parameters_df::DataFrame, mappings_df::DataFrame, ml_models::MLModels)::PEtabMLParameters
-    inet = _get_parameters_ix(_parameters_df, mappings_df, ml_models, :net)
-    parameters_df = _parameters_df[inet, 1:end]
+function PEtabMLParameters(
+        _parameters_df::DataFrame, mappings_df::DataFrame, ml_models::MLModels
+    )::PEtabMLParameters
+    idx_ml = _get_parameters_ix(_parameters_df, mappings_df, ml_models, :ml)
+    parameters_df = _parameters_df[idx_ml, 1:end]
 
     _check_values_column(parameters_df, [0, 1], :estimate, "parameters")
 
-    nparameters = nrow(parameters_df)
+    nps = nrow(parameters_df)
     parameter_ids = fill(Symbol(), nrow(parameters_df))
     ml_ids = fill(Symbol(), nrow(parameters_df))
-    lower_bounds = fill(-Inf, nparameters)
-    upper_bounds = fill(Inf, nparameters)
-    estimate = fill(false, nparameters)
-    mapping_table_ids = fill("", nparameters)
+    lower_bounds = fill(-Inf, nps)
+    upper_bounds = fill(Inf, nps)
+    estimate = fill(false, nps)
+    mapping_table_ids = fill("", nps)
 
     _parse_table_column!(parameter_ids, parameters_df[!, :parameterId], Symbol)
     _parse_table_column!(estimate, parameters_df[!, :estimate], Bool)
     _parse_bound_column!(lower_bounds, parameters_df[!, :lowerBound], estimate)
     _parse_bound_column!(upper_bounds, parameters_df[!, :upperBound], estimate)
-    _get_ml_ids!(ml_ids, parameter_ids, mappings_df, ml_models)
+    _get_mls_ps_petab_ids!(ml_ids, parameter_ids, mappings_df, ml_models)
     _get_mapping_table_ids!(mapping_table_ids, parameter_ids, mappings_df)
 
     # Nominal-value for net parameters can be either a file name, of a numerical value
-    nominal_values = Vector{Union{String, Float64}}(undef, nparameters)
+    nominal_values = Vector{Union{String, Float64}}(undef, nps)
     for (i, nominal_value) in pairs(parameters_df[!, :nominalValue])
         if nominal_value isa Real
             nominal_values[i] = nominal_value
@@ -95,7 +100,10 @@ function PEtabMLParameters(_parameters_df::DataFrame, mappings_df::DataFrame, ml
         end
     end
 
-    return PEtabMLParameters(nominal_values, lower_bounds, upper_bounds, parameter_ids, estimate, ml_ids, mapping_table_ids)
+    return PEtabMLParameters(
+        nominal_values, lower_bounds, upper_bounds, parameter_ids, estimate, ml_ids,
+        mapping_table_ids
+    )
 end
 
 function Priors(xindices::ParameterIndices, model::PEtabModel)::Priors
@@ -119,8 +127,8 @@ function Priors(xindices::ParameterIndices, model::PEtabModel)::Priors
     logpdfs = Function[]
 
     # Mechanistic parameters
-    for (ix, id) in pairs(xindices.xids[:estimate])
-        id in xindices.xids[:ml_est] && continue
+    for (ix, id) in pairs(xindices.ids[:estimate])
+        id in xindices.ids[:ml_est] && continue
 
         row_idx = findfirst(x -> x == string(id), string.(parameters_df[!, :parameterId]))
         prior_id = parameters_df[row_idx, :objectivePriorType]
@@ -135,7 +143,6 @@ function Priors(xindices::ParameterIndices, model::PEtabModel)::Priors
             prior = _parse_julia_prior(prior_id)
             push!(priors, _parse_julia_prior(prior_id))
             push!(priors_on_parameter_scale, false)
-            push!(logpdfs, _get_logpdf(prior))
 
         # Prior via the PEtab tables
         else
@@ -146,16 +153,15 @@ function Priors(xindices::ParameterIndices, model::PEtabModel)::Priors
             if petab_version == "2.0.0" && (lb > prior_support.lb || ub < prior_support.ub)
                 prior = truncated(prior, lb, ub)
             end
-
             push!(priors, prior)
             push!(priors_on_parameter_scale, PETAB_PRIORS[prior_id].x_scale)
-            push!(logpdfs, _get_logpdf(prior))
         end
+        push!(logpdfs, _get_logpdf(prior))
     end
 
     # ML parameters
     petab_ml_parameters = PEtabMLParameters(parameters_df, mappings_df, ml_models)
-    for ml_id in xindices.xids[:ml_est]
+    for ml_id in xindices.ids[:ml_est]
         i_parameters = _get_ml_model_indices(ml_id, petab_ml_parameters.mapping_table_id)
         for ip in i_parameters
             petab_parameter_id = string(petab_ml_parameters.parameter_id[ip])
@@ -185,11 +191,11 @@ function Priors(xindices::ParameterIndices, model::PEtabModel)::Priors
             end
             _logpdf = _get_logpdf(prior)
 
+            # Need to replace in case of nested priors
             for ix in ix_ml
                 if ix in ix_prior
                     jx = findfirst(x -> x == ix, ix_prior)
                     logpdfs[jx] = _logpdf
-                    priors_on_parameter_scale[jx] = false
                     priors[jx] = prior
                 else
                     push!(ix_prior, ix)
@@ -244,17 +250,18 @@ function _get_parameters_ix(
         which_ps::Symbol
     )::Vector{Int64}
 
-    @assert which_ps in [:mechanistic, :net] "Error in PEtabParameters parsing"
+    @assert which_ps in [:mechanistic, :ml] "Error in PEtabParameters parsing"
     ml_models_ps_ids = String[]
     for ml_id in ml_models.ml_ids
+        idx = startswith.(mappings_df.modelEntityId, "$(ml_id).$(parameters)")
         ml_models_ps_ids = vcat(
-            ml_models_ps_ids, _get_ml_model_parameter_ids(mappings_df, ml_id)
+            ml_models_ps_ids, mappings_df[idx, :petabEntityId]
         )
     end
 
     out = Int64[]
     for (i, parameter_id) in pairs(parameters_df.parameterId)
-        if which_ps == :net && parameter_id in ml_models_ps_ids
+        if which_ps == :ml && parameter_id in ml_models_ps_ids
             push!(out, i)
         elseif which_ps == :mechanistic && !(parameter_id in ml_models_ps_ids)
             push!(out, i)
@@ -263,13 +270,14 @@ function _get_parameters_ix(
     return out
 end
 
-function _get_ml_ids!(
+function _get_mls_ps_petab_ids!(
         ml_ids::Vector{Symbol}, parameter_ids::Vector{Symbol}, mappings_df::DataFrame,
         ml_models::MLModels
     )::Nothing
     for (i, parameter_id) in pairs(string.(parameter_ids))
         for ml_id in ml_models.ml_ids
-            ml_parameters = _get_ml_model_parameter_ids(mappings_df, ml_id)
+            idx = startswith.(mappings_df.modelEntityId, "$(ml_id).$(parameters)")
+            ml_parameters = mappings_df[idx, :petabEntityId]
             if !(parameter_id in ml_parameters)
                 continue
             end
@@ -286,11 +294,6 @@ function _get_mapping_table_ids!(mapping_table_ids::Vector{String}, parameter_id
         mapping_table_ids[i] = mappings_df.modelEntityId[ix]
     end
     return nothing
-end
-
-function _get_ml_model_parameter_ids(mappings_df::DataFrame, ml_id::Symbol)::Vector{String}
-    idx = startswith.(mappings_df.modelEntityId, "$(ml_id).$(parameters)")
-    return mappings_df[idx, :petabEntityId]
 end
 
 function _get_logpdf(prior::ContDistribution)::Function

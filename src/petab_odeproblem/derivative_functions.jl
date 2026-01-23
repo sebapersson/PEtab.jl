@@ -273,8 +273,8 @@ function split_x_notsystem(x, xindices::ParameterIndices, cache::PEtabODEProblem
     xnondynamic_mech = get_tmp(cache.xnondynamic_mech, x)
     xnondynamic_mech .= @view x[xindices.indices_not_system[:not_system_to_nondynamic_mech]]
 
-    for ml_id in xindices.xids[:ml_nondynamic]
-        !(ml_id in xindices.xids[:ml_est]) && continue
+    for ml_id in xindices.ids[:ml_nondynamic]
+        !(ml_id in xindices.ids[:ml_est]) && continue
         x_ml = get_tmp(cache.x_ml_models_cache[ml_id], x)
         x_ml .= x[xindices.indices_not_system[ml_id]]
         cache.x_ml_models[ml_id] = x_ml

@@ -61,7 +61,7 @@ end
 
 #
 function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector{T}, xdynamic::Vector{T}, xindices::ParameterIndices, simid::Symbol; sensitivities_AD::Bool = false, ml_pre_simulate::Bool = false)::Nothing where {T <: AbstractFloat}
-    @unpack xids, xscale, condition_maps = xindices
+    @unpack ids, xscale, condition_maps = xindices
     condition_map! = condition_maps[simid]
 
     # TODO: Refactor handling of this!
@@ -91,15 +91,15 @@ function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector
     if sensitivities_AD == true && ml_pre_simulate == true
         J = ForwardDiff.jacobian(condition_map!, similar(∂G∂p), xdynamic)
         grad_linscale .+= transpose(transpose(∂G∂p) * J)
-        _grad_to_xscale!(grad_xscale, grad_linscale, xdynamic, xids[:est_to_dynamic_mech], xscale)
+        _grad_to_xscale!(grad_xscale, grad_linscale, xdynamic, ids[:est_to_dynamic_mech], xscale)
         return nothing
 
     elseif sensitivities_AD == true && ml_pre_simulate == false
-        n_dynamic_mech = length(xids[:est_to_dynamic_mech])
+        n_dynamic_mech = length(ids[:est_to_dynamic_mech])
         _xdynamic = xdynamic[1:n_dynamic_mech]
         J = ForwardDiff.jacobian(condition_map!, similar(∂G∂p), _xdynamic)
         grad_linscale[1:n_dynamic_mech] .+= transpose(transpose(∂G∂p) * J)
-        _grad_to_xscale!(grad_xscale, grad_linscale, xdynamic, xids[:est_to_dynamic_mech], xscale)
+        _grad_to_xscale!(grad_xscale, grad_linscale, xdynamic, ids[:est_to_dynamic_mech], xscale)
         return nothing
     end
 
@@ -108,14 +108,14 @@ function grad_to_xscale!(grad_xscale, grad_linscale::Vector{T}, ∂G∂p::Vector
     # correction needed for both
     J = ForwardDiff.jacobian(condition_map!, similar(∂G∂p), xdynamic)
     _grad_linscale = transpose(transpose(grad_linscale + ∂G∂p) * J)
-    _grad_to_xscale!(grad_xscale, _grad_linscale, xdynamic, xids[:est_to_dynamic_mech], xscale)
+    _grad_to_xscale!(grad_xscale, _grad_linscale, xdynamic, ids[:est_to_dynamic_mech], xscale)
     return nothing
 end
 
 function _grad_to_xscale!(grad_xscale::AbstractVector{T}, grad_linscale::AbstractVector{T},
-                          x::AbstractVector{T}, xids::AbstractVector{Symbol},
+                          x::AbstractVector{T}, ids::AbstractVector{Symbol},
                           xscale::Dict{Symbol, Symbol})::Nothing where {T <: AbstractFloat}
-    for (i, xid) in pairs(xids)
+    for (i, xid) in pairs(ids)
         grad_xscale[i] += _grad_to_xscale(grad_linscale[i], x[i], xscale[xid])
     end
     return nothing
@@ -148,7 +148,7 @@ function _get_xinput(
         probinfo::PEtabODEProblemInfo
     )
     @unpack xindices, simulation_info = model_info
-    ninode, npre_simulate = length(ixdynamic_simid), length(xindices.xids[:sys_ml_pre_simulate_outputs])
+    ninode, npre_simulate = length(ixdynamic_simid), length(xindices.ids[:sys_ml_pre_simulate_outputs])
     xinput = zeros(Float64, ninode + npre_simulate)
     @views xinput[1:ninode] .= x[ixdynamic_simid]
 

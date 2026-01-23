@@ -25,10 +25,10 @@ function _set_const_parameters!(model::PEtabModel,
     @unpack speciemap, parametermap, sys_mutated = model
     @unpack nominal_value, parameter_id = parameters_info
     state_ids = _get_state_ids(sys_mutated)
-    xids_sys = first.(parametermap) .|> string
+    ids_sys = first.(parametermap) .|> string
     for (i, id) in pairs(parameter_id .|> string)
         # Check if values matches either state of parameter, and adjust value in the map
-        ip = findfirst(x -> x == id, xids_sys)
+        ip = findfirst(x -> x == id, ids_sys)
         is = findfirst(x -> x == id, state_ids)
         if !isnothing(ip)
             parametermap[ip] = Pair(parametermap[ip].first, nominal_value[i])
@@ -83,7 +83,7 @@ function split_xdynamic(
     xdynamic_mech .= @view xdynamic[xindices.indices_dynamic[:dynamic_to_mech]]
 
     for (ml_id, x_ml_cache) in cache.x_ml_models_cache
-        in(ml_id, xindices.xids[:ml_nondynamic]) && continue
+        in(ml_id, xindices.ids[:ml_nondynamic]) && continue
         x_ml = get_tmp(x_ml_cache, xdynamic)
         x_ml .= @view xdynamic[xindices.indices_dynamic[ml_id]]
         cache.x_ml_models[ml_id] = x_ml
@@ -91,9 +91,9 @@ function split_xdynamic(
     return xdynamic_mech, cache.x_ml_models
 end
 
-function transform_x!(x::AbstractVector, xids::Vector{Symbol}, xindices::ParameterIndices;
+function transform_x!(x::AbstractVector, ids::Vector{Symbol}, xindices::ParameterIndices;
                       to_xscale::Bool = false)::Nothing
-    @inbounds for (i, xid) in pairs(xids)
+    @inbounds for (i, xid) in pairs(ids)
         x[i] = transform_x(x[i], xindices.xscale[xid]; to_xscale = to_xscale)
     end
     return nothing
@@ -102,19 +102,19 @@ end
 function transform_x(x::AbstractVector, xindices::ParameterIndices, whichx::Symbol,
                      cache::PEtabODEProblemCache; to_xscale::Bool = false)::AbstractVector
     if whichx === :xdynamic_mech || whichx === :xdynamic
-        xids = xindices.xids[:est_to_dynamic_mech]
+        ids = xindices.ids[:est_to_dynamic_mech]
         x_ps = get_tmp(cache.xdynamic_ps, x)
     elseif whichx === :xnoise
-        xids = xindices.xids[:noise]
+        ids = xindices.ids[:noise]
         x_ps = get_tmp(cache.xnoise_ps, x)
     elseif whichx === :xnondynamic_mech
-        xids = xindices.xids[:nondynamic_mech]
+        ids = xindices.ids[:nondynamic_mech]
         x_ps = get_tmp(cache.xnondynamic_mech_ps, x)
     elseif whichx === :xobservable
-        xids = xindices.xids[:observable]
+        ids = xindices.ids[:observable]
         x_ps = get_tmp(cache.xobservable_ps, x)
     end
-    for (i, xid) in pairs(xids)
+    for (i, xid) in pairs(ids)
         x_ps[i] = transform_x(x[i], xindices.xscale[xid]; to_xscale = to_xscale)
     end
     # For xdynamic (mechanistic + neural net parameters) it does not make sense to
@@ -133,7 +133,7 @@ function transform_x(x::T, xnames::Vector{Symbol}, xindices::ParameterIndices;
     out = similar(x)
     isempty(x) && return out
     for (i, xname) in pairs(xnames)
-        if !in(xname, xindices.xids[:ml_est])
+        if !in(xname, xindices.ids[:ml_est])
             out[i] = transform_x(x[i], xindices.xscale[xname]; to_xscale = to_xscale)
         else
             ix = xindices.indices_est[xname]
@@ -261,7 +261,7 @@ function _get_nx_estimate(xindices::ParameterIndices)::Int64
 end
 
 _get_n_parameters_sys(sys::ODEProblem)::Int64 = length(sys.p)
-_get_n_parameters_sys(sys::ModelSystem)::Int64 = length(_get_xids_sys(sys))
+_get_n_parameters_sys(sys::ModelSystem)::Int64 = length(_get_ids_sys(sys))
 
 function _check_target_id(target_id, i::Integer, condition_id)::Nothing
     if target_id isa UserFormula

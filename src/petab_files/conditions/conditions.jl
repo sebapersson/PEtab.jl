@@ -52,37 +52,43 @@ function ParameterIndices(
     _check_condition_table(petab_tables, petab_measurements)
     _check_mapping_table(petab_tables, paths, ml_models, petab_parameters, sys)
 
-    xids = _get_xids(petab_parameters, petab_ml_parameters, petab_measurements, sys, petab_tables, paths, speciemap, parametermap, ml_models)
+    ids = _get_ids(
+        petab_parameters, petab_ml_parameters, petab_measurements, sys, petab_tables, paths,
+        speciemap, parametermap, ml_models
+    )
 
     # Indices for extracting parameters from: x (to estimate), xdynamic, and x_not_system
-    indices_est = _get_indices_est(xids, ml_models)
-    indices_dynamic = _get_indices_dynamic(xids, ml_models)
-    indices_not_system = _get_indices_not_system(xids, ml_models)
+    indices_est = _get_indices_est(ids, ml_models)
+    indices_dynamic = _get_indices_dynamic(ids, ml_models)
+    indices_not_system = _get_indices_not_system(ids, ml_models)
 
     # For each time-point we must build a map that stores if i) noise/observable parameters
     # are constants, ii) should be estimated, iii) and corresponding index in parameter
     # vector if they should be estimated
     xobservable_maps = _get_map_observable_noise(
-        xids[:observable], petab_measurements, petab_parameters; observable = true
+        ids[:observable], petab_measurements, petab_parameters; observable = true
     )
     xnoise_maps = _get_map_observable_noise(
-        xids[:noise], petab_measurements, petab_parameters; observable = false
+        ids[:noise], petab_measurements, petab_parameters; observable = false
     )
 
     # For correctly mapping mechanistic parameters between conditions
     condition_maps = _get_condition_maps(
-        sys, parametermap, speciemap, petab_parameters, petab_tables, xids, ml_models
+        sys, parametermap, speciemap, petab_parameters, petab_tables, ids, ml_models
     )
 
     # If a neural-network sets values for a subset of model parameters, for efficient AD on
     # said network, it is needed to pre-compute the input, pre-allocate the output,
     # and build a map for which parameters in xdynamic the network maps to.
-    ml_pre_simulate_maps = _get_ml_pre_simulate_maps(xids, petab_parameters, petab_tables, paths, ml_models, sys)
+    ml_pre_simulate_maps = _get_ml_pre_simulate_maps(
+        ids, petab_parameters, petab_tables, paths, ml_models, sys
+    )
 
-    xscale = _get_xscales(xids, petab_parameters)
-    _get_xnames_ps!(xids, xscale)
+    xscale = _get_xscales(ids, petab_parameters)
+    _get_xnames_ps!(ids, xscale)
+
     return ParameterIndices(
-        xids, indices_est, indices_dynamic, indices_not_system, xscale, xobservable_maps,
+        ids, indices_est, indices_dynamic, indices_not_system, xscale, xobservable_maps,
         xnoise_maps, condition_maps, ml_pre_simulate_maps
     )
 end

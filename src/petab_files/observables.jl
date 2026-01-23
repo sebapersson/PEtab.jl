@@ -182,7 +182,7 @@ function _parse_formula(formula::String, state_ids::Vector{String}, sys_observab
         ids_replace = [:sys => "__p_model"]
     end
     for (idtype, varname) in ids_replace
-        for (i, id) in pairs(string.(xindices.xids[idtype]))
+        for (i, id) in pairs(string.(xindices.ids[idtype]))
             formula = SBMLImporter._replace_variable(formula, id, "$(varname)[$i]")
         end
     end

@@ -36,7 +36,7 @@ function export_petab(dir_export::AbstractString, prob::PEtabODEProblem, res::Es
     end
 
     # PEtab parameters are always exported on linear scale
-    x_transformed = transform_x(_get_x(res), xindices.xids[:estimate], xindices)
+    x_transformed = transform_x(_get_x(res), xindices.ids[:estimate], xindices)
 
     parameters_df = CSV.read(model.paths[:parameters], DataFrame)
     @unpack nominal_value, parameter_id = model_info.petab_parameters

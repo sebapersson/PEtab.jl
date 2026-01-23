@@ -1,4 +1,4 @@
-function PEtab.set_ml_model_ps!(ps::ComponentArray, path_h5::String, lux_model, ml_id::Symbol)::Nothing
+function PEtab._set_ml_model_ps!(ps::ComponentArray, path_h5::String, lux_model, ml_id::Symbol)::Nothing
     file = h5open(path_h5, "r")
     net_parameters = file["parameters"]["$(ml_id)"]
     st = Lux.initialstates(Random.default_rng(1), lux_model)

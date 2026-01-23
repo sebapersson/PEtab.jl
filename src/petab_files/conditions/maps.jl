@@ -1,5 +1,5 @@
 function _get_map_observable_noise(
-        xids::Vector{Symbol}, petab_measurements::PEtabMeasurements,
+        ids::Vector{Symbol}, petab_measurements::PEtabMeasurements,
         petab_parameters::PEtabParameters; observable::Bool
     )::Vector{ObservableNoiseMap}
     if observable == true
@@ -29,9 +29,9 @@ function _get_map_observable_noise(
             end
             # Must be a parameter
             value = Symbol(value)
-            if value in xids
+            if value in ids
                 estimate[j] = true
-                xindices[j] = findfirst(x -> x == value, xids)
+                xindices[j] = findfirst(x -> x == value, ids)
                 continue
             end
             # If a constant parameter defined in the PEtab files
@@ -52,14 +52,14 @@ end
 
 function _get_condition_maps(
         sys::ModelSystem, parametermap, speciemap, petab_parameters::PEtabParameters,
-        petab_tables::PEtabTables, xids::Dict{Symbol, Vector{Symbol}}, ml_models::MLModels
+        petab_tables::PEtabTables, ids::Dict{Symbol, Vector{Symbol}}, ml_models::MLModels
     )::Dict{Symbol, ConditionMap}
     conditions_df, mappings_df = _get_petab_tables(petab_tables, [:conditions, :mapping])
 
-    xids_sys = string.(xids[:sys])
-    xids_dynamic_mech = string.(xids[:est_to_dynamic_mech])
+    ids_sys = string.(ids[:sys])
+    ids_dynamic_mech = string.(ids[:est_to_dynamic_mech])
     state_ids = _get_state_ids(sys)
-    model_ids = Iterators.flatten((xids_sys, state_ids))
+    model_ids = Iterators.flatten((ids_sys, state_ids))
 
     ml_inputs = String[]
     for ml_model in ml_models.ml_models
@@ -72,10 +72,10 @@ function _get_condition_maps(
         ml_inputs = vcat(ml_inputs, _ml_inputs)
     end
 
-    isys_all_conditions = findall(x -> x in xids[:sys], xids[:est_to_dynamic_mech]) |>
+    isys_all_conditions = findall(x -> x in ids[:sys], ids[:est_to_dynamic_mech]) |>
         Vector{Int32}
-    ids = xids[:est_to_dynamic_mech][isys_all_conditions]
-    ix_all_conditions = Int32[findfirst(x -> x == id, xids[:sys]) for id in ids]
+    ids_dynamic_mech = ids[:est_to_dynamic_mech][isys_all_conditions]
+    ix_all_conditions = Int32[findfirst(x -> x == id, ids[:sys]) for id in ids_dynamic_mech]
 
     condition_maps = Dict{Symbol, ConditionMap}()
     for (i, condition_id) in pairs(Symbol.(conditions_df[!, :conditionId]))
@@ -95,7 +95,7 @@ function _get_condition_maps(
             if ismissing(target_value) && target_id in model_ids
                 default_value = _get_default_map_value(target_id, parametermap, speciemap)
                 push!(target_value_formulas, string(default_value))
-                _add_ix_sys!(isys_condition, target_id, xids_sys)
+                _add_ix_sys!(isys_condition, target_id, ids_sys)
                 continue
             end
 
@@ -104,7 +104,7 @@ function _get_condition_maps(
             is_nan = (target_value isa Real && isnan(target_value)) || target_value == "NaN"
             if is_nan && target_id in state_ids
                 push!(target_value_formulas, "NaN")
-                _add_ix_sys!(isys_condition, target_id, xids_sys)
+                _add_ix_sys!(isys_condition, target_id, ids_sys)
                 continue
             elseif is_nan && target_id in model_ids
                 throw(PEtabFileError("If a row in conditions file is NaN then the column \
@@ -113,14 +113,14 @@ function _get_condition_maps(
 
             # At this point a valid PEtab formula is assumed
             push!(target_value_formulas, string(target_value))
-            _add_ix_sys!(isys_condition, target_id, xids_sys)
+            _add_ix_sys!(isys_condition, target_id, ids_sys)
         end
 
         # In the formulas replace any xdynamic parameters. Tracking which parameters
         # occur is important for runtime performance with split gradient methods.
         ix_condition = Int32[]
         for i in eachindex(target_value_formulas)
-            for (j, xid) in pairs(xids_dynamic_mech)
+            for (j, xid) in pairs(ids_dynamic_mech)
                 _formula = SBMLImporter._replace_variable(target_value_formulas[i], xid, "xdynamic[$(j)]")
                 target_value_formulas[i] == _formula && continue
                 push!(ix_condition, j)
@@ -147,9 +147,9 @@ function _get_condition_maps(
     return condition_maps
 end
 
-function _get_ml_pre_simulate_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, petab_tables::PEtabTables, paths, ml_models::MLModels, sys::ModelSystem)::Dict{Symbol, Dict{Symbol, MLModelPreSimulateMap}}
+function _get_ml_pre_simulate_maps(ids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, petab_tables::PEtabTables, paths, ml_models::MLModels, sys::ModelSystem)::Dict{Symbol, Dict{Symbol, MLModelPreSimulateMap}}
     maps = Dict{Symbol, Dict{Symbol, MLModelPreSimulateMap}}()
-    isempty(xids[:ml_pre_simulate]) && return maps
+    isempty(ids[:ml_pre_simulate]) && return maps
 
     mappings_df, conditions_df, hybridization_df = _get_petab_tables(
         petab_tables, [:mapping, :conditions, :hybridization]
@@ -159,17 +159,17 @@ function _get_ml_pre_simulate_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_par
         condition_id = Symbol(conditions_df[i, :conditionId])
 
         maps_ml = Dict{Symbol, MLModelPreSimulateMap}()
-        for ml_id in xids[:ml_pre_simulate]
+        for ml_id in ids[:ml_pre_simulate]
 
             _f_input, constant_inputs, i_dynamic_mech = _get_ml_pre_simulate_inputs(
-                ml_id, condition_id, xids, petab_parameters, petab_tables, paths,
+                ml_id, condition_id, ids, petab_parameters, petab_tables, paths,
                 ml_models, sys
             )
             f_input = @RuntimeGeneratedFunction(Meta.parse(_f_input))
             n_input_args = length(constant_inputs)
 
             # Indices for correctly mapping the output. The outputs are stored in a
-            # separate vector of order xids[:sys_ml_pre_simulate_outputs]. The outputs
+            # separate vector of order ids[:sys_ml_pre_simulate_outputs]. The outputs
             # maps to parameters in sys, which ix_output_sys stores. Lastly, for
             # split_over_conditions = true the gradient of the output variables is needed,
             # ix_outputs_grad stores the indices in xdynamic_grad for the outputs (the
@@ -185,11 +185,11 @@ function _get_ml_pre_simulate_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_par
             ix_sys_outputs = zeros(Int32, n_outputs)
             for (i, output_target) in pairs(output_targets)
                 ix_ml_outputs[i] = findfirst(
-                    x -> x == output_target, xids[:sys_ml_pre_simulate_outputs]
+                    x -> x == output_target, ids[:sys_ml_pre_simulate_outputs]
                 )
 
                 isys = 1
-                for id_sys in xids[:sys]
+                for id_sys in ids[:sys]
                     if id_sys == output_target
                         ix_sys_outputs[i] = isys
                         break
@@ -209,7 +209,7 @@ function _get_ml_pre_simulate_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_par
 end
 
 function _get_ml_pre_simulate_inputs(
-        ml_id::Symbol, condition_id::Symbol, xids::Dict{Symbol, Vector{Symbol}},
+        ml_id::Symbol, condition_id::Symbol, ids::Dict{Symbol, Vector{Symbol}},
         petab_parameters::PEtabParameters, petab_tables::PEtabTables, paths,
         ml_models::MLModels, sys::ModelSystem
     )
@@ -246,7 +246,7 @@ function _get_ml_pre_simulate_inputs(
 
                 # hdf5 files are in row-major, requiring re-shaping
                 v2_condition_id = _get_petab_v2_condition_id(condition_id, experiments_df)
-                input_data = _get_input_file_values(input_id[1], input_value, v2_condition_id)
+                input_data = _get_input_array(input_id[1], input_value, v2_condition_id)
                 input_data = permutedims(input_data, reverse(1:ndims(input_data)))
                 input_data = _reshape_io_data(input_data)
                 input_data = reshape(input_data, (size(input_data)..., 1))
@@ -283,7 +283,7 @@ function _get_ml_pre_simulate_inputs(
                 )
             end
             # Potential parameters from x_dynamic
-            for (k, id) in pairs(string.(xids[:est_to_dynamic_mech]))
+            for (k, id) in pairs(string.(ids[:est_to_dynamic_mech]))
                 ix = length(i_dynamic_mech) + 1
                 _formula = SBMLImporter._replace_variable(input_formula, id, "xdynamic[$ix]")
                 input_formula == _formula && continue
@@ -300,16 +300,16 @@ function _get_ml_pre_simulate_inputs(
     return f_input, constant_inputs, i_dynamic_mech
 end
 
-function _add_ix_sys!(ix::Vector{Int32}, variable::String, xids_sys::Vector{String})::Nothing
+function _add_ix_sys!(ix::Vector{Int32}, variable::String, ids_sys::Vector{String})::Nothing
     # When a species initial value is set in the condition table, a new parameter
     # is introduced that sets the initial value. This is required to be able to
     # correctly compute gradients. Hence special handling if variable is not in parameter
     # ids (xid_sys)
-    if variable in xids_sys
-        push!(ix, findfirst(x -> x == variable, xids_sys))
+    if variable in ids_sys
+        push!(ix, findfirst(x -> x == variable, ids_sys))
     else
         state_parameter = "__init__" * variable * "__"
-        push!(ix, findfirst(x -> x == state_parameter, xids_sys))
+        push!(ix, findfirst(x -> x == state_parameter, ids_sys))
     end
     return nothing
 end
@@ -318,18 +318,18 @@ end
 function _get_default_map_value(variable::String, parametermap, speciemap)::Float64
     species_sys = first.(speciemap) .|> string
     species_sys = replace.(species_sys, "(t)" => "")
-    xids_sys = first.(parametermap) .|> string
+    ids_sys = first.(parametermap) .|> string
 
-    if variable in xids_sys
-        ix = findfirst(x -> x == variable, xids_sys)
+    if variable in ids_sys
+        ix = findfirst(x -> x == variable, ids_sys)
         return parametermap[ix].second |> Float64
     end
 
     # States can have 1 level of allowed recursion (map to a parameter)
     ix = findfirst(x -> x == variable, species_sys)
     value = speciemap[ix].second |> string
-    if value in xids_sys
-        ix = findfirst(x -> x == value, xids_sys)
+    if value in ids_sys
+        ix = findfirst(x -> x == value, ids_sys)
         return parametermap[ix].second |> Float64
     else
         return parse(Float64, value)

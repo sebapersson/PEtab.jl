@@ -51,10 +51,10 @@ function PEtab._grad_forward_eqs_cond!(
     # of these are the output of neural-net, they are the inner-derivative needed to
     # compute the gradient of the neural-net. As usual, the outer Jacobian derivative has
     # already been computed, so the only thing left is to combine them
-    if !isempty(xindices.xids[:sys_ml_pre_simulate_outputs])
+    if !isempty(xindices.ids[:sys_ml_pre_simulate_outputs])
         ix = xindices.indices_dynamic[:sys_ml_pre_simulate_outputs]
         cache.grad_ml_pre_simulate_outputs .= _grad[ix]
-        PEtab._set_grax_x_ml_pre_simulate!(grad, simid, probinfo, model_info)
+        PEtab._set_grad_x_ml_pre_simulate!(grad, simid, probinfo, model_info)
     end
 
     # Adjust if gradient is non-linear scale (e.g. log and log10). TODO: Refactor

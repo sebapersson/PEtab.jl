@@ -5,7 +5,7 @@ function PEtabODEProblemCache(
     )::PEtabODEProblemCache
     @unpack xindices, model, simulation_info = model_info
     @unpack petab_measurements, petab_parameters, petab_ml_parameters = model_info
-    @unpack xids, indices_est = xindices
+    @unpack ids, indices_est = xindices
 
     n_estimate = _get_nx_estimate(xindices)
     n_states = model_info.nstates
@@ -24,9 +24,9 @@ function PEtabODEProblemCache(
 
     # Pre-allocate cache for mechanistic parameters
     pre_xdynamic_mech = zeros(Float64, length(indices_est[:est_to_dynamic_mech]))
-    pre_observable = zeros(Float64, length(xids[:observable]))
-    pre_xnoise = zeros(Float64, length(xids[:noise]))
-    pre_xnondynamic_mech = zeros(Float64, length(xids[:nondynamic_mech]))
+    pre_observable = zeros(Float64, length(ids[:observable]))
+    pre_xnoise = zeros(Float64, length(ids[:noise]))
+    pre_xnondynamic_mech = zeros(Float64, length(ids[:nondynamic_mech]))
     # On linear scale
     xdynamic_mech = _get_cache(pre_xdynamic_mech, chunk_size, level_cache)
     xobservable = _get_cache(pre_observable, chunk_size, level_cache)
@@ -47,11 +47,11 @@ function PEtabODEProblemCache(
         for ml_model in ml_models.ml_models
             ml_id = ml_model.ml_id
             ps = _get_ml_model_initialparameters(ml_model)
-            if ml_id in xids[:ml_est]
+            if ml_id in ids[:ml_est]
                 x_ml_models_cache[ml_id] = DiffCache(similar(ps); levels = level_cache)
                 x_ml_models[ml_id] = ps
             else
-                set_ml_model_ps!(ps, ml_model, model.paths)
+                _set_ml_model_ps!(ps, ml_model, model.paths)
                 x_ml_models_constant[ml_id] = ps
             end
         end
@@ -62,7 +62,7 @@ function PEtabODEProblemCache(
     xdynamic = _get_cache(zeros(Float64, n_dynamic_est), chunk_size, level_cache)
     xdynamic_grad = zeros(Float64, n_dynamic_est)
     x_not_system_grad = zeros(Float64, length(indices_est[:est_to_not_system]))
-    grad_ml_pre_simulate_outputs = zeros(Float64, length(xids[:sys_ml_pre_simulate_outputs]))
+    grad_ml_pre_simulate_outputs = zeros(Float64, length(ids[:sys_ml_pre_simulate_outputs]))
     # Which arrays to allocate depend on gradient method used
     AD_gradient = gradient_method == :ForwardDiff
     GN_hess = hessian_method == :GaussNewton || FIM_method == :GaussNewton

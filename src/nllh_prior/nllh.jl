@@ -1,5 +1,7 @@
-function nllh(x::Vector{T}, probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
-              cids::Vector{Symbol}, hess::Bool, residuals::Bool)::T where {T <: Real}
+function nllh(
+        x::Vector{T}, probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
+            cids::Vector{Symbol}, hess::Bool, residuals::Bool
+    )::T where {T <: Real}
     xdynamic, xobservable, xnoise, xnondynamic_mech, x_ml_models = split_x(
         x, model_info.xindices, probinfo.cache
     )
@@ -91,7 +93,11 @@ function _nllh(
         end
 
         sol = odesols[cid]
-        nllh += _nllh_cond(sol, xnoise, xobservable, xnondynamic_mech, x_ml_models, x_ml_models_constant, cid, model_info; grad_adjoint = grad_adjoint, grad_forward_AD = grad_forward_AD, grad_forward_eqs = grad_forward_eqs, residuals = residuals)
+        nllh += _nllh_cond(
+            sol, xnoise, xobservable, xnondynamic_mech, x_ml_models, x_ml_models_constant,
+            cid, model_info; grad_adjoint = grad_adjoint, grad_forward_AD = grad_forward_AD,
+            grad_forward_eqs = grad_forward_eqs, residuals = residuals
+        )
         if isinf(nllh)
             return nllh
         end
@@ -99,7 +105,13 @@ function _nllh(
     return nllh
 end
 
-function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic_mech::T, x_ml_models::Dict{Symbol, ComponentArray}, x_ml_models_constant::Dict{Symbol, ComponentArray}, cid::Symbol, model_info::ModelInfo; residuals::Bool = false, grad_forward_AD::Bool = false, grad_adjoint::Bool = false, grad_forward_eqs::Bool = false)::Real where {T <: AbstractVector}
+function _nllh_cond(
+        sol::ODESolution, xnoise::T, xobservable::T, xnondynamic_mech::T,
+        x_ml_models::Dict{Symbol, ComponentArray},
+        x_ml_models_constant::Dict{Symbol, ComponentArray}, cid::Symbol,
+        model_info::ModelInfo; residuals::Bool = false, grad_forward_AD::Bool = false,
+        grad_adjoint::Bool = false, grad_forward_eqs::Bool = false
+    )::Real where {T <: AbstractVector}
     @unpack xindices, simulation_info, petab_measurements, petab_parameters, model = model_info
     if !(sol.retcode == ReturnCode.Success || sol.retcode == ReturnCode.Terminated)
         return Inf
@@ -114,8 +126,6 @@ function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic_mec
         obsid = observable_id[imeasurement]
         noise_distribution = noise_distributions[imeasurement]
 
-        # TODO: This must enter inside the _h and _sd function. Then I can meta-program
-        # TODO: retreival of the observable itself.
         # grad_forward_eqs and grad_forward_AD are only true when we compute the gradient
         # via the nllh_not_solve (gradient for not ODE-system parameters), in this setting
         # only the ODESolution is required as Float, hence any dual must be converted
@@ -138,9 +148,14 @@ function _nllh_cond(sol::ODESolution, xnoise::T, xobservable::T, xnondynamic_mec
         # Model observable and noise
         xnoise_maps = xindices.xnoise_maps[imeasurement]
         xobservable_maps = xindices.xobservable_maps[imeasurement]
-        h = _h(u, t, p, xobservable, xnondynamic_mech, x_ml_models, x_ml_models_constant, model, xobservable_maps, obsid, nominal_values)
+        h = _h(
+            u, t, p, xobservable, xnondynamic_mech, x_ml_models, x_ml_models_constant,
+            model, xobservable_maps, obsid, nominal_values
+        )
+        σ = _sd(u, t, p, xnoise, xnondynamic_mech, x_ml_models, x_ml_models_constant,
+            model, xnoise_maps, obsid, nominal_values
+        )
         h_transformed = _transform_h(h, noise_distribution)
-        σ = _sd(u, t, p, xnoise, xnondynamic_mech, x_ml_models, x_ml_models_constant, model, xnoise_maps, obsid, nominal_values)
 
         residual = (h_transformed - measurements_transformed[imeasurement]) / σ
         update_petab_measurements!(petab_measurements, h, h_transformed, σ, residual,

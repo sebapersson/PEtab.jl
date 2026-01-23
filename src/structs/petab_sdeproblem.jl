@@ -21,10 +21,10 @@ struct MeasurementsInfo
 end
 function MeasurementsInfo(model_info::PEtab.ModelInfo, cid::Symbol)
     @unpack simulation_info, model, xindices, petab_measurements = model_info
-    @unpack xids, mapxnoise, mapxobservable = xindices
-    xobservables = zeros(Float64, length(xids[:observable]))
-    xnoise = zeros(Float64, length(xids[:noise]))
-    xnondynamic_mech = zeros(Float64, length(xids[:nondynamic_mech]))
+    @unpack ids, mapxnoise, mapxobservable = xindices
+    xobservables = zeros(Float64, length(ids[:observable]))
+    xnoise = zeros(Float64, length(ids[:noise]))
+    xnondynamic_mech = zeros(Float64, length(ids[:nondynamic_mech]))
 
     @unpack measurement_transforms, observable_id, measurement_transformed = petab_measurements
     nominval_value = model_info.petab_parameters.nominal_value

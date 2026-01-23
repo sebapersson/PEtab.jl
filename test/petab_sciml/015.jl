@@ -27,7 +27,7 @@ close(input_hdf5)
 ml_models = MLModel(:net3, nn15, true; inputs = [:net3_input], outputs = [:gamma]) |> MLModels
 path_h5 = joinpath(dir_case, "net3_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn15) |> ComponentArray |> f64
-PEtab.set_ml_model_ps!(pnn, path_h5, nn15, :net3)
+PEtab._set_ml_model_ps!(pnn, path_h5, nn15, :net3)
 
 # Array input needs to be carried into xindices, in which it can be used to build the maps.
 # How? They need to be stored somewhere I can transfer them to ParameterIndices, but

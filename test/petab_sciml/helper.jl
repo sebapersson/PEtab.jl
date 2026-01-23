@@ -48,11 +48,11 @@ function test_hybrid(test_case, petab_prob::PEtabODEProblem)
     # Neural-net parameters
     for ml_model in petab_prob.model_info.model.ml_models.ml_models
         ml_id = ml_model.ml_id
-        !(ml_id in petab_prob.model_info.xindices.xids[:ml_est]) && continue
+        !(ml_id in petab_prob.model_info.xindices.ids[:ml_est]) && continue
         grad_test = grad_petab[ml_id]
         path_ref = joinpath(dirtest, yamlfile["grad_files"][string(ml_id)])
         grad_ref = deepcopy(grad_test)
-        PEtab.set_ml_model_ps!(grad_ref, path_ref, ml_model.lux_model, ml_id)
+        PEtab._set_ml_model_ps!(grad_ref, path_ref, ml_model.lux_model, ml_id)
         @test all(.≈(grad_test, grad_ref; atol=tol_grad))
     end
     return nothing
@@ -70,7 +70,7 @@ function test_init(test_case, model::PEtabModel)::Nothing
         !haskey(yamlfile["parameter_files"], string(ml_id)) && continue
         path_ref = joinpath(dirtest, yamlfile["parameter_files"][string(ml_id)])
         ps_ref = deepcopy(x[ml_id])
-        PEtab.set_ml_model_ps!(ps_ref, path_ref, ml_model.lux_model, ml_id)
+        PEtab._set_ml_model_ps!(ps_ref, path_ref, ml_model.lux_model, ml_id)
         @test ps_ref == x[ml_id]
     end
     return nothing
@@ -128,7 +128,7 @@ function test_netimport(testcase, ml_model)::Nothing
 
         if haskey(yaml_test, "net_ps")
             path_h5 = joinpath(dirtest, yaml_test["net_ps"][j])
-            PEtab.set_ml_model_ps!(ps, path_h5, ml_model, :net0)
+            PEtab._set_ml_model_ps!(ps, path_h5, ml_model, :net0)
         end
 
         if haskey(yaml_test, "dropout")
@@ -151,8 +151,8 @@ end
 
 function get_mechanistic_ids(model_info::PEtab.ModelInfo)::Vector{Symbol}
     mechanistic_ids = Symbol[]
-    for id in model_info.xindices.xids[:estimate]
-        id in model_info.xindices.xids[:ml] && continue
+    for id in model_info.xindices.ids[:estimate]
+        id in model_info.xindices.ids[:ml] && continue
         push!(mechanistic_ids, id)
     end
     return mechanistic_ids

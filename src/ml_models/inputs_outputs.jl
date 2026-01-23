@@ -77,7 +77,7 @@ function _get_ml_model_input_values(
         # If the input variable is a file, the complete path is added here, which simplifies
         # downstream processing
         if _input_isfile(input_id, yaml_file, paths)
-            path = _get_input_file_path(input_id, yaml_file, paths)
+            path = _get_input_path(input_id, yaml_file, paths)
             push!(input_values, Symbol(path))
             continue
         end

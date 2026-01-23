@@ -1,4 +1,6 @@
-function _template_odeproblem(model_SBML_prob, model_SBML, ode_ml_models::MLModels, petab_tables::PEtabTables)::String
+function _template_odeproblem(
+        model_SBML_prob, model_SBML, ode_ml_models::MLModels, petab_tables::PEtabTables
+    )::String
     @unpack umodel, ps, odes = model_SBML_prob
     fode = "function f_$(model_SBML.name)(du, u, p, t, ml_models)::Nothing\n"
     fode *= "\t" * prod(umodel .* ", ") * " = u\n"
@@ -50,9 +52,14 @@ function _template_ml_in_ode(ml_id::Symbol, petab_tables::PEtabTables)::String
     return formula
 end
 
-function _template_ml_observable(ml_id::Symbol, petab_tables::PEtabTables, state_ids::Vector{String},  sys_observable_ids::Vector{Symbol}, xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, type::Symbol)::String
-    mappings_df = petab_tables[:mapping]
-    hybridization_df = petab_tables[:hybridization]
+function _template_ml_observable(
+        ml_id::Symbol, petab_tables::PEtabTables, state_ids::Vector{String},
+        sys_observable_ids::Vector{Symbol}, xindices::ParameterIndices,
+        model_SBML::SBMLImporter.ModelSBML, type::Symbol
+    )::String
+    mappings_df, hybridization_df = _get_petab_tables(
+        petab_tables, [:mapping, :hybridization]
+    )
 
     input_arguments = _get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs)
     inputs = "("
@@ -67,14 +74,15 @@ function _template_ml_observable(ml_id::Symbol, petab_tables::PEtabTables, state
     end
     inputs = _parse_formula(inputs, state_ids, sys_observable_ids, xindices, model_SBML, type)
 
-    output_variables = _get_ml_model_io_petab_ids(mappings_df, Symbol(ml_id), :outputs) |>
-        Iterators.flatten
+    output_variables = Iterators.flatten(
+        _get_ml_model_io_petab_ids(mappings_df, Symbol(ml_id), :outputs)
+    )
     outputs = prod(output_variables .* ", ")
 
     formula = "\n\t\tml_model_$(ml_id) = ml_models[:$(ml_id)]\n"
-    if ml_id in xindices.xids[:ml_in_ode]
+    if ml_id in xindices.ids[:ml_in_ode]
         formula *= "\t\tx_ml_$(ml_id) = __p_model[:$(ml_id)]\n"
-    elseif ml_id in xindices.xids[:ml_est]
+    elseif ml_id in xindices.ids[:ml_est]
         formula *= "\t\tx_ml_$(ml_id) = x_ml_models[:$(ml_id)]\n"
     else
         formula *= "\t\tx_ml_$(ml_id) = x_ml_models_constant[:$(ml_id)]\n"

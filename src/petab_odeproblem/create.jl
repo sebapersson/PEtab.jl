@@ -73,8 +73,8 @@ function PEtabODEProblem(model::PEtabModel;
     _logging(:Build_chi2_res_sim, verbose; time = btime)
 
     # Relevant information for the unknown model parameters
-    xnames = model_info.xindices.xids[:estimate]
-    xnames_ps = model_info.xindices.xids[:estimate_ps]
+    xnames = model_info.xindices.ids[:estimate]
+    xnames_ps = model_info.xindices.ids[:estimate_ps]
     lb = _get_bounds(model_info, xnames, xnames_ps, :lower)
     ub = _get_bounds(model_info, xnames, xnames_ps, :upper)
     xnominal = _get_xnominal(model_info, xnames, xnames_ps, false)
@@ -91,7 +91,7 @@ function _get_prior(model_info::ModelInfo)::Tuple{Function, Function, Function}
     _prior = let minfo = model_info
         @unpack xindices, priors = minfo
         (x) -> begin
-            xnames = xindices.xids[:estimate]
+            xnames = xindices.ids[:estimate]
             return prior(x, xnames, priors, xindices)
         end
     end
@@ -108,7 +108,7 @@ function _get_nllh(probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
                    prior::Function, residuals::Bool)::Function
     _nllh = let pinfo = probinfo, minfo = model_info, res = residuals, _prior = prior
         (x; prior = true) -> begin
-            _test_ordering(x, minfo.xindices.xids[:estimate_ps])
+            _test_ordering(x, minfo.xindices.ids[:estimate_ps])
             _x = x |> collect
             nllh_val = nllh(_x, pinfo, minfo, [:all], false, res)
             if prior == true && res == false
@@ -275,7 +275,7 @@ function _get_xnominal(model_info::ModelInfo, xnames::Vector{Symbol},
     for (i, ml_id) in pairs(xnames_nn)
         ml_model = model_info.model.ml_models[ml_id]
         psnet = _get_ml_model_initialparameters(ml_model)
-        set_ml_model_ps!(psnet, ml_id, ml_models, paths, petab_tables)
+        _set_ml_model_ps!(psnet, ml_id, ml_models, paths, petab_tables)
         xnominal_nn[i] = psnet
     end
     x_ml_models = NamedTuple(xnames_nn .=> xnominal_nn)

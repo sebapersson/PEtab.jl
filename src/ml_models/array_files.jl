@@ -1,34 +1,38 @@
 function _get_ps_path(ml_id::Symbol, paths::Dict{Symbol, String})::String
     yaml_file = YAML.load_file(paths[:yaml])
     array_files = yaml_file["extensions"]["sciml"]["array_files"]
-    path_ps_file = String[]
+
+    path_ps_files = String[]
     for array_file in array_files
-        _path_ps_file = joinpath(paths[:dirmodel], array_file)
-        if !isfile(_path_ps_file)
+        path_ps = joinpath(paths[:dirmodel], array_file)
+        if !isfile(path_ps)
             throw(PEtab.PEtabInputError("The provided SciML extension array file \
-                $(array_file) does not exist at $(_path_ps_file)"))
+                $(array_file) does not exist at $(path_ps)"))
         end
-        hdf5_file = HDF5.h5open(_path_ps_file, "r")
+        hdf5_file = HDF5.h5open(path_ps, "r")
         if haskey(hdf5_file["parameters"], "$(ml_id)")
-            push!(path_ps_file, _path_ps_file)
+            push!(path_ps_files, path_ps)
+            close(hdf5_file)
             break
         end
+        close(hdf5_file)
     end
 
-    if isempty(path_ps_file)
+    if isempty(path_ps_files)
         throw(PEtab.PEtabInputError("Parameters for neural network $(ml_id) has not \
             been provided in an array file"))
     end
-    return path_ps_file[1]
+    return path_ps_files[1]
 end
 
-function _get_input_file_path(input_variable::Union{String, Symbol}, yaml_file::Dict, paths::Dict{Symbol, String})::Union{String, Nothing}
-    if !haskey(paths, :dirmodel)
-        return nothing
-    end
+function _get_input_path(
+        input_variable::Union{String, Symbol}, yaml_file::Dict, paths::Dict{Symbol, String}
+    )::Union{String, Nothing}
+    !haskey(paths, :dirmodel) && return nothing
 
     yaml_file_extensions = yaml_file["extensions"]["sciml"]
     !haskey(yaml_file_extensions, "array_files") && return nothing
+
     for array_file_path in joinpath.(paths[:dirmodel], yaml_file_extensions["array_files"])
         array_file = HDF5.h5open(array_file_path, "r")
         !haskey(array_file, "inputs") && continue
@@ -41,7 +45,10 @@ function _get_input_file_path(input_variable::Union{String, Symbol}, yaml_file::
     return nothing
 end
 
-function _get_input_file_values(input_id::String, file_path::Symbol, condition_id::Symbol)::Array{Float64}
+function _get_input_array(
+        input_id::String, file_path::Symbol, condition_id::Symbol
+    )::Array{Float64}
+
     input_file = HDF5.h5open(string(file_path), "r")
     # Find the correct dataset associated with the provided simulation condition
     for condition_ids in keys(input_file["inputs"][input_id])
@@ -50,6 +57,7 @@ function _get_input_file_values(input_id::String, file_path::Symbol, condition_i
         # "0" encoding means the data applies across all simulation conditions
         if condition_ids == "0" && length(keys(input_file["inputs"][input_id])) == 1
             input_values = HDF5.read_dataset(group_input_id, "0")
+            close(input_file)
             return input_values
         end
 
@@ -63,12 +71,13 @@ function _get_input_file_values(input_id::String, file_path::Symbol, condition_i
         $(condition_id)"))
 end
 
-function _input_isfile(input_variable::Union{String, Symbol}, yaml_file::Dict, paths::Dict{Symbol, String})::Bool
+function _input_isfile(
+        input_variable::Union{String, Symbol}, yaml_file::Dict, paths::Dict{Symbol, String}
+    )::Bool
     # When defined in Julia
     if isempty(yaml_file)
         return false
     end
 
-    input_file_path = _get_input_file_path(input_variable, yaml_file, paths)
-    return !isnothing(input_file_path)
+    return !isnothing(_get_input_path(input_variable, yaml_file, paths))
 end

@@ -58,8 +58,8 @@ function PEtab.PEtabSDEProblem(model::PEtab.PEtabModel, sde_solver::PEtab.SDESol
     PEtab._logging(:Build_SDEProblem, verbose; time = btime)
 
     # Relevant information for the unknown model parameters
-    xnames = model_info.xindices.xids[:estimate]
-    xnames_ps = model_info.xindices.xids[:estimate_ps]
+    xnames = model_info.xindices.ids[:estimate]
+    xnames_ps = model_info.xindices.ids[:estimate_ps]
     _xnominal = PEtab._get_xnominal(model_info, xnames, false)
     _xnominal_transformed = PEtab._get_xnominal(model_info, xnames, true)
     xnominal = ComponentArray(; (xnames .=> _xnominal)...)
@@ -73,9 +73,9 @@ function PEtab._set_x_measurements_info!(prob::PEtab.PEtabSDEProblem, x)::Nothin
     measurements_info = prob.measurements_info
     _, xobservable, xnoise, xnondynamic_mech = PEtab.split_x(x, xindices)
 
-    xnoise_ps = PEtab.transform_x(xnoise[:], xindices.xids[:noise], xindices)
-    xobservable_ps = PEtab.transform_x(xobservable[:], xindices.xids[:observable], xindices)
-    xnondynamic_mech_ps = PEtab.transform_x(xnondynamic_mech[:], xindices.xids[:nondynamic_mech], xindices)
+    xnoise_ps = PEtab.transform_x(xnoise[:], xindices.ids[:noise], xindices)
+    xobservable_ps = PEtab.transform_x(xobservable[:], xindices.ids[:observable], xindices)
+    xnondynamic_mech_ps = PEtab.transform_x(xnondynamic_mech[:], xindices.ids[:nondynamic_mech], xindices)
 
     measurements_info.xnoise .= xnoise_ps
     measurements_info.xobservables .= xobservable_ps

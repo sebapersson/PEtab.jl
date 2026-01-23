@@ -74,7 +74,7 @@ function _check_stat_ml_outputs(
         petab_tables, [:hybridization, :mapping]
     )
     state_ids = Symbol.(_get_state_ids(sys))
-    xids_sys = _get_xids_sys(sys)
+    ids_sys = _get_ids_sys(sys)
 
     output_ids = Iterators.flatten(
         _get_ml_model_io_petab_ids(mappings_df, ml_id, :outputs)
@@ -84,7 +84,7 @@ function _check_stat_ml_outputs(
         ml_output_id = outputs_df.targetValue[i]
 
         output_id in state_ids && continue
-        if !(output_id in xids_sys)
+        if !(output_id in ids_sys)
             throw(PEtab.PEtabInputError("For a static neural network, output variables in \
                 the hybridization table can only assign to a specie id or to a
                 non-estimated model parameter. This does not hold for $ml_output_id \

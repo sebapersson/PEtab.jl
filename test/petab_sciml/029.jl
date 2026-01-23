@@ -15,7 +15,7 @@ end
 ml_models = MLModels(MLModel(:net5, nn29, false))
 path_h5 = joinpath(dir_case, "net5_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn5) |> ComponentArray |> f64
-PEtab.set_ml_model_ps!(pnn, path_h5, nn5, :net5)
+PEtab._set_ml_model_ps!(pnn, path_h5, nn5, :net5)
 
 function _lv29!(du, u, p, t, ml_models)
     prey, predator = u

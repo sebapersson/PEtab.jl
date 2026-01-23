@@ -136,14 +136,14 @@ function _get_ps_u0(res::EstimationResult, prob::PEtabODEProblem,
     pre_equilibration_id = _get_pre_equilibration_id(condition, experiment, model_info)
     _check_condition_ids(simulation_id, pre_equilibration_id, model_info)
 
-    x_transformed = transform_x(_get_x(res), xindices.xids[:estimate], xindices)
+    x_transformed = transform_x(_get_x(res), xindices.ids[:estimate], xindices)
     xdynamic, _, _, _ = split_x(x_transformed, xindices)
 
     # System parameters and their associated ids
     odeproblem = remake(odeproblem, p = convert.(eltype(xdynamic), odeproblem.p),
         u0 = convert.(eltype(xdynamic), odeproblem.u0))
     p = odeproblem.p[:]
-    ps = xindices.xids[:sys]
+    ps = xindices.ids[:sys]
     u0 = odeproblem.u0[:]
     u0s = first.(model_info.model.speciemap)[1:length(u0)]
 

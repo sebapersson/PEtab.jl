@@ -75,7 +75,7 @@ function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveod
                 xdynamic_grad[ixdynamic_simid] .+= _grad[1:length(ixdynamic_simid)]
                 if length(_grad) > length(ixdynamic_simid)
                     cache.grad_ml_pre_simulate_outputs .= _grad[(length(ixdynamic_simid)+1):end]
-                    _set_grax_x_ml_pre_simulate!(xdynamic_grad, simid, probinfo, model_info)
+                    _set_grad_x_ml_pre_simulate!(xdynamic_grad, simid, probinfo, model_info)
                 end
             else
                 _nllh(xinput)
@@ -95,7 +95,7 @@ function grad_forward_AD_split!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveod
     @views grad[xindices.indices_est[:est_to_not_system]] .= x_not_system_grad
 
     # Reset such that neural-nets pre ODE no longer have status of having been evaluated
-    reset_ml_pre_simulate!(probinfo)
+    _reset_ml_pre_simulate!(probinfo)
     return nothing
 end
 
@@ -131,6 +131,6 @@ function grad_forward_eqs!(grad::Vector{T}, x::Vector{T}, _nllh_not_solveode::Fu
     @views grad[xindices.indices_est[:est_to_not_system]] .= cache.x_not_system_grad
 
     # Reset such that neural-nets pre ODE no longer have status of having been evaluated
-    reset_ml_pre_simulate!(probinfo)
+    _reset_ml_pre_simulate!(probinfo)
     return nothing
 end

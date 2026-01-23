@@ -121,7 +121,7 @@ function _grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T}, xnoise::V
     # Gradient of ML parameters
     if split_over_conditions == true && !isempty(cache.grad_ml_pre_simulate_outputs)
         cache.grad_ml_pre_simulate_outputs .= forward_eqs_grad[(length(ixdynamic_simid)+1):end]
-        _set_grax_x_ml_pre_simulate!(grad, simid, probinfo, model_info)
+        _set_grad_x_ml_pre_simulate!(grad, simid, probinfo, model_info)
     end
 
     # Adjust if gradient is non-linear scale (e.g. log and log10).
@@ -135,7 +135,7 @@ function _get_ix_S_simid(ixdynamic_simid, split_over_conditions::Bool, model_inf
         return ixdynamic_simid[:]
     end
     nx_forward_eqs = _get_nx_forward_eqs(model_info.xindices, split_over_conditions)
-    nx_ml_pre_simulate_outputs = length(model_info.xindices.xids[:sys_ml_pre_simulate_outputs])
+    nx_ml_pre_simulate_outputs = length(model_info.xindices.ids[:sys_ml_pre_simulate_outputs])
     istart = nx_forward_eqs - nx_ml_pre_simulate_outputs + 1
     return vcat(ixdynamic_simid, istart:nx_forward_eqs)
 end

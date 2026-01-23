@@ -53,7 +53,7 @@ struct MLModelPreSimulateMap{T1 <: Vector{<:Array{<:AbstractFloat}}}
 end
 
 struct ParameterIndices
-    xids::Dict{Symbol, Vector{Symbol}}
+    ids::Dict{Symbol, Vector{Symbol}}
     indices_est::Dict{Symbol, Vector{Int32}}
     indices_dynamic::Dict{Symbol, Vector{Int32}}
     indices_not_system::Dict{Symbol, Vector{Int32}}

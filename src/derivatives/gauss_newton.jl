@@ -75,7 +75,7 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic::Vector{T}, xnois
             if split_over_conditions == true
                 ix = (length(ixdynamic_simid)+1):length(forward_eqs_grad)
                 cache.grad_ml_pre_simulate_outputs .= forward_eqs_grad[ix]
-                _set_grax_x_ml_pre_simulate!(_jac, simid, probinfo, model_info)
+                _set_grad_x_ml_pre_simulate!(_jac, simid, probinfo, model_info)
             end
             grad_to_xscale!(_jac, forward_eqs_grad, ∂G∂p, xdynamic, xindices, simid,
                             sensitivities_AD = true, ml_pre_simulate = ml_pre_simulate)

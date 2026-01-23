@@ -40,7 +40,7 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
     #  ODEFunction must be used because when going directly to ODEProblem MTKParameters
     #  are used as parameter struct, however, MTKParameters are not yet compatiable
     # 2. with SciMLSensitivity, and if remake is used to transform to parameter vector
-    #  an error is thrown. The order of p is given by model_info.xindices.xids[:sys],
+    #  an error is thrown. The order of p is given by model_info.xindices.ids[:sys],
     #  (see conditions.jl for details) hence to set correct values for constant
     #  parameters the parameter map must be reorded.
     # 3. For ODEFunction an ODESystem is needed, hence ReactionSystems must be converted.
@@ -78,25 +78,25 @@ function _get_odeproblem(sys::ODEProblem, ::PEtabModel, model_info::ModelInfo,
     # Set constant parameter values (not done automatically as for a System based model)
     for (i, id) in pairs(petab_parameters.parameter_id)
         petab_parameters.estimate[i] == true && continue
-        id in xindices.xids[:ml] && continue
+        id in xindices.ids[:ml] && continue
         !haskey(sys.p, id) && continue
         sys.p[id] = petab_parameters.nominal_value[i]
     end
     odeproblem = remake(sys, u0 = sys.u0[:])
-    # It matters that p follows the same order as in xids for correct indexing in the
+    # It matters that p follows the same order as in ids for correct indexing in the
     # adjoint gradient method
-    odeproblem = remake(odeproblem, p = odeproblem.p[model_info.xindices.xids[:sys]])
+    odeproblem = remake(odeproblem, p = odeproblem.p[model_info.xindices.ids[:sys]])
     # Set potential constant neural net parameters in the ODE
-    for ml_id in xindices.xids[:ml_in_ode]
-        ml_id in xindices.xids[:ml_est] && continue
-        set_ml_model_ps!((@view odeproblem.p[ml_id]), model.ml_models[ml_id], model.paths)
+    for ml_id in xindices.ids[:ml_in_ode]
+        ml_id in xindices.ids[:ml_est] && continue
+        _set_ml_model_ps!((@view odeproblem.p[ml_id]), model.ml_models[ml_id], model.paths)
     end
     return odeproblem
 end
 function _get_odeproblem(::ModelSystem, model::PEtabModel, model_info::ModelInfo, specialize_level, sparse_jacobian::Bool)::ODEProblem
     _set_const_parameters!(model, model_info.petab_parameters)
     @unpack sys_mutated, speciemap, parametermap, defined_in_julia = model
-    _parametermap = _reorder_parametermap(parametermap, model_info.xindices.xids[:sys])
+    _parametermap = _reorder_parametermap(parametermap, model_info.xindices.ids[:sys])
     _u0 = first.(speciemap) .=> 0.0
     odefun = ODEFunction(_to_odesystem(sys_mutated), first.(speciemap), first.(_parametermap); jac = true, sparse = sparse_jacobian)
     odeproblem = ODEProblem(odefun, last.(_u0), [0.0, 5e3], last.(_parametermap))
@@ -120,7 +120,7 @@ function _get_ml_models_pre_ode(model_info::ModelInfo, cache::PEtabODEProblemCac
             ml_model = model_info.model.ml_models[ml_id]
 
             # If parameters are constant can assign to faster method
-            if ml_id in model_info.xindices.xids[:ml_est]
+            if ml_id in model_info.xindices.ids[:ml_est]
                 x_ml = cache.x_ml_models_cache[ml_id]
             else
                 x_ml = cache.x_ml_models_constant[ml_id]
@@ -144,7 +144,7 @@ function _get_ml_models_pre_ode(model_info::ModelInfo, cache::PEtabODEProblemCac
                 tape = nothing
             end
 
-            if ml_id in model_info.xindices.xids[:ml_est]
+            if ml_id in model_info.xindices.ids[:ml_est]
                 nx = length(get_tmp(x_ml, 1.0)) + length(ix_dynamic_mech)
             else
                 nx = length(ix_dynamic_mech)

@@ -1,20 +1,15 @@
 
-function _set_ml_models_ps!(ml_models::MLModels, parameters)::Nothing
+function _set_ml_models_ps!(ml_models::MLModels, parameters::Vector)::Nothing
     for petab_parameter in parameters
         !(petab_parameter isa PEtabMLParameter) && continue
-        @unpack ml_id, value = petab_parameter
-        if !in(ml_id, ml_models.ml_ids)
-            throw(PEtab.PEtabInputError("For neural network $(ml_id) a PEtabMLParameter \
-                has been provided, but not as required a MLModel via the ml_models \
-                keyword."))
-        end
+
+        @unpack value, ml_id = petab_parameter
         isnothing(value) && continue
         ml_models[ml_id].ps .= value
     end
     return nothing
 end
-
-function set_ml_model_ps!(
+function _set_ml_model_ps!(
         ps::ComponentArray, ml_model::MLModel, paths::Dict{Symbol, String}
     )::Nothing
     # Case when Julia provided parameter input
@@ -23,10 +18,13 @@ function set_ml_model_ps!(
         return nothing
     end
     ps_path = _get_ps_path(ml_model.ml_id, paths)
-    set_ml_model_ps!(ps, ps_path, ml_model.lux_model, ml_model.ml_id)
+    _set_ml_model_ps!(ps, ps_path, ml_model.lux_model, ml_model.ml_id)
     return nothing
 end
-function set_ml_model_ps!(ps::ComponentArray, ml_id::Symbol, ml_models, paths::Dict{Symbol, String}, petab_tables::PEtabTables)::Nothing
+function _set_ml_model_ps!(
+        ps::ComponentArray, ml_id::Symbol, ml_models, paths::Dict{Symbol, String},
+        petab_tables::PEtabTables
+    )::Nothing
     # Case when Julia provided parameter input
     if isempty(paths)
         ps .= ml_models[ml_id].ps
@@ -38,7 +36,7 @@ function set_ml_model_ps!(ps::ComponentArray, ml_id::Symbol, ml_models, paths::D
     petab_ml_parameters = PEtabMLParameters(petab_tables, ml_models)
 
     # Set parameters for entire net, then set values for specific layers
-    PEtab.set_ml_model_ps!(ps, ml_model, paths)
+    _set_ml_model_ps!(ps, ml_model, paths)
 
     i_parameters = _get_ml_model_indices(ml_id, petab_ml_parameters.mapping_table_id)
     length(i_parameters) == 1 && return nothing
@@ -61,14 +59,20 @@ function set_ml_model_ps!(ps::ComponentArray, ml_id::Symbol, ml_models, paths::D
     return nothing
 end
 
-function _get_ml_model_pre_ode_x(ml_model_pre_simulate::MLModelPreSimulate, xdynamic_mech::AbstractVector, x_ml::ComponentArray, map_ml_model::MLModelPreSimulateMap)::AbstractVector
+function _get_ml_model_pre_ode_x(
+        ml_model_pre_simulate::MLModelPreSimulate, xdynamic_mech::AbstractVector,
+        x_ml::ComponentArray, map_ml_model::MLModelPreSimulateMap
+    )::AbstractVector
     x = get_tmp(ml_model_pre_simulate.x, xdynamic_mech)
     n_inputs = length(map_ml_model.ix_dynamic_mech)
     x[1:n_inputs] .= xdynamic_mech[map_ml_model.ix_dynamic_mech]
     @views x[(n_inputs+1):end] .= x_ml
     return x
 end
-function _get_ml_model_pre_ode_x(ml_model_pre_simulate::MLModelPreSimulate, xdynamic_mech::AbstractVector, map_ml_model::MLModelPreSimulateMap)::AbstractVector
+function _get_ml_model_pre_ode_x(ml_model_pre_simulate
+        ::MLModelPreSimulate, xdynamic_mech::AbstractVector,
+        map_ml_model::MLModelPreSimulateMap
+    )::AbstractVector
     x = get_tmp(ml_model_pre_simulate.x, xdynamic_mech)
     n_inputs = length(map_ml_model.ix_dynamic_mech)
     @views x[1:n_inputs] .= xdynamic_mech[map_ml_model.ix_dynamic_mech]
