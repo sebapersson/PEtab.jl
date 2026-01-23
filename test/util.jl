@@ -2,7 +2,7 @@
     Test that the PEtab util functions return expected results
 =#
 
-using Catalyst, DataFrames, FiniteDifferences, ForwardDiff, OrdinaryDiffEqRosenbrock,
+using Catalyst, DataFrames, FiniteDifferences, ForwardDiff, OrdinaryDiffEqRosenbrock, Lux,
     PEtab, Test
 
 function __sum_ps(x, prob)
@@ -16,8 +16,8 @@ function __sum_u0(x, prob)
 end
 
 function __sum_ode_problem(x, prob)
-    oprob, _ = get_odeproblem(x, prob)
-    return sum(solve(oprob, Rodas5P(), abstol = 1e-8, reltol = 1e-8, saveat = 1:10:240))
+    ode_prob, _ = get_odeproblem(x, prob)
+    return sum(solve(ode_prob, Rodas5P(), abstol = 1e-8, reltol = 1e-8, saveat = 1:10:240))
 end
 
 function __sum_sol(x, prob)
@@ -34,17 +34,19 @@ end
     prob = PEtabODEProblem(model)
     x = get_x(prob) .* 0.9
     nllh = prob.nllh(x)
-    res = PEtabOptimisationResult(x ./ 0.9, 10.0, x, :Fides, 10, 10.0,
-                                  Vector{Vector{Float64}}(undef, 0), Float64[],  true,  nothing)
+    res = PEtabOptimisationResult(
+        x ./ 0.9, 10.0, x, :Fides, 10, 10.0, Vector{Vector{Float64}}(undef, 0), Float64[],
+        true,  nothing
+    )
     @unpack u0, p = prob.model_info.simulation_info.odesols[:model1_data1].prob
     u0_test = get_u0(res, prob; retmap = false)
     p_test = get_ps(res, prob; retmap = false)
-    oprob, _ = get_odeproblem(res, prob)
+    ode_prob, _ = get_odeproblem(res, prob)
     sol = get_odesol(res, prob)
     @test all(u0_test .== u0)
     @test all(p_test == p)
-    @test all(oprob.u0 .== u0)
-    @test all(oprob.p == p)
+    @test all(ode_prob.u0 .== u0)
+    @test all(ode_prob.p == p)
     @test all(sol.prob.u0 .== u0)
     @test all(sol.prob.p == p)
     # Testing the get_system. As the model is SBML a ReactionSystem model should be returned
@@ -52,21 +54,25 @@ end
     rn, u0, ps, cb = get_system(x, prob)
     @test rn isa Catalyst.ReactionSystem
     osys = convert(ODESystem, rn) |> structural_simplify |> complete
-    oprob = ODEProblem(osys, u0, [solref.t[1], solref.t[end]], ps)
-    @test oprob.p.tunable == solref.prob.p
-    @test oprob.u0 == solref.prob.u0
+    ode_prob = ODEProblem(osys, u0, [solref.t[1], solref.t[end]], ps)
+    @test ode_prob.p.tunable == solref.prob.p
+    @test ode_prob.u0 == solref.prob.u0
     # Test throws correctly
     @test_throws ArgumentError get_ps(res, prob; experiment = :e0)
 
     # Beer model
     path_yaml = joinpath(@__DIR__, "published_models", "Beer_MolBioSystems2014", "Beer_MolBioSystems2014.yaml")
     model = PEtabModel(path_yaml)
-    prob = PEtabODEProblem(model; sparse_jacobian=false,
-                           odesolver=ODESolver(Rodas5P(), abstol=1e-10, reltol=1e-10))
+    prob = PEtabODEProblem(
+        model; sparse_jacobian=false,
+        odesolver=ODESolver(Rodas5P(), abstol=1e-10, reltol=1e-10)
+    )
     x = get_x(prob) .* 0.9
     nllh = prob.nllh(x)
-    res = PEtabOptimisationResult(x ./ 0.9, 10.0, x, :Fides, 10, 10.0,
-                                  Vector{Vector{Float64}}(undef, 0), Float64[],  true,  nothing)
+    res = PEtabOptimisationResult(
+        x ./ 0.9, 10.0, x, :Fides, 10, 10.0, Vector{Vector{Float64}}(undef, 0), Float64[],
+        true,  nothing
+    )
     @unpack u0, p = prob.model_info.simulation_info.odesols[:typeIDT1_ExpID1].prob
     u0_test = get_u0(res, prob; condition = :typeIDT1_ExpID1, retmap = false)
     p_test = get_ps(res, prob; condition = :typeIDT1_ExpID1, retmap = false)
@@ -76,23 +82,25 @@ end
 
     # Model with pre-eq simulation
     path_yaml = joinpath(@__DIR__, "published_models", "Brannmark_JBC2010", "Brannmark_JBC2010.yaml")
-    model = PEtabModel(path_yaml; build_julia_files = true, verbose=false)
-    prob = PEtabODEProblem(model, verbose=false)
+    model = PEtabModel(path_yaml)
+    prob = PEtabODEProblem(model)
     x = get_x(prob) .* 0.9
     nllh = prob.nllh(x)
-    res = PEtabOptimisationResult(x ./ 0.9, 10.0, x, :Fides, 10, 10.0,
-                                  Vector{Vector{Float64}}(undef, 0), Float64[],  true,  nothing)
+    res = PEtabOptimisationResult(
+        x ./ 0.9, 10.0, x, :Fides, 10, 10.0, Vector{Vector{Float64}}(undef, 0), Float64[],
+        true,  nothing
+    )
     @unpack u0, p = prob.model_info.simulation_info.odesols[:Dose_0Dose_01].prob
     p_test = get_ps(res.xmin, prob; condition = :Dose_0 => :Dose_01, retmap = false)
     u0_test = get_u0(res.xmin, prob; condition = "Dose_0" => "Dose_01", retmap = false)
     @test all(u0_test .== u0)
     @test all(p == p_test)
-    oprob, _ = get_odeproblem(res, prob; condition = :Dose_0 => :Dose_01)
-    @test all(oprob.u0 .== u0)
-    @test all(oprob.p == p_test)
-    @test oprob.tspan[end] == prob.model_info.simulation_info.tmaxs[:Dose_0Dose_01]
+    ode_prob, _ = get_odeproblem(res, prob; condition = :Dose_0 => :Dose_01)
+    @test all(ode_prob.u0 .== u0)
+    @test all(ode_prob.p == p_test)
+    @test ode_prob.tspan[end] == prob.model_info.simulation_info.tmaxs[:Dose_0Dose_01]
     @test_throws PEtab.PEtabInputError begin
-        oprob, _ = get_odeproblem(res, prob; condition = :Dose_01 => :Dose_01)
+        ode_prob, _ = get_odeproblem(res, prob; condition = :Dose_01 => :Dose_01)
     end
 
     # Case where the system is mutated as we have a initial value set in condition. However,
@@ -115,20 +123,20 @@ end
                        simulation_conditions = simulation_conditions)
     prob = PEtabODEProblem(model; verbose = false)
     prob.nllh(log10.([1.0, 2.0]))
-    oprob_mutated = prob.model_info.simulation_info.odesols[:c2].prob
-    oprob, _ = get_odeproblem(log10.([1.0, 2.0]), prob; condition =:c2)
-    @test length(oprob.p) == 2
-    @test all(oprob.p .== oprob_mutated.p[[1, 3]])
-    @test all(oprob.p[[2, 1]] .== oprob_mutated.u0)
+    ode_prob_mutated = prob.model_info.simulation_info.odesols[:c2].prob
+    ode_prob, _ = get_odeproblem(log10.([1.0, 2.0]), prob; condition =:c2)
+    @test length(ode_prob.p) == 2
+    @test all(ode_prob.p .== ode_prob_mutated.p[[1, 3]])
+    @test all(ode_prob.p[[2, 1]] .== ode_prob_mutated.u0)
     # Test that get_system correctly returns a ReactionSystem
     rn, u0, ps, _ = get_system(log10.([1.0, 2.0]), prob; condition = :c2)
     @test rn isa Catalyst.ReactionSystem
     osys = convert(ODESystem, rn) |> structural_simplify |> complete
-    oprob_sys = ODEProblem(osys, u0, (0.0, 1.0), ps)
-    @test oprob_sys.p.tunable == oprob.p
-    @test oprob_sys.u0 == oprob.u0
+    ode_prob_sys = ODEProblem(osys, u0, (0.0, 1.0), ps)
+    @test ode_prob_sys.p.tunable == ode_prob.p
+    @test ode_prob_sys.u0 == ode_prob.u0
     @test_throws PEtab.PEtabInputError begin
-        oprob, _ = get_odeproblem(res, prob; condition = :c3)
+        ode_prob, _ = get_odeproblem(res, prob; condition = :c3)
     end
 
     # Verify Dual numbers can be propagated through get functions
@@ -197,4 +205,46 @@ end
     prob = PEtabODEProblem(model)
     x = get_x(prob)
     @test_throws PEtab.PEtabInputError get_ps(x, prob; experiment = :e0)
+
+    # PEtab SciML problem, neural network inside of
+    path_yaml = joinpath(@__DIR__, "petab_sciml", "test_cases", "sciml_problem_import", "001", "petab", "problem.yaml")
+    ml_models = MLModels(path_yaml)
+    prob = PEtabModel(path_yaml; ml_models = ml_models) |>
+        PEtabODEProblem
+    x = get_x(prob) .* 0.95
+    _ = prob.nllh(x)
+    # Reference values
+    ode_prob_ref = prob.model_info.simulation_info.odesols[:e1].prob
+    sol_ref = solve(ode_prob_ref, Rodas5P(), abstol = 1e-8, reltol = 1e-8)
+    # Test value
+    ps_test = get_ps(x, prob)
+    u0_test = get_u0(x, prob)
+    ode_problem_test, _ = get_odeproblem(x, prob)
+    sol_test = get_odesol(x, prob)
+    @test ode_prob_ref.p == ps_test
+    @test ode_prob_ref.u0 == u0_test
+    @test ode_prob_ref.p == ode_problem_test.p
+    @test ode_prob_ref.u0 == ode_problem_test.u0
+    @test sol_ref == sol_test
+
+    # PEtab SciML problem, pre-simulation case
+    path_yaml = joinpath(@__DIR__, "petab_sciml", "test_cases", "sciml_problem_import", "003", "petab", "problem.yaml")
+    ml_models = MLModels(path_yaml)
+    prob = PEtabModel(path_yaml; ml_models = ml_models) |>
+        PEtabODEProblem
+    x = get_x(prob) .* 0.95
+    _ = prob.nllh(x)
+    # Reference values
+    ode_prob_ref = prob.model_info.simulation_info.odesols[:e2_cond2].prob
+    sol_ref = solve(ode_prob_ref, Rodas5P(), abstol = 1e-8, reltol = 1e-8)
+    # Test value
+    ps_test = get_ps(x, prob; experiment = :e2, retmap = false)
+    u0_test = get_u0(x, prob; experiment = :e2, retmap = false)
+    ode_problem_test, _ = get_odeproblem(x, prob; experiment = :e2)
+    sol_test = get_odesol(x, prob; experiment = :e2)
+    @test ode_prob_ref.p == ps_test
+    @test ode_prob_ref.u0 == u0_test
+    @test ode_prob_ref.p == ode_problem_test.p
+    @test ode_prob_ref.u0 == ode_problem_test.u0
+    @test sol_ref == sol_test
 end
