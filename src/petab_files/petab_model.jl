@@ -25,6 +25,14 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
         petab_tables, petab_events = v2_to_v1_tables(path_yaml, ifelse_to_callback)
     end
 
+    ml_models = if isnothing(ml_models)
+        MLModels()
+    elseif ml_models isa MLModel
+        MLModels(ml_models)
+    else
+        ml_models
+    end
+
     paths = _get_petab_paths(path_yaml)
     return _PEtabModel(paths, petab_tables, build_julia_files, verbose, ifelse_to_callback,
                        write_to_file, petab_events, ml_models)
@@ -54,7 +62,6 @@ function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::PEtabTables,
         the SBML model must be mutated to add an initial value parameter in order for
         PEtab.jl to be able to correctly compute gradients
     =#
-    _logging(:Build_ODESystem, verbose)
     btime = @elapsed begin
         ode_ml_models = _get_ode_ml_models(ml_models, paths[:SBML], petab_tables)
 
@@ -81,7 +88,6 @@ function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::PEtabTables,
         sys_observables = _get_sys_observables(odesystem)
         sys_observable_ids = collect(keys(sys_observables))
     end
-    _logging(:Build_ODESystem, verbose; time = btime)
 
     # Indices for mapping parameters and tracking which parameter to estimate, needed
     # to build observable functions, and callbacks
@@ -245,6 +251,7 @@ function _get_odesys(model_SBML::SBMLImporter.ModelSBML, paths::Dict{Symbol, Str
             odesystem = structural_simplify(dae_index_lowering(_odesystem))
         end
     end
+    _logging(:Build_ODESystem, verbose; time = btime)
     # The state-map is not in the same order as unknowns(system) so the former is reorded
     # to make it easier to build the u0 function
     speciemap = _reorder_speciemap(speciemap, odesystem)

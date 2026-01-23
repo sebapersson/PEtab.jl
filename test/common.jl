@@ -37,8 +37,8 @@ function test_grad_residuals(model::PEtabModel, osolver::ODESolver; ss_solver = 
     residuals_sum = PEtab._get_nllh(probinfo, model_info, prior, true)
     _, jac_residuals = PEtab._get_hess(probinfo, model_info, hess_prior; ret_jacobian = true)
 
-    xnames = model_info.xindices.xids[:estimate]
-    xnames_ps = model_info.xindices.xids[:estimate_ps]
+    xnames = model_info.xindices.ids[:estimate]
+    xnames_ps = model_info.xindices.ids[:estimate_ps]
     x = PEtab._get_xnominal(model_info, xnames, xnames_ps, true)
     jac = zeros(length(x), length(model_info.petab_measurements.time))
     residual_grad = ForwardDiff.gradient(residuals_sum, x)

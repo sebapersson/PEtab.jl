@@ -5,9 +5,10 @@ function check_test_case(case::String; test_grad::Bool=true)
     path_yaml = joinpath(@__DIR__, "petab_v1_testsuite", case, "_$(case).yaml")
     path_ref = joinpath(@__DIR__, "petab_v1_testsuite", case, "_$(case)_solution.yaml")
 
-    model = PEtabModel(path_yaml, verbose=false, build_julia_files=true, write_to_file = false)
-    prob = PEtabODEProblem(model; verbose=false,
-                           ss_solver = SteadyStateSolver(:Simulate, abstol=1e-12, reltol=1e-10))
+    model = PEtabModel(path_yaml)
+    prob = PEtabODEProblem(
+        model; ss_solver = SteadyStateSolver(:Simulate, abstol=1e-12, reltol=1e-10)
+    )
     x = get_x(prob)
 
     nllh = prob.nllh(x)

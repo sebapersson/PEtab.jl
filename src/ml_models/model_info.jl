@@ -15,7 +15,7 @@ problem.
 function _get_ode_ml_models(
         ml_models::MLModels, path_SBML::String, petab_tables::PEtabTables
     )::MLModels
-    isempty(ml_models) && return out
+    isempty(ml_models) && return MLModels()
 
     out = MLModel[]
     libsbml_model = SBMLImporter.SBML.readSBML(path_SBML)

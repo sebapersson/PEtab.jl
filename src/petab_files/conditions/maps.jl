@@ -120,7 +120,7 @@ function _get_condition_maps(
         # occur is important for runtime performance with split gradient methods.
         ix_condition = Int32[]
         for i in eachindex(target_value_formulas)
-            for (j, xid) in pairs(ids_dynamic_mech)
+            for (j, xid) in pairs(string.(ids[:est_to_dynamic_mech]))
                 _formula = SBMLImporter._replace_variable(target_value_formulas[i], xid, "xdynamic[$(j)]")
                 target_value_formulas[i] == _formula && continue
                 push!(ix_condition, j)

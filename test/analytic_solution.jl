@@ -104,8 +104,9 @@ end
 
 # Test that we do not have world-problem
 function create_model_inside_function()
-    return PEtabModel(joinpath(@__DIR__, "analytic_solution", "Test_model2.yaml"),
-                      build_julia_files=true, verbose=true, write_to_file = true)
+    return PEtabModel(
+        joinpath(@__DIR__, "analytic_solution", "Test_model2.yaml"); verbose = true
+    )
 end
 model = create_model_inside_function()
 
