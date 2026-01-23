@@ -11,7 +11,8 @@ nn1 = @compact(
     out = layer3(embed)
     @return out
 end
-ml_models = Dict(:net1 => MLModel(nn1; static = false))
+
+ml_models = MLModels(MLModel(:net1, nn1, false))
 path_h5 = joinpath(dir_case, "net1_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn1) |> ComponentArray |> f64
 PEtab.set_ml_model_ps!(pnn, path_h5, nn1, :net1)
@@ -20,7 +21,7 @@ function _lv1!(du, u, p, t, ml_models)
     prey, predator = u
     @unpack alpha, delta, beta = p
     net1 = ml_models[:net1]
-    du_nn, st = net1.model([prey, predator], p[:net1], net1.st)
+    du_nn, st = net1.lux_model([prey, predator], p[:net1], net1.st)
     net1.st = st
 
     du[1] = alpha*prey - beta * prey * predator # prey

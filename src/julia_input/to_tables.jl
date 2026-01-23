@@ -139,7 +139,8 @@ end
 function _mapping_to_table(ml_models::MLModels, parameters::Vector)::DataFrame
     isempty(ml_models) && return DataFrame()
     mappings_df = DataFrame()
-    for (ml_id, ml_model) in ml_models
+    for ml_model in ml_models.ml_models
+        ml_id = ml_model.ml_id
         _inputs_df = _get_mapping_table_io(ml_model.inputs, ml_id, ml_model, :inputs)
         _outputs_df = _get_mapping_table_io(ml_model.outputs, ml_id, ml_model, :outputs)
         mappings_df = reduce(vcat, (mappings_df, _inputs_df, _outputs_df))
@@ -197,7 +198,8 @@ end
 
 function _hybridization_to_table(ml_models::MLModels, parameters_df::DataFrame, conditions_df::DataFrame)::DataFrame
     hybridization_df = DataFrame()
-    for (ml_id, ml_model) in ml_models
+    for ml_model in ml_models.ml_models
+        ml_id = ml_model.ml_id
         _inputs_df = _get_hybridization_table_io(ml_model.inputs, ml_id, ml_model, parameters_df, conditions_df, :inputs)
         _outputs_df = _get_hybridization_table_io(ml_model.outputs, ml_id, ml_model, parameters_df, conditions_df, :outputs)
         hybridization_df = reduce(vcat, (hybridization_df, _inputs_df, _outputs_df))
@@ -302,7 +304,7 @@ function _parse_target_value(
         ml_models::MLModels
     )::String
     # Only allowed for ML model inputs
-    _ml_models = values(ml_models)
+    _ml_models = ml_models.ml_models
     ml_model_inputs = reduce(vcat, getfield.(_ml_models, :inputs))
     if !in(Symbol(target_id), ml_model_inputs)
         throw(PEtabInputError("Assigning an array in a PEtabCondition is only valid \
@@ -310,7 +312,7 @@ function _parse_target_value(
             the target '$target_id' is not an ML model input variable."))
     end
 
-    for ml_model in values(ml_models)
+    for ml_model in ml_models.ml_models
         ml_model.static == false && continue
         if ml_model.inputs isa Vector{Symbol}
             !in(Symbol(target_id), ml_model_inputs) && continue

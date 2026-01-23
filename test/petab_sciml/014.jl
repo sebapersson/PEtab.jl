@@ -20,7 +20,8 @@ input_data = PEtab._reshape_io_data(input_data)
 input_data = reshape(input_data, (size(input_data)..., 1)) |> f64
 close(input_hdf5)
 
-ml_models = Dict(:net3 => MLModel(nn14; static = true, inputs = input_data, outputs = [:gamma]))
+ml_models = MLModel(:net3, nn14, true; inputs = input_data, outputs = [:gamma]) |> MLModels
+
 path_h5 = joinpath(dir_case, "net3_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn14) |> ComponentArray |> f64
 PEtab.set_ml_model_ps!(pnn, path_h5, nn14, :net3)

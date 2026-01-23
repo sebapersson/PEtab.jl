@@ -3,14 +3,14 @@ function _net!(out, x, x_ml_cache::DiffCache, map_ml_model::MLModelPreSimulateMa
     x_ml = get_tmp(x_ml_cache, x)
     x_ml .= x[(length(map_ml_model.ix_dynamic_mech) + 1):end]
     inputs = map_ml_model.get_input(x, map_ml_model)
-    ml_out, st = ml_model.model(inputs, x_ml, ml_model.st)
+    ml_out, st = ml_model.lux_model(inputs, x_ml, ml_model.st)
     ml_model.st = st
     out .= ml_out
     return nothing
 end
 function _net!(out, x, x_ml::ComponentArray, map_ml_model::MLModelPreSimulateMap, ml_model::MLModel)::Nothing
     inputs = map_ml_model.get_input(x, map_ml_model)
-    ml_out, st = ml_model.model(inputs, x_ml, ml_model.st)
+    ml_out, st = ml_model.lux_model(inputs, x_ml, ml_model.st)
     ml_model.st = st
     out .= ml_out
     return nothing
@@ -23,7 +23,7 @@ end
 # to estimate, ForwardDiff can be used instead (and hopefully in the future Enzyme can
 # make all this code obsolete)
 function _net_reversediff!(out, x_ml, inputs, ml_model::MLModel)::Nothing
-    _out, st = ml_model.model(inputs, x_ml, ml_model.st)
+    _out, st = ml_model.lux_model(inputs, x_ml, ml_model.st)
     ml_model.st = st
     out .= _out
     return nothing

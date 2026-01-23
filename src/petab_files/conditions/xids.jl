@@ -18,7 +18,7 @@ function _get_xids(petab_parameters::PEtabParameters, petab_ml_parameters::PEtab
     # In case of multiple neural networks, to get correct indexing for adjoint gradient
     # methods, nets that appears in the ODE RHS must appear first, and xids_sys must follow
     # the order of xids_ml_in_ode for adjoint indexing to be correct.
-    _xids_ml = _get_xids_ml(ml_models)
+    _xids_ml = ml_models.ml_ids
     xids_ml_in_ode = _get_xids_ml_in_ode(_xids_ml, sys)
     xids_ml_pre_simulate = _get_xids_ml_pre_simulate(ml_models)
     xids_ml_nondynamic = _get_xids_ml_nondynamic(_xids_ml, xids_ml_in_ode, xids_ml_pre_simulate)
@@ -102,11 +102,14 @@ function _get_xids_ml_pre_simulate_output(petab_tables::PEtabTables, ml_models::
     out = Symbol[]
     mappings_df = petab_tables[:mapping]
     hybridization_df = petab_tables[:hybridization]
-    for (ml_id, ml_model) in ml_models
+    for ml_model in ml_models.ml_models
         ml_model.static == false && continue
         isempty(hybridization_df) && continue
-        output_variables = _get_ml_model_io_petab_ids(mappings_df, ml_id, :outputs) |>
-            Iterators.flatten
+
+        ml_id = ml_model.ml_id
+        output_variables = Iterators.flatten(
+            _get_ml_model_io_petab_ids(mappings_df, ml_id, :outputs)
+        )
         outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
         out = vcat(out, Symbol.(outputs_df.targetId))
     end
@@ -155,19 +158,21 @@ function _get_xids_condition(sys, petab_parameters::PEtabParameters, petab_table
     species_sys = _get_state_ids(sys)
 
     # TODO: Make this a function
-    net_inputs = String[]
-    for (ml_id, ml_model) in ml_models
+    ml_inputs = String[]
+    for ml_model in ml_models.ml_models
         ml_model.static == false && continue
-        _net_inputs = _get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs) |>
-            Iterators.flatten .|>
-            string
-        net_inputs = vcat(net_inputs, _net_inputs)
+
+        ml_id = ml_model.ml_id
+        _ml_inputs = Iterators.flatten(
+            _get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs)
+        )
+        ml_inputs = vcat(ml_inputs, string.(_ml_inputs))
     end
 
     xids_condition = Symbol[]
     for colname in names(conditions_df)
         colname in ["conditionName", "conditionId"] && continue
-        if !(colname in Iterators.flatten((xids_sys, species_sys, net_inputs)))
+        if !(colname in Iterators.flatten((xids_sys, species_sys, ml_inputs)))
             throw(PEtabFileError("Parameter $colname that dictates an experimental \
                                   condition does not appear among the model variables"))
         end
@@ -178,7 +183,7 @@ function _get_xids_condition(sys, petab_parameters::PEtabParameters, petab_table
 
             for parameter_id in petab_parameters.parameter_id
                 estimate = _estimate_parameter(parameter_id, petab_parameters)
-                for net_input in net_inputs
+                for net_input in ml_inputs
                     _formula = SBMLImporter._replace_variable(condition_value, "$(net_input)", "")
                     _formula == condition_value && continue
                     throw(PEtabFileError("Neural net input variable $(condition_variable) \
@@ -197,11 +202,6 @@ function _get_xids_condition(sys, petab_parameters::PEtabParameters, petab_table
     return xids_condition
 end
 
-function _get_xids_ml(ml_models::MLModels)::Vector{Symbol}
-    isnothing(ml_models) && return Symbol[]
-    return collect(keys(ml_models)) .|> Symbol
-end
-
 function _get_xids_ml_in_ode(xids_ml::Vector{Symbol}, sys)::Vector{Symbol}
     !(sys isa ODEProblem) && return Symbol[]
     xids_ml_in_ode = Symbol[]
@@ -214,7 +214,8 @@ end
 
 function _get_xids_ml_pre_simulate(ml_models::MLModels)::Vector{Symbol}
     out = Symbol[]
-    for (ml_id, ml_model) in ml_models
+    for ml_model in ml_models.ml_models
+    ml_id = ml_model.ml_id
         ml_model.static == false && continue
         push!(out, ml_id)
     end
@@ -236,7 +237,8 @@ function _get_xids_ml_input_est(petab_tables::PEtabTables, petab_parameters::PEt
     isempty(mappings_df) && return Symbol[]
 
     out = Symbol[]
-    for (ml_id, ml_model) in ml_models
+    for ml_model in ml_models.ml_models
+    ml_id = ml_model.ml_id
         ml_model.static == false && continue
         input_variables = _get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs) |>
             Iterators.flatten .|>

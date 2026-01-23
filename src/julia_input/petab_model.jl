@@ -37,7 +37,7 @@ function PEtabModel(
         speciemap::Union{AbstractVector, Nothing} = nothing,
         parametermap::Union{AbstractVector, Nothing} = nothing,
         events::Union{PEtabEvent, Vector{PEtabEvent}, Nothing} = nothing,
-        verbose::Bool = false, ml_models::Union{MLModels, Nothing} = nothing
+        verbose::Bool = false, ml_models::Union{Nothing, MLModels, MLModel} = nothing
     )::PEtabModel
 
     # One simulation condition is needed by the PEtab v1 standard.
@@ -61,7 +61,13 @@ function PEtabModel(
         parameters = [parameters]
     end
 
-    ml_models = isnothing(ml_models) ? Dict{Symbol, MLModel}() : ml_models
+    ml_models = if isnothing(ml_models)
+        MLModels()
+    elseif ml_models isa MLModel
+        MLModels(ml_models)
+    else
+        ml_models
+    end
 
     return _PEtabModel(
         sys, simulation_conditions, observables, measurements, parameters, speciemap,

@@ -29,7 +29,7 @@ function _get_speciemap(
     # maps to a specie
     condition_variables = names(conditions_df)
     net_outputs = String[]
-    for ml_model in values(ml_models)
+    for ml_model in ml_models.ml_models
         ml_model.static == false && continue
         for output_id in string.(ml_model.outputs)
             if output_id in specie_ids
@@ -59,15 +59,15 @@ function _get_speciemap(
 end
 
 function _get_parametermap(sys::ODEProblem, ::Any, ml_models::MLModels)
-    # Need to re-order sys.p such that ML-model are last for correct indexing
-    if isempty(ml_models) || !any([ml_id in keys(ml_models) for ml_id in keys(ml_models)])
+    ml_ids = ml_models.ml_ids
+    p_ids = keys(sys.p)
+
+    if isempty(ml_models) || !any([ml_id in p_ids for ml_id in ml_ids])
         return sys, nothing
     end
 
-    pkeys = keys(sys.p)
-    ml_ids = collect(keys(ml_models))
-    ml_ode_ids = filter(in(pkeys), ml_ids)
-    mech_ids = (k for k in pkeys if k ∉ ml_ode_ids)
+    ml_ode_ids = filter(in(p_ids), ml_ids)
+    mech_ids = (k for k in p_ids if k ∉ ml_ode_ids)
     p_ode = (; (k => sys.p[k] for k in mech_ids)...,
             (k => sys.p[k] for k in ml_ode_ids)...)
     sys = remake(sys, p = ComponentArray(p_ode))

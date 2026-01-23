@@ -1,63 +1,3 @@
-function PEtab.load_ml_models(path_yaml::String)::Dict{Symbol, <:PEtab.MLModel}
-    problem_yaml = YAML.load_file(path_yaml)
-    dirmodel = dirname(path_yaml)
-    neural_nets = problem_yaml["extensions"]["sciml"]["neural_nets"]
-    ml_models = Dict{Symbol, PEtab.MLModel}()
-    for (ml_id, netinfo) in neural_nets
-        path_net = joinpath(dirname(path_yaml), netinfo["location"])
-        net, _ = PEtab.parse_to_lux(path_net)
-        # With @compact Lux.jl does not allow freezing post model definition, hence the
-        # layers to be frozen are extracted here, as well as their parameter values.
-        # Given this information, the model is redefined.
-        _ml_model = Dict(Symbol(ml_id) => PEtab.MLModel(net))
-        freeze_info = _get_freeze_info(Symbol(ml_id), _ml_model, path_yaml)
-        net, _ = PEtab.parse_to_lux(path_net; freeze_info = freeze_info)
-        static = netinfo["static"]
-        ml_models[Symbol(ml_id)] = PEtab.MLModel(net; static = static, dirdata = dirmodel, freeze_info = freeze_info)
-    end
-    return ml_models
-end
-
-function PEtab.MLModel(net::Union{Lux.Chain, Lux.CompactLuxLayer}; st = nothing, static::Bool = true, dirdata = nothing, inputs::Union{Vector{T}, Vector{Vector{T}}, Array{<:Real}} = Symbol[], outputs::Vector{T} = Symbol[], freeze_info::Union{Nothing, Dict} = nothing)::MLModel where T <: Union{String, Symbol}
-    # Set frozen parameters if applicable
-    rng = Random.default_rng()
-    # st must be of type Float64 for numerical stability
-    if isnothing(st)
-        st = Lux.initialstates(rng, net)
-    end
-    st = st |> f64
-
-    ps = Lux.initialparameters(rng, net) |> ComponentArray |> f64
-    if !isnothing(freeze_info)
-        for (layer_id, array_info) in freeze_info
-            for (array_id, array_value) in array_info
-                st[layer_id][:frozen_params][array_id] .= array_value
-            end
-        end
-    end
-
-    if isnothing(dirdata)
-        dirdata = ""
-    elseif !isdir(dirdata)
-        throw(PEtab.PEtabInputError("For a ml_model dirdata keyword argument must be a \
-            valid directory. This does not hold for $dirdata"))
-    end
-
-    if (!isempty(inputs) && isempty(outputs)) || (isempty(inputs) && !isempty(outputs))
-        throw(PEtab.PEtabInputError("If either input or output is provided to a ml_model \
-            then both input and output must be provided"))
-    end
-
-    array_inputs = Dict{Symbol, Array{<:Real}}()
-    if inputs isa Array{<:Real}
-        _inputs = [_parse_input!(array_inputs, inputs, 1)]
-    else
-        _inputs = [_parse_input!(array_inputs, input, i) for (i, input) in pairs(inputs)]
-    end
-    _outputs = [Symbol.(output) for output in outputs]
-    return MLModel(net, st, ps, static, dirdata, _inputs, _outputs, array_inputs)
-end
-
 function PEtab.parse_to_lux(path_yaml::String; freeze_info::Union{Nothing, Dict} = nothing)
     network_yaml = YAML.load_file(path_yaml)
     layers = Dict([_parse_layer(l) for l in network_yaml["layers"]])
@@ -250,45 +190,52 @@ function _parse_cat(step_output::String, step_input::String, step_info::Dict)::S
     return "$(step_output) = cat($(args); dims = $(dim))"
 end
 
-function _get_freeze_info(ml_id::Symbol, ml_models::Dict, path_yaml::String)::Dict
+function _parse_freeze(ml_model::PEtab.MLModel, path_yaml::String)::Dict
     paths = PEtab._get_petab_paths(path_yaml)
     petab_tables = PEtab.read_tables_v2(path_yaml)
-    petab_ml_parameters = PEtab.PEtabMLParameters(petab_tables[:parameters], petab_tables[:mapping], ml_models)
-    inet = findall(x -> x == ml_id, petab_ml_parameters.ml_id)
-    all(petab_ml_parameters.estimate[inet] .== false) && return Dict()
-    all(petab_ml_parameters.estimate[inet] .== true) && return Dict()
+    petab_ml_parameters = PEtab.PEtabMLParameters(petab_tables, PEtab.MLModels(ml_model))
+    ml_id = ml_model.ml_id
+
+    i_ml = findall(x -> x == ml_id, petab_ml_parameters.ml_id)
+    all(petab_ml_parameters.estimate[i_ml] .== false) && return Dict()
+    all(petab_ml_parameters.estimate[i_ml] .== true) && return Dict()
 
     rng = Random.default_rng()
-    ps, _ = Lux.setup(rng, ml_models[ml_id].model)
+    ps, _ = Lux.setup(rng, ml_model.lux_model)
     ps = ComponentArray(ps) |> f64
-    PEtab.set_ml_model_ps!(ps, ml_id, ml_models, paths, petab_tables)
+    PEtab.set_ml_model_ps!(ps, ml_id, PEtab.MLModels(ml_model), paths, petab_tables)
+
     ml_model_indices = PEtab._get_ml_model_indices(ml_id, petab_ml_parameters.mapping_table_id)
     freeze_info = Dict{Symbol, Dict}()
     for ml_model_index in ml_model_indices[2:end]
+        estimate = petab_ml_parameters.estimate[ml_model_index] == true
         mapping_table_id = string(petab_ml_parameters.mapping_table_id[ml_model_index])
-        estimate = petab_ml_parameters.estimate[ml_model_index]
-
         @assert count(".", mapping_table_id) ≤ 2 "Only two . are allowed when specifying network layer"
-        if count('[', mapping_table_id) == 1 && count('.', mapping_table_id) == 1
+
+        layer_id = PEtab._get_layer_id(mapping_table_id)
+        array_id = PEtab._get_array_id(mapping_table_id)
+
+        if !isempty(layer_id) && isempty(array_id)
             estimate == true && continue
-            layerid = match(r"parameters\[(\w+)\]", mapping_table_id).captures[1] |> Symbol
-            arrayids = keys(ps[layerid])
-            freeze_info[layerid] = Dict()
-            for arrayid in arrayids
-                freeze_info[layerid][arrayid] = ps[layerid][arrayid]
+            layer_id = Symbol(layer_id)
+            array_ids = keys(ps[Symbol(layer_id)])
+            freeze_info[layer_id] = Dict()
+            for array_id in array_ids
+                freeze_info[layer_id][array_id] = ps[layer_id][array_id]
             end
             continue
         end
 
-        layerid = match(r"parameters\[(\w+)\]", mapping_table_id).captures[1] |> Symbol
-        arrayid = Symbol(split(mapping_table_id, ".")[3])
-        if !haskey(freeze_info, layerid) && estimate == false
-            freeze_info[layerid] = Dict(arrayid => ps[layerid][arrayid])
-        elseif haskey(freeze_info, layerid) && haskey(freeze_info[layerid], arrayid) && estimate == true
-            delete!(freeze_info[layerid], arrayid)
-        elseif haskey(freeze_info, layerid) && estimate == false
-            haskey(freeze_info[layerid], arrayid) && continue
-            freeze_info[layerid][arrayid] = ps[layerid][arrayid]
+        layer_id, array_id = Symbol.((layer_id, array_id))
+        if !haskey(freeze_info, layer_id) && estimate == false
+            freeze_info[layer_id] = Dict(array_id => ps[layer_id][array_id])
+
+        elseif haskey(freeze_info, layer_id) && haskey(freeze_info[layer_id], array_id) && estimate == true
+            delete!(freeze_info[layer_id], array_id)
+
+        elseif haskey(freeze_info, layer_id) && estimate == false
+            haskey(freeze_info[layer_id], array_id) && continue
+            freeze_info[layer_id][array_id] = ps[layer_id][array_id]
         end
     end
     return freeze_info

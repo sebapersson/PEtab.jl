@@ -62,8 +62,10 @@ function _get_condition_maps(
     model_ids = Iterators.flatten((xids_sys, state_ids))
 
     ml_inputs = String[]
-    for (ml_id, ml_model) in ml_models
+    for ml_model in ml_models.ml_models
         ml_model.static == false && continue
+
+        ml_id = ml_model.ml_id
         _ml_inputs = _get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs) |>
             Iterators.flatten .|>
             string

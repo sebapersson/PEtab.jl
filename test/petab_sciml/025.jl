@@ -32,7 +32,9 @@ st = Lux.initialstates(rng, nn25_frozen) |> f64
 st.layer1.frozen_params.weight .= pnn_tmp.layer1.weight
 st.layer1.frozen_params.bias .= pnn_tmp.layer1.bias
 # Given this ml_model can be built
-ml_models = Dict(:net1 => MLModel(nn25_frozen; st = st, static = false, inputs = [:prey, :predator], outputs = [:net1_output1]))
+ml_models = MLModel(
+    :net1, nn25_frozen, false; st = st, inputs = [:prey, :predator], outputs = [:net1_output1]
+) |> MLModels
 
 function lv25!(du, u, p, t)
     prey, predator = u

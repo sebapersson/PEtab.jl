@@ -1,7 +1,7 @@
 test_case = "029"
 dir_case = joinpath(@__DIR__, "test_cases", "sciml_problem_import", test_case, "petab")
 
-nn5 = @compact(
+nn29 = @compact(
     layer1 = Dense(2, 5, Lux.tanh),
     layer2 = Dense(5, 5, Lux.tanh),
     layer3 = Dense(5, 1)
@@ -12,7 +12,7 @@ nn5 = @compact(
     out = layer3(embed)
     @return out
 end
-ml_models = Dict(:net5 => MLModel(nn5; static = false))
+ml_models = MLModels(MLModel(:net5, nn29, false))
 path_h5 = joinpath(dir_case, "net5_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn5) |> ComponentArray |> f64
 PEtab.set_ml_model_ps!(pnn, path_h5, nn5, :net5)
@@ -21,7 +21,7 @@ function _lv29!(du, u, p, t, ml_models)
     prey, predator = u
     @unpack alpha, delta, beta = p
     net5 = ml_models[:net5]
-    du_nn, st = net5.model(([prey], [predator]), p[:net5], net5.st)
+    du_nn, st = net5.lux_model(([prey], [predator]), p[:net5], net5.st)
     net5.st = st
 
     du[1] = alpha*prey - beta * prey * predator # prey

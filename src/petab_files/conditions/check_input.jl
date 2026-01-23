@@ -30,15 +30,17 @@ function _check_mapping_table(
         return nothing
     end
 
-    for (ml_id, ml_model) in ml_models
+    for ml_model in ml_models.ml_models
         ml_model.static == false && continue
-        _check_static_net_inputs(petab_tables, paths, petab_parameters, ml_id)
+
+        ml_id = ml_model.ml_id
+        _check_static_ml_inputs(petab_tables, paths, petab_parameters, ml_id)
         _check_static_net_outputs(petab_tables, petab_parameters, sys, ml_id)
     end
     return nothing
 end
 
-function _check_static_net_inputs(
+function _check_static_ml_inputs(
         petab_tables::PEtabTables, paths::Dict{Symbol, String},
         petab_parameters::PEtabParameters, ml_id::Symbol
     )::Nothing

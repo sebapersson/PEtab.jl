@@ -179,6 +179,10 @@ function show(io::IO, target::PEtabLogDensity)
     out = styled"{PURPLE:{bold:PEtabLogDensity}} with $(target.dim) parameters to infer"
     print(io, out)
 end
+function show(io::IO, ml_model::MLModel)
+    out = styled"{PURPLE:{bold:MLModel}} $(ml_model.ml_id)"
+    print(io, out)
+end
 
 """
     describe(prob::PEtabODEProblem)

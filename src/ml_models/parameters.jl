@@ -3,7 +3,7 @@ function _set_ml_models_ps!(ml_models::MLModels, parameters)::Nothing
     for petab_parameter in parameters
         !(petab_parameter isa PEtabMLParameter) && continue
         @unpack ml_id, value = petab_parameter
-        if !haskey(ml_models, ml_id)
+        if !in(ml_id, ml_models.ml_ids)
             throw(PEtab.PEtabInputError("For neural network $(ml_id) a PEtabMLParameter \
                 has been provided, but not as required a NetModel via the ml_models \
                 keyword."))
@@ -14,14 +14,16 @@ function _set_ml_models_ps!(ml_models::MLModels, parameters)::Nothing
     return nothing
 end
 
-function set_ml_model_ps!(ps::ComponentArray, ml_id::Symbol, ml_model::MLModel, paths::Dict{Symbol, String})::Nothing
+function set_ml_model_ps!(
+        ps::ComponentArray, ml_model::MLModel, paths::Dict{Symbol, String}
+    )::Nothing
     # Case when Julia provided parameter input
     if isempty(paths)
         ps .= ml_model.ps
         return nothing
     end
-    ps_path = _get_ps_path(ml_id, paths)
-    set_ml_model_ps!(ps, ps_path, ml_model.model, ml_id)
+    ps_path = _get_ps_path(ml_model.ml_id, paths)
+    set_ml_model_ps!(ps, ps_path, ml_model.lux_model, ml_model.ml_id)
     return nothing
 end
 function set_ml_model_ps!(ps::ComponentArray, ml_id::Symbol, ml_models, paths::Dict{Symbol, String}, petab_tables::PEtabTables)::Nothing
@@ -33,10 +35,10 @@ function set_ml_model_ps!(ps::ComponentArray, ml_id::Symbol, ml_models, paths::D
 
     # Case for PEtab standard format provided
     ml_model = ml_models[ml_id]
-    petab_ml_parameters = PEtabMLParameters(petab_tables[:parameters], petab_tables[:mapping], ml_models)
+    petab_ml_parameters = PEtabMLParameters(petab_tables, ml_models)
 
     # Set parameters for entire net, then set values for specific layers
-    PEtab.set_ml_model_ps!(ps, ml_id, ml_model, paths)
+    PEtab.set_ml_model_ps!(ps, ml_model, paths)
 
     netindices = _get_ml_model_indices(ml_id, petab_ml_parameters.mapping_table_id)
     length(netindices) == 1 && return nothing

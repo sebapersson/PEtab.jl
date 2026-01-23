@@ -1,7 +1,7 @@
 test_case = "034"
 dir_case = joinpath(@__DIR__, "test_cases", "sciml_problem_import", test_case, "petab")
 
-nn2 = @compact(
+nn34 = @compact(
     layer1 = Dense(2, 5, Lux.tanh),
     layer2 = Dense(5, 5, Lux.tanh),
     layer3 = Dense(5, 1)
@@ -11,10 +11,12 @@ nn2 = @compact(
     out = layer3(embed)
     @return out
 end
-ml_models = Dict(:net1 => MLModel(nn2; static = true, inputs = [:net1_input1, :net1_input2], outputs = [:gamma]))
+ml_models = MLModel(
+    :net1, nn34, true; inputs = [:net1_input1, :net1_input2], outputs = [:gamma]
+)
 path_h5 = joinpath(dir_case, "net1_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn2) |> ComponentArray |> f64
-PEtab.set_ml_model_ps!(pnn, path_h5, nn2, :net1)
+PEtab.set_ml_model_ps!(pnn, path_h5, nn34, :net1)
 
 function lv34!(du, u, p, t)
     prey, predator = u

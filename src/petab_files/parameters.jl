@@ -246,7 +246,7 @@ function _get_parameters_ix(
 
     @assert which_ps in [:mechanistic, :net] "Error in PEtabParameters parsing"
     ml_models_ps_ids = String[]
-    for ml_id in keys(ml_models)
+    for ml_id in ml_models.ml_ids
         ml_models_ps_ids = vcat(
             ml_models_ps_ids, _get_ml_model_parameter_ids(mappings_df, ml_id)
         )
@@ -263,9 +263,12 @@ function _get_parameters_ix(
     return out
 end
 
-function _get_ml_ids!(ml_ids::Vector{Symbol}, parameter_ids::Vector{Symbol}, mappings_df::DataFrame, ml_models::Dict)::Nothing
+function _get_ml_ids!(
+        ml_ids::Vector{Symbol}, parameter_ids::Vector{Symbol}, mappings_df::DataFrame,
+        ml_models::MLModels
+    )::Nothing
     for (i, parameter_id) in pairs(string.(parameter_ids))
-        for ml_id in keys(ml_models)
+        for ml_id in ml_models.ml_ids
             ml_parameters = _get_ml_model_parameter_ids(mappings_df, ml_id)
             if !(parameter_id in ml_parameters)
                 continue

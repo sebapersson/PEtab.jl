@@ -1,9 +1,9 @@
-function _template_odeproblem(model_SBML_prob, model_SBML, ml_models_in_ode::Dict, petab_tables::PEtabTables)::String
+function _template_odeproblem(model_SBML_prob, model_SBML, ode_ml_models::MLModels, petab_tables::PEtabTables)::String
     @unpack umodel, ps, odes = model_SBML_prob
     fode = "function f_$(model_SBML.name)(du, u, p, t, ml_models)::Nothing\n"
     fode *= "\t" * prod(umodel .* ", ") * " = u\n"
     fode *= "\t@unpack " * prod(ps .* ", ") * " = p\n"
-    for ml_id in keys(ml_models_in_ode)
+    for ml_id in ode_ml_models.ml_ids
         fode *= _template_ml_in_ode(ml_id, petab_tables)
     end
     for ode in odes
@@ -15,8 +15,9 @@ function _template_odeproblem(model_SBML_prob, model_SBML, ml_models_in_ode::Dic
 end
 
 function _template_ml_in_ode(ml_id::Symbol, petab_tables::PEtabTables)::String
-    hybridization_df = petab_tables[:hybridization]
-    mappings_df = petab_tables[:mapping]
+    hybridization_df, mappings_df = _get_petab_tables(
+        petab_tables, [:hybridization, :mapping]
+    )
 
     input_arguments = _get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs)
     inputs = "("
@@ -42,7 +43,7 @@ function _template_ml_in_ode(ml_id::Symbol, petab_tables::PEtabTables)::String
     outputs_net = "out, st_$(ml_id)"
     formula = "\n\tml_model_$(ml_id) = ml_models[:$(ml_id)]\n"
     formula *= "\tx_ml_$(ml_id) = p[:$(ml_id)]\n"
-    formula *= "\t$(outputs_net) = ml_model_$(ml_id).model($inputs, x_ml_$(ml_id), ml_model_$(ml_id).st)\n"
+    formula *= "\t$(outputs_net) = ml_model_$(ml_id).lux_model($inputs, x_ml_$(ml_id), ml_model_$(ml_id).st)\n"
     formula *= "\tml_model_$(ml_id).st = st_$(ml_id)\n"
     formula *= "\t$(outputs_p) = out\n"
     formula *= "$(output_targets)\n\n"
@@ -78,7 +79,7 @@ function _template_ml_observable(ml_id::Symbol, petab_tables::PEtabTables, state
     else
         formula *= "\t\tx_ml_$(ml_id) = x_ml_models_constant[:$(ml_id)]\n"
     end
-    formula *= "\t\tout, st_$(ml_id) = ml_model_$(ml_id).model($inputs, x_ml_$(ml_id), ml_model_$(ml_id).st)\n"
+    formula *= "\t\tout, st_$(ml_id) = ml_model_$(ml_id).lux_model($inputs, x_ml_$(ml_id), ml_model_$(ml_id).st)\n"
     formula *= "\t\t$(outputs) = out\n"
     formula *= "\t\tml_model_$(ml_id).st = st_$(ml_id)\n"
     return formula

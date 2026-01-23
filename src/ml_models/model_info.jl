@@ -1,5 +1,5 @@
 """
-    _get_ml_models_in_ode(ml_models, path_SBML, petab_tables)
+    _get_ode_ml_models(ml_models, path_SBML, petab_tables)
 
 Identify which neural-network models appear in the ODE right-hand-side
 
@@ -12,13 +12,17 @@ For this to hold, the following must hold:
 In case 3 does not hold, an error should be thrown as something is wrong with the PEtab
 problem.
 """
-function _get_ml_models_in_ode(ml_models::MLModels, path_SBML::String, petab_tables::PEtabTables)::MLModels
-    out = Dict{Symbol, MLModel}()
+function _get_ode_ml_models(
+        ml_models::MLModels, path_SBML::String, petab_tables::PEtabTables
+    )::MLModels
     isempty(ml_models) && return out
 
+    out = MLModel[]
     libsbml_model = SBMLImporter.SBML.readSBML(path_SBML)
-    hybridization_df = petab_tables[:hybridization]
-    mappings_df = petab_tables[:mapping]
+    hybridization_df, mappings_df = _get_petab_tables(
+        petab_tables, [:hybridization, :mapping]
+    )
+
     # Sanity check that columns in mapping table are correctly named
     pattern = r"(.inputs|.outputs|.parameters)"
     for io_id in string.(mappings_df[!, "modelEntityId"])
@@ -29,34 +33,34 @@ function _get_ml_models_in_ode(ml_models::MLModels, path_SBML::String, petab_tab
         end
     end
 
-    for (ml_id, ml_model) in ml_models
+    for ml_model in ml_models.ml_models
         ml_model.static == true && continue
 
-        input_variables = _get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs) |>
-            Iterators.flatten
+        @unpack ml_id = ml_model
+        input_variables = Iterators.flatten(
+            _get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs)
+        )
         if !all([x in hybridization_df.targetId for x in input_variables])
             throw(PEtab.PEtabInputError("For a static=false neural network all input \
                 must be assigned value in the hybridization table. This does not hold for \
                 $ml_id"))
         end
 
-        output_variables = _get_ml_model_io_petab_ids(mappings_df, ml_id, :outputs) |>
-            Iterators.flatten
+        output_variables = Iterators.flatten(
+            _get_ml_model_io_petab_ids(mappings_df, ml_id, :outputs)
+        )
         outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
         isempty(outputs_df) && continue
+
         if !all([x in keys(libsbml_model.parameters) for x in outputs_df.targetId])
             throw(PEtab.PEtabInputError("For a static=false neural network all output \
                 variables in hybridization table must map to SBML model parameters. This does
                 not hold for $ml_id"))
         end
-        out[ml_id] = ml_model
-    end
-    return out
-end
 
-function _get_ml_models_in_ode_ids(ml_models::MLModels, path_SBML::String, petab_tables::PEtabTables)::Vector{Symbol}
-    ml_models_in_ode = _get_ml_models_inode_ids(ml_models, path_SBML, petab_tables)
-    return collect(keys(ml_models_in_ode))
+        push!(out, ml_model)
+    end
+    return MLModels(out)
 end
 
 function _get_ml_ids(mappings_df::DataFrame)::Vector{String}

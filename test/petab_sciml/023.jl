@@ -32,13 +32,13 @@ st = Lux.initialstates(rng, nn23_frozen) |> f64
 st.layer1.frozen_params.weight .= pnn_tmp.layer1.weight
 st.layer1.frozen_params.bias .= pnn_tmp.layer1.bias
 # Given this ml_model can be built
-ml_models = Dict(:net1 => MLModel(nn23_frozen; st = st, static = false))
+ml_models = MLModel(:net1, nn23_frozen, false; st = st) |> MLModels
 
 function _lv23!(du, u, p, t, ml_models)
     prey, predator = u
     @unpack alpha, delta, beta = p
     net1 = ml_models[:net1]
-    du_nn, st = net1.model([prey, predator], p[:net1], net1.st)
+    du_nn, st = net1.lux_model([prey, predator], p[:net1], net1.st)
     net1.st = st
 
     du[1] = alpha*prey - beta * prey * predator # prey

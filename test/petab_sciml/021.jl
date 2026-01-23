@@ -11,7 +11,9 @@ nn21 = @compact(
     out = layer3(embed)
     @return out
 end
-ml_models = Dict(:net4 => MLModel(nn21; static = true, inputs = [:net1_input_pre1, :net1_input_pre2], outputs = [:alpha, :gamma]))
+ml_models = MLModel(
+    :net4, nn21, true; inputs = [:net1_input_pre1, :net1_input_pre2], outputs = [:alpha, :gamma]
+) |> MLModels
 path_h5 = joinpath(dir_case, "net4_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn21) |> ComponentArray |> f64
 PEtab.set_ml_model_ps!(pnn, path_h5, nn21, :net4)

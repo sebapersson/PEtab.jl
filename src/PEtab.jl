@@ -49,9 +49,9 @@ include(joinpath("structs", "petab_sdeproblem.jl"))
 include(joinpath("structs", "parameter_estimation.jl"))
 include(joinpath("structs", "inference.jl"))
 
-const EstimationResult = Union{PEtabOptimisationResult, PEtabMultistartResult,
-                               Vector{<:Real}, ComponentArray}
-const MLModels = Dict{Symbol, <:MLModel}
+const EstimationResult = Union{
+    PEtabOptimisationResult, PEtabMultistartResult, Vector{<:Real}, ComponentArray
+}
 const UserParameter = Union{PEtabParameter, PEtabMLParameter}
 
 include("common.jl")
@@ -138,8 +138,7 @@ function correct_gradient! end
 
 # For ML models
 function load_ml_models end
-function _setup_ml_models end
-function _get_ml_model_ps end
+function _get_lux_ps end
 function _get_ml_model_initialparameters end
 function set_ml_model_ps! end
 function _reshape_io_data end
@@ -155,7 +154,8 @@ export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
        PEtabParameter, PEtabCondition, PEtabObservable, PEtabMultistartResult,
        get_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, get_system, PEtabEvent,
        PEtabLogDensity, solve_all_conditions, get_x, calibrate, calibrate_multistart,
-       petab_select, get_obs_comparison_plots, export_petab, describe, LogLaplace
+       petab_select, get_obs_comparison_plots, export_petab, describe, LogLaplace,
+       MLModels
 
 """
     to_prior_scale(xpetab, target::PEtabLogDensity)

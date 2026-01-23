@@ -11,12 +11,12 @@ include(joinpath(@__DIR__, "helper.jl"))
     end
 end
 
+ode_solver = ODESolver(Rodas5P(), abstol = 1e-10, reltol = 1e-10, maxiters=Int(1e6))
 @testset "PEtab SciML hybrid models" begin
     for i in 1:34
         test_case = i < 10 ? "00$i" : "0$i"
         path_yaml = joinpath(@__DIR__, "test_cases", "sciml_problem_import", test_case, "petab", "problem.yaml")
-        ml_models = PEtab.load_ml_models(path_yaml)
-        osolver = ODESolver(Rodas5P(), abstol = 1e-10, reltol = 1e-10, maxiters=Int(1e6))
+        ml_models = MLModels(path_yaml)
         model = PEtabModel(path_yaml; ml_models = ml_models)
         for config in PROB_CONFIGS
             # Edge case for underperforming configuration. So even though support could be
@@ -30,7 +30,7 @@ end
             if config.sensealg == ForwardSensitivity()
                 continue
             end
-            petab_prob = PEtabODEProblem(model; odesolver = osolver,
+            petab_prob = PEtabODEProblem(model; odesolver = ode_solver,
                                          gradient_method = config.grad,
                                          split_over_conditions = config.split,
                                          sensealg=config.sensealg)
@@ -45,7 +45,7 @@ end
         test_case = i < 10 ? "00$i" : "0$i"
         path_yaml = joinpath(@__DIR__, "test_cases", "initialization", test_case, "petab",
                              "problem.yaml")
-        ml_models = PEtab.load_ml_models(path_yaml)
+        ml_models = MLModels(path_yaml)
         model = PEtabModel(path_yaml; ml_models = ml_models, verbose = false)
         test_init(test_case, model)
     end

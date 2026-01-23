@@ -31,7 +31,10 @@ PEtab.set_ml_model_ps!(pnn_tmp, path_h5, nn27, :net1)
 st = Lux.initialstates(rng, nn27_frozen) |> f64
 st.layer1.frozen_params.weight .= pnn_tmp.layer1.weight
 # Given this ml_model can be built
-ml_models = Dict(:net1 => MLModel(nn27_frozen; st = st, static = true, inputs = [:net1_input1, :net1_input2], outputs = [:gamma]))
+ml_models = MLModel(
+    :net1, nn27_frozen, true; st = st, inputs = [:net1_input1, :net1_input2],
+    outputs = [:gamma]
+) |> MLModels
 
 function lv27!(du, u, p, t)
     prey, predator = u

@@ -22,8 +22,10 @@ nn13_2 = @compact(
     @return out
 end
 pnn1 = Lux.initialparameters(rng, nn13_1)
-ml_models = Dict(:net1 => MLModel(nn13_1; static = true, inputs = [:input1, :input2], outputs = [:gamma]),
-                 :net2 => MLModel(nn13_2; static = false, inputs = [:alpha, :predator], outputs = [:net2_output1]))
+ml_models = MLModels(
+    MLModel(:net1, nn13_1, true; inputs = [:input1, :input2], outputs = [:gamma]),
+    MLModel(:net2, nn13_2, false; inputs = [:alpha, :predator], outputs = [:net2_output1])
+)
 path_h5 = joinpath(dir_case, "net1_ps.hdf5")
 pnn1 = Lux.initialparameters(rng, nn13_1) |> ComponentArray |> f64
 PEtab.set_ml_model_ps!(pnn1, path_h5, nn13_1, :net1)

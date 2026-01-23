@@ -31,13 +31,13 @@ PEtab.set_ml_model_ps!(pnn_tmp, path_h5, nn26, :net1)
 st = Lux.initialstates(rng, nn26_frozen) |> f64
 st.layer1.frozen_params.weight .= pnn_tmp.layer1.weight
 # Given this ml_model can be built
-ml_models = Dict(:net1 => MLModel(nn26_frozen; st = st, static = false))
+ml_models = MLModel(:net1, nn26_frozen, false; st = st) |> MLModels
 
 function _lv26!(du, u, p, t, ml_models)
     prey, predator = u
     @unpack alpha, delta, beta = p
     net1 = ml_models[:net1]
-    du_nn, st = net1.model([prey, predator], p[:net1], net1.st)
+    du_nn, st = net1.lux_model([prey, predator], p[:net1], net1.st)
     net1.st = st
 
     du[1] = alpha*prey - beta * prey * predator # prey

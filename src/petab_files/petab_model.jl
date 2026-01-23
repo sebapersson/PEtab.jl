@@ -15,7 +15,7 @@ Import a PEtab problem in the standard (YAML + tables) format from `path_yaml` a
 function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
                     verbose::Bool = false, ifelse_to_callback::Bool = true,
                     write_to_file::Bool = false,
-                    ml_models::Union{Nothing, MLModels} = nothing)::PEtabModel
+                    ml_models::Union{Nothing, MLModels, MLModel} = nothing)::PEtabModel
     petab_version = _get_version(path_yaml)
 
     if petab_version == "1.0.0"
@@ -33,7 +33,7 @@ end
 function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::PEtabTables,
                      build_julia_files::Bool, verbose::Bool, ifelse_to_callback::Bool,
                      write_to_file::Bool, petab_events::Vector{PEtabEvent},
-                     ml_models)
+                     ml_models::MLModels)
     name = splitdir(paths[:dirmodel])[end]
 
     write_to_file && !isdir(paths[:dirjulia]) && mkdir(paths[:dirjulia])
@@ -43,7 +43,7 @@ function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::PEtabTables,
     _logging(:Build_PEtabModel, verbose; name = name)
 
     # Ensure correct type internally for ml_models
-    ml_models = isnothing(ml_models) ? Dict{Symbol, MLModel}() : ml_models
+    ml_models = isnothing(ml_models) ? MLModels() : ml_models
 
      #=
         If the SBML model contains a neural-network it must be parsed as an ODEProblem, as
@@ -56,29 +56,38 @@ function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::PEtabTables,
     =#
     _logging(:Build_ODESystem, verbose)
     btime = @elapsed begin
-        ml_models_in_ode = _get_ml_models_in_ode(ml_models, paths[:SBML], petab_tables)
-        inline_assignment_rules = !isempty(ml_models_in_ode)
-        model_SBML = SBMLImporter.parse_SBML(paths[:SBML], false; model_as_string = false,
-                                            ifelse_to_callback = ifelse_to_callback,
-                                            inline_assignment_rules = inline_assignment_rules)
+        ode_ml_models = _get_ode_ml_models(ml_models, paths[:SBML], petab_tables)
+
+        inline_assignment_rules = !isempty(ode_ml_models)
+        model_SBML = SBMLImporter.parse_SBML(
+            paths[:SBML], false; model_as_string = false, ifelse_to_callback = ifelse_to_callback,
+            inline_assignment_rules = inline_assignment_rules
+        )
         speciemap_sbml = _get_sbml_speciemap(model_SBML)
         add_u0_parameters!(model_SBML, petab_tables, ml_models)
+
         pathmodel = joinpath(paths[:dirjulia], name * ".jl")
         exist = isfile(pathmodel)
-        if isempty(ml_models_in_ode)
-            odesystem, speciemap, parametermap = _get_odesys(model_SBML, paths, exist, build_julia_files, write_to_file, verbose)
+        if isempty(ode_ml_models)
+            odesystem, speciemap, parametermap = _get_odesys(
+                model_SBML, paths, exist, build_julia_files, write_to_file, verbose
+            )
         else
-            odesystem, speciemap, parametermap = _get_odeproblem(model_SBML, ml_models_in_ode, petab_tables)
+            odesystem, speciemap, parametermap = _get_odeproblem(
+                model_SBML, ode_ml_models, petab_tables
+            )
         end
-
-        # Indices for mapping parameters and tracking which parameter to estimate, useful
-        # when building the coming PEtab functions
-        xindices = ParameterIndices(petab_tables, paths, odesystem, parametermap, speciemap, ml_models)
 
         sys_observables = _get_sys_observables(odesystem)
         sys_observable_ids = collect(keys(sys_observables))
     end
     _logging(:Build_ODESystem, verbose; time = btime)
+
+    # Indices for mapping parameters and tracking which parameter to estimate, needed
+    # to build observable functions, and callbacks
+    xindices = ParameterIndices(
+        petab_tables, paths, odesystem, parametermap, speciemap, ml_models
+    )
 
     path_u0_h_σ = joinpath(paths[:dirjulia], "$(name)_h_sd_u0.jl")
     exist = isfile(path_u0_h_σ)
@@ -137,7 +146,8 @@ function add_u0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::PE
     # Neural net output variables can set initial values, in this case the initial
     # value must be converted to a parameter
     net_outputs = String[]
-    for (ml_id, ml_model) in ml_models
+    for ml_model in ml_models.ml_models
+        ml_id = ml_model.ml_id
         ml_model.static == false && continue
         output_variables = _get_ml_model_io_petab_ids(mappings_df, ml_id, :outputs) |>
             Iterators.flatten
@@ -241,13 +251,19 @@ function _get_odesys(model_SBML::SBMLImporter.ModelSBML, paths::Dict{Symbol, Str
     return odesystem, speciemap, parametermap
 end
 
-function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, ml_models_in_ode::Dict, petab_tables::PEtabTables)
-    hybridization_df = petab_tables[:hybridization]
-    mappings_df = petab_tables[:mapping]
-    for ml_id in keys(ml_models_in_ode)
-        output_variables = _get_ml_model_io_petab_ids(mappings_df, ml_id, :outputs) |>
-            Iterators.flatten
+function _get_odeproblem(
+        model_SBML::SBMLImporter.ModelSBML, ode_ml_models::MLModels, petab_tables::PEtabTables
+    )
+    hybridization_df, mappings_df = _get_petab_tables(
+        petab_tables, [:hybridization, :mapping]
+    )
+
+    for ml_id in ode_ml_models.ml_ids
+        output_variables = Iterators.flatten(
+            _get_ml_model_io_petab_ids(mappings_df, ml_id, :outputs)
+        )
         outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
+
         output_targets = outputs_df.targetId
         for output_target in output_targets
             delete!(model_SBML.parameters, output_target)
@@ -256,40 +272,32 @@ function _get_odeproblem(model_SBML::SBMLImporter.ModelSBML, ml_models_in_ode::D
 
     # Parse the SBML model into an ODEProblem with the neueral networks inserted
     model_SBML_prob = SBMLImporter.ModelSBMLProb(model_SBML)
-    __fode = _template_odeproblem(model_SBML_prob, model_SBML, ml_models_in_ode, petab_tables)
+    __fode = _template_odeproblem(model_SBML_prob, model_SBML, ode_ml_models, petab_tables)
     _fode = @RuntimeGeneratedFunction(Meta.parse(__fode))
-    fode = let ml_models = ml_models_in_ode
+    fode = let ml_models = ode_ml_models
         (du, u, p, t) -> _fode(du, u, p, t, ml_models)
     end
 
     # Build the internal PEtab.jl ODEProblem parameter struct, which is a ComponentVector
     # with mechanistic and neural-network parameters. For internal PEtab.jl mapping,
     # neural-network must be last in this ComponentVector
-    psnets = _get_ml_model_ps(ml_models_in_ode)
-    ps_mech_values = parse.(Float64, last.(model_SBML_prob.psmap))
-    psode = (; (Symbol.(first.(model_SBML_prob.psmap)) .=> ps_mech_values)...)
-    for (ml_id, psnet) in psnets
-        psode = merge(psode, (;ml_id => psnet, ))
+    ps_mech = parse.(Float64, last.(model_SBML_prob.psmap))
+    ps_ode = (; (Symbol.(first.(model_SBML_prob.psmap)) .=> ps_mech)...)
+    for ml_model in ode_ml_models.ml_models
+        ps_ml = _get_lux_ps(ml_model)
+        ps_ode = merge(ps_ode, (;ml_model.ml_id => ps_ml, ))
     end
-    psode = ComponentArray(psode)
+    ps_ode = ComponentArray(ps_ode)
+
     # For internal mapping, initial values need to be provided as a ComponentArray
     _u0tmp = zeros(Float64, length(model_SBML_prob.umodel))
     u0 = ComponentArray(; (Symbol.(model_SBML_prob.umodel) .=> _u0tmp)...)
-    oprob = SciMLBase.ODEProblem(fode, u0, (0.0, 10.0), psode)
+    oprob = SciMLBase.ODEProblem(fode, u0, (0.0, 10.0), ps_ode)
 
     # PEtab.jl needed maps for later processing
     u0map = model_SBML_prob.umap
     psmap = nothing
     return oprob, u0map, psmap
-end
-
-_parse_ml_models(::Nothing, ::String)::Nothing = nothing
-function _parse_ml_models(ml_models::MLModels, dirdata::String)::Nothing
-    for (ml_id, ml_model) in ml_models
-        _ml_model = @set ml_model.dirdata = dirdata
-        ml_models[ml_id] = _ml_model
-    end
-    return ml_models
 end
 
 function _reorder_parametermap(parametermap, parameter_order::Vector{Symbol})

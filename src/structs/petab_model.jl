@@ -308,16 +308,81 @@ function PEtabMLParameter(
     return PEtabMLParameter(ml_id, estimate, value, prior, priors)
 end
 
-mutable struct MLModel{T1 <: Any, T2 <: Union{Vector{Symbol}, Vector{Vector{Symbol}}}}
-    const model::T1
+"""
+    MLModel(ml_id::Symbol, lux_model, pre_initialization::Bool; inputs = nothing, outputs = nothing)
+
+Machine-learning submodel for SciML hybridization. Only `lux_model`s with `Vector` output
+are supported.
+
+For examples, see the online package documentation.
+
+# Arguments
+- `ml_id::Symbol`: Unique identifier for the ML model.
+- `lux_model`: The underlying Lux.jl model (e.g. a `Lux.Chain`).
+- `pre_initialization::Bool`: If `true`, evaluate once per `PEtabCondition` before simulation
+  and treat outputs as condition-specific constants. If `false`, embed into the ODE model
+  and/or observable formulas and evaluate during simulation.
+
+# Keyword Arguments
+- `inputs`: ML model inputs. Must be provided when `pre_initialization = true`. For multiple
+  input arguments, provide a tuple `(arg1, arg2)`. Valid input arguments are:
+  - `AbstractVector`: Entries may be `Real` or PEtab/model ids (`Symbol`). Ids are substituted
+    by their current value when evaluated. Allowed ids depend on `pre_initialization`:
+    - `true`: `PEtabParameter`s and entities assigned by `PEtabCondition`.
+    - `false`: Model states and/or model parameters.
+  - `AbstractArray{<:Real}`: Constant numeric input used across all simulation conditions.
+
+- `outputs`: Vector of `Symbol`s specifying ML outputs. Allowed values depend on
+  `pre_initialization`:
+  - `true`: Each id must be a model state/parameter which will be set by the ML model
+    prior to simulation. Assigned ids can not be assigned elsewhere in the PEtab problem.
+  - `false`: Each id defines an output placeholder that can be referenced in `PEtabObservable`
+    formulas.
+"""
+mutable struct MLModel{T1 <: Any}
+    const ml_id::Symbol
+    const lux_model::T1
+    const inputs::Union{Vector{Symbol}, Vector{Vector{Symbol}}}
+    const outputs::Vector{Symbol}
+    const static::Bool
     st::NamedTuple
     const ps::ComponentVector{Float64}
-    const static::Bool
-    const dirdata::String
-    const inputs::T2
-    const outputs::Vector{Symbol}
+    const dir_data::String
     const array_inputs::Dict{Symbol, Array{<:Real}}
 end
+
+"""
+    MLModels(ml_models...)
+    MLModels(path_yaml)
+
+Collection of `PEtab.MLModel`s. For problems in the PEtab-SciML standard format, can be
+imported from the PEtab YAML file by passing `path_yaml`.
+
+Requires Lux to be loaded via `using Lux`.
+"""
+struct MLModels
+    ml_models::Vector{<:MLModel}
+    ml_ids::Vector{Symbol}
+end
+function MLModels(ml_models::Vector{<:MLModel})
+    ml_ids = getfield.(ml_models, :ml_id)
+    return MLModels(ml_models, ml_ids)
+end
+function MLModels(ml_models::MLModel...)
+    if isempty(ml_models)
+        return MLModels(MLModel[], Symbol[])
+    end
+    return MLModels([ml_models...])
+end
+MLModels(ml_model::MLModel) = MLModels([ml_model])
+
+function Base.getindex(ml_models::MLModels, id::Union{String, Symbol})
+    id = Symbol(id)
+    ix = findfirst(x -> x == id, ml_models.ml_ids)
+    return ml_models.ml_models[ix]
+end
+
+Base.isempty(ml_models::MLModels)::Bool = isempty(ml_models.ml_models)
 
 struct PEtabModel
     name::String
@@ -336,5 +401,5 @@ struct PEtabModel
     defined_in_julia::Bool
     petab_events::Vector{PEtabEvent}
     sys_observables::Dict{Symbol, Function}
-    ml_models::Dict{Symbol, <:MLModel}
+    ml_models::MLModels
 end
