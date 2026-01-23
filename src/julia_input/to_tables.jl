@@ -1,4 +1,4 @@
-function _parameters_to_table(parameters::Vector)::DataFrame
+function _parameters_to_table(parameters::Vector, ml_models::MLModels)::DataFrame
     # Most validity check occurs later during table parsing
     parameters_df = DataFrame()
     for petab_parameter in parameters
@@ -7,8 +7,19 @@ function _parameters_to_table(parameters::Vector)::DataFrame
                 be a PEtabParameter or a PEtabMLParameter."))
         end
 
-        row = _parse_petab_parameter(petab_parameter)
+        row = _parse_petab_parameter(petab_parameter, ml_models)
         parameters_df = DataFrames.vcat(parameters_df, row; cols = :union)
+    end
+
+    # Each ML model must be assigned a PEtabMLParameter
+    if !isempty(ml_models)
+        ml_parameters = parameters[findall(x -> x isa PEtabMLParameter, parameters)]
+        ml_ids = isempty(ml_parameters) ? Symbol[] : getfield.(ml_parameters, :ml_id)
+        for ml_model in ml_models.ml_models
+            ml_model.ml_id in ml_ids && continue
+            throw(PEtabInputError("Each declared MLModel must have an associated \
+                PEtabMLParameter. MLModel $(ml_model.ml_id) does not have one."))
+        end
     end
 
     _check_table(parameters_df, :parameters_v1)
@@ -154,10 +165,10 @@ function _mapping_to_table(ml_models::MLModels, parameters::Vector)::DataFrame
             modelEntityId = "$(ml_id).parameters",
             petabEntityId = "$(ml_id)_parameters"
         )
-        for prior_id in keys(priors)
+        for prior_id in first.(priors)
             row = DataFrame(
-                modelEntityId = _get_nested_parameter_id(prior_id, ml_id; model_entity = true),
-                petabEntityId = _get_nested_parameter_id(prior_id, ml_id; model_entity = false)
+                modelEntityId = _get_nested_parameter_id(prior_id, ml_models[ml_id]; model_entity = true),
+                petabEntityId = _get_nested_parameter_id(prior_id, ml_models[ml_id]; model_entity = false)
             )
             DataFrames.append!(_parameters_df, row)
         end
@@ -241,7 +252,7 @@ function _get_hybridization_table_io(io_argument::Vector{Symbol}, ml_id::Symbol,
     return hybridization_df
 end
 
-function _parse_petab_parameter(petab_parameter::PEtabParameter)::DataFrame
+function _parse_petab_parameter(petab_parameter::PEtabParameter, ::MLModels)::DataFrame
     @unpack parameter_id, scale, lb, ub, value, estimate, prior = petab_parameter
 
     parameterScale = isnothing(scale) ? "lin" : string(scale)
@@ -254,7 +265,7 @@ function _parse_petab_parameter(petab_parameter::PEtabParameter)::DataFrame
     upperBound = isnothing(ub) ? 1e3 : ub
     if lowerBound > upperBound
         throw(PEtabFormatError("Lower bound $lowerBound is larger than upper bound \
-            $upperBound for paramter $parameter"))
+            $upperBound for parameter $parameter"))
     end
 
     nominalValue = isnothing(value) ? (lowerBound + upperBound) / 2.0 : value
@@ -269,7 +280,9 @@ function _parse_petab_parameter(petab_parameter::PEtabParameter)::DataFrame
     end
     return row
 end
-function _parse_petab_parameter(petab_parameter::PEtabMLParameter)::DataFrame
+function _parse_petab_parameter(
+        petab_parameter::PEtabMLParameter, ml_models::MLModels
+    )::DataFrame
     @unpack ml_id, estimate, value, prior, priors = petab_parameter
 
     if isnothing(value)
@@ -288,7 +301,7 @@ function _parse_petab_parameter(petab_parameter::PEtabMLParameter)::DataFrame
     end
 
     for (id, prior) in priors
-        parameter_id = _get_nested_parameter_id(id, ml_id)
+        parameter_id = _get_nested_parameter_id(id, ml_models[ml_id])
         row = DataFrame(
             parameterId = parameter_id, parameterScale = "lin", lowerBound = -Inf,
             upperBound = Inf, nominalValue = nominal_value, estimate = should_estimate,
@@ -332,12 +345,18 @@ function _parse_target_value(
     return string(target_value)
 end
 
-function _get_nested_parameter_id(id, ml_id; model_entity::Bool = false)
+function _get_nested_parameter_id(id, ml_model::MLModel; model_entity::Bool = false)
     if count('.', id) > 1
-        throw(PEtabInputError("When specifying a prior for a nested ML identifier, \
-            the input must be in the format 'layerId.arrayId'. '$id' does not match \
-            this format."))
-    elseif count('.', id) == 0
+        throw(PEtabInputError("Invalid nested ML identifier format: '$id'. Expected 'layerId' or 'layerId.arrayId'."))
+    end
+
+    @unpack ps, ml_id = ml_model
+    if count('.', id) == 0
+        if !haskey(ps, Symbol(id))
+            throw(PEtabInputError("For setting priors, layer ID '$id' does not exist in \
+                MLModel $(ml_id)."))
+        end
+
         if model_entity == true
             parameter_id = "$(ml_id).parameters[$(id)]"
         else
@@ -345,6 +364,15 @@ function _get_nested_parameter_id(id, ml_id; model_entity::Bool = false)
         end
     else
         layer_id, array_id = split(id, '.')
+        if !haskey(ps, Symbol(layer_id))
+            throw(PEtabInputError("For setting priors, layer ID '$layer_id' does not exist \
+                in MLModel $(ml_id)."))
+
+        elseif !haskey(ps[Symbol(layer_id)], Symbol(array_id))
+            throw(PEtabInputError("For priors, array id '$(array_id)' does not exist in \
+                layer $(layer_id) for MLModel $(ml_id)."))
+        end
+
         if model_entity == true
             parameter_id = "$(ml_id).parameters[$(layer_id)].$(array_id)"
         else

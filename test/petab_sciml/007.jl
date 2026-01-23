@@ -13,7 +13,7 @@ nn7 = @compact(
 end
 ml_models = MLModel(
     :net1, nn7, true, inputs = [:net1_input1, :net1_input2], outputs = [:prey]
-) |> MLModels
+)
 path_h5 = joinpath(dir_case, "net1_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn7) |> ComponentArray |> f64
 PEtab.set_ml_model_ps!(pnn, path_h5, nn7, :net1)
@@ -36,7 +36,7 @@ p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)
 p_gamma = PEtabParameter(:gamma; scale = :lin, lb = 0.0, ub = 15.0, value = 0.8)
 p_input1 = PEtabParameter(:net1_input1; scale = :lin, lb = 0.0, ub = 15.0, value = 1.0, estimate = false)
 p_input2 = PEtabParameter(:net1_input2; scale = :lin, lb = 0.0, ub = 15.0, value = 1.0, estimate = false)
-p_net1 = PEtabMLParameter(:net1, true, pnn)
+p_net1 = PEtabMLParameter(:net1; value = pnn)
 pest = [p_alpha, p_beta, p_delta, p_gamma, p_input1, p_input2, p_net1]
 
 conditions = PEtabCondition(:e1)

@@ -34,7 +34,7 @@ p_beta = PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9)
 p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)
 p_input1 = PEtabParameter(:net1_input_pre1; scale = :lin, lb = 0.0, ub = 15.0, value = 1.0, estimate = false)
 p_input2 = PEtabParameter(:net1_input_pre2; scale = :lin, lb = 0.0, ub = 15.0, value = 1.0, estimate = false)
-p_net4 = PEtabMLParameter(:net4, true, pnn)
+p_net4 = PEtabMLParameter(:net4; value = pnn)
 pest = [p_beta, p_delta, p_input1, p_input2, p_net4]
 
 observables = [

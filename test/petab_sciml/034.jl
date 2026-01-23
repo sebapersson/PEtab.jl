@@ -37,8 +37,8 @@ pest = [
     PEtabParameter(:net1_input1; scale = :lin, value = 1.0, estimate = false),
     PEtabParameter(:net1_input2; scale = :lin, value = 1.0, estimate = false),
     PEtabMLParameter(
-        :net1, true, pnn, prior = Normal(0.0, 1.0),
-        priors = Dict("layer1.weight" => Normal(0.0, 2.0))
+        :net1; value = pnn, prior = Normal(0.0, 1.0),
+        priors = ["layer1.weight" => Normal(0.0, 2.0)]
     )
 ]
 

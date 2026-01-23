@@ -36,7 +36,7 @@ pest = [
     PEtabParameter(:delta; scale = :lin, value = 1.8, prior = Uniform(0.0, 15.0)),
     PEtabParameter(:net1_input1; scale = :lin, value = 1.0, estimate = false),
     PEtabParameter(:net1_input2; scale = :lin, value = 1.0, estimate = false),
-    PEtabMLParameter(:net1, true, pnn, prior = Normal(0.0, 1.0))
+    PEtabMLParameter(:net1; value = pnn, prior = Normal(0.0, 1.0))
 ]
 
 observables = [

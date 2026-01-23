@@ -40,7 +40,7 @@ uprob = ODEProblem(lv29!, u0, (0.0, 10.0), p_ode)
 p_alpha = PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3)
 p_beta = PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9)
 p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)
-p_net5 = PEtabMLParameter(:net5, true, pnn)
+p_net5 = PEtabMLParameter(:net5; value = pnn)
 pest = [p_alpha, p_beta, p_delta, p_net5]
 
 observables = [

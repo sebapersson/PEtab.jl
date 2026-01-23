@@ -28,7 +28,7 @@ end
 function PEtab.InferenceInfo(petab_problem::PEtabODEProblem)::PEtab.InferenceInfo
     @unpack model_info, xnames, lower_bounds, upper_bounds = petab_problem
     @unpack priors, petab_parameters = model_info
-    priors_dist = Vector{Distribution{Univariate, Continuous}}(undef, length(xnames))
+    priors_dist = Vector{ContDistribution}(undef, length(xnames))
     bijectors = Vector(undef, length(xnames))
     priors_scale, parameters_scale = similar(xnames), similar(xnames)
 

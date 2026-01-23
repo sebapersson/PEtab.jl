@@ -5,7 +5,7 @@ function _set_ml_models_ps!(ml_models::MLModels, parameters)::Nothing
         @unpack ml_id, value = petab_parameter
         if !in(ml_id, ml_models.ml_ids)
             throw(PEtab.PEtabInputError("For neural network $(ml_id) a PEtabMLParameter \
-                has been provided, but not as required a NetModel via the ml_models \
+                has been provided, but not as required a MLModel via the ml_models \
                 keyword."))
         end
         isnothing(value) && continue
@@ -40,13 +40,14 @@ function set_ml_model_ps!(ps::ComponentArray, ml_id::Symbol, ml_models, paths::D
     # Set parameters for entire net, then set values for specific layers
     PEtab.set_ml_model_ps!(ps, ml_model, paths)
 
-    netindices = _get_ml_model_indices(ml_id, petab_ml_parameters.mapping_table_id)
-    length(netindices) == 1 && return nothing
-    for netindex in netindices
-        mapping_table_id = string(petab_ml_parameters.mapping_table_id[netindex])
+    i_parameters = _get_ml_model_indices(ml_id, petab_ml_parameters.mapping_table_id)
+    length(i_parameters) == 1 && return nothing
+
+    for ix in i_parameters
+        mapping_table_id = string(petab_ml_parameters.mapping_table_id[ix])
         mapping_table_id == "$(ml_id).parameters" && continue
 
-        value = petab_ml_parameters.nominal_value[netindex]
+        value = petab_ml_parameters.nominal_value[ix]
         isempty(value) && continue
 
         layer_id = _get_layer_id(mapping_table_id)
@@ -70,18 +71,8 @@ end
 function _get_ml_model_pre_ode_x(ml_model_pre_simulate::MLModelPreSimulate, xdynamic_mech::AbstractVector, map_ml_model::MLModelPreSimulateMap)::AbstractVector
     x = get_tmp(ml_model_pre_simulate.x, xdynamic_mech)
     n_inputs = length(map_ml_model.ix_dynamic_mech)
-    x[1:n_inputs] .= xdynamic_mech[map_ml_model.ix_dynamic_mech]
+    @views x[1:n_inputs] .= xdynamic_mech[map_ml_model.ix_dynamic_mech]
     return x
-end
-
-function _get_n_ml_parameters(ml_models::MLModels, xids::Vector{Symbol})::Int64
-    isnothing(ml_models) && return 0
-    nparameters = 0
-    for xid in xids
-        !haskey(ml_models, xid) && continue
-        nparameters += _get_n_ml_parameters(ml_models[xid])
-    end
-    return nparameters
 end
 
 function _get_layer_id(s::AbstractString)::String

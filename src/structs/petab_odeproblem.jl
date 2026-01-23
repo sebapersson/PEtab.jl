@@ -67,14 +67,14 @@ end
 struct Priors
     ix_prior::Vector{Int32}
     logpdfs::Vector{Function}
-    distributions::Vector{Distribution{Univariate, Continuous}}
+    distributions::Vector{ContDistribution}
     priors_on_parameter_scale::Vector{Bool}
     skip::Vector{Bool}
 end
 function Priors()
     # In case the model does not have priors
     return Priors(
-        Int32[], Function[], Distribution{Univariate, Continuous}[], Bool[], Bool[]
+        Int32[], Function[], ContDistribution[], Bool[], Bool[]
     )
 end
 

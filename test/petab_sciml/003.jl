@@ -17,7 +17,7 @@ end
 
 ml_models = MLModel(
     :net1, nn3, true; inputs = inputs = [:net1_input1, :net1_input2], outputs = [:gamma]
-) |> MLModels
+)
 path_h5 = joinpath(dir_case, "net1_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn3) |> ComponentArray |> f64
 PEtab.set_ml_model_ps!(pnn, path_h5, nn3, :net1)
@@ -46,7 +46,7 @@ pest = [
     PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8),
     PEtabParameter(:net1_input_pre1; scale = :lin, value = 1.0, estimate = false),
     PEtabParameter(:net1_input_pre2; scale = :lin, value = 1.0, estimate = false),
-    PEtabMLParameter(:net1, true, pnn)
+    PEtabMLParameter(:net1; value = pnn)
 ]
 
 conditions = [

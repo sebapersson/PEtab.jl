@@ -35,7 +35,7 @@ function _check_mapping_table(
 
         ml_id = ml_model.ml_id
         _check_static_ml_inputs(petab_tables, paths, petab_parameters, ml_id)
-        _check_static_net_outputs(petab_tables, petab_parameters, sys, ml_id)
+        _check_stat_ml_outputs(petab_tables, petab_parameters, sys, ml_id)
     end
     return nothing
 end
@@ -66,7 +66,7 @@ function _check_static_ml_inputs(
     return nothing
 end
 
-function _check_static_net_outputs(
+function _check_stat_ml_outputs(
         petab_tables::PEtabTables, petab_parameters::PEtabParameters, sys::ModelSystem,
         ml_id::Symbol
     )::Nothing

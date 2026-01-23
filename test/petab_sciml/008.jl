@@ -55,8 +55,8 @@ p_input1 = PEtabParameter(:net1_input_pre1; scale = :lin, lb = 0.0, ub = 15.0, v
 p_input2 = PEtabParameter(:net1_input_pre2; scale = :lin, lb = 0.0, ub = 15.0, value = 1.0, estimate = false)
 p_input3 = PEtabParameter(:net2_input_pre1; scale = :lin, lb = 0.0, ub = 15.0, value = 2.0, estimate = false)
 p_input4 = PEtabParameter(:net2_input_pre2; scale = :lin, lb = 0.0, ub = 15.0, value = 2.0, estimate = false)
-p_net1 = PEtabMLParameter(:net1, true, pnn1)
-p_net2 = PEtabMLParameter(:net2, true, pnn2)
+p_net1 = PEtabMLParameter(:net1; value =  pnn1)
+p_net2 = PEtabMLParameter(:net2; value =  pnn2)
 pest = [p_alpha, p_delta, p_input1, p_input2, p_input3, p_input4, p_net1, p_net2]
 
 conditions = PEtabCondition(:e1)

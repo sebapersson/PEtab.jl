@@ -42,6 +42,7 @@ const NonlinearAlg = Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorit
 const PEtabTables = Union{Dict{Symbol, Union{DataFrame, Dict}}}
 const UserFormula = Union{Num, AbstractString, Symbol}
 const ConditionExp = Union{String, Symbol, Pair{String, String}, Pair{Symbol, Symbol}}
+const ContDistribution = Distribution{Univariate, Continuous}
 
 include(joinpath("structs", "petab_model.jl"))
 include(joinpath("structs", "petab_odeproblem.jl"))
@@ -148,6 +149,7 @@ function _reshape_array end
 function _get_initialisation_priors end
 function nn_ps_to_h5! end
 function MLModel end
+function _get_n_ml_parameters end
 
 export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
        PEtabODEProblem, remake, PEtabOptimisationResult, IpoptOptions, IpoptOptimizer,

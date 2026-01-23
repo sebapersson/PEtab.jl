@@ -37,7 +37,7 @@ p_beta = PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9)
 p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)
 p_input1 = PEtabParameter(:net5_input1; scale = :lin, lb = 0.0, ub = 15.0, value = 1.0, estimate = false)
 p_input2 = PEtabParameter(:net5_input2; scale = :lin, lb = 0.0, ub = 15.0, value = 1.0, estimate = false)
-p_net5 = PEtabMLParameter(:net5, true, pnn)
+p_net5 = PEtabMLParameter(:net5; value = pnn)
 pest = [p_alpha, p_beta, p_delta, p_input1, p_input2, p_net5]
 
 conditions = PEtabCondition(:e1)

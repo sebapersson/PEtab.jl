@@ -114,7 +114,7 @@ function Priors(xindices::ParameterIndices, model::PEtabModel)::Priors
     end
 
     ix_prior = Int32[]
-    priors = Distribution{Univariate, Continuous}[]
+    priors = ContDistribution[]
     priors_on_parameter_scale = Bool[]
     logpdfs = Function[]
 
@@ -207,7 +207,7 @@ end
 
 function _parse_petab_prior(
         row_idx::Int64, parameters_df::DataFrame
-    )::Distribution{Univariate, Continuous}
+    )::ContDistribution
 
     prior_id = parameters_df[row_idx, :objectivePriorType]
     if !haskey(PETAB_PRIORS, prior_id)
@@ -229,7 +229,7 @@ function _parse_petab_prior(
     return PETAB_PRIORS[prior_id].dist(prior_parameters...)
 end
 
-function _parse_julia_prior(_prior::String)::Distribution{Univariate, Continuous}
+function _parse_julia_prior(_prior::String)::ContDistribution
     _prior = replace(_prior, "__Julia__" => "")
     # In expressions like Normal{Float64}(μ=0.3, σ=3.0) remove variables to obtain
     # Normal{Float64}(0.3, 3.0). TODO: Update to support PEtab export
@@ -293,7 +293,7 @@ function _get_ml_model_parameter_ids(mappings_df::DataFrame, ml_id::Symbol)::Vec
     return mappings_df[idx, :petabEntityId]
 end
 
-function _get_logpdf(prior::Distribution{Univariate, Continuous})::Function
+function _get_logpdf(prior::ContDistribution)::Function
    _logpdf = let dist = prior
         (x) -> logpdf(dist, x)
     end

@@ -1,12 +1,13 @@
 """
     PEtabParameter(parameter_id; kwargs...)
 
-Parameter-estimation data for parameter `parameter_id` (bounds, scale, prior, and whether
-to estimate).
+Parameter-estimation data for parameter mechanistic `parameter_id` (bounds, scale, prior,
+and whether to estimate).
 
-All parameters estimated in a `PEtabODEProblem` must be declared as `PEtabParameter`.
-`parameter_id` must correspond to a model parameter and/or a parameter appearing in an
-`observable_formula` or `noise_formula` of a `PEtabObservable`.
+All parameters estimated in a `PEtabODEProblem` must be declared as `PEtabParameter` or
+`PEtabMLParameter` (for ML models). `parameter_id` must correspond to a model parameter
+and/or a parameter appearing in an `observable_formula` or `noise_formula` of a
+`PEtabObservable`.
 
 # Keyword Arguments
 * `scale::Symbol = :log10`: Scale the parameter is estimated on. One of `:log10` (default),
@@ -47,14 +48,14 @@ struct PEtabParameter
     value::Union{Nothing, Float64}
     lb::Union{Nothing, Float64}
     ub::Union{Nothing, Float64}
-    prior::Union{Nothing, Distribution{Univariate, Continuous}}
+    prior::Union{Nothing, ContDistribution}
     scale::Symbol
     sample_prior::Bool
 end
 function PEtabParameter(parameter_id::UserFormula; estimate::Bool = true,
                         value::Union{Nothing, Float64} = nothing, sample_prior::Bool = true,
                         lb::Union{Nothing, Real} = nothing, ub::Union{Nothing, Real} = nothing,
-                        prior::Union{Nothing, Distribution{Univariate, Continuous}} = nothing,
+                        prior::Union{Nothing, ContDistribution} = nothing,
                         scale::Symbol = :log10)
     if isnothing(prior)
         lb = isnothing(lb) ? 1e-3 : lb
@@ -275,35 +276,47 @@ function PEtabEvent(condition::Union{UserFormula, Real}, assignments::Pair...; t
 end
 
 """
-    PEtabMLParameter(ml_id; prior=nothing, priors=Dict())
+    PEtabMLParameter(ml_id; kwargs...)
 
-ML parameter block with optional priors for a `ComponentArray` whose entries are named
-`"layerId.arrayId"` (e.g. `"layer1.weight"`).
+Parameter-estimation data for the parameters in machine-learning model `ml_id` (value,
+priors, and whether to estimate).
 
-# Keywords
-- `prior`: Global fallback prior for any parameters not covered by `priors`.
-- `priors`: Layer/array overrides. Keys are strings:
-  - `"layerId"` applies to all arrays in that layer
-  - `"layerId.arrayId"` applies to that specific array
+All `MLModel`s must have an associated `PEtabMLParameter` (matched by `ml_id`). Bounds are
+not supported for ML parameters (unlike mechanistic parameters declared via
+`PEtabParameter`), since most ML optimizers (e.g. Adam) do not support bounds.
+
+# Keyword Arguments
+- `prior = nothing`: Prior for all ML parameters not covered by `priors`.
+- `priors`: Layer/array prior overrides on the form `["id" => prior, ...]`. Valid `id`
+  values:
+  - `"layerId"`: Applies to all arrays in the layer.
+  - `"layerId.arrayId"`: Applies to that specific array (e.g. `"layerId.weight"` applies to
+    the weight parameters in the specified layer).
+- `value = nothing`: Value used when `estimate = false`, and the value returned by `get_x`.
+  Must be a `NamedTuple` or `ComponentArray` in the format expected by the `lux_model` in
+  the corresponding `MLModel` (e.g. output from `ps, _ = Lux.setup(rng, lux_model)`). If
+  `nothing` defaults to random initialization.
+- `estimate::Bool = true`: Whether ML parameters are estimated (`true`) or treated as
+  constants (`false`). If `false`, `value` must be provided.
 
 # Prior Precedence
-
 Priors have the following precedence: `"layerId.arrayId"` > `"layerId"` > `prior`.
 """
 struct PEtabMLParameter{T <: AbstractFloat}
     ml_id::Symbol
     estimate::Bool
     value::Union{Nothing, ComponentVector{T}}
-    prior::Union{Nothing, Distribution{Univariate, Continuous}}
-    priors::Dict{String, <:Distribution{Univariate, Continuous}}
+    prior::Union{Nothing, ContDistribution}
+    priors::Vector{<:Pair{String, <:ContDistribution}}
 end
 function PEtabMLParameter(
-        ml_id, estimate, value;
-        prior::Union{Nothing, Distribution{Univariate, Continuous}} = nothing,
-        priors::Union{Nothing, Dict{String, <:Distribution{Univariate, Continuous}}} = nothing
+        ml_id::UserFormula; estimate::Bool = true,
+        prior::Union{Nothing, ContDistribution} = nothing,
+        priors::Vector{<:Pair{String, <:ContDistribution}} = Pair{String, ContDistribution}[],
+        value = Union{Nothing, NamedTuple, ComponentArray} = nothing,
     )
-    if isnothing(priors)
-        priors = Dict{String, Distribution{Univariate, Continuous}}()
+    if value isa NamedTuple
+        value = ComponentArray(value)
     end
     return PEtabMLParameter(ml_id, estimate, value, prior, priors)
 end

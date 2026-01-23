@@ -13,7 +13,7 @@ nn2 = @compact(
 end
 
 # Test with constant Vector input
-ml_models = MLModel(:net1, nn2, true; inputs = [1.0, 1.0], outputs = [:gamma]) |> MLModels
+ml_models = MLModel(:net1, nn2, true; inputs = [1.0, 1.0], outputs = [:gamma])
 path_h5 = joinpath(dir_case, "net1_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn2) |> ComponentArray |> f64
 PEtab.set_ml_model_ps!(pnn, path_h5, nn2, :net1)
@@ -34,7 +34,7 @@ pest = [
     PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3),
     PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9),
     PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8),
-    PEtabMLParameter(:net1, true, pnn)
+    PEtabMLParameter(:net1; value = pnn)
 ]
 
 observables = [

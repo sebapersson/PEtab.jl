@@ -190,9 +190,6 @@ function _get_ml_pre_simulate_maps(xids::Dict{Symbol, Vector{Symbol}}, petab_par
 
                 isys = 1
                 for id_sys in xids[:sys]
-                    if id_sys in xids[:ml_est]
-                        isys += (_get_n_ml_parameters(nn, [id_sys]) - 1)
-                    end
                     if id_sys == output_target
                         ix_sys_outputs[i] = isys
                         break

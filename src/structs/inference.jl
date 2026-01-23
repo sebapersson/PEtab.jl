@@ -1,5 +1,5 @@
-struct InferenceInfo{d1 <: Vector{<:Distribution{Univariate, Continuous}},
-                     d2 <: Vector{<:Distribution{Univariate, Continuous}},
+struct InferenceInfo{d1 <: Vector{<:ContDistribution},
+                     d2 <: Vector{<:ContDistribution},
                      b1,
                      b2}
     priors::d1
