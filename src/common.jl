@@ -99,8 +99,10 @@ function transform_x!(x::AbstractVector, ids::Vector{Symbol}, xindices::Paramete
     return nothing
 end
 
-function transform_x(x::AbstractVector, xindices::ParameterIndices, whichx::Symbol,
-                     cache::PEtabODEProblemCache; to_xscale::Bool = false)::AbstractVector
+function transform_x(
+        x::AbstractVector, xindices::ParameterIndices, whichx::Symbol,
+        cache::PEtabODEProblemCache; to_xscale::Bool = false
+    )::AbstractVector
     if whichx === :xdynamic_mech || whichx === :xdynamic
         ids = xindices.ids[:est_to_dynamic_mech]
         x_ps = get_tmp(cache.xdynamic_ps, x)
@@ -173,7 +175,7 @@ end
 
 function _h(
         u::AbstractVector, t::Float64, p::AbstractVector, xobservable::T,
-        xnondynamic_mech::T,  x_ml_models::Dict{Symbol, ComponentArray},
+        xnondynamic_mech::T, x_ml_models::Dict{Symbol, ComponentArray},
         x_ml_models_constant::Dict{Symbol, ComponentArray}, model::PEtabModel,
         xobservable_maps::ObservableNoiseMap, observable_id::Symbol,
         nominal_values::Vector{Float64},

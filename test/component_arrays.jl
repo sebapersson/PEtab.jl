@@ -6,9 +6,9 @@
 using PEtab, Test
 
 path_yaml = joinpath(@__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
-model = PEtabModel(path_yaml; verbose=false, build_julia_files=true)
-prob = PEtabODEProblem(model; verbose = false)
-xnames_ps = prob.model_info.xindices.xids[:estimate_ps]
+model = PEtabModel(path_yaml)
+prob = PEtabODEProblem(model)
+xnames_ps = prob.model_info.xindices.ids[:estimate_ps]
 xnames_ps_rev = reverse(propertynames(prob.xnominal_transformed))
 
 x_ca = prob.xnominal_transformed
@@ -23,7 +23,7 @@ end
 
 grad_ref = prob.grad(x)
 grad_ca = prob.grad(x_ca)
-@test grad_ref == (grad_ca |> collect)
+@test grad_ref == collect(grad_ca)
 
 hess_ref = prob.hess(x)
 hess_ca = prob.hess(x_ca)

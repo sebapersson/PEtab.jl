@@ -1,7 +1,7 @@
 # Tests the plotting recipes for PEtabOptimisationResult and PEtabMultistartResult.
 # Written by Torkel Loman.
 
-using DataFrames, OrdinaryDiffEqRosenbrock, Catalyst, Optim, PEtab, Plots, Test
+using Lux, DataFrames, OrdinaryDiffEqRosenbrock, Catalyst, Optim, PEtab, Plots, Test
 
 ### Preparations ###
 petab_ms_res = PEtabMultistartResult(joinpath(@__DIR__, "optimisation_results", "boehm"))
@@ -107,8 +107,9 @@ let
     par_kP = PEtabParameter(:kP)
     params = [par_kB, par_kD, par_kP]
 
-    simulation_conditions = [PEtabCondition(:c1, :S => 1.0),
-                             PEtabCondition(:c2, :S => 0.5)]
+    simulation_conditions = [
+        PEtabCondition(:c1, :S => 1.0), PEtabCondition(:c2, :S => 0.5)
+    ]
 
     m_c1_E = DataFrame(simulation_id="c1", obs_id="obs_E", time=c1_t, measurement=c1_E)
     m_c1_P = DataFrame(simulation_id="c1", obs_id="obs_p", time=c1_t, measurement=c1_P)
@@ -117,8 +118,10 @@ let
     measurements = vcat(m_c1_E, m_c1_P, m_c2_E, m_c2_P)
 
     # Fit solution
-    model = PEtabModel(rn , observables, measurements, params; speciemap=u0,
-                       simulation_conditions = simulation_conditions)
+    model = PEtabModel(
+        rn , observables, measurements, params; speciemap=u0,
+        simulation_conditions = simulation_conditions
+    )
     prob = PEtabODEProblem(model)
     res = calibrate_multistart(prob, IPNewton(), 20)
 
@@ -194,6 +197,17 @@ let
     @test model_residuals_stand[31:40] == c2_P_plt.series_list[1].plotattributes[:y]
     @test model_residuals_stand[21:30] == c2_E_P_plt.series_list[1].plotattributes[:y]
     @test model_residuals_stand[31:40] == c2_E_P_plt.series_list[2].plotattributes[:y]
+
+    # For SciML model with ML output in observable formula
+    path_yaml = joinpath(@__DIR__, "petab_sciml", "test_cases", "sciml_problem_import", "004", "petab", "problem.yaml")
+    ml_models = MLModels(path_yaml)
+    prob = PEtabModel(path_yaml; ml_models = ml_models) |>
+        PEtabODEProblem
+    x = get_x(prob)
+    odesol = get_odesol(x, prob)
+    p = plot(x, prob)
+    @test all(.≈(p.series_list[2].plotattributes[:y], odesol[2, :]; atol = 1e-1))
+    @test p.series_list[4].plotattributes[:y] == odesol[1, :]
 end
 
 # Check model fit plotting works for models with pre-eq simulations

@@ -92,7 +92,7 @@ function _single_startguess(rng::Random.AbstractRNG, prob::PEtabODEProblem, samp
     xnames_nn = _get_xnames_ml_models(xnames, model_info)
     for k in 1:1000
         for (i, id) in pairs(xnames)
-            if sample_prior && haskey(model_info.priors.initialisation_distribution, id)
+            if sample_prior && i in model_info.priors.ix_prior
                 out[i] = _sample_prior(rng, id, model_info)
             else
                 out[i] = rand(rng, Distributions.Uniform(lower_bounds[i], upper_bounds[i]))
@@ -116,7 +116,7 @@ function _single_mech_startguess(rng::Random.AbstractRNG, prob::PEtabODEProblem,
     @unpack model_info, lower_bounds, upper_bounds = prob
     out = fill(0.0, length(xnames_mech))
     for (i, id) in pairs(xnames_mech)
-        if sample_prior && haskey(model_info.priors.initialisation_distribution, id)
+        if sample_prior && i in model_info.priors.ix_prior
             out[i] = _sample_prior(rng, id, model_info)
         else
             out[i] = rand(rng, Distributions.Uniform(lower_bounds[i], upper_bounds[i]))
@@ -160,7 +160,7 @@ function _multiple_mech_startguess!(rng::Random.AbstractRNG, nsamples::Int64, pr
     for sample in samples
         sample_prior == false && continue
         for (j, id) in pairs(xnames_mech)
-            !haskey(model_info.priors.initialisation_distribution, id) && continue
+            !in(j, model_info.priors.ix_prior) && continue
             sample[j] = _sample_prior(rng, id, model_info)
         end
     end
