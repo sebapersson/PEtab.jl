@@ -10,7 +10,7 @@
 
 [Getting Started](https://sebapersson.github.io/PEtab.jl/stable/tutorial) |
 [Documentation](https://sebapersson.github.io/PEtab.jl/stable/) |
-[Contributing](https://sebapersson.github.io/PEtab.jl/stable/CONTRIBUTING)
+[Contributing](https://sebapersson.github.io/PEtab.jl/stable/contributing)
 
 PEtab.jl is a Julia package for creating parameter estimation problems for fitting Ordinary Differential Equation (ODE) models to time-lapse data in Julia.
 
