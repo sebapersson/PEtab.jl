@@ -1,5 +1,5 @@
 using PEtab, OrdinaryDiffEqRosenbrock, ModelingToolkit, Distributions, Random, DataFrames, CSV
-using Bijectors, LogDensityProblems, LogDensityProblemsAD, MCMCChains, Catalyst, Test
+using Bijectors, LogDensityProblems, LogDensityProblemsAD, MCMCChains, Test, Catalyst
 using AdaptiveMCMC, AdvancedHMC
 
 function get_reference_stats(path_data)

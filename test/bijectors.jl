@@ -44,11 +44,13 @@ end
     # log10 and lin scale, bounded priors
     prior1, scale1, prior_scale1 = Uniform(-10, 0), :lin, :lin
     prior2, scale2, prior_scale2 = Gamma(1.0, 1.0), :log10, :lin
-    _inference_info = PEtab.InferenceInfo([prior1, prior2], Bijectors.transformed.([prior1, prior2]),
-                            Bijectors.Stacked(Bijectors.bijector.([prior1, prior2])),
-                            Bijectors.Stacked(Bijectors.inverse.(Bijectors.bijector.([prior1, prior2]))),
-                            [prior_scale1, prior_scale2], [scale1, scale2],
-                            [:μ1, :μ2])
+    _inference_info = PEtab.InferenceInfo(
+        [prior1, prior2], Bijectors.transformed.([prior1, prior2]),
+        Bijectors.Stacked(Bijectors.bijector.([prior1, prior2])),
+        Bijectors.Stacked(Bijectors.inverse.(Bijectors.bijector.([prior1, prior2]))),
+        [prior_scale1, prior_scale2], [scale1, scale2],
+        [:μ1, :μ2]
+    )
     x_nllh = [-3.0, log10(2.0)]
     x_inference = _inference_info.bijectors([-3.0, 2.0])
     test_custom_llh_and_gradient(x_nllh, x_inference, _inference_info)
@@ -80,11 +82,13 @@ end
     # Prior on parameter scale, bounded priors
     prior1, scale1, prior_scale1 = Uniform(-10., 0.0), :lin, :parameter_scale
     prior2, scale2, prior_scale2 = Gamma(1.0, 1.0), :log, :parameter_scale
-    _inference_info = PEtab.InferenceInfo([prior1, prior2], Bijectors.transformed.([prior1, prior2]),
-                            Bijectors.Stacked(Bijectors.bijector.([prior1, prior2])),
-                            Bijectors.Stacked(Bijectors.inverse.(Bijectors.bijector.([prior1, prior2]))),
-                            [prior_scale1, prior_scale2], [scale1, scale2],
-                            [:μ1, :μ2])
+    _inference_info = PEtab.InferenceInfo(
+        [prior1, prior2], Bijectors.transformed.([prior1, prior2]),
+        Bijectors.Stacked(Bijectors.bijector.([prior1, prior2])),
+        Bijectors.Stacked(Bijectors.inverse.(Bijectors.bijector.([prior1, prior2]))),
+        [prior_scale1, prior_scale2], [scale1, scale2],
+        [:μ1, :μ2]
+    )
     x_nllh = [-3.0, log(2.0)]
     x_inference = _inference_info.bijectors([-3.0, log(2.0)])
     test_custom_llh_and_gradient(x_nllh, x_inference, _inference_info)
@@ -92,11 +96,13 @@ end
     # Prior on parameter scale, unbounded priors
     prior1, scale1, prior_scale1 = Normal(-1., 1.0), :lin, :parameter_scale
     prior2, scale2, prior_scale2 = Normal(1.0, 1.0), :log, :parameter_scale
-    _inference_info = PEtab.InferenceInfo([prior1, prior2], Bijectors.transformed.([prior1, prior2]),
-                            Bijectors.Stacked(Bijectors.bijector.([prior1, prior2])),
-                            Bijectors.Stacked(Bijectors.inverse.(Bijectors.bijector.([prior1, prior2]))),
-                            [prior_scale1, prior_scale2], [scale1, scale2],
-                            [:μ1, :μ2])
+    _inference_info = PEtab.InferenceInfo(
+        [prior1, prior2], Bijectors.transformed.([prior1, prior2]),
+        Bijectors.Stacked(Bijectors.bijector.([prior1, prior2])),
+        Bijectors.Stacked(Bijectors.inverse.(Bijectors.bijector.([prior1, prior2]))),
+        [prior_scale1, prior_scale2], [scale1, scale2],
+        [:μ1, :μ2]
+    )
     x_nllh = [-3.0, log(2.0)]
     x_inference = _inference_info.bijectors([-3.0, log(2.0)])
     test_custom_llh_and_gradient(x_nllh, x_inference, _inference_info)
@@ -111,8 +117,8 @@ end
     u0 = [:X1 => 1.0]
     @unpack X1 = rs
     observables = PEtabObservable(:obs_X1, X1, 0.5)
-    par_k1 = PEtabParameter(:k1; scale = :lin, prior = Normal(1.0, 1.0), value = 1.1, lb = -Inf, ub = Inf)
-    par_k2 = PEtabParameter(:k2; scale = :lin, prior = Normal(0.5, 3.0), value = 0.9, lb = -Inf, ub = Inf)
+    par_k1 = PEtabParameter(:k1; scale = :lin, prior = Normal(1.0, 1.0), value = 1.1)
+    par_k2 = PEtabParameter(:k2; scale = :lin, prior = Normal(0.5, 3.0), value = 0.9)
     params = [par_k1, par_k2]
     measurements = DataFrame(obs_id="obs_X1", time=[1.0, 2.0, 3.0], measurement=[1.1, 1.2, 1.3])
     model = PEtabModel(rs, observables, measurements, params; speciemap=u0)

@@ -1,5 +1,6 @@
-function to_nllh_scale(x_inference::AbstractVector,
-                       inference_info::PEtab.InferenceInfo)::AbstractVector
+function to_nllh_scale(
+        x_inference::AbstractVector, inference_info::PEtab.InferenceInfo
+    )::AbstractVector
 
     # Transform x into θ - the scale for the priors
     @unpack inv_bijectors, priors_scale, parameters_scale = inference_info

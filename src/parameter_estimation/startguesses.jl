@@ -69,7 +69,7 @@ function get_startguesses(
     end
 
     # Returning a vector of vector
-    ix_mech = model_info.xindices.indices_est[:est_to_mech]
+    ix_mech = _get_ix_mech(prob)
     out = Vector{ComponentArray{Float64}}(undef, 0)
     found_starts = 0
     for k in 1:1000
@@ -120,7 +120,7 @@ function _single_startguess(
     @unpack xnominal_transformed, model_info = prob
     out = similar(xnominal_transformed)
 
-    ix_mech = model_info.xindices.indices_est[:est_to_mech]
+    ix_mech = _get_ix_mech(prob)
     for k in 1:1000
         @views out[ix_mech] .= _single_mech_startguess(rng, prob, sample_prior)
 
@@ -149,7 +149,7 @@ function _single_mech_startguess(
     )::Vector{Float64}
     @unpack model_info, lower_bounds, upper_bounds = prob
 
-    ix_mech = model_info.xindices.indices_est[:est_to_mech]
+    ix_mech = _get_ix_mech(prob)
     out = fill(0.0, length(ix_mech))
     for ix in ix_mech
         if sample_prior && ix in model_info.priors.ix_prior
@@ -196,7 +196,7 @@ function _multiple_mech_startguess(
     )::Vector{Vector{Float64}}
     @unpack model_info, lower_bounds, upper_bounds = prob
 
-    ix_mech = model_info.xindices.indices_est[:est_to_mech]
+    ix_mech = _get_ix_mech(prob)
     if n_samples > 10
         samples = QuasiMonteCarlo.sample(
             n_samples, lower_bounds[ix_mech], upper_bounds[ix_mech], sampling_method
@@ -240,4 +240,10 @@ function _init_array!(
 
     @views x_ml[layer_id][array_id] .= init_f(rng, size(x_ml[layer_id][array_id])...)
     return nothing
+end
+
+function _get_ix_mech(prob::PEtabODEProblem)
+    @unpack xnames, model_info = prob
+    ix_mech = findall(x -> !in(x, model_info.xindices.ids[:ml_est]), xnames)
+    return ix_mech
 end

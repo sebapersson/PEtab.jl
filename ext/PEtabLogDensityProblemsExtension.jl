@@ -1,6 +1,7 @@
 module PEtabLogDensityProblemsExtension
 
 import Bijectors
+import ComponentArrays
 using Distributions
 using LogDensityProblems
 using LogDensityProblemsAD
