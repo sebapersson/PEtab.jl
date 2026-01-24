@@ -12,7 +12,9 @@ function PEtab._reshape_array(x, mapping)
 end
 
 function PEtab._get_lux_ps(ml_model::PEtab.MLModel)
-    rng = Random.default_rng()
+    PEtab._get_lux_ps(Random.default_rng(), ml_model)
+end
+function PEtab._get_lux_ps(rng::Random.AbstractRNG, ml_model::PEtab.MLModel)
     ps, _ = Lux.setup(rng, ml_model.lux_model)
     return ps
 end

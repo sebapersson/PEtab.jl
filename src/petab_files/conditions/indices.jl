@@ -7,10 +7,11 @@ function _get_indices_est(
     xi_observable = _get_indices(ids[:observable], ids[:estimate])
     xi_nondynamic_mech = _get_indices(ids[:nondynamic_mech], ids[:estimate])
     xi_not_system_mech = _get_indices(ids[:not_system_mech], ids[:estimate])
+    xi_mech = vcat(xi_dynamic_mech, xi_not_system_mech)
     xi_est = Dict(
         :est_to_dynamic_mech => xi_dynamic_mech, :est_to_noise => xi_noise,
         :est_to_observable => xi_observable, :est_to_nondynamic_mech => xi_nondynamic_mech,
-        :est_to_not_system_mech => xi_not_system_mech
+        :est_to_not_system_mech => xi_not_system_mech, :est_to_mech => xi_mech
     )
 
     # ML-models. Each model gets its own key

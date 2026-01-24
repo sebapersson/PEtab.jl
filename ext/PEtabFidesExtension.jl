@@ -9,16 +9,18 @@ import Random
 
 const DEFAULT_OPT = FidesOptions()
 
-function PEtab.calibrate_multistart(rng::Random.AbstractRNG, prob::PEtabODEProblem,
-                                    alg::HessianUpdate, nmultistarts::Signed;
-                                    save_trace::Bool = false,
-                                    dirsave::Union{Nothing, String} = nothing,
-                                    sampling_method::SamplingAlgorithm = LatinHypercubeSample(),
-                                    sample_prior::Bool = true, nprocs::Int64 = 1,
-                                    seed::Union{Nothing, Signed} = nothing,
-                                    options::Union{FidesOptions, Nothing} = DEFAULT_OPT)::PEtab.PEtabMultistartResult
+function PEtab.calibrate_multistart(
+        rng::Random.AbstractRNG, prob::PEtabODEProblem, alg::HessianUpdate,
+        nmultistarts; nprocs = 1, save_trace::Bool = false, dirsave = nothing,
+        sample_prior = true, sampling_method = LatinHypercubeSample(), init_weight = nothing,
+        init_bias = nothing, options::Union{Nothing, FidesOptions} = DEFAULT_OPT
+    )::PEtab.PEtabMultistartResult
     options = isnothing(options) ? DEFAULT_OPT : options
-    return PEtab._calibrate_multistart(rng, prob, alg, nmultistarts, dirsave, sampling_method, options, sample_prior, save_trace, nprocs)
+
+    return PEtab._calibrate_multistart(
+        rng, prob, alg, nmultistarts, dirsave, sampling_method, options, sample_prior,
+        save_trace, nprocs, init_weight, init_bias
+    )
 end
 
 function PEtab.calibrate(prob::PEtabODEProblem, x::InputVector, alg::HessianUpdate;

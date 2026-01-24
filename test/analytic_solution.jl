@@ -132,3 +132,12 @@ prob = PEtabODEProblem(model; verbose = true)
     test_odesolver(model, ODESolver(Rodas5P(), abstol=1e-9, reltol=1e-9))
 end
 rm(model.paths[:dirjulia]; recursive = true)
+
+# Test grad_nllh function
+prob = create_model_inside_function() |> PEtabODEProblem
+x = collect(get_x(prob))
+nllh_ref = prob.nllh(x)
+grad_ref = prob.grad(x)
+nllh, grad = prob.nllh_grad(x)
+@test nllh ≈ nllh_ref atol=1e-5
+@test all(.≈(grad, grad_ref; atol = 1e-6))

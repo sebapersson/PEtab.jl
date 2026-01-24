@@ -213,7 +213,7 @@ function _get_nllh_grad(gradient_method::Symbol, grad::Function, _prior::Functio
     _nllh_grad = (x; prior = true) -> begin
         _x = x |> collect
         g = grad(x; prior = prior)
-        x_not_system = @view _x[model_info.xindices.indices_est[:not_system_mech]]
+        x_not_system = @view _x[model_info.xindices.indices_est[:est_to_not_system_mech]]
         nllh = _nllh_not_solveode(x_not_system)
         if prior
             nllh -= _prior(_x)

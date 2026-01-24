@@ -61,6 +61,7 @@ function remake(prob::PEtabODEProblem; conditions::Union{Vector{<:Pair}, Vector{
     return prob
 end
 
+# TODO: For ML parameters? Disallow
 function _remake_parameters(prob::PEtabODEProblem, parameters::Vector{<:Pair{Symbol, <:Real}})::PEtabODEProblem
     # It only makes sense to remake (from compilation point if view) if parameters that
     # before were to be estimated are set to fixated.
@@ -68,6 +69,11 @@ function _remake_parameters(prob::PEtabODEProblem, parameters::Vector{<:Pair{Sym
         if !in(parameter_id, prob.xnames)
             throw(PEtabInputError("Parameter '$(parameter_id)' is not marked as estimated \
                 in the provided PEtabODEProblem and cannot be fixed via `remake`."))
+        end
+        if parameter_id in prob.model_info.xindices.ids[:ml_est]
+            throw(PEtabInputError("Remake with respect to ML parameters is not currently \
+                supported. It will be more computationally efficient (including \
+                compilation time) to create a new problem than to fixate ML parameters."))
         end
     end
 
@@ -93,14 +99,6 @@ function _remake_parameters(prob::PEtabODEProblem, parameters::Vector{<:Pair{Sym
     xnames_new = isempty(xnames_new) ? Symbol[] : [xnames_new...]
     xnames_ps_new = isempty(xnames_ps_new) ? Symbol[] : [xnames_ps_new...]
 
-    # Set priors to be skipped
-    priors = model_info.priors
-    filter!(x -> isnothing(x), priors.skip)
-    for parameter_id in xnames_new
-        parameter_id in priors.skip && continue
-        push!(priors.skip, parameter_id)
-    end
-
     # Needed for the new problem (as under the hood we still use the full Hessian and
     # gradient, so these need to be pre-allocated)
     _xest_full = similar(prob.xnominal) |> collect
@@ -109,6 +107,13 @@ function _remake_parameters(prob::PEtabODEProblem, parameters::Vector{<:Pair{Sym
     _FIM_full = zeros(Float64, length(_xest_full), length(_xest_full))
     ix_fixed = [findfirst(x -> x == id, prob.xnames) for id in first.(parameters)]
     imap = [findfirst(x -> x == xnames_new[i], prob.xnames) for i in eachindex(xnames_new)]
+
+    # Priors should not be computed for fixed parameters
+    for ix in ix_fixed
+        !in(model_info.priors.ix_prior, ix) && continue
+        jx = findfirst(x -> x == ix, model_info.priors.ix_prior)
+        model_info.priors.skip[jx] = true
+    end
 
     # PEtabODEProblem functions
     _prior = (x) -> begin

@@ -7,17 +7,18 @@ using Catalyst: @unpack
 using ComponentArrays
 using PEtab
 
-function PEtab.calibrate_multistart(rng::Random.AbstractRNG, prob::PEtabODEProblem,
-                                    alg::IpoptOptimizer, nmultistarts::Signed;
-                                    save_trace::Bool = false,
-                                    dirsave::Union{Nothing, String} = nothing,
-                                    sampling_method::SamplingAlgorithm = LatinHypercubeSample(),
-                                    sample_prior::Bool = true, nprocs::Int64 = 1,
-                                    options::Union{Nothing, IpoptOptions} = nothing)::PEtab.PEtabMultistartResult
+function PEtab.calibrate_multistart(
+        rng::Random.AbstractRNG, prob::PEtabODEProblem, alg::IpoptOptimizer, nmultistarts;
+        nprocs = 1, save_trace = false, dirsave = nothing, sample_prior = true,
+        sampling_method = LatinHypercubeSample(), init_weight = nothing, init_bias = nothing,
+        options::Union{Nothing, IpoptOptions} = nothing,
+    )::PEtab.PEtabMultistartResult
     options = isnothing(options) ? IpoptOptions() : options
-    return PEtab._calibrate_multistart(rng, prob, alg, nmultistarts, dirsave,
-                                       sampling_method, options, sample_prior, save_trace,
-                                       nprocs)
+
+    return PEtab._calibrate_multistart(
+        rng, prob, alg, nmultistarts, dirsave, sampling_method, options, sample_prior,
+        save_trace, nprocs, init_weight, init_bias
+    )
 end
 
 function PEtab.calibrate(prob::PEtabODEProblem,

@@ -8,21 +8,26 @@ using Catalyst: @unpack
 using ComponentArrays
 using PEtab
 
-const DEFAULT_OPT = Optim.Options(iterations = 1000, show_trace = false,
-                                  allow_f_increases = true, successive_f_tol = 3,
-                                  f_reltol = 1e-8, g_tol = 1e-6, x_abstol = 0.0)
+const DEFAULT_OPT = Optim.Options(
+    iterations = 1000, show_trace = false, allow_f_increases = true, successive_f_tol = 3,
+    f_reltol = 1e-8, g_tol = 1e-6, x_abstol = 0.0
+)
 
-function PEtab.calibrate_multistart(rng::Random.AbstractRNG, prob::PEtabODEProblem,
-                                    alg::Union{Optim.LBFGS, Optim.BFGS, Optim.IPNewton},
-                                    nmultistarts::Signed; save_trace::Bool = false,
-                                    dirsave::Union{Nothing, String} = nothing,
-                                    sampling_method::SamplingAlgorithm = LatinHypercubeSample(),
-                                    sample_prior::Bool = true, nprocs::Int64 = 1,
-                                    options::Union{Optim.Options, Nothing} = nothing)::PEtab.PEtabMultistartResult
+const SUPPORTED_ALGS = Union{Optim.LBFGS, Optim.BFGS, Optim.IPNewton}
+
+function PEtab.calibrate_multistart(
+        rng::Random.AbstractRNG, prob::PEtabODEProblem, alg::SUPPORTED_ALGS,
+        nmultistarts; nprocs = 1, save_trace = false, dirsave = nothing,
+        sample_prior = true, sampling_method = LatinHypercubeSample(),
+        init_weight = nothing, init_bias = nothing,
+        options::Union{Optim.Options, Nothing} = nothing
+    )::PEtab.PEtabMultistartResult
     options = isnothing(options) ? DEFAULT_OPT : options
-    return PEtab._calibrate_multistart(rng, prob, alg, nmultistarts, dirsave,
-                                       sampling_method, options, sample_prior, save_trace,
-                                       nprocs)
+
+    return PEtab._calibrate_multistart(
+        rng, prob, alg, nmultistarts, dirsave, sampling_method, options, sample_prior,
+        save_trace, nprocs, init_weight, init_bias
+    )
 end
 
 function PEtab.calibrate(prob::PEtabODEProblem,

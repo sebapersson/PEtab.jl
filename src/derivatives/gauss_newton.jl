@@ -69,14 +69,16 @@ function _jac_residuals_cond!(jac::AbstractMatrix{T}, xdynamic::Vector{T}, xnois
             ∂G∂p!(∂G∂p, u, p, tsave, 1, [[imeasurement]])
             @views forward_eqs_grad[ix_S_simid] .= transpose(_S) * ∂G∂u
             _jac = @view jac[:, imeasurement]
+
             # In contrast to gradient functions, need to compute gradient/sensitivity
             # for neural-net pre-ODE parameters per time-point to retreive a correct
             # Jacobian for Gauss-Newton
-            if split_over_conditions == true
+            if split_over_conditions == true && !isempty(cache.grad_ml_pre_simulate_outputs)
                 ix = (length(ixdynamic_simid)+1):length(forward_eqs_grad)
                 cache.grad_ml_pre_simulate_outputs .= forward_eqs_grad[ix]
                 _set_grad_x_ml_pre_simulate!(_jac, simid, probinfo, model_info)
             end
+
             grad_to_xscale!(_jac, forward_eqs_grad, ∂G∂p, xdynamic, xindices, simid,
                             sensitivities_AD = true, ml_pre_simulate = ml_pre_simulate)
         end
