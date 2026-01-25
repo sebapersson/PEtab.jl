@@ -1,5 +1,3 @@
-# TODO: Refactor map handling!
-
 """
     PEtabModel(sys, observables, measurements::DataFrame, parameters; kwargs...)
 
@@ -114,7 +112,10 @@ function _PEtabModel(
     return _PEtabModel(sys, petab_tables, name, speciemap, parametermap, events, ml_models, verbose)
 end
 
-function _PEtabModel(sys::ModelSystem, petab_tables::PEtabTables, name, speciemap, parametermap, events, ml_models::MLModels, verbose::Bool; float_tspan::Union{Bool, Nothing} = nothing)::PEtabModel
+function _PEtabModel(
+        sys::ModelSystem, petab_tables::PEtabTables, name, speciemap, parametermap, events,
+        ml_models::MLModels, verbose::Bool; float_tspan::Union{Bool, Nothing} = nothing
+    )::PEtabModel
     # Get initial value mappings
     sys_mutated = deepcopy(sys)
     sys_mutated, speciemap_model, speciemap_problem = _get_speciemap(
@@ -176,7 +177,7 @@ function _PEtabModel(sys::ModelSystem, petab_tables::PEtabTables, name, speciema
     _logging(:Build_callbacks, verbose; time = btime)
 
     # Path only applies when PEtab tables are provided
-     return PEtabModel(
+    return PEtabModel(
         name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan, paths, sys,
         sys_mutated, parametermap_problem, speciemap_problem, petab_tables, cbs, true,
         events, sys_observables, ml_models

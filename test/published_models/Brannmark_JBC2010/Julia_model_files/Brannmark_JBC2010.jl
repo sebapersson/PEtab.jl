@@ -1,6 +1,6 @@
 function get_reaction_system(foo)
-	ModelingToolkit.@variables t
-	D = Differential(t)
+	t = Catalyst.default_t()
+	Differential = Catalyst.default_time_deriv()
 	sps = Catalyst.@species IRp(t) IR(t) IRins(t) IRiP(t) IRS(t) X(t) IRi(t) IRSiP(t) Xp(t) 
 	vs = ModelingToolkit.@variables insulin(t) 
 	sps_arg = [sps; vs]
@@ -34,7 +34,6 @@ function get_reaction_system(foo)
 	IRi =>0.0330151891862681,
 	IRSiP =>0.133006512986336,
 	Xp =>0.000158005126497888,
-	insulin =>+(*(insulin_dose_1, ifelse( -(t, insulin_time_1) <  0, 0,  1)), *(insulin_dose_2, ifelse( -(t, insulin_time_2) <  0, 0,  1))),
 	]
 
 	parameter_map = [

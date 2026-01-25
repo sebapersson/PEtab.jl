@@ -25,14 +25,21 @@ representation.
 function v2_to_v1_tables(path_yaml::String, ifelse_to_callback::Bool)
     petab_paths = PEtab._get_petab_paths(path_yaml)
 
-    model_SBML = SBMLImporter.parse_SBML(petab_paths[:SBML], false; model_as_string = false,
-        ifelse_to_callback = ifelse_to_callback, inline_assignment_rules = false)
+    model_SBML = SBMLImporter.parse_SBML(
+        petab_paths[:SBML], false; model_as_string = false,
+        ifelse_to_callback = ifelse_to_callback, inline_assignment_rules = false
+    )
 
     petab_v2_tables = read_tables_v2(path_yaml)
     parameters_v1_df = _parameters_v2_v1(petab_v2_tables[:parameters])
     observables_v1_df = _observables_v2_to_v1(petab_v2_tables[:observables])
-    conditions_v1_df, petab_events = _conditions_v2_to_v1(petab_v2_tables[:experiments], petab_v2_tables[:conditions], model_SBML)
-    measurements_v1_df = _measurements_v2_to_v1(petab_v2_tables[:measurements], petab_v2_tables[:experiments], petab_v2_tables[:conditions])
+    conditions_v1_df, petab_events = _conditions_v2_to_v1(
+        petab_v2_tables[:experiments], petab_v2_tables[:conditions], model_SBML
+    )
+    measurements_v1_df = _measurements_v2_to_v1(
+        petab_v2_tables[:measurements],
+        petab_v2_tables[:experiments], petab_v2_tables[:conditions]
+    )
 
     petab_v1_tables = Dict{Symbol, Union{DataFrame, Dict}}(
         :parameters => parameters_v1_df, :conditions => conditions_v1_df,
@@ -50,8 +57,10 @@ function _parameters_v2_v1(parameters_v2_df::DataFrame)::DataFrame
         parameters_v1_df[:, :parameterScale] .= "lin"
     end
 
-    if (:priorDistribution in propertynames(parameters_v2_df) &&
-        any(.!ismissing.(parameters_v2_df.priorDistribution)))
+    if (
+            :priorDistribution in propertynames(parameters_v2_df) &&
+                any(.!ismissing.(parameters_v2_df.priorDistribution))
+        )
 
         rename!(parameters_v1_df, Dict(:priorDistribution => "objectivePriorType"))
         rename!(parameters_v1_df, Dict(:priorParameters => "objectivePriorParameters"))
@@ -81,7 +90,9 @@ function _observables_v2_to_v1(observables_v2_df::DataFrame)::DataFrame
     return observables_v1_df
 end
 
-function _observables_formulas_v2_to_v1!(observables_v1_df::DataFrame, observables_v2_df::DataFrame, formula_kind::Symbol)::Nothing
+function _observables_formulas_v2_to_v1!(
+        observables_v1_df::DataFrame, observables_v2_df::DataFrame, formula_kind::Symbol
+    )::Nothing
     @assert formula_kind in [:observable, :noise]
 
     placeholder_col = formula_kind == :noise ? :noisePlaceholders : :observablePlaceholders
@@ -100,7 +111,9 @@ function _observables_formulas_v2_to_v1!(observables_v1_df::DataFrame, observabl
         placeholder_parameters = split(observables_v2_df[row_idx, placeholder_col], ';')
         for (param_idx, parameter) in pairs(string.(placeholder_parameters))
             new_parameter_name = "$(new_param_prefix)$(param_idx)_$(observable_id)"
-            rewritten_formula = SBMLImporter._replace_variable(rewritten_formula, parameter, new_parameter_name)
+            rewritten_formula = SBMLImporter._replace_variable(
+                rewritten_formula, parameter, new_parameter_name
+            )
         end
         observables_v1_df[row_idx, formula_col] = rewritten_formula
     end
@@ -121,7 +134,8 @@ function _observables_distribution_v2_to_v1!(observables_v1_df::DataFrame)::Noth
     for row_idx in 1:nrow(observables_v1_df)
         noise_distribution = observables_v1_df.noiseDistribution[row_idx]
         noise_distribution == "normal" && continue
-        @assert noise_distribution == "log-normal" "Currently only support normal and log-normal noise distributions"
+        @assert noise_distribution == "log-normal" "Currently only support normal and \
+            log-normal noise distributions"
 
         observables_v1_df[row_idx, :observableTransformation] = "log"
         observables_v1_df[row_idx, :noiseDistribution] = "normal"
@@ -141,13 +155,18 @@ function _observables_into_noise_formulas!(observables_v1_df::DataFrame)::Nothin
 
         observable_formula = string(observables_v1_df.observableFormula[row_idx])
         observable_id = string(observables_v1_df.observableId[row_idx])
-        updated_noise_formula = SBMLImporter._replace_variable(noise_formula, observable_id, "($(observable_formula))")
+        updated_noise_formula = SBMLImporter._replace_variable(
+            noise_formula, observable_id, "($(observable_formula))"
+        )
         observables_v1_df.noiseFormula[row_idx] = updated_noise_formula
     end
     return nothing
 end
 
-function _conditions_v2_to_v1(experiments_df::DataFrame, conditions_v2_df::DataFrame, model_SBML::SBMLImporter.ModelSBML)::Tuple{DataFrame, Vector{PEtabEvent}}
+function _conditions_v2_to_v1(
+        experiments_df::DataFrame, conditions_v2_df::DataFrame,
+        model_SBML::SBMLImporter.ModelSBML
+    )::Tuple{DataFrame, Vector{PEtabEvent}}
     conditions_v1_df = DataFrame()
     petab_events = PEtabEvent[]
     for experiment_id in unique(experiments_df.experimentId)
@@ -190,7 +209,9 @@ function _conditions_v2_to_v1(experiments_df::DataFrame, conditions_v2_df::DataF
     return conditions_v1_df, petab_events
 end
 
-function _get_v1_condition(experiment_df::DataFrame, conditions_v2_df::DataFrame, pre_equilibration::Bool)::DataFrame
+function _get_v1_condition(
+        experiment_df::DataFrame, conditions_v2_df::DataFrame, pre_equilibration::Bool
+    )::DataFrame
     if pre_equilibration == true
         experiment_t0_df = filter(r -> r.time == -Inf, experiment_df)
     else
@@ -210,7 +231,7 @@ function _get_v1_condition(experiment_df::DataFrame, conditions_v2_df::DataFrame
 
     condition_ids = experiment_t0_df.conditionId
     experiment_id = unique(experiment_df.experimentId)[1]
-    condition_v1_id = "$(experiment_id)_" * prod(condition_ids .* "_")[1:end-1]
+    condition_v1_id = "$(experiment_id)_" * prod(condition_ids .* "_")[1:(end - 1)]
 
     conditions_v1_row = DataFrame(conditionId = condition_v1_id)
     condition_experiment_df = filter(r -> r.conditionId in condition_ids, conditions_v2_df)
@@ -230,7 +251,9 @@ function _get_t0_experiment(experiment_df::DataFrame)::Float64
     end
 end
 
-function _parse_petab_v2_events!(petab_events::Vector{PEtabEvent}, experiment_df::DataFrame, conditions_v2_df::DataFrame, simulation_condition_id::String)::Nothing
+function _parse_petab_v2_events!(
+        petab_events::Vector{PEtabEvent}, experiment_df::DataFrame, conditions_v2_df::DataFrame, simulation_condition_id::String
+    )::Nothing
     t0 = _get_t0_experiment(experiment_df)
     experiment_events_df = filter(r -> r.time ∉ [-Inf, t0], experiment_df)
 
@@ -256,13 +279,19 @@ function _parse_petab_v2_events!(petab_events::Vector{PEtabEvent}, experiment_df
             target_ids = vcat(target_ids, condition_event_df.targetId)
         end
 
-        event = PEtabEvent(condition, target_ids, target_values, trigger_time, [Symbol(simulation_condition_id)])
+        event = PEtabEvent(
+            condition, target_ids, target_values, trigger_time,
+            [Symbol(simulation_condition_id)]
+        )
         push!(petab_events, event)
     end
     return nothing
 end
 
-function _measurements_v2_to_v1(measurements_v2_df::DataFrame, experiments_v2_df::DataFrame, conditions_v2_df::DataFrame)::DataFrame
+function _measurements_v2_to_v1(
+        measurements_v2_df::DataFrame, experiments_v2_df::DataFrame,
+        conditions_v2_df::DataFrame
+    )::DataFrame
     measurements_v1_df = deepcopy(measurements_v2_df)
     measurements_v1_df[!, :simulationStartTime] .= 0.0
     rename!(measurements_v1_df, Dict(:experimentId => "simulationConditionId"))

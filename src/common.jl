@@ -12,16 +12,16 @@ function _get_state_ids(system::ODEProblem)::Vector{String}
             collect
     catch
         throw(PEtabInputError("If the model is provided as an ODEProblem then the initial \
-                               values (u0) must be a struct that supports the keys \
-                               function, for example, a ComponentArray or a NamedTuple. \
-                               This is because PEtab.jl must know the order of the species \
-                               in the ODE model"))
+            values (u0) must be a struct that supports the keys  function, for example, \
+            a ComponentArray or a NamedTuple.  This is because PEtab.jl must know the \
+            order of the species in the ODE model"))
     end
     return ids
 end
 
-function _set_const_parameters!(model::PEtabModel,
-                                parameters_info::PEtabParameters)::Nothing
+function _set_const_parameters!(
+        model::PEtabModel, parameters_info::PEtabParameters
+    )::Nothing
     @unpack speciemap, parametermap, sys_mutated = model
     @unpack nominal_value, parameter_id = parameters_info
     state_ids = _get_state_ids(sys_mutated)
@@ -44,11 +44,14 @@ function split_x(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODEP
     @unpack xdynamic_mech, xobservable, xnoise, xnondynamic_mech, x_ml_models = cache
     return (
         get_tmp(xdynamic_mech, x), get_tmp(xobservable, x), get_tmp(xnoise, x),
-        get_tmp(xnondynamic_mech, x), x_ml_models
+        get_tmp(xnondynamic_mech, x), x_ml_models,
     )
 end
 
-function split_x!(x::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache; xdynamic_full::Bool = false)::Nothing
+function split_x!(
+        x::AbstractVector, xindices::ParameterIndices, cache::PEtabODEProblemCache;
+        xdynamic_full::Bool = false
+    )::Nothing
     @unpack indices_est = xindices
 
     xdynamic_mech = get_tmp(cache.xdynamic_mech, x)
@@ -91,8 +94,10 @@ function split_xdynamic(
     return xdynamic_mech, cache.x_ml_models
 end
 
-function transform_x!(x::AbstractVector, ids::Vector{Symbol}, xindices::ParameterIndices;
-                      to_xscale::Bool = false)::Nothing
+function transform_x!(
+        x::AbstractVector, ids::Vector{Symbol}, xindices::ParameterIndices;
+        to_xscale::Bool = false
+    )::Nothing
     @inbounds for (i, xid) in pairs(ids)
         x[i] = transform_x(x[i], xindices.xscale[xid]; to_xscale = to_xscale)
     end
@@ -130,8 +135,10 @@ function transform_x(
         return x_ps
     end
 end
-function transform_x(x::T, xnames::Vector{Symbol}, xindices::ParameterIndices;
-                     to_xscale::Bool = false)::T where {T <: AbstractVector}
+function transform_x(
+        x::T, xnames::Vector{Symbol}, xindices::ParameterIndices;
+        to_xscale::Bool = false
+    )::T where {T <: AbstractVector}
     out = similar(x)
     isempty(x) && return out
     for (i, xname) in pairs(xnames)
@@ -182,7 +189,8 @@ function _h(
     )::Real where {T <: AbstractVector}
     return model.h(
         u, t, p, xobservable, xnondynamic_mech, x_ml_models, x_ml_models_constant, nominal_values,
-        observable_id, xobservable_maps, model.sys_observables, model.ml_models)
+        observable_id, xobservable_maps, model.sys_observables, model.ml_models
+    )
 end
 
 # Function to extract observable or noise parameters when computing h or σ
@@ -218,11 +226,14 @@ function is_number(x::Union{AbstractString, SubString{String}})::Bool
     return (occursin(re1, x) || occursin(re2, x))
 end
 function is_number(x::Symbol)::Bool
-    is_number(x |> string)
+    return is_number(x |> string)
 end
 
 # TODO: Precompute only once
-function _get_ixdynamic_simid(simid::Symbol, xindices::ParameterIndices; full_x::Bool = false, ml_pre_simulate::Bool = false)::Vector{Integer}
+function _get_ixdynamic_simid(
+        simid::Symbol, xindices::ParameterIndices; full_x::Bool = false,
+        ml_pre_simulate::Bool = false
+    )::Vector{Integer}
     @unpack isys_all_conditions, ix_condition = xindices.condition_maps[simid]
     if full_x == false
         ixdynamic = vcat(
@@ -258,7 +269,7 @@ end
 
 function _get_nx_estimate(xindices::ParameterIndices)::Int64
     nestimate = length(xindices.indices_est[:est_to_not_system]) +
-                length(xindices.indices_est[:est_to_dynamic])
+        length(xindices.indices_est[:est_to_dynamic])
     return nestimate
 end
 
@@ -290,6 +301,8 @@ end
 function _get_experiment_id(simulation_id::Union{String, Symbol}, ::Nothing)::Symbol
     return Symbol(simulation_id)
 end
-function _get_experiment_id(simulation_id::Union{String, Symbol}, pre_equilibration_id::Union{String, Symbol})::Symbol
+function _get_experiment_id(
+        simulation_id::Union{String, Symbol}, pre_equilibration_id::Union{String, Symbol}
+    )::Symbol
     return Symbol("$(pre_equilibration_id)$(simulation_id)")
 end

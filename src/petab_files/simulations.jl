@@ -1,4 +1,7 @@
-function SimulationInfo(cbs::Dict{Symbol, SciMLBase.DECallback}, petab_measurements::PEtabMeasurements, petab_events::Vector{PEtabEvent}; sensealg)::SimulationInfo
+function SimulationInfo(
+        cbs::Dict{Symbol, SciMLBase.DECallback}, petab_measurements::PEtabMeasurements,
+        petab_events::Vector{PEtabEvent}; sensealg
+    )::SimulationInfo
     conditionids = _get_conditionids(petab_measurements)
     has_pre_equilibration = !all(conditionids[:pre_equilibration] .== :None)
 
@@ -8,7 +11,9 @@ function SimulationInfo(cbs::Dict{Symbol, SciMLBase.DECallback}, petab_measureme
     tmaxs = _get_tmaxs(conditionids, petab_measurements)
     tstarts = _get_tstarts(conditionids, petab_measurements)
     tsaves = _get_tsaves(conditionids, petab_measurements, cbs, petab_events)
-    tsaves_no_cbs = _get_tsaves(conditionids, petab_measurements, cbs, petab_events; exclude_events = true)
+    tsaves_no_cbs = _get_tsaves(
+        conditionids, petab_measurements, cbs, petab_events; exclude_events = true
+    )
 
     # Indices for getting measurement points for each condition. The second is a vector
     # of vector that accounts for multiple measurements per time-point which needs to
@@ -36,20 +41,27 @@ function SimulationInfo(cbs::Dict{Symbol, SciMLBase.DECallback}, petab_measureme
     # Some models, e.g those with time dependent piecewise statements, have cbs encoded.
     # For adjoint sensitivity analysis these most be tracked
     tracked_cbs = Dict{Symbol, SciMLBase.DECallback}()
-    conditions_df_ids = Iterators.flatten((conditionids[:simulation],
-        filter(x -> x != :None, conditionids[:pre_equilibration])))
+    conditions_df_ids = Iterators.flatten(
+        (
+            conditionids[:simulation],
+            filter(x -> x != :None, conditionids[:pre_equilibration]),
+        )
+    )
     for id in unique(conditions_df_ids)
         tracked_cbs[id] = deepcopy(cbs[id])
     end
 
     could_solve = [true]
-    return SimulationInfo(conditionids, has_pre_equilibration, tstarts, tmaxs, tsaves,
-                          tsaves_no_cbs, imeasurements, imeasurements_t, imeasurements_t_sol,
-                          smatrixindices, odesols, odesols_derivative, odesols_preeq,
-                          could_solve, cbs, tracked_cbs, sensealg)
+    return SimulationInfo(
+        conditionids, has_pre_equilibration, tstarts, tmaxs, tsaves, tsaves_no_cbs,
+        imeasurements, imeasurements_t, imeasurements_t_sol, smatrixindices, odesols,
+        odesols_derivative, odesols_preeq, could_solve, cbs, tracked_cbs, sensealg
+    )
 end
 
-function _get_conditionids(petab_measurements::PEtabMeasurements)::Dict{Symbol, Vector{Symbol}}
+function _get_conditionids(
+        petab_measurements::PEtabMeasurements
+    )::Dict{Symbol, Vector{Symbol}}
     @unpack pre_equilibration_condition_id, simulation_condition_id = petab_measurements
     # An experimental id is uniquely defined by a pre-equilibrium and simulation id, where
     # the former can be empty. For each experimental id we need to store the corresponding
@@ -71,18 +83,25 @@ function _get_conditionids(petab_measurements::PEtabMeasurements)::Dict{Symbol, 
 
         # In case of pre-equilibration
         measurement_exp_id = prod(string.([measurement_preeq_id, measurement_sim_id])) |>
-                             Symbol
+            Symbol
         measurement_exp_id in experiment_ids && continue
         push!(pre_equilibration_ids, measurement_preeq_id)
         push!(simulation_ids, measurement_sim_id)
         push!(experiment_ids, measurement_exp_id)
     end
-    return Dict(:pre_equilibration => pre_equilibration_ids, :simulation => simulation_ids,
-                :experiment => experiment_ids)
+    return Dict(
+        :pre_equilibration => pre_equilibration_ids, :simulation => simulation_ids,
+        :experiment => experiment_ids
+    )
 end
 
-function _get_tsaves(conditionids::Dict{Symbol, Vector{Symbol}}, petab_measurements::PEtabMeasurements, cbs::Dict{Symbol, SciMLBase.DECallback}, petab_events::Vector{PEtabEvent}; exclude_events::Bool = false)::Dict{Symbol, Vector{Float64}}
+function _get_tsaves(
+        conditionids::Dict{Symbol, Vector{Symbol}}, petab_measurements::PEtabMeasurements,
+        cbs::Dict{Symbol, SciMLBase.DECallback}, petab_events::Vector{PEtabEvent};
+        exclude_events::Bool = false
+    )::Dict{Symbol, Vector{Float64}}
     tsave = Dict{Symbol, Vector{Float64}}()
+
     for (i, experiment_id) in pairs(conditionids[:experiment])
         pre_equilibration_id = conditionids[:pre_equilibration][i]
         simulation_id = conditionids[:simulation][i]
@@ -111,8 +130,10 @@ function _get_tsaves(conditionids::Dict{Symbol, Vector{Symbol}}, petab_measureme
     return tsave
 end
 
-function _get_tmaxs(conditionids::Dict{Symbol, Vector{Symbol}},
-                    petab_measurements::PEtabMeasurements)::Dict{Symbol, Float64}
+function _get_tmaxs(
+        conditionids::Dict{Symbol, Vector{Symbol}},
+        petab_measurements::PEtabMeasurements
+    )::Dict{Symbol, Float64}
     tmaxs = Dict{Symbol, Float64}()
     for (i, experiment_id) in pairs(conditionids[:experiment])
         preeqids, cids = conditionids[:pre_equilibration][i], conditionids[:simulation][i]
@@ -122,7 +143,9 @@ function _get_tmaxs(conditionids::Dict{Symbol, Vector{Symbol}},
     return tmaxs
 end
 
-function _get_tstarts(conditionids::Dict{Symbol, Vector{Symbol}}, petab_measurements::PEtabMeasurements)::Dict{Symbol, Float64}
+function _get_tstarts(
+        conditionids::Dict{Symbol, Vector{Symbol}}, petab_measurements::PEtabMeasurements
+    )::Dict{Symbol, Float64}
     tstarts = Dict{Symbol, Float64}()
     for (i, experiment_id) in pairs(conditionids[:experiment])
         preeqids, cids = conditionids[:pre_equilibration][i], conditionids[:simulation][i]
@@ -132,9 +155,9 @@ function _get_tstarts(conditionids::Dict{Symbol, Vector{Symbol}}, petab_measurem
     return tstarts
 end
 
-function _get_imeasurements(conditionids::Dict{Symbol, Vector{Symbol}},
-                            petab_measurements::PEtabMeasurements)::Dict{Symbol,
-                                                                         Vector{Int64}}
+function _get_imeasurements(
+        conditionids::Dict{Symbol, Vector{Symbol}}, petab_measurements::PEtabMeasurements
+    )::Dict{Symbol, Vector{Int64}}
     imeasurements = Dict{Symbol, Vector{Int64}}()
     for (i, experiment_id) in pairs(conditionids[:experiment])
         preeqids, cids = conditionids[:pre_equilibration][i], conditionids[:simulation][i]
@@ -144,16 +167,19 @@ function _get_imeasurements(conditionids::Dict{Symbol, Vector{Symbol}},
     return imeasurements
 end
 
-function _get_tindices(pre_equilibration_id::Symbol, simulation_id::Symbol,
-                       petab_measurements::PEtabMeasurements)::Vector{Int64}
+function _get_tindices(
+        pre_equilibration_id::Symbol, simulation_id::Symbol,
+        petab_measurements::PEtabMeasurements
+    )::Vector{Int64}
     @unpack pre_equilibration_condition_id, simulation_condition_id = petab_measurements
     ipreeq = findall(x -> x == pre_equilibration_id, pre_equilibration_condition_id)
     isim = findall(x -> x == simulation_id, simulation_condition_id)
     return intersect(ipreeq, isim)
 end
 
-function _get_imeasurements_t_sol(imeasurements::Dict{Symbol, Vector{Int64}},
-                                  petab_measurements::PEtabMeasurements)::Vector{Int64}
+function _get_imeasurements_t_sol(
+        imeasurements::Dict{Symbol, Vector{Int64}}, petab_measurements::PEtabMeasurements
+    )::Vector{Int64}
     time = petab_measurements.time
     imeasurements_t_sol = zeros(Int64, length(time))
     for i in eachindex(time)
@@ -169,10 +195,11 @@ function _get_imeasurements_t_sol(imeasurements::Dict{Symbol, Vector{Int64}},
     return imeasurements_t_sol
 end
 
-function _get_imeasurements_t(imeasurements::Dict{Symbol, Vector{Int64}},
-                              petab_measurements::PEtabMeasurements)::Dict{Symbol,
-                                                                           Vector{Vector{Int64}}}
+function _get_imeasurements_t(
+        imeasurements::Dict{Symbol, Vector{Int64}}, petab_measurements::PEtabMeasurements
+    )::Dict{Symbol, Vector{Vector{Int64}}}
     time = petab_measurements.time
+
     imeasurements_t = Dict{Symbol, Vector{Vector{Int64}}}()
     for (id, ims) in imeasurements
         timepoints = time[ims]
@@ -186,7 +213,9 @@ function _get_imeasurements_t(imeasurements::Dict{Symbol, Vector{Int64}},
     return imeasurements_t
 end
 
-function _get_smatrixindices(experiment_ids::Vector{Symbol}, tsaves::Dict{Symbol, Vector{Float64}})::Dict{Symbol, UnitRange{Int64}}
+function _get_smatrixindices(
+        experiment_ids::Vector{Symbol}, tsaves::Dict{Symbol, Vector{Float64}}
+    )::Dict{Symbol, UnitRange{Int64}}
     smatrixindices = Dict{Symbol, UnitRange{Int64}}()
     istart, iend = 1, 0
     for cid in experiment_ids

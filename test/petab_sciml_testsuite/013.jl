@@ -50,13 +50,13 @@ p_beta = PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9)
 p_input1 = PEtabParameter(:input1; scale = :lin, lb = 0.0, ub = 15.0, value = 1.0, estimate = false)
 p_input2 = PEtabParameter(:input2; scale = :lin, lb = 0.0, ub = 15.0, value = 1.0, estimate = false)
 p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)
-p_net1 = PEtabMLParameter(:net1; value =  pnn1)
-p_net2 = PEtabMLParameter(:net2; value =  pnn2)
+p_net1 = PEtabMLParameter(:net1; value = pnn1)
+p_net2 = PEtabMLParameter(:net2; value = pnn2)
 pest = [p_alpha, p_beta, p_delta, p_input1, p_input2, p_net1, p_net2]
 
 observables = [
     PEtabObservable(:prey_o, :prey, 0.05),
-    PEtabObservable(:predator_o, :net2_output1, 0.05)
+    PEtabObservable(:predator_o, :net2_output1, 0.05),
 ]
 
 conditions = PEtabCondition(:e1)

@@ -17,26 +17,30 @@ end
 
 function __sum_ode_problem(x, prob)
     ode_prob, _ = get_odeproblem(x, prob)
-    return sum(solve(ode_prob, Rodas5P(), abstol = 1e-8, reltol = 1e-8, saveat = 1:10:240))
+    return sum(
+        solve(ode_prob, Rodas5P(), abstol = 1.0e-8, reltol = 1.0e-8, saveat = 1:10:240)
+    )
 end
 
 function __sum_sol(x, prob)
     sol = get_odesol(x, prob)
-    sol = solve(sol.prob, Rodas5P(), abstol = 1e-8, reltol = 1e-8, saveat = 1:10:240)
+    sol = solve(sol.prob, Rodas5P(), abstol = 1.0e-8, reltol = 1.0e-8, saveat = 1:10:240)
     return sum(sol)
 end
 
 @testset "util functions" begin
     # Test ability to retrieve model parameters for specific model conditions
     # Model without pre-eq or condition specific parameters
-    path_yaml = joinpath(@__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
+    path_yaml = joinpath(
+        @__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml"
+    )
     model = PEtabModel(path_yaml)
     prob = PEtabODEProblem(model)
     x = get_x(prob) .* 0.9
     nllh = prob.nllh(x)
     res = PEtabOptimisationResult(
         x ./ 0.9, 10.0, x, :Fides, 10, 10.0, Vector{Vector{Float64}}(undef, 0), Float64[],
-        true,  nothing
+        true, nothing
     )
     @unpack u0, p = prob.model_info.simulation_info.odesols[:model1_data1].prob
     u0_test = get_u0(res, prob; retmap = false)
@@ -61,17 +65,20 @@ end
     @test_throws ArgumentError get_ps(res, prob; experiment = :e0)
 
     # Beer model
-    path_yaml = joinpath(@__DIR__, "published_models", "Beer_MolBioSystems2014", "Beer_MolBioSystems2014.yaml")
+    path_yaml = joinpath(
+        @__DIR__, "published_models", "Beer_MolBioSystems2014",
+        "Beer_MolBioSystems2014.yaml"
+    )
     model = PEtabModel(path_yaml)
     prob = PEtabODEProblem(
-        model; sparse_jacobian=false,
-        odesolver=ODESolver(Rodas5P(), abstol=1e-10, reltol=1e-10)
+        model; sparse_jacobian = false,
+        odesolver = ODESolver(Rodas5P(), abstol = 1.0e-10, reltol = 1.0e-10)
     )
     x = get_x(prob) .* 0.9
     nllh = prob.nllh(x)
     res = PEtabOptimisationResult(
         x ./ 0.9, 10.0, x, :Fides, 10, 10.0, Vector{Vector{Float64}}(undef, 0), Float64[],
-        true,  nothing
+        true, nothing
     )
     @unpack u0, p = prob.model_info.simulation_info.odesols[:typeIDT1_ExpID1].prob
     u0_test = get_u0(res, prob; condition = :typeIDT1_ExpID1, retmap = false)
@@ -81,14 +88,16 @@ end
     @test all(p[to_test] == p_test[to_test])
 
     # Model with pre-eq simulation
-    path_yaml = joinpath(@__DIR__, "published_models", "Brannmark_JBC2010", "Brannmark_JBC2010.yaml")
+    path_yaml = joinpath(
+        @__DIR__, "published_models", "Brannmark_JBC2010", "Brannmark_JBC2010.yaml"
+    )
     model = PEtabModel(path_yaml)
     prob = PEtabODEProblem(model)
     x = get_x(prob) .* 0.9
     nllh = prob.nllh(x)
     res = PEtabOptimisationResult(
         x ./ 0.9, 10.0, x, :Fides, 10, 10.0, Vector{Vector{Float64}}(undef, 0), Float64[],
-        true,  nothing
+        true, nothing
     )
     @unpack u0, p = prob.model_info.simulation_info.odesols[:Dose_0Dose_01].prob
     p_test = get_ps(res.xmin, prob; condition = :Dose_0 => :Dose_01, retmap = false)
@@ -114,17 +123,27 @@ end
     par_k1 = PEtabParameter(:k1)
     par_k2 = PEtabParameter(:k2)
     params = [par_k1, par_k2]
-    simulation_conditions = [PEtabCondition(:c1, :X2 => 1.0),
-                             PEtabCondition(:c2, :X2 => 2.0)]
-    m_c1 = DataFrame(simulation_id = "c1", obs_id="obs_X1", time=[1.0, 2.0, 3.0], measurement=[1.1, 1.2, 1.3])
-    m_c2 = DataFrame(simulation_id = "c2", obs_id="obs_X1", time=[1.0, 2.0, 3.0], measurement=[1.2, 1.4, 1.6])
+    simulation_conditions = [
+        PEtabCondition(:c1, :X2 => 1.0),
+        PEtabCondition(:c2, :X2 => 2.0),
+    ]
+    m_c1 = DataFrame(
+        simulation_id = "c1", obs_id = "obs_X1", time = [1.0, 2.0, 3.0],
+        measurement = [1.1, 1.2, 1.3]
+    )
+    m_c2 = DataFrame(
+        simulation_id = "c2", obs_id = "obs_X1", time = [1.0, 2.0, 3.0],
+        measurement = [1.2, 1.4, 1.6]
+    )
     measurements = vcat(m_c1, m_c2)
-    model = PEtabModel(rs, observables, measurements, params; speciemap=u0,
-                       simulation_conditions = simulation_conditions)
+    model = PEtabModel(
+        rs, observables, measurements, params; speciemap = u0,
+        simulation_conditions = simulation_conditions
+    )
     prob = PEtabODEProblem(model; verbose = false)
     prob.nllh(log10.([1.0, 2.0]))
     ode_prob_mutated = prob.model_info.simulation_info.odesols[:c2].prob
-    ode_prob, _ = get_odeproblem(log10.([1.0, 2.0]), prob; condition =:c2)
+    ode_prob, _ = get_odeproblem(log10.([1.0, 2.0]), prob; condition = :c2)
     @test length(ode_prob.p) == 2
     @test all(ode_prob.p .== ode_prob_mutated.p[[1, 3]])
     @test all(ode_prob.p[[2, 1]] .== ode_prob_mutated.u0)
@@ -140,7 +159,10 @@ end
     end
 
     # Verify Dual numbers can be propagated through get functions
-    path_yaml = joinpath(@__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
+    path_yaml = joinpath(
+        @__DIR__, "published_models", "Boehm_JProteomeRes2014",
+        "Boehm_JProteomeRes2014.yaml"
+    )
     prob = PEtabModel(path_yaml) |>
         PEtabODEProblem
     x = get_x(prob) .* 0.9
@@ -157,10 +179,10 @@ end
     grad_u0 = ForwardDiff.gradient(_sum_u0, x[:])
     grad_prob = ForwardDiff.gradient(_sum_ode_problem, x)
     grad_sol = ForwardDiff.gradient(_sum_sol, x[:])
-    @test all(.≈(grad_ps_ref, grad_ps, atol = 1e-3))
-    @test all(.≈(grad_u0_ref, grad_u0, atol = 1e-3))
-    @test all(.≈(grad_prob_ref, grad_prob, atol = 1e-3))
-    @test all(.≈(grad_sol_ref, grad_sol, atol = 1e-3))
+    @test all(.≈(grad_ps_ref, grad_ps, atol = 1.0e-3))
+    @test all(.≈(grad_u0_ref, grad_u0, atol = 1.0e-3))
+    @test all(.≈(grad_prob_ref, grad_prob, atol = 1.0e-3))
+    @test all(.≈(grad_sol_ref, grad_sol, atol = 1.0e-3))
 
     # PEtab v2 problems use experiment for time-course
     path_yaml = joinpath(@__DIR__, "petab_v2_testsuite", "0002", "_0002.yaml")
@@ -198,7 +220,7 @@ end
     _ = prob.nllh(x)
     ode = prob.model_info.simulation_info.odesols[:e0_preeq_c0e0_c0].prob
     @test ode.p == get_ps(x, prob; retmap = false)
-    @test all(.≈(ode.u0, get_u0(x, prob; experiment = :e0, retmap = false), atol = 1e-8))
+    @test all(.≈(ode.u0, get_u0(x, prob; experiment = :e0, retmap = false), atol = 1.0e-8))
 
     path_yaml = joinpath(@__DIR__, "petab_v2_testsuite", "0001", "_0001.yaml")
     model = PEtabModel(path_yaml)
@@ -207,7 +229,10 @@ end
     @test_throws PEtab.PEtabInputError get_ps(x, prob; experiment = :e0)
 
     # PEtab SciML problem, neural network inside of
-    path_yaml = joinpath(@__DIR__, "petab_sciml", "test_cases", "sciml_problem_import", "001", "petab", "problem.yaml")
+    path_yaml = joinpath(
+        @__DIR__, "petab_sciml_testsuite", "test_cases", "sciml_problem_import", "001", "petab",
+        "problem.yaml"
+    )
     ml_models = MLModels(path_yaml)
     prob = PEtabModel(path_yaml; ml_models = ml_models) |>
         PEtabODEProblem
@@ -215,7 +240,7 @@ end
     _ = prob.nllh(x)
     # Reference values
     ode_prob_ref = prob.model_info.simulation_info.odesols[:e1].prob
-    sol_ref = solve(ode_prob_ref, Rodas5P(), abstol = 1e-8, reltol = 1e-8)
+    sol_ref = solve(ode_prob_ref, Rodas5P(), abstol = 1.0e-8, reltol = 1.0e-8)
     # Test value
     ps_test = get_ps(x, prob)
     u0_test = get_u0(x, prob)
@@ -228,7 +253,10 @@ end
     @test sol_ref == sol_test
 
     # PEtab SciML problem, pre-simulation case
-    path_yaml = joinpath(@__DIR__, "petab_sciml", "test_cases", "sciml_problem_import", "003", "petab", "problem.yaml")
+    path_yaml = joinpath(
+        @__DIR__, "petab_sciml_testsuite", "test_cases", "sciml_problem_import", "003", "petab",
+        "problem.yaml"
+    )
     ml_models = MLModels(path_yaml)
     prob = PEtabModel(path_yaml; ml_models = ml_models) |>
         PEtabODEProblem
@@ -236,7 +264,7 @@ end
     _ = prob.nllh(x)
     # Reference values
     ode_prob_ref = prob.model_info.simulation_info.odesols[:e2_cond2].prob
-    sol_ref = solve(ode_prob_ref, Rodas5P(), abstol = 1e-8, reltol = 1e-8)
+    sol_ref = solve(ode_prob_ref, Rodas5P(), abstol = 1.0e-8, reltol = 1.0e-8)
     # Test value
     ps_test = get_ps(x, prob; experiment = :e2, retmap = false)
     u0_test = get_u0(x, prob; experiment = :e2, retmap = false)

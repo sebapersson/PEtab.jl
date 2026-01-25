@@ -30,8 +30,9 @@ function to_nllh_scale(
     return x_nllh
 end
 
-function PEtab.to_prior_scale(x_nllh::AbstractVector,
-                              target::PEtab.PEtabLogDensity)::AbstractVector
+function PEtab.to_prior_scale(
+        x_nllh::AbstractVector, target::PEtab.PEtabLogDensity
+    )::AbstractVector
     inference_info = target.inference_info
     @unpack parameters_scale, priors_scale = inference_info
     x_prior = similar(x_nllh)

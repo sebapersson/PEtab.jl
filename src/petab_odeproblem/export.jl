@@ -12,7 +12,9 @@ The exporter currently supports only problems that were provided in the PEtab st
 format (PEtab tables), and exported tables keep the same filenames as in the original
 PEtab problem. Problems constructed via the Julia interface are not yet exportable.
 """
-function export_petab(dir_export::AbstractString, prob::PEtabODEProblem, res::EstimationResult)::String
+function export_petab(
+        dir_export::AbstractString, prob::PEtabODEProblem, res::EstimationResult
+    )::String
     model_info = prob.model_info
     @unpack model, xindices = model_info
 

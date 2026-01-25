@@ -24,7 +24,7 @@ function _lv19!(du, u, p, t, ml_models)
     net1.st = st
 
     du[1] = du_nn[1] - beta * prey * predator # prey
-    du[2] = du_nn[2] - delta*predator # predator
+    du[2] = du_nn[2] - delta * predator # predator
     return nothing
 end
 lv19! = let _ml_models = ml_models
@@ -32,7 +32,7 @@ lv19! = let _ml_models = ml_models
 end
 
 p_mechanistic = (alpha = 1.3, delta = 1.8, beta = 0.9)
-p_ode = ComponentArray(merge(p_mechanistic, (net4=pnn,)))
+p_ode = ComponentArray(merge(p_mechanistic, (net4 = pnn,)))
 u0 = ComponentArray(prey = 0.44249296, predator = 4.6280594)
 uprob = ODEProblem(lv19!, u0, (0.0, 10.0), p_ode)
 
@@ -43,7 +43,7 @@ pest = [p_beta, p_delta, p_net4]
 
 observables = [
     PEtabObservable(:prey_o, :prey, 0.05),
-    PEtabObservable(:predator_o, :predator, 0.05)
+    PEtabObservable(:predator_o, :predator, 0.05),
 ]
 
 conditions = PEtabCondition(:e1)

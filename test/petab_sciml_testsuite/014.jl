@@ -2,9 +2,9 @@ test_case = "014"
 dir_case = joinpath(@__DIR__, "test_cases", "sciml_problem_import", test_case, "petab")
 
 nn14 = @compact(
-    layer1=Conv((5, 5), 3=>1; cross_correlation = true),
-    layer2=FlattenLayer(),
-    layer3=Dense(36=>1, Lux.relu)
+    layer1 = Conv((5, 5), 3 => 1; cross_correlation = true),
+    layer2 = FlattenLayer(),
+    layer3 = Dense(36 => 1, Lux.relu)
 ) do x
     embed = layer1(x)
     embed = layer2(embed)
@@ -42,12 +42,12 @@ pest = [
     PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3),
     PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9),
     PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8),
-    PEtabMLParameter(:net3; value = pnn)
+    PEtabMLParameter(:net3; value = pnn),
 ]
 
 observables = [
     PEtabObservable(:prey_o, :prey, 0.05),
-    PEtabObservable(:predator_o, :predator, 0.05)
+    PEtabObservable(:predator_o, :predator, 0.05),
 ]
 
 conditions = PEtabCondition(:e1)

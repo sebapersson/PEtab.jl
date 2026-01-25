@@ -12,10 +12,11 @@ Import a PEtab problem in the standard (YAML + tables) format from `path_yaml` a
   `dirname(path_yaml)/Julia_model_files/` (useful for debugging).
 - `verbose::Bool = false`: Print progress while building the model.
 """
-function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
-                    verbose::Bool = false, ifelse_to_callback::Bool = true,
-                    write_to_file::Bool = false,
-                    ml_models::Union{Nothing, MLModels, MLModel} = nothing)::PEtabModel
+function PEtabModel(
+        path_yaml::String; build_julia_files::Bool = true, verbose::Bool = false,
+        ifelse_to_callback::Bool = true, write_to_file::Bool = false,
+        ml_models::Union{Nothing, MLModels, MLModel} = nothing
+    )::PEtabModel
     petab_version = _get_version(path_yaml)
 
     if petab_version == "1.0.0"
@@ -47,14 +48,17 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
     end
 
     paths = _get_petab_paths(path_yaml)
-    return _PEtabModel(paths, petab_tables, build_julia_files, verbose, ifelse_to_callback,
-                       write_to_file, petab_events, ml_models)
+    return _PEtabModel(
+        paths, petab_tables, build_julia_files, verbose, ifelse_to_callback,
+        write_to_file, petab_events, ml_models
+    )
 end
 
-function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::PEtabTables,
-                     build_julia_files::Bool, verbose::Bool, ifelse_to_callback::Bool,
-                     write_to_file::Bool, petab_events::Vector{PEtabEvent},
-                     ml_models::MLModels)
+function _PEtabModel(
+        paths::Dict{Symbol, String}, petab_tables::PEtabTables, build_julia_files::Bool,
+        verbose::Bool, ifelse_to_callback::Bool, write_to_file::Bool,
+        petab_events::Vector{PEtabEvent}, ml_models::MLModels
+    )
     name = splitdir(paths[:dirmodel])[end]
 
     write_to_file && !isdir(paths[:dirjulia]) && mkdir(paths[:dirjulia])
@@ -66,7 +70,7 @@ function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::PEtabTables,
     # Ensure correct type internally for ml_models
     ml_models = isnothing(ml_models) ? MLModels() : ml_models
 
-     #=
+    #=
         If the SBML model contains a neural-network it must be parsed as an ODEProblem, as
         MTK does not have good neural-net support yet. Otherwise, model should be parsed as
         ODESystem as usual. If parsed as ODEProblem assignment rules must be inlined
@@ -80,7 +84,8 @@ function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::PEtabTables,
 
         inline_assignment_rules = !isempty(ode_ml_models)
         model_SBML = SBMLImporter.parse_SBML(
-            paths[:SBML], false; model_as_string = false, ifelse_to_callback = ifelse_to_callback,
+            paths[:SBML], false; model_as_string = false,
+            ifelse_to_callback = ifelse_to_callback,
             inline_assignment_rules = inline_assignment_rules
         )
         speciemap_sbml = _get_sbml_speciemap(model_SBML)
@@ -142,16 +147,23 @@ function _PEtabModel(paths::Dict{Symbol, String}, petab_tables::PEtabTables,
     # should not be converted to floats in case dual numbers (for gradients) are propagated
     _logging(:Build_callbacks, verbose)
     btime = @elapsed begin
-        cbs, float_tspan = _parse_events(model_SBML, petab_events, odesystem, speciemap, parametermap, name, xindices, petab_tables)
+        cbs, float_tspan = _parse_events(
+            model_SBML, petab_events, odesystem, speciemap, parametermap, name, xindices,
+            petab_tables
+        )
     end
     _logging(:Build_callbacks, verbose; time = btime)
 
-    return PEtabModel(name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan,
-                      paths, odesystem, deepcopy(odesystem), parametermap, speciemap,
-                      petab_tables, cbs, false, petab_events, sys_observables, ml_models)
+    return PEtabModel(
+        name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan, paths, odesystem,
+        deepcopy(odesystem), parametermap, speciemap, petab_tables, cbs, false,
+        petab_events, sys_observables, ml_models
+    )
 end
 
-function add_u0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::PEtabTables, ml_models::MLModels)::Nothing
+function add_u0_parameters!(
+        model_SBML::SBMLImporter.ModelSBML, petab_tables::PEtabTables, ml_models::MLModels
+    )::Nothing
     conditions_df = petab_tables[:conditions]
     parameters_df = petab_tables[:parameters]
     mappings_df = petab_tables[:mapping]
@@ -189,8 +201,10 @@ function add_u0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::PE
         end
         u0name = "__init__" .* sbml_variable.name .* "__"
         value = sbml_variable.initial_value
-        u0parameter = SBMLImporter.ParameterSBML(u0name, true, value, "", false, false,
-                                                 false, false, false, false)
+        u0parameter = SBMLImporter.ParameterSBML(
+            u0name, true, value, "", false, false,
+            false, false, false, false
+        )
         model_SBML.parameters[u0name] = u0parameter
         sbml_variable.initial_value = u0name
 
@@ -219,9 +233,11 @@ function add_u0_parameters!(model_SBML::SBMLImporter.ModelSBML, petab_tables::PE
 
                 haskey(model_SBML.parameters, parameter_id) && continue
 
-                parameter = SBMLImporter.ParameterSBML(condition_value, true, "0.0", "",
-                                                       false, false, false, false, false,
-                                                       false)
+                parameter = SBMLImporter.ParameterSBML(
+                    condition_value, true, "0.0", "",
+                    false, false, false, false, false,
+                    false
+                )
                 model_SBML.parameters[parameter_id] = parameter
             end
         end
@@ -239,12 +255,18 @@ function _reorder_speciemap(speciemap, odesystem::ODESystem)
     return speciemap_out
 end
 
-function _get_odesys(model_SBML::SBMLImporter.ModelSBML, paths::Dict{Symbol, String}, exist::Bool, build_julia_files::Bool, write_to_file::Bool, verbose::Bool)
+function _get_odesys(
+        model_SBML::SBMLImporter.ModelSBML, paths::Dict{Symbol, String}, exist::Bool,
+        build_julia_files::Bool, write_to_file::Bool, verbose::Bool
+    )
     _logging(:Build_SBML, verbose; buildfiles = build_julia_files, exist = exist)
+
     btime = @elapsed begin
         if !exist || build_julia_files == true
             model_SBML_sys = SBMLImporter._to_system_syntax(model_SBML, false, false)
-            modelstr = SBMLImporter.write_reactionsystem(model_SBML_sys, paths[:dirjulia], model_SBML; write_to_file = write_to_file)
+            modelstr = SBMLImporter.write_reactionsystem(
+                model_SBML_sys, paths[:dirjulia], model_SBML; write_to_file = write_to_file
+            )
         else
             modelstr = _get_functions_as_str(pathmodel, 1)[1]
         end
@@ -265,6 +287,7 @@ function _get_odesys(model_SBML::SBMLImporter.ModelSBML, paths::Dict{Symbol, Str
         end
     end
     _logging(:Build_ODESystem, verbose; time = btime)
+
     # The state-map is not in the same order as unknowns(system) so the former is reorded
     # to make it easier to build the u0 function
     speciemap = _reorder_speciemap(speciemap, odesystem)
@@ -272,7 +295,8 @@ function _get_odesys(model_SBML::SBMLImporter.ModelSBML, paths::Dict{Symbol, Str
 end
 
 function _get_odeproblem(
-        model_SBML::SBMLImporter.ModelSBML, ode_ml_models::MLModels, petab_tables::PEtabTables
+        model_SBML::SBMLImporter.ModelSBML, ode_ml_models::MLModels,
+        petab_tables::PEtabTables
     )
     hybridization_df, mappings_df = _get_petab_tables(
         petab_tables, [:hybridization, :mapping]
@@ -305,7 +329,7 @@ function _get_odeproblem(
     ps_ode = (; (Symbol.(first.(model_SBML_prob.psmap)) .=> ps_mech)...)
     for ml_model in ode_ml_models.ml_models
         ps_ml = _get_lux_ps(ml_model)
-        ps_ode = merge(ps_ode, (;ml_model.ml_id => ps_ml, ))
+        ps_ode = merge(ps_ode, (; ml_model.ml_id => ps_ml))
     end
     ps_ode = ComponentArray(ps_ode)
 
@@ -338,8 +362,9 @@ end
 
 function _get_sbml_speciemap(model_SBML::SBMLImporter.ModelSBML)
     model_SBML_sys = SBMLImporter._to_system_syntax(model_SBML, false, false)
-    modelstr = SBMLImporter.write_reactionsystem(model_SBML_sys, "", model_SBML;
-                                                 write_to_file = false)
+    modelstr = SBMLImporter.write_reactionsystem(
+        model_SBML_sys, "", model_SBML; write_to_file = false
+    )
     get_rn = @RuntimeGeneratedFunction(Meta.parse(modelstr))
     _, speciemap, _ = get_rn("https://xkcd.com/303/")
     return speciemap

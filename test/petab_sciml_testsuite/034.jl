@@ -39,12 +39,12 @@ pest = [
     PEtabMLParameter(
         :net1; value = pnn, prior = Normal(0.0, 1.0),
         priors = ["layer1.weight" => Normal(0.0, 2.0)]
-    )
+    ),
 ]
 
 observables = [
     PEtabObservable(:prey_o, :prey, 0.05),
-    PEtabObservable(:predator_o, :predator, 0.05)
+    PEtabObservable(:predator_o, :predator, 0.05),
 ]
 
 conditions = PEtabCondition(:e1)

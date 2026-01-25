@@ -1,10 +1,10 @@
-
 function read_tables_v1(path_yaml::String)::PEtabTables
     paths = _get_petab_paths(path_yaml)
     parameters_df = _read_table(paths[:parameters], :parameters_v1)
     conditions_df = _read_table(paths[:conditions], :conditions_v1)
     observables_df = _read_table(paths[:observables], :observables_v1)
     measurements_df = _read_table(paths[:measurements], :measurements_v1)
+
     yaml_file = YAML.load_file(path_yaml)
     return Dict{Symbol, Union{DataFrame, Dict}}(
         :parameters => parameters_df, :conditions => conditions_df,
@@ -41,9 +41,11 @@ function _get_petab_paths(path_yaml::AbstractString)::Dict{Symbol, String}
     path_observables = _get_path(yaml_file, dirmodel, "observable_files")
     path_parameters = _get_path(yaml_file, dirmodel, "parameter_files")
     path_conditions = _get_path(yaml_file, dirmodel, "condition_files")
-    petab_paths = Dict(:parameters => path_parameters, :conditions => path_conditions,
+    petab_paths = Dict(
+        :parameters => path_parameters, :conditions => path_conditions,
         :observables => path_observables, :measurements => path_measurements,
-        :dirmodel => dirmodel, :dirjulia => dirjulia, :yaml => path_yaml)
+        :dirmodel => dirmodel, :dirjulia => dirjulia, :yaml => path_yaml
+    )
 
     petab_version = _get_version(yaml_file)
     if petab_version == "1.0.0"
@@ -58,16 +60,20 @@ function _get_petab_paths(path_yaml::AbstractString)::Dict{Symbol, String}
     return petab_paths
 end
 
-function _parse_yaml_v1(yaml_file, path_yaml::String, dirmodel::String)::Dict{Symbol, String}
+function _parse_yaml_v1(
+        yaml_file, path_yaml::String, dirmodel::String
+    )::Dict{Symbol, String}
     dirjulia = joinpath(dirmodel, "Julia_model_files")
 
     path_measurements = _get_path(yaml_file, dirmodel, "measurement_files")
     path_observables = _get_path(yaml_file, dirmodel, "observable_files")
     path_parameters = _get_path(yaml_file, dirmodel, "parameter_files")
     path_conditions = _get_path(yaml_file, dirmodel, "condition_files")
-    petab_paths = Dict(:parameters => path_parameters, :conditions => path_conditions,
+    petab_paths = Dict(
+        :parameters => path_parameters, :conditions => path_conditions,
         :observables => path_observables, :measurements => path_measurements,
-        :dirmodel => dirmodel, :dirjulia => dirjulia, :yaml => path_yaml)
+        :dirmodel => dirmodel, :dirjulia => dirjulia, :yaml => path_yaml
+    )
 
     petab_version = _get_version(yaml_file)
     if petab_version == "1.0.0"
@@ -115,8 +121,8 @@ function _get_path(yaml_file::Dict, dirmodel::String, file::String)::String
     elseif petab_version == "2.0.0" && file == "hybridization_files"
         has_file = (
             haskey(yaml_file, "extensions") &&
-            haskey(yaml_file["extensions"], "sciml") &&
-            haskey(yaml_file["extensions"]["sciml"], file)
+                haskey(yaml_file["extensions"], "sciml") &&
+                haskey(yaml_file["extensions"]["sciml"], file)
         )
         if !has_file && file in OPTIONAL_V2_FILES
             return ""
@@ -213,13 +219,18 @@ function _check_has_column(df::DataFrame, column_name::String, table::Symbol)::N
     return nothing
 end
 
-function _check_column_types(df::DataFrame, column_name::String, valid_types,
-                             table::Symbol)::Nothing
+function _check_column_types(
+        df::DataFrame, column_name::String, valid_types, table::Symbol
+    )::Nothing
     for val in df[!, column_name]
         typeof(val) <: valid_types && continue
-        throw(PEtabFileError("Column $column_name in $table table has invalid type " *
-                             "invalid type $(typeof(val)) for entry $val. Valid " *
-                             "types are $valid_types"))
+        throw(
+            PEtabFileError(
+                "Column $column_name in $table table has invalid type " *
+                    "invalid type $(typeof(val)) for entry $val. Valid " *
+                    "types are $valid_types"
+            )
+        )
     end
     return nothing
 end

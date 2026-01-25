@@ -12,21 +12,31 @@ function _parse_bound_column!(out::Vector{Float64}, dfcol, estimate::Vector{Bool
         if ismissing(val) && estimate[i] == false
             continue
         elseif ismissing(val)
-            throw(PEtabInputError("If a parameter does not have a bound " *
-                                  "then estimate = false for said parameter"))
+            throw(
+                PEtabInputError(
+                    "If a parameter does not have a bound " *
+                        "then estimate = false for said parameter"
+                )
+            )
         end
         out[i] = Float64(val)
     end
     return nothing
 end
 
-function _check_values_column(df::DataFrame, valid_values, colname::Symbol,
-                              table::String; allow_missing::Bool = false)::Nothing
+function _check_values_column(
+        df::DataFrame, valid_values, colname::Symbol, table::String;
+        allow_missing::Bool = false
+    )::Nothing
     for val in df[!, colname]
         allow_missing == true && ismissing(val) && continue
         val in valid_values && continue
-        throw(PEtabFileError("Invalid value $val in $colname column in the $table table. " *
-                             "Allowed values are $valid_values"))
+        throw(
+            PEtabFileError(
+                "Invalid value $val in $colname column in the $table table. " *
+                    "Allowed values are $valid_values"
+            )
+        )
     end
     return nothing
 end
@@ -37,8 +47,10 @@ function _estimate_parameter(id::Symbol, petab_parameters::PEtabParameters)::Boo
     return isnothing(ip) ? false : estimate[ip]
 end
 
-function _get_functions_as_str(path::String, nfunctions::Int64;
-                               asstr::Bool = false)::Vector{String}
+function _get_functions_as_str(
+        path::String, nfunctions::Int64;
+        asstr::Bool = false
+    )::Vector{String}
     functions = fill("", nfunctions)
     if asstr == false
         bodyfile = open(path, "r") do f
@@ -64,10 +76,14 @@ function _get_functions_as_str(path::String, nfunctions::Int64;
     return functions
 end
 
-function _xdynamic_in_event_cond(model_SBML::SBMLImporter.ModelSBML,
-                                 xindices::ParameterIndices,
-                                 petab_tables::PEtabTables)::Bool
-    ids_sys_in_xdynamic = _get_ids_sys_order_in_xdynamic(xindices, petab_tables[:conditions])
+function _xdynamic_in_event_cond(
+        model_SBML::SBMLImporter.ModelSBML,
+        xindices::ParameterIndices,
+        petab_tables::PEtabTables
+    )::Bool
+    ids_sys_in_xdynamic = _get_ids_sys_order_in_xdynamic(
+        xindices, petab_tables[:conditions]
+    )
     for event in values(model_SBML.events)
         for xid in ids_sys_in_xdynamic
             trigger_alt = SBMLImporter._replace_variable(event.trigger, xid, "")

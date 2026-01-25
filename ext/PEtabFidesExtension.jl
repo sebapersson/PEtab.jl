@@ -23,10 +23,13 @@ function PEtab.calibrate_multistart(
     )
 end
 
-function PEtab.calibrate(prob::PEtabODEProblem, x::InputVector, alg::HessianUpdate;
-                         save_trace::Bool = false, options::FidesOptions = FidesOptions())::PEtab.PEtabOptimisationResult
+function PEtab.calibrate(
+        prob::PEtabODEProblem, x::InputVector, alg::HessianUpdate; save_trace::Bool = false,
+        options::FidesOptions = FidesOptions()
+    )::PEtab.PEtabOptimisationResult
     if save_trace == true
-        @warn "For Fides the x and f trace cannot currently be saved (we are working on it)" maxlog=10
+        @warn "For Fides the x and f trace cannot currently be saved \
+            (we are working on it)" maxlog = 10
         save_trace = false
     end
     ftrace = Vector{Float64}(undef, 0)
@@ -56,12 +59,14 @@ function PEtab.calibrate(prob::PEtabODEProblem, x::InputVector, alg::HessianUpda
     xnames_ps = propertynames(prob.xnominal_transformed)
     xstart = ComponentArray(; (xnames_ps .=> x)...)
     xmin = ComponentArray(; (xnames_ps .=> xmin)...)
-    return PEtabOptimisationResult(xmin, fmin, xstart, alg_used, niterations, runtime,
-                                   xtrace, ftrace, converged, res)
+    return PEtabOptimisationResult(
+        xmin, fmin, xstart, alg_used, niterations, runtime, xtrace, ftrace, converged, res
+    )
 end
 
-function _get_fides_problem(prob::PEtabODEProblem, x::InputVector,
-                            ::CustomHessian)::FidesProblem
+function _get_fides_problem(
+        prob::PEtabODEProblem, x::InputVector, ::CustomHessian
+    )::FidesProblem
     fides_objective = let _prob = prob
         (x) -> begin
             f, grad = _prob.nllh_grad(x)

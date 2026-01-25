@@ -1,4 +1,6 @@
-function _template_nn_model(layers, inputs, output, forward_steps, freeze_info::Union{Nothing, Dict})::String
+function _template_nn_model(
+        layers, inputs, output, forward_steps, freeze_info::Union{Nothing, Dict}
+    )::String
     model_str = "@compact(\n"
     for (id, layer) in layers
         if isnothing(freeze_info) || !haskey(freeze_info, Symbol(id))

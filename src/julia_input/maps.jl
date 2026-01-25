@@ -1,5 +1,5 @@
 function _get_speciemap(
-        sys::ModelSystem, petab_tables::PEtabTables, ml_models::MLModels , speciemap_input
+        sys::ModelSystem, petab_tables::PEtabTables, ml_models::MLModels, speciemap_input
     )
     hybridization_df, conditions_df = _get_petab_tables(
         petab_tables, [:hybridization, :conditions]
@@ -68,8 +68,10 @@ function _get_parametermap(sys::ODEProblem, ::Any, ml_models::MLModels)
 
     ml_ode_ids = filter(in(p_ids), ml_ids)
     mech_ids = (k for k in p_ids if k ∉ ml_ode_ids)
-    p_ode = (; (k => sys.p[k] for k in mech_ids)...,
-            (k => sys.p[k] for k in ml_ode_ids)...)
+    p_ode = (;
+        (k => sys.p[k] for k in mech_ids)...,
+        (k => sys.p[k] for k in ml_ode_ids)...,
+    )
     sys = remake(sys, p = ComponentArray(p_ode))
     return sys, nothing
 end
@@ -82,10 +84,13 @@ function _get_parametermap(sys::ModelSystem, parametermap_input, ::MLModels)
         !haskey(default_values, pid) && continue
         value = default_values[pid]
         if !(value isa Real)
-            throw(PEtabInuptError("When setting a parameter to a fixed value in the " *
-                                  "model system it must be set to a constant " *
-                                  "numberic value. This does not hold for $pid " *
-                                  "which is set to $value"))
+            throw(
+                PEtabInuptError(
+                    "When setting a parameter to a fixed value in the model system it must \
+                    be set to a constant numberic value. This does not hold for $pid \
+                    which is set to $value"
+                )
+            )
         end
         parametermap[i] = first(parametermap[i]) => value
     end
@@ -96,8 +101,12 @@ function _get_parametermap(sys::ModelSystem, parametermap_input, ::MLModels)
     parameterids = first.(parametermap) .|> string
     for (i, inputid) in pairs(string.(first.(parametermap_input)))
         if !(inputid in parameterids)
-            throw(PEtab.PEtabFormatError("Parameter $inputid does not appear among the  " *
-                                         "model parameters in the dynamic model"))
+            throw(
+                PEtab.PEtabFormatError(
+                    "Parameter $inputid does not appear among the model parameters in the \
+                     dynamic model"
+                )
+            )
         end
         ip = findfirst(x -> x == inputid, parameterids)
         parametermap[ip] = parametermap[ip].first => parametermap_input[i].second
@@ -106,7 +115,8 @@ function _get_parametermap(sys::ModelSystem, parametermap_input, ::MLModels)
 end
 
 function _check_unassigned_variables(
-        sys::ModelSystem, variable_map, mapinput, whichmap::Symbol, petab_tables::PEtabTables
+        sys::ModelSystem, variable_map, mapinput, whichmap::Symbol,
+        petab_tables::PEtabTables
     )::Nothing
     conditions_df, parameters_df, hybridization_df = _get_petab_tables(
         petab_tables, [:conditions, :parameters, :hybridization]
@@ -143,6 +153,7 @@ function _check_unassigned_variables(
         @warn "The $(whichmap) $id has not been assigned a value among PEtabParameters, \
                simulation conditions, or in the $(whichmap) map. It default to 0."
     end
+    return nothing
 end
 
 # TODO: Add for SDEProblem
@@ -164,7 +175,7 @@ function _add_parameter(sys::ODEProblem, parameter)
     # parameter mapping)
     @assert sys.p isa ComponentArray "p for ODEProblem must be a ComponentArray"
     _p = sys.p |> NamedTuple
-    _padd = NamedTuple{(Symbol(parameter), )}((0.0, ))
+    _padd = NamedTuple{(Symbol(parameter),)}((0.0,))
     p = ComponentArray(merge(_p, _padd))
     return remake(sys, p = p)
 end
@@ -182,11 +193,13 @@ end
 function addparam!(rn::ReactionSystem, p; disablechecks = false)
     Catalyst.reset_networkproperties!(rn)
     curidx = disablechecks ? nothing :
-             findfirst(S -> isequal(S, p), ModelingToolkit.get_ps(rn))
+        findfirst(S -> isequal(S, p), ModelingToolkit.get_ps(rn))
     if curidx === nothing
         push!(ModelingToolkit.get_ps(rn), p)
-        ModelingToolkit.process_variables!(ModelingToolkit.get_var_to_name(rn),
-                                           ModelingToolkit.get_defaults(rn), [p])
+        ModelingToolkit.process_variables!(
+            ModelingToolkit.get_var_to_name(rn),
+            ModelingToolkit.get_defaults(rn), [p]
+        )
         return length(ModelingToolkit.get_ps(rn))
     else
         return curidx

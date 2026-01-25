@@ -1,30 +1,34 @@
-function PEtabODEProblem(model::PEtabModel;
-                         odesolver::Union{Nothing, ODESolver} = nothing,
-                         odesolver_gradient::Union{Nothing, ODESolver} = nothing,
-                         ss_solver::Union{Nothing, SteadyStateSolver} = nothing,
-                         ss_solver_gradient::Union{Nothing, SteadyStateSolver} = nothing,
-                         gradient_method::Union{Nothing, Symbol} = nothing,
-                         hessian_method::Union{Nothing, Symbol} = nothing,
-                         FIM_method::Union{Nothing, Symbol} = nothing,
-                         sparse_jacobian::Union{Nothing, Bool} = nothing,
-                         specialize_level = SciMLBase.FullSpecialize,
-                         sensealg = nothing,
-                         sensealg_ss = nothing,
-                         chunksize::Union{Nothing, Int64} = nothing,
-                         split_over_conditions::Union{Nothing, Bool} = nothing,
-                         reuse_sensitivities::Bool = false,
-                         verbose::Bool = false,
-                         custom_values::Union{Nothing, Dict} = nothing)::PEtabODEProblem
+function PEtabODEProblem(
+        model::PEtabModel;
+        odesolver::Union{Nothing, ODESolver} = nothing,
+        odesolver_gradient::Union{Nothing, ODESolver} = nothing,
+        ss_solver::Union{Nothing, SteadyStateSolver} = nothing,
+        ss_solver_gradient::Union{Nothing, SteadyStateSolver} = nothing,
+        gradient_method::Union{Nothing, Symbol} = nothing,
+        hessian_method::Union{Nothing, Symbol} = nothing,
+        FIM_method::Union{Nothing, Symbol} = nothing,
+        sparse_jacobian::Union{Nothing, Bool} = nothing,
+        specialize_level = SciMLBase.FullSpecialize,
+        sensealg = nothing,
+        sensealg_ss = nothing,
+        chunksize::Union{Nothing, Int64} = nothing,
+        split_over_conditions::Union{Nothing, Bool} = nothing,
+        reuse_sensitivities::Bool = false,
+        verbose::Bool = false,
+        custom_values::Union{Nothing, Dict} = nothing
+    )::PEtabODEProblem
     _logging(:Build_PEtabODEProblem, verbose; name = model.name)
 
     # To bookeep parameters, measurements, etc...
     model_info = ModelInfo(model, sensealg, custom_values)
     # All ODE-relevent info for the problem, e.g. solvers, gradient method ...
-    probinfo = PEtabODEProblemInfo(model, model_info, odesolver, odesolver_gradient,
-                                   ss_solver, ss_solver_gradient, gradient_method,
-                                   hessian_method, FIM_method, sensealg, sensealg_ss,
-                                   reuse_sensitivities, sparse_jacobian, specialize_level,
-                                   chunksize, split_over_conditions, verbose)
+    probinfo = PEtabODEProblemInfo(
+        model, model_info, odesolver, odesolver_gradient,
+        ss_solver, ss_solver_gradient, gradient_method,
+        hessian_method, FIM_method, sensealg, sensealg_ss,
+        reuse_sensitivities, sparse_jacobian, specialize_level,
+        chunksize, split_over_conditions, verbose
+    )
 
     # The prior enters into the nllh, grad, and hessian functions and is evaluated by
     # default (keyword user can toggle). Grad and hess are not inplace, in order to
@@ -81,10 +85,11 @@ function PEtabODEProblem(model::PEtabModel;
     xnominal_transformed = _get_xnominal(model_info, xnames, xnames_ps, true)
     nestimate = _get_nx_estimate(model_info.xindices)
 
-    return PEtabODEProblem(nllh, _chi2, grad!, grad, hess!, hess, FIM!, FIM, nllh_grad,
-                           prior, grad_prior, hess_prior, _simulated_values, _residuals,
-                           probinfo, model_info, nestimate, xnames, xnominal,
-                           xnominal_transformed, lb, ub)
+    return PEtabODEProblem(
+        nllh, _chi2, grad!, grad, hess!, hess, FIM!, FIM, nllh_grad, prior, grad_prior,
+        hess_prior, _simulated_values, _residuals, probinfo, model_info, nestimate, xnames,
+        xnominal, xnominal_transformed, lb, ub
+    )
 end
 
 function _get_prior(model_info::ModelInfo)::Tuple{Function, Function, Function}
@@ -104,8 +109,10 @@ function _get_prior(model_info::ModelInfo)::Tuple{Function, Function, Function}
     return _prior, _grad_prior, _hess_prior
 end
 
-function _get_nllh(probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
-                   prior::Function, residuals::Bool)::Function
+function _get_nllh(
+        probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
+        prior::Function, residuals::Bool
+    )::Function
     _nllh = let pinfo = probinfo, minfo = model_info, res = residuals, _prior = prior
         (x; prior = true) -> begin
             _test_ordering(x, minfo.xindices.ids[:estimate_ps])
@@ -122,8 +129,10 @@ function _get_nllh(probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
     return _nllh
 end
 
-function _get_grad(method, probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
-                   grad_prior::Function)::Tuple{Function, Function}
+function _get_grad(
+        method, probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
+        grad_prior::Function
+    )::Tuple{Function, Function}
     if probinfo.gradient_method == :ForwardDiff
         _grad_nllh! = _get_grad_forward_AD(probinfo, model_info)
     end
@@ -154,9 +163,11 @@ function _get_grad(method, probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
     return _grad!, _grad
 end
 
-function _get_hess(probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
-                   hess_prior::Function; ret_jacobian::Bool = false,
-                   FIM::Bool = false)::Tuple{Function, Function}
+function _get_hess(
+        probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
+        hess_prior::Function; ret_jacobian::Bool = false,
+        FIM::Bool = false
+    )::Tuple{Function, Function}
     @unpack hessian_method, split_over_conditions, chunksize, cache = probinfo
     @unpack xdynamic_mech = cache
     if FIM == true
@@ -200,16 +211,20 @@ function _get_hess(probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
     return _hess!, _hess
 end
 
-function _get_nllh_grad(gradient_method::Symbol, grad::Function, _prior::Function,
-                        probinfo::PEtabODEProblemInfo, model_info::ModelInfo)::Function
+function _get_nllh_grad(
+        gradient_method::Symbol, grad::Function, _prior::Function,
+        probinfo::PEtabODEProblemInfo, model_info::ModelInfo
+    )::Function
     grad_forward_AD = gradient_method == :ForwardDiff
     grad_forward_eqs = gradient_method == :ForwardEquations
     grad_adjoint = gradient_method == :Adjoint
 
-    _nllh_not_solveode = _get_nllh_not_solveode(probinfo, model_info;
-                                                grad_forward_AD = grad_forward_AD,
-                                                grad_forward_eqs = grad_forward_eqs,
-                                                grad_adjoint = grad_adjoint)
+    _nllh_not_solveode = _get_nllh_not_solveode(
+        probinfo, model_info;
+        grad_forward_AD = grad_forward_AD,
+        grad_forward_eqs = grad_forward_eqs,
+        grad_adjoint = grad_adjoint
+    )
     _nllh_grad = (x; prior = true) -> begin
         _x = x |> collect
         g = grad(x; prior = prior)
@@ -223,7 +238,10 @@ function _get_nllh_grad(gradient_method::Symbol, grad::Function, _prior::Functio
     return _nllh_grad
 end
 
-function _get_bounds(model_info::ModelInfo, xnames::Vector{Symbol}, xnames_ps::Vector{Symbol}, which::Symbol)
+function _get_bounds(
+        model_info::ModelInfo, xnames::Vector{Symbol}, xnames_ps::Vector{Symbol},
+        which::Symbol
+    )
     @unpack petab_parameters, petab_ml_parameters, xindices = model_info
 
     # Mechanistic parameters has its bounds like a Vector
@@ -254,8 +272,10 @@ function _get_bounds(model_info::ModelInfo, xnames::Vector{Symbol}, xnames_ps::V
     return merge(xmech_bounds, x_ml_bounds) |> ComponentArray
 end
 
-function _get_xnominal(model_info::ModelInfo, xnames::Vector{Symbol},
-                       xnames_ps::Vector{Symbol}, transform::Bool)
+function _get_xnominal(
+        model_info::ModelInfo, xnames::Vector{Symbol}, xnames_ps::Vector{Symbol},
+        transform::Bool
+    )
     @unpack petab_parameters, xindices, model = model_info
     @unpack ml_models, paths, petab_tables = model
 
@@ -282,11 +302,15 @@ function _get_xnominal(model_info::ModelInfo, xnames::Vector{Symbol},
     return ComponentArray(merge(xmech, x_ml_models))
 end
 
-function _get_ixnames_mech(xnames::Vector{Symbol}, petab_parameters::PEtabParameters)::Vector{Int64}
+function _get_ixnames_mech(
+        xnames::Vector{Symbol}, petab_parameters::PEtabParameters
+    )::Vector{Int64}
     return findall(x -> x in petab_parameters.parameter_id, xnames)
 end
 
-function _get_xnominal_mech(xnames_mech::Vector{Symbol}, petab_parameters::PEtabParameters)::Vector{Float64}
+function _get_xnominal_mech(
+        xnames_mech::Vector{Symbol}, petab_parameters::PEtabParameters
+    )::Vector{Float64}
     ix = [findfirst(x -> x == id, petab_parameters.parameter_id) for id in xnames_mech]
     return petab_parameters.nominal_value[ix]
 end
@@ -299,9 +323,9 @@ end
 function _test_ordering(x::ComponentArray, xnames_ps::Vector{Symbol})::Nothing
     if !all(propertynames(x) .== xnames_ps)
         throw(PEtabInputError("Input ComponentArray x to the PEtab nllh function \
-                               has wrong ordering or parameter names. In x the \
-                               parameters must appear in the order of $xnames_ps"))
+            has wrong ordering or parameter names. In x the parameters must appear in the \
+            order of $xnames_ps"))
     end
     return nothing
 end
-_test_ordering(x::AbstractVector, names_ps::Vector{Symbol})::Nothing = nothing
+_test_ordering(::AbstractVector, ::Vector{Symbol})::Nothing = nothing

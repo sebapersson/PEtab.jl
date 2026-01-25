@@ -9,9 +9,11 @@ For information on keyword arguments see [`get_ps`](@ref).
 
 See also: [`get_u0`](@ref) and [`get_odeproblem`](@ref).
 """
-function get_odesol(res::EstimationResult, prob::PEtabODEProblem;
-                    condition::Union{ConditionExp, Nothing} = nothing,
-                    experiment::Union{ConditionExp, Nothing} = nothing)::ODESolution
+function get_odesol(
+        res::EstimationResult, prob::PEtabODEProblem;
+        condition::Union{ConditionExp, Nothing} = nothing,
+        experiment::Union{ConditionExp, Nothing} = nothing
+    )::ODESolution
     @unpack model_info, probinfo = prob
     oprob, cbs = get_odeproblem(res, prob; condition = condition, experiment = experiment)
 
@@ -69,9 +71,11 @@ For information on keyword arguments, see [`get_ps`](@ref).
 
 See also: [`get_u0`](@ref) and [`get_odesol`](@ref).
 """
-function get_system(res::EstimationResult, prob::PEtabODEProblem;
-                    condition::Union{ConditionExp, Nothing} = nothing,
-                    experiment::Union{ConditionExp, Nothing} = nothing)
+function get_system(
+        res::EstimationResult, prob::PEtabODEProblem;
+        condition::Union{ConditionExp, Nothing} = nothing,
+        experiment::Union{ConditionExp, Nothing} = nothing
+    )
     @unpack sys, paths, callbacks = prob.model_info.model
     if haskey(paths, :SBML)
         prn, _ = load_SBML(paths[:SBML])
@@ -94,9 +98,11 @@ For information on keyword arguments see [`get_ps`](@ref).
 
 See also [`get_odeproblem`](@ref) and [`get_odesol`](@ref).
 """
-function get_u0(res::EstimationResult, prob::PEtabODEProblem; retmap::Bool = true,
-                condition::Union{ConditionExp, Nothing} = nothing,
-                experiment::Union{ConditionExp, Nothing} = nothing)
+function get_u0(
+        res::EstimationResult, prob::PEtabODEProblem; retmap::Bool = true,
+        condition::Union{ConditionExp, Nothing} = nothing,
+        experiment::Union{ConditionExp, Nothing} = nothing
+    )
     u0, _ = _get_ps_u0(res, prob, condition, experiment, retmap)
     return u0
 end
@@ -150,8 +156,10 @@ function _get_ps_u0(
     xdynamic, _, _, _, x_ml_models = split_x(x_transformed, xindices, cache)
 
     # System parameters and their associated ids
-    odeproblem = remake(odeproblem, p = convert.(eltype(xdynamic), odeproblem.p),
-        u0 = convert.(eltype(xdynamic), odeproblem.u0))
+    odeproblem = remake(
+        odeproblem, p = convert.(eltype(xdynamic), odeproblem.p),
+        u0 = convert.(eltype(xdynamic), odeproblem.u0)
+    )
     p = odeproblem.p[:]
     ps = xindices.ids[:sys]
     u0 = odeproblem.u0[:]
@@ -173,8 +181,8 @@ function _get_ps_u0(
             ml_models_pre_ode, false
         )
         _ = solve_pre_equilibrium!!(
-                u_ss, u_t0, oprob_preeq, simulation_info, solver, ss_solver,
-                pre_equilibration_id, true
+            u_ss, u_t0, oprob_preeq, simulation_info, solver, ss_solver,
+            pre_equilibration_id, true
         )
 
         experiment_id = _get_experiment_id(simulation_id, pre_equilibration_id)
@@ -253,9 +261,10 @@ Solve the ODE model in `prob` for all simulation conditions with the provided OD
 # Returns
 - `odesols`: A dictionary containing the `ODESolution` for each simulation condition.
 """
-function solve_all_conditions(x, prob::PEtabODEProblem, osolver; abstol = 1e-8,
-                              reltol = 1e-8, maxiters = nothing, ntimepoints_save = 0,
-                              save_observed_t = false)
+function solve_all_conditions(
+        x, prob::PEtabODEProblem, osolver; abstol = 1.0e-8, reltol = 1.0e-8,
+        maxiters = nothing, ntimepoints_save = 0, save_observed_t = false
+    )
     @unpack probinfo, model_info = prob
     xindices = model_info.xindices
     @unpack solver, cache = probinfo
@@ -271,14 +280,18 @@ function solve_all_conditions(x, prob::PEtabODEProblem, osolver; abstol = 1e-8,
     xdynamic_mech = get_tmp(cache.xdynamic_mech, x)
     xdynamic_ps = transform_x(xdynamic_mech, xindices, :xdynamic_mech, cache)
 
-    _ = solve_conditions!(model_info, xdynamic_ps, cache.x_ml_models, probinfo;
-                          ntimepoints_save = ntimepoints_save,
-                          save_observed_t = save_observed_t)
+    _ = solve_conditions!(
+        model_info, xdynamic_ps, cache.x_ml_models, probinfo;
+        ntimepoints_save = ntimepoints_save, save_observed_t = save_observed_t
+    )
     return model_info.simulation_info.odesols
 end
 
 
-function _get_simulation_id(condition::Union{ConditionExp, Nothing}, experiment::Union{ConditionExp, Nothing}, model_info::ModelInfo)::Symbol
+function _get_simulation_id(
+        condition::Union{ConditionExp, Nothing}, experiment::Union{ConditionExp, Nothing},
+        model_info::ModelInfo
+    )::Symbol
     conditionids = model_info.simulation_info.conditionids
     if isnothing(experiment) && isnothing(condition)
         return conditionids[:simulation][1]
@@ -292,7 +305,10 @@ function _get_simulation_id(condition::Union{ConditionExp, Nothing}, experiment:
     return conditionids[:simulation][ic]
 end
 
-function _get_pre_equilibration_id(condition::Union{ConditionExp, Nothing}, experiment::Union{ConditionExp, Nothing}, model_info::ModelInfo)::Union{Symbol, Nothing}
+function _get_pre_equilibration_id(
+        condition::Union{ConditionExp, Nothing}, experiment::Union{ConditionExp, Nothing},
+        model_info::ModelInfo
+    )::Union{Symbol, Nothing}
     @unpack has_pre_equilibration, conditionids = model_info.simulation_info
     if isnothing(condition) && isnothing(experiment) && has_pre_equilibration
         return conditionids[:pre_equilibration][1]
@@ -314,7 +330,9 @@ function _get_pre_equilibration_id(condition::Union{ConditionExp, Nothing}, expe
     end
 end
 
-function _check_condition_ids(simulation_id::Symbol, ::Nothing, model_info::ModelInfo)::Nothing
+function _check_condition_ids(
+        simulation_id::Symbol, ::Nothing, model_info::ModelInfo
+    )::Nothing
     valid_ids = model_info.simulation_info.conditionids[:experiment]
     if !in(simulation_id, valid_ids)
         throw(PEtabInputError("Condition id `$(simulation_id)` not found in the PEtab \
@@ -322,7 +340,9 @@ function _check_condition_ids(simulation_id::Symbol, ::Nothing, model_info::Mode
     end
     return nothing
 end
-function _check_condition_ids(simulation_id::Symbol, pre_equilibration_id::Symbol, model_info::ModelInfo)::Nothing
+function _check_condition_ids(
+        simulation_id::Symbol, pre_equilibration_id::Symbol, model_info::ModelInfo
+    )::Nothing
     @unpack conditionids = model_info.simulation_info
     experiment_id = _get_experiment_id(simulation_id, pre_equilibration_id)
 
@@ -336,7 +356,10 @@ function _check_condition_ids(simulation_id::Symbol, pre_equilibration_id::Symbo
     return nothing
 end
 
-function _check_experiment_id(condition::Union{ConditionExp, Nothing}, experiment::Union{ConditionExp, Nothing}, model_info::ModelInfo)::Nothing
+function _check_experiment_id(
+        condition::Union{ConditionExp, Nothing}, experiment::Union{ConditionExp, Nothing},
+        model_info::ModelInfo
+    )::Nothing
     if isnothing(experiment) && isnothing(condition)
         return nothing
     end

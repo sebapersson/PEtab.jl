@@ -1,7 +1,8 @@
 function _switch_condition(
         oprob::ODEProblem, experiment_id::Symbol, xdynamic::AbstractVector,
         x_ml_models::Dict{Symbol, ComponentArray}, model_info::ModelInfo,
-        cache::PEtabODEProblemCache, ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreSimulate}},
+        cache::PEtabODEProblemCache,
+        ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreSimulate}},
         posteq_simulation::Bool; sensitivities::Bool = false,
         simulation_id::Union{Nothing, Symbol} = nothing
     )::ODEProblem
@@ -73,13 +74,16 @@ function _is_dense(save_observed_t::Bool, dense_sol::Bool, ntimepoints_save::Int
     end
 end
 
-function _get_cbs(::ODEProblem, simulation_info::SimulationInfo, simulation_id::Symbol,
-                  ::Any)::SciMLBase.DECallback
+function _get_cbs(
+        ::ODEProblem, simulation_info::SimulationInfo, simulation_id::Symbol, ::Any
+    )::SciMLBase.DECallback
     return simulation_info.callbacks[simulation_id]
 end
 
-function _get_tspan(oprob::ODEProblem, tstart::Float64, tmax::Float64,
-                    solver::SciMLAlgorithm, float_tspan::Bool)::ODEProblem
+function _get_tspan(
+        oprob::ODEProblem, tstart::Float64, tmax::Float64, solver::SciMLAlgorithm,
+        float_tspan::Bool
+    )::ODEProblem
     # When tmax=Inf and a multistep BDF Julia method, e.g. QNDF, is used tmax must be inf,
     # else if it is a large number such as 1e8 the dt_min is set to a large value making
     # the solver fail. Sundials solvers on the other hand are not compatible with
@@ -97,27 +101,34 @@ function _get_tspan(oprob::ODEProblem, tstart::Float64, tmax::Float64,
 end
 
 function _get_tmax(tmax::Float64, ::Union{CVODE_BDF, CVODE_Adams})::Float64
-    return isinf(tmax) ? 1e8 : tmax
+    return isinf(tmax) ? 1.0e8 : tmax
 end
 function _get_tmax(tmax::Float64, ::Union{Vector{Symbol}, SciMLAlgorithm})::Float64
     return tmax
 end
-function _get_tmax(condition::Union{ConditionExp, Nothing}, experiment::Union{ConditionExp, Nothing}, model_info::ModelInfo)::Float64
+function _get_tmax(
+        condition::Union{ConditionExp, Nothing}, experiment::Union{ConditionExp, Nothing},
+        model_info::ModelInfo
+    )::Float64
     simulation_id = _get_simulation_id(condition, experiment, model_info)
     pre_equilibration_id = _get_pre_equilibration_id(condition, experiment, model_info)
     experiment_id = _get_experiment_id(simulation_id, pre_equilibration_id)
     return model_info.simulation_info.tmaxs[experiment_id]
 end
 
-function _get_start(condition::Union{ConditionExp, Nothing}, experiment::Union{ConditionExp, Nothing}, model_info::ModelInfo)::Float64
+function _get_start(
+        condition::Union{ConditionExp, Nothing}, experiment::Union{ConditionExp, Nothing},
+        model_info::ModelInfo
+    )::Float64
     simulation_id = _get_simulation_id(condition, experiment, model_info)
     pre_equilibration_id = _get_pre_equilibration_id(condition, experiment, model_info)
     experiment_id = _get_experiment_id(simulation_id, pre_equilibration_id)
     return model_info.simulation_info.tstarts[experiment_id]
 end
 
-function _get_preeq_ids(simulation_info::SimulationInfo,
-                        cids::Vector{Symbol})::Vector{Symbol}
+function _get_preeq_ids(
+        simulation_info::SimulationInfo, cids::Vector{Symbol}
+    )::Vector{Symbol}
     if cids[1] == :all
         return unique(simulation_info.conditionids[:pre_equilibration])
     else
@@ -135,8 +146,14 @@ function _set_check_trigger_init!(cbs::SciMLBase.DECallback, value::Bool)::Nothi
     return nothing
 end
 
-function _set_ml_pre_simulate_parameters!(p::AbstractVector, xdynamic::AbstractVector, x_ml_models::Dict{Symbol, ComponentArray}, simulation_id::Symbol, xindices::ParameterIndices, ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreSimulate}})::Nothing
+function _set_ml_pre_simulate_parameters!(
+        p::AbstractVector, xdynamic::AbstractVector,
+        x_ml_models::Dict{Symbol, ComponentArray}, simulation_id::Symbol,
+        xindices::ParameterIndices,
+        ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreSimulate}}
+    )::Nothing
     !haskey(ml_models_pre_ode, simulation_id) && return nothing
+
     maps_nns = xindices.maps_ml_pre_simulate[simulation_id]
     for (ml_id, ml_model_pre_ode) in ml_models_pre_ode[simulation_id]
         map_ml_model = maps_nns[ml_id]

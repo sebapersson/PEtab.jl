@@ -70,7 +70,9 @@ function _get_ml_ids(mappings_df::DataFrame)::Vector{String}
         string
 end
 
-function _get_ml_model_indices(ml_id::Symbol, mapping_table_ids::Vector{String})::Vector{Int64}
+function _get_ml_model_indices(
+        ml_id::Symbol, mapping_table_ids::Vector{String}
+    )::Vector{Int64}
     ix = findall(x -> startswith(x, string(ml_id)), mapping_table_ids)
     return sort(ix, by = i -> count(c -> c == '[' || c == '.', mapping_table_ids[i]))
 end

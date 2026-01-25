@@ -2,8 +2,8 @@ function _check_method(method::Symbol, whatcheck::Symbol)::Nothing
     if whatcheck == :gradient
         allowed_methods = GRADIENT_METHODS
         if method == :Adjoint
-            @assert "SciMLSensitivity" ∈ string.(values(Base.loaded_modules)) "To use "*
-            "adjoint sensitivity analysis SciMLSensitivity must be loaded"
+            @assert "SciMLSensitivity" ∈ string.(values(Base.loaded_modules)) "To use \
+                adjoint sensitivity analysis SciMLSensitivity must be loaded"
         end
     elseif whatcheck == :Hessian
         allowed_methods = HESSIAN_METHODS
@@ -11,9 +11,13 @@ function _check_method(method::Symbol, whatcheck::Symbol)::Nothing
         allowed_methods = FIM_METHODS
     end
 
-    if !(method in allowed_methods)
-        throw(PEtabInputError("$(method) is an allowed $(whatcheck) option. Allowed " *
-                              "options are $(allowed_methods)"))
+    return if !(method in allowed_methods)
+        throw(
+            PEtabInputError(
+                "$(method) is an allowed $(whatcheck) option. Allowed \
+                options are $(allowed_methods)"
+            )
+        )
     end
 end
 
@@ -34,8 +38,9 @@ function _get_model_size(sys::ModelSystem, model_info::ModelInfo)::Symbol
     end
 end
 
-function _get_split_over_conditions(split::Union{Nothing, Bool},
-                                    model_info::ModelInfo)::Bool
+function _get_split_over_conditions(
+        split::Union{Nothing, Bool}, model_info::ModelInfo
+    )::Bool
     !isnothing(split) && return split
     nxdynamic_sys = _get_n_xdynamic_sys(model_info)
     nxdynamic = length(model_info.xindices.ids[:est_to_dynamic_mech])
@@ -60,8 +65,9 @@ function _get_n_xdynamic_sys(model_info::ModelInfo)::Int64
     return n_xdynamic_sys
 end
 
-function _get_gradient_method(method::Union{Symbol, Nothing}, model_size::Symbol,
-                              reuse_sensitivities::Bool)::Symbol
+function _get_gradient_method(
+        method::Union{Symbol, Nothing}, model_size::Symbol, reuse_sensitivities::Bool
+    )::Symbol
     !isnothing(method) && return method
     if model_size == :Small
         return :ForwardDiff
@@ -72,8 +78,8 @@ function _get_gradient_method(method::Union{Symbol, Nothing}, model_size::Symbol
     end
     if model_size === :Large
         if !("SciMLSensitivity" in string.(values(Base.loaded_modules)))
-            @warn "For large models adjoint sensitivity analysis is the best gradient " *
-                  "method. To use this method load SciMLSensitivity"
+            @warn "For large models adjoint sensitivity analysis is the best gradient \
+                method. To use this method load SciMLSensitivity"
             return :ForwardDiff
         end
         return :Adjoint
@@ -90,16 +96,17 @@ function _get_hessian_method(method::Union{Symbol, Nothing}, model_size::Symbol)
     end
 end
 
-function _get_odesolver(solver::Union{ODESolver, Nothing}, model_size::Symbol,
-                        gradient::Bool, gradient_method::Symbol, sensealg;
-                        default_solver = nothing)::ODESolver
+function _get_odesolver(
+        solver::Union{ODESolver, Nothing}, model_size::Symbol, gradient::Bool,
+        gradient_method::Symbol, sensealg; default_solver = nothing
+    )::ODESolver
     !isnothing(solver) && gradient == false && return solver
     solver = isnothing(solver) ? default_solver : solver
+
     # Only pure Julia solvers are compatible with autodiff (ForwardDiff)
     autodiff = (gradient_method == :ForwardDiff) ||
-               (gradient_method == :ForwardEquations && sensealg == :ForwardDiff)
-    if gradient && !isnothing(solver) && !SciMLBase.isautodifferentiable(solver.solver) &&
-       autodiff
+        (gradient_method == :ForwardEquations && sensealg == :ForwardDiff)
+    if gradient && !isnothing(solver) && !SciMLBase.isautodifferentiable(solver.solver) && autodiff
         throw(PEtab.PEtabInputError("$solver is not compatible with automatic \
             differentiation. Either use a ForwardDiff compatible solver, e.g. most Julia \
             solvers like QNDF and Rodas5P, or a non-autodiff gradient method like :Adjoint \
@@ -113,9 +120,9 @@ function _get_odesolver(solver::Union{ODESolver, Nothing}, model_size::Symbol,
     if model_size == :Medium
         return ODESolver(QNDF())
     end
-    if model_size == :Large
-        @warn "For large models we strongly recomend to compare different ODE-solvers " *
-              "instead of using default options."
+    return if model_size == :Large
+        @warn "For large models we strongly recomend to compare different ODE-solvers \
+            instead of using default options."
         # When not setting gradient solver
         if gradient_method == :Adjoint
             return ODESolver(CVODE_BDF())
@@ -130,26 +137,31 @@ function _get_ss_solver(ss_solver::Union{SteadyStateSolver, Nothing})::SteadySta
     return SteadyStateSolver(:Simulate)
 end
 
-function _get_sparse_jacobian(sparse::Union{Bool, Nothing}, gradient_method::Symbol,
-                              model_size::Symbol)::Bool
+function _get_sparse_jacobian(
+        sparse::Union{Bool, Nothing}, gradient_method::Symbol, model_size::Symbol
+    )::Bool
     !isnothing(sparse) && return sparse
     gradient_method in [:ForwardDiff, :ForwardEquations] && return false
     model_size == :Large && return true
     return false
 end
 
-_get_sensealg(sensealg, ::Val{:ForwardDiff})::Nothing = nothing
+_get_sensealg(::Any, ::Val{:ForwardDiff})::Nothing = nothing
 function _get_sensealg(sensealg, ::Val{:ForwardEquations})::Symbol
     allowed_methods = [":ForwardDiff", "ForwardSensitivity()", "ForwardDiffSensitivity()"]
     if !isnothing(sensealg) && sensealg != :ForwardDiff
-        throw(PEtabInputError("For gradient method :ForwardEquations allowed sensealg" *
-                              "arguments are $(allowed_methods). To use the latter two " *
-                              "methods SciMLSensitivity must be loaded."))
+        throw(
+            PEtabInputError(
+                "For gradient method :ForwardEquations allowed sensealg \
+                arguments are $(allowed_methods). To use the latter two methods \
+                SciMLSensitivity must be loaded."
+            )
+        )
     end
     return :ForwardDiff
 end
 
-function _get_sensealg_ss(sensealg_ss, sensealg, ::ModelInfo, gradient_method)::Nothing
+function _get_sensealg_ss(::Any, ::Any, ::ModelInfo, gradient_method)::Nothing
     return nothing
 end
 

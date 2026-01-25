@@ -33,7 +33,11 @@ prob_sub = remake(prob; conditions = [:cond1, :cond3])
 prob_sub = remake(prob; parameters = [:k1 => 3.0, :k2 => 4.0])
 ```
 """
-function remake(prob::PEtabODEProblem; conditions::Union{Vector{<:Pair}, Vector{Symbol}} = Symbol[], experiments = Symbol[], parameters::Vector{<:Pair{Symbol, <:Real}} = Pair{Symbol, Real}[])::PEtabODEProblem
+function remake(
+        prob::PEtabODEProblem; conditions::Union{Vector{<:Pair}, Vector{Symbol}} = Symbol[],
+        experiments = Symbol[],
+        parameters::Vector{<:Pair{Symbol, <:Real}} = Pair{Symbol, Real}[]
+    )::PEtabODEProblem
     if isempty(conditions) && isempty(parameters) && isempty(experiments)
         return deepcopy(prob)
     end
@@ -62,7 +66,9 @@ function remake(prob::PEtabODEProblem; conditions::Union{Vector{<:Pair}, Vector{
 end
 
 # TODO: For ML parameters? Disallow
-function _remake_parameters(prob::PEtabODEProblem, parameters::Vector{<:Pair{Symbol, <:Real}})::PEtabODEProblem
+function _remake_parameters(
+        prob::PEtabODEProblem, parameters::Vector{<:Pair{Symbol, <:Real}}
+    )::PEtabODEProblem
     # It only makes sense to remake (from compilation point if view) if parameters that
     # before were to be estimated are set to fixated.
     for (parameter_id, _) in parameters
@@ -186,11 +192,13 @@ function _remake_parameters(prob::PEtabODEProblem, parameters::Vector{<:Pair{Sym
         _FIM!(FIM, x)
         return FIM
     end
-    return PEtabODEProblem(_nllh, _chi2, _grad!, _grad, _hess!, _hess, _FIM!, _FIM,
-                           _nllh_grad, _prior, _grad_prior, _hess_prior, _simulated_values,
-                           _residuals, prob.probinfo, prob.model_info, nestimate_new,
-                           xnames_new, xnominal_new, xnominal_transformed_new, lb_new,
-                           ub_new)
+    return PEtabODEProblem(
+        _nllh, _chi2, _grad!, _grad, _hess!, _hess, _FIM!, _FIM,
+        _nllh_grad, _prior, _grad_prior, _hess_prior, _simulated_values,
+        _residuals, prob.probinfo, prob.model_info, nestimate_new,
+        xnames_new, xnominal_new, xnominal_transformed_new, lb_new,
+        ub_new
+    )
 end
 
 function _remake_experiments(prob::PEtabODEProblem, experiments::Vector{Symbol})
@@ -227,8 +235,11 @@ function _remake_conditions(prob::PEtabODEProblem, conditions::Vector{Symbol})
     index_delete = findall(x -> x ∉ conditions, valid_ids)
     return _remake_condition_ids(prob, index_delete)
 end
-function _remake_conditions(prob::PEtabODEProblem, conditions::Vector{<:Pair})::PEtabODEProblem
+function _remake_conditions(
+        prob::PEtabODEProblem, conditions::Vector{<:Pair}
+    )::PEtabODEProblem
     @unpack simulation_info = prob.model_info
+
     if !simulation_info.has_pre_equilibration
         throw(PEtabFormatError("This PEtab problem does not use pre-equilibration, so \
             `conditions` passed to `remake`  must be a `firstVector{Symbol}`, e.g. \
@@ -275,4 +286,5 @@ function _map_matrix!(x_subset, x_full, imap)
             x_subset[i1, j1] = x_full[i2, j2]
         end
     end
+    return
 end

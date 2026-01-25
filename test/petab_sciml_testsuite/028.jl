@@ -12,7 +12,7 @@ nn28 = @compact(
     @return out
 end
 nn28_frozen = @compact(
-    layer1 = Lux.Experimental.freeze(Dense(2, 5, Lux.tanh), (:weight, )),
+    layer1 = Lux.Experimental.freeze(Dense(2, 5, Lux.tanh), (:weight,)),
     layer2 = Dense(5, 5, Lux.tanh),
     layer3 = Dense(5, 1)
 ) do x
@@ -58,7 +58,7 @@ pest = [p_alpha, p_beta, p_delta, p_gamma, p_net1]
 
 observables = [
     PEtabObservable(:prey_o, :net1_output1, 0.05),
-    PEtabObservable(:predator_o, :predator, 0.05)
+    PEtabObservable(:predator_o, :predator, 0.05),
 ]
 
 conditions = PEtabCondition(:e1)

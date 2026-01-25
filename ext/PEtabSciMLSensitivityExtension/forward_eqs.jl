@@ -2,16 +2,18 @@
     Functions for computing forward-sensitivities with SciMLSensitivity
 =#
 
-function PEtab._get_odeproblem_gradient(odeproblem::ODEProblem, ::Symbol,
-                                        sensealg::ForwardAlg)::ODEProblem
-    return ODEForwardSensitivityProblem(odeproblem.f, odeproblem.u0, odeproblem.tspan,
-                                        odeproblem.p, sensealg = sensealg)
+function PEtab._get_odeproblem_gradient(
+        odeproblem::ODEProblem, ::Symbol, sensealg::ForwardAlg
+    )::ODEProblem
+    return ODEForwardSensitivityProblem(
+        odeproblem.f, odeproblem.u0, odeproblem.tspan,
+        odeproblem.p, sensealg = sensealg
+    )
 end
 
 function PEtab.solve_sensitivites!(
-        ::PEtab.ModelInfo, _solve_conditions!::Function,
-        xdynamic::Vector{<:AbstractFloat}, ::ForwardAlg, ::PEtab.PEtabODEProblemInfo,
-        cids::Vector{Symbol}, ::Nothing
+        ::PEtab.ModelInfo, _solve_conditions!::Function, xdynamic::Vector{<:AbstractFloat},
+        ::ForwardAlg, ::PEtab.PEtabODEProblemInfo, cids::Vector{Symbol}, ::Nothing
     )::Bool
     success = _solve_conditions!(xdynamic, cids)
     return success
@@ -33,7 +35,10 @@ function PEtab._grad_forward_eqs_cond!(
     sol = simulation_info.odesols_derivatives[cid]
 
     # Partial derivatives needed for computing the gradient (derived from the chain-rule)
-    ∂G∂u!, ∂G∂p! = PEtab._get_∂G∂_!(model_info, cid, xnoise, xobservable, xnondynamic_mech, cache.x_ml_models, cache.x_ml_models_constant)
+    ∂G∂u!, ∂G∂p! = PEtab._get_∂G∂_!(
+        model_info, cid, xnoise, xobservable, xnondynamic_mech, cache.x_ml_models,
+        cache.x_ml_models_constant
+    )
 
     p = sol.prob.p
     ∂G∂p, ∂G∂p_ = zeros(Float64, length(p)), zeros(Float64, length(p))
@@ -59,7 +64,9 @@ function PEtab._grad_forward_eqs_cond!(
 
     # Adjust if gradient is non-linear scale (e.g. log and log10). TODO: Refactor
     # this function later
-    PEtab.grad_to_xscale!(grad, _grad, ∂G∂p, xdynamic, xindices, simid,
-                          sensitivities_AD = false)
+    PEtab.grad_to_xscale!(
+        grad, _grad, ∂G∂p, xdynamic, xindices, simid,
+        sensitivities_AD = false
+    )
     return nothing
 end

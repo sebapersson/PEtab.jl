@@ -1,8 +1,12 @@
 using PEtab, Test
 
 # v1 problem
-path_yaml = joinpath(@__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
-dir_export = joinpath(@__DIR__, "published_models", "Boehm_JProteomeRes2014", "tmp")
+path_yaml = joinpath(
+    @__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml"
+)
+dir_export = joinpath(
+    @__DIR__, "published_models", "Boehm_JProteomeRes2014", "tmp"
+)
 prob_export = PEtabModel(path_yaml) |>
     PEtabODEProblem
 x_export = get_x(prob_export) .* 0.9

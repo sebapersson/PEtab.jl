@@ -52,14 +52,16 @@ struct PEtabParameter
     scale::Symbol
     sample_prior::Bool
 end
-function PEtabParameter(parameter_id::UserFormula; estimate::Bool = true,
-                        value::Union{Nothing, Float64} = nothing, sample_prior::Bool = true,
-                        lb::Union{Nothing, Real} = nothing, ub::Union{Nothing, Real} = nothing,
-                        prior::Union{Nothing, ContDistribution} = nothing,
-                        scale::Symbol = :log10)
+function PEtabParameter(
+        parameter_id::UserFormula; estimate::Bool = true,
+        value::Union{Nothing, Float64} = nothing, sample_prior::Bool = true,
+        lb::Union{Nothing, Real} = nothing, ub::Union{Nothing, Real} = nothing,
+        prior::Union{Nothing, ContDistribution} = nothing,
+        scale::Symbol = :log10
+    )
     if isnothing(prior)
-        lb = isnothing(lb) ? 1e-3 : lb
-        ub = isnothing(ub) ? 1e3 : ub
+        lb = isnothing(lb) ? 1.0e-3 : lb
+        ub = isnothing(ub) ? 1.0e3 : ub
     end
 
     if !isnothing(prior)
@@ -161,8 +163,10 @@ struct PEtabObservable
     noise_formula::String
     distribution
 end
-function PEtabObservable(observable_id::UserFormula, observable_formula::UserFormula, noise_formula::Union{UserFormula, Real};
-                         distribution = Distributions.Normal)
+function PEtabObservable(
+        observable_id::UserFormula, observable_formula::UserFormula,
+        noise_formula::Union{UserFormula, Real}; distribution = Distributions.Normal
+    )
     supported_dist = [getfield.(values(NOISE_DISTRIBUTIONS), :dist)]
     if !(distribution in supported_dist[1])
         throw(PEtabFormatError("Unsupported noise distribution: $(distribution). Supported \
@@ -200,8 +204,10 @@ struct PEtabCondition
     target_values
     t0::Float64
 end
-function PEtabCondition(condition_id::Union{Symbol, AbstractString}, assignments::Pair...;
-                        t0::Real = 0.0)
+function PEtabCondition(
+        condition_id::Union{Symbol, AbstractString}, assignments::Pair...;
+        t0::Real = 0.0
+    )
     condition_id = string(condition_id)
     if isempty(assignments)
         return PEtabCondition(condition_id, String[], String[], t0)
@@ -254,7 +260,10 @@ struct PEtabEvent
     trigger_time::Float64
     condition_ids::Vector{Symbol}
 end
-function PEtabEvent(condition::Union{UserFormula, Real}, assignments::Pair...; trigger_time::Real = NaN, condition_ids::Union{Vector{String}, Vector{Symbol}} = Symbol[])
+function PEtabEvent(
+        condition::Union{UserFormula, Real}, assignments::Pair...; trigger_time::Real = NaN,
+        condition_ids::Union{Vector{String}, Vector{Symbol}} = Symbol[]
+    )
     if isempty(assignments)
         throw(PEtabFormatError("For a PEtabEvent, at least one assignment pair \
             (target_id => target_value) must be provided."))
@@ -272,7 +281,9 @@ function PEtabEvent(condition::Union{UserFormula, Real}, assignments::Pair...; t
     end
     target_values = collect(string.(target_values))
 
-    return PEtabEvent(string(condition), target_ids, target_values, trigger_time, Symbol.(condition_ids))
+    return PEtabEvent(
+        string(condition), target_ids, target_values, trigger_time, Symbol.(condition_ids)
+    )
 end
 
 """

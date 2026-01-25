@@ -103,9 +103,9 @@ function _get_ids_sys_order(sys::ModelSystem, speciemap, parametermap)::Vector{S
     _p = parameters(sys)
     out = similar(_p)
     if sys isa SDESystem
-        prob = SDEProblem(sys, speciemap, [0.0, 5e3], parametermap)
+        prob = SDEProblem(sys, speciemap, [0.0, 5.0e3], parametermap)
     else
-        prob = ODEProblem(sys, speciemap, [0.0, 5e3], parametermap; jac = true)
+        prob = ODEProblem(sys, speciemap, [0.0, 5.0e3], parametermap; jac = true)
     end
     maps = ModelingToolkit.getp(prob, _p)
     for (i, map) in pairs(maps.getters)
@@ -144,7 +144,9 @@ function _get_ids_ml_pre_simulate_output(
     return out
 end
 
-function _get_ids_observable_noise(values, petab_parameters::PEtabParameters)::Vector{Symbol}
+function _get_ids_observable_noise(
+        values, petab_parameters::PEtabParameters
+    )::Vector{Symbol}
     ids = Symbol[]
     for value in values
         isempty(value) && continue
@@ -153,8 +155,12 @@ function _get_ids_observable_noise(values, petab_parameters::PEtabParameters)::V
         for id in Symbol.(split(value, ';'))
             is_number(id) && continue
             if !(id in petab_parameters.parameter_id)
-                throw(PEtabFileError("Parameter $id in measurement file does not appear " *
-                                     "in the PEtab parameters table."))
+                throw(
+                    PEtabFileError(
+                        "Parameter $id in measurement file does not appear \
+                        in the PEtab parameters table."
+                    )
+                )
             end
             id in ids && continue
             if _estimate_parameter(id, petab_parameters) == false
@@ -221,7 +227,9 @@ function _get_ids_condition(
 
                 # Sanity check input
                 for ml_input in ml_inputs
-                    _formula = SBMLImporter._replace_variable(condition_value, "$(ml_input)", "")
+                    _formula = SBMLImporter._replace_variable(
+                        condition_value, "$(ml_input)", ""
+                    )
                     _formula == condition_value && continue
                     throw(PEtabFileError("ML model input variable $(condition_variable) \
                         setting value of $id in a simulation condition is not \
@@ -229,7 +237,9 @@ function _get_ids_condition(
                 end
 
                 estimate == false && continue
-                _formula = SBMLImporter._replace_variable(condition_value, "$(parameter_id)", "")
+                _formula = SBMLImporter._replace_variable(
+                    condition_value, "$(parameter_id)", ""
+                )
                 _formula == condition_value && continue
                 parameter_id in ids_condition && continue
                 push!(ids_condition, parameter_id)
@@ -252,7 +262,7 @@ end
 function _get_ids_ml_pre_simulate(ml_models::MLModels)::Vector{Symbol}
     out = Symbol[]
     for ml_model in ml_models.ml_models
-    ml_id = ml_model.ml_id
+        ml_id = ml_model.ml_id
         ml_model.static == false && continue
         push!(out, ml_id)
     end
@@ -261,7 +271,7 @@ end
 
 function _get_ids_ml_nondynamic(
         ml_models::MLModels, ids_ml_in_ode::T, ids_ml_pre_simulate::T
-    )::T where T <: Vector{Symbol}
+    )::T where {T <: Vector{Symbol}}
     out = Symbol[]
     for id in ml_models.ml_ids
         id in Iterators.flatten((ids_ml_in_ode, ids_ml_pre_simulate)) && continue
@@ -327,7 +337,9 @@ function _get_xnames_ps!(ids::Dict{Symbol, Vector{Symbol}}, xscale)::Nothing
     return nothing
 end
 
-function _get_xscales(ids::Dict{T, Vector{T}}, petab_parameters::PEtabParameters)::Dict{T, T} where {T <: Symbol}
+function _get_xscales(
+        ids::Dict{T, Vector{T}}, petab_parameters::PEtabParameters
+    )::Dict{T, T} where {T <: Symbol}
     @unpack parameter_scale, parameter_id = petab_parameters
     s = Symbol[]
     for id in ids[:estimate]
@@ -358,11 +370,11 @@ end
 
 function _get_ids_ml(
         ids_ml_in_ode::T, ids_ml_pre_simulate::T, ids_ml_nondynamic::T
-    )::T where T <: Vector{Symbol}
+    )::T where {T <: Vector{Symbol}}
     return unique(vcat(ids_ml_in_ode, ids_ml_pre_simulate, ids_ml_nondynamic))
 end
 
-function _order_id_sys!(ids_sys::T, ids_ml_in_ode::T)::Nothing where T <: Vector{Symbol}
+function _order_id_sys!(ids_sys::T, ids_ml_in_ode::T)::Nothing where {T <: Vector{Symbol}}
     ix = [findfirst(x -> x == id, ids_sys) for id in ids_ml_in_ode]
     ids_sys[sort(ix)] .= ids_ml_in_ode
     return nothing

@@ -35,14 +35,14 @@ pest = [
     PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9),
     PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8),
     PEtabParameter(:net1_input1; scale = :lin, value = 1.0, estimate = false),
-    PEtabMLParameter(:net1; value = pnn)
+    PEtabMLParameter(:net1; value = pnn),
 ]
 
 conditions = PEtabCondition(:e1)
 
 observables = [
     PEtabObservable(:prey_o, :prey, 0.05),
-    PEtabObservable(:predator_o, :predator, 0.05)
+    PEtabObservable(:predator_o, :predator, 0.05),
 ]
 
 path_m = joinpath(dir_case, "measurements.tsv")

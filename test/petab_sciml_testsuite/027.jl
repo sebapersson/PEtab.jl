@@ -12,7 +12,7 @@ nn27 = @compact(
     @return out
 end
 nn27_frozen = @compact(
-    layer1 = Lux.Experimental.freeze(Dense(2, 5, Lux.tanh), (:weight, )),
+    layer1 = Lux.Experimental.freeze(Dense(2, 5, Lux.tanh), (:weight,)),
     layer2 = Dense(5, 5, Lux.tanh),
     layer3 = Dense(5, 1)
 ) do x
@@ -60,7 +60,7 @@ conditions = PEtabCondition(:e1)
 
 observables = [
     PEtabObservable(:prey_o, :prey, 0.05),
-    PEtabObservable(:predator_o, :predator, 0.05)
+    PEtabObservable(:predator_o, :predator, 0.05),
 ]
 
 path_m = joinpath(dir_case, "measurements.tsv")

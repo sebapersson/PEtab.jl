@@ -14,9 +14,9 @@ function PEtabODEProblemCache(
     # DiffCache options
     chunk_size = n_estimate + n_estimate^2
     chunk_size = chunk_size > 100 ? 100 : chunk_size
-    if hessian_method ∈ [:ForwardDiff, :BlockForwardDiff, :GaussNewton]
+    if hessian_method in [:ForwardDiff, :BlockForwardDiff, :GaussNewton]
         level_cache = 2
-    elseif gradient_method ∈ [:ForwardDiff, :ForwardEquations]
+    elseif gradient_method in [:ForwardDiff, :ForwardEquations]
         level_cache = 1
     else
         level_cache = 0
@@ -158,8 +158,8 @@ function _get_nx_forward_eqs(xindices::ParameterIndices, split_over_conditions::
     else
         return (
             length(xindices.indices_dynamic[:dynamic_to_mech]) +
-            length(xindices.indices_dynamic[:dynamic_to_ml_sys]) +
-            length(xindices.indices_dynamic[:sys_ml_pre_simulate_outputs])
+                length(xindices.indices_dynamic[:dynamic_to_ml_sys]) +
+                length(xindices.indices_dynamic[:sys_ml_pre_simulate_outputs])
         )
     end
 end

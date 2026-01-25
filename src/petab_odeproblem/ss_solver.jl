@@ -1,9 +1,11 @@
-function SteadyStateSolver(ss_solver::SteadyStateSolver, oprob::ODEProblem,
-                           osolver::ODESolver)::SteadyStateSolver
+function SteadyStateSolver(
+        ss_solver::SteadyStateSolver, oprob::ODEProblem, osolver::ODESolver
+    )::SteadyStateSolver
     abstol = isnothing(ss_solver.abstol) ? osolver.abstol * 100 : ss_solver.abstol
     reltol = isnothing(ss_solver.reltol) ? osolver.reltol * 100 : ss_solver.reltol
     maxiters = isnothing(ss_solver.maxiters) ? osolver.maxiters : ss_solver.maxiters
     tmin_simulate = [0.1]
+
     @unpack pseudoinverse, method, termination_check, rootfinding_alg = ss_solver
     if method === :Simulate
         if termination_check === :Newton
@@ -13,22 +15,28 @@ function SteadyStateSolver(ss_solver::SteadyStateSolver, oprob::ODEProblem,
             newton = false
             jac = zeros(Float64, 0, 0)
         end
-        condss = (u, t, integrator) -> condition_ss(u, t, integrator, abstol, reltol,
-                                                    newton, oprob.f.jac, jac, pseudoinverse,
-                                                    tmin_simulate)
+        condss = (u, t, integrator) -> condition_ss(
+            u, t, integrator, abstol, reltol,
+            newton, oprob.f.jac, jac, pseudoinverse,
+            tmin_simulate
+        )
         callback_ss = DiscreteCallback(condss, affect_ss!, save_positions = (false, true))
     else
         callback_ss = nothing
     end
-    return SteadyStateSolver(method, rootfinding_alg, termination_check, abstol, reltol,
-                             maxiters, callback_ss, NonlinearProblem(oprob), pseudoinverse,
-                             tmin_simulate)
+    return SteadyStateSolver(
+        method, rootfinding_alg, termination_check, abstol, reltol,
+        maxiters, callback_ss, NonlinearProblem(oprob), pseudoinverse,
+        tmin_simulate
+    )
 end
 
 # Callback in case steady-state is found via  model simulation
-function condition_ss(u, t, integrator, abstol::Float64, reltol::Float64,
-                      newton::Bool, jacobian!::Function, jac::AbstractMatrix,
-                      pseudoinverse::Bool, tmin_simulate::Vector{Float64})::Bool
+function condition_ss(
+        u, t, integrator, abstol::Float64, reltol::Float64,
+        newton::Bool, jacobian!::Function, jac::AbstractMatrix,
+        pseudoinverse::Bool, tmin_simulate::Vector{Float64}
+    )::Bool
     if t < tmin_simulate[1]
         return false
     end
@@ -55,12 +63,12 @@ function condition_ss(u, t, integrator, abstol::Float64, reltol::Float64,
     end
 
     if newton == true && success_newton == false && pseudoinverse == true
-        @warn "Jacobian non-invertible when solving for steady-state. "*
-        "By user option uses pseduo instead (displays max 10 times)" maxlog=10
+        @warn "Jacobian non-invertible when solving for steady-state. " *
+            "By user option uses pseduo instead (displays max 10 times)" maxlog = 10
         Δu = pinv(jac) * testval
     elseif newton == true && success_newton == false
-        @warn "Jacobian non-invertible when solving for steady-state. "*
-        "By default uses wrms instead (displays max 10 times)" maxlog=10
+        @warn "Jacobian non-invertible when solving for steady-state. " *
+            "By default uses wrms instead (displays max 10 times)" maxlog = 10
     end
 
     nu = length(u)
@@ -73,5 +81,5 @@ function condition_ss(u, t, integrator, abstol::Float64, reltol::Float64,
 end
 
 function affect_ss!(integrator)
-    terminate!(integrator)
+    return terminate!(integrator)
 end

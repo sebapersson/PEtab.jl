@@ -1,4 +1,6 @@
-function PEtab.nn_ps_to_h5!(nn, ps::Union{ComponentArray, NamedTuple}, path::String)::Nothing
+function PEtab.nn_ps_to_h5!(
+        nn, ps::Union{ComponentArray, NamedTuple}, path::String
+    )::Nothing
     if isfile(path)
         rm(path)
     end
@@ -20,7 +22,9 @@ For `Dense` layer possible parameters that are saved to a DataFrame are:
 - `weight` of dimension `(out_features, in_features)`
 - `bias` of dimension `(out_features)`
 """
-function _ps_to_h5!(file, layer::Lux.Dense, ps::Union{NamedTuple, ComponentArray}, layername::Symbol)::Nothing
+function _ps_to_h5!(
+        file, layer::Lux.Dense, ps::Union{NamedTuple, ComponentArray}, layername::Symbol
+    )::Nothing
     @unpack in_dims, out_dims, use_bias = layer
     g = create_group(file, string(layername))
     _ps_weight_to_h5!(g, ps)
@@ -38,7 +42,9 @@ For `Conv` layer possible parameters that are saved to a DataFrame are:
     Note, in Lux.jl `weight` has `(kernel_size, in_channels, out_channels)`. This is fixed
     by the importer.
 """
-function _ps_to_h5!(file, layer::Lux.Conv, ps::Union{NamedTuple, ComponentArray}, layername::Symbol)::Nothing
+function _ps_to_h5!(
+        file, layer::Lux.Conv, ps::Union{NamedTuple, ComponentArray}, layername::Symbol
+    )::Nothing
     @unpack kernel_size, use_bias, in_chs, out_chs = layer
     if length(kernel_size) == 1
         _psweigth = PEtab._reshape_array(ps.weight, CONV1D_MAP)
@@ -64,7 +70,10 @@ For `ConvTranspose` layer possible parameters that are saved to a DataFrame are:
     Note, in Lux.jl `weight` has `(kernel_size, out_channels, in_channels)`. This is fixed
     by the importer.
 """
-function _ps_to_h5!(file, layer::Lux.ConvTranspose, ps::Union{NamedTuple, ComponentArray}, layername::Symbol)::Nothing
+function _ps_to_h5!(
+        file, layer::Lux.ConvTranspose, ps::Union{NamedTuple, ComponentArray},
+        layername::Symbol
+    )::Nothing
     @unpack kernel_size, use_bias, in_chs, out_chs = layer
     if length(kernel_size) == 1
         _psweigth = PEtab._reshape_array(ps.weight, CONV1D_MAP)
@@ -86,7 +95,10 @@ For `Bilinear` layer possible parameters that are saved to a DataFrame are:
 - `weight` of dimension `(out_features, in_features1, in_features2)`
 - `bias` of dimension `(out_features)`
 """
-function _ps_to_h5!(file, layer::Lux.Bilinear, ps::Union{NamedTuple, ComponentArray}, netname::Symbol, layername::Symbol)::Nothing
+function _ps_to_h5!(
+        file, layer::Lux.Bilinear, ps::Union{NamedTuple, ComponentArray}, ::Symbol,
+        layername::Symbol
+    )::Nothing
     @unpack in1_dims, in2_dims, out_dims, use_bias = layer
     g = create_group(file, string(layername))
     _ps_weight_to_h5!(g, ps)
@@ -103,7 +115,10 @@ are:
 !!! note
     in Lux.jl the dimension argument `num_features` is chs (number of input channels)
 """
-function layer_ps_to_h5!(file, layer::Union{Lux.BatchNorm, Lux.InstanceNorm}, ps::Union{NamedTuple, ComponentArray}, netname::Symbol, layername::Symbol)::Nothing
+function layer_ps_to_h5!(
+        file, layer::Union{Lux.BatchNorm, Lux.InstanceNorm},
+        ps::Union{NamedTuple, ComponentArray}, ::Symbol, layername::Symbol
+    )::Nothing
     @unpack affine, chs = layer
     affine == false && return DataFrame()
     g = create_group(file, string(layername))
@@ -123,7 +138,10 @@ For `LayerNorm` layer possible parameters that are saved to a DataFrame are:
     PyTorch corresponds to `["W", "H", "D", "C"]` in Lux.jl. Basically, regardless of input
     dimension the Lux.jl dimension is the PyTorch dimension reversed.
 """
-function layer_ps_to_h5!(file, layer::LayerNorm, ps::Union{NamedTuple, ComponentArray}, netname::Symbol, layername::Symbol)::Nothing
+function layer_ps_to_h5!(
+        file, layer::LayerNorm, ps::Union{NamedTuple, ComponentArray}, ::Symbol,
+        layername::Symbol
+    )::Nothing
     @unpack shape, affine = layer
     affine == false && return DataFrame()
     # Note, in Lux.jl the input dimension is `size(input, 1)`.
@@ -151,7 +169,9 @@ end
 
 Layers without parameters to estimate.
 """
-function _ps_to_h5!(layer::PS_FREE_LAYERS, ::Union{NamedTuple, ComponentArray}, ::Symbol)::Nothing
+function _ps_to_h5!(
+        ::PS_FREE_LAYERS, ::Union{NamedTuple, ComponentArray}, ::Symbol
+    )::Nothing
     return nothing
 end
 

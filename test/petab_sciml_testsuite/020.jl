@@ -39,7 +39,7 @@ pest = [p_alpha, p_beta, p_delta, p_gamma, p_net4]
 
 observables = [
     PEtabObservable(:prey_o, :net4_output1, 0.05),
-    PEtabObservable(:predator_o, :net4_output2, 0.05)
+    PEtabObservable(:predator_o, :net4_output2, 0.05),
 ]
 
 conditions = PEtabCondition(:e1)

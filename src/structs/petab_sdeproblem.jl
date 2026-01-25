@@ -38,9 +38,11 @@ function MeasurementsInfo(model_info::PEtab.ModelInfo, cid::Symbol)
             measurements[i][j] = measurement_transformed[imeasurements_t[i][j]]
         end
     end
-    return MeasurementsInfo(t, measurements, imeasurements_t, observable_id, xobservables,
-                            xnoise, xnondynamic_mech, nominval_value, mapxnoise, mapxobservable,
-                            measurement_transforms, h, sd)
+    return MeasurementsInfo(
+        t, measurements, imeasurements_t, observable_id, xobservables,
+        xnoise, xnondynamic_mech, nominval_value, mapxnoise, mapxobservable,
+        measurement_transforms, h, sd
+    )
 end
 
 struct PEtabSDEProblem

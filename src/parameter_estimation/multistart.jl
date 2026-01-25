@@ -97,8 +97,10 @@ function _calibrate_multistart(
     pids = _create_workers(_nprocs)
     _load_packages_workers(pids, alg)
     _xstarts = [(x.second, x.first) for x in pairs(xstarts)]
-    _calibrate_procs = x -> _calibrate_startguess(x[1], x[2], prob, alg, save_trace,
-                                                  options, paths_save, mutex)
+    _calibrate_procs = x -> _calibrate_startguess(
+        x[1], x[2], prob, alg, save_trace,
+        options, paths_save, mutex
+    )
     runs = Distributed.pmap(_calibrate_procs, _xstarts)
     _remove_workers(pids)
 
@@ -107,14 +109,18 @@ function _calibrate_multistart(
     xmin = bestrun.xmin
     # Will fix with regex when things are running
     sampling_method_str = string(sampling_method)[
-        1:findfirst(x -> x == '(', string(sampling_method))][1:(end - 1)
-    ]
-    return PEtabMultistartResult(xmin, fmin, bestrun.alg, nmultistarts, sampling_method_str,
-                                 dirsave, runs)
+        1:findfirst(x -> x == '(', string(sampling_method)),
+    ][1:(end - 1)]
+    return PEtabMultistartResult(
+        xmin, fmin, bestrun.alg, nmultistarts, sampling_method_str,
+        dirsave, runs
+    )
 end
 
-function _calibrate_startguess(xstart, i, prob::PEtabODEProblem, alg, save_trace::Bool,
-                               options, paths_save, mutex)
+function _calibrate_startguess(
+        xstart, i, prob::PEtabODEProblem, alg, save_trace::Bool,
+        options, paths_save, mutex
+    )
     if !isempty(xstart)
         res = calibrate(prob, xstart, alg; save_trace = save_trace, options = options)
         # This happens when there are now parameter to estimate, edge case that can
@@ -123,8 +129,10 @@ function _calibrate_startguess(xstart, i, prob::PEtabODEProblem, alg, save_trace
         xstart, xmin = ComponentArray{Float64}(), ComponentArray{Float64}()
         xtrace, ftrace = Vector{Vector{Float64}}(undef, 0), Vector{Float64}(undef, 0)
         fmin = prob.nllh(xstart)
-        res = PEtabOptimisationResult(xmin, fmin, xstart, :alg, 0, 0.0, xtrace, ftrace,
-                                      true, nothing)
+        res = PEtabOptimisationResult(
+            xmin, fmin, xstart, :alg, 0, 0.0, xtrace, ftrace,
+            true, nothing
+        )
     end
     if !isempty(paths_save)
         Distributed.take!(mutex)
@@ -137,12 +145,15 @@ function _calibrate_startguess(xstart, i, prob::PEtabODEProblem, alg, save_trace
     return res
 end
 
-function _save_multistart_results(paths_save::Dict{Symbol, String},
-                                  res::PEtabOptimisationResult, i::Int64)::Nothing
+function _save_multistart_results(
+        paths_save::Dict{Symbol, String}, res::PEtabOptimisationResult, i::Int64
+    )::Nothing
     xnames = propertynames(res.xmin) |> collect
-    res_df = DataFrame(fmin = res.fmin, alg = res.alg, runtime = res.runtime,
-                       niterations = res.niterations, converged = res.converged,
-                       startguess = i)
+    res_df = DataFrame(
+        fmin = res.fmin, alg = res.alg, runtime = res.runtime,
+        niterations = res.niterations, converged = res.converged,
+        startguess = i
+    )
     x_df = DataFrame(Matrix(res.xmin'), xnames)
     x_df[!, "startguess"] = [i]
     CSV.write(paths_save[:res], res_df, append = isfile(paths_save[:res]))

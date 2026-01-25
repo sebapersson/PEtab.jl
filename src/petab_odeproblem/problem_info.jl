@@ -2,20 +2,23 @@ const GRADIENT_METHODS = [nothing, :ForwardDiff, :ForwardEquations, :Adjoint]
 const HESSIAN_METHODS = [nothing, :ForwardDiff, :BlockForwardDiff, :GaussNewton]
 const FIM_METHODS = [nothing, :ForwardDiff, :GaussNewton]
 
-function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver,
-                             odesolver_gradient, ss_solver, ss_solver_gradient,
-                             gradient_method, hessian_method, FIM_method, sensealg,
-                             sensealg_ss, reuse_sensitivities::Bool, sparse_jacobian,
-                             specialize_level, chunksize, split_over_conditions,
-                             verbose::Bool)::PEtabODEProblemInfo
+function PEtabODEProblemInfo(
+        model::PEtabModel, model_info::ModelInfo, odesolver, odesolver_gradient, ss_solver,
+        ss_solver_gradient, gradient_method, hessian_method, FIM_method, sensealg,
+        sensealg_ss, reuse_sensitivities::Bool, sparse_jacobian, specialize_level,
+        chunksize, split_over_conditions, verbose::Bool
+    )::PEtabODEProblemInfo
     model_size = _get_model_size(model.sys_mutated, model_info)
-    gradient_method_use = _get_gradient_method(gradient_method, model_size,
-                                               reuse_sensitivities)
+
+    gradient_method_use = _get_gradient_method(
+        gradient_method, model_size, reuse_sensitivities
+    )
     hessian_method_use = _get_hessian_method(hessian_method, model_size)
     FIM_method_use = _get_hessian_method(FIM_method, model_size)
     sensealg_use = _get_sensealg(sensealg, Val(gradient_method_use))
-    sensealg_ss_use = _get_sensealg_ss(sensealg_ss, sensealg_use, model_info,
-                                       Val(gradient_method_use))
+    sensealg_ss_use = _get_sensealg_ss(
+        sensealg_ss, sensealg_use, model_info, Val(gradient_method_use)
+    )
 
     _check_method(gradient_method_use, :gradient)
     _check_method(hessian_method_use, :Hessian)
@@ -23,15 +26,19 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
 
     split_use = _get_split_over_conditions(split_over_conditions, model_info)
 
-    odesolver_use = _get_odesolver(odesolver, model_size, false, gradient_method_use,
-                                   sensealg_use)
-    odesolver_gradient_use = _get_odesolver(odesolver_gradient, model_size, true,
-                                            gradient_method_use, sensealg_use;
-                                            default_solver = odesolver_use)
+    odesolver_use = _get_odesolver(
+        odesolver, model_size, false, gradient_method_use, sensealg_use
+    )
+    odesolver_gradient_use = _get_odesolver(
+        odesolver_gradient, model_size, true, gradient_method_use, sensealg_use;
+        default_solver = odesolver_use
+    )
     _ss_solver = _get_ss_solver(ss_solver)
     _ss_solver_gradient = _get_ss_solver(ss_solver_gradient)
-    sparse_jacobian_use = _get_sparse_jacobian(sparse_jacobian, gradient_method_use,
-                                               model_size)
+    sparse_jacobian_use = _get_sparse_jacobian(
+        sparse_jacobian, gradient_method_use,
+        model_size
+    )
     chunksize_use = isnothing(chunksize) ? 0 : chunksize
 
     # Several things to note here:
@@ -45,36 +52,46 @@ function PEtabODEProblemInfo(model::PEtabModel, model_info::ModelInfo, odesolver
     #  parameters the parameter map must be reorded.
     # 3. For ODEFunction an ODESystem is needed, hence ReactionSystems must be converted.
     btime = @elapsed begin
-        odeproblem = _get_odeproblem(model.sys_mutated, model, model_info, specialize_level, sparse_jacobian_use)
-        odeproblem_gradient = _get_odeproblem_gradient(odeproblem, gradient_method_use, sensealg_use)
+        odeproblem = _get_odeproblem(
+            model.sys_mutated, model, model_info, specialize_level, sparse_jacobian_use
+        )
+        odeproblem_gradient = _get_odeproblem_gradient(
+            odeproblem, gradient_method_use, sensealg_use
+        )
     end
     _logging(:Build_ODEProblem, verbose; time = btime)
 
     # Cache to avoid allocations to as large degree as possible.
-    cache = PEtabODEProblemCache(gradient_method_use, hessian_method_use, FIM_method_use,
-                                 sensealg_use, model_info, model.ml_models, split_use, odeproblem)
+    cache = PEtabODEProblemCache(
+        gradient_method_use, hessian_method_use, FIM_method_use, sensealg_use, model_info,
+        model.ml_models, split_use, odeproblem
+    )
 
     # To build the steady-state solvers the ODEProblem (specifically its Jacobian)
     # is needed (which is the same for odeproblem and odeproblem_gradient). Not yet comptiable with
     # UDE problems
     ss_solver_use = SteadyStateSolver(_ss_solver, odeproblem, odesolver_use)
-    ss_solver_gradient_use = SteadyStateSolver(_ss_solver_gradient, odeproblem,
-                                               odesolver_gradient_use)
+    ss_solver_gradient_use = SteadyStateSolver(
+        _ss_solver_gradient, odeproblem, odesolver_gradient_use
+    )
 
     # For models with a neural net that feeds into model parameters, pre-build functions
     # for evaluating the neural-net and its Jacobian
     ml_models_pre_ode = _get_ml_models_pre_ode(model_info, cache)
 
-    return PEtabODEProblemInfo(odeproblem, odeproblem_gradient, odesolver_use, odesolver_gradient_use,
-                               ss_solver_use, ss_solver_gradient_use, gradient_method_use,
-                               hessian_method_use, FIM_method_use, reuse_sensitivities,
-                               sparse_jacobian_use, sensealg_use, sensealg_ss_use,
-                               cache, split_use, chunksize_use, ml_models_pre_ode)
+    return PEtabODEProblemInfo(
+        odeproblem, odeproblem_gradient, odesolver_use, odesolver_gradient_use,
+        ss_solver_use, ss_solver_gradient_use, gradient_method_use, hessian_method_use,
+        FIM_method_use, reuse_sensitivities, sparse_jacobian_use, sensealg_use,
+        sensealg_ss_use, cache, split_use, chunksize_use, ml_models_pre_ode
+    )
 end
 
-function _get_odeproblem(sys::ODEProblem, ::PEtabModel, model_info::ModelInfo,
-                         specialize_level, ::Bool)::ODEProblem
+function _get_odeproblem(
+        sys::ODEProblem, ::PEtabModel, model_info::ModelInfo, specialize_level, ::Bool
+    )::ODEProblem
     @unpack petab_parameters, petab_ml_parameters, xindices, model = model_info
+
     # Set constant parameter values (not done automatically as for a System based model)
     for (i, id) in pairs(petab_parameters.parameter_id)
         petab_parameters.estimate[i] == true && continue
@@ -83,6 +100,7 @@ function _get_odeproblem(sys::ODEProblem, ::PEtabModel, model_info::ModelInfo,
         sys.p[id] = petab_parameters.nominal_value[i]
     end
     odeproblem = remake(sys, u0 = sys.u0[:])
+
     # It matters that p follows the same order as in ids for correct indexing in the
     # adjoint gradient method
     odeproblem = remake(odeproblem, p = odeproblem.p[model_info.xindices.ids[:sys]])
@@ -93,13 +111,17 @@ function _get_odeproblem(sys::ODEProblem, ::PEtabModel, model_info::ModelInfo,
     end
     return odeproblem
 end
-function _get_odeproblem(::ModelSystem, model::PEtabModel, model_info::ModelInfo, specialize_level, sparse_jacobian::Bool)::ODEProblem
+function _get_odeproblem(
+        ::ModelSystem, model::PEtabModel, model_info::ModelInfo, specialize_level,
+        sparse_jacobian::Bool
+    )::ODEProblem
     _set_const_parameters!(model, model_info.petab_parameters)
+
     @unpack sys_mutated, speciemap, parametermap, defined_in_julia = model
     _parametermap = _reorder_parametermap(parametermap, model_info.xindices.ids[:sys])
     _u0 = first.(speciemap) .=> 0.0
     odefun = ODEFunction(_to_odesystem(sys_mutated), first.(speciemap), first.(_parametermap); jac = true, sparse = sparse_jacobian)
-    odeproblem = ODEProblem(odefun, last.(_u0), [0.0, 5e3], last.(_parametermap))
+    odeproblem = ODEProblem(odefun, last.(_u0), [0.0, 5.0e3], last.(_parametermap))
     return remake(odeproblem, p = Float64.(odeproblem.p), u0 = Float64.(odeproblem.u0))
 end
 
@@ -110,7 +132,9 @@ function _to_odesystem(sys::ODESystem)::ODESystem
     return sys
 end
 
-function _get_ml_models_pre_ode(model_info::ModelInfo, cache::PEtabODEProblemCache)::Dict{Symbol, Dict{Symbol, MLModelPreSimulate}}
+function _get_ml_models_pre_ode(
+        model_info::ModelInfo, cache::PEtabODEProblemCache
+    )::Dict{Symbol, Dict{Symbol, MLModelPreSimulate}}
     ml_models_pre_ode = Dict{Symbol, Dict{Symbol, MLModelPreSimulate}}()
 
     for (condition_id, maps_pre_simulate) in model_info.xindices.maps_ml_pre_simulate
@@ -126,7 +150,8 @@ function _get_ml_models_pre_ode(model_info::ModelInfo, cache::PEtabODEProblemCac
                 x_ml = cache.x_ml_models_constant[ml_id]
             end
             outputs = DiffCache(zeros(Float64, n_outputs), levels = 2)
-            compute_forward! = let _ml_model = ml_model, _map_pre_simulate = map_pre_simulate, _x_ml = x_ml
+            compute_forward! = let _ml_model = ml_model,
+                    _map_pre_simulate = map_pre_simulate, _x_ml = x_ml
                 (out, x) -> _net!(out, x, _x_ml, _map_pre_simulate, _ml_model)
             end
 

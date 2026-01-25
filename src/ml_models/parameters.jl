@@ -1,4 +1,3 @@
-
 function _set_ml_models_ps!(ml_models::MLModels, parameters::Vector)::Nothing
     for petab_parameter in parameters
         !(petab_parameter isa PEtabMLParameter) && continue
@@ -66,10 +65,11 @@ function _get_ml_model_pre_ode_x(
     x = get_tmp(ml_model_pre_simulate.x, xdynamic_mech)
     n_inputs = length(map_ml_model.ix_dynamic_mech)
     x[1:n_inputs] .= xdynamic_mech[map_ml_model.ix_dynamic_mech]
-    @views x[(n_inputs+1):end] .= x_ml
+    @views x[(n_inputs + 1):end] .= x_ml
     return x
 end
-function _get_ml_model_pre_ode_x(ml_model_pre_simulate
+function _get_ml_model_pre_ode_x(
+        ml_model_pre_simulate
         ::MLModelPreSimulate, xdynamic_mech::AbstractVector,
         map_ml_model::MLModelPreSimulateMap
     )::AbstractVector
@@ -81,12 +81,14 @@ end
 
 function _get_layer_id(s::AbstractString)::String
     m = match(r"\.parameters\[(?<layer>[^\]]+)\](?:\.(?<arr>[^.]+))?$", s)
-    m === nothing && throw(ArgumentError("Invalid format (expected ...parameters[layer].array or ...parameters[layer]): $s"))
+    m === nothing && throw(ArgumentError("Invalid format (expected \
+        ...parameters[layer].array or ...parameters[layer]): $s"))
     return m["layer"]
 end
 
 function _get_array_id(s::AbstractString)::String
     m = match(r"\.parameters\[(?<layer>[^\]]+)\](?:\.(?<arr>[^.]+))?$", s)
-    m === nothing && throw(ArgumentError("Invalid format (expected ...parameters[layer].array or ...parameters[layer]): $s"))
+    m === nothing && throw(ArgumentError("Invalid format (expected \
+        ...parameters[layer].array or ...parameters[layer]): $s"))
     return something(m["arr"], "")
 end

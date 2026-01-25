@@ -14,15 +14,17 @@ function PEtab.PEtabLogDensity(petab_problem::PEtabODEProblem)::PEtab.PEtabLogDe
     end
 
     logtarget_gradient = (x_inference) -> let nllh_grad = nllh_grad,
-        inference_info = inference_info, _prior_correction = _prior_correction
+            inference_info = inference_info, _prior_correction = _prior_correction
 
         _logtarget_gradient(x_inference, nllh_grad, _prior_correction, inference_info)
     end
 
     initial_value = Vector{Float64}(undef, nparameters_estimate)
 
-    return PEtab.PEtabLogDensity(inference_info, logtarget, logtarget_gradient,
-                                 initial_value, nparameters_estimate)
+    return PEtab.PEtabLogDensity(
+        inference_info, logtarget, logtarget_gradient,
+        initial_value, nparameters_estimate
+    )
 end
 
 function PEtab.InferenceInfo(petab_problem::PEtabODEProblem)::PEtab.InferenceInfo
@@ -52,7 +54,7 @@ function PEtab.InferenceInfo(petab_problem::PEtabODEProblem)::PEtab.InferenceInf
             if abs(isinf(lower_bounds[ix])) || isinf(upper_bounds[ix])
                 @warn "Lower or upper bounds for parameter $(parameter_names[ix]) is \
                     -inf and/or inf. Assigning Uniform(1e-3, 1e3) prior"
-                priors_dist[ix] = Uniform(1e-3, 1e3)
+                priors_dist[ix] = Uniform(1.0e-3, 1.0e3)
             else
                 priors_dist[ix] = Uniform(lower_bounds[ix], upper_bounds[ix])
             end

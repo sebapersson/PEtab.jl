@@ -1,4 +1,6 @@
-function parse_events(events::Vector{PEtabEvent}, sys::ModelSystem)::Dict{String, SBMLImporter.EventSBML}
+function parse_events(
+        events::Vector{PEtabEvent}, sys::ModelSystem
+    )::Dict{String, SBMLImporter.EventSBML}
     sbml_events = Dict{String, SBMLImporter.EventSBML}()
     isempty(events) && return sbml_events
 
@@ -9,8 +11,9 @@ function parse_events(events::Vector{PEtabEvent}, sys::ModelSystem)::Dict{String
     return sbml_events
 end
 
-function _parse_event(event::PEtabEvent, name::String,
-                      sys::ModelSystem)::SBMLImporter.EventSBML
+function _parse_event(
+        event::PEtabEvent, name::String, sys::ModelSystem
+    )::SBMLImporter.EventSBML
     @unpack condition, target_ids, target_values = event
 
     state_ids = _get_state_ids(sys) .|> string
@@ -42,6 +45,8 @@ function _parse_event(event::PEtabEvent, name::String,
     end
 
     formulas = replace.(target_ids .* " = " .* target_values, "(t)" => "")
-    return SBMLImporter.EventSBML(name, condition, formulas, true, false, false, false,
-                                  false, false, false, false)
+    return SBMLImporter.EventSBML(
+        name, condition, formulas, true, false, false, false,
+        false, false, false, false
+    )
 end

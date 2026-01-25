@@ -1,6 +1,6 @@
 function nllh(
         x::Vector{T}, probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
-            cids::Vector{Symbol}, hess::Bool, residuals::Bool
+        cids::Vector{Symbol}, hess::Bool, residuals::Bool
     )::T where {T <: Real}
     xdynamic, xobservable, xnoise, xnondynamic_mech, x_ml_models = split_x(
         x, model_info.xindices, probinfo.cache
@@ -152,20 +152,23 @@ function _nllh_cond(
             u, t, p, xobservable, xnondynamic_mech, x_ml_models, x_ml_models_constant,
             model, xobservable_maps, obsid, nominal_values
         )
-        σ = _sd(u, t, p, xnoise, xnondynamic_mech, x_ml_models, x_ml_models_constant,
+        σ = _sd(
+            u, t, p, xnoise, xnondynamic_mech, x_ml_models, x_ml_models_constant,
             model, xnoise_maps, obsid, nominal_values
         )
         h_transformed = _transform_h(h, noise_distribution)
 
         residual = (h_transformed - measurements_transformed[imeasurement]) / σ
-        update_petab_measurements!(petab_measurements, h, h_transformed, σ, residual,
-                                   imeasurement)
+        update_petab_measurements!(
+            petab_measurements, h, h_transformed, σ, residual,
+            imeasurement
+        )
 
         # By default a positive ODE solution is not enforced. Therefore it is possible
         # to get negative numbers in h_transformed which would throw an error
         if isinf(h_transformed)
             @warn "Transformed observable is non-finite for measurement \
-                $imeasurement"  maxlog=20
+                $imeasurement"  maxlog = 20
             return Inf
         end
         if σ ≤ 0.0
@@ -173,7 +176,7 @@ function _nllh_cond(
                  so Inf will be returned. It is recommended to adjust the noise formula \
                  in the PEtab observable to ensure σ > 0. This warning is likely due to \
                  ODE-solver round-off error and, if it occurs only rarely, can usually be \
-                 safely ignored." maxlog=20
+                 safely ignored." maxlog = 20
             return Inf
         end
 
@@ -193,16 +196,18 @@ function _nllh_obs(h::Real, σ::Real, y::Float64, distribution::Symbol)::Real
     return logpdf(_dist, y) .* -1
 end
 
-function update_petab_measurements!(petab_measurements::PEtabMeasurements, h::T, hT::T,
-                                    σ::Real, res::T,
-                                    imeasurement::Integer)::Nothing where {T <:
-                                                                           AbstractFloat}
+function update_petab_measurements!(
+        petab_measurements::PEtabMeasurements, h::T, hT::T, σ::Real, res::T,
+        imeasurement::Integer
+    )::Nothing where {T <: AbstractFloat}
     petab_measurements.simulated_values[imeasurement] = h
     mT = petab_measurements.measurements_transformed[imeasurement]
     petab_measurements.chi2_values[imeasurement] = (hT - mT)^2 / σ^2
     petab_measurements.residuals[imeasurement] = res
     return nothing
 end
-function update_petab_measurements!(::PEtabMeasurements, ::Any, ::Any, ::Any, ::Any, ::Any)::Nothing
+function update_petab_measurements!(
+        ::PEtabMeasurements, ::Any, ::Any, ::Any, ::Any, ::Any
+    )::Nothing
     return nothing
 end

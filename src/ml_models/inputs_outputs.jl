@@ -21,7 +21,9 @@ function _get_ml_model_io_petab_ids(
         all(isnothing.(matches)) && break
 
         df_match = mappings_df[.!isnothing.(matches), :]
-        is = sortperm(df_match.modelEntityId, by = x -> parse(Int, match(regex, x).captures[1]))
+        is = sortperm(
+            df_match.modelEntityId, by = x -> parse(Int, match(regex, x).captures[1])
+        )
         push!(out, df_match[is, :petabEntityId])
     end
     return out

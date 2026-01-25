@@ -31,7 +31,7 @@ function PEtab.MLModel(
         st = nothing, dir_data = nothing, outputs::Vector{T} = Symbol[],
         inputs::Union{Vector{T}, Tuple, Array{<:Real}} = Symbol[],
         freeze_info::Union{Nothing, Dict} = nothing
-    )::MLModel where T <: Union{String, Symbol}
+    )::MLModel where {T <: Union{String, Symbol}}
 
     rng = Random.default_rng()
     st = (isnothing(st) ? Lux.initialstates(rng, lux_model) : st) |> f64

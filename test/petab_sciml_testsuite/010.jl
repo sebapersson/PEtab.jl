@@ -45,7 +45,7 @@ function _lv10!(du, u, p, t, ml_models)
     net2.st = st
 
     du[1] = du2_nn[1] - beta * prey * predator # prey
-    du[2] = du1_nn[1] - delta*predator # predator
+    du[2] = du1_nn[1] - delta * predator # predator
     return nothing
 end
 
@@ -53,19 +53,19 @@ lv10! = let _ml_models = ml_models
     (du, u, p, t) -> _lv10!(du, u, p, t, _ml_models)
 end
 p_mechanistic = (alpha = 1.3, delta = 1.8, beta = 0.9)
-p_ode = ComponentArray(merge(p_mechanistic, (net1=pnn1, net2=pnn2)))
+p_ode = ComponentArray(merge(p_mechanistic, (net1 = pnn1, net2 = pnn2)))
 u0 = ComponentArray(prey = 0.44249296, predator = 4.6280594)
 uprob = ODEProblem(lv10!, u0, (0.0, 10.0), p_ode)
 
 p_beta = PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9)
 p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)
-p_net1 = PEtabMLParameter(:net1; value =  pnn1)
-p_net2 = PEtabMLParameter(:net2; value =  pnn2)
+p_net1 = PEtabMLParameter(:net1; value = pnn1)
+p_net2 = PEtabMLParameter(:net2; value = pnn2)
 pest = [p_beta, p_delta, p_net1, p_net2]
 
 observables = [
     PEtabObservable(:prey_o, :prey, 0.05),
-    PEtabObservable(:predator_o, :predator, 0.05)
+    PEtabObservable(:predator_o, :predator, 0.05),
 ]
 
 conditions = PEtabCondition(:e1)

@@ -1,5 +1,8 @@
-function PEtab._set_ml_model_ps!(ps::ComponentArray, path_h5::String, lux_model, ml_id::Symbol)::Nothing
+function PEtab._set_ml_model_ps!(
+        ps::ComponentArray, path_h5::String, lux_model, ml_id::Symbol
+    )::Nothing
     file = h5open(path_h5, "r")
+
     net_parameters = file["parameters"]["$(ml_id)"]
     st = Lux.initialstates(Random.default_rng(1), lux_model)
     for (layerid, layer) in pairs(lux_model.layers)
@@ -12,11 +15,16 @@ function PEtab._set_ml_model_ps!(ps::ComponentArray, path_h5::String, lux_model,
     return nothing
 end
 
-function _set_ps_layer!(ps::ComponentArray, layer::Lux.Experimental.FrozenLayer, st_layer::NamedTuple, file_group)::Nothing
+function _set_ps_layer!(
+        ps::ComponentArray, layer::Lux.Experimental.FrozenLayer, st_layer::NamedTuple,
+        file_group
+    )::Nothing
     _set_ps_layer!(ps, layer.layer, st_layer, file_group)
     return nothing
 end
-function _set_ps_layer!(ps::ComponentArray, layer::Lux.Dense, st_layer::NamedTuple, file_group)::Nothing
+function _set_ps_layer!(
+        ps::ComponentArray, layer::Lux.Dense, st_layer::NamedTuple, file_group
+    )::Nothing
     @unpack in_dims, out_dims, use_bias = layer
     if _is_frozen(st_layer, :weight) == false
         @assert size(ps.weight) == (out_dims, in_dims) "Error in dimension of weights for Dense layer"
@@ -25,13 +33,15 @@ function _set_ps_layer!(ps::ComponentArray, layer::Lux.Dense, st_layer::NamedTup
     end
     if _is_frozen(st_layer, :bias) == false
         use_bias == false && return nothing
-        @assert size(ps.bias) == (out_dims, ) "Error in dimension of bias for Dense layer"
+        @assert size(ps.bias) == (out_dims,) "Error in dimension of bias for Dense layer"
         ps_bias = _get_ps_layer(file_group, :bias)
         _set_ps_array!(ps, :bias, ps_bias)
     end
     return nothing
 end
-function _set_ps_layer!(ps::ComponentArray, layer::Lux.Bilinear, st_layer::NamedTuple, file_group)::Nothing
+function _set_ps_layer!(
+        ps::ComponentArray, layer::Lux.Bilinear, st_layer::NamedTuple, file_group
+    )::Nothing
     @unpack in1_dims, in2_dims, out_dims, use_bias = layer
     if _is_frozen(st_layer, :weight) == false
         @assert size(ps.weight) == (out_dims, in1_dims, in2_dims) "Error in dimension of weights for Bilinear layer"
@@ -40,16 +50,19 @@ function _set_ps_layer!(ps::ComponentArray, layer::Lux.Bilinear, st_layer::Named
     end
     if _is_frozen(st_layer, :bias) == false
         use_bias == false && return nothing
-        @assert size(ps.bias) == (out_dims, ) "Error in dimension of bias for Dense layer"
+        @assert size(ps.bias) == (out_dims,) "Error in dimension of bias for Dense layer"
         ps_bias = _get_ps_layer(file_group, :bias)
         _set_ps_array!(ps, :bias, ps_bias)
     end
     return nothing
 end
-function _set_ps_layer!(ps::ComponentArray, layer::Lux.Conv, st_layer::NamedTuple, file_group)::Nothing
+function _set_ps_layer!(
+        ps::ComponentArray, layer::Lux.Conv, st_layer::NamedTuple, file_group
+    )::Nothing
     @unpack kernel_size, use_bias, in_chs, out_chs = layer
     if _is_frozen(st_layer, :weight) == false
-        @assert size(ps.weight) == (kernel_size..., in_chs, out_chs) "Error in dimension of weights for Conv layer"
+        @assert size(ps.weight) == (kernel_size..., in_chs, out_chs) "Error in dimension \
+            of weights for Conv layer"
         _ps_weight = _get_ps_layer(file_group, :weight)
         if length(kernel_size) == 1
             ps_weight = PEtab._reshape_array(_ps_weight, CONV1D_MAP)
@@ -62,16 +75,19 @@ function _set_ps_layer!(ps::ComponentArray, layer::Lux.Conv, st_layer::NamedTupl
     end
     if _is_frozen(st_layer, :bias) == false
         use_bias == false && return nothing
-        @assert size(ps.bias) == (out_chs, ) "Error in dimension of bias for Conv layer"
+        @assert size(ps.bias) == (out_chs,) "Error in dimension of bias for Conv layer"
         ps_bias = _get_ps_layer(file_group, :bias)
         _set_ps_array!(ps, :bias, ps_bias)
     end
     return nothing
 end
-function _set_ps_layer!(ps::ComponentArray, layer::Lux.ConvTranspose, st_layer::NamedTuple, file_group)::Nothing
+function _set_ps_layer!(
+        ps::ComponentArray, layer::Lux.ConvTranspose, st_layer::NamedTuple, file_group
+    )::Nothing
     @unpack kernel_size, use_bias, in_chs, out_chs = layer
     if _is_frozen(st_layer, :weight) == false
-        @assert size(ps.weight) == (kernel_size..., out_chs, in_chs) "Error in dimension of weights for ConvTranspose layer"
+        @assert size(ps.weight) == (kernel_size..., out_chs, in_chs) "Error in dimension \
+            of weights for ConvTranspose layer"
         _ps_weight = _get_ps_layer(file_group, :weight)
         if length(kernel_size) == 1
             ps_weight = PEtab._reshape_array(_ps_weight, CONV1D_MAP)
@@ -84,29 +100,37 @@ function _set_ps_layer!(ps::ComponentArray, layer::Lux.ConvTranspose, st_layer::
     end
     if _is_frozen(st_layer, :bias) == false
         use_bias == false && return nothing
-        @assert size(ps.bias) == (out_chs, ) "Error in dimension of bias for ConvTranspose layer"
+        @assert size(ps.bias) == (out_chs,) "Error in dimension of bias for \
+            ConvTranspose layer"
         ps_bias = _get_ps_layer(file_group, :bias)
         _set_ps_array!(ps, :bias, ps_bias)
     end
     return nothing
 end
-function _set_ps_layer!(ps::ComponentArray, layer::Union{Lux.BatchNorm, Lux.InstanceNorm}, st_layer::NamedTuple, file_group)::Nothing
+function _set_ps_layer!(
+        ps::ComponentArray, layer::Union{Lux.BatchNorm, Lux.InstanceNorm},
+        st_layer::NamedTuple, file_group
+    )::Nothing
     @unpack affine, chs = layer
     affine == false && return nothing
     # In Lux.jl the weight is named scale
     if _is_frozen(st_layer, :scale) == false
-        @assert size(ps.scale) == (chs,) "Error in dimension of scale for $(typeof(layer)) layer"
+        @assert size(ps.scale) == (chs,) "Error in dimension of scale for $(typeof(layer)) \
+            layer"
         ps_scale = _get_ps_layer(file_group, :weight)
         _set_ps_array!(ps, :scale, ps_scale)
     end
     if _is_frozen(st_layer, :bias) == false
-        @assert size(ps.bias) == (chs,) "Error in dimension of scale for $(typeof(layer)) layer"
+        @assert size(ps.bias) == (chs,) "Error in dimension of scale for $(typeof(layer)) \
+            layer"
         ps_bias = _get_ps_layer(file_group, :bias)
         _set_ps_array!(ps, :bias, ps_bias)
     end
     return nothing
 end
-function _set_ps_layer!(ps::ComponentArray, layer::Lux.LayerNorm, st_layer::NamedTuple, file_group)::Nothing
+function _set_ps_layer!(
+        ps::ComponentArray, layer::Lux.LayerNorm, st_layer::NamedTuple, file_group
+    )::Nothing
     @unpack shape, affine = layer
     affine == false && return nothing
     @assert length(shape) ≤ 4 "To many input dimensions for LayerNorm"
@@ -128,7 +152,8 @@ function _set_ps_layer!(ps::ComponentArray, layer::Lux.LayerNorm, st_layer::Name
         _set_ps_array!(ps, :scale, ps_scale)
     end
     if _is_frozen(st_layer, :bias) == false
-        @assert size(ps.bias) == (shape..., 1) "Error in dimension of bias for LayerNorm layer"
+        @assert size(ps.bias) == (shape..., 1) "Error in dimension of bias for \
+            LayerNorm layer"
         _ps_bias = _get_ps_layer(file_group, :bias)
         if length(shape) == 4
             ps_bias = PEtab._reshape_array(_ps_bias, LAYERNORM4_MAP)
@@ -143,7 +168,9 @@ function _set_ps_layer!(ps::ComponentArray, layer::Lux.LayerNorm, st_layer::Name
     end
     return nothing
 end
-function _set_ps_layer!(::ComponentArray, ::PS_FREE_LAYERS, ::NamedTuple, ::DataFrame)::Nothing
+function _set_ps_layer!(
+        ::ComponentArray, ::PS_FREE_LAYERS, ::NamedTuple, ::DataFrame
+    )::Nothing
     return nothing
 end
 
@@ -157,7 +184,9 @@ function _get_ps_layer(file_group, which::Symbol)
     return permutedims(ps, reverse(1:ndims(ps)))
 end
 
-function _set_ps_array!(ps::ComponentArray, id::Symbol, value::Array{<:AbstractFloat})::Nothing
+function _set_ps_array!(
+        ps::ComponentArray, id::Symbol, value::Array{<:AbstractFloat}
+    )::Nothing
     # Happens when a layer if frozen
     isempty(ps[id]) && return nothing
     @views ps[id] .= value

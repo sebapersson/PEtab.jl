@@ -15,15 +15,15 @@ end
 
 #### LogLaplace
 function Base.convert(::Type{LogLaplace{T}}, μ::S, θ::S) where {T <: Real, S <: Real}
-    LogLaplace(T(μ), T(θ))
+    return LogLaplace(T(μ), T(θ))
 end
-function Base.convert(::Type{LogLaplace{T}}, d::LogLaplace) where {T<:Real}
-    LogLaplace{T}(T(d.μ), T(d.θ))
+function Base.convert(::Type{LogLaplace{T}}, d::LogLaplace) where {T <: Real}
+    return LogLaplace{T}(T(d.μ), T(d.θ))
 end
-Base.convert(::Type{Laplace{T}}, d::LogLaplace{T}) where {T<:Real} = d
+Base.convert(::Type{Laplace{T}}, d::LogLaplace{T}) where {T <: Real} = d
 
 Distributions.params(d::LogLaplace) = (d.μ, d.θ)
-@inline Distributions.partype(d::LogLaplace{T}) where {T<:Real} = T
+@inline Distributions.partype(d::LogLaplace{T}) where {T <: Real} = T
 
 Distributions.median(d::LogLaplace) = exp(d.μ)
 

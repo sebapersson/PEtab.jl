@@ -1,5 +1,5 @@
 using SciMLBase, Lux, ComponentArrays, PEtab, CSV, DataFrames, YAML, Distributions,
-      OrdinaryDiffEqRosenbrock, SciMLSensitivity, HDF5, Test
+    OrdinaryDiffEqRosenbrock, SciMLSensitivity, HDF5, Test
 using Catalyst: @unpack
 import Random
 import PEtab: MLModel, PEtabMLParameter
@@ -12,7 +12,7 @@ PROB_CONFIGS = [
     (grad = :ForwardEquations, split = false, sensealg = :ForwardDiff),
     (grad = :ForwardEquations, split = true, sensealg = :ForwardDiff),
     (grad = :ForwardEquations, split = true, sensealg = ForwardSensitivity()),
-    (grad = :Adjoint, split = true, sensealg = InterpolatingAdjoint(autojacvec=ReverseDiffVJP(true)))
+    (grad = :Adjoint, split = true, sensealg = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true))),
 ]
 
 function test_hybrid(test_case, petab_prob::PEtabODEProblem)
@@ -41,13 +41,13 @@ function test_hybrid(test_case, petab_prob::PEtabODEProblem)
     llh_petab = petab_prob.nllh(x) * -1
     grad_petab = petab_prob.grad(x) .* -1
     sim_petab = petab_prob.simulated_values(x)
-    @test llh_petab ≈ objective_ref atol=tol_objective
-    @test all(.≈(sim_petab, simref.simulation; atol=tol_sim))
+    @test llh_petab ≈ objective_ref atol = tol_objective
+    @test all(.≈(sim_petab, simref.simulation; atol = tol_sim))
     # Mechanistic parameters in gradient
     mechids = get_mechanistic_ids(petab_prob.model_info)
     for id in mechids
         iref = findfirst(x -> string(x) == "$id", gradmech_ref[!, :parameterId])
-        @test grad_petab[id] ≈ gradmech_ref[iref, :value] atol=tol_grad
+        @test grad_petab[id] ≈ gradmech_ref[iref, :value] atol = tol_grad
     end
     # Neural-net parameters
     for ml_model in petab_prob.model_info.model.ml_models.ml_models
@@ -57,13 +57,13 @@ function test_hybrid(test_case, petab_prob::PEtabODEProblem)
         path_ref = joinpath(dirtest, yamlfile["grad_files"][string(ml_id)])
         grad_ref = deepcopy(grad_test)
         PEtab._set_ml_model_ps!(grad_ref, path_ref, ml_model.lux_model, ml_id)
-        @test all(.≈(grad_test, grad_ref; atol=tol_grad))
+        @test all(.≈(grad_test, grad_ref; atol = tol_grad))
     end
     return nothing
 end
 
 function test_init(test_case, model::PEtabModel)::Nothing
-    osolver = ODESolver(Rodas5P(autodiff = false), abstol = 1e-10, reltol = 1e-10)
+    osolver = ODESolver(Rodas5P(autodiff = false), abstol = 1.0e-10, reltol = 1.0e-10)
     petab_prob = PEtabODEProblem(model; odesolver = osolver, gradient_method = :ForwardDiff)
     x = get_x(petab_prob)
 
@@ -82,8 +82,10 @@ end
 
 function test_netimport(testcase, ml_model)::Nothing
     @info "Case $testcase"
-    if testcase in ["003", "004", "005", "006", "007", "008", "009", "010", "014",
-                    "015", "016", "017", "021", "022"]
+    if testcase in [
+            "003", "004", "005", "006", "007", "008", "009", "010", "014",
+            "015", "016", "017", "021", "022",
+        ]
         needs_batch = true
     else
         needs_batch = false
@@ -136,7 +138,7 @@ function test_netimport(testcase, ml_model)::Nothing
         end
 
         if haskey(yaml_test, "dropout")
-            testtol = 2e-2
+            testtol = 2.0e-2
             output = zeros(size(output_ref))
             nsamples = yaml_test["dropout"]
             for i in 1:nsamples
@@ -145,7 +147,7 @@ function test_netimport(testcase, ml_model)::Nothing
             end
             output ./= nsamples
         else
-            testtol = 1e-3
+            testtol = 1.0e-3
             output, st = ml_model(input, ps, st)
         end
         @test all(.≈(output, output_ref; atol = testtol))
@@ -164,7 +166,7 @@ end
 
 function parse_array(
         x::Array{T}, order_jl::Vector{String}, order_py::Vector{String}
-    )::Array{T} where T <: AbstractFloat
+    )::Array{T} where {T <: AbstractFloat}
     # To column-major
     out = permutedims(x, reverse(1:ndims(x)))
     length(size(out)) == 1 && return out

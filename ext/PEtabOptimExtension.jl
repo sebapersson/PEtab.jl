@@ -10,7 +10,7 @@ using PEtab
 
 const DEFAULT_OPT = Optim.Options(
     iterations = 1000, show_trace = false, allow_f_increases = true, successive_f_tol = 3,
-    f_reltol = 1e-8, g_tol = 1e-6, x_abstol = 0.0
+    f_reltol = 1.0e-8, g_tol = 1.0e-6, x_abstol = 0.0
 )
 
 const SUPPORTED_ALGS = Union{Optim.LBFGS, Optim.BFGS, Optim.IPNewton}
@@ -30,13 +30,14 @@ function PEtab.calibrate_multistart(
     )
 end
 
-function PEtab.calibrate(prob::PEtabODEProblem,
-                         x::Union{Vector{<:AbstractFloat}, ComponentArray},
-                         alg::Union{Optim.LBFGS, Optim.BFGS, Optim.IPNewton};
-                         save_trace::Bool = false,
-                         options::Optim.Options = DEFAULT_OPT)::PEtab.PEtabOptimisationResult
+function PEtab.calibrate(
+        prob::PEtabODEProblem, x::Union{Vector{<:AbstractFloat}, ComponentArray},
+        alg::Union{Optim.LBFGS, Optim.BFGS, Optim.IPNewton}; save_trace::Bool = false,
+        options::Optim.Options = DEFAULT_OPT
+    )::PEtab.PEtabOptimisationResult
     options = @set options.store_trace = save_trace
     options = @set options.extended_trace = save_trace
+
     xstart = x |> collect
     optim_problem = _get_optim_problem(prob, alg, options)
 
@@ -76,8 +77,10 @@ function PEtab.calibrate(prob::PEtabODEProblem,
     elseif alg isa Optim.LBFGS
         alg_used = :Optim_LBFGS
     end
-    return PEtabOptimisationResult(xmin, fmin, xstart, alg_used, niterations, runtime,
-                                   xtrace, ftrace, converged, res)
+    return PEtabOptimisationResult(
+        xmin, fmin, xstart, alg_used, niterations, runtime,
+        xtrace, ftrace, converged, res
+    )
 end
 
 function _get_optim_problem(prob::PEtabODEProblem, alg, options::Optim.Options)::Function
@@ -88,8 +91,9 @@ function _get_optim_problem(prob::PEtabODEProblem, alg, options::Optim.Options):
     end
 end
 
-function _optim_IPNewton(prob::PEtabODEProblem, alg::Optim.IPNewton,
-                         options::Optim.Options)::Function
+function _optim_IPNewton(
+        prob::PEtabODEProblem, alg::Optim.IPNewton, options::Optim.Options
+    )::Function
     @unpack lower_bounds, upper_bounds = prob
     lb = lower_bounds |> collect
     ub = upper_bounds |> collect
@@ -102,8 +106,8 @@ function _optim_IPNewton(prob::PEtabODEProblem, alg::Optim.IPNewton,
         # Move points within bounds, and IPNewton does not accept points on the border
         ibelow = x .<= prob.lower_bounds
         iabove = x .>= prob.upper_bounds
-        x[ibelow] .= prob.lower_bounds[ibelow] .+ 1e-6
-        x[iabove] .= prob.upper_bounds[iabove] .- 1e-6
+        x[ibelow] .= prob.lower_bounds[ibelow] .+ 1.0e-6
+        x[iabove] .= prob.upper_bounds[iabove] .- 1.0e-6
         # Need to evaluate nllh to be able to compute the Hessian
         df.f(x)
         return Optim.optimize(df, dfc, x, alg, options)
@@ -116,8 +120,10 @@ function _optim_fminbox(prob::PEtabODEProblem, alg, options::Optim.Options)::Fun
     lb = lower_bounds |> collect
     ub = upper_bounds |> collect
 
-    _calibrate = (x) -> Optim.optimize(prob.nllh, prob.grad!, lb, ub, x, Optim.Fminbox(alg),
-                                       options)
+    _calibrate = (x) -> Optim.optimize(
+        prob.nllh, prob.grad!, lb, ub, x, Optim.Fminbox(alg),
+        options
+    )
     return _calibrate
 end
 

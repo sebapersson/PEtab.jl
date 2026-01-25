@@ -1,5 +1,6 @@
-function prior(x::Vector{T}, xnames::Vector{Symbol}, priors::Priors,
-               xindices::ParameterIndices)::T where {T <: Real}
+function prior(
+        x::Vector{T}, xnames::Vector{Symbol}, priors::Priors, xindices::ParameterIndices
+    )::T where {T <: Real}
     if isempty(priors.ix_prior)
         return 0.0
     end

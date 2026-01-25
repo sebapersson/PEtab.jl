@@ -2,7 +2,7 @@ using PEtab, Sundials, OrdinaryDiffEqRosenbrock, StyledStrings, NonlinearSolve,
     Distributions, Catalyst, Test
 
 solver1 = ODESolver(Rodas5P())
-solver2 = ODESolver(CVODE_BDF(); abstol = 1e-3, reltol = 1e-8, maxiters = 1000)
+solver2 = ODESolver(CVODE_BDF(); abstol = 1.0e-3, reltol = 1.0e-8, maxiters = 1000)
 @test "$solver1" == "ODESolver Rodas5P: abstol=1.0e-08, reltol=1.0e-08, maxiters=1e+04"
 @test "$solver2" == "ODESolver CVODE_BDF: abstol=1.0e-03, reltol=1.0e-08, maxiters=1e+03"
 
@@ -15,7 +15,9 @@ ss_solver3 = SteadyStateSolver(:Rootfinding)
 
 p1 = PEtabParameter(:k1)
 p2 = PEtabParameter(:k2; scale = :lin)
-p3 = PEtabParameter(:k3; scale = :log, lb = 1e-2, ub = 1000.0, prior = LogNormal(1.0, 1.0))
+p3 = PEtabParameter(
+    :k3; scale = :log, lb = 1.0e-2, ub = 1000.0, prior = LogNormal(1.0, 1.0)
+)
 p4 = PEtabParameter(:k4; scale = :lin, prior = LogNormal(1.0, 1.0))
 p5 = PEtabParameter(:k5; value = 3.0, estimate = false)
 @test "$p1" == "PEtabParameter k1: estimate (scale = log10, bounds = [1.0e-03, 1.0e+03])"
@@ -65,8 +67,12 @@ event4 = PEtabEvent(3.0, B => B + 2)
 @test "$event3" == "PEtabEvent when A(t) <= 4.0: B(t) => 2 + B(t)"
 @test "$event4" == "PEtabEvent when t == 3.0: B(t) => 2 + B(t)"
 
-path1 = joinpath(@__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
-path2 = joinpath(@__DIR__, "published_models", "Brannmark_JBC2010", "Brannmark_JBC2010.yaml")
+path1 = joinpath(
+    @__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml"
+)
+path2 = joinpath(
+    @__DIR__, "published_models", "Brannmark_JBC2010", "Brannmark_JBC2010.yaml"
+)
 model1 = PEtabModel(path1; build_julia_files = true, verbose = false, write_to_file = false)
 model2 = PEtabModel(path2; build_julia_files = true, verbose = false, write_to_file = true)
 @test "$model1" == "PEtabModel Boehm_JProteomeRes2014"

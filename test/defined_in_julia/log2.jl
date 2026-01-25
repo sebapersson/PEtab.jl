@@ -3,23 +3,27 @@
 =#
 
 rn = @reaction_network begin
-    @species A(t)=1.0 B(t)=0.0
+    @species A(t) = 1.0 B(t) = 0.0
     (k1, k2), A <--> B
 end
 
 # Measurement data
-measurements = DataFrame(obs_id=["obs_a", "obs_a"],
-                         time=[0, 10.0],
-                         measurement=[0.7, 0.1],
-                         noise_parameters=0.5)
+measurements = DataFrame(
+    obs_id = ["obs_a", "obs_a"],
+    time = [0, 10.0],
+    measurement = [0.7, 0.1],
+    noise_parameters = 0.5
+)
 
 # PEtab-parameter to "estimate"
-parameters = [PEtabParameter(:k1, value=0.8, scale=:log2),
-              PEtabParameter(:k2, value=0.6, scale=:log2)]
+parameters = [
+    PEtabParameter(:k1, value = 0.8, scale = :log2),
+    PEtabParameter(:k2, value = 0.6, scale = :log2),
+]
 
 # Observable equation
 @unpack A = rn
-observables = PEtabObservable("obs_a", A, 0.5; distribution=PEtab.Log2Normal)
+observables = PEtabObservable("obs_a", A, 0.5; distribution = PEtab.Log2Normal)
 
 # Create a PEtabODEProblem ReactionNetwork
 model_rn = PEtabModel(rn, observables, measurements, parameters)
@@ -28,14 +32,14 @@ x = get_x(petab_prob_rn)
 
 # Reference nllh computed by "hand"
 m = measurements.measurement
-res2 = ((log2.(petab_prob_rn.simulated_values(x)) - log2.(m)) ./ 0.5).^2
-nllh_ref = sum(0.5*log(2π) + log(log(2)) + log(0.5) .+ log.(m) .+ 0.5 .* res2)
+res2 = ((log2.(petab_prob_rn.simulated_values(x)) - log2.(m)) ./ 0.5) .^ 2
+nllh_ref = sum(0.5 * log(2π) + log(log(2)) + log(0.5) .+ log.(m) .+ 0.5 .* res2)
 
 # Compute negative log-likelihood
 nllh_rn = petab_prob_rn.nllh(x)
-@test nllh_ref ≈ nllh_rn atol=1e-3
+@test nllh_ref ≈ nllh_rn atol = 1.0e-3
 
 # Check that gradients are transformed correctly
 gref = ForwardDiff.gradient(petab_prob_rn.nllh, x) |> collect
 gtest = petab_prob_rn.grad(x) |> collect
-@test all(.≈(gref, gtest; atol=1e-3))
+@test all(.≈(gref, gtest; atol = 1.0e-3))

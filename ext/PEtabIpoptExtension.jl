@@ -21,13 +21,14 @@ function PEtab.calibrate_multistart(
     )
 end
 
-function PEtab.calibrate(prob::PEtabODEProblem,
-                         x::Union{Vector{<:AbstractFloat}, ComponentArray},
-                         alg::IpoptOptimizer; save_trace::Bool = false,
-                         options::IpoptOptions = IpoptOptions())::PEtab.PEtabOptimisationResult
-    xstart = x |> collect
-    ipopt_prob, iters, ftrace, xtrace = _get_ipopt_prob(prob, alg.LBFGS, save_trace,
-                                                        options)
+function PEtab.calibrate(
+        prob::PEtabODEProblem, x::Union{Vector{<:AbstractFloat}, ComponentArray},
+        alg::IpoptOptimizer; save_trace::Bool = false, options::IpoptOptions = IpoptOptions()
+    )::PEtab.PEtabOptimisationResult
+    xstart = collect(x)
+    ipopt_prob, iters, ftrace, xtrace = _get_ipopt_prob(
+        prob, alg.LBFGS, save_trace, options
+    )
     # Ipopt mutates input vector
     ipopt_prob.x = xstart |> deepcopy
 
@@ -58,12 +59,15 @@ function PEtab.calibrate(prob::PEtabODEProblem,
     else
         alg_used = :Ipopt_user_Hessian
     end
-    return PEtabOptimisationResult(xmin, fmin, xstart, alg_used, niterations, runtime,
-                                   xtrace, ftrace, converged, sol_ipopt)
+    return PEtabOptimisationResult(
+        xmin, fmin, xstart, alg_used, niterations, runtime,
+        xtrace, ftrace, converged, sol_ipopt
+    )
 end
 
-function _get_ipopt_prob(prob::PEtabODEProblem, LBFGS::Bool, save_trace::Bool,
-                         options::PEtab.IpoptOptions)
+function _get_ipopt_prob(
+        prob::PEtabODEProblem, LBFGS::Bool, save_trace::Bool, options::PEtab.IpoptOptions
+    )
     @unpack lower_bounds, upper_bounds = prob
     lb = lower_bounds |> collect
     ub = upper_bounds |> collect
@@ -73,10 +77,9 @@ function _get_ipopt_prob(prob::PEtabODEProblem, LBFGS::Bool, save_trace::Bool,
     if LBFGS == true
         eval_hess! = _hess_empty!
     else
-        eval_hess! = (x, rows, cols, obj_factor, λ, values) -> _hess!(x, rows, cols,
-                                                                      obj_factor, λ,
-                                                                      values, nparameters,
-                                                                      prob.hess!)
+        eval_hess! = (x, rows, cols, obj_factor, λ, values) -> _hess!(
+            x, rows, cols, obj_factor, λ, values, nparameters, prob.hess!
+        )
     end
     eval_grad! = (x, grad) -> prob.grad!(grad, x)
 
@@ -85,20 +88,24 @@ function _get_ipopt_prob(prob::PEtabODEProblem, LBFGS::Bool, save_trace::Bool,
     # No inequality constraints assumed (can be added in future)
     g_l = Float64[]
     g_u = Float64[]
-    ipopt_prob = Ipopt.CreateIpoptProblem(nparameters, lb, ub, m, g_l, g_u, 0,
-                                          nparameters_hessian, prob.nllh, eval_g!,
-                                          eval_grad!, eval_jac_g!, eval_hess!)
+    ipopt_prob = Ipopt.CreateIpoptProblem(
+        nparameters, lb, ub, m, g_l, g_u, 0, nparameters_hessian, prob.nllh, eval_g!,
+        eval_grad!, eval_jac_g!, eval_hess!
+    )
     # Ipopt does not allow the iteration count to be stored directly. Thus the iteration
     # is stored in an array which is updated in the Ipopt callback
     # is sent into the Ipopt callback function.
     iters = ones(Int64, 1)
     ftrace = Vector{Float64}(undef, 0)
     xtrace = Vector{Vector{Float64}}(undef, 0)
-    _intermediate = (alg_mod, iter_count, obj_value, inf_pr, inf_du, mu, d_norm,
-    regularization_size, alpha_du, alpha_pr, ls_trials) -> begin
-        intermediate_ipopt(alg_mod, iter_count, obj_value, inf_pr, inf_du, mu, d_norm,
-                           regularization_size, alpha_du, alpha_pr, ls_trials, iters,
-                           ipopt_prob, save_trace, ftrace, xtrace)
+    _intermediate = (
+        alg_mod, iter_count, obj_value, inf_pr, inf_du, mu, d_norm,
+        regularization_size, alpha_du, alpha_pr, ls_trials,
+    ) -> begin
+        intermediate_ipopt(
+            alg_mod, iter_count, obj_value, inf_pr, inf_du, mu, d_norm, regularization_size,
+            alpha_du, alpha_pr, ls_trials, iters, ipopt_prob, save_trace, ftrace, xtrace
+        )
     end
     Ipopt.SetIntermediateCallback(ipopt_prob, _intermediate)
 
@@ -111,15 +118,17 @@ function _get_ipopt_prob(prob::PEtabODEProblem, LBFGS::Bool, save_trace::Bool,
     Ipopt.AddIpoptNumOption(ipopt_prob, "tol", options.tol)
     Ipopt.AddIpoptNumOption(ipopt_prob, "acceptable_tol", options.acceptable_tol)
     Ipopt.AddIpoptNumOption(ipopt_prob, "max_wall_time", options.max_wall_time)
-    Ipopt.AddIpoptNumOption(ipopt_prob, "acceptable_obj_change_tol",
-                            options.acceptable_obj_change_tol)
+    Ipopt.AddIpoptNumOption(
+        ipopt_prob, "acceptable_obj_change_tol", options.acceptable_obj_change_tol
+    )
     return ipopt_prob, iters, ftrace, xtrace
 end
 
-function _hess!(x::Vector{Float64}, rows::Vector{Int32}, cols::Vector{Int32},
-                obj_factor::Float64, λ::Vector{Float64},
-                values::Union{Nothing, Vector{Float64}},
-                nparameters::Integer, hess!::Function)
+function _hess!(
+        x::Vector{Float64}, rows::Vector{Int32}, cols::Vector{Int32}, obj_factor::Float64,
+        λ::Vector{Float64}, values::Union{Nothing, Vector{Float64}}, nparameters::Integer,
+        hess!::Function
+    )
     idx::Int32 = 0
     if values === nothing
         # Symmetric matrix, fill the lower left triangle only
@@ -147,15 +156,18 @@ function _hess!(x::Vector{Float64}, rows::Vector{Int32}, cols::Vector{Int32},
 end
 
 # In case of of BFGS gradient provide Ipopt with empty hessian struct.
-function _hess_empty!(x_arg::Vector{Float64}, rows::Vector{Int32}, cols::Vector{Int32},
-                      obj_factor::Float64, λ::Vector{Float64},
-                      values::Union{Nothing, Vector{Float64}})
+function _hess_empty!(
+        x_arg::Vector{Float64}, rows::Vector{Int32}, cols::Vector{Int32},
+        obj_factor::Float64, λ::Vector{Float64}, values::Union{Nothing, Vector{Float64}}
+    )
     return nothing
 end
 
 # These function wraps and handles constraints. TODO: Allow optimization under inequality constraints
-function eval_jac_g!(x::Vector{Float64}, rows::Vector{Int32}, cols::Vector{Int32},
-                     values::Union{Nothing, Vector{Float64}})
+function eval_jac_g!(
+        x::Vector{Float64}, rows::Vector{Int32}, cols::Vector{Int32},
+        values::Union{Nothing, Vector{Float64}}
+    )
     return
 end
 function eval_g!(x::Vector{Float64}, g::Vector{Float64})
@@ -163,12 +175,13 @@ function eval_g!(x::Vector{Float64}, g::Vector{Float64})
 end
 
 # Callback for Ipopt allowing number of iterations to be stored.
-function intermediate_ipopt(alg_mod::Cint, iter_count::Cint, obj_value::Float64,
-                            inf_pr::Float64, inf_du::Float64, mu::Float64, d_norm::Float64,
-                            regularization_size::Float64, alpha_du::Float64,
-                            alpha_pr::Float64, ls_trials::Cint, iters, ipopt_prob,
-                            save_trace::Bool, ftrace::Vector{Float64},
-                            xtrace::Vector{Vector{Float64}})
+function intermediate_ipopt(
+        alg_mod::Cint, iter_count::Cint, obj_value::Float64,
+        inf_pr::Float64, inf_du::Float64, mu::Float64, d_norm::Float64,
+        regularization_size::Float64, alpha_du::Float64, alpha_pr::Float64, ls_trials::Cint,
+        iters, ipopt_prob, save_trace::Bool, ftrace::Vector{Float64},
+        xtrace::Vector{Vector{Float64}}
+    )
     iters[1] = Int(iter_count)
     if save_trace == true
         push!(ftrace, obj_value)

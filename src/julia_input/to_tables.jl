@@ -55,18 +55,22 @@ function _observables_to_table(observables::Vector{PEtabObservable})::DataFrame
             _dist = "normal"
         end
 
-        row = DataFrame(observableId = observable_id,
-                        observableFormula = replace(observable_formula, "(t)" => ""),
-                        observableTransformation = _transformation,
-                        noiseFormula = replace(noise_formula, "(t)" => ""),
-                        noiseDistribution = _dist)
+        row = DataFrame(
+            observableId = observable_id,
+            observableFormula = replace(observable_formula, "(t)" => ""),
+            observableTransformation = _transformation,
+            noiseFormula = replace(noise_formula, "(t)" => ""),
+            noiseDistribution = _dist
+        )
         append!(observables_df, row)
     end
     _check_table(observables_df, :observables_v1)
     return observables_df
 end
 
-function _conditions_to_table(conditions::Vector{PEtabCondition}, sys::ModelSystem, ml_models::MLModels)::DataFrame
+function _conditions_to_table(
+        conditions::Vector{PEtabCondition}, sys::ModelSystem, ml_models::MLModels
+    )::DataFrame
     condition_ids = getfield.(conditions, :condition_id)
     if condition_ids != unique(condition_ids)
         throw(PEtabFormatError("Simulation condition ids ($(condition_ids)) are not \
@@ -103,7 +107,9 @@ function _conditions_to_table(conditions::Vector{PEtabCondition}, sys::ModelSyst
     return conditions_df
 end
 
-function _measurements_to_table(measurements::DataFrame, conditions::Vector{PEtabCondition})::DataFrame
+function _measurements_to_table(
+        measurements::DataFrame, conditions::Vector{PEtabCondition}
+    )::DataFrame
     measurements_df = deepcopy(measurements)
     # Reformat column names to follow PEtab standard
     if "pre_eq_id" in names(measurements_df)
@@ -167,8 +173,12 @@ function _mapping_to_table(ml_models::MLModels, parameters::Vector)::DataFrame
         )
         for prior_id in first.(priors)
             row = DataFrame(
-                modelEntityId = _get_nested_parameter_id(prior_id, ml_models[ml_id]; model_entity = true),
-                petabEntityId = _get_nested_parameter_id(prior_id, ml_models[ml_id]; model_entity = false)
+                modelEntityId = _get_nested_parameter_id(
+                    prior_id, ml_models[ml_id]; model_entity = true
+                ),
+                petabEntityId = _get_nested_parameter_id(
+                    prior_id, ml_models[ml_id]; model_entity = false
+                )
             )
             DataFrames.append!(_parameters_df, row)
         end
@@ -182,51 +192,80 @@ function _mapping_to_table(ml_models::MLModels, parameters::Vector)::DataFrame
     return mappings_df
 end
 
-function _get_mapping_table_io(io_arguments::Vector{Vector{Symbol}}, ml_id::Symbol, ml_model::MLModel, io_type::Symbol)::DataFrame
+function _get_mapping_table_io(
+        io_arguments::Vector{Vector{Symbol}}, ml_id::Symbol, ml_model::MLModel,
+        io_type::Symbol
+    )::DataFrame
     mappings_df = DataFrame()
     for (i, io_argument) in pairs(io_arguments)
-        _mappings_df = _get_mapping_table_io(io_argument, ml_id, ml_model, io_type; i_arg=(i-1))
+        _mappings_df = _get_mapping_table_io(
+            io_argument, ml_id, ml_model, io_type; i_arg = (i - 1)
+        )
         mappings_df = vcat(mappings_df, _mappings_df)
     end
     return mappings_df
 end
-function _get_mapping_table_io(io_argument::Vector{Symbol}, ml_id::Symbol, ml_model::MLModel, io_type::Symbol; i_arg=0)::DataFrame
+function _get_mapping_table_io(
+        io_argument::Vector{Symbol}, ml_id::Symbol, ml_model::MLModel, io_type::Symbol;
+        i_arg = 0
+    )::DataFrame
     mappings_df = DataFrame()
     for (i, io_id) in pairs(io_argument)
         if (io_type == :inputs && ml_model.static) || (io_type == :outputs && !ml_model.static)
-            _mappings_df = DataFrame(Dict(
-                "modelEntityId" => "$(ml_id).$(io_type)[$(i_arg)][$(i-1)]",
-                "petabEntityId" => "$(io_id)"))
+            _mappings_df = DataFrame(
+                Dict(
+                    "modelEntityId" => "$(ml_id).$(io_type)[$(i_arg)][$(i - 1)]",
+                    "petabEntityId" => "$(io_id)"
+                )
+            )
         else
-            _mappings_df = DataFrame(Dict(
-                "modelEntityId" => "$(ml_id).$(io_type)[$(i_arg)][$(i-1)]",
-                "petabEntityId" => "__$(ml_id)__$(io_type)$(i_arg)__$(i-1)"))
+            _mappings_df = DataFrame(
+                Dict(
+                    "modelEntityId" => "$(ml_id).$(io_type)[$(i_arg)][$(i - 1)]",
+                    "petabEntityId" => "__$(ml_id)__$(io_type)$(i_arg)__$(i - 1)"
+                )
+            )
         end
         mappings_df = vcat(mappings_df, _mappings_df)
     end
     return mappings_df
 end
 
-function _hybridization_to_table(ml_models::MLModels, parameters_df::DataFrame, conditions_df::DataFrame)::DataFrame
+function _hybridization_to_table(
+        ml_models::MLModels, parameters_df::DataFrame, conditions_df::DataFrame
+    )::DataFrame
     hybridization_df = DataFrame()
     for ml_model in ml_models.ml_models
         ml_id = ml_model.ml_id
-        _inputs_df = _get_hybridization_table_io(ml_model.inputs, ml_id, ml_model, parameters_df, conditions_df, :inputs)
-        _outputs_df = _get_hybridization_table_io(ml_model.outputs, ml_id, ml_model, parameters_df, conditions_df, :outputs)
+        _inputs_df = _get_hybridization_table_io(
+            ml_model.inputs, ml_id, ml_model, parameters_df, conditions_df, :inputs
+        )
+        _outputs_df = _get_hybridization_table_io(
+            ml_model.outputs, ml_id, ml_model, parameters_df, conditions_df, :outputs
+        )
         hybridization_df = reduce(vcat, (hybridization_df, _inputs_df, _outputs_df))
     end
     return hybridization_df
 end
 
-function _get_hybridization_table_io(io_arguments::Vector{Vector{Symbol}}, ml_id::Symbol, ml_model::MLModel, parameters_df::DataFrame, conditions_df::DataFrame, io_type::Symbol)
+function _get_hybridization_table_io(
+        io_arguments::Vector{Vector{Symbol}}, ml_id::Symbol, ml_model::MLModel,
+        parameters_df::DataFrame, conditions_df::DataFrame, io_type::Symbol
+    )
     hybridization_df = DataFrame()
     for (i, io_argument) in pairs(io_arguments)
-        _hybridization_df = _get_hybridization_table_io(io_argument, ml_id, ml_model, parameters_df, conditions_df, io_type; i_arg=(i-1))
+        _hybridization_df = _get_hybridization_table_io(
+            io_argument, ml_id, ml_model, parameters_df, conditions_df, io_type;
+            i_arg = (i - 1)
+        )
         hybridization_df = vcat(hybridization_df, _hybridization_df)
     end
     return hybridization_df
 end
-function _get_hybridization_table_io(io_argument::Vector{Symbol}, ml_id::Symbol, ml_model::MLModel, parameters_df::DataFrame, conditions_df::DataFrame, io_type::Symbol; i_arg=0)::DataFrame
+function _get_hybridization_table_io(
+        io_argument::Vector{Symbol}, ml_id::Symbol, ml_model::MLModel,
+        parameters_df::DataFrame, conditions_df::DataFrame, io_type::Symbol; i_arg = 0
+    )::DataFrame
     if (ml_model.static == false && io_type == :outputs)
         return DataFrame()
     end
@@ -241,11 +280,13 @@ function _get_hybridization_table_io(io_argument::Vector{Symbol}, ml_id::Symbol,
             io_id in names(conditions_df) && continue
             _hybridization_df = DataFrame(
                 targetId = io_id,
-                targetValue = "__$(ml_id)__$(io_type)$(i_arg)__$(i-1)")
+                targetValue = "__$(ml_id)__$(io_type)$(i_arg)__$(i - 1)"
+            )
         else
             _hybridization_df = DataFrame(
-                targetId = "__$(ml_id)__$(io_type)$(i_arg)__$(i-1)",
-                targetValue = io_id)
+                targetId = "__$(ml_id)__$(io_type)$(i_arg)__$(i - 1)",
+                targetValue = io_id
+            )
         end
         hybridization_df = vcat(hybridization_df, _hybridization_df)
     end
@@ -261,8 +302,8 @@ function _parse_petab_parameter(petab_parameter::PEtabParameter, ::MLModels)::Da
             $parameter. Allowed scales are $(VALID_SCALES)"))
     end
 
-    lowerBound = isnothing(lb) ? 1e-3 : lb
-    upperBound = isnothing(ub) ? 1e3 : ub
+    lowerBound = isnothing(lb) ? 1.0e-3 : lb
+    upperBound = isnothing(ub) ? 1.0e3 : ub
     if lowerBound > upperBound
         throw(PEtabFormatError("Lower bound $lowerBound is larger than upper bound \
             $upperBound for parameter $parameter"))
@@ -291,7 +332,7 @@ function _parse_petab_parameter(
         nominal_value = "$(ml_id)_julia_provided"
     end
     should_estimate = estimate == true ? 1 : 0
-    rows =  DataFrame(
+    rows = DataFrame(
         parameterId = "$(ml_id)_parameters", parameterScale = "lin", lowerBound = -Inf,
         upperBound = Inf, nominalValue = nominal_value, estimate = should_estimate
     )
@@ -347,7 +388,8 @@ end
 
 function _get_nested_parameter_id(id, ml_model::MLModel; model_entity::Bool = false)
     if count('.', id) > 1
-        throw(PEtabInputError("Invalid nested ML identifier format: '$id'. Expected 'layerId' or 'layerId.arrayId'."))
+        throw(PEtabInputError("Invalid nested ML identifier format: '$id'. Expected \
+            layerId' or 'layerId.arrayId'."))
     end
 
     @unpack ps, ml_id = ml_model

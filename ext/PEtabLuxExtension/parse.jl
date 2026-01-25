@@ -7,7 +7,9 @@ function PEtab.parse_to_lux(path_yaml::String; freeze_info::Union{Nothing, Dict}
     return nn, network_yaml["nn_model_id"]
 end
 
-function _parse_forward_pass(network_yaml::Dict, layers::Dict)::Tuple{String, String, Vector{String}}
+function _parse_forward_pass(
+        network_yaml::Dict, layers::Dict
+    )::Tuple{String, String, Vector{String}}
     forward_trace = network_yaml["forward"]
     input_arguments = network_yaml["inputs"]
     # To avoid naming conflicts, each input and output is given a __x__
@@ -20,8 +22,8 @@ function _parse_forward_pass(network_yaml::Dict, layers::Dict)::Tuple{String, St
     end
     outputs = "__" * forward_trace[end]["args"][1] * "__"
 
-    forward_steps = fill("", length(forward_trace[(n_input_args+1):end-1]))
-    for (i, step_info) in pairs(forward_trace[(n_input_args+1):end-1])
+    forward_steps = fill("", length(forward_trace[(n_input_args + 1):(end - 1)]))
+    for (i, step_info) in pairs(forward_trace[(n_input_args + 1):(end - 1)])
         # torch.cat arguments are provided as a Vector{Vector} due to being provided
         # in tuple inside torch
         if step_info["target"] == "cat"
@@ -41,7 +43,9 @@ function _parse_forward_pass(network_yaml::Dict, layers::Dict)::Tuple{String, St
             forward_steps[i] = "$(step_output) = $(_f)($(step_input))"
         elseif haskey(ACTIVATION_FUNCTIONS, step_info["target"])
             _f = ACTIVATION_FUNCTIONS[step_info["target"]]
-            forward_steps[i] = _parse_activation_function(step_output, step_input, step_info, _f)
+            forward_steps[i] = _parse_activation_function(
+                step_output, step_input, step_info, _f
+            )
         elseif step_info["target"] == "cat"
             forward_steps[i] = _parse_cat(step_output, step_input, step_info)
         else
@@ -78,7 +82,7 @@ function _parse_flatten_layer(layer_parse)
     elseif start_dim == 0 && end_dim == -1
         return layer_parse["layer_id"] => "vec"
     end
-    @error "Could not parse Flatten layer dimensions. This is best fixed providing \
+    return @error "Could not parse Flatten layer dimensions. This is best fixed providing \
             start_dim and end_dim. If start_dim > 1 Julia cannot unfortunately flatten"
 end
 
@@ -90,7 +94,7 @@ function _parse_layer_arg!(args_parsed, arg, layer_parse, layer_info)::Nothing
         val = layer_parse["args"][argname]
         if val isa Vector
             val = Tuple(val)
-        # A subset of args must be tuple (while they can be a single int in PyTorch)
+            # A subset of args must be tuple (while they can be a single int in PyTorch)
         elseif haskey(layer_info, :tuple_args) && argname in layer_info[:tuple_args]
             val = Tuple(val)
         end
@@ -113,7 +117,7 @@ function _parse_layer_arg!(args_parsed, arg, layer_parse, layer_info)::Nothing
     # For Bilinear we have (a, b) => c
     argname1 = replace(argname1, r"\(|\)" => "")
     p1, p2 = split(argname1, ',')
-    args_parsed[iarg] = (layer_parse["args"][p1], layer_parse["args"][p2])  => layer_parse["args"][argname2]
+    args_parsed[iarg] = (layer_parse["args"][p1], layer_parse["args"][p2]) => layer_parse["args"][argname2]
     return nothing
 end
 
@@ -149,15 +153,18 @@ function _parse_layer_kwargs(layer_parse, layer_info)::NamedTuple
     return kwargs
 end
 
-function _parse_activation_function(step_output::String, step_input::String, step_info::Dict, actinfo::NamedTuple)::String
-    @assert length(step_info["args"]) == 1 "To many inputs to activation function $(actinfo.fn)"
+function _parse_activation_function(
+        step_output::String, step_input::String, step_info::Dict, actinfo::NamedTuple
+    )::String
+    @assert length(step_info["args"]) == 1 "To many inputs to activation function \
+        $(actinfo.fn)"
     # For activation functions with only 1 arg (e.g. tanh), via Lux.fast_activation Lux.jl
     # tries to find the fastest implementation
     if actinfo[:nargs] == 1 && !haskey(actinfo, :kwargs)
         return "$(step_output) = Lux.fast_activation($(actinfo.fn), $(step_input))"
     end
     # Remove last , in step input for parsing to work downstream
-    step_input = step_input[1:end-2]
+    step_input = step_input[1:(end - 2)]
 
     # Multiple input activation functions (e.g. elu). Note, parsed into Julia syntax
     args = fill("", actinfo.nargs)
@@ -167,7 +174,7 @@ function _parse_activation_function(step_output::String, step_input::String, ste
             args[argpos] = string(step_info["kwargs"][argname])
         end
     end
-    args = prod(args .* ", ")[1:end-2]
+    args = prod(args .* ", ")[1:(end - 2)]
 
     # Dim is a special keyword which must be adjusted between Lux and PyTorch as they are
     # 1 and 0 indexed based respectively
@@ -178,14 +185,14 @@ function _parse_activation_function(step_output::String, step_input::String, ste
             argval = argname == "dim" ? argval + 1 : argval
             push!(kwargs, "$(argname_julia) = $(argval), ")
         end
-        kwargs = prod(kwargs)[1:end-2]
+        kwargs = prod(kwargs)[1:(end - 2)]
         args = args * "; " * kwargs
     end
     return "$(step_output) = $(actinfo.fn)($args)"
 end
 
 function _parse_cat(step_output::String, step_input::String, step_info::Dict)::String
-    args = step_input[1:end-2]
+    args = step_input[1:(end - 2)]
     dim = step_info["kwargs"]["dim"] + 1
     return "$(step_output) = cat($(args); dims = $(dim))"
 end
@@ -210,7 +217,8 @@ function _parse_freeze(ml_model::PEtab.MLModel, path_yaml::String)::Dict
     for ml_model_index in ml_model_indices[2:end]
         estimate = petab_ml_parameters.estimate[ml_model_index] == true
         mapping_table_id = string(petab_ml_parameters.mapping_table_id[ml_model_index])
-        @assert count(".", mapping_table_id) ≤ 2 "Only two . are allowed when specifying network layer"
+        @assert count(".", mapping_table_id) ≤ 2 "Only two . are allowed when specifying \
+            network layer"
 
         layer_id = PEtab._get_layer_id(mapping_table_id)
         array_id = PEtab._get_array_id(mapping_table_id)
@@ -230,7 +238,10 @@ function _parse_freeze(ml_model::PEtab.MLModel, path_yaml::String)::Dict
         if !haskey(freeze_info, layer_id) && estimate == false
             freeze_info[layer_id] = Dict(array_id => ps[layer_id][array_id])
 
-        elseif haskey(freeze_info, layer_id) && haskey(freeze_info[layer_id], array_id) && estimate == true
+        elseif (
+                haskey(freeze_info, layer_id) && haskey(freeze_info[layer_id], array_id) &&
+                    estimate == true
+            )
             delete!(freeze_info[layer_id], array_id)
 
         elseif haskey(freeze_info, layer_id) && estimate == false

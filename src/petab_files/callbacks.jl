@@ -1,6 +1,10 @@
-function _parse_events(model_SBML::SBMLImporter.ModelSBML, petab_events::Vector{PEtabEvent}, sys::Union{ODEProblem, ODESystem}, speciemap, parametermap, name, xindices::ParameterIndices, petab_tables)::Tuple{Dict{Symbol, CallbackSet}, Bool}
+function _parse_events(
+        model_SBML::SBMLImporter.ModelSBML, petab_events::Vector{PEtabEvent},
+        sys::ModelSystem, speciemap, parametermap, name, xindices::ParameterIndices,
+        petab_tables::PEtabTables
+    )::Tuple{Dict{Symbol, CallbackSet}, Bool}
     cbs = Dict{Symbol, CallbackSet}()
-    conditions_df = petab_tables[:conditions]
+    conditions_df = _get_petab_tables(petab_tables, [:conditions])[1]
 
     float_tspan = _xdynamic_in_event_cond(model_SBML, xindices, petab_tables) |> !
     p_sys = string.(_get_ids_sys_order(sys, speciemap, parametermap))
@@ -28,23 +32,36 @@ function _parse_events(model_SBML::SBMLImporter.ModelSBML, petab_events::Vector{
 
         _petab_events = parse_events(petab_events[i_events], sys)
         _model_SBML = SBMLImporter.ModelSBML(name; events = _petab_events)
-        cbs_petab = SBMLImporter.create_callbacks(sys, _model_SBML, name; p_PEtab = p_sys, float_tspan = float_tspan)
+        cbs_petab = SBMLImporter.create_callbacks(
+            sys, _model_SBML, name; p_PEtab = p_sys, float_tspan = float_tspan
+        )
 
         petab_callbacks = DiscreteCallback[]
         for cb in cbs_petab.discrete_callbacks
             affect_petab_event! = let _cbs_sbml = cbs_sbml, _affect_petab! = cb.affect!, _save_u = [false]
-                (integrator) -> _affect_petab_v2_event!(integrator, _affect_petab!, _cbs_sbml, _save_u)
+                (integrator) -> _affect_petab_v2_event!(
+                    integrator, _affect_petab!, _cbs_sbml, _save_u
+                )
             end
-            cb_petab = DiscreteCallback(cb.condition, affect_petab_event!; initialize = cb.initialize, save_positions = (false, false))
+            cb_petab = DiscreteCallback(
+                cb.condition, affect_petab_event!; initialize = cb.initialize,
+                save_positions = (false, false)
+            )
             push!(petab_callbacks, cb_petab)
         end
-        cbs[condition_id] = CallbackSet(petab_callbacks..., cbs_sbml.discrete_callbacks..., cbs_sbml.continuous_callbacks...)
+        cbs[condition_id] = CallbackSet(
+            petab_callbacks..., cbs_sbml.discrete_callbacks...,
+            cbs_sbml.continuous_callbacks...
+        )
     end
     return cbs, float_tspan
 end
-function _parse_events(petab_events::Vector{PEtabEvent}, sys::ModelSystem, speciemap, parametermap, name, xindices::ParameterIndices, petab_tables)::Tuple{Dict{Symbol, CallbackSet}, Bool}
+function _parse_events(
+        petab_events::Vector{PEtabEvent}, sys::ModelSystem, speciemap, parametermap, name,
+        xindices::ParameterIndices, petab_tables::PEtabTables
+    )::Tuple{Dict{Symbol, CallbackSet}, Bool}
     cbs = Dict{Symbol, CallbackSet}()
-    conditions_df = petab_tables[:conditions]
+    conditions_df = _get_petab_tables(petab_tables, [:conditions])[1]
 
     p_sys = string.(_get_ids_sys_order(sys, speciemap, parametermap))
     state_ids = _get_state_ids(sys)
@@ -79,7 +96,10 @@ function _parse_events(petab_events::Vector{PEtabEvent}, sys::ModelSystem, speci
             affect_petab_event! = let _affect_petab! = cb.affect!, _save_u = [false]
                 (integrator) -> _affect_petab_julia_event!(integrator, _affect_petab!, _save_u)
             end
-            _cb = DiscreteCallback(cb.condition, affect_petab_event!; initialize = cb.initialize, save_positions = (false, false))
+            _cb = DiscreteCallback(
+                cb.condition, affect_petab_event!; initialize = cb.initialize,
+                save_positions = (false, false)
+            )
             push!(discrete_callbacks, _cb)
         end
 
@@ -89,7 +109,10 @@ function _parse_events(petab_events::Vector{PEtabEvent}, sys::ModelSystem, speci
 end
 
 
-function _affect_petab_v2_event!(integrator, _affect_petab_cb!::Function, cbs_sbml::CallbackSet, save_u::Vector{Bool})::Nothing
+function _affect_petab_v2_event!(
+        integrator, _affect_petab_cb!::Function, cbs_sbml::CallbackSet,
+        save_u::Vector{Bool}
+    )::Nothing
     u_tmp1 = deepcopy(integrator.u)
     p_tmp1 = deepcopy(integrator.p)
     u_tmp2 = similar(u_tmp1)
@@ -151,7 +174,9 @@ function _affect_petab_v2_event!(integrator, _affect_petab_cb!::Function, cbs_sb
     return nothing
 end
 
-function _affect_petab_julia_event!(integrator, _affect_petab_cb!::Function, save_u::Vector{Bool})::Nothing
+function _affect_petab_julia_event!(
+        integrator, _affect_petab_cb!::Function, save_u::Vector{Bool}
+    )::Nothing
     _affect_petab_cb!(integrator)
     if save_u[1] == true
         SciMLBase.savevalues!(integrator, true)
@@ -159,7 +184,9 @@ function _affect_petab_julia_event!(integrator, _affect_petab_cb!::Function, sav
     return nothing
 end
 
-function _get_petab_events_simulation_id(petab_events::Vector{PEtabEvent}, condition_id::Symbol)::Vector{Int64}
+function _get_petab_events_simulation_id(
+        petab_events::Vector{PEtabEvent}, condition_id::Symbol
+    )::Vector{Int64}
     isempty(petab_events) && return Int64[]
     petab_event_conditions_ids = getfield.(petab_events, :condition_ids)
     return findall(x -> condition_id in x || isempty(x), petab_event_conditions_ids)
@@ -179,10 +206,10 @@ function _set_trigger_time!(events::Vector{PEtabEvent})::Nothing
     end
 
     # Check for duplicate trigger times among events that apply to the same condition ids
-    for i in 1:(n-1)
+    for i in 1:(n - 1)
         ti = events[i].trigger_time
         isnan(ti) && continue
-        for j in (i+1):n
+        for j in (i + 1):n
             tj = events[j].trigger_time
 
             isnan(tj) && continue
@@ -194,7 +221,7 @@ function _set_trigger_time!(events::Vector{PEtabEvent})::Nothing
             ids_j = isempty(events[j].condition_ids) ? [:all] : events[j].condition_ids
             if ids_i == [:all] || ids_j == [:all] || !isempty(intersect(ids_i, ids_j))
                 throw(PEtabFormatError("Events $i and $j have the same trigger time \
-                    t = $(round(ti, sigdigits=2)) and overlapping condition_ids $(ids_i) \
+                    t = $(round(ti, sigdigits = 2)) and overlapping condition_ids $(ids_i) \
                     and $(ids_j). PEtab.jl does not support event priority, so two events \
                     with the same trigger time within a simulation condition are not \
                     allowed. As a workaround, merge events $i and $j into a single event."))

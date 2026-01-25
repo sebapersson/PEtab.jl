@@ -30,7 +30,7 @@ for _ in 1:100
 
     cdf_val = cdf(_dist, x3)
     cdf_log_val = logcdf(_dist, x3)
-    @test log(cdf_val) ≈ cdf_log_val atol = 1e-12
+    @test log(cdf_val) ≈ cdf_log_val atol = 1.0e-12
 end
 
 # Exact ExactOneSampleKSTest testes whether a sample x comes from a distribution

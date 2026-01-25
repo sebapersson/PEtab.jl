@@ -5,7 +5,9 @@
 
 using PEtab, Test
 
-path_yaml = joinpath(@__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
+path_yaml = joinpath(
+    @__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml"
+)
 model = PEtabModel(path_yaml)
 prob = PEtabODEProblem(model)
 xnames_ps = prob.model_info.xindices.ids[:estimate_ps]

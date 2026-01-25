@@ -1,6 +1,8 @@
-function hess!(hess::Matrix{T}, x::Vector{T}, _nllh::Function, model_info::ModelInfo,
-               cfg::ForwardDiff.HessianConfig)::Nothing where {T <: AbstractFloat}
-    @unpack priors, xindices, simulation_info = model_info
+function hess!(
+        hess::Matrix{T}, x::Vector{T}, _nllh::Function, model_info::ModelInfo,
+        cfg::ForwardDiff.HessianConfig
+    )::Nothing where {T <: AbstractFloat}
+    @unpack simulation_info = model_info
 
     # If Hessian computation failed a zero Hessian is returned
     simulation_info.could_solve[1] = true
@@ -21,9 +23,11 @@ function hess!(hess::Matrix{T}, x::Vector{T}, _nllh::Function, model_info::Model
     return nothing
 end
 
-function hess_split!(hess::Matrix{T}, x::Vector{T}, _nllh::Function, model_info::ModelInfo;
-                     cids::Vector{Symbol} = [:all])::Nothing where {T <: AbstractFloat}
-    @unpack simulation_info, xindices, priors = model_info
+function hess_split!(
+        hess::Matrix{T}, x::Vector{T}, _nllh::Function, model_info::ModelInfo;
+        cids::Vector{Symbol} = [:all]
+    )::Nothing where {T <: AbstractFloat}
+    @unpack simulation_info, xindices = model_info
 
     # If Hessian computation failed a zero Hessian is returned. Here a Hessian is computed
     # for each condition-id, only using parameter present for said condition
@@ -59,12 +63,14 @@ function hess_split!(hess::Matrix{T}, x::Vector{T}, _nllh::Function, model_info:
     return nothing
 end
 
-function hess_block!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Function,
-                     _nllh_solveode::Function, probinfo::PEtabODEProblemInfo,
-                     model_info::ModelInfo, cfg::ForwardDiff.HessianConfig;
-                     cids::Vector{Symbol} = [:all])::Nothing where {T <: AbstractFloat}
-    @unpack simulation_info, xindices, priors = model_info
+function hess_block!(
+        hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Function,
+        _nllh_solveode::Function, probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
+        cfg::ForwardDiff.HessianConfig; cids::Vector{Symbol} = [:all]
+    )::Nothing where {T <: AbstractFloat}
+    @unpack simulation_info, xindices = model_info
     cache = probinfo.cache
+
     split_x!(x, xindices, cache; xdynamic_full = true)
     xdynamic_grad = cache.xdynamic_grad
 
@@ -92,15 +98,21 @@ function hess_block!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Function
 
     ix_not_system = xindices.indices_est[:est_to_not_system]
     x_not_system = @view x[ix_not_system]
-    @views ForwardDiff.hessian!(hess[ix_not_system, ix_not_system], _nllh_not_solveode, x_not_system)
+    @views ForwardDiff.hessian!(
+        hess[ix_not_system, ix_not_system], _nllh_not_solveode, x_not_system
+    )
     return nothing
 end
 
-function hess_block_split!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Function,
-                           _nllh_solveode::Function, probinfo::PEtabODEProblemInfo,
-                           model_info::ModelInfo;
-                           cids::Vector{Symbol} = [:all])::Nothing where {T <:
-                                                                          AbstractFloat}
+function hess_block_split!(
+        hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Function,
+        _nllh_solveode::Function, probinfo::PEtabODEProblemInfo,
+        model_info::ModelInfo;
+        cids::Vector{Symbol} = [:all]
+    )::Nothing where {
+        T <:
+        AbstractFloat,
+    }
     @unpack simulation_info, xindices, priors = model_info
     cache = probinfo.cache
     split_x!(x, xindices, cache; xdynamic_full = true)
@@ -139,16 +151,20 @@ function hess_block_split!(hess::Matrix{T}, x::Vector{T}, _nllh_not_solveode::Fu
 
     ix_not_system = xindices.indices_est[:est_to_not_system]
     x_not_system = @view x[ix_not_system]
-    @views ForwardDiff.hessian!(hess[ix_not_system, ix_not_system], _nllh_not_solveode, x_not_system)
+    @views ForwardDiff.hessian!(
+        hess[ix_not_system, ix_not_system], _nllh_not_solveode, x_not_system
+    )
     return nothing
 end
 
-function hess_GN!(out::Matrix{T}, x::Vector{T}, _residuals_not_solveode::Function,
-                  _solve_conditions!::Function, probinfo::PEtabODEProblemInfo,
-                  model_info::ModelInfo, cfg::ForwardDiff.JacobianConfig,
-                  cfg_not_solve_ode::ForwardDiff.JacobianConfig; ret_jacobian::Bool = false,
-                  cids::Vector{Symbol} = [:all])::Nothing where {T <: AbstractFloat}
-    @unpack xindices, priors = model_info
+function hess_GN!(
+        out::Matrix{T}, x::Vector{T}, _residuals_not_solveode::Function,
+        _solve_conditions!::Function, probinfo::PEtabODEProblemInfo,
+        model_info::ModelInfo, cfg::ForwardDiff.JacobianConfig,
+        cfg_not_solve_ode::ForwardDiff.JacobianConfig; ret_jacobian::Bool = false,
+        cids::Vector{Symbol} = [:all]
+    )::Nothing where {T <: AbstractFloat}
+    @unpack xindices = model_info
     cache = probinfo.cache
     @unpack jacobian_gn, residuals_gn = cache
 
@@ -161,17 +177,21 @@ function hess_GN!(out::Matrix{T}, x::Vector{T}, _residuals_not_solveode::Functio
     fill!(jacobian_gn, 0.0)
     split_x!(x, xindices, cache; xdynamic_full = true)
     _jac = @view jacobian_gn[xindices.indices_est[:est_to_dynamic], :]
-    _jac_residuals_xdynamic!(_jac, _solve_conditions!, probinfo, model_info, cfg;
-                             cids = cids)
+    _jac_residuals_xdynamic!(
+        _jac, _solve_conditions!, probinfo, model_info, cfg;
+        cids = cids
+    )
     # Happens when at least one forward pass fails
     if !isempty(cache.xdynamic_grad) && all(_jac .== 0.0)
         return nothing
     end
 
     x_not_system = @view x[xindices.indices_est[:est_to_not_system]]
-    @views ForwardDiff.jacobian!(jacobian_gn[xindices.indices_est[:est_to_not_system], :]',
-                                 _residuals_not_solveode, residuals_gn, x_not_system,
-                                 cfg_not_solve_ode)
+    @views ForwardDiff.jacobian!(
+        jacobian_gn[xindices.indices_est[:est_to_not_system], :]',
+        _residuals_not_solveode, residuals_gn, x_not_system,
+        cfg_not_solve_ode
+    )
 
     # In case of testing we might want to return the jacobian, else we are interested
     # in the Guass-Newton approximaiton.

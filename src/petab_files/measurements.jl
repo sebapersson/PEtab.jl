@@ -7,14 +7,16 @@ function PEtabMeasurements(petab_tables::PEtabTables)
     measurements_df, observables_df = _get_petab_tables(
         petab_tables, [:measurements, :observables]
     )
-    PEtabMeasurements(measurements_df, observables_df)
+    return PEtabMeasurements(measurements_df, observables_df)
 end
 function PEtabMeasurements(
         measurements_df::DataFrame, observables_df::DataFrame
     )::PEtabMeasurements
     if :observableTransformation in propertynames(observables_df)
-        _check_values_column(observables_df, VALID_SCALES, :observableTransformation,
-                             "observables"; allow_missing = true)
+        _check_values_column(
+            observables_df, VALID_SCALES, :observableTransformation, "observables";
+            allow_missing = true
+        )
     end
 
     nmeasurements = nrow(measurements_df)
@@ -48,7 +50,10 @@ function PEtabMeasurements(
     # Special handling as data distribution must be obtained from observables_df
     if :observableTransformation in propertynames(observables_df)
         for (row_idx, transformation) in pairs(observables_df[!, :observableTransformation])
-            if :noiseDistribution in propertynames(observables_df) && !ismissing(observables_df.noiseDistribution[row_idx])
+            if (
+                    :noiseDistribution in propertynames(observables_df) &&
+                        !ismissing(observables_df.noiseDistribution[row_idx])
+                )
                 _distribution = if ismissing(observables_df.noiseDistribution[row_idx])
                     :Normal
                 else
@@ -94,8 +99,9 @@ function PEtabMeasurements(
     simulated_values = zeros(Float64, nmeasurements)
     residuals = zeros(Float64, nmeasurements)
 
-    return PEtabMeasurements(measurements, measurements_t, simulated_values, chi2_values,
-                             residuals, noise_distributions, time, observable_ids,
-                             pre_equilibration_ids, condition_ids, noise_parameters,
-                             observable_parameters, simulation_start_time)
+    return PEtabMeasurements(
+        measurements, measurements_t, simulated_values, chi2_values, residuals,
+        noise_distributions, time, observable_ids, pre_equilibration_ids, condition_ids,
+        noise_parameters, observable_parameters, simulation_start_time
+    )
 end

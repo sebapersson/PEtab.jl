@@ -1,7 +1,9 @@
-struct InferenceInfo{d1 <: Vector{<:ContDistribution},
-                     d2 <: Vector{<:ContDistribution},
-                     b1,
-                     b2}
+struct InferenceInfo{
+        d1 <: Vector{<:ContDistribution},
+        d2 <: Vector{<:ContDistribution},
+        b1,
+        b2,
+    }
     priors::d1
     tpriors::d2
     bijectors::b1
@@ -21,9 +23,11 @@ defines everything needed to perform Bayesian inference with packages such as
 `AdvancedHMC.jl` (which includes algorithms like NUTS, used by `Turing.jl`), and
 `AdaptiveMCMC.jl`.
 """
-struct PEtabLogDensity{T <: InferenceInfo,
-                       I <: Integer,
-                       T2 <: AbstractFloat}
+struct PEtabLogDensity{
+        T <: InferenceInfo,
+        I <: Integer,
+        T2 <: AbstractFloat,
+    }
     inference_info::T
     logtarget::Any
     logtarget_gradient::Any
@@ -53,16 +57,18 @@ LogLaplace does not yet have support in Distributions.jl, so to support it for
 Bayesian inference PEtab.jl implements support its pdf, logpdf cdf, logcdf, median
 and sampling
 """
-struct LogLaplace{T<:Real} <: Distributions.ContinuousUnivariateDistribution
+struct LogLaplace{T <: Real} <: Distributions.ContinuousUnivariateDistribution
     μ::T
     θ::T
     LogLaplace{T}(µ::T, θ::T) where {T} = new{T}(µ, θ)
 end
-function LogLaplace(μ::T, θ::T; check_args::Bool=true) where {T <: Real}
+function LogLaplace(μ::T, θ::T; check_args::Bool = true) where {T <: Real}
     Distributions.@check_args LogLaplace (μ, μ > zero(μ)) (θ, θ > zero(θ))
     return LogLaplace{T}(μ, θ)
 end
-LogLaplace(μ::Real, θ::Real; check_args::Bool=true) = LogLaplace(promote(μ, θ)...; check_args=check_args)
+LogLaplace(μ::Real, θ::Real; check_args::Bool = true) = LogLaplace(
+    promote(μ, θ)...; check_args = check_args
+)
 
 Distributions.@distr_support LogLaplace 0.0 Inf
 
@@ -86,16 +92,18 @@ Only the `logpdf` method is implemented for `Log10Normal` to preserve PEtab v1
 compatibility, which allows measurement noise to be distributed in `log10` space. Because
 it closely mirrors `LogNormal`, `Log10Normal` is not supported as a prior distribution.
 """
-struct Log10Normal{T<:Real} <: Distributions.ContinuousUnivariateDistribution
+struct Log10Normal{T <: Real} <: Distributions.ContinuousUnivariateDistribution
     μ::T
     σ::T
     Log10Normal{T}(µ::T, σ::T) where {T} = new{T}(µ, σ)
 end
-function Log10Normal(μ::T, σ::T; check_args::Bool=true) where {T <: Real}
+function Log10Normal(μ::T, σ::T; check_args::Bool = true) where {T <: Real}
     Distributions.@check_args Log10Normal (σ, σ > zero(σ))
     return Log10Normal{T}(μ, σ)
 end
-Log10Normal(μ::Real, σ::Real; check_args::Bool=true) = Log10Normal(promote(μ, σ)...; check_args=check_args)
+Log10Normal(μ::Real, σ::Real; check_args::Bool = true) = Log10Normal(
+    promote(μ, σ)...; check_args = check_args
+)
 
 Distributions.@distr_support Log10Normal 0.0 Inf
 
@@ -118,15 +126,17 @@ f(x; \\mu, \\sigma) = \\frac{1}{x \\sqrt{2 \\pi \\sigma^2 \\mathrm{log}(2) }}
 
 For the same reasons as for `Log10Normal`, only `logpdf` method is implemented.
 """
-struct Log2Normal{T<:Real} <: Distributions.ContinuousUnivariateDistribution
+struct Log2Normal{T <: Real} <: Distributions.ContinuousUnivariateDistribution
     μ::T
     σ::T
     Log2Normal{T}(µ::T, σ::T) where {T} = new{T}(µ, σ)
 end
-function Log2Normal(μ::T, σ::T; check_args::Bool=true) where {T <: Real}
+function Log2Normal(μ::T, σ::T; check_args::Bool = true) where {T <: Real}
     Distributions.@check_args Log2Normal (σ, σ > zero(σ))
     return Log2Normal{T}(μ, σ)
 end
-Log2Normal(μ::Real, σ::Real; check_args::Bool=true) = Log2Normal(promote(μ, σ)...; check_args=check_args)
+Log2Normal(μ::Real, σ::Real; check_args::Bool = true) = Log2Normal(
+    promote(μ, σ)...; check_args = check_args
+)
 
 Distributions.@distr_support Log2Normal 0.0 Inf

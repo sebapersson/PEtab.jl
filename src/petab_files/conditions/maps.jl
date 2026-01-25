@@ -44,8 +44,10 @@ function _get_map_observable_noise(
                 file does not correspond to any id in the parameters table"))
         end
         single_constant = nvalues_row == 1 && estimate[1] == false
-        maps[i] = ObservableNoiseMap(estimate, xindices, constant_values, nvalues_row,
-                                     single_constant)
+        maps[i] = ObservableNoiseMap(
+            estimate, xindices, constant_values, nvalues_row,
+            single_constant
+        )
     end
     return maps
 end
@@ -121,7 +123,9 @@ function _get_condition_maps(
         ix_condition = Int32[]
         for i in eachindex(target_value_formulas)
             for (j, xid) in pairs(string.(ids[:est_to_dynamic_mech]))
-                _formula = SBMLImporter._replace_variable(target_value_formulas[i], xid, "xdynamic[$(j)]")
+                _formula = SBMLImporter._replace_variable(
+                    target_value_formulas[i], xid, "xdynamic[$(j)]"
+                )
                 target_value_formulas[i] == _formula && continue
                 push!(ix_condition, j)
                 target_value_formulas[i] = _formula
@@ -131,23 +135,33 @@ function _get_condition_maps(
                 petab_parameters.estimate[j] == true && continue
                 xid = string(petab_parameters.parameter_id[j])
                 value = petab_parameters.nominal_value[j]
-                _formula = SBMLImporter._replace_variable(target_value_formulas[i], xid, "$(value)")
+                _formula = SBMLImporter._replace_variable(
+                    target_value_formulas[i], xid, "$(value)"
+                )
                 target_value_formulas[i] = _formula
             end
         end
 
         target_value_functions = Vector{Function}(undef, length(target_value_formulas))
         for i in eachindex(target_value_functions)
-            formula = _template_target_value(target_value_formulas[i], condition_id, target_ids[i])
+            formula = _template_target_value(
+                target_value_formulas[i], condition_id, target_ids[i]
+            )
             target_value_functions[i] = @RuntimeGeneratedFunction(Meta.parse(formula))
         end
 
-        condition_maps[condition_id] = ConditionMap(isys_condition, ix_condition, target_value_functions, ix_all_conditions, isys_all_conditions, zeros(0, 0))
+        condition_maps[condition_id] = ConditionMap(
+            isys_condition, ix_condition, target_value_functions, ix_all_conditions,
+            isys_all_conditions, zeros(0, 0)
+        )
     end
     return condition_maps
 end
 
-function _get_ml_pre_simulate_maps(ids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters, petab_tables::PEtabTables, paths, ml_models::MLModels, sys::ModelSystem)::Dict{Symbol, Dict{Symbol, MLModelPreSimulateMap}}
+function _get_ml_pre_simulate_maps(
+        ids::Dict{Symbol, Vector{Symbol}}, petab_parameters::PEtabParameters,
+        petab_tables::PEtabTables, paths, ml_models::MLModels, sys::ModelSystem
+    )::Dict{Symbol, Dict{Symbol, MLModelPreSimulateMap}}
     maps = Dict{Symbol, Dict{Symbol, MLModelPreSimulateMap}}()
     isempty(ids[:ml_pre_simulate]) && return maps
 
@@ -199,7 +213,7 @@ function _get_ml_pre_simulate_maps(ids::Dict{Symbol, Vector{Symbol}}, petab_para
             end
 
             maps_ml[ml_id] = MLModelPreSimulateMap(
-                n_input_args, f_input, constant_inputs, i_dynamic_mech,  n_outputs,
+                n_input_args, f_input, constant_inputs, i_dynamic_mech, n_outputs,
                 ix_ml_outputs, ix_sys_outputs
             )
         end
@@ -296,7 +310,9 @@ function _get_ml_pre_simulate_inputs(
     end
 
     unique!(i_dynamic_mech)
-    f_input = _template_ml_input(input_formulas, file_input, condition_id, ml_id, i_dynamic_mech)
+    f_input = _template_ml_input(
+        input_formulas, file_input, condition_id, ml_id, i_dynamic_mech
+    )
     return f_input, constant_inputs, i_dynamic_mech
 end
 
@@ -336,42 +352,17 @@ function _get_default_map_value(variable::String, parametermap, speciemap)::Floa
     end
 end
 
-function _template_target_value(formula::String, condition_id::Symbol, target_id::String)::String
+function _template_target_value(
+        formula::String, condition_id::Symbol, target_id::String
+    )::String
     out = "function _map_$(target_id)_$(condition_id)(xdynamic)\n"
     out *= "\treturn $(formula)\nend"
     return out
 end
 
-function _template_ml_input(input_formulas, file_input::Vector{Bool}, condition_id, ml_id, i_dynamic_mech::Vector{Int32})
-    out = "function _map_input_$(condition_id)_$(ml_id)(xdynamic, map_pre_simulate)\n"
-    for i in eachindex(input_formulas)
-        if file_input[i] == true
-            out *= "\tout_$(i) = $(input_formulas[i][1])\n"
-            continue
-        end
-
-        if isempty(i_dynamic_mech)
-            out *= "\tout_$(i) = zeros(Float64, $(length(input_formulas[i])))\n"
-        else
-            out *= "\tout_$(i) = zeros(eltype(xdynamic), $(length(input_formulas[i])))\n"
-        end
-
-        for (j, formula) in pairs(input_formulas[i])
-            out *= "\tout_$(i)[$(j)] = $(formula)\n"
-        end
-    end
-
-    if length(input_formulas) == 1
-        out *= "\treturn out_1\n"
-    else
-        out_args = prod("out_" .* string.(1:length(input_formulas)) .* ", ")
-        out *= "\treturn ($(out_args))\n"
-    end
-    out *= "end\n"
-    return out
-end
-
-function _get_petab_v2_condition_id(condition_id::Symbol, experiments_df::DataFrame)::Symbol
+function _get_petab_v2_condition_id(
+        condition_id::Symbol, experiments_df::DataFrame
+    )::Symbol
     isempty(experiments_df) && return condition_id
 
     condition_id = string(condition_id)

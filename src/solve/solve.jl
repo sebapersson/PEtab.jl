@@ -21,8 +21,10 @@ function solve_conditions!(
         _oprob = probinfo.odeproblem
     end
 
-    oprob = remake(_oprob, p = convert.(eltype(xdynamic), _oprob.p),
-                   u0 = convert.(eltype(xdynamic), _oprob.u0))
+    oprob = remake(
+        _oprob, p = convert.(eltype(xdynamic), _oprob.p),
+        u0 = convert.(eltype(xdynamic), _oprob.u0)
+    )
 
     # In case the model is first simulated to a steady state
     if simulation_info.has_pre_equilibration == true
@@ -41,10 +43,10 @@ function solve_conditions!(
             # into a domain error or bounds error. This is treated as integration error.
             try
                 u_ss_preeq, u_t0_preeq = (@view u_ss[:, i]), (@view u_t0[:, i])
-                preeq_sols[preeq_id] = solve_pre_equilibrium!!(u_ss_preeq, u_t0_preeq,
-                                                               oprob_preeq, simulation_info,
-                                                               osolver, ss_solver, preeq_id,
-                                                               float_tspan)
+                preeq_sols[preeq_id] = solve_pre_equilibrium!!(
+                    u_ss_preeq, u_t0_preeq, oprob_preeq, simulation_info, osolver,
+                    ss_solver, preeq_id, float_tspan
+                )
             catch e
                 catch_ode_error(e)
                 simulation_info.could_solve[1] = false
@@ -77,9 +79,11 @@ function solve_conditions!(
             u_ss_preeq, u_t0_preeq = (@view u_ss[:, ipreq]), (@view u_t0[:, ipreq])
             # See comment above on domain error above for why try
             try
-                odesols[cid] = solve_post_equlibrium(oprob_cid, u_ss_preeq, u_t0_preeq,
-                                                     simulation_info, osolver, ss_solver,
-                                                     cid, simid, tsave, dense, float_tspan)
+                odesols[cid] = solve_post_equlibrium(
+                    oprob_cid, u_ss_preeq, u_t0_preeq,
+                    simulation_info, osolver, ss_solver,
+                    cid, simid, tsave, dense, float_tspan
+                )
             catch e
                 catch_ode_error(e)
                 simulation_info.could_solve[1] = false
@@ -91,12 +95,14 @@ function solve_conditions!(
                 return false
             end
 
-        # ODE solution without pre-equlibrium
+            # ODE solution without pre-equlibrium
         else
             try
-                odesols[cid] = solve_no_pre_equlibrium(oprob_cid, simulation_info, osolver,
-                                                       ss_solver, cid, tsave, dense,
-                                                       float_tspan)
+                odesols[cid] = solve_no_pre_equlibrium(
+                    oprob_cid, simulation_info, osolver,
+                    ss_solver, cid, tsave, dense,
+                    float_tspan
+                )
             catch e
                 catch_ode_error(e)
                 simulation_info.could_solve[1] = false
@@ -111,19 +117,22 @@ function solve_conditions!(
     end
     return true
 end
-function solve_conditions!(sols::AbstractMatrix, xdynamic::AbstractVector,
-                           probinfo::PEtabODEProblemInfo, model_info::ModelInfo;
-                           cids::Vector{Symbol} = [:all], ntimepoints_save::Int64 = 0,
-                           save_observed_t::Bool = true, dense_sol::Bool = false,
-                           track_callback::Bool = false, sensitivities::Bool = false,
-                           sensitivities_AD::Bool = false)::Nothing
+function solve_conditions!(
+        sols::AbstractMatrix, xdynamic::AbstractVector, probinfo::PEtabODEProblemInfo,
+        model_info::ModelInfo; cids::Vector{Symbol} = [:all], ntimepoints_save::Int64 = 0,
+        save_observed_t::Bool = true, dense_sol::Bool = false, track_callback::Bool = false,
+        sensitivities::Bool = false, sensitivities_AD::Bool = false
+    )::Nothing
     cache = probinfo.cache
+
     xdynamic_mech, x_ml_models = split_xdynamic(xdynamic, model_info.xindices, cache)
     derivative = sensitivities_AD || sensitivities
-    sucess = solve_conditions!(model_info, xdynamic_mech, x_ml_models, probinfo; cids = cids,
-                               ntimepoints_save = ntimepoints_save, dense_sol = dense_sol,
-                               save_observed_t = save_observed_t, derivative = derivative,
-                               sensitivities = sensitivities, track_callback = track_callback)
+    sucess = solve_conditions!(
+        model_info, xdynamic_mech, x_ml_models, probinfo; cids = cids,
+        ntimepoints_save = ntimepoints_save, dense_sol = dense_sol,
+        save_observed_t = save_observed_t, derivative = derivative,
+        sensitivities = sensitivities, track_callback = track_callback
+    )
     if sucess != true
         fill!(sols, 0.0)
         return nothing
@@ -146,7 +155,11 @@ function solve_conditions!(sols::AbstractMatrix, xdynamic::AbstractVector,
     return nothing
 end
 
-function solve_post_equlibrium(@nospecialize(oprob::ODEProblem), u_ss::T, u_t0::T,  simulation_info::SimulationInfo, osolver::ODESolver, ss_solver::SteadyStateSolver, cid::Symbol, simid::Symbol, tsave::Vector{Float64}, dense::Bool, float_tspan::Bool)::ODESolution where {T <: AbstractVector}
+function solve_post_equlibrium(
+        @nospecialize(oprob::ODEProblem), u_ss::T, u_t0::T, simulation_info::SimulationInfo,
+        osolver::ODESolver, ss_solver::SteadyStateSolver, cid::Symbol, simid::Symbol,
+        tsave::Vector{Float64}, dense::Bool, float_tspan::Bool
+    )::ODESolution where {T <: AbstractVector}
     @unpack abstol, reltol, maxiters, solver, force_dtmin, verbose = osolver
     @unpack tstarts, tmaxs = simulation_info
 
@@ -191,11 +204,11 @@ function solve_post_equlibrium(@nospecialize(oprob::ODEProblem), u_ss::T, u_t0::
 end
 
 # Without @nospecialize stackoverflow in type inference due to large ODE-system
-function solve_no_pre_equlibrium(@nospecialize(oprob::ODEProblem),
-                                 @nospecialize(simulation_info::SimulationInfo),
-                                 osolver::ODESolver, ss_solver::SteadyStateSolver,
-                                 cid::Symbol, tsave::Vector{Float64}, dense::Bool,
-                                 float_tspan::Bool)::ODESolution
+function solve_no_pre_equlibrium(
+        @nospecialize(oprob::ODEProblem), @nospecialize(simulation_info::SimulationInfo),
+        osolver::ODESolver, ss_solver::SteadyStateSolver, cid::Symbol,
+        tsave::Vector{Float64}, dense::Bool, float_tspan::Bool
+    )::ODESolution
     @unpack abstol, reltol, maxiters, solver, force_dtmin, verbose = osolver
     @unpack tstarts, tmaxs = simulation_info
 
@@ -203,19 +216,28 @@ function solve_no_pre_equlibrium(@nospecialize(oprob::ODEProblem),
 
     if !isinf(_oprob.tspan[2])
         cbs = _get_cbs(_oprob, simulation_info, cid, simulation_info.sensealg)
-        sol = _solve(_oprob, solver, tsave, abstol, reltol, dense, maxiters, force_dtmin, verbose, cbs)
+        sol = _solve(
+            _oprob, solver, tsave, abstol, reltol, dense, maxiters, force_dtmin, verbose,
+            cbs
+        )
     else
-        sol = _solve_ss(_oprob, simulation_info, osolver, ss_solver, cid, cid, tsave, float_tspan)
+        sol = _solve_ss(
+            _oprob, simulation_info, osolver, ss_solver, cid, cid, tsave, float_tspan
+        )
     end
     return sol
 end
 
-function _solve(oprob::ODEProblem, solver::SciMLAlgorithm, tsave::Vector{Float64},
-                abstol::Float64, reltol::Float64, dense::Bool, maxiters::Int64,
-                force_dtmin::Bool, verbose::Bool, cbs::SciMLBase.DECallback)::ODESolution
-    return solve(oprob, solver, abstol = abstol, reltol = reltol, verbose = verbose,
-                 force_dtmin = force_dtmin, maxiters = maxiters, saveat = tsave,
-                 dense = dense, callback = cbs)
+function _solve(
+        oprob::ODEProblem, solver::SciMLAlgorithm, tsave::Vector{Float64}, abstol::Float64,
+        reltol::Float64, dense::Bool, maxiters::Int64, force_dtmin::Bool, verbose::Bool,
+        cbs::SciMLBase.DECallback
+    )::ODESolution
+    return solve(
+        oprob, solver, abstol = abstol, reltol = reltol, verbose = verbose,
+        force_dtmin = force_dtmin, maxiters = maxiters, saveat = tsave,
+        dense = dense, callback = cbs
+    )
 end
 
 function catch_ode_error(e)::Nothing

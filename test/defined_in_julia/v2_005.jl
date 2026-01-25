@@ -31,41 +31,51 @@ D = default_time_deriv()
         model_obs(t)
     end
     @equations begin
-        D(A) ~ -k1*A + k2*B
-        D(B) ~ k1*A - k2*B
+        D(A) ~ -k1 * A + k2 * B
+        D(B) ~ k1 * A - k2 * B
         model_obs ~ A + offset_A
     end
 end
 @mtkbuild sys = SYS_v2_5()
 
 # Measurement data
-measurements = DataFrame(simulation_id=["e1", "e2"],
-                         obs_id=["obs_a", "obs_a"],
-                         time=[10.0, 10.0],
-                         measurement=[2.1, 3.2])
+measurements = DataFrame(
+    simulation_id = ["e1", "e2"],
+    obs_id = ["obs_a", "obs_a"],
+    time = [10.0, 10.0],
+    measurement = [2.1, 3.2]
+)
 
 # Single experimental condition
-simulation_conditions = [PEtabCondition(:e1),
-                         PEtabCondition(:e2, :offset_A => :offset_A_c1)]
+simulation_conditions = [
+    PEtabCondition(:e1),
+    PEtabCondition(:e2, :offset_A => :offset_A_c1),
+]
 
 # PEtab-parameter to "estimate"
-parameters = [PEtabParameter(:k1, value=0.8, scale=:lin),
-              PEtabParameter(:k2, value=0.6, scale=:lin),
-              PEtabParameter(:offset_A_c1, value=3.0, scale=:lin)]
+parameters = [
+    PEtabParameter(:k1, value = 0.8, scale = :lin),
+    PEtabParameter(:k2, value = 0.6, scale = :lin),
+    PEtabParameter(:offset_A_c1, value = 3.0, scale = :lin),
+]
 
 # Observable equation
 observables = PEtabObservable("obs_a", :model_obs, 1.0)
 
 # Create a PEtabODEProblem ReactionNetwork
-model_rn = PEtabModel(rn, observables, measurements, parameters;
-                      simulation_conditions = simulation_conditions)
+model_rn = PEtabModel(
+    rn, observables, measurements, parameters;
+    simulation_conditions = simulation_conditions
+)
 petab_prob_rn = PEtabODEProblem(model_rn)
 # Create a PEtabODEProblem ODESystem
-model_sys = PEtabModel(sys, observables, measurements, parameters;
-                       simulation_conditions = simulation_conditions)
+model_sys = PEtabModel(
+    sys, observables, measurements, parameters;
+    simulation_conditions = simulation_conditions
+)
 petab_prob_sys = PEtabODEProblem(model_sys)
 
 nll_rn = petab_prob_rn.nllh(get_x(petab_prob_rn))
 nll_sys = petab_prob_sys.nllh(get_x(petab_prob_sys))
-@test nll_rn ≈ 1.91797937195749 atol=1e-3
-@test nll_sys ≈ 1.91797937195749 atol=1e-3
+@test nll_rn ≈ 1.91797937195749 atol = 1.0e-3
+@test nll_sys ≈ 1.91797937195749 atol = 1.0e-3

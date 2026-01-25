@@ -12,7 +12,7 @@ function PEtab._reshape_array(x, mapping)
 end
 
 function PEtab._get_lux_ps(ml_model::PEtab.MLModel)
-    PEtab._get_lux_ps(Random.default_rng(), ml_model)
+    return PEtab._get_lux_ps(Random.default_rng(), ml_model)
 end
 function PEtab._get_lux_ps(rng::Random.AbstractRNG, ml_model::PEtab.MLModel)
     ps, _ = Lux.setup(rng, ml_model.lux_model)
@@ -28,7 +28,7 @@ function PEtab._get_ml_model_initialparameters(ml_model::PEtab.MLModel)::Compone
     return Lux.initialparameters(rng, ml_model.lux_model) |> ComponentArray .|> Float64
 end
 
-function PEtab._reshape_io_data(x::Array{T})::Array{T} where T <: AbstractFloat
+function PEtab._reshape_io_data(x::Array{T})::Array{T} where {T <: AbstractFloat}
     order_py = 1:length(size(x))
     order_jl = reverse(order_py)
     imap = zeros(Int64, length(order_jl))

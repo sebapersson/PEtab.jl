@@ -4,10 +4,12 @@ end
 
 function _get_indices_ml_model(i_start::Integer, ml_model::MLModel)::Vector{Int64}
     np = _get_n_ml_parameters(ml_model)
-    return (i_start+1):(i_start + np)
+    return (i_start + 1):(i_start + np)
 end
 
-function _get_ids_sys_order_in_xdynamic(xindices::ParameterIndices, conditions_df::DataFrame)::Vector{String}
+function _get_ids_sys_order_in_xdynamic(
+        xindices::ParameterIndices, conditions_df::DataFrame
+    )::Vector{String}
     ids_sys = xindices.ids[:sys]
     ids_sys_in_xdynamic = filter(x -> x in ids_sys, xindices.ids[:est_to_dynamic_mech])
     # Extract sys parameters where an xdynamic via the condition table maps to a parameter

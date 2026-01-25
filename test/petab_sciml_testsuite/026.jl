@@ -12,7 +12,7 @@ nn26 = @compact(
     @return out
 end
 nn26_frozen = @compact(
-    layer1 = Lux.Experimental.freeze(Dense(2, 5, Lux.tanh), (:weight, )),
+    layer1 = Lux.Experimental.freeze(Dense(2, 5, Lux.tanh), (:weight,)),
     layer2 = Dense(5, 5, Lux.tanh),
     layer3 = Dense(5, 1)
 ) do x
@@ -40,8 +40,8 @@ function _lv26!(du, u, p, t, ml_models)
     du_nn, st = net1.lux_model([prey, predator], p[:net1], net1.st)
     net1.st = st
 
-    du[1] = alpha*prey - beta * prey * predator # prey
-    du[2] = du_nn[1] - delta*predator # predator
+    du[1] = alpha * prey - beta * prey * predator # prey
+    du[2] = du_nn[1] - delta * predator # predator
     return nothing
 end
 lv26! = let _ml_models = ml_models
@@ -49,7 +49,7 @@ lv26! = let _ml_models = ml_models
 end
 
 p_mechanistic = (alpha = 1.3, delta = 1.8, beta = 0.9)
-p_ode = ComponentArray(merge(p_mechanistic, (net1=pnn,)))
+p_ode = ComponentArray(merge(p_mechanistic, (net1 = pnn,)))
 u0 = ComponentArray(prey = 0.44249296, predator = 4.6280594)
 uprob = ODEProblem(lv26!, u0, (0.0, 10.0), p_ode)
 
@@ -61,7 +61,7 @@ pest = [p_alpha, p_beta, p_delta, p_net1]
 
 observables = [
     PEtabObservable(:prey_o, :prey, 0.05),
-    PEtabObservable(:predator_o, :predator, 0.05)
+    PEtabObservable(:predator_o, :predator, 0.05),
 ]
 
 conditions = PEtabCondition(:e1)

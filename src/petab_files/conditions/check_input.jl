@@ -1,4 +1,6 @@
-function _check_condition_table(petab_tables::PEtabTables, petab_measurements::PEtabMeasurements)::Nothing
+function _check_condition_table(
+        petab_tables::PEtabTables, petab_measurements::PEtabMeasurements
+    )::Nothing
     conditions_df, hybridization_df = _get_petab_tables(
         petab_tables, [:conditions, :hybridization]
     )

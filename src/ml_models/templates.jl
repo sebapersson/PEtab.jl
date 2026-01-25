@@ -92,3 +92,35 @@ function _template_ml_observable(
     formula *= "\t\tml_model_$(ml_id).st = st_$(ml_id)\n"
     return formula
 end
+
+function _template_ml_input(
+        input_formulas, file_input::Vector{Bool}, condition_id, ml_id,
+        i_dynamic_mech::Vector{Int32}
+    )
+    out = "function _map_input_$(condition_id)_$(ml_id)(xdynamic, map_pre_simulate)\n"
+    for i in eachindex(input_formulas)
+        if file_input[i] == true
+            out *= "\tout_$(i) = $(input_formulas[i][1])\n"
+            continue
+        end
+
+        if isempty(i_dynamic_mech)
+            out *= "\tout_$(i) = zeros(Float64, $(length(input_formulas[i])))\n"
+        else
+            out *= "\tout_$(i) = zeros(eltype(xdynamic), $(length(input_formulas[i])))\n"
+        end
+
+        for (j, formula) in pairs(input_formulas[i])
+            out *= "\tout_$(i)[$(j)] = $(formula)\n"
+        end
+    end
+
+    if length(input_formulas) == 1
+        out *= "\treturn out_1\n"
+    else
+        out_args = prod("out_" .* string.(1:length(input_formulas)) .* ", ")
+        out *= "\treturn ($(out_args))\n"
+    end
+    out *= "end\n"
+    return out
+end

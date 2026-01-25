@@ -60,7 +60,7 @@ function PEtabParameters(
 end
 
 function PEtabMLParameters(petab_tables::PEtabTables, ml_models::MLModels)
-    parameters_df, mappings_df = _get_petab_tables( petab_tables, [:parameters, :mapping])
+    parameters_df, mappings_df = _get_petab_tables(petab_tables, [:parameters, :mapping])
     return PEtabMLParameters(parameters_df, mappings_df, ml_models)
 end
 function PEtabMLParameters(
@@ -144,7 +144,7 @@ function Priors(xindices::ParameterIndices, model::PEtabModel)::Priors
             push!(priors, _parse_julia_prior(prior_id))
             push!(priors_on_parameter_scale, false)
 
-        # Prior via the PEtab tables
+            # Prior via the PEtab tables
         else
             prior = _parse_petab_prior(row_idx, parameters_df)
             lb = parameters_df[row_idx, :lowerBound]
@@ -218,7 +218,7 @@ function _parse_petab_prior(
     prior_id = parameters_df[row_idx, :objectivePriorType]
     if !haskey(PETAB_PRIORS, prior_id)
         supported_priors = join(collect(keys(PETAB_PRIORS)), ", ")
-        throw(PEtabFileError("Unsupported prior $( prior_id ) for parameter $(id) in \
+        throw(PEtabFileError("Unsupported prior $(prior_id) for parameter $(id) in \
             the PEtab parameter table. Supported priors are: $(supported_priors). \
             See the PEtab standard documentation for details."))
     end
@@ -227,7 +227,7 @@ function _parse_petab_prior(
     prior_parameters = parse.(Float64, prior_parameters)
     nps = PETAB_PRIORS[prior_id].n_parameters
     if length(prior_parameters) != nps
-        throw(PEtabFileError("Prior $( prior_id) for parameter $(id) expects \
+        throw(PEtabFileError("Prior $(prior_id) for parameter $(id) expects \
             $(nps) parameter(s), but $(length(prior_parameters)) were provided in \
             the  PEtab parameter table. Provide the expected number of values \
             separated by ; in the parameter table."))
@@ -288,7 +288,10 @@ function _get_mls_ps_petab_ids!(
     return nothing
 end
 
-function _get_mapping_table_ids!(mapping_table_ids::Vector{String}, parameter_ids::Vector{Symbol}, mappings_df::DataFrame)::Nothing
+function _get_mapping_table_ids!(
+        mapping_table_ids::Vector{String}, parameter_ids::Vector{Symbol},
+        mappings_df::DataFrame
+    )::Nothing
     for (i, parameter_id) in pairs(string.(parameter_ids))
         ix = findfirst(x -> x == parameter_id, mappings_df.petabEntityId)
         mapping_table_ids[i] = mappings_df.modelEntityId[ix]
@@ -297,7 +300,7 @@ function _get_mapping_table_ids!(mapping_table_ids::Vector{String}, parameter_id
 end
 
 function _get_logpdf(prior::ContDistribution)::Function
-   _logpdf = let dist = prior
+    _logpdf = let dist = prior
         (x) -> logpdf(dist, x)
     end
     return _logpdf

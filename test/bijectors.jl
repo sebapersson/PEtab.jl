@@ -12,17 +12,19 @@ function test_custom_llh_and_gradient(x_nllh, x_inference, inference_info)
     compute_llh_check = (x) -> PEtab.compute_llh(x, compute_nllh_ref, inference_info)
     llh_ref = compute_nllh_ref(x_nllh) * -1
     llh_check = compute_llh_check(x_inference)
-    @test llh_ref ≈ llh_check atol=1e-10
+    @test llh_ref ≈ llh_check atol = 1.0e-10
 
     # For gradient
     grad_ref = ForwardDiff.gradient(compute_llh_check, x_inference)
     grad_check = ForwardDiff.gradient(compute_nllh_ref, x_nllh)
     PEtab.correct_gradient!(grad_check, x_inference, x_nllh, inference_info)
-    @test all(grad_ref .- grad_check .< 1e-10)
+    @test all(grad_ref .- grad_check .< 1.0e-10)
     return nothing
 end
 
-function _compute_nllh(θ::Vector{T}, inference_info::PEtab.InferenceInfo, data::Vector{Float64})::T where T<:Real
+function _compute_nllh(
+        θ::Vector{T}, inference_info::PEtab.InferenceInfo, data::Vector{Float64}
+    )::T where {T <: Real}
     x = similar(θ)
     @unpack priors_scale, parameters_scale = inference_info
     for i in eachindex(x)
@@ -58,29 +60,33 @@ end
     # log10 and lin scale, unbounded priors
     prior1, scale1, prior_scale1 = Normal(-2.0, 1.0), :lin, :lin
     prior2, scale2, prior_scale2 = Normal(1.0, 1.0), :log10, :lin
-    _inference_info = PEtab.InferenceInfo([prior1, prior2], Bijectors.transformed.([prior1, prior2]),
-                            Bijectors.Stacked(Bijectors.bijector.([prior1, prior2])),
-                            Bijectors.Stacked(Bijectors.inverse.(Bijectors.bijector.([prior1, prior2]))),
-                            [prior_scale1, prior_scale2], [scale1, scale2],
-                            [:μ1, :μ2])
+    _inference_info = PEtab.InferenceInfo(
+        [prior1, prior2], Bijectors.transformed.([prior1, prior2]),
+        Bijectors.Stacked(Bijectors.bijector.([prior1, prior2])),
+        Bijectors.Stacked(Bijectors.inverse.(Bijectors.bijector.([prior1, prior2]))),
+        [prior_scale1, prior_scale2], [scale1, scale2],
+        [:μ1, :μ2]
+    )
     x_nllh = [-3.0, log10(2.0)]
     x_inference = _inference_info.bijectors([-3.0, 2.0])
     test_custom_llh_and_gradient(x_nllh, x_inference, _inference_info)
 
     # log and lin scale, bounded priors
-    prior1, scale1, prior_scale1 = Uniform(-10., 0.0), :lin, :lin
+    prior1, scale1, prior_scale1 = Uniform(-10.0, 0.0), :lin, :lin
     prior2, scale2, prior_scale2 = Gamma(1.0, 1.0), :log, :lin
-    _inference_info = PEtab.InferenceInfo([prior1, prior2], Bijectors.transformed.([prior1, prior2]),
-                            Bijectors.Stacked(Bijectors.bijector.([prior1, prior2])),
-                            Bijectors.Stacked(Bijectors.inverse.(Bijectors.bijector.([prior1, prior2]))),
-                            [prior_scale1, prior_scale2], [scale1, scale2],
-                            [:μ1, :μ2])
+    _inference_info = PEtab.InferenceInfo(
+        [prior1, prior2], Bijectors.transformed.([prior1, prior2]),
+        Bijectors.Stacked(Bijectors.bijector.([prior1, prior2])),
+        Bijectors.Stacked(Bijectors.inverse.(Bijectors.bijector.([prior1, prior2]))),
+        [prior_scale1, prior_scale2], [scale1, scale2],
+        [:μ1, :μ2]
+    )
     x_nllh = [-3.0, log(2.0)]
     x_inference = _inference_info.bijectors([-3.0, 2.0])
     test_custom_llh_and_gradient(x_nllh, x_inference, _inference_info)
 
     # Prior on parameter scale, bounded priors
-    prior1, scale1, prior_scale1 = Uniform(-10., 0.0), :lin, :parameter_scale
+    prior1, scale1, prior_scale1 = Uniform(-10.0, 0.0), :lin, :parameter_scale
     prior2, scale2, prior_scale2 = Gamma(1.0, 1.0), :log, :parameter_scale
     _inference_info = PEtab.InferenceInfo(
         [prior1, prior2], Bijectors.transformed.([prior1, prior2]),
@@ -94,7 +100,7 @@ end
     test_custom_llh_and_gradient(x_nllh, x_inference, _inference_info)
 
     # Prior on parameter scale, unbounded priors
-    prior1, scale1, prior_scale1 = Normal(-1., 1.0), :lin, :parameter_scale
+    prior1, scale1, prior_scale1 = Normal(-1.0, 1.0), :lin, :parameter_scale
     prior2, scale2, prior_scale2 = Normal(1.0, 1.0), :log, :parameter_scale
     _inference_info = PEtab.InferenceInfo(
         [prior1, prior2], Bijectors.transformed.([prior1, prior2]),
@@ -120,8 +126,10 @@ end
     par_k1 = PEtabParameter(:k1; scale = :lin, prior = Normal(1.0, 1.0), value = 1.1)
     par_k2 = PEtabParameter(:k2; scale = :lin, prior = Normal(0.5, 3.0), value = 0.9)
     params = [par_k1, par_k2]
-    measurements = DataFrame(obs_id="obs_X1", time=[1.0, 2.0, 3.0], measurement=[1.1, 1.2, 1.3])
-    model = PEtabModel(rs, observables, measurements, params; speciemap=u0)
+    measurements = DataFrame(
+        obs_id = "obs_X1", time = [1.0, 2.0, 3.0], measurement = [1.1, 1.2, 1.3]
+    )
+    model = PEtabModel(rs, observables, measurements, params; speciemap = u0)
     prob = PEtabODEProblem(model; verbose = false)
     prob_density = PEtabLogDensity(prob)
     x = get_x(prob)
@@ -130,8 +138,8 @@ end
     llh_prior_grad = prob.grad(x) .* -1
     log_target, log_target_grad = prob_density.logtarget_gradient(xinference)
     @test llh_prior == prob_density.logtarget(xinference)
-    @test llh_prior ≈ log_target atol=1e-6
-    @test all(.≈(llh_prior_grad[:], log_target_grad; atol=1e-6))
+    @test llh_prior ≈ log_target atol = 1.0e-6
+    @test all(.≈(llh_prior_grad[:], log_target_grad; atol = 1.0e-6))
     g_ref = FiniteDifferences.grad(central_fdm(5, 1), prob_density.logtarget, xinference)[1]
-    @test all(.≈(g_ref, log_target_grad; atol=1e-6))
+    @test all(.≈(g_ref, log_target_grad; atol = 1.0e-6))
 end

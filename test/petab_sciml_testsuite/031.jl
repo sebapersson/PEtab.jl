@@ -43,7 +43,7 @@ conditions = PEtabCondition(:e1)
 
 observables = [
     PEtabObservable(:prey_o, :net5_output1, 0.05),
-    PEtabObservable(:predator_o, :predator, 0.05)
+    PEtabObservable(:predator_o, :predator, 0.05),
 ]
 
 path_m = joinpath(dir_case, "measurements.tsv")

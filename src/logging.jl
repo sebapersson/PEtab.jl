@@ -1,8 +1,9 @@
-StyledStrings.addface!(:PURPLE => StyledStrings.Face(foreground = 0x8f4093))
+StyledStrings.addface!(:PURPLE => StyledStrings.Face(foreground = 0x008f4093))
 
-function _logging(whatlog::Symbol, verbose::Bool; time = nothing, name::String = "",
-                  buildfiles::Bool = false, exist::Bool = false,
-                  method::Union{Symbol, String} = "")::Nothing
+function _logging(
+        whatlog::Symbol, verbose::Bool; time = nothing, name::String = "",
+        buildfiles::Bool = false, exist::Bool = false, method::Union{Symbol, String} = ""
+    )::Nothing
     verbose == false && return nothing
 
     if !isnothing(time)
@@ -32,7 +33,7 @@ function _logging(whatlog::Symbol, verbose::Bool; time = nothing, name::String =
     if whatlog == :Build_u0_h_σ
         if buildfiles == true && exist == true
             str = styled"{PURPLE:{bold:│ }} By user option rebuilds {emphasis:u0}, " *
-                  styled"{emphasis:h} and {emphasis:σ} functions ... "
+                styled"{emphasis:h} and {emphasis:σ} functions ... "
         end
         if exist == false
             str = styled"{PURPLE:{bold:│ }} Building {emphasis:u0}, {emphasis:h} and \
@@ -40,21 +41,21 @@ function _logging(whatlog::Symbol, verbose::Bool; time = nothing, name::String =
         end
         if buildfiles == false && exist == true
             str = styled"{PURPLE:{bold:│ }} {emphasis:u0}, {emphasis:h} and {emphasis:σ} " *
-                  styled"functions already exist\n"
+                styled"functions already exist\n"
         end
     end
     if whatlog == :Build_∂_h_σ
         if buildfiles == true && exist == true
             str = styled"{PURPLE:{bold:│ }} By user option rebuilds {emphasis:∂h∂p}, " *
-                  styled"{emphasis:∂h∂u}, {emphasis:∂σ∂p} and {emphasis:∂σ∂u} functions ... "
+                styled"{emphasis:∂h∂u}, {emphasis:∂σ∂p} and {emphasis:∂σ∂u} functions ... "
         end
         if exist == false
             str = styled"{PURPLE:{bold:│ }} Building {emphasis:∂h∂p}, {emphasis:∂h∂u}, " *
-                  styled"{emphasis:∂σ∂p} and {emphasis:∂σ∂u} functions ... "
+                styled"{emphasis:∂σ∂p} and {emphasis:∂σ∂u} functions ... "
         end
         if buildfiles == false && exist == true
             str = styled"{PURPLE:{bold:│ }} {emphasis:∂h∂p}, {emphasis:∂h∂u}, " *
-                  styled"{emphasis:∂σ∂p} and {emphasis:∂σ∂u} functions already exist\n"
+                styled"{emphasis:∂σ∂p} and {emphasis:∂σ∂u} functions already exist\n"
         end
     end
     if whatlog == :Build_callbacks
