@@ -1,15 +1,19 @@
-using SciMLBase, Lux, ComponentArrays, PEtab, CSV, DataFrames, YAML,
+using SciMLBase, Lux, ComponentArrays, PEtab, CSV, DataFrames, YAML, Distributions,
       OrdinaryDiffEqRosenbrock, SciMLSensitivity, HDF5, Test
 using Catalyst: @unpack
 import Random
+import PEtab: MLModel, PEtabMLParameter
+
 rng = Random.default_rng()
 
-PROB_CONFIGS = [(grad = :ForwardDiff, split = false, sensealg = :ForwardDiff),
-                (grad = :ForwardDiff, split = true, sensealg = :ForwardDiff),
-                (grad = :ForwardEquations, split = false, sensealg = :ForwardDiff),
-                (grad = :ForwardEquations, split = true, sensealg = :ForwardDiff),
-                (grad = :ForwardEquations, split = true, sensealg = ForwardSensitivity()),
-                (grad = :Adjoint, split = true, sensealg = InterpolatingAdjoint(autojacvec=ReverseDiffVJP(true)))]
+PROB_CONFIGS = [
+    (grad = :ForwardDiff, split = false, sensealg = :ForwardDiff),
+    (grad = :ForwardDiff, split = true, sensealg = :ForwardDiff),
+    (grad = :ForwardEquations, split = false, sensealg = :ForwardDiff),
+    (grad = :ForwardEquations, split = true, sensealg = :ForwardDiff),
+    (grad = :ForwardEquations, split = true, sensealg = ForwardSensitivity()),
+    (grad = :Adjoint, split = true, sensealg = InterpolatingAdjoint(autojacvec=ReverseDiffVJP(true)))
+]
 
 function test_hybrid(test_case, petab_prob::PEtabODEProblem)
     @unpack split_over_conditions, gradient_method = petab_prob.probinfo
@@ -65,7 +69,7 @@ function test_init(test_case, model::PEtabModel)::Nothing
 
     dirtest = joinpath(@__DIR__, "test_cases", "initialization", test_case)
     yamlfile = YAML.load_file(joinpath(dirtest, "solutions.yaml"))
-    for ml_model in ml_models.ml_models
+    for ml_model in model.ml_models.ml_models
         ml_id = :net1
         !haskey(yamlfile["parameter_files"], string(ml_id)) && continue
         path_ref = joinpath(dirtest, yamlfile["parameter_files"][string(ml_id)])
@@ -158,7 +162,9 @@ function get_mechanistic_ids(model_info::PEtab.ModelInfo)::Vector{Symbol}
     return mechanistic_ids
 end
 
-function parse_array(x::Array{T}, order_jl::Vector{String}, order_py::Vector{String})::Array{T} where T <: AbstractFloat
+function parse_array(
+        x::Array{T}, order_jl::Vector{String}, order_py::Vector{String}
+    )::Array{T} where T <: AbstractFloat
     # To column-major
     out = permutedims(x, reverse(1:ndims(x)))
     length(size(out)) == 1 && return out

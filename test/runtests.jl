@@ -38,6 +38,10 @@ end
     include(joinpath(@__DIR__, "log_laplace.jl"))
 end
 
+@safetestset "PEtab SciML test-suite" begin
+  include("petab_sciml_testsuite.jl")
+end
+
 if !core_only
     @safetestset "Model with analytic steady-state" begin
         include("analytic_ss.jl")

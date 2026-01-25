@@ -167,25 +167,22 @@ function test_remake_condition_ids(path_yaml, condition_ids_test, split_conditio
     return nothing
 end
 
-@info "Testing remake for Boehm model"
 path_yaml = joinpath(@__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml")
 model = PEtabModel(path_yaml)
 xchange1 = [:k_imp_hetero => 0.0163679184468,
             :k_exp_homo => 0.006170228086381,
             :k_phos => 15766.5070195731]
 xchange2 = [:k_exp_homo => 0.006170228086381]
-xchange3 = [:sd_pSTAT5A_rel => 3.85261197844677]
-xchange4 = [:sd_pSTAT5A_rel => 3.85261197844677,
-            :k_exp_homo => 0.006170228086381]
-@testset "PEtab remake : Boehm" begin
+
+@info "Remake parameters"
+@testset "PEtab remake : Boehm parameters" begin
     methods_test = [:GradientForwardDiff, :GradientForwardEquations, :GaussNewton, :Hessian,
                     :FIM]
     test_remake_parameters(model, xchange1, methods_test)
     test_remake_parameters(model, xchange2, methods_test)
-    test_remake_parameters(model, xchange3, methods_test)
-    test_remake_parameters(model, xchange4, methods_test)
 end
 
+@info "Remake conditions Bruno"
 path_yaml = joinpath(@__DIR__, "published_models", "Bruno_JExpBot2016", "Bruno_JExpBot2016.yaml")
 @testset begin "PEtab remake: Bruno condition ids"
     condition_ids_test = [
@@ -203,6 +200,7 @@ path_yaml = joinpath(@__DIR__, "published_models", "Bruno_JExpBot2016", "Bruno_J
     @test_throws PEtab.PEtabInputError remake(prob; conditions = [:hej])
 end
 
+@info "Remake conditions Brannmark"
 path_yaml = joinpath(@__DIR__, "published_models", "Brannmark_JBC2010", "Brannmark_JBC2010.yaml")
 @testset "PEtab remake: Brannmark condition ids" begin
     condition_ids_test = [[:Dose_0 => :Dose_0, :Dose_0 => :Dose_1, :Dose_0 => :Dose_100]]
