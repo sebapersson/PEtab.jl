@@ -25,6 +25,19 @@ function PEtabModel(path_yaml::String; build_julia_files::Bool = true,
         petab_tables, petab_events = v2_to_v1_tables(path_yaml, ifelse_to_callback)
     end
 
+    # Sanity check MLModels are correctly associated with the problem
+    sciml_extension = _has_sciml_extension(path_yaml)
+    if sciml_extension && isnothing(ml_models)
+        throw(PEtabInputError("For PEtab problems loaded with the SciML extension, \
+            `ml_models` must be provided to `PEtabModel` as \
+            `PEtabModel(...; ml_models = ml_models)`, where `ml_models` associated with \
+            the PEtab SciML problem can be loaded with `ml_models = MLModels(path_yaml)`"))
+    end
+    if petab_version == "1.0.0" && !isnothing(ml_models)
+        throw(PEtabInputError("PEtab problems with SciML extension are only supported for \
+            PEtab v2 problems."))
+    end
+
     ml_models = if isnothing(ml_models)
         MLModels()
     elseif ml_models isa MLModel

@@ -63,3 +63,7 @@ ode_solver = ODESolver(Rodas5P(), abstol = 1e-10, reltol = 1e-10, maxiters=Int(1
         include(joinpath(@__DIR__, "petab_sciml_testsuite", test_case))
     end
 end
+
+# Test throws upon incorrect input
+path_yaml = joinpath(dir_tests, "sciml_problem_import", "001", "petab", "problem.yaml")
+@test_throws PEtab.PEtabInputError PEtabModel(path_yaml)

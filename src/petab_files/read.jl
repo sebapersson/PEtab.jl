@@ -223,3 +223,14 @@ function _check_column_types(df::DataFrame, column_name::String, valid_types,
     end
     return nothing
 end
+
+function _has_sciml_extension(path_yaml::AbstractString)::Bool
+    petab_version = _get_version(path_yaml)
+    petab_version == "1.0.0" && return false
+
+    yaml_file = YAML.load_file(path_yaml)
+    if haskey(yaml_file, "extensions") && haskey(yaml_file["extensions"], "sciml")
+        return true
+    end
+    return false
+end
