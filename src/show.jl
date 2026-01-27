@@ -77,6 +77,12 @@ function show(io::IO, parameter::PEtabParameter)
 
     return print(io, styled"$(header)$(opt)")
 end
+function show(io::IO, parameter::PEtabMLParameter)
+    @unpack ml_id, estimate = parameter
+    header = styled"{PURPLE:{bold:PEtabMLParameter}} {emphasis:$(ml_id)}: "
+    opt = estimate == false ? "fixed" : "estimate"
+    return print(io, styled"$(header)$(opt)")
+end
 function show(io::IO, observable::PEtabObservable)
     @unpack observable_formula, observable_id, noise_formula, distribution = observable
     header = styled"{PURPLE:{bold:PEtabObservable}} {emphasis:$(observable_id)}: "
@@ -129,7 +135,11 @@ function show(io::IO, condition::PEtabCondition)
 
     opt = ""
     for i in eachindex(target_ids)
-        opt *= "$(target_ids[i]) => $(target_values[i]), "
+        if target_values[i] isa Array{<:Real}
+             opt *= "$(target_ids[i]) => $(summary(target_values[i])), "
+        else
+            opt *= "$(target_ids[i]) => $(target_values[i]), "
+        end
     end
     opt = opt[1:(end - 2)]
     return print(io, styled"$(header) $(opt)")
@@ -182,10 +192,35 @@ function show(io::IO, target::PEtabLogDensity)
     return print(io, out)
 end
 function show(io::IO, ml_model::MLModel)
+    @unpack static, ml_id, inputs, outputs = ml_model
+
+    mode = static == true ? "pre-initialization" : "simulation"
     n_ps = _get_n_ml_parameters(ml_model)
-    header = styled"{PURPLE:{bold:MLModel}} {emphasis:$(ml_model.ml_id)} with $(n_ps) parameters"
-    opt1 = "\n(for model structure, call `ml_model.lux_model`)"
-    return print(io, styled"$(header)$(opt1)")
+
+    header = styled"{PURPLE:{bold:MLModel}} {emphasis:$(ml_id)}\n"
+    opt1 = "  mode: $mode\n"
+    opt2 = "  parameters: $(n_ps)\n"
+    opt3 = "  hint: see model structure in `ml_model.lux_model`"
+    if isempty(inputs)
+        return print(io, styled"$(header)$(opt1)$(opt2)$(opt3)")
+    end
+
+    inputs = _ml_io_string(inputs, ml_model)
+    outputs = _ml_io_string(outputs, ml_model)
+    opt4 = "  inputs: $(inputs)\n"
+    opt5 = "  outputs: $(outputs)\n"
+    return print(io, styled"$(header)$(opt1)$(opt2)$(opt4)$(opt5)$(opt3)")
+end
+function show(io::IO, ml_models::MLModels)
+    header = styled"{PURPLE:{bold:MLModels}} with $(length(ml_models.ml_models)) models"
+
+    opt = ""
+    for ml_model in ml_models.ml_models
+        n_ps = _get_n_ml_parameters(ml_model)
+        mode = ml_model.static == true ? "pre-initialization" : "simulation"
+        opt *= "\n  $(ml_model.ml_id): (mode=$mode, parameters=$(n_ps))"
+    end
+    return print(io, styled"$(header)$(opt)")
 end
 
 """
@@ -202,7 +237,7 @@ function _describe(prob::PEtabODEProblem; styled::Bool = true)
     @unpack probinfo, model_info, nparameters_estimate = prob
     model = prob.model_info.model
     name = model_info.model.name
-    nstates = @sprintf("%d", length(unknowns(model.sys_mutated)))
+    nstates = @sprintf("%d", length(_get_state_ids(model.sys_mutated)))
     nparameters = @sprintf("%d", _get_n_parameters_sys(model.sys_mutated))
     nest = @sprintf("%d", nparameters_estimate)
     n_observables = length(unique(model.petab_tables[:measurements].observableId))
@@ -215,6 +250,19 @@ function _describe(prob::PEtabODEProblem; styled::Bool = true)
     opt3 = "  Observables: $(n_observables)\n"
     opt4 = "  Simulation conditions: $(n_conditions)\n"
     model_stat = styled"$(opt_head)$(opt1)$(opt2)$(opt3)$(opt4)\n"
+
+    if !isempty(model.ml_models)
+        ml_head = styled"{underline:ML models}\n"
+        ml_opt = ""
+        for ml_model in model.ml_models.ml_models
+            n_ps = _get_n_ml_parameters(ml_model)
+            mode = ml_model.static == true ? "pre-initialization" : "simulation"
+            ml_opt *= "  $(ml_model.ml_id): (mode=$mode, parameters=$(n_ps))\n"
+        end
+        ml_stat = styled"$(ml_head)$(ml_opt)\n"
+    else
+        ml_stat = ""
+    end
 
     opt_head = styled"{underline:Configuration}\n"
     opt1 = styled"  Gradient method: $(probinfo.gradient_method)\n"
@@ -234,8 +282,40 @@ function _describe(prob::PEtabODEProblem; styled::Bool = true)
     end
     comp_stat = styled"$(opt_head)$(opt1)$(opt2)$(opt3)$(opt4)$(opt5)$(opt6)"
     if styled
-        return styled"$(header)$(model_stat)$(comp_stat)"
+        return styled"$(header)$(model_stat)$(ml_stat)$(comp_stat)"
     else
-        return "$(header)$(model_stat)$(comp_stat)"
+        return "$(header)$(model_stat)$(ml_stat)$(comp_stat)"
+    end
+end
+
+function _ml_io_string(inputs, ml_model; max_show::Int = 6)::String
+    show_syms = function (syms::AbstractVector{Symbol})
+        n = length(syms)
+        k = min(n, max_show)
+        head = join(string.(syms[1:k]), ", ")
+        n > max_show ? "[$head, …]" : "[$head]"
+    end
+
+    # One input argument: Vector{Symbol}
+    if inputs isa AbstractVector{Symbol}
+        if length(inputs) == 1 && inputs[1] === :_ARRAY_INPUT
+            arr = ml_model.array_inputs[:__arg1]
+            return "$(summary(arr))"
+        end
+        return show_syms(inputs)
+    end
+
+    # Multiple input arguments: Vector{Vector{Symbol}} (or similar)
+    if inputs isa AbstractVector{<:AbstractVector{Symbol}}
+        parts = String[]
+        for (i, v) in enumerate(inputs)
+            if length(v) == 1 && v[1] === :_ARRAY_INPUT
+                arr = ml_model.array_inputs[Symbol("__arg", i)]
+                push!(parts, "arg$(i): $(summary(arr))")
+            else
+                push!(parts, "arg$(i): " * show_syms(v))
+            end
+        end
+        return "$(length(inputs)) args (" * join(parts, ", ") * ")"
     end
 end

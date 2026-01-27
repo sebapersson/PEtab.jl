@@ -82,7 +82,9 @@ function PEtabParameter(
         end
     end
 
-    return PEtabParameter(string(parameter_id), estimate, value, lb, ub, prior, scale, sample_prior)
+    return PEtabParameter(
+        string(parameter_id), estimate, value, lb, ub, prior, scale, sample_prior
+    )
 end
 
 """
@@ -172,7 +174,10 @@ function PEtabObservable(
         throw(PEtabFormatError("Unsupported noise distribution: $(distribution). Supported \
             distributions are $(string.(supported_dist)...)"))
     end
-    return PEtabObservable(string(observable_id), string(observable_formula), string(noise_formula), distribution)
+    return PEtabObservable(
+        string(observable_id), string(observable_formula), string(noise_formula),
+        distribution
+    )
 end
 
 """
@@ -205,8 +210,7 @@ struct PEtabCondition
     t0::Float64
 end
 function PEtabCondition(
-        condition_id::Union{Symbol, AbstractString}, assignments::Pair...;
-        t0::Real = 0.0
+        condition_id::Union{Symbol, AbstractString}, assignments::Pair...; t0::Real = 0.0
     )
     condition_id = string(condition_id)
     if isempty(assignments)
@@ -313,10 +317,10 @@ not supported for ML parameters (unlike mechanistic parameters declared via
 # Prior Precedence
 Priors have the following precedence: `"layerId.arrayId"` > `"layerId"` > `prior`.
 """
-struct PEtabMLParameter{T <: AbstractFloat}
+struct PEtabMLParameter{T <: Union{Nothing, ComponentArray{<:AbstractFloat}}}
     ml_id::Symbol
     estimate::Bool
-    value::Union{Nothing, ComponentVector{T}}
+    value::T
     prior::Union{Nothing, ContDistribution}
     priors::Vector{<:Pair{String, <:ContDistribution}}
 end
@@ -324,7 +328,7 @@ function PEtabMLParameter(
         ml_id::UserFormula; estimate::Bool = true,
         prior::Union{Nothing, ContDistribution} = nothing,
         priors::Vector{<:Pair{String, <:ContDistribution}} = Pair{String, ContDistribution}[],
-        value = Union{Nothing, NamedTuple, ComponentArray} = nothing,
+        value::Union{Nothing, NamedTuple, ComponentArray} = nothing,
     )
     if value isa NamedTuple
         value = ComponentArray(value)

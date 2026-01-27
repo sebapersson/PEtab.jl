@@ -12,9 +12,7 @@ nn2 = @compact(
     @return out
 end
 
-# TODO: Include pre-initialization in printing of the struct, then can create nested
-# TODO: for MLModels!
-ml_models = MLModel(:net1, nn2, true; inputs = [1.0, 1.0], outputs = [:gamma])
+ml_model = MLModel(:net1, nn2, true; inputs = [1.0, 1.0], outputs = [:gamma, :beta])
 
 path_h5 = joinpath(dir_case, "net1_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn2) |> ComponentArray |> f64

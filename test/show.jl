@@ -1,4 +1,4 @@
-using PEtab, Sundials, OrdinaryDiffEqRosenbrock, StyledStrings, NonlinearSolve,
+using PEtab, Sundials, OrdinaryDiffEqRosenbrock, StyledStrings, NonlinearSolve, Lux,
     Distributions, Catalyst, Test
 
 solver1 = ODESolver(Rodas5P())
@@ -20,11 +20,13 @@ p3 = PEtabParameter(
 )
 p4 = PEtabParameter(:k4; scale = :lin, prior = LogNormal(1.0, 1.0))
 p5 = PEtabParameter(:k5; value = 3.0, estimate = false)
+p6 = PEtabMLParameter(:net1)
 @test "$p1" == "PEtabParameter k1: estimate (scale = log10, bounds = [1.0e-03, 1.0e+03])"
 @test "$p2" == "PEtabParameter k2: estimate (scale = lin, bounds = [1.0e-03, 1.0e+03])"
 @test "$p3" == "PEtabParameter k3: estimate (scale = log, prior(k3) = Truncated(LogNormal(μ=1.0, σ=1.0); lower=0.01, upper=1000.0))"
 @test "$p4" == "PEtabParameter k4: estimate (scale = lin, prior(k4) = LogNormal(μ=1.0, σ=1.0))"
 @test "$p5" == "PEtabParameter k5: fixed = 3.00e+00"
+@test "$p6" == "PEtabMLParameter net1: estimate"
 
 t = default_t()
 @variables A(t) B(t)
@@ -53,10 +55,12 @@ cond1 = PEtabCondition(:c1, A => 1.0)
 cond2 = PEtabCondition(:c1, :A => :k1, :B => :k2)
 cond3 = PEtabCondition(:c1, "A" => exp(k1 + k2), :B => "k1 / k2")
 cond4 = PEtabCondition(:c1)
+cond5 = PEtabCondition(:c5, :A => zeros(2, 2), :B => 3.0)
 @test "$cond1" == "PEtabCondition c1: A(t) => 1.0"
 @test "$cond2" == "PEtabCondition c1: A => k1, B => k2"
 @test "$cond3" == "PEtabCondition c1: A => exp(k1 + k2), B => k1 / k2"
 @test "$cond4" == "PEtabCondition c1:"
+@test "$cond5" == "PEtabCondition c5: A => 2×2 Matrix{Float64}, B => 3.0"
 
 event1 = PEtabEvent(:k1, :A => 1.0, B => B + 2)
 event2 = PEtabEvent(sigma == t, A => 1.0, B => B + 2)
@@ -73,8 +77,14 @@ path1 = joinpath(
 path2 = joinpath(
     @__DIR__, "published_models", "Brannmark_JBC2010", "Brannmark_JBC2010.yaml"
 )
+path3 = joinpath(
+    @__DIR__, "petab_sciml_testsuite", "test_cases", "sciml_problem_import", "008",
+    "petab", "problem.yaml"
+)
 model1 = PEtabModel(path1; build_julia_files = true, verbose = false, write_to_file = false)
 model2 = PEtabModel(path2; build_julia_files = true, verbose = false, write_to_file = true)
+ml_models = MLModels(path3)
+model3 = PEtabModel(path3; ml_models = ml_models)
 @test "$model1" == "PEtabModel Boehm_JProteomeRes2014"
 @test "$model2"[1:28] == "PEtabModel Brannmark_JBC2010"
 
@@ -87,5 +97,39 @@ alg = IpoptOptimizer(false)
 
 prob1 = PEtabODEProblem(model1)
 prob2 = PEtabODEProblem(model2)
+prob3 = PEtabODEProblem(model3)
 @test PEtab._describe(prob1; styled = false) == "PEtabODEProblem Boehm_JProteomeRes2014\nProblem statistics\n  Parameters to estimate: 9\n  ODE: 8 states, 10 parameters\n  Observables: 3\n  Simulation conditions: 1\n\nConfiguration\n  Gradient method: ForwardDiff\n  Hessian method: ForwardDiff\n  ODE solver (nllh): Rodas5P (abstol=1.0e-08, reltol=1.0e-08, maxiters=1e+04)\n  ODE solver (grad): Rodas5P (abstol=1.0e-08, reltol=1.0e-08, maxiters=1e+04)"
 @test PEtab._describe(prob2; styled = false) == "PEtabODEProblem Brannmark_JBC2010\nProblem statistics\n  Parameters to estimate: 22\n  ODE: 9 states, 23 parameters\n  Observables: 3\n  Simulation conditions: 8\n\nConfiguration\n  Gradient method: ForwardDiff\n  Hessian method: ForwardDiff\n  ODE solver (nllh): Rodas5P (abstol=1.0e-08, reltol=1.0e-08, maxiters=1e+04)\n  ODE solver (grad): Rodas5P (abstol=1.0e-08, reltol=1.0e-08, maxiters=1e+04)\n  ss-solver (nllh): Simulate ODE until du = f(u, p, t) ≈ 0\n  ss-solver (grad): Simulate ODE until du = f(u, p, t) ≈ 0\n"
+@test PEtab._describe(prob3; styled = false) == "PEtabODEProblem petab\nProblem statistics\n  Parameters to estimate: 139\n  ODE: 2 states, 5 parameters\n  Observables: 2\n  Simulation conditions: 1\n\nML models\n  net1: (mode=pre-initialization, parameters=51)\n  net2: (mode=pre-initialization, parameters=86)\n\nConfiguration\n  Gradient method: ForwardDiff\n  Hessian method: ForwardDiff\n  ODE solver (nllh): Rodas5P (abstol=1.0e-08, reltol=1.0e-08, maxiters=1e+04)\n  ODE solver (grad): Rodas5P (abstol=1.0e-08, reltol=1.0e-08, maxiters=1e+04)"
+
+# ML-models printing
+nn1 = @compact(
+    layer1 = Dense(2, 5, Lux.tanh),
+    layer2 = Dense(5, 5, Lux.tanh),
+    layer3 = Dense(5, 1)
+) do x
+    embed = layer1(x)
+    embed = layer2(embed)
+    out = layer3(embed)
+    @return out
+end
+
+ml1 = MLModel(
+    :net1, nn1, true; inputs = [:x1, :x2], outputs = [:gamma, :beta]
+)
+ml2 = MLModel(
+    :net2, nn8_2, true; inputs = ([:x1], [:x2]), outputs = [:beta]
+)
+ml3 = MLModel(
+    :net2, nn8_2, true; inputs = zeros(2, 2, 3), outputs = [:beta]
+)
+mls1 = MLModels(ml1, ml2)
+mls2 = MLModels(ml1)
+mls3 = MLModels()
+
+@test "$ml1" == "MLModel net1\n  mode: pre-initialization\n  parameters: 51\n  inputs: [x1, x2]\n  outputs: [gamma, beta]\n  hint: see model structure in `ml_model.lux_model`"
+@test "$ml2" == "MLModel net2\n  mode: pre-initialization\n  parameters: 86\n  inputs: 2 args (arg1: [x1], arg2: [x2])\n  outputs: [beta]\n  hint: see model structure in `ml_model.lux_model`"
+@test "$ml3" == "MLModel net2\n  mode: pre-initialization\n  parameters: 86\n  inputs: 2×2×3 Array{Float64, 3}\n  outputs: [beta]\n  hint: see model structure in `ml_model.lux_model`"
+@test "$mls1" == "MLModels with 2 models\n  net1: (mode=pre-initialization, parameters=51)\n  net2: (mode=pre-initialization, parameters=86)"
+@test "$mls2" == "MLModels with 1 models\n  net1: (mode=pre-initialization, parameters=51)"
+@test "$mls3" == "MLModels with 0 models"
