@@ -51,6 +51,7 @@ function PEtabODEProblemInfo(
     #  (see conditions.jl for details) hence to set correct values for constant
     #  parameters the parameter map must be reorded.
     # 3. For ODEFunction an ODESystem is needed, hence ReactionSystems must be converted.
+    _logging(:Build_ODEProblem, verbose)
     btime = @elapsed begin
         odeproblem = _get_odeproblem(
             model.sys_mutated, model, model_info, specialize_level, sparse_jacobian_use

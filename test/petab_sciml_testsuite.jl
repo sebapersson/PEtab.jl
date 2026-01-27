@@ -70,3 +70,9 @@ end
 # Test throws upon incorrect input
 path_yaml = joinpath(dir_tests, "sciml_problem_import", "001", "petab", "problem.yaml")
 @test_throws PEtab.PEtabInputError PEtabModel(path_yaml)
+
+# Test the logging
+path_yaml = joinpath(dir_tests, "sciml_problem_import", "001", "petab", "problem.yaml")
+ml_models = MLModels(path_yaml)
+model = PEtabModel(path_yaml; ml_models = ml_models, verbose = true)
+prob = PEtabODEProblem(model; verbose = true)

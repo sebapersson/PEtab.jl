@@ -30,6 +30,10 @@ function _logging(
     if whatlog == :Build_ODESystem
         str = styled"{PURPLE:{bold:│ }} Parses the SBML model into an {emphasis:ODESystem} ... "
     end
+    if whatlog == :Build_SBML_prob
+        str = styled"{PURPLE:{bold:│ }} Parses the SBML model into an {emphasis:UDEProblem} ... "
+    end
+
     if whatlog == :Build_u0_h_σ
         if buildfiles == true && exist == true
             str = styled"{PURPLE:{bold:│ }} By user option rebuilds {emphasis:u0}, " *

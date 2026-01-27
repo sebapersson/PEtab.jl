@@ -99,7 +99,7 @@ function _PEtabModel(
             )
         else
             odesystem, speciemap, parametermap = _get_odeproblem(
-                model_SBML, ode_ml_models, petab_tables
+                model_SBML, ode_ml_models, petab_tables, verbose
             )
         end
 
@@ -296,47 +296,53 @@ end
 
 function _get_odeproblem(
         model_SBML::SBMLImporter.ModelSBML, ode_ml_models::MLModels,
-        petab_tables::PEtabTables
+        petab_tables::PEtabTables, verbose::Bool
     )
     hybridization_df, mappings_df = _get_petab_tables(
         petab_tables, [:hybridization, :mapping]
     )
 
-    for ml_id in ode_ml_models.ml_ids
-        output_variables = Iterators.flatten(
-            _get_ml_model_io_petab_ids(mappings_df, ml_id, :outputs)
-        )
-        outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)
+    _logging(:Build_SBML_prob, verbose)
+    btime = @elapsed begin
+        for ml_id in ode_ml_models.ml_ids
+            output_variables = Iterators.flatten(
+                _get_ml_model_io_petab_ids(mappings_df, ml_id, :outputs)
+            )
+            outputs_df = filter(
+                row -> row.targetValue in output_variables, hybridization_df
+            )
 
-        output_targets = outputs_df.targetId
-        for output_target in output_targets
-            delete!(model_SBML.parameters, output_target)
+            output_targets = outputs_df.targetId
+            for output_target in output_targets
+                delete!(model_SBML.parameters, output_target)
+            end
         end
-    end
 
-    # Parse the SBML model into an ODEProblem with the neueral networks inserted
-    model_SBML_prob = SBMLImporter.ModelSBMLProb(model_SBML)
-    __fode = _template_odeproblem(model_SBML_prob, model_SBML, ode_ml_models, petab_tables)
-    _fode = @RuntimeGeneratedFunction(Meta.parse(__fode))
-    fode = let ml_models = ode_ml_models
-        (du, u, p, t) -> _fode(du, u, p, t, ml_models)
-    end
+        # Parse the SBML model into an ODEProblem with the neueral networks inserted
+        model_SBML_prob = SBMLImporter.ModelSBMLProb(model_SBML)
+        __fode = _template_odeproblem(model_SBML_prob, model_SBML, ode_ml_models, petab_tables)
+        _fode = @RuntimeGeneratedFunction(Meta.parse(__fode))
+        fode = let ml_models = ode_ml_models
+            (du, u, p, t) -> _fode(du, u, p, t, ml_models)
+        end
 
-    # Build the internal PEtab.jl ODEProblem parameter struct, which is a ComponentVector
-    # with mechanistic and neural-network parameters. For internal PEtab.jl mapping,
-    # neural-network must be last in this ComponentVector
-    ps_mech = parse.(Float64, last.(model_SBML_prob.psmap))
-    ps_ode = (; (Symbol.(first.(model_SBML_prob.psmap)) .=> ps_mech)...)
-    for ml_model in ode_ml_models.ml_models
-        ps_ml = _get_lux_ps(ml_model)
-        ps_ode = merge(ps_ode, (; ml_model.ml_id => ps_ml))
-    end
-    ps_ode = ComponentArray(ps_ode)
+        # Build the internal PEtab.jl ODEProblem parameter struct, which is a ComponentVector
+        # with mechanistic and neural-network parameters. For internal PEtab.jl mapping,
+        # neural-network must be last in this ComponentVector
+        ps_mech = parse.(Float64, last.(model_SBML_prob.psmap))
+        ps_ode = (; (Symbol.(first.(model_SBML_prob.psmap)) .=> ps_mech)...)
+        for ml_model in ode_ml_models.ml_models
+            ps_ml = _get_lux_ps(ml_model)
+            ps_ode = merge(ps_ode, (; ml_model.ml_id => ps_ml))
+        end
+        ps_ode = ComponentArray(ps_ode)
 
-    # For internal mapping, initial values need to be provided as a ComponentArray
-    _u0tmp = zeros(Float64, length(model_SBML_prob.umodel))
-    u0 = ComponentArray(; (Symbol.(model_SBML_prob.umodel) .=> _u0tmp)...)
-    oprob = SciMLBase.ODEProblem(fode, u0, (0.0, 10.0), ps_ode)
+        # For internal mapping, initial values need to be provided as a ComponentArray
+        _u0tmp = zeros(Float64, length(model_SBML_prob.umodel))
+        u0 = ComponentArray(; (Symbol.(model_SBML_prob.umodel) .=> _u0tmp)...)
+        oprob = SciMLBase.ODEProblem(fode, u0, (0.0, 10.0), ps_ode)
+    end
+    _logging(:Build_SBML_prob, verbose; time = btime)
 
     # PEtab.jl needed maps for later processing
     u0map = model_SBML_prob.umap
