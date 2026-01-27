@@ -46,7 +46,7 @@ function PEtabODEProblemCache(
     if !isnothing(ml_models)
         for ml_model in ml_models.ml_models
             ml_id = ml_model.ml_id
-            ps = _get_ml_model_initialparameters(ml_model)
+            ps = _get_lux_ps(ComponentArray, ml_model)
             if ml_id in ids[:ml_est]
                 x_ml_models_cache[ml_id] = DiffCache(similar(ps); levels = level_cache)
                 x_ml_models[ml_id] = ps

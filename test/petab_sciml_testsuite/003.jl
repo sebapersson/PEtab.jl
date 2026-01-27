@@ -16,7 +16,7 @@ nn3 = @compact(
 end
 
 ml_models = MLModel(
-    :net1, nn3, true; inputs = inputs = [:net1_input1, :net1_input2], outputs = [:gamma]
+    :net1, nn3, true; inputs = [:net1_input1, :net1_input2], outputs = [:gamma]
 )
 path_h5 = joinpath(dir_case, "net1_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn3) |> ComponentArray |> f64

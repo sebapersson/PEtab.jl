@@ -119,7 +119,6 @@ include(joinpath("ml_models", "parameters.jl"))
 include(joinpath("ml_models", "pre_simulate.jl"))
 include(joinpath("ml_models", "templates.jl"))
 
-#=
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem
 @setup_workload begin
     path_yaml = joinpath(@__DIR__, "..", "test", "analytic_ss", "Test_model3.yaml")
@@ -129,7 +128,6 @@ include(joinpath("ml_models", "templates.jl"))
         petab_problem.nllh(petab_problem.xnominal_transformed)
     end
 end
-=#
 
 # Functions that only appear in extension
 function compute_llh end
@@ -138,15 +136,11 @@ function get_correction end
 function correct_gradient! end
 
 # For ML models
-function load_ml_models end
 function _get_lux_ps end
-function _get_ml_model_initialparameters end
 function _set_ml_model_ps! end
 function _reshape_io_data end
-function ml_model end
 function parse_to_lux end
 function _reshape_array end
-function _get_initialisation_priors end
 function nn_ps_to_h5! end
 function MLModel end
 function _get_n_ml_parameters end
@@ -157,7 +151,7 @@ export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
     get_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, get_system, PEtabEvent,
     PEtabLogDensity, solve_all_conditions, get_x, calibrate, calibrate_multistart,
     petab_select, get_obs_comparison_plots, export_petab, describe, LogLaplace,
-    MLModels
+    MLModels, UDEProblem
 
 """
     to_prior_scale(xpetab, target::PEtabLogDensity)

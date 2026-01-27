@@ -182,8 +182,10 @@ function show(io::IO, target::PEtabLogDensity)
     return print(io, out)
 end
 function show(io::IO, ml_model::MLModel)
-    out = styled"{PURPLE:{bold:MLModel}} $(ml_model.ml_id)"
-    return print(io, out)
+    n_ps = _get_n_ml_parameters(ml_model)
+    header = styled"{PURPLE:{bold:MLModel}} {emphasis:$(ml_model.ml_id)} with $(n_ps) parameters"
+    opt1 = "\n(for model structure, call `ml_model.lux_model`)"
+    return print(io, styled"$(header)$(opt1)")
 end
 
 """

@@ -21,10 +21,10 @@ nn11_2 = @compact(
     out = layer3(embed)
     @return out
 end
-ml_models = MLModels(
-    MLModel(:net1, nn11_1, false),
-    MLModel(:net2, nn11_2, true; inputs = [:net2_input_pre1, :net2_input_pre1], outputs = [:beta])
-)
+
+ml_model1 = MLModel(:net1, nn11_1, false)
+ml_model2 = MLModel(:net2, nn11_2, true; inputs = [:net2_input_pre1, :net2_input_pre1], outputs = [:beta])
+ml_models = MLModels(ml_model1, ml_model2)
 
 path_h5 = joinpath(dir_case, "net1_ps.hdf5")
 pnn1 = Lux.initialparameters(rng, nn11_1) |> ComponentArray |> f64
@@ -33,7 +33,7 @@ path_h5 = joinpath(dir_case, "net2_ps.hdf5")
 pnn2 = Lux.initialparameters(rng, nn11_2) |> ComponentArray |> f64
 PEtab._set_ml_model_ps!(pnn2, path_h5, nn11_2, :net2)
 
-function _lv11!(du, u, p, t, ml_models)
+function lv11!(du, u, p, t, ml_models)
     prey, predator = u
     @unpack alpha, delta, beta = p
 
@@ -46,13 +46,9 @@ function _lv11!(du, u, p, t, ml_models)
     return nothing
 end
 
-lv11! = let _ml_models = ml_models
-    (du, u, p, t) -> _lv11!(du, u, p, t, _ml_models)
-end
 p_mechanistic = (alpha = 1.3, delta = 1.8, beta = 0.9)
-p_model = ComponentArray(merge(p_mechanistic, (net1 = pnn1,)))
 u0 = ComponentArray(prey = 0.44249296, predator = 4.6280594)
-uprob = ODEProblem(lv11!, u0, (0.0, 10.0), p_model)
+uprob = UDEProblem(lv11!, u0, (0.0, 10.0), p_mechanistic, ml_model1)
 
 p_alpha = PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3)
 p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)

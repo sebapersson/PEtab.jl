@@ -176,7 +176,7 @@ function Priors(xindices::ParameterIndices, model::PEtabModel)::Priors
 
             else
                 i_start = xindices.indices_est[ml_id][1]
-                x_ml = _get_ml_model_initialparameters(model.ml_models[ml_id])
+                x_ml = _get_lux_ps(ComponentArray, model.ml_models[ml_id])
                 layer_id = _get_layer_id(model_parameter_id)
                 array_id = _get_array_id(model_parameter_id)
                 label = isempty(array_id) ? "$(layer_id)" : "$(layer_id).$(array_id)"

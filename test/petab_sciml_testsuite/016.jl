@@ -11,12 +11,12 @@ nn16 = @compact(
     out = layer3(embed)
     @return out
 end
-ml_models = MLModel(:net1, nn16, false) |> MLModels
+ml_model = MLModel(:net1, nn16, false)
 path_h5 = joinpath(dir_case, "net1_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn16) |> ComponentArray |> f64
 PEtab._set_ml_model_ps!(pnn, path_h5, nn16, :net1)
 
-function _lv16!(du, u, p, t, ml_models)
+function lv16!(du, u, p, t, ml_models)
     prey, predator = u
     @unpack alpha, delta, beta = p
     net1 = ml_models[:net1]
@@ -27,14 +27,10 @@ function _lv16!(du, u, p, t, ml_models)
     du[2] = du_nn[1] - delta * predator # predator
     return nothing
 end
-lv16! = let _ml_models = ml_models
-    (du, u, p, t) -> _lv16!(du, u, p, t, _ml_models)
-end
 
 p_mechanistic = (alpha = 1.3, delta = 1.8, beta = 0.9)
-p_ode = ComponentArray(merge(p_mechanistic, (net1 = pnn,)))
 u0 = ComponentArray(prey = 0.44249296, predator = 4.6280594)
-uprob = ODEProblem(lv16!, u0, (0.0, 10.0), p_ode)
+uprob = UDEProblem(lv16!, u0, (0.0, 10.0), p_mechanistic, ml_model)
 
 p_alpha = PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3)
 p_beta = PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9)
@@ -54,7 +50,7 @@ measurements = CSV.read(path_m, DataFrame)
 rename!(measurements, "experimentId" => "simulation_id")
 
 model = PEtabModel(
-    uprob, observables, measurements, pest; ml_models = ml_models,
+    uprob, observables, measurements, pest; ml_models = ml_model,
     simulation_conditions = conditions
 )
 petab_prob = PEtabODEProblem(

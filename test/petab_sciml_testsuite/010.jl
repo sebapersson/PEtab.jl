@@ -32,7 +32,7 @@ path_h5 = joinpath(dir_case, "net2_ps.hdf5")
 pnn2 = Lux.initialparameters(rng, nn10_2) |> ComponentArray |> f64
 PEtab._set_ml_model_ps!(pnn2, path_h5, nn10_2, :net2)
 
-function _lv10!(du, u, p, t, ml_models)
+function lv10!(du, u, p, t, ml_models)
     prey, predator = u
     @unpack alpha, delta, beta = p
 
@@ -49,13 +49,9 @@ function _lv10!(du, u, p, t, ml_models)
     return nothing
 end
 
-lv10! = let _ml_models = ml_models
-    (du, u, p, t) -> _lv10!(du, u, p, t, _ml_models)
-end
-p_mechanistic = (alpha = 1.3, delta = 1.8, beta = 0.9)
-p_ode = ComponentArray(merge(p_mechanistic, (net1 = pnn1, net2 = pnn2)))
+p_mechanistic = ComponentArray(alpha = 1.3, delta = 1.8, beta = 0.9)
 u0 = ComponentArray(prey = 0.44249296, predator = 4.6280594)
-uprob = ODEProblem(lv10!, u0, (0.0, 10.0), p_ode)
+uprob = UDEProblem(lv10!, u0, (0.0, 10.0), p_mechanistic, ml_models)
 
 p_beta = PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9)
 p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)

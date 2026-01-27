@@ -14,27 +14,31 @@ end
 function PEtab._get_lux_ps(ml_model::PEtab.MLModel)
     return PEtab._get_lux_ps(Random.default_rng(), ml_model)
 end
+function PEtab._get_lux_ps(::Type{ComponentArray}, ml_model::PEtab.MLModel)::ComponentArray
+    return PEtab._get_lux_ps(Random.default_rng(), ComponentArray, ml_model)
+end
 function PEtab._get_lux_ps(rng::Random.AbstractRNG, ml_model::PEtab.MLModel)
-    ps, _ = Lux.setup(rng, ml_model.lux_model)
-    return ps
+    return Lux.initialparameters(rng, ml_model.lux_model)
+end
+function PEtab._get_lux_ps(
+        rng::Random.AbstractRNG, ::Type{ComponentArray}, ml_model::PEtab.MLModel
+    )::ComponentArray
+    return PEtab._get_lux_ps(rng, ml_model) |>
+        ComponentArray |>
+        f64
 end
 
-function PEtab._get_n_ml_parameters(ml_model::PEtab.MLModel)
+function PEtab._get_n_ml_parameters(ml_model::PEtab.MLModel)::Integer
     return Lux.LuxCore.parameterlength(ml_model.lux_model)
-end
-
-function PEtab._get_ml_model_initialparameters(ml_model::PEtab.MLModel)::ComponentArray
-    rng = Random.default_rng(1)
-    return Lux.initialparameters(rng, ml_model.lux_model) |> ComponentArray .|> Float64
 end
 
 function PEtab._reshape_io_data(x::Array{T})::Array{T} where {T <: AbstractFloat}
     order_py = 1:length(size(x))
     order_jl = reverse(order_py)
-    imap = zeros(Int64, length(order_jl))
+    idx_map = zeros(Int64, length(order_jl))
     for i in eachindex(order_jl)
-        imap[i] = findfirst(x -> x == order_jl[i], order_py)
+        idx_map[i] = findfirst(x -> x == order_jl[i], order_py)
     end
-    map = collect(1:length(order_py)) .=> imap
+    map = collect(1:length(order_py)) .=> idx_map
     return PEtab._reshape_array(x, map)
 end

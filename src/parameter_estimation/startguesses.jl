@@ -165,8 +165,7 @@ function _ml_startguess(
         rng::Random.AbstractRNG, ml_model::MLModel, model_info::ModelInfo, init_weight,
         init_bias, sample_prior::Bool
     )
-    x_ml = _get_lux_ps(rng, ml_model) |>
-        ComponentArray
+    x_ml = _get_lux_ps(rng, ComponentArray, ml_model)
 
     if !isnothing(init_weight)
         for layer_id in keys(x_ml)

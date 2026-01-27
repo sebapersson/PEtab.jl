@@ -11,14 +11,14 @@ nn22 = @compact(
     out = layer3(embed)
     @return out
 end
-ml_models = MLModel(
+ml_model = MLModel(
     :net4, nn22, false; inputs = [:prey, :predator], outputs = [:net4_output1, :net4_output2]
-) |> MLModels
+)
 path_h5 = joinpath(dir_case, "net4_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn22) |> ComponentArray |> f64
 PEtab._set_ml_model_ps!(pnn, path_h5, nn22, :net4)
 
-function _lv22!(du, u, p, t, ml_models)
+function lv22!(du, u, p, t, ml_models)
     prey, predator = u
     @unpack alpha, delta, beta = p
     net1 = ml_models[:net4]
@@ -29,20 +29,17 @@ function _lv22!(du, u, p, t, ml_models)
     du[2] = du_nn[2] - delta * predator # predator
     return nothing
 end
-lv22! = let _ml_models = ml_models
-    (du, u, p, t) -> _lv22!(du, u, p, t, _ml_models)
-end
 
 p_mechanistic = (alpha = 1.3, delta = 1.8, beta = 0.9)
-p_ode = ComponentArray(merge(p_mechanistic, (net4 = pnn,)))
-u0 = ComponentArray(prey = 0.44249296, predator = 4.6280594)
-uprob = ODEProblem(lv22!, u0, (0.0, 10.0), p_ode)
+u0 = (prey = 0.44249296, predator = 4.6280594)
+uprob = UDEProblem(lv22!, u0, (0.0, 10.0), p_mechanistic, ml_model)
 
-p_alpha = PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3)
-p_beta = PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9)
-p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)
-p_net4 = PEtabMLParameter(:net4; value = pnn)
-pest = [p_alpha, p_beta, p_delta, p_net4]
+pest = [
+    PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3),
+    PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9),
+    PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8),
+    PEtabMLParameter(:net4; value = pnn)
+]
 
 observables = [
     PEtabObservable(:prey_o, :net4_output1, 0.05),
@@ -56,7 +53,7 @@ measurements = CSV.read(path_m, DataFrame)
 rename!(measurements, "experimentId" => "simulation_id")
 
 model = PEtabModel(
-    uprob, observables, measurements, pest; ml_models = ml_models,
+    uprob, observables, measurements, pest; ml_models = ml_model,
     simulation_conditions = conditions
 )
 petab_prob = PEtabODEProblem(

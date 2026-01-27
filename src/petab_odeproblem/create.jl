@@ -261,7 +261,7 @@ function _get_bounds(
     bounds = Vector{ComponentArray}(undef, length(xnames_nn))
     for (i, ml_id) in pairs(xnames_nn)
         ml_model = model_info.model.ml_models[ml_id]
-        bounds[i] = _get_ml_model_initialparameters(ml_model)
+        bounds[i] = _get_lux_ps(ComponentArray, ml_model)
         if which == :lower
             bounds[i] .= -Inf
         else
@@ -294,7 +294,7 @@ function _get_xnominal(
     xnominal_nn = Vector{ComponentArray}(undef, length(xnames_nn))
     for (i, ml_id) in pairs(xnames_nn)
         ml_model = model_info.model.ml_models[ml_id]
-        psnet = _get_ml_model_initialparameters(ml_model)
+        psnet = _get_lux_ps(ComponentArray, ml_model)
         _set_ml_model_ps!(psnet, ml_id, ml_models, paths, petab_tables)
         xnominal_nn[i] = psnet
     end

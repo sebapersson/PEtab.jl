@@ -32,9 +32,9 @@ st = Lux.initialstates(rng, nn23_frozen) |> f64
 st.layer1.frozen_params.weight .= pnn_tmp.layer1.weight
 st.layer1.frozen_params.bias .= pnn_tmp.layer1.bias
 # Given this ml_model can be built
-ml_models = MLModel(:net1, nn23_frozen, false; st = st) |> MLModels
+ml_model = MLModel(:net1, nn23_frozen, false; st = st)
 
-function _lv23!(du, u, p, t, ml_models)
+function lv23!(du, u, p, t, ml_models)
     prey, predator = u
     @unpack alpha, delta, beta = p
     net1 = ml_models[:net1]
@@ -45,20 +45,17 @@ function _lv23!(du, u, p, t, ml_models)
     du[2] = du_nn[1] - delta * predator # predator
     return nothing
 end
-lv23! = let _ml_models = ml_models
-    (du, u, p, t) -> _lv23!(du, u, p, t, _ml_models)
-end
 
 p_mechanistic = (alpha = 1.3, delta = 1.8, beta = 0.9)
-p_ode = ComponentArray(merge(p_mechanistic, (net1 = pnn,)))
-u0 = ComponentArray(prey = 0.44249296, predator = 4.6280594)
-uprob = ODEProblem(lv23!, u0, (0.0, 10.0), p_ode)
+u0 = (prey = 0.44249296, predator = 4.6280594)
+uprob = UDEProblem(lv23!, u0, (0.0, 10.0), p_mechanistic, ml_model)
 
-p_alpha = PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3)
-p_beta = PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9)
-p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)
-p_net1 = PEtabMLParameter(:net1; value = pnn)
-pest = [p_alpha, p_beta, p_delta, p_net1]
+pest = [
+    PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3),
+    PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9),
+    PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8),
+    PEtabMLParameter(:net1; value = pnn)
+]
 
 observables = [
     PEtabObservable(:prey_o, :prey, 0.05),
@@ -72,7 +69,7 @@ measurements = CSV.read(path_m, DataFrame)
 rename!(measurements, "experimentId" => "simulation_id")
 
 model = PEtabModel(
-    uprob, observables, measurements, pest; ml_models = ml_models,
+    uprob, observables, measurements, pest; ml_models = ml_model,
     simulation_conditions = conditions
 )
 petab_prob = PEtabODEProblem(

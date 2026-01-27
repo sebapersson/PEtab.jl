@@ -12,8 +12,10 @@ nn2 = @compact(
     @return out
 end
 
-# Test with constant Vector input
+# TODO: Include pre-initialization in printing of the struct, then can create nested
+# TODO: for MLModels!
 ml_models = MLModel(:net1, nn2, true; inputs = [1.0, 1.0], outputs = [:gamma])
+
 path_h5 = joinpath(dir_case, "net1_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn2) |> ComponentArray |> f64
 PEtab._set_ml_model_ps!(pnn, path_h5, nn2, :net1)
