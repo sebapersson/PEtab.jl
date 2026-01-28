@@ -110,6 +110,17 @@ function _get_odeproblem(
         ml_id in xindices.ids[:ml_est] && continue
         _set_ml_model_ps!((@view odeproblem.p[ml_id]), model.ml_models[ml_id], model.paths)
     end
+
+    # Ensure u0 and p are ComponentArrays if provided as NamedTuples (ComponentArray
+    # needed for all downstream operations)
+    p = ComponentArray(odeproblem.p)
+    if odeproblem.u0 isa NamedTuple
+        u0 = ComponentArray(NamedTuple(keys(odeproblem.u0) .=> 0.0))
+    else
+        u0 = odeproblem.u0
+    end
+    odeproblem = remake(odeproblem, p = p, u0 = u0)
+
     return odeproblem
 end
 function _get_odeproblem(

@@ -28,6 +28,18 @@ D = default_time_deriv()
 end
 @mtkbuild sys = SYS3()
 
+function f_ode3!(du, u, p, t)
+    A, B = u
+    @unpack a0, b0, k1, k2 = p
+    du[1] = -k1 * A + k2 * B # A
+    du[2] = k1 * A - k2 * B # B
+    return nothing
+end
+u0 = ComponentArray(A = 0.0, B = 0.0)
+ps = ComponentArray(a0 = 0.0, b0 = 0.0, k1 = 0.0, k2 = 0.0)
+specie_map = [:A => :a0, :B => :b0]
+ode_prob3 = ODEProblem(f_ode3!, u0, (0.0, 10.0), ps)
+
 # Measurement data
 measurements = DataFrame(
     simulation_id = ["c0", "c0"],
@@ -58,16 +70,24 @@ model_rn = PEtabModel(
     rn, observables, measurements, parameters;
     simulation_conditions = simulation_conditions
 )
-petab_prob_rn = PEtabODEProblem(model_rn, verbose = false)
+petab_prob_rn = PEtabODEProblem(model_rn)
 # Create a PEtabODEProblem ODESystem
 model_sys = PEtabModel(
     sys, observables, measurements, parameters;
     simulation_conditions = simulation_conditions
 )
-petab_prob_sys = PEtabODEProblem(model_sys, verbose = false)
+petab_prob_sys = PEtabODEProblem(model_sys)
+# Create PEtabODEProblem ODEProblem
+model_ode = PEtabModel(
+    ode_prob3, observables, measurements, parameters; speciemap = specie_map,
+    simulation_conditions = simulation_conditions
+)
+petab_prob_ode = PEtabODEProblem(model_ode)
 
 # Compute negative log-likelihood
 nll_rn = petab_prob_rn.nllh(get_x(petab_prob_rn))
 nll_sys = petab_prob_sys.nllh(get_x(petab_prob_sys))
+nll_prob = petab_prob_ode.nllh(get_x(petab_prob_ode))
 @test nll_rn ≈ 15.87199287779978 atol = 1.0e-3
 @test nll_sys ≈ 15.87199287779978 atol = 1.0e-3
+@test nll_prob ≈ 15.87199287779978 atol = 1.0e-3

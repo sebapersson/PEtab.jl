@@ -1,5 +1,5 @@
 using Test, Distributions, PEtab, CSV, DataFrames, ModelingToolkit, Catalyst, LinearAlgebra,
-    OrdinaryDiffEqRosenbrock, ForwardDiff
+    OrdinaryDiffEqRosenbrock, ForwardDiff, ComponentArrays
 
 #  5 and 12 rely on SBML features and have no direct correspondence to a MTK ODESystem or
 # Catalyst ReactionSystem

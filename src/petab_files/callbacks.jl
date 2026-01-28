@@ -94,7 +94,9 @@ function _parse_events(
         discrete_callbacks = DiscreteCallback[]
         for cb in _cbs.discrete_callbacks
             affect_petab_event! = let _affect_petab! = cb.affect!, _save_u = [false]
-                (integrator) -> _affect_petab_julia_event!(integrator, _affect_petab!, _save_u)
+                (integrator) -> _affect_petab_julia_event!(
+                    integrator, _affect_petab!, _save_u
+                )
             end
             _cb = DiscreteCallback(
                 cb.condition, affect_petab_event!; initialize = cb.initialize,

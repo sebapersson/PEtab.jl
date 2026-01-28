@@ -60,13 +60,13 @@ model_rn = PEtabModel(
     rn, observables, measurements, parameters;
     simulation_conditions = simulation_conditions
 )
-petab_prob_rn = PEtabODEProblem(model_rn, verbose = false)
+petab_prob_rn = PEtabODEProblem(model_rn)
 # Create a PEtabODEProblem ODESystem
 model_sys = PEtabModel(
     sys, observables, measurements, parameters,
     simulation_conditions = simulation_conditions
 )
-petab_prob_sys = PEtabODEProblem(model_sys, verbose = false)
+petab_prob_sys = PEtabODEProblem(model_sys)
 
 # Compute negative log-likelihood
 nll_rn = petab_prob_rn.nllh(get_x(petab_prob_rn))
