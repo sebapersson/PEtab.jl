@@ -210,7 +210,7 @@ function _get_ps_u0(
 
     # These parameters are added to a mutated system for gradient computations, but
     # should not be exposed to the user if the model is defined in Julia
-    if model.defined_in_julia
+    if model.defined_in_julia && !(model.sys isa ODEProblem)
         ip = findall(x -> !occursin("__init__", x), string.(ps))
         return _u0, _p[ip]
     end

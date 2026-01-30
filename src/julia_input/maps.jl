@@ -1,8 +1,8 @@
 function _get_speciemap(
         sys::ModelSystem, petab_tables::PEtabTables, ml_models::MLModels, speciemap_input
     )
-    hybridization_df, conditions_df = _get_petab_tables(
-        petab_tables, [:hybridization, :conditions]
+    hybridization_df, conditions_df, observables_df, parameters_df = _get_petab_tables(
+        petab_tables, [:hybridization, :conditions, :observables, :parameters]
     )
 
     specie_ids = _get_state_ids(sys)
@@ -55,6 +55,33 @@ function _get_speciemap(
             hybridization_df[ix, :targetId] .= pid
         end
     end
+
+    # Just as for SBML models, if a parameter in the parameter tables assigns in a
+    # PEtabCondition, and appears in an observable formula it must added to the system
+    # as otherwise gradients will not be computable
+    for condition_variable in names(conditions_df)
+        condition_variable == "conditionId" && continue
+        for condition_value in conditions_df[:, condition_variable]
+            ismissing(condition_value) && continue
+            condition_value == "NaN" && continue
+            condition_value isa Real && continue
+            is_number(condition_value) && continue
+
+            for parameter_id in string.(parameters_df.parameterId)
+                parameters_sys = _get_parameters(sys)
+                parameter_id in parameters_sys && continue
+
+                _formula = SBMLImporter._replace_variable(condition_value, parameter_id, "")
+                _formula == condition_value && continue
+
+                if _parameter_in_observables(parameter_id, observables_df) == false
+                    continue
+                end
+                sys = _add_parameter(sys, parameter_id)
+            end
+        end
+    end
+
     return sys, speciemap_model, speciemap
 end
 
@@ -171,7 +198,7 @@ function _add_parameter(sys::ODESystem, parameter)
     return complete(de)
 end
 function _add_parameter(sys::ODEProblem, parameter)
-    # For an ODEProblem p can be arbitrary struct (we enfroce ComponentArray though for
+    # For an ODEProblem p can be arbitrary struct (we enforce ComponentArray though for
     # parameter mapping)
     @assert sys.p isa ComponentArray "p for ODEProblem must be a ComponentArray"
     _p = sys.p |> NamedTuple
@@ -213,9 +240,19 @@ function _get_speciemap_ids(sys)
     return unknowns(sys)
 end
 
+function _get_default_values(sys::ODEProblem)
+    return _keys_to_string(sys.u0)
+end
 function _get_default_values(sys)
     return ModelingToolkit.get_defaults(sys) |> _keys_to_string
 end
-function _get_default_values(sys::ODEProblem)
-    return _keys_to_string(sys.u0)
+
+function _get_parameters(sys::ODEProblem)::Vector{String}
+    return sys.p |>
+        keys |>
+        collect .|>
+        string
+end
+function _get_parameters(sys::ModelSystem)::Vector{String}
+    return string.(parameters(sys))
 end

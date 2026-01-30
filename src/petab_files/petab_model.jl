@@ -164,10 +164,10 @@ end
 function add_u0_parameters!(
         model_SBML::SBMLImporter.ModelSBML, petab_tables::PEtabTables, ml_models::MLModels
     )::Nothing
-    conditions_df = petab_tables[:conditions]
-    parameters_df = petab_tables[:parameters]
-    mappings_df = petab_tables[:mapping]
-    hybridization_df = petab_tables[:hybridization]
+    conditions_df, parameters_df, mappings_df, hybridization_df, observables_df = _get_petab_tables(
+        petab_tables, [:conditions, :parameters, :mapping, :hybridization, :observables]
+    )
+    # TODO: Fix add parameters for Julia interface tomorrow
 
     specieids = keys(model_SBML.species)
     rateruleids = model_SBML.rate_rule_variables
@@ -202,8 +202,7 @@ function add_u0_parameters!(
         u0name = "__init__" .* sbml_variable.name .* "__"
         value = sbml_variable.initial_value
         u0parameter = SBMLImporter.ParameterSBML(
-            u0name, true, value, "", false, false,
-            false, false, false, false
+            u0name, true, value, "", false, false, false, false, false, false
         )
         model_SBML.parameters[u0name] = u0parameter
         sbml_variable.initial_value = u0name
@@ -215,10 +214,9 @@ function add_u0_parameters!(
             hybridization_df[ix, :targetId] .= "__init__" .* sbml_variable.name .* "__"
         end
 
-        # Check if any parameter in the PEtab tables maps to u0 in the conditions table,
-        # because if this is the case this parameter must be added to the SBML model as
-        # it should be treated as a dynamic parameter for indexing. A NaN value is allowed,
-        # meaning the parameter should be set by the corresponding SBML formula
+        # Check if any parameter in the parameter table maps to both a model parameter,
+        # or specie, as well as appear in the observable formula. In this case the
+        # parameter must be added to the system as it is a dynamic parameter.
         !(condition_variable in names(conditions_df)) && continue
         for condition_value in conditions_df[!, condition_variable]
             ismissing(condition_value) && continue
@@ -227,16 +225,18 @@ function add_u0_parameters!(
             is_number(condition_value) && continue
             # Potential parameters case
             for parameter_id in parameters_df.parameterId
+                haskey(model_SBML.parameters, parameter_id) && continue
+
                 # Whether the formula contains the parameter
                 _formula = SBMLImporter._replace_variable(condition_value, parameter_id, "")
                 _formula == condition_value && continue
 
-                haskey(model_SBML.parameters, parameter_id) && continue
+                if _parameter_in_observables(parameter_id, observables_df) == false
+                    continue
+                end
 
                 parameter = SBMLImporter.ParameterSBML(
-                    condition_value, true, "0.0", "",
-                    false, false, false, false, false,
-                    false
+                    parameter_id, true, "0.0", "", false, false, false, false, false, false
                 )
                 model_SBML.parameters[parameter_id] = parameter
             end

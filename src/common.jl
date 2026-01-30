@@ -306,3 +306,15 @@ function _get_experiment_id(
     )::Symbol
     return Symbol("$(pre_equilibration_id)$(simulation_id)")
 end
+
+function _parameter_in_observables(parameter_id::String, observables_df::DataFrame)::Bool
+    in_observables = false
+    for observable_formula in observables_df.observableFormula
+        _formula = SBMLImporter._replace_variable(observable_formula, parameter_id, "")
+        if _formula != observable_formula
+            in_observables = true
+            break
+        end
+    end
+    return in_observables
+end
