@@ -69,7 +69,8 @@ function _observables_to_table(observables::Vector{PEtabObservable})::DataFrame
 end
 
 function _conditions_to_table(
-        conditions::Vector{PEtabCondition}, sys::ModelSystem, ml_models::MLModels
+        conditions::Vector{PEtabCondition}, mappings_df::DataFrame, sys::ModelSystem,
+        ml_models::MLModels
     )::DataFrame
     condition_ids = getfield.(conditions, :condition_id)
     if condition_ids != unique(condition_ids)
@@ -101,6 +102,20 @@ function _conditions_to_table(
             conditions_df[!, model_id] .= string.(conditions_df[!, model_id])
             conditions_df[row_idx, model_id] = "NaN"
         end
+    end
+
+    # Unlike standard PEtab variables, ML-input variables do not have a default value, so
+    # if it is assigned in the condition table, it needs to be assigned for all conditions
+    ml_input_ids = _get_ml_model_io_petab_ids(ml_models, mappings_df)
+    for condition_variable in names(conditions_df)
+        !in(condition_variable, ml_input_ids) && continue
+        !any(ismissing.(conditions_df[:, condition_variable])) && continue
+
+        idx = findfirst(x -> ismissing(x), conditions_df[:, condition_variable])
+        condition_id = conditions_df.conditionId[idx]
+        throw(PEtabInputError("ML input variable '$(condition_variable)' is not assigned \
+            for PEtabCondition '$(condition_id)'. ML input variables require a value for \
+            every simulation condition (they have no default value)."))
     end
 
     _check_table(conditions_df, :conditions_v1)

@@ -1,6 +1,19 @@
 function _get_ml_model_io_petab_ids(
+        ml_models::MLModels, mappings_df::DataFrame
+    )::Vector{String}
+    out = String[]
+    for ml_model in ml_models.ml_models
+        input_ids = _get_ml_model_io_petab_ids(mappings_df, ml_model.ml_id, :inputs)
+        isempty(input_ids) && continue
+        out = vcat(out, reduce(vcat, input_ids))
+    end
+    return out
+end
+function _get_ml_model_io_petab_ids(
         mappings_df::DataFrame, ml_id::Symbol, type::Symbol
     )::Vector{Vector{String}}
+    @assert type in [:inputs, :outputs]
+
     # Sort to get PEtab Id inputs/outputs in correct order (both within and between
     # arguments). File inputs are on the format netId.inputs[ix], while other inputs
     # are on the format netId.inputs[ix][jx]
