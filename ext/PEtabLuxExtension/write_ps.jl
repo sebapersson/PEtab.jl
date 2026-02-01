@@ -1,38 +1,38 @@
-function PEtab.nn_ps_to_h5!(
-        nn, ps::Union{ComponentArray, NamedTuple}, path::String
+function PEtab.ml_ps_to_hdf5(
+        path::String, lux_model, ps::Union{ComponentArray, NamedTuple}
     )::Nothing
     if isfile(path)
         rm(path)
     end
-    file = h5open(path, "w")
-    for (layername, layer) in pairs(nn.layers)
-        _ps_to_h5!(file, layer, ps[layername], layername)
+    file = hdf5open(path, "w")
+    for (layername, layer) in pairs(lux_model.layers)
+        _ps_to_hdf5!(file, layer, ps[layername], layername)
     end
     close(file)
     return nothing
 end
 
 """
-    _ps_to_h5!(layer::Lux.Dense, ps, netname, layername)::Nothing
+    _ps_to_hdf5!(layer::Lux.Dense, ps, netname, layername)::Nothing
 
-Transforms parameters (`ps`) for a Lux layer to a h5 file with the data stored in the
-order expected by PyTorich.
+Transforms parameters (`ps`) for a Lux layer to a hdf5 file with the data stored in the
+order expected by PyTorch.
 
 For `Dense` layer possible parameters that are saved to a DataFrame are:
 - `weight` of dimension `(out_features, in_features)`
 - `bias` of dimension `(out_features)`
 """
-function _ps_to_h5!(
+function _ps_to_hdf5!(
         file, layer::Lux.Dense, ps::Union{NamedTuple, ComponentArray}, layername::Symbol
     )::Nothing
     @unpack in_dims, out_dims, use_bias = layer
     g = create_group(file, string(layername))
-    _ps_weight_to_h5!(g, ps)
-    _ps_bias_to_h5!(g, ps, use_bias)
+    _ps_weight_to_hdf5!(g, ps)
+    _ps_bias_to_hdf5!(g, ps, use_bias)
     return nothing
 end
 """
-    _ps_to_h5!(layer::Lux.ConvTranspose, ...)::Nothing
+    _ps_to_hdf5!(layer::Lux.ConvTranspose, ...)::Nothing
 
 For `Conv` layer possible parameters that are saved to a DataFrame are:
 - `weight` of dimension `(in_channels, out_channels, kernel_size)`
@@ -42,7 +42,7 @@ For `Conv` layer possible parameters that are saved to a DataFrame are:
     Note, in Lux.jl `weight` has `(kernel_size, in_channels, out_channels)`. This is fixed
     by the importer.
 """
-function _ps_to_h5!(
+function _ps_to_hdf5!(
         file, layer::Lux.Conv, ps::Union{NamedTuple, ComponentArray}, layername::Symbol
     )::Nothing
     @unpack kernel_size, use_bias, in_chs, out_chs = layer
@@ -55,12 +55,12 @@ function _ps_to_h5!(
     end
     _ps = ComponentArray(weight = _psweigth)
     g = create_group(file, string(layername))
-    _ps_weight_to_h5!(g, _ps)
-    _ps_bias_to_h5!(g, ps, use_bias)
+    _ps_weight_to_hdf5!(g, _ps)
+    _ps_bias_to_hdf5!(g, ps, use_bias)
     return nothing
 end
 """
-    _ps_to_h5!(layer::Lux.ConvTranspose, ...)::Nothing
+    _ps_to_hdf5!(layer::Lux.ConvTranspose, ...)::Nothing
 
 For `ConvTranspose` layer possible parameters that are saved to a DataFrame are:
 - `weight` of dimension `(in_channels, out_channels, kernel_size)`
@@ -70,7 +70,7 @@ For `ConvTranspose` layer possible parameters that are saved to a DataFrame are:
     Note, in Lux.jl `weight` has `(kernel_size, out_channels, in_channels)`. This is fixed
     by the importer.
 """
-function _ps_to_h5!(
+function _ps_to_hdf5!(
         file, layer::Lux.ConvTranspose, ps::Union{NamedTuple, ComponentArray},
         layername::Symbol
     )::Nothing
@@ -84,29 +84,29 @@ function _ps_to_h5!(
     end
     _ps = ComponentArray(weight = _psweigth)
     g = create_group(file, string(layername))
-    _ps_weight_to_h5!(g, _ps)
-    _ps_bias_to_h5!(g, ps, use_bias)
+    _ps_weight_to_hdf5!(g, _ps)
+    _ps_bias_to_hdf5!(g, ps, use_bias)
     return nothing
 end
 """
-    _ps_to_h5!(layer::Lux.Bilinear, ...)::Nothing
+    _ps_to_hdf5!(layer::Lux.Bilinear, ...)::Nothing
 
 For `Bilinear` layer possible parameters that are saved to a DataFrame are:
 - `weight` of dimension `(out_features, in_features1, in_features2)`
 - `bias` of dimension `(out_features)`
 """
-function _ps_to_h5!(
+function _ps_to_hdf5!(
         file, layer::Lux.Bilinear, ps::Union{NamedTuple, ComponentArray}, ::Symbol,
         layername::Symbol
     )::Nothing
     @unpack in1_dims, in2_dims, out_dims, use_bias = layer
     g = create_group(file, string(layername))
-    _ps_weight_to_h5!(g, ps)
-    _ps_bias_to_h5!(g, ps, use_bias)
+    _ps_weight_to_hdf5!(g, ps)
+    _ps_bias_to_hdf5!(g, ps, use_bias)
     return nothing
 end
 """
-    layer_ps_to_h5!(layer::Union{Lux.BatchNorm, Lux.InstanceNorm}, ...)::Nothing
+    layer_ps_to_hdf5!(layer::Union{Lux.BatchNorm, Lux.InstanceNorm}, ...)::Nothing
 
 For `BatchNorm` and `InstanceNorm` layer possible parameters that are saved to a DataFrame
 are:
@@ -115,19 +115,19 @@ are:
 !!! note
     in Lux.jl the dimension argument `num_features` is chs (number of input channels)
 """
-function layer_ps_to_h5!(
+function layer_ps_to_hdf5!(
         file, layer::Union{Lux.BatchNorm, Lux.InstanceNorm},
         ps::Union{NamedTuple, ComponentArray}, ::Symbol, layername::Symbol
     )::Nothing
     @unpack affine, chs = layer
     affine == false && return DataFrame()
     g = create_group(file, string(layername))
-    _ps_weight_to_h5!(g, ps; scale = true)
-    _ps_bias_to_h5!(g, ps, true)
+    _ps_weight_to_hdf5!(g, ps; scale = true)
+    _ps_bias_to_hdf5!(g, ps, true)
     return nothing
 end
 """
-    layer_ps_to_h5!(layer::Lux.LayerNorm, ...)::Nothing
+    layer_ps_to_hdf5!(layer::Lux.LayerNorm, ...)::Nothing
 
 For `LayerNorm` layer possible parameters that are saved to a DataFrame are:
 - `scale/weight` of `size(input)` dimension
@@ -138,7 +138,7 @@ For `LayerNorm` layer possible parameters that are saved to a DataFrame are:
     PyTorch corresponds to `["W", "H", "D", "C"]` in Lux.jl. Basically, regardless of input
     dimension the Lux.jl dimension is the PyTorch dimension reversed.
 """
-function layer_ps_to_h5!(
+function layer_ps_to_hdf5!(
         file, layer::LayerNorm, ps::Union{NamedTuple, ComponentArray}, ::Symbol,
         layername::Symbol
     )::Nothing
@@ -160,22 +160,22 @@ function layer_ps_to_h5!(
     end
     _ps = ComponentArray(weight = _psweigth, bias = _psbias)
     g = create_group(file, string(layername))
-    _ps_weight_to_h5!(g, _ps)
-    _ps_bias_to_h5!(g, _ps, true)
+    _ps_weight_to_hdf5!(g, _ps)
+    _ps_bias_to_hdf5!(g, _ps, true)
     return nothing
 end
 """
-    _ps_to_h5!(layer::PS_FREE_LAYERS, ...)::Nothing
+    _ps_to_hdf5!(layer::PS_FREE_LAYERS, ...)::Nothing
 
 Layers without parameters to estimate.
 """
-function _ps_to_h5!(
+function _ps_to_hdf5!(
         ::PS_FREE_LAYERS, ::Union{NamedTuple, ComponentArray}, ::Symbol
     )::Nothing
     return nothing
 end
 
-function _ps_weight_to_h5!(g, ps; scale::Bool = false)::Nothing
+function _ps_weight_to_hdf5!(g, ps; scale::Bool = false)::Nothing
     # For Batchnorm in Lux.jl the weight layer is referred to as scale.
     ps_weight = scale == false ? ps.weight : ps.scale
     # To account for Python (for which the standard is defined) is row-major
@@ -184,7 +184,7 @@ function _ps_weight_to_h5!(g, ps; scale::Bool = false)::Nothing
     return nothing
 end
 
-function _ps_bias_to_h5!(g, ps, use_bias)::Nothing
+function _ps_bias_to_hdf5!(g, ps, use_bias)::Nothing
     use_bias == false && return nothing
     if length(size(ps.bias)) > 1
         ps_bias = permutedims(ps.bias, reverse(1:ndims(ps.bias)))

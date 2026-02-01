@@ -58,7 +58,7 @@ function _set_ml_model_ps!(
     return nothing
 end
 
-function _get_ml_model_pre_ode_x(
+function _get_ml_model_pre_simulate_x(
         ml_model_pre_simulate::MLModelPreSimulate, xdynamic_mech::AbstractVector,
         x_ml::ComponentArray, map_ml_model::MLModelPreSimulateMap
     )::AbstractVector
@@ -68,9 +68,8 @@ function _get_ml_model_pre_ode_x(
     @views x[(n_inputs + 1):end] .= x_ml
     return x
 end
-function _get_ml_model_pre_ode_x(
-        ml_model_pre_simulate
-        ::MLModelPreSimulate, xdynamic_mech::AbstractVector,
+function _get_ml_model_pre_simulate_x(
+        ml_model_pre_simulate::MLModelPreSimulate, xdynamic_mech::AbstractVector,
         map_ml_model::MLModelPreSimulateMap
     )::AbstractVector
     x = get_tmp(ml_model_pre_simulate.x, xdynamic_mech)

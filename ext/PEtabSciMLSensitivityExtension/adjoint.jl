@@ -42,7 +42,7 @@ function _grad_adjoint_xdynamic!(
     )::Nothing
     @unpack cache, sensealg, sensealg_ss = probinfo
     @unpack xindices, simulation_info = model_info
-    xnoise, xobservable, xnondynamic_mech, xdynamic = PEtab._get_x_not_nn(cache, 1.0)
+    xnoise, xobservable, xnondynamic_mech, xdynamic = PEtab._get_x_not_ml(cache, 1.0)
     xnoise_ps = PEtab.transform_x(xnoise, xindices, :xnoise, cache)
     xobservable_ps = PEtab.transform_x(xobservable, xindices, :xobservable, cache)
     xnondynamic_mech_ps = PEtab.transform_x(

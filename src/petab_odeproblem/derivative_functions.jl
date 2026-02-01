@@ -296,7 +296,7 @@ function _get_x_notsystem(
     return xnoise, xobservable, xnondynamic_mech
 end
 
-function _get_x_not_nn(
+function _get_x_not_ml(
         cache::PEtabODEProblemCache, x::T
     )::NTuple{4, AbstractVector{T}} where {T <: Real}
     xnoise, xobservable, xnondynamic_mech = _get_x_notsystem(cache, x)

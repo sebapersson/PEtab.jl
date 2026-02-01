@@ -48,14 +48,14 @@ function _parse_h(
             formula, state_ids, sys_observable_ids, xindices, model_SBML, :observable
         )
         obs_parameters = _get_observable_parameters(formula)
-        formulas_nn = _get_ml_formulas(
+        formulas_ml = _get_ml_formulas(
             formula, petab_tables, state_ids, sys_observable_ids, xindices, model_SBML,
             ml_models, :observable
         )
 
         hstr *= "\tif obsid == :$(obsid)\n"
         hstr *= _template_obs_sd_parameters(obs_parameters; obs = true)
-        hstr *= formulas_nn
+        hstr *= formulas_ml
         hstr *= "\t\treturn $formula \n"
         hstr *= "\tend\n"
     end
@@ -236,24 +236,24 @@ function _get_ml_formulas(
         sys_observable_ids::Vector{Symbol}, xindices::ParameterIndices,
         model_SBML::SBMLImporter.ModelSBML, ml_models::MLModels, type::Symbol
     )::String
-    formula_nn = ""
+    formula_ml = ""
     mappings_df = petab_tables[:mapping]
-    isempty(mappings_df) && return formula_nn
+    isempty(mappings_df) && return formula_ml
     for ml_model in ml_models.ml_models
         ml_model.static == true && continue
 
         ml_id = ml_model.ml_id
         output_variables = _get_ml_model_io_petab_ids(mappings_df, ml_id, :outputs)
-        has_nn_output = false
+        has_ml_output = false
         for output_variable in Iterators.flatten(output_variables)
             if SBMLImporter._replace_variable(formula, output_variable, "") != formula
-                has_nn_output = true
+                has_ml_output = true
             end
         end
-        has_nn_output == false && continue
-        formula_nn *= _template_ml_observable(
+        has_ml_output == false && continue
+        formula_ml *= _template_ml_observable(
             ml_id, petab_tables, state_ids, sys_observable_ids, xindices, model_SBML, type
         )
     end
-    return formula_nn
+    return formula_ml
 end

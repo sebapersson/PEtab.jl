@@ -1,4 +1,4 @@
-function _template_nn_model(
+function _template_ml_model(
         layers, inputs, output, forward_steps, freeze_info::Union{Nothing, Dict}
     )::String
     model_str = "@compact(\n"

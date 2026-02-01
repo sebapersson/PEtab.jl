@@ -257,9 +257,9 @@ function _get_bounds(
     xmech_bounds = NamedTuple(xnames_ps[ix_mech] .=> bounds)
 
     # Each network has its bounds as a ComponentArray
-    xnames_nn = xnames[setdiff(1:length(xnames), ix_mech)]
-    bounds = Vector{ComponentArray}(undef, length(xnames_nn))
-    for (i, ml_id) in pairs(xnames_nn)
+    xnames_ml = xnames[setdiff(1:length(xnames), ix_mech)]
+    bounds = Vector{ComponentArray}(undef, length(xnames_ml))
+    for (i, ml_id) in pairs(xnames_ml)
         ml_model = model_info.model.ml_models[ml_id]
         bounds[i] = _get_lux_ps(ComponentArray, ml_model)
         if which == :lower
@@ -268,7 +268,7 @@ function _get_bounds(
             bounds[i] .= Inf
         end
     end
-    x_ml_bounds = (xnames_nn .=> bounds) |> NamedTuple
+    x_ml_bounds = (xnames_ml .=> bounds) |> NamedTuple
     return merge(xmech_bounds, x_ml_bounds) |> ComponentArray
 end
 
@@ -290,15 +290,15 @@ function _get_xnominal(
     end
 
     # Each network has its parameters as a ComponentArray
-    xnames_nn = xnames[setdiff(1:length(xnames), ix_mech)]
-    xnominal_nn = Vector{ComponentArray}(undef, length(xnames_nn))
-    for (i, ml_id) in pairs(xnames_nn)
+    xnames_ml = xnames[setdiff(1:length(xnames), ix_mech)]
+    xnominal_ml = Vector{ComponentArray}(undef, length(xnames_ml))
+    for (i, ml_id) in pairs(xnames_ml)
         ml_model = model_info.model.ml_models[ml_id]
         psnet = _get_lux_ps(ComponentArray, ml_model)
         _set_ml_model_ps!(psnet, ml_id, ml_models, paths, petab_tables)
-        xnominal_nn[i] = psnet
+        xnominal_ml[i] = psnet
     end
-    x_ml_models = NamedTuple(xnames_nn .=> xnominal_nn)
+    x_ml_models = NamedTuple(xnames_ml .=> xnominal_ml)
     return ComponentArray(merge(xmech, x_ml_models))
 end
 

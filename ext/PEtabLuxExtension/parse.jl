@@ -2,9 +2,9 @@ function PEtab.parse_to_lux(path_yaml::String; freeze_info::Union{Nothing, Dict}
     network_yaml = YAML.load_file(path_yaml)
     layers = Dict([_parse_layer(l) for l in network_yaml["layers"]])
     inputs, outputs, forward_steps = _parse_forward_pass(network_yaml, layers)
-    model_str = _template_nn_model(layers, inputs, outputs, forward_steps, freeze_info)
-    nn = eval(Meta.parse(model_str)) |> f64
-    return nn, network_yaml["nn_model_id"]
+    model_str = _template_ml_model(layers, inputs, outputs, forward_steps, freeze_info)
+    lux_model = eval(Meta.parse(model_str)) |> f64
+    return lux_model, network_yaml["nn_model_id"]
 end
 
 function _parse_forward_pass(
@@ -12,6 +12,7 @@ function _parse_forward_pass(
     )::Tuple{String, String, Vector{String}}
     forward_trace = network_yaml["forward"]
     input_arguments = network_yaml["inputs"]
+
     # To avoid naming conflicts, each input and output is given a __x__
     n_input_args = length(input_arguments)
     inputs = ""
@@ -58,7 +59,7 @@ end
 function _parse_layer(layer_parse::Dict)
     layer_info = LAYERS[layer_parse["layer_type"]]
 
-    # Most layers can be parsed the same way, but flatten differes quite substantially
+    # Most layers can be parsed the same way, but flatten differs quite substantially
     # between PyTorch and Lux.
     if layer_parse["layer_type"] == "Flatten"
         return _parse_flatten_layer(layer_parse)
@@ -87,37 +88,39 @@ function _parse_flatten_layer(layer_parse)
 end
 
 function _parse_layer_arg!(args_parsed, arg, layer_parse, layer_info)::Nothing
-    argname, iarg = arg
+    arg_name, idx_arg = arg
     # Most args in Julia are on a simple number/tuple, while some (after if-statement) are
     # pair: a => b, which must be considered during parsing.
-    if !occursin("=>", argname)
-        val = layer_parse["args"][argname]
+    if !occursin("=>", arg_name)
+        val = layer_parse["args"][arg_name]
         if val isa Vector
             val = Tuple(val)
             # A subset of args must be tuple (while they can be a single int in PyTorch)
-        elseif haskey(layer_info, :tuple_args) && argname in layer_info[:tuple_args]
+        elseif haskey(layer_info, :tuple_args) && arg_name in layer_info[:tuple_args]
             val = Tuple(val)
         end
         # Lux.jl prefers images in the foramt [W, H] and PyTorch [H, W] to store the images
         # in memory order. Therefore, for operations with kernels (e.g. Conv, Pool...), the
         # kernel order is reversed.
-        if argname in ["kernel_size", "output_size", "normalized_shape"]
-            args_parsed[iarg] = reverse(val)
+        if arg_name in ["kernel_size", "output_size", "normalized_shape"]
+            args_parsed[idx_arg] = reverse(val)
         else
-            args_parsed[iarg] = val
+            args_parsed[idx_arg] = val
         end
         return nothing
     end
     # Parsing arguments that must be on the form a => b
-    argname1, argname2 = replace.(split(argname, "=>"), " " => "")
-    if !occursin(",", argname1)
-        args_parsed[iarg] = layer_parse["args"][argname1] => layer_parse["args"][argname2]
+    arg_name1, arg_name2 = replace.(split(arg_name, "=>"), " " => "")
+    if !occursin(",", arg_name1)
+        args_parsed[idx_arg] = (
+            layer_parse["args"][arg_name1] => layer_parse["args"][arg_name2]
+        )
         return nothing
     end
     # For Bilinear we have (a, b) => c
-    argname1 = replace(argname1, r"\(|\)" => "")
-    p1, p2 = split(argname1, ',')
-    args_parsed[iarg] = (layer_parse["args"][p1], layer_parse["args"][p2]) => layer_parse["args"][argname2]
+    arg_name1 = replace(arg_name1, r"\(|\)" => "")
+    p1, p2 = split(arg_name1, ',')
+    args_parsed[idx_arg] = (layer_parse["args"][p1], layer_parse["args"][p2]) => layer_parse["args"][arg_name2]
     return nothing
 end
 
@@ -170,8 +173,8 @@ function _parse_activation_function(
     args = fill("", actinfo.nargs)
     args[1] = step_input
     if actinfo.nargs > 1
-        for (argname, argpos) in actinfo.args
-            args[argpos] = string(step_info["kwargs"][argname])
+        for (arg_name, argpos) in actinfo.args
+            args[argpos] = string(step_info["kwargs"][arg_name])
         end
     end
     args = prod(args .* ", ")[1:(end - 2)]
@@ -180,10 +183,10 @@ function _parse_activation_function(
     # 1 and 0 indexed based respectively
     if haskey(actinfo, :kwargs)
         kwargs = String[]
-        for (argname, argname_julia) in actinfo.kwargs
-            argval = step_info["kwargs"][argname]
-            argval = argname == "dim" ? argval + 1 : argval
-            push!(kwargs, "$(argname_julia) = $(argval), ")
+        for (arg_name, arg_name_julia) in actinfo.kwargs
+            argval = step_info["kwargs"][arg_name]
+            argval = arg_name == "dim" ? argval + 1 : argval
+            push!(kwargs, "$(arg_name_julia) = $(argval), ")
         end
         kwargs = prod(kwargs)[1:(end - 2)]
         args = args * "; " * kwargs
@@ -212,7 +215,9 @@ function _parse_freeze(ml_model::PEtab.MLModel, path_yaml::String)::Dict
     ps = ComponentArray(ps) |> f64
     PEtab._set_ml_model_ps!(ps, ml_id, PEtab.MLModels(ml_model), paths, petab_tables)
 
-    ml_model_indices = PEtab._get_ml_model_indices(ml_id, petab_ml_parameters.mapping_table_id)
+    ml_model_indices = PEtab._get_ml_model_indices(
+        ml_id, petab_ml_parameters.mapping_table_id
+    )
     freeze_info = Dict{Symbol, Dict}()
     for ml_model_index in ml_model_indices[2:end]
         estimate = petab_ml_parameters.estimate[ml_model_index] == true
@@ -252,9 +257,9 @@ function _parse_freeze(ml_model::PEtab.MLModel, path_yaml::String)::Dict
     return freeze_info
 end
 
-function _parse_input!(array_inputs::Dict{Symbol, Array{<:Real}}, input, iarg)
+function _parse_input!(array_inputs::Dict{Symbol, Array{<:Real}}, input, idx_arg)
     if input isa Array{<:Real}
-        array_inputs[Symbol("__arg$(iarg)")] = input
+        array_inputs[Symbol("__arg$(idx_arg)")] = input
         return :_ARRAY_INPUT
     else
         return Symbol.(input)

@@ -2,7 +2,7 @@ function _switch_condition(
         oprob::ODEProblem, experiment_id::Symbol, xdynamic::AbstractVector,
         x_ml_models::Dict{Symbol, ComponentArray}, model_info::ModelInfo,
         cache::PEtabODEProblemCache,
-        ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreSimulate}},
+        ml_models_pre_simulate::Dict{Symbol, Dict{Symbol, MLModelPreSimulate}},
         posteq_simulation::Bool; sensitivities::Bool = false,
         simulation_id::Union{Nothing, Symbol} = nothing
     )::ODEProblem
@@ -31,7 +31,7 @@ function _switch_condition(
 
     # Potential ODE parameters which have their value assigned by a neural-net
     _set_ml_pre_simulate_parameters!(
-        p, xdynamic, x_ml_models, simulation_id, xindices, ml_models_pre_ode
+        p, xdynamic, x_ml_models, simulation_id, xindices, ml_models_pre_simulate
     )
 
     # Initial state can depend on condition specific parameters
@@ -150,28 +150,32 @@ function _set_ml_pre_simulate_parameters!(
         p::AbstractVector, xdynamic::AbstractVector,
         x_ml_models::Dict{Symbol, ComponentArray}, simulation_id::Symbol,
         xindices::ParameterIndices,
-        ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreSimulate}}
+        ml_models_pre_simulate::Dict{Symbol, Dict{Symbol, MLModelPreSimulate}}
     )::Nothing
-    !haskey(ml_models_pre_ode, simulation_id) && return nothing
+    !haskey(ml_models_pre_simulate, simulation_id) && return nothing
 
-    maps_nns = xindices.maps_ml_pre_simulate[simulation_id]
-    for (ml_id, ml_model_pre_ode) in ml_models_pre_ode[simulation_id]
-        map_ml_model = maps_nns[ml_id]
+    maps_ml_pre_simulate = xindices.maps_ml_pre_simulate[simulation_id]
+    for (ml_id, ml_model_pre_simulate) in ml_models_pre_simulate[simulation_id]
+        map_ml_model_pre_simulate = maps_ml_pre_simulate[ml_id]
         # In case of neural nets being computed before the function call,
-        # ml_model_pre_ode.outputs is already computed
-        outputs = get_tmp(ml_model_pre_ode.outputs, p)
-        if ml_model_pre_ode.computed[1] == false
+        # ml_model_pre_simulate.outputs is already computed
+        outputs = get_tmp(ml_model_pre_simulate.outputs, p)
+        if ml_model_pre_simulate.computed[1] == false
             # Only if neural net parameters are estimated, otherwise x_ml is not used to
             # set values in x (vector that might used for gradient computations)
             if haskey(x_ml_models, ml_id)
                 x_ml = x_ml_models[ml_id]
-                x = _get_ml_model_pre_ode_x(ml_model_pre_ode, xdynamic, x_ml, map_ml_model)
+                x = _get_ml_model_pre_simulate_x(
+                    ml_model_pre_simulate, xdynamic, x_ml, map_ml_model_pre_simulate
+                )
             else
-                x = _get_ml_model_pre_ode_x(ml_model_pre_ode, xdynamic, map_ml_model)
+                x = _get_ml_model_pre_simulate_x(
+                    ml_model_pre_simulate, xdynamic, map_ml_model_pre_simulate
+                )
             end
-            ml_model_pre_ode.forward!(outputs, x)
+            ml_model_pre_simulate.forward!(outputs, x)
         end
-        p[map_ml_model.ix_sys_outputs] .= outputs
+        p[map_ml_model_pre_simulate.ix_sys_outputs] .= outputs
     end
     return nothing
 end

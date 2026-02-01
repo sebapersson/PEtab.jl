@@ -171,12 +171,12 @@ function _get_ml_models_pre_ode(
             # the Jacobian of the ML model with ReverseDiff.tape
             if isempty(ix_dynamic_mech)
                 inputs = map_pre_simulate.get_input(Float64[], map_pre_simulate)
-                compute_nn_rev! = let _ml_model = ml_model, _inputs = inputs
-                    (out, x) -> _net_reversediff!(out, x, _inputs, _ml_model)
+                _ml_model_rev! = let _ml_model = ml_model, _inputs = inputs
+                    (out, x) -> _ml_reverse_diff!(out, x, _inputs, _ml_model)
                 end
                 out = get_tmp(outputs, 1.0)
                 x = get_tmp(x_ml, 1.0)
-                tape = ReverseDiff.JacobianTape(compute_nn_rev!, out, x)
+                tape = ReverseDiff.JacobianTape(_ml_model_rev!, out, x)
             else
                 tape = nothing
             end

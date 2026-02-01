@@ -141,7 +141,7 @@ function _set_ml_model_ps! end
 function _reshape_io_data end
 function parse_to_lux end
 function _reshape_array end
-function nn_ps_to_h5! end
+function ml_ps_to_hdf5 end
 function MLModel end
 function _get_n_ml_parameters end
 

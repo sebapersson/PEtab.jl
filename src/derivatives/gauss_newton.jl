@@ -5,7 +5,7 @@ function _jac_residuals_xdynamic!(
     @unpack cache, sensealg, reuse_sensitivities = probinfo
     @unpack xindices, simulation_info = model_info
 
-    xnoise, xobservable, xnondynamic_mech, xdynamic = _get_x_not_nn(cache, 1.0)
+    xnoise, xobservable, xnondynamic_mech, xdynamic = _get_x_not_ml(cache, 1.0)
     xnoise_ps = transform_x(xnoise, xindices, :xnoise, cache)
     xobservable_ps = transform_x(xobservable, xindices, :xobservable, cache)
     xnondynamic_mech_ps = transform_x(xnondynamic_mech, xindices, :xnondynamic_mech, cache)

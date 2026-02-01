@@ -27,7 +27,7 @@ end
 # function and enjoy good performance on the CPU. If one of the inputs depend on parameters
 # to estimate, ForwardDiff can be used instead (and hopefully in the future Enzyme can
 # make all this code obsolete)
-function _net_reversediff!(out, x_ml, inputs, ml_model::MLModel)::Nothing
+function _ml_reverse_diff!(out, x_ml, inputs, ml_model::MLModel)::Nothing
     _out, st = ml_model.lux_model(inputs, x_ml, ml_model.st)
     ml_model.st = st
     out .= _out
@@ -56,7 +56,7 @@ function _jac_ml_model_pre_simulate!(
                 xdynamic_mech_ps = transform_x(
                     xdynamic_mech, model_info.xindices, :xdynamic_mech, cache
                 )
-                x = _get_ml_model_pre_ode_x(
+                x = _get_ml_model_pre_simulate_x(
                     ml_model_pre_ode, xdynamic_mech_ps, x_ml, map_ml_model
                 )
                 ForwardDiff.jacobian!(jac_ml_model, forward!, _outputs, x)
