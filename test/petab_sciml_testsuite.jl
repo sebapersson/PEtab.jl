@@ -6,10 +6,10 @@ dir_tests = joinpath(@__DIR__, "petab_sciml_testsuite", "test_cases")
     for i in 1:53
         testcase = i < 10 ? "00$i" : "0$i"
         # ml_model must be loaded here to avoid world-problem
-        dirtest = joinpath(dir_tests, "ml_model_import", "$testcase")
-        yaml_test = YAML.load_file(joinpath(dirtest, "solutions.yaml"))
-        ml_model, _ = PEtab.parse_to_lux(joinpath(dirtest, yaml_test["net_file"]))
-        test_netimport(testcase, ml_model)
+        dir_test = joinpath(dir_tests, "ml_model_import", "$testcase")
+        yaml_test = YAML.load_file(joinpath(dir_test, "solutions.yaml"))
+        lux_model, _ = PEtab.parse_to_lux(joinpath(dir_test, yaml_test["net_file"]))
+        test_ml_import(testcase, lux_model)
     end
 end
 

@@ -80,7 +80,7 @@ function test_init(test_case, model::PEtabModel)::Nothing
     return nothing
 end
 
-function test_netimport(testcase, ml_model)::Nothing
+function test_ml_import(testcase, lux_model)::Nothing
     @info "Case $testcase"
     if testcase in [
             "003", "004", "005", "006", "007", "008", "009", "010", "014",
@@ -93,7 +93,7 @@ function test_netimport(testcase, ml_model)::Nothing
 
     dirtest = joinpath(@__DIR__, "test_cases", "ml_model_import", "$testcase")
     yaml_test = YAML.load_file(joinpath(dirtest, "solutions.yaml"))
-    _ps, st = Lux.setup(rng, ml_model)
+    _ps, st = Lux.setup(rng, lux_model)
     ps = ComponentArray(_ps)
 
     # Expected input and output orders (in Julia and PyTorch for correct mapping)
@@ -134,7 +134,7 @@ function test_netimport(testcase, ml_model)::Nothing
 
         if haskey(yaml_test, "net_ps")
             path_h5 = joinpath(dirtest, yaml_test["net_ps"][j])
-            PEtab._set_ml_model_ps!(ps, path_h5, ml_model, :net0)
+            PEtab._set_ml_model_ps!(ps, path_h5, lux_model, :net0)
         end
 
         if haskey(yaml_test, "dropout")
@@ -142,16 +142,31 @@ function test_netimport(testcase, ml_model)::Nothing
             output = zeros(size(output_ref))
             nsamples = yaml_test["dropout"]
             for i in 1:nsamples
-                _output, st = ml_model(input, ps, st)
+                _output, st = lux_model(input, ps, st)
                 output .+= _output
             end
             output ./= nsamples
         else
             testtol = 1.0e-3
-            output, st = ml_model(input, ps, st)
+            output, st = lux_model(input, ps, st)
         end
         @test all(.≈(output, output_ref; atol = testtol))
     end
+
+    # Test that parameters can be exported in correct-format (round-trip)
+    if haskey(yaml_test, "net_ps")
+        ps_ref, ps_test = deepcopy(ps), deepcopy(ps)
+        path_h5 = joinpath(dirtest, yaml_test["net_ps"][1])
+        PEtab._set_ml_model_ps!(ps_ref, path_h5, lux_model, :net0)
+
+        path_tmp = joinpath(dirtest, "ps_test.hdf5")
+        PEtab.ml_ps_to_hdf5(path_tmp, lux_model, :net0, ps_ref)
+        @test isfile(path_tmp)
+        PEtab._set_ml_model_ps!(ps_test, path_tmp, lux_model, :net0)
+        @test ps_ref == ps_test
+        rm(path_tmp)
+    end
+
     return nothing
 end
 

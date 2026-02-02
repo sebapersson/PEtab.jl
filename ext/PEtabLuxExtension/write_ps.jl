@@ -1,19 +1,28 @@
 function PEtab.ml_ps_to_hdf5(
-        path::String, lux_model, ps::Union{ComponentArray, NamedTuple}
+        path::String, ml_model::MLModel, ps::Union{ComponentArray, NamedTuple}
     )::Nothing
-    if isfile(path)
-        rm(path)
-    end
-    file = hdf5open(path, "w")
+    @unpack lux_model, ml_id = ml_model
+    PEtab.ml_ps_to_hdf5(path, lux_model, ml_id, ps)
+end
+
+function PEtab.ml_ps_to_hdf5(
+        path::String, lux_model, ml_id::Symbol, ps::Union{ComponentArray, NamedTuple}
+    )::Nothing
+    # TODO: This might cause problems, allow over-writing existing group
+    @assert !isfile(path) "Currently only support exporting to new files"
+
+    file = HDF5.h5open(path, "w")
+    g_parameters = create_group(file, "parameters")
+    g_model = create_group(g_parameters, "$(ml_id)")
     for (layername, layer) in pairs(lux_model.layers)
-        _ps_to_hdf5!(file, layer, ps[layername], layername)
+        _ps_to_hdf5!(g_model, layer, ps[layername], layername)
     end
     close(file)
     return nothing
 end
 
 """
-    _ps_to_hdf5!(layer::Lux.Dense, ps, netname, layername)::Nothing
+    _ps_to_hdf5!(layer::Lux.Dense, ps, layername)::Nothing
 
 Transforms parameters (`ps`) for a Lux layer to a hdf5 file with the data stored in the
 order expected by PyTorch.
@@ -96,8 +105,7 @@ For `Bilinear` layer possible parameters that are saved to a DataFrame are:
 - `bias` of dimension `(out_features)`
 """
 function _ps_to_hdf5!(
-        file, layer::Lux.Bilinear, ps::Union{NamedTuple, ComponentArray}, ::Symbol,
-        layername::Symbol
+        file, layer::Lux.Bilinear, ps::Union{NamedTuple, ComponentArray}, layername::Symbol
     )::Nothing
     @unpack in1_dims, in2_dims, out_dims, use_bias = layer
     g = create_group(file, string(layername))
@@ -106,7 +114,7 @@ function _ps_to_hdf5!(
     return nothing
 end
 """
-    layer_ps_to_hdf5!(layer::Union{Lux.BatchNorm, Lux.InstanceNorm}, ...)::Nothing
+    _ps_to_hdf5!(layer::Union{Lux.BatchNorm, Lux.InstanceNorm}, ...)::Nothing
 
 For `BatchNorm` and `InstanceNorm` layer possible parameters that are saved to a DataFrame
 are:
@@ -115,19 +123,19 @@ are:
 !!! note
     in Lux.jl the dimension argument `num_features` is chs (number of input channels)
 """
-function layer_ps_to_hdf5!(
+function _ps_to_hdf5!(
         file, layer::Union{Lux.BatchNorm, Lux.InstanceNorm},
-        ps::Union{NamedTuple, ComponentArray}, ::Symbol, layername::Symbol
+        ps::Union{NamedTuple, ComponentArray, Vector{<:Real}}, layername::Symbol
     )::Nothing
     @unpack affine, chs = layer
-    affine == false && return DataFrame()
+    affine == false && return nothing
     g = create_group(file, string(layername))
     _ps_weight_to_hdf5!(g, ps; scale = true)
     _ps_bias_to_hdf5!(g, ps, true)
     return nothing
 end
 """
-    layer_ps_to_hdf5!(layer::Lux.LayerNorm, ...)::Nothing
+    _ps_to_hdf5!(layer::Lux.LayerNorm, ...)::Nothing
 
 For `LayerNorm` layer possible parameters that are saved to a DataFrame are:
 - `scale/weight` of `size(input)` dimension
@@ -138,9 +146,8 @@ For `LayerNorm` layer possible parameters that are saved to a DataFrame are:
     PyTorch corresponds to `["W", "H", "D", "C"]` in Lux.jl. Basically, regardless of input
     dimension the Lux.jl dimension is the PyTorch dimension reversed.
 """
-function layer_ps_to_hdf5!(
-        file, layer::LayerNorm, ps::Union{NamedTuple, ComponentArray}, ::Symbol,
-        layername::Symbol
+function _ps_to_hdf5!(
+        file, layer::LayerNorm, ps::Union{NamedTuple, ComponentArray}, layername::Symbol
     )::Nothing
     @unpack shape, affine = layer
     affine == false && return DataFrame()
@@ -170,7 +177,8 @@ end
 Layers without parameters to estimate.
 """
 function _ps_to_hdf5!(
-        ::PS_FREE_LAYERS, ::Union{NamedTuple, ComponentArray}, ::Symbol
+        ::Any, ::PS_FREE_LAYERS, ::Union{NamedTuple, ComponentArray, Vector{<:Real}},
+        ::Symbol
     )::Nothing
     return nothing
 end
