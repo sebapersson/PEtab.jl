@@ -192,9 +192,9 @@ function show(io::IO, target::PEtabLogDensity)
     return print(io, out)
 end
 function show(io::IO, ml_model::MLModel)
-    @unpack static, ml_id, inputs, outputs = ml_model
+    @unpack pre_initialization, ml_id, inputs, outputs = ml_model
 
-    mode = static == true ? "pre-initialization" : "simulation"
+    mode = pre_initialization == true ? "pre-initialization" : "simulation"
     n_ps = _get_n_ml_parameters(ml_model)
 
     header = styled"{PURPLE:{bold:MLModel}} {emphasis:$(ml_id)}\n"
@@ -217,7 +217,7 @@ function show(io::IO, ml_models::MLModels)
     opt = ""
     for ml_model in ml_models.ml_models
         n_ps = _get_n_ml_parameters(ml_model)
-        mode = ml_model.static == true ? "pre-initialization" : "simulation"
+        mode = ml_model.pre_initialization == true ? "pre-initialization" : "simulation"
         opt *= "\n  $(ml_model.ml_id): (mode=$mode, parameters=$(n_ps))"
     end
     return print(io, styled"$(header)$(opt)")
@@ -256,7 +256,7 @@ function _describe(prob::PEtabODEProblem; styled::Bool = true)
         ml_opt = ""
         for ml_model in model.ml_models.ml_models
             n_ps = _get_n_ml_parameters(ml_model)
-            mode = ml_model.static == true ? "pre-initialization" : "simulation"
+            mode = ml_model.pre_initialization == true ? "pre-initialization" : "simulation"
             ml_opt *= "  $(ml_model.ml_id): (mode=$mode, parameters=$(n_ps))\n"
         end
         ml_stat = styled"$(ml_head)$(ml_opt)\n"

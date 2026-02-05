@@ -226,7 +226,7 @@ function _get_mapping_table_io(
     )::DataFrame
     mappings_df = DataFrame()
     for (i, io_id) in pairs(io_argument)
-        if (io_type == :inputs && ml_model.static) || (io_type == :outputs && !ml_model.static)
+        if (io_type == :inputs && ml_model.pre_initialization) || (io_type == :outputs && !ml_model.pre_initialization)
             _mappings_df = DataFrame(
                 Dict(
                     "modelEntityId" => "$(ml_id).$(io_type)[$(i_arg)][$(i - 1)]",
@@ -281,7 +281,7 @@ function _get_hybridization_table_io(
         io_argument::Vector{Symbol}, ml_id::Symbol, ml_model::MLModel,
         parameters_df::DataFrame, conditions_df::DataFrame, io_type::Symbol; i_arg = 0
     )::DataFrame
-    if (ml_model.static == false && io_type == :outputs)
+    if (ml_model.pre_initialization == false && io_type == :outputs)
         return DataFrame()
     end
     hybridization_df = DataFrame()
@@ -290,7 +290,7 @@ function _get_hybridization_table_io(
             continue
         end
 
-        if (io_type == :inputs && ml_model.static) || io_type == :outputs
+        if (io_type == :inputs && ml_model.pre_initialization) || io_type == :outputs
             io_id in parameters_df.parameterId && continue
             io_id in names(conditions_df) && continue
             _hybridization_df = DataFrame(
@@ -382,7 +382,7 @@ function _parse_target_value(
     end
 
     for ml_model in ml_models.ml_models
-        ml_model.static == false && continue
+        ml_model.pre_initialization == false && continue
         if ml_model.inputs isa Vector{Symbol}
             !in(Symbol(target_id), ml_model_inputs) && continue
             arg_idx = 1

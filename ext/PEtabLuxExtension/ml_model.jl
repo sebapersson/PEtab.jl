@@ -7,18 +7,18 @@ function PEtab.MLModels(path_yaml::String)::PEtab.MLModels
     for (ml_id, model_info) in yaml_models
         ml_id = Symbol(ml_id)
         path_model = joinpath(dirname(path_yaml), model_info["location"])
-        static = model_info["static"]
+        pre_initialization = model_info["pre_initialization"]
         lux_model, _ = PEtab.parse_to_lux(path_model)
 
         # With @compact Lux.jl does not allow freezing post model definition, hence the
         # layers to be frozen are extracted here, as well as their parameter values.
         # Given this information, the model is redefined.
-        _ml_model = PEtab.MLModel(ml_id, lux_model, static)
+        _ml_model = PEtab.MLModel(ml_id, lux_model, pre_initialization)
         freeze_info = _parse_freeze(_ml_model, path_yaml)
 
         lux_model, _ = PEtab.parse_to_lux(path_model; freeze_info = freeze_info)
         ml_model = PEtab.MLModel(
-            ml_id, lux_model, static; dir_data = dir_model,
+            ml_id, lux_model, pre_initialization; dir_data = dir_model,
             freeze_info = freeze_info
         )
         push!(ml_models, ml_model)
@@ -27,10 +27,10 @@ function PEtab.MLModels(path_yaml::String)::PEtab.MLModels
 end
 
 function PEtab.MLModel(
-        ml_id::Symbol, lux_model::Union{Lux.Chain, Lux.CompactLuxLayer}, static::Bool = true;
-        st = nothing, dir_data = nothing, outputs::Vector{T} = Symbol[],
+        ml_id::Symbol, lux_model::Union{Lux.Chain, Lux.CompactLuxLayer},
+        pre_initialization::Bool = true; st = nothing, dir_data = nothing,
+        outputs::Vector{T} = Symbol[], freeze_info::Union{Nothing, Dict} = nothing,
         inputs::Union{Vector{T}, Tuple, Array{<:Real}} = Symbol[],
-        freeze_info::Union{Nothing, Dict} = nothing
     )::MLModel where {T <: Union{String, Symbol}}
 
     rng = Random.default_rng()
@@ -71,6 +71,7 @@ function PEtab.MLModel(
     _outputs = [Symbol.(output) for output in outputs]
 
     return PEtab.MLModel(
-        ml_id, lux_model, _inputs, _outputs, static, st, ps, dir_data, array_inputs
+        ml_id, lux_model, _inputs, _outputs, pre_initialization, st, ps, dir_data,
+        array_inputs
     )
 end

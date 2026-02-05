@@ -51,6 +51,25 @@ function _get_ml_model_input_values(
 
     input_values = Symbol[]
     for input_id in input_petab_ids
+        # If the input variable is a file, the complete path is added here, which simplifies
+        # downstream processing
+        if input_id in Symbol.(hybridization_df.targetId)
+            ix = findfirst(x -> x == input_id, Symbol.(hybridization_df.targetId))
+            if hybridization_df.targetValue[ix] == "array"
+                if _input_isfile(input_id, yaml_file, paths) == false
+                    throw(PEtabInputError("ML model input variable '$(input_id)' is \
+                        marked as an array-file input, but no matching input was found \
+                        among the array files in the PEtab problem. Check the \
+                        `array_files`  entries in problem YAML-file"))
+                end
+                path = _get_input_path(input_id, yaml_file, paths)
+                push!(input_values, Symbol(path))
+                continue
+            end
+            push!(input_values, Symbol.(hybridization_df.targetValue[ix]))
+            continue
+        end
+
         # This can be triggered via recursion (condition table can have numbers)
         if is_number(input_id)
             if keep_numbers == true
@@ -86,14 +105,6 @@ function _get_ml_model_input_values(
                 )
                 input_values = vcat(input_values, _input_values)
             end
-            continue
-        end
-
-        # If the input variable is a file, the complete path is added here, which simplifies
-        # downstream processing
-        if _input_isfile(input_id, yaml_file, paths)
-            path = _get_input_path(input_id, yaml_file, paths)
-            push!(input_values, Symbol(path))
             continue
         end
 

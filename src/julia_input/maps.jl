@@ -30,7 +30,7 @@ function _get_speciemap(
     condition_variables = names(conditions_df)
     net_outputs = String[]
     for ml_model in ml_models.ml_models
-        ml_model.static == false && continue
+        ml_model.pre_initialization == false && continue
         for output_id in string.(ml_model.outputs)
             if output_id in specie_ids
                 push!(net_outputs, output_id)

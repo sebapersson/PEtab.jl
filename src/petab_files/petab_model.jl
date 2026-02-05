@@ -179,7 +179,7 @@ function add_u0_parameters!(
     net_outputs = String[]
     for ml_model in ml_models.ml_models
         ml_id = ml_model.ml_id
-        ml_model.static == false && continue
+        ml_model.pre_initialization == false && continue
         output_variables = _get_ml_model_io_petab_ids(mappings_df, ml_id, :outputs) |>
             Iterators.flatten
         outputs_df = filter(row -> row.targetValue in output_variables, hybridization_df)

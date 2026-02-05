@@ -240,7 +240,7 @@ function _get_ml_formulas(
     mappings_df = petab_tables[:mapping]
     isempty(mappings_df) && return formula_ml
     for ml_model in ml_models.ml_models
-        ml_model.static == true && continue
+        ml_model.pre_initialization == true && continue
 
         ml_id = ml_model.ml_id
         output_variables = _get_ml_model_io_petab_ids(mappings_df, ml_id, :outputs)

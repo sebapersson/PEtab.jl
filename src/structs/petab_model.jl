@@ -372,7 +372,7 @@ mutable struct MLModel{T1 <: Any}
     const lux_model::T1
     const inputs::Union{Vector{Symbol}, Vector{Vector{Symbol}}}
     const outputs::Vector{Symbol}
-    const static::Bool
+    const pre_initialization::Bool
     st::NamedTuple
     const ps::ComponentVector{Float64}
     const dir_data::String

@@ -27,7 +27,7 @@ function PEtabParameters(
     parameter_scales = fill(Symbol(), nps)
     estimate = fill(false, nps)
 
-    _parse_table_column!(nominal_values, parameters_df[!, :nominalValue], Float64)
+    _parse_nominal_values!(nominal_values, parameters_df[!, :nominalValue])
     _parse_table_column!(parameter_ids, parameters_df[!, :parameterId], Symbol)
     _parse_table_column!(parameter_scales, parameters_df[!, :parameterScale], Symbol)
     _parse_table_column!(estimate, parameters_df[!, :estimate], Bool)
@@ -89,14 +89,21 @@ function PEtabMLParameters(
     # Nominal-value for net parameters can be either a file name, of a numerical value
     nominal_values = Vector{Union{String, Float64}}(undef, nps)
     for (i, nominal_value) in pairs(parameters_df[!, :nominalValue])
+        estimate_ps = parameters_df[i, :estimate]
         if nominal_value isa Real
             nominal_values[i] = nominal_value
-        elseif ismissing(nominal_value)
+        elseif nominal_value == "array"
             nominal_values[i] = ""
         elseif SBMLImporter.is_number(nominal_value)
             nominal_values[i] = parse(Float64, nominal_value)
-        else
+        elseif endswith(nominal_value, "julia_provided")
             nominal_values[i] = nominal_value
+        elseif ismissing(nominal_value) && estimate_ps == false
+            continue
+        else
+            id = parameters_df[i, :parameterId]
+            throw(PEtabInputError("Invalid nominal value '$(nominal_value)' for parameter \
+                '$(id)': expected a numeric value (e.g., 3.0), or the string 'array'"))
         end
     end
 
@@ -304,4 +311,25 @@ function _get_logpdf(prior::ContDistribution)::Function
         (x) -> logpdf(dist, x)
     end
     return _logpdf
+end
+
+function _parse_nominal_values!(
+        nominal_values::Vector{<:Real}, nominal_values_col
+    )::Nothing
+    for (i, value) in pairs(nominal_values_col)
+        ismissing(value) && continue
+
+        if value isa Real
+            nominal_values[i] = value
+            continue
+        end
+
+        if value isa AbstractString && is_number(value)
+            nominal_values[i] = parse(Float64, value)
+            continue
+        end
+
+        throw(PEtabInputError("Invalid nominal parameter value: '$(value)' is not a \
+            real number. Provide a numeric value (e.g. 1.23)"))
+    end
 end

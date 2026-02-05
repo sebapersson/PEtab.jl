@@ -33,16 +33,16 @@ function _check_mapping_table(
     end
 
     for ml_model in ml_models.ml_models
-        ml_model.static == false && continue
+        ml_model.pre_initialization == false && continue
 
         ml_id = ml_model.ml_id
-        _check_static_ml_inputs(petab_tables, paths, petab_parameters, ml_id)
+        _check_pre_initialization_ml_inputs(petab_tables, paths, petab_parameters, ml_id)
         _check_stat_ml_outputs(petab_tables, petab_parameters, sys, ml_id)
     end
     return nothing
 end
 
-function _check_static_ml_inputs(
+function _check_pre_initialization_ml_inputs(
         petab_tables::PEtabTables, paths::Dict{Symbol, String},
         petab_parameters::PEtabParameters, ml_id::Symbol
     )::Nothing
@@ -60,7 +60,7 @@ function _check_static_ml_inputs(
         _input_isfile(input_id, yaml_file, paths) && continue
         Symbol(input_id) in petab_parameters.parameter_id && continue
 
-        throw(PEtab.PEtabInputError("For a static neural network, input variables in \
+        throw(PEtab.PEtabInputError("For a pre_initialization neural network, input variables in \
             assigned to in the mapping table must be assigned value by a parameter in \
             the parameter table, or in the conditions table, or be assigned to a file \
             variable defined in the YAML file. This does not hold for $(input_id)"))
@@ -87,7 +87,7 @@ function _check_stat_ml_outputs(
 
         output_id in state_ids && continue
         if !(output_id in ids_sys)
-            throw(PEtab.PEtabInputError("For a static neural network, output variables in \
+            throw(PEtab.PEtabInputError("For a pre_initialization neural network, output variables in \
                 the hybridization table can only assign to a specie id or to a
                 non-estimated model parameter. This does not hold for $ml_output_id \
                 assigning to $output_id, as $output_id does not fulfill these \
@@ -95,7 +95,7 @@ function _check_stat_ml_outputs(
         end
 
         if _estimate_parameter(output_id, petab_parameters)
-            throw(PEtab.PEtabInputError("For a static neural network, output variables in \
+            throw(PEtab.PEtabInputError("For a pre_initialization neural network, output variables in \
                 the hybridization table cannot assign to model parameters that are \
                 estimated. This does not hold for $ml_output_id assigning to \
                 $output_id, as $output_id is set to be estimated in the parameters \

@@ -35,7 +35,7 @@ function _get_ids(
         petab_tables, petab_parameters, sys, paths, ml_models
     )
 
-    # Parameters set by a static neural net. Needed to be tracked for gradient computations
+    # Parameters set by a pre_initialization neural net. Needed to be tracked for gradient computations
     ids_ml_pre_simulate_output = _get_ids_ml_pre_simulate_output(petab_tables, ml_models)
 
     # Ensure sys has correct order for adjoint sensitivities
@@ -132,7 +132,7 @@ function _get_ids_ml_pre_simulate_output(
     isempty(hybridization_df) && return out
 
     for ml_model in ml_models.ml_models
-        ml_model.static == false && continue
+        ml_model.pre_initialization == false && continue
 
         ml_id = ml_model.ml_id
         output_variables = Iterators.flatten(
@@ -201,7 +201,7 @@ function _get_ids_condition(
 
     ml_inputs = String[]
     for ml_model in ml_models.ml_models
-        ml_model.static == false && continue
+        ml_model.pre_initialization == false && continue
 
         ml_id = ml_model.ml_id
         ml_model_inputs = _get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs)
@@ -263,7 +263,7 @@ function _get_ids_ml_pre_simulate(ml_models::MLModels)::Vector{Symbol}
     out = Symbol[]
     for ml_model in ml_models.ml_models
         ml_id = ml_model.ml_id
-        ml_model.static == false && continue
+        ml_model.pre_initialization == false && continue
         push!(out, ml_id)
     end
     return out
@@ -291,7 +291,7 @@ function _get_ids_ml_input_est(
 
     out = Symbol[]
     for ml_model in ml_models.ml_models
-        ml_model.static == false && continue
+        ml_model.pre_initialization == false && continue
 
         ml_id = ml_model.ml_id
         input_variables = Iterators.flatten(

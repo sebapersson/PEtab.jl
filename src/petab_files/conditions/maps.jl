@@ -65,7 +65,7 @@ function _get_condition_maps(
 
     ml_inputs = String[]
     for ml_model in ml_models.ml_models
-        ml_model.static == false && continue
+        ml_model.pre_initialization == false && continue
 
         ml_id = ml_model.ml_id
         _ml_inputs = _get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs) |>

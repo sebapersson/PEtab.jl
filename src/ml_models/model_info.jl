@@ -60,7 +60,7 @@ Identify which neural-network models appear in the ODE right-hand-side
 
 For this to hold, the following must hold:
 
-1. Neural network has static = false
+1. Neural network has pre_initialization = false
 2. All neural network inputs and outputs appear in the hybridization table
 3. All neural network outputs should assign to SBML model parameters
 
@@ -89,14 +89,14 @@ function _get_ode_ml_models(
     end
 
     for ml_model in ml_models.ml_models
-        ml_model.static == true && continue
+        ml_model.pre_initialization == true && continue
 
         @unpack ml_id = ml_model
         input_variables = Iterators.flatten(
             _get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs)
         )
         if !all([x in hybridization_df.targetId for x in input_variables])
-            throw(PEtab.PEtabInputError("For a static=false neural network all input \
+            throw(PEtab.PEtabInputError("For a pre_initialization=false neural network all input \
                 must be assigned value in the hybridization table. This does not hold for \
                 $ml_id"))
         end
@@ -108,7 +108,7 @@ function _get_ode_ml_models(
         isempty(outputs_df) && continue
 
         if !all([x in keys(libsbml_model.parameters) for x in outputs_df.targetId])
-            throw(PEtab.PEtabInputError("For a static=false neural network all output \
+            throw(PEtab.PEtabInputError("For a pre_initialization=false neural network all output \
                 variables in hybridization table must map to SBML model parameters. This \
                 does not hold for $ml_id"))
         end
