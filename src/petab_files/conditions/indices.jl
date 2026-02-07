@@ -25,6 +25,7 @@ function _get_indices_est(
     xi_est_to_dynamic = _get_indices(ids[:est_to_dynamic_mech], ids[:estimate])
     for ml_id in ids[:ml_est]
         !in(ml_id, ids[:ml_est]) && continue
+        in(ml_id, ids[:ml_nondynamic]) && continue
         xi_est_to_dynamic = vcat(xi_est_to_dynamic, xi_est[ml_id])
     end
     xi_est[:est_to_dynamic] = xi_est_to_dynamic
