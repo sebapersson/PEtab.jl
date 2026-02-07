@@ -63,7 +63,7 @@ ode_solver = ODESolver(Rodas5P(), abstol = 1.0e-10, reltol = 1.0e-10, maxiters =
 @testset "SciML model in Julia" begin
     for i in 1:39
         # Test-cases with no-equivalent support in the Julia interface
-        i in [35, 36, 38] && continue
+        i in [36, 38] && continue
 
         test_case = i < 10 ? "00$(i).jl" : "0$(i).jl"
         include(joinpath(@__DIR__, "petab_sciml_testsuite", test_case))

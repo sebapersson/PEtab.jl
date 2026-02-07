@@ -18,7 +18,7 @@ path_h5 = joinpath(dir_case, "net1_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn2) |> ComponentArray |> f64
 PEtab._set_ml_model_ps!(pnn, path_h5, nn2, :net1)
 
-function lv2!(du, u, p, t)
+function lv33!(du, u, p, t)
     prey, predator = u
     @unpack alpha, delta, beta, gamma = p
     du[1] = alpha * prey - beta * prey * predator # prey
@@ -28,7 +28,7 @@ end
 
 u0 = ComponentArray(prey = 0.44249296, predator = 4.6280594)
 p_mechanistic = ComponentArray(alpha = 1.3, delta = 1.8, beta = 0.9, gamma = 0.8)
-uprob = ODEProblem(lv2!, u0, (0.0, 10.0), p_mechanistic)
+uprob = ODEProblem(lv33!, u0, (0.0, 10.0), p_mechanistic)
 
 pest = [
     PEtabParameter(:alpha; scale = :lin, value = 1.3, prior = Uniform(0.0, 15.0)),

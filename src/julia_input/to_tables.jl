@@ -365,11 +365,21 @@ function _get_hybridization_table_io(
     for (i, io_id) in pairs(string.(io_argument))
         if (io_type == :inputs && ml_model.pre_initialization) || io_type == :outputs
             io_id in parameters_df.parameterId && continue
-            io_id in names(conditions_df) && continue
-            _hybridization_df = DataFrame(
-                targetId = io_id,
-                targetValue = "__$(ml_id)__$(io_type)$(arg_idx)__$(i - 1)"
-            )
+
+            if !in(io_id, names(conditions_df))
+                _hybridization_df = DataFrame(
+                    targetId = io_id,
+                    targetValue = "__$(ml_id)__$(io_type)$(arg_idx)__$(i - 1)"
+                )
+            else
+                io_value = conditions_df[1, io_id]
+                io_value != "array" && continue
+                _hybridization_df = DataFrame(
+                    targetId = io_id,
+                    targetValue = "array"
+                )
+            end
+
         else
             if !in(io_id, names(conditions_df))
                 _hybridization_df = DataFrame(

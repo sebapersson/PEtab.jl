@@ -62,7 +62,7 @@ function _get_ml_model_input_values(
             ix = findfirst(x -> x == input_id, Symbol.(hybridization_df.targetId))
             if hybridization_df.targetValue[ix] == "array"
                 # If problem is defined in Julia, the array input is stored elsewhere,
-                # which the _array value flags
+                # which the _array_julia value flags
                 if isempty(yaml_file)
                     return [:_array_julia]
                 end
