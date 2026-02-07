@@ -185,6 +185,10 @@ function _grad_adjoint_cond!(
     sol = simulation_info.odesols_derivatives[cid]
     callback = tracked_callbacks[simid]
 
+    # Need to adjust models both inside ODE (first) and in observable function (second)
+    PEtab._set_condition_id_ml_models!(model_info, simid)
+    PEtab._set_condition_id_ml_models!(model.ml_models, simid)
+
     # Partial derivatives needed for computing the gradient (derived from the chain-rule)
     ∂G∂u!, ∂G∂p! = PEtab._get_∂G∂_!(
         model_info, cid, xnoise, xobservable, xnondynamic_mech, cache.x_ml_models,

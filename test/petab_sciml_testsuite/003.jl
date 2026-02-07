@@ -72,3 +72,15 @@ petab_prob = PEtabODEProblem(
     split_over_conditions = true
 )
 test_hybrid(test_case, petab_prob)
+
+# Test an error is thrown unless input has been specified for all conditions
+conditions = [
+    PEtabCondition(:e1, :net1_input1 => 10.0, :net1_input2 => 20.0),
+    PEtabCondition(:e2, :net1_input1 => :net1_input_pre1),
+]
+@test_throws PEtab.PEtabInputError begin
+    model = PEtabModel(
+        sys, observables, measurements, pest;
+        ml_models = ml_models, simulation_conditions = conditions
+    )
+end

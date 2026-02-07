@@ -69,8 +69,7 @@ function _observables_to_table(observables::Vector{PEtabObservable})::DataFrame
 end
 
 function _conditions_to_table(
-        conditions::Vector{PEtabCondition}, mappings_df::DataFrame, sys::ModelSystem,
-        ml_models::MLModels
+        conditions::Vector{PEtabCondition}, sys::ModelSystem, ml_models::MLModels
     )::DataFrame
     condition_ids = getfield.(conditions, :condition_id)
     if condition_ids != unique(condition_ids)
@@ -102,20 +101,6 @@ function _conditions_to_table(
             conditions_df[!, model_id] .= string.(conditions_df[!, model_id])
             conditions_df[row_idx, model_id] = "NaN"
         end
-    end
-
-    # Unlike standard PEtab variables, ML-input variables do not have a default value, so
-    # if it is assigned in the condition table, it needs to be assigned for all conditions
-    ml_input_ids = _get_ml_model_io_petab_ids(ml_models, mappings_df)
-    for condition_variable in names(conditions_df)
-        !in(condition_variable, ml_input_ids) && continue
-        !any(ismissing.(conditions_df[:, condition_variable])) && continue
-
-        idx = findfirst(x -> ismissing(x), conditions_df[:, condition_variable])
-        condition_id = conditions_df.conditionId[idx]
-        throw(PEtabInputError("ML input variable '$(condition_variable)' is not assigned \
-            for PEtabCondition '$(condition_id)'. ML input variables require a value for \
-            every simulation condition (they have no default value)."))
     end
 
     _check_table(conditions_df, :conditions_v1)
@@ -168,13 +153,19 @@ function _measurements_to_table(
     return measurements_df
 end
 
-function _mapping_to_table(ml_models::MLModels, parameters::Vector)::DataFrame
+function _mapping_to_table(
+        ml_models::MLModels, conditions_df::DataFrame, parameters::Vector
+    )::DataFrame
     isempty(ml_models) && return DataFrame()
     mappings_df = DataFrame()
     for ml_model in ml_models.ml_models
         ml_id = ml_model.ml_id
-        _inputs_df = _get_mapping_table_io(ml_model.inputs, ml_id, ml_model, :inputs)
-        _outputs_df = _get_mapping_table_io(ml_model.outputs, ml_id, ml_model, :outputs)
+        _inputs_df = _get_mapping_table_io(
+            ml_model.inputs, conditions_df, ml_id, ml_model, :inputs
+        )
+        _outputs_df = _get_mapping_table_io(
+            ml_model.outputs, conditions_df, ml_id, ml_model, :outputs
+        )
         mappings_df = reduce(vcat, (mappings_df, _inputs_df, _outputs_df))
     end
 
@@ -200,6 +191,34 @@ function _mapping_to_table(ml_models::MLModels, parameters::Vector)::DataFrame
         mappings_df = vcat(mappings_df, _parameters_df)
     end
 
+    # Unlike standard PEtab variables, ML-input variables do not have a default value, so
+    # if it is assigned in the condition table, it needs to be assigned for all conditions
+    ml_input_ids = _get_ml_model_io_petab_ids(ml_models, mappings_df)
+    for condition_variable in names(conditions_df)
+        !in(condition_variable, ml_input_ids) && continue
+        !any(ismissing.(conditions_df[:, condition_variable])) && continue
+
+        idx = findfirst(x -> ismissing(x), conditions_df[:, condition_variable])
+        condition_id = conditions_df.conditionId[idx]
+        throw(PEtabInputError("ML input variable '$(condition_variable)' is not assigned \
+            for PEtabCondition '$(condition_id)'. ML input variables require a value for \
+            every simulation condition (they have no default value)."))
+    end
+    # If one input is assigned array, all need to be
+    for condition_variable in names(conditions_df)
+        !in(condition_variable, ml_input_ids) && continue
+
+        condition_values = conditions_df[:, condition_variable]
+        !any(condition_values .== "array") && continue
+        all(condition_values .== "array") && continue
+
+        idx = findfirst(x -> x != "array", condition_values)
+        condition_id = conditions_df.conditionId[idx]
+        throw(PEtabInputError("ML input variable '$(condition_variable)' has array input \
+            for some PEtab conditions but not others. If a variable uses array input it \
+            must be provided for every condition. Specifically PEtabCondition \
+            '$(condition_id)' has no array input."))
+    end
 
     if !isempty(mappings_df)
         _check_table(mappings_df, :mapping)
@@ -208,38 +227,56 @@ function _mapping_to_table(ml_models::MLModels, parameters::Vector)::DataFrame
 end
 
 function _get_mapping_table_io(
-        io_arguments::Vector{Vector{Symbol}}, ml_id::Symbol, ml_model::MLModel,
-        io_type::Symbol
+        io_arguments::Vector{Vector{Symbol}}, conditions_df::DataFrame, ml_id::Symbol,
+        ml_model::MLModel, io_type::Symbol
     )::DataFrame
     mappings_df = DataFrame()
-    for (i, io_argument) in pairs(io_arguments)
+    for (arg_idx, io_argument) in pairs(io_arguments)
         _mappings_df = _get_mapping_table_io(
-            io_argument, ml_id, ml_model, io_type; i_arg = (i - 1)
+            io_argument, conditions_df, ml_id, ml_model, io_type; arg_idx = (arg_idx - 1)
         )
         mappings_df = vcat(mappings_df, _mappings_df)
     end
     return mappings_df
 end
 function _get_mapping_table_io(
-        io_argument::Vector{Symbol}, ml_id::Symbol, ml_model::MLModel, io_type::Symbol;
-        i_arg = 0
+        io_argument::Vector{Symbol}, conditions_df::DataFrame, ml_id::Symbol,
+        ml_model::MLModel, io_type::Symbol; arg_idx = 0
     )::DataFrame
     mappings_df = DataFrame()
+    isempty(io_argument) && return mappings_df
+
+    if io_type == :inputs && io_argument[1] == :_ARRAY_INPUT
+        _mappings_df = DataFrame(
+            modelEntityId = "$(ml_id).$(io_type)[$(arg_idx)]",
+            petabEntityId = "__$(ml_id)__$(io_type)$(arg_idx)"
+        )
+        return _mappings_df
+    end
+
     for (i, io_id) in pairs(io_argument)
-        if (io_type == :inputs && ml_model.pre_initialization) || (io_type == :outputs && !ml_model.pre_initialization)
-            _mappings_df = DataFrame(
-                Dict(
-                    "modelEntityId" => "$(ml_id).$(io_type)[$(i_arg)][$(i - 1)]",
-                    "petabEntityId" => "$(io_id)"
-                )
+        if (
+            io_type == :inputs && ml_model.pre_initialization) || (io_type == :outputs &&
+                !ml_model.pre_initialization
             )
+            _mappings_df = DataFrame(
+                modelEntityId = "$(ml_id).$(io_type)[$(arg_idx)][$(i - 1)]",
+                petabEntityId = "$(io_id)"
+            )
+
         else
-            _mappings_df = DataFrame(
-                Dict(
-                    "modelEntityId" => "$(ml_id).$(io_type)[$(i_arg)][$(i - 1)]",
-                    "petabEntityId" => "__$(ml_id)__$(io_type)$(i_arg)__$(i - 1)"
+            # Check if array input
+            if !_is_array_input(io_id, conditions_df)
+                _mappings_df = DataFrame(
+                    modelEntityId = "$(ml_id).$(io_type)[$(arg_idx)][$(i - 1)]",
+                    petabEntityId = "__$(ml_id)__$(io_type)$(arg_idx)__$(i - 1)"
                 )
-            )
+            else
+                _mappings_df = DataFrame(
+                    modelEntityId = "$(ml_id).$(io_type)[$(arg_idx)][$(i - 1)]",
+                    petabEntityId = "$(io_id)"
+                )
+            end
         end
         mappings_df = vcat(mappings_df, _mappings_df)
     end
@@ -247,7 +284,8 @@ function _get_mapping_table_io(
 end
 
 function _hybridization_to_table(
-        ml_models::MLModels, parameters_df::DataFrame, conditions_df::DataFrame
+        ml_models::MLModels, parameters_df::DataFrame, conditions_df::DataFrame,
+        mappings_df::DataFrame
     )::DataFrame
     hybridization_df = DataFrame()
     for ml_model in ml_models.ml_models
@@ -260,6 +298,34 @@ function _hybridization_to_table(
         )
         hybridization_df = reduce(vcat, (hybridization_df, _inputs_df, _outputs_df))
     end
+
+    # In case any input is assigned array input, a correction is needed in the mapping
+    # table
+    for i in 1:nrow(mappings_df)
+        isempty(hybridization_df) && continue
+
+        idx = findfirst(x -> x == mappings_df.petabEntityId[i], hybridization_df.targetId)
+        isnothing(idx) && continue
+        if hybridization_df.targetValue[idx] == "array"
+            petab_id = replace(
+                mappings_df[i, :modelEntityId], r"(\[\d+\])\[\d+\]$" => s"\1"
+            )
+            mappings_df[i, :modelEntityId] = petab_id
+        end
+    end
+
+    # Finally, any array variable assigned in the condition table should not be removed,
+    # as array assignments occur in hybridization table (and all internal mapping has
+    # at this stage been done to properly deal with array input, as array inputs live in
+    # MLModel
+    for row_idx in 1:nrow(hybridization_df)
+        hybridization_df.targetValue[row_idx] != "array" && continue
+        if hybridization_df.targetId[row_idx] in names(conditions_df)
+            DataFrames.select!(
+                conditions_df, Not(Symbol(hybridization_df.targetId[row_idx]))
+            )
+        end
+    end
     return hybridization_df
 end
 
@@ -271,7 +337,7 @@ function _get_hybridization_table_io(
     for (i, io_argument) in pairs(io_arguments)
         _hybridization_df = _get_hybridization_table_io(
             io_argument, ml_id, ml_model, parameters_df, conditions_df, io_type;
-            i_arg = (i - 1)
+            arg_idx = (i - 1)
         )
         hybridization_df = vcat(hybridization_df, _hybridization_df)
     end
@@ -279,29 +345,43 @@ function _get_hybridization_table_io(
 end
 function _get_hybridization_table_io(
         io_argument::Vector{Symbol}, ml_id::Symbol, ml_model::MLModel,
-        parameters_df::DataFrame, conditions_df::DataFrame, io_type::Symbol; i_arg = 0
+        parameters_df::DataFrame, conditions_df::DataFrame, io_type::Symbol; arg_idx = 0
     )::DataFrame
-    if (ml_model.pre_initialization == false && io_type == :outputs)
+
+    if (ml_model.pre_initialization == false && io_type == :outputs) || isempty(io_argument)
         return DataFrame()
     end
+
+    # Global array input
+    if io_type == :inputs && io_argument[1] == :_ARRAY_INPUT
+        hybridization_df = DataFrame(
+            targetId = "__$(ml_id)__$(io_type)$(arg_idx)",
+            targetValue = "array"
+        )
+        return hybridization_df
+    end
+
     hybridization_df = DataFrame()
     for (i, io_id) in pairs(string.(io_argument))
-        if io_type == :inputs && io_id == "_ARRAY_INPUT"
-            continue
-        end
-
         if (io_type == :inputs && ml_model.pre_initialization) || io_type == :outputs
             io_id in parameters_df.parameterId && continue
             io_id in names(conditions_df) && continue
             _hybridization_df = DataFrame(
                 targetId = io_id,
-                targetValue = "__$(ml_id)__$(io_type)$(i_arg)__$(i - 1)"
+                targetValue = "__$(ml_id)__$(io_type)$(arg_idx)__$(i - 1)"
             )
         else
-            _hybridization_df = DataFrame(
-                targetId = "__$(ml_id)__$(io_type)$(i_arg)__$(i - 1)",
-                targetValue = io_id
-            )
+            if !in(io_id, names(conditions_df))
+                _hybridization_df = DataFrame(
+                    targetId = "__$(ml_id)__$(io_type)$(arg_idx)__$(i - 1)",
+                    targetValue = io_id
+                )
+            else
+                _hybridization_df = DataFrame(
+                    targetId = io_id,
+                    targetValue = "array"
+                )
+            end
         end
         hybridization_df = vcat(hybridization_df, _hybridization_df)
     end
@@ -374,7 +454,7 @@ function _parse_target_value(
     )::String
     # Only allowed for ML model inputs
     _ml_models = ml_models.ml_models
-    ml_model_inputs = reduce(vcat, getfield.(_ml_models, :inputs))
+    ml_model_inputs = reduce(vcat, _to_vec.(getfield.(_ml_models, :inputs)))
     if !in(Symbol(target_id), ml_model_inputs)
         throw(PEtabInputError("Assigning an array in a PEtabCondition is only valid \
             when the target variable is an ML model input. For condition '$condition_id', \
@@ -382,20 +462,19 @@ function _parse_target_value(
     end
 
     for ml_model in ml_models.ml_models
-        ml_model.pre_initialization == false && continue
         if ml_model.inputs isa Vector{Symbol}
             !in(Symbol(target_id), ml_model_inputs) && continue
             arg_idx = 1
         else
             !in(Symbol(target_id), reduce(vcat, ml_model.inputs)) && continue
-            arg_idx = findfirst(x -> x == [Symbol(target_id)], ml_model_inputs)
+            arg_idx = findfirst(x -> x == [Symbol(target_id)], ml_model.inputs)
         end
-        ml_model.array_inputs[Symbol("$(condition_id)_$(arg_idx)")] = target_value
+        ml_model.array_inputs[Symbol("__arg$(arg_idx)_$(condition_id)")] = target_value
     end
-    return "_ARRAY_INPUT"
+    return "array"
 end
 function _parse_target_value(
-        target_value, ::String, condition_id::String, i::Integer, ml_models::MLModels
+        target_value, ::String, condition_id::String, i::Integer, ::MLModels
     )::String
     _check_target_value(target_value, i, condition_id)
     return string(target_value)
@@ -437,4 +516,9 @@ function _get_nested_parameter_id(id, ml_model::MLModel; model_entity::Bool = fa
         end
     end
     return parameter_id
+end
+
+function _is_array_input(io_id::Symbol, conditions_df::DataFrame)::Bool
+    !in(io_id, propertynames(conditions_df)) && return false
+    return conditions_df[1, io_id] == "array"
 end

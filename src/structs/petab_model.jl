@@ -377,6 +377,7 @@ mutable struct MLModel{T1 <: Any}
     const ps::ComponentVector{Float64}
     const dir_data::String
     const array_inputs::Dict{Symbol, Array{<:Real}}
+    const condition_id::Vector{Symbol}
 end
 
 """

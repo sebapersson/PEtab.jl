@@ -25,7 +25,12 @@ function _template_ml_in_ode(ml_id::Symbol, petab_tables::PEtabTables)::String
     inputs = "("
     for (i, input_argument) in pairs(input_arguments)
         df = filter(r -> r.targetId in input_argument, hybridization_df)
-        inputs *= "[" * prod(df.targetValue .* ",") * "]"
+        if df.targetValue[1] != "array"
+            inputs *= "[" * prod(df.targetValue .* ",") * "]"
+        else
+            inputs *= "PEtab._get_array_input(ml_models[:$(ml_id)], $i)"
+        end
+
         if i == length(input_arguments)
             inputs *= ')'
         else
@@ -65,14 +70,21 @@ function _template_ml_observable(
     inputs = "("
     for (i, input_argument) in pairs(input_arguments)
         df = filter(r -> r.targetId in input_argument, hybridization_df)
-        inputs *= "[" * prod(df.targetValue .* ",") * "]"
+        if df.targetValue[1] != "array"
+            inputs *= "[" * prod(df.targetValue .* ",") * "]"
+        else
+            inputs *= "PEtab._get_array_input(ml_models[:$(ml_id)], $i)"
+        end
+
         if i == length(input_arguments)
             inputs *= ')'
         else
             inputs *= ", "
         end
     end
-    inputs = _parse_formula(inputs, state_ids, sys_observable_ids, xindices, model_SBML, type)
+    inputs = _parse_formula(
+        inputs, state_ids, sys_observable_ids, xindices, model_SBML, type
+    )
 
     output_variables = Iterators.flatten(
         _get_ml_model_io_petab_ids(mappings_df, Symbol(ml_id), :outputs)
@@ -123,4 +135,10 @@ function _template_ml_input(
     end
     out *= "end\n"
     return out
+end
+
+function _get_array_input(ml_model::MLModel, i)::Array{Float64}
+    condition_id = ml_model.condition_id[1]
+    array_id = Symbol("__arg$(i)_$(condition_id)")
+    return ml_model.array_inputs[array_id]
 end

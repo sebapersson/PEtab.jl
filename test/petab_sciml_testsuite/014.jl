@@ -20,7 +20,7 @@ input_data = PEtab._reshape_io_data(input_data)
 input_data = reshape(input_data, (size(input_data)..., 1)) |> f64
 close(input_hdf5)
 
-ml_models = MLModel(:net3, nn14, true; inputs = input_data, outputs = [:gamma]) |> MLModels
+ml_model = MLModel(:net3, nn14, true; inputs = input_data, outputs = [:gamma])
 
 path_h5 = joinpath(dir_case, "net3_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn14) |> ComponentArray |> f64
@@ -57,7 +57,7 @@ measurements = CSV.read(path_m, DataFrame)
 rename!(measurements, "experimentId" => "simulation_id")
 
 model = PEtabModel(
-    uprob, observables, measurements, pest; ml_models = ml_models,
+    uprob, observables, measurements, pest; ml_models = ml_model,
     simulation_conditions = conditions
 )
 petab_prob = PEtabODEProblem(

@@ -95,6 +95,7 @@ function _get_ode_ml_models(
         input_variables = Iterators.flatten(
             _get_ml_model_io_petab_ids(mappings_df, ml_id, :inputs)
         )
+
         if !all([x in hybridization_df.targetId for x in input_variables])
             throw(PEtab.PEtabInputError("For a pre_initialization=false neural network all input \
                 must be assigned value in the hybridization table. This does not hold for \
@@ -108,9 +109,9 @@ function _get_ode_ml_models(
         isempty(outputs_df) && continue
 
         if !all([x in keys(libsbml_model.parameters) for x in outputs_df.targetId])
-            throw(PEtab.PEtabInputError("For a pre_initialization=false neural network all output \
-                variables in hybridization table must map to SBML model parameters. This \
-                does not hold for $ml_id"))
+            throw(PEtab.PEtabInputError("For a pre_initialization=false neural network \
+                all output variables in hybridization table must map to SBML model \
+                parameters. This does not hold for $ml_id"))
         end
 
         push!(out, ml_model)
@@ -130,4 +131,18 @@ function _get_ml_model_indices(
     )::Vector{Int64}
     ix = findall(x -> startswith(x, string(ml_id)), mapping_table_ids)
     return sort(ix, by = i -> count(c -> c == '[' || c == '.', mapping_table_ids[i]))
+end
+
+function _set_condition_id_ml_models!(model_info::ModelInfo, condition_id::Symbol)::Nothing
+    model_info.model.defined_in_julia == true && return nothing
+    !(model_info.model.sys_mutated isa ODEProblem) && return nothing
+    _set_condition_id_ml_models!(model_info.model.sys_mutated.f.f.ml_models, condition_id)
+    return nothing
+end
+function _set_condition_id_ml_models!(ml_models::MLModels, condition_id::Symbol)::Nothing
+    for ml_model in ml_models.ml_models
+        ml_model.pre_initialization == true && continue
+        ml_model.condition_id[1] = condition_id
+    end
+    return nothing
 end

@@ -1,24 +1,26 @@
-test_case = "002"
+test_case = "037"
 dir_case = joinpath(@__DIR__, "test_cases", "sciml_problem_import", test_case, "petab")
 
-nn2 = @compact(
-    layer1 = Dense(2, 5, Lux.tanh),
-    layer2 = Dense(5, 5, Lux.tanh),
-    layer3 = Dense(5, 1)
-) do x
+nn37 = @compact(
+    layer1 = Dense(4, 5, Lux.relu),
+    layer2 = Dense(5, 10, Lux.relu),
+    layer3 = Dense(10, 1)
+) do (x1, x2)
+    x = vcat(x1, x2)
     embed = layer1(x)
     embed = layer2(embed)
     out = layer3(embed)
     @return out
 end
 
-ml_model = MLModel(:net1, nn2, true; inputs = [1.0, 1.0], outputs = [:gamma, :beta])
+ml_model = MLModel(
+    :net6, nn37, false; inputs = ([:prey], [1.0, 2.0, 3.0]), outputs = [:net6_output1]
+)
+path_h5 = joinpath(dir_case, "net6_ps.hdf5")
+pnn = Lux.initialparameters(rng, nn37) |> ComponentArray |> f64
+PEtab._set_ml_model_ps!(pnn, path_h5, nn37, :net6)
 
-path_h5 = joinpath(dir_case, "net1_ps.hdf5")
-pnn = Lux.initialparameters(rng, nn2) |> ComponentArray |> f64
-PEtab._set_ml_model_ps!(pnn, path_h5, nn2, :net1)
-
-function lv2!(du, u, p, t)
+function lv37!(du, u, p, t)
     prey, predator = u
     @unpack alpha, delta, beta, gamma = p
     du[1] = alpha * prey - beta * prey * predator # prey
@@ -28,17 +30,20 @@ end
 
 u0 = ComponentArray(prey = 0.44249296, predator = 4.6280594)
 p_mechanistic = ComponentArray(alpha = 1.3, delta = 1.8, beta = 0.9, gamma = 0.8)
-uprob = ODEProblem(lv2!, u0, (0.0, 10.0), p_mechanistic)
+uprob = ODEProblem(lv37!, u0, (0.0, 10.0), p_mechanistic)
 
+# Setup the PEtabModel as usual
+# (algebraic expressions for initial values, specie-map overrides, will have to test later)
 pest = [
     PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3),
     PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9),
     PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8),
-    PEtabMLParameter(:net1; value = pnn),
+    PEtabParameter(:gamma; scale = :lin, lb = 0.0, ub = 15.0, value = 0.8),
+    PEtabMLParameter(:net6; value = pnn),
 ]
 
 observables = [
-    PEtabObservable(:prey_o, :prey, 0.05),
+    PEtabObservable(:prey_o, "net6_output1 - 0.9 + prey", 0.05),
     PEtabObservable(:predator_o, :predator, 0.05),
 ]
 

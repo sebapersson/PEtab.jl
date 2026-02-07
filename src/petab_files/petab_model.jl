@@ -69,6 +69,7 @@ function _PEtabModel(
 
     # Ensure correct type internally for ml_models
     ml_models = isnothing(ml_models) ? MLModels() : ml_models
+    _pase_array_inputs!(ml_models, petab_tables, paths)
 
     #=
         If the SBML model contains a neural-network it must be parsed as an ODEProblem, as

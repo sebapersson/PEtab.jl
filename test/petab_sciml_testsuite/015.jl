@@ -76,3 +76,26 @@ petab_prob = PEtabODEProblem(
     split_over_conditions = true
 )
 test_hybrid(test_case, petab_prob)
+
+# Test properly throws if input is lacking for one condition
+conditions = [
+    PEtabCondition(:e1, :net3_input => input_data1),
+    PEtabCondition(:e2),
+]
+@test_throws PEtab.PEtabInputError begin
+    model = PEtabModel(
+        uprob, observables, measurements, pest; ml_models = ml_model,
+        simulation_conditions = conditions
+    )
+end
+
+conditions = [
+    PEtabCondition(:e1, :net3_input => input_data1),
+    PEtabCondition(:e2, :net3_input => 30.),
+]
+@test_throws PEtab.PEtabInputError begin
+    model = PEtabModel(
+        uprob, observables, measurements, pest; ml_models = ml_model,
+        simulation_conditions = conditions
+    )
+end

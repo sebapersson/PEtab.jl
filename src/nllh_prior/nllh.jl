@@ -117,6 +117,8 @@ function _nllh_cond(
         return Inf
     end
 
+    _set_condition_id_ml_models!(model.ml_models, cid)
+
     @unpack time, measurements, measurements_transformed, observable_id, noise_distributions = petab_measurements
     @unpack imeasurements, imeasurements_t_sol = simulation_info
     nominal_values = petab_parameters.nominal_value

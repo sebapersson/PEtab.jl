@@ -9,6 +9,10 @@ function _switch_condition(
     @unpack xindices, model, nstates = model_info
     simulation_id = isnothing(simulation_id) ? experiment_id : simulation_id
 
+    # Ensure ML-models inside the ODE know which condition it is, in case of condition
+    # specific array input
+    _set_condition_id_ml_models!(model_info, simulation_id)
+
     # Each simulation condition needs to have its own associated u0 and p vector, as these
     # vectors can be used in latter computations when computing the observables, hence
     # nothing is allowed to be over-written by another condition

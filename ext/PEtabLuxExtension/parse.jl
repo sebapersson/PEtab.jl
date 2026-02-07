@@ -88,7 +88,7 @@ function _parse_flatten_layer(layer_parse)
 end
 
 function _parse_layer_arg!(args_parsed, arg, layer_parse, layer_info)::Nothing
-    arg_name, idx_arg = arg
+    arg_name, arg_idx = arg
     # Most args in Julia are on a simple number/tuple, while some (after if-statement) are
     # pair: a => b, which must be considered during parsing.
     if !occursin("=>", arg_name)
@@ -103,16 +103,16 @@ function _parse_layer_arg!(args_parsed, arg, layer_parse, layer_info)::Nothing
         # in memory order. Therefore, for operations with kernels (e.g. Conv, Pool...), the
         # kernel order is reversed.
         if arg_name in ["kernel_size", "output_size", "normalized_shape"]
-            args_parsed[idx_arg] = reverse(val)
+            args_parsed[arg_idx] = reverse(val)
         else
-            args_parsed[idx_arg] = val
+            args_parsed[arg_idx] = val
         end
         return nothing
     end
     # Parsing arguments that must be on the form a => b
     arg_name1, arg_name2 = replace.(split(arg_name, "=>"), " " => "")
     if !occursin(",", arg_name1)
-        args_parsed[idx_arg] = (
+        args_parsed[arg_idx] = (
             layer_parse["args"][arg_name1] => layer_parse["args"][arg_name2]
         )
         return nothing
@@ -120,7 +120,7 @@ function _parse_layer_arg!(args_parsed, arg, layer_parse, layer_info)::Nothing
     # For Bilinear we have (a, b) => c
     arg_name1 = replace(arg_name1, r"\(|\)" => "")
     p1, p2 = split(arg_name1, ',')
-    args_parsed[idx_arg] = (layer_parse["args"][p1], layer_parse["args"][p2]) => layer_parse["args"][arg_name2]
+    args_parsed[arg_idx] = (layer_parse["args"][p1], layer_parse["args"][p2]) => layer_parse["args"][arg_name2]
     return nothing
 end
 
@@ -257,10 +257,12 @@ function _parse_freeze(ml_model::PEtab.MLModel, path_yaml::String)::Dict
     return freeze_info
 end
 
-function _parse_input!(array_inputs::Dict{Symbol, Array{<:Real}}, input, idx_arg)
+function _parse_input!(
+        array_inputs::Dict{Symbol, Array{<:Real}}, input, arg_idx
+    )
     if input isa Array{<:Real}
-        array_inputs[Symbol("__arg$(idx_arg)")] = input
-        return :_ARRAY_INPUT
+        array_inputs[Symbol("__arg$(arg_idx)")] = input
+        return [:_ARRAY_INPUT]
     else
         return Symbol.(input)
     end

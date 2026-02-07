@@ -318,3 +318,6 @@ function _parameter_in_observables(parameter_id::String, observables_df::DataFra
     end
     return in_observables
 end
+
+_to_vec(x::Vector) = x
+_to_vec(x::Vector{<:Vector}) = reduce(vcat, x)

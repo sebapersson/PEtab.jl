@@ -261,26 +261,24 @@ function _get_ml_pre_simulate_inputs(
                 # hdf5 files are in row-major, requiring re-shaping
                 v2_condition_id = _get_petab_v2_condition_id(condition_id, experiments_df)
                 input_data = _get_input_array(input_id[1], input_value, v2_condition_id)
-                input_data = permutedims(input_data, reverse(1:ndims(input_data)))
-                input_data = _reshape_io_data(input_data)
-                input_data = reshape(input_data, (size(input_data)..., 1))
+                input_data = _reshape_input_array(input_data)
                 constant_inputs[i] = input_data
                 input_formulas[i][j] = "map_pre_simulate.constant_inputs[$(i)]"
                 file_input[i] = true
                 break
             end
 
-            # In case an array value is provided to apply for all simulation conditions
-            if input_ids[i][j] == "_ARRAY_INPUT"
-                constant_inputs[i] = ml_models[ml_id].array_inputs[Symbol("__arg$(i)")]
-                input_formulas[i][j] = "map_pre_simulate.constant_inputs[$(i)]"
-                file_input[i] = true
-                break
-            end
-
-            # Condition specific array input
-            if input_value == :_ARRAY_INPUT
-                constant_inputs[i] = ml_models[ml_id].array_inputs[Symbol("$(condition_id)_$(i)")]
+            if input_value == :_array_julia
+                key_condition = Symbol("__arg$(i)_$(condition_id)")
+                key_global = Symbol("__arg$(i)")
+                if haskey(ml_models[ml_id].array_inputs, key_condition)
+                    constant_inputs[i] = ml_models[ml_id].array_inputs[key_condition]
+                else
+                    @assert haskey(ml_models[ml_id].array_inputs, key_global) "Failed \
+                        parsing array input for MLModel $(ml_id), please open an issue \
+                        on GitHub"
+                    constant_inputs[i] = ml_models[ml_id].array_inputs[key_global]
+                end
                 input_formulas[i][j] = "map_pre_simulate.constant_inputs[$(i)]"
                 file_input[i] = true
                 break

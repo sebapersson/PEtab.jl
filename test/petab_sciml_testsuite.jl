@@ -15,7 +15,7 @@ end
 
 ode_solver = ODESolver(Rodas5P(), abstol = 1.0e-10, reltol = 1.0e-10, maxiters = Int(1.0e6))
 @testset "PEtab SciML hybrid models" begin
-    for i in 1:34
+    for i in 1:39
         test_case = i < 10 ? "00$i" : "0$i"
         path_yaml = joinpath(
             dir_tests, "sciml_problem_import", test_case, "petab", "problem.yaml"
@@ -61,7 +61,10 @@ end
 # PEtab SciML Julia interface
 ode_solver = ODESolver(Rodas5P(), abstol = 1.0e-10, reltol = 1.0e-10, maxiters = Int(1.0e6))
 @testset "SciML model in Julia" begin
-    for i in 1:34
+    for i in 1:39
+        # Test-cases with no-equivalent support in the Julia interface
+        i in [35, 36, 38] && continue
+
         test_case = i < 10 ? "00$(i).jl" : "0$(i).jl"
         include(joinpath(@__DIR__, "petab_sciml_testsuite", test_case))
     end

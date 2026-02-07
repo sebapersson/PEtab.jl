@@ -64,7 +64,7 @@ function PEtab.MLModel(
 
     array_inputs = Dict{Symbol, Array{<:Real}}()
     if inputs isa Array{<:Real}
-        _inputs = [_parse_input!(array_inputs, inputs, 1)]
+        _inputs = _parse_input!(array_inputs, inputs, 1)
     else
         _inputs = [_parse_input!(array_inputs, input, i) for (i, input) in pairs(inputs)]
     end
@@ -72,6 +72,6 @@ function PEtab.MLModel(
 
     return PEtab.MLModel(
         ml_id, lux_model, _inputs, _outputs, pre_initialization, st, ps, dir_data,
-        array_inputs
+        array_inputs, [:__c0__]
     )
 end

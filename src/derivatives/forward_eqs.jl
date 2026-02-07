@@ -103,6 +103,8 @@ function _grad_forward_eqs_cond!(
     ix_S_simid = _get_ix_S_simid(ixdynamic_simid, split_over_conditions, model_info)
     sol = simulation_info.odesols_derivatives[cid]
 
+    _set_condition_id_ml_models!(model.ml_models, simid)
+
     # Partial derivatives needed for computing the gradient (derived from the chain-rule)
     ∂G∂u!, ∂G∂p! = _get_∂G∂_!(
         model_info, cid, xnoise, xobservable, xnondynamic_mech, cache.x_ml_models,
