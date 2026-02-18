@@ -160,10 +160,19 @@ function test_ml_import(testcase, lux_model)::Nothing
         PEtab._set_ml_model_ps!(ps_ref, path_h5, lux_model, :net0)
 
         path_tmp = joinpath(dirtest, "ps_test.hdf5")
-        PEtab.ml_ps_to_hdf5(path_tmp, lux_model, :net0, ps_ref)
-        @test isfile(path_tmp)
-        PEtab._set_ml_model_ps!(ps_test, path_tmp, lux_model, :net0)
-        @test ps_ref == ps_test
+        if testcase != "001"
+            PEtab.ml_ps_to_hdf5(path_tmp, lux_model, :net0, ps_ref)
+            @test isfile(path_tmp)
+            PEtab._set_ml_model_ps!(ps_test, path_tmp, lux_model, :net0)
+            @test ps_ref == ps_test
+        # Test can write to existing file
+        else
+            cp(path_h5, path_tmp)
+            ps_ref .= 0.0
+            PEtab.ml_ps_to_hdf5(path_tmp, lux_model, :net0, ps_ref)
+            PEtab._set_ml_model_ps!(ps_test, path_tmp, lux_model, :net0)
+            @test all(ps_test .== 0.0)
+        end
         rm(path_tmp)
     end
 
@@ -185,7 +194,7 @@ function parse_array(
     # To column-major
     out = permutedims(x, reverse(1:ndims(x)))
     length(size(out)) == 1 && return out
-    # At this point the array follows a multixdimensional PyTorch indexing. Therefore the
+    # At this point the array follows a multidimensional PyTorch indexing. Therefore the
     # array must be reshaped to Julia indexing
     imap = zeros(Int64, length(order_jl))
     for i in eachindex(order_jl)

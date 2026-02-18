@@ -8,21 +8,19 @@ end
 function PEtab.ml_ps_to_hdf5(
         path::String, lux_model, ml_id::Symbol, ps::Union{ComponentArray, NamedTuple}
     )::Nothing
-    # TODO: This might cause problems, allow over-writing existing group
-    @assert !isfile(path) "Currently only support exporting to new files"
+    file = HDF5.h5open(path, "cw")
+    g_parameters = _get_group(file, "parameters")
+    g_model = _get_group(g_parameters, "$(ml_id)")
 
-    file = HDF5.h5open(path, "w")
-    g_parameters = create_group(file, "parameters")
-    g_model = create_group(g_parameters, "$(ml_id)")
-    for (layername, layer) in pairs(lux_model.layers)
-        _ps_to_hdf5!(g_model, layer, ps[layername], layername)
+    for (layer_name, layer) in pairs(lux_model.layers)
+        _ps_to_hdf5!(g_model, layer, ps[layer_name], layer_name)
     end
     close(file)
     return nothing
 end
 
 """
-    _ps_to_hdf5!(layer::Lux.Dense, ps, layername)::Nothing
+    _ps_to_hdf5!(layer::Lux.Dense, ps, layer_name)::Nothing
 
 Transforms parameters (`ps`) for a Lux layer to a hdf5 file with the data stored in the
 order expected by PyTorch.
@@ -32,10 +30,10 @@ For `Dense` layer possible parameters that are saved to a DataFrame are:
 - `bias` of dimension `(out_features)`
 """
 function _ps_to_hdf5!(
-        file, layer::Lux.Dense, ps::Union{NamedTuple, ComponentArray}, layername::Symbol
+        file, layer::Lux.Dense, ps::Union{NamedTuple, ComponentArray}, layer_name::Symbol
     )::Nothing
     @unpack in_dims, out_dims, use_bias = layer
-    g = create_group(file, string(layername))
+    g = _get_group(file, string(layer_name))
     _ps_weight_to_hdf5!(g, ps)
     _ps_bias_to_hdf5!(g, ps, use_bias)
     return nothing
@@ -52,7 +50,7 @@ For `Conv` layer possible parameters that are saved to a DataFrame are:
     by the importer.
 """
 function _ps_to_hdf5!(
-        file, layer::Lux.Conv, ps::Union{NamedTuple, ComponentArray}, layername::Symbol
+        file, layer::Lux.Conv, ps::Union{NamedTuple, ComponentArray}, layer_name::Symbol
     )::Nothing
     @unpack kernel_size, use_bias, in_chs, out_chs = layer
     if length(kernel_size) == 1
@@ -63,7 +61,7 @@ function _ps_to_hdf5!(
         _psweigth = PEtab._reshape_array(ps.weight, CONV3D_MAP)
     end
     _ps = ComponentArray(weight = _psweigth)
-    g = create_group(file, string(layername))
+    g = _get_group(file, string(layer_name))
     _ps_weight_to_hdf5!(g, _ps)
     _ps_bias_to_hdf5!(g, ps, use_bias)
     return nothing
@@ -81,7 +79,7 @@ For `ConvTranspose` layer possible parameters that are saved to a DataFrame are:
 """
 function _ps_to_hdf5!(
         file, layer::Lux.ConvTranspose, ps::Union{NamedTuple, ComponentArray},
-        layername::Symbol
+        layer_name::Symbol
     )::Nothing
     @unpack kernel_size, use_bias, in_chs, out_chs = layer
     if length(kernel_size) == 1
@@ -92,7 +90,7 @@ function _ps_to_hdf5!(
         _psweigth = PEtab._reshape_array(ps.weight, CONV3D_MAP)
     end
     _ps = ComponentArray(weight = _psweigth)
-    g = create_group(file, string(layername))
+    g = _get_group(file, string(layer_name))
     _ps_weight_to_hdf5!(g, _ps)
     _ps_bias_to_hdf5!(g, ps, use_bias)
     return nothing
@@ -105,10 +103,10 @@ For `Bilinear` layer possible parameters that are saved to a DataFrame are:
 - `bias` of dimension `(out_features)`
 """
 function _ps_to_hdf5!(
-        file, layer::Lux.Bilinear, ps::Union{NamedTuple, ComponentArray}, layername::Symbol
+        file, layer::Lux.Bilinear, ps::Union{NamedTuple, ComponentArray}, layer_name::Symbol
     )::Nothing
     @unpack in1_dims, in2_dims, out_dims, use_bias = layer
-    g = create_group(file, string(layername))
+    g = _get_group(file, string(layer_name))
     _ps_weight_to_hdf5!(g, ps)
     _ps_bias_to_hdf5!(g, ps, use_bias)
     return nothing
@@ -125,11 +123,11 @@ are:
 """
 function _ps_to_hdf5!(
         file, layer::Union{Lux.BatchNorm, Lux.InstanceNorm},
-        ps::Union{NamedTuple, ComponentArray, Vector{<:Real}}, layername::Symbol
+        ps::Union{NamedTuple, ComponentArray, Vector{<:Real}}, layer_name::Symbol
     )::Nothing
     @unpack affine, chs = layer
     affine == false && return nothing
-    g = create_group(file, string(layername))
+    g = _get_group(file, string(layer_name))
     _ps_weight_to_hdf5!(g, ps; scale = true)
     _ps_bias_to_hdf5!(g, ps, true)
     return nothing
@@ -147,7 +145,7 @@ For `LayerNorm` layer possible parameters that are saved to a DataFrame are:
     dimension the Lux.jl dimension is the PyTorch dimension reversed.
 """
 function _ps_to_hdf5!(
-        file, layer::LayerNorm, ps::Union{NamedTuple, ComponentArray}, layername::Symbol
+        file, layer::LayerNorm, ps::Union{NamedTuple, ComponentArray}, layer_name::Symbol
     )::Nothing
     @unpack shape, affine = layer
     affine == false && return DataFrame()
@@ -166,7 +164,7 @@ function _ps_to_hdf5!(
         _psbias = ps.bias[:, 1]
     end
     _ps = ComponentArray(weight = _psweigth, bias = _psbias)
-    g = create_group(file, string(layername))
+    g = _get_group(file, string(layer_name))
     _ps_weight_to_hdf5!(g, _ps)
     _ps_bias_to_hdf5!(g, _ps, true)
     return nothing
@@ -188,7 +186,7 @@ function _ps_weight_to_hdf5!(g, ps; scale::Bool = false)::Nothing
     ps_weight = scale == false ? ps.weight : ps.scale
     # To account for Python (for which the standard is defined) is row-major
     ps_weight = permutedims(ps_weight, reverse(1:ndims(ps_weight)))
-    g["weight"] = ps_weight
+    _set_dataset!(g, "weight", ps_weight)
     return nothing
 end
 
@@ -199,6 +197,23 @@ function _ps_bias_to_hdf5!(g, ps, use_bias)::Nothing
     else
         ps_bias = vec(ps.bias)
     end
-    g["bias"] = ps_bias
+    _set_dataset!(g, "bias", ps_bias)
+    return nothing
+end
+
+function _get_group(file, id::String)
+    if haskey(file, id)
+        return file[id]
+    end
+    return create_group(file, id)
+end
+
+function _set_dataset!(group, id::String, x::AbstractArray{<:Real})::Nothing
+    if !haskey(group, id)
+        group[id] = x
+        return nothing
+    end
+    dataset = group[id]
+    dataset[ntuple(_ -> :, ndims(x))...] = x
     return nothing
 end
