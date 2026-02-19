@@ -59,7 +59,9 @@ Before submitting a PR:
     ] test
    ```
 
-5. Format code with [Runic.jl](https://github.com/fredrikekre/Runic.jl).
+5. Format code with [Runic.jl](https://github.com/fredrikekre/Runic.jl). Runic does not
+   enforce a line-length limit, so please keep both code and documentation to 92 characters
+   per line where practical.
 6. Submit a pull request and reference the related issue (if applicable).
 
 ### Pull request checklist
