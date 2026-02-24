@@ -1,15 +1,18 @@
-# [Observables ML models](@id pre_simulate_ml)
+# [ML models in observables](@id observable_ml)
 
-Often a mechanistic model is miss-specifed, or the obsevable mapping mapping model output
-to measurements, is incompletely understood. This can be addressed by including a neural
-network (universal approximator) in the observable formula in the `PEtabObservable`.
+Mechanistic models can be misspecified, or the mapping from model states to measurements
+may be only partially known. Both scenarios can be addressed by augmenting the observable
+formula in `PEtabObservable` with a neural network.
 
-This tutorial shows how to include a ML model in the observable formula. It assumes
-familiarity with the [SciML starter tutorial](@ref sciml_starter). As a running example, we
-use the Michaelis-Menten model from the PEtab.jl [starting tutorial](@ref tutorial):
+This tutorial shows how to include an ML model in the observable formula. It assumes
+familiarity with the [SciML starter tutorial](@ref sciml_starter). As a running example,
+the Michaelis-Menten model from the mechanistic [starting tutorial](@ref tutorial) is used:
+
+== Model as ReactionSystem
 
 ```@example 1
-using Catalyst, PEtab
+using Catalyst
+t = Catalyst.default_t()
 sys = @reaction_network begin
     @parameters S0 c3=3.0
     @species begin
@@ -22,9 +25,6 @@ sys = @reaction_network begin
     c2, SE --> S + E
     c3, SE --> P + E
 end
-
-using Plots # hide
-default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm, size = (600*1.25, 400 * 1.25), palette = ["#CC79A7", "#009E73", "#0072B2", "#D55E00", "#999999", "#E69F00", "#56B4E9", "#F0E442"], linewidth=4.0) # hide
 ```
 
 == Model as ODESystem
@@ -43,8 +43,8 @@ using ModelingToolkit: t_nounits as t, D_nounits as D
     @variables begin
         S(t) = S0
         E(t) = 50.0
-        SE(t) = 0.0
-        P(t) = 0.0
+        SE(t) = 0.1
+        P(t) = 0.1
     end
     @equations begin
         # Dynamics
@@ -58,60 +58,60 @@ end
 nothing # hide
 ```
 
-## Define an observable ML model
+## Defining ML model in observable formulas
 
-A pre-simulation ML model will appear in the observable formula in the `PEtabObservable`.
-This is obtained by first defining the model structure as a Lux.jl model, followed by defining `MLModel` defining the input expression and an output variable which can then
-be inserted into the observable formula. FOr instance, lets say the input is given by the
-model states `S` and `E`:
+An ML model can be embedded in the observable formula of a `PEtabObservable` by (1)
+defining a Lux.jl model and (2) wrapping it as an `MLModel` that specifies its inputs and
+declares an output variable which later can be referenced in observable formulas. For
+example, assume the ML model takes the states `S` and `E` as input:
 
 ```@example 1
+using Lux, PEtab
 lux_model = Lux.Chain(
-    Dense(2 => 5, Lux.swish)
-    Dense(5 => 1)
+    Dense(2 => 5, Lux.swish),
+    Dense(5 => 1),
 )
 
-@variables S, E
+@variables S(t) E(t)
 ml_model = MLModel(
-    :net1, lux_models, false; inputs = [S, E], outputs = [:output1]
+    :net1, lux_model, false; inputs = [S, E], outputs = [:output1]
 )
 ```
 
-Note, `false` is provided here to denote the ML-model is evaluated during model simulation
-(note pre-simulation case). Here it is interpreted as the input being a Vector, where
-everytime it is evaluated it takes the model states `S` and `E` as inputs. Here the inputs
-are only the states, but general Julia expressions are allowed. The output variable
-`output1` can then be embedded into the observable formulas:
+Here, `false` indicates that the ML model is not evaluated pre-simulation; instead it is
+evaluated when observables are computed. The output variable `output1` can then be used in
+observable formulas:
 
 ```@example 1
-@variables P, output1
+@variables P(t) output1(t)
 @parameters sigma
 observables = [
-    PEtabObservable(:obs_p, P, 3.0)
-    PEtabObservable(:obs_sum, output1, sigma)
+    PEtabObservable(:obs_p, P, 3.0),
+    PEtabObservable(:obs_sum, output1, sigma),
 ]
 ```
 
-Note, when the ML model appear in the observable formula, the formula should be defined
-inside the `PEtabObservable` instead of the model system. This allows PEtab.jl to track
-where the ML model is located in the problem, allowing for more efficient gradient
-computations.
+Note, when an ML model appears in an observable, the observable formula should be defined in
+`PEtabObservable` (rather than in the model system). This allows PEtab.jl to track ML
+usage and compute gradients more efficiently. Further, while the inputs are states here,
+they can general expressions of model quantities.
 
-Given this, the rest of the `PEtabODEProblem` is defined as usual:
+Given the `PEtabObservable`s, the rest of the `PEtabODEProblem` is defined as usual:
 
 ```@example 1
+using DataFrames
 pest = [
     PEtabParameter(:c1),
     PEtabParameter(:c2),
     PEtabParameter(:S0),
     PEtabParameter(:sigma),
-    PEtabMLParameter(:net1) # note, ML parameters
+    PEtabMLParameter(:net1), # ML parameters
 ]
 
 measurements = DataFrame(
-    obs_id=["obs_p", "obs_sum", "obs_p", "obs_sum"],
-    time=[1.0, 10.0, 1.0, 20.0],
-    measurement=[0.7, 0.1, 1.0, 1.5]
+    obs_id = ["obs_p", "obs_sum", "obs_p", "obs_sum"],
+    time = [1.0, 10.0, 1.0, 20.0],
+    measurement = [0.7, 0.1, 1.0, 1.5],
 )
 
 petab_model = PEtabModel(
@@ -120,54 +120,49 @@ petab_model = PEtabModel(
 petab_prob = PEtabODEProblem(petab_model)
 ```
 
-## Condition specific array input
+## Simulation-condition input
 
-If the ML model us used to correct model miss-specification, it can if additional data
-is available be useful to incorperate additional data. For example, this additional data
-might not be directly incoprerate into the model (e.g., being image data, or other
-non-time-lapse data), but could be useful to help correct model predictions.
+When an ML model is used in the observable formula, additional informative non-time-series
+data (e.g. images or other covariates) may be available per simulation condition. Such
+data can be included by giving the ML model multiple inputs: one based on model quantities
+(e.g. states) and one provided via `PEtabCondition`. The general approach for multiple
+input arguments is described in [Pre-simulation ML models](@ref pre_simulate_ml); this
+section focuses on the observable case.
 
-In general, the above scenario can be handled by in the  `inputs` have one input argument the forward function being model entites, while a second input argument being a variable assigned via `PEtabCondition`. How to specify inputs via PEtabCondition, as well as multiple
-input argument is covered in the [Pre-simulation ML models](@ref pre_simulate_ml) tutorial.
-Here, for the observable case similar holds. So for example, lets say that input argument
-is `[S, E]`, and we have additional data which can help inform the model that is condition
-specific. This can be handled by first having the additional data assigned to the
-PEtab variable `input2`:
+As a concrete example, assume the ML model takes the states `[S, E]`, as well as static
+simulation-condition-specific data provided via `input2`. The first step is to define the
+`MLModel`:
 
 ```@example 1
 lux_model = @compact(
-    layer1 = Dense(6 => 5), Lux.swish,
-    layer2 = Dense(5 => 1)
+    layer1 = Dense(6 => 5, Lux.swish),
+    layer2 = Dense(5 => 1),
 ) do (x1, x2)
     x = cat(x1, x2; dims = 1)
-    embed = layer1(x)
-    out = layer2(embed)
+    h = layer1(x)
+    out = layer2(h)
     @return out
 end
 
 ml_model = MLModel(
-    :net1, lux_model, true, inputs = ([S, E], [:input2]), outputs = [:output1]
+    :net1, lux_model, false; inputs = ([S, E], [:input2]), outputs = [:output1]
 )
 nothing # hide
 ```
 
-The `input2` can then be assigned in `PEtabCondition`, where it can take the shape of
-any array compatiable with the ML model forward function, for example, here using
-random data:
+The variable `input2` can then be assigned in `PEtabCondition` (random data are used here
+for illustration):
 
 ```@example 1
-conditions = [
-    PEtabCondition(:cond1, :input2 => [1.0, 2.0, 3.0, 4.0]),
-    PEtabCondition(:cond1, :input2 => [4.0, 3.0, 2.0, 1.0])
+simulation_conditions = [
+    PEtabCondition(:cond1, :input2 => rand(4)),
+    PEtabCondition(:cond2, :input2 => rand(4))
 ]
 ```
 
-The PEtab problem can then be built as usual:
+The `PEtabODEProblem` can then be built as usual:
 
 ```@example 1
-
-
-# Condition specific measurements
 measurements = DataFrame(
     simulation_id = ["cond1", "cond1", "cond2", "cond2"],
     obs_id        = ["petab_obs2", "petab_obs1", "petab_obs2", "petab_obs1"],
@@ -177,7 +172,7 @@ measurements = DataFrame(
 
 petab_model = PEtabModel(
     sys, observables, measurements, pest; ml_models = ml_model,
-    simulation_conditions = simulation_conditions
+    simulation_conditions = simulation_conditions,
 )
 petab_prob = PEtabODEProblem(petab_model)
 nothing # hide

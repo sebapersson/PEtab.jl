@@ -8,7 +8,7 @@ and/or initial conditions.
 This tutorial shows how to define SciML problems where the ML model is evaluated
 pre-simulation. It assumes familiarity with the
 [SciML starter tutorial](@ref sciml_starter). As a running example, the Michaelis-Menten
-model from the PEtab.jl [starting tutorial](@ref tutorial) is used:
+model from the mechanistic [starting tutorial](@ref tutorial) is used:
 
 == Model as ReactionSystem
 
@@ -356,6 +356,6 @@ t_joint = @elapsed petab_prob_joint.grad(x)
 @printf("Wall time split_over_conditions=false: %.2e\n", t_joint)
 ```
 
-Providing `split_over_conditions = true` drastically reduces runtime in this example. More
+Providing `split_over_conditions = true` noticeably reduces runtime in this example. More
 information on default gradient methods and `PEtabODEProblem` options can be found in
 [Default PEtabODEProblem options](@ref default_options).

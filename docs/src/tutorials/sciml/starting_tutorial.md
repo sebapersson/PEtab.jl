@@ -11,8 +11,8 @@ combination of them:
    inputs (e.g. high-dimensional images) to ODE parameters or initial conditions.
 
 SciML support in PEtab.jl is implemented on top of the mechanistic workflow. As a result,
-features available for parameter estimation of mechanistic models (e.g. simulation
-conditions and events) are also supported for SciML problems.
+features and functions available for parameter estimation of mechanistic models (e.g.
+simulation conditions and events) are also supported for SciML problems.
 
 This tutorial introduces SciML functionality in PEtab.jl with a focus on the UDE case. The
 other tutorials in this section cover the remaining cases. It assumes familiarity with
@@ -226,9 +226,9 @@ options differ slightly discussed at the
 ## Parameter estimation (model training)
 
 SciML problems can be fitted using the same approaches as purely mechanistic models
-(e.g. multi-start local optimization with a quasi-Newton method). In practice, SciML
-problems often benefit from optimizers commonly used for ML models, such as `Adam`
-optimizer.
+(e.g. multi-start local optimization with a quasi-Newton method using `calibrate`). In
+practice, SciML problems often benefit from optimizers commonly used for ML models, such as
+the `Adam` optimizer.
 
 This tutorial sets up a training loop with `Adam` from
 [Optimisers.jl](https://fluxml.ai/Optimisers.jl/stable/). Like most optimizers, `Adam`
@@ -240,12 +240,10 @@ rng = StableRNG(1) # For reproducibility
 x0 = get_startguesses(rng, petab_prob, 1)
 ```
 
-The start guess includes both mechanistic parameters (`x0.p`) and ML parameters (`x0.net1`).
+The start guess includes both mechanistic parameters (`x0.d`) and ML parameters (`x0.net1`).
 By default, `get_startguess` initializes ML parameters using the initializers in the Lux
 model. While not needed here, SciML training can often be improved by initializing ML
-parameters to smaller values than these defaults. Moreover, although not done here for
-simplicity, it is prudent to run parameter estimation from multiple start guesses to
-reduce sensitivity to avoid convergence to local minimum.
+parameters to smaller values than these defaults.
 
 With a start guess available, a training loop can be written using `petab_prob.nllh(x)`
 `petab_prob.grad(x)` to compute the objective. For example, to train for 5000 epochs with
@@ -280,7 +278,9 @@ plot(x, petab_prob)
 
 The training loop above is intentionally minimal. In practice, Optimisers.jl and related
 packages can be used to add learning-rate schedules, gradient clipping, early stopping,
-and logging.
+and logging. Moreover, although not done here for simplicity, it is prudent to run
+parameter estimation from multiple start guesses to reduce sensitivity to avoid convergence
+to local minimum.
 
 Lastly, it should be noted plain Adam is often inefficient for SciML problems. More
 efficient training strategies include curriculum training, multiple shooting, or
@@ -294,16 +294,16 @@ available options when building SciML problems (e.g. `PEtabMLParameter` settings
 [API](@ref API). For additional features, including SciML problem types beyond UDEs, see
 the following tutorials:
 
-- ML model in the observable: define an ML model in the observable formula of a
-  `PEtabObservable` (e.g. to correct model misspecification).
+- [ML models in observables](@ref observable_ml): define an ML model in the observable
+  formula of a `PEtabObservable` (e.g. to correct model misspecification).
 - [Pre-simulation ML models](@ref pre_simulate_ml); define ML models that map inputs (e.g.
   high-dimensional images) to ODE parameters or initial conditions prior to model
   simulation.
 - Importing PEtab SciML: load problems in the PEtab-SciML standard format.
 
-In addition to setting up parameter estimation problems, PEtab.jl supports several
-efficient training strategies (e.g. curriculum learning and multiple shooting). For more
-on training strategies, see [ADD](ADD).
+In addition, this tutorial showed how to train an UDE via a simple training rule. PEtab.jl
+also supports several efficient training strategies (e.g. curriculum learning and multiple
+shooting). For more on training strategies, see [ADD](ADD).
 
 Lastly, as for mechanistic models, `PEtabODEProblem` has many configurable options for
 SciML problems. A discussion of defaults and recommendations is available in
