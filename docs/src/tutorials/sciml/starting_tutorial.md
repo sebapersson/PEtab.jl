@@ -25,7 +25,7 @@ As a running example, we use the following two-state ODE model:
 
 ```math
 \begin{align*}
-\frac{\mathrm{d}X}{\mathrm{d}t} &= \frac{vY}{Y + K} - dX \\
+\frac{\mathrm{d}X}{\mathrm{d}t} &= \frac{vY^n}{Y^n + K^n} - dX \\
 \frac{\mathrm{d}Y}{\mathrm{d}t} &= X - dY
 \end{align*}
 ```
@@ -299,7 +299,8 @@ the following tutorials:
 - [Pre-simulation ML models](@ref pre_simulate_ml); define ML models that map inputs (e.g.
   high-dimensional images) to ODE parameters or initial conditions prior to model
   simulation.
-- Importing PEtab SciML: load problems in the PEtab-SciML standard format.
+- [Importing PEtab SciML](@ref import_petab_scimlproblem): import problems in the
+  PEtab-SciML standard format.
 
 In addition, this tutorial showed how to train an UDE via a simple training rule. PEtab.jl
 also supports several efficient training strategies (e.g. curriculum learning and multiple
