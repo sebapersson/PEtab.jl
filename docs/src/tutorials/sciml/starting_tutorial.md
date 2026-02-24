@@ -1,4 +1,4 @@
-# SciML starter tutorial: Universal Differential Equations (UDEs)
+# [SciML starter tutorial: Universal Differential Equations (UDEs)](@id sciml_starter)
 
 Hybrid scientific machine learning (SciML) combines mechanistic (ODE) models with machine
 learning (ML) components. PEtab.jl supports three SciML problem types, as well as any
@@ -7,7 +7,7 @@ combination of them:
 1. ML inside the ODE dynamics. This includes both Universal Differential Equations (UDEs)
    and Neural ODEs.
 2. ML in the observable formula which links model output to measurement data.
-3. ML upstream of the ODE, where the ML model is evaluated before simulation to map
+3. Pre-simulation ML models, where the ML model is evaluated before simulation to map
    inputs (e.g. high-dimensional images) to ODE parameters or initial conditions.
 
 SciML support in PEtab.jl is implemented on top of the mechanistic workflow. As a result,
@@ -103,8 +103,6 @@ The third argument specifies whether the model is evaluated pre-simulation. In t
 tutorial, the ML model is evaluated during simulation (it enters the ODE dynamics), and
 `false` is used. Note, Each Lux model must be wrapped as an `MLModel` so PEtab.jl can keep
 track of the ML models and their type in the problem.
-
-Yes, this section works well: it’s readable, the flow is logical (define RHS → explain parameters → build problem → explain `ComponentArray` requirement), and it stays fairly concise.
 
 ### Defining the dynamic (UDE) model
 
@@ -220,6 +218,10 @@ describe(petab_prob)
 
 From the problem summary, the problem includes both mechanistic and ML parameters to
 estimate. Here, the non-stiff solver `Tsit5()` is used since this example is non-stiff.
+Moreover, the gradient is computed using `ForwardDiff`. In general, the same
+`PEtabODEProblem` options are available as for mechanistic models, however, the default
+options differ slightly discussed at the
+[Default PEtabODEProblem options](@ref default_options) page.
 
 ## Parameter estimation (model training)
 
@@ -294,10 +296,15 @@ the following tutorials:
 
 - ML model in the observable: define an ML model in the observable formula of a
   `PEtabObservable` (e.g. to correct model misspecification).
-- ML upstream of the ODE: define ML models that map inputs (e.g. high-dimensional images)
-  to ODE parameters or initial conditions.
+- [Pre-simulation ML models](@ref pre_simulate_ml); define ML models that map inputs (e.g.
+  high-dimensional images) to ODE parameters or initial conditions prior to model
+  simulation.
 - Importing PEtab SciML: load problems in the PEtab-SciML standard format.
 
 In addition to setting up parameter estimation problems, PEtab.jl supports several
 efficient training strategies (e.g. curriculum learning and multiple shooting). For more
 on training strategies, see [ADD](ADD).
+
+Lastly, as for mechanistic models, `PEtabODEProblem` has many configurable options for
+SciML problems. A discussion of defaults and recommendations is available in
+[Default PEtabODEProblem options](@ref default_options).
