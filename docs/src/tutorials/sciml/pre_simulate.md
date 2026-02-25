@@ -1,8 +1,8 @@
 # [Pre-simulation ML models](@id pre_simulate_ml)
 
 Sometimes informative non-time-series data (e.g. images, omics data, ...) are available
-but cannot be used directly in a dynamical model. One approach to leverage such data is to
-use an ML model that takes it as input and, before simulation, maps it to ODE parameters
+but cannot be used directly in a dynamical model. One approach to use such data is to
+have an  ML model take it as input and, before ODE simulation, maps it to ODE parameters
 and/or initial conditions.
 
 This tutorial shows how to define SciML problems where the ML model is evaluated
@@ -33,6 +33,7 @@ end
 
 using Plots # hide
 default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm, size = (600*1.25, 400 * 1.25), palette = ["#CC79A7", "#009E73", "#0072B2", "#D55E00", "#999999", "#E69F00", "#56B4E9", "#F0E442"], linewidth=4.0) # hide
+nothing # hide
 ```
 
 == Model as ODESystem
@@ -75,10 +76,10 @@ nothing # hide
 ## Defining a pre-simulation ML model
 
 A pre-simulation ML model sets one or more ODE parameters and/or initial conditions before
-simulation. This is done by (1) defining a Lux.jl model and (2) wrapping it as an `MLModel`,
+each simulation. This is done by defining a Lux.jl model and wrapping it as an `MLModel`,
 where its `inputs` and `outputs` are specified. For example, assume the model parameter
-`c3` is assigned by a simple feed-forward network with input `[1.0, 1.0]`. First, define
-the Lux model:
+`c3` is assigned by a simple feed-forward network with input `[1.0, 1.0]`. The first step
+is to define the Lux model:
 
 ```@example 1
 using Lux
@@ -89,7 +90,7 @@ lux_model = Lux.Chain(
 nothing # hide
 ```
 
-Then declare the corresponding `MLModel`, specifying its inputs and outputs:
+Then declare the corresponding `MLModel`, and specify its inputs and outputs:
 
 ```@example 1
 using PEtab
@@ -98,10 +99,10 @@ ml_model = MLModel(
 )
 ```
 
-Here, `true` indicates that the ML model is evaluated pre-simulation. To set an initial
-condition, provide the state ID in `outputs`. More complex inputs are supported, including
-arrays, parameters from the parameter table, and simulation-condition-specific values
-(described below).
+Here, `true` indicates that the ML model is evaluated pre-simulation, assigning the value
+of `c3`. To set an initial condition, provide the state ID in `outputs`. More complex
+inputs are supported, including arrays, parameters from the parameter table, and
+simulation-condition-specific values (described below).
 
 With the `MLModel` defined, the remaining PEtab setup follows the same workflow as for
 mechanistic models. Note, since `:c3` is assigned by the ML model, it should not be
@@ -145,20 +146,18 @@ mechanistic parameters and a ML model evaluated pre-simulation.
 
 ## ML input data
 
-The example above uses a simple `MLModel` input for simplicity. PEtab.jl supports
-additional inputs for the pre-simulation scenario, including condition-specific inputs,
-high-dimensional arrays (e.g. images), and ML models with multiple input arguments in the
-forward pass. The sections below illustrate these cases and assume familiarity with
+The example above uses a simple `MLModel` input. PEtab.jl supports additional inputs for
+the pre-simulation scenario, including condition-specific inputs, high-dimensional arrays
+(e.g. images), and ML models with multiple input arguments in the forward pass. The
+sections below illustrate these cases and assume familiarity with
 [Simulation conditions](@ref petab_sim_cond). The Michaelis–Menten model from above is used
-throughout as a working example.
+throughout.
 
 ### Simulation condition specific (scalar) input
 
-Pre-simulation ML models can have inputs that vary across simulation conditions. This is
-handled by assigning entries in `MLModel.inputs` to variables which are then assigned in a
-`PEtabCondition`. For example, assume for the use-case above that the second input is
-given by the condition-specific variables [`input1`, `input2`]. First, define the
-`MLModel`:
+To use condition-specific inputs, entries in `MLModel.inputs` should be assigned to
+variables which are then set in  `PEtabCondition`. For example, assume the inputs are the
+condition-specific variables `input1` and `input2`. First, define the `MLModel`:
 
 ```@example 1
 lux_model = Lux.Chain(
@@ -171,7 +170,7 @@ ml_model = MLModel(
 nothing # hide
 ```
 
-`input1` and `input2` can then assigned be via `PEtabCondition`. For instance, to set
+`input1` and `input2` are then assigned via `PEtabCondition`. For instance, to assign
 values for two simulation conditions `cond1` and `cond2`:
 
 ```@example 1
@@ -226,20 +225,17 @@ lux_model = Lux.Chain(
     FlattenLayer(),
     Dense(36 => 1, Lux.softplus),
 )
-ml_model = MLModel(
-    :net1, lux_model, true; inputs = [:input1], outputs = [:c3]
-)
+ml_model = MLModel(:net1, lux_model, true; inputs = [:input1], outputs = [:c3])
 ```
 
-`input1` can then be assigned image-like array data in a `PEtabCondition` (random data is
-used here for illustration):
+`input1` is then assigned image-like array data in `PEtabCondition` (random data are used
+here for illustration):
 
 ```@example 1
 using StableRNGs
-rng = StableRNG(1) # For reproducibility
+rng = StableRNG(1) # for reproducibility
 input_data1 = rand(rng, 10, 10, 3, 1)
 input_data2 = rand(rng, 10, 10, 3, 1)
-
 simulation_conditions = [
     PEtabCondition(:cond1, :input1 => input_data1),
     PEtabCondition(:cond2, :input1 => input_data2),
@@ -247,8 +243,7 @@ simulation_conditions = [
 ```
 
 The input shape must match what `lux_model` expects. Given this, the `PEtabODEProblem` is
-created as usual. As seen from the plots, model simulation trajectories differ between
-conditions:
+created as usual, and as seen simulated model trajectories differ between conditions:
 
 ```@example 1
 petab_model = PEtabModel(
@@ -312,7 +307,7 @@ nothing # hide
 
 In the pre-simulation scenario, the ML model is evaluated once per simulation condition
 before model simulation. This allow performance optimizations, by compiling the reverse
-pass of the ML model to be compiled when using automatic differentiation.
+pass of the ML model when using automatic differentiation.
 
 This behavior is controlled by `split_over_conditions` when constructing
 `PEtabODEProblem`. Currently, `split_over_conditions = true` is the default and enables

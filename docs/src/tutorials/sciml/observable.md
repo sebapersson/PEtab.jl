@@ -18,13 +18,14 @@ sys = @reaction_network begin
     @species begin
         S(t) = S0
         E(t) = 50.0
-        SE(t) = 0.0
-        P(t) = 0.0
+        SE(t) = 0.1
+        P(t) = 0.1
     end
     c1, S + E --> SE
     c2, SE --> S + E
     c3, SE --> P + E
 end
+nothing # hide
 ```
 
 == Model as ODESystem
@@ -58,12 +59,12 @@ end
 nothing # hide
 ```
 
-## Defining ML model in observable formulas
+## Defining ML models in observable formulas
 
 An ML model can be embedded in the observable formula of a `PEtabObservable` by (1)
 defining a Lux.jl model and (2) wrapping it as an `MLModel` that specifies its inputs and
-declares an output variable which later can be referenced in observable formulas. For
-example, assume the ML model takes the states `S` and `E` as input:
+declares an output variable that can be referenced in observable formulas. For example,
+assume the ML model takes the states `S` and `E` as input:
 
 ```@example 1
 using Lux, PEtab
@@ -79,8 +80,8 @@ ml_model = MLModel(
 ```
 
 Here, `false` indicates that the ML model is not evaluated pre-simulation; instead it is
-evaluated when observables are computed. The output variable `output1` can then be used in
-observable formulas:
+evaluated when observables are computed. With this, the output variable `output1` can be
+used in the observable formulas:
 
 ```@example 1
 @variables P(t) output1(t)
@@ -91,12 +92,12 @@ observables = [
 ]
 ```
 
-Note, when an ML model appears in an observable, the observable formula should be defined in
-`PEtabObservable` (rather than in the model system). This allows PEtab.jl to track ML
-usage and compute gradients more efficiently. Further, while the inputs are states here,
-they can general expressions of model quantities.
+When an ML model appears in an observable, the observable formula should be defined in
+`PEtabObservable` (rather than in the model system). This allows PEtab.jl to compute
+gradients more efficiently. While the inputs are states here, they can also be general
+expressions of model quantities.
 
-Given the `PEtabObservable`s, the rest of the `PEtabODEProblem` is defined as usual:
+Given the `PEtabObservable`s, the rest of the `PEtabODEProblem` is created as usual:
 
 ```@example 1
 using DataFrames
@@ -120,7 +121,7 @@ petab_model = PEtabModel(
 petab_prob = PEtabODEProblem(petab_model)
 ```
 
-## Simulation-condition input
+## Simulation condition-specific inputs
 
 When an ML model is used in the observable formula, additional informative non-time-series
 data (e.g. images or other covariates) may be available per simulation condition. Such
@@ -156,7 +157,7 @@ for illustration):
 ```@example 1
 simulation_conditions = [
     PEtabCondition(:cond1, :input2 => rand(4)),
-    PEtabCondition(:cond2, :input2 => rand(4))
+    PEtabCondition(:cond2, :input2 => rand(4)),
 ]
 ```
 
@@ -175,5 +176,4 @@ petab_model = PEtabModel(
     simulation_conditions = simulation_conditions,
 )
 petab_prob = PEtabODEProblem(petab_model)
-nothing # hide
 ```

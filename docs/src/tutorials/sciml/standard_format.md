@@ -1,20 +1,22 @@
 # [Import PEtab SciML standard format](@id import_petab_scimlproblem)
 
 [PEtab SciML](https://github.com/PEtab-dev/petab_sciml) extends the
-[PEtab](https://github.com/PEtab-dev/PEtab) standard format for parameter estimation.
-PEtab SciML is a flexible, table-based format for specifying SciML parameter estimation
-problems, and PEtab.jl supports importing and solving problems defined in this format.
+[PEtab](https://github.com/PEtab-dev/PEtab) table-based standard for parameter estimation
+to support SciML parameter estimation problems [schmiester2021petab](@cite). PEtab.jl has
+full support for the PEtab SciML format, and this tutorial shows how to import such
+problems.
 
 ## Input: a valid PEtab SciML problem
 
 Tutorials on creating valid PEtab SciML problems are available in the PEtab SciML
-documentation. In this tutorial, we import the Lotka–Volterra UDE example from
-[rackauckas2020universal](@cite), whose PEtab files which can be downloaded
-from [here](https://github.com/sebapersson/PEtab.jl/tree/main/docs/src/assets/lv_ude).
+[documentation](https://petab-sciml.readthedocs.io/latest/introduction.html). In this
+tutorial, the Lotka–Volterra UDE example from [rackauckas2020universal](@cite) is
+imported. The corresponding PEtab SciML files can be downloaded from
+[here](https://github.com/sebapersson/PEtab.jl/tree/main/docs/src/assets/lv_ude).
 
-Briefly, the Lotka–Volterra SciML model describes interactions between a prey population
-`prey` and a predator population `predator`. In this SciML example, the interaction term is
-replaced by a neural network:
+Briefly, the Lotka–Volterra SciML model describes interactions between a `prey` population
+and a `predator` population. In this SciML example, the interaction term in the original
+model is replaced by a neural network:
 
 ```math
 \begin{align*}
@@ -23,8 +25,8 @@ replaced by a neural network:
 \end{align*}
 ```
 
-where `NN(prey, predator)` is a feed-forward neural network taking prey and predator
-abundances as input.
+where `NN(prey, predator)` is a feed-forward neural network taking `prey` and `predator`
+abundances as input and returning a two-dimensional output.
 
 ## PEtab SciML import
 
@@ -50,3 +52,10 @@ petab_prob = PEtabODEProblem(petab_model)
 
 As described in the [SciML starter tutorial](@ref sciml_starter), `petab_prob` can then be
 used for downstream tasks such as simulation and model training.
+
+## References
+
+```@bibliography
+Pages = ["standard_format.md"]
+Canonical = false
+```

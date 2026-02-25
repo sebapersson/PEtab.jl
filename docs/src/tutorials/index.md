@@ -3,7 +3,7 @@
 The PEtab.jl tutorials cover how to set up parameter-estimation problems with various
 features, and how to run and configure parameter estimation.
 
-## Creating a parameter estimation problem
+## Creating a mechanistic parameter estimation problem
 
 - [Simulation conditions](@ref petab_sim_cond): Measurements collected under different
   experimental conditions (e.g. simulations use different initial values).
@@ -21,7 +21,7 @@ features, and how to run and configure parameter estimation.
   [ModelingToolkit.jl](https://docs.sciml.ai/ModelingToolkit/dev/) documentation
   respectively.
 
-## Parameter estimation
+## Parameter estimation for mechanistic models
 
 - [Parameter estimation extended tutorial](@ref pest_methods): Extended tutorial on
   estimation functionality (e.g. multi-start, Optimization.jl integration).
@@ -34,3 +34,15 @@ features, and how to run and configure parameter estimation.
   with an optimization package such as Optim.jl.
 - [Bayesian inference](@ref bayesian_inference): Sampling-based inference (e.g. NUTS and
   AdaptiveMCMC).
+
+## Creating a SciML parameter estimation problem
+
+- [SciML starter tutorial](@ref sciml_starter): Introductory tutorial on how to create and
+  train a SciML problem that combines mechanistic ODE and ML (neural network) models.
+- [ML models in observables](@ref observable_ml): define an ML model in the observable
+  formula of a `PEtabObservable` (e.g. to correct model misspecification).
+- [Pre-simulation ML models](@ref pre_simulate_ml): define ML models that map input data
+  (e.g. high-dimensional images) to ODE parameters or initial conditions prior to model
+  simulation.
+- [Importing PEtab SciML](@ref import_petab_scimlproblem): import problems in the
+  PEtab-SciML standard format.
