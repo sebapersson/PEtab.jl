@@ -96,7 +96,7 @@ function PEtabMLParameters(
             nominal_values[i] = ""
         elseif SBMLImporter.is_number(nominal_value)
             nominal_values[i] = parse(Float64, nominal_value)
-        elseif endswith(nominal_value, "julia_provided")
+        elseif endswith(nominal_value, "julia_provided") || endswith(nominal_value, "julia_random")
             nominal_values[i] = nominal_value
         elseif ismissing(nominal_value) && estimate_ps == false
             continue

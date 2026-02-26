@@ -260,7 +260,10 @@ end
 function _parse_input!(
         array_inputs::Dict{Symbol, Array{<:Real}}, input, arg_idx
     )
-    if input isa Array{<:Real}
+    if input isa Vector{Num} || input isa Num
+        _input = replace.(string.(input), "(t)" => "")
+        return Symbol.(_input)
+    elseif input isa Array{<:Real}
         array_inputs[Symbol("__arg$(arg_idx)")] = input
         return [:_ARRAY_INPUT]
     else

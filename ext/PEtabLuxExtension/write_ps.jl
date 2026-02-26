@@ -9,6 +9,13 @@ function PEtab.ml_ps_to_hdf5(
         path::String, lux_model, ml_id::Symbol, ps::Union{ComponentArray, NamedTuple}
     )::Nothing
     file = HDF5.h5open(path, "cw")
+
+    if !haskey(file, "metadata")
+        g_metadata = HDF5.create_group(file, "metadata")
+        g_metadata["pytorch_format"] = true
+    end
+    _check_metadata(file, path)
+
     g_parameters = _get_group(file, "parameters")
     g_model = _get_group(g_parameters, "$(ml_id)")
 

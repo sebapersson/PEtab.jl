@@ -42,3 +42,19 @@ function PEtab._reshape_io_data(x::Array{T})::Array{T} where {T <: AbstractFloat
     map = collect(1:length(order_py)) .=> idx_map
     return PEtab._reshape_array(x, map)
 end
+
+function _check_metadata(file, path::AbstractString)::Nothing
+    if !haskey(file, "metadata") || !haskey(file["metadata"], "pytorch_format")
+        throw(PEtabInputError("HDF5 array files must include a `metadata` group \
+            containing a boolean dataset named `pytorch_format`. This does not hold for \
+            array file '$path'"))
+    end
+
+    pytorch_idx = HDF5.read_dataset(file["metadata"], "pytorch_format")
+    if pytorch_idx == false
+        throw(PEtabInputError("The `metadata/pytorch_format` flag in '$path' is false. \
+            PEtab.jl requires this flag to be true in order to read or write array data \
+            correctly."))
+    end
+    return nothing
+end

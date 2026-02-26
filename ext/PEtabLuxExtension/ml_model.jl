@@ -30,7 +30,7 @@ function PEtab.MLModel(
         ml_id::Symbol, lux_model::Union{Lux.Chain, Lux.CompactLuxLayer},
         pre_initialization::Bool = true; st = nothing, dir_data = nothing,
         outputs::Vector{T} = Symbol[], freeze_info::Union{Nothing, Dict} = nothing,
-        inputs::Union{Vector{T}, Tuple, Array{<:Real}} = Symbol[],
+        inputs::Union{Vector, Tuple, Array{<:Real}} = Symbol[],
     )::MLModel where {T <: Union{String, Symbol}}
 
     rng = Random.default_rng()
@@ -63,7 +63,7 @@ function PEtab.MLModel(
     end
 
     array_inputs = Dict{Symbol, Array{<:Real}}()
-    if inputs isa Array{<:Real}
+    if !(inputs isa Vector{Num}) && inputs isa Array{<:Real}
         _inputs = _parse_input!(array_inputs, inputs, 1)
     else
         _inputs = [_parse_input!(array_inputs, input, i) for (i, input) in pairs(inputs)]

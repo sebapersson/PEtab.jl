@@ -1,6 +1,6 @@
 module PEtabLuxExtension
 
-using Catalyst: @unpack
+using Catalyst: @unpack, Num
 using ComponentArrays
 using CSV
 using DataFrames
