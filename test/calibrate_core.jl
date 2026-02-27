@@ -64,8 +64,8 @@ import Random
 
     # SciML model without priors and 2 MLModels
     path_yaml = joinpath(
-        @__DIR__, "petab_sciml_testsuite", "test_cases", "sciml_problem_import", "008", "petab",
-        "problem.yaml"
+        @__DIR__, "petab_sciml_testsuite", "test_cases", "sciml_problem_import", "008",
+        "petab", "problem.yaml"
     )
     ml_models = MLModels(path_yaml)
     model = PEtabModel(path_yaml; ml_models = ml_models)
@@ -141,7 +141,7 @@ end
     )
     @test all(.≈(res4.xmin, get_x(prob), atol = 1.0e-2))
     @test all(.≈(res5.xmin, get_x(prob), atol = 1.0e-2))
-    # Testing Optimization.jl (this package is set to have heavy updates, hence limited support)
+    # Testing Optimization.jl (this package is set to have heavy updates -> limited support)
     optprob = OptimizationProblem(prob; box_constraints = true)
     optprob.u0 .= x0
     res6 = solve(optprob, ParticleSwarm())

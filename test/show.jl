@@ -118,18 +118,18 @@ ml1 = MLModel(
     :net1, nn1, true; inputs = [:x1, :x2], outputs = [:gamma, :beta]
 )
 ml2 = MLModel(
-    :net2, nn8_2, true; inputs = ([:x1], [:x2]), outputs = [:beta]
+    :net2, nn1, false; inputs = ([:x1], [:x2]), outputs = [:beta]
 )
 ml3 = MLModel(
-    :net2, nn8_2, true; inputs = zeros(2, 2, 3), outputs = [:beta]
+    :net2, nn1, true; inputs = zeros(2, 2, 3), outputs = [:beta]
 )
 mls1 = MLModels(ml1, ml2)
 mls2 = MLModels(ml1)
 mls3 = MLModels()
 
 @test "$ml1" == "MLModel net1\n  mode: pre-initialization\n  parameters: 51\n  inputs: [x1, x2]\n  outputs: [gamma, beta]\n  hint: see model structure in `ml_model.lux_model`"
-@test "$ml2" == "MLModel net2\n  mode: pre-initialization\n  parameters: 86\n  inputs: 2 args (arg1: [x1], arg2: [x2])\n  outputs: [beta]\n  hint: see model structure in `ml_model.lux_model`"
-@test "$ml3" == "MLModel net2\n  mode: pre-initialization\n  parameters: 86\n  inputs: 2×2×3 Array{Float64, 3}\n  outputs: [beta]\n  hint: see model structure in `ml_model.lux_model`"
-@test "$mls1" == "MLModels with 2 models\n  net1: (mode=pre-initialization, parameters=51)\n  net2: (mode=pre-initialization, parameters=86)"
+@test "$ml2" == "MLModel net2\n  mode: simulation\n  parameters: 51\n  inputs: 2 args (arg1: [x1], arg2: [x2])\n  outputs: [beta]\n  hint: see model structure in `ml_model.lux_model`"
+@test "$ml3" == "MLModel net2\n  mode: pre-initialization\n  parameters: 51\n  inputs: 2×2×3 Array{Float64, 3}\n  outputs: [beta]\n  hint: see model structure in `ml_model.lux_model`"
+@test "$mls1" == "MLModels with 2 models\n  net1: (mode=pre-initialization, parameters=51)\n  net2: (mode=simulation, parameters=51)"
 @test "$mls2" == "MLModels with 1 models\n  net1: (mode=pre-initialization, parameters=51)"
 @test "$mls3" == "MLModels with 0 models"

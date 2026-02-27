@@ -26,8 +26,7 @@ ode_solver = ODESolver(Rodas5P(), abstol = 1.0e-10, reltol = 1.0e-10, maxiters =
             # Edge case for underperforming configuration. So even though support could be
             # added in theory, it is not priority
             if (
-                    config.grad == :ForwardEquations &&
-                        config.split == false &&
+                    config.grad == :ForwardEquations && config.split == false &&
                         config.sensealg == :ForwardDiff
                 )
                 continue

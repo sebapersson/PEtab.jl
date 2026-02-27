@@ -34,7 +34,7 @@ function test_v2(test_case::String; test_gradient::Bool = true)
         @test nllh_prior ≈ -1 * nllh_prior_ref atol = nllh_tol
     end
 
-    return if test_gradient && test_case != "0023"
+    if test_gradient && test_case != "0023"
         # Need to avoid values on the edge of the support for finite differencing to work
         if :p_log_uniform in keys(x)
             x.p_log_uniform = 4.0
@@ -51,13 +51,14 @@ function test_v2(test_case::String; test_gradient::Bool = true)
         @test all(.≈(grad1, grad_ref, atol = 1.0e-3))
         @test all(.≈(grad2, grad_ref, atol = 1.0e-3))
     end
+    return nothing
 end
 
 
 supported_tests = [
     "0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009", "0010", "0011",
     "0012", "0013", "0014", "0015", "0016", "0017", "0018", "0020", "0021", "0022", "0023",
-    "0024", "0025", "0026", "0027", "0028", "0029", "0030", "0031",
+    "0024", "0025", "0026", "0027", "0028", "0029", "0030", "0031", "0032"
 ]
 
 @testset "V2 test suite" begin

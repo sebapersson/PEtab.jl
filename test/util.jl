@@ -32,7 +32,8 @@ end
     # Test ability to retrieve model parameters for specific model conditions
     # Model without pre-eq or condition specific parameters
     path_yaml = joinpath(
-        @__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml"
+        @__DIR__, "published_models", "Boehm_JProteomeRes2014",
+        "Boehm_JProteomeRes2014.yaml"
     )
     model = PEtabModel(path_yaml)
     prob = PEtabODEProblem(model)
@@ -230,8 +231,8 @@ end
 
     # PEtab SciML problem, neural network inside of
     path_yaml = joinpath(
-        @__DIR__, "petab_sciml_testsuite", "test_cases", "sciml_problem_import", "001", "petab",
-        "problem.yaml"
+        @__DIR__, "petab_sciml_testsuite", "test_cases", "sciml_problem_import", "001",
+        "petab", "problem.yaml"
     )
     ml_models = MLModels(path_yaml)
     prob = PEtabModel(path_yaml; ml_models = ml_models) |>
@@ -254,8 +255,8 @@ end
 
     # PEtab SciML problem, pre-simulation case
     path_yaml = joinpath(
-        @__DIR__, "petab_sciml_testsuite", "test_cases", "sciml_problem_import", "003", "petab",
-        "problem.yaml"
+        @__DIR__, "petab_sciml_testsuite", "test_cases", "sciml_problem_import", "003",
+        "petab", "problem.yaml"
     )
     ml_models = MLModels(path_yaml)
     prob = PEtabModel(path_yaml; ml_models = ml_models) |>
