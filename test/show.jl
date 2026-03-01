@@ -40,8 +40,8 @@ obs6 = PEtabObservable(:o1, :a, 1.0; distribution = PEtab.Log10Normal)
 obs7 = PEtabObservable(:o1, :a, 1.0; distribution = Laplace)
 obs8 = PEtabObservable(:o1, :a, 1.0; distribution = PEtab.LogLaplace)
 @test "$obs1" == "PEtabObservable o1: data ~ Normal(μ=a, σ=1.0)"
-@test "$obs2" == "PEtabObservable o1: data ~ Normal(μ=(B(t) + A(t)), σ=sigma)"
-@test "$obs3" == "PEtabObservable o1: data ~ Normal(μ=(B(t) + A(t)), σ=(sigma + B(t)))"
+@test "$obs2" == "PEtabObservable o1: data ~ Normal(μ=(A(t) + B(t)), σ=sigma)"
+@test "$obs3" == "PEtabObservable o1: data ~ Normal(μ=(A(t) + B(t)), σ=(sigma + B(t)))"
 @test "$obs4" == "PEtabObservable o1: log(data) ~ Normal(μ=log(a), σ=1.0)"
 @test "$obs5" == "PEtabObservable o1: log2(data) ~ Normal(μ=log2(a), σ=1.0)"
 @test "$obs6" == "PEtabObservable o1: log10(data) ~ Normal(μ=log10(a), σ=1.0)"

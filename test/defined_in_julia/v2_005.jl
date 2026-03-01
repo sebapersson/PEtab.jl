@@ -18,25 +18,15 @@ end
 
 t = default_t()
 D = default_time_deriv()
-@mtkmodel SYS_v2_5 begin
-    @parameters begin
-        k1
-        k2
-        offset_A = 2.0
-    end
-    @variables begin
-        A(t) = 1.0
-        B(t) = 0.0
-        # Observable
-        model_obs(t)
-    end
-    @equations begin
-        D(A) ~ -k1 * A + k2 * B
-        D(B) ~ k1 * A - k2 * B
-        model_obs ~ A + offset_A
-    end
-end
-@mtkbuild sys = SYS_v2_5()
+@parameters k1 k2 offset_A=2.0
+@variables A(t) = 1.0 B(t) = 0.0 model_obs(t)
+equations = [
+    D(A) ~ -k1 * A + k2 * B
+    D(B) ~ k1 * A - k2 * B
+    model_obs ~ A + offset_A
+]
+@named sys_model = System(equations, t)
+sys = ModelingToolkitBase.mtkcompile(sys_model)
 
 # Measurement data
 measurements = DataFrame(

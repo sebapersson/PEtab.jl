@@ -224,8 +224,8 @@ let
 
     # For SciML model with ML output in observable formula
     path_yaml = joinpath(
-        @__DIR__, "petab_sciml_testsuite", "test_cases", "sciml_problem_import", "004", "petab",
-        "problem.yaml"
+        @__DIR__, "petab_sciml_testsuite", "test_cases", "sciml_problem_import", "004",
+        "petab", "problem.yaml"
     )
     ml_models = MLModels(path_yaml)
     prob = PEtabModel(path_yaml; ml_models = ml_models) |>
@@ -233,8 +233,8 @@ let
     x = get_x(prob)
     odesol = get_odesol(x, prob)
     p = plot(x, prob)
-    @test all(.≈(p.series_list[2].plotattributes[:y], odesol[2, :]; atol = 1.0e-1))
-    @test p.series_list[4].plotattributes[:y] == odesol[1, :]
+    @test all(.≈(p.series_list[2].plotattributes[:y], odesol[1, :]; atol = 1.0e-1))
+    @test p.series_list[4].plotattributes[:y] == odesol[2, :]
 end
 
 # Check model fit plotting works for models with pre-eq simulations

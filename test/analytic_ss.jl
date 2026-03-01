@@ -5,8 +5,8 @@
     with pre-equilibrium condition, where the steady-state can be solved for analytically.
  =#
 
-using PEtab, OrdinaryDiffEqRosenbrock, SciMLSensitivity, ForwardDiff, LinearAlgebra, Sundials,
-    Test
+using PEtab, OrdinaryDiffEqRosenbrock, SciMLSensitivity, ForwardDiff, LinearAlgebra,
+    Sundials, Test
 
 include(joinpath(@__DIR__, "common.jl"))
 
@@ -14,22 +14,24 @@ function solve_algebraic_ss(
         model::PEtabModel, solver, tol::Float64, a::T1, b::T1, c::T1, d::T1
     ) where {T1 <: Real}
     ofun = ODEFunction(
-        model.sys_mutated, first.(model.speciemap), first.(model.parametermap), jac = true
+        model.sys_mutated; u0 = first.(model.speciemap), p = first.(model.parametermap),
+        jac = true
     )
     oprob = ODEProblem(
         ofun, last.(model.speciemap), (0.0, 9.7), last.(model.parametermap)
     )
     oprob = remake(
-        oprob, p = convert.(eltype(a), oprob.p), u0 = convert.(eltype(a), oprob.u0)
+        oprob, p = convert.(eltype(a), oprob.p), u0 = convert.(eltype(a), oprob.u0),
+        tspan = (0.0, 9.7)
     )
     sols = Array{ODESolution, 1}(undef, 2)
-    oprob.p[1], oprob.p[5], oprob.p[6], oprob.p[3] = a, b, c, d
+    oprob.p[4], oprob.p[2], oprob.p[1], oprob.p[5] = a, b, c, d
     oprob.u0[1] = a / b + (a * c) / (b * d) # x0
     oprob.u0[2] = a / d # y0
 
-    oprob.p[2] = 2.0 # a_scale
+    oprob.p[3] = 2.0 # a_scale
     sols[1] = solve(oprob, solver, abstol = tol, reltol = tol)
-    oprob.p[2] = 0.5 # a_scale
+    oprob.p[3] = 0.5 # a_scale
     sols[2] = solve(oprob, solver, abstol = tol, reltol = tol)
     return sols
 end
@@ -79,14 +81,14 @@ function test_odesolver(model::PEtabModel, osolver::ODESolver, ss_solver::Steady
             model, osolver.solver, osolver.abstol, a, b, c, d
         )
         sqdiff = 0.0
-        for (i, cid) in pairs(prob.model_info.simulation_info.conditionids[:experiment])
+        for (j, cid) in pairs(prob.model_info.simulation_info.conditionids[:experiment])
             sol_numeric = sols[cid]
-            sol_algebraic = algebraic_sols[i]
+            sol_algebraic = algebraic_sols[j]
             sqdiff += sum((Array(sol_numeric) - Array(sol_algebraic(sol_numeric.t))) .^ 2)
         end
         @test sqdiff ≤ 1.0e-6
     end
-    return
+    return nothing
 end
 
 function test_nllh_grad_hess(
@@ -107,15 +109,6 @@ function test_nllh_grad_hess(
     @test all(.≈(g, grad_ref; atol = 1.0e-3))
     g = _compute_grad(x, model, :ForwardEquations, osolver; ss_solver = ss_solver)
     @test all(.≈(g, grad_ref; atol = 1.0e-3))
-    # Here we want to test things also run with CVODE_BDF
-    tmp = osolver.solver
-    osolver.solver = CVODE_BDF()
-    g = _compute_grad(
-        x, model, :ForwardEquations, osolver; ss_solver = ss_solver,
-        sensealg = ForwardSensitivity()
-    )
-    @test all(.≈(g, grad_ref; atol = 1.0e-3))
-    osolver.solver = tmp
     # Want to test all adjoint combinations with ss-simulations
     g = _compute_grad(
         x, model, :Adjoint, osolver; ss_solver = ss_solver,

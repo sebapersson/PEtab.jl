@@ -78,8 +78,7 @@ function get_system(
     )
     @unpack sys, paths, callbacks = prob.model_info.model
     if haskey(paths, :SBML)
-        prn, _ = load_SBML(paths[:SBML])
-        sys = prn.rn
+        sys, _ = load_SBML(paths[:SBML])
     end
 
     u0, p = _get_ps_u0(res, prob, condition, experiment, true)
@@ -391,9 +390,11 @@ function _check_experiment_id(
     return nothing
 end
 
-_get_system(sys::ReactionSystem)::ODESystem = complete(convert(ODESystem, sys))
 _get_system(sys::ODESystem)::ODESystem = sys
 _get_system(sys::ODEProblem)::ODEProblem = sys
+function _get_system(sys::ReactionSystem)::ODESystem
+    return ModelingToolkitBase.complete(Catalyst.ode_model(sys))
+end
 
 _get_x(x::Union{AbstractVector, ComponentVector}) = x
 function _get_x(res::Union{PEtabOptimisationResult, PEtabMultistartResult})

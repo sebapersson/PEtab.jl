@@ -23,7 +23,7 @@ end
 Base.convert(::Type{Laplace{T}}, d::LogLaplace{T}) where {T <: Real} = d
 
 Distributions.params(d::LogLaplace) = (d.μ, d.θ)
-@inline Distributions.partype(d::LogLaplace{T}) where {T <: Real} = T
+@inline Distributions.partype(::LogLaplace{T}) where {T <: Real} = T
 
 Distributions.median(d::LogLaplace) = exp(d.μ)
 

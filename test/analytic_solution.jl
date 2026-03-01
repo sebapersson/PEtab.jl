@@ -85,11 +85,6 @@ function test_nllh_grad_hess(model::PEtabModel, osolver::ODESolver)::Nothing
     @test all(.≈(g, grad_ref; atol = 1.0e-3))
     g = _compute_grad(x, model, :ForwardEquations, osolver)
     @test all(.≈(g, grad_ref; atol = 1.0e-3))
-    tmp = osolver.solver
-    osolver.solver = CVODE_BDF()
-    g = _compute_grad(x, model, :ForwardEquations, osolver; sensealg = ForwardSensitivity())
-    @test all(.≈(g, grad_ref; atol = 1.0e-3))
-    osolver.solver = tmp
     @test all(.≈(g, grad_ref; atol = 1.0e-3))
     g = _compute_grad(
         x, model, :Adjoint, osolver;

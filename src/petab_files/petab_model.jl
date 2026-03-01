@@ -279,12 +279,18 @@ function _get_odesys(
         get_rn = @RuntimeGeneratedFunction(Meta.parse(modelstr))
         # Argument needed by @RuntimeGeneratedFunction
         rn, speciemap, parametermap = get_rn("https://xkcd.com/303/")
-        _odesystem = convert(ODESystem, Catalyst.complete(rn))
-        # DAE requires special processing
+        _odesystem = Catalyst.ode_model(Catalyst.complete(rn))
+
+        # DAE functionality is not supported as long as it is under APGL license, to not
+        # enforce the APGL restrictions on users
         if isempty(model_SBML.algebraic_rules)
-            odesystem = structural_simplify(_odesystem)
+            odesystem = mtkcompile(_odesystem)
         else
-            odesystem = structural_simplify(dae_index_lowering(_odesystem))
+            throw(PEtabSupportError("DAE models (SBML with algebraic rules) are not \
+                supported in PEtab.jl. At present the only way to handle DAEs in \
+                ModelingToolkit relies on code that is released under the APGL license. \
+                PEtab.jl is MIT‑licensed and we  avoid pulling in APGL‑licensed \
+                dependencies to not enforce APGL restrictions on users"))
         end
     end
     _logging(:Build_ODESystem, verbose; time = btime)
@@ -355,11 +361,10 @@ function _reorder_parametermap(parametermap, parameter_order::Vector{Symbol})
     parametermap_out = Vector{Pair{Symbolics.Num, Float64}}(undef, length(parametermap))
     for (i, pname) in pairs(parameter_order)
         imap = findfirst(x -> x == pname, Symbol.(first.(parametermap)))
-
         if !(parametermap[imap].second isa Symbolics.Num)
             parametermap_out[i] = parametermap[imap].first => parametermap[imap].second
         elseif SBMLImporter.is_number(string(parametermap[imap].second))
-            parametermap_out[i] = parametermap[imap].first => parametermap[imap].second.val
+            parametermap_out[i] = parametermap[imap].first => parametermap[imap].second.val.val
         else
             parametermap_out[i] = parametermap[imap].first => 0.0
         end

@@ -6,7 +6,7 @@ using Distributions
 using LogDensityProblems
 using LogDensityProblemsAD
 import ForwardDiff
-using ModelingToolkit
+using ModelingToolkitBase
 using PEtab
 
 include(joinpath(@__DIR__, "PEtabLogDensityProblemsExtension", "Common.jl"))

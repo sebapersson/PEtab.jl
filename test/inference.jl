@@ -1,6 +1,6 @@
-using PEtab, OrdinaryDiffEqRosenbrock, ModelingToolkit, Distributions, Random, DataFrames, CSV
+using PEtab, OrdinaryDiffEqRosenbrock, Distributions, Random, DataFrames, CSV
 using Bijectors, LogDensityProblems, LogDensityProblemsAD, MCMCChains, Test, Catalyst
-using AdaptiveMCMC, AdvancedHMC
+using AdaptiveMCMC, AdvancedHMC, ModelingToolkitBase
 
 function get_reference_stats(path_data)
     # Reference chain 10000 samples via Turing of HMC
@@ -15,19 +15,11 @@ end
 function get_prob_saturated(pest)::PEtabODEProblem
     t = default_t()
     D = default_time_deriv()
-    @mtkmodel SYS begin
-        @parameters begin
-            b1
-            b2
-        end
-        @variables begin
-            x(t) = 0.0
-        end
-        @equations begin
-            D(x) ~ b2 * (b1 - x)
-        end
-    end
-    @mtkbuild sys = SYS()
+    @variables x(t) = 0.0
+    @parameters b1 b2
+    eqs = [D(x) ~ b2 * (b1 - x)]
+    @named sys_model = System(eqs, t)
+    sys = mtkcompile(sys_model)
 
     Random.seed!(1234)
     # Simulate the model

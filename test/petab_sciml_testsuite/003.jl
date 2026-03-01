@@ -1,5 +1,5 @@
-using ModelingToolkit
-using ModelingToolkit: t_nounits as t, D_nounits as D
+using ModelingToolkitBase: t_nounits as t, D_nounits as D
+using ModelingToolkitBase: @parameters, @variables, @named, System, mtkcompile
 
 test_case = "003"
 dir_case = joinpath(@__DIR__, "test_cases", "sciml_problem_import", test_case, "petab")
@@ -22,23 +22,14 @@ path_h5 = joinpath(dir_case, "net1_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn3) |> ComponentArray |> f64
 PEtab._set_ml_model_ps!(pnn, path_h5, nn3, :net1)
 
-@mtkmodel _SYS3 begin
-    @parameters begin
-        alpha
-        delta
-        beta
-        gamma
-    end
-    @variables begin
-        prey(t) = 0.44249296
-        predator(t) = 4.6280594
-    end
-    @equations begin
-        D(prey) ~ alpha * prey - beta * prey * predator
-        D(predator) ~ gamma * predator * prey - delta * predator
-    end
-end
-@mtkbuild sys = _SYS3()
+@parameters alpha delta beta gamma
+@variables prey(t) = 0.44249296 predator(t) = 4.6280594
+eqs = [
+    D(prey) ~ alpha * prey - beta * prey * predator,
+    D(predator) ~ gamma * predator * prey - delta * predator
+]
+@named sys_model = System(eqs, t)
+sys = mtkcompile(sys_model)
 
 pest = [
     PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3),

@@ -7,28 +7,18 @@ rn = @reaction_network begin
     @species A(t) = a0 B(t) = b0
     (k1, k2), A <--> B
 end
+parametermap = [:k2 => 1.6]
 
 t = default_t()
 D = default_time_deriv()
-@mtkmodel SYS begin
-    @parameters begin
-        a0
-        b0
-        k1
-        k2 = 1.6
-    end
-    @variables begin
-        A(t) = a0
-        B(t) = b0
-    end
-    @equations begin
-        D(A) ~ -k1 * A + k2 * B
-        D(B) ~ k1 * A - k2 * B
-    end
-end
-@mtkbuild sys = SYS()
-
-parametermap = [:k2 => 1.6]
+@parameters k1 k2=1.6
+@variables A(t) = a0 B(t) = b0
+equations = [
+    D(A) ~ -k1 * A + k2 * B
+    D(B) ~ k1 * A - k2 * B
+]
+@named sys_model = System(equations, t)
+sys = ModelingToolkitBase.mtkcompile(sys_model)
 
 measurements = DataFrame(
     simulation_id = ["c0", "c0"],
@@ -54,6 +44,7 @@ model_rn = PEtabModel(
     simulation_conditions = simulation_conditions
 )
 petab_prob_rn = PEtabODEProblem(model_rn)
+# TODO: Fix failure with parameter-map here!!
 model_sys = PEtabModel(
     sys, observables, measurements, parameters;
     simulation_conditions = simulation_conditions

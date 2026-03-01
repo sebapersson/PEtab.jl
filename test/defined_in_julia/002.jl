@@ -7,27 +7,18 @@ rn = @reaction_network begin
     @species A(t) = a0
     (k1, k2), A <--> B
 end
+speciemap = [:B => 1.0] # Constant initial value for B
 
 t = default_t()
 D = default_time_deriv()
-@mtkmodel SYS2 begin
-    @parameters begin
-        a0
-        k1
-        k2
-    end
-    @variables begin
-        A(t) = a0
-        B(t) = 1.0
-    end
-    @equations begin
-        D(A) ~ -k1 * A + k2 * B
-        D(B) ~ k1 * A - k2 * B
-    end
-end
-@mtkbuild sys = SYS2()
-
-speciemap = [:B => 1.0] # Constant initial value for B
+@parameters k1 k2 a0
+@variables A(t) = a0 B(t) = 1.0
+equations = [
+    D(A) ~ -k1 * A + k2 * B
+    D(B) ~ k1 * A - k2 * B
+]
+@named sys_model = System(equations, t)
+sys = ModelingToolkitBase.mtkcompile(sys_model)
 
 # Measurement data
 measurements = DataFrame(
@@ -55,7 +46,7 @@ observables = PEtabObservable(:obs_a, A, 1.0)
 
 # Create a PEtabODEProblem ReactionNetwork
 model_rn = PEtabModel(
-    sys, observables, measurements, parameters; speciemap = speciemap,
+    rn, observables, measurements, parameters; speciemap = speciemap,
     simulation_conditions = simulation_conditions
 )
 petab_prob_rn = PEtabODEProblem(model_rn)

@@ -2,7 +2,7 @@ module PEtabStochasticDiffEq
 
 using PEtab
 using StochasticDiffEq
-using ModelingToolkit
+using ModelingToolkitBase
 using ComponentArrays
 
 function PEtab.llh(
@@ -97,7 +97,7 @@ function _get_sdeproblem(model::PEtabModel)::SDEProblem
     @unpack sys_mutated, speciemap, parametermap = model
     u0map_tmp = zeros(Float64, length(model.speciemap))
     _sprob = SDEProblem(sys_mutated, u0map_tmp, [0.0, 5.0e3], parametermap)
-    if _sprob.p isa ModelingToolkit.MTKParameters
+    if _sprob.p isa ModelingToolkitBase.MTKParameters
         _p = _sprob.p.tunable .|> Float64
         sprob = remake(_sprob, p = _p, u0 = Float64.(_sprob.u0))
     else

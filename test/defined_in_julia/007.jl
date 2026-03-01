@@ -14,28 +14,16 @@ end
 
 t = default_t()
 D = default_time_deriv()
-@mtkmodel SYS7 begin
-    @parameters begin
-        a0
-        b0
-        k1
-        k2
-    end
-    @variables begin
-        A(t) = a0
-        B(t) = b0
-        # Observables
-        obs_a(t)
-        obs_b(t)
-    end
-    @equations begin
-        D(A) ~ -k1 * A + k2 * B
-        D(B) ~ k1 * A - k2 * B
-        obs_a ~ A
-        obs_b ~ B
-    end
-end
-@mtkbuild sys = SYS7()
+@parameters k1 k2
+@variables A(t) = a0 B(t) = b0 obs_a(t) obs_b(t)
+equations = [
+    D(A) ~ -k1 * A + k2 * B
+    D(B) ~ k1 * A - k2 * B
+    obs_a ~ A
+    obs_b ~ B
+]
+@named sys_model = System(equations, t)
+sys = ModelingToolkitBase.mtkcompile(sys_model)
 
 measurements = DataFrame(
     simulation_id = ["c0", "c0"],

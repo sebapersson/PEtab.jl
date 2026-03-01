@@ -4,33 +4,25 @@
 
 rn = @reaction_network begin
     @parameters a0 b0
-    @species A(t) = a0 B(t) = b0
+    @species begin
+        A(t) = a0
+        B(t) = b0
+    end
     @observables obs_a ~ A
     (k1, k2), A <--> B
 end
 
 t = default_t()
 D = default_time_deriv()
-@mtkmodel SYS1 begin
-    @parameters begin
-        a0
-        b0
-        k1
-        k2
-    end
-    @variables begin
-        A(t) = a0
-        B(t) = b0
-        # Observables
-        obs_a(t)
-    end
-    @equations begin
-        D(A) ~ -k1 * A + k2 * B
-        D(B) ~ k1 * A - k2 * B
-        obs_a ~ A
-    end
-end
-@mtkbuild sys = SYS1()
+@parameters k1 k2 a0 b0
+@variables A(t) = a0 B(t) = b0 obs_a(t)
+equations = [
+    D(A) ~ -k1 * A + k2 * B
+    D(B) ~ k1 * A - k2 * B
+    obs_a ~ A
+]
+@named sys_model = System(equations, t)
+sys = ModelingToolkitBase.mtkcompile(sys_model)
 
 function f_ode1!(du, u, p, t)
     A, B = u

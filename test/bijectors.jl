@@ -1,5 +1,5 @@
 using LogDensityProblems, LogDensityProblemsAD, Bijectors, DataFrames, PEtab,
-    FiniteDifferences, ModelingToolkit, Catalyst, ForwardDiff, Test
+    FiniteDifferences, ModelingToolkitBase, Catalyst, ForwardDiff, Test
 
 function test_custom_llh_and_gradient(x_nllh, x_inference, inference_info)
     # Setup a test dataset (mixture-normal)

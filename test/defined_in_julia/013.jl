@@ -6,27 +6,17 @@ rn = @reaction_network begin
     @parameters par
     (k1, k2), A <--> B
 end
+speciemap = [:A => 1.0]
 
 t = default_t()
 D = default_time_deriv()
-@mtkmodel SYS13 begin
-    @parameters begin
-        k1
-        k2
-        par
-    end
-    @variables begin
-        A(t) = 1.0
-        B(t)
-    end
-    @equations begin
-        D(A) ~ -k1 * A + k2 * B
-        D(B) ~ k1 * A - k2 * B
-    end
-end
-@mtkbuild sys = SYS13()
-
-speciemap = [:A => 1.0]
+@parameters k1 k2 par
+@variables A(t)=1.0 B(t)
+equations = [
+    D(A) ~ -k1 * A + k2 * B
+    D(B) ~ k1 * A - k2 * B
+]
+@named sys_model = ODESystem(equations, Catalyst.default_t(), [A, B], [k1, k2, par])
 
 measurements = DataFrame(
     simulation_id = ["c0", "c0"],

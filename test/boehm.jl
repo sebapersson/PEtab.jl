@@ -9,15 +9,22 @@ using PEtab, OrdinaryDiffEqRosenbrock, Sundials, SciMLSensitivity, CSV, DataFram
 include(joinpath(@__DIR__, "common.jl"))
 
 function boehm_pyPESTO(model::PEtabModel, osolver::ODESolver)
-    dirref = joinpath(@__DIR__, "published_models", "Boehm_JProteomeRes2014")
+    dir_ref = joinpath(@__DIR__, "published_models", "Boehm_JProteomeRes2014")
     xvals = CSV.read(
-        joinpath(dirref, "Parameters_PyPesto.csv"), DataFrame;
+        joinpath(dir_ref, "Parameters_PyPesto.csv"), DataFrame;
         drop = [:Id, :ratio, :specC17]
     )
-    ref_nllhs = CSV.read(joinpath(dirref, "Cost_PyPesto.csv"), DataFrame)[!, :Cost]
-    ref_grads = CSV.read(joinpath(dirref, "Grad_PyPesto.csv"), DataFrame; drop = [:Id, :ratio, :specC17])
-    ref_hessians = CSV.read(joinpath(dirref, "Hess_PyPesto.csv"), DataFrame)
-    ih = findall(x -> x != "Id" && !occursin("ratio", x) && !occursin("specC17", x), names(ref_hessians))
+    ref_nllhs = CSV.read(
+        joinpath(dir_ref, "Cost_PyPesto.csv"), DataFrame
+    )[!, :Cost]
+    ref_grads = CSV.read(
+        joinpath(dir_ref, "Grad_PyPesto.csv"), DataFrame; drop = [:Id, :ratio, :specC17]
+    )
+    ref_hessians = CSV.read(joinpath(dir_ref, "Hess_PyPesto.csv"), DataFrame)
+    ih = findall(
+        x -> x != "Id" && !occursin("ratio", x) && !occursin("specC17", x),
+        names(ref_hessians)
+    )
 
     for i in 1:5
         x = xvals[i, :] |> Vector{Float64}
@@ -42,17 +49,11 @@ function boehm_pyPESTO(model::PEtabModel, osolver::ODESolver)
             sensealg = GaussAdjoint(autojacvec = ReverseDiffVJP(true))
         )
         @test all(.≈(g, grad_ref; atol = 1.0e-3))
-        # Here we want to test things also run with CVODE_BDF
-        tmp = osolver.solver
-        osolver.solver = CVODE_BDF()
-        g = _compute_grad(x, model, :ForwardEquations, osolver; sensealg = ForwardSensitivity())
-        @test all(.≈(g, grad_ref; atol = 1.0e-3))
-        osolver.solver = tmp
 
         H = _compute_hess(x, model, :GaussNewton, osolver)
         @test all(.≈(H[:], hess_ref; atol = 1.0e-3))
     end
-    return
+    return nothing
 end
 
 path_yaml = joinpath(

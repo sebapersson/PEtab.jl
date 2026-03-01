@@ -44,15 +44,15 @@ function _get_speciemap(
     speciemap_model = deepcopy(speciemap)
     for variable in Iterators.flatten((condition_variables, net_outputs))
         !(variable in specie_ids) && continue
-        pid = "__init__" * string(variable) * "__"
-        sys = _add_parameter(sys, pid)
+        parameter_id = "__init__" * string(variable) * "__"
+        sys = _add_parameter(sys, parameter_id)
         is = findfirst(x -> x == variable, specie_ids)
-        speciemap[is] = first(speciemap[is]) => eval(Meta.parse("@parameters $pid"))[1]
+        speciemap[is] = first(speciemap[is]) => eval(Meta.parse("@parameters $parameter_id"))[1]
         # Rename output in the mapping table, to have the neural-net map to the
         # initial-value parameter instead
         if variable in net_outputs
             ix = findall(x -> x == variable, hybridization_df[!, :targetId])
-            hybridization_df[ix, :targetId] .= pid
+            hybridization_df[ix, :targetId] .= parameter_id
         end
     end
 
@@ -106,17 +106,15 @@ function _get_parametermap(sys::ModelSystem, parametermap_input, ::MLModels)
     parametermap = [Num(p) => 0.0 for p in parameters(sys)]
 
     # User are allowed to specify default numerical values in the system
-    default_values = ModelingToolkit.get_defaults(sys)
-    for (i, pid) in pairs(first.(parametermap))
-        !haskey(default_values, pid) && continue
-        value = default_values[pid]
+    default_values = _get_default_values(sys)
+    for (i, parameter_id) in pairs(string.(first.(parametermap)))
+        !haskey(default_values, string(parameter_id)) && continue
+        value = default_values[parameter_id]
         if !(value isa Real)
             throw(
-                PEtabInuptError(
-                    "When setting a parameter to a fixed value in the model system it must \
-                    be set to a constant numberic value. This does not hold for $pid \
-                    which is set to $value"
-                )
+                PEtabInuptError("When setting a parameter to a fixed value in the model \
+                    system it must be set to a constant numberic value. This does not \
+                    hold for $parameter_id which is set to $value")
             )
         end
         parametermap[i] = first(parametermap[i]) => value
@@ -185,16 +183,21 @@ end
 
 # TODO: Add for SDEProblem
 function _add_parameter(sys::ReactionSystem, parameter)
-    _p = Symbol(parameter)
-    addparam!(sys, only(@parameters($_p)))
-    return sys
+    p = Symbol(parameter)
+    p_new = vcat(parameters(sys), only(@parameters($p)))
+    @named sys_new = Catalyst.ReactionSystem(
+        reactions(sys), Catalyst.default_t(), Catalyst.unknowns(sys), p_new
+    )
+    return Catalyst.complete(sys_new)
 end
 function _add_parameter(sys::ODESystem, parameter)
     # Mutating an ODESystem is ill-advised, therefore a new system is built with additional
     # parameter
-    p = parameter |> Symbol
-    pnew = vcat(parameters(sys), only(@parameters($p)))
-    @named de = ODESystem(equations(sys), Catalyst.default_t(), unknowns(sys), pnew)
+    p = Symbol(parameter)
+    p_new = vcat(parameters(sys), only(@parameters($p)))
+    @named de = ODESystem(
+        equations(sys), Catalyst.default_t(), ModelingToolkitBase.unknowns(sys), p_new
+    )
     return complete(de)
 end
 function _add_parameter(sys::ODEProblem, parameter)
@@ -216,35 +219,19 @@ function _keys_to_string(d::ComponentArray)::Dict
     return Dict(keysnew .=> collect(d))
 end
 
-# They removed this function from Catalyst, so I copied it here
-function addparam!(rn::ReactionSystem, p; disablechecks = false)
-    Catalyst.reset_networkproperties!(rn)
-    curidx = disablechecks ? nothing :
-        findfirst(S -> isequal(S, p), ModelingToolkit.get_ps(rn))
-    if curidx === nothing
-        push!(ModelingToolkit.get_ps(rn), p)
-        ModelingToolkit.process_variables!(
-            ModelingToolkit.get_var_to_name(rn),
-            ModelingToolkit.get_defaults(rn), [p]
-        )
-        return length(ModelingToolkit.get_ps(rn))
-    else
-        return curidx
-    end
-end
-
 function _get_speciemap_ids(sys::ODEProblem)
     return keys(sys.u0) |> collect
 end
 function _get_speciemap_ids(sys)
-    return unknowns(sys)
+    return ModelingToolkitBase.unknowns(sys)
 end
 
-function _get_default_values(sys::ODEProblem)
-    return _keys_to_string(sys.u0)
-end
-function _get_default_values(sys)
-    return ModelingToolkit.get_defaults(sys) |> _keys_to_string
+# TODO: Not performant, keep track on Catalyst if it should support bindings
+# TODO: The same for observables
+_get_default_values(sys::ODEProblem) = _keys_to_string(sys.u0)
+_get_default_values(sys::ReactionSystem) = _get_default_values(_get_system(sys))
+function _get_default_values(sys::ODESystem)
+    return SymbolicIndexingInterface.default_values(sys) |> _keys_to_string
 end
 
 function _get_parameters(sys::ODEProblem)::Vector{String}
@@ -254,5 +241,5 @@ function _get_parameters(sys::ODEProblem)::Vector{String}
         string
 end
 function _get_parameters(sys::ModelSystem)::Vector{String}
-    return string.(parameters(sys))
+    return string.(ModelingToolkitBase.parameters(sys))
 end

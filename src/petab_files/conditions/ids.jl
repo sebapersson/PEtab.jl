@@ -100,16 +100,14 @@ function _get_ids_sys_order(sys::ModelSystem, speciemap, parametermap)::Vector{S
     # This is a hack until SciMLSensitivity integrates with the SciMLStructures interface.
     # Basically allows the parameters in the system to be retrieved in the order they
     # appear in the ODESystem later on
-    _p = parameters(sys)
-    out = similar(_p)
-    if sys isa SDESystem
-        prob = SDEProblem(sys, speciemap, [0.0, 5.0e3], parametermap)
-    else
-        prob = ODEProblem(sys, speciemap, [0.0, 5.0e3], parametermap; jac = true)
-    end
-    maps = ModelingToolkit.getp(prob, _p)
+    initial_condition_map = _get_initial_condition_map(sys, speciemap, parametermap)
+    prob = ODEProblem(sys, initial_condition_map, [0.0, 5.0e3]; jac = true)
+
+    ps = parameters(sys)
+    out = similar(ps)
+    maps = ModelingToolkitBase.getp(prob, ps)
     for (i, map) in pairs(maps.getters)
-        out[map.idx.idx] = _p[i]
+        out[map.idx.idx] = ps[i]
     end
     return Symbol.(out)
 end
@@ -378,4 +376,21 @@ function _order_id_sys!(ids_sys::T, ids_ml_in_ode::T)::Nothing where {T <: Vecto
     ix = [findfirst(x -> x == id, ids_sys) for id in ids_ml_in_ode]
     ids_sys[sort(ix)] .= ids_ml_in_ode
     return nothing
+end
+
+function _get_initial_condition_map(sys::ReactionSystem, u0_map, parameter_map)
+    return _get_initial_condition_map(_get_system(sys), u0_map, parameter_map)
+end
+function _get_initial_condition_map(sys::ODESystem, u0_map, parameter_map)
+    sys_bindings = ModelingToolkitBase.bindings(sys)
+    initial_condition_map = merge(Dict(u0_map), Dict(parameter_map))
+
+    # Any parameter with a binding is not allowed to be provided when specifying
+    # initial conditions for a ODEProblem with maps
+    for key in keys(initial_condition_map)
+        if haskey(sys_bindings, key)
+            delete!(initial_condition_map, key)
+        end
+    end
+    return initial_condition_map
 end

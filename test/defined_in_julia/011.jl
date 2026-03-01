@@ -5,26 +5,18 @@
 rn = @reaction_network begin
     (k1, k2), A <--> B
 end
+speciemap = [:A => 1.0]
 
 t = default_t()
 D = default_time_deriv()
-@mtkmodel SYS11 begin
-    @parameters begin
-        k1
-        k2
-    end
-    @variables begin
-        A(t) = 1.0
-        B(t)
-    end
-    @equations begin
-        D(A) ~ -k1 * A + k2 * B
-        D(B) ~ k1 * A - k2 * B
-    end
-end
-@mtkbuild sys = SYS11()
-
-speciemap = [:A => 1.0]
+@parameters k1 k2
+@variables A(t)=1.0 B(t)
+equations = [
+    D(A) ~ -k1 * A + k2 * B
+    D(B) ~ k1 * A - k2 * B
+]
+@named sys_model = System(equations, t)
+sys = ModelingToolkitBase.mtkcompile(sys_model)
 
 measurements = DataFrame(
     simulation_id = ["c0", "c0"],
@@ -44,7 +36,7 @@ parameters = [
 observables = PEtabObservable("obs_a", A, 0.5)
 
 model_rn = PEtabModel(
-    sys, observables, measurements, parameters; speciemap = speciemap,
+    rn, observables, measurements, parameters; speciemap = speciemap,
     simulation_conditions = simulation_conditions,
 )
 petab_prob_rn = PEtabODEProblem(model_rn)

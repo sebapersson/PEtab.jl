@@ -102,7 +102,7 @@ For examples, see the online package documentation.
 - `observable_formula`: Observable expression. Two supported forms:
     - `Model-observable`: A `Symbol` identifier matching an observable defined in a Catalyst
       `ReactionSystem` `@observables` block, or a non-differential variable defined in a
-      ModelingToolkit `ODESystem` `@variables` block.
+      ModelingToolkitBase `ODESystem` `@variables` block.
     - `expression`: A `String`, `:Symbol`, `Real`, or a Symbolics expression (`Num`). Can
       include  standard Julia functions (e.g. `exp`, `log`, `sin`, `cos`). Variables may
       reference model species, model parameters, or `PEtabParameter`s. Can include

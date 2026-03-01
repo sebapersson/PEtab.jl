@@ -1,6 +1,6 @@
 module PEtab
 
-using ModelingToolkit
+import ModelingToolkitBase
 using CSV
 using SciMLBase
 using OrdinaryDiffEqBDF
@@ -28,6 +28,7 @@ using PreallocationTools
 using NonlinearSolve
 using PrecompileTools
 using QuasiMonteCarlo
+import Symbolics
 import SymbolicIndexingInterface
 using StyledStrings
 import SciMLBase.remake
@@ -37,10 +38,11 @@ import QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
-const ModelSystem = Union{ODESystem, SDESystem, ReactionSystem, ODEProblem}
+const DistInput = Union{Real, Symbolics.Num}
+const ModelSystem = Union{ODESystem, ReactionSystem, ODEProblem}
 const NonlinearAlg = Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}
 const PEtabTables = Union{Dict{Symbol, Union{DataFrame, Dict}}}
-const UserFormula = Union{Num, AbstractString, Symbol}
+const UserFormula = Union{Symbolics.Num, AbstractString, Symbol}
 const ConditionExp = Union{String, Symbol, Pair{String, String}, Pair{Symbol, Symbol}}
 const ContDistribution = Distribution{Univariate, Continuous}
 

@@ -1,5 +1,5 @@
 function _get_state_ids(system)::Vector{String}
-    ids = unknowns(system)
+    ids = ModelingToolkitBase.unknowns(system)
     ids = string.(ids)
     ids = replace.(ids, "(t)" => "")
     return ids

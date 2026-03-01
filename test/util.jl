@@ -3,7 +3,7 @@
 =#
 
 using Catalyst, DataFrames, FiniteDifferences, ForwardDiff, OrdinaryDiffEqRosenbrock, Lux,
-    PEtab, Test
+    ModelingToolkitBase, PEtab, Test
 
 function __sum_ps(x, prob)
     ps = get_ps(x, prob; retmap = false)
@@ -58,8 +58,8 @@ end
     solref = get_odesol(x, prob)
     rn, u0, ps, cb = get_system(x, prob)
     @test rn isa Catalyst.ReactionSystem
-    osys = convert(ODESystem, rn) |> structural_simplify |> complete
-    ode_prob = ODEProblem(osys, u0, [solref.t[1], solref.t[end]], ps)
+    osys = mtkcompile(Catalyst.ode_model(rn))
+    ode_prob = ODEProblem(osys, merge(Dict(u0), Dict(ps)), (solref.t[1], solref.t[end]))
     @test ode_prob.p.tunable == solref.prob.p
     @test ode_prob.u0 == solref.prob.u0
     # Test throws correctly
@@ -147,14 +147,14 @@ end
     ode_prob, _ = get_odeproblem(log10.([1.0, 2.0]), prob; condition = :c2)
     @test length(ode_prob.p) == 2
     @test all(ode_prob.p .== ode_prob_mutated.p[[1, 3]])
-    @test all(ode_prob.p[[2, 1]] .== ode_prob_mutated.u0)
+    @test all(ode_prob.p .== ode_prob_mutated.u0)
     # Test that get_system correctly returns a ReactionSystem
     rn, u0, ps, _ = get_system(log10.([1.0, 2.0]), prob; condition = :c2)
     @test rn isa Catalyst.ReactionSystem
-    osys = convert(ODESystem, rn) |> structural_simplify |> complete
-    ode_prob_sys = ODEProblem(osys, u0, (0.0, 1.0), ps)
+    osys = mtkcompile(Catalyst.ode_model(rn))
+    ode_prob_sys = ODEProblem(osys, merge(Dict(u0), Dict(ps)), (0.0, 1.0))
     @test ode_prob_sys.p.tunable == ode_prob.p
-    @test ode_prob_sys.u0 == ode_prob.u0
+    @test ode_prob_sys.u0[[1, 2]] == ode_prob.u0
     @test_throws PEtab.PEtabInputError begin
         ode_prob, _ = get_odeproblem(res, prob; condition = :c3)
     end

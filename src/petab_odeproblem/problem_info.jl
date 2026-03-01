@@ -129,19 +129,15 @@ function _get_odeproblem(
     )::ODEProblem
     _set_const_parameters!(model, model_info.petab_parameters)
 
-    @unpack sys_mutated, speciemap, parametermap, defined_in_julia = model
+    @unpack sys_mutated, speciemap, parametermap = model
     _parametermap = _reorder_parametermap(parametermap, model_info.xindices.ids[:sys])
     _u0 = first.(speciemap) .=> 0.0
-    odefun = ODEFunction(_to_odesystem(sys_mutated), first.(speciemap), first.(_parametermap); jac = true, sparse = sparse_jacobian)
-    odeproblem = ODEProblem(odefun, last.(_u0), [0.0, 5.0e3], last.(_parametermap))
+    ode_f = ODEFunction(
+        _get_system(sys_mutated); u0 = first.(_u0), p = first.(_parametermap),
+        jac = true, sparse = sparse_jacobian
+    )
+    odeproblem = ODEProblem(ode_f, last.(_u0), [0.0, 5.0e3], last.(_parametermap))
     return remake(odeproblem, p = Float64.(odeproblem.p), u0 = Float64.(odeproblem.u0))
-end
-
-function _to_odesystem(sys::ReactionSystem)::ODESystem
-    return complete(convert(ODESystem, sys))
-end
-function _to_odesystem(sys::ODESystem)::ODESystem
-    return sys
 end
 
 function _get_ml_models_pre_ode(

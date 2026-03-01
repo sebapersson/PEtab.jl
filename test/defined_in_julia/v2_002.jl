@@ -9,21 +9,14 @@ end
 
 t = default_t()
 D = default_time_deriv()
-@mtkmodel SYS_v2_2 begin
-    @parameters begin
-        k1
-        k2
-    end
-    @variables begin
-        A(t) = 0.8
-        B(t) = 1.0
-    end
-    @equations begin
-        D(A) ~ -k1 * A + k2 * B
-        D(B) ~ k1 * A - k2 * B
-    end
-end
-@mtkbuild sys = SYS_v2_2()
+@parameters k1 k2
+@variables A(t) = 0.8 B(t) = 1.0
+equations = [
+    D(A) ~ -k1 * A + k2 * B
+    D(B) ~ k1 * A - k2 * B
+]
+@named sys_model = System(equations, t)
+sys = ModelingToolkitBase.mtkcompile(sys_model)
 
 # Measurement data
 measurements = DataFrame(

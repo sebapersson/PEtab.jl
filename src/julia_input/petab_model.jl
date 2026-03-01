@@ -83,8 +83,6 @@ function _PEtabModel(
 
     if sys isa ODESystem
         name = "ODESystemModel"
-    elseif sys isa SDESystem
-        name = "SDESystemModel"
     elseif sys isa ODEProblem
         name = "UDEProblemModel"
     else
