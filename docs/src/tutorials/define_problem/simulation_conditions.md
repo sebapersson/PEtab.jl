@@ -53,37 +53,23 @@ default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm, 
 == Model as ODESystem
 
 ```@example 2
-using ModelingToolkit, PEtab
-using ModelingToolkit: t_nounits as t, D_nounits as D
+using ModelingToolkitBase, PEtab
+using ModelingToolkitBase: t_nounits as t, D_nounits as D
 
-@mtkmodel SYS begin
-    @parameters begin
-        S0
-        c1
-        c2
-        c3 = 1.0
-    end
-    @variables begin
-        S(t) = S0
-        E(t) = 50.0
-        SE(t) = 0.0
-        P(t) = 0.0
-        # Observables
-        obs1(t)
-        obs2(t)
-    end
-    @equations begin
-        # Dynamics
-        D(S) ~ -c1 * S * E + c2 * SE
-        D(E) ~ -c1 * S * E + c2 * SE + c3 * SE
-        D(SE) ~ c1 * S * E - c2 * SE - c3 * SE
-        D(P) ~ c3 * SE
-        # Observables
-        obs1 ~ S + E
-        obs2 ~ P
-    end
-end
-@mtkbuild sys = SYS()
+@parameters S0 c1 c2 c3 = 1.0
+@variables S(t) = S0 E(t) = 50.0 SE(t) = 0.0 P(t) = 0.0 obs1(t) obs2(t)
+eqs = [
+    # Dynamics
+    D(S) ~ -c1 * S * E + c2 * SE
+    D(E) ~ -c1 * S * E + c2 * SE + c3 * SE
+    D(SE) ~ c1 * S * E - c2 * SE - c3 * SE
+    D(P) ~ c3 * SE
+    # Observables
+    obs1 ~ S + E
+    obs2 ~ P
+]
+@named sys_model = System(eqs, t)
+sys = mtkcompile(sys_model)
 
 @parameters sigma
 petab_obs1 = PEtabObservable(:petab_obs1, :obs1, 3.0)
@@ -121,7 +107,6 @@ simulation_conditions = [cond1, cond2]
 
 All conditions should be collected in a `Vector`. If a model state or parameter is not
 assigned in a given condition, its default value from the model is used.
-
 
 Given simulation conditions, each measurement must be linked to a simulation condition via a
 `simulation_id` column in the measurement `DataFrame` (column names matter, but not order):
@@ -202,6 +187,9 @@ plot(p1, p2)
 plot(p1, p2; size = (800, 400)) # hide
 ```
 
-!!! tip "Change simulation start time without simulation conditions"
-    If a model does not use simulation conditions, simulation start time can be changed by
-    creating an empty condition: `cond = PEtabCondition(:cond1; t0 = 5.0)`
+::: tip Change simulation start time without simulation conditions
+
+If a model does not use simulation conditions, simulation start time can be changed by
+creating an empty condition: `cond = PEtabCondition(:cond1; t0 = 5.0)`
+
+:::

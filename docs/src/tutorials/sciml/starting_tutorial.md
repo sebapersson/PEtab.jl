@@ -1,8 +1,8 @@
 # [SciML starter tutorial: Universal Differential Equations (UDEs)](@id sciml_starter)
 
 Hybrid scientific machine learning (SciML) combines mechanistic (ODE) models with machine
-learning (ML) components. PEtab.jl supports three SciML problem types, as well as any
-combination of them:
+learning (ML) models [rackauckas2020universal](@cite). PEtab.jl supports three SciML problem
+types, and any combination of them:
 
 1. ML model inside the ODE dynamics. This covers both Universal Differential Equations
    (UDEs) and Neural ODEs.
@@ -10,15 +10,13 @@ combination of them:
 3. Pre-simulation ML model, where the ML model is evaluated before simulation to map input
    data (e.g. high-dimensional images) to ODE parameters and/or initial conditions.
 
-This tutorial introduces SciML functionality in PEtab.jl with a focus on the UDE case. The
-other tutorials in this section cover the remaining cases. It assumes familiarity with
-setting up a PEtab problem for mechanistic models, covered in the PEtab.jl
-[starting tutorial](@ref tutorial).
+This tutorial introduces SciML functionality in PEtab.jl using the UDE case. Other tutorials
+in this section cover the remaining cases. Familiarity with setting up a PEtab problem for
+mechanistic models is assumed; covered in the [PEtab.jl starting tutorial](@ref tutorial).
 
-While this tutorial focuses on a simple use-case, note that SciML support is implemented
-on top of the features supported for mechanistic models. Thus, features for mechanistic
-models (e.g. simulation conditions, events, etc...) covered in other tutorials are also
-supported for SciML problems.
+While this tutorial focuses on a simple use-case, note that SciML support is implemented on
+top of the functionality for mechanistic models. Thus, features for mechanistic models (e.g.
+simulation conditions and events) are also supported for SciML problems.
 
 ## Input problem
 
@@ -37,8 +35,8 @@ with initial conditions
 X(t_0) = 2.0, \quad Y(t_0) = 0.1.
 ```
 
-To turn this into a UDE, we assume the production term for $X$ is unknown and replace it by
-a neural network:
+To turn this into a UDE [rackauckas2020universal](@cite), we assume the production term for
+$X$ is unknown and replace it by a neural network:
 
 ```math
 \begin{align*}
@@ -49,9 +47,9 @@ a neural network:
 
 Here, $\mathrm{NN}_1$ is a feed-forward neural network with input $Y$.
 
-To estimate model parameters, measurements of both $X$ and $Y$ are assumed. The goal of
-this tutorial is to set up a PEtab parameter estimation problem and then estimate both
-the mechanistic parameter `d` and the parameters of `NN1`.
+To estimate model parameters, measurements of both $X$ and $Y$ are assumed. The goal of this
+tutorial is to set up a PEtab parameter estimation problem and then estimate both the
+mechanistic parameter `d` and the parameters of `NN1`.
 
 ## Creating a PEtab SciML problem
 
@@ -63,9 +61,8 @@ how they interact with the ODE model.
 ### Defining the ML model
 
 PEtab.jl only supports [Lux.jl](https://lux.csail.mit.edu/stable/) ML models. To be
-compatible, the Lux model must define a set of layers with unique identifiers together
-with a forward pass. Since a simple feed-forward network is used here, this is most
-easily done using `Lux.Chain`:
+compatible, the Lux model must define a set of layers with unique identifiers together with
+a forward pass. This is often most easily done using `Lux.Chain`:
 
 ```@example 1
 using Lux
@@ -93,8 +90,8 @@ end
 nothing # hide
 ```
 
-Regardless of how the Lux model is defined, it must be wrapped as an `MLModel` and given
-a unique ID:
+Regardless of how the Lux model is defined, it must be wrapped as an `MLModel` and given a
+unique ID:
 
 ```@example 1
 using PEtab
@@ -103,16 +100,16 @@ ml_model = MLModel(:net1, lux_model1, false)
 
 The third argument specifies whether the model is evaluated pre-simulation. In this
 tutorial, the ML model is evaluated during simulation (it enters the ODE dynamics), so
-`false` is used. Note that each Lux model must be wrapped as an `MLModel` so PEtab.jl can
-keep track of how the ML model interacts with the ODE model.
+`false` is used. Each Lux model must be wrapped as an `MLModel` so PEtab.jl can keep track
+of how the ML model interacts with the ODE model.
 
 ### Defining the dynamic (UDE) model
 
 A UDE is created by embedding one or more `MLModel`s into the ODE dynamics. Currently, UDE
-models must be provided as an `ODEProblem` (integration with ModelingToolkitNeuralNets is
-in progress). The first step is to define the ODE right-hand side. Compared to a standard
-in-place ODE function, an extra `ml_models` argument is provided. It stores the declared
-ML models and can be indexed by their IDs:
+models must be provided as an `ODEProblem` (integration with ModelingToolkitNeuralNets is in
+progress). The first step is to define the ODE right-hand side. Compared to a standard
+in-place ODE function, an extra `ml_models` argument is provided. It stores the declared ML
+models and can be indexed by their IDs:
 
 ```@example 1
 function ude_f!(du, u, p, t, ml_models)
@@ -126,44 +123,44 @@ nothing # hide
 ```
 
 The parameter vector `p` is expected to be a `ComponentVector`, so mechanistic parameters
-are accessed as `p.<id>` (e.g. `p.d`) and ML parameters as `p.<ml_id>` (e.g. `p.net1`).
+are accessed as `p.id` (e.g. `p.d`) and ML parameters as `p.ml_id` (e.g. `p.net1`).
 
-Given the right-hand side, the `ODEProblem` can be constructed using the `UDEProblem`
-helper function:
+Given the right-hand side, the `ODEProblem` can be constructed using the
+[`UDEProblem`](@ref) helper function:
 
 ```@example 1
-using ComponentArrays, PEtab
+using ComponentArrays
 p_mechanistic = ComponentArray(d = 1.0)
 u0 = ComponentArray(X = 2.0, Y = 0.1)
 ude_prob = UDEProblem(ude_f!, u0, (0.0, 10.0), p_mechanistic, ml_model)
+nothing # hide
 ```
 
-When the dynamics are provided as an `ODEProblem`, mechanistic parameters (`p_mechanistic`)
-and initial values (`u0`) must be `ComponentArray`s so PEtab.jl can track parameter and
-state IDs.
+When the dynamics are provided as an `ODEProblem`/`UDEProblem`, mechanistic parameters
+(`p_mechanistic`) and initial values (`u0`) must be `ComponentArray`s so PEtab.jl can track
+parameter and state IDs.
 
-### Defining parameters to estimate
+### Defining ML parameters to estimate
 
-For each `MLModel`, a `PEtabMLParameter` must be declared to specify whether its
-parameters are estimated. Thus, when specifying the parameters-to-estimate vector for a
-SciML problem, both mechanistic parameters (via `PEtabParameter`) and ML parameters (via
-`PEtabMLParameter`) should be included:
+A `PEtabMLParameter` must be declared to specify whether its parameters are estimated for
+each `MLModel`. Thereby, when specifying the parameters-to-estimate vector for a SciML
+problem, both mechanistic parameters (`PEtabParameter`) and ML parameters
+(`PEtabMLParameter`) must be included in the parameter vector:
 
 ```@example 1
-p_net1 = PEtabMLParameter(:net1)
-p_d = PEtabParameter(:d; scale = :log10)
-pest = [p_net1, p_d]
+pest = [
+    PEtabMLParameter(:net1),
+    PEtabParameter(:d; scale = :log10)
+]
 ```
 
-A `PEtabMLParameter` can optionally be given an initial value, priors, and fixed/free
-settings. Here, only the ML model ID is provided, so all parameters of `:net1` are
-estimated. Parameter `d` is estimated on `log10` scale to enforce positivity.
+A `PEtabMLParameter` can optionally be given an initial value, priors, and be fixed
+settings. Note parameter `d` is estimated on `log10` scale to enforce positivity.
 
 ### Measurements and observables
 
-Measurements and observables are defined as for a mechanistic PEtab problem. For the
-running example, synthetic data are generated from the mechanistic model and stored in a
-valid measurement table:
+Measurements and observables are defined as for a mechanistic `PEtabODEProblem`. For the
+running example, we here use simulated data:
 
 ```@example 1
 using OrdinaryDiffEqTsit5, DataFrames, Random
@@ -177,7 +174,7 @@ function f_true!(du, u, p, t)
 end
 
 u0_true = [2.0, 0.1]
-p_true = [1.0, 2.0, 3.0, 0.5]
+p_true = [1.1, 2.0, 3.0, 0.5]
 tend = 44.0
 ode_true = ODEProblem(f_true!, u0_true, (0.0, tend), p_true)
 sol = solve(
@@ -189,6 +186,7 @@ data_Y = sol[2, :] .+ randn(length(sol.t)) .* 0.7
 df1 = DataFrame(obs_id = "obs_X", time = sol.t, measurement = data_X)
 df2 = DataFrame(obs_id = "obs_Y", time = sol.t, measurement = data_Y)
 measurements = vcat(df1, df2)
+nothing # hide
 ```
 
 Since both `X` and `Y` are assumed measured, the observables are:
@@ -204,7 +202,7 @@ observables = [
 
 Given the dynamic model (`ude_prob`), ML models, measurements, observables, and parameters
 to estimate, a `PEtabModel` is created largely the same way as for a mechanistic problem.
-The main difference is that the ML models must also be provided:
+The difference is that the ML models must be provided:
 
 ```@example 1
 model_ude = PEtabModel(
@@ -213,54 +211,59 @@ model_ude = PEtabModel(
 nothing # hide
 ```
 
-Given a `PEtabModel`, a  `PEtabODEProblem` can then be constructed as usual:
+Given a `PEtabModel`, a `PEtabODEProblem` can then be constructed:
 
 ```@example 1
 petab_prob = PEtabODEProblem(model_ude; odesolver = ODESolver(Tsit5()))
 describe(petab_prob)
 ```
 
-As seen from the problem summary, the problem includes both mechanistic and ML parameters
-to estimate. It is further seen the non-stiff ODE solver `Tsit5()` is used and gradients
-are computed with ForwardDiff. These options can be changed, and the same `PEtabODEProblem`
-options are supported as for mechanistic models. Note, however, that defaults for SciML
-problems differ from mechanistic models; for details the
-[Default PEtabODEProblem options](@ref default_options) page.
+As seen from the problem summary, the problem includes both mechanistic and ML parameters to
+estimate. It is further seen the non-stiff ODE solver `Tsit5()` is used and gradients are
+computed with ForwardDiff. These options can be changed, and the same `PEtabODEProblem`
+options are supported as for mechanistic models.
 
 ## Parameter estimation (model training)
 
-SciML problems can be trained using the same approaches as purely mechanistic models
-(e.g. multi-start local optimization with a BFGS-based method via [`calibrate`](@ref)). In
-practice, SciML problems often benefit from optimizers commonly used for ML models, such
-as the `Adam` optimizer.
+SciML problems can be trained using the same approaches as mechanistic models (e.g.
+multi-start local optimization with a BFGS-based method via [`calibrate`](@ref)). In
+practice, SciML training often benefits from optimizers commonly used for ML
+[philipps2025current](@cite), such as the `Adam` optimizer [kingma2014adam](@cite).
 
-This tutorial sets up a training loop with `Adam` from
+Here, we will set up a training loop with `Adam` from
 [Optimisers.jl](https://fluxml.ai/Optimisers.jl/stable/). Like most optimizers, `Adam`
 requires a start guess, which can be generated with:
 
 ```@example 1
 using StableRNGs
 rng = StableRNG(1) # for reproducibility
-x0 = get_startguess(rng, petab_prob, 1)
+x0 = get_startguesses(rng, petab_prob, 1)
 ```
 
-The start guess includes both mechanistic parameters (e.g. `x0.d`) and ML parameters
-(e.g. `x0.net1`). By default, `get_startguesses` initializes ML parameters using the
-initializers in the Lux model. While not needed here, SciML training can often be improved
-by initializing ML parameters to smaller values than these defaults.
+The start guess includes both mechanistic parameters (e.g. `x0.d`) and ML parameters (e.g.
+`x0.net1`). By default, `get_startguesses` initializes ML parameters with the initializers
+in the Lux model. While not needed here, SciML training often improve by initializing ML
+parameters to smaller values [kidger2022neural](@cite).
 
 With a start guess available, a training loop can be written leveraging that the objective
 function and its gradient can be computed with `petab_prob.nllh(x)` and `petab_prob.grad(x)`
 respectively. For example, to train for 5000 epochs with `Adam`:
 
 ```@example 1
+using OrdinaryDiffEqBDF # hide
 using Optimisers
+global x # hide
+global state # hide
 n_epochs = 5000
 x = deepcopy(x0)
+
+petab_prob = PEtabODEProblem(model_ude; odesolver = ODESolver(QNDF())) # hide
 
 learning_rate = 1e-3
 state = Optimisers.setup(Adam(learning_rate), x)
 for epoch in 1:n_epochs
+    global x # hide
+    global state # hide
     g = petab_prob.grad(x)
     state, x = Optimisers.update(state, x, g)
 
@@ -272,7 +275,7 @@ end
 nothing # hide
 ```
 
-From plotting the fitted model, the solution captures the data well:
+From plotting the fitted model, we see the model fits the data well:
 
 ```@example 1
 using Plots
@@ -285,17 +288,16 @@ packages can be used to build training loops with learning-rate schedules, gradi
 clipping, early stopping, logging, etc.
 
 Plain Adam is often inefficient for SciML problems, and it is prudent to run parameter
-estimation from multiple start guesses to reduce sensitivity to local minima. More
-efficient strategies include curriculum training, multiple shooting, or combinations
-thereof, all of which are supported by PEtab.jl. More details on improving training,
-are covered in [ADD](ADD).
+estimation from multiple start guesses to reduce sensitivity to local minima. More efficient
+strategies include curriculum training, multiple shooting, or combinations thereof, all of
+which are supported by PEtab.jl.
 
 ## Next steps
 
 This tutorial showed how to define a `PEtabODEProblem` for a SciML problem. For all
 available options when building SciML problems (e.g. `PEtabMLParameter` settings), see the
-[API](@ref API) documentation. For additional features, including SciML problem types
-beyond UDEs, see the following tutorials:
+[API](@ref API) documentation. For additional features, including SciML problem types beyond
+UDEs, see the following tutorials:
 
 - [ML models in observables](@ref observable_ml): define an ML model in the observable
   formula of a `PEtabObservable` (e.g. to correct model misspecification).
@@ -307,8 +309,15 @@ beyond UDEs, see the following tutorials:
 
 In addition, this tutorial showed how to train a UDE via a simple training loop. PEtab.jl
 supports several more efficient SciML training strategies (e.g. curriculum learning and
-multiple shooting). For more on improving model training, see [ADD](ADD).
+multiple shooting). For more on improving model training see ADD!
 
-Lastly, as for mechanistic models, `PEtabODEProblem` has many configurable options for
-SciML problems. A discussion of defaults and recommendations is available in
-[Default PEtabODEProblem options](@ref default_options).
+Lastly, as for mechanistic models, `PEtabODEProblem` has many configurable options for SciML
+problems. A discussion of defaults and recommendations is available in [Default
+PEtabODEProblem options](@ref default_options).
+
+## References
+
+```@bibliography
+Pages = ["starting_tutorial.md"]
+Canonical = false
+```

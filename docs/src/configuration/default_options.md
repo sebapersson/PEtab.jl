@@ -7,20 +7,22 @@ options based on an extensive benchmark study [persson2025petab](@cite). This pa
 summarizes these defaults.
 
 In brief, the defaults depend on problem size (number of ODE states and number of estimated
-parameters), since ODE solver performance and especially gradient-computation methods
-depend strongly on size. Defaults further depend on problem type: SciML problems
-(i.e. embedding ML models) have different characteristics and therefore use different
-defaults than purely mechanistic problems. For this reason, the page is split into
-mechanistic and SciML models.
+parameters), since ODE solver performance and especially gradient-computation methods depend
+strongly on size. Defaults further depend on problem type: SciML problems (i.e. embedding ML
+models) have different characteristics and therefore use different defaults than purely
+mechanistic problems. For this reason, the page is split into mechanistic and SciML models.
 
-!!! tip "Non-stiff models"
-    Defaults are tuned for biological, typically stiff models. For non-stiff models, see
-    [Speeding up non-stiff models](@ref nonstiff_models).
+::: tip Non-stiff models
+
+Defaults are tuned for biological, typically stiff models. For non-stiff models, see
+[Speeding up non-stiff models](@ref nonstiff_models).
+
+::::
 
 ## Mechanistic problems
 
-This section outlines the default options for mechanistic models. The primary determinant
-of the default configuration is model size.
+This section outlines the default options for mechanistic models. The primary determinant of
+the default configuration is model size.
 
 ### Small models (≤20 parameters and ≤15 ODEs)
 
@@ -42,9 +44,9 @@ The rationale is:
   `QNDF()`) can also work well, but are often less robust.
 - **Gradient method:** Forward-mode automatic differentiation via
   [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) is the fastest option for
-  small models, often faster than sensitivity-equation approaches implemented in
-  tools such as AMICI. Performance can sometimes be improved by tuning the ForwardDiff chunk
-  size, but the optimal value is model-dependent.
+  small models, often faster than sensitivity-equation approaches implemented in tools such
+  as AMICI. Performance can sometimes be improved by tuning the ForwardDiff chunk size, but
+  the optimal value is model-dependent.
 - **Hessian method:** Computing the full Hessian with
   [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) is often feasible for small
   models, and access to the full Hessian typically improves parameter estimation
@@ -70,18 +72,17 @@ The rationale is:
   Note, for models with many events, BDF solvers are often slow and in such cases
   `KenCarp4()` is a reliable alternative.
 - **Gradient method:** Forward-mode automatic differentiation via
-  [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) is typically the most
-  fasest choice in this regime.
+  [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) is typically the most fasest
+  choice in this regime.
 - **Hessian method:** Computing the full Hessian with
   [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) is often too expensive. A
   Gauss–Newton approximation is usually a good compromise and often outperforms (L)BFGS
   approximations in practice [frohlich2022fides, persson2025petab](@cite).
 
-!!! note "Reusing sensitivities"
-    For optimizers that evaluate gradient and Gauss-Newton Hessian together (e.g.
-    Fides.jl), setting `gradient_method = :ForwardEquations` with
-    `reuse_sensitivities = true` will reduce runtime. See Fides.jl in
-    [Optimization algorithms and recommendations](@ref options_optimizers) for details.
+!!! note "Reusing sensitivities" For optimizers that evaluate gradient and Gauss-Newton
+Hessian together (e.g. Fides.jl), setting `gradient_method = :ForwardEquations` with
+`reuse_sensitivities = true` will reduce runtime. See Fides.jl in [Optimization algorithms
+and recommendations](@ref options_optimizers) for details.
 
 ### Large models (≥75 parameters or ≥75 ODEs)
 
@@ -185,14 +186,14 @@ petab_prob = PEtabODEProblem(
 ```
 
 The rationale is that when the ML model is evaluated outside the ODE dynamics, ML gradients
-can be computed in three steps: (1) compute the Jacobian of the ML model output with
-respect to its parameters; (2) compute the gradient of the objective with respect to the
-ODE parameters (including those set by the ML model); and (3) obtain the ML-parameter
-gradient via a Jacobian-vector product between the Jacobian from (1) and the gradient
-from (2). This separates ML-parameter gradients from mechanistic gradients, so defaults
-are determined by the characteristics of the ODE model. In addition, setting
-`split_over_conditions = true` enables compilation/reuse of the ML model reverse pass when
-computing the Jacobian, which reduces gradient runtime.
+can be computed in three steps: (1) compute the Jacobian of the ML model output with respect
+to its parameters; (2) compute the gradient of the objective with respect to the ODE
+parameters (including those set by the ML model); and (3) obtain the ML-parameter gradient
+via a Jacobian-vector product between the Jacobian from (1) and the gradient from (2). This
+separates ML-parameter gradients from mechanistic gradients, so defaults are determined by
+the characteristics of the ODE model. In addition, setting `split_over_conditions = true`
+enables compilation/reuse of the ML model reverse pass when computing the Jacobian, which
+reduces gradient runtime.
 
 ## References
 

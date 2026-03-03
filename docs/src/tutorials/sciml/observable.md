@@ -1,12 +1,14 @@
 # [ML models in observables](@id observable_ml)
 
-Mechanistic models can be misspecified, or the mapping from model states to measurements
-may be only partially known. Both scenarios can be addressed by augmenting the observable
+Mechanistic models can be misspecified, or the mapping from model states to measurements may
+be only partially known. Both scenarios can be addressed by augmenting the observable
 formula in `PEtabObservable` with a neural network.
 
 This tutorial shows how to include an ML model in the observable formula. It assumes
-familiarity with the [SciML starter tutorial](@ref sciml_starter). As a running example,
-the Michaelis-Menten model from the mechanistic [starting tutorial](@ref tutorial) is used:
+familiarity with the [SciML starter tutorial](@ref sciml_starter). As a running example, the
+Michaelis-Menten model from the mechanistic [starting tutorial](@ref tutorial) is used:
+
+:::tabs
 
 == Model as ReactionSystem
 
@@ -31,40 +33,30 @@ nothing # hide
 == Model as ODESystem
 
 ```@example 2
-using ModelingToolkit, PEtab
-using ModelingToolkit: t_nounits as t, D_nounits as D
+using ModelingToolkitBase, PEtab
+using ModelingToolkitBase: t_nounits as t, D_nounits as D
 
-@mtkmodel SYS begin
-    @parameters begin
-        S0
-        c1
-        c2
-        c3 = 1.0
-    end
-    @variables begin
-        S(t) = S0
-        E(t) = 50.0
-        SE(t) = 0.1
-        P(t) = 0.1
-    end
-    @equations begin
-        # Dynamics
-        D(S) ~ -c1 * S * E + c2 * SE
-        D(E) ~ -c1 * S * E + c2 * SE + c3 * SE
-        D(SE) ~ c1 * S * E - c2 * SE - c3 * SE
-        D(P) ~ c3 * SE
-    end
-end
-@mtkbuild sys = SYS()
+@parameters S0 c1 c2 c3 = 3.0
+@variables S(t) = S0 E(t) = 50.0 SE(t) = 0.1 P(t) = 0.1
+eqs = [
+    D(S) ~ -c1 * S * E + c2 * SE
+    D(E) ~ -c1 * S * E + c2 * SE + c3 * SE
+    D(SE) ~ c1 * S * E - c2 * SE - c3 * SE
+    D(P) ~ c3 * SE
+]
+@named sys_model = System(eqs, t)
+sys = mtkcompile(sys_model)
 nothing # hide
 ```
 
+:::
+
 ## Defining ML models in observable formulas
 
-An ML model can be embedded in the observable formula of a `PEtabObservable` by (1)
-defining a Lux.jl model and (2) wrapping it as an `MLModel` that specifies its inputs and
-declares an output variable that can be referenced in observable formulas. For example,
-assume the ML model takes the states `S` and `E` as input:
+An ML model can be embedded in the observable formula of a `PEtabObservable` by (1) defining
+a Lux.jl model and (2) wrapping it as an `MLModel`, where its inputs and an output variable
+are declared for use in observable formulas. For example, assume the ML model takes the
+states `S` and `E` as input:
 
 ```@example 1
 using Lux, PEtab
@@ -80,8 +72,8 @@ ml_model = MLModel(
 ```
 
 Here, `false` indicates that the ML model is not evaluated pre-simulation; instead it is
-evaluated when observables are computed. With this, the output variable `output1` can be
-used in the observable formulas:
+evaluated when observables are computed. The output variable `output1` can then be used in
+observable formulas:
 
 ```@example 1
 @variables P(t) output1(t)
@@ -94,8 +86,8 @@ observables = [
 
 When an ML model appears in an observable, the observable formula should be defined in
 `PEtabObservable` (rather than in the model system). This allows PEtab.jl to compute
-gradients more efficiently. While the inputs are states here, they can also be general
-expressions of model quantities.
+gradients more efficiently. Also, while the ML inputs are states here, they can also be
+general expressions of model quantities.
 
 Given the `PEtabObservable`s, the rest of the `PEtabODEProblem` is created as usual:
 
@@ -123,14 +115,13 @@ petab_prob = PEtabODEProblem(petab_model)
 
 ## Simulation condition-specific inputs
 
-When an ML model is used in the observable formula, additional informative non-time-series
-data (e.g. images or other covariates) may be available per simulation condition. Such
-data can be included by giving the ML model multiple inputs: one based on model quantities
-(e.g. states) and one provided via `PEtabCondition`. The general approach for multiple
-input arguments is described in [Pre-simulation ML models](@ref pre_simulate_ml); this
-section focuses on the observable case.
+If additional informative non-time-series data (e.g. images or other covariates) are
+available per simulation condition, they can be included by giving the ML model multiple
+inputs: one based on model quantities (e.g. states) and one provided via `PEtabCondition`.
+The general approach for multiple input arguments is described in [Pre-simulation ML
+models](@ref pre_simulate_ml); this section focuses on the observable case.
 
-As a concrete example, assume the ML model takes the states `[S, E]`, as well as static
+Assume in the example above that the ML model takes the states `[S, E]`, as well as static
 simulation-condition-specific data provided via `input2`. The first step is to define the
 `MLModel`:
 
@@ -159,6 +150,7 @@ simulation_conditions = [
     PEtabCondition(:cond1, :input2 => rand(4)),
     PEtabCondition(:cond2, :input2 => rand(4)),
 ]
+nothing # hide
 ```
 
 The `PEtabODEProblem` can then be built as usual:

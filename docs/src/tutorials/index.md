@@ -12,13 +12,14 @@ features, and how to run and configure parameter estimation.
 - [Simulation condition-specific parameters](@ref condition_parameters): Subset of model
   parameters which are estimated take different across simulation conditions.
 - [Observable and noise parameters](@ref petab_observable_options): Observable/noise
-  parameters in `PEtabObservable` formulas that are not part of the model system (e.g. scale/offset), optionally time-point-specific.
+  parameters in `PEtabObservable` formulas that are not part of the model system (e.g.
+  scale/offset), optionally time-point-specific.
 - [Events/callbacks](@ref define_events): Time- or state-triggered events/callbacks.
 - [Import PEtab standard format](@ref import_petab_problem): Load problems from PEtab
   standard format.
-- Model definition: More on defining `ReactionSystem` and `ODESystem` models can be
-  found in the [Catalyst.jl](https://docs.sciml.ai/Catalyst/stable/) and
-  [ModelingToolkit.jl](https://docs.sciml.ai/ModelingToolkit/dev/) documentation
+- Model definition: More on defining `ReactionSystem` and `ODESystem` models can be found in
+  the [Catalyst.jl](https://docs.sciml.ai/Catalyst/stable/) and
+  [ModelingToolkitBase.jl](https://docs.sciml.ai/ModelingToolkit/dev/) documentation
   respectively.
 
 ## Parameter estimation for mechanistic models

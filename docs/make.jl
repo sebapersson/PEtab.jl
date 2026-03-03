@@ -40,8 +40,14 @@ makedocs(
                 "Optimization algorithms and recommendations" => "tutorials/parameter_estimation/optimizers.md",
                 "Model selection with PEtab Select" => "tutorials/parameter_estimation/model_selection.md",
                 "Using optimizers directly" => "tutorials/parameter_estimation/wrap.md",
-                "Bayesian inference" => "tutorials/parameter_estimation/inference.md",  # if you want it here
+                "Bayesian inference" => "tutorials/parameter_estimation/inference.md",
             ],
+            "Scientific machine learning" => Any[
+                "SciML starter tutorial" => "tutorials/sciml/starting_tutorial.md",
+                "ML models in observables" => "tutorials/sciml/observable.md",
+                "Pre-simulation ML models" => "tutorials/sciml/pre_simulate.md",
+                "Importing PEtab-SciML standard format" => "tutorials/sciml/standard_format.md",
+            ]
         ],
         "API" => "API.md",
         "Configuration" => Any[
@@ -50,6 +56,7 @@ makedocs(
             "Speeding up non-stiff models" => "performance/none_stiff.md",
             "Speeding up condition-specific parameters" => "performance/condition_parameters.md",
             "Speeding up large models with adjoints" => "performance/adjoint.md",
+            "Speeding up pre-simulation SciML models" => "performance/pre_simulate.md"
         ],
         "Contributing" => "contributing.md",
         "References" => "references.md",

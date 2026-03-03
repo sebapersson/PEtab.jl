@@ -57,7 +57,7 @@ pest = [p_c1, p_c2, p_S0, p_sigma]
 # Measurements; simulate with 'true' parameters
 using DataFrames, OrdinaryDiffEqRosenbrock
 ps = [:c1 => 1.0, :c2 => 10.0, :c3 => 1.0, :S0 => 100.0]
-u0 = [:S => 100.0, :E => 50.0, :SE => 0.0, :P => 0.0]
+u0 = [:E => 50.0, :SE => 0.0, :P => 0.0]
 tspan = (0.0, 10.0)
 oprob = ODEProblem(rn, u0, tspan, ps)
 sol = solve(oprob, Rodas5P(); saveat = 0:0.5:10.0)
@@ -85,7 +85,8 @@ x0 = get_x(petab_prob)
 
 `x0` is a `ComponentArray`, so parameters can be accessed by name. Names are also prefixed
 by parameter scale, and by default parameters are estimated on a `log10` scale as it often
-improves estimation performance [raue2013lessons, hass2019benchmark](@cite). Values should be modified on the estimation scale:
+improves estimation performance [raue2013lessons, hass2019benchmark](@cite). Values should
+be modified on the estimation scale:
 
 ```@example 1
 x0.log10_c1 = log10(10.0)
@@ -109,7 +110,8 @@ res = calibrate(petab_prob, x0, Optim.IPNewton())
 ```
 
 `calibrate` returns a [`PEtabOptimisationResult`](@ref) containing the optimized parameters
-and common diagnostics. To visualize the fit and other diagnostics, see [Plotting optimization results](@ref pest_plotting). For example, the model fit can be plotted with:
+and common diagnostics. To visualize the fit and other diagnostics, see [Plotting
+optimization results](@ref pest_plotting). For example, the model fit can be plotted with:
 
 ```@example 1
 using Plots
@@ -128,7 +130,8 @@ starting points. This approach empirically performs well for ODE models
 
 The first step is to generate `n` starting points within the parameter bounds. Pure random
 sampling tends to cluster, so PEtab.jl supports quasi-Monte Carlo sampling (Latin hypercube
-by default), which typically gives more space-filling points that improves estimation performance [raue2013lessons](@cite):
+by default), which typically gives more space-filling points that improves estimation
+performance [raue2013lessons](@cite):
 
 ```@example 1
 using Distributions, QuasiMonteCarlo, Plots
@@ -180,9 +183,9 @@ ms_res = calibrate_multistart(
 ```
 
 Results are returned as a `PEtabMultistartResult`, which contains per-run statistics and the
-best solution. Different ways to visualize results are found in
-[Plotting optimization results](@ref pest_plotting). A common diagnostic is a waterfall
-plot of the final objective values across runs:
+best solution. Different ways to visualize results are found in [Plotting optimization
+results](@ref pest_plotting). A common diagnostic is a waterfall plot of the final objective
+values across runs:
 
 ```@example 1
 plot(ms_res; plot_type=:waterfall)
@@ -243,8 +246,8 @@ estimation tutorials also covers:
   with an optimization package such as Optim.jl.
 - [Model selection (PEtab-select)](@ref petab_select): Automatic model selection with
   PEtab-Select [pathirana2025petab](@cite).
-- Litterature references: Good introductions on parameter estimation for ODE models can
-  be found in [raue2013lessons, villaverde2022protocol](@cite).
+- Litterature references: Good introductions on parameter estimation for ODE models can be
+  found in [raue2013lessons, villaverde2022protocol](@cite).
 
 ## References
 

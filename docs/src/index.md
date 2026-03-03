@@ -1,21 +1,22 @@
 # PEtab.jl
 
-PEtab.jl is a Julia package for creating parameter-estimation problems for fitting ordinary differential equation (ODE) models to data.
+PEtab.jl is a Julia package for creating parameter-estimation problems for fitting ordinary
+differential equation (ODE) models to data.
 
 ## Main features
 
 - Define problems directly in Julia, with models provided as
   [Catalyst.jl](https://github.com/SciML/Catalyst.jl) `ReactionSystem`,
-  [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) `ODESystem`, or as
+  [ModelingToolkitBase.jl](https://github.com/SciML/ModelingToolkit.jl) `ODESystem`, or as
   [SBML](https://sbml.org/) (via
   [SBMLImporter.jl](https://github.com/sebapersson/SBMLImporter.jl)). Problems can be
   defined with a wide range of features, such as multiple observables and/or simulation
   conditions, events, and pre-equilibration (steady-state initialization).
 - Import and work with PEtab problems in both v1 and v2 of the
   [PEtab](https://petab.readthedocs.io/en/latest/) standard format.
-- Built on the SciML ecosystem, with access to performant stiff and non-stiff ODE
-  solvers from [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl), and
-  efficient gradients via forward-mode automatic differentiation (small models) and adjoint
+- Built on the SciML ecosystem, with access to performant stiff and non-stiff ODE solvers
+  from [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl), and efficient
+  gradients via forward-mode automatic differentiation (small models) and adjoint
   sensitivity analysis (large models).
 - High performant, often faster than the state-of-the-art toolbox AMICI by ~2× for gradient
   and parameter-estimation workloads [persson2025petab](@cite).
@@ -25,17 +26,14 @@ PEtab.jl is a Julia package for creating parameter-estimation problems for fitti
   [AdvancedHMC.jl](https://github.com/TuringLang/AdvancedHMC.jl) (including NUTS) and
   AdaptiveMCMC.jl.
 
-!!! note "Star us on GitHub!"
-    If you find the package useful in your work please consider giving us a star on
-    [GitHub](https://github.com/sebapersson/PEtab.jl). This will help us secure funding in
-    the future to continue maintaining the package.
+!!! note "Star us on GitHub!" If you find the package useful in your work please consider
+giving us a star on [GitHub](https://github.com/sebapersson/PEtab.jl). This will help us
+secure funding in the future to continue maintaining the package.
 
-!!! tip "Latest news: PEtab.jl v4.0"
-    PEtab.jl v4.0 is a breaking release adding support for the PEtab format v2 and
-    introducing a revised Julia API for defining parameter estimation problems. Several new
-    features were also added; see the
-    [HISTORY](https://github.com/sebapersson/PEtab.jl/blob/main/HISTORY.md) file for
-    details.
+!!! tip "Latest news: PEtab.jl v4.0" PEtab.jl v4.0 is a breaking release adding support for
+the PEtab format v2 and introducing a revised Julia API for defining parameter estimation
+problems. Several new features were also added; see the
+[HISTORY](https://github.com/sebapersson/PEtab.jl/blob/main/HISTORY.md) file for details.
 
 ## Installation
 

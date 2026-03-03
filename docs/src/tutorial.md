@@ -48,7 +48,7 @@ corresponding `PEtabODEProblem` and estimates these parameters.
 
 A PEtab parameter estimation problem (`PEtabODEProblem`) is defined by:
 
-1. **Dynamic model**: A Catalyst `ReactionSystem` or ModelingToolkit `ODESystem`.
+1. **Dynamic model**: A Catalyst `ReactionSystem` or ModelingToolkitBase `ODESystem`.
 2. **Observables**: `PEtabObservable`s that map model states/parameters to measured
    quantities, including noise models (observable + noise formula).
 3. **Parameters**: `PEtabParameter`s specifying which parameters are estimated (and optional
@@ -60,9 +60,9 @@ A PEtab parameter estimation problem (`PEtabODEProblem`) is defined by:
 
 ### Defining the dynamic model
 
-The dynamic model can be provided as either a Catalyst `ReactionSystem` or a ModelingToolkit
-`ODESystem`. It is recommended to define default parameter values, initial conditions, and
-(when possible) observables directly in the model system.
+The dynamic model can be provided as either a Catalyst `ReactionSystem` or a
+ModelingToolkitBase `ODESystem`. It is recommended to define default parameter values,
+initial conditions, and (when possible) observables directly in the model system.
 
 For the Michaelis–Menten problem above, the `ReactionSystem` representation is:
 
@@ -95,36 +95,22 @@ not need values in the system. Any species or parameters without specified value
 Using a `ODESystem`, the model is defined as:
 
 ```@example 1
-using ModelingToolkit
-using ModelingToolkit: t_nounits as t, D_nounits as D
-@mtkmodel SYS begin
-    @parameters begin
-        S0
-        c1
-        c2
-        c3 = 1.0
-    end
-    @variables begin
-        S(t) = S0
-        E(t) = 50.0
-        SE(t) = 0.0
-        P(t) = 0.0
-        # Observables
-        obs1(t)
-        obs2(t)
-    end
-    @equations begin
-        # Dynamics
-        D(S) ~ -c1 * S * E + c2 * SE
-        D(E) ~ -c1 * S * E + c2 * SE + c3 * SE
-        D(SE) ~ c1 * S * E - c2 * SE - c3 * SE
-        D(P) ~ c3 * SE
-        # Observables
-        obs1 ~ S + E
-        obs2 ~ P
-    end
-end
-@mtkbuild sys = SYS()
+using ModelingToolkitBase
+using ModelingToolkitBase: t_nounits as t, D_nounits as D
+@parameters S0 c1 c2 c3
+@variables S(t) = S0 E(t) = 50.0 SE(t) = 0.0 P(t) = 0.0 obs1(t) obs2(t)
+eqs = [
+    # Dynamics
+    D(S) ~ -c1 * S * E + c2 * SE
+    D(E) ~ -c1 * S * E + c2 * SE + c3 * SE
+    D(SE) ~ c1 * S * E - c2 * SE - c3 * SE
+    D(P) ~ c3 * SE
+    # Observables
+    obs1 ~ S + E
+    obs2 ~ P
+]
+@named sys_model = System(eqs, t)
+sys = mtkcompile(sys_model)
 nothing # hide
 ```
 
@@ -211,7 +197,7 @@ For our working example, using simulated data, a valid measurement table could b
 using OrdinaryDiffEqRosenbrock, DataFrames
 # Simulate with 'true' parameters
 ps = [:c1 => 1.0, :c2 => 10.0, :c3 => 1.0, :S0 => 100.0]
-u0 = [:S => 100.0, :E => 50.0, :SE => 0.0, :P => 0.0]
+u0 = [:E => 50.0, :SE => 0.0, :P => 0.0]
 tspan = (0.0, 10.0)
 oprob = ODEProblem(rn, u0, tspan, ps)
 sol = solve(oprob, Rodas5P(); saveat = 0:0.5:10.0)
@@ -343,7 +329,7 @@ Latin hypercube sampling within bounds) and runs the optimizer. For example, to 
 starts with Fides (here using a `BFGS` Hessian approximation):
 
 ```@example 1
-using StableRNGs
+using Fides, StableRNGs
 rng = StableRNG(42)
 ms_res = calibrate_multistart(rng, petab_prob, Fides.BFGS(), 50)
 ```
@@ -364,16 +350,19 @@ be plotted as:
 plot(ms_res, petab_prob; linewidth = 2.0)
 ```
 
-!!! tip "Parallelize multi-start runs"
-    `calibrate_multistart` can often be sped up by running starts in parallel via the
-    `nprocs` keyword (see [this tutorial](@ref multistart_est)).
+::: tip Parallelize multi-start runs
+
+`calibrate_multistart` can often be sped up by running starts in parallel via the `nprocs`
+keyword (see [this tutorial](@ref multistart_est)).
+
+:::
 
 ## Next steps
 
 This tutorial introduced how to define a `PEtabODEProblem`. For all available options when
 building a problem (e.g. options for `PEtabParameter`), see the [API](@ref API). For
-additional supported features when setting up a parameter-estimation problem, see
-the following tutorials:
+additional supported features when setting up a parameter-estimation problem, see the
+following tutorials:
 
 - [Simulation conditions](@ref petab_sim_cond): Measurements collected under different
   experimental conditions (e.g. simulations use different initial values).
@@ -382,13 +371,14 @@ the following tutorials:
 - [Simulation condition-specific parameters](@ref condition_parameters): Subset of model
   parameters which are estimated take different across simulation conditions.
 - [Observable and noise parameters](@ref petab_observable_options): Observable/noise
-  parameters in `PEtabObservable` formulas that are not part of the model system (e.g. scale/offset), optionally time-point-specific.
+  parameters in `PEtabObservable` formulas that are not part of the model system (e.g.
+  scale/offset), optionally time-point-specific.
 - [Events/callbacks](@ref define_events): Time- or state-triggered events/callbacks.
 - [Import PEtab standard format](@ref import_petab_problem): Load problems from PEtab
   standard format.
-- Model definition: More on defining `ReactionSystem` and `ODESystem` models can be
-  found in the [Catalyst.jl](https://docs.sciml.ai/Catalyst/stable/) and
-  [ModelingToolkit.jl](https://docs.sciml.ai/ModelingToolkit/dev/) documentation
+- Model definition: More on defining `ReactionSystem` and `ODESystem` models can be found in
+  the [Catalyst.jl](https://docs.sciml.ai/Catalyst/stable/) and
+  [ModelingToolkitBase.jl](https://docs.sciml.ai/ModelingToolkitBase/dev/) documentation
   respectively.
 
 In addition to defining a parameter estimation problem, this tutorial showed how to fit
@@ -406,15 +396,15 @@ parameters using Fides.jl. For more on parameter estimation, see:
 Lastly, `PEtabODEProblem` has many configurable options. Defaults are based on extensive
 benchmarks (see [Default PEtabODEProblem options](@ref default_options))
 [persson2025petab](@cite), and available gradient/Hessian settings are summarized in
-[Derivative methods](@ref gradient_support). While these defaults are often performant,
-they are not optimal for every problem. See the **Configuration** section for performance
-tips and tuning guidelines.
+[Derivative methods](@ref gradient_support). While these defaults are often performant, they
+are not optimal for every problem. See the **Configuration** section for performance tips
+and tuning guidelines.
 
 ## Copy pasteable example
 
 ```@example 2
-using Catalyst, ModelingToolkit, PEtab
-using ModelingToolkit: t_nounits as t, D_nounits as D
+using Catalyst, ModelingToolkitBase, PEtab
+using ModelingToolkitBase: t_nounits as t, D_nounits as D
 
 rn = @reaction_network begin
     @parameters S0 c3=3.0
@@ -433,34 +423,20 @@ rn = @reaction_network begin
     c3, SE --> P + E
 end
 
-@mtkmodel SYS begin
-    @parameters begin
-        S0
-        c1
-        c2
-        c3 = 1.0
-    end
-    @variables begin
-        S(t) = S0
-        E(t) = 50.0
-        SE(t) = 0.0
-        P(t) = 0.0
-        # Observables
-        obs1(t)
-        obs2(t)
-    end
-    @equations begin
-        # Dynamics
-        D(S) ~ -c1 * S * E + c2 * SE
-        D(E) ~ -c1 * S * E + c2 * SE + c3 * SE
-        D(SE) ~ c1 * S * E - c2 * SE - c3 * SE
-        D(P) ~ c3 * SE
-        # Observables
-        obs1 ~ S + E
-        obs2 ~ P
-    end
-end
-@mtkbuild sys = SYS()
+@parameters S0 c1 c2 c3
+@variables S(t) = S0 E(t) = 50.0 SE(t) = 0.0 P(t) = 0.0 obs1(t) obs2(t)
+eqs = [
+    # Dynamics
+    D(S) ~ -c1 * S * E + c2 * SE
+    D(E) ~ -c1 * S * E + c2 * SE + c3 * SE
+    D(SE) ~ c1 * S * E - c2 * SE - c3 * SE
+    D(P) ~ c3 * SE
+    # Observables
+    obs1 ~ S + E
+    obs2 ~ P
+]
+@named sys_model = System(eqs, t)
+sys = mtkcompile(sys_model)
 
 # Observables
 @parameters sigma
@@ -479,7 +455,7 @@ pest = [p_c1, p_c2, p_S0, p_sigma]
 # Measurements; simulate with 'true' parameters
 using OrdinaryDiffEqRosenbrock, DataFrames
 ps = [:c1 => 1.0, :c2 => 10.0, :c3 => 1.0, :S0 => 100.0]
-u0 = [:S => 100.0, :E => 50.0, :SE => 0.0, :P => 0.0]
+u0 = [:E => 50.0, :SE => 0.0, :P => 0.0]
 tspan = (0.0, 10.0)
 oprob = ODEProblem(rn, u0, tspan, ps)
 sol = solve(oprob, Rodas5P(); saveat = 0:0.5:10.0)

@@ -18,9 +18,12 @@ This tutorial shows how to (i) define priors in a `PEtabODEProblem`, and (ii) ru
 inference with AdaptiveMCMC.jl and AdvancedHMC.jl. Note that this functionality is planned
 to move into a separate package, and the API will change in the future.
 
-!!! note
-    To use Bayesian inference functionality, load Bijectors.jl, LogDensityProblems.jl,
-    and LogDensityProblemsAD.jl.
+::: note
+
+To use Bayesian inference functionality, load Bijectors.jl, LogDensityProblems.jl, and
+LogDensityProblemsAD.jl.
+
+:::
 
 ## Creating a Bayesian inference problem
 
@@ -31,26 +34,19 @@ model. First, let’s define the model and simulate data:
 
 ```@example 1
 using DataFrames, Distributions, OrdinaryDiffEqRosenbrock,
-    ModelingToolkit, PEtab, Plots
-using ModelingToolkit: t_nounits as t, D_nounits as D
+    ModelingToolkitBase, PEtab, Plots
+using ModelingToolkitBase: t_nounits as t, D_nounits as D
 
-@mtkmodel SYS begin
-    @parameters begin
-        b1
-        b2
-    end
-    @variables begin
-        x(t) = 0.0
-        # observables
-        obs_x(t)
-    end
-    @equations begin
-        D(x) ~ b2 * (b1 - x)
-        # observables
-        obs_x ~ x
-    end
-end
-@mtkbuild sys = SYS()
+@parameters b1 b2
+@variables x(t) = 0.0 obs_x(t)
+eqs = [
+    # Dynamics
+    D(x) ~ b2 * (b1 - x)
+    # Observables
+    obs_x ~ x
+]
+@named sys_model = System(eqs, t)
+sys = mtkcompile(sys_model)
 
 # Simulate data with Normal measurement noise (σ = 0.03)
 import Random # hide
@@ -127,8 +123,11 @@ xprior = to_prior_scale(petab_prob.xnominal_transformed, target)
 xinference = target.inference_info.bijectors(xprior)
 ```
 
-!!! warning
-    The initial value passed to the sampler must be on the inference scale (`xinference`).
+::: warning
+
+The initial value passed to the sampler must be on the inference scale (`xinference`).
+
+:::
 
 ## Bayesian inference with AdvancedHMC.jl (NUTS)
 
@@ -162,8 +161,12 @@ using Plots, StatsPlots
 plot(chain_hmc)
 ```
 
-!!! note
-    `PEtab.to_chains` converts samples back to the **prior (linear) scale** (not the unconstrained inference scale).
+::: note
+
+`PEtab.to_chains` converts samples back to the **prior (linear) scale** (not the
+unconstrained inference scale).
+
+:::
 
 ## Bayesian inference with AdaptiveMCMC.jl
 
