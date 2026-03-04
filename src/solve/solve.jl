@@ -99,8 +99,7 @@ function solve_conditions!(
         else
             try
                 odesols[cid] = solve_no_pre_equlibrium(
-                    oprob_cid, simulation_info, osolver,
-                    ss_solver, cid, tsave, dense,
+                    oprob_cid, simulation_info, osolver, ss_solver, cid, tsave, dense,
                     float_tspan
                 )
             catch e

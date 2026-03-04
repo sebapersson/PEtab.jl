@@ -119,9 +119,14 @@ function _get_odeproblem(
     else
         u0 = odeproblem.u0
     end
-    odeproblem = remake(odeproblem, p = p, u0 = u0)
 
-    return odeproblem
+    # To avoid problem with type-specialization when computing gradient using
+    # ForwardDiff.Dual, the problem must be built with SciMLBase.FullSpecialize
+    f!_raw = SciMLBase.unwrapped_f(odeproblem.f)
+    odeproblem_use = ODEProblem{true, SciMLBase.FullSpecialize}(
+        f!_raw, u0[:], odeproblem.tspan, p
+    )
+    return odeproblem_use
 end
 function _get_odeproblem(
         ::ModelSystem, model::PEtabModel, model_info::ModelInfo, specialize_level,
@@ -132,11 +137,13 @@ function _get_odeproblem(
     @unpack sys_mutated, speciemap, parametermap = model
     _parametermap = _reorder_parametermap(parametermap, model_info.xindices.ids[:sys])
     _u0 = first.(speciemap) .=> 0.0
-    ode_f = ODEFunction(
+    ode_f! = ODEFunction(
         _get_system(sys_mutated); u0 = first.(_u0), p = first.(_parametermap),
         jac = true, sparse = sparse_jacobian
     )
-    odeproblem = ODEProblem(ode_f, last.(_u0), [0.0, 5.0e3], last.(_parametermap))
+    odeproblem = ODEProblem{true, SciMLBase.FullSpecialize}(
+        ode_f!, last.(_u0), [0.0, 5.0e3], last.(_parametermap)
+    )
     return remake(odeproblem, p = Float64.(odeproblem.p), u0 = Float64.(odeproblem.u0))
 end
 
