@@ -4,7 +4,7 @@
 =#
 
 using PEtab, SciMLSensitivity, OrdinaryDiffEqRosenbrock, OrdinaryDiffEqSDIRK,
-    OrdinaryDiffEqBDF, Sundials, Test
+    OrdinaryDiffEqBDF, OrdinaryDiffEqTsit5, Sundials, Lux, Test
 
 @testset "Test default options" begin
     # Check that we get correct default setting
@@ -62,4 +62,24 @@ using PEtab, SciMLSensitivity, OrdinaryDiffEqRosenbrock, OrdinaryDiffEqSDIRK,
     prob = PEtabODEProblem(model; gradient_method = :ForwardDiff, verbose = false)
     @test prob.probinfo.solver.solver isa KenCarp4
     @test prob.probinfo.sparse_jacobian == false
+
+    # SciML problem defaults
+    path_yaml = joinpath(
+        @__DIR__, "petab_sciml_testsuite", "test_cases", "sciml_problem_import", "001",
+        "petab", "problem.yaml"
+    )
+    ml_models = MLModels(path_yaml)
+    prob = PEtabModel(path_yaml; ml_models = ml_models) |>
+        PEtabODEProblem
+    @test prob.probinfo.solver.solver isa Tsit5
+    @test prob.probinfo.solver_gradient.solver isa Tsit5
+
+    path_yaml = joinpath(
+        @__DIR__, "petab_sciml_testsuite", "test_cases", "sciml_problem_import", "002",
+        "petab", "problem.yaml"
+    )
+    ml_models = MLModels(path_yaml)
+    prob = PEtabModel(path_yaml; ml_models = ml_models) |>
+        PEtabODEProblem
+    @test prob.probinfo.split_over_conditions == true
 end

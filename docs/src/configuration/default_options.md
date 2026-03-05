@@ -133,8 +133,8 @@ petab_prob = PEtabODEProblem(
 )
 ```
 
-when the number of estimated parameters is ≤ 100. For models with > 100 estimated
-parameters, the default is:
+when the number of estimated parameters is ≤ 75. For models with > 75 estimated parameters,
+the default is:
 
 ```julia
 petab_prob = PEtabODEProblem(

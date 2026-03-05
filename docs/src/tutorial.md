@@ -97,7 +97,7 @@ Using a `ODESystem`, the model is defined as:
 ```@example 1
 using ModelingToolkitBase
 using ModelingToolkitBase: t_nounits as t, D_nounits as D
-@parameters S0 c1 c2 c3
+@parameters S0 c1 c2 c3=3.0
 @variables S(t) = S0 E(t) = 50.0 SE(t) = 0.0 P(t) = 0.0 obs1(t) obs2(t)
 eqs = [
     # Dynamics
@@ -423,7 +423,7 @@ rn = @reaction_network begin
     c3, SE --> P + E
 end
 
-@parameters S0 c1 c2 c3
+@parameters S0 c1 c2 c3=3.0
 @variables S(t) = S0 E(t) = 50.0 SE(t) = 0.0 P(t) = 0.0 obs1(t) obs2(t)
 eqs = [
     # Dynamics

@@ -12,7 +12,11 @@ function PEtabODEProblemCache(
     n_parameters_sys = _get_n_parameters_sys(model.sys_mutated)
 
     # DiffCache options
-    chunk_size = n_estimate + n_estimate^2
+    n_ps_chunk = n_estimate
+    if _has_pre_simulate_ml_models(model_info)
+        n_ps_chunk += 12
+    end
+    chunk_size = n_ps_chunk + n_ps_chunk^2
     chunk_size = chunk_size > 100 ? 100 : chunk_size
     if hessian_method in [:ForwardDiff, :BlockForwardDiff, :GaussNewton]
         level_cache = 2

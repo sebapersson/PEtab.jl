@@ -214,7 +214,7 @@ nothing # hide
 Given a `PEtabModel`, a `PEtabODEProblem` can then be constructed:
 
 ```@example 1
-petab_prob = PEtabODEProblem(model_ude; odesolver = ODESolver(Tsit5()))
+petab_prob = PEtabODEProblem(model_ude)
 describe(petab_prob)
 ```
 
@@ -256,10 +256,8 @@ global x # hide
 global state # hide
 n_epochs = 5000
 x = deepcopy(x0)
-
-petab_prob = PEtabODEProblem(model_ude; odesolver = ODESolver(QNDF())) # hide
-
 learning_rate = 1e-3
+
 state = Optimisers.setup(Adam(learning_rate), x)
 for epoch in 1:n_epochs
     global x # hide

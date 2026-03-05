@@ -6,6 +6,7 @@ using SciMLBase
 using OrdinaryDiffEqBDF
 using OrdinaryDiffEqRosenbrock
 using OrdinaryDiffEqSDIRK
+import OrdinaryDiffEqTsit5: Tsit5
 using Catalyst
 using ComponentArrays
 using DataFrames

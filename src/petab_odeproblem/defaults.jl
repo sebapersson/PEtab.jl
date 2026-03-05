@@ -42,6 +42,12 @@ function _get_split_over_conditions(
         split::Union{Nothing, Bool}, model_info::ModelInfo
     )::Bool
     !isnothing(split) && return split
+
+    # See documentation for why we want to split for pre-simulate ml models
+    if _has_pre_simulate_ml_models(model_info)
+        return true
+    end
+
     nxdynamic_sys = _get_n_xdynamic_sys(model_info)
     nxdynamic = length(model_info.xindices.ids[:est_to_dynamic_mech])
     if nxdynamic ≥ 2 * nxdynamic_sys
@@ -98,7 +104,7 @@ end
 
 function _get_odesolver(
         solver::Union{ODESolver, Nothing}, model_size::Symbol, gradient::Bool,
-        gradient_method::Symbol, sensealg; default_solver = nothing
+        gradient_method::Symbol, ude::Bool, sensealg; default_solver = nothing
     )::ODESolver
     !isnothing(solver) && gradient == false && return solver
     solver = isnothing(solver) ? default_solver : solver
@@ -111,15 +117,21 @@ function _get_odesolver(
             differentiation. Either use a ForwardDiff compatible solver, e.g. most Julia \
             solvers like QNDF and Rodas5P, or a non-autodiff gradient method like :Adjoint \
             or :ForwardEquations with sensealg = SciMLSensitivity.ForwardSensitivity()"))
+
     elseif !isnothing(solver)
         return solver
     end
+
+    if ude == true
+        return ODESolver(Tsit5())
+    end
+
     if model_size == :Small
         return ODESolver(Rodas5P())
-    end
-    if model_size == :Medium
+    elseif model_size == :Medium
         return ODESolver(QNDF())
     end
+
     return if model_size == :Large
         @warn "For large models we strongly recomend to compare different ODE-solvers \
             instead of using default options."
@@ -179,4 +191,10 @@ function _get_chunksize(chunksize::Int64, xdynamic::Vector{<:AbstractFloat})
     else
         return ForwardDiff.Chunk(chunksize)
     end
+end
+
+_is_ude(model_info::ModelInfo)::Bool = !isempty(model_info.xindices.ids[:ml_in_ode])
+
+function _has_pre_simulate_ml_models(model_info::ModelInfo)::Bool
+    return !isempty(model_info.xindices.ids[:ml_pre_simulate])
 end

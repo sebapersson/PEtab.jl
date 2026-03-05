@@ -33,7 +33,7 @@ sys = @reaction_network begin
 end
 
 lux_model = Lux.Chain(
-    Conv((5, 5), 3 => 1; cross_correlation = true),
+    Conv((5, 5), 3 => 1),
     FlattenLayer(),
     Dense(36 => 1, Lux.softplus),
 )
@@ -95,10 +95,13 @@ petab_prob_joint = PEtabODEProblem(
 )
 
 x = get_x(petab_prob_split)
-_ = petab_prob_split.grad(x) # hide
-_ = petab_prob_joint.grad(x) # hide
+import Suppressor # hide
+Suppressor.@suppress begin # hide
+    _ = petab_prob_split.grad(x) # hide
+    _ = petab_prob_joint.grad(x) # hide
+end # hide
 t_split = @elapsed petab_prob_split.grad(x)
 t_joint = @elapsed petab_prob_joint.grad(x)
-@printf("Wall time split_over_conditions=true : %.2e\n", t_split)
-@printf("Wall time split_over_conditions=false: %.2e\n", t_joint)
+@printf("Wall time split_over_conditions=true : %.2e seconds\n", t_split)
+@printf("Wall time split_over_conditions=false: %.2e seconds\n", t_joint)
 ```

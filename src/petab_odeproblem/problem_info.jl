@@ -26,11 +26,12 @@ function PEtabODEProblemInfo(
 
     split_use = _get_split_over_conditions(split_over_conditions, model_info)
 
+    is_ude = _is_ude(model_info)
     odesolver_use = _get_odesolver(
-        odesolver, model_size, false, gradient_method_use, sensealg_use
+        odesolver, model_size, false, gradient_method_use, is_ude, sensealg_use
     )
     odesolver_gradient_use = _get_odesolver(
-        odesolver_gradient, model_size, true, gradient_method_use, sensealg_use;
+        odesolver_gradient, model_size, true, gradient_method_use, is_ude, sensealg_use;
         default_solver = odesolver_use
     )
     _ss_solver = _get_ss_solver(ss_solver)

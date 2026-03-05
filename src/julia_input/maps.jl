@@ -157,13 +157,14 @@ function _check_unassigned_variables(
     else
         ids_input = nothing
     end
-    for (variableid, value) in variable_map
+    for (variable_id, value) in variable_map
         value = value |> string
         value != "0.0" && continue
-        haskey(default_values, variableid) && continue
 
-        # As usual specie ids can be on the form S(t) ...
-        id = replace(variableid |> string, "(t)" => "")
+        # Specie ids can be on the form S(t) ...
+        id = replace(string(variable_id), "(t)" => "")
+        haskey(default_values, id) && continue
+
         !isnothing(ids_input) && id in ids_input && continue
         # Parameter for initial value
         if length(id) > 8 && id[1:8] == "__init__"
@@ -176,7 +177,7 @@ function _check_unassigned_variables(
         end
 
         @warn "The $(whichmap) $id has not been assigned a value among PEtabParameters, \
-               simulation conditions, or in the $(whichmap) map. It default to 0."
+               simulation conditions, or in the $(whichmap) map. It defaults to 0."
     end
     return nothing
 end
