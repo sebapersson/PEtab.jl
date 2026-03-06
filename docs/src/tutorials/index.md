@@ -17,10 +17,8 @@ features, and how to run and configure parameter estimation.
 - [Events/callbacks](@ref define_events): Time- or state-triggered events/callbacks.
 - [Import PEtab standard format](@ref import_petab_problem): Load problems from PEtab
   standard format.
-- Model definition: More on defining `ReactionSystem` and `ODESystem` models can be found in
-  the [Catalyst.jl](https://docs.sciml.ai/Catalyst/stable/) and
-  [ModelingToolkitBase.jl](https://docs.sciml.ai/ModelingToolkit/dev/) documentation
-  respectively.
+- [Supported model systems](@ref model_systems): Supported ways to define the dynamic model
+  (`ReactionSystem`, `ODESystem`, or `ODEProblem`) and available options.
 
 ## Parameter estimation for mechanistic models
 

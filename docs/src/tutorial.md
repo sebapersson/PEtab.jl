@@ -376,10 +376,8 @@ following tutorials:
 - [Events/callbacks](@ref define_events): Time- or state-triggered events/callbacks.
 - [Import PEtab standard format](@ref import_petab_problem): Load problems from PEtab
   standard format.
-- Model definition: More on defining `ReactionSystem` and `ODESystem` models can be found in
-  the [Catalyst.jl](https://docs.sciml.ai/Catalyst/stable/) and
-  [ModelingToolkitBase.jl](https://docs.sciml.ai/ModelingToolkitBase/dev/) documentation
-  respectively.
+- [Supported model systems](@ref model_systems): Supported ways to define the dynamic model
+  (`ReactionSystem`, `ODESystem`, or `ODEProblem`) and available options.
 
 On the top of the functionality for mechanistic models, scientific machine learning (SciML)
 problems combining machine learning (ML) and mechanistic modules are also supported. For
