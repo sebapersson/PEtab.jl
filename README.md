@@ -1,5 +1,6 @@
 # PEtab.jl
-*Create parameter estimation problems for dynamic models*
+
+_Create parameter estimation problems for dynamic models_
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://sebapersson.github.io/PEtab.jl/stable/)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://sebapersson.github.io/PEtab.jl/dev/)
@@ -12,22 +13,30 @@
 [Documentation](https://sebapersson.github.io/PEtab.jl/stable/) |
 [Contributing](https://sebapersson.github.io/PEtab.jl/stable/CONTRIBUTING)
 
-PEtab.jl is a Julia package for creating parameter estimation problems for fitting Ordinary Differential Equation (ODE) models to time-lapse data in Julia.
+PEtab.jl is a Julia package for creating parameter estimation problems to fit ordinary
+differential equation (ODE) and scientific machine learning (SciML) models to time-series
+data.
 
 Major features are:
 
-- Define problems directly in Julia, with models provided as
+- Define ODE parameter estimation problems directly in Julia, with models provided as
   [Catalyst.jl](https://github.com/SciML/Catalyst.jl) `ReactionSystem`,
-  [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) `ODESystem`, or as
+  [ModelingToolkitBase.jl](https://github.com/SciML/ModelingToolkit.jl) `ODESystem`, or as
   [SBML](https://sbml.org/) (via
-  [SBMLImporter.jl](https://github.com/sebapersson/SBMLImporter.jl)). Problems can be
-  defined with a wide range of features, such as multiple observables and/or simulation
-  conditions, events, and pre-equilibration (steady-state initialization).
+  [SBMLImporter.jl](https://github.com/sebapersson/SBMLImporter.jl)). Problems can include
+  features such as multiple observables and/or simulation conditions, events, and
+  pre-equilibration (steady-state initialization).
+- Define scientific machine learning (SciML) problems combining mechanistic ODE models with
+  machine-learning (ML) components. Three problem types are supported; (1) ML in the ODE
+  dynamics (e.g. UDEs/Neural ODEs), (2) ML in the observable/measurement model linking
+  simulations to data, and (3) pre-simulation ML mapping high-dimensional inputs (e.g.
+  images) to ODE parameters.
 - Import and work with PEtab problems in both v1 and v2 of the
-  [PEtab](https://petab.readthedocs.io/en/latest/) standard format.
-- Built on the SciML ecosystem, with access to performant stiff and non-stiff ODE
-  solvers from [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl), and
-  efficient gradients via forward-mode automatic differentiation (small models) and adjoint
+  [PEtab](https://petab.readthedocs.io/en/latest/) format, as well as the
+  [PEtab-SciML](https://github.com/PEtab-dev/petab_sciml) standard format.
+- Built on the SciML ecosystem, with access to performant stiff and non-stiff ODE solvers
+  from [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl), and efficient
+  gradients via forward-mode automatic differentiation (small models) and adjoint
   sensitivity analysis (large models).
 - High performant, often faster than the state-of-the-art toolbox AMICI by ~2× for gradient
   and parameter-estimation workloads.
@@ -39,13 +48,15 @@ Major features are:
 
 ## Installation
 
-PEtab.jl is a registered Julia package and can be installed with the Julia package manager using:
+PEtab.jl is a registered Julia package and can be installed with the Julia package manager
+using:
 
 ```julia
 julia> import Pkg; Pkg.add("PEtab")
 ```
 
-PEtab.jl is compatible with Julia 1.10 and above. For additional installation details, see the [documentation](https://sebapersson.github.io/PEtab.jl/stable/#Installation).
+PEtab.jl is compatible with Julia 1.10 and above. For additional installation details, see
+the [documentation](https://sebapersson.github.io/PEtab.jl/stable/#Installation).
 
 ## Citation
 

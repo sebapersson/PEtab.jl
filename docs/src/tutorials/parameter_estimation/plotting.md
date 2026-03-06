@@ -51,9 +51,13 @@ pest_plotting_multirun_indexing)). When many runs are performed, the plot can be
 cluttered, therefore only the 10 best runs are shown (can be [customized](@ref
 pest_plotting_multirun_indexing)).
 
-!!! note "y-axis scale" For `plot_type = :objective` (as well as `:best_objective`,
-`:waterfall`, and `:runtime_eval`), PEtab.jl automatically chooses a linear or logarithmic
-y-axis. These defaults can be overridden with `yaxis_scale` and `obj_shift`.
+::: info y-axis scale
+
+For `plot_type = :objective` (as well as `:best_objective`, `:waterfall`, and
+`:runtime_eval`), PEtab.jl automatically chooses a linear or logarithmic y-axis. These
+defaults can be overridden with `yaxis_scale` and `obj_shift`.
+
+:::
 
 ### Best objective value plot
 
@@ -274,8 +278,11 @@ observable ID. For example, to retrieve the plot for `E` in `cond1`:
 comp_dict["cond1"]["obs_e"]
 ```
 
-!!! note "Pre-equilibration" For models with pre-equilibration, specify the condition as
-`pre_eq_id => simulation_id`.
+::: info Pre-equilibration
+
+For models with pre-equilibration, specify the condition as `pre_eq_id => simulation_id`.
+
+:::
 
 ### Residuals
 

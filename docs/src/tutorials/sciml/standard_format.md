@@ -19,8 +19,8 @@ model is replaced by a neural network:
 
 ```math
 \begin{align*}
-\frac{\mathrm{d}prey}{\mathrm{d}t} &= \alpha prey + \mathrm{NN}(prey, predator)[1] \\
-\frac{\mathrm{d}predator}{\mathrm{d}t} &= -\gamma predator + \mathrm{NN}(prey, predator)[2]
+\frac{\mathrm{d} \mathrm{prey}}{\mathrm{d}t} &= \alpha \cdot \mathrm{prey} + \mathrm{NN}(\mathrm{prey}, \mathrm{predator})[1] \\
+\frac{\mathrm{d} \mathrm{predator}}{\mathrm{d}t} &= -\gamma \cdot \mathrm{predator} + \mathrm{NN}(\mathrm{prey}, \mathrm{predator})[2]
 \end{align*}
 ```
 

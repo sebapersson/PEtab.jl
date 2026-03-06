@@ -79,10 +79,14 @@ The rationale is:
   Gauss–Newton approximation is usually a good compromise and often outperforms (L)BFGS
   approximations in practice [frohlich2022fides, persson2025petab](@cite).
 
-!!! note "Reusing sensitivities" For optimizers that evaluate gradient and Gauss-Newton
-Hessian together (e.g. Fides.jl), setting `gradient_method = :ForwardEquations` with
-`reuse_sensitivities = true` will reduce runtime. See Fides.jl in [Optimization algorithms
-and recommendations](@ref options_optimizers) for details.
+::: tip Reusing sensitivities
+
+For optimizers that evaluate gradient and Gauss-Newton Hessian together (e.g. Fides.jl),
+setting `gradient_method = :ForwardEquations` with `reuse_sensitivities = true` will reduce
+runtime. See Fides.jl in [Optimization algorithms and recommendations](@ref
+options_optimizers) for details.
+
+:::
 
 ### Large models (≥75 parameters or ≥75 ODEs)
 

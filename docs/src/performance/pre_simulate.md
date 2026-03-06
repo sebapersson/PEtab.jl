@@ -10,7 +10,7 @@ Jacobian-vector product between the Jacobian from (1) and the gradient from (2).
 This behavior is controlled by `split_over_conditions` when constructing `PEtabODEProblem`.
 Currently, `split_over_conditions = true` is the default and enables precompilation of the
 reverse pass. To see the effect, lets compare gradient runtimes for an example where a small
-convolutational neural network is used to set parameters in the PEtab problem:
+convolutational neural network is used to set parameters in the ODE model:
 
 ```@example 1
 using Catalyst, DataFrames, Lux, PEtab, StableRNGs

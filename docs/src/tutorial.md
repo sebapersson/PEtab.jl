@@ -381,6 +381,20 @@ following tutorials:
   [ModelingToolkitBase.jl](https://docs.sciml.ai/ModelingToolkitBase/dev/) documentation
   respectively.
 
+On the top of the functionality for mechanistic models, scientific machine learning (SciML)
+problems combining machine learning (ML) and mechanistic modules are also supported. For
+details see:
+
+- [SciML starter tutorial](@ref sciml_starter): Introductory tutorial on how to create and
+  train a SciML problem that combines mechanistic ODE and ML (neural network) models.
+- [ML models in observables](@ref observable_ml): define an ML model in the observable
+  formula of a `PEtabObservable` (e.g. to correct model misspecification).
+- [Pre-simulation ML models](@ref pre_simulate_ml): define ML models that map input data
+  (e.g. high-dimensional images) to ODE parameters or initial conditions prior to model
+  simulation.
+- [Importing PEtab SciML](@ref import_petab_scimlproblem): import problems in the
+  PEtab-SciML standard format.
+
 In addition to defining a parameter estimation problem, this tutorial showed how to fit
 parameters using Fides.jl. For more on parameter estimation, see:
 

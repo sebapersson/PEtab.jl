@@ -250,7 +250,6 @@ function and its gradient can be computed with `petab_prob.nllh(x)` and `petab_p
 respectively. For example, to train for 5000 epochs with `Adam`:
 
 ```@example 1
-using OrdinaryDiffEqBDF # hide
 using Optimisers
 global x # hide
 global state # hide
@@ -312,6 +311,98 @@ multiple shooting). For more on improving model training see ADD!
 Lastly, as for mechanistic models, `PEtabODEProblem` has many configurable options for SciML
 problems. A discussion of defaults and recommendations is available in [Default
 PEtabODEProblem options](@ref default_options).
+
+## Copy pasteable example
+
+```@example 2
+using ComponentArrays, Lux, PEtab
+
+# MLModel
+lux_model1 = Lux.Chain(
+    Lux.Dense(1 => 3, Lux.softplus, use_bias = false),
+    Lux.Dense(3 => 3, Lux.softplus, use_bias = false),
+    Lux.Dense(3 => 1, Lux.softplus, use_bias = false),
+)
+ml_model = MLModel(:net1, lux_model1, false)
+
+# Create UDE-problem
+function ude_f!(du, u, p, t, ml_models)
+    X, Y = u
+    net1 = ml_models[:net1]
+    nn, _ = net1.lux_model([Y], p.net1, net1.st)
+    du[1] = nn[1][1] - p.d * X
+    du[2] = X - p.d * Y
+end
+p_mechanistic = ComponentArray(d = 1.0)
+u0 = ComponentArray(X = 2.0, Y = 0.1)
+ude_prob = UDEProblem(ude_f!, u0, (0.0, 10.0), p_mechanistic, ml_model)
+
+# Parameters to estimate
+pest = [
+    PEtabMLParameter(:net1),
+    PEtabParameter(:d; scale = :log10)
+]
+
+# Observables linking model output to data
+observables = [
+    PEtabObservable(:obs_X, :X, 0.5),
+    PEtabObservable(:obs_Y, :Y, 0.7),
+]
+
+# Simulate data
+using OrdinaryDiffEqTsit5, DataFrames
+function f_true!(du, u, p, t)
+    X, Y = u
+    v, K, n, d = p
+    du[1] = (v * Y^n) / (Y^n + K^n) - d * X
+    du[2] = X - d * Y
+end
+u0_true = [2.0, 0.1]
+p_true = [1.1, 2.0, 3.0, 0.5]
+tend = 44.0
+ode_true = ODEProblem(f_true!, u0_true, (0.0, tend), p_true)
+sol = solve(
+    ode_true, Tsit5(); abstol = 1e-8, reltol = 1e-8, saveat = 0:2:tend
+)
+data_X = sol[1, :] .+ randn(length(sol.t)) .* 0.5
+data_Y = sol[2, :] .+ randn(length(sol.t)) .* 0.7
+df1 = DataFrame(obs_id = "obs_X", time = sol.t, measurement = data_X)
+df2 = DataFrame(obs_id = "obs_Y", time = sol.t, measurement = data_Y)
+measurements = vcat(df1, df2)
+
+# Create parameter estimation problem
+model_ude = PEtabModel(
+    ude_prob, observables, measurements, pest; ml_models = ml_model
+)
+petab_prob = PEtabODEProblem(model_ude)
+
+# Get random start-guess for model training
+using StableRNGs
+rng = StableRNG(1) # for reproducibility
+x0 = get_startguesses(rng, petab_prob, 1)
+
+# Simple Adam training loop
+using Optimisers, Plots
+global x # hide
+global state # hide
+n_epochs = 5000
+x = deepcopy(x0)
+learning_rate = 1e-3
+state = Optimisers.setup(Adam(learning_rate), x)
+for epoch in 1:n_epochs
+    global x # hide
+    global state # hide
+    g = petab_prob.grad(x)
+    state, x = Optimisers.update(state, x, g)
+
+    # Stop if the objective cannot be evaluated (e.g. simulation failure)
+    if !isfinite(petab_prob.nllh(x))
+        break
+    end
+end
+plot(x, petab_prob)
+nothing # hide
+```
 
 ## References
 

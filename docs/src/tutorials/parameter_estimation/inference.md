@@ -18,7 +18,7 @@ This tutorial shows how to (i) define priors in a `PEtabODEProblem`, and (ii) ru
 inference with AdaptiveMCMC.jl and AdvancedHMC.jl. Note that this functionality is planned
 to move into a separate package, and the API will change in the future.
 
-::: note
+::: info
 
 To use Bayesian inference functionality, load Bijectors.jl, LogDensityProblems.jl, and
 LogDensityProblemsAD.jl.
@@ -161,7 +161,7 @@ using Plots, StatsPlots
 plot(chain_hmc)
 ```
 
-::: note
+::: info
 
 `PEtab.to_chains` converts samples back to the **prior (linear) scale** (not the
 unconstrained inference scale).

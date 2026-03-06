@@ -12,9 +12,9 @@ media change. In PEtab.jl, events are specified with `PEtabEvent`:
 PEtabEvent
 ```
 
-This tutorial shows how to specify both time-triggered and state-triggered events (e.g.
-when a state crosses a threshold), as well as how to assign condition specific events.
-As a running example, we use the Michaelis–Menten model from the [starting tutorial](@ref
+This tutorial shows how to specify both time-triggered and state-triggered events (e.g. when
+a state crosses a threshold), as well as how to assign condition specific events. As a
+running example, we use the Michaelis–Menten model from the [starting tutorial](@ref
 tutorial).
 
 ```@example 1
@@ -59,10 +59,14 @@ default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm, 
 nothing # hide
 ```
 
-!!! note "Why `PEtabEvent`?"
-    While events/callbacks can also be encoded directly in a Catalyst `ReactionSystem` or an
-    `ODESystem`, using `PEtabEvent` is needed to ensure correct evaluation of the objective
-    function and its gradient [frohlich2017parameter](@cite), and it often also improves performance.
+::: info Why `PEtabEvent`?
+
+While events/callbacks can also be encoded directly in a Catalyst `ReactionSystem` or an
+`ODESystem`, using `PEtabEvent` is needed to ensure correct evaluation of the objective
+function and its gradient [frohlich2017parameter](@cite), and it often also improves
+performance.
+
+:::
 
 ## Time-triggered events
 
@@ -94,8 +98,8 @@ sol = get_odesol(x, petab_prob)
 plot(sol; linewidth = 2.0)
 ```
 
-The trigger time can also be a model parameter (which can be estimated). For example, to
-set `c1 => 2.0` when `t == c2`:
+The trigger time can also be a model parameter (which can be estimated). For example, to set
+`c1 => 2.0` when `t == c2`:
 
 ```@example 1
 @unpack c2 = rn
