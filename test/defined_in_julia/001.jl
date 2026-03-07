@@ -14,14 +14,14 @@ end
 
 t = default_t()
 D = default_time_deriv()
-@parameters k1 k2 a0 b0
-@variables A(t) = a0 B(t) = b0 obs_a(t)
+ps = @parameters k1 k2 a0 b0
+states = @variables A(t)=a0 B(t)=b0 obs_a(t)
 equations = [
     D(A) ~ -k1 * A + k2 * B
     D(B) ~ k1 * A - k2 * B
     obs_a ~ A
 ]
-@named sys_model = System(equations, t)
+@named sys_model = System(equations, t, states, ps)
 sys = ModelingToolkitBase.mtkcompile(sys_model)
 
 function f_ode1!(du, u, p, t)
