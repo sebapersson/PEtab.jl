@@ -2,10 +2,9 @@
 
 The dynamic ODE model in a `PEtabODEProblem` can be provided in three ways: (1) as a
 Catalyst `ReactionSystem`, (2) as a ModelingToolkitBase `ODESystem`, and (3) as an
-OrdinaryDiffEq `ODEProblem`.
-
-This page summarizes options and restrictions for each model system. As a running example,
-the Michaelis–Menten model from the [starting tutorial](@ref tutorial) is used:
+OrdinaryDiffEq `ODEProblem`.This page summarizes options and restrictions for each model
+system. As a running example, the Michaelis–Menten model from the [starting tutorial](@ref
+tutorial) is used:
 
 ```@example 1
 using DataFrames, PEtab
@@ -28,24 +27,24 @@ nothing # hide
 ## Shared model system options
 
 For all model systems, PEtab.jl reads default parameter/state values defined in the model
-system. If a value is not specified for a state or parameter that is not estimated, it
-defaults to zero.
+system. If a default value is not specified for a state or parameter that is not estimated,
+it defaults to zero.
 
-As an alternative, values for a subset of model variables can be provided via
-`speciemap`/`parametermap`, which take precedence over defaults in the model system. For
-example, maps for states/species and parameters can be built as:
+Additionally, default values for a subset of model variables can also be provided via
+`speciemap`/`parametermap`, which take precedence over model system defaults. For example,
+maps for states/species and parameters can be built as:
 
 ```@example 1
 using Catalyst
+# Option 1: keys as `Num`
 t = Catalyst.default_t()
 @species S(t) E(t) SE(t) P(t)
 @parameters S0 c3
-
-# Option 1: keys as `Num`
 speciemap = [S => S0, E => 1.0, SE => 0.0, P => 0.0]
 parametermap = [c3 => 3.0]
+
 # Option 2: keys as `Symbol`
-speciemap_sym = [:S => S0, :E => 1.0, :SE => 0.0, :P => 0.0]
+speciemap_sym = [:S => :S0, :E => 1.0, :SE => 0.0, :P => 0.0]
 parametermap_sym = [:c3 => 3.0]
 nothing # hide
 ```
@@ -53,7 +52,7 @@ nothing # hide
 ### Restrictions
 
 For all model systems vector-valued variables are currently not supported. For example, for
-a `ReactionSystem`:
+a `ReactionSystem` the following holds:
 
 ```julia
 # not allowed
@@ -67,7 +66,7 @@ The only exception is ML parameters when using UDE/Neural ODE models.
 ## Model as a `ReactionSystem`
 
 A [Catalyst.jl](https://github.com/SciML/Catalyst.jl) `ReactionSystem` is a valid dynamic
-model and is internally converted to an `ODESystem`. If observables are defined with
+model which internally is converted to an `ODESystem`. If observables are defined with
 `@observables` in the reaction network, they can be referenced directly in
 `PEtabObservable`. For example:
 
@@ -114,9 +113,9 @@ petab_prob = PEtabODEProblem(model)
 
 ## Model as an `ODESystem`
 
-A [ModelingToolkitBase.jl](https://github.com/SciML/ModelingToolkit.jl) `ODESystem` can be
-used as the dynamic model. Observables defined as algebraic equations (e.g. `obs1 ~ ...`)
-can be referenced by ID in `PEtabObservable`. For example:
+A [ModelingToolkitBase.jl](https://github.com/SciML/ModelingToolkit.jl) `ODESystem` is a
+valid dynamic model. Observables defined as algebraic equations (e.g. `obs1 ~ ...`) can be
+referenced by ID in `PEtabObservable`. For example:
 
 ```@example 1
 using ModelingToolkitBase
@@ -161,11 +160,11 @@ petab_prob = PEtabODEProblem(model)
 
 ## Model as an `ODEProblem`
 
-An `ODEProblem` can be used directly, for example when it is hard or not currently possible
+An `ODEProblem` is a valid dynamic model and is useful when, for example, it is not possible
 to define the model as a symbolic system. The main requirement is that PEtab.jl can identify
 state and parameter names. Therefore, `u0` and `p` must be provided as named containers
-(either a `ComponentArray` or a `NamedTuple`). Moreover, as the observable formula cannot be
-encoded in an ODEProblem, it must be coded in PEtabObservable. For example:
+(e.g. `ComponentArray` or `NamedTuple`). Moreover, since observable formulas cannot be
+encoded in an `ODEProblem`, they must be defined in `PEtabObservable`. For example:
 
 ```@example 1
 using ComponentArrays, OrdinaryDiffEqRosenbrock, SimpleUnPack
@@ -195,8 +194,8 @@ petab_prob = PEtabODEProblem(model)
 nothing # hide
 ```
 
-As we assign a parameter to an initial value for `S`, it needs to be provided as a
-`NamedTuple`.
+As we assign a parameter to an initial value for state `S`, initial values need to be
+provided as a `NamedTuple`.
 
 ::: warning Parameter access in `ODEProblem`
 

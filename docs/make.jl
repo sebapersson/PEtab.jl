@@ -33,6 +33,7 @@ makedocs(
                 "Events/callbacks" => "tutorials/define_problem/events.md",
                 "Observable and noise parameters" => "tutorials/define_problem/observable_noise_parameters.md",
                 "Importing PEtab standard format" => "tutorials/define_problem/standard_format.md",
+                "Supported model systems" => "tutorials/define_problem/model_system.md",
             ],
             "Parameter estimation" => Any[
                 "Parameter estimation tutorial" => "tutorials/parameter_estimation/extended_tutorial.md",
