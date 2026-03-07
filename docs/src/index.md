@@ -8,8 +8,9 @@ data.
 
 - Define ODE parameter estimation problems directly in Julia, with models provided as
   [Catalyst.jl](https://github.com/SciML/Catalyst.jl) `ReactionSystem`,
-  [ModelingToolkitBase.jl](https://github.com/SciML/ModelingToolkit.jl) `ODESystem`, or as
-  [SBML](https://sbml.org/) (via
+  [ModelingToolkitBase.jl](https://github.com/SciML/ModelingToolkit.jl) `ODESystem`, an
+  [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl) `ODEProblem`, or as
+  [SBML](https://sbml.org/) model (imported via
   [SBMLImporter.jl](https://github.com/sebapersson/SBMLImporter.jl)). Problems can be
   defined with a wide range of features, such as multiple observables and/or simulation
   conditions, events, and pre-equilibration (steady-state initialization).
@@ -41,12 +42,12 @@ future to continue maintaining the package.
 
 :::
 
-::: tip Latest news: PEtab.jl v4.0!
+::: tip Latest news: PEtab.jl v5.0!
 
-PEtab.jl v4.0 is a breaking release adding support for the PEtab format v2 and introducing a
-revised Julia API for defining parameter estimation problems. Several new features were also
-added; see the [HISTORY](https://github.com/sebapersson/PEtab.jl/blob/main/HISTORY.md) file
-for details.
+PEtab.jl v5.0 is a breaking release adding support for scientific machine learning (SciML)
+problems combining ODE and ML components. In addition, PEtab.jl has been updated to support
+Catalyst v16 and ModelingToolkitBase v1. For a full overview of changes, see the
+[HISTORY](https://github.com/sebapersson/PEtab.jl/blob/main/HISTORY.md) file.
 
 :::
 
