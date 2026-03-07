@@ -96,7 +96,7 @@ function test_nllh_grad_hess(model::PEtabModel, osolver::ODESolver)::Nothing
     tmp = osolver.solver
     osolver.solver = Tsit5()
     g = _compute_grad(x, model, :ForwardEquations, osolver; sensealg = ForwardSensitivity())
-    @test all(.≈(g, grad_ref; atol = 1e-3))
+    @test all(.≈(g, grad_ref; atol = 1.0e-3))
     osolver.solver = tmp
 
     H = _compute_hess(x, model, :ForwardDiff, osolver)

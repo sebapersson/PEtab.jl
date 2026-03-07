@@ -26,7 +26,7 @@ PEtab._set_ml_model_ps!(pnn, path_h5, nn3, :net1)
 @variables prey(t) = 0.44249296 predator(t) = 4.6280594
 eqs = [
     D(prey) ~ alpha * prey - beta * prey * predator,
-    D(predator) ~ gamma * predator * prey - delta * predator
+    D(predator) ~ gamma * predator * prey - delta * predator,
 ]
 @named sys_model = System(eqs, t)
 sys = mtkcompile(sys_model)

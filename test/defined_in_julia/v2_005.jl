@@ -18,7 +18,7 @@ end
 
 t = default_t()
 D = default_time_deriv()
-@parameters k1 k2 offset_A=2.0
+@parameters k1 k2 offset_A = 2.0
 @variables A(t) = 1.0 B(t) = 0.0 model_obs(t)
 equations = [
     D(A) ~ -k1 * A + k2 * B

@@ -11,7 +11,7 @@ speciemap = [:A => 1.0]
 t = default_t()
 D = default_time_deriv()
 @parameters k1 k2 par
-@variables A(t)=1.0 B(t)
+@variables A(t) = 1.0 B(t)
 equations = [
     D(A) ~ -k1 * A + k2 * B
     D(B) ~ k1 * A - k2 * B

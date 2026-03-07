@@ -48,7 +48,7 @@ function boehm_pyPESTO(model::PEtabModel, osolver::ODESolver)
         tmp = osolver.solver
         osolver.solver = Rodas5P(autodiff = false)
         g = _compute_grad(x, model, :ForwardEquations, osolver; sensealg = ForwardSensitivity())
-        @test all(.≈(g, grad_ref; atol = 1e-3))
+        @test all(.≈(g, grad_ref; atol = 1.0e-3))
         osolver.solver = tmp
 
         # For i == 2 the gradient is basically zero, and as Guass-Adjoint is not as

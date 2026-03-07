@@ -11,7 +11,7 @@ parametermap = [:k2 => 1.6]
 
 t = default_t()
 D = default_time_deriv()
-@parameters k1 k2=1.6
+@parameters k1 k2 = 1.6
 @variables A(t) = a0 B(t) = b0
 equations = [
     D(A) ~ -k1 * A + k2 * B

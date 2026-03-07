@@ -63,7 +63,7 @@ function export_petab(
     parameters_df = CSV.read(model.paths[:parameters], DataFrame; stringtype = String)
     @unpack nominal_value, parameter_id = model_info.petab_parameters
     for (i, id) in pairs(prob.xnames)
-        id in  prob.model_info.xindices.ids[:ml_est] && continue
+        id in prob.model_info.xindices.ids[:ml_est] && continue
         ix = findfirst(x -> x == id, parameter_id)
         if parameters_df.nominalValue[ix] isa AbstractString
             parameters_df.nominalValue[ix] = string(x_transformed[i])

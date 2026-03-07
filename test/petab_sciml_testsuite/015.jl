@@ -91,7 +91,7 @@ end
 
 conditions = [
     PEtabCondition(:e1, :net3_input => input_data1),
-    PEtabCondition(:e2, :net3_input => 30.),
+    PEtabCondition(:e2, :net3_input => 30.0),
 ]
 @test_throws PEtab.PEtabInputError begin
     model = PEtabModel(

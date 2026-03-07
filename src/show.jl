@@ -136,7 +136,7 @@ function show(io::IO, condition::PEtabCondition)
     opt = ""
     for i in eachindex(target_ids)
         if target_values[i] isa Array{<:Real}
-             opt *= "$(target_ids[i]) => $(summary(target_values[i])), "
+            opt *= "$(target_ids[i]) => $(summary(target_values[i])), "
         else
             opt *= "$(target_ids[i]) => $(target_values[i]), "
         end
@@ -293,7 +293,7 @@ function _ml_io_string(inputs, ml_model; max_show::Int = 6)::String
         n = length(syms)
         k = min(n, max_show)
         head = join(string.(syms[1:k]), ", ")
-        n > max_show ? "[$head, …]" : "[$head]"
+        return n > max_show ? "[$head, …]" : "[$head]"
     end
 
     # One input argument: Vector{Symbol}

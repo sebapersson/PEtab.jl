@@ -192,7 +192,7 @@ function _parse_array_input!(ml_model::MLModel, petab_tables::PEtabTables)
     return nothing
 end
 
-function _reshape_input_array(input_data::T)::T where T <: Vector{<:Real}
+function _reshape_input_array(input_data::T)::T where {T <: Vector{<:Real}}
     return input_data
 end
 function _reshape_input_array(input_data::Array{<:Real})

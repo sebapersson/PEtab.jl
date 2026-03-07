@@ -49,7 +49,7 @@ observables = [
 
 conditions = [
     PEtabCondition(:e1, :net6_input => [1.0, 2.0, 3.0]),
-    PEtabCondition(:e2, :net6_input => [3.0, 2.0, 1.0])
+    PEtabCondition(:e2, :net6_input => [3.0, 2.0, 1.0]),
 ]
 
 path_m = joinpath(dir_case, "measurements.tsv")

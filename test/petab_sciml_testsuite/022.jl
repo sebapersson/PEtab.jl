@@ -38,7 +38,7 @@ pest = [
     PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3),
     PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9),
     PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8),
-    PEtabMLParameter(:net4; value = pnn)
+    PEtabMLParameter(:net4; value = pnn),
 ]
 
 observables = [

@@ -332,4 +332,5 @@ function _parse_nominal_values!(
         throw(PEtabInputError("Invalid nominal parameter value: '$(value)' is not a \
             real number. Provide a numeric value (e.g. 1.23)"))
     end
+    return
 end

@@ -48,7 +48,7 @@ makedocs(
                 "ML models in observables" => "tutorials/sciml/observable.md",
                 "Pre-simulation ML models" => "tutorials/sciml/pre_simulate.md",
                 "Importing PEtab-SciML standard format" => "tutorials/sciml/standard_format.md",
-            ]
+            ],
         ],
         "API" => "API.md",
         "Configuration" => Any[
@@ -57,7 +57,7 @@ makedocs(
             "Speeding up non-stiff models" => "performance/none_stiff.md",
             "Speeding up condition-specific parameters" => "performance/condition_parameters.md",
             "Speeding up large models with adjoints" => "performance/adjoint.md",
-            "Speeding up pre-simulation SciML models" => "performance/pre_simulate.md"
+            "Speeding up pre-simulation SciML models" => "performance/pre_simulate.md",
         ],
         "Contributing" => "contributing.md",
         "References" => "references.md",

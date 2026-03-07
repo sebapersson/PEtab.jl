@@ -165,7 +165,7 @@ function test_ml_import(testcase, lux_model)::Nothing
             @test isfile(path_tmp)
             PEtab._set_ml_model_ps!(ps_test, path_tmp, lux_model, :net0)
             @test ps_ref == ps_test
-        # Test can write to existing file
+            # Test can write to existing file
         else
             cp(path_h5, path_tmp)
             ps_ref .= 0.0

@@ -256,8 +256,10 @@ function _get_mapping_table_io(
 
     for (i, io_id) in pairs(io_argument)
         if (
-            io_type == :inputs && ml_model.pre_initialization) || (io_type == :outputs &&
-                !ml_model.pre_initialization
+                io_type == :inputs && ml_model.pre_initialization
+            ) || (
+                io_type == :outputs &&
+                    !ml_model.pre_initialization
             )
             _mappings_df = DataFrame(
                 modelEntityId = "$(ml_id).$(io_type)[$(arg_idx)][$(i - 1)]",
