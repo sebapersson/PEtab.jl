@@ -1,0 +1,74 @@
+nn_model_id: net0
+inputs:
+- input_id: input0
+layers:
+- layer_id: layer1
+  layer_type: Conv3d
+  args:
+    stride:
+    - 1
+    - 1
+    - 1
+    padding:
+    - 0
+    - 0
+    - 0
+    dilation:
+    - 1
+    - 1
+    - 1
+    groups: 1
+    padding_mode: zeros
+    in_channels: 1
+    out_channels: 2
+    kernel_size:
+    - 5
+    - 5
+    - 5
+- layer_id: layer2
+  layer_type: Conv3d
+  args:
+    stride:
+    - 1
+    - 1
+    - 1
+    padding:
+    - 0
+    - 0
+    - 0
+    dilation:
+    - 1
+    - 1
+    - 1
+    groups: 1
+    padding_mode: zeros
+    in_channels: 2
+    out_channels: 1
+    kernel_size:
+    - 5
+    - 4
+    - 3
+forward:
+- name: net_input
+  op: placeholder
+  target: net_input
+  args: []
+  kwargs: {}
+- name: layer1
+  op: call_module
+  target: layer1
+  args:
+  - net_input
+  kwargs: {}
+- name: layer2
+  op: call_module
+  target: layer2
+  args:
+  - layer1
+  kwargs: {}
+- name: output
+  op: output
+  target: output
+  args:
+  - layer2
+  kwargs: {}

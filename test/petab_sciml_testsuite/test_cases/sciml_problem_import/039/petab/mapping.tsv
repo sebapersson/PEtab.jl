@@ -1,0 +1,5 @@
+petabEntityId	modelEntityId
+net6_input1	net6.inputs[0][0]
+net6_input2	net6.inputs[1]
+net6_output1	net6.outputs[0][0]
+net6_ps	net6.parameters

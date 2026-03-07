@@ -1,0 +1,4 @@
+targetId	targetValue
+net6_input1	prey
+net6_input2	array
+gamma	net6_output1

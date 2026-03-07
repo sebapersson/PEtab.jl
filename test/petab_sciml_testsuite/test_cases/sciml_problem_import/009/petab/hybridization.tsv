@@ -1,0 +1,5 @@
+targetId	targetValue
+net1_input1	prey
+net1_input2	predator
+net2_input1	alpha
+net2_input2	predator

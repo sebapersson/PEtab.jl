@@ -1,0 +1,4 @@
+targetId	targetValue
+net5_arg0	prey
+net5_arg1	predator
+gamma	net5_output1

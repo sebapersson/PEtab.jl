@@ -1,0 +1,26 @@
+model_files:
+  lv:
+    location: "lv.xml"
+    language: "sbml"
+measurement_files:
+  - "measurements.tsv"
+observable_files:
+  - "observables.tsv"
+format_version: 2
+experiment_files:
+  - "experiments.tsv"
+parameter_files:
+  - "parameters.tsv"
+mapping_files:
+  - "mapping.tsv"
+extensions:
+  sciml:
+    array_files:
+      - "net1_ps.hdf5"
+    hybridization_files:
+      - "hybridization.tsv"
+    neural_nets:
+      net1:
+        location: "net1.yaml"
+        pre_initialization: false
+        format: "YAML"

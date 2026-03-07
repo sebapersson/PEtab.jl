@@ -1,0 +1,72 @@
+nn_model_id: net3
+inputs:
+- input_id: input0
+layers:
+- layer_id: layer1
+  layer_type: Conv2d
+  args:
+    stride:
+    - 1
+    - 1
+    padding:
+    - 0
+    - 0
+    dilation:
+    - 1
+    - 1
+    groups: 1
+    padding_mode: zeros
+    in_channels: 3
+    out_channels: 1
+    kernel_size:
+    - 5
+    - 5
+    bias: true
+- layer_id: layer2
+  layer_type: Flatten
+  args:
+    start_dim: 1
+    end_dim: -1
+- layer_id: layer3
+  layer_type: Linear
+  args:
+    in_features: 36
+    out_features: 1
+    bias: true
+forward:
+- name: net_input
+  op: placeholder
+  target: net_input
+  args: []
+  kwargs: {}
+- name: layer1
+  op: call_module
+  target: layer1
+  args:
+  - net_input
+  kwargs: {}
+- name: layer2
+  op: call_module
+  target: layer2
+  args:
+  - layer1
+  kwargs: {}
+- name: layer3
+  op: call_module
+  target: layer3
+  args:
+  - layer2
+  kwargs: {}
+- name: relu
+  op: call_function
+  target: relu
+  args:
+  - layer3
+  kwargs:
+    inplace: false
+- name: output
+  op: output
+  target: output
+  args:
+  - relu
+  kwargs: {}

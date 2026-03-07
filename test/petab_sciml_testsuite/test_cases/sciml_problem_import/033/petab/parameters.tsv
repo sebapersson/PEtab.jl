@@ -1,0 +1,8 @@
+parameterId	parameterScale	lowerBound	upperBound	nominalValue	estimate	priorDistribution	priorParameters
+alpha	lin	0.0	15.0	1.3	1	uniform	0.0;15.0
+delta	lin	0.0	15.0	1.8	1	uniform	0.0;15.0
+beta	lin	0.0	15.0	0.9	1	uniform	0.0;15.0
+net1_input_pre1	lin	-Inf	Inf	1.0	0		
+net1_input_pre2	lin	-Inf	Inf	1.0	0		
+net1_layer1_prior	lin	-Inf	Inf	array	1	normal	0.0;2.0
+net1_ps	lin	-Inf	Inf	array	1	normal	0.0;1.0

@@ -1,0 +1,30 @@
+nn_model_id: net0
+inputs:
+- input_id: input0
+layers:
+- layer_id: layer1
+  layer_type: AdaptiveMaxPool3d
+  args:
+    output_size:
+    - 3
+    - 2
+    - 1
+    return_indices: false
+forward:
+- name: net_input
+  op: placeholder
+  target: net_input
+  args: []
+  kwargs: {}
+- name: layer1
+  op: call_module
+  target: layer1
+  args:
+  - net_input
+  kwargs: {}
+- name: output
+  op: output
+  target: output
+  args:
+  - layer1
+  kwargs: {}

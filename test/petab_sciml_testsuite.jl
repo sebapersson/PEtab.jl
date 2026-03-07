@@ -13,7 +13,7 @@ dir_tests = joinpath(@__DIR__, "petab_sciml_testsuite", "test_cases")
     end
 end
 
-ode_solver = ODESolver(Rodas5P(), abstol = 1.0e-10, reltol = 1.0e-10, maxiters = Int(1.0e6))
+ode_solver = ODESolver(Rodas5P(), abstol = 1.0e-10, reltol = 1.0e-10, maxiters = Int(1e6))
 @testset "PEtab SciML hybrid models" begin
     for i in 1:39
         test_case = i < 10 ? "00$i" : "0$i"

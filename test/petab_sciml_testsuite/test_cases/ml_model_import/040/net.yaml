@@ -1,0 +1,31 @@
+nn_model_id: net0
+inputs:
+- input_id: input0
+layers:
+- layer_id: layer1
+  layer_type: Linear
+  args:
+    in_features: 2
+    out_features: 5
+    bias: true
+forward:
+- name: net_input
+  op: placeholder
+  target: net_input
+  args: []
+  kwargs: {}
+- name: softmax
+  op: call_function
+  target: softmax
+  args:
+  - net_input
+  kwargs:
+    dim: 0
+    _stacklevel: 3
+    dtype: null
+- name: output
+  op: output
+  target: output
+  args:
+  - softmax
+  kwargs: {}

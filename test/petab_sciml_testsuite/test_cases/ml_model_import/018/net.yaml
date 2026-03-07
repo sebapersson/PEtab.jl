@@ -1,0 +1,140 @@
+nn_model_id: net0
+inputs:
+- input_id: input0
+layers:
+- layer_id: conv1
+  layer_type: Conv2d
+  args:
+    stride:
+    - 1
+    - 1
+    padding:
+    - 0
+    - 0
+    dilation:
+    - 1
+    - 1
+    groups: 1
+    padding_mode: zeros
+    in_channels: 1
+    out_channels: 6
+    kernel_size:
+    - 5
+    - 5
+    bias: true
+- layer_id: conv2
+  layer_type: Conv2d
+  args:
+    stride:
+    - 1
+    - 1
+    padding:
+    - 0
+    - 0
+    dilation:
+    - 1
+    - 1
+    groups: 1
+    padding_mode: zeros
+    in_channels: 6
+    out_channels: 16
+    kernel_size:
+    - 5
+    - 5
+    bias: true
+- layer_id: max_pool1
+  layer_type: MaxPool2d
+  args:
+    kernel_size:
+    - 2
+    - 2
+    stride:
+    - 2
+    - 2
+    padding: 0
+    dilation: 1
+    return_indices: false
+    ceil_mode: false
+- layer_id: fc1
+  layer_type: Linear
+  args:
+    in_features: 64
+    out_features: 120
+    bias: true
+- layer_id: fc2
+  layer_type: Linear
+  args:
+    in_features: 120
+    out_features: 84
+    bias: true
+- layer_id: fc3
+  layer_type: Linear
+  args:
+    in_features: 84
+    out_features: 10
+    bias: true
+- layer_id: flatten1
+  layer_type: Flatten
+  args:
+    start_dim: 1
+    end_dim: -1
+forward:
+- name: net_input
+  op: placeholder
+  target: net_input
+  args: []
+  kwargs: {}
+- name: conv1
+  op: call_module
+  target: conv1
+  args:
+  - net_input
+  kwargs: {}
+- name: max_pool1
+  op: call_module
+  target: max_pool1
+  args:
+  - conv1
+  kwargs: {}
+- name: conv2
+  op: call_module
+  target: conv2
+  args:
+  - max_pool1
+  kwargs: {}
+- name: max_pool1_1
+  op: call_module
+  target: max_pool1
+  args:
+  - conv2
+  kwargs: {}
+- name: flatten1
+  op: call_module
+  target: flatten1
+  args:
+  - max_pool1_1
+  kwargs: {}
+- name: fc1
+  op: call_module
+  target: fc1
+  args:
+  - flatten1
+  kwargs: {}
+- name: fc2
+  op: call_module
+  target: fc2
+  args:
+  - fc1
+  kwargs: {}
+- name: fc3
+  op: call_module
+  target: fc3
+  args:
+  - fc2
+  kwargs: {}
+- name: output
+  op: output
+  target: output
+  args:
+  - fc3
+  kwargs: {}
