@@ -2,7 +2,7 @@ function PEtab.ml_ps_to_hdf5(
         path::String, ml_model::MLModel, ps::Union{ComponentArray, NamedTuple}
     )::Nothing
     @unpack lux_model, ml_id = ml_model
-    PEtab.ml_ps_to_hdf5(path, lux_model, ml_id, ps)
+    return PEtab.ml_ps_to_hdf5(path, lux_model, ml_id, ps)
 end
 
 function PEtab.ml_ps_to_hdf5(
