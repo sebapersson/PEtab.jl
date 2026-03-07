@@ -2,8 +2,8 @@
     Test that the PEtab util functions return expected results
 =#
 
-using Catalyst, DataFrames, FiniteDifferences, ForwardDiff, OrdinaryDiffEqRosenbrock, Lux,
-    ModelingToolkitBase, PEtab, Test
+using Catalyst, DataFrames, FiniteDifferences, ForwardDiff, OrdinaryDiffEqRosenbrock,
+    OrdinaryDiffEqTsit5, Lux, ModelingToolkitBase, PEtab, Test
 
 function __sum_ps(x, prob)
     ps = get_ps(x, prob; retmap = false)
@@ -241,7 +241,7 @@ end
     _ = prob.nllh(x)
     # Reference values
     ode_prob_ref = prob.model_info.simulation_info.odesols[:e1].prob
-    sol_ref = solve(ode_prob_ref, Rodas5P(), abstol = 1.0e-8, reltol = 1.0e-8)
+    sol_ref = solve(ode_prob_ref, Tsit5(), abstol = 1.0e-8, reltol = 1.0e-8)
     # Test value
     ps_test = get_ps(x, prob)
     u0_test = get_u0(x, prob)

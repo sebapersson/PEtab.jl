@@ -30,7 +30,7 @@
             PEtabParameter(:k2, value = 0.6, scale = :lin),
         ]
         str_warn = "The parameter a0 has not been assigned a value among PEtabParameters, \
-                    simulation conditions, or in the parameter map. It default to 0."
+                    simulation conditions, or in the parameter map. It defaults to 0."
         @test_warn str_warn begin
             model = PEtabModel(
                 rn, observables, measurements, parameters; speciemap = speciemap,
@@ -44,7 +44,7 @@
         ]
         parameters = [PEtabParameter(:k1, value = 0.8, scale = :lin)]
         str_warn = "The parameter k2 has not been assigned a value among PEtabParameters, \
-                    simulation conditions, or in the parameter map. It default to 0."
+                    simulation conditions, or in the parameter map. It defaults to 0."
         @test_warn str_warn begin
             model = PEtabModel(
                 rn, observables, measurements, parameters; speciemap = speciemap,

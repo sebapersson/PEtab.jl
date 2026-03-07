@@ -1,7 +1,7 @@
 using CSV, DataFrames, LinearAlgebra, OrdinaryDiffEqRosenbrock, PEtab, Test
 
-function test_remake_parameters(model::PEtabModel, xchange, what_check; testtol = 1.0e-3)
-    ode_solver = ODESolver(Rodas5P(), abstol = 1.0e-12, reltol = 1.0e-12)
+function test_remake_parameters(model::PEtabModel, xchange, what_check; test_tol = 1.0e-3)
+    ode_solver = ODESolver(Rodas5P(autodiff = false), abstol = 1.0e-12, reltol = 1.0e-12)
     if :GradientForwardDiff in what_check
         prob1 = PEtabODEProblem(model; odesolver = ode_solver)
         prob2 = remake(prob1; parameters = xchange)
@@ -14,7 +14,7 @@ function test_remake_parameters(model::PEtabModel, xchange, what_check; testtol 
         imatch = findall(in(prob2.xnames), prob1.xnames)
         g1 = prob1.grad(get_x(prob1))
         g2 = prob2.grad(get_x(prob2))
-        @test all(.≈(g1[imatch], g2, atol = testtol))
+        @test all(.≈(g1[imatch], g2, atol = test_tol))
     end
 
     if :GradientForwardEquations in what_check
@@ -27,7 +27,7 @@ function test_remake_parameters(model::PEtabModel, xchange, what_check; testtol 
         imatch = findall(in(prob2.xnames), prob1.xnames)
         g1 = prob1.grad(get_x(prob1))
         g2 = prob2.grad(get_x(prob2))
-        @test all(.≈(g1[imatch], g2, atol = testtol))
+        @test all(.≈(g1[imatch], g2, atol = test_tol))
     end
 
     if :GaussNewton in what_check
@@ -46,7 +46,7 @@ function test_remake_parameters(model::PEtabModel, xchange, what_check; testtol 
                 h1GN[i1, j1] = _h1GN[i2, j2]
             end
         end
-        @test all(.≈(h1GN, h2GN, atol = testtol))
+        @test all(.≈(h1GN, h2GN, atol = test_tol))
     end
 
     if :Hessian in what_check
@@ -65,7 +65,7 @@ function test_remake_parameters(model::PEtabModel, xchange, what_check; testtol 
                 h1[i1, j1] = _h1[i2, j2]
             end
         end
-        @test all(.≈(h1, h2, atol = testtol))
+        @test all(.≈(h1, h2, atol = test_tol))
     end
 
     return if :FIM in what_check
@@ -85,7 +85,7 @@ function test_remake_parameters(model::PEtabModel, xchange, what_check; testtol 
                 FIM1[i1, j1] = _FIM1[i2, j2]
             end
         end
-        @test all(.≈(FIM1, FIM2, atol = testtol))
+        @test all(.≈(FIM1, FIM2, atol = test_tol))
     end
 end
 
@@ -204,8 +204,7 @@ xchange2 = [:k_exp_homo => 0.006170228086381]
 @info "Remake parameters"
 @testset "PEtab remake : Boehm parameters" begin
     methods_test = [
-        :GradientForwardDiff, :GradientForwardEquations, :GaussNewton, :Hessian,
-        :FIM,
+        :GradientForwardDiff, :GradientForwardEquations, :GaussNewton, :Hessian, :FIM,
     ]
     test_remake_parameters(model, xchange1, methods_test)
     test_remake_parameters(model, xchange2, methods_test)

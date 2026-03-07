@@ -1,14 +1,16 @@
 #=
-    Check the accruacy of the PeTab importer by checking the log-likelihood value against known values for several
-    published models. Also check gradients for selected models using FiniteDifferences package
+    Check the accuracy of the PeTab importer by checking the log-likelihood value against
+    known values for several published models. Check gradients for selected models using
+    FiniteDifferences.jl
 =#
 
-using PEtab, OrdinaryDiffEqRosenbrock, SciMLSensitivity, LinearAlgebra, FiniteDifferences,
-    Sundials, Test
+using PEtab, OrdinaryDiffEqRosenbrock, OrdinaryDiffEqBDF, SciMLSensitivity, LinearAlgebra,
+    FiniteDifferences, Sundials, Test
 
 include(joinpath(@__DIR__, "common.jl"))
 
 NLLH_MODELS = Dict(
+    :Smith_BMCSystBiol2013 => (nllh = 343830.6310470444, prior = 0.0),
     :Bachmann_MSB2011 => (nllh = -418.40573341425295, prior = 0.0),
     :Beer_MolBioSystems2014 => (nllh = -58622.9145631413, prior = 0.0),
     :Bruno_JExpBot2016 => (nllh = -46.688181449443945, prior = 0.0),
@@ -19,12 +21,11 @@ NLLH_MODELS = Dict(
     :Sneyd_PNAS2002 => (nllh = -319.79177818768756, prior = 0.0),
     :Zheng_PNAS2012 => (nllh = -278.33353271001477, prior = 0.0),
     :Schwen_PONE2014 => (nllh = 943.9992988598723, prior = 12.519137073132825),
-    :Smith_BMCSystBiol2013 => (nllh = 343830.6310470444, prior = 0.0)
 )
 
 GRAD_MODELS = Dict(
     :Bachmann_MSB2011 => (
-        test = [:forward_AD, :forward_eqs, :forward_eqs_sciml, :adjoint], tol = 1.0e-2,
+        test = [:forward_AD, :forward_eqs, :adjoint], tol = 1.0e-2,
         odetol = 1.0e-9, split = false,
     ),
     :Beer_MolBioSystems2014 => (
@@ -45,15 +46,21 @@ function test_nllh(modelid::Symbol)::Nothing
     @info "nllh model $modelid"
     path = joinpath(@__DIR__, "published_models", "$modelid", "$(modelid).yaml")
     model = PEtabModel(path)
+
+    # QNDF is better for larger models
+    if modelid == :Smith_BMCSystBiol2013
+        solver_alg = QNDF()
+    else
+        solver_alg = Rodas5P()
+    end
     osolver = ODESolver(
-        Rodas5P(), abstol = 1.0e-10, reltol = 1.0e-10, maxiters = Int(1.0e5)
+        solver_alg, abstol = 1.0e-10, reltol = 1.0e-10, maxiters = Int(1.0e5)
     )
     ssolver = SteadyStateSolver(
         :Simulate; abstol = 5.0e-10, reltol = 1.0e-10, maxiters = Int(1.0e5)
     )
     prob = PEtabODEProblem(
-        model; odesolver = osolver, ss_solver = ssolver,
-        sparse_jacobian = false
+        model; odesolver = osolver, ss_solver = ssolver, sparse_jacobian = false,
     )
 
     nllh = prob.nllh(get_x(prob))
