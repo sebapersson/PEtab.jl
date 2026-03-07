@@ -6,8 +6,8 @@
     the ODE solver, cost function, gradient and hessian is tested
  =#
 
-using PEtab, OrdinaryDiffEqRosenbrock, SciMLSensitivity, ForwardDiff, LinearAlgebra, CSV,
-    DataFrames, Sundials, Test
+using PEtab, OrdinaryDiffEqRosenbrock, OrdinaryDiffEqTsit5, SciMLSensitivity, ForwardDiff,
+    LinearAlgebra, CSV, DataFrames, Sundials, Test
 
 include(joinpath(@__DIR__, "common.jl"))
 
@@ -91,6 +91,13 @@ function test_nllh_grad_hess(model::PEtabModel, osolver::ODESolver)::Nothing
         sensealg = QuadratureAdjoint(autojacvec = ReverseDiffVJP(false))
     )
     @test all(.≈(normalize(g), normalize(grad_ref); atol = 1.0e-3))
+
+    # Test with other solver
+    tmp = osolver.solver
+    osolver.solver = Tsit5()
+    g = _compute_grad(x, model, :ForwardEquations, osolver; sensealg = ForwardSensitivity())
+    @test all(.≈(g, grad_ref; atol = 1e-3))
+    osolver.solver = tmp
 
     H = _compute_hess(x, model, :ForwardDiff, osolver)
     @test all(.≈(H, hess_ref; atol = 5.0e-3))

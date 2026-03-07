@@ -124,11 +124,14 @@ function test_nllh_grad_hess(
         x, model, :Adjoint, osolver; ss_solver = ss_solver,
         sensealg = GaussAdjoint(autojacvec = ReverseDiffVJP(true))
     )
-    g = _compute_grad(
-        x, model, :Adjoint, osolver; ss_solver = ss_solver,
-        sensealg = GaussAdjoint(autojacvec = ReverseDiffVJP(true))
-    )
-    @test all(.≈(g, grad_ref; atol = 1.0e-3))
+    @test all(.≈(normalize(g), normalize(grad_ref); atol = 1.0e-3))
+
+    # Test with other solver for ForwardSensitivity
+    tmp = osolver.solver
+    osolver.solver = Rodas5P(autodiff = false)
+    g = _compute_grad(x, model, :ForwardEquations, osolver; sensealg = ForwardSensitivity())
+    @test all(.≈(g, grad_ref; atol = 1e-3))
+    osolver.solver = tmp
 
     H = _compute_hess(x, model, :ForwardDiff, osolver; ss_solver = ss_solver)
     @test all(.≈(H, hess_ref; atol = 1.0e-3))

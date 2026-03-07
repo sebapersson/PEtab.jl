@@ -168,7 +168,6 @@ function add_u0_parameters!(
     conditions_df, parameters_df, mappings_df, hybridization_df, observables_df = _get_petab_tables(
         petab_tables, [:conditions, :parameters, :mapping, :hybridization, :observables]
     )
-    # TODO: Fix add parameters for Julia interface tomorrow
 
     specieids = keys(model_SBML.species)
     rateruleids = model_SBML.rate_rule_variables
@@ -383,6 +382,9 @@ function _get_sbml_speciemap(model_SBML::SBMLImporter.ModelSBML)
 end
 
 function _get_sys_observables(sys::ReactionSystem)::Dict{Symbol, Function}
+    if isempty(ModelingToolkitBase.observables(sys))
+        return Dict{Symbol, Function}()
+    end
     return _get_sys_observables(_get_system(sys))
 end
 function _get_sys_observables(sys::ODESystem)::Dict{Symbol, Function}

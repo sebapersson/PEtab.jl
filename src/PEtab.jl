@@ -49,7 +49,6 @@ const ContDistribution = Distribution{Univariate, Continuous}
 
 include(joinpath("structs", "petab_model.jl"))
 include(joinpath("structs", "petab_odeproblem.jl"))
-include(joinpath("structs", "petab_sdeproblem.jl"))
 include(joinpath("structs", "parameter_estimation.jl"))
 include(joinpath("structs", "inference.jl"))
 

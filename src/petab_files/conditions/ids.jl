@@ -378,10 +378,7 @@ function _order_id_sys!(ids_sys::T, ids_ml_in_ode::T)::Nothing where {T <: Vecto
     return nothing
 end
 
-function _get_initial_condition_map(sys::ReactionSystem, u0_map, parameter_map)
-    return _get_initial_condition_map(_get_system(sys), u0_map, parameter_map)
-end
-function _get_initial_condition_map(sys::ODESystem, u0_map, parameter_map)
+function _get_initial_condition_map(sys::ModelSystem, u0_map, parameter_map)
     sys_bindings = ModelingToolkitBase.bindings(sys)
     initial_condition_map = merge(Dict(u0_map), Dict(parameter_map))
 

@@ -234,8 +234,8 @@ function _solve(
     )::ODESolution
     return solve(
         oprob, solver, abstol = abstol, reltol = reltol, verbose = verbose,
-        force_dtmin = force_dtmin, maxiters = maxiters, saveat = tsave,
-        dense = dense, callback = cbs
+        force_dtmin = force_dtmin, maxiters = maxiters, saveat = tsave, dense = dense,
+        callback = cbs
     )
 end
 

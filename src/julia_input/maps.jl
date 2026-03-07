@@ -227,11 +227,8 @@ function _get_speciemap_ids(sys)
     return ModelingToolkitBase.unknowns(sys)
 end
 
-# TODO: Not performant, keep track on Catalyst if it should support bindings
-# TODO: The same for observables
 _get_default_values(sys::ODEProblem) = _keys_to_string(sys.u0)
-_get_default_values(sys::ReactionSystem) = _get_default_values(_get_system(sys))
-function _get_default_values(sys::ODESystem)
+function _get_default_values(sys::ModelSystem)
     return SymbolicIndexingInterface.default_values(sys) |> _keys_to_string
 end
 

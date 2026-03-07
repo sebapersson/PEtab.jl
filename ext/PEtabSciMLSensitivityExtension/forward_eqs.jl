@@ -3,11 +3,11 @@
 =#
 
 function PEtab._get_odeproblem_gradient(
-        odeproblem::ODEProblem, ::Symbol, sensealg::ForwardAlg
+        ode_problem::ODEProblem, ::Symbol, sensealg::ForwardAlg
     )::ODEProblem
     return ODEForwardSensitivityProblem(
-        odeproblem.f, odeproblem.u0, odeproblem.tspan,
-        odeproblem.p, sensealg = sensealg
+        ode_problem.f.f, ode_problem.u0, ode_problem.tspan, ode_problem.p,
+        sensealg = sensealg,
     )
 end
 
@@ -64,11 +64,8 @@ function PEtab._grad_forward_eqs_cond!(
         PEtab._set_grad_x_ml_pre_simulate!(grad, simid, probinfo, model_info)
     end
 
-    # Adjust if gradient is non-linear scale (e.g. log and log10). TODO: Refactor
-    # this function later
     PEtab.grad_to_xscale!(
-        grad, _grad, ∂G∂p, xdynamic, xindices, simid,
-        sensitivities_AD = false
+        grad, _grad, ∂G∂p, xdynamic, xindices, simid, sensitivities_AD = false
     )
     return nothing
 end
