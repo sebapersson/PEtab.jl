@@ -56,8 +56,8 @@ default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm, 
 using ModelingToolkitBase, PEtab
 using ModelingToolkitBase: t_nounits as t, D_nounits as D
 
-@parameters S0 c1 c2 c3 = 1.0
-@variables S(t) = S0 E(t) = 50.0 SE(t) = 0.0 P(t) = 0.0 obs1(t) obs2(t)
+ps = @parameters S0 c1 c2 c3 = 1.0
+sps = @variables S(t) = S0 E(t) = 50.0 SE(t) = 0.0 P(t) = 0.0 obs1(t) obs2(t)
 eqs = [
     # Dynamics
     D(S) ~ -c1 * S * E + c2 * SE
@@ -68,7 +68,7 @@ eqs = [
     obs1 ~ S + E
     obs2 ~ P
 ]
-@named sys_model = System(eqs, t)
+@named sys_model = System(eqs, t, sps, ps)
 sys = mtkcompile(sys_model)
 
 @parameters sigma

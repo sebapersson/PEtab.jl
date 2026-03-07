@@ -22,13 +22,13 @@ path_h5 = joinpath(dir_case, "net1_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn3) |> ComponentArray |> f64
 PEtab._set_ml_model_ps!(pnn, path_h5, nn3, :net1)
 
-@parameters alpha delta beta gamma
-@variables prey(t) = 0.44249296 predator(t) = 4.6280594
+ps = @parameters alpha delta beta gamma
+sps = @variables prey(t) = 0.44249296 predator(t) = 4.6280594
 eqs = [
     D(prey) ~ alpha * prey - beta * prey * predator,
     D(predator) ~ gamma * predator * prey - delta * predator,
 ]
-@named sys_model = System(eqs, t)
+@named sys_model = System(eqs, t, sps, ps)
 sys = mtkcompile(sys_model)
 
 pest = [

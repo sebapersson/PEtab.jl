@@ -15,10 +15,10 @@ end
 function get_prob_saturated(pest)::PEtabODEProblem
     t = default_t()
     D = default_time_deriv()
-    @variables x(t) = 0.0
-    @parameters b1 b2
+    sps = @variables x(t) = 0.0
+    ps = @parameters b1 b2
     eqs = [D(x) ~ b2 * (b1 - x)]
-    @named sys_model = System(eqs, t)
+    @named sys_model = System(eqs, t, sps, ps)
     sys = mtkcompile(sys_model)
 
     Random.seed!(1234)

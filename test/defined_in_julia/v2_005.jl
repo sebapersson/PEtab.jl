@@ -18,14 +18,14 @@ end
 
 t = default_t()
 D = default_time_deriv()
-@parameters k1 k2 offset_A = 2.0
-@variables A(t) = 1.0 B(t) = 0.0 model_obs(t)
+ps = @parameters k1 k2 offset_A = 2.0
+sps = @variables A(t) = 1.0 B(t) = 0.0 model_obs(t)
 equations = [
     D(A) ~ -k1 * A + k2 * B
     D(B) ~ k1 * A - k2 * B
     model_obs ~ A + offset_A
 ]
-@named sys_model = System(equations, t)
+@named sys_model = System(equations, t, sps, ps)
 sys = ModelingToolkitBase.mtkcompile(sys_model)
 
 # Measurement data

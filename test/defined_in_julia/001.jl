@@ -15,7 +15,7 @@ end
 t = default_t()
 D = default_time_deriv()
 ps = @parameters k1 k2 a0 b0
-states = @variables A(t)=a0 B(t)=b0 obs_a(t)
+states = @variables A(t) = a0 B(t) = b0 obs_a(t)
 equations = [
     D(A) ~ -k1 * A + k2 * B
     D(B) ~ k1 * A - k2 * B

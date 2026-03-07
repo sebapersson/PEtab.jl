@@ -11,13 +11,13 @@ speciemap = [:B => 1.0] # Constant initial value for B
 
 t = default_t()
 D = default_time_deriv()
-@parameters k1 k2 a0
-@variables A(t) = a0 B(t) = 1.0
+ps = @parameters k1 k2 a0
+sps = @variables A(t) = a0 B(t) = 1.0
 equations = [
     D(A) ~ -k1 * A + k2 * B
     D(B) ~ k1 * A - k2 * B
 ]
-@named sys_model = System(equations, t)
+@named sys_model = System(equations, t, sps, ps)
 sys = ModelingToolkitBase.mtkcompile(sys_model)
 
 # Measurement data

@@ -36,15 +36,15 @@ nothing # hide
 using ModelingToolkitBase, PEtab
 using ModelingToolkitBase: t_nounits as t, D_nounits as D
 
-@parameters S0 c1 c2 c3 = 3.0
-@variables S(t) = S0 E(t) = 50.0 SE(t) = 0.1 P(t) = 0.1
+ps = @parameters S0 c1 c2 c3 = 3.0
+sps = @variables S(t) = S0 E(t) = 50.0 SE(t) = 0.1 P(t) = 0.1
 eqs = [
     D(S) ~ -c1 * S * E + c2 * SE
     D(E) ~ -c1 * S * E + c2 * SE + c3 * SE
     D(SE) ~ c1 * S * E - c2 * SE - c3 * SE
     D(P) ~ c3 * SE
 ]
-@named sys_model = System(eqs, t)
+@named sys_model = System(eqs, t, sps, ps)
 sys = mtkcompile(sys_model)
 nothing # hide
 ```

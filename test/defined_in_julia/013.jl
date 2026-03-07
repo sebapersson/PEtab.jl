@@ -10,13 +10,13 @@ speciemap = [:A => 1.0]
 
 t = default_t()
 D = default_time_deriv()
-@parameters k1 k2 par
-@variables A(t) = 1.0 B(t)
+ps = @parameters k1 k2 par
+sps = @variables A(t) = 1.0 B(t)
 equations = [
     D(A) ~ -k1 * A + k2 * B
     D(B) ~ k1 * A - k2 * B
 ]
-@named sys_model = ODESystem(equations, Catalyst.default_t(), [A, B], [k1, k2, par])
+@named sys_model = ODESystem(equations, t, sps, ps)
 
 measurements = DataFrame(
     simulation_id = ["c0", "c0"],

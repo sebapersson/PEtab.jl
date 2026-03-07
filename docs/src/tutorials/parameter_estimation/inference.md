@@ -37,15 +37,15 @@ using DataFrames, Distributions, OrdinaryDiffEqRosenbrock,
     ModelingToolkitBase, PEtab, Plots
 using ModelingToolkitBase: t_nounits as t, D_nounits as D
 
-@parameters b1 b2
-@variables x(t) = 0.0 obs_x(t)
+ps = @parameters b1 b2
+sps = @variables x(t) = 0.0 obs_x(t)
 eqs = [
     # Dynamics
     D(x) ~ b2 * (b1 - x)
     # Observables
     obs_x ~ x
 ]
-@named sys_model = System(eqs, t)
+@named sys_model = System(eqs, t, sps, ps)
 sys = mtkcompile(sys_model)
 
 # Simulate data with Normal measurement noise (σ = 0.03)
