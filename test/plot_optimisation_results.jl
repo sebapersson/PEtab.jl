@@ -221,21 +221,21 @@ let
     @test model_residuals_stand[31:40] == c2_P_plt.series_list[1].plotattributes[:y]
     @test model_residuals_stand[21:30] == c2_E_P_plt.series_list[1].plotattributes[:y]
     @test model_residuals_stand[31:40] == c2_E_P_plt.series_list[2].plotattributes[:y]
-
-    # For SciML model with ML output in observable formula
-    path_yaml = joinpath(
-        @__DIR__, "petab_sciml_testsuite", "test_cases", "sciml_problem_import", "004",
-        "petab", "problem.yaml"
-    )
-    ml_models = MLModels(path_yaml)
-    prob = PEtabModel(path_yaml; ml_models = ml_models) |>
-        PEtabODEProblem
-    x = get_x(prob)
-    odesol = get_odesol(x, prob)
-    p = plot(x, prob)
-    @test all(.≈(p.series_list[2].plotattributes[:y], odesol[1, :]; atol = 1.0e-1))
-    @test p.series_list[4].plotattributes[:y] == odesol[2, :]
 end
+
+# For SciML model with ML output in observable formula
+path_yaml = joinpath(
+    @__DIR__, "petab_sciml_testsuite", "test_cases", "sciml_problem_import", "004",
+    "petab", "problem.yaml"
+)
+ml_models = MLModels(path_yaml)
+prob = PEtabModel(path_yaml; ml_models = ml_models) |>
+    PEtabODEProblem
+x = get_x(prob)
+odesol = get_odesol(x, prob)
+p = plot(x, prob)
+@test all(.≈(p.series_list[2].plotattributes[:y], odesol[1, :]; atol = 1.0e-1))
+@test p.series_list[4].plotattributes[:y] == odesol[2, :]
 
 # Check model fit plotting works for models with pre-eq simulations
 let
