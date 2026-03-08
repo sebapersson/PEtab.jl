@@ -40,8 +40,8 @@ for i in 1:39
         # Edge case for underperforming configuration. So even though support could be
         # added in theory, it is not priority
         if (
-            config.grad == :ForwardEquations && config.split == false &&
-                config.sensealg == :ForwardDiff
+                config.grad == :ForwardEquations && config.split == false &&
+                    config.sensealg == :ForwardDiff
             )
             continue
         end
