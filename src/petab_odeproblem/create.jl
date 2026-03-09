@@ -315,11 +315,6 @@ function _get_xnominal_mech(
     return petab_parameters.nominal_value[ix]
 end
 
-function _get_xnames(petab_parameters::PEtabMLParameters)::Vector{Symbol}
-    ix = findall(x -> x == true, petab_parameters.estimate)
-    return petab_parameters.parameter_id[ix]
-end
-
 function _test_ordering(x::ComponentArray, xnames_ps::Vector{Symbol})::Nothing
     if !all(propertynames(x) .== xnames_ps)
         throw(PEtabInputError("Input ComponentArray x to the PEtab nllh function \

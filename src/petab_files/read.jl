@@ -60,33 +60,6 @@ function _get_petab_paths(path_yaml::AbstractString)::Dict{Symbol, String}
     return petab_paths
 end
 
-function _parse_yaml_v1(
-        yaml_file, path_yaml::String, dirmodel::String
-    )::Dict{Symbol, String}
-    dirjulia = joinpath(dirmodel, "Julia_model_files")
-
-    path_measurements = _get_path(yaml_file, dirmodel, "measurement_files")
-    path_observables = _get_path(yaml_file, dirmodel, "observable_files")
-    path_parameters = _get_path(yaml_file, dirmodel, "parameter_files")
-    path_conditions = _get_path(yaml_file, dirmodel, "condition_files")
-    petab_paths = Dict(
-        :parameters => path_parameters, :conditions => path_conditions,
-        :observables => path_observables, :measurements => path_measurements,
-        :dirmodel => dirmodel, :dirjulia => dirjulia, :yaml => path_yaml
-    )
-
-    petab_version = _get_version(yaml_file)
-    if petab_version == "1.0.0"
-        path_SBML = _get_path(yaml_file, dirmodel, "sbml_files")
-    else
-        path_SBML = _get_model_path_v2(yaml_file, dirmodel)
-        path_experiments = _get_path(yaml_file, dirmodel, "experiment_files")
-        petab_paths[:experiments] = path_experiments
-    end
-    petab_paths[:SBML] = path_SBML
-    return petab_paths
-end
-
 function _read_table(path::String, file::Symbol)::DataFrame
     # Optional tables in PEtab v2
     if isempty(path) && file == :experiments_v2

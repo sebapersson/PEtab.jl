@@ -95,10 +95,8 @@ function _parse_layer_arg!(args_parsed, arg, layer_parse, layer_info)::Nothing
         val = layer_parse["args"][arg_name]
         if val isa Vector
             val = Tuple(val)
-            # A subset of args must be tuple (while they can be a single int in PyTorch)
-        elseif haskey(layer_info, :tuple_args) && arg_name in layer_info[:tuple_args]
-            val = Tuple(val)
         end
+
         # Lux.jl prefers images in the foramt [W, H] and PyTorch [H, W] to store the images
         # in memory order. Therefore, for operations with kernels (e.g. Conv, Pool...), the
         # kernel order is reversed.
@@ -135,8 +133,6 @@ function _parse_layer_kwargs(layer_parse, layer_info)::NamedTuple
         if isnothing(val)
             continue
         elseif val isa Vector
-            val = Tuple(val)
-        elseif haskey(layer_info, :tuple_args) && kwarg in layer_info[:tuple_args]
             val = Tuple(val)
         end
         # Account for images being stored in different order between Lux.jl and PyTorch
@@ -260,10 +256,7 @@ end
 function _parse_input!(
         array_inputs::Dict{Symbol, Array{<:Real}}, input, arg_idx
     )
-    if input isa Vector{Num} || input isa Num
-        _input = replace.(string.(input), "(t)" => "")
-        return Symbol.(_input)
-    elseif input isa Array{<:Real}
+    if input isa Array{<:Real}
         array_inputs[Symbol("__arg$(arg_idx)")] = input
         return [:_ARRAY_INPUT]
     else

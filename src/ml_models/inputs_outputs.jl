@@ -51,11 +51,6 @@ function _get_ml_model_input_values(
 
     input_values = Symbol[]
     for input_id in input_petab_ids
-        # Condition-specific array input in Julia
-        if isempty(yaml_file) && input_id == :array
-            return [:_array_julia]
-        end
-
         # If the input variable is a file, the complete path is added here, which simplifies
         # downstream processing
         if input_id in Symbol.(hybridization_df.targetId)
@@ -89,20 +84,8 @@ function _get_ml_model_input_values(
             continue
         end
 
-        # Julia user provided array input
-        if input_id == :_ARRAY_INPUT
-            push!(input_values, input_id)
-            continue
-        end
-
         if input_id in petab_parameters.parameter_id
             push!(input_values, input_id)
-            continue
-        end
-
-        if input_id in Symbol.(hybridization_df.targetId)
-            ix = findfirst(x -> x == input_id, Symbol.(hybridization_df.targetId))
-            push!(input_values, Symbol.(hybridization_df.targetValue[ix]))
             continue
         end
 

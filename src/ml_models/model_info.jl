@@ -119,13 +119,6 @@ function _get_ode_ml_models(
     return MLModels(out)
 end
 
-function _get_ml_ids(mappings_df::DataFrame)::Vector{String}
-    isempty(mappings_df) && return String[]
-    return split.(string.(mappings_df[!, "modelEntityId"]), ".") .|>
-        first .|>
-        string
-end
-
 function _get_ml_model_indices(
         ml_id::Symbol, mapping_table_ids::Vector{String}
     )::Vector{Int64}
