@@ -31,9 +31,12 @@ a brief overview.
   `QuadratureAdjoint`). See the SciMLSensitivity
   [documentation](https://github.com/SciML/SciMLSensitivity.jl) for tunable options.
 
-!!! note "Using SciMLSensitivity methods"
-    To use SciMLSensitivity-based methods (e.g. adjoints), load the package with
-    `using SciMLSensitivity` before creating the `PEtabODEProblem`.
+::: info Using SciMLSensitivity methods
+
+To use SciMLSensitivity-based methods (e.g. adjoints), load the package with
+`using SciMLSensitivity` before creating the `PEtabODEProblem`.
+
+:::
 
 ## Hessian methods
 

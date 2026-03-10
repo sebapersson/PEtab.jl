@@ -1,0 +1,27 @@
+nn_model_id: net0
+inputs:
+- input_id: input0
+layers:
+- layer_id: flatten1
+  layer_type: Flatten
+  args:
+    start_dim: 0
+    end_dim: -1
+forward:
+- name: net_input
+  op: placeholder
+  target: net_input
+  args: []
+  kwargs: {}
+- name: flatten1
+  op: call_module
+  target: flatten1
+  args:
+  - net_input
+  kwargs: {}
+- name: output
+  op: output
+  target: output
+  args:
+  - flatten1
+  kwargs: {}

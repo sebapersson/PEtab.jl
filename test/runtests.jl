@@ -3,7 +3,7 @@ using SafeTestsets
 core_only = get(ENV, "CORE_ONLY", "false") == "true"
 
 @safetestset "Aqua Quality Check" begin
-  include("aqua.jl")
+    include("aqua.jl")
 end
 
 @safetestset "Analytic solution test model" begin
@@ -38,6 +38,10 @@ end
     include(joinpath(@__DIR__, "log_laplace.jl"))
 end
 
+@safetestset "PEtab SciML test-suite" begin
+    include("petab_sciml_testsuite.jl")
+end
+
 if !core_only
     @safetestset "Model with analytic steady-state" begin
         include("analytic_ss.jl")
@@ -52,7 +56,7 @@ if !core_only
     end
 
     @safetestset "PEtab remake" begin
-    include("remake.jl")
+        include("remake.jl")
     end
 
     @safetestset "Log-likelihood values and gradients for published models" begin

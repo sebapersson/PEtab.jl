@@ -37,23 +37,27 @@ See also [`PEtabMultistartResult`](@ref), [`get_startguesses`](@ref), and [`cali
 - `options = DEFAULT_OPTIONS`: Configurable options for `alg`. See the documentation for
     [`calibrate`](@ref).
 """
-function calibrate_multistart(prob::PEtabODEProblem, alg, nmultistarts::Signed;
-                              save_trace::Bool = false,
-                              dirsave::Union{Nothing, String} = nothing,
-                              sampling_method::SamplingAlgorithm = LatinHypercubeSample(),
-                              sample_prior::Bool = true, nprocs::Int64 = 1,
-                              options = nothing)::PEtab.PEtabMultistartResult
+function calibrate_multistart(
+        prob::PEtabODEProblem, alg, nmultistarts; nprocs = 1, save_trace = false,
+        dirsave = nothing, sample_prior = true, sampling_method = LatinHypercubeSample(),
+        init_weight = nothing, init_bias = nothing, options = nothing,
+    )::PEtab.PEtabMultistartResult
     rng = Random.default_rng()
-    return calibrate_multistart(rng, prob, alg, nmultistarts; save_trace = save_trace,
-                                dirsave = dirsave, sampling_method = sampling_method,
-                                sample_prior = sample_prior, nprocs = nprocs,
-                                options = options)
+
+    return calibrate_multistart(
+        rng, prob, alg, nmultistarts; nprocs = nprocs, save_trace = save_trace,
+        dirsave = dirsave, sample_prior = sample_prior, sampling_method = sampling_method,
+        init_weight = init_weight, init_bias = init_bias, options = options
+    )
 end
 
-function _calibrate_multistart(rng::Random.AbstractRNG, prob::PEtabODEProblem, alg,
-                               nmultistarts, dirsave, sampling_method, options,
-                               sample_prior::Bool, save_trace::Bool,
-                               nprocs::Int64)::PEtabMultistartResult
+function _calibrate_multistart(
+        rng::Random.AbstractRNG, prob::PEtabODEProblem, alg, nmultistarts::Signed,
+        dirsave::Union{Nothing, AbstractString}, sampling_method::SamplingAlgorithm, options,
+        sample_prior::Bool, save_trace::Bool, nprocs::Signed,
+        init_weight::Union{Nothing, Function}, init_bias::Union{Function, Nothing},
+    )::PEtabMultistartResult
+
     paths_save = Dict{Symbol, String}()
     if !isnothing(dirsave)
         !isdir(dirsave) && mkpath(dirsave)
@@ -71,8 +75,10 @@ function _calibrate_multistart(rng::Random.AbstractRNG, prob::PEtabODEProblem, a
         end
     end
 
-    xstarts = get_startguesses(rng, prob, nmultistarts; sampling_method = sampling_method,
-                               sample_prior = sample_prior)
+    xstarts = get_startguesses(
+        rng, prob, nmultistarts; sampling_method = sampling_method,
+        sample_prior = sample_prior, init_weight = init_weight, init_bias = init_bias
+    )
     if !isempty(paths_save)
         xnames = propertynames(xstarts[1]) |> collect
         xstarts_df = DataFrame(vcat(reduce(vcat, xstarts')), xnames)
@@ -91,8 +97,10 @@ function _calibrate_multistart(rng::Random.AbstractRNG, prob::PEtabODEProblem, a
     pids = _create_workers(_nprocs)
     _load_packages_workers(pids, alg)
     _xstarts = [(x.second, x.first) for x in pairs(xstarts)]
-    _calibrate_procs = x -> _calibrate_startguess(x[1], x[2], prob, alg, save_trace,
-                                                  options, paths_save, mutex)
+    _calibrate_procs = x -> _calibrate_startguess(
+        x[1], x[2], prob, alg, save_trace,
+        options, paths_save, mutex
+    )
     runs = Distributed.pmap(_calibrate_procs, _xstarts)
     _remove_workers(pids)
 
@@ -100,14 +108,19 @@ function _calibrate_multistart(rng::Random.AbstractRNG, prob::PEtabODEProblem, a
     fmin = bestrun.fmin
     xmin = bestrun.xmin
     # Will fix with regex when things are running
-    sampling_method_str = string(sampling_method)[1:findfirst(x -> x == '(',
-                                                              string(sampling_method))][1:(end - 1)]
-    return PEtabMultistartResult(xmin, fmin, bestrun.alg, nmultistarts, sampling_method_str,
-                                 dirsave, runs)
+    sampling_method_str = string(sampling_method)[
+        1:findfirst(x -> x == '(', string(sampling_method)),
+    ][1:(end - 1)]
+    return PEtabMultistartResult(
+        xmin, fmin, bestrun.alg, nmultistarts, sampling_method_str,
+        dirsave, runs
+    )
 end
 
-function _calibrate_startguess(xstart, i, prob::PEtabODEProblem, alg, save_trace::Bool,
-                               options, paths_save, mutex)
+function _calibrate_startguess(
+        xstart, i, prob::PEtabODEProblem, alg, save_trace::Bool,
+        options, paths_save, mutex
+    )
     if !isempty(xstart)
         res = calibrate(prob, xstart, alg; save_trace = save_trace, options = options)
         # This happens when there are now parameter to estimate, edge case that can
@@ -116,8 +129,10 @@ function _calibrate_startguess(xstart, i, prob::PEtabODEProblem, alg, save_trace
         xstart, xmin = ComponentArray{Float64}(), ComponentArray{Float64}()
         xtrace, ftrace = Vector{Vector{Float64}}(undef, 0), Vector{Float64}(undef, 0)
         fmin = prob.nllh(xstart)
-        res = PEtabOptimisationResult(xmin, fmin, xstart, :alg, 0, 0.0, xtrace, ftrace,
-                                      true, nothing)
+        res = PEtabOptimisationResult(
+            xmin, fmin, xstart, :alg, 0, 0.0, xtrace, ftrace,
+            true, nothing
+        )
     end
     if !isempty(paths_save)
         Distributed.take!(mutex)
@@ -130,12 +145,15 @@ function _calibrate_startguess(xstart, i, prob::PEtabODEProblem, alg, save_trace
     return res
 end
 
-function _save_multistart_results(paths_save::Dict{Symbol, String},
-                                  res::PEtabOptimisationResult, i::Int64)::Nothing
+function _save_multistart_results(
+        paths_save::Dict{Symbol, String}, res::PEtabOptimisationResult, i::Int64
+    )::Nothing
     xnames = propertynames(res.xmin) |> collect
-    res_df = DataFrame(fmin = res.fmin, alg = res.alg, runtime = res.runtime,
-                       niterations = res.niterations, converged = res.converged,
-                       startguess = i)
+    res_df = DataFrame(
+        fmin = res.fmin, alg = res.alg, runtime = res.runtime,
+        niterations = res.niterations, converged = res.converged,
+        startguess = i
+    )
     x_df = DataFrame(Matrix(res.xmin'), xnames)
     x_df[!, "startguess"] = [i]
     CSV.write(paths_save[:res], res_df, append = isfile(paths_save[:res]))

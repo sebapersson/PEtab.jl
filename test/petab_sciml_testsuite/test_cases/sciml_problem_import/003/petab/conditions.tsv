@@ -1,0 +1,5 @@
+conditionId	targetId	targetValue
+cond1	net1_input1	10.0
+cond2	net1_input1	net1_input_pre1
+cond1	net1_input2	20.0
+cond2	net1_input2	net1_input_pre2

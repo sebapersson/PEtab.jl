@@ -1,51 +1,85 @@
-function PEtabODEProblemCache(gradient_method::Symbol,
-                              hessian_method::Union{Symbol, Nothing},
-                              FIM_method::Symbol,
-                              sensealg,
-                              model_info::ModelInfo)::PEtabODEProblemCache
-    @unpack xindices, model, simulation_info, petab_measurements = model_info
-    nxestimate = length(xindices.xids[:estimate])
-    nstates = model_info.nstates
-    nxode = parameters(model.sys_mutated) |> length
+function PEtabODEProblemCache(
+        gradient_method::Symbol, hessian_method::Symbol, FIM_method::Symbol, sensealg,
+        model_info::ModelInfo, ml_models::Union{MLModels}, split_over_conditions::Bool,
+        oprob::ODEProblem
+    )::PEtabODEProblemCache
+    @unpack xindices, model, simulation_info = model_info
+    @unpack petab_measurements, petab_parameters, petab_ml_parameters = model_info
+    @unpack ids, indices_est = xindices
 
-    # Parameters for DiffCache
-    chunksize = nxestimate + nxestimate^2
-    chunksize = chunksize > 100 ? 100 : chunksize
-    if hessian_method ∈ [:ForwardDiff, :BlockForwardDiff, :GaussNewton]
+    n_estimate = _get_nx_estimate(xindices)
+    n_states = model_info.nstates
+    n_parameters_sys = _get_n_parameters_sys(model.sys_mutated)
+
+    # DiffCache options
+    n_ps_chunk = n_estimate
+    if _has_pre_simulate_ml_models(model_info)
+        n_ps_chunk += 12
+    end
+    chunk_size = n_ps_chunk + n_ps_chunk^2
+    chunk_size = chunk_size > 100 ? 100 : chunk_size
+    if hessian_method in [:ForwardDiff, :BlockForwardDiff, :GaussNewton]
         level_cache = 2
-    elseif gradient_method ∈ [:ForwardDiff, :ForwardEquations]
+    elseif gradient_method in [:ForwardDiff, :ForwardEquations]
         level_cache = 1
     else
         level_cache = 0
     end
-    # Parameters on linear scale
-    xdynamic = zeros(Float64, length(xindices.xindices[:dynamic]))
-    xobservable = zeros(Float64, length(xindices.xindices[:observable]))
-    xnoise = zeros(Float64, length(xindices.xindices[:noise]))
-    xnondynamic = zeros(Float64, length(xindices.xindices[:nondynamic]))
-    # Parameters on parameter-scale
-    xdynamic_ps = DiffCache(similar(xdynamic), chunksize, levels = level_cache)
-    xobservable_ps = DiffCache(similar(xobservable), chunksize, levels = level_cache)
-    xnoise_ps = DiffCache(similar(xnoise), chunksize, levels = level_cache)
-    xnondynamic_ps = DiffCache(similar(xnondynamic), chunksize, levels = level_cache)
 
-    # Arrays needed in gradient compuations
-    xdynamic_grad = zeros(Float64, length(xdynamic))
-    xnotode_grad = zeros(Float64, length(xindices.xids[:not_system]))
-    # For forward sensitivity equations and adjoint sensitivity analysis partial
-    # derivatives are computed symbolically
-    symbolic_needed_grads = gradient_method in [:Adjoint, :ForwardEquations]
+    # Pre-allocate cache for mechanistic parameters
+    pre_xdynamic_mech = zeros(Float64, length(indices_est[:est_to_dynamic_mech]))
+    pre_observable = zeros(Float64, length(ids[:observable]))
+    pre_xnoise = zeros(Float64, length(ids[:noise]))
+    pre_xnondynamic_mech = zeros(Float64, length(ids[:nondynamic_mech]))
+    # On linear scale
+    xdynamic_mech = _get_cache(pre_xdynamic_mech, chunk_size, level_cache)
+    xobservable = _get_cache(pre_observable, chunk_size, level_cache)
+    xnoise = _get_cache(pre_xnoise, chunk_size, level_cache)
+    xnondynamic_mech = _get_cache(pre_xnondynamic_mech, chunk_size, level_cache)
+    # On parameter scale
+    xdynamic_mech_ps = _get_cache(pre_xdynamic_mech, chunk_size, level_cache)
+    xobservable_ps = _get_cache(pre_observable, chunk_size, level_cache)
+    xnoise_ps = _get_cache(pre_xnoise, chunk_size, level_cache)
+    xnondynamic_mech_ps = _get_cache(pre_xnondynamic_mech, chunk_size, level_cache)
+
+    # Pre-allocate ML model parameters. As x_ml is a Dict, during splitting the correct
+    # type is moved to x_ml from the cache for estimated parameters
+    x_ml_models_cache = Dict{Symbol, DiffCache}()
+    x_ml_models = Dict{Symbol, ComponentArray}()
+    x_ml_models_constant = Dict{Symbol, ComponentArray}()
+    if !isnothing(ml_models)
+        for ml_model in ml_models.ml_models
+            ml_id = ml_model.ml_id
+            ps = _get_lux_ps(ComponentArray, ml_model)
+            if ml_id in ids[:ml_est]
+                x_ml_models_cache[ml_id] = DiffCache(similar(ps); levels = level_cache)
+                x_ml_models[ml_id] = ps
+            else
+                _set_ml_model_ps!(ps, ml_model, model.paths)
+                x_ml_models_constant[ml_id] = ps
+            end
+        end
+    end
+
+    # Arrays used in gradient computations
+    n_dynamic_est = length(indices_est[:est_to_dynamic])
+    xdynamic = _get_cache(zeros(Float64, n_dynamic_est), chunk_size, level_cache)
+    xdynamic_grad = zeros(Float64, n_dynamic_est)
+    x_not_system_grad = zeros(Float64, length(indices_est[:est_to_not_system]))
+    grad_ml_pre_simulate_outputs = zeros(Float64, length(ids[:sys_ml_pre_simulate_outputs]))
+    # Which arrays to allocate depend on gradient method used
+    AD_gradient = gradient_method == :ForwardDiff
     GN_hess = hessian_method == :GaussNewton || FIM_method == :GaussNewton
-    if symbolic_needed_grads || GN_hess
-        ∂h∂u = zeros(Float64, nstates)
-        ∂σ∂u = zeros(Float64, nstates)
-        ∂h∂p = zeros(Float64, nxode)
-        ∂σ∂p = zeros(Float64, nxode)
-        ∂G∂p = zeros(Float64, nxode)
-        ∂G∂p_ = zeros(Float64, nxode)
-        ∂G∂u = zeros(Float64, nstates)
-        p = zeros(Float64, nxode)
-        u = zeros(Float64, nstates)
+    if !AD_gradient || GN_hess
+        ∂h∂u = zeros(Float64, n_states)
+        ∂σ∂u = zeros(Float64, n_states)
+        ∂h∂p = zeros(Float64, n_parameters_sys)
+        ∂σ∂p = zeros(Float64, n_parameters_sys)
+        ∂G∂p = zeros(Float64, n_parameters_sys)
+        ∂G∂p_ = zeros(Float64, n_parameters_sys)
+        ∂G∂u = zeros(Float64, n_states)
+        p = similar(oprob.p)
+        u = zeros(Float64, n_states)
     else
         ∂h∂u = zeros(Float64, 0)
         ∂σ∂u = zeros(Float64, 0)
@@ -57,46 +91,37 @@ function PEtabODEProblemCache(gradient_method::Symbol,
         p = zeros(Float64, 0)
         u = zeros(Float64, 0)
     end
-
-    # In case the sensitivities are computed via automatic differentitation we need to
-    # pre-allocate a sensitivity matrix accross all conditions
-    forward_eqs_AD = gradient_method === :ForwardEquations && sensealg === :ForwardDiff
+    # In case forward sensitivities gradients are computed via AD
+    forward_eqs_AD = (gradient_method === :ForwardEquations && sensealg === :ForwardDiff)
     if forward_eqs_AD || GN_hess
-        ntimepoints_save = simulation_info.tsaves_no_cbs |>
+        nx_forward_eqs = _get_nx_forward_eqs(xindices, split_over_conditions)
+        n_time_points_save = simulation_info.tsaves_no_cbs |>
             values .|>
             length |>
             sum
-        S = zeros(Float64, ntimepoints_save * nstates, length(xdynamic))
-        odesols = zeros(Float64, nstates, ntimepoints_save)
+        S = zeros(Float64, n_time_points_save * n_states, nx_forward_eqs)
+        forward_eqs_grad = zeros(Float64, nx_forward_eqs)
+        odesols = zeros(Float64, n_states, n_time_points_save)
     else
         S = zeros(Float64, 0, 0)
+        forward_eqs_grad = zeros(Float64, 0)
         odesols = zeros(Float64, 0, 0)
     end
-
-    # For Gauss-Newton or Forward-Equations approach when acumulating the xdynamic
-    # gradient, it is of size xdynamic
-    if gradient_method === :ForwardEquations || GN_hess
-        forward_eqs_grad = zeros(Float64, length(xdynamic))
-    else
-        forward_eqs_grad = zeros(Float64, 0)
-    end
-
-    # For Gauss-Newton the model residuals are computed
+    # In case a Gauss-Newton approximation is used
     if GN_hess
-        jacobian_gn = zeros(Float64, nxestimate, length(petab_measurements.time))
+        jacobian_gn = zeros(Float64, n_estimate, length(petab_measurements.time))
         residuals_gn = zeros(Float64, length(petab_measurements.time))
     else
         jacobian_gn = zeros(Float64, (0, 0))
         residuals_gn = zeros(Float64, 0)
     end
-
-    # For Adjoint sensitivity analysis intermediate gradient and state-vectors are
-    # propegated, and the sensitivity matrix at t₀ is needed
+    # In case adjoint sensitivity gradient method, for which the sensitivity matrix at t0
+    # is needed
     if gradient_method === :Adjoint
-        du = zeros(Float64, nstates)
-        dp = zeros(Float64, nxode)
-        adjoint_grad = zeros(Float64, nxode)
-        St0 = zeros(Float64, nstates, nxode)
+        du = zeros(Float64, n_states)
+        dp = zeros(Float64, n_parameters_sys)
+        adjoint_grad = zeros(Float64, n_parameters_sys)
+        St0 = zeros(Float64, n_states, n_parameters_sys)
     else
         du = zeros(Float64, 0)
         dp = zeros(Float64, 0)
@@ -104,34 +129,43 @@ function PEtabODEProblemCache(gradient_method::Symbol,
         St0 = zeros(Float64, 0, 0)
     end
 
-    # Allocate arrays to track if xdynamic should be permuted prior and post gradient
-    # compuations. This feature is used if PEtabODEProblem is remade (via remake) to
-    # compute the gradient of a problem with reduced number of parameters where to run
-    # fewer chunks with ForwardDiff.jl we only run enough chunks to reach nxdynamic
-    # TODO: When get here
-    xdynamic_input_order::Vector{Int64} = collect(1:length(xdynamic))
-    xdynamic_output_order::Vector{Int64} = collect(1:length(xdynamic))
-    nxdynamic::Vector{Int64} = Int64[length(xdynamic)]
-
-    # Preallocate arrays used when solving the ODE model
+    # Pre-allocate arrays for solving the ODE-model
+    p_ode = Dict{Symbol, DiffCache}()
+    u0_ode = Dict{Symbol, DiffCache}()
     if simulation_info.has_pre_equilibration == true
-        preeq_ids = simulation_info.conditionids[:pre_equilibration]
-        sim_ids = simulation_info.conditionids[:experiment]
-        condition_ids = vcat(preeq_ids, sim_ids) |> unique
+        condition_ids = unique(
+            vcat(
+                simulation_info.conditionids[:pre_equilibration],
+                simulation_info.conditionids[:experiment]
+            )
+        )
     else
-        condition_ids = simulation_info.conditionids[:experiment] |> unique
+        condition_ids = unique(simulation_info.conditionids[:experiment])
     end
-    pode = Dict{Symbol, DiffCache}()
-    u0ode = Dict{Symbol, DiffCache}()
-    for cid in condition_ids
-        pode[cid] = DiffCache(zeros(Float64, nxode), chunksize, levels = level_cache)
-        u0ode[cid] = DiffCache(zeros(Float64, nstates), chunksize, levels = level_cache)
+    for condition_id in condition_ids
+        u0_ode[condition_id] = _get_cache(zeros(Float64, n_states), chunk_size, level_cache)
+        p_ode[condition_id] = _get_cache(similar(oprob.p), chunk_size, level_cache)
     end
 
-    return PEtabODEProblemCache(xdynamic, xnoise, xobservable, xnondynamic, xdynamic_ps,
-                                xnoise_ps, xobservable_ps, xnondynamic_ps, xdynamic_grad,
-                                xnotode_grad, jacobian_gn, residuals_gn, forward_eqs_grad,
-                                adjoint_grad, St0, ∂h∂u, ∂σ∂u, ∂h∂p, ∂σ∂p, ∂G∂p, ∂G∂p_,
-                                ∂G∂u, dp, du, p, u, S, odesols, pode, u0ode,
-                                xdynamic_input_order, xdynamic_output_order, nxdynamic)
+    return PEtabODEProblemCache(
+        xdynamic_mech, xnoise, xobservable, xnondynamic_mech, xdynamic_mech_ps, xnoise_ps,
+        xobservable_ps, xnondynamic_mech_ps, xdynamic_grad, x_not_system_grad, jacobian_gn,
+        residuals_gn, forward_eqs_grad, adjoint_grad, St0, ∂h∂u, ∂σ∂u, ∂h∂p, ∂σ∂p, ∂G∂p,
+        ∂G∂p_, ∂G∂u, dp, du, p, u, S, odesols, p_ode, u0_ode, x_ml_models_cache,
+        x_ml_models, x_ml_models_constant, xdynamic, grad_ml_pre_simulate_outputs
+    )
 end
+
+function _get_nx_forward_eqs(xindices::ParameterIndices, split_over_conditions::Bool)::Int64
+    if split_over_conditions == false
+        return length(xindices.indices_est[:est_to_dynamic])
+    else
+        return (
+            length(xindices.indices_dynamic[:dynamic_to_mech]) +
+                length(xindices.indices_dynamic[:dynamic_to_ml_sys]) +
+                length(xindices.indices_dynamic[:sys_ml_pre_simulate_outputs])
+        )
+    end
+end
+
+_get_cache(x, chunk_size, levels) = DiffCache(similar(x), chunk_size, levels = levels)

@@ -1,0 +1,5 @@
+parameterId	lowerBound	upperBound	nominalValue	estimate	priorDistribution	priorParameters
+k1	0.0	10.0	0.8	true		
+k2	0.0	10.0	0.6	true		
+initial_A	1.0	10.0	2.0	true		
+initial_B	0.0	10.0	3.0	false		

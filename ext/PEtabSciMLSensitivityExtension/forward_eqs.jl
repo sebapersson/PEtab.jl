@@ -2,43 +2,49 @@
     Functions for computing forward-sensitivities with SciMLSensitivity
 =#
 
-function PEtab._get_odeproblem_gradient(odeproblem::ODEProblem, ::Symbol,
-                                        sensealg::ForwardAlg)::ODEProblem
-    return ODEForwardSensitivityProblem(odeproblem.f, odeproblem.u0, odeproblem.tspan,
-                                        odeproblem.p, sensealg = sensealg)
+function PEtab._get_odeproblem_gradient(
+        ode_problem::ODEProblem, ::Symbol, sensealg::ForwardAlg
+    )::ODEProblem
+    return ODEForwardSensitivityProblem(
+        ode_problem.f.f, ode_problem.u0, ode_problem.tspan, ode_problem.p,
+        sensealg = sensealg,
+    )
 end
 
-function PEtab.solve_sensitivities!(::PEtab.ModelInfo, _solve_conditions!::Function,
-                                   xdynamic::Vector{<:AbstractFloat}, sensealg::ForwardAlg,
-                                   probinfo::PEtab.PEtabODEProblemInfo,
-                                   cids::Vector{Symbol}, cfg::Nothing)::Bool
+function PEtab.solve_sensitivites!(
+        ::PEtab.ModelInfo, _solve_conditions!::Function, xdynamic::Vector{<:AbstractFloat},
+        ::ForwardAlg, ::PEtab.PEtabODEProblemInfo, cids::Vector{Symbol}, ::Nothing
+    )::Bool
     success = _solve_conditions!(xdynamic, cids)
     return success
 end
 
-function PEtab._grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T},
-                                       xnoise::Vector{T}, xobservable::Vector{T},
-                                       xnondynamic::Vector{T}, icid::Int64,
-                                       sensealg::ForwardAlg,
-                                       probinfo::PEtab.PEtabODEProblemInfo,
-                                       model_info::PEtab.ModelInfo)::Nothing where {T <:
-                                                                                    AbstractFloat}
+function PEtab._grad_forward_eqs_cond!(
+        grad::Vector{T}, xdynamic::Vector{T}, xnoise::Vector{T}, xobservable::Vector{T},
+        xnondynamic_mech::Vector{T}, icid::Int64, ::ForwardAlg,
+        probinfo::PEtab.PEtabODEProblemInfo, model_info::PEtab.ModelInfo
+    )::Nothing where {T <: AbstractFloat}
     @unpack xindices, simulation_info, model = model_info
     @unpack petab_parameters, petab_measurements = model_info
     @unpack imeasurements_t, tsaves_no_cbs = simulation_info
+    cache = probinfo.cache
 
     # Simulation ids
     cid = simulation_info.conditionids[:experiment][icid]
     simid = simulation_info.conditionids[:simulation][icid]
     sol = simulation_info.odesols_derivatives[cid]
 
+    PEtab._set_condition_id_ml_models!(model.ml_models, simid)
+
     # Partial derivatives needed for computing the gradient (derived from the chain-rule)
-    ∂G∂u!, ∂G∂p! = PEtab._get_∂G∂_!(probinfo, model_info, cid, xnoise, xobservable,
-                                    xnondynamic)
+    ∂G∂u!, ∂G∂p! = PEtab._get_∂G∂_!(
+        model_info, cid, xnoise, xobservable, xnondynamic_mech, cache.x_ml_models,
+        cache.x_ml_models_constant
+    )
 
     p = sol.prob.p
     ∂G∂p, ∂G∂p_ = zeros(Float64, length(p)), zeros(Float64, length(p))
-    ∂G∂u = zeros(Float64, length(unknowns(model.sys_mutated)))
+    ∂G∂u = zeros(Float64, length(PEtab._get_state_ids(model.sys_mutated)))
     _grad = zeros(Float64, length(p))
     for (it, tsave) in pairs(tsaves_no_cbs[cid])
         u, _S = extract_local_sensitivities(sol, it, true)
@@ -48,8 +54,18 @@ function PEtab._grad_forward_eqs_cond!(grad::Vector{T}, xdynamic::Vector{T},
         ∂G∂p .+= ∂G∂p_
     end
 
-    # Adjust if gradient is non-linear scale (e.g. log and log10).
-    PEtab.grad_to_xscale!(grad, _grad, ∂G∂p, xdynamic, xindices, simid,
-                          sensitivities_AD = false)
+    # In _grad the derivatives for all parameters in oprob.p are stored, if a subset
+    # of these are the output of neural-net, they are the inner-derivative needed to
+    # compute the gradient of the neural-net. As usual, the outer Jacobian derivative has
+    # already been computed, so the only thing left is to combine them
+    if !isempty(xindices.ids[:sys_ml_pre_simulate_outputs])
+        ix = xindices.indices_dynamic[:sys_ml_pre_simulate_outputs]
+        cache.grad_ml_pre_simulate_outputs .= _grad[ix]
+        PEtab._set_grad_x_ml_pre_simulate!(grad, simid, probinfo, model_info)
+    end
+
+    PEtab.grad_to_xscale!(
+        grad, _grad, ∂G∂p, xdynamic, xindices, simid, sensitivities_AD = false
+    )
     return nothing
 end

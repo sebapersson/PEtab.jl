@@ -1,8 +1,8 @@
-using Test, Distributions, PEtab, CSV, DataFrames, ModelingToolkit, Catalyst, LinearAlgebra,
-    OrdinaryDiffEqRosenbrock, ForwardDiff
+using Test, Distributions, PEtab, CSV, DataFrames, ModelingToolkitBase, Catalyst,
+    LinearAlgebra, OrdinaryDiffEqRosenbrock, ForwardDiff, ComponentArrays
 
-#  5 and 12 rely on SBML features and have no direct correspondence to
-# ODESystem or Catalyst
+#  5 and 12 rely on SBML features and have no direct correspondence to a MTK ODESystem or
+# Catalyst ReactionSystem
 @testset "Defined in Julia" begin
     include(joinpath(@__DIR__, "defined_in_julia", "001.jl"))
     include(joinpath(@__DIR__, "defined_in_julia", "002.jl"))

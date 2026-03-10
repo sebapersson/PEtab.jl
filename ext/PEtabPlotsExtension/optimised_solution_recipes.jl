@@ -1,14 +1,16 @@
 const ALLOWED_SOLUTION_PLOTS = [
     :model_fit,
     :residuals,
-    :standardized_residuals
+    :standardized_residuals,
 ]
 
 # Plots the optimized solution, and compares it to the data. Either by directly plotting
 # the model fit, or by plotting the residuals
-@recipe function f(res::PEtab.EstimationResult, prob::PEtabODEProblem;
-                   plot_type = :model_fit, observable_ids = nothing, condition = nothing,
-                   obsid_label = false, experiment = nothing)
+@recipe function f(
+        res::PEtab.EstimationResult, prob::PEtabODEProblem; plot_type = :model_fit,
+        observable_ids = nothing, condition = nothing, observable_id_label = false,
+        experiment = nothing
+    )
     model_info = prob.model_info
 
     if !in(plot_type, ALLOWED_SOLUTION_PLOTS)
@@ -23,15 +25,19 @@ const ALLOWED_SOLUTION_PLOTS = [
         observable_ids = string.(observable_ids)
     end
 
+    # Get plot options
     PEtab._check_experiment_id(condition, experiment, model_info)
     simulation_id = PEtab._get_simulation_id(condition, experiment, model_info)
-    pre_equilibration_id = PEtab._get_pre_equilibration_id(condition, experiment, model_info)
+    pre_equilibration_id = PEtab._get_pre_equilibration_id(
+        condition, experiment, model_info
+    )
     PEtab._check_condition_ids(simulation_id, pre_equilibration_id, model_info)
+    petab_version = PEtab._get_version(model_info)
 
-    xmin = PEtab._get_x(res)
-
-    # Get plot options
-    if !isnothing(experiment)
+    if petab_version == "2.0.0" && isnothing(experiment)
+        experiment_id = first(split("$simulation_id", '_'))
+        title --> "Experiment: $(experiment_id)"
+    elseif petab_version == "2.0.0" && !isnothing(experiment)
         title --> "Experiment: $(experiment)"
     elseif isnothing(pre_equilibration_id)
         title --> "Condition: $(simulation_id)"
@@ -39,10 +45,16 @@ const ALLOWED_SOLUTION_PLOTS = [
         title --> "Condition: $(pre_equilibration_id) => $(simulation_id)"
     end
 
+    xmin = PEtab._get_x(res)
     if plot_type == :model_fit
-        plot_info = _plot_model_fit(xmin, prob, simulation_id, pre_equilibration_id, observable_ids, obsid_label)
+        plot_info = _plot_model_fit(
+            xmin, prob, condition, experiment, observable_ids, observable_id_label
+        )
     else
-        plot_info = _plot_residuals(xmin, prob, simulation_id, pre_equilibration_id, observable_ids, plot_type, obsid_label)
+        plot_info = _plot_residuals(
+            xmin, prob, condition, experiment, observable_ids, plot_type,
+            observable_id_label
+        )
     end
 
     seriestype --> plot_info.seriestype
@@ -53,8 +65,10 @@ const ALLOWED_SOLUTION_PLOTS = [
     return plot_info.x, plot_info.y
 end
 
-function PEtab.get_obs_comparison_plots(res::PEtab.EstimationResult, prob::PEtabODEProblem;
-                                        kwargs...)
+function PEtab.get_obs_comparison_plots(
+        res::PEtab.EstimationResult, prob::PEtabODEProblem;
+        kwargs...
+    )
     comparison_dict = Dict()
     conditions_ids = prob.model_info.simulation_info.conditionids
     simulation_ids = string.(conditions_ids[:simulation])
@@ -69,14 +83,19 @@ function PEtab.get_obs_comparison_plots(res::PEtab.EstimationResult, prob::PEtab
             experiment_id = "$(pre_equilibration_id)=>$(simulation_id)"
         end
         comparison_dict[experiment_id] = Dict()
-        for obsid in observable_ids
-            comparison_dict[experiment_id][obsid] = plot(res, prob; observable_ids = [obsid], condition = condition, kwargs...)
+        for observable_id in observable_ids
+            comparison_dict[experiment_id][observable_id] = plot(
+                res, prob; observable_ids = [observable_id],
+                condition = condition, kwargs...
+            )
         end
     end
     return comparison_dict
 end
 
-function _plot_model_fit(xmin, prob, simulation_id, pre_equilibration_id, observable_ids, obsid_label)
+function _plot_model_fit(
+        xmin, prob, condition, experiment, observable_ids, observable_id_label
+    )
     observables_df = prob.model_info.model.petab_tables[:observables]
 
     # Prepares empty vectors with required plot inputs.
@@ -88,12 +107,12 @@ function _plot_model_fit(xmin, prob, simulation_id, pre_equilibration_id, observ
 
     # Loops through all observables, computing the required plot inputs.
     for (obs_idx, obs_id) in enumerate(observable_ids)
-        model_fits = _get_observable(xmin, prob, simulation_id, pre_equilibration_id, obs_id)
+        model_fits = _get_observable(xmin, prob, condition, experiment, obs_id)
         # Plot args.
         append!(_seriestype, [:scatter, :line])
         append!(_color, [obs_idx, obs_idx])
         iobs = findfirst(x -> x == obs_id, observables_df[!, :observableId])
-        if obsid_label == false
+        if observable_id_label == false
             obs_formula = observables_df[iobs, :observableFormula]
             append!(_label, ["$(obs_formula) ($type)" for type in ["measured", "fitted"]])
         else
@@ -114,11 +133,15 @@ function _plot_model_fit(xmin, prob, simulation_id, pre_equilibration_id, observ
     _seriestype = reshape(_seriestype, 1, 2n_obs)
     _color = reshape(_color, 1, 2n_obs)
     _label = reshape(_label, 1, 2n_obs)
-    return (x = x_vals, y = y_vals, color = _color, label = _label,
-            seriestype = _seriestype, y_label ="Model and observed values")
+    return (
+        x = x_vals, y = y_vals, color = _color, label = _label,
+        seriestype = _seriestype, y_label = "Model and observed values",
+    )
 end
 
-function _plot_residuals(xmin, prob, simulation_id, pre_equilibration_id, observable_ids, plot_type, obsid_label)
+function _plot_residuals(
+        xmin, prob, condition, experiment, observable_ids, plot_type, observable_id_label
+    )
     observables_df = prob.model_info.model.petab_tables[:observables]
 
     if plot_type == :residuals
@@ -136,7 +159,7 @@ function _plot_residuals(xmin, prob, simulation_id, pre_equilibration_id, observ
 
     # Loops through all observables, computing the required plot inputs.
     for (obs_idx, obs_id) in enumerate(observable_ids)
-        idata = _get_index_data(simulation_id, pre_equilibration_id, obs_id, prob.model_info)
+        idata = _get_index_data(condition, experiment, obs_id, prob.model_info)
         isempty(idata) && continue
 
         t_observed = petab_measurements.time[idata]
@@ -149,7 +172,7 @@ function _plot_residuals(xmin, prob, simulation_id, pre_equilibration_id, observ
         end
 
         iobs = findfirst(x -> x == obs_id, observables_df[!, :observableId])
-        if obsid_label == false
+        if observable_id_label == false
             __label = observables_df[iobs, :observableFormula]
         else
             __label = observables_df[iobs, :observableId]
@@ -167,15 +190,19 @@ function _plot_residuals(xmin, prob, simulation_id, pre_equilibration_id, observ
     _seriestype = reshape(_seriestype, 1, n_obs)
     _color = reshape(_color, 1, n_obs)
     _label = reshape(_label, 1, n_obs)
-    return (x = x_vals, y = y_vals, color = _color, label = _label,
-            seriestype = _seriestype, y_label = _y_label)
+    return (
+        x = x_vals, y = y_vals, color = _color, label = _label,
+        seriestype = _seriestype, y_label = _y_label,
+    )
 end
 
 """
-    _get_observable(x, prob::PEtabODEProblem, simulation_id, obsid)
+    _get_observable(
+        x, prob::PEtabODEProblem, condition, experiment, observable_id::String
+    )
 
-Return the model values for a given obsid (observable id), simulation_id (condition id)
-and pre_equilibration_id (pre-equilibration id) using the parameter vector x.
+Return the model values for a given observable_id (observable id), and condition or
+experiment depending on PEtab version.
 
 This function is primarily used for plotting purposes.
 
@@ -185,14 +212,15 @@ This function is primarily used for plotting purposes.
 - `t_model::Vector{Float64}`: Time points for the model data (x-axis).
 - `h_model::Vector{Float64}`: Model's predicted values corresponding to these time points.
 """
-function _get_observable(x, prob::PEtabODEProblem, simulation_id::Symbol, pre_equilibration_id::Union{Symbol, Nothing},
-                         obsid::String)
+function _get_observable(
+        x, prob::PEtabODEProblem, condition, experiment, observable_id::String
+    )
     @unpack model_info, probinfo = prob
     measurements_df = model_info.model.petab_tables[:measurements]
 
-    idata = _get_index_data(simulation_id, pre_equilibration_id, obsid, model_info)
+    idata = _get_index_data(condition, experiment, observable_id, model_info)
     if isempty(idata)
-        return (t_obs=Float64[], h_obs=Float64[], t_mod=Float64[], h_mod=Float64[])
+        return (t_obs = Float64[], h_obs = Float64[], t_mod = Float64[], h_mod = Float64[])
     end
     t_observed = measurements_df[idata, :time]
     h_observed = measurements_df[idata, :measurement]
@@ -202,28 +230,32 @@ function _get_observable(x, prob::PEtabODEProblem, simulation_id::Symbol, pre_eq
     # smooth function can be returned
     t_model = Float64[]
     h_model = Float64[]
-    _x = collect(x)
-    if isnothing(pre_equilibration_id)
-        sol = PEtab.get_odesol(_x, prob; condition = simulation_id)
-    else
-        sol = PEtab.get_odesol(_x, prob; condition = pre_equilibration_id => simulation_id)
-    end
+
+    sol = PEtab.get_odesol(x, prob; condition = condition, experiment = experiment)
+
     map_xobservables = model_info.xindices.xobservable_maps[idata]
     smooth_sol = all([map.nparameters == 0 for map in map_xobservables])
 
     # For smooth trajectory must solve ODE and compute the observable function
     if smooth_sol == true
-        PEtab.split_x!(x, model_info.xindices, probinfo.cache)
-        @unpack xobservable, xnondynamic = probinfo.cache
-        xobservable_ps = PEtab.transform_x(xobservable, model_info.xindices,
-                                           :xobservable, probinfo.cache)
-        xnondynamic_ps = PEtab.transform_x(xnondynamic, model_info.xindices,
-                                           :xnondynamic, probinfo.cache)
+        _, xobservable, _, xnondynamic_mech, x_ml_models = PEtab.split_x(
+            x, model_info.xindices, probinfo.cache
+        )
+        xobservable_ps = PEtab.transform_x(
+            xobservable, model_info.xindices, :xobservable, probinfo.cache
+        )
+        xnondynamic_mech_ps = PEtab.transform_x(
+            xnondynamic_mech, model_info.xindices, :xnondynamic_mech, probinfo.cache
+        )
+        @unpack x_ml_models_constant = probinfo.cache
+
         for (i, t) in pairs(sol.t)
             u = sol[:, i]
-            h = PEtab._h(u, t, sol.prob.p, xobservable_ps, xnondynamic_ps,
-                         model_info.model, map_xobservables[1],
-                         Symbol(obsid), collect(prob.xnominal))
+            h = PEtab._h(
+                u, t, sol.prob.p, xobservable_ps, xnondynamic_mech_ps, x_ml_models,
+                x_ml_models_constant, model_info.model, map_xobservables[1],
+                Symbol(observable_id), collect(prob.xnominal)
+            )
             push!(h_model, h)
         end
         t_model = vcat(t_model, sol.t)
@@ -235,20 +267,32 @@ function _get_observable(x, prob::PEtabODEProblem, simulation_id::Symbol, pre_eq
         npoints = length(measurements_df[idata, :time])
     end
 
-    return (t_obs=t_observed, h_obs=h_observed, t_mod=t_model, h_mod=h_model)
+    return (t_obs = t_observed, h_obs = h_observed, t_mod = t_model, h_mod = h_model)
 end
 
-function _get_index_data(simulation_id, pre_equilibration_id, obsid, model_info)
+function _get_index_data(condition, experiment, observable_id, model_info)
+    simulation_id = PEtab._get_simulation_id(condition, experiment, model_info)
+    pre_equilibration_id = PEtab._get_pre_equilibration_id(
+        condition, experiment, model_info
+    )
+
     measurements_df = model_info.model.petab_tables[:measurements]
     simulation_ids = measurements_df[!, :simulationConditionId]
     observable_ids = measurements_df[!, :observableId]
 
     # Identify which data-points in measurement data to plot
     if isnothing(pre_equilibration_id)
-        idata = findall(simulation_ids .== string(simulation_id) .&& observable_ids .== obsid)
+        idata = findall(
+            simulation_ids .== string(simulation_id) .&&
+                observable_ids .== observable_id
+        )
     else
         pre_equilibration_ids = measurements_df[!, :preequilibrationConditionId]
-        idata = findall(simulation_ids .== string(simulation_id) .&& observable_ids .== obsid .&& string(pre_equilibration_id) .== pre_equilibration_ids)
+        idata = findall(
+            simulation_ids .== string(simulation_id) .&&
+                observable_ids .== observable_id .&&
+                string(pre_equilibration_id) .== pre_equilibration_ids
+        )
     end
     return idata
 end

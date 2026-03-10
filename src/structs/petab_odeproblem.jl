@@ -42,30 +42,40 @@ function (condition_map::ConditionMap)(p::AbstractVector, xdynamic::AbstractVect
     return nothing
 end
 
+struct MLModelPreSimulateMap{T1 <: Vector{<:Array{<:AbstractFloat}}}
+    n_input_args::Int64
+    get_input::Function
+    constant_inputs::T1
+    ix_dynamic_mech::Vector{Int32}
+    n_outputs::Int64
+    ix_ml_outputs::Vector{Int32}
+    ix_sys_outputs::Vector{Int32}
+end
+
 struct ParameterIndices
-    xindices::Dict{Symbol, Vector{Int32}}
-    xids::Dict{Symbol, Vector{Symbol}}
-    xindices_notsys::Dict{Symbol, Vector{Int32}}
+    ids::Dict{Symbol, Vector{Symbol}}
+    indices_est::Dict{Symbol, Vector{Int32}}
+    indices_dynamic::Dict{Symbol, Vector{Int32}}
+    indices_not_system::Dict{Symbol, Vector{Int32}}
     xscale::Dict{Symbol, Symbol}
     xobservable_maps::Vector{ObservableNoiseMap}
     xnoise_maps::Vector{ObservableNoiseMap}
     condition_maps::Dict{Symbol, ConditionMap}
+    maps_ml_pre_simulate::Dict{Symbol, Dict{Symbol, MLModelPreSimulateMap}}
 end
 
 struct Priors
-    logpdf::Dict{Symbol, Function}
-    distribution::Dict{Symbol, Distribution{Univariate, Continuous}}
-    initialisation_distribution::Dict{Symbol, Distribution{Univariate, Continuous}}
-    prior_on_parameter_scale::Dict{<:Symbol, <:Bool}
-    has_priors::Bool
-    skip::Vector{Symbol}
+    ix_prior::Vector{Int32}
+    logpdfs::Vector{Function}
+    distributions::Vector{ContDistribution}
+    priors_on_parameter_scale::Vector{Bool}
+    skip::Vector{Bool}
 end
 function Priors()
-    # In case the models does not have priors
-    return Priors(Dict{Symbol, Function}(),
-                  Dict{Symbol, Distribution{Univariate, Continuous}}(),
-                  Dict{Symbol, Distribution{Univariate, Continuous}}(),
-                  Dict{Symbol, Bool}(), false, Symbol[])
+    # In case the model does not have priors
+    return Priors(
+        Int32[], Function[], ContDistribution[], Bool[], Bool[]
+    )
 end
 
 struct PEtabParameters
@@ -78,22 +88,36 @@ struct PEtabParameters
     nparameters_estimate::Int64
 end
 
-struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
-                            T2 <: DiffCache,
-                            T3 <: Vector{<:AbstractFloat},
-                            T4 <: Matrix{<:AbstractFloat},
-                            T5 <: Dict,
-                            T6 <: Dict}
-    xdynamic::T1
-    xnoise::T1
-    xobservable::T1
-    xnondynamic::T1
+struct PEtabMLParameters{T <: Vector{<:Union{String, <:Float64}}}
+    nominal_value::T
+    lower_bounds::Vector{Float64}
+    upper_bounds::Vector{Float64}
+    parameter_id::Vector{Symbol}
+    estimate::Vector{Bool}
+    ml_id::Vector{Symbol}
+    mapping_table_id::Vector{String}
+end
+
+struct PEtabODEProblemCache{
+        T1 <: Vector{<:AbstractFloat},
+        T2 <: DiffCache,
+        T3 <: Vector{<:AbstractFloat},
+        T4 <: Matrix{<:AbstractFloat},
+        T5 <: Dict,
+        T6 <: Dict,
+        T7 <: Dict{Symbol, <:DiffCache},
+        T8 <: Union{Vector{<:AbstractFloat}, <:ComponentVector},
+    }
+    xdynamic_mech::T2
+    xnoise::T2
+    xobservable::T2
+    xnondynamic_mech::T2
     xdynamic_ps::T2
     xnoise_ps::T2
     xobservable_ps::T2
-    xnondynamic_ps::T2
+    xnondynamic_mech_ps::T2
     xdynamic_grad::T1
-    xnotode_grad::T1
+    x_not_system_grad::T1
     jacobian_gn::T4
     residuals_gn::T1
     forward_eqs_grad::T1
@@ -108,15 +132,17 @@ struct PEtabODEProblemCache{T1 <: Vector{<:AbstractFloat},
     ∂G∂u::T3
     dp::T1
     du::T1
-    p::T3
+    p::T8
     u::T3
     S::T4
     odesols::T4
     pode::T5
     u0ode::T6
-    xdynamic_input_order::Vector{Int64}
-    xdynamic_output_order::Vector{Int64}
-    nxdynamic::Vector{Int64}
+    x_ml_models_cache::T7
+    x_ml_models::Dict{Symbol, ComponentArray}
+    x_ml_models_constant::Dict{Symbol, ComponentArray}
+    xdynamic::T2
+    grad_ml_pre_simulate_outputs::Vector{Float64}
 end
 
 struct PEtabMeasurements{T <: Vector{<:Union{<:String, <:AbstractFloat}}}
@@ -138,6 +164,7 @@ end
 struct ModelInfo
     petab_measurements::PEtabMeasurements
     petab_parameters::PEtabParameters
+    petab_ml_parameters::PEtabMLParameters
     xindices::ParameterIndices
     simulation_info::SimulationInfo
     priors::Priors
@@ -146,14 +173,26 @@ struct ModelInfo
 end
 function ModelInfo(model::PEtabModel, sensealg, custom_values)::ModelInfo
     @unpack petab_tables, callbacks, petab_events = model
-    petab_measurements = PEtabMeasurements(petab_tables[:measurements], petab_tables[:observables])
-    petab_parameters = PEtabParameters(petab_tables[:parameters], custom_values = custom_values)
+    petab_measurements = PEtabMeasurements(
+        petab_tables[:measurements], petab_tables[:observables]
+    )
+    petab_parameters = PEtabParameters(
+        petab_tables[:parameters], petab_tables[:mapping], model.ml_models;
+        custom_values = custom_values
+    )
+    petab_ml_parameters = PEtabMLParameters(
+        petab_tables[:parameters], petab_tables[:mapping], model.ml_models
+    )
     xindices = ParameterIndices(petab_parameters, petab_measurements, model)
-    simulation_info = SimulationInfo(callbacks, petab_measurements, petab_events; sensealg = sensealg)
+    simulation_info = SimulationInfo(
+        callbacks, petab_measurements, petab_events; sensealg = sensealg
+    )
     priors = Priors(xindices, model)
-    nstates = Int32(length(unknowns(model.sys_mutated)))
-    return ModelInfo(petab_measurements, petab_parameters, xindices, simulation_info,
-                     priors, model, nstates)
+    nstates = Int32(length(_get_state_ids(model.sys_mutated)))
+    return ModelInfo(
+        petab_measurements, petab_parameters, petab_ml_parameters, xindices,
+        simulation_info, priors, model, nstates
+    )
 end
 
 """
@@ -198,22 +237,26 @@ mutable struct ODESolver
     maxiters::Int64
     verbose::Bool
 end
-function ODESolver(solver::SciMLAlgorithm;
-                   abstol::Float64 = 1e-8,
-                   reltol::Float64 = 1e-8,
-                   solver_adj::Union{Nothing, SciMLAlgorithm} = nothing,
-                   abstol_adj::Union{Nothing, Float64} = nothing,
-                   reltol_adj::Union{Nothing, Float64} = nothing,
-                   force_dtmin::Bool = false,
-                   dtmin::Union{Float64, Nothing} = nothing,
-                   maxiters::Int64 = Int64(1e4),
-                   verbose::Bool = true)
+function ODESolver(
+        solver::SciMLAlgorithm;
+        abstol::Float64 = 1.0e-8,
+        reltol::Float64 = 1.0e-8,
+        solver_adj::Union{Nothing, SciMLAlgorithm} = nothing,
+        abstol_adj::Union{Nothing, Float64} = nothing,
+        reltol_adj::Union{Nothing, Float64} = nothing,
+        force_dtmin::Bool = false,
+        dtmin::Union{Float64, Nothing} = nothing,
+        maxiters::Int64 = Int64(1.0e4),
+        verbose::Bool = true
+    )
     _solver_adj = isnothing(solver_adj) ? solver : solver_adj
     _abstol_adj = isnothing(abstol_adj) ? abstol : abstol_adj
     _reltol_adj = isnothing(reltol_adj) ? reltol : reltol_adj
 
-    return ODESolver(solver, _solver_adj, abstol, reltol, _abstol_adj, _reltol_adj,
-                     force_dtmin, dtmin, maxiters, verbose)
+    return ODESolver(
+        solver, _solver_adj, abstol, reltol, _abstol_adj, _reltol_adj,
+        force_dtmin, dtmin, maxiters, verbose
+    )
 end
 
 """
@@ -276,12 +319,14 @@ steady state can be solved for symbolically, it is the best approach [1].
 
 1. Fiedler et al., *BMC Systems Biology* (2016), pp. 1–19.
 """
-struct SteadyStateSolver{T1 <:
-                         Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm},
-                         T2 <: Union{Nothing, AbstractFloat},
-                         T3 <: Union{Nothing, NonlinearProblem},
-                         CA <: Union{Nothing, SciMLBase.DECallback},
-                         T4 <: Union{Nothing, Integer}}
+struct SteadyStateSolver{
+        T1 <:
+        Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm},
+        T2 <: Union{Nothing, AbstractFloat},
+        T3 <: Union{Nothing, NonlinearProblem},
+        CA <: Union{Nothing, SciMLBase.DECallback},
+        T4 <: Union{Nothing, Integer},
+    }
     method::Symbol
     rootfinding_alg::T1
     termination_check::Symbol
@@ -293,10 +338,12 @@ struct SteadyStateSolver{T1 <:
     pseudoinverse::Bool
     tmin_simulate::Vector{Float64}
 end
-function SteadyStateSolver(method::Symbol; termination_check::Symbol = :wrms,
-                           rootfinding_alg::NonlinearAlg = nothing, abstol = nothing,
-                           reltol = nothing, pseudoinverse::Bool = false,
-                           maxiters::Union{Nothing, Int64} = nothing)::SteadyStateSolver
+function SteadyStateSolver(
+        method::Symbol; termination_check::Symbol = :wrms,
+        rootfinding_alg::NonlinearAlg = nothing, abstol = nothing,
+        reltol = nothing, pseudoinverse::Bool = false,
+        maxiters::Union{Nothing, Int64} = nothing
+    )::SteadyStateSolver
     if !(method in [:Rootfinding, :Simulate])
         throw(PEtabInputError("Allowed methods for computing steady state are :Rootfinding \
                                :Simulate not $method"))
@@ -307,22 +354,36 @@ function SteadyStateSolver(method::Symbol; termination_check::Symbol = :wrms,
         return SteadyStateSolver(rootfinding_alg, abstol, reltol, maxiters)
     end
 end
-function SteadyStateSolver(termination_check::Symbol, abstol, reltol, maxiters,
-                           pseudoinverse::Bool)::SteadyStateSolver
+function SteadyStateSolver(
+        termination_check::Symbol, abstol, reltol, maxiters,
+        pseudoinverse::Bool
+    )::SteadyStateSolver
     if !(termination_check in [:Newton, :wrms])
         throw(PEtabInputError("When steady states are computed via simulations \
                                allowed termination methods are :Newton or :wrms not \
                                $check_termination"))
     end
-    return SteadyStateSolver(:Simulate, nothing, termination_check, abstol, reltol,
-                             maxiters, nothing, nothing, pseudoinverse, [Inf])
+    return SteadyStateSolver(
+        :Simulate, nothing, termination_check, abstol, reltol,
+        maxiters, nothing, nothing, pseudoinverse, [Inf]
+    )
 end
 function SteadyStateSolver(alg::NonlinearAlg, abstol, reltol, maxiters)::SteadyStateSolver
     _alg = isnothing(alg) ? NonlinearSolve.TrustRegion() : alg
-    return SteadyStateSolver(:Rootfinding, _alg, :nothing, abstol, reltol, maxiters,
-                             nothing, nothing, false, [Inf])
+    return SteadyStateSolver(
+        :Rootfinding, _alg, :nothing, abstol, reltol, maxiters,
+        nothing, nothing, false, [Inf]
+    )
 end
 
+struct MLModelPreSimulate{T1 <: DiffCache}
+    forward!::Function
+    tape::Any
+    jac_ml_model::Matrix{Float64}
+    outputs::T1
+    x::T1
+    computed::Vector{Bool}
+end
 struct PEtabODEProblemInfo{S1 <: ODESolver, S2 <: ODESolver, C <: PEtabODEProblemCache}
     odeproblem::ODEProblem
     odeproblem_gradient::ODEProblem
@@ -340,8 +401,8 @@ struct PEtabODEProblemInfo{S1 <: ODESolver, S2 <: ODESolver, C <: PEtabODEProble
     cache::C
     split_over_conditions::Bool
     chunksize::Int64
+    ml_models_pre_ode::Dict{Symbol, Dict{Symbol, MLModelPreSimulate}}
 end
-
 
 """
     PEtabODEProblem(model::PEtabModel; kwargs...) -> PEtabODEProblem

@@ -1,0 +1,48 @@
+nn_model_id: net0
+inputs:
+- input_id: input0
+layers:
+- layer_id: layer1
+  layer_type: Conv1d
+  args:
+    stride:
+    - 1
+    padding:
+    - 0
+    dilation:
+    - 1
+    groups: 1
+    padding_mode: zeros
+    in_channels: 5
+    out_channels: 1
+    kernel_size:
+    - 2
+- layer_id: drop
+  layer_type: Dropout1d
+  args:
+    p: 0.5
+    inplace: false
+forward:
+- name: net_input
+  op: placeholder
+  target: net_input
+  args: []
+  kwargs: {}
+- name: drop
+  op: call_module
+  target: drop
+  args:
+  - net_input
+  kwargs: {}
+- name: layer1
+  op: call_module
+  target: layer1
+  args:
+  - drop
+  kwargs: {}
+- name: output
+  op: output
+  target: output
+  args:
+  - layer1
+  kwargs: {}

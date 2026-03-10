@@ -1,0 +1,3 @@
+tol: 0.001
+parameter_files:
+  net1: "net1_ref.hdf5"

@@ -7,8 +7,9 @@ using PEtab
 using Catalyst: @unpack
 using Optimization: OptimizationProblem, OptimizationFunction
 
-function SciMLBase.OptimizationProblem(prob::PEtabODEProblem;
-                                       box_constraints::Bool = true)::OptimizationProblem
+function SciMLBase.OptimizationProblem(
+        prob::PEtabODEProblem; box_constraints::Bool = true
+    )::OptimizationProblem
     # OptimizationFunction with PEtab.jl objective, gradient and Hessian
     _f = (u, p) -> prob.nllh(u)
     _grad! = (G, u, p) -> prob.grad!(G, u)
@@ -21,8 +22,9 @@ function SciMLBase.OptimizationProblem(prob::PEtabODEProblem;
     if box_constraints == false
         lower_bounds, upper_bounds = nothing, nothing
     end
-    return OptimizationProblem(optf, x0, SciMLBase.NullParameters(); lb = lower_bounds,
-                               ub = upper_bounds)
+    return OptimizationProblem(
+        optf, x0, SciMLBase.NullParameters(); lb = lower_bounds, ub = upper_bounds
+    )
 end
 
 end

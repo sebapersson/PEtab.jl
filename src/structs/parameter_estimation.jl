@@ -50,11 +50,15 @@ struct IpoptOptions
     max_wall_time::Float64
     acceptable_obj_change_tol::Float64
 end
-function IpoptOptions(; print_level::Int64 = 0, max_iter::Int64 = 1000, tol::Float64 = 1e-8,
-                      acceptable_tol::Float64 = 1e-6, max_wall_time::Float64 = 1e20,
-                      acceptable_obj_change_tol::Float64 = 1e20)
-    return IpoptOptions(print_level, max_iter, tol, acceptable_tol, max_wall_time,
-                        acceptable_obj_change_tol)
+function IpoptOptions(;
+        print_level::Int64 = 0, max_iter::Int64 = 1000, tol::Float64 = 1.0e-8,
+        acceptable_tol::Float64 = 1.0e-6, max_wall_time::Float64 = 1.0e20,
+        acceptable_obj_change_tol::Float64 = 1.0e20
+    )
+    return IpoptOptions(
+        print_level, max_iter, tol, acceptable_tol, max_wall_time,
+        acceptable_obj_change_tol
+    )
 end
 
 """
@@ -128,8 +132,9 @@ struct PEtabMultistartResult
     dirsave::Union{String, Nothing}
     runs::Vector{PEtabOptimisationResult}
 end
-function PEtabMultistartResult(dirres::String;
-                               which_run::Integer = 1)::PEtabMultistartResult
+function PEtabMultistartResult(
+        dirres::String; which_run::Integer = 1
+    )::PEtabMultistartResult
     @assert isdir(dirres) "Directory $dirres does not exist"
 
     i = which_run |> string
@@ -152,23 +157,26 @@ function PEtabMultistartResult(dirres::String;
         if isfile(path_trace)
             trace_df_i = trace_df[findall(x -> x == i, trace_df[!, :startguess]), :]
             _ftrace = trace_df_i[!, :ftrace]
-            _xtrace = [Vector{Float64}(trace_df_i[i, 1:(end - 2)])
-                       for i in 1:size(trace_df_i)[1]]
+            _xtrace = [
+                Vector{Float64}(trace_df_i[i, 1:(end - 2)]) for i in 1:size(trace_df_i)[1]
+            ]
         else
             _ftrace = Vector{Float64}(undef, 0)
             _xtrace = Vector{Vector{Float64}}(undef, 0)
         end
         xnames = propertynames(x_df)[1:(end - 1)] |> collect
-        xmin = ComponentArray(; (xnames .=> x_df[i, 1:(end - 1)] |>
-                                            Vector{Float64})...)
+        xmin = ComponentArray(;
+            (xnames .=> x_df[i, 1:(end - 1)] |> Vector{Float64})...
+        )
         xstart = ComponentArray(;
-                                (xnames .=>
-                                     startguesses_df[i, 1:(end - 1)] |>
-                                     Vector{Float64})...)
-        runs[i] = PEtabOptimisationResult(xmin, res_df[i, :fmin], xstart,
-                                          Symbol(res_df[i, :alg]), res_df[i, :niterations],
-                                          res_df[i, :runtime], _xtrace, _ftrace,
-                                          res_df[i, :converged], nothing)
+            (xnames .=> startguesses_df[i, 1:(end - 1)] |> Vector{Float64})...
+        )
+        runs[i] = PEtabOptimisationResult(
+            xmin, res_df[i, :fmin], xstart,
+            Symbol(res_df[i, :alg]), res_df[i, :niterations],
+            res_df[i, :runtime], _xtrace, _ftrace,
+            res_df[i, :converged], nothing
+        )
     end
     bestrun = runs[argmin([isnan(r.fmin) ? Inf : r.fmin for r in runs])]
     fmin = bestrun.fmin

@@ -1,10 +1,11 @@
 module PEtabPlotsExtension
 
-import ModelingToolkit: @unpack
+import Catalyst: @unpack
 using ComponentArrays
 using DataFrames
 using PEtab
 using Plots
+using PreallocationTools
 using RuntimeGeneratedFunctions
 
 RuntimeGeneratedFunctions.init(@__MODULE__)

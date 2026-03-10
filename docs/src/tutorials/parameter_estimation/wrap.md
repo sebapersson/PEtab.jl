@@ -46,7 +46,7 @@ pest = [p_c1, p_c2, p_S0, p_sigma]
 # Measurements; simulate with 'true' parameters
 using DataFrames, OrdinaryDiffEqRosenbrock
 ps = [:c1 => 1.0, :c2 => 10.0, :c3 => 1.0, :S0 => 100.0]
-u0 = [:S => 100.0, :E => 50.0, :SE => 0.0, :P => 0.0]
+u0 = [:E => 50.0, :SE => 0.0, :P => 0.0]
 tspan = (0.0, 10.0)
 oprob = ODEProblem(rn, u0, tspan, ps)
 sol = solve(oprob, Rodas5P(); saveat = 0:0.5:10.0)
@@ -90,8 +90,8 @@ h_outplace = petab_prob.hess(x)
 ```
 
 The input `x` is typically a `ComponentArray`, but `Vector` inputs are also supported. More
-details on what is available in a `PEtabODEProblem` can be found in the
-[API documentation](@ref API)
+details on what is available in a `PEtabODEProblem` can be found in the [API
+documentation](@ref API)
 
 Lastly, for ODE models, parameter bounds are often important: without bounds, the optimizer
 often explores regions where the ODE solver fails, increasing runtime

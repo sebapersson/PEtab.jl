@@ -1,20 +1,144 @@
 # Breaking updates and feature summaries across releases
 
+## PEtab.jl 5.0.0
+
+PEtab.jl v5.0 is a breaking release that adds support for scientific machine learning
+(SciML) problems combining ODE and ML components. Core dependency packages have also been
+updated. Overall, major changes are:
+
+- Added support for SciML problems. SciML problems can now be defined directly in Julia and
+  imported in the [PEtab-SciML](https://github.com/PEtab-dev/petab_sciml) standard format.
+  Utility functions (e.g. plotting) have been updated to support SciML problems.
+- Updated core dependency packages: Catalyst to v16. Since ModelingToolkit v11+ is
+  AGPL-licensed, ModelingToolkit is no longer a direct dependency in order to keep PEtab.jl
+  and its dependencies permissively licensed. It is replaced by the MIT-licensed
+  ModelingToolkitBase.
+- Added support for specifying ODE dynamics as an `ODEProblem`, in addition to the
+  previously supported `ODESystem` and `ReactionSystem`.
+
+### SciML problems
+
+Support for three SciML problem types have been added: (1) ML model in the ODE dynamics
+(e.g. UDEs/Neural ODEs), (2) ML model in the observable/measurement model, and (3)
+pre-simulation ML model mapping inputs (e.g. images) to ODE parameters and/or initial
+conditions.
+
+SciML support is built on top of the mechanistic workflow, so features supported for such
+models (e.g., simulations conditions, events, ...) are also supported for SciML problems.
+The main difference when defining a SciML problem, is that one or more
+[Lux.jl](https://lux.csail.mit.edu/stable/) models are wrapped as `MLModel`s, where their
+role is declared (dynamics/observables/pre-simulation). Examples are available in the SciML
+section of the online documentation.
+
+### Update of dependency packages and licensing
+
+[Catalyst.jl](https://github.com/SciML/Catalyst.jl) has been updated to v16. Since
+ModelingToolkit v11+ is AGPL-licensed (see discussion
+[here](https://discourse.julialang.org/t/modelingtoolkit-v11-library-split-and-licensing-community-feedback-requested/134396)),
+PEtab.jl now depends on the MIT-licensed ModelingToolkitBase instead. PEtab.jl aims to
+remain permissively licensed, and with this update none of its direct dependencies are
+AGPL-licensed (or more restrictive).
+
+Practically, this has limited impact. The main change is that PEtab standard-format problems
+containing algebraic rules can no longer be imported. In addition, the `@mtkmodel` macro is
+deprecated; `ODESystem` models should instead be defined as below:
+
+```julia
+# New syntax
+using ModelingToolkitBase
+using ModelingToolkitBase: t_nounits as t, D_nounits as D
+ps = @parameters S0 c1 c2 c3=3.0
+sps = @variables S(t) = S0 E(t) = 50.0 SE(t) = 0.0 P(t) = 0.0 obs1(t) obs2(t)
+eqs = [
+    # Dynamics
+    D(S) ~ -c1 * S * E + c2 * SE
+    D(E) ~ -c1 * S * E + c2 * SE + c3 * SE
+    D(SE) ~ c1 * S * E - c2 * SE - c3 * SE
+    D(P) ~ c3 * SE
+    # Observables
+    obs1 ~ S + E
+    obs2 ~ P
+]
+@named sys_model = System(eqs, t, sps, ps)
+sys = mtkcompile(sys_model)
+
+# Old syntax
+using ModelingToolkit
+using ModelingToolkit: t_nounits as t, D_nounits as D
+@mtkmodel SYS begin
+    @parameters begin
+        S0
+        c1
+        c2
+        c3 = 1.0
+    end
+    @variables begin
+        S(t) = S0
+        E(t) = 50.0
+        SE(t) = 0.0
+        P(t) = 0.0
+        # Observables
+        obs1(t)
+        obs2(t)
+    end
+    @equations begin
+        # Dynamics
+        D(S) ~ -c1 * S * E + c2 * SE
+        D(E) ~ -c1 * S * E + c2 * SE + c3 * SE
+        D(SE) ~ c1 * S * E - c2 * SE - c3 * SE
+        D(P) ~ c3 * SE
+        # Observables
+        obs1 ~ S + E
+        obs2 ~ P
+    end
+end
+@mtkbuild sys = SYS()
+```
+
+Updating Catalyst to v16 also resolves several dependency issues, and PEtab.jl is now up to
+date with key packages it interacts with (e.g. Optim, Optimization, and SBMLImporter).
+
+### Define model system as `ODEProblem`
+
+To increase flexibility in how the dynamic ODE model is provided, the dynamic model can now
+be provided as an `ODEProblem`, in addition to `ReactionSystem` and `ODESystem`. The main
+requirement is that PEtab.jl can identify state and parameter names. Therefore, when using
+an `ODEProblem`, initial values and parameters must be provided as named containers (either
+a `ComponentArray` or `NamedTuple`). More details can be found in the online documentation,
+but briefly, an ODEProblem model can be defined as:
+
+```julia
+# ODEProblem (new)
+using ComponentArrays, OrdinaryDiffEq
+function ode_f!(du, u, p, t)
+    S, E, SE, P = u
+    @unpack c1, c2, c3 = p
+
+    du[1] = -c1 * S * E + c2 * SE
+    du[2] = -c1 * S * E + c2 * SE + c3 * SE
+    du[3] =  c1 * S * E - c2 * SE - c3 * SE
+    du[4] =  c3 * SE
+end
+p = ComponentArray(c1 = 1.0, c2 = 1.0, c3 = 3.0)
+u0 = ComponentArray(S = 10.0, E = 50.0, SE = 0.0, P = 0.0)
+sys = ODEProblem(ode_f!, u0, (0.0, 10.0), p)
+```
+
 ## PEtab.jl 4.0.0
 
-PEtab.jl v4 is a breaking release driven by the PEtab standard format updating to format
-v2. This release adds support for PEtab v2 while maintaining backward compatibility with
-v1, and introduces a major usability-focused API cleanup. Major changes:
+PEtab.jl v4 is a breaking release driven by the PEtab standard format updating to format v2.
+This release adds support for PEtab v2 while maintaining backward compatibility with v1, and
+introduces a major usability-focused API cleanup. Major changes:
 
 - Documentation overhaul (including migration to DocumenterVitepress).
-- Internal refactor to improve maintainability; code relying on PEtab.jl internals
-  may break.
+- Internal refactor to improve maintainability; code relying on PEtab.jl internals may
+  break.
 - Unified Julia API for defining `PEtabModel`: `PEtabObservable`, `PEtabParameter`,
   `PEtabCondition` (simulation conditions), and `PEtabEvent` now follow consistent
   construction patterns.
 - Removed the PyCall extension. Python-dependent functionality (PEtabSelect and Fides
-  optimizers) now uses Julia wrapper packages (`PEtabSelect.jl`, `Fides.jl`) via
-  PythonCall, removing the need to manage a Python environment manually.
+  optimizers) now uses Julia wrapper packages (`PEtabSelect.jl`, `Fides.jl`) via PythonCall,
+  removing the need to manage a Python environment manually.
 - `remake` updated to support subsetting simulation conditions.
 - Updated how simulation conditions are selected in `get_` and `plot` functions.
 - Updated `plot`-recipes to support residuals of model fit.
@@ -60,8 +184,8 @@ observable formulas now support taking the ID to an observable defined in the mo
 #### Parameters
 
 Parameters are still defined with `PEtabParameter`. The keyword `prior_on_linear_scale` has
-been removed: priors are now always interpreted on the linear scale. For example, if `c1`
-is estimated on `log10` scale, the prior is placed on `c1` (not on `log(c1)`).
+been removed: priors are now always interpreted on the linear scale. For example, if `c1` is
+estimated on `log10` scale, the prior is placed on `c1` (not on `log(c1)`).
 
 #### Simulation conditions
 
@@ -120,8 +244,8 @@ plot(res, prob; cid = :cond1)       # old
 
 ### `remake`
 
-`remake` now supports subsetting both parameters and simulation conditions. Fixing
-parameter values:
+`remake` now supports subsetting both parameters and simulation conditions. Fixing parameter
+values:
 
 ```julia
 remake(prob; parameters = [:k1 => 3.0, :k2 => 4.0]) # new

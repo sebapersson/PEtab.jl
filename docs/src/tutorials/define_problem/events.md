@@ -12,9 +12,9 @@ media change. In PEtab.jl, events are specified with `PEtabEvent`:
 PEtabEvent
 ```
 
-This tutorial shows how to specify both time-triggered and state-triggered events (e.g.
-when a state crosses a threshold), as well as how to assign condition specific events.
-As a running example, we use the Michaelis–Menten model from the [starting tutorial](@ref
+This tutorial shows how to specify both time-triggered and state-triggered events (e.g. when
+a state crosses a threshold), as well as how to assign condition specific events. As a
+running example, we use the Michaelis–Menten model from the [starting tutorial](@ref
 tutorial).
 
 ```@example 1
@@ -49,18 +49,24 @@ p_S0 = PEtabParameter(:S0; value = 5.0)
 p_sigma = PEtabParameter(:sigma)
 pest = [p_c1, p_c2, p_S0, p_sigma]
 
-measurements = DataFrame(obs_id=["obs_p", "obs_sum", "obs_p", "obs_sum"],
-                         time=[1.0, 10.0, 1.0, 20.0],
-                         measurement=[0.7, 0.1, 1.0, 1.5])
+measurements = DataFrame(
+    obs_id=["obs_p", "obs_sum", "obs_p", "obs_sum"],
+    time=[1.0, 10.0, 1.0, 20.0],
+    measurement=[0.7, 0.1, 1.0, 1.5]
+)
 using Plots # hide
 default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm, size = (600*1.25, 400 * 1.25), palette = ["#CC79A7", "#009E73", "#0072B2", "#D55E00", "#999999", "#E69F00", "#56B4E9", "#F0E442"], linewidth=4.0) # hide
 nothing # hide
 ```
 
-!!! note "Why `PEtabEvent`?"
-    While events/callbacks can also be encoded directly in a Catalyst `ReactionSystem` or an
-    `ODESystem`, using `PEtabEvent` is needed to ensure correct evaluation of the objective
-    function and its gradient [frohlich2017parameter](@cite), and it often also improves performance.
+::: info Why `PEtabEvent`?
+
+While events/callbacks can also be encoded directly in a Catalyst `ReactionSystem` or an
+`ODESystem`, using `PEtabEvent` is needed to ensure correct evaluation of the objective
+function and its gradient [frohlich2017parameter](@cite), and it often also improves
+performance.
+
+:::
 
 ## Time-triggered events
 
@@ -92,8 +98,8 @@ sol = get_odesol(x, petab_prob)
 plot(sol; linewidth = 2.0)
 ```
 
-The trigger time can also be a model parameter (which can be estimated). For example, to
-set `c1 => 2.0` when `t == c2`:
+The trigger time can also be a model parameter (which can be estimated). For example, to set
+`c1 => 2.0` when `t == c2`:
 
 ```@example 1
 @unpack c2 = rn

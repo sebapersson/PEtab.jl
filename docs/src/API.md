@@ -26,6 +26,31 @@ Given a dynamic model (as a `ReactionSystem` or `ODESystem`), measurement data a
 PEtabModel
 ```
 
+## SciML problems
+
+For scientific machine learning (SciML) problems, one or more Lux.jl neural networks are
+added to a `PEtabModel`. Each network must be wrapped as an `MLModel`, and multiple ML
+models are collected in `MLModels`:
+
+```@docs
+MLModel
+MLModels
+```
+
+For each `MLModel`, a `PEtabMLParameter` specifies whether its parameters are estimated (and
+optionally nominal values and priors):
+
+```@docs
+PEtabMLParameter
+```
+
+For UDE/Neural ODE dynamics, `UDEProblem` constructs an `ODEProblem` that embeds one or more
+`MLModel`s in the ODE right-hand side:
+
+```@docs
+UDEProblem
+```
+
 ## PEtabODEProblem
 
 From a `PEtabModel`, a `PEtabODEProblem` can be created with:
@@ -135,7 +160,9 @@ to_prior_scale
 to_chains
 ```
 
-In addition to priors from [Distributions.jl](https://github.com/JuliaStats/Distributions.jl), PEtab.jl also supports a `LogLaplace` prior:
+In addition to priors from
+[Distributions.jl](https://github.com/JuliaStats/Distributions.jl), PEtab.jl also supports a
+`LogLaplace` prior:
 
 ```@docs
 LogLaplace

@@ -1,25 +1,36 @@
-function read_tables_v1(path_yaml::String)::Dict{Symbol, DataFrame}
+function read_tables_v1(path_yaml::String)::PEtabTables
     paths = _get_petab_paths(path_yaml)
     parameters_df = _read_table(paths[:parameters], :parameters_v1)
     conditions_df = _read_table(paths[:conditions], :conditions_v1)
     observables_df = _read_table(paths[:observables], :observables_v1)
     measurements_df = _read_table(paths[:measurements], :measurements_v1)
-    return Dict(:parameters => parameters_df, :conditions => conditions_df,
-                :observables => observables_df, :measurements => measurements_df)
+
+    yaml_file = YAML.load_file(path_yaml)
+    return Dict{Symbol, Union{DataFrame, Dict}}(
+        :parameters => parameters_df, :conditions => conditions_df,
+        :observables => observables_df, :measurements => measurements_df,
+        :yaml => yaml_file, :mapping => DataFrame(), :hybridization => DataFrame()
+    )
 end
 
-function read_tables_v2(path_yaml::String)::Dict{Symbol, DataFrame}
+function read_tables_v2(path_yaml::String)::PEtabTables
     petab_paths = _get_petab_paths(path_yaml)
     experiments_df = _read_table(petab_paths[:experiments], :experiments_v2)
     conditions_df = _read_table(petab_paths[:conditions], :conditions_v2)
     measurements_df = _read_table(petab_paths[:measurements], :measurements_v2)
     observables_df = _read_table(petab_paths[:observables], :observables_v2)
     parameters_df = _read_table(petab_paths[:parameters], :parameters_v2)
-    return Dict(:parameters => parameters_df, :conditions => conditions_df,
-                :observables => observables_df, :measurements => measurements_df,
-                :experiments => experiments_df)
-end
+    mappings_df = _read_table(petab_paths[:mapping], :mapping)
+    hybridization_df = _read_table(petab_paths[:hybridization], :hybridization)
 
+    yaml_file = YAML.load_file(path_yaml)
+    return Dict{Symbol, Union{DataFrame, Dict}}(
+        :parameters => parameters_df, :conditions => conditions_df,
+        :observables => observables_df, :measurements => measurements_df,
+        :experiments => experiments_df, :yaml => yaml_file, :mapping => mappings_df,
+        :hybridization => hybridization_df
+    )
+end
 
 function _get_petab_paths(path_yaml::AbstractString)::Dict{Symbol, String}
     yaml_file = YAML.load_file(path_yaml)
@@ -30,17 +41,20 @@ function _get_petab_paths(path_yaml::AbstractString)::Dict{Symbol, String}
     path_observables = _get_path(yaml_file, dirmodel, "observable_files")
     path_parameters = _get_path(yaml_file, dirmodel, "parameter_files")
     path_conditions = _get_path(yaml_file, dirmodel, "condition_files")
-    petab_paths = Dict(:parameters => path_parameters, :conditions => path_conditions,
+    petab_paths = Dict(
+        :parameters => path_parameters, :conditions => path_conditions,
         :observables => path_observables, :measurements => path_measurements,
-        :dirmodel => dirmodel, :dirjulia => dirjulia, :yaml => path_yaml)
+        :dirmodel => dirmodel, :dirjulia => dirjulia, :yaml => path_yaml
+    )
 
     petab_version = _get_version(yaml_file)
     if petab_version == "1.0.0"
         path_SBML = _get_path(yaml_file, dirmodel, "sbml_files")
     else
         path_SBML = _get_model_path_v2(yaml_file, dirmodel)
-        path_experiments = _get_path(yaml_file, dirmodel, "experiment_files")
-        petab_paths[:experiments] = path_experiments
+        petab_paths[:experiments] = _get_path(yaml_file, dirmodel, "experiment_files")
+        petab_paths[:mapping] = _get_path(yaml_file, dirmodel, "mapping_files")
+        petab_paths[:hybridization] = _get_path(yaml_file, dirmodel, "hybridization_files")
     end
     petab_paths[:SBML] = path_SBML
     return petab_paths
@@ -54,6 +68,12 @@ function _read_table(path::String, file::Symbol)::DataFrame
     if isempty(path) && file == :conditions_v2
         return DataFrame()
     end
+    if isempty(path) && file == :mapping
+        return DataFrame()
+    end
+    if isempty(path) && file == :hybridization
+        return DataFrame()
+    end
 
     df = CSV.read(path, DataFrame; stringtype = String)
     _check_table(df, file)
@@ -64,16 +84,31 @@ function _get_path(yaml_file::Dict, dirmodel::String, file::String)::String
     petab_version = _get_version(yaml_file)
 
     # Condition and Experiment files are optional in PEtab v2
-    if petab_version == "2.0.0"
-        if isempty(yaml_file[file]) && file in ["condition_files", "experiment_files"]
+    if petab_version == "2.0.0" && file != "hybridization_files"
+        has_file = !(!haskey(yaml_file, file) || isempty(yaml_file[file]))
+        if !has_file && file in OPTIONAL_V2_FILES
             return ""
         end
         path = joinpath(dirmodel, yaml_file[file][1])
+
+    elseif petab_version == "2.0.0" && file == "hybridization_files"
+        has_file = (
+            haskey(yaml_file, "extensions") &&
+                haskey(yaml_file["extensions"], "sciml") &&
+                haskey(yaml_file["extensions"]["sciml"], file)
+        )
+        if !has_file && file in OPTIONAL_V2_FILES
+            return ""
+        end
+        path = joinpath(dirmodel, yaml_file["extensions"]["sciml"][file][1])
+
     elseif !(petab_version == "1.0.0" && file == "parameter_files")
         path = joinpath(dirmodel, yaml_file["problems"][1][file][1])
+
     else
         path = joinpath(dirmodel, yaml_file["parameter_file"])
     end
+
     if !isfile(path)
         throw(PEtabFileError("$(path) is not a valid path for the $file tables"))
     end
@@ -157,13 +192,29 @@ function _check_has_column(df::DataFrame, column_name::String, table::Symbol)::N
     return nothing
 end
 
-function _check_column_types(df::DataFrame, column_name::String, valid_types,
-                             table::Symbol)::Nothing
+function _check_column_types(
+        df::DataFrame, column_name::String, valid_types, table::Symbol
+    )::Nothing
     for val in df[!, column_name]
         typeof(val) <: valid_types && continue
-        throw(PEtabFileError("Column $column_name in $table table has invalid type " *
-                             "invalid type $(typeof(val)) for entry $val. Valid " *
-                             "types are $valid_types"))
+        throw(
+            PEtabFileError(
+                "Column $column_name in $table table has invalid type " *
+                    "invalid type $(typeof(val)) for entry $val. Valid " *
+                    "types are $valid_types"
+            )
+        )
     end
     return nothing
+end
+
+function _has_sciml_extension(path_yaml::AbstractString)::Bool
+    petab_version = _get_version(path_yaml)
+    petab_version == "1.0.0" && return false
+
+    yaml_file = YAML.load_file(path_yaml)
+    if haskey(yaml_file, "extensions") && haskey(yaml_file["extensions"], "sciml")
+        return true
+    end
+    return false
 end

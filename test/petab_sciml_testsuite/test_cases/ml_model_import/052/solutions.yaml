@@ -1,0 +1,25 @@
+input_order_py:
+  - "W"
+net_ps:
+  - "net_ps_1.hdf5"
+  - "net_ps_2.hdf5"
+  - "net_ps_3.hdf5"
+input_order_jl:
+  - "W"
+output_order_jl:
+  - "W"
+net_input_arg0:
+  - "net_input_1_arg0.hdf5"
+  - "net_input_2_arg0.hdf5"
+  - "net_input_3_arg0.hdf5"
+net_file: "net.yaml"
+output_order_py:
+  - "W"
+net_output:
+  - "net_output_1.hdf5"
+  - "net_output_2.hdf5"
+  - "net_output_3.hdf5"
+net_input_arg1:
+  - "net_input_1_arg1.hdf5"
+  - "net_input_2_arg1.hdf5"
+  - "net_input_3_arg1.hdf5"

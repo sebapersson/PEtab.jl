@@ -1,12 +1,13 @@
 """
     PEtabParameter(parameter_id; kwargs...)
 
-Parameter-estimation data for parameter `parameter_id` (bounds, scale, prior, and whether
-to estimate).
+Parameter-estimation data for parameter mechanistic `parameter_id` (bounds, scale, prior,
+and whether to estimate).
 
-All parameters estimated in a `PEtabODEProblem` must be declared as `PEtabParameter`.
-`parameter_id` must correspond to a model parameter and/or a parameter appearing in an
-`observable_formula` or `noise_formula` of a `PEtabObservable`.
+All parameters estimated in a `PEtabODEProblem` must be declared as `PEtabParameter` or
+`PEtabMLParameter` (for ML models). `parameter_id` must correspond to a model parameter
+and/or a parameter appearing in an `observable_formula` or `noise_formula` of a
+`PEtabObservable`.
 
 # Keyword Arguments
 * `scale::Symbol = :log10`: Scale the parameter is estimated on. One of `:log10` (default),
@@ -47,18 +48,20 @@ struct PEtabParameter
     value::Union{Nothing, Float64}
     lb::Union{Nothing, Float64}
     ub::Union{Nothing, Float64}
-    prior::Union{Nothing, Distribution{Univariate, Continuous}}
+    prior::Union{Nothing, ContDistribution}
     scale::Symbol
     sample_prior::Bool
 end
-function PEtabParameter(parameter_id::UserFormula; estimate::Bool = true,
-                        value::Union{Nothing, Float64} = nothing, sample_prior::Bool = true,
-                        lb::Union{Nothing, Real} = nothing, ub::Union{Nothing, Real} = nothing,
-                        prior::Union{Nothing, Distribution{Univariate, Continuous}} = nothing,
-                        scale::Symbol = :log10)
+function PEtabParameter(
+        parameter_id::UserFormula; estimate::Bool = true,
+        value::Union{Nothing, Float64} = nothing, sample_prior::Bool = true,
+        lb::Union{Nothing, Real} = nothing, ub::Union{Nothing, Real} = nothing,
+        prior::Union{Nothing, ContDistribution} = nothing,
+        scale::Symbol = :log10
+    )
     if isnothing(prior)
-        lb = isnothing(lb) ? 1e-3 : lb
-        ub = isnothing(ub) ? 1e3 : ub
+        lb = isnothing(lb) ? 1.0e-3 : lb
+        ub = isnothing(ub) ? 1.0e3 : ub
     end
 
     if !isnothing(prior)
@@ -79,7 +82,19 @@ function PEtabParameter(parameter_id::UserFormula; estimate::Bool = true,
         end
     end
 
-    return PEtabParameter(string(parameter_id), estimate, value, lb, ub, prior, scale, sample_prior)
+    if !(string(scale) in VALID_SCALES)
+        throw(PEtabInputError("Scale $scale is not allowed for parameter $parameter_id. \
+            Allowed scales are $(join(':' .* PEtab.VALID_SCALES, ", "))"))
+    end
+
+    if lb > ub
+        throw(PEtabInputError("Lower bound $lb is larger than upper bound $ub for \
+            parameter $parameter_id"))
+    end
+
+    return PEtabParameter(
+        string(parameter_id), estimate, value, lb, ub, prior, scale, sample_prior
+    )
 end
 
 """
@@ -97,7 +112,7 @@ For examples, see the online package documentation.
 - `observable_formula`: Observable expression. Two supported forms:
     - `Model-observable`: A `Symbol` identifier matching an observable defined in a Catalyst
       `ReactionSystem` `@observables` block, or a non-differential variable defined in a
-      ModelingToolkit `ODESystem` `@variables` block.
+      ModelingToolkitBase `ODESystem` `@variables` block.
     - `expression`: A `String`, `:Symbol`, `Real`, or a Symbolics expression (`Num`). Can
       include  standard Julia functions (e.g. `exp`, `log`, `sin`, `cos`). Variables may
       reference model species, model parameters, or `PEtabParameter`s. Can include
@@ -160,14 +175,19 @@ struct PEtabObservable
     noise_formula::String
     distribution
 end
-function PEtabObservable(observable_id::UserFormula, observable_formula::UserFormula, noise_formula::Union{UserFormula, Real};
-                         distribution = Distributions.Normal)
+function PEtabObservable(
+        observable_id::UserFormula, observable_formula::UserFormula,
+        noise_formula::Union{UserFormula, Real}; distribution = Distributions.Normal
+    )
     supported_dist = [getfield.(values(NOISE_DISTRIBUTIONS), :dist)]
     if !(distribution in supported_dist[1])
         throw(PEtabFormatError("Unsupported noise distribution: $(distribution). Supported \
             distributions are $(string.(supported_dist)...)"))
     end
-    return PEtabObservable(string(observable_id), string(observable_formula), string(noise_formula), distribution)
+    return PEtabObservable(
+        string(observable_id), string(observable_formula), string(noise_formula),
+        distribution
+    )
 end
 
 """
@@ -196,11 +216,12 @@ For examples, see the online package documentation.
 struct PEtabCondition
     condition_id::String
     target_ids::Vector{String}
-    target_values::Vector{String}
+    target_values
     t0::Float64
 end
-function PEtabCondition(condition_id::Union{Symbol, AbstractString}, assignments::Pair...;
-                        t0::Real = 0.0)
+function PEtabCondition(
+        condition_id::Union{Symbol, AbstractString}, assignments::Pair...; t0::Real = 0.0
+    )
     condition_id = string(condition_id)
     if isempty(assignments)
         return PEtabCondition(condition_id, String[], String[], t0)
@@ -213,11 +234,6 @@ function PEtabCondition(condition_id::Union{Symbol, AbstractString}, assignments
     target_ids = collect(string.(target_ids))
 
     target_values = last.(assignments)
-    for (i, target_value) in pairs(target_values)
-        _check_target_value(target_value, i, condition_id)
-    end
-    target_values = collect(string.(target_values))
-
     return PEtabCondition(condition_id, target_ids, target_values, t0)
 end
 
@@ -258,7 +274,10 @@ struct PEtabEvent
     trigger_time::Float64
     condition_ids::Vector{Symbol}
 end
-function PEtabEvent(condition::Union{UserFormula, Real}, assignments::Pair...; trigger_time::Real = NaN, condition_ids::Union{Vector{String}, Vector{Symbol}} = Symbol[])
+function PEtabEvent(
+        condition::Union{UserFormula, Real}, assignments::Pair...; trigger_time::Real = NaN,
+        condition_ids::Union{Vector{String}, Vector{Symbol}} = Symbol[]
+    )
     if isempty(assignments)
         throw(PEtabFormatError("For a PEtabEvent, at least one assignment pair \
             (target_id => target_value) must be provided."))
@@ -276,8 +295,134 @@ function PEtabEvent(condition::Union{UserFormula, Real}, assignments::Pair...; t
     end
     target_values = collect(string.(target_values))
 
-    return PEtabEvent(string(condition), target_ids, target_values, trigger_time, Symbol.(condition_ids))
+    return PEtabEvent(
+        string(condition), target_ids, target_values, trigger_time, Symbol.(condition_ids)
+    )
 end
+
+"""
+    PEtabMLParameter(ml_id; kwargs...)
+
+Parameter-estimation data for the parameters in machine-learning model `ml_id` (value,
+priors, and whether to estimate).
+
+All `MLModel`s must have an associated `PEtabMLParameter` (matched by `ml_id`). Bounds are
+not supported for ML parameters (unlike mechanistic parameters declared via
+`PEtabParameter`), since most ML optimizers (e.g. Adam) do not support bounds.
+
+# Keyword Arguments
+- `prior = nothing`: Prior for all ML parameters not covered by `priors`.
+- `priors`: Layer/array prior overrides on the form `["id" => prior, ...]`. Valid `id`
+  values:
+  - `"layerId"`: Applies to all arrays in the layer.
+  - `"layerId.arrayId"`: Applies to that specific array (e.g. `"layerId.weight"` applies to
+    the weight parameters in the specified layer).
+- `value = nothing`: Value used when `estimate = false`, and the value returned by `get_x`.
+  Must be a `NamedTuple` or `ComponentArray` in the format expected by the `lux_model` in
+  the corresponding `MLModel` (e.g. output from `ps, _ = Lux.setup(rng, lux_model)`). If
+  `nothing` defaults to random initialization.
+- `estimate::Bool = true`: Whether ML parameters are estimated (`true`) or treated as
+  constants (`false`). If `false`, `value` must be provided.
+
+# Prior Precedence
+Priors have the following precedence: `"layerId.arrayId"` > `"layerId"` > `prior`.
+"""
+struct PEtabMLParameter{T <: Union{Nothing, ComponentArray{<:AbstractFloat}}}
+    ml_id::Symbol
+    estimate::Bool
+    value::T
+    prior::Union{Nothing, ContDistribution}
+    priors::Vector{<:Pair{String, <:ContDistribution}}
+end
+function PEtabMLParameter(
+        ml_id::UserFormula; estimate::Bool = true,
+        prior::Union{Nothing, ContDistribution} = nothing,
+        priors::Vector{<:Pair{String, <:ContDistribution}} = Pair{String, ContDistribution}[],
+        value::Union{Nothing, NamedTuple, ComponentArray} = nothing,
+    )
+    if value isa NamedTuple
+        value = ComponentArray(value)
+    end
+    return PEtabMLParameter(ml_id, estimate, value, prior, priors)
+end
+
+"""
+    MLModel(ml_id::Symbol, lux_model, pre_initialization::Bool; inputs = nothing, outputs = nothing)
+
+Machine-learning submodel for SciML hybridization. Only `lux_model`s with `Vector` output
+are supported.
+
+For examples, see the online package documentation.
+
+# Arguments
+- `ml_id::Symbol`: Unique identifier for the ML model.
+- `lux_model`: The underlying Lux.jl model (e.g. a `Lux.Chain`).
+- `pre_initialization::Bool`: If `true`, evaluate once per `PEtabCondition` before simulation
+  and treat outputs as condition-specific constants. If `false`, embed into the ODE model
+  and/or observable formulas and evaluate during simulation.
+
+# Keyword Arguments
+- `inputs`: ML model inputs. Must be provided when `pre_initialization = true`. For multiple
+  input arguments, provide a tuple `(arg1, arg2)`. Valid input arguments are:
+  - `AbstractVector`: Entries may be `Real` or PEtab/model ids (`Symbol`). Ids are substituted
+    by their current value when evaluated. Allowed ids depend on `pre_initialization`:
+    - `true`: `PEtabParameter`s and entities assigned by `PEtabCondition`.
+    - `false`: Model states and/or model parameters.
+  - `AbstractArray{<:Real}`: Constant numeric input used across all simulation conditions.
+
+- `outputs`: Vector of `Symbol`s specifying ML outputs. Allowed values depend on
+  `pre_initialization`:
+  - `true`: Each id must be a model state/parameter which will be set by the ML model
+    prior to simulation. Assigned ids can not be assigned elsewhere in the PEtab problem.
+  - `false`: Each id defines an output placeholder that can be referenced in `PEtabObservable`
+    formulas.
+"""
+mutable struct MLModel{T1 <: Any}
+    const ml_id::Symbol
+    const lux_model::T1
+    const inputs::Union{Vector{Symbol}, Vector{Vector{Symbol}}}
+    const outputs::Vector{Symbol}
+    const pre_initialization::Bool
+    st::NamedTuple
+    const ps::ComponentVector{Float64}
+    const dir_data::String
+    const array_inputs::Dict{Symbol, Array{<:Real}}
+    const condition_id::Vector{Symbol}
+end
+
+"""
+    MLModels(ml_models...)
+    MLModels(path_yaml)
+
+Collection of `PEtab.MLModel`s. For problems in the PEtab-SciML standard format, can be
+imported from the PEtab YAML file by passing `path_yaml`.
+
+Requires Lux to be loaded via `using Lux`.
+"""
+struct MLModels
+    ml_models::Vector{<:MLModel}
+    ml_ids::Vector{Symbol}
+end
+function MLModels(ml_models::Vector{<:MLModel})
+    ml_ids = getfield.(ml_models, :ml_id)
+    return MLModels(ml_models, ml_ids)
+end
+function MLModels(ml_models::MLModel...)
+    if isempty(ml_models)
+        return MLModels(MLModel[], Symbol[])
+    end
+    return MLModels([ml_models...])
+end
+MLModels(ml_model::MLModel) = MLModels([ml_model])
+
+function Base.getindex(ml_models::MLModels, id::Union{String, Symbol})
+    id = Symbol(id)
+    ix = findfirst(x -> x == id, ml_models.ml_ids)
+    return ml_models.ml_models[ix]
+end
+
+Base.isempty(ml_models::MLModels)::Bool = isempty(ml_models.ml_models)
+
 struct PEtabModel
     name::String
     h::Function
@@ -290,9 +435,10 @@ struct PEtabModel
     sys_mutated::Any
     parametermap::Any
     speciemap::Any
-    petab_tables::Dict{Symbol, DataFrame}
+    petab_tables::PEtabTables
     callbacks::Dict{Symbol, SciMLBase.DECallback}
     defined_in_julia::Bool
     petab_events::Vector{PEtabEvent}
     sys_observables::Dict{Symbol, Function}
+    ml_models::MLModels
 end

@@ -1,11 +1,12 @@
 module PEtab
 
-using ModelingToolkit
+import ModelingToolkitBase
 using CSV
 using SciMLBase
 using OrdinaryDiffEqBDF
 using OrdinaryDiffEqRosenbrock
 using OrdinaryDiffEqSDIRK
+import OrdinaryDiffEqTsit5: Tsit5
 using Catalyst
 using ComponentArrays
 using DataFrames
@@ -13,6 +14,7 @@ using ForwardDiff
 using ReverseDiff
 using DiffEqCallbacks
 using Distributed
+using HDF5
 using SBMLImporter
 using Setfield: @set
 using StatsBase
@@ -27,6 +29,7 @@ using PreallocationTools
 using NonlinearSolve
 using PrecompileTools
 using QuasiMonteCarlo
+import Symbolics
 import SymbolicIndexingInterface
 using StyledStrings
 import SciMLBase.remake
@@ -36,18 +39,23 @@ import QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
-const ModelSystem = Union{ODESystem, ReactionSystem}
+const DistInput = Union{Real, Symbolics.Num}
+const ModelSystem = Union{ODESystem, ReactionSystem, ODEProblem}
 const NonlinearAlg = Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}
-const UserFormula = Union{Num, AbstractString, Symbol}
+const PEtabTables = Union{Dict{Symbol, Union{DataFrame, Dict}}}
+const UserFormula = Union{Symbolics.Num, AbstractString, Symbol}
 const ConditionExp = Union{String, Symbol, Pair{String, String}, Pair{Symbol, Symbol}}
+const ContDistribution = Distribution{Univariate, Continuous}
 
 include(joinpath("structs", "petab_model.jl"))
 include(joinpath("structs", "petab_odeproblem.jl"))
 include(joinpath("structs", "parameter_estimation.jl"))
 include(joinpath("structs", "inference.jl"))
 
-const EstimationResult = Union{PEtabOptimisationResult, PEtabMultistartResult,
-                               Vector{<:Real}, ComponentArray}
+const EstimationResult = Union{
+    PEtabOptimisationResult, PEtabMultistartResult, Vector{<:Real}, ComponentArray,
+}
+const UserParameter = Union{PEtabParameter, PEtabMLParameter}
 
 include("common.jl")
 include("logging.jl")
@@ -55,7 +63,12 @@ include("show.jl")
 
 include(joinpath("petab_files", "callbacks.jl"))
 include(joinpath("petab_files", "common.jl"))
-include(joinpath("petab_files", "conditions.jl"))
+include(joinpath("petab_files", "conditions", "check_input.jl"))
+include(joinpath("petab_files", "conditions", "common.jl"))
+include(joinpath("petab_files", "conditions", "conditions.jl"))
+include(joinpath("petab_files", "conditions", "maps.jl"))
+include(joinpath("petab_files", "conditions", "ids.jl"))
+include(joinpath("petab_files", "conditions", "indices.jl"))
 include(joinpath("petab_files", "measurements.jl"))
 include(joinpath("petab_files", "observables.jl"))
 include(joinpath("petab_files", "parameters.jl"))
@@ -101,6 +114,13 @@ include(joinpath("parameter_estimation", "startguesses.jl"))
 
 include(joinpath("util.jl"))
 
+include(joinpath("ml_models", "array_files.jl"))
+include(joinpath("ml_models", "inputs_outputs.jl"))
+include(joinpath("ml_models", "model_info.jl"))
+include(joinpath("ml_models", "parameters.jl"))
+include(joinpath("ml_models", "pre_simulate.jl"))
+include(joinpath("ml_models", "templates.jl"))
+
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem
 @setup_workload begin
     path_yaml = joinpath(@__DIR__, "..", "test", "analytic_ss", "Test_model3.yaml")
@@ -117,12 +137,23 @@ function compute_prior end
 function get_correction end
 function correct_gradient! end
 
+# For ML models
+function _get_lux_ps end
+function _set_ml_model_ps! end
+function _reshape_io_data end
+function parse_to_lux end
+function _reshape_array end
+function ml_ps_to_hdf5 end
+function MLModel end
+function _get_n_ml_parameters end
+
 export PEtabModel, PEtabODEProblem, ODESolver, SteadyStateSolver, PEtabModel,
-       PEtabODEProblem, remake, PEtabOptimisationResult, IpoptOptions, IpoptOptimizer,
-       PEtabParameter, PEtabCondition, PEtabObservable, PEtabMultistartResult,
-       get_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, get_system, PEtabEvent,
-       PEtabLogDensity, solve_all_conditions, get_x, calibrate, calibrate_multistart,
-       petab_select, get_obs_comparison_plots, export_petab, describe, LogLaplace
+    PEtabODEProblem, remake, PEtabOptimisationResult, IpoptOptions, IpoptOptimizer,
+    PEtabParameter, PEtabCondition, PEtabObservable, PEtabMultistartResult,
+    get_startguesses, get_ps, get_u0, get_odeproblem, get_odesol, get_system, PEtabEvent,
+    PEtabLogDensity, solve_all_conditions, get_x, calibrate, calibrate_multistart,
+    petab_select, get_obs_comparison_plots, export_petab, describe, LogLaplace,
+    MLModel, MLModels, UDEProblem
 
 """
     to_prior_scale(xpetab, target::PEtabLogDensity)
@@ -164,8 +195,9 @@ if !isdefined(Base, :get_extension)
     include(joinpath(@__DIR__, "..", "ext", "PEtabSciMLSensitivityExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "PEtabLogDensityProblemsExtension.jl"))
     include(joinpath(@__DIR__, "..", "ext", "PEtabPlotsExtension.jl"))
+    include(joinpath(@__DIR__, "..", "ext", "PEtabStochasticDiffEq.jl"))
 end
 
-export to_chains, to_prior_scale
+export to_chains, to_prior_scale, PEtabMLParameter
 
 end

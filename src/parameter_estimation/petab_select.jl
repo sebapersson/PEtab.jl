@@ -24,5 +24,5 @@ See also [`calibrate_multistart`](@ref).
 """
 function petab_select end
 
-# For developers, the actual code can be found in the PEtabPyCallExt directory. This is
+# For developers, the actual code can be found in the PEtabSelectExt directory. This is
 # just the way functions defined in extensions are handled.

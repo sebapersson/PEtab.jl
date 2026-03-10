@@ -1,0 +1,64 @@
+nn_model_id: net1
+inputs:
+- input_id: input0
+layers:
+- layer_id: layer1
+  layer_type: Linear
+  args:
+    in_features: 2
+    out_features: 5
+    bias: true
+- layer_id: layer2
+  layer_type: Linear
+  args:
+    in_features: 5
+    out_features: 5
+    bias: true
+- layer_id: layer3
+  layer_type: Linear
+  args:
+    in_features: 5
+    out_features: 1
+    bias: true
+forward:
+- name: net_input
+  op: placeholder
+  target: net_input
+  args: []
+  kwargs: {}
+- name: layer1
+  op: call_module
+  target: layer1
+  args:
+  - net_input
+  kwargs: {}
+- name: tanh
+  op: call_method
+  target: tanh
+  args:
+  - layer1
+  kwargs: {}
+- name: layer2
+  op: call_module
+  target: layer2
+  args:
+  - tanh
+  kwargs: {}
+- name: tanh_1
+  op: call_method
+  target: tanh
+  args:
+  - layer2
+  kwargs: {}
+- name: layer3
+  op: call_module
+  target: layer3
+  args:
+  - tanh_1
+  kwargs: {}
+- name: output
+  op: output
+  target: output
+  args:
+  - layer3
+  kwargs: {}

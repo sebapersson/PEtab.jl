@@ -5,22 +5,23 @@ const PLOT_TYPES_MS = [
     :best_objective,
     :waterfall,
     :runtime_eval,
-    :parallel_coordinates
+    :parallel_coordinates,
 ]
 
 # Plots the objective function progression for a PEtabOptimisationResult.
 # I wanted to use `yaxis` and not `yaxis_scale`, but that seems prevents the user from
 # using `yaxis` to overwrite things (not sure why).
-@recipe function f(res::PEtabOptimisationResult; plot_type = :best_objective,
-                   yaxis_scale = determine_yaxis([res], plot_type),
-                   obj_shift = objective_shift([res], plot_type, yaxis_scale))
+@recipe function f(
+        res::PEtabOptimisationResult; plot_type = :best_objective,
+        yaxis_scale = determine_yaxis([res], plot_type),
+        obj_shift = objective_shift([res], plot_type, yaxis_scale)
+    )
     # Checks if any values were recorded.
     if isempty(res.ftrace)
         error("No function evaluations where recorded in the calibration run, was \
                save_trace=true?")
     end
 
-    # Checks that a recognised plot type was used.
     if !in(plot_type, PLOT_TYPES)
         error("Argument plot_type have an unrecognised value ($(plot_type)). Allowed \
                values are: $(PLOT_TYPES).")
@@ -65,14 +66,14 @@ const PLOT_TYPES_MS = [
 end
 
 # Plots the objective function progressions for a PEtabMultistartResult.
-@recipe function f(res_ms::PEtabMultistartResult;
-                   plot_type = :waterfall,
-                   best_idxs_n = (plot_type in [:waterfall, :runtime_eval] ?
-                                  res_ms.nmultistarts : 10),
-                   idxs = best_runs(res_ms, best_idxs_n),
-                   clustering_function = objective_value_clustering,
-                   yaxis_scale = determine_yaxis(res_ms.runs[idxs], plot_type),
-                   obj_shift = objective_shift(res_ms.runs[idxs], plot_type, yaxis_scale))
+@recipe function f(
+        res_ms::PEtabMultistartResult; plot_type = :waterfall,
+        best_idxs_n = (plot_type in [:waterfall, :runtime_eval] ? res_ms.nmultistarts : 10),
+        idxs = best_runs(res_ms, best_idxs_n),
+        clustering_function = objective_value_clustering,
+        yaxis_scale = determine_yaxis(res_ms.runs[idxs], plot_type),
+        obj_shift = objective_shift(res_ms.runs[idxs], plot_type, yaxis_scale)
+    )
 
     # Checks if any values were recorded.
     if plot_type in [:objective, :best_objective] && isempty(res_ms.runs[1].ftrace)
@@ -176,13 +177,21 @@ end
         ma --> 0.8
 
         # Derived
-        p_mins = [minimum(run.xmin[idx] for run in res_ms.runs[idxs])
-                  for idx in 1:length(res_ms.xmin)]
-        p_maxs = [maximum(run.xmin[idx] for run in res_ms.runs[idxs])
-                  for idx in 1:length(res_ms.xmin)]
-        x_vals = [[(p_val - p_min) / (p_max - p_min)
-                   for (p_val, p_min, p_max) in zip(run.xmin, p_mins, p_maxs)]
-                  for run in res_ms.runs[idxs]]
+        p_mins = [
+            minimum(run.xmin[idx] for run in res_ms.runs[idxs])
+                for idx in 1:length(res_ms.xmin)
+        ]
+        p_maxs = [
+            maximum(run.xmin[idx] for run in res_ms.runs[idxs])
+                for idx in 1:length(res_ms.xmin)
+        ]
+        x_vals = [
+            [
+                    (p_val - p_min) / (p_max - p_min)
+                    for (p_val, p_min, p_max) in zip(run.xmin, p_mins, p_maxs)
+                ]
+                for run in res_ms.runs[idxs]
+        ]
 
         y_vals = 1:length(res_ms.xmin)
         yticks --> (y_vals, res_ms.runs[1].xmin |> propertynames)
@@ -206,7 +215,7 @@ function handle_Inf!(y_vals::Vector{Float64}; max_val = maximum(filter(!isinf, y
 end
 function handle_Inf!(y_vals::Vector{Vector{Float64}})
     max_val = maximum(filter(!isinf, vcat(y_vals...)))
-    reshape(handle_Inf!.(y_vals; max_val = max_val), 1, length(y_vals))
+    return reshape(handle_Inf!.(y_vals; max_val = max_val), 1, length(y_vals))
 end
 
 # For a multistart optimisation result, clusters the runs according to their bojective value
@@ -226,7 +235,7 @@ function objective_value_clustering(runs::Vector{PEtabOptimisationResult}; thres
         end
         colors[i] = cur_color
     end
-    reshape(colors, 1, n)
+    return reshape(colors, 1, n)
 end
 
 # A helper function which determine whether the y-axis should be logarithmic or not.

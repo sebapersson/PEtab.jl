@@ -18,9 +18,12 @@ This tutorial shows how to (i) define priors in a `PEtabODEProblem`, and (ii) ru
 inference with AdaptiveMCMC.jl and AdvancedHMC.jl. Note that this functionality is planned
 to move into a separate package, and the API will change in the future.
 
-!!! note
-    To use Bayesian inference functionality, load Bijectors.jl, LogDensityProblems.jl,
-    and LogDensityProblemsAD.jl.
+::: info
+
+To use Bayesian inference functionality, load Bijectors.jl, LogDensityProblems.jl, and
+LogDensityProblemsAD.jl.
+
+:::
 
 ## Creating a Bayesian inference problem
 
@@ -31,26 +34,19 @@ model. First, let’s define the model and simulate data:
 
 ```@example 1
 using DataFrames, Distributions, OrdinaryDiffEqRosenbrock,
-    ModelingToolkit, PEtab, Plots
-using ModelingToolkit: t_nounits as t, D_nounits as D
+    ModelingToolkitBase, PEtab, Plots
+using ModelingToolkitBase: t_nounits as t, D_nounits as D
 
-@mtkmodel SYS begin
-    @parameters begin
-        b1
-        b2
-    end
-    @variables begin
-        x(t) = 0.0
-        # observables
-        obs_x(t)
-    end
-    @equations begin
-        D(x) ~ b2 * (b1 - x)
-        # observables
-        obs_x ~ x
-    end
-end
-@mtkbuild sys = SYS()
+ps = @parameters b1 b2
+sps = @variables x(t) = 0.0 obs_x(t)
+eqs = [
+    # Dynamics
+    D(x) ~ b2 * (b1 - x)
+    # Observables
+    obs_x ~ x
+]
+@named sys_model = System(eqs, t, sps, ps)
+sys = mtkcompile(sys_model)
 
 # Simulate data with Normal measurement noise (σ = 0.03)
 import Random # hide
@@ -115,20 +111,28 @@ x = get_x(petab_prob)
 nothing # hide
 ```
 
-It is important to note inference in PEtab.jl is performed on an **linear** parameter scale.
-Therefore, to run inference parameter on transformed scale (e.g. `scale = :log10`) must
-first mapped back to the linear (prior) scale. Moreover, since many samplers operate in an
-unconstrained space, bounded priors (e.g. `Uniform(0.0, 5.0)`) parameters need to be are
-transformed to $\mathbb{R}$ via bijectors. In short, for a PEtab parameter vector `x`,
-inference uses the composition `x -> xprior -> xinference`:
+It is important to note that inference in PEtab.jl is performed on an unconstrained
+inference scale, since many inference algorithms (e.g. NUTS) operate on $\mathbb{R}^n$.
+Therefore, bounded priors (e.g. `Uniform(0.0, 5.0)`) are mapped to $\mathbb{R}$ using
+bijectors. In addition, while parameter estimation often benefits from working on a log
+scale (or other transformations) to improve optimizer performance, it is more natural for
+inference to start from the prior scale and then transform parameters to the unconstrained
+inference scale. In short, for a PEtab parameter vector `x` (on parameter scale), inference
+uses the composition `x -> x_prior -> x_inference`:
 
 ```@example 1
-xprior = to_prior_scale(petab_prob.xnominal_transformed, target)
-xinference = target.inference_info.bijectors(xprior)
+x_prior = to_prior_scale(petab_prob.xnominal_transformed, target)
+x_inference = target.inference_info.bijectors(x_prior)
 ```
 
-!!! warning
-    The initial value passed to the sampler must be on the inference scale (`xinference`).
+Inference results are then reported back on the prior scale with the `to_chains` function
+(see below).
+
+::: warning
+
+The initial value passed to the sampler must be on the inference scale (`x_inference`).
+
+:::
 
 ## Bayesian inference with AdvancedHMC.jl (NUTS)
 
@@ -140,7 +144,7 @@ using AdvancedHMC
 sampler = NUTS(0.8)
 Random.seed!(1234) # hide
 res = sample(
-    target, sampler, 2000; n_adapts = 1000, initial_params = xinference,
+    target, sampler, 2000; n_adapts = 1000, initial_params = x_inference,
     drop_warmup = true, progress = false,
 )
 nothing # hide
@@ -162,8 +166,12 @@ using Plots, StatsPlots
 plot(chain_hmc)
 ```
 
-!!! note
-    `PEtab.to_chains` converts samples back to the **prior (linear) scale** (not the unconstrained inference scale).
+::: info
+
+`PEtab.to_chains` converts samples back to the **prior (linear) scale** (not the
+unconstrained inference scale).
+
+:::
 
 ## Bayesian inference with AdaptiveMCMC.jl
 
@@ -174,7 +182,7 @@ $100\,000$ samples with:
 using AdaptiveMCMC
 Random.seed!(123) # hide
 # target.logtarget is the posterior log density on the inference scale
-res = adaptive_rwm(xinference, target.logtarget, 100000; progress=false)
+res = adaptive_rwm(x_inference, target.logtarget, 100000; progress=false)
 nothing # hide
 ```
 

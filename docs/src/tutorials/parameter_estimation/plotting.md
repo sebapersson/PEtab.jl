@@ -48,13 +48,16 @@ corresponding points are marked with crosses.
 For multi-start plots, runs are colored by a clustering procedure that groups runs
 converging to the same local minimum (details and tunable options are documented [here](@ref
 pest_plotting_multirun_indexing)). When many runs are performed, the plot can become
-cluttered, therefore only the 10 best runs are shown (can be
-[customized](@ref pest_plotting_multirun_indexing)).
+cluttered, therefore only the 10 best runs are shown (can be [customized](@ref
+pest_plotting_multirun_indexing)).
 
-!!! note "y-axis scale"
-    For `plot_type = :objective` (as well as `:best_objective`, `:waterfall`, and
-    `:runtime_eval`), PEtab.jl automatically chooses a linear or logarithmic y-axis. These
-    defaults can be overridden with `yaxis_scale` and `obj_shift`.
+::: info y-axis scale
+
+For `plot_type = :objective` (as well as `:best_objective`, `:waterfall`, and
+`:runtime_eval`), PEtab.jl automatically chooses a linear or logarithmic y-axis. These
+defaults can be overridden with `yaxis_scale` and `obj_shift`.
+
+:::
 
 ### Best objective value plot
 
@@ -189,18 +192,24 @@ simulation_conditions = [
   PEtabCondition(:cond2, :S => 0.5)
 ]
 using DataFrames
-m_cond1_e = DataFrame(simulation_id="cond1", obs_id="obs_e",
-  time=cond1_t, measurement=cond1_e)
-m_cond1_p = DataFrame(simulation_id="cond1", obs_id="obs_p",
-  time=cond1_t, measurement=cond1_p)
-m_cond2_e = DataFrame(simulation_id="cond2", obs_id="obs_e",
-  time=cond2_t, measurement=cond2_e)
-m_cond2_p = DataFrame(simulation_id="cond2", obs_id="obs_p",
-  time=cond2_t, measurement=cond2_p)
+m_cond1_e = DataFrame(
+  simulation_id="cond1", obs_id="obs_e", time=cond1_t,  measurement=cond1_e
+)
+m_cond1_p = DataFrame(
+  simulation_id="cond1", obs_id="obs_p", time=cond1_t, measurement=cond1_p
+)
+m_cond2_e = DataFrame(
+  simulation_id="cond2", obs_id="obs_e", time=cond2_t, measurement=cond2_e
+)
+m_cond2_p = DataFrame(
+  simulation_id="cond2", obs_id="obs_p", time=cond2_t, measurement=cond2_p
+)
 measurements = vcat(m_cond1_e, m_cond1_p, m_cond2_e, m_cond2_p)
 
-model = PEtabModel(rn ,observables, measurements, pest;
-    simulation_conditions = simulation_conditions)
+model = PEtabModel(
+  rn ,observables, measurements, pest;
+  simulation_conditions = simulation_conditions
+)
 petab_prob = PEtabODEProblem(model)
 
 using Optim
@@ -269,9 +278,11 @@ observable ID. For example, to retrieve the plot for `E` in `cond1`:
 comp_dict["cond1"]["obs_e"]
 ```
 
-!!! note "Pre-equilibration"
-    For models with pre-equilibration, specify the condition as
-    `pre_eq_id => simulation_id`.
+::: info Pre-equilibration
+
+For models with pre-equilibration, specify the condition as `pre_eq_id => simulation_id`.
+
+:::
 
 ### Residuals
 

@@ -1,12 +1,17 @@
-# TODO: Need to make sure consistent type in the speciemap (use same as in unknowns)
-function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, speciemap_input)
+function _get_speciemap(
+        sys::ModelSystem, petab_tables::PEtabTables, ml_models::MLModels, speciemap_input
+    )
+    hybridization_df, conditions_df, observables_df, parameters_df = _get_petab_tables(
+        petab_tables, [:hybridization, :conditions, :observables, :parameters]
+    )
+
     specie_ids = _get_state_ids(sys)
-    sys_unknowns = unknowns(sys)
-    default_values = ModelingToolkit.get_defaults(sys) |> _keys_to_string
+    speciemap_ids = _get_speciemap_ids(sys)
+    default_values = _get_default_values(sys)
     speciemap = Vector{Pair}(undef, 0)
     for (i, specieid) in pairs(specie_ids)
         value = haskey(default_values, specieid) ? default_values[specieid] : 0.0
-        push!(speciemap, sys_unknowns[i] => value)
+        push!(speciemap, speciemap_ids[i] => value)
     end
 
     # Default values as speciemap_input might only set values for subset of species
@@ -20,68 +25,146 @@ function _get_speciemap(sys::ModelSystem, conditions_df::DataFrame, speciemap_in
     end
 
     # Add extra parameter in case any of the conditions map to a model specie (just as must
+    # be done for SBML models). An extra parameter must also be added if a neural network
+    # maps to a specie
+    condition_variables = names(conditions_df)
+    net_outputs = String[]
+    for ml_model in ml_models.ml_models
+        ml_model.pre_initialization == false && continue
+        for output_id in string.(ml_model.outputs)
+            if output_id in specie_ids
+                push!(net_outputs, output_id)
+            end
+        end
+    end
+
+    # Add extra parameter in case any of the conditions map to a model specie (just as must
     # be done for SBML models). As NaN is allowed value in the conditions table, need to
     # save model map. See comment in petab_model file for standard format import.
     speciemap_model = deepcopy(speciemap)
+    for variable in Iterators.flatten((condition_variables, net_outputs))
+        !(variable in specie_ids) && continue
+        parameter_id = "__init__" * string(variable) * "__"
+        sys = _add_parameter(sys, parameter_id)
+        is = findfirst(x -> x == variable, specie_ids)
+        speciemap[is] = first(speciemap[is]) => eval(Meta.parse("@parameters $parameter_id"))[1]
+        # Rename output in the mapping table, to have the neural-net map to the
+        # initial-value parameter instead
+        if variable in net_outputs
+            ix = findall(x -> x == variable, hybridization_df[!, :targetId])
+            hybridization_df[ix, :targetId] .= parameter_id
+        end
+    end
+
+    # Just as for SBML models, if a parameter in the parameter tables assigns in a
+    # PEtabCondition, and appears in an observable formula it must added to the system
+    # as otherwise gradients will not be computable
     for condition_variable in names(conditions_df)
-        !(condition_variable in specie_ids) && continue
-        pid = "__init__" * string(condition_variable) * "__"
-        sys = _add_parameter(sys, pid)
-        is = findfirst(x -> x == condition_variable, specie_ids)
-        speciemap[is] = first(speciemap[is]) => eval(Meta.parse("@parameters $pid"))[1]
+        condition_variable == "conditionId" && continue
+        for condition_value in conditions_df[:, condition_variable]
+            ismissing(condition_value) && continue
+            condition_value == "NaN" && continue
+            condition_value isa Real && continue
+            is_number(condition_value) && continue
+
+            for parameter_id in string.(parameters_df.parameterId)
+                parameters_sys = _get_parameters(sys)
+                parameter_id in parameters_sys && continue
+
+                _formula = SBMLImporter._replace_variable(condition_value, parameter_id, "")
+                _formula == condition_value && continue
+
+                if _parameter_in_observables(parameter_id, observables_df) == false
+                    continue
+                end
+                sys = _add_parameter(sys, parameter_id)
+            end
+        end
     end
 
     return sys, speciemap_model, speciemap
 end
 
-function _get_parametermap(sys::ModelSystem, parametermap_input)
+function _get_parametermap(sys::ODEProblem, ::Any, ml_models::MLModels)
+    ml_ids = ml_models.ml_ids
+    p_ids = keys(sys.p)
+
+    if isempty(ml_models) || !any([ml_id in p_ids for ml_id in ml_ids])
+        return sys, nothing
+    end
+
+    ml_ode_ids = filter(in(p_ids), ml_ids)
+    mech_ids = (k for k in p_ids if k ∉ ml_ode_ids)
+    p_ode = (;
+        (k => sys.p[k] for k in mech_ids)...,
+        (k => sys.p[k] for k in ml_ode_ids)...,
+    )
+    sys = remake(sys, p = ComponentArray(p_ode))
+    return sys, nothing
+end
+function _get_parametermap(sys::ModelSystem, parametermap_input, ::MLModels)
     parametermap = [Num(p) => 0.0 for p in parameters(sys)]
 
     # User are allowed to specify default numerical values in the system
-    default_values = ModelingToolkit.get_defaults(sys)
-    for (i, pid) in pairs(first.(parametermap))
-        !haskey(default_values, pid) && continue
-        value = default_values[pid]
+    default_values = _get_default_values(sys)
+    for (i, parameter_id) in pairs(string.(first.(parametermap)))
+        !haskey(default_values, string(parameter_id)) && continue
+        value = default_values[parameter_id]
         if !(value isa Real)
-            throw(PEtabInuptError("When setting a parameter to a fixed value in the " *
-                                  "model system it must be set to a constant " *
-                                  "numberic value. This does not hold for $pid " *
-                                  "which is set to $value"))
+            throw(
+                PEtabInuptError("When setting a parameter to a fixed value in the model \
+                    system it must be set to a constant numberic value. This does not \
+                    hold for $parameter_id which is set to $value")
+            )
         end
         parametermap[i] = first(parametermap[i]) => value
     end
 
     if isnothing(parametermap_input)
-        return parametermap
+        return sys, parametermap
     end
     parameterids = first.(parametermap) .|> string
     for (i, inputid) in pairs(string.(first.(parametermap_input)))
         if !(inputid in parameterids)
-            throw(PEtab.PEtabFormatError("Parameter $inputid does not appear among the  " *
-                                         "model parameters in the dynamic model"))
+            throw(
+                PEtab.PEtabFormatError(
+                    "Parameter $inputid does not appear among the model parameters in the \
+                     dynamic model"
+                )
+            )
         end
         ip = findfirst(x -> x == inputid, parameterids)
         parametermap[ip] = parametermap[ip].first => parametermap_input[i].second
     end
-    return parametermap
+    return sys, parametermap
 end
 
-function _check_unassigned_variables(sys::ModelSystem, variablemap, mapinput,
-                                     whichmap::Symbol, parameters_df::DataFrame,
-                                     conditions_df::DataFrame)::Nothing
-    default_values = ModelingToolkit.get_defaults(sys)
+function _check_unassigned_variables(
+        sys::ModelSystem, variable_map, mapinput, whichmap::Symbol,
+        petab_tables::PEtabTables
+    )::Nothing
+    conditions_df, parameters_df, hybridization_df = _get_petab_tables(
+        petab_tables, [:conditions, :parameters, :hybridization]
+    )
+
+    if whichmap == :parameter && sys isa ODEProblem
+        return nothing
+    end
+
+    default_values = _get_default_values(sys)
     if !isnothing(mapinput)
         ids_input = replace.(first.(mapinput) .|> string, "(t)" => "")
     else
         ids_input = nothing
     end
-    for (variableid, value) in variablemap
+    for (variable_id, value) in variable_map
         value = value |> string
         value != "0.0" && continue
-        haskey(default_values, variableid) && continue
 
-        # As usual specie ids can be on the form S(t) ...
-        id = replace(variableid |> string, "(t)" => "")
+        # Specie ids can be on the form S(t) ...
+        id = replace(string(variable_id), "(t)" => "")
+        haskey(default_values, id) && continue
+
         !isnothing(ids_input) && id in ids_input && continue
         # Parameter for initial value
         if length(id) > 8 && id[1:8] == "__init__"
@@ -89,41 +172,72 @@ function _check_unassigned_variables(sys::ModelSystem, variablemap, mapinput,
         end
         id in parameters_df[!, :parameterId] && continue
         id in names(conditions_df) && continue
-        @warn "The $(whichmap) $id has not been assigned a value among PEtabParameters, " *
-              "simulation conditions, or in the $(whichmap) map. It default to 0."
+        if !isempty(hybridization_df) && id in hybridization_df.targetId
+            continue
+        end
+
+        @warn "The $(whichmap) $id has not been assigned a value among PEtabParameters, \
+               simulation conditions, or in the $(whichmap) map. It defaults to 0."
     end
+    return nothing
 end
 
+# TODO: Add for SDEProblem
 function _add_parameter(sys::ReactionSystem, parameter)
-    _p = Symbol(parameter)
-    addparam!(sys, only(@parameters($_p)))
-    return sys
+    p = Symbol(parameter)
+    p_new = vcat(parameters(sys), only(@parameters($p)))
+    @named sys_new = Catalyst.ReactionSystem(
+        reactions(sys), Catalyst.default_t(), Catalyst.unknowns(sys), p_new
+    )
+    return Catalyst.complete(sys_new)
 end
 function _add_parameter(sys::ODESystem, parameter)
     # Mutating an ODESystem is ill-advised, therefore a new system is built with additional
     # parameter
-    p = parameter |> Symbol
-    pnew = vcat(parameters(sys), only(@parameters($p)))
-    @named de = ODESystem(equations(sys), Catalyst.default_t(), unknowns(sys), pnew)
+    p = Symbol(parameter)
+    p_new = vcat(parameters(sys), only(@parameters($p)))
+    @named de = ODESystem(
+        equations(sys), Catalyst.default_t(), ModelingToolkitBase.unknowns(sys), p_new
+    )
     return complete(de)
 end
+function _add_parameter(sys::ODEProblem, parameter)
+    # For an ODEProblem p can be arbitrary struct (we enforce ComponentArray though for
+    # parameter mapping)
+    @assert sys.p isa ComponentArray "p for ODEProblem must be a ComponentArray"
+    _p = sys.p |> NamedTuple
+    _padd = NamedTuple{(Symbol(parameter),)}((0.0,))
+    p = ComponentArray(merge(_p, _padd))
+    return remake(sys, p = p)
+end
 
-function _keys_to_string(d::Dict)::Dict
+function _keys_to_string(d::Union{Dict, NamedTuple})::Dict
     keysnew = replace.(keys(d) |> collect .|> string, "(t)" => "")
     return Dict(keysnew .=> values(d))
 end
+function _keys_to_string(d::ComponentArray)::Dict
+    keysnew = replace.(keys(d) |> collect .|> string, "(t)" => "")
+    return Dict(keysnew .=> collect(d))
+end
 
-# They removed this function from Catalyst, so I copied it here
-function addparam!(rn::ReactionSystem, p; disablechecks = false)
-    Catalyst.reset_networkproperties!(rn)
-    curidx = disablechecks ? nothing :
-             findfirst(S -> isequal(S, p), ModelingToolkit.get_ps(rn))
-    if curidx === nothing
-        push!(ModelingToolkit.get_ps(rn), p)
-        ModelingToolkit.process_variables!(ModelingToolkit.get_var_to_name(rn),
-                                           ModelingToolkit.get_defaults(rn), [p])
-        return length(ModelingToolkit.get_ps(rn))
-    else
-        return curidx
-    end
+function _get_speciemap_ids(sys::ODEProblem)
+    return keys(sys.u0) |> collect
+end
+function _get_speciemap_ids(sys)
+    return ModelingToolkitBase.unknowns(sys)
+end
+
+_get_default_values(sys::ODEProblem) = _keys_to_string(sys.u0)
+function _get_default_values(sys::ModelSystem)
+    return SymbolicIndexingInterface.default_values(sys) |> _keys_to_string
+end
+
+function _get_parameters(sys::ODEProblem)::Vector{String}
+    return sys.p |>
+        keys |>
+        collect .|>
+        string
+end
+function _get_parameters(sys::ModelSystem)::Vector{String}
+    return string.(ModelingToolkitBase.parameters(sys))
 end

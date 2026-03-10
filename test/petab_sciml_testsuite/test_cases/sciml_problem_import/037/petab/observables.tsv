@@ -1,0 +1,3 @@
+observableId	observableFormula	noiseFormula	observableTransformation	noiseDistribution
+prey_o	net6_output1 - 0.9 + prey	0.05	lin	normal
+predator_o	predator	0.05	lin	normal

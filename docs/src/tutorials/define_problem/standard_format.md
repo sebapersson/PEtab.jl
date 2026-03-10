@@ -10,8 +10,8 @@ format.
 A tutorial on creating valid PEtab problems is available in the PEtab
 [documentation](https://petab.readthedocs.io/en/latest/), and there is also
 [PEtab GUI](https://github.com/PEtab-dev/PEtab-GUI/) [jost2025petab](@cite) for creating
-problems via a graphical interface. Moreover, a large collection of ready-to-run
-PEtab problems is provided in the PEtab benchmark
+problems via a graphical interface. Moreover, a large collection of ready-to-run PEtab
+problems is provided in the PEtab benchmark
 [repository](https://github.com/Benchmarking-Initiative/Benchmark-Models-PEtab). In this
 tutorial, we use the Boehm model [boehm2014identification](@cite), which can be downloaded
 from [here](https://github.com/sebapersson/PEtab.jl/tree/main/docs/src/assets/boehm).
@@ -57,9 +57,12 @@ export_petab(dir_export, petab_prob, ms_res)
 rm(dir_export; recursive = true) # hide
 ```
 
-!!! note "Export requires PEtab standard format input"
-      Currently `export_petab` only supports problems that were imported from the PEtab
-      standard format.
+::: info Export requires PEtab standard format input
+
+Currently `export_petab` only supports problems that were imported from the PEtab standard
+format.
+
+:::
 
 ## What happens during PEtab import (deep dive)
 

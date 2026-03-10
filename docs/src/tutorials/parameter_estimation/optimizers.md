@@ -17,8 +17,8 @@ performance is problem-dependent and no method is universally best. Still, bench
 have identified methods that often work well for ODE models in biology (and likely beyond)
 [raue2013lessons, hass2019benchmark, villaverde2019benchmarking](@cite). In brief, the
 choice is driven by model size: for small models an accurate Hessian (or good approximation)
-is often feasible to compute, while for larger models it typically is not (see
-[gradient and Hessian support](@ref gradient_support)). Thereby, we recommend:
+is often feasible to compute, while for larger models it typically is not (see [gradient and
+Hessian support](@ref gradient_support)). Thereby, we recommend:
 
 - **Small models** (<10 ODEs and <20 estimated parameters): `Optim.IPNewton()` with the
   exact Hessian (`hessian_method = :ForwardDiff` in the `PEtabODEProblem`).
@@ -112,9 +112,12 @@ res = calibrate(
 For details and the full option list, see the Ipopt documentation and the original
 publication [wachter2006implementation](@cite).
 
-!!! note
-    To use Ipopt, load [Ipopt.jl](https://github.com/jump-dev/Ipopt.jl) with
-    `using Ipopt` before running parameter estimation.
+::: info
+
+To use Ipopt, load [Ipopt.jl](https://github.com/jump-dev/Ipopt.jl) with `using Ipopt`
+before running parameter estimation.
+
+:::
 
 ## References
 

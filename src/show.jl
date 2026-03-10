@@ -4,12 +4,14 @@
 =#
 import Base.show
 
-StyledStrings.addface!(:PURPLE => StyledStrings.Face(foreground = 0x8f4093))
+StyledStrings.addface!(:PURPLE => StyledStrings.Face(foreground = 0x008f4093))
 
 function _get_solver_show(solver::ODESolver)::Tuple{String, String}
     @unpack abstol, reltol, maxiters = solver
-    options = @sprintf("abstol=%.1e, reltol=%.1e, maxiters=%.0e", abstol, reltol,
-                       maxiters)
+    options = @sprintf(
+        "abstol=%.1e, reltol=%.1e, maxiters=%.0e", abstol, reltol,
+        maxiters
+    )
     # First needed to handle expressions on the form OrdinaryDiffEq.Rodas5P...
     _solver = string(solver.solver)
     if length(_solver) ≥ 14 && _solver[1:14] == "OrdinaryDiffEq"
@@ -48,12 +50,12 @@ end
 function show(io::IO, solver::ODESolver)
     _solver, options = _get_solver_show(solver)
     str = styled"{PURPLE:{bold:ODESolver}} {emphasis:$(_solver)}: $options"
-    print(io, str)
+    return print(io, str)
 end
 function show(io::IO, ss_solver::SteadyStateSolver)
     str = styled"{PURPLE:{bold:SteadyStateSolver:}} "
     options = _get_ss_solver_show(ss_solver)
-    print(io, styled"$(str)$(options)")
+    return print(io, styled"$(str)$(options)")
 end
 function show(io::IO, parameter::PEtabParameter)
     @unpack parameter_id, scale, estimate, prior, value, lb, ub = parameter
@@ -73,7 +75,13 @@ function show(io::IO, parameter::PEtabParameter)
         opt = @sprintf("estimate (scale = %s, prior(%s) = %s)", scale, parameter_id, prior_str)
     end
 
-    print(io, styled"$(header)$(opt)")
+    return print(io, styled"$(header)$(opt)")
+end
+function show(io::IO, parameter::PEtabMLParameter)
+    @unpack ml_id, estimate = parameter
+    header = styled"{PURPLE:{bold:PEtabMLParameter}} {emphasis:$(ml_id)}: "
+    opt = estimate == false ? "fixed" : "estimate"
+    return print(io, styled"$(header)$(opt)")
 end
 function show(io::IO, observable::PEtabObservable)
     @unpack observable_formula, observable_id, noise_formula, distribution = observable
@@ -98,7 +106,7 @@ function show(io::IO, observable::PEtabObservable)
     elseif distribution == LogLaplace
         opt = "log(data) ~ Laplace(μ=log($(observable_formula)), θ=$(noise_formula))"
     end
-    print(io, styled"$(header)$(opt)")
+    return print(io, styled"$(header)$(opt)")
 end
 function show(io::IO, event::PEtabEvent)
     @unpack condition, target_ids, target_values = event
@@ -113,10 +121,10 @@ function show(io::IO, event::PEtabEvent)
     for i in eachindex(target_ids)
         assignments *= "$(target_ids[i]) => $(target_values[i]), "
     end
-    assignments = assignments[1:end-2]
+    assignments = assignments[1:(end - 2)]
 
     opt = styled"when $(_cond): $(assignments)"
-    print(io, styled"$(header)$(opt)")
+    return print(io, styled"$(header)$(opt)")
 end
 function show(io::IO, condition::PEtabCondition)
     @unpack condition_id, target_ids, target_values = condition
@@ -127,10 +135,14 @@ function show(io::IO, condition::PEtabCondition)
 
     opt = ""
     for i in eachindex(target_ids)
-        opt *= "$(target_ids[i]) => $(target_values[i]), "
+        if target_values[i] isa Array{<:Real}
+            opt *= "$(target_ids[i]) => $(summary(target_values[i])), "
+        else
+            opt *= "$(target_ids[i]) => $(target_values[i]), "
+        end
     end
-    opt = opt[1:end-2]
-    print(io, styled"$(header) $(opt)")
+    opt = opt[1:(end - 2)]
+    return print(io, styled"$(header) $(opt)")
 end
 function show(io::IO, model::PEtabModel)
     header = styled"{PURPLE:{bold:PEtabModel}} $(model.name)"
@@ -139,7 +151,7 @@ function show(io::IO, model::PEtabModel)
     else
         opt = ""
     end
-    print(io, styled"$(header)$(opt)")
+    return print(io, styled"$(header)$(opt)")
 end
 function show(io::IO, prob::PEtabODEProblem)
     @unpack probinfo, model_info, nparameters_estimate = prob
@@ -147,7 +159,7 @@ function show(io::IO, prob::PEtabODEProblem)
     nest = @sprintf("%d", nparameters_estimate)
     header = styled"{PURPLE:{bold:PEtabODEProblem}} {emphasis:$(name)}: $nest parameters \
         to estimate\n(for more statistics, call `describe(petab_prob)`)"
-    print(io, styled"$(header)")
+    return print(io, styled"$(header)")
 end
 
 function show(io::IO, res::PEtabOptimisationResult)
@@ -157,7 +169,7 @@ function show(io::IO, res::PEtabOptimisationResult)
     opt3 = @sprintf("  Optimiser iterations  = %d\n", res.niterations)
     opt4 = @sprintf("  Runtime               = %.1es\n", res.runtime)
     opt5 = @sprintf("  Optimiser algorithm   = %s\n", res.alg)
-    print(io, styled"$(header)$(opt1)$(opt2)$(opt3)$(opt4)$(opt5)")
+    return print(io, styled"$(header)$(opt1)$(opt2)$(opt3)$(opt4)$(opt5)")
 end
 function show(io::IO, res::PEtabMultistartResult)
     header = styled"{PURPLE:{bold:PEtabMultistartResult}}\n"
@@ -170,14 +182,45 @@ function show(io::IO, res::PEtabMultistartResult)
     else
         opt5 = ""
     end
-    print(io, styled"$(header)$(opt1)$(opt2)$(opt3)$(opt4)$(opt5)")
+    return print(io, styled"$(header)$(opt1)$(opt2)$(opt3)$(opt4)$(opt5)")
 end
 function show(io::IO, alg::IpoptOptimizer)
-    print(io, "Ipopt(LBFGS = $(alg.LBFGS))")
+    return print(io, "Ipopt(LBFGS = $(alg.LBFGS))")
 end
 function show(io::IO, target::PEtabLogDensity)
     out = styled"{PURPLE:{bold:PEtabLogDensity}} with $(target.dim) parameters to infer"
-    print(io, out)
+    return print(io, out)
+end
+function show(io::IO, ml_model::MLModel)
+    @unpack pre_initialization, ml_id, inputs, outputs = ml_model
+
+    mode = pre_initialization == true ? "pre-initialization" : "simulation"
+    n_ps = _get_n_ml_parameters(ml_model)
+
+    header = styled"{PURPLE:{bold:MLModel}} {emphasis:$(ml_id)}\n"
+    opt1 = "  mode: $mode\n"
+    opt2 = "  parameters: $(n_ps)\n"
+    opt3 = "  hint: see model structure in `ml_model.lux_model`"
+    if isempty(inputs)
+        return print(io, styled"$(header)$(opt1)$(opt2)$(opt3)")
+    end
+
+    inputs = _ml_io_string(inputs, ml_model)
+    outputs = _ml_io_string(outputs, ml_model)
+    opt4 = "  inputs: $(inputs)\n"
+    opt5 = "  outputs: $(outputs)\n"
+    return print(io, styled"$(header)$(opt1)$(opt2)$(opt4)$(opt5)$(opt3)")
+end
+function show(io::IO, ml_models::MLModels)
+    header = styled"{PURPLE:{bold:MLModels}} with $(length(ml_models.ml_models)) models"
+
+    opt = ""
+    for ml_model in ml_models.ml_models
+        n_ps = _get_n_ml_parameters(ml_model)
+        mode = ml_model.pre_initialization == true ? "pre-initialization" : "simulation"
+        opt *= "\n  $(ml_model.ml_id): (mode=$mode, parameters=$(n_ps))"
+    end
+    return print(io, styled"$(header)$(opt)")
 end
 
 """
@@ -186,7 +229,7 @@ end
 Print summary and configuration statistics for `prob`
 """
 function describe(prob::PEtabODEProblem)
-    print(_describe(prob))
+    return print(_describe(prob))
 end
 
 function _describe(prob::PEtabODEProblem; styled::Bool = true)
@@ -194,8 +237,8 @@ function _describe(prob::PEtabODEProblem; styled::Bool = true)
     @unpack probinfo, model_info, nparameters_estimate = prob
     model = prob.model_info.model
     name = model_info.model.name
-    nstates = @sprintf("%d", length(unknowns(model.sys_mutated)))
-    nparameters = @sprintf("%d", length(parameters(model.sys_mutated)))
+    nstates = @sprintf("%d", length(_get_state_ids(model.sys_mutated)))
+    nparameters = @sprintf("%d", _get_n_parameters_sys(model.sys_mutated))
     nest = @sprintf("%d", nparameters_estimate)
     n_observables = length(unique(model.petab_tables[:measurements].observableId))
     n_conditions = length(model_info.simulation_info.conditionids[:experiment])
@@ -207,6 +250,19 @@ function _describe(prob::PEtabODEProblem; styled::Bool = true)
     opt3 = "  Observables: $(n_observables)\n"
     opt4 = "  Simulation conditions: $(n_conditions)\n"
     model_stat = styled"$(opt_head)$(opt1)$(opt2)$(opt3)$(opt4)\n"
+
+    if !isempty(model.ml_models)
+        ml_head = styled"{underline:ML models}\n"
+        ml_opt = ""
+        for ml_model in model.ml_models.ml_models
+            n_ps = _get_n_ml_parameters(ml_model)
+            mode = ml_model.pre_initialization == true ? "pre-initialization" : "simulation"
+            ml_opt *= "  $(ml_model.ml_id): (mode=$mode, parameters=$(n_ps))\n"
+        end
+        ml_stat = styled"$(ml_head)$(ml_opt)\n"
+    else
+        ml_stat = ""
+    end
 
     opt_head = styled"{underline:Configuration}\n"
     opt1 = styled"  Gradient method: $(probinfo.gradient_method)\n"
@@ -226,8 +282,40 @@ function _describe(prob::PEtabODEProblem; styled::Bool = true)
     end
     comp_stat = styled"$(opt_head)$(opt1)$(opt2)$(opt3)$(opt4)$(opt5)$(opt6)"
     if styled
-        return styled"$(header)$(model_stat)$(comp_stat)"
+        return styled"$(header)$(model_stat)$(ml_stat)$(comp_stat)"
     else
-        return "$(header)$(model_stat)$(comp_stat)"
+        return "$(header)$(model_stat)$(ml_stat)$(comp_stat)"
+    end
+end
+
+function _ml_io_string(inputs, ml_model; max_show::Int = 6)::String
+    show_syms = function (syms::AbstractVector{Symbol})
+        n = length(syms)
+        k = min(n, max_show)
+        head = join(string.(syms[1:k]), ", ")
+        return n > max_show ? "[$head, …]" : "[$head]"
+    end
+
+    # One input argument: Vector{Symbol}
+    if inputs isa AbstractVector{Symbol}
+        if length(inputs) == 1 && inputs[1] === :_ARRAY_INPUT
+            arr = ml_model.array_inputs[:__arg1]
+            return "$(summary(arr))"
+        end
+        return show_syms(inputs)
+    end
+
+    # Multiple input arguments: Vector{Vector{Symbol}} (or similar)
+    if inputs isa AbstractVector{<:AbstractVector{Symbol}}
+        parts = String[]
+        for (i, v) in enumerate(inputs)
+            if length(v) == 1 && v[1] === :_ARRAY_INPUT
+                arr = ml_model.array_inputs[Symbol("__arg", i)]
+                push!(parts, "arg$(i): $(summary(arr))")
+            else
+                push!(parts, "arg$(i): " * show_syms(v))
+            end
+        end
+        return "$(length(inputs)) args (" * join(parts, ", ") * ")"
     end
 end

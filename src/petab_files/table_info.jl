@@ -3,12 +3,15 @@ const MEASUREMENT_V1_COLS = Dict(
     "simulationConditionId" => (required = true, types = AbstractString),
     "measurement" => (required = true, types = Real),
     "time" => (required = true, types = Real),
-    "preequilibrationConditionId" => (required = false,
-                                      types = Union{AbstractString, Missing}),
-    "observableParameters" => (required = false,
-                               types = Union{AbstractString, Real, Missing}),
-    "noiseParameters" => (required = false,
-                          types = Union{AbstractString, Real, Missing})
+    "preequilibrationConditionId" => (
+        required = false,
+        types = Union{AbstractString, Missing},
+    ),
+    "observableParameters" => (
+        required = false,
+        types = Union{AbstractString, Real, Missing},
+    ),
+    "noiseParameters" => (required = false, types = Union{AbstractString, Real, Missing})
 )
 
 const CONDITIONS_V1_COLS = Dict(
@@ -20,23 +23,25 @@ const PARAMETERS_V1_COLS = Dict(
     "parameterScale" => (required = true, types = AbstractString),
     "lowerBound" => (required = true, types = Union{Real, Missing}),
     "upperBound" => (required = true, types = Union{Real, Missing}),
-    "nominalValue" => (required = true, types = Real),
+    "nominalValue" => (required = true, types = Union{Real, AbstractString}),
     "estimate" => (required = true, types = Real),
     "initializationPriorType" => (required = false, types = Union{Missing, AbstractString}),
-    "initializationPriorParameters" => (required = false,
-                                        types = Union{Missing, AbstractString}),
-    "objectivePriorType" => (required = false,
-                             types = Union{Missing, AbstractString}),
-    "objectivePriorParameters" => (required = false,
-                                  types = Union{Missing, AbstractString})
+    "initializationPriorParameters" => (
+        required = false,
+        types = Union{Missing, AbstractString},
+    ),
+    "objectivePriorType" => (required = false, types = Union{Missing, AbstractString}),
+    "objectivePriorParameters" => (required = false, types = Union{Missing, AbstractString})
 )
 
 const OBSERVABLES_V1_COLS = Dict(
     "observableId" => (required = true, types = AbstractString),
     "observableFormula" => (required = true, types = AbstractString),
     "noiseFormula" => (required = true, types = Union{AbstractString, Real}),
-    "observableTransformation" => (required = false,
-                                  types = Union{AbstractString, Missing}),
+    "observableTransformation" => (
+        required = false,
+        types = Union{AbstractString, Missing},
+    ),
     "noiseDistribution" => (required = false, types = Union{AbstractString, Missing})
 )
 
@@ -45,10 +50,14 @@ const MEASUREMENT_V2_COLS = Dict(
     "experimentId" => (required = true, types = Union{AbstractString, Missing}),
     "measurement" => (required = true, types = Real),
     "time" => (required = true, types = Real),
-    "observableParameters" => (required = false,
-                               types = Union{AbstractString, Real, Missing}),
-    "noiseParameters" => (required = false,
-                          types = Union{AbstractString, Real, Missing})
+    "observableParameters" => (
+        required = false,
+        types = Union{AbstractString, Real, Missing},
+    ),
+    "noiseParameters" => (
+        required = false,
+        types = Union{AbstractString, Real, Missing},
+    )
 )
 
 const CONDITIONS_V2_COLS = Dict(
@@ -71,17 +80,26 @@ const PARAMETERS_V2_COLS = Dict(
     "parameterScale" => (required = false, types = AbstractString),
     "lowerBound" => (required = true, types = Union{Real, Missing}),
     "upperBound" => (required = true, types = Union{Real, Missing}),
-    "nominalValue" => (required = true, types = Real),
+    "nominalValue" => (required = true, types = Union{Real, Missing, AbstractString}),
     "estimate" => (required = true, types = Real),
     "priorDistribution" => (required = false, types = Union{Missing, AbstractString}),
-    "priorParameters" => (required = false,
-                          types = Union{Missing, Real, AbstractString})
+    "priorParameters" => (required = false, types = Union{Missing, Real, AbstractString})
 )
 
 const EXPERIMENTS_V2_COLS = Dict(
     "experimentId" => (required = true, types = AbstractString),
     "time" => (required = true, types = Real),
     "conditionId" => (required = true, types = Union{AbstractString, Missing})
+)
+
+const MAPPING_COLS = Dict(
+    "modelEntityId" => (required = true, types = AbstractString),
+    "petabEntityId" => (required = true, types = AbstractString)
+)
+
+const HYBRIDIZATION_COLS = Dict(
+    "targetId" => (required = true, types = AbstractString),
+    "targetValue" => (required = true, types = AbstractString)
 )
 
 const COLUMN_INFO = Dict(
@@ -93,30 +111,40 @@ const COLUMN_INFO = Dict(
     :measurements_v2 => MEASUREMENT_V2_COLS,
     :conditions_v2 => CONDITIONS_V2_COLS,
     :parameters_v2 => PARAMETERS_V2_COLS,
-    :observables_v2 => OBSERVABLES_V2_COLS
+    :observables_v2 => OBSERVABLES_V2_COLS,
+    :mapping => MAPPING_COLS,
+    :hybridization => HYBRIDIZATION_COLS
 )
+
+const OPTIONAL_V2_FILES = [
+    "condition_files", "experiment_files", "hybridization_files", "mapping_files",
+]
 
 const VALID_SCALES = ["lin", "log10", "log", "log2"]
 
 # SBMLImporter is used for parsing functions in the PEtab syntax to Julia syntax
-const PETAB_FUNCTIONS = Dict("pow" => SBMLImporter.FunctionSBML(["__x__", "__y__"],
-                                                                "(__x__)^(__y__)"))
+const PETAB_FUNCTIONS = Dict(
+    "pow" => SBMLImporter.FunctionSBML(
+        ["__x__", "__y__"],
+        "(__x__)^(__y__)"
+    )
+)
 const PETAB_FUNCTIONS_NAMES = ["pow"]
 
 const PETAB_PRIORS = Dict(
-    "parameterScaleNormal" => (x_scale=true, n_parameters=2, dist=Distributions.Normal),
-    "parameterScaleLaplace" => (x_scale=true, n_parameters=2, dist=Distributions.Laplace),
-    "normal" => (x_scale=false, n_parameters=2, dist=Distributions.Normal),
-    "logNormal" => (x_scale=false, n_parameters=2, dist=Distributions.LogNormal),
-    "log-normal" => (x_scale=false, n_parameters=2, dist=Distributions.LogNormal),
-    "laplace" => (x_scale=false, n_parameters=2, dist=Distributions.Laplace),
-    "logLaplace" => (x_scale=false, n_parameters=2, dist=LogLaplace),
-    "log-laplace" => (x_scale=false, n_parameters=2, dist=LogLaplace),
-    "gamma" => (x_scale=false, n_parameters=2, dist=Distributions.Gamma),
-    "cauchy" => (x_scale=false, n_parameters=2, dist=Distributions.Cauchy),
-    "chisquare" => (x_scale=false, n_parameters=1, dist=Distributions.Chisq),
-    "exponential" => (x_scale=false, n_parameters=1, dist=Distributions.Exponential),
-    "log-uniform" => (x_scale=false, n_parameters=2, dist=Distributions.LogUniform),
-    "rayleigh" => (x_scale=false, n_parameters=1, dist=Distributions.Rayleigh),
-    "uniform" => (x_scale=false, n_parameters=2, dist=Distributions.Uniform)
+    "parameterScaleNormal" => (x_scale = true, n_parameters = 2, dist = Distributions.Normal),
+    "parameterScaleLaplace" => (x_scale = true, n_parameters = 2, dist = Distributions.Laplace),
+    "normal" => (x_scale = false, n_parameters = 2, dist = Distributions.Normal),
+    "logNormal" => (x_scale = false, n_parameters = 2, dist = Distributions.LogNormal),
+    "log-normal" => (x_scale = false, n_parameters = 2, dist = Distributions.LogNormal),
+    "laplace" => (x_scale = false, n_parameters = 2, dist = Distributions.Laplace),
+    "logLaplace" => (x_scale = false, n_parameters = 2, dist = LogLaplace),
+    "log-laplace" => (x_scale = false, n_parameters = 2, dist = LogLaplace),
+    "gamma" => (x_scale = false, n_parameters = 2, dist = Distributions.Gamma),
+    "cauchy" => (x_scale = false, n_parameters = 2, dist = Distributions.Cauchy),
+    "chisquare" => (x_scale = false, n_parameters = 1, dist = Distributions.Chisq),
+    "exponential" => (x_scale = false, n_parameters = 1, dist = Distributions.Exponential),
+    "log-uniform" => (x_scale = false, n_parameters = 2, dist = Distributions.LogUniform),
+    "rayleigh" => (x_scale = false, n_parameters = 1, dist = Distributions.Rayleigh),
+    "uniform" => (x_scale = false, n_parameters = 2, dist = Distributions.Uniform)
 )

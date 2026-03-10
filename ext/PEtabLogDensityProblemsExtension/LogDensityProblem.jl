@@ -6,8 +6,10 @@ LogDensityProblems.capabilities(::PEtabLogDensity) = LogDensityProblems.LogDensi
 
 LogDensityProblems.logdensity_and_gradient(p::PEtabLogDensity, x) = p.logtarget_gradient(x)
 
-function _logtarget(x_inference::AbstractVector{T}, compute_nllh::Function,
-                    inference_info::PEtab.InferenceInfo)::T where {T <: Real}
+function _logtarget(
+        x_inference::AbstractVector{T}, compute_nllh::Function,
+        inference_info::PEtab.InferenceInfo
+    )::T where {T <: Real}
     # Logposterior with Jacobian correction for transformed parameters
     logtarget = PEtab.compute_llh(x_inference, compute_nllh, inference_info)
     logtarget += PEtab.compute_prior(x_inference, inference_info)
@@ -15,11 +17,17 @@ function _logtarget(x_inference::AbstractVector{T}, compute_nllh::Function,
     return logtarget
 end
 
-function _logtarget_gradient(x_inference::AbstractVector{T}, _nllh_gradient::Function,
-                             _prior_correction::Function,
-                             inference_info::PEtab.InferenceInfo)::Tuple{T,
-                                                                         Vector{T}} where {T <:
-                                                                                           Real}
+function _logtarget_gradient(
+        x_inference::AbstractVector{T}, _nllh_gradient::Function,
+        _prior_correction::Function,
+        inference_info::PEtab.InferenceInfo
+    )::Tuple{
+        T,
+        Vector{T},
+    } where {
+        T <:
+        Real,
+    }
     x_nllh = to_nllh_scale(x_inference, inference_info)
     nllh, logtarget_grad = _nllh_gradient(x_nllh; prior = false)
 

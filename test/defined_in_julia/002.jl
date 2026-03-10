@@ -4,60 +4,61 @@
 
 rn = @reaction_network begin
     @parameters a0
-    @species A(t)=a0
+    @species A(t) = a0
     (k1, k2), A <--> B
 end
+speciemap = [:B => 1.0] # Constant initial value for B
 
 t = default_t()
 D = default_time_deriv()
-@mtkmodel SYS2 begin
-    @parameters begin
-        a0
-        k1
-        k2
-    end
-    @variables begin
-        A(t) = a0
-        B(t) = 1.0
-    end
-    @equations begin
-        D(A) ~ -k1*A + k2*B
-        D(B) ~ k1*A - k2*B
-    end
-end
-@mtkbuild sys = SYS2()
-
-speciemap = [:B => 1.0] # Constant initial value for B
+ps = @parameters k1 k2 a0
+sps = @variables A(t) = a0 B(t) = 1.0
+equations = [
+    D(A) ~ -k1 * A + k2 * B
+    D(B) ~ k1 * A - k2 * B
+]
+@named sys_model = System(equations, t, sps, ps)
+sys = ModelingToolkitBase.mtkcompile(sys_model)
 
 # Measurement data
-measurements = DataFrame(simulation_id=["c0", "c0", "c1", "c1"],
-                         obs_id=["obs_a", "obs_a", "obs_a", "obs_a"],
-                         time=[0, 10.0, 0, 10.0],
-                         measurement=[0.7, 0.1, 0.8, 0.2])
+measurements = DataFrame(
+    simulation_id = ["c0", "c0", "c1", "c1"],
+    obs_id = ["obs_a", "obs_a", "obs_a", "obs_a"],
+    time = [0, 10.0, 0, 10.0],
+    measurement = [0.7, 0.1, 0.8, 0.2]
+)
 
 # Single experimental condition
-simulation_conditions = [PEtabCondition(:c0, :a0 => 0.8),
-                         PEtabCondition(:c1, :a0 => 0.9)]
+simulation_conditions = [
+    PEtabCondition(:c0, :a0 => 0.8),
+    PEtabCondition(:c1, :a0 => 0.9),
+]
 
 # PEtab-parameter to "estimate"
-parameters = [PEtabParameter(:k1, value=0.8, scale=:lin),
-              PEtabParameter(:k2, value=0.6, scale=:lin)]
+parameters = [
+    PEtabParameter(:k1, value = 0.8, scale = :lin),
+    PEtabParameter(:k2, value = 0.6, scale = :lin),
+]
 
 # Observable equation
 @unpack A = rn
 observables = PEtabObservable(:obs_a, A, 1.0)
 
 # Create a PEtabODEProblem ReactionNetwork
-model_rn = PEtabModel(sys, observables, measurements, parameters; speciemap = speciemap,
-                     simulation_conditions = simulation_conditions)
-petab_problem_rn = PEtabODEProblem(model_rn, verbose=false)
+model_rn = PEtabModel(
+    rn, observables, measurements, parameters; speciemap = speciemap,
+    simulation_conditions = simulation_conditions
+)
+petab_prob_rn = PEtabODEProblem(model_rn)
 # Create a PEtabODEProblem ODESystem
-model_sys = PEtabModel(sys, observables, measurements, parameters;
-                       simulation_conditions = simulation_conditions)
-petab_problem_sys = PEtabODEProblem(model_sys, verbose=false)
+model_sys = PEtabModel(
+    sys, observables, measurements, parameters;
+    simulation_conditions = simulation_conditions
+)
+petab_prob_sys = PEtabODEProblem(model_sys)
 
 # Compute negative log-likelihood
-nll_rn = petab_problem_rn.nllh(get_x(petab_problem_rn))
-nll_sys = petab_problem_sys.nllh(get_x(petab_problem_sys))
-@test nll_rn ≈ 4.09983582520606 atol=1e-3
-@test nll_sys ≈ 4.09983582520606 atol=1e-3
+nll_rn = petab_prob_rn.nllh(get_x(petab_prob_rn))
+nll_sys = petab_prob_sys.nllh(get_x(petab_prob_sys))
+@test nll_rn ≈ 4.09983582520606 atol = 1.0e-3
+@test nll_sys ≈ 4.09983582520606 atol = 1.0e-3

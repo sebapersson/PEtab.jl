@@ -14,45 +14,65 @@ function PEtab.PEtabLogDensity(petab_problem::PEtabODEProblem)::PEtab.PEtabLogDe
     end
 
     logtarget_gradient = (x_inference) -> let nllh_grad = nllh_grad,
-        inference_info = inference_info, _prior_correction = _prior_correction
+            inference_info = inference_info, _prior_correction = _prior_correction
 
         _logtarget_gradient(x_inference, nllh_grad, _prior_correction, inference_info)
     end
 
     initial_value = Vector{Float64}(undef, nparameters_estimate)
 
-    return PEtab.PEtabLogDensity(inference_info, logtarget, logtarget_gradient,
-                                 initial_value, nparameters_estimate)
+    return PEtab.PEtabLogDensity(
+        inference_info, logtarget, logtarget_gradient,
+        initial_value, nparameters_estimate
+    )
 end
 
 function PEtab.InferenceInfo(petab_problem::PEtabODEProblem)::PEtab.InferenceInfo
-    @unpack model_info, xnames, lower_bounds, upper_bounds = petab_problem
+    @unpack model_info, lower_bounds, upper_bounds, xnominal = petab_problem
     @unpack priors, petab_parameters = model_info
-    priors_dist = Vector{Distribution{Univariate, Continuous}}(undef, length(xnames))
-    bijectors = Vector(undef, length(xnames))
-    priors_scale, parameters_scale = similar(xnames), similar(xnames)
 
-    for (i, θ) in pairs(xnames)
-        iθ = findfirst(x -> x == θ, petab_parameters.parameter_id)
-        parameters_scale[i] = petab_parameters.parameter_scale[iθ]
+    parameter_names = Symbol.(ComponentArrays.labels(xnominal))
+    n_parameters = length(parameter_names)
+
+    priors_dist = Vector{PEtab.ContDistribution}(undef, n_parameters)
+    bijectors = Vector(undef, n_parameters)
+    priors_scale = similar(parameter_names)
+    parameters_scale = similar(parameter_names)
+
+    for (ix, θ) in pairs(parameter_names)
+        # ML parameters are always on linear scale
+        if ix in model_info.xindices.indices_est[:est_to_mech]
+            iθ = findfirst(x -> x == θ, petab_parameters.parameter_id)
+            parameters_scale[ix] = petab_parameters.parameter_scale[iθ]
+        else
+            parameters_scale[ix] = :lin
+        end
 
         # In case the parameter lacks a defined prior we default to a Uniform
         # on parameter scale with lb and ub as bounds
-        if !haskey(priors.distribution, θ)
-            priors_dist[i] = Uniform(lower_bounds[i], upper_bounds[i])
-            priors_scale[i] = :parameter_scale
+        if !in(ix, priors.ix_prior)
+            if abs(isinf(lower_bounds[ix])) || isinf(upper_bounds[ix])
+                @warn "Lower or upper bounds for parameter $(parameter_names[ix]) is \
+                    -inf and/or inf. Assigning Uniform(1e-3, 1e3) prior"
+                priors_dist[ix] = Uniform(1.0e-3, 1.0e3)
+            else
+                priors_dist[ix] = Uniform(lower_bounds[ix], upper_bounds[ix])
+            end
+            priors_scale[ix] = :lin
         else
-            priors_dist[i] = priors.distribution[θ]
-            priors_scale[i] = priors.prior_on_parameter_scale[θ] ? :parameter_scale :
-                              :lin
+            jx = findfirst(x -> x == ix, priors.ix_prior)
+            priors_dist[ix] = priors.distributions[jx]
+            priors_scale[ix] = priors.priors_on_parameter_scale[jx] ? :parameter_scale : :lin
         end
-        bijectors[i] = Bijectors.bijector(priors_dist[i])
+        bijectors[ix] = Bijectors.bijector(priors_dist[ix])
     end
 
     inv_bijectors = Bijectors.Stacked(Bijectors.inverse.(bijectors))
     bijectors = Bijectors.Stacked(bijectors)
     tpriors = Bijectors.transformed.(priors_dist)
 
-    return PEtab.InferenceInfo(priors_dist, tpriors, bijectors, inv_bijectors, priors_scale,
-                               parameters_scale, xnames)
+    return PEtab.InferenceInfo(
+        priors_dist, tpriors, bijectors, inv_bijectors, priors_scale, parameters_scale,
+        parameter_names
+    )
 end
