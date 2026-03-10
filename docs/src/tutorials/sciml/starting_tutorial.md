@@ -45,7 +45,7 @@ $X$ is unknown and replace it by a neural network:
 \end{align*}
 ```
 
-Here, $\mathrm{NN}_1$ is a feed-forward neural network with input $Y$.
+Where $\mathrm{NN}_1$ is a feed-forward neural network with input $Y$.
 
 To estimate model parameters, measurements of both $X$ and $Y$ are assumed. The goal of this
 tutorial is to set up a PEtab parameter estimation problem and then estimate both the
@@ -137,8 +137,9 @@ nothing # hide
 ```
 
 When the dynamics are provided as an `ODEProblem`/`UDEProblem`, mechanistic parameters
-(`p_mechanistic`) and initial values (`u0`) must be `ComponentArray`s so PEtab.jl can track
-parameter and state IDs.
+(`p_mechanistic`) and initial values (`u0`) must be `ComponentArray`s or `NamedTuple`s so
+PEtab.jl can track parameter and state IDs; see [Supported model systems](@ref
+model_systems) for details.
 
 ### Defining ML parameters to estimate
 
