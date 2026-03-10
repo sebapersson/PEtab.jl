@@ -111,21 +111,26 @@ x = get_x(petab_prob)
 nothing # hide
 ```
 
-It is important to note inference in PEtab.jl is performed on an **linear** parameter scale.
-Therefore, to run inference parameter on transformed scale (e.g. `scale = :log10`) must
-first mapped back to the linear (prior) scale. Moreover, since many samplers operate in an
-unconstrained space, bounded priors (e.g. `Uniform(0.0, 5.0)`) parameters need to be are
-transformed to $\mathbb{R}$ via bijectors. In short, for a PEtab parameter vector `x`,
-inference uses the composition `x -> xprior -> xinference`:
+It is important to note that inference in PEtab.jl is performed on an unconstrained
+inference scale, since many inference algorithms (e.g. NUTS) operate on $\mathbb{R}^n$.
+Therefore, bounded priors (e.g. `Uniform(0.0, 5.0)`) are mapped to $\mathbb{R}$ using
+bijectors. In addition, while parameter estimation often benefits from working on a log
+scale (or other transformations) to improve optimizer performance, it is more natural for
+inference to start from the prior scale and then transform parameters to the unconstrained
+inference scale. In short, for a PEtab parameter vector `x` (on parameter scale), inference
+uses the composition `x -> x_prior -> x_inference`:
 
 ```@example 1
-xprior = to_prior_scale(petab_prob.xnominal_transformed, target)
-xinference = target.inference_info.bijectors(xprior)
+x_prior = to_prior_scale(petab_prob.xnominal_transformed, target)
+x_inference = target.inference_info.bijectors(x_prior)
 ```
+
+Inference results are then reported back on the prior scale with the `to_chains` function
+(see below).
 
 ::: warning
 
-The initial value passed to the sampler must be on the inference scale (`xinference`).
+The initial value passed to the sampler must be on the inference scale (`x_inference`).
 
 :::
 
@@ -139,7 +144,7 @@ using AdvancedHMC
 sampler = NUTS(0.8)
 Random.seed!(1234) # hide
 res = sample(
-    target, sampler, 2000; n_adapts = 1000, initial_params = xinference,
+    target, sampler, 2000; n_adapts = 1000, initial_params = x_inference,
     drop_warmup = true, progress = false,
 )
 nothing # hide
@@ -177,7 +182,7 @@ $100\,000$ samples with:
 using AdaptiveMCMC
 Random.seed!(123) # hide
 # target.logtarget is the posterior log density on the inference scale
-res = adaptive_rwm(xinference, target.logtarget, 100000; progress=false)
+res = adaptive_rwm(x_inference, target.logtarget, 100000; progress=false)
 nothing # hide
 ```
 
