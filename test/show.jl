@@ -32,16 +32,16 @@ t = default_t()
 @variables A(t) B(t)
 @parameters sigma
 obs1 = PEtabObservable(:o1, :a, 1.0)
-obs2 = PEtabObservable("o1", A + B, sigma)
-obs3 = PEtabObservable("o1", A + B, sigma + B)
+obs2 = PEtabObservable("o1", "A + B", sigma)
+obs3 = PEtabObservable("o1", "A + B", "sigma + B")
 obs4 = PEtabObservable(:o1, :a, 1.0; distribution = LogNormal)
 obs5 = PEtabObservable(:o1, :a, 1.0; distribution = PEtab.Log2Normal)
 obs6 = PEtabObservable(:o1, :a, 1.0; distribution = PEtab.Log10Normal)
 obs7 = PEtabObservable(:o1, :a, 1.0; distribution = Laplace)
 obs8 = PEtabObservable(:o1, :a, 1.0; distribution = PEtab.LogLaplace)
 @test "$obs1" == "PEtabObservable o1: data ~ Normal(μ=a, σ=1.0)"
-@test "$obs2" == "PEtabObservable o1: data ~ Normal(μ=(A(t) + B(t)), σ=sigma)"
-@test "$obs3" == "PEtabObservable o1: data ~ Normal(μ=(A(t) + B(t)), σ=(sigma + B(t)))"
+@test "$obs2" == "PEtabObservable o1: data ~ Normal(μ=(A + B), σ=sigma)"
+@test "$obs3" == "PEtabObservable o1: data ~ Normal(μ=(A + B), σ=(sigma + B))"
 @test "$obs4" == "PEtabObservable o1: log(data) ~ Normal(μ=log(a), σ=1.0)"
 @test "$obs5" == "PEtabObservable o1: log2(data) ~ Normal(μ=log2(a), σ=1.0)"
 @test "$obs6" == "PEtabObservable o1: log10(data) ~ Normal(μ=log10(a), σ=1.0)"
