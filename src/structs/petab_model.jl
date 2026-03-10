@@ -82,6 +82,16 @@ function PEtabParameter(
         end
     end
 
+    if !(string(scale) in VALID_SCALES)
+        throw(PEtabInputError("Scale $scale is not allowed for parameter $parameter_id. \
+            Allowed scales are $(join(':' .* PEtab.VALID_SCALES, ", "))"))
+    end
+
+    if lb > ub
+        throw(PEtabInputError("Lower bound $lb is larger than upper bound $ub for \
+            parameter $parameter_id"))
+    end
+
     return PEtabParameter(
         string(parameter_id), estimate, value, lb, ub, prior, scale, sample_prior
     )

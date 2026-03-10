@@ -403,24 +403,9 @@ end
 function _parse_petab_parameter(petab_parameter::PEtabParameter, ::MLModels)::DataFrame
     @unpack parameter_id, scale, lb, ub, value, estimate, prior = petab_parameter
 
-    parameterScale = isnothing(scale) ? "lin" : string(scale)
-    if !(parameterScale in VALID_SCALES)
-        throw(PEtabFormatError("Scale $parameterScale is not allowed for parameter \
-            $parameter. Allowed scales are $(VALID_SCALES)"))
-    end
-
-    lowerBound = isnothing(lb) ? 1.0e-3 : lb
-    upperBound = isnothing(ub) ? 1.0e3 : ub
-    if lowerBound > upperBound
-        throw(PEtabFormatError("Lower bound $lowerBound is larger than upper bound \
-            $upperBound for parameter $parameter"))
-    end
-
-    nominalValue = isnothing(value) ? (lowerBound + upperBound) / 2.0 : value
-    should_estimate = estimate == true ? 1 : 0
     row = DataFrame(
-        parameterId = parameter_id, parameterScale = parameterScale, lowerBound = lowerBound,
-        upperBound = upperBound, nominalValue = nominalValue, estimate = should_estimate
+        parameterId = parameter_id, parameterScale = string(scale), lowerBound = lb,
+        upperBound = ub, nominalValue = value, estimate = estimate
     )
 
     if !isnothing(prior)
@@ -464,10 +449,15 @@ function _parse_target_value(
         target_value::Array{<:Real}, target_id::String, condition_id::String, ::Integer,
         ml_models::MLModels
     )::String
-    # Only allowed for ML model inputs
-    _ml_models = ml_models.ml_models
-    ml_model_inputs = reduce(vcat, _to_vec.(getfield.(_ml_models, :inputs)))
-    if !in(Symbol(target_id), ml_model_inputs)
+
+    invalid_input = if isempty(ml_models)
+        true
+    else
+        ml_model_inputs = reduce(vcat, _to_vec.(getfield.(ml_models.ml_models, :inputs)))
+        !in(Symbol(target_id), ml_model_inputs)
+    end
+
+    if invalid_input
         throw(PEtabInputError("Assigning an array in a PEtabCondition is only valid \
             when the target variable is an ML model input. For condition '$condition_id', \
             the target '$target_id' is not an ML model input variable."))

@@ -7,6 +7,7 @@ function PEtab._set_ml_model_ps!(
     net_parameters = file["parameters"]["$(ml_id)"]
     st = Lux.initialstates(Random.default_rng(1), lux_model)
     for (layerid, layer) in pairs(lux_model.layers)
+        layer isa PS_FREE_LAYERS && continue
         ps_layer = ps[layerid]
         isempty(ps_layer) && continue
         _set_ps_layer!(ps_layer, layer, st[layerid], net_parameters[string(layerid)])
@@ -167,11 +168,6 @@ function _set_ps_layer!(
         end
         _set_ps_array!(ps, :bias, ps_bias)
     end
-    return nothing
-end
-function _set_ps_layer!(
-        ::ComponentArray, ::PS_FREE_LAYERS, ::NamedTuple, ::DataFrame
-    )::Nothing
     return nothing
 end
 

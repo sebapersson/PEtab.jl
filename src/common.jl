@@ -5,17 +5,9 @@ function _get_state_ids(system)::Vector{String}
     return ids
 end
 function _get_state_ids(system::ODEProblem)::Vector{String}
-    local ids
-    try
-        ids = keys(system.u0) .|>
-            string |>
-            collect
-    catch
-        throw(PEtabInputError("If the model is provided as an ODEProblem then the initial \
-            values (u0) must be a struct that supports the keys  function, for example, \
-            a ComponentArray or a NamedTuple.  This is because PEtab.jl must know the \
-            order of the species in the ODE model"))
-    end
+    ids = keys(system.u0) .|>
+        string |>
+        collect
     return ids
 end
 

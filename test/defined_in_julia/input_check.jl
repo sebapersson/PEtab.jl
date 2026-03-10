@@ -23,6 +23,15 @@
     @unpack A = rn
     observables = PEtabObservable("obs_a", A, 1.0)
 
+    @testset "PEtabParameter" begin
+        @test_throws PEtab.PEtabInputError begin
+            PEtabParameter(:k1, value = 0.8, scale = :tanh)
+        end
+        @test_throws PEtab.PEtabInputError begin
+            PEtabParameter(:k1; lb = 3.0, ub = 2.0)
+        end
+    end
+
     @testset "Non-specified parameters" begin
         simulation_conditions = [PEtabCondition(:c0), PEtabCondition(:c1)]
         parameters = [
@@ -112,9 +121,21 @@
         # t0 for a condition excludes measurement points
         simulation_conditions = [
             PEtabCondition(:c0, :a0 => 0.8; t0 = 8.0),
-            PEtabCondition(:c0, :a0 => :noise),
+            PEtabCondition(:c1, :a0 => :noise),
         ]
         @test_throws PEtab.PEtabFormatError begin
+            _ = PEtabModel(
+                rn, observables, measurements, parameters; speciemap = speciemap,
+                simulation_conditions = simulation_conditions
+            )
+        end
+
+        # Array input to none ML parameter
+        simulation_conditions = [
+            PEtabCondition(:c0, :a0 => [0.8]),
+            PEtabCondition(:c1, :a0 => :noise),
+        ]
+        @test_throws PEtab.PEtabInputError begin
             _ = PEtabModel(
                 rn, observables, measurements, parameters; speciemap = speciemap,
                 simulation_conditions = simulation_conditions

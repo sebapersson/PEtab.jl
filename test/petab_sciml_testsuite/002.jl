@@ -1,3 +1,5 @@
+include(joinpath(@__DIR__, "..", "common.jl"))
+
 test_case = "002"
 dir_case = joinpath(@__DIR__, "test_cases", "sciml_problem_import", test_case, "petab")
 
@@ -53,7 +55,10 @@ model = PEtabModel(
     simulation_conditions = conditions
 )
 petab_prob = PEtabODEProblem(
-    model; odesolver = ode_solver, gradient_method = :ForwardDiff,
-    split_over_conditions = true
+    model; odesolver = ode_solver, gradient_method = :ForwardEquations,
+    split_over_conditions = true, hessian_method = :GaussNewton
 )
 test_hybrid(test_case, petab_prob)
+
+# Ensure GN Hessian is computed correctly
+test_grad_residuals(model, ode_solver)

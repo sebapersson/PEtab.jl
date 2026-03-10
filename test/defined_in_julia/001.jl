@@ -72,3 +72,14 @@ nll_prob = petab_prob_ode.nllh(get_x(petab_prob_ode))
 @test nll_rn ≈ 0.84750169713188 atol = 1.0e-3
 @test nll_sys ≈ 0.84750169713188 atol = 1.0e-3
 @test nll_prob ≈ 0.84750169713188 atol = 1.0e-3
+
+# Check correct handling if input is not a named array for ODEProblem
+ode_prob1 = ODEProblem(f_ode1!, u0, (0.0, 10.0), [0.0, 0.0, 0.0, 0.0])
+@test_throws PEtab.PEtabInputError begin
+    PEtabModel(ode_prob1, petab_observables_prob, measurements, parameters)
+end
+
+ode_prob1 = ODEProblem(f_ode1!, [0.0, 0.0], (0.0, 10.0), ps)
+@test_throws PEtab.PEtabInputError begin
+    PEtabModel(ode_prob1, petab_observables_prob, measurements, parameters)
+end

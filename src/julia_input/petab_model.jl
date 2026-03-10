@@ -37,6 +37,7 @@ function PEtabModel(
         events::Union{PEtabEvent, Vector{PEtabEvent}, Nothing} = nothing,
         verbose::Bool = false, ml_models::Union{Nothing, MLModels, MLModel} = nothing
     )::PEtabModel
+    _check_sys(sys)
 
     # One simulation condition is needed by the PEtab v1 standard.
     if isnothing(simulation_conditions)
@@ -97,8 +98,8 @@ function _PEtabModel(
     measurements_df = _measurements_to_table(measurements, simulation_conditions)
     observables_df = _observables_to_table(observables)
     conditions_df = _conditions_to_table(simulation_conditions, sys, ml_models)
-    mappings_df = _mapping_to_table(ml_models, conditions_df, parameters)
     parameters_df = _parameters_to_table(parameters, ml_models)
+    mappings_df = _mapping_to_table(ml_models, conditions_df, parameters)
     hybridization_df = _hybridization_to_table(
         ml_models, parameters_df, conditions_df, mappings_df
     )
@@ -187,4 +188,19 @@ function _PEtabModel(
         sys_mutated, parametermap_problem, speciemap_problem, petab_tables, cbs, true,
         events, sys_observables, ml_models
     )
+end
+
+_check_sys(::ModelSystem)::Nothing = nothing
+function _check_sys(sys::ODEProblem)::Nothing
+    if !(sys.u0 isa ComponentArray || sys.u0 isa NamedTuple)
+        throw(PEtabInputError("For an ODEProblem model, the initial conditions `u0` must \
+            be a struct that supports `keys` (either a `ComponentArray` or `NamedTuple`). \
+            For example: `u0 = (a = 3.0, b = 3.0)`."))
+    end
+    if !(sys.p isa ComponentArray || sys.p isa NamedTuple)
+        throw(PEtabInputError("For an ODEProblem model, the parameter vector `p` must be a \
+            struct that supports `keys` (either a `ComponentArray` or `NamedTuple`). \
+            For example: `p = (k1 = 0.1, k2 = 0.2)`."))
+    end
+    return nothing
 end

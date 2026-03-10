@@ -15,7 +15,7 @@ ml_models = MLModel(
     :net1, nn34, true; inputs = [:net1_input1, :net1_input2], outputs = [:gamma]
 )
 path_h5 = joinpath(dir_case, "net1_ps.hdf5")
-pnn = Lux.initialparameters(rng, nn2) |> ComponentArray |> f64
+pnn = Lux.initialparameters(rng, nn34) |> ComponentArray |> f64
 PEtab._set_ml_model_ps!(pnn, path_h5, nn34, :net1)
 
 function lv34!(du, u, p, t)
@@ -62,3 +62,15 @@ petab_prob = PEtabODEProblem(
     split_over_conditions = true
 )
 test_hybrid(test_case, petab_prob)
+
+# Test throws if specified array does not exist
+pest[end] = PEtabMLParameter(
+    :net1; value = pnn, prior = Normal(0.0, 1.0),
+    priors = ["layer1.weights" => Normal(0.0, 2.0)]
+)
+@test_throws PEtab.PEtabInputError begin
+    model = PEtabModel(
+        uprob, observables, measurements, pest; ml_models = ml_models,
+        simulation_conditions = conditions
+    )
+end

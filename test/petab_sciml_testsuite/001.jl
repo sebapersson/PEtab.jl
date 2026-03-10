@@ -58,3 +58,29 @@ model = PEtabModel(
 )
 petab_prob = PEtabODEProblem(model; odesolver = ode_solver, gradient_method = :ForwardDiff)
 test_hybrid(test_case, petab_prob)
+
+# Check that parameters to estimated throw correctly on bad input
+pest = [
+    PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3),
+    PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9),
+    PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8),
+]
+@test_throws PEtab.PEtabInputError begin
+    model = PEtabModel(
+        uprob, observables, measurements, pest; ml_models = ml_model,
+        simulation_conditions = conditions
+    )
+end
+
+pest = [
+    PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3),
+    PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9),
+    PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8),
+    3.0,
+]
+@test_throws PEtab.PEtabInputError begin
+    model = PEtabModel(
+        uprob, observables, measurements, pest; ml_models = ml_model,
+        simulation_conditions = conditions
+    )
+end

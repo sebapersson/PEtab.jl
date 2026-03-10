@@ -1,5 +1,5 @@
 using SciMLBase, Lux, ComponentArrays, PEtab, CSV, DataFrames, YAML, Distributions,
-    OrdinaryDiffEqRosenbrock, SciMLSensitivity, HDF5, Test
+    OrdinaryDiffEqRosenbrock, SciMLSensitivity, HDF5, ForwardDiff, Test
 using Catalyst: @unpack
 import Random
 import PEtab: MLModel, PEtabMLParameter
