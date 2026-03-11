@@ -126,7 +126,7 @@ SymbolicIndexingInterface = "0.3.46"
 Symbolics = "7.15.3"
 Test = "1"
 YAML = "0.4"
-julia = "1"
+julia = "1.10"
 
 [extras]
 AdaptiveMCMC = "717c3277-546c-407d-8270-09a39a0919a0"
