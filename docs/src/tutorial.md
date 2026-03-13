@@ -392,6 +392,9 @@ details see:
   simulation.
 - [Importing PEtab SciML](@ref import_petab_scimlproblem): import problems in the
   PEtab-SciML standard format.
+- [Training strategies](@ref sciml_training): How to improve SciML training performance
+  (parameter estimation) using strategies such as curriculum learning and multiple shooting
+  via [PEtabTraining.jl](https://github.com/sebapersson/PEtabTraining.jl).
 
 In addition to defining a parameter estimation problem, this tutorial showed how to fit
 parameters using Fides.jl. For more on parameter estimation, see:
