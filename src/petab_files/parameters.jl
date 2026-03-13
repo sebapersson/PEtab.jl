@@ -16,7 +16,7 @@ function PEtabParameters(
 
     # nominalValue parsed as Vector{String} in case neural-network file appears in the
     # column
-    if parameters_df[1, :nominalValue] isa String
+    if !isempty(parameters_df) && parameters_df[1, :nominalValue] isa String
         parameters_df[!, :nominalValue] .= parse.(Float64, parameters_df[!, :nominalValue])
     end
     nps = nrow(parameters_df)
