@@ -305,6 +305,11 @@ UDEs, see the following tutorials:
 - [Importing PEtab SciML](@ref import_petab_scimlproblem): import problems in the
   PEtab-SciML standard format.
 
+In addition, this tutorial showed how to train a UDE via a simple Adam training loop. More
+efficient training strategies are supported via
+[PEtabTraining.jl](https://github.com/sebapersson/PEtabTraining.jl) (e.g. curriculum
+learning and multiple shooting); see [SciML training strategies](@ref sciml_training).
+
 Lastly, as for mechanistic models, `PEtabODEProblem` has many configurable options for SciML
 problems. A discussion of defaults and recommendations is available in [Default
 PEtabODEProblem options](@ref default_options).

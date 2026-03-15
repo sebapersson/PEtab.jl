@@ -48,6 +48,7 @@ makedocs(
                 "ML models in observables" => "tutorials/sciml/observable.md",
                 "Pre-simulation ML models" => "tutorials/sciml/pre_simulate.md",
                 "Importing PEtab-SciML standard format" => "tutorials/sciml/standard_format.md",
+                "Training strategies" => "tutorials/sciml/strategies.md",
             ],
         ],
         "API" => "API.md",

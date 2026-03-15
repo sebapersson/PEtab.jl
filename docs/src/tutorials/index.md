@@ -45,3 +45,6 @@ features, and how to run and configure parameter estimation.
   simulation.
 - [Importing PEtab SciML](@ref import_petab_scimlproblem): import problems in the
   PEtab-SciML standard format.
+- [Training strategies](@ref sciml_training): How to improve SciML training (parameter
+  estimation) performance using strategies such as curriculum learning and multiple shooting
+  via [PEtabTraining.jl](https://github.com/sebapersson/PEtabTraining.jl).
