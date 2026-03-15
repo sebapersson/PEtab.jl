@@ -14,11 +14,10 @@ data.
   [SBMLImporter.jl](https://github.com/sebapersson/SBMLImporter.jl)). Problems can be
   defined with a wide range of features, such as multiple observables and/or simulation
   conditions, events, and pre-equilibration (steady-state initialization).
-- Define scientific machine learning (SciML) problems combining mechanistic ODE models with
-  machine-learning (ML) components. Three problem types are supported; (1) ML in the ODE
-  dynamics (e.g. UDEs/Neural ODEs), (2) ML in the observable/measurement model linking
-  simulations to data, and (3) pre-simulation ML mapping high-dimensional inputs (e.g.
-  images) to ODE parameters.
+- Support for three types of scientific machine learning (SciML) problems combining
+  mechanistic ODE models with machine-learning (ML) components: (1) ML in the ODE dynamics
+  (e.g. UDEs/Neural ODEs), (2) ML in the observable/measurement model linking simulations to
+  data, and (3) pre-simulation ML mapping high-dimensional inputs to ODE parameters.
 - Import and work with PEtab problems in both v1 and v2 of the
   [PEtab](https://petab.readthedocs.io/en/latest/) format, as well as the
   [PEtab-SciML](https://github.com/PEtab-dev/petab_sciml) standard format.
@@ -30,6 +29,9 @@ data.
   and parameter-estimation workloads [persson2025petab](@cite).
 - High-level wrappers for parameter estimation via Optim.jl, Ipopt.jl, Fides.jl, and
   Optimization.jl.
+- Support for state-of-the-art SciML training strategies, such as curriculum learning and
+  multiple shooting, via
+  [PEtabTraining.jl](https://github.com/sebapersson/PEtabTraining.jl).
 - High-level wrapper for Bayesian inference via
   [AdvancedHMC.jl](https://github.com/TuringLang/AdvancedHMC.jl) (including NUTS) and
   AdaptiveMCMC.jl.

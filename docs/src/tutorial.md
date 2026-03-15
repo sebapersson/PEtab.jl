@@ -41,7 +41,7 @@ and that we have measurements of two observables:
 \end{align*}
 ```
 
-We estimate `[c1, c2, S0]` and assume `c3 = 1.0` is known. This tutorial builds the
+We estimate `[c1, c2, S0]` and assume `c3 = 3.0` is known. This tutorial builds the
 corresponding `PEtabODEProblem` and estimates these parameters.
 
 ## Creating a parameter estimation problem
@@ -196,7 +196,7 @@ For our working example, using simulated data, a valid measurement table could b
 ```@example 1
 using OrdinaryDiffEqRosenbrock, DataFrames
 # Simulate with 'true' parameters
-ps = [:c1 => 1.0, :c2 => 10.0, :c3 => 1.0, :S0 => 100.0]
+ps = [:c1 => 1.0, :c2 => 10.0, :c3 => 3.0, :S0 => 100.0]
 u0 = [:E => 50.0, :SE => 0.0, :P => 0.0]
 tspan = (0.0, 10.0)
 oprob = ODEProblem(rn, u0, tspan, ps)
@@ -392,8 +392,8 @@ details see:
   simulation.
 - [Importing PEtab SciML](@ref import_petab_scimlproblem): import problems in the
   PEtab-SciML standard format.
-- [Training strategies](@ref sciml_training): How to improve SciML training performance
-  (parameter estimation) using strategies such as curriculum learning and multiple shooting
+- [Training strategies](@ref sciml_training): How to improve SciML training (parameter
+  estimation) performance using strategies such as curriculum learning and multiple shooting
   via [PEtabTraining.jl](https://github.com/sebapersson/PEtabTraining.jl).
 
 In addition to defining a parameter estimation problem, this tutorial showed how to fit
@@ -462,7 +462,7 @@ observables = [petab_obs1, petab_obs2]
 # Parameters to estimate
 using Distributions
 p_c1 = PEtabParameter(:c1)
-p_c2 = PEtabParameter(:c2; prior = LogNormal(1.0, 0.3))
+p_c2 = PEtabParameter(:c2; prior = LogNormal(2.5, 0.3))
 p_S0 = PEtabParameter(:S0)
 p_sigma = PEtabParameter(:sigma)
 pest = [p_c1, p_c2, p_S0, p_sigma]

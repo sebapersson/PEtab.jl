@@ -1,17 +1,17 @@
 # [SciML training strategies](@id sciml_training)
 
-Training SciML models that combine mechanistic ODEs and ML components is often challenging:
-methods that work well for purely mechanistic ODE models (e.g. multi-start local
-optimization with quasi-Newton methods) can perform poorly, and ML-style training with plain
-Adam for a fixed number of epochs is often insufficient. To address this, several training
-strategies have been developed, and via
+Training SciML models that combine mechanistic ODEs and ML components is often challenging
+as methods that work well for pure ODE models (e.g. multi-start local optimization with
+quasi-Newton methods) often perform poorly. Moreover, ML-style training with the Adam
+optimizer for a fixed number of epochs is often insufficient. To address this, several
+training strategies have been developed, and via
 [PEtabTraining.jl](https://github.com/sebapersson/PEtabTraining.jl) PEtab.jl supports three
 efficient ones: curriculum learning, multiple shooting, and curriculum multiple shooting.
 
-This tutorial shows how to use these three strategies and compare them with plain Adam
+This tutorial shows how to apply these three strategies and compare them to plain Adam
 optimization. It assumes familiarity with the [SciML starter tutorial](@ref sciml_starter).
-As a running example, a Neural ODE is fitted to time-series data from a Lotka–Volterra
-system:
+As a running example, we fit a Neural ODE to time-series data generated from a
+Lotka–Volterra system.
 
 ```@example 1
 using ComponentArrays, Lux, PEtab
@@ -110,29 +110,27 @@ nothing # hide
 
 Regardless of training strategy, optimization requires a start guess. For SciML problems
 (e.g. Neural ODEs/UDEs), training is typically more stable if the ML model is initialized
-with small weights (and biases); otherwise the initial dynamics can be difficult to
-simulate. To this end, weight and bias initializers can be provided to
-[`get_startguesses`](@ref):
+with small weights and biases; otherwise the initial dynamics can be difficult to simulate.
+To this end, weight and bias initializers can be provided to [`get_startguesses`](@ref):
 
 ```@example 1
-rng = StableRNGs.StableRNG(2) # for reproducibility
+rng = StableRNGs.StableRNG(12) # for reproducibility
+# default is glorot_normal(; gain = 1.2)
 x0 = get_startguesses(
     rng, prob_train, 1; init_bias = Lux.zeros64,
-    init_weight = glorot_normal(; gain = 0.1),
+    init_weight = glorot_normal(; gain = 0.2),
 )
 nothing # hide
 ```
 
-Here, `glorot_normal(; gain = 0.1)` initializes weights with smaller values than the default
-initializer. To reduce sensitivity to local minima, it is often useful to try multiple
-random start guesses; but for simplicity, a single start guess is used in this tutorial.
+To reduce sensitivity to local minima, it is often useful to try multiple random start
+guesses; but for simplicity, a single start guess is used in this tutorial.
 
 ## Plain Adam training
 
-As a baseline for comparison with the training strategies below, we start with a simple Adam
-optimizer training loop. With a start guess available, the objective and its gradient can be
-computed with `prob_train.nllh(x)` and `prob_train.grad(x)`, which can be used to write a
-training loop:
+As a baseline, we first train using Adam with a fixed learning rate. Given an initial guess,
+the objective and its gradient can be evaluated with `prob_train.nllh(x)` and
+`prob_train.grad(x)`. These can then be used to implement a training loop:
 
 ```@example 1
 using Optimisers
@@ -171,7 +169,7 @@ Plotting the fit shows an okay fit, but there is still clear room for improvemen
 plot(x, prob_train)
 ```
 
-Training with plain Adam typically requires tuning two main hyperparameters outside the
+Training with plain Adam typically requires tuning two main hyperparameters besides the
 model architecture: the learning rate and the number of epochs. The required number of
 epochs is highly model-dependent. For the learning rate, `1e-3` is often a good starting
 point.
@@ -184,7 +182,7 @@ measurement time points and then gradually including more points until the full 
 used.
 
 With [PEtabTraining.jl](https://github.com/sebapersson/PEtabTraining.jl), as an example, a
-5-stage curriculum split over time is created as:
+5-stage curriculum problem can be created as:
 
 ```@example 1
 using PEtabTraining
@@ -192,7 +190,7 @@ prob_cl = PEtabClProblem(prob_train, SplitTime(5))
 describe(prob_cl)
 ```
 
-Here, `describe(prob_cl)` reports per-stage statistics (i.e. the fraction of observables and
+`describe(prob_cl)` reports per-stage statistics (i.e. the fraction of observables and
 simulation conditions covered at each stage). As a rule of thumb, curriculum learning tends
 to work best when each stage includes most observables and conditions; otherwise the
 training objective changes too drastically between stages.
@@ -235,8 +233,8 @@ end
 nothing # hide
 ```
 
-Plotting the fit shows that while often performant, for this example, curriculum learning
-does not substantially improve over plain Adam:
+Plotting the fit shows that while more performant than pure Adam, training can still be
+improved:
 
 ```@example 1
 plot(x, prob_train)
@@ -313,21 +311,20 @@ initial states, `x_ms` has additional entries and therefore a different dimensio
 Because the vectors are `ComponentArray`s, shared parameters can be copied between them by
 indexing by name, as above.
 
-Plotting the fit shows that, for this example, multiple shooting does not substantially
-improve over plain Adam, rather it does worse:
+Plotting the fit shows that, for this example, multiple shooting does improves over plain
+Adam:
 
 ```@example 1
 x = x_ms[keys(x0)]
-@show prob_train.nllh(x)
 plot(x, prob_train)
 ```
 
 Multiple shooting introduces two additional tuning parameters compared to plain Adam: the
-number of windows and the window penalty. Both can be tricky to tune; hence, while
-well-tuned multiple shooting can be highly effective, it can be non-trivial to achieve in
-practice. Moreover, since this approach estimates a separate initial values for each window,
-it can perform poorly for partially observed systems. Curriculum multiple shooting addresses
-these limitations by combining multiple shooting with a curriculum schedule.
+number of windows and the window penalty. Both can be tricky to tune; so while well-tuned
+multiple shooting can be highly effective, it can be non-trivial to achieve in practice.
+Moreover, since this approach estimates a separate initial values for each window, it can
+perform poorly for partially observed systems. Curriculum multiple shooting addresses these
+limitations by combining multiple shooting with a curriculum schedule.
 
 ## Curriculum multiple shooting
 
@@ -344,9 +341,9 @@ prob_cl_ms = PEtabClMsProblem(prob_train, SplitTime(5))
 describe(prob_cl_ms)
 ```
 
-Here, `describe(prob_cl_ms)` reports per-stage window ranges and the default window
-quadratic continuity penalty. As for multiple shooting, two key tuning parameters are the
-window penalty and the initialization of window initial states. Both can be set with:
+`describe(prob_cl_ms)` reports per-stage window ranges and the default window quadratic
+continuity penalty. As for multiple shooting, two key tuning parameters are the window
+penalty and the initialization of window initial states. Both can be set with:
 
 ```@example 1
 global x_cl_ms # hide
@@ -404,7 +401,7 @@ end
 nothing # hide
 ```
 
-Plotting the fit shows that curriculum multiple shooting improves over plain Adam:
+Plotting the fit shows that curriculum multiple shooting clearly improves over plain Adam:
 
 ```@example 1
 x = x_cl_ms[keys(x0)]
@@ -423,7 +420,7 @@ Curriculum multiple shooting introduces three additional tuning parameters compa
 Adam: the number of stages, the epoch schedule per stage (`epochs_per_stage` above), and the
 window penalty. In practice, the stage schedule and number of stages can be tuned similarly
 to curriculum learning. The window penalty typically still requires tuning, but compared to
-multiple shooting this combined approach is often more robust.
+multiple shooting this approach is often more robust.
 
 ## Comparing approaches
 
@@ -441,12 +438,12 @@ xlabel!("Epoch"); ylabel!("NLLH")
 ```
 
 It should be kept in mind that this comparison is based on a single run for a single model.
-An extensive benchmark study to evaluate these approaches is in progress, so stay tuned!
+An extensive benchmark study to evaluate these approaches is in progress.
 
 ## Next steps
 
 More details on available options for each training strategy are provided in the
-[PEtabTraining.jl documentation](https://github.com/sebapersson/PEtabTraining.jl).
+[PEtabTraining.jl documentation](https://sebapersson.github.io/PEtabTraining.jl/stable/).
 
 The training strategies covered here can also be used for mechanistic models. For example,
 curriculum training can be combined with the
