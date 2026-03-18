@@ -186,7 +186,7 @@ function _get_hess(
         (H, x; prior = true) -> begin
             _x = x |> collect
             _H = H |> collect
-            if hessian_method == :GassNewton
+            if hessian_method == :GaussNewton
                 _hess_nllh!(_H, _x)
             else
                 _hess_nllh!(_H, _x)
