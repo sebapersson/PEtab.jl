@@ -27,7 +27,7 @@ function _grad_forward_eqs!(
 
     fill!(grad, 0.0)
     for icid in eachindex(simulation_info.conditionids[:experiment])
-        if cids[1] != :all && !(imulation_info.conditionids[:experiment][cid] in cids)
+        if cids[1] != :all && !(simulation_info.conditionids[:experiment][icid] in cids)
             continue
         end
         _grad_forward_eqs_cond!(

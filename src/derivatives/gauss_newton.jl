@@ -28,7 +28,7 @@ function _jac_residuals_xdynamic!(
 
     # Compute the gradient by looping through all experimental conditions.
     for icid in eachindex(simulation_info.conditionids[:experiment])
-        if cids[1] != :all && !(imulation_info.conditionids[:experiment][icid] in cids)
+        if cids[1] != :all && !(simulation_info.conditionids[:experiment][icid] in cids)
             continue
         end
         _jac_residuals_cond!(
