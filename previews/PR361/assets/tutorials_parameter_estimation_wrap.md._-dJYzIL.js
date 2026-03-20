@@ -77,7 +77,7 @@ import{_ as i,o as a,c as n,aA as t}from"./chunks/framework._9fhEply.js";const g
 <span class="line"><span style="--shiki-light:#24292e;--shiki-dark:#e1e4e8;">    |g(x)|                 = 6.19e-03 ≰ 1.0e-08</span></span>
 <span class="line"></span>
 <span class="line"><span style="--shiki-light:#24292e;--shiki-dark:#e1e4e8;"> * Work counters</span></span>
-<span class="line"><span style="--shiki-light:#24292e;--shiki-dark:#e1e4e8;">    Seconds run:   2  (vs limit Inf)</span></span>
+<span class="line"><span style="--shiki-light:#24292e;--shiki-dark:#e1e4e8;">    Seconds run:   4  (vs limit Inf)</span></span>
 <span class="line"><span style="--shiki-light:#24292e;--shiki-dark:#e1e4e8;">    Iterations:    40</span></span>
 <span class="line"><span style="--shiki-light:#24292e;--shiki-dark:#e1e4e8;">    f(x) calls:    76</span></span>
 <span class="line"><span style="--shiki-light:#24292e;--shiki-dark:#e1e4e8;">    ∇f(x) calls:   76</span></span>
