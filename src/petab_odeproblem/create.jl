@@ -186,11 +186,7 @@ function _get_hess(
         (H, x; prior = true) -> begin
             _x = x |> collect
             _H = H |> collect
-            if hessian_method == :GaussNewton
-                _hess_nllh!(_H, _x)
-            else
-                _hess_nllh!(_H, _x)
-            end
+            _hess_nllh!(_H, _x)
             if prior && ret_jacobian == false
                 # nllh -> negative prior
                 _H .+= hess_prior(_x) .* -1
