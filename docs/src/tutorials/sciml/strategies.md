@@ -202,10 +202,7 @@ training objective changes too drastically between stages.
 using Optimisers
 
 # Epoch ranges per stage
-epochs_per_stage = [
-    1 => 1:500, 2 => 501:1000, 3 => 1001:1500,
-    4 => 1501:2000, 5 => 2001:6000,
-]
+epochs_per_stage = allocate_cl_epochs(6000, 5, 1 / 3.0)
 
 x = deepcopy(x0)
 learning_rate = 1e-3
@@ -233,8 +230,12 @@ end
 nothing # hide
 ```
 
-Plotting the fit shows that while more performant than pure Adam, training can still be
-improved:
+Here, `allocate_cl_epochs(6000, 5, 1 / 3)` sets the training epochs for each curriculum
+stage, with one third (`1/3`) of the epochs distributed across the first four stages and the
+remaining epochs assigned to the final stage.
+
+Plotting the fit shows that, although curriculum learning performs better than plain Adam,
+the training can still be improved:
 
 ```@example 1
 plot(x, prob_train)
@@ -363,10 +364,7 @@ initial states must be remapped). For example:
 ```@example 1
 using Optimisers
 
-epochs_per_stage = [
-    1 => 1:500, 2 => 501:1000, 3 => 1001:1500,
-    4 => 1501:2000, 5 => 2001:6000,
-]
+epochs_per_stage = allocate_cl_epochs(6000, 5, 1 / 3.0)
 
 x_cl_ms[keys(x0)] .= x0
 trace_cl_ms = Float64[]
@@ -450,3 +448,7 @@ curriculum training can be combined with the
 [Fides.jl](https://github.com/fides-dev/Fides.jl) optimizer via [`calibrate`](@ref) to
 optimize a mechanistic model in stages, which can be highly effective. More tutorials on
 this are coming, so stay tuned!
+
+```
+
+```
