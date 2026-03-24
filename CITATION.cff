@@ -1,0 +1,68 @@
+title: "PEtab.jl"
+abstract: "Julia package for creating parameter estimation problems to fit ordinary differential equation (ODE) and scientific machine learning (SciML) models to time-series data."
+type: software
+authors:
+  - family-names: "Persson"
+    given-names: "Sebastian"
+    orcid: https://orcid.org/0009-0001-2304-4263
+  - family-names: "Fröhlich"
+    given-names: "Fabian"
+    orcid: "https://orcid.org/0000-0002-5360-4292"
+  - family-names: "Grein"
+    given-names: "Stephan"
+    orcid: "https://orcid.org/0000-0001-9524-6633"
+  - family-names: "Loman"
+    given-names: "Torkel"
+    orcid: https://orcid.org/0000-0002-4453-0682
+  - family-names: "Ognissanti"
+    given-names: "Damiano"
+  - family-names: "Hasselgren"
+    given-names: "Viktor"
+  - family-names: "Hasenauer"
+    given-names: "Jan"
+    orcid: "https://orcid.org/0000-0002-4935-3312"
+  - family-names: "Cvijovic"
+    given-names: "Marija"
+    orcid: "https://orcid.org/0000-0002-5142-5100"
+license: "MIT"
+repository-code: "https://github.com/sebapersson/PEtab.jl"
+url: "https://sebapersson.github.io/PEtab.jl/stable/"
+keywords:
+  - "Julia"
+  - "parameter estimation"
+  - "ODE"
+  - "SciML"
+  - "PEtab"
+preferred-citation:
+  type: article
+  title: "PEtab.jl: advancing the efficiency and utility of dynamic modelling"
+  authors:
+    - family-names: "Persson"
+      given-names: "Sebastian"
+      orcid: https://orcid.org/0009-0001-2304-4263
+    - family-names: "Fröhlich"
+      given-names: "Fabian"
+      orcid: "https://orcid.org/0000-0002-5360-4292"
+    - family-names: "Grein"
+      given-names: "Stephan"
+      orcid: "https://orcid.org/0000-0001-9524-6633"
+    - family-names: "Loman"
+      given-names: "Torkel"
+      orcid: https://orcid.org/0000-0002-4453-0682
+    - family-names: "Ognissanti"
+      given-names: "Damiano"
+    - family-names: "Hasselgren"
+      given-names: "Viktor"
+    - family-names: "Hasenauer"
+      given-names: "Jan"
+      orcid: "https://orcid.org/0000-0002-4935-3312"
+    - family-names: "Cvijovic"
+      given-names: "Marija"
+      orcid: "https://orcid.org/0000-0002-5142-5100"
+  journal: "Bioinformatics"
+  year: 2025
+  volume: 41
+  issue: 9
+  start: "btaf497"
+  doi: "10.1093/bioinformatics/btaf497"
+  publisher: "Oxford University Press"
