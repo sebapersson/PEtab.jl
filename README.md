@@ -45,8 +45,6 @@ Major features are:
 - Support for state-of-the-art SciML training strategies, such as curriculum learning and
   multiple shooting, via
   [PEtabTraining.jl](https://github.com/sebapersson/PEtabTraining.jl).
-- Support for state-of-the-art SciML training strategies (e.g. curriculum learning, multiple
-  shooting etc...) via [PEtabTraining.jl](https://github.com/sebapersson/PEtabTraining.jl).
 - High-level wrapper for Bayesian inference via
   [AdvancedHMC.jl](https://github.com/TuringLang/AdvancedHMC.jl) (including NUTS) and
   AdaptiveMCMC.jl.
