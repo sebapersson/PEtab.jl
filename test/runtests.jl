@@ -79,6 +79,10 @@ if !core_only
         include("calibrate.jl")
     end
 
+    @safetestset "Profile likelihood" begin
+        include("profile.jl")
+    end
+
     @safetestset "Bijectors" begin
         include("bijectors.jl")
     end
