@@ -140,6 +140,14 @@ to access solvers via [Optimization.jl](https://github.com/SciML/Optimization.jl
 PEtab.OptimizationProblem
 ```
 
+Once the parameters have been estimated, practical identifiability can be assessed by
+constructing a [LikelihoodProfiler.jl](https://github.com/insysbio/LikelihoodProfiler.jl)
+`ProfileLikelihoodProblem`:
+
+```@docs
+PEtab.ProfileLikelihoodProblem
+```
+
 Parameter-estimation results for problems in the PEtab standard format can be exported with:
 
 ```@docs

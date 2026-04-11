@@ -27,8 +27,9 @@ data.
   sensitivity analysis (large models).
 - High performant, often faster than the state-of-the-art toolbox AMICI by ~2× for gradient
   and parameter-estimation workloads [persson2025petab](@cite).
-- High-level wrappers for parameter estimation via Optim.jl, Ipopt.jl, Fides.jl, and
-  Optimization.jl.
+- High-level wrappers for parameter estimation with Optim.jl, Ipopt.jl, Fides.jl, and
+  Optimization.jl, as well as for practical identifiability analysis with
+  LikelihoodProfiler.jl
 - Support for state-of-the-art SciML training strategies, such as curriculum learning and
   multiple shooting, via
   [PEtabTraining.jl](https://github.com/sebapersson/PEtabTraining.jl).
