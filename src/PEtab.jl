@@ -109,6 +109,7 @@ include(joinpath("petab_odeproblem", "ss_solver.jl"))
 include(joinpath("parameter_estimation", "multistart.jl"))
 include(joinpath("parameter_estimation", "petab_select.jl"))
 include(joinpath("parameter_estimation", "plot.jl"))
+include(joinpath("parameter_estimation", "profile.jl"))
 include(joinpath("parameter_estimation", "singlestart.jl"))
 include(joinpath("parameter_estimation", "startguesses.jl"))
 

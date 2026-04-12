@@ -1,5 +1,11 @@
 # Breaking updates and feature summaries across releases
 
+## PEtab.jl 5.1.0
+
+- Added support for creating a LikelihoodProfiler.jl `ProfileLikelihoodProblem` from a
+  parameter estimation result via `ProfileLikelihoodProblem(res, prob)`. This functionality
+  is provided through an extension.
+
 ## PEtab.jl 5.0.0
 
 PEtab.jl v5.0 is a breaking release that adds support for scientific machine learning

@@ -1,7 +1,8 @@
 # [Getting started tutorial](@id tutorial)
 
-This introductory tutorial shows how to define a parameter-estimation problem in PEtab.jl
-(create a `PEtabODEProblem`) and estimate its parameters.
+This introductory tutorial shows how to define a parameter estimation problem in PEtab.jl by
+constructing a `PEtabODEProblem`, how to estimate its parameters, and how to assess
+practical identifiability using profile likelihood analysis.
 
 ## Input problem
 
@@ -357,6 +358,54 @@ keyword (see [this tutorial](@ref multistart_est)).
 
 :::
 
+### Identifiability analysis (profile likelihood)
+
+After estimating the parameters, it is often useful to assess their practical
+identifiability, that is, how precisely they can be determined from the available data. Poor
+identifiability means that multiple parameter values fit the data nearly equally well,
+making predictions outside the measured conditions unreliable.
+
+A standard approach for this is profile likelihood analysis [raue2009structural](@cite). A
+fitted PEtab model can be converted directly to a
+[LikelihoodProfiler.jl](https://github.com/insysbio/LikelihoodProfiler.jl)
+`ProfileLikelihoodProblem`:
+
+```@example 1
+using LikelihoodProfiler
+# First argument can be parameter estimation results
+pl_prob = ProfileLikelihoodProblem(ms_res, petab_prob)
+# Alternatively, the first argument can be a parameter vector
+pl_prob = ProfileLikelihoodProblem(ms_res.xmin, petab_prob)
+nothing # hide
+```
+
+Given the `ProfileLikelihoodProblem`, we can compute the profiles as follows:
+
+```@example 1
+using OptimizationLBFGSB
+meth_opt = OptimizationProfiler(
+    optimizer = LBFGSB(), stepper = FixedStep(; initial_step = 5e-3)
+)
+pl_sol = LikelihoodProfiler.solve(pl_prob, meth_opt)
+```
+
+Plotting the profiles shows that the model is practically identifiable in this case, as all
+parameters have finite and well-constrained profiles:
+
+```@example 1
+using ComponentArrays
+# xl is to get correct xlabels
+xl = permutedims(labels(ms_res.xmin))
+p = plot(pl_sol; xlabel = xl)
+```
+
+For more details on available profiling options, see the
+[LikelihoodProfiler.jl documentation](https://github.com/insysbio/LikelihoodProfiler.jl).
+Note also that the profile confidence intervals are returned on the parameter estimation
+scale, which in this example is `log10`. Transforming the intervals to the linear scale is
+not as simple as applying `exp10`, since changes of variables for probability distributions
+require accounting for the Jacobian.
+
 ## Next steps
 
 This tutorial introduced how to define a `PEtabODEProblem`. For all available options when
@@ -407,6 +456,9 @@ parameters using Fides.jl. For more on parameter estimation, see:
   parameter estimation output.
 - [Bayesian inference](@ref bayesian_inference): Sampling-based inference (e.g. NUTS and
   AdaptiveMCMC).
+- Identifiability analysis: For more details, see the
+  [LikelihoodProfiler.jl](https://github.com/insysbio/LikelihoodProfiler.jl) documentation
+  and [raue2009structural, raue2013lessons](@cite).
 
 Lastly, `PEtabODEProblem` has many configurable options. Defaults are based on extensive
 benchmarks (see [Default PEtabODEProblem options](@ref default_options))
@@ -497,6 +549,16 @@ rng = StableRNG(42)
 ms_res = calibrate_multistart(rng, petab_prob, Fides.BFGS(), 50)
 plot(ms_res; plot_type = :waterfall)
 plot(ms_res, petab_prob; linewidth = 2.0)
+
+# Profile likelihood analysis
+using ComponentArrays, LikelihoodProfiler, OptimizationLBFGSB
+pl_prob = ProfileLikelihoodProblem(ms_res, petab_prob)
+meth_opt = OptimizationProfiler(
+    optimizer = LBFGSB(), stepper = FixedStep(; initial_step = 0.01)
+)
+pl_sol = LikelihoodProfiler.solve(pl_prob, meth_opt)
+xl = permutedims(labels(ms_res.xmin))
+p = plot(pl_sol; xlabel = xl)
 nothing # hide
 ```
 

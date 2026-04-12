@@ -234,8 +234,8 @@ Here, `allocate_cl_epochs(6000, 5, 1 / 3)` sets the training epochs for each cur
 stage, with one third (`1/3`) of the epochs distributed across the first four stages and the
 remaining epochs assigned to the final stage.
 
-Plotting the fit shows that, although curriculum learning performs better than plain Adam,
-the training can still be improved:
+Plotting the fit shows that, although curriculum learning often performs better than plain
+Adam, the performance is similar in this case:
 
 ```@example 1
 plot(x, prob_train)
