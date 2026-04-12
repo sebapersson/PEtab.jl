@@ -12,8 +12,8 @@ function LikelihoodProfiler.ProfileLikelihoodProblem(
     # Bounds must be finite for profiling
     lb = deepcopy(prob.lower_bounds)
     ub = deepcopy(prob.upper_bounds)
-    lb[isinf.(abs.(lb))] .= -1e20
-    ub[isinf.(ub)] .= 1e20
+    lb[isinf.(abs.(lb))] .= -1.0e20
+    ub[isinf.(ub)] .= 1.0e20
 
     return LikelihoodProfiler.ProfileLikelihoodProblem(
         opt_prob, x; profile_lower = lb, profile_upper = ub, kwargs...

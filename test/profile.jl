@@ -3,7 +3,7 @@ using Catalyst, DataFrames, Distributions, LikelihoodProfiler, OptimizationLBFGS
 
 # Create a PEtab problem to profile
 rn = @reaction_network begin
-    @parameters S0 c3=3.0
+    @parameters S0 c3 = 3.0
     @species begin
         S(t) = S0
         E(t) = 50.0
@@ -22,13 +22,13 @@ end
 @parameters sigma
 observables = [
     PEtabObservable(:petab_obs1, :obs1, 3.0),
-    PEtabObservable(:petab_obs2, :obs2, sigma)
+    PEtabObservable(:petab_obs2, :obs2, sigma),
 ]
 pest = [
     PEtabParameter(:c1),
     PEtabParameter(:c2; prior = LogNormal(2.5, 0.3)),
     PEtabParameter(:S0),
-    PEtabParameter(:sigma)
+    PEtabParameter(:sigma),
 ]
 # Measurements; simulate with 'true' parameters
 ps = [:c1 => 1.0, :c2 => 10.0, :c3 => 1.0, :S0 => 100.0]
@@ -37,9 +37,9 @@ tspan = (0.0, 10.0)
 oprob = ODEProblem(rn, u0, tspan, ps)
 sol = solve(oprob, Rodas5P(); saveat = 0:0.5:10.0)
 obs1 = (sol[:S] + sol[:E]) .+ randn(length(sol[:E]))
-obs2   = sol[:P] .+ randn(length(sol[:P]))
+obs2 = sol[:P] .+ randn(length(sol[:P]))
 df1 = DataFrame(obs_id = "petab_obs1", time = sol.t, measurement = obs1)
-df2   = DataFrame(obs_id = "petab_obs2", time = sol.t, measurement = obs2)
+df2 = DataFrame(obs_id = "petab_obs2", time = sol.t, measurement = obs2)
 measurements = vcat(df1, df2)
 
 model_rn = PEtabModel(rn, observables, measurements, pest)
