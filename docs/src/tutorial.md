@@ -362,13 +362,13 @@ keyword (see [this tutorial](@ref multistart_est)).
 
 After estimating the parameters, it is often useful to assess their practical
 identifiability, that is, how precisely they can be determined from the available data. Poor
-practical identifiability means that multiple parameter values fit the data nearly equally
-well, making predictions outside the measured conditions unreliable.
+identifiability means that multiple parameter values fit the data nearly equally well,
+making predictions outside the measured conditions unreliable.
 
-A standard approach for this is profile likelihood analysis [raue2009structural](@cite).
-This is supported through
-[LikelihoodProfiler.jl](https://github.com/insysbio/LikelihoodProfiler.jl), and a fitted
-PEtab model can be converted directly to a `ProfileLikelihoodProblem`:
+A standard approach for this is profile likelihood analysis [raue2009structural](@cite). A
+fitted PEtab model can be converted directly to a
+[LikelihoodProfiler.jl](https://github.com/insysbio/LikelihoodProfiler.jl)
+`ProfileLikelihoodProblem`:
 
 ```@example 1
 using LikelihoodProfiler
@@ -379,12 +379,12 @@ pl_prob = ProfileLikelihoodProblem(ms_res.xmin, petab_prob)
 nothing # hide
 ```
 
-We can then compute the profiles as follows:
+Given the `ProfileLikelihoodProblem`, we can compute the profiles as follows:
 
 ```@example 1
 using OptimizationLBFGSB
 meth_opt = OptimizationProfiler(
-    optimizer = LBFGSB(), stepper = FixedStep(; initial_step = 0.01)
+    optimizer = LBFGSB(), stepper = FixedStep(; initial_step = 5e-3)
 )
 pl_sol = solve(pl_prob, meth_opt)
 ```
@@ -399,11 +399,12 @@ xl = permutedims(labels(ms_res.xmin))
 p = plot(pl_sol; xlabel = xl)
 ```
 
-For more details on available profiling options, see
+For more details on available profiling options, see the
 [LikelihoodProfiler.jl documentation](https://github.com/insysbio/LikelihoodProfiler.jl).
-Note also that the profiles are returned on the estimation scale, which in this example is
-`log10`. Transforming them to the linear scale is not as simple as applying `exp10`, since
-changes of variables for probability distributions require accounting for the Jacobian.
+Note also that the profile confidence intervals are returned on the parameter estimation
+scale, which in this example is `log10`. Transforming the intervals to the linear scale is
+not as simple as applying `exp10`, since changes of variables for probability distributions
+require accounting for the Jacobian.
 
 ## Next steps
 

@@ -1,3 +1,5 @@
+# Actual code is inside the PEtabLikelihoodProfilerExtension
+
 """
     ProfileLikelihoodProblem(res, prob::PEtabODEProblem; kwargs...)
 
