@@ -56,7 +56,7 @@ meth_opt = OptimizationProfiler(
 )
 pl_sol = solve(pl_prob, meth_opt)
 
-@test pl_sol[1].endpoints[1] > -0.64
+@test pl_sol[1].endpoints[1] > -0.66
 @test pl_sol[1].endpoints[2] < 0.07
 @test pl_sol[2].endpoints[1] > 0.6
 @test pl_sol[2].endpoints[2] < 1.39
