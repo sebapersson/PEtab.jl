@@ -386,7 +386,7 @@ using OptimizationLBFGSB
 meth_opt = OptimizationProfiler(
     optimizer = LBFGSB(), stepper = FixedStep(; initial_step = 5e-3)
 )
-pl_sol = solve(pl_prob, meth_opt)
+pl_sol = LikelihoodProfiler.solve(pl_prob, meth_opt)
 ```
 
 Plotting the profiles shows that the model is practically identifiable in this case, as all
@@ -556,7 +556,7 @@ pl_prob = ProfileLikelihoodProblem(ms_res, petab_prob)
 meth_opt = OptimizationProfiler(
     optimizer = LBFGSB(), stepper = FixedStep(; initial_step = 0.01)
 )
-pl_sol = solve(pl_prob, meth_opt)
+pl_sol = LikelihoodProfiler.solve(pl_prob, meth_opt)
 xl = permutedims(labels(ms_res.xmin))
 p = plot(pl_sol; xlabel = xl)
 nothing # hide
