@@ -1,6 +1,7 @@
 test_case = "024"
 dir_case = joinpath(@__DIR__, "test_cases", "sciml_problem_import", test_case, "petab")
 
+# runic: off
 nn24 = @compact(
     layer1 = Dense(2, 5, Lux.tanh),
     layer2 = Dense(5, 5, Lux.tanh),
@@ -21,6 +22,8 @@ nn24_frozen = @compact(
     out = layer3(embed)
     @return out
 end
+# runic: on
+
 # Setup parameters for network to use during estimation
 path_h5 = joinpath(dir_case, "net1_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn24_frozen) |> ComponentArray |> f64

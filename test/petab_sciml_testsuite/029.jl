@@ -1,6 +1,7 @@
 test_case = "029"
 dir_case = joinpath(@__DIR__, "test_cases", "sciml_problem_import", test_case, "petab")
 
+# runic: off
 nn29 = @compact(
     layer1 = Dense(2, 5, Lux.tanh),
     layer2 = Dense(5, 5, Lux.tanh),
@@ -12,6 +13,8 @@ nn29 = @compact(
     out = layer3(embed)
     @return out
 end
+# runic: on
+
 ml_model = MLModel(:net5, nn29, false)
 path_h5 = joinpath(dir_case, "net5_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn29) |> ComponentArray |> f64

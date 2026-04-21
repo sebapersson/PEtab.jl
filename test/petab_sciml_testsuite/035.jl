@@ -1,6 +1,7 @@
 test_case = "035"
 dir_case = joinpath(@__DIR__, "test_cases", "sciml_problem_import", test_case, "petab")
 
+# runic: off
 nn35 = @compact(
     layer1 = Dense(2, 5, Lux.tanh),
     layer2 = Dense(5, 5, Lux.tanh),
@@ -11,6 +12,7 @@ nn35 = @compact(
     out = layer3(embed)
     @return out
 end
+# runic: on
 
 ml_model = MLModel(:net1, nn35, false)
 path_h5 = joinpath(dir_case, "net1_ps.hdf5")

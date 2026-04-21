@@ -1,6 +1,7 @@
 test_case = "034"
 dir_case = joinpath(@__DIR__, "test_cases", "sciml_problem_import", test_case, "petab")
 
+# runic: off
 nn34 = @compact(
     layer1 = Dense(2, 5, Lux.tanh),
     layer2 = Dense(5, 5, Lux.tanh),
@@ -11,6 +12,8 @@ nn34 = @compact(
     out = layer3(embed)
     @return out
 end
+# runic: on
+
 ml_models = MLModel(
     :net1, nn34, true; inputs = [:net1_input1, :net1_input2], outputs = [:gamma]
 )
