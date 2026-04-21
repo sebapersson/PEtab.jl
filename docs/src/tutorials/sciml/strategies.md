@@ -448,7 +448,3 @@ curriculum training can be combined with the
 [Fides.jl](https://github.com/fides-dev/Fides.jl) optimizer via [`calibrate`](@ref) to
 optimize a mechanistic model in stages, which can be highly effective. More tutorials on
 this are coming, so stay tuned!
-
-```
-
-```

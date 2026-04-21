@@ -360,15 +360,13 @@ keyword (see [this tutorial](@ref multistart_est)).
 
 ### Identifiability analysis (profile likelihood)
 
-After estimating the parameters, it is often useful to assess their practical
-identifiability, that is, how precisely they can be determined from the available data. Poor
-identifiability means that multiple parameter values fit the data nearly equally well,
-making predictions outside the measured conditions unreliable.
+After estimating the parameters, it is useful to assess how precisely they can be determined
+from the available data, that is, their practical identifiability. Poor identifiability
+means that multiple parameter values fit the data nearly equally well, making predictions
+outside the measured conditions unreliable.
 
 A standard approach for this is profile likelihood analysis [raue2009structural](@cite). A
-fitted PEtab model can be converted directly to a
-[LikelihoodProfiler.jl](https://github.com/insysbio/LikelihoodProfiler.jl)
-`ProfileLikelihoodProblem`:
+fitted PEtab model can be converted directly to a `ProfileLikelihoodProblem`:
 
 ```@example 1
 using LikelihoodProfiler
@@ -393,18 +391,31 @@ Plotting the profiles shows that the model is practically identifiable in this c
 parameters have finite and well-constrained profiles:
 
 ```@example 1
-using ComponentArrays
-# xl is to get correct xlabels
-xl = permutedims(labels(ms_res.xmin))
-p = plot(pl_sol; xlabel = xl)
+plot(pl_sol)
+```
+
+The solution `pl_sol` supports symbolic indexing. For example, the profile for parameter
+`c1` can be inspected with:
+
+```@example 1
+profile_c1 = pl_sol[:log10_c1]
+plot(profile_c1)
+title!("c1 profile")
+```
+
+The corresponding confidence interval can then be inspected from the parameter-specific
+profile solution:
+
+```@example 1
+profile_c1
 ```
 
 For more details on available profiling options, see the
 [LikelihoodProfiler.jl documentation](https://github.com/insysbio/LikelihoodProfiler.jl).
-Note also that the profile confidence intervals are returned on the parameter estimation
-scale, which in this example is `log10`. Transforming the intervals to the linear scale is
-not as simple as applying `exp10`, since changes of variables for probability distributions
-require accounting for the Jacobian.
+Note that the profile confidence intervals are returned on the parameter estimation scale,
+which in this example is `log10`. Transforming the intervals to the linear scale is not as
+simple as applying `exp10`, since changes of variables for probability distributions require
+accounting for the Jacobian.
 
 ## Next steps
 
