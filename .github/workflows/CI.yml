@@ -36,7 +36,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install petab-select
-      - uses: julia-actions/setup-julia@v2
+      - uses: julia-actions/setup-julia@v3
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
@@ -62,7 +62,7 @@ jobs:
         julia: ['1.12']
     steps:
       - uses: actions/checkout@v2
-      - uses: julia-actions/setup-julia@v2
+      - uses: julia-actions/setup-julia@v3
         with:
           version: ${{ matrix.julia }}
       - uses: julia-actions/cache@v3
@@ -79,7 +79,7 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v2
-      - uses: julia-actions/setup-julia@v2
+      - uses: julia-actions/setup-julia@v3
         with:
           version: '1.10'
       - uses: julia-actions/julia-buildpkg@v1
