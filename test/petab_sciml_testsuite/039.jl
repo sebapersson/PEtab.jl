@@ -1,6 +1,7 @@
 test_case = "039"
 dir_case = joinpath(@__DIR__, "test_cases", "sciml_problem_import", test_case, "petab")
 
+# runic: off
 nn39 = @compact(
     layer1 = Dense(4, 5, Lux.relu),
     layer2 = Dense(5, 10, Lux.relu),
@@ -12,6 +13,7 @@ nn39 = @compact(
     out = layer3(embed)
     @return out
 end
+# runic: on
 
 ml_model = MLModel(
     :net6, nn39, false; inputs = ([:prey], [:net6_input]), outputs = [:net6_output1]

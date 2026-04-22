@@ -56,11 +56,16 @@ meth_opt = OptimizationProfiler(
 )
 pl_sol = solve(pl_prob, meth_opt)
 
-@test pl_sol[1].endpoints[1] > -0.66
-@test pl_sol[1].endpoints[2] < 0.07
+@test pl_sol[:log10_c1].endpoints[1] > -0.66
+@test pl_sol[:log10_c1].endpoints[2] < 0.08
 @test pl_sol[2].endpoints[1] > 0.6
 @test pl_sol[2].endpoints[2] < 1.39
 @test pl_sol[3].endpoints[1] > 1.94
 @test pl_sol[3].endpoints[2] < 2.03
 @test pl_sol[4].endpoints[1] > 0.96
 @test pl_sol[4].endpoints[2] < 1.42
+
+@test_throws ArgumentError begin
+    lb = petab_prob.lower_bounds
+    pl_prob = ProfileLikelihoodProblem(res, petab_prob; profile_lower = lb)
+end

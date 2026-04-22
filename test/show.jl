@@ -103,6 +103,7 @@ prob3 = PEtabODEProblem(model3)
 @test PEtab._describe(prob3; styled = false) == "PEtabODEProblem petab\nProblem statistics\n  Parameters to estimate: 139\n  ODE: 2 states, 5 parameters\n  Observables: 2\n  Simulation conditions: 1\n\nML models\n  net1: (mode=pre-initialization, parameters=51)\n  net2: (mode=pre-initialization, parameters=86)\n\nConfiguration\n  Gradient method: ForwardDiff\n  Hessian method: ForwardDiff\n  ODE solver (nllh): Rodas5P (abstol=1.0e-08, reltol=1.0e-08, maxiters=1e+04)\n  ODE solver (grad): Rodas5P (abstol=1.0e-08, reltol=1.0e-08, maxiters=1e+04)"
 
 # ML-models printing
+# runic: off
 nn1 = @compact(
     layer1 = Dense(2, 5, Lux.tanh),
     layer2 = Dense(5, 5, Lux.tanh),
@@ -113,6 +114,7 @@ nn1 = @compact(
     out = layer3(embed)
     @return out
 end
+# runic: on
 
 ml1 = MLModel(
     :net1, nn1, true; inputs = [:x1, :x2], outputs = [:gamma, :beta]

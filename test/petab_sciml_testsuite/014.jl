@@ -1,6 +1,7 @@
 test_case = "014"
 dir_case = joinpath(@__DIR__, "test_cases", "sciml_problem_import", test_case, "petab")
 
+# runic: off
 nn14 = @compact(
     layer1 = Conv((5, 5), 3 => 1; cross_correlation = true),
     layer2 = FlattenLayer(),
@@ -11,6 +12,7 @@ nn14 = @compact(
     out = layer3(embed)
     @return out
 end
+# runic: on
 
 # Input data, ensure correct ordering for Julia
 input_hdf5 = HDF5.h5open(joinpath(dir_case, "net3_input1.hdf5"), "r")
