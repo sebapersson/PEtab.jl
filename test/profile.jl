@@ -52,7 +52,7 @@ res = calibrate(petab_prob, x0, Optim.IPNewton())
 # Profile
 pl_prob = ProfileLikelihoodProblem(res, petab_prob)
 meth_opt = OptimizationProfiler(
-    optimizer = LBFGSB(), stepper = FixedStep(; initial_step = 0.0025)
+    optimizer = LBFGSB(), stepper = FixedStep(; initial_step = 0.001)
 )
 pl_sol = solve(pl_prob, meth_opt)
 
