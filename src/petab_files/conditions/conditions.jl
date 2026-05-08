@@ -87,8 +87,13 @@ function ParameterIndices(
     xscale = _get_xscales(ids, petab_parameters)
     _get_xnames_ps!(ids, xscale)
 
+    # For dealing with parameters as MTKPamrameters
+    ode_sys = _get_system(sys)
+    set_ps_f = _get_set_ps_f(ode_sys, ids)
+    get_ps_f = _get_get_ps_f(ode_sys, ids)
+
     return ParameterIndices(
         ids, indices_est, indices_dynamic, indices_not_system, xscale, xobservable_maps,
-        xnoise_maps, condition_maps, ml_pre_simulate_maps
+        xnoise_maps, condition_maps, ml_pre_simulate_maps, set_ps_f, get_ps_f
     )
 end

@@ -155,7 +155,7 @@ function VJP_ss(
 
     adj_prob, rcb = ODEAdjointProblem(
         _sol, sensealg, solver, [_sol.t[end]], ∂g∂u_empty!, nothing, nothing, nothing,
-        nothing, Val(true)
+        nothing, Val(true); abstol = abstol, reltol = reltol
     )
 
     adj_prob.u0[1:n_model_states] .= du[1:n_model_states]
@@ -202,10 +202,11 @@ function _grad_adjoint_cond!(
     # parameters at time zero and J is sensititvites at time zero. Overall, the only
     # workflow that changes below is that we compute du outside of the adjoint interface
     # and use sol[:] as we no longer can interpolate from the forward solution.
+    p = PEtab._get_tunables(sol.prob.p, xindices.get_ps_mtk_parameters)
     only_obs_at_zero::Bool = false
     @unpack du, dp, ∂G∂p, ∂G∂p_, adjoint_grad, St0 = cache
     if length(tsaves[cid]) == 1 && tsaves[cid][1] == 0.0
-        ∂G∂u!(du, sol[1], sol.prob.p, 0.0, 1)
+        ∂G∂u!(du, sol[1], p, 0.0, 1)
         only_obs_at_zero = true
     else
         status = __adjoint_sensitivities!(
@@ -223,16 +224,16 @@ function _grad_adjoint_cond!(
     fill!(∂G∂p, 0.0)
     for (it, tsave) in pairs(tsaves[cid])
         if only_obs_at_zero == false
-            ∂G∂p!(∂G∂p_, sol(tsave), sol.prob.p, tsave, it)
+            ∂G∂p!(∂G∂p_, sol(tsave), p, tsave, it)
         else
-            ∂G∂p!(∂G∂p_, sol[1], sol.prob.p, tsave, it)
+            ∂G∂p!(∂G∂p_, sol[1], p, tsave, it)
         end
         ∂G∂p .+= ∂G∂p_
     end
     # In case we do not simulate the ODE for a steady state first we can compute
     # the initial sensitivities easily via automatic differantitatiom
     if simulation_info.has_pre_equilibration == false
-        ForwardDiff.jacobian!(St0, model.u0!, sol.prob.u0, sol.prob.p)
+        ForwardDiff.jacobian!(St0, model.u0!, sol.prob.u0, p)
         adjoint_grad .= dp .+ transpose(St0) * du
         # In case we simulate to a stady state we need to compute a VJP.
     else
@@ -251,8 +252,7 @@ function _grad_adjoint_cond!(
 
     # Adjust if gradient is non-linear scale (e.g. log and log10).
     PEtab.grad_to_xscale!(
-        grad, adjoint_grad, ∂G∂p, xdynamic, xindices, simid,
-        sensitivities_AD = false
+        grad, adjoint_grad, ∂G∂p, xdynamic, xindices, simid, sensitivities_AD = false
     )
     return true
 end
@@ -266,6 +266,7 @@ function __adjoint_sensitivities!(
         abstol::Float64, reltol::Float64, callback::SciMLBase.DECallback, compute_∂G∂u::F;
         kwargs...
     )::Bool where {F}
+    mtkp = SymbolicIndexingInterface.parameter_values(sol)
     rcb = nothing
 
     adj_prob, rcb = ODEAdjointProblem(
@@ -286,16 +287,25 @@ function __adjoint_sensitivities!(
         return false
     end
 
-    p = sol.prob.p
-    l = p === nothing || p === DiffEqBase.NullParameters() ? 0 : length(sol.prob.p)
-    du0 = adj_sol.u[end][1:length(sol.prob.u0)]
+    if mtkp === nothing || mtkp isa SciMLBase.NullParameters
+        tunables = mtkp
+    else
+        tunables, _, _ = SciMLSensitivity.SciMLStructures.canonicalize(
+            SciMLSensitivity.SciMLStructures.Tunable(), mtkp
+        )
+    end
+    prob = sol.prob
+    l = mtkp === nothing || mtkp === SciMLBase.NullParameters() ? 0 : length(tunables)
+    du0 = state_values(adj_sol)[end][
+        1:length(state_values(prob))
+    ]
 
-    if eltype(sol.prob.p) <: real(eltype(adj_sol.u[end]))
-        dp = real.(adj_sol.u[end][(1:l) .+ length(sol.prob.u0)])'
-    elseif p === nothing || p === DiffEqBase.NullParameters()
+    if eltype(mtkp) <: real(eltype(state_values(adj_sol)[end]))
+        dp = real.(state_values(adj_sol)[end][(1:l) .+ length(state_values(prob))])'
+    elseif mtkp === nothing || mtkp === SciMLBase.NullParameters()
         dp = nothing
     else
-        dp = adj_sol.u[end][(1:l) .+ length(sol.prob.u0)]'
+        dp = state_values(adj_sol)[end][(1:l) .+ length(state_values(prob))]'
     end
 
     _du .= du0
@@ -336,7 +346,7 @@ function __adjoint_sensitivities!(
                 rtol = reltol
             )
         else
-            res = zero(integrand.p)'
+            res = zero(integrand.tunables)'
 
             if callback !== nothing
                 cur_time = length(t)
@@ -395,19 +405,31 @@ function __adjoint_sensitivities!(
         t::Vector{Float64}, solver::SciMLAlgorithm, abstol::Float64, reltol::Float64,
         callback::SciMLBase.DECallback, compute_∂G∂u::F; kwargs...
     )::Bool where {F}
-    checkpoints = sol.t
+    p = SymbolicIndexingInterface.parameter_values(sol)
 
+    _use_full_p = hasproperty(sensealg, :diff_tunables) &&
+        sensealg.diff_tunables isa Val{false} &&
+        SciMLSensitivity.SciMLStructures.isscimlstructure(p) &&
+        !(p isa AbstractArray)
+    if _use_full_p
+        tunables, repack = p, identity
+    elseif p === nothing || p isa SciMLBase.NullParameters
+        tunables, repack = p, identity
+    elseif SciMLSensitivity.SciMLStructures.isscimlstructure(p)
+        tunables, repack, _ = SciMLSensitivity.SciMLStructures.canonicalize(
+            SciMLSensitivity.SciMLStructures.Tunable(), p
+        )
+    end
+
+    checkpoints = sol.t
     integrand = SciMLSensitivity.GaussIntegrand(sol, sensealg, checkpoints, nothing)
     integrand_values = DiffEqCallbacks.IntegrandValuesSum(
-        SciMLSensitivity.allocate_zeros(sol.prob.p)
+        SciMLSensitivity.allocate_zeros(tunables)
     )
     cb = DiffEqCallbacks.IntegratingSumCallback(
-        (out, u, t, integrator) -> integrand(out, t, u), integrand_values,
-        SciMLSensitivity.allocate_vjp(sol.prob.p)
+        (out, u, t, integrator) -> integrand(out, t, u),
+        integrand_values, SciMLSensitivity.allocate_vjp(tunables)
     )
-    rcb = nothing
-    cb2 = nothing
-    adj_prob = nothing
 
     adj_prob, cb2, rcb = ODEAdjointProblem(
         sol, sensealg, solver, integrand, cb, t, compute_∂G∂u, nothing, nothing, nothing,

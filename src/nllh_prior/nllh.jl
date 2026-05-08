@@ -134,17 +134,18 @@ function _nllh_cond(
         if grad_forward_eqs || grad_forward_AD
             it = imeasurements_t_sol[imeasurement]
             u = sol[1:(model_info.nstates), it] .|> SBMLImporter._to_float
-            p = sol.prob.p .|> SBMLImporter._to_float
+            p = _get_tunables(sol.prob.p, xindices.get_ps_mtk_parameters) .|>
+                SBMLImporter._to_float
             # For adjoint sensitivity analysis the ODESolution is dense
         elseif grad_adjoint == true
             # In case we only have sol.t = 0.0 (or similar) interpolation does not work
             u = length(sol.t) > 1 ? sol(t) : sol[1]
-            p = sol.prob.p
-            # Default nice case
+            p = _get_tunables(sol.prob.p, xindices.get_ps_mtk_parameters)
+            # Default case
         else
             it = imeasurements_t_sol[imeasurement]
             u = sol[:, it]
-            p = sol.prob.p
+            p = _get_tunables(sol.prob.p, xindices.get_ps_mtk_parameters)
         end
 
         # Model observable and noise

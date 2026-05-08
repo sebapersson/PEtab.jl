@@ -1,5 +1,5 @@
 function _switch_condition(
-        oprob::ODEProblem, experiment_id::Symbol, xdynamic::AbstractVector,
+        ode_problem::ODEProblem, experiment_id::Symbol, xdynamic::AbstractVector,
         x_ml_models::Dict{Symbol, ComponentArray}, model_info::ModelInfo,
         cache::PEtabODEProblemCache,
         ml_models_pre_simulate::Dict{Symbol, Dict{Symbol, MLModelPreSimulate}},
@@ -16,10 +16,11 @@ function _switch_condition(
     # Each simulation condition needs to have its own associated u0 and p vector, as these
     # vectors can be used in latter computations when computing the observables, hence
     # nothing is allowed to be over-written by another condition
-    p = get_tmp(cache.pode[experiment_id], oprob.p)
-    u0 = get_tmp(cache.u0ode[experiment_id], oprob.p)
-    p .= oprob.p
-    @views u0 .= oprob.u0[1:length(u0)]
+    p = get_tmp(cache.pode[experiment_id], xdynamic)
+    u0 = get_tmp(cache.u0ode[experiment_id], xdynamic)
+    p .= _get_tunables(ode_problem.p, xindices.get_ps_mtk_parameters)
+
+    @views u0 .= ode_problem.u0[1:length(u0)]
 
     # p must be set before u0, as u0 can depend on p
     condition_map! = xindices.condition_maps[simulation_id]
@@ -38,9 +39,12 @@ function _switch_condition(
         p, xdynamic, x_ml_models, simulation_id, xindices, ml_models_pre_simulate
     )
 
-    # Initial state can depend on condition specific parameters
+    # Initial state can depend on condition specific parameters. For a subset of models
+    # remake must be made in two steps, otherwise u0 resets to zero
     model.u0!((@view u0[1:nstates]), p; __post_eq = posteq_simulation)
-    _oprob = remake(oprob, p = p, u0 = u0)
+    ps = _get_ode_problem_ps(ode_problem, p, ode_problem.p, xindices)
+    _ode_problem = remake(ode_problem, p = ps)
+    _ode_problem = remake(_ode_problem, u0 = u0)
 
     # In case we solve the forward sensitivity equations we must adjust the initial
     # sensitives by computing the jacobian at t0, and note we have larger than usual
@@ -49,9 +53,9 @@ function _switch_condition(
     if sensitivities == true
         St0 = zeros(Float64, nstates, length(p))
         ForwardDiff.jacobian!(St0, model.u0, p)
-        _oprob.u0 .= vcat(u0, vec(St0))
+        _ode_problem.u0 .= vcat(u0, vec(St0))
     end
-    return _oprob
+    return _ode_problem
 end
 
 function _get_tsave(
@@ -85,7 +89,7 @@ function _get_cbs(
 end
 
 function _get_tspan(
-        oprob::ODEProblem, tstart::Float64, tmax::Float64, solver::SciMLAlgorithm,
+        ode_problem::ODEProblem, tstart::Float64, tmax::Float64, solver::SciMLAlgorithm,
         float_tspan::Bool
     )::ODEProblem
     # When tmax=Inf and a multistep BDF Julia method, e.g. QNDF, is used tmax must be inf,
@@ -93,15 +97,18 @@ function _get_tspan(
     # the solver fail. Sundials solvers on the other hand are not compatible with
     # timespan = (0.0, Inf), hence for these we use timespan = (0.0, 1e8)
     # u0tmp needed as remake resets sensitivity initial values to zero
-    u0tmp = oprob.u0 |> deepcopy
+    u0tmp = ode_problem.u0 |> deepcopy
     tmax = _get_tmax(tmax, solver)
     if float_tspan == true
-        _oprob = remake(oprob, tspan = (tstart, tmax))
+        _ode_problem = remake(ode_problem, tspan = (tstart, tmax))
     else
-        _oprob = remake(oprob, tspan = convert.(eltype(oprob.p), (tstart, tmax)))
+        ps = _get_tunables(ode_problem.p)
+        _ode_problem = remake(
+            ode_problem, tspan = convert.(eltype(ps), (tstart, tmax))
+        )
     end
-    _oprob.u0 .= u0tmp
-    return _oprob
+    _ode_problem.u0 .= u0tmp
+    return _ode_problem
 end
 
 function _get_tmax(tmax::Float64, ::Union{CVODE_BDF, CVODE_Adams})::Float64
@@ -181,5 +188,14 @@ function _set_ml_pre_simulate_parameters!(
         end
         p[map_ml_model_pre_simulate.ix_sys_outputs] .= outputs
     end
+    return nothing
+end
+
+function _nan_to_zero!(x::AbstractArray)::Nothing
+    @views x[isnan.(x)] .= 0.0
+    return nothing
+end
+function _nan_to_zero!(x::ModelingToolkitBase.MTKParameters)::Nothing
+    @views x.tunable[isnan.(x.tunable)] .= 0.0
     return nothing
 end

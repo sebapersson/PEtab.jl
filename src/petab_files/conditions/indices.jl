@@ -133,3 +133,15 @@ function _get_indices_not_system(
     end
     return indices_not_system
 end
+
+# For interacting with ODEProblem having MTKParameters
+_get_set_ps_f(::ODEProblem, ::Dict{Symbol, Vector{Symbol}}) = nothing
+function _get_set_ps_f(ode_sys::ModelSystem, ids::Dict{Symbol, Vector{Symbol}})
+    return SymbolicIndexingInterface.setp_oop(ode_sys, ids[:sys])
+end
+
+# For interacting with ODEProblem having MTKParameters
+_get_get_ps_f(::ODEProblem, ::Dict{Symbol, Vector{Symbol}}) = nothing
+function _get_get_ps_f(ode_sys::ModelSystem, ids::Dict{Symbol, Vector{Symbol}})
+    return SymbolicIndexingInterface.getp(ode_sys, ids[:sys])
+end

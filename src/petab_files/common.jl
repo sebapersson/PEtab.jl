@@ -81,7 +81,7 @@ function _xdynamic_in_event_cond(
         xindices::ParameterIndices,
         petab_tables::PEtabTables
     )::Bool
-    ids_sys_in_xdynamic = _get_ids_sys_order_in_xdynamic(
+    ids_sys_in_xdynamic = _get_ps_ids_sys_order_in_xdynamic(
         xindices, petab_tables[:conditions]
     )
     for event in values(model_SBML.events)

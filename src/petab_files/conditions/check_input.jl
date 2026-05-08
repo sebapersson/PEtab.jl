@@ -76,7 +76,7 @@ function _check_stat_ml_outputs(
         petab_tables, [:hybridization, :mapping]
     )
     state_ids = Symbol.(_get_state_ids(sys))
-    ids_sys = _get_ids_sys(sys)
+    ids_sys = _get_ps_ids_sys(sys)
 
     output_ids = Iterators.flatten(
         _get_ml_model_io_petab_ids(mappings_df, ml_id, :outputs)

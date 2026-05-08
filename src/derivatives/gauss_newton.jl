@@ -69,7 +69,8 @@ function _jac_residuals_cond!(
     )
 
     nstates = model_info.nstates
-    cache.p .= sol.prob.p .|> SBMLImporter._to_float
+    cache.p .= _get_tunables(sol.prob.p, xindices.get_ps_mtk_parameters) .|>
+        SBMLImporter._to_float
     @unpack p, u, ∂G∂p, ∂G∂p_, ∂G∂u, S, forward_eqs_grad = cache
     fill!(forward_eqs_grad, 0.0)
     fill!(∂G∂p, 0.0)
@@ -147,10 +148,12 @@ function _residuals_cond!(
     @unpack time, measurements_transformed, noise_distributions, observable_id = petab_measurements
     @unpack imeasurements, imeasurements_t_sol = simulation_info
     nominal_values = petab_parameters.nominal_value
+
+    p = _get_tunables(sol.prob.p, xindices.get_ps_mtk_parameters) .|>
+            SBMLImporter._to_float
     for im in imeasurements[cid]
         t, obsid = time[im], observable_id[im]
         u = sol[:, imeasurements_t_sol[im]] .|> SBMLImporter._to_float
-        p = sol.prob.p .|> SBMLImporter._to_float
 
         xnoise_maps = xindices.xnoise_maps[im]
         xobservable_maps = xindices.xobservable_maps[im]

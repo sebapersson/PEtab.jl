@@ -18,7 +18,7 @@ function _get_ids(
     @unpack observable_parameters, noise_parameters = petab_measurements
 
     # ids in the ODESystem in correct order
-    ids_sys = _get_ids_sys_order(sys, speciemap, parametermap)
+    ids_sys = _get_ps_ids_sys(sys)
 
     # ML parameters
     # In case of multiple neural networks, to get correct indexing for adjoint gradient
@@ -95,27 +95,10 @@ function _get_ids_dynamic_mech(
     return dynamics_ids
 end
 
-_get_ids_sys_order(sys::ODEProblem, ::Any, ::Any)::Vector{Symbol} = collect(keys(sys.p))
-function _get_ids_sys_order(sys::ModelSystem, speciemap, parametermap)::Vector{Symbol}
-    # This is a hack until SciMLSensitivity integrates with the SciMLStructures interface.
-    # Basically allows the parameters in the system to be retrieved in the order they
-    # appear in the ODESystem later on
-    initial_condition_map = _get_initial_condition_map(sys, speciemap, parametermap)
-    prob = ODEProblem(sys, initial_condition_map, [0.0, 5.0e3]; jac = true)
-
-    ps = parameters(sys)
-    out = similar(ps)
-    maps = ModelingToolkitBase.getp(prob, ps)
-    for (i, map) in pairs(maps.getters)
-        out[map.idx.idx] = ps[i]
-    end
-    return Symbol.(out)
-end
-
-function _get_ids_sys(sys::ODEProblem)::Vector{Symbol}
+function _get_ps_ids_sys(sys::ODEProblem)::Vector{Symbol}
     return collect(keys(sys.p))
 end
-function _get_ids_sys(sys::ModelSystem)::Vector{Symbol}
+function _get_ps_ids_sys(sys::ModelSystem)::Vector{Symbol}
     return Symbol.(parameters(sys))
 end
 
@@ -175,7 +158,7 @@ function _get_ids_nondynamic_mech(
         petab_parameters::PEtabParameters, petab_tables::PEtabTables, ml_models::MLModels
     )::T where {T <: Vector{Symbol}}
     ids_condition = _get_ids_condition(sys, petab_parameters, petab_tables, ml_models)
-    ids_sys = _get_ids_sys(sys)
+    ids_sys = _get_ps_ids_sys(sys)
     other_ids = Iterators.flatten(
         (ids_sys, ids_condition, ids_observable, ids_noise, ids_ml, ids_ml_input_est)
     )

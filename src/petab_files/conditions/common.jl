@@ -7,7 +7,7 @@ function _get_indices_ml_model(i_start::Integer, ml_model::MLModel)::Vector{Int6
     return (i_start + 1):(i_start + np)
 end
 
-function _get_ids_sys_order_in_xdynamic(
+function _get_ps_ids_sys_order_in_xdynamic(
         xindices::ParameterIndices, conditions_df::DataFrame
     )::Vector{String}
     ids_sys = xindices.ids[:sys]

@@ -72,9 +72,9 @@ function PEtabODEProblemInfo(
     # To build the steady-state solvers the ODEProblem (specifically its Jacobian)
     # is needed (which is the same for odeproblem and odeproblem_gradient). Not yet comptiable with
     # UDE problems
-    ss_solver_use = SteadyStateSolver(_ss_solver, odeproblem, odesolver_use)
+    ss_solver_use = SteadyStateSolver(_ss_solver, odeproblem, odesolver_use, model_info)
     ss_solver_gradient_use = SteadyStateSolver(
-        _ss_solver_gradient, odeproblem, odesolver_gradient_use
+        _ss_solver_gradient, odeproblem, odesolver_gradient_use, model_info
     )
 
     # For models with a neural net that feeds into model parameters, pre-build functions
@@ -136,16 +136,14 @@ function _get_odeproblem(
     _set_const_parameters!(model, model_info.petab_parameters)
 
     @unpack sys_mutated, speciemap, parametermap = model
-    _parametermap = _reorder_parametermap(parametermap, model_info.xindices.ids[:sys])
-    _u0 = first.(speciemap) .=> 0.0
-    ode_f! = ODEFunction(
-        _get_system(sys_mutated); u0 = first.(_u0), p = first.(_parametermap),
-        jac = true, sparse = sparse_jacobian
-    )
+    ode_sys = _get_system(sys_mutated)
+    u0_map = first.(speciemap) .=> 0.0
+    u0_map = filter(x -> !_is_binding(x, ode_sys), u0_map)
     odeproblem = ODEProblem{true, SciMLBase.FullSpecialize}(
-        ode_f!, last.(_u0), [0.0, 5.0e3], last.(_parametermap)
+        ode_sys, merge(Dict(u0_map), Dict(parametermap)), [0.0, 5e3], jac = true,
+        sparse = sparse_jacobian
     )
-    return remake(odeproblem, p = Float64.(odeproblem.p), u0 = Float64.(odeproblem.u0))
+    return odeproblem
 end
 
 function _get_ml_models_pre_ode(
@@ -200,4 +198,8 @@ function _get_ml_models_pre_ode(
         ml_models_pre_ode[condition_id] = ml_model_pre_ode
     end
     return ml_models_pre_ode
+end
+
+function _is_binding(x, sys::ModelSystem)
+    return string(first(x)) in string.(keys(ModelingToolkitBase.bindings(sys)))
 end

@@ -62,6 +62,8 @@ struct ParameterIndices
     xnoise_maps::Vector{ObservableNoiseMap}
     condition_maps::Dict{Symbol, ConditionMap}
     maps_ml_pre_simulate::Dict{Symbol, Dict{Symbol, MLModelPreSimulateMap}}
+    set_mtk_parameters
+    get_ps_mtk_parameters
 end
 
 struct Priors

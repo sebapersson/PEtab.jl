@@ -393,7 +393,10 @@ end
 _get_system(sys::ODESystem)::ODESystem = sys
 _get_system(sys::ODEProblem)::ODEProblem = sys
 function _get_system(sys::ReactionSystem)::ODESystem
-    return ModelingToolkitBase.complete(Catalyst.ode_model(sys))
+    return sys |>
+        Catalyst.complete |>
+        Catalyst.ode_model |>
+        ModelingToolkitBase.mtkcompile
 end
 
 _get_x(x::Union{AbstractVector, ComponentVector}) = x

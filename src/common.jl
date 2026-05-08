@@ -266,7 +266,7 @@ function _get_nx_estimate(xindices::ParameterIndices)::Int64
 end
 
 _get_n_parameters_sys(sys::ODEProblem)::Int64 = length(sys.p)
-_get_n_parameters_sys(sys::ModelSystem)::Int64 = length(_get_ids_sys(sys))
+_get_n_parameters_sys(sys::ModelSystem)::Int64 = length(_get_ps_ids_sys(sys))
 
 function _check_target_id(target_id, i::Integer, condition_id)::Nothing
     if target_id isa UserFormula
@@ -313,3 +313,30 @@ end
 
 _to_vec(x::Vector) = x
 _to_vec(x::Vector{<:Vector}) = reduce(vcat, x)
+
+function _get_tunables(
+        ps::ModelingToolkitBase.MTKParameters, get_ps
+    )::AbstractVector
+    return get_ps(ps)
+end
+function _get_tunables(ps::T, ::Any)::T where T <: AbstractVector
+    return ps
+end
+function _get_tunables(ps::ModelingToolkitBase.MTKParameters)::AbstractVector
+    return ps.tunable
+end
+function _get_tunables(ps::T)::T where T <: AbstractVector
+    return ps
+end
+
+function _get_ode_problem_ps(
+        ode_problem::ODEProblem, ps::AbstractVector, ::ModelingToolkitBase.MTKParameters,
+        xindices::ParameterIndices
+    )::ModelingToolkitBase.MTKParameters
+    return xindices.set_mtk_parameters(ode_problem, ps)
+end
+function _get_ode_problem_ps(
+        ::ODEProblem, ps::T, ::AbstractVector, ::ParameterIndices
+    )::T where T <: AbstractVector
+    return ps
+end
