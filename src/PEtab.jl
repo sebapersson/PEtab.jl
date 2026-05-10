@@ -36,8 +36,25 @@ import SciMLBase.remake
 import StatsBase.describe
 import DiffEqBase
 import QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
+import SciMLLogging
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
+
+# Compat: SciMLBase v3 renamed `SciMLAlgorithm` → `AbstractSciMLAlgorithm`.
+@static if isdefined(SciMLBase, :SciMLAlgorithm)
+    using SciMLBase: SciMLAlgorithm
+else
+    const SciMLAlgorithm = SciMLBase.AbstractSciMLAlgorithm
+end
+
+# Compat helper: SciMLBase v3 / DiffEqBase v7 no longer accept `Bool` for the
+# `verbose` kwarg of `solve`; they require a verbosity object from
+# SciMLLogging. On older versions, `Bool` still works.
+@static if isdefined(DiffEqBase, :DEVerbosity)
+    _verbose_kwarg(b::Bool) = b ? SciMLLogging.Standard() : SciMLLogging.None()
+else
+    _verbose_kwarg(b::Bool) = b
+end
 
 const DistInput = Union{Real, Symbolics.Num}
 const ModelSystem = Union{ODESystem, ReactionSystem, ODEProblem}

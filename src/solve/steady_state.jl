@@ -53,7 +53,8 @@ function _solve_ss(
     )
     return solve(
         _oprob, solver, abstol = abstol, reltol = reltol, maxiters = maxiters,
-        saveat = tsave, dense = false, callback = _cbs, verbose = verbose
+        saveat = tsave, dense = false, callback = _cbs,
+        verbose = _verbose_kwarg(verbose)
     )
 end
 

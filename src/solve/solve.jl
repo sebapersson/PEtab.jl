@@ -233,7 +233,8 @@ function _solve(
         cbs::SciMLBase.DECallback
     )::ODESolution
     return solve(
-        oprob, solver, abstol = abstol, reltol = reltol, verbose = verbose,
+        oprob, solver, abstol = abstol, reltol = reltol,
+        verbose = _verbose_kwarg(verbose),
         force_dtmin = force_dtmin, maxiters = maxiters, saveat = tsave, dense = dense,
         callback = cbs
     )
