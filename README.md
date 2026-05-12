@@ -44,8 +44,6 @@ Major features are:
   Optimization.jl.
 - Practical identifiability analysis using profile likelihood via integration with
   [LikelihoodProfiler.jl](https://github.com/insysbio/LikelihoodProfiler.jl).
-- State-of-the-art SciML model training strategies, such as curriculum learning and multiple
-  shooting, via [PEtabTraining.jl](https://github.com/sebapersson/PEtabTraining.jl).
 - High-level wrapper for Bayesian inference via
   [AdvancedHMC.jl](https://github.com/TuringLang/AdvancedHMC.jl) (including NUTS) and
   AdaptiveMCMC.jl.

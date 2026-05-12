@@ -286,9 +286,7 @@ packages can be used to build training loops with learning-rate schedules, gradi
 clipping, early stopping, logging, etc.
 
 Plain Adam is often inefficient for SciML problems, and it is prudent to run parameter
-estimation from multiple start guesses to reduce sensitivity to local minima. More efficient
-strategies include curriculum training, multiple shooting, or combinations thereof, all of
-which are supported by PEtab.jl.
+estimation from multiple start guesses to reduce sensitivity to local minima.
 
 ## Next steps
 
@@ -304,11 +302,6 @@ UDEs, see the following tutorials:
   simulation.
 - [Importing PEtab SciML](@ref import_petab_scimlproblem): import problems in the
   PEtab-SciML standard format.
-
-In addition, this tutorial showed how to train a UDE via a simple Adam training loop. More
-efficient training strategies are supported via
-[PEtabTraining.jl](https://github.com/sebapersson/PEtabTraining.jl) (e.g. curriculum
-learning and multiple shooting); see [SciML training strategies](@ref sciml_training).
 
 Lastly, as for mechanistic models, `PEtabODEProblem` has many configurable options for SciML
 problems. A discussion of defaults and recommendations is available in [Default
