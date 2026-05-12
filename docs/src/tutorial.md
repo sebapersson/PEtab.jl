@@ -398,24 +398,28 @@ The solution `pl_sol` supports symbolic indexing. For example, the profile for p
 `c1` can be inspected with:
 
 ```@example 1
-profile_c1 = pl_sol[:log10_c1]
-plot(profile_c1)
-title!("c1 profile")
+profile_log10_c1 = pl_sol[:log10_c1]
+plot(profile_log10_c1)
+title!("log10_c1 profile")
 ```
 
 The corresponding confidence interval can then be inspected from the parameter-specific
 profile solution:
 
 ```@example 1
-profile_c1
+profile_log10_c1
 ```
 
 For more details on available profiling options, see the
 [LikelihoodProfiler.jl documentation](https://github.com/insysbio/LikelihoodProfiler.jl).
 Note that the profile confidence intervals are returned on the parameter estimation scale,
-which in this example is `log10`. Transforming the intervals to the linear scale is not as
-simple as applying `exp10`, since changes of variables for probability distributions require
-accounting for the Jacobian.
+which in this example is `log10`. Transforming the confidence intervals to the linear scale
+is as simple as applying `exp10` to the interval bounds, for example:
+
+```@example 1
+ci_log10 = endpoints(profile_log10_c1)
+ci = (left = exp10(ci_log10.left), right = exp10(ci_log10.right))
+```
 
 ## Next steps
 
