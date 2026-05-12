@@ -171,6 +171,7 @@ function solve_post_equlibrium(
     # This results in NaNs in _ode_problem.u0
     @views u0[isnan.(_ode_problem.u0)] .= u_ss[isnan.(_ode_problem.u0)]
     _ode_problem = remake(_ode_problem, u0 = u0)
+    _ode_problem.u0 .= u0
 
     # Following the PEtab standard (point above) some initial states can be NaN, however,
     # via the change condition function this ends up in some parameters in ode_problem.p being

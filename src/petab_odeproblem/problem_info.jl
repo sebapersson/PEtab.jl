@@ -138,10 +138,9 @@ function _get_odeproblem(
     @unpack sys_mutated, speciemap, parametermap = model
     ode_sys = _get_system(sys_mutated)
     u0_map = first.(speciemap) .=> 0.0
-    u0_map = filter(x -> !_is_binding(x, ode_sys), u0_map)
     odeproblem = ODEProblem{true, SciMLBase.FullSpecialize}(
         ode_sys, merge(Dict(u0_map), Dict(parametermap)), [0.0, 5e3], jac = true,
-        sparse = sparse_jacobian
+        sparse = sparse_jacobian, build_initializeprob = false
     )
     return odeproblem
 end
@@ -198,8 +197,4 @@ function _get_ml_models_pre_ode(
         ml_models_pre_ode[condition_id] = ml_model_pre_ode
     end
     return ml_models_pre_ode
-end
-
-function _is_binding(x, sys::ModelSystem)
-    return string(first(x)) in string.(keys(ModelingToolkitBase.bindings(sys)))
 end
