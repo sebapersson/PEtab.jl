@@ -11,7 +11,6 @@ PROB_CONFIGS = [
     (grad = :ForwardDiff, split = true, sensealg = :ForwardDiff),
     (grad = :ForwardEquations, split = false, sensealg = :ForwardDiff),
     (grad = :ForwardEquations, split = true, sensealg = :ForwardDiff),
-    (grad = :ForwardEquations, split = true, sensealg = ForwardSensitivity()),
     (grad = :Adjoint, split = true, sensealg = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true))),
 ]
 

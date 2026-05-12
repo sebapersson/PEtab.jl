@@ -23,11 +23,10 @@ function PEtabODEProblem(
     model_info = ModelInfo(model, sensealg, custom_values)
     # All ODE-relevent info for the problem, e.g. solvers, gradient method ...
     probinfo = PEtabODEProblemInfo(
-        model, model_info, odesolver, odesolver_gradient,
-        ss_solver, ss_solver_gradient, gradient_method,
-        hessian_method, FIM_method, sensealg, sensealg_ss,
-        reuse_sensitivities, sparse_jacobian, specialize_level,
-        chunksize, split_over_conditions, verbose
+        model, model_info, odesolver, odesolver_gradient, ss_solver, ss_solver_gradient,
+        gradient_method, hessian_method, FIM_method, sensealg, sensealg_ss,
+        reuse_sensitivities, sparse_jacobian, specialize_level, chunksize,
+        split_over_conditions, verbose
     )
 
     # The prior enters into the nllh, grad, and hessian functions and is evaluated by
@@ -130,8 +129,7 @@ function _get_nllh(
 end
 
 function _get_grad(
-        method, probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
-        grad_prior::Function
+        method, probinfo::PEtabODEProblemInfo, model_info::ModelInfo, grad_prior::Function
     )::Tuple{Function, Function}
     if probinfo.gradient_method == :ForwardDiff
         _grad_nllh! = _get_grad_forward_AD(probinfo, model_info)

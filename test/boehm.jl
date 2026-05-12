@@ -3,6 +3,8 @@
     pyPESTO computed values
 =#
 
+# TODO: Store ODESystem in PEtabModel to remove get_system calls
+
 using PEtab, OrdinaryDiffEqRosenbrock, SciMLSensitivity, CSV, DataFrames, LinearAlgebra,
     Test
 
@@ -44,12 +46,6 @@ function boehm_pyPESTO(model::PEtabModel, osolver::ODESolver)
             sensealg = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true))
         )
         @test all(.≈(g, grad_ref; atol = 1.0e-3))
-
-        tmp = osolver.solver
-        osolver.solver = Rodas5P(autodiff = false)
-        g = _compute_grad(x, model, :ForwardEquations, osolver; sensealg = ForwardSensitivity())
-        @test all(.≈(g, grad_ref; atol = 1.0e-3))
-        osolver.solver = tmp
 
         # For i == 2 the gradient is basically zero, and as Guass-Adjoint is not as
         # accurate as InterpolatingAdjoint, the test fails for this case

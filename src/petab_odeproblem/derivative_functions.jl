@@ -52,6 +52,11 @@ function _get_grad_forward_eqs(
     @unpack xdynamic_grad, odesols = cache
     chunksize_use = _get_chunksize(chunksize, xdynamic_grad)
 
+    if sensealg != :ForwardDiff
+        throw(PEtabInputError("Gradient method :ForwardEquations requires \
+            sensealg = :ForwardDiff."))
+    end
+
     if sensealg == :ForwardDiff && split_over_conditions == false
         _solve_conditions! = let pinfo = probinfo, minfo = model_info
             (sols, x) -> solve_conditions!(sols, x, pinfo, minfo; sensitivities_AD = true)
@@ -70,19 +75,6 @@ function _get_grad_forward_eqs(
         cfg = ForwardDiff.JacobianConfig(
             _solve_conditions!, odesols, xdynamic_grad, chunksize_use
         )
-    end
-
-    if sensealg != :ForwardDiff
-        _solve_conditions! = let pinfo = probinfo, minfo = model_info
-            (x, cid) -> begin
-                xdynamic_mech, x_ml_models = split_xdynamic(x, minfo.xindices, pinfo.cache)
-                return solve_conditions!(
-                    minfo, xdynamic_mech, x_ml_models, pinfo; cids = cid,
-                    sensitivities = true
-                )
-            end
-        end
-        cfg = nothing
     end
 
     _nllh_not_solveode = _get_nllh_not_solveode(

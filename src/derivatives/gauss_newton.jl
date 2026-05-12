@@ -13,10 +13,10 @@ function _jac_residuals_xdynamic!(
 
     if reuse_sensitivities == false
         success = solve_sensitivites!(
-            model_info, _solve_conditions!, xdynamic_ps, :ForwardDiff, probinfo, cids, cfg
+            model_info, _solve_conditions!, xdynamic_ps, probinfo, cfg
         )
         if success != true
-            @warn "Failed to solve sensitivity equations"
+            @warn "Failed to solve sensitivity equations" maxlog = 20
             fill!(jac, 0.0)
             return nothing
         end

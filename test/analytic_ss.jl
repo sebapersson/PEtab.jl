@@ -6,32 +6,27 @@
  =#
 
 using PEtab, OrdinaryDiffEqRosenbrock, SciMLSensitivity, ForwardDiff, LinearAlgebra,
-    Sundials, Test
+    Sundials, Test, SymbolicIndexingInterface
 
 include(joinpath(@__DIR__, "common.jl"))
 
 function solve_algebraic_ss(
         model::PEtabModel, solver, tol::Float64, a::T1, b::T1, c::T1, d::T1
     ) where {T1 <: Real}
-    ofun = ODEFunction(
-        model.sys_mutated; u0 = first.(model.speciemap), p = first.(model.parametermap),
-        jac = true
-    )
+    ode_sys = PEtab._get_system(model.sys_mutated)
     oprob = ODEProblem(
-        ofun, last.(model.speciemap), (0.0, 9.7), last.(model.parametermap)
+        ode_sys, merge(Dict(model.speciemap), Dict(model.parametermap)),
+        [0.0, 9.7]
     )
-    oprob = remake(
-        oprob, p = convert.(eltype(a), oprob.p), u0 = convert.(eltype(a), oprob.u0),
-        tspan = (0.0, 9.7)
-    )
+    set_ps = SymbolicIndexingInterface.setp_oop(oprob, [:a, :b, :c, :d])
+    ps = set_ps(oprob, [a, b, c, d])
+    u0_ss = [a / b + (a * c) / (b * d), a / d]
+    oprob = remake(oprob, p = ps)
+    oprob = remake(oprob, u0 = convert.(eltype(a), u0_ss))
     sols = Array{ODESolution, 1}(undef, 2)
-    oprob.p[4], oprob.p[2], oprob.p[1], oprob.p[5] = a, b, c, d
-    oprob.u0[1] = a / b + (a * c) / (b * d) # x0
-    oprob.u0[2] = a / d # y0
-
-    oprob.p[3] = 2.0 # a_scale
+    oprob.ps[:a_scale] = 2.0
     sols[1] = solve(oprob, solver, abstol = tol, reltol = tol)
-    oprob.p[3] = 0.5 # a_scale
+    oprob.ps[:a_scale] = 0.5
     sols[2] = solve(oprob, solver, abstol = tol, reltol = tol)
     return sols
 end
@@ -125,13 +120,6 @@ function test_nllh_grad_hess(
         sensealg = GaussAdjoint(autojacvec = ReverseDiffVJP(true))
     )
     @test all(.≈(normalize(g), normalize(grad_ref); atol = 1.0e-3))
-
-    # Test with other solver for ForwardSensitivity
-    tmp = osolver.solver
-    osolver.solver = Rodas5P(autodiff = false)
-    g = _compute_grad(x, model, :ForwardEquations, osolver; sensealg = ForwardSensitivity())
-    @test all(.≈(g, grad_ref; atol = 1.0e-3))
-    osolver.solver = tmp
 
     H = _compute_hess(x, model, :ForwardDiff, osolver; ss_solver = ss_solver)
     @test all(.≈(H, hess_ref; atol = 1.0e-3))

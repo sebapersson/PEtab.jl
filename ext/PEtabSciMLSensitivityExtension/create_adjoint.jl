@@ -48,9 +48,6 @@ function PEtab._get_sensealg(sensealg, ::Val{:Adjoint})
     end
     return InterpolatingAdjoint(autojacvec = ReverseDiffVJP())
 end
-function PEtab._get_sensealg(sensealg::ForwardAlg, ::Val{:ForwardEquations})
-    return sensealg
-end
 
 function PEtab._get_sensealg_ss(
         sensealg_ss, sensealg, model_info::PEtab.ModelInfo, ::Val{:Adjoint}

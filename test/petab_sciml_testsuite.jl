@@ -36,11 +36,6 @@ ode_solver = ODESolver(
                 )
                 continue
             end
-            # To long time, will not be used in practice
-            if config.sensealg == ForwardSensitivity()
-                continue
-            end
-            # invoke latest to avoid world-problem on Julia 1.12
             petab_prob = Base.invokelatest(
                 model -> PEtabODEProblem(
                     model; odesolver = ode_solver, gradient_method = config.grad,

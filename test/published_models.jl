@@ -4,6 +4,9 @@
     FiniteDifferences.jl
 =#
 
+# TODO: Fix _get_system
+# TODO: Fix load time Bruno
+
 using PEtab, OrdinaryDiffEqRosenbrock, OrdinaryDiffEqBDF, SciMLSensitivity, LinearAlgebra,
     FiniteDifferences, Sundials, Test
 
@@ -96,12 +99,7 @@ function test_grad(modelid::Symbol)::Nothing
 
     for grad_test in grads_test
         @info "Method $(grad_test)"
-        if grad_test == :forward_eqs_sciml
-            g = _compute_grad(
-                x, model, :ForwardEquations, osolver2;
-                ss_solver = ss_solver, sensealg = ForwardSensitivity()
-            )
-        elseif grad_test == :forward_eqs
+        if grad_test == :forward_eqs
             g = _compute_grad(
                 x, model, :ForwardEquations, osolver1;
                 ss_solver = ss_solver, split = split

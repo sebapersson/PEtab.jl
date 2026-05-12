@@ -70,6 +70,7 @@ end
 
 # Tests the plots comparing the fitted solution to the measurements. Bot model fit and
 # residuals
+# TODO: Fix it from here
 let
     # Declare model
     rn = @reaction_network begin
@@ -137,9 +138,9 @@ let
 
     # Check comparison dictionary.
     comp_dict = get_obs_comparison_plots(res, prob)
-    issetequal(keys(comp_dict), ["c1", "c2"])
-    issetequal(keys(comp_dict["c1"]), ["obs_E", "obs_p"])
-    issetequal(keys(comp_dict["c2"]), ["obs_E", "obs_p"])
+    @test issetequal(keys(comp_dict), ["c1", "c2"])
+    @test issetequal(keys(comp_dict["c1"]), ["obs_E", "obs_p"])
+    @test issetequal(keys(comp_dict["c2"]), ["obs_E", "obs_p"])
 
     # Make plots
     c1_E_plt = plot(res, prob; observable_ids = ["obs_E"], condition = "c1")

@@ -57,8 +57,8 @@ function PEtabODEProblemInfo(
         odeproblem = _get_odeproblem(
             model.sys_mutated, model, model_info, specialize_level, sparse_jacobian_use
         )
-        odeproblem_gradient = _get_odeproblem_gradient(
-            odeproblem, gradient_method_use, sensealg_use
+        odeproblem_gradient = _get_odeproblem(
+            model.sys_mutated, model, model_info, specialize_level, sparse_jacobian_use
         )
     end
     _logging(:Build_ODEProblem, verbose; time = btime)
@@ -70,8 +70,8 @@ function PEtabODEProblemInfo(
     )
 
     # To build the steady-state solvers the ODEProblem (specifically its Jacobian)
-    # is needed (which is the same for odeproblem and odeproblem_gradient). Not yet comptiable with
-    # UDE problems
+    # is needed (which is the same for odeproblem and odeproblem_gradient). Not yet
+    # compatible with UDE problems
     ss_solver_use = SteadyStateSolver(_ss_solver, odeproblem, odesolver_use, model_info)
     ss_solver_gradient_use = SteadyStateSolver(
         _ss_solver_gradient, odeproblem, odesolver_gradient_use, model_info
