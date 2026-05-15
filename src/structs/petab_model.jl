@@ -407,7 +407,7 @@ function MLModels(ml_models::Vector{<:MLModel})
     ml_ids = getfield.(ml_models, :ml_id)
     return MLModels(ml_models, ml_ids)
 end
-function MLModels(ml_models::MLModel...)
+function MLModels(ml_models::MLModel...; sys::Union{ModelSystem, Nothing} = nothing)
     if isempty(ml_models)
         return MLModels(MLModel[], Symbol[])
     end

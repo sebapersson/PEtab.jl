@@ -135,12 +135,15 @@ function _get_odeproblem(
     )::ODEProblem
     _set_const_parameters!(model, model_info.petab_parameters)
 
+    # Symbolic Jacobian cannot be computed for UDE and NODE models
+    symbolic_jacobian = isempty(model_info.xindices.ids[:ml_in_ode])
+
     @unpack sys_mutated, speciemap, parametermap = model
     ode_sys = _get_system(sys_mutated)
     u0_map = first.(speciemap) .=> 0.0
     odeproblem = ODEProblem{true, SciMLBase.FullSpecialize}(
-        ode_sys, merge(Dict(u0_map), Dict(parametermap)), [0.0, 5e3], jac = true,
-        sparse = sparse_jacobian, build_initializeprob = false
+        ode_sys, merge(Dict(u0_map), Dict(parametermap)), [0.0, 5e3],
+        jac = symbolic_jacobian, sparse = sparse_jacobian, build_initializeprob = false
     )
     return odeproblem
 end

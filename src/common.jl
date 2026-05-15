@@ -266,7 +266,9 @@ function _get_nx_estimate(xindices::ParameterIndices)::Int64
 end
 
 _get_n_parameters_sys(sys::ODEProblem)::Int64 = length(sys.p)
-_get_n_parameters_sys(sys::ModelSystem)::Int64 = length(_get_ps_ids_sys(sys))
+function _get_n_parameters_sys(sys::ModelSystem)::Int64
+    return length(_flatten_parameters_sys(sys))
+end
 
 function _check_target_id(target_id, i::Integer, condition_id)::Nothing
     if target_id isa UserFormula

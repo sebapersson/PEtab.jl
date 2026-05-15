@@ -59,7 +59,7 @@ function ParameterIndices(
 
     # Indices for extracting parameters from: x (to estimate), xdynamic, and x_not_system
     indices_est = _get_indices_est(ids, ml_models)
-    indices_dynamic = _get_indices_dynamic(ids, ml_models)
+    indices_dynamic = _get_indices_dynamic(sys, ids, ml_models)
     indices_not_system = _get_indices_not_system(ids, ml_models)
 
     # For each time-point we must build a map that stores if i) noise/observable parameters
@@ -87,10 +87,10 @@ function ParameterIndices(
     xscale = _get_xscales(ids, petab_parameters)
     _get_xnames_ps!(ids, xscale)
 
-    # For dealing with parameters as MTKPamrameters
+    # For mapping MTKPamrameters back and forth from ODEProblem
     ode_sys = _get_system(sys)
-    set_ps_f = _get_set_ps_f(ode_sys, ids)
-    get_ps_f = _get_get_ps_f(ode_sys, ids)
+    set_ps_f = _get_set_ps_f(ode_sys)
+    get_ps_f = _get_get_ps_f(ode_sys)
 
     return ParameterIndices(
         ids, indices_est, indices_dynamic, indices_not_system, xscale, xobservable_maps,

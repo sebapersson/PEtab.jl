@@ -1,10 +1,9 @@
 function _switch_condition(
-        ode_problem::ODEProblem, experiment_id::Symbol, xdynamic::AbstractVector,
+        ode_problem::ODEProblem, experiment_id::Symbol, xdynamic_mech::AbstractVector,
         x_ml_models::Dict{Symbol, ComponentArray}, model_info::ModelInfo,
         cache::PEtabODEProblemCache,
         ml_models_pre_simulate::Dict{Symbol, Dict{Symbol, MLModelPreSimulate}},
-        posteq_simulation::Bool; sensitivities::Bool = false,
-        simulation_id::Union{Nothing, Symbol} = nothing
+        posteq_simulation::Bool; simulation_id::Union{Nothing, Symbol} = nothing
     )::ODEProblem
     @unpack xindices, model, nstates = model_info
     simulation_id = isnothing(simulation_id) ? experiment_id : simulation_id
@@ -16,27 +15,21 @@ function _switch_condition(
     # Each simulation condition needs to have its own associated u0 and p vector, as these
     # vectors can be used in latter computations when computing the observables, hence
     # nothing is allowed to be over-written by another condition
-    p = get_tmp(cache.pode[experiment_id], xdynamic)
-    u0 = get_tmp(cache.u0ode[experiment_id], xdynamic)
+    p = get_tmp(cache.pode[experiment_id], xdynamic_mech)
+    u0 = get_tmp(cache.u0ode[experiment_id], xdynamic_mech)
     p .= _get_tunables(ode_problem.p, xindices.get_ps_mtk_parameters)
 
     @views u0 .= ode_problem.u0[1:length(u0)]
 
     # p must be set before u0, as u0 can depend on p
     condition_map! = xindices.condition_maps[simulation_id]
-    condition_map!(p, xdynamic)
+    condition_map!(p, xdynamic_mech)
 
-    # Potential Neural-Network parameters (in this case p must be a ComponentArray) which
-    # are inside the ODE
-    for (ml_id, xnet) in x_ml_models
-        !(p isa ComponentArray) && continue
-        !haskey(p, ml_id) && continue
-        p[ml_id] .= xnet
-    end
+    _set_ode_problem_ml_ps!(p, x_ml_models, model_info)
 
     # Potential ODE parameters which have their value assigned by a neural-net
-    _set_ml_pre_simulate_parameters!(
-        p, xdynamic, x_ml_models, simulation_id, xindices, ml_models_pre_simulate
+    _set_ml_pre_simulate_ps!(
+        p, xdynamic_mech, x_ml_models, simulation_id, xindices, ml_models_pre_simulate
     )
 
     # Initial state can depend on condition specific parameters. For a subset of models
@@ -46,15 +39,6 @@ function _switch_condition(
     _ode_problem = remake(ode_problem, p = ps)
     _ode_problem = remake(_ode_problem, u0 = u0)
 
-    # In case we solve the forward sensitivity equations we must adjust the initial
-    # sensitives by computing the jacobian at t0, and note we have larger than usual
-    # u0 as it includes the sensitivities. Must come after the remake as the remake
-    # resets u0 values for the sensitivities
-    if sensitivities == true
-        St0 = zeros(Float64, nstates, length(p))
-        ForwardDiff.jacobian!(St0, model.u0, p)
-        _ode_problem.u0 .= vcat(u0, vec(St0))
-    end
     return _ode_problem
 end
 
@@ -157,7 +141,7 @@ function _set_check_trigger_init!(cbs::SciMLBase.DECallback, value::Bool)::Nothi
     return nothing
 end
 
-function _set_ml_pre_simulate_parameters!(
+function _set_ml_pre_simulate_ps!(
         p::AbstractVector, xdynamic::AbstractVector,
         x_ml_models::Dict{Symbol, ComponentArray}, simulation_id::Symbol,
         xindices::ParameterIndices,
@@ -187,6 +171,24 @@ function _set_ml_pre_simulate_parameters!(
             ml_model_pre_simulate.forward!(outputs, x)
         end
         p[map_ml_model_pre_simulate.ix_sys_outputs] .= outputs
+    end
+    return nothing
+end
+
+function _set_ode_problem_ml_ps!(
+        p::ComponentArray, x_ml_models::Dict{Symbol, ComponentArray}, model_info::ModelInfo
+    )::Nothing
+    for ml_id in model_info.xindices.ids[:ml_in_ode]
+        p[ml_id] .= x_ml_models[ml_id]
+    end
+    return nothing
+end
+function _set_ode_problem_ml_ps!(
+        p::AbstractVector{<:Real}, x_ml_models::Dict{Symbol, ComponentArray},
+        model_info::ModelInfo
+    )::Nothing
+    for ml_id in model_info.xindices.ids[:ml_in_ode]
+        p[model_info.xindices.indices_dynamic[Symbol("$(ml_id)_sys")]] .= x_ml_models[ml_id]
     end
     return nothing
 end

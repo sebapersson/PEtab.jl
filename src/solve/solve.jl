@@ -3,14 +3,14 @@ function solve_conditions!(
         x_ml_models::Dict{Symbol, ComponentArray}, probinfo::PEtabODEProblemInfo;
         cids::Vector{Symbol} = [:all], ntimepoints_save::Int64 = 0,
         save_observed_t::Bool = true, dense_sol::Bool = false, track_callback::Bool = false,
-        sensitivities::Bool = false, derivative::Bool = false
+        derivative::Bool = false
     )::Bool
     @unpack simulation_info, model, xindices = model_info
     @unpack float_tspan = model
     @unpack cache, ml_models_pre_ode = probinfo
     ode_problem = probinfo.odeproblem
 
-    if derivative == true || sensitivities == true || track_callback == true
+    if derivative == true || track_callback == true
         odesols = simulation_info.odesols_derivatives
         ss_solver = probinfo.ss_solver_gradient
         osolver = probinfo.solver_gradient
@@ -32,11 +32,9 @@ function solve_conditions!(
 
         for (i, preeq_id) in pairs(preeq_ids)
             ode_problem_preeq = _switch_condition(
-                ode_problem, preeq_id, xdynamic, x_ml_models, model_info, cache, ml_models_pre_ode,
-                false; sensitivities = sensitivities
+                ode_problem, preeq_id, xdynamic, x_ml_models, model_info, cache,
+                ml_models_pre_ode, false
             )
-            # Sometimes due to strongly ill-conditioned Jacobian the linear-solve runs
-            # into a domain error or bounds error. This is treated as integration error.
             try
                 u_ss_preeq, u_t0_preeq = (@view u_ss[:, i]), (@view u_t0[:, i])
                 preeq_sols[preeq_id] = solve_pre_equilibrium!!(
@@ -66,7 +64,7 @@ function solve_conditions!(
         dense = _is_dense(save_observed_t, dense_sol, ntimepoints_save)
         ode_problem_cid = _switch_condition(
             ode_problem, cid, xdynamic, x_ml_models, model_info, cache, ml_models_pre_ode,
-            posteq_simulation; sensitivities = sensitivities, simulation_id = simid
+            posteq_simulation; simulation_id = simid
         )
 
         if posteq_simulation == true
@@ -115,7 +113,7 @@ function solve_conditions!(
         sols::AbstractMatrix, xdynamic::AbstractVector, probinfo::PEtabODEProblemInfo,
         model_info::ModelInfo; cids::Vector{Symbol} = [:all], ntimepoints_save::Int64 = 0,
         save_observed_t::Bool = true, dense_sol::Bool = false, track_callback::Bool = false,
-        sensitivities::Bool = false, sensitivities_AD::Bool = false
+        sensitivities_AD::Bool = false
     )::Nothing
     cache = probinfo.cache
 
@@ -125,7 +123,7 @@ function solve_conditions!(
         model_info, xdynamic_mech, x_ml_models, probinfo; cids = cids,
         ntimepoints_save = ntimepoints_save, dense_sol = dense_sol,
         save_observed_t = save_observed_t, derivative = derivative,
-        sensitivities = sensitivities, track_callback = track_callback
+        track_callback = track_callback
     )
     if sucess != true
         fill!(sols, 0.0)

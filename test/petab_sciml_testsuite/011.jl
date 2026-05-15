@@ -24,6 +24,7 @@ nn11_2 = @compact(
 end
 # runic: on
 
+# Model as ODEProblem
 ml_model1 = MLModel(:net1, nn11_1, false)
 ml_model2 = MLModel(:net2, nn11_2, true; inputs = [:net2_input_pre1, :net2_input_pre1], outputs = [:beta])
 ml_models = MLModels(ml_model1, ml_model2)
@@ -51,6 +52,21 @@ end
 p_mechanistic = (alpha = 1.3, delta = 1.8, beta = 0.9)
 u0 = ComponentArray(prey = 0.44249296, predator = 4.6280594)
 uprob = UDEProblem(lv11!, u0, (0.0, 10.0), p_mechanistic, ml_model1)
+
+# Model as ODESystem
+nn1_chain = Lux.Chain(
+    layer1 = Dense(2 => 5, Lux.tanh),
+    layer2 = Dense(5 => 5, Lux.tanh),
+    layer3 = Dense(5 => 1)
+)
+@SymbolicNeuralNetwork NN, net1 = nn1_chain
+@variables prey(t) = 0.44249296 predator(t) = 4.6280594
+@parameters alpha beta delta
+eqs_ude = [
+    D(prey) ~ alpha * prey - beta * prey * predator
+    D(predator) ~ NN([prey, predator], net1)[1] - delta * predator
+]
+@mtkcompile sys_ude = System(eqs_ude, t)
 
 p_alpha = PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3)
 p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)
@@ -80,3 +96,17 @@ petab_prob = PEtabODEProblem(
     split_over_conditions = true
 )
 test_hybrid(test_case, petab_prob)
+
+# Test as ODESystem. As PEtab-SciML import uses ODEProblem, must test all gradient methods
+ml_model = ml_models[:net2]
+model_sys = PEtabModel(
+    sys_ude, observables, measurements, pest, simulation_conditions = conditions,
+    ml_models = ml_model
+)
+for config in PROB_CONFIGS
+    petab_prob_sys = PEtabODEProblem(
+        model_sys; odesolver = ode_solver, gradient_method = config.grad,
+        split_over_conditions = config.split, sensealg = config.sensealg
+    )
+    test_hybrid(test_case, petab_prob_sys)
+end

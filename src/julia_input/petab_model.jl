@@ -63,10 +63,15 @@ function PEtabModel(
     ml_models = if isnothing(ml_models)
         MLModels()
     elseif ml_models isa MLModel
-        MLModels(ml_models)
+        MLModels(ml_models; sys = sys)
     else
         ml_models
     end
+    ml_models_sys = _get_ml_models_sys(sys)
+    ml_models = MLModels(
+        [ml_models.ml_models..., ml_models_sys.ml_models...],
+        [ml_models.ml_ids..., ml_models_sys.ml_ids...]
+    )
 
     return _PEtabModel(
         sys, simulation_conditions, observables, measurements, parameters, speciemap,

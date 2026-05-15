@@ -103,7 +103,13 @@ function _get_parametermap(sys::ODEProblem, ::Any, ml_models::MLModels)
     return sys, nothing
 end
 function _get_parametermap(sys::ModelSystem, parametermap_input, ::MLModels)
-    parametermap = [Num(p) => 0.0 for p in parameters(sys)]
+    ps_ids = similar(parameters(sys), 0)
+    for ps_id in parameters(sys)
+        ModelingToolkitNeuralNets.isneuralnetwork(ps_id) && continue
+        ModelingToolkitNeuralNets.isneuralnetworkps(ps_id) && continue
+        push!(ps_ids, ps_id)
+    end
+    parametermap = [ps_id => 0.0 for ps_id in ps_ids]
 
     # User are allowed to specify default numerical values in the system
     default_values = _get_default_values(sys)

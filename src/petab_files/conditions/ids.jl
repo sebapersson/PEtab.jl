@@ -99,7 +99,17 @@ function _get_ps_ids_sys(sys::ODEProblem)::Vector{Symbol}
     return collect(keys(sys.p))
 end
 function _get_ps_ids_sys(sys::ModelSystem)::Vector{Symbol}
-    return Symbol.(parameters(sys))
+    ps_ids_mech = Symbol[]
+    ps_ids_ml = Symbol[]
+    for ps_id in parameters(sys)
+        ModelingToolkitNeuralNets.isneuralnetwork(ps_id) && continue
+        if ModelingToolkitNeuralNets.isneuralnetworkps(ps_id)
+            push!(ps_ids_ml, Symbol(ps_id))
+        else
+            push!(ps_ids_mech, Symbol(ps_id))
+        end
+    end
+    return vcat(ps_ids_mech, ps_ids_ml)
 end
 
 function _get_ids_ml_pre_simulate_output(
@@ -230,12 +240,19 @@ function _get_ids_condition(
     return ids_condition
 end
 
-function _get_ids_ml_in_ode(ml_models::MLModels, sys::ModelSystem)::Vector{Symbol}
-    !(sys isa ODEProblem) && return Symbol[]
+function _get_ids_ml_in_ode(ml_models::MLModels, sys::ODEProblem)::Vector{Symbol}
     ids_ml_in_ode = Symbol[]
     for id in ml_models.ml_ids
         !haskey(sys.p, id) && continue
         push!(ids_ml_in_ode, id)
+    end
+    return ids_ml_in_ode
+end
+function _get_ids_ml_in_ode(::MLModels, sys::ModelSystem)::Vector{Symbol}
+    ids_ml_in_ode = Symbol[]
+    for ps_id in parameters(sys)
+        !ModelingToolkitNeuralNets.isneuralnetworkps(ps_id) && continue
+        push!(ids_ml_in_ode, Symbol(ps_id))
     end
     return ids_ml_in_ode
 end

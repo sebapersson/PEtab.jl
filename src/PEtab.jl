@@ -1,6 +1,7 @@
 module PEtab
 
 import ModelingToolkitBase
+import ModelingToolkitNeuralNets
 using CSV
 using SciMLBase
 using OrdinaryDiffEqBDF
@@ -120,6 +121,7 @@ include(joinpath("ml_models", "inputs_outputs.jl"))
 include(joinpath("ml_models", "model_info.jl"))
 include(joinpath("ml_models", "parameters.jl"))
 include(joinpath("ml_models", "pre_simulate.jl"))
+include(joinpath("ml_models", "sys_ml_calls.jl"))
 include(joinpath("ml_models", "templates.jl"))
 
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem

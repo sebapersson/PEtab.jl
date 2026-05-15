@@ -1,15 +1,16 @@
 using SciMLBase, Lux, ComponentArrays, PEtab, CSV, DataFrames, YAML, Distributions,
-    OrdinaryDiffEqRosenbrock, SciMLSensitivity, HDF5, ForwardDiff, Test
+    OrdinaryDiffEqRosenbrock, SciMLSensitivity, HDF5, ForwardDiff, Test,
+    ModelingToolkitBase, ModelingToolkitNeuralNets
 using Catalyst: @unpack
 import Random
-import PEtab: MLModel, PEtabMLParameter
+
+using ModelingToolkitBase: t_nounits as t, D_nounits as D
 
 rng = Random.default_rng()
 
 PROB_CONFIGS = [
     (grad = :ForwardDiff, split = false, sensealg = :ForwardDiff),
     (grad = :ForwardDiff, split = true, sensealg = :ForwardDiff),
-    (grad = :ForwardEquations, split = false, sensealg = :ForwardDiff),
     (grad = :ForwardEquations, split = true, sensealg = :ForwardDiff),
     (grad = :Adjoint, split = true, sensealg = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true))),
 ]

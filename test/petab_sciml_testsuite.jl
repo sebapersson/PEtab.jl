@@ -28,14 +28,6 @@ ode_solver = ODESolver(
         ml_models = MLModels(path_yaml)
         model = PEtabModel(path_yaml; ml_models = ml_models)
         for config in PROB_CONFIGS
-            # Edge case for underperforming configuration. So even though support could be
-            # added in theory, it is not priority
-            if (
-                    config.grad == :ForwardEquations && config.split == false &&
-                        config.sensealg == :ForwardDiff
-                )
-                continue
-            end
             petab_prob = Base.invokelatest(
                 model -> PEtabODEProblem(
                     model; odesolver = ode_solver, gradient_method = config.grad,

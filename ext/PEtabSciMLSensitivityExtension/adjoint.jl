@@ -52,9 +52,8 @@ function _grad_adjoint_xdynamic!(
 
     xdynamic_ps, x_ml_models = PEtab.split_xdynamic(xdynamic_ps, xindices, cache)
     success = PEtab.solve_conditions!(
-        model_info, xdynamic_ps, x_ml_models, probinfo; cids = cids,
-        dense_sol = true, save_observed_t = false,
-        track_callback = true
+        model_info, xdynamic_ps, x_ml_models, probinfo; cids = cids, dense_sol = true,
+        save_observed_t = false, track_callback = true
     )
     if success == false
         fill!(grad, 0.0)
@@ -248,6 +247,12 @@ function _grad_adjoint_cond!(
         ix = xindices.indices_dynamic[:sys_ml_pre_simulate_outputs]
         cache.grad_ml_pre_simulate_outputs .= adjoint_grad[ix]
         PEtab._set_grad_x_ml_pre_simulate!(grad, simid, probinfo, model_info)
+    end
+
+    # In case of MTKParameters xindices.ids[:sys] and odeproblem.p (which dp is on) can
+    # be miss-matched, which must be corrected for adjoint_grad
+    if !isempty(xindices.indices_dynamic[:mtk_ps_to_sys])
+        adjoint_grad .= adjoint_grad[xindices.indices_dynamic[:mtk_ps_to_sys]]
     end
 
     # Adjust if gradient is non-linear scale (e.g. log and log10).

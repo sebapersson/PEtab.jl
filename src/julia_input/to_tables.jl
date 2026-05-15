@@ -18,7 +18,7 @@ function _parameters_to_table(parameters::Vector, ml_models::MLModels)::DataFram
         for ml_model in ml_models.ml_models
             ml_model.ml_id in ml_ids && continue
             throw(PEtabInputError("Each declared MLModel must have an associated \
-                PEtabMLParameter. MLModel $(ml_model.ml_id) does not have one."))
+                PEtabMLParameter. MLModel/parameter $(ml_model.ml_id) does not have one."))
         end
     end
 

@@ -1,6 +1,7 @@
 test_case = "001"
 dir_case = joinpath(@__DIR__, "test_cases", "sciml_problem_import", test_case, "petab")
 
+# Define model as ODEProblem
 # runic: off
 nn1 = @compact(
     layer1 = Dense(2, 5, Lux.tanh),
@@ -36,6 +37,21 @@ p_mechanistic = ComponentArray(alpha = 1.3, delta = 1.8, beta = 0.9)
 u0 = (prey = 0.44249296, predator = 4.6280594)
 uprob = UDEProblem(lv1!, u0, (0.0, 10.0), p_mechanistic, ml_model)
 
+# Define model as ODESystem
+nn1_chain = Lux.Chain(
+    layer1 = Dense(2 => 5, Lux.tanh),
+    layer2 = Dense(5 => 5, Lux.tanh),
+    layer3 = Dense(5 => 1)
+)
+@SymbolicNeuralNetwork NN, net1 = nn1_chain
+@variables prey(t) = 0.44249296 predator(t) = 4.6280594
+@parameters alpha beta delta
+eqs_ude = [
+    D(prey) ~ alpha * prey - beta * prey * predator
+    D(predator) ~ NN([prey, predator], net1)[1] - delta * predator
+]
+@mtkcompile sys_ude = System(eqs_ude, t)
+
 pest = [
     PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3),
     PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9),
@@ -54,12 +70,27 @@ path_m = joinpath(dir_case, "measurements.tsv")
 measurements = CSV.read(path_m, DataFrame)
 rename!(measurements, "experimentId" => "simulation_id")
 
-model = PEtabModel(
+# Test as ODEProblem
+model_prob = PEtabModel(
     uprob, observables, measurements, pest; ml_models = ml_model,
     simulation_conditions = conditions
 )
-petab_prob = PEtabODEProblem(model; odesolver = ode_solver, gradient_method = :ForwardDiff)
-test_hybrid(test_case, petab_prob)
+petab_prob_prob = PEtabODEProblem(
+    model_prob; odesolver = ode_solver, gradient_method = :ForwardDiff
+)
+test_hybrid(test_case, petab_prob_prob)
+
+# Test as ODESystem. As PEtab-SciML import uses ODEProblem, must test all gradient methods
+model_sys = PEtabModel(
+    sys_ude, observables, measurements, pest; simulation_conditions = conditions
+)
+for config in PROB_CONFIGS
+    petab_prob_sys = PEtabODEProblem(
+        model_sys; odesolver = ode_solver, gradient_method = config.grad,
+        split_over_conditions = config.split, sensealg = config.sensealg
+    )
+    test_hybrid(test_case, petab_prob_sys)
+end
 
 # Check that parameters to estimated throw correctly on bad input
 pest = [
@@ -70,6 +101,12 @@ pest = [
 @test_throws PEtab.PEtabInputError begin
     model = PEtabModel(
         uprob, observables, measurements, pest; ml_models = ml_model,
+        simulation_conditions = conditions
+    )
+end
+@test_throws PEtab.PEtabInputError begin
+    model = PEtabModel(
+        sys_ude, observables, measurements, pest; ml_models = ml_model,
         simulation_conditions = conditions
     )
 end

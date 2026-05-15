@@ -26,3 +26,19 @@ function _get_ps_ids_sys_order_in_xdynamic(
     unique!(ids_sys_in_xdynamic)
     return ids_sys_in_xdynamic .|> string
 end
+
+function _flatten_parameters_sys(sys::PEtab.ModelSystem)
+    ps_ids = parameters(sys)
+    ps_ids_mech = similar(ps_ids, 0)
+    ps_ids_ml = similar(ps_ids, 0)
+    for ps_id in ps_ids
+        ModelingToolkitNeuralNets.isneuralnetwork(ps_id) && continue
+        if ModelingToolkitNeuralNets.isneuralnetworkps(ps_id)
+            sp = Symbolics.scalarize(ps_id)
+            ps_ids_ml = vcat(ps_ids_ml, vec(collect(sp)))
+        else
+            push!(ps_ids_mech, ps_id)
+        end
+    end
+    return vcat(ps_ids_mech, ps_ids_ml)
+end
