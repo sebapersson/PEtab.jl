@@ -227,8 +227,8 @@ end
 
 function _solve(
         ode_problem::ODEProblem, solver::SciMLAlgorithm, tsave::Vector{Float64}, abstol::Float64,
-        reltol::Float64, dense::Bool, maxiters::Int64, force_dtmin::Bool, verbose::Bool,
-        cbs::SciMLBase.DECallback
+        reltol::Float64, dense::Bool, maxiters::Int64, force_dtmin::Bool,
+        verbose::AllowedLogging, cbs::SciMLBase.DECallback
     )::ODESolution
     return solve(
         ode_problem, solver, abstol = abstol, reltol = reltol, verbose = verbose,

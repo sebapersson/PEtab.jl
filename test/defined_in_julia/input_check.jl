@@ -257,4 +257,10 @@
             simulation_conditions = simulation_conditions
         )
     end
+
+    # ODESolver verbosity
+    @test_throws ArgumentError ODESolver(Rodas5P(), verbose = "yes")
+    @test_warn "Passing a Bool to `verbose` is deprecated. Use SciMLLogging instead. For more info, see the ODESolver docstring." begin
+        ODESolver(Rodas5P(), verbose = true)
+    end
 end

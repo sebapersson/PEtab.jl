@@ -14,7 +14,9 @@ import Random
         "Crauste_CellSystems2017.yaml"
     )
     model = PEtabModel(path_yaml)
-    prob = PEtabODEProblem(model; odesolver = ODESolver(Rodas5P(); verbose = false))
+    prob = PEtabODEProblem(
+        model; odesolver = ODESolver(Rodas5P(); verbose = SciMLLogging.None())
+    )
     # Single start-guess
     x_start = get_startguesses(prob, 1)
     @test x_start isa ComponentArray

@@ -29,6 +29,7 @@ using PreallocationTools
 using NonlinearSolve
 using PrecompileTools
 using QuasiMonteCarlo
+import SciMLLogging
 import Symbolics
 import SymbolicIndexingInterface
 using StyledStrings
@@ -46,6 +47,10 @@ const PEtabTables = Union{Dict{Symbol, Union{DataFrame, Dict}}}
 const UserFormula = Union{Symbolics.Num, AbstractString, Symbol}
 const ConditionExp = Union{String, Symbol, Pair{String, String}, Pair{Symbol, Symbol}}
 const ContDistribution = Distribution{Univariate, Continuous}
+const AllowedLogging = Union{
+    SciMLLogging.None, SciMLLogging.Minimal, SciMLLogging.Standard,
+    SciMLLogging.Detailed, SciMLLogging.All
+}
 
 include(joinpath("structs", "petab_model.jl"))
 include(joinpath("structs", "petab_odeproblem.jl"))

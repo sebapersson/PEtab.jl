@@ -13,9 +13,9 @@ include(joinpath(@__DIR__, "common.jl"))
 function solve_algebraic_ss(
         model::PEtabModel, solver, tol::Float64, a::T1, b::T1, c::T1, d::T1
     ) where {T1 <: Real}
-    ode_sys = PEtab._get_system(model.sys_mutated)
+    sys_ode = model.sys_ode
     oprob = ODEProblem(
-        ode_sys, merge(Dict(model.speciemap), Dict(model.parametermap)),
+        sys_ode, merge(Dict(model.speciemap), Dict(model.parametermap)),
         [0.0, 9.7]
     )
     set_ps = SymbolicIndexingInterface.setp_oop(oprob, [:a, :b, :c, :d])

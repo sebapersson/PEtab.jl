@@ -38,7 +38,7 @@ function nllh_solveode(
         dense_sol = false, save_observed_t = true, derivative = derivative
     )
     if success != true
-        if probinfo.solver.verbose == true
+        if !(probinfo.solver.verbose isa SciMLLogging.None)
             @warn "Failed to solve ODE model."
         end
         return Inf
