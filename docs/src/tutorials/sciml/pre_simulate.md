@@ -119,7 +119,9 @@ measurements = DataFrame(
 nothing # hide
 ```
 
-The `PEtabModel` and associated `PEtabODEProblem` are created as usual:
+Note that when the ML-model is provided as a `MLModel`, the id should be used in
+`PEtabMLParameter`. Given this, the `PEtabModel` and associated `PEtabODEProblem` are
+created as usual:
 
 ```@example 1
 petab_model = PEtabModel(

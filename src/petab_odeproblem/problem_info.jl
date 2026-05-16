@@ -139,15 +139,13 @@ function _get_odeproblem(
     # Symbolic Jacobian cannot be computed for UDE and NODE models
     symbolic_jacobian = isempty(model_info.xindices.ids[:ml_in_ode])
 
-    @unpack sys_mutated, speciemap, parametermap = model
-    ode_sys = _get_system(sys_mutated)
+    @unpack sys_ode, speciemap, parametermap = model
     u0_map = first.(speciemap) .=> 0.0
     odeproblem = ODEProblem{true, SciMLBase.FullSpecialize}(
-        ode_sys, merge(Dict(u0_map), Dict(parametermap)), [0.0, 5e3],
+        sys_ode, merge(Dict(u0_map), Dict(parametermap)), [0.0, 5e3],
         jac = symbolic_jacobian, sparse = sparse_jacobian, build_initializeprob = false
     )
 
-    # TODO: Set potential constant ML parameters
     for ml_id in xindices.ids[:ml_in_ode]
         ml_id in xindices.ids[:ml_est] && continue
         ps = _get_lux_ps(ComponentArray, model.ml_models[ml_id])

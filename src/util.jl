@@ -53,16 +53,16 @@ function get_odeproblem(
     cbs = model_info.model.callbacks[simulation_id]
 
     if mutated_sys == false
-        ode_sys = _get_system(prob.model_info.model.sys)
+        sys_ode = _get_system(prob.model_info.model.sys)
     else
-        ode_sys = _get_system(prob.model_info.model.sys_mutated)
+        sys_ode = _get_system(prob.model_info.model.sys_mutated)
     end
 
     if prob.model_info.model.sys isa ODEProblem
-        odeprob = remake(ode_sys, u0 = u0, p = ps, tspan = [tstart, tmax])
+        odeprob = remake(sys_ode, u0 = u0, p = ps, tspan = [tstart, tmax])
     else
         odeprob = ODEProblem(
-            ode_sys, merge(Dict(u0), Dict(ps)), [tstart, tmax], build_initializeprob = false
+            sys_ode, merge(Dict(u0), Dict(ps)), [tstart, tmax], build_initializeprob = false
         )
     end
     return odeprob, cbs
@@ -203,7 +203,6 @@ function _get_ps_u0(
     p = _get_ode_problem_ps(
         ode_problem_condition, p_tunable, ode_problem_condition.p, xindices
     )
-    ps = xindices.ids[:sys]
     u0s = first.(model_info.model.speciemap)[1:length(u0)]
     if model_info.model.sys isa ODEProblem && retmap == true
         @warn "The 'retmap' keyword is ignored because the model was provided or imported \
@@ -211,7 +210,9 @@ function _get_ps_u0(
             ReactionSystem."
         _u0, _p = u0, p
     elseif retmap == true
-        _u0, _p = Pair.(u0s, u0), Pair.(ps, p_tunable)
+        ps = _flatten_parameters_sys(model.sys_ode)
+        _u0 = Pair.(u0s, u0)
+        _p = Pair.(ps, p_tunable)
     else
         _u0, _p = u0, p
     end
@@ -219,10 +220,11 @@ function _get_ps_u0(
     # These parameters are added to a mutated system for gradient computations, but
     # should not be exposed to the user if the model is defined in Julia
     if mutated_sys == false && model.defined_in_julia && !(model.sys isa ODEProblem)
-        ip = findall(x -> !occursin("__init__", x), string.(ps))
+        ps_flatten = _flatten_parameters_sys(model.sys_ode)
+        ip = findall(x -> !occursin("__init__", x), string.(ps_flatten))
         if _p isa ModelingToolkitBase.MTKParameters
-            _ps = ps[ip]
-            _set_ps = SymbolicIndexingInterface.setp_oop(odeproblem, _ps)
+            _ps_flatten = ps_flatten[ip]
+            _set_ps = SymbolicIndexingInterface.setp_oop(odeproblem, _ps_flatten)
             _p = _set_ps(odeproblem, p_tunable[ip])
         else
             _p = _p[ip]

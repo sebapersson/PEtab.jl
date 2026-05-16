@@ -433,6 +433,7 @@ struct PEtabModel
     paths::Dict{Symbol, String}
     sys::Any
     sys_mutated::Any
+    sys_ode::Any
     parametermap::Any
     speciemap::Any
     petab_tables::PEtabTables

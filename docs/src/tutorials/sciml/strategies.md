@@ -14,29 +14,24 @@ As a running example, we fit a Neural ODE to time-series data generated from a
 Lotka–Volterra system.
 
 ```@example 1
-using ComponentArrays, Lux, PEtab
-
-function lv_node!(du, u, p, t, ml_models)
-    prey, predator = u
-    net1 = ml_models[:net1]
-    nn_out, _ = net1.lux_model([prey, predator], p.net1, net1.st)
-    du[1] = nn_out[1] # prey
-    du[2] = nn_out[2] # predator
-    return nothing
-end
+using Lux, ModelingToolkitBase, ModelingToolkitNeuralNets, PEtab
+using ModelingToolkitBase: t_nounits as t, D_nounits as D
 
 lux_model = Lux.Chain(
     Lux.Dense(2 => 5, Lux.swish),
     Lux.Dense(5 => 5, Lux.swish),
     Lux.Dense(5 => 2),
 )
-ml_model = MLModel(:net1, lux_model, false)
 
-p_mechanistic = ComponentArray()
-u0 = ComponentArray(prey = 0.44249296, predator = 4.6280594)
-node_problem = UDEProblem(lv_node!, u0, (0.0, 10.0), p_mechanistic, ml_model)
+@SymbolicNeuralNetwork NN, theta = lux_model
+@variables prey(t)=0.44249296 predator(t)=4.6280594
+eqs = [
+    D(prey) ~ NN([prey, predator], theta)[1]
+    D(predator) ~ NN([prey, predator], theta)[2]
+]
+@mtkcompile sys_node = System(eqs, t)
 
-parameters_est = [PEtabMLParameter(:net1)]
+parameters_est = [PEtabMLParameter(:theta)]
 
 obs = [
     PEtabObservable(:obs_prey, :prey, 1.0),
@@ -95,12 +90,8 @@ Given training/validation data, separate `PEtabODEProblem`s can then be created 
 training and validation objectives:
 
 ```@example 1
-model_train = PEtabModel(
-    node_problem, obs, df_train, parameters_est; ml_models = ml_model
-)
-model_val = PEtabModel(
-    node_problem, obs, df_val, parameters_est; ml_models = ml_model
-)
+model_train = PEtabModel(sys_node, obs, df_train, parameters_est)
+model_val = PEtabModel(sys_node, obs, df_val, parameters_est)
 prob_train = PEtabODEProblem(model_train)
 prob_val = PEtabODEProblem(model_val)
 nothing # hide

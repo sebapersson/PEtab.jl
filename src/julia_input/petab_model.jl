@@ -140,13 +140,14 @@ function _PEtabModel(
     sys_mutated, parametermap_problem = _get_parametermap(
         sys_mutated, parametermap, ml_models
     )
+    sys_ode = _get_system(sys_mutated)
 
-    sys_observables = _get_sys_observables(sys_mutated)
+    sys_observables = _get_sys_observables(sys_ode)
     sys_observable_ids = collect(keys(sys_observables))
 
     paths = Dict{Symbol, String}()
     xindices = ParameterIndices(
-        petab_tables, paths, sys_mutated, parametermap_problem, speciemap_problem, ml_models
+        petab_tables, paths, sys_ode, parametermap_problem, speciemap_problem, ml_models
     )
 
     # Warn user if any variable is unassigned (and defaults to zero)
@@ -186,7 +187,7 @@ function _PEtabModel(
     btime = @elapsed begin
         _set_trigger_time!(events)
         cbs, float_tspan = _parse_events(
-            events, sys_mutated, speciemap_problem, parametermap_problem, name, xindices,
+            events, sys_ode, speciemap_problem, parametermap_problem, name, xindices,
             petab_tables
         )
     end
@@ -195,8 +196,8 @@ function _PEtabModel(
     # Path only applies when PEtab tables are provided
     return PEtabModel(
         name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan, paths, sys,
-        sys_mutated, parametermap_problem, speciemap_problem, petab_tables, cbs, true,
-        events, sys_observables, ml_models
+        sys_mutated, sys_ode, parametermap_problem, speciemap_problem, petab_tables, cbs,
+        true, events, sys_observables, ml_models
     )
 end
 

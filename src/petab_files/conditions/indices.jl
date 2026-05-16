@@ -41,7 +41,7 @@ function _get_indices_est(
 end
 
 function _get_indices_dynamic(
-        sys::ModelSystem, ids::Dict{Symbol, Vector{Symbol}}, ml_models::MLModels
+        sys_ode::ModelSystem, ids::Dict{Symbol, Vector{Symbol}}, ml_models::MLModels
     )::Dict{Symbol, Vector{Int32}}
     indices_dynamic = Dict{Symbol, Vector{Int32}}()
 
@@ -112,7 +112,7 @@ function _get_indices_dynamic(
     indices_dynamic[:sys_to_dynamic_ml] = xi_sys_to_dynamic_ml
 
     # In case the model has MTKParameters to map MTK-scale to ids[:sys] scale
-    xi_mtk_ps_to_sys = _get_mtk_ps_to_sys(_get_system(sys))
+    xi_mtk_ps_to_sys = _get_mtk_ps_to_sys(sys_ode)
     indices_dynamic[:mtk_ps_to_sys] = xi_mtk_ps_to_sys
 
     return indices_dynamic

@@ -36,30 +36,30 @@ function ParameterIndices(
         petab_parameters::PEtabParameters, petab_measurements::PEtabMeasurements,
         model::PEtabModel
     )::ParameterIndices
-    @unpack speciemap, parametermap, sys_mutated, petab_tables, paths, ml_models = model
+    @unpack speciemap, parametermap, sys_ode, petab_tables, paths, ml_models = model
     petab_ml_parameters = PEtabMLParameters(petab_tables, ml_models)
     return ParameterIndices(
-        petab_parameters, petab_ml_parameters, petab_measurements, sys_mutated,
+        petab_parameters, petab_ml_parameters, petab_measurements, sys_ode,
         parametermap, speciemap, petab_tables, paths, ml_models
     )
 end
 function ParameterIndices(
         petab_parameters::PEtabParameters, petab_ml_parameters::PEtabMLParameters,
-        petab_measurements::PEtabMeasurements, sys::ModelSystem, parametermap, speciemap,
-        petab_tables::PEtabTables, paths::Dict{Symbol, String},
+        petab_measurements::PEtabMeasurements, sys_ode::ModelSystem, parametermap,
+        speciemap, petab_tables::PEtabTables, paths::Dict{Symbol, String},
         ml_models::MLModels
     )::ParameterIndices
     _check_condition_table(petab_tables, petab_measurements)
-    _check_mapping_table(petab_tables, paths, ml_models, petab_parameters, sys)
+    _check_mapping_table(petab_tables, paths, ml_models, petab_parameters, sys_ode)
 
     ids = _get_ids(
-        petab_parameters, petab_ml_parameters, petab_measurements, sys, petab_tables, paths,
+        petab_parameters, petab_ml_parameters, petab_measurements, sys_ode, petab_tables, paths,
         speciemap, parametermap, ml_models
     )
 
     # Indices for extracting parameters from: x (to estimate), xdynamic, and x_not_system
     indices_est = _get_indices_est(ids, ml_models)
-    indices_dynamic = _get_indices_dynamic(sys, ids, ml_models)
+    indices_dynamic = _get_indices_dynamic(sys_ode, ids, ml_models)
     indices_not_system = _get_indices_not_system(ids, ml_models)
 
     # For each time-point we must build a map that stores if i) noise/observable parameters
@@ -74,23 +74,22 @@ function ParameterIndices(
 
     # For correctly mapping mechanistic parameters between conditions
     condition_maps = _get_condition_maps(
-        sys, parametermap, speciemap, petab_parameters, petab_tables, ids, ml_models
+        sys_ode, parametermap, speciemap, petab_parameters, petab_tables, ids, ml_models
     )
 
     # If a neural-network sets values for a subset of model parameters, for efficient AD on
     # said network, it is needed to pre-compute the input, pre-allocate the output,
     # and build a map for which parameters in xdynamic the network maps to.
     ml_pre_simulate_maps = _get_ml_pre_simulate_maps(
-        ids, petab_parameters, petab_tables, paths, ml_models, sys
+        ids, petab_parameters, petab_tables, paths, ml_models, sys_ode
     )
 
     xscale = _get_xscales(ids, petab_parameters)
     _get_xnames_ps!(ids, xscale)
 
     # For mapping MTKPamrameters back and forth from ODEProblem
-    ode_sys = _get_system(sys)
-    set_ps_f = _get_set_ps_f(ode_sys)
-    get_ps_f = _get_get_ps_f(ode_sys)
+    set_ps_f = _get_set_ps_f(sys_ode)
+    get_ps_f = _get_get_ps_f(sys_ode)
 
     return ParameterIndices(
         ids, indices_est, indices_dynamic, indices_not_system, xscale, xobservable_maps,
