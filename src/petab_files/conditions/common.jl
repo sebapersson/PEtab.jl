@@ -32,8 +32,8 @@ function _flatten_parameters_sys(sys::PEtab.ModelSystem)
     ps_ids_mech = similar(ps_ids, 0)
     ps_ids_ml = similar(ps_ids, 0)
     for ps_id in ps_ids
-        ModelingToolkitNeuralNets.isneuralnetwork(ps_id) && continue
-        if ModelingToolkitNeuralNets.isneuralnetworkps(ps_id)
+        _is_neural_network_mtk(ps_id, sys) && continue
+        if _is_neural_network_mtk_ps(ps_id, sys)
             sp = Symbolics.scalarize(ps_id)
             ps_ids_ml = vcat(ps_ids_ml, vec(collect(sp)))
         else

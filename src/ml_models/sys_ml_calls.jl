@@ -40,5 +40,6 @@ end
 _same_symbolic(a, b) = isequal(a, b) || isequal(Symbolics.unwrap(a), Symbolics.unwrap(b))
 
 function _ml_callables(sys::SystemTrace)
-    return filter(ModelingToolkitNeuralNets.isneuralnetwork, parameters(sys))
+    f_filter = (x) -> _is_neural_network_mtk(x, sys)
+    return filter(f_filter, parameters(sys))
 end

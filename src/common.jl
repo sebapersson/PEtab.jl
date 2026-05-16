@@ -18,7 +18,7 @@ function _set_const_parameters!(
     @unpack nominal_value, parameter_id = parameters_info
     state_ids = _get_state_ids(sys_mutated)
     ids_sys = first.(parametermap) .|> string
-    for (i, id) in pairs(parameter_id .|> string)
+    for (i, id) in pairs(string.(parameter_id))
         # Check if values matches either state of parameter, and adjust value in the map
         ip = findfirst(x -> x == id, ids_sys)
         is = findfirst(x -> x == id, state_ids)
@@ -180,8 +180,9 @@ function _h(
         nominal_values::Vector{Float64},
     )::Real where {T <: AbstractVector}
     return model.h(
-        u, t, p, xobservable, xnondynamic_mech, x_ml_models, x_ml_models_constant, nominal_values,
-        observable_id, xobservable_maps, model.sys_observables, model.ml_models
+        u, t, p, xobservable, xnondynamic_mech, x_ml_models, x_ml_models_constant,
+        nominal_values, observable_id, xobservable_maps, model.sys_observables,
+        model.ml_models
     )
 end
 
@@ -342,3 +343,8 @@ function _get_ode_problem_ps(
     )::T where T <: AbstractVector
     return ps
 end
+
+# These can only return true if the ModelingToolkitNeuralNetsExt is activated
+_is_neural_network_mtk(id::Any, ::Any)::Bool = false
+_is_neural_network_mtk_ps(id::Any, ::Any)::Bool = false
+_get_nn_chain_mtk(::Any, ::Any) = nothing

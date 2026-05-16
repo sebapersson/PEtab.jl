@@ -106,8 +106,7 @@ pest = [
 end
 @test_throws PEtab.PEtabInputError begin
     model = PEtabModel(
-        sys_ude, observables, measurements, pest; ml_models = ml_model,
-        simulation_conditions = conditions
+        sys_ude, observables, measurements, pest; simulation_conditions = conditions
     )
 end
 
@@ -121,5 +120,53 @@ pest = [
     model = PEtabModel(
         uprob, observables, measurements, pest; ml_models = ml_model,
         simulation_conditions = conditions
+    )
+end
+
+# ODESystem where parameter maps incorrectly to two NN-models
+nn1_chain = Lux.Chain(
+    layer1 = Dense(2 => 5, Lux.tanh),
+    layer2 = Dense(5 => 5, Lux.tanh),
+    layer3 = Dense(5 => 1)
+)
+@SymbolicNeuralNetwork NN1, net1 = nn1_chain
+@SymbolicNeuralNetwork NN2, _ = nn1_chain
+@variables prey(t) = 0.44249296 predator(t) = 4.6280594
+@parameters alpha beta delta
+eqs_ude = [
+    D(prey) ~ alpha * prey - beta * prey * predator
+    D(predator) ~ NN1([prey, predator], net1)[1] + NN2([prey, predator], net1)[1] - delta * predator
+]
+@mtkcompile sys_ude = System(eqs_ude, t)
+
+pest = [
+    PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3),
+    PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9),
+    PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8),
+    PEtabMLParameter(:net1; value = pnn),
+]
+@test_throws PEtab.PEtabInputError begin
+    model = PEtabModel(
+        sys_ude, observables, measurements, pest; simulation_conditions = conditions
+    )
+end
+
+# Parameter not associated with ML-model
+nn1_chain = Lux.Chain(
+    layer1 = Dense(2 => 5, Lux.tanh),
+    layer2 = Dense(5 => 5, Lux.tanh),
+    layer3 = Dense(5 => 1)
+)
+@SymbolicNeuralNetwork NN1, net1 = nn1_chain
+@variables prey(t) = 0.44249296 predator(t) = 4.6280594
+@parameters alpha beta delta
+eqs_ude = [
+    D(prey) ~ alpha * prey - beta * prey * predator
+    D(predator) ~ net1[1] - delta * predator
+]
+@mtkcompile sys_ude = System(eqs_ude, t)
+@test_throws PEtab.PEtabInputError begin
+    model = PEtabModel(
+        sys_ude, observables, measurements, pest; simulation_conditions = conditions
     )
 end

@@ -105,8 +105,8 @@ end
 function _get_parametermap(sys::ModelSystem, parametermap_input, ::MLModels)
     ps_ids = similar(parameters(sys), 0)
     for ps_id in parameters(sys)
-        ModelingToolkitNeuralNets.isneuralnetwork(ps_id) && continue
-        ModelingToolkitNeuralNets.isneuralnetworkps(ps_id) && continue
+        _is_neural_network_mtk(ps_id, sys) && continue
+        _is_neural_network_mtk_ps(ps_id, sys) && continue
         push!(ps_ids, ps_id)
     end
     parametermap = [ps_id => 0.0 for ps_id in ps_ids]

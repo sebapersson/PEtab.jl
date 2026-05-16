@@ -179,6 +179,7 @@ function _set_ode_problem_ml_ps!(
         p::ComponentArray, x_ml_models::Dict{Symbol, ComponentArray}, model_info::ModelInfo
     )::Nothing
     for ml_id in model_info.xindices.ids[:ml_in_ode]
+        !in(ml_id, model_info.xindices.ids[:ml_est]) && continue
         p[ml_id] .= x_ml_models[ml_id]
     end
     return nothing
@@ -188,6 +189,7 @@ function _set_ode_problem_ml_ps!(
         model_info::ModelInfo
     )::Nothing
     for ml_id in model_info.xindices.ids[:ml_in_ode]
+        !in(ml_id, model_info.xindices.ids[:ml_est]) && continue
         p[model_info.xindices.indices_dynamic[Symbol("$(ml_id)_sys")]] .= x_ml_models[ml_id]
     end
     return nothing

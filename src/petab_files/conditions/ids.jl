@@ -102,8 +102,8 @@ function _get_ps_ids_sys(sys::ModelSystem)::Vector{Symbol}
     ps_ids_mech = Symbol[]
     ps_ids_ml = Symbol[]
     for ps_id in parameters(sys)
-        ModelingToolkitNeuralNets.isneuralnetwork(ps_id) && continue
-        if ModelingToolkitNeuralNets.isneuralnetworkps(ps_id)
+        _is_neural_network_mtk(ps_id, sys) && continue
+        if _is_neural_network_mtk_ps(ps_id, sys)
             push!(ps_ids_ml, Symbol(ps_id))
         else
             push!(ps_ids_mech, Symbol(ps_id))
@@ -251,7 +251,7 @@ end
 function _get_ids_ml_in_ode(::MLModels, sys::ModelSystem)::Vector{Symbol}
     ids_ml_in_ode = Symbol[]
     for ps_id in parameters(sys)
-        !ModelingToolkitNeuralNets.isneuralnetworkps(ps_id) && continue
+        !_is_neural_network_mtk_ps(ps_id, sys) && continue
         push!(ids_ml_in_ode, Symbol(ps_id))
     end
     return ids_ml_in_ode

@@ -46,8 +46,8 @@ nn1_chain = Lux.Chain(
 @variables prey(t) = 0.44249296 predator(t) = 4.6280594
 @parameters beta delta
 eqs_ude = [
-    D(prey) ~ NN([prey, predator], net1)[1] - beta * prey * predator
-    D(predator) ~ NN([prey, predator], net1)[2] - delta * predator
+    D(prey) ~ NN([prey, predator], net4)[1] - beta * prey * predator
+    D(predator) ~ NN([prey, predator], net4)[2] - delta * predator
 ]
 @mtkcompile sys_ude = System(eqs_ude, t)
 

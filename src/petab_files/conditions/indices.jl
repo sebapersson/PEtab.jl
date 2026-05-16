@@ -112,7 +112,7 @@ function _get_indices_dynamic(
     indices_dynamic[:sys_to_dynamic_ml] = xi_sys_to_dynamic_ml
 
     # In case the model has MTKParameters to map MTK-scale to ids[:sys] scale
-    xi_mtk_ps_to_sys = _get_mtk_ps_to_sys(sys)
+    xi_mtk_ps_to_sys = _get_mtk_ps_to_sys(_get_system(sys))
     indices_dynamic[:mtk_ps_to_sys] = xi_mtk_ps_to_sys
 
     return indices_dynamic

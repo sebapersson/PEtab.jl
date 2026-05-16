@@ -55,10 +55,10 @@ function PEtabODEProblemInfo(
     _logging(:Build_ODEProblem, verbose)
     btime = @elapsed begin
         odeproblem = _get_odeproblem(
-            model.sys_mutated, model, model_info, specialize_level, sparse_jacobian_use
+            model.sys_mutated, model_info, specialize_level, sparse_jacobian_use
         )
         odeproblem_gradient = _get_odeproblem(
-            model.sys_mutated, model, model_info, specialize_level, sparse_jacobian_use
+            model.sys_mutated, model_info, specialize_level, sparse_jacobian_use
         )
     end
     _logging(:Build_ODEProblem, verbose; time = btime)
@@ -90,7 +90,7 @@ function PEtabODEProblemInfo(
 end
 
 function _get_odeproblem(
-        sys::ODEProblem, ::PEtabModel, model_info::ModelInfo, specialize_level, ::Bool
+        sys::ODEProblem, model_info::ModelInfo, ::Any, ::Bool
     )::ODEProblem
     @unpack petab_parameters, petab_ml_parameters, xindices, model = model_info
 
@@ -130,9 +130,10 @@ function _get_odeproblem(
     return odeproblem_use
 end
 function _get_odeproblem(
-        ::ModelSystem, model::PEtabModel, model_info::ModelInfo, specialize_level,
-        sparse_jacobian::Bool
+        ::ModelSystem, model_info::ModelInfo, specialize_level, sparse_jacobian::Bool
     )::ODEProblem
+    @unpack model, xindices = model_info
+
     _set_const_parameters!(model, model_info.petab_parameters)
 
     # Symbolic Jacobian cannot be computed for UDE and NODE models
@@ -145,6 +146,15 @@ function _get_odeproblem(
         ode_sys, merge(Dict(u0_map), Dict(parametermap)), [0.0, 5e3],
         jac = symbolic_jacobian, sparse = sparse_jacobian, build_initializeprob = false
     )
+
+    # TODO: Set potential constant ML parameters
+    for ml_id in xindices.ids[:ml_in_ode]
+        ml_id in xindices.ids[:ml_est] && continue
+        ps = _get_lux_ps(ComponentArray, model.ml_models[ml_id])
+        _set_ml_model_ps!(ps, model.ml_models[ml_id], model.paths)
+        odeproblem.ps[ml_id] .= ps
+    end
+
     return odeproblem
 end
 

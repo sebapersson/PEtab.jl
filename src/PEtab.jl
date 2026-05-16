@@ -1,7 +1,6 @@
 module PEtab
 
 import ModelingToolkitBase
-import ModelingToolkitNeuralNets
 using CSV
 using SciMLBase
 using OrdinaryDiffEqBDF
