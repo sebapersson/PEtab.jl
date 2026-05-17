@@ -175,6 +175,6 @@ _get_cache(x, chunk_size, levels) = DiffCache(similar(x), chunk_size, levels = l
 function _get_ps_similar(ps::ModelingToolkitBase.MTKParameters)
     return similar(ps.tunable)
 end
-function _get_ps_similar(ps::T)::T where T <: AbstractVector
+function _get_ps_similar(ps::T)::T where {T <: AbstractVector}
     return similar(ps)
 end

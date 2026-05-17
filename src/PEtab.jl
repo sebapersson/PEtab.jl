@@ -49,7 +49,7 @@ const ConditionExp = Union{String, Symbol, Pair{String, String}, Pair{Symbol, Sy
 const ContDistribution = Distribution{Univariate, Continuous}
 const AllowedLogging = Union{
     SciMLLogging.None, SciMLLogging.Minimal, SciMLLogging.Standard,
-    SciMLLogging.Detailed, SciMLLogging.All
+    SciMLLogging.Detailed, SciMLLogging.All,
 }
 
 include(joinpath("structs", "petab_model.jl"))

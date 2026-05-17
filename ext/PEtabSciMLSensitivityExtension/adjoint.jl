@@ -302,7 +302,7 @@ function __adjoint_sensitivities!(
     prob = sol.prob
     l = mtkp === nothing || mtkp === SciMLBase.NullParameters() ? 0 : length(tunables)
     du0 = state_values(adj_sol)[end][
-        1:length(state_values(prob))
+        1:length(state_values(prob)),
     ]
 
     if eltype(mtkp) <: real(eltype(state_values(adj_sol)[end]))

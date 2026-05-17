@@ -198,7 +198,7 @@ function _get_ps_u0(
     end
 
     # System parameters and their associated ids
-    u0 =  deepcopy(ode_problem_condition.u0)
+    u0 = deepcopy(ode_problem_condition.u0)
     p_tunable = _get_tunables(ode_problem_condition.p, xindices.get_ps_mtk_parameters)
     p = _get_ode_problem_ps(
         ode_problem_condition, p_tunable, ode_problem_condition.p, xindices

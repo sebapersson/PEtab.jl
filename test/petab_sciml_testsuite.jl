@@ -21,6 +21,7 @@ ode_solver = ODESolver(
 )
 @testset "PEtab SciML problem import" begin
     for i in 1:39
+        @info "Test case $i"
         test_case = i < 10 ? "00$i" : "0$i"
         path_yaml = joinpath(
             dir_tests, "sciml_problem_import", test_case, "petab", "problem.yaml"

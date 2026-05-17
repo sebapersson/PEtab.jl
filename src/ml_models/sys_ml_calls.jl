@@ -24,7 +24,7 @@ function _ml_models_for_ps(sys::SystemTrace, ml_ps_id)
 end
 
 function _has_ml_call(expr, NN, ml_ps_id)::Bool
-    Symbolics.hasnode(expr) do x
+    return Symbolics.hasnode(expr) do x
         x = Symbolics.unwrap(x)
 
         Symbolics.iscall(x) || return false

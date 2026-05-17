@@ -142,7 +142,7 @@ function _get_odeproblem(
     @unpack sys_ode, speciemap, parametermap = model
     u0_map = first.(speciemap) .=> 0.0
     odeproblem = ODEProblem{true, SciMLBase.FullSpecialize}(
-        sys_ode, merge(Dict(u0_map), Dict(parametermap)), [0.0, 5e3],
+        sys_ode, merge(Dict(u0_map), Dict(parametermap)), [0.0, 5.0e3],
         jac = symbolic_jacobian, sparse = sparse_jacobian, build_initializeprob = false
     )
 

@@ -17,7 +17,6 @@ PROB_CONFIGS = [
 
 function test_hybrid(test_case, petab_prob::PEtabODEProblem)
     @unpack split_over_conditions, gradient_method = petab_prob.probinfo
-    @info "Case $(test_case) and gradient method $(gradient_method) and split = $(split_over_conditions)"
     # Reference values
     dirtest = joinpath(@__DIR__, "test_cases", "sciml_problem_import", test_case)
     path_solutions = joinpath(dirtest, "solutions.yaml")
@@ -81,7 +80,6 @@ function test_init(test_case, model::PEtabModel)::Nothing
 end
 
 function test_ml_import(testcase, lux_model)::Nothing
-    @info "Case $testcase"
     if testcase in [
             "003", "004", "005", "006", "007", "008", "009", "010", "014",
             "015", "016", "017", "021", "022",

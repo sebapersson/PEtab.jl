@@ -150,7 +150,7 @@ function _residuals_cond!(
     nominal_values = petab_parameters.nominal_value
 
     p = _get_tunables(sol.prob.p, xindices.get_ps_mtk_parameters) .|>
-            SBMLImporter._to_float
+        SBMLImporter._to_float
     for im in imeasurements[cid]
         t, obsid = time[im], observable_id[im]
         u = sol[:, imeasurements_t_sol[im]] .|> SBMLImporter._to_float

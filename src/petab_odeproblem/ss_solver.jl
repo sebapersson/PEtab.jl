@@ -53,7 +53,7 @@ function condition_ss(
         _u = SBMLImporter._to_float.(u)
         _p = SBMLImporter._to_float.(
             _get_tunables(integrator.p, xindices.get_ps_mtk_parameters)
-            )
+        )
         _t = SBMLImporter._to_float(t)
         jacobian!(jac, _u, _p, _t)
         try

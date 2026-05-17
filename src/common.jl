@@ -322,13 +322,13 @@ function _get_tunables(
     )::AbstractVector
     return get_ps(ps)
 end
-function _get_tunables(ps::T, ::Any)::T where T <: AbstractVector
+function _get_tunables(ps::T, ::Any)::T where {T <: AbstractVector}
     return ps
 end
 function _get_tunables(ps::ModelingToolkitBase.MTKParameters)::AbstractVector
     return ps.tunable
 end
-function _get_tunables(ps::T)::T where T <: AbstractVector
+function _get_tunables(ps::T)::T where {T <: AbstractVector}
     return ps
 end
 
@@ -340,7 +340,7 @@ function _get_ode_problem_ps(
 end
 function _get_ode_problem_ps(
         ::ODEProblem, ps::T, ::AbstractVector, ::ParameterIndices
-    )::T where T <: AbstractVector
+    )::T where {T <: AbstractVector}
     return ps
 end
 
