@@ -1,5 +1,19 @@
 # Breaking updates and feature summaries across releases
 
+## PEtab.jl 5.2.0
+
+- Added support for ModelingToolkitNeuralNets via a package extension. This enables symbolic
+  Universal Differential Equations (UDEs) (often called grey-box or hybrid Neural ODEs),
+  where mechanistic and machine-learning components are combined in the ODE right-hand side.
+  In particular, neural networks can now be embedded in `ODESystem` and `ReactionSystem`
+  models. For examples, see the updated SciML documentation.
+- Switched internal parameter handling to SciMLStructures, in particular `MTKParameters`.
+  Except for dynamics provided as an `ODEProblem`, PEtab.jl now uses `MTKParameters`
+  internally, improving long-term compatibility with the SciML ecosystem.
+- Updated `ODESolver` verbosity to use SciMLLogging.jl. Instead of `true|false`, `verbose`
+  should now be set to `SciMLLogging.None()`, `SciMLLogging.Minimal()`,
+  `SciMLLogging.Standard()`, `SciMLLogging.Detailed()`, or `SciMLLogging.All()`.
+
 ## PEtab.jl 5.1.0
 
 - Added support for creating a LikelihoodProfiler.jl `ProfileLikelihoodProblem` from a
