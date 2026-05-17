@@ -32,8 +32,8 @@ function PEtabModel(
         sys::ModelSystem, observables::Union{PEtabObservable, Vector{PEtabObservable}},
         measurements::DataFrame, parameters::Union{UserParameter, Vector};
         simulation_conditions::Union{PEtabCondition, Vector{PEtabCondition}, Nothing} = nothing,
-        speciemap::Union{AbstractVector, Nothing} = nothing,
-        parametermap::Union{AbstractVector, Nothing} = nothing,
+        speciemap::Union{AbstractVector, Dict, Nothing} = nothing,
+        parametermap::Union{AbstractVector, Dict, Nothing} = nothing,
         events::Union{PEtabEvent, Vector{PEtabEvent}, Nothing} = nothing,
         verbose::Bool = false, ml_models::Union{Nothing, MLModels, MLModel} = nothing
     )::PEtabModel
@@ -87,8 +87,8 @@ end
 function _PEtabModel(
         sys::ModelSystem, simulation_conditions::Vector{PEtabCondition},
         observables::Vector{PEtabObservable}, measurements::DataFrame,
-        parameters::Vector, speciemap::Union{Nothing, AbstractVector},
-        parametermap::Union{Nothing, AbstractVector}, events::Vector{PEtabEvent},
+        parameters::Vector, speciemap::Union{Nothing, AbstractVector, Dict},
+        parametermap::Union{Nothing, AbstractVector, Dict}, events::Vector{PEtabEvent},
         ml_models::MLModels, verbose::Bool
     )::PEtabModel
 

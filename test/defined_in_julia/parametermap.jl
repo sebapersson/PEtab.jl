@@ -8,6 +8,7 @@ rn = @reaction_network begin
     (k1, k2), A <--> B
 end
 parametermap = [:k2 => 1.6]
+parametermap_dict = Dict(:k2 => 1.6)
 
 t = default_t()
 D = default_time_deriv()
@@ -44,7 +45,6 @@ model_rn = PEtabModel(
     simulation_conditions = simulation_conditions
 )
 petab_prob_rn = PEtabODEProblem(model_rn)
-# TODO: Fix failure with parameter-map here!!
 model_sys = PEtabModel(
     sys, observables, measurements, parameters;
     simulation_conditions = simulation_conditions
@@ -55,3 +55,12 @@ nll_rn = petab_prob_rn.nllh(get_x(petab_prob_rn))
 nll_sys = petab_prob_sys.nllh(get_x(petab_prob_sys))
 @test nll_rn ≈ 1.2738049275398435 atol = 1.0e-3
 @test nll_sys ≈ 1.2738049275398435 atol = 1.0e-3
+
+# Test parametermap can also be a Dict
+model_rn = PEtabModel(
+    rn, observables, measurements, parameters, parametermap = parametermap_dict,
+    simulation_conditions = simulation_conditions
+)
+petab_prob_rn = PEtabODEProblem(model_rn)
+nll_rn = petab_prob_rn.nllh(get_x(petab_prob_rn))
+@test nll_rn ≈ 1.2738049275398435 atol = 1.0e-3
