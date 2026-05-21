@@ -343,6 +343,8 @@ function _get_odeproblem(
             ps_ode = merge(ps_ode, (; ml_model.ml_id => ps_ml))
         end
         ps_ode = ComponentArray(ps_ode)
+        ps_ode = ps_ode |>
+            ComponentArray{Float64}
 
         # For internal mapping, initial values need to be provided as a ComponentArray
         _u0tmp = zeros(Float64, length(model_SBML_prob.umodel))

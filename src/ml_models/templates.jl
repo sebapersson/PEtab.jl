@@ -4,10 +4,14 @@ function _template_odeproblem(
     @unpack umodel, ps, odes = model_SBML_prob
     fode = "function f_$(model_SBML.name)(du, u, p, t, ml_models)::Nothing\n"
     fode *= "\t" * prod(umodel .* ", ") * " = u\n"
-    fode *= "\t@unpack " * prod(ps .* ", ") * " = p\n"
+    if !isempty(model_SBML_prob.ps)
+        fode *= "\t@unpack " * prod(ps .* ", ") * " = p\n"
+    end
+
     for ml_id in ode_ml_models.ml_ids
         fode *= _template_ml_in_ode(ml_id, petab_tables)
     end
+
     for ode in odes
         fode *= "\t" * ode
     end

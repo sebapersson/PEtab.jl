@@ -4,8 +4,7 @@ dir_tests = joinpath(@__DIR__, "petab_sciml_testsuite", "test_cases")
 # Global needed to avoid world-problem on Julia 1.12
 global lux_model
 @testset "ML import" begin
-    for i in 1:53
-        i == 20 && continue
+    for i in 1:54
         global lux_model
         testcase = i < 10 ? "00$i" : "0$i"
         # ml_model must be loaded here to avoid world-problem
