@@ -51,6 +51,24 @@ eqs_ude = [
 ]
 @mtkcompile sys_ude = System(eqs_ude, t)
 
+# Define the model as a Catalyst ReactionSystem
+NN_rate(x, y) = NN([x, y], net1)[1]
+rn_ude = @reaction_network begin
+    @species begin
+        prey(t) = 0.44249296
+        predator(t) = 4.6280594
+    end
+    @parameters begin
+        alpha
+        beta
+        delta
+    end
+    alpha, prey --> 2prey
+    beta, prey + predator --> predator
+    $NN_rate(prey, predator), 0 --> predator
+    delta, predator --> 0
+end
+
 p_alpha = PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3)
 p_beta = PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9)
 p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)
@@ -90,3 +108,9 @@ for config in PROB_CONFIGS
     )
     test_hybrid(test_case, petab_prob_sys)
 end
+
+model_rn = PEtabModel(
+    rn_ude, observables, measurements, pest; simulation_conditions = conditions,
+)
+petab_prob_rn = PEtabODEProblem(model_rn; odesolver = ode_solver)
+test_hybrid(test_case, petab_prob_rn)

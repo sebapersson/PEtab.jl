@@ -1,6 +1,7 @@
 include(joinpath(@__DIR__, "petab_sciml_testsuite", "helper.jl"))
 
 dir_tests = joinpath(@__DIR__, "petab_sciml_testsuite", "test_cases")
+
 # Global needed to avoid world-problem on Julia 1.12
 global lux_model
 @testset "ML import" begin

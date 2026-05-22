@@ -1,5 +1,9 @@
 const SystemTrace = Union{ModelSystem, ModelingToolkitBase.System}
 
+function _get_ml_model_for_ps(sys::ReactionSystem, ml_ps_id)
+    ode_sys = _get_system(sys)
+    return _get_ml_model_for_ps(ode_sys, ml_ps_id)
+end
 function _get_ml_model_for_ps(sys::SystemTrace, ml_ps_id)
     NNs = _ml_models_for_ps(sys, ml_ps_id)
     if isempty(NNs)

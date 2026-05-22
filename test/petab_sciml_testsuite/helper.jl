@@ -1,6 +1,6 @@
 using SciMLBase, Lux, ComponentArrays, PEtab, CSV, DataFrames, YAML, Distributions,
     OrdinaryDiffEqRosenbrock, SciMLSensitivity, HDF5, ForwardDiff, Test,
-    ModelingToolkitBase, ModelingToolkitNeuralNets
+    ModelingToolkitBase, ModelingToolkitNeuralNets, Catalyst
 using Catalyst: @unpack
 import Random
 
