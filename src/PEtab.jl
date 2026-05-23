@@ -29,6 +29,7 @@ using PreallocationTools
 using NonlinearSolve
 using PrecompileTools
 using QuasiMonteCarlo
+import SciMLLogging
 import Symbolics
 import SymbolicIndexingInterface
 using StyledStrings
@@ -46,6 +47,10 @@ const PEtabTables = Union{Dict{Symbol, Union{DataFrame, Dict}}}
 const UserFormula = Union{Symbolics.Num, AbstractString, Symbol}
 const ConditionExp = Union{String, Symbol, Pair{String, String}, Pair{Symbol, Symbol}}
 const ContDistribution = Distribution{Univariate, Continuous}
+const AllowedLogging = Union{
+    SciMLLogging.None, SciMLLogging.Minimal, SciMLLogging.Standard,
+    SciMLLogging.Detailed, SciMLLogging.All,
+}
 
 include(joinpath("structs", "petab_model.jl"))
 include(joinpath("structs", "petab_odeproblem.jl"))
@@ -120,6 +125,7 @@ include(joinpath("ml_models", "inputs_outputs.jl"))
 include(joinpath("ml_models", "model_info.jl"))
 include(joinpath("ml_models", "parameters.jl"))
 include(joinpath("ml_models", "pre_simulate.jl"))
+include(joinpath("ml_models", "sys_ml_calls.jl"))
 include(joinpath("ml_models", "templates.jl"))
 
 # Reduce time for reading a PEtabModel and for building a PEtabODEProblem

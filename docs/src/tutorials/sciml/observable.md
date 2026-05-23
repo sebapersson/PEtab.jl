@@ -113,6 +113,15 @@ petab_model = PEtabModel(
 petab_prob = PEtabODEProblem(petab_model)
 ```
 
+::: tip `ml_models` must be provided to `PEtabModel`
+
+Any ML model used in observables or pre-simulation must also be passed via the `ml_models`
+keyword to `PEtabModel`. For symbolically defined UDEs (as in the [SciML starter
+tutorial](@ref sciml_starter)), this is not required since PEtab.jl can infer the ML model
+structure from the model system.
+
+:::
+
 ## Simulation condition-specific inputs
 
 If additional informative non-time-series data (e.g. images or other covariates) are

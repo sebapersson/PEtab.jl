@@ -18,7 +18,7 @@ function _get_ids(
     @unpack observable_parameters, noise_parameters = petab_measurements
 
     # ids in the ODESystem in correct order
-    ids_sys = _get_ids_sys_order(sys, speciemap, parametermap)
+    ids_sys = _get_ps_ids_sys(sys)
 
     # ML parameters
     # In case of multiple neural networks, to get correct indexing for adjoint gradient
@@ -95,28 +95,21 @@ function _get_ids_dynamic_mech(
     return dynamics_ids
 end
 
-_get_ids_sys_order(sys::ODEProblem, ::Any, ::Any)::Vector{Symbol} = collect(keys(sys.p))
-function _get_ids_sys_order(sys::ModelSystem, speciemap, parametermap)::Vector{Symbol}
-    # This is a hack until SciMLSensitivity integrates with the SciMLStructures interface.
-    # Basically allows the parameters in the system to be retrieved in the order they
-    # appear in the ODESystem later on
-    initial_condition_map = _get_initial_condition_map(sys, speciemap, parametermap)
-    prob = ODEProblem(sys, initial_condition_map, [0.0, 5.0e3]; jac = true)
-
-    ps = parameters(sys)
-    out = similar(ps)
-    maps = ModelingToolkitBase.getp(prob, ps)
-    for (i, map) in pairs(maps.getters)
-        out[map.idx.idx] = ps[i]
-    end
-    return Symbol.(out)
-end
-
-function _get_ids_sys(sys::ODEProblem)::Vector{Symbol}
+function _get_ps_ids_sys(sys::ODEProblem)::Vector{Symbol}
     return collect(keys(sys.p))
 end
-function _get_ids_sys(sys::ModelSystem)::Vector{Symbol}
-    return Symbol.(parameters(sys))
+function _get_ps_ids_sys(sys::ModelSystem)::Vector{Symbol}
+    ps_ids_mech = Symbol[]
+    ps_ids_ml = Symbol[]
+    for ps_id in parameters(sys)
+        _is_neural_network_mtk(ps_id, sys) && continue
+        if _is_neural_network_mtk_ps(ps_id, sys)
+            push!(ps_ids_ml, Symbol(ps_id))
+        else
+            push!(ps_ids_mech, Symbol(ps_id))
+        end
+    end
+    return vcat(ps_ids_mech, ps_ids_ml)
 end
 
 function _get_ids_ml_pre_simulate_output(
@@ -175,7 +168,7 @@ function _get_ids_nondynamic_mech(
         petab_parameters::PEtabParameters, petab_tables::PEtabTables, ml_models::MLModels
     )::T where {T <: Vector{Symbol}}
     ids_condition = _get_ids_condition(sys, petab_parameters, petab_tables, ml_models)
-    ids_sys = _get_ids_sys(sys)
+    ids_sys = _get_ps_ids_sys(sys)
     other_ids = Iterators.flatten(
         (ids_sys, ids_condition, ids_observable, ids_noise, ids_ml, ids_ml_input_est)
     )
@@ -247,12 +240,19 @@ function _get_ids_condition(
     return ids_condition
 end
 
-function _get_ids_ml_in_ode(ml_models::MLModels, sys::ModelSystem)::Vector{Symbol}
-    !(sys isa ODEProblem) && return Symbol[]
+function _get_ids_ml_in_ode(ml_models::MLModels, sys::ODEProblem)::Vector{Symbol}
     ids_ml_in_ode = Symbol[]
     for id in ml_models.ml_ids
         !haskey(sys.p, id) && continue
         push!(ids_ml_in_ode, id)
+    end
+    return ids_ml_in_ode
+end
+function _get_ids_ml_in_ode(::MLModels, sys::ModelSystem)::Vector{Symbol}
+    ids_ml_in_ode = Symbol[]
+    for ps_id in parameters(sys)
+        !_is_neural_network_mtk_ps(ps_id, sys) && continue
+        push!(ids_ml_in_ode, Symbol(ps_id))
     end
     return ids_ml_in_ode
 end
@@ -376,18 +376,4 @@ function _order_id_sys!(ids_sys::T, ids_ml_in_ode::T)::Nothing where {T <: Vecto
     ix = [findfirst(x -> x == id, ids_sys) for id in ids_ml_in_ode]
     ids_sys[sort(ix)] .= ids_ml_in_ode
     return nothing
-end
-
-function _get_initial_condition_map(sys::ModelSystem, u0_map, parameter_map)
-    sys_bindings = ModelingToolkitBase.bindings(sys)
-    initial_condition_map = merge(Dict(u0_map), Dict(parameter_map))
-
-    # Any parameter with a binding is not allowed to be provided when specifying
-    # initial conditions for a ODEProblem with maps
-    for key in keys(initial_condition_map)
-        if haskey(sys_bindings, key)
-            delete!(initial_condition_map, key)
-        end
-    end
-    return initial_condition_map
 end

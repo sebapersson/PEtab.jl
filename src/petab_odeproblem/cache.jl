@@ -1,7 +1,7 @@
 function PEtabODEProblemCache(
         gradient_method::Symbol, hessian_method::Symbol, FIM_method::Symbol, sensealg,
         model_info::ModelInfo, ml_models::Union{MLModels}, split_over_conditions::Bool,
-        oprob::ODEProblem
+        ode_problem::ODEProblem
     )::PEtabODEProblemCache
     @unpack xindices, model, simulation_info = model_info
     @unpack petab_measurements, petab_parameters, petab_ml_parameters = model_info
@@ -18,13 +18,7 @@ function PEtabODEProblemCache(
     end
     chunk_size = n_ps_chunk + n_ps_chunk^2
     chunk_size = chunk_size > 100 ? 100 : chunk_size
-    if hessian_method in [:ForwardDiff, :BlockForwardDiff, :GaussNewton]
-        level_cache = 2
-    elseif gradient_method in [:ForwardDiff, :ForwardEquations]
-        level_cache = 1
-    else
-        level_cache = 0
-    end
+    level_cache = 2
 
     # Pre-allocate cache for mechanistic parameters
     pre_xdynamic_mech = zeros(Float64, length(indices_est[:est_to_dynamic_mech]))
@@ -78,7 +72,7 @@ function PEtabODEProblemCache(
         ∂G∂p = zeros(Float64, n_parameters_sys)
         ∂G∂p_ = zeros(Float64, n_parameters_sys)
         ∂G∂u = zeros(Float64, n_states)
-        p = similar(oprob.p)
+        p = _get_ps_similar(ode_problem.p)
         u = zeros(Float64, n_states)
     else
         ∂h∂u = zeros(Float64, 0)
@@ -144,7 +138,9 @@ function PEtabODEProblemCache(
     end
     for condition_id in condition_ids
         u0_ode[condition_id] = _get_cache(zeros(Float64, n_states), chunk_size, level_cache)
-        p_ode[condition_id] = _get_cache(similar(oprob.p), chunk_size, level_cache)
+        p_ode[condition_id] = _get_cache(
+            _get_ps_similar(ode_problem.p), chunk_size, level_cache
+        )
     end
 
     return PEtabODEProblemCache(
@@ -169,3 +165,10 @@ function _get_nx_forward_eqs(xindices::ParameterIndices, split_over_conditions::
 end
 
 _get_cache(x, chunk_size, levels) = DiffCache(similar(x), chunk_size, levels = levels)
+
+function _get_ps_similar(ps::ModelingToolkitBase.MTKParameters)
+    return similar(ps.tunable)
+end
+function _get_ps_similar(ps::T)::T where {T <: AbstractVector}
+    return similar(ps)
+end

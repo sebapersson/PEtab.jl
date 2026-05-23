@@ -8,6 +8,7 @@ rn = @reaction_network begin
     (k1, k2), A <--> B
 end
 speciemap = [:B => 1.0] # Constant initial value for B
+speciemap_dict = Dict(:B => 1.0)
 
 t = default_t()
 D = default_time_deriv()
@@ -62,3 +63,12 @@ nll_rn = petab_prob_rn.nllh(get_x(petab_prob_rn))
 nll_sys = petab_prob_sys.nllh(get_x(petab_prob_sys))
 @test nll_rn ≈ 4.09983582520606 atol = 1.0e-3
 @test nll_sys ≈ 4.09983582520606 atol = 1.0e-3
+
+# Test providing speciemap as Dict
+model_rn = PEtabModel(
+    rn, observables, measurements, parameters; speciemap = speciemap_dict,
+    simulation_conditions = simulation_conditions
+)
+petab_prob_rn = PEtabODEProblem(model_rn)
+nll_rn = petab_prob_rn.nllh(get_x(petab_prob_rn))
+@test nll_rn ≈ 4.09983582520606 atol = 1.0e-3

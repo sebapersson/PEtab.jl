@@ -48,9 +48,6 @@ function PEtab.MLModel(
 
     if isnothing(dir_data)
         dir_data = ""
-    elseif !isdir(dir_data)
-        throw(PEtab.PEtabInputError("For a MLModel dir_data keyword argument must be a \
-            valid directory. This does not hold for $dir_data"))
     end
 
     if !isempty(inputs) && isempty(outputs)

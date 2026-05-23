@@ -14,7 +14,7 @@ function _grad_forward_eqs!(
 
     # Solve the expanded ODE system for the sensitivites
     success = solve_sensitivites!(
-        model_info, _solve_conditions!, xdynamic_ps, sensealg, probinfo, cids, cfg
+        model_info, _solve_conditions!, xdynamic_ps, probinfo, cfg
     )
     if success != true
         @warn "Failed to solve sensitivity equations"
@@ -40,8 +40,8 @@ end
 
 function solve_sensitivites!(
         model_info::ModelInfo, _solve_conditions!::Function,
-        xdynamic::Vector{<:AbstractFloat}, ::Symbol, probinfo::PEtabODEProblemInfo,
-        ::Vector{Symbol}, cfg::ForwardDiff.JacobianConfig
+        xdynamic::Vector{<:AbstractFloat}, probinfo::PEtabODEProblemInfo,
+        cfg::ForwardDiff.JacobianConfig
     )::Bool
     @unpack split_over_conditions, cache = probinfo
     @unpack simulation_info, xindices = model_info
@@ -112,7 +112,8 @@ function _grad_forward_eqs_cond!(
     )
 
     nstates = model_info.nstates
-    cache.p .= sol.prob.p .|> SBMLImporter._to_float
+    cache.p .= _get_tunables(sol.prob.p, xindices.get_ps_mtk_parameters) .|>
+        SBMLImporter._to_float
     @unpack p, u, ∂G∂p, ∂G∂p_, ∂G∂u, S, forward_eqs_grad = cache
     fill!(forward_eqs_grad, 0.0)
     fill!(∂G∂p, 0.0)

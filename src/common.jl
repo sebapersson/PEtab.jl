@@ -18,7 +18,7 @@ function _set_const_parameters!(
     @unpack nominal_value, parameter_id = parameters_info
     state_ids = _get_state_ids(sys_mutated)
     ids_sys = first.(parametermap) .|> string
-    for (i, id) in pairs(parameter_id .|> string)
+    for (i, id) in pairs(string.(parameter_id))
         # Check if values matches either state of parameter, and adjust value in the map
         ip = findfirst(x -> x == id, ids_sys)
         is = findfirst(x -> x == id, state_ids)
@@ -180,8 +180,9 @@ function _h(
         nominal_values::Vector{Float64},
     )::Real where {T <: AbstractVector}
     return model.h(
-        u, t, p, xobservable, xnondynamic_mech, x_ml_models, x_ml_models_constant, nominal_values,
-        observable_id, xobservable_maps, model.sys_observables, model.ml_models
+        u, t, p, xobservable, xnondynamic_mech, x_ml_models, x_ml_models_constant,
+        nominal_values, observable_id, xobservable_maps, model.sys_observables,
+        model.ml_models
     )
 end
 
@@ -266,7 +267,9 @@ function _get_nx_estimate(xindices::ParameterIndices)::Int64
 end
 
 _get_n_parameters_sys(sys::ODEProblem)::Int64 = length(sys.p)
-_get_n_parameters_sys(sys::ModelSystem)::Int64 = length(_get_ids_sys(sys))
+function _get_n_parameters_sys(sys::ModelSystem)::Int64
+    return length(_flatten_parameters_sys(sys))
+end
 
 function _check_target_id(target_id, i::Integer, condition_id)::Nothing
     if target_id isa UserFormula
@@ -313,3 +316,35 @@ end
 
 _to_vec(x::Vector) = x
 _to_vec(x::Vector{<:Vector}) = reduce(vcat, x)
+
+function _get_tunables(
+        ps::ModelingToolkitBase.MTKParameters, get_ps
+    )::AbstractVector
+    return get_ps(ps)
+end
+function _get_tunables(ps::T, ::Any)::T where {T <: AbstractVector}
+    return ps
+end
+function _get_tunables(ps::ModelingToolkitBase.MTKParameters)::AbstractVector
+    return ps.tunable
+end
+function _get_tunables(ps::T)::T where {T <: AbstractVector}
+    return ps
+end
+
+function _get_ode_problem_ps(
+        ode_problem::ODEProblem, ps::AbstractVector, ::ModelingToolkitBase.MTKParameters,
+        xindices::ParameterIndices
+    )::ModelingToolkitBase.MTKParameters
+    return xindices.set_mtk_parameters(ode_problem, ps)
+end
+function _get_ode_problem_ps(
+        ::ODEProblem, ps::T, ::AbstractVector, ::ParameterIndices
+    )::T where {T <: AbstractVector}
+    return ps
+end
+
+# These can only return true if the ModelingToolkitNeuralNetsExt is activated
+_is_neural_network_mtk(id::Any, ::Any)::Bool = false
+_is_neural_network_mtk_ps(id::Any, ::Any)::Bool = false
+_get_nn_chain_mtk(::Any, ::Any) = nothing

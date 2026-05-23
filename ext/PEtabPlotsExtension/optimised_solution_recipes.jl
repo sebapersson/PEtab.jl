@@ -231,12 +231,15 @@ function _get_observable(
     t_model = Float64[]
     h_model = Float64[]
 
-    sol = PEtab.get_odesol(x, prob; condition = condition, experiment = experiment)
+    sol = PEtab.get_odesol(
+        x, prob; condition = condition, experiment = experiment, mutated_sys = true
+    )
 
     map_xobservables = model_info.xindices.xobservable_maps[idata]
     smooth_sol = all([map.nparameters == 0 for map in map_xobservables])
 
     # For smooth trajectory must solve ODE and compute the observable function
+    p = PEtab._get_tunables(sol.prob.p, model_info.xindices.get_ps_mtk_parameters)
     if smooth_sol == true
         _, xobservable, _, xnondynamic_mech, x_ml_models = PEtab.split_x(
             x, model_info.xindices, probinfo.cache
@@ -252,7 +255,7 @@ function _get_observable(
         for (i, t) in pairs(sol.t)
             u = sol[:, i]
             h = PEtab._h(
-                u, t, sol.prob.p, xobservable_ps, xnondynamic_mech_ps, x_ml_models,
+                u, t, p, xobservable_ps, xnondynamic_mech_ps, x_ml_models,
                 x_ml_models_constant, model_info.model, map_xobservables[1],
                 Symbol(observable_id), collect(prob.xnominal)
             )

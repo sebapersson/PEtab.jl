@@ -18,12 +18,8 @@ a brief overview.
   default is usually good, but tuning can yield small speedups; this method is often fastest
   for small models [mester2022differential, persson2025petab](@cite).
 - `:ForwardEquations`: Computes gradients via forward sensitivities by solving an expanded
-  ODE system. The main option is `sensealg`. The default is `sensealg=:ForwarDiff`, which
-  uses ForwardDiff-based sensitivity and is often the fastest. PEtab.jl also supports
-  `ForwardSensitivity()` and `ForwardDiffSensitivity()` from SciMLSensitivity.jl for
-  `sensealg`; see the SciMLSensitivity
-  [documentation](https://github.com/SciML/SciMLSensitivity.jl) for details and tunable
-  options.
+  ODE system. The only valid `sensealg` is `sensealg=:ForwarDiff`, which uses
+  ForwardDiff-based sensitivity.
 - `:Adjoint`: Computes gradients via adjoint sensitivity analysis by solving an adjoint
   problem backward in time. Benchmarks often find adjoints most efficient for large models
   [frohlich2017scalable, ma2021comparison](@cite). The main option is `sensealg`, selecting

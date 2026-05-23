@@ -45,6 +45,7 @@ makedocs(
             ],
             "Scientific machine learning" => Any[
                 "SciML starter tutorial" => "tutorials/sciml/starting_tutorial.md",
+                "Extended UDE tutorial" => "tutorials/sciml/ude_extended.md",
                 "ML models in observables" => "tutorials/sciml/observable.md",
                 "Pre-simulation ML models" => "tutorials/sciml/pre_simulate.md",
                 "Importing PEtab-SciML standard format" => "tutorials/sciml/standard_format.md",

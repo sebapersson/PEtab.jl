@@ -7,7 +7,7 @@ function _get_indices_ml_model(i_start::Integer, ml_model::MLModel)::Vector{Int6
     return (i_start + 1):(i_start + np)
 end
 
-function _get_ids_sys_order_in_xdynamic(
+function _get_ps_ids_sys_order_in_xdynamic(
         xindices::ParameterIndices, conditions_df::DataFrame
     )::Vector{String}
     ids_sys = xindices.ids[:sys]
@@ -25,4 +25,20 @@ function _get_ids_sys_order_in_xdynamic(
     end
     unique!(ids_sys_in_xdynamic)
     return ids_sys_in_xdynamic .|> string
+end
+
+function _flatten_parameters_sys(sys::PEtab.ModelSystem)
+    ps_ids = parameters(sys)
+    ps_ids_mech = similar(ps_ids, 0)
+    ps_ids_ml = similar(ps_ids, 0)
+    for ps_id in ps_ids
+        _is_neural_network_mtk(ps_id, sys) && continue
+        if _is_neural_network_mtk_ps(ps_id, sys)
+            sp = Symbolics.scalarize(ps_id)
+            ps_ids_ml = vcat(ps_ids_ml, vec(collect(sp)))
+        else
+            push!(ps_ids_mech, ps_id)
+        end
+    end
+    return vcat(ps_ids_mech, ps_ids_ml)
 end

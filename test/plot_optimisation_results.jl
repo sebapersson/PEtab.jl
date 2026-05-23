@@ -68,6 +68,15 @@ let
     p_parallel_coord.series_list[1].plotattributes[:y] == 1:length(xnames)
 end
 
+# Test single calibrate plotting
+@testset "PEtabOptimisationResult plotting" begin
+    petab_res = petab_ms_res.runs[1]
+    p_best_objective = plot(petab_res; plot_type = :best_objective)
+    p_objective = plot(petab_res; plot_type = :objective)
+    @test petab_res.ftrace == p_best_objective.series_list[1].plotattributes[:y]
+    @test petab_res.ftrace == p_objective.series_list[1].plotattributes[:y]
+end
+
 # Tests the plots comparing the fitted solution to the measurements. Bot model fit and
 # residuals
 let
@@ -137,9 +146,9 @@ let
 
     # Check comparison dictionary.
     comp_dict = get_obs_comparison_plots(res, prob)
-    issetequal(keys(comp_dict), ["c1", "c2"])
-    issetequal(keys(comp_dict["c1"]), ["obs_E", "obs_p"])
-    issetequal(keys(comp_dict["c2"]), ["obs_E", "obs_p"])
+    @test issetequal(keys(comp_dict), ["c1", "c2"])
+    @test issetequal(keys(comp_dict["c1"]), ["obs_E", "obs_p"])
+    @test issetequal(keys(comp_dict["c2"]), ["obs_E", "obs_p"])
 
     # Make plots
     c1_E_plt = plot(res, prob; observable_ids = ["obs_E"], condition = "c1")

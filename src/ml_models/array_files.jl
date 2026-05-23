@@ -48,8 +48,9 @@ end
 function _get_input_array(
         input_id::String, file_path::Symbol, condition_id::Symbol
     )::Array{Float64}
-
     input_file = HDF5.h5open(string(file_path), "r")
+    _check_metadata(input_file, string(file_path))
+
     # Find the correct dataset associated with the provided simulation condition
     for condition_ids in keys(input_file["inputs"][input_id])
         group_input_id = input_file["inputs"][input_id]
@@ -221,4 +222,22 @@ function _get_array_args(
         arg_is_array[i] = true
     end
     return arg_is_array
+end
+
+function _check_metadata(file, path::AbstractString)::Nothing
+    if !haskey(file, "metadata") || !haskey(file["metadata"], "pytorch_format")
+        close(file)
+        throw(PEtabInputError("PEtab-SciML HDF5 array files must include a `metadata` \
+            group containing a boolean dataset named `pytorch_format`. This does not hold \
+            for array file '$path'"))
+    end
+
+    pytorch_idx = HDF5.read_dataset(file["metadata"], "pytorch_format")
+    if pytorch_idx == false
+        close(file)
+        throw(PEtabInputError("The `metadata/pytorch_format` flag in array file '$path' is \
+            false. PEtab.jl requires this flag to be true in order to read or write \
+            PEtab-SciML array data correctly."))
+    end
+    return nothing
 end

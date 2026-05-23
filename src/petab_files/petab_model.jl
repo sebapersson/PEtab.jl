@@ -95,23 +95,23 @@ function _PEtabModel(
         pathmodel = joinpath(paths[:dirjulia], name * ".jl")
         exist = isfile(pathmodel)
         if isempty(ode_ml_models)
-            odesystem, speciemap, parametermap = _get_odesys(
+            sys_ode, speciemap, parametermap = _get_odesys(
                 model_SBML, paths, exist, build_julia_files, write_to_file, verbose
             )
         else
-            odesystem, speciemap, parametermap = _get_odeproblem(
+            sys_ode, speciemap, parametermap = _get_odeproblem(
                 model_SBML, ode_ml_models, petab_tables, verbose
             )
         end
 
-        sys_observables = _get_sys_observables(odesystem)
+        sys_observables = _get_sys_observables(sys_ode)
         sys_observable_ids = collect(keys(sys_observables))
     end
 
     # Indices for mapping parameters and tracking which parameter to estimate, needed
     # to build observable functions, and callbacks
     xindices = ParameterIndices(
-        petab_tables, paths, odesystem, parametermap, speciemap, ml_models
+        petab_tables, paths, sys_ode, parametermap, speciemap, ml_models
     )
 
     path_u0_h_σ = joinpath(paths[:dirjulia], "$(name)_h_sd_u0.jl")
@@ -120,7 +120,7 @@ function _PEtabModel(
     if !exist || build_julia_files == true
         btime = @elapsed begin
             hstr, u0!str, u0str, σstr = parse_observables(
-                name, paths, odesystem, petab_tables, xindices, speciemap, speciemap_sbml,
+                name, paths, sys_ode, petab_tables, xindices, speciemap, speciemap_sbml,
                 sys_observable_ids, model_SBML, ml_models, write_to_file
             )
         end
@@ -149,16 +149,17 @@ function _PEtabModel(
     _logging(:Build_callbacks, verbose)
     btime = @elapsed begin
         cbs, float_tspan = _parse_events(
-            model_SBML, petab_events, odesystem, speciemap, parametermap, name, xindices,
+            model_SBML, petab_events, sys_ode, speciemap, parametermap, name, xindices,
             petab_tables
         )
     end
     _logging(:Build_callbacks, verbose; time = btime)
 
+    sys_ode_mutated = deepcopy(sys_ode)
     return PEtabModel(
-        name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan, paths, odesystem,
-        deepcopy(odesystem), parametermap, speciemap, petab_tables, cbs, false,
-        petab_events, sys_observables, ml_models
+        name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan, paths, sys_ode,
+        sys_ode_mutated, sys_ode_mutated, parametermap, speciemap, petab_tables, cbs,
+        false, petab_events, sys_observables, ml_models
     )
 end
 
@@ -245,8 +246,8 @@ function add_u0_parameters!(
     return nothing
 end
 
-function _reorder_speciemap(speciemap, odesystem::ODESystem)
-    statenames = unknowns(odesystem) .|> string
+function _reorder_speciemap(speciemap, sys_ode::ODESystem)
+    statenames = unknowns(sys_ode) .|> string
     speciemap_out = similar(speciemap, length(statenames))
     for (i, statename) in pairs(statenames)
         imap = findfirst(x -> x == statename, first.(speciemap) .|> string)
@@ -278,12 +279,12 @@ function _get_odesys(
         get_rn = @RuntimeGeneratedFunction(Meta.parse(modelstr))
         # Argument needed by @RuntimeGeneratedFunction
         rn, speciemap, parametermap = get_rn("https://xkcd.com/303/")
-        _odesystem = Catalyst.ode_model(Catalyst.complete(rn))
+        _sys_ode = Catalyst.ode_model(Catalyst.complete(rn))
 
         # DAE functionality is not supported as long as it is under APGL license, to not
         # enforce the APGL restrictions on users
         if isempty(model_SBML.algebraic_rules)
-            odesystem = mtkcompile(_odesystem)
+            sys_ode = mtkcompile(_sys_ode)
         else
             throw(PEtabSupportError("DAE models (SBML with algebraic rules) are not \
                 supported in PEtab.jl. At present the only way to handle DAEs in \
@@ -296,8 +297,8 @@ function _get_odesys(
 
     # The state-map is not in the same order as unknowns(system) so the former is reorded
     # to make it easier to build the u0 function
-    speciemap = _reorder_speciemap(speciemap, odesystem)
-    return odesystem, speciemap, parametermap
+    speciemap = _reorder_speciemap(speciemap, sys_ode)
+    return sys_ode, speciemap, parametermap
 end
 
 function _get_odeproblem(
@@ -342,6 +343,8 @@ function _get_odeproblem(
             ps_ode = merge(ps_ode, (; ml_model.ml_id => ps_ml))
         end
         ps_ode = ComponentArray(ps_ode)
+        ps_ode = ps_ode |>
+            ComponentArray{Float64}
 
         # For internal mapping, initial values need to be provided as a ComponentArray
         _u0tmp = zeros(Float64, length(model_SBML_prob.umodel))
@@ -356,21 +359,6 @@ function _get_odeproblem(
     return oprob, u0map, psmap
 end
 
-function _reorder_parametermap(parametermap, parameter_order::Vector{Symbol})
-    parametermap_out = Vector{Pair{Symbolics.Num, Float64}}(undef, length(parametermap))
-    for (i, pname) in pairs(parameter_order)
-        imap = findfirst(x -> x == pname, Symbol.(first.(parametermap)))
-        if !(parametermap[imap].second isa Symbolics.Num)
-            parametermap_out[i] = parametermap[imap].first => parametermap[imap].second
-        elseif SBMLImporter.is_number(string(parametermap[imap].second))
-            parametermap_out[i] = parametermap[imap].first => parametermap[imap].second.val.val
-        else
-            parametermap_out[i] = parametermap[imap].first => 0.0
-        end
-    end
-    return parametermap_out
-end
-
 function _get_sbml_speciemap(model_SBML::SBMLImporter.ModelSBML)
     model_SBML_sys = SBMLImporter._to_system_syntax(model_SBML, false, false)
     modelstr = SBMLImporter.write_reactionsystem(
@@ -381,12 +369,6 @@ function _get_sbml_speciemap(model_SBML::SBMLImporter.ModelSBML)
     return speciemap
 end
 
-function _get_sys_observables(sys::ReactionSystem)::Dict{Symbol, Function}
-    if isempty(ModelingToolkitBase.observables(sys))
-        return Dict{Symbol, Function}()
-    end
-    return _get_sys_observables(_get_system(sys))
-end
 function _get_sys_observables(sys::ODESystem)::Dict{Symbol, Function}
     sys_observables = Dict{Symbol, Function}()
     for _observable in observables(sys)

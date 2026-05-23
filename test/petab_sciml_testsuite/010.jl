@@ -24,6 +24,7 @@ nn10_2 = @compact(
 end
 # runic: on
 
+# MLModel as ODEProblem
 ml_models = MLModels(
     MLModel(:net1, nn10_1, false),
     MLModel(:net2, nn10_2, false)
@@ -37,7 +38,7 @@ PEtab._set_ml_model_ps!(pnn2, path_h5, nn10_2, :net2)
 
 function lv10!(du, u, p, t, ml_models)
     prey, predator = u
-    @unpack alpha, delta, beta = p
+    @unpack delta, beta = p
 
     net1 = ml_models[:net1]
     du1_nn, st = net1.lux_model([prey, predator], p[:net1], net1.st)
@@ -52,9 +53,49 @@ function lv10!(du, u, p, t, ml_models)
     return nothing
 end
 
-p_mechanistic = ComponentArray(alpha = 1.3, delta = 1.8, beta = 0.9)
+p_mechanistic = ComponentArray(delta = 1.8, beta = 0.9)
 u0 = ComponentArray(prey = 0.44249296, predator = 4.6280594)
 uprob = UDEProblem(lv10!, u0, (0.0, 10.0), p_mechanistic, ml_models)
+
+# Model as ODESystem
+nn1_chain = Lux.Chain(
+    layer1 = Dense(2 => 5, Lux.tanh),
+    layer2 = Dense(5 => 5, Lux.tanh),
+    layer3 = Dense(5 => 1)
+)
+nn2_chain = Lux.Chain(
+    layer1 = Dense(2 => 5, Lux.relu),
+    layer2 = Dense(5 => 10, Lux.relu),
+    layer3 = Dense(10 => 1)
+)
+@SymbolicNeuralNetwork NN1, net1 = nn1_chain
+@SymbolicNeuralNetwork NN2, net2 = nn2_chain
+@variables prey(t) = 0.44249296 predator(t) = 4.6280594
+@parameters beta delta
+eqs_ude = [
+    D(prey) ~ NN2([prey, predator], net2)[1] - beta * prey * predator
+    D(predator) ~ NN1([prey, predator], net1)[1] - delta * predator
+]
+@mtkcompile sys_ude = System(eqs_ude, t)
+
+# Model as ReactionSystem
+# Define the model as a Catalyst ReactionSystem
+NN_rate1(x, y) = NN1([x, y], net1)[1]
+NN_rate2(x, y) = NN2([x, y], net2)[1]
+rn_ude = @reaction_network begin
+    @species begin
+        prey(t) = 0.44249296
+        predator(t) = 4.6280594
+    end
+    @parameters begin
+        beta
+        delta
+    end
+    $NN_rate2(prey, predator), 0 --> prey
+    beta, prey + predator --> predator
+    $NN_rate1(prey, predator), 0 --> predator
+    delta, predator --> 0
+end
 
 p_beta = PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9)
 p_delta = PEtabParameter(:delta; scale = :lin, lb = 0.0, ub = 15.0, value = 1.8)
@@ -82,3 +123,21 @@ petab_prob = PEtabODEProblem(
     split_over_conditions = true
 )
 test_hybrid(test_case, petab_prob)
+
+# Test as ODESystem. As PEtab-SciML import uses ODEProblem, must test all gradient methods
+model_sys = PEtabModel(
+    sys_ude, observables, measurements, pest, simulation_conditions = conditions
+)
+for config in PROB_CONFIGS
+    petab_prob_sys = PEtabODEProblem(
+        model_sys; odesolver = ode_solver, gradient_method = config.grad,
+        split_over_conditions = config.split, sensealg = config.sensealg
+    )
+    test_hybrid(test_case, petab_prob_sys)
+end
+
+model_rn = PEtabModel(
+    rn_ude, observables, measurements, pest, simulation_conditions = conditions
+)
+petab_prob_rn = PEtabODEProblem(model_rn; odesolver = ode_solver)
+test_hybrid(test_case, petab_prob_rn)

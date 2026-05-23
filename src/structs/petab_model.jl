@@ -407,7 +407,7 @@ function MLModels(ml_models::Vector{<:MLModel})
     ml_ids = getfield.(ml_models, :ml_id)
     return MLModels(ml_models, ml_ids)
 end
-function MLModels(ml_models::MLModel...)
+function MLModels(ml_models::MLModel...; sys::Union{ModelSystem, Nothing} = nothing)
     if isempty(ml_models)
         return MLModels(MLModel[], Symbol[])
     end
@@ -433,6 +433,7 @@ struct PEtabModel
     paths::Dict{Symbol, String}
     sys::Any
     sys_mutated::Any
+    sys_ode::Any
     parametermap::Any
     speciemap::Any
     petab_tables::PEtabTables

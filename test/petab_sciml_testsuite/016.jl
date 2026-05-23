@@ -14,6 +14,7 @@ nn16 = @compact(
 end
 # runic: on
 
+# Model as ODEProblem
 ml_model = MLModel(:net1, nn16, false)
 path_h5 = joinpath(dir_case, "net1_ps.hdf5")
 pnn = Lux.initialparameters(rng, nn16) |> ComponentArray |> f64
@@ -34,6 +35,39 @@ end
 p_mechanistic = (alpha = 1.3, delta = 1.8, beta = 0.9)
 u0 = ComponentArray(prey = 0.44249296, predator = 4.6280594)
 uprob = UDEProblem(lv16!, u0, (0.0, 10.0), p_mechanistic, ml_model)
+
+# Define model as ODESystem
+nn1_chain = Lux.Chain(
+    layer1 = Dense(2 => 5, Lux.tanh),
+    layer2 = Dense(5 => 5, Lux.tanh),
+    layer3 = Dense(5 => 1)
+)
+@SymbolicNeuralNetwork NN, net1 = nn1_chain
+@variables prey(t) = 0.44249296 predator(t) = 4.6280594
+@parameters alpha beta delta
+eqs_ude = [
+    D(prey) ~ alpha * prey - beta * prey * predator
+    D(predator) ~ NN([prey, predator], net1)[1] - delta * predator
+]
+@mtkcompile sys_ude = System(eqs_ude, t)
+
+# Define the model as a Catalyst ReactionSystem
+NN_rate(x, y) = NN([x, y], net1)[1]
+rn_ude = @reaction_network begin
+    @species begin
+        prey(t) = 0.44249296
+        predator(t) = 4.6280594
+    end
+    @parameters begin
+        alpha
+        beta
+        delta
+    end
+    alpha, prey --> 2prey
+    beta, prey + predator --> predator
+    $NN_rate(prey, predator), 0 --> predator
+    delta, predator --> 0
+end
 
 p_alpha = PEtabParameter(:alpha; scale = :lin, lb = 0.0, ub = 15.0, value = 1.3)
 p_beta = PEtabParameter(:beta; scale = :lin, lb = 0.0, ub = 15.0, value = 0.9)
@@ -61,3 +95,22 @@ petab_prob = PEtabODEProblem(
     split_over_conditions = true
 )
 test_hybrid(test_case, petab_prob)
+
+# Test as ODESystem. As PEtab-SciML import uses ODEProblem, must test all gradient methods
+model_sys = PEtabModel(
+    sys_ude, observables, measurements, pest; simulation_conditions = conditions
+)
+prob_sys = PEtabODEProblem(model_sys)
+for config in PROB_CONFIGS
+    petab_prob_sys = PEtabODEProblem(
+        model_sys; odesolver = ode_solver, gradient_method = config.grad,
+        split_over_conditions = config.split, sensealg = config.sensealg
+    )
+    test_hybrid(test_case, petab_prob_sys)
+end
+
+model_rn = PEtabModel(
+    rn_ude, observables, measurements, pest; simulation_conditions = conditions,
+)
+petab_prob_rn = PEtabODEProblem(model_rn; odesolver = ode_solver)
+test_hybrid(test_case, petab_prob_rn)

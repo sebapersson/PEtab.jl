@@ -62,6 +62,8 @@ struct ParameterIndices
     xnoise_maps::Vector{ObservableNoiseMap}
     condition_maps::Dict{Symbol, ConditionMap}
     maps_ml_pre_simulate::Dict{Symbol, Dict{Symbol, MLModelPreSimulateMap}}
+    set_mtk_parameters
+    get_ps_mtk_parameters
 end
 
 struct Priors
@@ -216,8 +218,9 @@ online documentation.
 - `dtmin = nothing`: Minimum step size for the forward ODE solve.
 - `maxiters = 10_000`: Maximum number of solver iterations. Increasing this can
   substantially increase runtime during parameter estimation.
-- `verbose::Bool = true`: Whether to print warnings if the solver terminates early.
-  Keeping this enabled is recommended to detect problematic solver configurations.
+- `verbose = SciMLLogging.Minimal()`: Logging verbosity used when solving the ODE model.
+  Keeping this is recommended to detect problematic configurations. To suppress solver
+  warnings, set `verbose = SciMLLogging.None()`.
 - `adj_solver = solver`: ODE solver used for the adjoint solve. Defaults to `solver`. Only
   relevant when `gradient_method = :Adjoint`.
 - `abstol_adj = abstol`: Absolute tolerance for the adjoint solve (only relevant when
@@ -235,7 +238,7 @@ mutable struct ODESolver
     force_dtmin::Bool
     dtmin::Union{Float64, Nothing}
     maxiters::Int64
-    verbose::Bool
+    verbose::AllowedLogging
 end
 function ODESolver(
         solver::SciMLAlgorithm;
@@ -247,8 +250,19 @@ function ODESolver(
         force_dtmin::Bool = false,
         dtmin::Union{Float64, Nothing} = nothing,
         maxiters::Int64 = Int64(1.0e4),
-        verbose::Bool = true
+        verbose = SciMLLogging.Minimal()
     )
+    if verbose isa Bool
+        @warn "Passing a Bool to `verbose` is deprecated. Use SciMLLogging instead. \
+            For more info, see the ODESolver docstring."
+        verbose = verbose == true ? SciMLLogging.Standard() : SciMLLogging.None()
+    end
+    if !(verbose isa AllowedLogging)
+        throw(ArgumentError("Invalid logging level. `verbose` must be one of: \
+            SciMLLogging.None(), SciMLLogging.Minimal(), SciMLLogging.Standard(), \
+            SciMLLogging.Detailed(), or SciMLLogging.All()."))
+    end
+
     _solver_adj = isnothing(solver_adj) ? solver : solver_adj
     _abstol_adj = isnothing(abstol_adj) ? abstol : abstol_adj
     _reltol_adj = isnothing(reltol_adj) ? reltol : reltol_adj
@@ -483,7 +497,7 @@ For numerical stability, `PEtabODEProblem` works with the negative log-likelihoo
 -\\ell(\\mathbf{x}) = -\\sum_{i=1}^{N} \\ell_i(\\mathbf{x}),
 ```
 
-where ``\\ell_i`` is the log-likelihood contribution from measurement `i```. The
+where ``\\ell_i`` is the log-likelihood contribution from measurement ``i``. The
 `gradient_method` and `hessian_method` determine how ``-\\nabla \\ell(\\mathbf{x})`` and
 ``-\\nabla^2 \\ell(\\mathbf{x})`` are computed.
 

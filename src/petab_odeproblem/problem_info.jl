@@ -55,10 +55,10 @@ function PEtabODEProblemInfo(
     _logging(:Build_ODEProblem, verbose)
     btime = @elapsed begin
         odeproblem = _get_odeproblem(
-            model.sys_mutated, model, model_info, specialize_level, sparse_jacobian_use
+            model.sys_mutated, model_info, specialize_level, sparse_jacobian_use
         )
-        odeproblem_gradient = _get_odeproblem_gradient(
-            odeproblem, gradient_method_use, sensealg_use
+        odeproblem_gradient = _get_odeproblem(
+            model.sys_mutated, model_info, specialize_level, sparse_jacobian_use
         )
     end
     _logging(:Build_ODEProblem, verbose; time = btime)
@@ -70,11 +70,11 @@ function PEtabODEProblemInfo(
     )
 
     # To build the steady-state solvers the ODEProblem (specifically its Jacobian)
-    # is needed (which is the same for odeproblem and odeproblem_gradient). Not yet comptiable with
-    # UDE problems
-    ss_solver_use = SteadyStateSolver(_ss_solver, odeproblem, odesolver_use)
+    # is needed (which is the same for odeproblem and odeproblem_gradient). Not yet
+    # compatible with UDE problems
+    ss_solver_use = SteadyStateSolver(_ss_solver, odeproblem, odesolver_use, model_info)
     ss_solver_gradient_use = SteadyStateSolver(
-        _ss_solver_gradient, odeproblem, odesolver_gradient_use
+        _ss_solver_gradient, odeproblem, odesolver_gradient_use, model_info
     )
 
     # For models with a neural net that feeds into model parameters, pre-build functions
@@ -90,7 +90,7 @@ function PEtabODEProblemInfo(
 end
 
 function _get_odeproblem(
-        sys::ODEProblem, ::PEtabModel, model_info::ModelInfo, specialize_level, ::Bool
+        sys::ODEProblem, model_info::ModelInfo, ::Any, ::Bool
     )::ODEProblem
     @unpack petab_parameters, petab_ml_parameters, xindices, model = model_info
 
@@ -130,22 +130,30 @@ function _get_odeproblem(
     return odeproblem_use
 end
 function _get_odeproblem(
-        ::ModelSystem, model::PEtabModel, model_info::ModelInfo, specialize_level,
-        sparse_jacobian::Bool
+        ::ModelSystem, model_info::ModelInfo, specialize_level, sparse_jacobian::Bool
     )::ODEProblem
+    @unpack model, xindices = model_info
+
     _set_const_parameters!(model, model_info.petab_parameters)
 
-    @unpack sys_mutated, speciemap, parametermap = model
-    _parametermap = _reorder_parametermap(parametermap, model_info.xindices.ids[:sys])
-    _u0 = first.(speciemap) .=> 0.0
-    ode_f! = ODEFunction(
-        _get_system(sys_mutated); u0 = first.(_u0), p = first.(_parametermap),
-        jac = true, sparse = sparse_jacobian
-    )
+    # Symbolic Jacobian cannot be computed for UDE and NODE models
+    symbolic_jacobian = isempty(model_info.xindices.ids[:ml_in_ode])
+
+    @unpack sys_ode, speciemap, parametermap = model
+    u0_map = first.(speciemap) .=> 0.0
     odeproblem = ODEProblem{true, SciMLBase.FullSpecialize}(
-        ode_f!, last.(_u0), [0.0, 5.0e3], last.(_parametermap)
+        sys_ode, merge(Dict(u0_map), Dict(parametermap)), [0.0, 5.0e3],
+        jac = symbolic_jacobian, sparse = sparse_jacobian, build_initializeprob = false
     )
-    return remake(odeproblem, p = Float64.(odeproblem.p), u0 = Float64.(odeproblem.u0))
+
+    for ml_id in xindices.ids[:ml_in_ode]
+        ml_id in xindices.ids[:ml_est] && continue
+        ps = _get_lux_ps(ComponentArray, model.ml_models[ml_id])
+        _set_ml_model_ps!(ps, model.ml_models[ml_id], model.paths)
+        odeproblem.ps[ml_id] .= ps
+    end
+
+    return odeproblem
 end
 
 function _get_ml_models_pre_ode(

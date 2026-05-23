@@ -4,8 +4,12 @@
     FiniteDifferences.jl
 =#
 
+# TODO: Fix _get_system
+# TODO: Fix load time Bruno
+
 using PEtab, OrdinaryDiffEqRosenbrock, OrdinaryDiffEqBDF, SciMLSensitivity, LinearAlgebra,
     FiniteDifferences, Sundials, Test
+import SciMLLogging
 
 include(joinpath(@__DIR__, "common.jl"))
 
@@ -54,7 +58,8 @@ function test_nllh(modelid::Symbol)::Nothing
         solver_alg = Rodas5P()
     end
     osolver = ODESolver(
-        solver_alg, abstol = 1.0e-10, reltol = 1.0e-10, maxiters = Int(1.0e5)
+        solver_alg, abstol = 1.0e-10, reltol = 1.0e-10, maxiters = Int(1.0e5),
+        verbose = SciMLLogging.None()
     )
     ssolver = SteadyStateSolver(
         :Simulate; abstol = 5.0e-10, reltol = 1.0e-10, maxiters = Int(1.0e5)
@@ -83,8 +88,10 @@ function test_grad(modelid::Symbol)::Nothing
     ss_solver = SteadyStateSolver(
         :Simulate; abstol = 1.0e-9, reltol = 1.0e-12, maxiters = Int(1.0e5)
     )
-    osolver1 = ODESolver(Rodas5P(), abstol = odetol, reltol = odetol, maxiters = Int(1.0e5))
-    osolver2 = ODESolver(CVODE_BDF(), abstol = odetol, reltol = odetol)
+    osolver1 = ODESolver(
+        Rodas5P(), abstol = odetol, reltol = odetol, maxiters = Int(1.0e5),
+        verbose = SciMLLogging.None()
+    )
     prob_ref = PEtabODEProblem(
         model; odesolver = osolver1, ss_solver = ss_solver,
         verbose = false
@@ -96,12 +103,7 @@ function test_grad(modelid::Symbol)::Nothing
 
     for grad_test in grads_test
         @info "Method $(grad_test)"
-        if grad_test == :forward_eqs_sciml
-            g = _compute_grad(
-                x, model, :ForwardEquations, osolver2;
-                ss_solver = ss_solver, sensealg = ForwardSensitivity()
-            )
-        elseif grad_test == :forward_eqs
+        if grad_test == :forward_eqs
             g = _compute_grad(
                 x, model, :ForwardEquations, osolver1;
                 ss_solver = ss_solver, split = split

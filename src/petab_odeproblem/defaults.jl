@@ -115,8 +115,7 @@ function _get_odesolver(
     if gradient && !isnothing(solver) && !SciMLBase.isautodifferentiable(solver.solver) && autodiff
         throw(PEtab.PEtabInputError("$solver is not compatible with automatic \
             differentiation. Either use a ForwardDiff compatible solver, e.g. most Julia \
-            solvers like QNDF and Rodas5P, or a non-autodiff gradient method like :Adjoint \
-            or :ForwardEquations with sensealg = SciMLSensitivity.ForwardSensitivity()"))
+            solvers like QNDF and Rodas5P, or a non-autodiff gradient method like :Adjoint"))
 
     elseif !isnothing(solver)
         return solver
@@ -160,13 +159,12 @@ end
 
 _get_sensealg(::Any, ::Val{:ForwardDiff})::Nothing = nothing
 function _get_sensealg(sensealg, ::Val{:ForwardEquations})::Symbol
-    allowed_methods = [":ForwardDiff", "ForwardSensitivity()", "ForwardDiffSensitivity()"]
+    allowed_methods = [":ForwardDiff"]
     if !isnothing(sensealg) && sensealg != :ForwardDiff
         throw(
             PEtabInputError(
                 "For gradient method :ForwardEquations allowed sensealg \
-                arguments are $(allowed_methods). To use the latter two methods \
-                SciMLSensitivity must be loaded."
+                arguments are $(allowed_methods)."
             )
         )
     end
@@ -175,14 +173,6 @@ end
 
 function _get_sensealg_ss(::Any, ::Any, ::ModelInfo, gradient_method)::Nothing
     return nothing
-end
-
-function _get_odeproblem_gradient(odeproblem::ODEProblem, ::Symbol, ::Any)::ODEProblem
-    # This is only relevant when sensealg is from SciMLSensitivity, but the code cannot
-    # reach this point with sensealg ForwardSensitivity() or ForwardDiffSensitivity()
-    # with SciMLSensitivity loaded, and if SciMLSensitivity is not loaded _get_sensealg
-    # will throw an error
-    return odeproblem
 end
 
 function _get_chunksize(chunksize::Int64, xdynamic::Vector{<:AbstractFloat})

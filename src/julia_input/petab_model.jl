@@ -32,8 +32,8 @@ function PEtabModel(
         sys::ModelSystem, observables::Union{PEtabObservable, Vector{PEtabObservable}},
         measurements::DataFrame, parameters::Union{UserParameter, Vector};
         simulation_conditions::Union{PEtabCondition, Vector{PEtabCondition}, Nothing} = nothing,
-        speciemap::Union{AbstractVector, Nothing} = nothing,
-        parametermap::Union{AbstractVector, Nothing} = nothing,
+        speciemap::Union{AbstractVector, Dict, Nothing} = nothing,
+        parametermap::Union{AbstractVector, Dict, Nothing} = nothing,
         events::Union{PEtabEvent, Vector{PEtabEvent}, Nothing} = nothing,
         verbose::Bool = false, ml_models::Union{Nothing, MLModels, MLModel} = nothing
     )::PEtabModel
@@ -63,9 +63,19 @@ function PEtabModel(
     ml_models = if isnothing(ml_models)
         MLModels()
     elseif ml_models isa MLModel
-        MLModels(ml_models)
+        MLModels(ml_models; sys = sys)
     else
         ml_models
+    end
+    ml_models_sys = _get_ml_models_sys(sys)
+
+    if isempty(ml_models) && isempty(ml_models_sys)
+        ml_models = MLModels()
+    else
+        ml_models = MLModels(
+            [ml_models.ml_models..., ml_models_sys.ml_models...],
+            [ml_models.ml_ids..., ml_models_sys.ml_ids...]
+        )
     end
 
     return _PEtabModel(
@@ -77,8 +87,8 @@ end
 function _PEtabModel(
         sys::ModelSystem, simulation_conditions::Vector{PEtabCondition},
         observables::Vector{PEtabObservable}, measurements::DataFrame,
-        parameters::Vector, speciemap::Union{Nothing, AbstractVector},
-        parametermap::Union{Nothing, AbstractVector}, events::Vector{PEtabEvent},
+        parameters::Vector, speciemap::Union{Nothing, AbstractVector, Dict},
+        parametermap::Union{Nothing, AbstractVector, Dict}, events::Vector{PEtabEvent},
         ml_models::MLModels, verbose::Bool
     )::PEtabModel
 
@@ -130,13 +140,14 @@ function _PEtabModel(
     sys_mutated, parametermap_problem = _get_parametermap(
         sys_mutated, parametermap, ml_models
     )
+    sys_ode = _get_system(sys_mutated)
 
-    sys_observables = _get_sys_observables(sys_mutated)
+    sys_observables = _get_sys_observables(sys_ode)
     sys_observable_ids = collect(keys(sys_observables))
 
     paths = Dict{Symbol, String}()
     xindices = ParameterIndices(
-        petab_tables, paths, sys_mutated, parametermap_problem, speciemap_problem, ml_models
+        petab_tables, paths, sys_ode, parametermap_problem, speciemap_problem, ml_models
     )
 
     # Warn user if any variable is unassigned (and defaults to zero)
@@ -176,7 +187,7 @@ function _PEtabModel(
     btime = @elapsed begin
         _set_trigger_time!(events)
         cbs, float_tspan = _parse_events(
-            events, sys_mutated, speciemap_problem, parametermap_problem, name, xindices,
+            events, sys_ode, speciemap_problem, parametermap_problem, name, xindices,
             petab_tables
         )
     end
@@ -185,8 +196,8 @@ function _PEtabModel(
     # Path only applies when PEtab tables are provided
     return PEtabModel(
         name, compute_h, compute_u0!, compute_u0, compute_σ, float_tspan, paths, sys,
-        sys_mutated, parametermap_problem, speciemap_problem, petab_tables, cbs, true,
-        events, sys_observables, ml_models
+        sys_mutated, sys_ode, parametermap_problem, speciemap_problem, petab_tables, cbs,
+        true, events, sys_observables, ml_models
     )
 end
 

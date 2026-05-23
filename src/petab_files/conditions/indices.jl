@@ -41,7 +41,7 @@ function _get_indices_est(
 end
 
 function _get_indices_dynamic(
-        ids::Dict{Symbol, Vector{Symbol}}, ml_models::MLModels
+        sys_ode::ModelSystem, ids::Dict{Symbol, Vector{Symbol}}, ml_models::MLModels
     )::Dict{Symbol, Vector{Int32}}
     indices_dynamic = Dict{Symbol, Vector{Int32}}()
 
@@ -101,15 +101,20 @@ function _get_indices_dynamic(
     xi_sys_to_dynamic_ml = Int32[]
     for id_sys in ids[:sys]
         if id_sys in ids[:ml_est]
-            xi_sys_to_dynamic_ml = vcat(
-                xi_sys_to_dynamic_ml, _get_indices_ml_model(isys, ml_models[id_sys])
-            )
+            xi_ml = _get_indices_ml_model(isys, ml_models[id_sys])
+            xi_sys_to_dynamic_ml = vcat(xi_sys_to_dynamic_ml, xi_ml)
+            indices_dynamic[Symbol("$(id_sys)_sys")] = xi_ml
             isys = xi_sys_to_dynamic_ml[end]
             continue
         end
         isys += 1
     end
     indices_dynamic[:sys_to_dynamic_ml] = xi_sys_to_dynamic_ml
+
+    # In case the model has MTKParameters to map MTK-scale to ids[:sys] scale
+    xi_mtk_ps_to_sys = _get_mtk_ps_to_sys(sys_ode)
+    indices_dynamic[:mtk_ps_to_sys] = xi_mtk_ps_to_sys
+
     return indices_dynamic
 end
 
@@ -132,4 +137,24 @@ function _get_indices_not_system(
         i_start = indices_not_system[ml_id][end]
     end
     return indices_not_system
+end
+
+# For interacting with ODEProblem having MTKParameters
+_get_set_ps_f(::ODEProblem) = nothing
+function _get_set_ps_f(sys::ModelSystem)
+    sys_ps_ids = _flatten_parameters_sys(sys)
+    return SymbolicIndexingInterface.setp_oop(sys, sys_ps_ids)
+end
+
+# For interacting with ODEProblem having MTKParameters
+_get_get_ps_f(::ODEProblem) = nothing
+function _get_get_ps_f(sys::ModelSystem)
+    sys_ps_ids = _flatten_parameters_sys(sys)
+    return SymbolicIndexingInterface.getp(sys, sys_ps_ids)
+end
+
+function _get_mtk_ps_to_sys(sys::ModelSystem)::Vector{Int64}
+    sys_ids = _flatten_parameters_sys(sys)
+    idx = [SymbolicIndexingInterface.parameter_index(sys, x).idx for x in sys_ids]
+    return idx
 end

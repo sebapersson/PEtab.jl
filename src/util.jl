@@ -12,10 +12,12 @@ See also: [`get_u0`](@ref) and [`get_odeproblem`](@ref).
 function get_odesol(
         res::EstimationResult, prob::PEtabODEProblem;
         condition::Union{ConditionExp, Nothing} = nothing,
-        experiment::Union{ConditionExp, Nothing} = nothing
+        experiment::Union{ConditionExp, Nothing} = nothing, mutated_sys::Bool = false
     )::ODESolution
     @unpack model_info, probinfo = prob
-    oprob, cbs = get_odeproblem(res, prob; condition = condition, experiment = experiment)
+    oprob, cbs = get_odeproblem(
+        res, prob; condition = condition, experiment = experiment, mutated_sys = mutated_sys
+    )
 
     @unpack solver, abstol, reltol = probinfo.solver
     return solve(oprob, solver, abstol = abstol, reltol = reltol, callback = cbs)
@@ -35,22 +37,33 @@ See also: [`get_u0`](@ref) and [`get_odesol`](@ref).
 function get_odeproblem(
         res::EstimationResult, prob::PEtabODEProblem;
         condition::Union{ConditionExp, Nothing} = nothing,
-        experiment::Union{ConditionExp, Nothing} = nothing
+        experiment::Union{ConditionExp, Nothing} = nothing, mutated_sys::Bool = false
     )
     @unpack model_info, probinfo = prob
-    u0, ps = _get_ps_u0(res, prob, condition, experiment, false)
+
+    if prob.model_info.model.sys isa ODEProblem
+        u0, ps = _get_ps_u0(res, prob, condition, experiment, false, mutated_sys)
+    else
+        u0, ps = _get_ps_u0(res, prob, condition, experiment, true, mutated_sys)
+    end
 
     simulation_id = _get_simulation_id(condition, experiment, model_info)
     tstart = _get_start(condition, experiment, model_info)
     tmax = _get_tmax(condition, experiment, model_info)
     cbs = model_info.model.callbacks[simulation_id]
 
-    if prob.model_info.model.sys isa ODEProblem
-        odeprob = _get_system(prob.model_info.model.sys)
-        odeprob = remake(odeprob, u0 = u0, p = ps, tspan = [tstart, tmax])
+    if mutated_sys == false
+        sys_ode = _get_system(prob.model_info.model.sys)
     else
-        odefun = ODEFunction(_get_system(prob.model_info.model.sys))
-        odeprob = ODEProblem(odefun, u0, [tstart, tmax], ps)
+        sys_ode = _get_system(prob.model_info.model.sys_mutated)
+    end
+
+    if prob.model_info.model.sys isa ODEProblem
+        odeprob = remake(sys_ode, u0 = u0, p = ps, tspan = [tstart, tmax])
+    else
+        odeprob = ODEProblem(
+            sys_ode, merge(Dict(u0), Dict(ps)), [tstart, tmax], build_initializeprob = false
+        )
     end
     return odeprob, cbs
 end
@@ -81,7 +94,7 @@ function get_system(
         sys, _ = load_SBML(paths[:SBML])
     end
 
-    u0, p = _get_ps_u0(res, prob, condition, experiment, true)
+    u0, p = _get_ps_u0(res, prob, condition, experiment, true, false)
     simulation_id = _get_simulation_id(condition, experiment, prob.model_info)
     return sys, u0, p, callbacks[simulation_id]
 end
@@ -102,7 +115,7 @@ function get_u0(
         condition::Union{ConditionExp, Nothing} = nothing,
         experiment::Union{ConditionExp, Nothing} = nothing
     )
-    u0, _ = _get_ps_u0(res, prob, condition, experiment, retmap)
+    u0, _ = _get_ps_u0(res, prob, condition, experiment, retmap, false)
     return u0
 end
 
@@ -134,13 +147,13 @@ function get_ps(
         condition::Union{ConditionExp, Nothing} = nothing,
         experiment::Union{ConditionExp, Nothing} = nothing
     )
-    _, p = _get_ps_u0(res, prob, condition, experiment, retmap)
+    _, p = _get_ps_u0(res, prob, condition, experiment, retmap, false)
     return p
 end
 
 function _get_ps_u0(
         res::EstimationResult, prob::PEtabODEProblem, condition::Union{ConditionExp, Nothing},
-        experiment::Union{ConditionExp, Nothing}, retmap::Bool
+        experiment::Union{ConditionExp, Nothing}, retmap::Bool, mutated_sys::Bool
     )
     @unpack probinfo, model_info = prob
     @unpack xindices, model, simulation_info = model_info
@@ -154,27 +167,17 @@ function _get_ps_u0(
     x_transformed = transform_x(_get_x(res), xindices.ids[:estimate], xindices)
     xdynamic, _, _, _, x_ml_models = split_x(x_transformed, xindices, cache)
 
-    # System parameters and their associated ids
-    odeproblem = remake(
-        odeproblem, p = convert.(eltype(xdynamic), odeproblem.p),
-        u0 = convert.(eltype(xdynamic), odeproblem.u0)
-    )
-    p = odeproblem.p[:]
-    ps = xindices.ids[:sys]
-    u0 = odeproblem.u0[:]
-    u0s = first.(model_info.model.speciemap)[1:length(u0)]
-
     if isnothing(pre_equilibration_id)
-        oprob = _switch_condition(
+        ode_problem_condition = _switch_condition(
             odeproblem, simulation_id, xdynamic, x_ml_models, model_info, cache,
             ml_models_pre_ode, false
         )
-
     else
         # For models with pre-eq the model must first be simulated to steady state, and
         # following the steady-state the parameters must be correctly set
-        u_ss = Vector{Float64}(undef, length(u0))
-        u_t0 = Vector{Float64}(undef, length(u0))
+        u0 = deepcopy(odeproblem.u0)
+        u_ss = zeros(eltype(x_transformed), length(u0))
+        u_t0 = zeros(eltype(x_transformed), length(u0))
         oprob_preeq = _switch_condition(
             odeproblem, pre_equilibration_id, xdynamic, x_ml_models, model_info, cache,
             ml_models_pre_ode, false
@@ -185,33 +188,47 @@ function _get_ps_u0(
         )
 
         experiment_id = _get_experiment_id(simulation_id, pre_equilibration_id)
-        oprob = _switch_condition(
+        ode_problem_condition = _switch_condition(
             odeproblem, experiment_id, xdynamic, x_ml_models, model_info, cache,
             ml_models_pre_ode, true; simulation_id = simulation_id
         )
-        has_not_changed = oprob.u0 .== u_t0
-        oprob.u0[has_not_changed] .= u_ss[has_not_changed]
-        oprob.u0[isnan.(oprob.u0)] .= u_ss[isnan.(u0)]
+        has_not_changed = ode_problem_condition.u0 .== u_t0
+        ode_problem_condition.u0[has_not_changed] .= u_ss[has_not_changed]
+        ode_problem_condition.u0[isnan.(ode_problem_condition.u0)] .= u_ss[isnan.(u0)]
     end
 
-    u0 = deepcopy(oprob.u0)
-    p = deepcopy(oprob.p)
+    # System parameters and their associated ids
+    u0 = deepcopy(ode_problem_condition.u0)
+    p_tunable = _get_tunables(ode_problem_condition.p, xindices.get_ps_mtk_parameters)
+    p = _get_ode_problem_ps(
+        ode_problem_condition, p_tunable, ode_problem_condition.p, xindices
+    )
+    u0s = first.(model_info.model.speciemap)[1:length(u0)]
     if model_info.model.sys isa ODEProblem && retmap == true
         @warn "The 'retmap' keyword is ignored because the model was provided or imported \
             as an ODEProblem. This keyword only applies to models that are ODESystem or \
             ReactionSystem."
         _u0, _p = u0, p
     elseif retmap == true
-        _u0, _p = Pair.(u0s, u0), Pair.(ps, p)
+        ps = _flatten_parameters_sys(model.sys_ode)
+        _u0 = Pair.(u0s, u0)
+        _p = Pair.(ps, p_tunable)
     else
         _u0, _p = u0, p
     end
 
     # These parameters are added to a mutated system for gradient computations, but
     # should not be exposed to the user if the model is defined in Julia
-    if model.defined_in_julia && !(model.sys isa ODEProblem)
-        ip = findall(x -> !occursin("__init__", x), string.(ps))
-        return _u0, _p[ip]
+    if mutated_sys == false && model.defined_in_julia && !(model.sys isa ODEProblem)
+        ps_flatten = _flatten_parameters_sys(model.sys_ode)
+        ip = findall(x -> !occursin("__init__", x), string.(ps_flatten))
+        if _p isa ModelingToolkitBase.MTKParameters
+            _ps_flatten = ps_flatten[ip]
+            _set_ps = SymbolicIndexingInterface.setp_oop(odeproblem, _ps_flatten)
+            _p = _set_ps(odeproblem, p_tunable[ip])
+        else
+            _p = _p[ip]
+        end
     end
     return _u0, _p
 end
@@ -393,7 +410,10 @@ end
 _get_system(sys::ODESystem)::ODESystem = sys
 _get_system(sys::ODEProblem)::ODEProblem = sys
 function _get_system(sys::ReactionSystem)::ODESystem
-    return ModelingToolkitBase.complete(Catalyst.ode_model(sys))
+    return sys |>
+        Catalyst.complete |>
+        Catalyst.ode_model |>
+        ModelingToolkitBase.mtkcompile
 end
 
 _get_x(x::Union{AbstractVector, ComponentVector}) = x

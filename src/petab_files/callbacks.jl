@@ -7,7 +7,13 @@ function _parse_events(
     conditions_df = _get_petab_tables(petab_tables, [:conditions])[1]
 
     float_tspan = _xdynamic_in_event_cond(model_SBML, xindices, petab_tables) |> !
-    p_sys = string.(_get_ids_sys_order(sys, speciemap, parametermap))
+    # Dictates whether SBMLImporter will assume the systems uses MTKParameters or not,
+    # if not p_sys is needed
+    if sys isa ODEProblem
+        p_sys = string.(_get_ps_ids_sys(sys))
+    else
+        p_sys = nothing
+    end
     state_ids = _get_state_ids(sys)
     cbs_sbml = SBMLImporter.create_callbacks(
         sys, model_SBML, name; p_PEtab = p_sys, float_tspan = float_tspan,
@@ -63,7 +69,11 @@ function _parse_events(
     cbs = Dict{Symbol, CallbackSet}()
     conditions_df = _get_petab_tables(petab_tables, [:conditions])[1]
 
-    p_sys = string.(_get_ids_sys_order(sys, speciemap, parametermap))
+    if sys isa ODEProblem
+        p_sys = string.(_get_ps_ids_sys(sys))
+    else
+        p_sys = nothing
+    end
     state_ids = _get_state_ids(sys)
 
     # Whether t-span should be float or not depends on all events
@@ -90,7 +100,7 @@ function _parse_events(
 
         # DiscreteCallbacks must be assigned a _save_u flagging whether solution should
         # be saved after the event has fired. Following PEtab v2, this happens if the event
-        # triggers at a measurement time-poitn
+        # triggers at a measurement time-point
         discrete_callbacks = DiscreteCallback[]
         for cb in _cbs.discrete_callbacks
             affect_petab_event! = let _affect_petab! = cb.affect!, _save_u = [false]
@@ -118,7 +128,7 @@ function _affect_petab_v2_event!(
     u_tmp1 = deepcopy(integrator.u)
     p_tmp1 = deepcopy(integrator.p)
     u_tmp2 = similar(u_tmp1)
-    p_tmp2 = similar(p_tmp1)
+    p_tmp2 = deepcopy(integrator.p)
 
     _affect_petab_cb!(integrator)
 
@@ -128,13 +138,13 @@ function _affect_petab_v2_event!(
     for cb in cbs_sbml.continuous_callbacks
         condition_after = cb.condition(integrator.u, integrator.t, integrator)
 
-        u_tmp2 .= integrator.u
-        p_tmp2 .= integrator.p
-        integrator.u .= u_tmp1
-        integrator.p .= p_tmp1
+        _set_integrator_variable!(u_tmp2, integrator.u)
+        _set_integrator_variable!(p_tmp2, integrator.p)
+        _set_integrator_variable!(integrator.u, u_tmp1)
+        _set_integrator_variable!(integrator.p, p_tmp1)
         condition_before = cb.condition(integrator.u, integrator.t, integrator)
-        integrator.u .= u_tmp2
-        integrator.p .= p_tmp2
+        _set_integrator_variable!(integrator.u, u_tmp2)
+        _set_integrator_variable!(integrator.p, p_tmp2)
 
         # Event can be triggered by passing the condition from pos-neg, and from neg-pos
         if !isnothing(cb.affect!) && !isnothing(cb.affect_neg!)
@@ -255,4 +265,15 @@ function _get_trigger_time(event::PEtabEvent)::Float64
     else
         return NaN
     end
+end
+
+function _set_integrator_variable!(x1::AbstractVector, x2::AbstractVector)::Nothing
+    x1 .= x2
+    return nothing
+end
+function _set_integrator_variable!(
+        x1::ModelingToolkitBase.MTKParameters, x2::ModelingToolkitBase.MTKParameters
+    )::Nothing
+    x1.tunable .= x2.tunable
+    return nothing
 end

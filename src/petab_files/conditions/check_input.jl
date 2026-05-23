@@ -76,7 +76,7 @@ function _check_stat_ml_outputs(
         petab_tables, [:hybridization, :mapping]
     )
     state_ids = Symbol.(_get_state_ids(sys))
-    ids_sys = _get_ids_sys(sys)
+    ids_sys = _get_ps_ids_sys(sys)
 
     output_ids = Iterators.flatten(
         _get_ml_model_io_petab_ids(mappings_df, ml_id, :outputs)
@@ -87,19 +87,17 @@ function _check_stat_ml_outputs(
 
         output_id in state_ids && continue
         if !(output_id in ids_sys)
-            throw(PEtab.PEtabInputError("For a pre_initialization neural network, output variables in \
-                the hybridization table can only assign to a specie id or to a
-                non-estimated model parameter. This does not hold for $ml_output_id \
-                assigning to $output_id, as $output_id does not fulfill these \
-                criteria"))
+            throw(PEtab.PEtabInputError("For a pre_initialization neural network, output \
+                variables in the hybridization table can only assign to a specie id or to \
+                a non-estimated model parameter. This does not hold for $ml_output_id \
+                assigning to $output_id, as $output_id does not fulfill these criteria"))
         end
 
         if _estimate_parameter(output_id, petab_parameters)
-            throw(PEtab.PEtabInputError("For a pre_initialization neural network, output variables in \
-                the hybridization table cannot assign to model parameters that are \
-                estimated. This does not hold for $ml_output_id assigning to \
-                $output_id, as $output_id is set to be estimated in the parameters \
-                table"))
+            throw(PEtab.PEtabInputError("For a pre_initialization neural network, output \
+                variables in the hybridization table cannot assign to model parameters \
+                that are estimated. This does not hold for $ml_output_id assigning to \
+                $output_id, as $output_id is set to be estimated in the parameters table"))
         end
     end
     return nothing

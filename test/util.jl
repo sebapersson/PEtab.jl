@@ -7,7 +7,7 @@ using Catalyst, DataFrames, FiniteDifferences, ForwardDiff, OrdinaryDiffEqRosenb
 
 function __sum_ps(x, prob)
     ps = get_ps(x, prob; retmap = false)
-    return sum(ps)
+    return sum(ps.tunable)
 end
 
 function __sum_u0(x, prob)
@@ -40,7 +40,7 @@ end
     x = get_x(prob) .* 0.9
     nllh = prob.nllh(x)
     res = PEtabOptimisationResult(
-        x ./ 0.9, 10.0, x, :Fides, 10, 10.0, Vector{Vector{Float64}}(undef, 0), Float64[],
+        x, 10.0, x ./ 0.9, :Fides, 10, 10.0, Vector{Vector{Float64}}(undef, 0), Float64[],
         true, nothing
     )
     @unpack u0, p = prob.model_info.simulation_info.odesols[:model1_data1].prob
@@ -51,16 +51,16 @@ end
     @test all(u0_test .== u0)
     @test all(p_test == p)
     @test all(ode_prob.u0 .== u0)
-    @test all(ode_prob.p == p)
+    @test all(ode_prob.p.tunable == p.tunable)
     @test all(sol.prob.u0 .== u0)
-    @test all(sol.prob.p == p)
+    @test all(sol.prob.p.tunable == p.tunable)
     # Testing the get_system. As the model is SBML a ReactionSystem model should be returned
     solref = get_odesol(x, prob)
     rn, u0, ps, cb = get_system(x, prob)
     @test rn isa Catalyst.ReactionSystem
     osys = mtkcompile(Catalyst.ode_model(rn))
     ode_prob = ODEProblem(osys, merge(Dict(u0), Dict(ps)), (solref.t[1], solref.t[end]))
-    @test ode_prob.p.tunable == solref.prob.p
+    @test ode_prob.p.tunable == solref.prob.p.tunable
     @test ode_prob.u0 == solref.prob.u0
     # Test throws correctly
     @test_throws ArgumentError get_ps(res, prob; experiment = :e0)
@@ -78,7 +78,7 @@ end
     x = get_x(prob) .* 0.9
     nllh = prob.nllh(x)
     res = PEtabOptimisationResult(
-        x ./ 0.9, 10.0, x, :Fides, 10, 10.0, Vector{Vector{Float64}}(undef, 0), Float64[],
+        x, 10.0, x ./ 0.9, :Fides, 10, 10.0, Vector{Vector{Float64}}(undef, 0), Float64[],
         true, nothing
     )
     @unpack u0, p = prob.model_info.simulation_info.odesols[:typeIDT1_ExpID1].prob
@@ -86,7 +86,7 @@ end
     p_test = get_ps(res, prob; condition = :typeIDT1_ExpID1, retmap = false)
     @test all(u0_test .== u0)
     to_test = Bool[1, 1, 1, 1, 0, 1, 1, 1, 1] # To account for Event variable
-    @test all(p[to_test] == p_test[to_test])
+    @test all(p.tunable[to_test] == p_test.tunable[to_test])
 
     # Model with pre-eq simulation
     path_yaml = joinpath(
@@ -97,18 +97,21 @@ end
     x = get_x(prob) .* 0.9
     nllh = prob.nllh(x)
     res = PEtabOptimisationResult(
-        x ./ 0.9, 10.0, x, :Fides, 10, 10.0, Vector{Vector{Float64}}(undef, 0), Float64[],
+        x, 10.0, x ./ 0.9, :Fides, 10, 10.0, Vector{Vector{Float64}}(undef, 0), Float64[],
         true, nothing
     )
     @unpack u0, p = prob.model_info.simulation_info.odesols[:Dose_0Dose_01].prob
     p_test = get_ps(res.xmin, prob; condition = :Dose_0 => :Dose_01, retmap = false)
     u0_test = get_u0(res.xmin, prob; condition = "Dose_0" => "Dose_01", retmap = false)
     @test all(u0_test .== u0)
-    @test all(p == p_test)
-    ode_prob, _ = get_odeproblem(res, prob; condition = :Dose_0 => :Dose_01)
-    @test all(ode_prob.u0 .== u0)
-    @test all(ode_prob.p == p_test)
-    @test ode_prob.tspan[end] == prob.model_info.simulation_info.tmaxs[:Dose_0Dose_01]
+    # Event triggered variables which switch during simulation must be accounted for with
+    # to_test
+    to_test = Bool[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1]
+    @test all(p.tunable[to_test] == p_test.tunable[to_test])
+    ode_sol = get_odesol(res, prob; condition = :Dose_0 => :Dose_01)
+    @test all(ode_sol.prob.u0 .== u0)
+    @test all(ode_sol.prob.p.tunable == p.tunable)
+    @test ode_sol.prob.tspan[end] == prob.model_info.simulation_info.tmaxs[:Dose_0Dose_01]
     @test_throws PEtab.PEtabInputError begin
         ode_prob, _ = get_odeproblem(res, prob; condition = :Dose_01 => :Dose_01)
     end
@@ -142,18 +145,19 @@ end
         simulation_conditions = simulation_conditions
     )
     prob = PEtabODEProblem(model; verbose = false)
-    prob.nllh(log10.([1.0, 2.0]))
+    x = log10.([1.0, 2.0])
+    prob.nllh(x)
     ode_prob_mutated = prob.model_info.simulation_info.odesols[:c2].prob
-    ode_prob, _ = get_odeproblem(log10.([1.0, 2.0]), prob; condition = :c2)
-    @test length(ode_prob.p) == 2
-    @test all(ode_prob.p .== ode_prob_mutated.p[[1, 3]])
-    @test all(ode_prob.p .== ode_prob_mutated.u0)
+    ode_prob, _ = get_odeproblem(x, prob; condition = :c2)
+    @test length(ode_prob.p.tunable) == 2
+    @test all(ode_prob.p.tunable .== ode_prob_mutated.p.tunable[[1, 3]])
+    @test all(ode_prob.u0 .== ode_prob_mutated.u0)
     # Test that get_system correctly returns a ReactionSystem
-    rn, u0, ps, _ = get_system(log10.([1.0, 2.0]), prob; condition = :c2)
+    rn, u0, ps, _ = get_system(x, prob; condition = :c2)
     @test rn isa Catalyst.ReactionSystem
     osys = mtkcompile(Catalyst.ode_model(rn))
     ode_prob_sys = ODEProblem(osys, merge(Dict(u0), Dict(ps)), (0.0, 1.0))
-    @test ode_prob_sys.p.tunable == ode_prob.p
+    @test ode_prob_sys.p.tunable == ode_prob.p.tunable
     @test ode_prob_sys.u0[[1, 2]] == ode_prob.u0
     @test_throws PEtab.PEtabInputError begin
         ode_prob, _ = get_odeproblem(res, prob; condition = :c3)
@@ -204,7 +208,7 @@ end
     @test ode2.u0 == u0_e2
     @test ode1.p == ps_e1
     @test ode2.p == ps_e2
-    @test ode_e1.p == ode1.p
+    @test ode_e1.p.tunable == ode1.p.tunable
     @test ode_e1.u0 == ode1.u0
     @test ode_e1.p == sol_e1.prob.p
     @test ode_e1.u0 == sol_e1.prob.u0
@@ -220,7 +224,8 @@ end
     x = get_x(prob)
     _ = prob.nllh(x)
     ode = prob.model_info.simulation_info.odesols[:e0_preeq_c0e0_c0].prob
-    @test ode.p == get_ps(x, prob; retmap = false)
+    p_test = get_ps(x, prob; retmap = false)
+    @test ode.p == p_test
     @test all(.≈(ode.u0, get_u0(x, prob; experiment = :e0, retmap = false), atol = 1.0e-8))
 
     path_yaml = joinpath(@__DIR__, "petab_v2_testsuite", "0001", "_0001.yaml")
@@ -229,7 +234,7 @@ end
     x = get_x(prob)
     @test_throws PEtab.PEtabInputError get_ps(x, prob; experiment = :e0)
 
-    # PEtab SciML problem, neural network inside of
+    # PEtab SciML problem, problem imported as ODEProblem
     path_yaml = joinpath(
         @__DIR__, "petab_sciml_testsuite", "test_cases", "sciml_problem_import", "001",
         "petab", "problem.yaml"
@@ -273,7 +278,7 @@ end
     sol_test = get_odesol(x, prob; experiment = :e2)
     @test ode_prob_ref.p == ps_test
     @test ode_prob_ref.u0 == u0_test
-    @test ode_prob_ref.p == ode_problem_test.p
+    @test ode_prob_ref.p.tunable == ode_problem_test.p.tunable
     @test ode_prob_ref.u0 == ode_problem_test.u0
     @test sol_ref == sol_test
 end

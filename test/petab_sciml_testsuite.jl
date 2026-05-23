@@ -1,11 +1,11 @@
 include(joinpath(@__DIR__, "petab_sciml_testsuite", "helper.jl"))
 
 dir_tests = joinpath(@__DIR__, "petab_sciml_testsuite", "test_cases")
+
 # Global needed to avoid world-problem on Julia 1.12
 global lux_model
 @testset "ML import" begin
-    for i in 1:53
-        i == 20 && continue
+    for i in 1:54
         global lux_model
         testcase = i < 10 ? "00$i" : "0$i"
         # ml_model must be loaded here to avoid world-problem
@@ -21,6 +21,7 @@ ode_solver = ODESolver(
 )
 @testset "PEtab SciML problem import" begin
     for i in 1:39
+        @info "Test case $i"
         test_case = i < 10 ? "00$i" : "0$i"
         path_yaml = joinpath(
             dir_tests, "sciml_problem_import", test_case, "petab", "problem.yaml"
@@ -28,19 +29,6 @@ ode_solver = ODESolver(
         ml_models = MLModels(path_yaml)
         model = PEtabModel(path_yaml; ml_models = ml_models)
         for config in PROB_CONFIGS
-            # Edge case for underperforming configuration. So even though support could be
-            # added in theory, it is not priority
-            if (
-                    config.grad == :ForwardEquations && config.split == false &&
-                        config.sensealg == :ForwardDiff
-                )
-                continue
-            end
-            # To long time, will not be used in practice
-            if config.sensealg == ForwardSensitivity()
-                continue
-            end
-            # invoke latest to avoid world-problem on Julia 1.12
             petab_prob = Base.invokelatest(
                 model -> PEtabODEProblem(
                     model; odesolver = ode_solver, gradient_method = config.grad,
@@ -51,6 +39,8 @@ ode_solver = ODESolver(
         end
     end
 end
+# Input checking for standard format
+include(joinpath(@__DIR__, "petab_sciml_testsuite", "input_checking_standard_format.jl"))
 
 @testset "PEtab SciML initialization" begin
     for i in 1:3

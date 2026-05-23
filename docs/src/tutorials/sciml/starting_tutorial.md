@@ -5,14 +5,16 @@ learning (ML) models [rackauckas2020universal](@cite). PEtab.jl supports three S
 types, and any combination of them:
 
 1. ML model inside the ODE dynamics. This covers both Universal Differential Equations
-   (UDEs) and Neural ODEs.
+   (UDEs), also called grey-box and hybrid neural ODEs
+   [brucker2022neural, zou_hybrid2_2024](@cite), as well as neural ODEs (NODEs)
+   [chen2018neural](@cite).
 2. ML model in the observable formula which links ODE output to measurement data.
 3. Pre-simulation ML model, where the ML model is evaluated before simulation to map input
    data (e.g. high-dimensional images) to ODE parameters and/or initial conditions.
 
 This tutorial introduces SciML functionality in PEtab.jl using the UDE case. Other tutorials
 in this section cover the remaining cases. Familiarity with setting up a PEtab problem for
-mechanistic models is assumed; covered in the [PEtab.jl starting tutorial](@ref tutorial).
+mechanistic models is assumed; see the [PEtab.jl starting tutorial](@ref tutorial).
 
 While this tutorial focuses on a simple use-case, note that SciML support is implemented on
 top of the functionality for mechanistic models. Thus, features for mechanistic models (e.g.
@@ -45,118 +47,109 @@ $X$ is unknown and replace it by a neural network:
 \end{align*}
 ```
 
-Where $\mathrm{NN}_1$ is a feed-forward neural network with input $Y$.
+Where $\mathrm{NN}$ is a feed-forward neural network with input $Y$.
 
 To estimate model parameters, measurements of both $X$ and $Y$ are assumed. The goal of this
 tutorial is to set up a PEtab parameter estimation problem and then estimate both the
-mechanistic parameter `d` and the parameters of `NN1`.
+mechanistic parameter `d` and the parameters of `NN`.
 
 ## Creating a PEtab SciML problem
 
 A PEtab SciML parameter estimation problem (`PEtabODEProblem`) is created largely the same
-way as for a mechanistic model. The main difference is that ML models are provided by (1)
-defining one or more Lux.jl neural networks and (2) wrapping them as `MLModel`s to specify
-how they interact with the ODE model.
+way as for a mechanistic model. The difference is that one or more Lux.jl neural networks
+are defined and embedded into the problem.
 
 ### Defining the ML model
 
 PEtab.jl only supports [Lux.jl](https://lux.csail.mit.edu/stable/) ML models. To be
 compatible, the Lux model must define a set of layers with unique identifiers together with
-a forward pass. This is often most easily done using `Lux.Chain`:
+a forward pass. This is most easily done using `Lux.Chain`:
 
 ```@example 1
 using Lux
-lux_model1 = Lux.Chain(
+lux_model = Lux.Chain(
     Lux.Dense(1 => 3, Lux.softplus, use_bias = false),
     Lux.Dense(3 => 3, Lux.softplus, use_bias = false),
     Lux.Dense(3 => 1, Lux.softplus, use_bias = false),
 )
 ```
 
-Here, `softplus` is used to keep the output positive. For more control over the forward
-pass, the model can also be defined with `@compact`:
+Here, `softplus` is used to keep the output positive.
+
+### Defining the dynamic UDE model
+
+An UDE dynamic model is most easily created using ModelingToolkitNeuralNets. The first step
+is to create a symbolic neural network from the Lux model:
 
 ```@example 1
-lux_model2 = @compact(
-    layer1 = Lux.Dense(1 => 3, Lux.softplus, use_bias = false),
-    layer2 = Lux.Dense(3 => 3, Lux.softplus, use_bias = false),
-    layer3 = Lux.Dense(3 => 1, Lux.softplus, use_bias = false),
-) do x # forward pass
-    h = layer1(x)
-    h = layer2(h)
-    out = layer3(h)
-    @return out
+using ModelingToolkitNeuralNets
+@SymbolicNeuralNetwork NN, theta = lux_model
+nothing # hide
+```
+
+Here `theta` is the network parameter vector, and `NN` is the neural network which can be
+embedded into a ModelingToolkit model:
+
+```@example 1
+using ModelingToolkitBase
+using ModelingToolkitBase: t_nounits as t, D_nounits as D
+
+@parameters d
+@variables X(t)=2.0 Y(t)=0.1
+eqs = [
+    D(X) ~ NN([Y], theta)[1] - d * X
+    D(Y) ~ X - d * Y
+]
+@mtkcompile sys_ude = System(eqs, t)
+nothing # hide
+```
+
+Alternatively, the UDE can be formulated as a Catalyst `ReactionSystem`:
+
+```@example 1
+using Catalyst
+
+# Scalar NN rate depending on Y.
+A(z) = NN([z], theta)
+rn_ude = @reaction_network begin
+    @species begin
+        X(t) = 2.0
+        Y(t) = 0.1
+    end
+    @parameters d
+
+    $A(Y)[1], 0 --> X
+    d, X --> 0
+    1.0, X --> X + Y
+    d, Y --> 0
 end
 nothing # hide
 ```
 
-Regardless of how the Lux model is defined, it must be wrapped as an `MLModel` and given a
-unique ID:
+When embedding a neural network into a `ReactionSystem`, it must be introduced via a
+symbolic function (here `A(z)`) and can only be used in the parameter position of a
+reaction.
 
-```@example 1
-using PEtab
-ml_model = MLModel(:net1, lux_model1, false)
-```
-
-The third argument specifies whether the model is evaluated pre-simulation. In this
-tutorial, the ML model is evaluated during simulation (it enters the ODE dynamics), so
-`false` is used. Each Lux model must be wrapped as an `MLModel` so PEtab.jl can keep track
-of how the ML model interacts with the ODE model.
-
-### Defining the dynamic (UDE) model
-
-A UDE is created by embedding one or more `MLModel`s into the ODE dynamics. Currently, UDE
-models must be provided as an `ODEProblem` (integration with ModelingToolkitNeuralNets is in
-progress). The first step is to define the ODE right-hand side. Compared to a standard
-in-place ODE function, an extra `ml_models` argument is provided. It stores the declared ML
-models and can be indexed by their IDs:
-
-```@example 1
-function ude_f!(du, u, p, t, ml_models)
-    X, Y = u
-    net1 = ml_models[:net1]
-    nn, _ = net1.lux_model([Y], p.net1, net1.st)
-    du[1] = nn[1][1] - p.d * X
-    du[2] = X - p.d * Y
-end
-nothing # hide
-```
-
-The parameter vector `p` is expected to be a `ComponentVector`, so mechanistic parameters
-are accessed as `p.id` (e.g. `p.d`) and ML parameters as `p.ml_id` (e.g. `p.net1`).
-
-Given the right-hand side, the `ODEProblem` can be constructed using the
-[`UDEProblem`](@ref) helper function:
-
-```@example 1
-using ComponentArrays
-p_mechanistic = ComponentArray(d = 1.0)
-u0 = ComponentArray(X = 2.0, Y = 0.1)
-ude_prob = UDEProblem(ude_f!, u0, (0.0, 10.0), p_mechanistic, ml_model)
-nothing # hide
-```
-
-When the dynamics are provided as an `ODEProblem`/`UDEProblem`, mechanistic parameters
-(`p_mechanistic`) and initial values (`u0`) must be `ComponentArray`s or `NamedTuple`s so
-PEtab.jl can track parameter and state IDs; see [Supported model systems](@ref
-model_systems) for details.
+For more on symbolic UDE creation, see the
+[ModelingToolkitNeuralNets documentation](https://docs.sciml.ai/ModelingToolkitNeuralNets/stable/).
 
 ### Defining ML parameters to estimate
 
-A `PEtabMLParameter` must be declared to specify whether its parameters are estimated for
-each `MLModel`. Thereby, when specifying the parameters-to-estimate vector for a SciML
+For each ML-model, a `PEtabMLParameter` must be declared to specify whether its parameters
+are estimated. Thereby, when specifying the parameters-to-estimate vector for a SciML
 problem, both mechanistic parameters (`PEtabParameter`) and ML parameters
 (`PEtabMLParameter`) must be included in the parameter vector:
 
 ```@example 1
+using PEtab
 pest = [
-    PEtabMLParameter(:net1),
+    PEtabMLParameter(:theta),
     PEtabParameter(:d; scale = :log10)
 ]
 ```
 
-A `PEtabMLParameter` can optionally be given an initial value, priors, and be fixed
-settings. Note parameter `d` is estimated on `log10` scale to enforce positivity.
+A `PEtabMLParameter` can optionally be given an initial value, priors, and be fixed to
+specific value. Note, parameter `d` is estimated on `log10` scale to enforce positivity.
 
 ### Measurements and observables
 
@@ -164,8 +157,8 @@ Measurements and observables are defined as for a mechanistic `PEtabODEProblem`.
 running example, we here use simulated data:
 
 ```@example 1
-using OrdinaryDiffEqTsit5, DataFrames, Random
-Random.seed!(123) # hide
+using OrdinaryDiffEqTsit5, DataFrames, StableRNGs
+rng = StableRNGs.StableRNG(2) # for reproducibility
 
 function f_true!(du, u, p, t)
     X, Y = u
@@ -182,8 +175,8 @@ sol = solve(
     ode_true, Tsit5(); abstol = 1e-8, reltol = 1e-8, saveat = 0:2:tend
 )
 
-data_X = sol[1, :] .+ randn(length(sol.t)) .* 0.5
-data_Y = sol[2, :] .+ randn(length(sol.t)) .* 0.7
+data_X = sol[1, :] .+ randn(rng, length(sol.t)) .* 0.5
+data_Y = sol[2, :] .+ randn(rng, length(sol.t)) .* 0.7
 df1 = DataFrame(obs_id = "obs_X", time = sol.t, measurement = data_X)
 df2 = DataFrame(obs_id = "obs_Y", time = sol.t, measurement = data_Y)
 measurements = vcat(df1, df2)
@@ -201,14 +194,14 @@ observables = [
 
 ### Bringing it all together
 
-Given the dynamic model (`ude_prob`), ML models, measurements, observables, and parameters
-to estimate, a `PEtabModel` is created largely the same way as for a mechanistic problem.
-The difference is that the ML models must be provided:
+Given the dynamic model (`sys_ude` or `rn_ude`), measurements, observables, and parameters
+to estimate, a `PEtabModel` is created the same way as for a mechanistic problem:
 
 ```@example 1
-model_ude = PEtabModel(
-    ude_prob, observables, measurements, pest; ml_models = ml_model
-)
+# Via ReactionSystem
+model_ude = PEtabModel(rn_ude, observables, measurements, pest)
+# Via ODESystem
+model_ude = PEtabModel(sys_ude, observables, measurements, pest)
 nothing # hide
 ```
 
@@ -224,7 +217,7 @@ estimate. It is further seen the non-stiff ODE solver `Tsit5()` is used and grad
 computed with ForwardDiff. These options can be changed, and the same `PEtabODEProblem`
 options are supported as for mechanistic models.
 
-## Parameter estimation (model training)
+## [Parameter estimation (model training)](@id UDE_training)
 
 SciML problems can be trained using the same approaches as mechanistic models (e.g.
 multi-start local optimization with a BFGS-based method via [`calibrate`](@ref)). In
@@ -236,13 +229,12 @@ Here, we will set up a training loop with `Adam` from
 requires a start guess, which can be generated with:
 
 ```@example 1
-using StableRNGs
-rng = StableRNG(1) # for reproducibility
+rng = StableRNG(42) # for reproducibility
 x0 = get_startguesses(rng, petab_prob, 1)
 ```
 
 The start guess includes both mechanistic parameters (e.g. `x0.d`) and ML parameters (e.g.
-`x0.net1`). By default, `get_startguesses` initializes ML parameters with the initializers
+`x0.theta`). By default, `get_startguesses` initializes ML parameters with the initializers
 in the Lux model. While not needed here, SciML training often improve by initializing ML
 parameters to smaller values [kidger2022neural](@cite).
 
@@ -254,7 +246,7 @@ respectively. For example, to train for 5000 epochs with `Adam`:
 using Optimisers
 global x # hide
 global state # hide
-n_epochs = 5000
+n_epochs = 7500
 x = deepcopy(x0)
 learning_rate = 1e-3
 
@@ -281,14 +273,29 @@ default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm, 
 plot(x, petab_prob)
 ```
 
-The training loop above is intentionally minimal. In practice, Optimisers.jl and related
-packages can be used to build training loops with learning-rate schedules, gradient
-clipping, early stopping, logging, etc.
+As one of many possible downstream analyses, we can compare the learned neural network to
+the true function it aims to approximate. In this example, the approximation is quite good:
 
-Plain Adam is often inefficient for SciML problems, and it is prudent to run parameter
-estimation from multiple start guesses to reduce sensitivity to local minima. More efficient
-strategies include curriculum training, multiple shooting, or combinations thereof, all of
-which are supported by PEtab.jl.
+```@example 1
+# True function to learn
+true_func(y) = 1.1 * (y^3) / (2^3 + y^3)
+
+# Extract the fitted neural network and parameters from the fitted ODEProblem
+ode_problem_fitted, _ = get_odeproblem(x, petab_prob)
+fitted_NN = ode_problem_fitted.ps[NN]
+fitted_theta = ode_problem_fitted.ps[theta]
+fitted_func(y) = fitted_NN([y], fitted_theta)[1]
+
+# Plot true vs fitted
+plot(true_func, 0.0, 5.0; label = "True function")
+plot!(fitted_func, 0.0, 5.0; label = "Fitted function", linestyle = :dash)
+```
+
+The training loop above is intentionally minimal. In practice, Optimisers.jl and related
+packages can be used to add learning-rate schedules, gradient clipping, early stopping, and
+logging. It is also worth noting that plain Adam is often inefficient for SciML problems,
+and to address this PEtab.jl supports more effective strategies such as curriculum training,
+multiple shooting, and combinations thereof (see below).
 
 ## Next steps
 
@@ -297,6 +304,8 @@ available options when building SciML problems (e.g. `PEtabMLParameter` settings
 [API](@ref API) documentation. For additional features, including SciML problem types beyond
 UDEs, see the following tutorials:
 
+- [Extended UDE tutorial](@ref ude_extended): Define the UDE model as an `ODEProblem` for
+  more control over the problem setup.
 - [ML models in observables](@ref observable_ml): define an ML model in the observable
   formula of a `PEtabObservable` (e.g. to correct model misspecification).
 - [Pre-simulation ML models](@ref pre_simulate_ml): define ML models that map input data
@@ -317,31 +326,49 @@ PEtabODEProblem options](@ref default_options).
 ## Copy pasteable example
 
 ```@example 2
-using ComponentArrays, Lux, PEtab
+using Catalyst, ComponentArrays, Lux, ModelingToolkitBase,
+    ModelingToolkitNeuralNets, PEtab
+using ModelingToolkitBase: t_nounits as t, D_nounits as D
 
 # MLModel
-lux_model1 = Lux.Chain(
+lux_model = Lux.Chain(
     Lux.Dense(1 => 3, Lux.softplus, use_bias = false),
     Lux.Dense(3 => 3, Lux.softplus, use_bias = false),
     Lux.Dense(3 => 1, Lux.softplus, use_bias = false),
 )
-ml_model = MLModel(:net1, lux_model1, false)
 
-# Create UDE-problem
-function ude_f!(du, u, p, t, ml_models)
-    X, Y = u
-    net1 = ml_models[:net1]
-    nn, _ = net1.lux_model([Y], p.net1, net1.st)
-    du[1] = nn[1][1] - p.d * X
-    du[2] = X - p.d * Y
+# UDE-system
+@SymbolicNeuralNetwork NN, theta = lux_model
+@parameters d
+@variables X(t)=2.0 Y(t)=0.1
+eqs = [
+    # Equations
+    D(X) ~ NN([Y], theta)[1] - d * X
+    D(Y) ~ X - d * Y
+]
+@mtkcompile sys_ude = System(eqs, t)
+
+# UDE-system via ReactionSystem
+using Catalyst
+
+# Scalar NN rate depending on Y.
+A(z) = NN([z], theta)
+rn_ude = @reaction_network begin
+    @species begin
+        X(t) = 2.0
+        Y(t) = 0.1
+    end
+    @parameters d
+
+    $A(Y)[1], 0 --> X
+    d, X --> 0
+    1.0, X --> X + Y
+    d, Y --> 0
 end
-p_mechanistic = ComponentArray(d = 1.0)
-u0 = ComponentArray(X = 2.0, Y = 0.1)
-ude_prob = UDEProblem(ude_f!, u0, (0.0, 10.0), p_mechanistic, ml_model)
 
 # Parameters to estimate
 pest = [
-    PEtabMLParameter(:net1),
+    PEtabMLParameter(:theta),
     PEtabParameter(:d; scale = :log10)
 ]
 
@@ -352,7 +379,8 @@ observables = [
 ]
 
 # Simulate data
-using OrdinaryDiffEqTsit5, DataFrames
+using OrdinaryDiffEqTsit5, DataFrames, StableRNGs
+rng = StableRNGs.StableRNG(2)
 function f_true!(du, u, p, t)
     X, Y = u
     v, K, n, d = p
@@ -366,28 +394,25 @@ ode_true = ODEProblem(f_true!, u0_true, (0.0, tend), p_true)
 sol = solve(
     ode_true, Tsit5(); abstol = 1e-8, reltol = 1e-8, saveat = 0:2:tend
 )
-data_X = sol[1, :] .+ randn(length(sol.t)) .* 0.5
-data_Y = sol[2, :] .+ randn(length(sol.t)) .* 0.7
+data_X = sol[1, :] .+ randn(rng, length(sol.t)) .* 0.5
+data_Y = sol[2, :] .+ randn(rng, length(sol.t)) .* 0.7
 df1 = DataFrame(obs_id = "obs_X", time = sol.t, measurement = data_X)
 df2 = DataFrame(obs_id = "obs_Y", time = sol.t, measurement = data_Y)
 measurements = vcat(df1, df2)
 
 # Create parameter estimation problem
-model_ude = PEtabModel(
-    ude_prob, observables, measurements, pest; ml_models = ml_model
-)
+model_ude = PEtabModel(sys_ude, observables, measurements, pest)
 petab_prob = PEtabODEProblem(model_ude)
 
 # Get random start-guess for model training
-using StableRNGs
-rng = StableRNG(1) # for reproducibility
+rng = StableRNG(42) # for reproducibility
 x0 = get_startguesses(rng, petab_prob, 1)
 
 # Simple Adam training loop
 using Optimisers, Plots
 global x # hide
 global state # hide
-n_epochs = 5000
+n_epochs = 7500
 x = deepcopy(x0)
 learning_rate = 1e-3
 state = Optimisers.setup(Adam(learning_rate), x)
@@ -403,6 +428,17 @@ for epoch in 1:n_epochs
     end
 end
 plot(x, petab_prob)
+
+# True function to learn
+true_func(y) = 1.1 * (y^3) / (2^3 + y^3)
+# Fitted neural network
+ode_problem_fitted, _ = get_odeproblem(x, petab_prob)
+fitted_NN = ode_problem_fitted.ps[NN]
+fitted_theta = ode_problem_fitted.ps[theta]
+fitted_func(y) = fitted_NN(y, fitted_theta)[1]
+# Plots the true and fitted functions
+plot(true_func, 0.0, 5.0; lw=8, label="True function")
+plot!(fitted_func, 0.0, 5.0; lw=6, label="Fitted function", linestyle=:dash)
 nothing # hide
 ```
 

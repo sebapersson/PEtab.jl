@@ -103,7 +103,15 @@ function _get_parametermap(sys::ODEProblem, ::Any, ml_models::MLModels)
     return sys, nothing
 end
 function _get_parametermap(sys::ModelSystem, parametermap_input, ::MLModels)
-    parametermap = [Num(p) => 0.0 for p in parameters(sys)]
+    parametermap_input = _dict_to_paired_vec(parametermap_input)
+
+    ps_ids = similar(parameters(sys), 0)
+    for ps_id in parameters(sys)
+        _is_neural_network_mtk(ps_id, sys) && continue
+        _is_neural_network_mtk_ps(ps_id, sys) && continue
+        push!(ps_ids, ps_id)
+    end
+    parametermap = [ps_id => 0.0 for ps_id in ps_ids]
 
     # User are allowed to specify default numerical values in the system
     default_values = _get_default_values(sys)
@@ -140,7 +148,7 @@ function _get_parametermap(sys::ModelSystem, parametermap_input, ::MLModels)
 end
 
 function _check_unassigned_variables(
-        sys::ModelSystem, variable_map, mapinput, whichmap::Symbol,
+        sys::ModelSystem, variable_map, input_map, whichmap::Symbol,
         petab_tables::PEtabTables
     )::Nothing
     conditions_df, parameters_df, hybridization_df = _get_petab_tables(
@@ -151,9 +159,10 @@ function _check_unassigned_variables(
         return nothing
     end
 
+    input_map = _dict_to_paired_vec(input_map)
     default_values = _get_default_values(sys)
-    if !isnothing(mapinput)
-        ids_input = replace.(first.(mapinput) .|> string, "(t)" => "")
+    if !isnothing(input_map)
+        ids_input = replace.(first.(input_map) .|> string, "(t)" => "")
     else
         ids_input = nothing
     end
@@ -240,4 +249,9 @@ function _get_parameters(sys::ODEProblem)::Vector{String}
 end
 function _get_parameters(sys::ModelSystem)::Vector{String}
     return string.(ModelingToolkitBase.parameters(sys))
+end
+
+_dict_to_paired_vec(variable_map) = variable_map
+function _dict_to_paired_vec(variable_map::Dict)
+    return keys(variable_map) .=> values(variable_map)
 end

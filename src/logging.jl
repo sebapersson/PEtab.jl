@@ -48,20 +48,6 @@ function _logging(
                 styled"functions already exist\n"
         end
     end
-    if whatlog == :Build_∂_h_σ
-        if buildfiles == true && exist == true
-            str = styled"{PURPLE:{bold:│ }} By user option rebuilds {emphasis:∂h∂p}, " *
-                styled"{emphasis:∂h∂u}, {emphasis:∂σ∂p} and {emphasis:∂σ∂u} functions ... "
-        end
-        if exist == false
-            str = styled"{PURPLE:{bold:│ }} Building {emphasis:∂h∂p}, {emphasis:∂h∂u}, " *
-                styled"{emphasis:∂σ∂p} and {emphasis:∂σ∂u} functions ... "
-        end
-        if buildfiles == false && exist == true
-            str = styled"{PURPLE:{bold:│ }} {emphasis:∂h∂p}, {emphasis:∂h∂u}, " *
-                styled"{emphasis:∂σ∂p} and {emphasis:∂σ∂u} functions already exist\n"
-        end
-    end
     if whatlog == :Build_callbacks
         str = styled"{PURPLE:{bold:└ }} Building {emphasis:callback} (events) functions ... "
     end
@@ -70,14 +56,8 @@ function _logging(
     if whatlog == :Build_PEtabODEProblem
         str = styled"{PURPLE:{bold:┌Info:}} Building {emphasis:PEtabODEProblem} for model $(name)\n"
     end
-    if whatlog == :Build_PEtabSDEProblem
-        str = styled"{PURPLE:{bold:┌Info:}} Building {emphasis:PEtabSDEProblem} for model $(name)\n"
-    end
     if whatlog == :Build_ODEProblem
         str = styled"{PURPLE:{bold:│ }} Building {emphasis:ODEProblem} from model system ... "
-    end
-    if whatlog == :Build_SDEProblem
-        str = styled"{PURPLE:{bold:└ }} Building {emphasis:SDEProblem} from model system ... "
     end
     if whatlog == :Build_nllh
         str = styled"{PURPLE:{bold:│ }} Building {emphasis:nllh} (negative log-likelihood) function ... "

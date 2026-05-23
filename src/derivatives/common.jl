@@ -7,6 +7,7 @@ function _G(
     @unpack petab_measurements, xindices, petab_parameters, model = model_info
     @unpack measurements_transformed, measurements, noise_distributions, observable_id = petab_measurements
     @unpack nominal_value = petab_parameters
+    p_vec = _get_tunables(p, xindices.get_ps_mtk_parameters)
 
     out = 0.0
     for im in imeasurements_t_cid[i]
@@ -15,11 +16,11 @@ function _G(
         xobservable_maps = xindices.xobservable_maps[im]
 
         h = _h(
-            u, t, p, xobservable, xnondynamic_mech, x_ml_models, x_ml_models_constant,
+            u, t, p_vec, xobservable, xnondynamic_mech, x_ml_models, x_ml_models_constant,
             model, xobservable_maps, obsid, nominal_value
         )
         σ = _sd(
-            u, t, p, xnoise, xnondynamic_mech, x_ml_models, x_ml_models_constant, model,
+            u, t, p_vec, xnoise, xnondynamic_mech, x_ml_models, x_ml_models_constant, model,
             xnoise_maps, obsid, nominal_value
         )
 

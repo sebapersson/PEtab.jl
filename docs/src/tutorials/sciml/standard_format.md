@@ -49,7 +49,7 @@ petab_model = PEtabModel(path_yaml; ml_models = ml_models)
 petab_prob = PEtabODEProblem(petab_model)
 ```
 
-As described in the [SciML starter tutorial](@ref sciml_starter), `petab_prob` can then be
+As described in the [SciML starter tutorial](@ref UDE_training), `petab_prob` can then be
 used for downstream tasks such as simulation and model training.
 
 ## References

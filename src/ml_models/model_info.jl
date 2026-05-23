@@ -139,3 +139,20 @@ function _set_condition_id_ml_models!(ml_models::MLModels, condition_id::Symbol)
     end
     return nothing
 end
+
+function _get_ml_models_sys(::ODEProblem)::MLModels
+    return MLModels(MLModel[], Symbol[])
+end
+function _get_ml_models_sys(sys::ModelSystem)::MLModels
+    ml_models = MLModel[]
+    for ps_id in parameters(sys)
+        !_is_neural_network_mtk_ps(ps_id, sys) && continue
+
+        ml_id = _get_ml_model_for_ps(sys, ps_id)
+        ml_model = MLModel(
+            Symbol(ps_id), _get_nn_chain_mtk(ml_id, sys), false
+        )
+        push!(ml_models, ml_model)
+    end
+    return MLModels(ml_models...)
+end

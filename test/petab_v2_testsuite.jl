@@ -1,4 +1,5 @@
-using CSV, DataFrames, FiniteDifferences, PEtab, Test, YAML
+using CSV, DataFrames, FiniteDifferences, PEtab, Test, YAML, OrdinaryDiffEqRosenbrock
+import SciMLLogging
 
 function test_v2(test_case::String; test_gradient::Bool = true)
     @info "Test case $(test_case)"
@@ -10,8 +11,14 @@ function test_v2(test_case::String; test_gradient::Bool = true)
     )
 
     ss_solver = SteadyStateSolver(:Simulate, abstol = 1.0e-12, reltol = 1.0e-10)
+    ode_solver = ODESolver(
+        Rodas5P(), abstol = 1.0e-10, reltol = 1.0e-10, verbose = SciMLLogging.None()
+    )
     model = PEtabModel(path_yaml)
-    prob = PEtabODEProblem(model; ss_solver = ss_solver, gradient_method = :ForwardDiff)
+    prob = PEtabODEProblem(
+        model; ss_solver = ss_solver, gradient_method = :ForwardDiff,
+        odesolver = ode_solver
+    )
     x = get_x(prob)
 
     nllh = prob.nllh(x; prior = false)

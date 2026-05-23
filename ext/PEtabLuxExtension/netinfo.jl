@@ -223,6 +223,7 @@ const ACTIVATION_FUNCTIONS = Dict(
     "hardtanh" => (fn = "Lux.hardtanh", nargs = 1),
     "hardswish" => (fn = "Lux.hardswish", nargs = 1),
     "selu" => (fn = "Lux.selu", nargs = 1),
+    "silu" => (fn = "Lux.swish", nargs = 1),
     "leaky_relu" => (fn = "Lux.leakyrelu", nargs = 1),
     "gelu" => (fn = "Lux.gelu", nargs = 1),
     "log_sigmoid" => (fn = "Lux.logsigmoid", nargs = 1),

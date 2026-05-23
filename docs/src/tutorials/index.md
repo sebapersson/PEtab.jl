@@ -38,6 +38,8 @@ features, and how to run and configure parameter estimation.
 
 - [SciML starter tutorial](@ref sciml_starter): Introductory tutorial on how to create and
   train a SciML problem that combines mechanistic ODE and ML (neural network) models.
+- [Extended UDE tutorial](@ref ude_extended): Define the UDE model as an `ODEProblem` for
+  more control over the problem setup.
 - [ML models in observables](@ref observable_ml): define an ML model in the observable
   formula of a `PEtabObservable` (e.g. to correct model misspecification).
 - [Pre-simulation ML models](@ref pre_simulate_ml): define ML models that map input data
