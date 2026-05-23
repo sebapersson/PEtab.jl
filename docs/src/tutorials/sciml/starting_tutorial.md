@@ -157,8 +157,8 @@ Measurements and observables are defined as for a mechanistic `PEtabODEProblem`.
 running example, we here use simulated data:
 
 ```@example 1
-using OrdinaryDiffEqTsit5, DataFrames, Random
-Random.seed!(123) # hide
+using OrdinaryDiffEqTsit5, DataFrames, StableRNGs
+rng = StableRNGs.StableRNG(2) # for reproducibility
 
 function f_true!(du, u, p, t)
     X, Y = u
@@ -175,8 +175,8 @@ sol = solve(
     ode_true, Tsit5(); abstol = 1e-8, reltol = 1e-8, saveat = 0:2:tend
 )
 
-data_X = sol[1, :] .+ randn(length(sol.t)) .* 0.5
-data_Y = sol[2, :] .+ randn(length(sol.t)) .* 0.7
+data_X = sol[1, :] .+ randn(rng, length(sol.t)) .* 0.5
+data_Y = sol[2, :] .+ randn(rng, length(sol.t)) .* 0.7
 df1 = DataFrame(obs_id = "obs_X", time = sol.t, measurement = data_X)
 df2 = DataFrame(obs_id = "obs_Y", time = sol.t, measurement = data_Y)
 measurements = vcat(df1, df2)
@@ -229,8 +229,7 @@ Here, we will set up a training loop with `Adam` from
 requires a start guess, which can be generated with:
 
 ```@example 1
-using StableRNGs
-rng = StableRNG(1) # for reproducibility
+rng = StableRNG(42) # for reproducibility
 x0 = get_startguesses(rng, petab_prob, 1)
 ```
 
@@ -247,7 +246,7 @@ respectively. For example, to train for 5000 epochs with `Adam`:
 using Optimisers
 global x # hide
 global state # hide
-n_epochs = 5000
+n_epochs = 7500
 x = deepcopy(x0)
 learning_rate = 1e-3
 
@@ -274,14 +273,29 @@ default(left_margin=12.5Plots.Measures.mm, bottom_margin=12.5Plots.Measures.mm, 
 plot(x, petab_prob)
 ```
 
-The training loop above is intentionally minimal. In practice, Optimisers.jl and related
-packages can be used to build training loops with learning-rate schedules, gradient
-clipping, early stopping, logging, etc.
+As one of many possible downstream analyses, we can compare the learned neural network to
+the true function it aims to approximate. In this example, the approximation is quite good:
 
-Plain Adam is often inefficient for SciML problems, and it is prudent to run parameter
-estimation from multiple start guesses to reduce sensitivity to local minima. More efficient
-strategies include curriculum training, multiple shooting, or combinations thereof, all of
-which are supported by PEtab.jl.
+```@example 1
+# True function to learn
+true_func(y) = 1.1 * (y^3) / (2^3 + y^3)
+
+# Extract the fitted neural network and parameters from the fitted ODEProblem
+ode_problem_fitted, _ = get_odeproblem(x, petab_prob)
+fitted_NN = ode_problem_fitted.ps[NN]
+fitted_theta = ode_problem_fitted.ps[theta]
+fitted_func(y) = fitted_NN([y], fitted_theta)[1]
+
+# Plot true vs fitted
+plot(true_func, 0.0, 5.0; label = "True function")
+plot!(fitted_func, 0.0, 5.0; label = "Fitted function", linestyle = :dash)
+```
+
+The training loop above is intentionally minimal. In practice, Optimisers.jl and related
+packages can be used to add learning-rate schedules, gradient clipping, early stopping, and
+logging. It is also worth noting that plain Adam is often inefficient for SciML problems,
+and to address this PEtab.jl supports more effective strategies such as curriculum training,
+multiple shooting, and combinations thereof (see below).
 
 ## Next steps
 
@@ -365,7 +379,8 @@ observables = [
 ]
 
 # Simulate data
-using OrdinaryDiffEqTsit5, DataFrames
+using OrdinaryDiffEqTsit5, DataFrames, StableRNGs
+rng = StableRNGs.StableRNG(2)
 function f_true!(du, u, p, t)
     X, Y = u
     v, K, n, d = p
@@ -379,8 +394,8 @@ ode_true = ODEProblem(f_true!, u0_true, (0.0, tend), p_true)
 sol = solve(
     ode_true, Tsit5(); abstol = 1e-8, reltol = 1e-8, saveat = 0:2:tend
 )
-data_X = sol[1, :] .+ randn(length(sol.t)) .* 0.5
-data_Y = sol[2, :] .+ randn(length(sol.t)) .* 0.7
+data_X = sol[1, :] .+ randn(rng, length(sol.t)) .* 0.5
+data_Y = sol[2, :] .+ randn(rng, length(sol.t)) .* 0.7
 df1 = DataFrame(obs_id = "obs_X", time = sol.t, measurement = data_X)
 df2 = DataFrame(obs_id = "obs_Y", time = sol.t, measurement = data_Y)
 measurements = vcat(df1, df2)
@@ -390,15 +405,14 @@ model_ude = PEtabModel(sys_ude, observables, measurements, pest)
 petab_prob = PEtabODEProblem(model_ude)
 
 # Get random start-guess for model training
-using StableRNGs
-rng = StableRNG(1) # for reproducibility
+rng = StableRNG(42) # for reproducibility
 x0 = get_startguesses(rng, petab_prob, 1)
 
 # Simple Adam training loop
 using Optimisers, Plots
 global x # hide
 global state # hide
-n_epochs = 5000
+n_epochs = 7500
 x = deepcopy(x0)
 learning_rate = 1e-3
 state = Optimisers.setup(Adam(learning_rate), x)
@@ -414,6 +428,17 @@ for epoch in 1:n_epochs
     end
 end
 plot(x, petab_prob)
+
+# True function to learn
+true_func(y) = 1.1 * (y^3) / (2^3 + y^3)
+# Fitted neural network
+ode_problem_fitted, _ = get_odeproblem(x, petab_prob)
+fitted_NN = ode_problem_fitted.ps[NN]
+fitted_theta = ode_problem_fitted.ps[theta]
+fitted_func(y) = fitted_NN(y, fitted_theta)[1]
+# Plots the true and fitted functions
+plot(true_func, 0.0, 5.0; lw=8, label="True function")
+plot!(fitted_func, 0.0, 5.0; lw=6, label="Fitted function", linestyle=:dash)
 nothing # hide
 ```
 

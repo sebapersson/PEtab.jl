@@ -13,6 +13,11 @@
 - Updated `ODESolver` verbosity to use SciMLLogging.jl. Instead of `true|false`, `verbose`
   should now be set to `SciMLLogging.None()`, `SciMLLogging.Minimal()`,
   `SciMLLogging.Standard()`, `SciMLLogging.Detailed()`, or `SciMLLogging.All()`.
+- Removed support for SciMLSensitivity forward sensitivity `sensealg`s
+  `ForwardSensitivities` and `ForwardDiffSensitivities` for
+  `gradient_method = :ForwardEquations` in `PEtabODEProblem`. These were consistently the
+  slowest gradient options and added maintenance overhead. Use `sensealg = :ForwardDiff`
+  (the current default) instead.
 
 ## PEtab.jl 5.1.0
 
