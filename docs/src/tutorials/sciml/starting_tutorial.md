@@ -5,7 +5,9 @@ learning (ML) models [rackauckas2020universal](@cite). PEtab.jl supports three S
 types, and any combination of them:
 
 1. ML model inside the ODE dynamics. This covers both Universal Differential Equations
-   (UDEs), also called grey-box and hybrid neural ODEs, as well as neural ODEs (NODEs).
+   (UDEs), also called grey-box and hybrid neural ODEs
+   [brucker2022neural, zou_hybrid2_2024](@cite), as well as neural ODEs (NODEs)
+   [chen2018neural](@cite).
 2. ML model in the observable formula which links ODE output to measurement data.
 3. Pre-simulation ML model, where the ML model is evaluated before simulation to map input
    data (e.g. high-dimensional images) to ODE parameters and/or initial conditions.
@@ -99,10 +101,37 @@ eqs = [
     D(Y) ~ X - d * Y
 ]
 @mtkcompile sys_ude = System(eqs, t)
+nothing # hide
 ```
 
-More on symbolic UDE creation can be found in the
-[ModelingToolkitNeuralNets documentation](https://docs.sciml.ai/ModelingToolkitNeuralNets/stable/)
+Alternatively, the UDE can be formulated as a Catalyst `ReactionSystem`:
+
+```@example 1
+using Catalyst
+
+# Scalar NN rate depending on Y.
+A(z) = NN([z], theta)
+rn_ude = @reaction_network begin
+    @species begin
+        X(t) = 2.0
+        Y(t) = 0.1
+    end
+    @parameters d
+
+    $A(Y)[1], 0 --> X
+    d, X --> 0
+    1.0, X --> X + Y
+    d, Y --> 0
+end
+nothing # hide
+```
+
+When embedding a neural network into a `ReactionSystem`, it must be introduced via a
+symbolic function (here `A(z)`) and can only be used in the parameter position of a
+reaction.
+
+For more on symbolic UDE creation, see the
+[ModelingToolkitNeuralNets documentation](https://docs.sciml.ai/ModelingToolkitNeuralNets/stable/).
 
 ### Defining ML parameters to estimate
 
@@ -165,10 +194,13 @@ observables = [
 
 ### Bringing it all together
 
-Given the dynamic model (`sys_ude`), measurements, observables, and parameters to estimate,
-a `PEtabModel` is created the same way as for a mechanistic problem:
+Given the dynamic model (`sys_ude` or `rn_ude`), measurements, observables, and parameters
+to estimate, a `PEtabModel` is created the same way as for a mechanistic problem:
 
 ```@example 1
+# Via ReactionSystem
+model_ude = PEtabModel(rn_ude, observables, measurements, pest)
+# Via ODESystem
 model_ude = PEtabModel(sys_ude, observables, measurements, pest)
 nothing # hide
 ```
@@ -185,7 +217,7 @@ estimate. It is further seen the non-stiff ODE solver `Tsit5()` is used and grad
 computed with ForwardDiff. These options can be changed, and the same `PEtabODEProblem`
 options are supported as for mechanistic models.
 
-## Parameter estimation (model training)
+## [Parameter estimation (model training)](@id UDE_training)
 
 SciML problems can be trained using the same approaches as mechanistic models (e.g.
 multi-start local optimization with a BFGS-based method via [`calibrate`](@ref)). In
@@ -280,7 +312,8 @@ PEtabODEProblem options](@ref default_options).
 ## Copy pasteable example
 
 ```@example 2
-using ComponentArrays, Lux, ModelingToolkitBase, ModelingToolkitNeuralNets, PEtab
+using Catalyst, ComponentArrays, Lux, ModelingToolkitBase,
+    ModelingToolkitNeuralNets, PEtab
 using ModelingToolkitBase: t_nounits as t, D_nounits as D
 
 # MLModel
@@ -300,6 +333,24 @@ eqs = [
     D(Y) ~ X - d * Y
 ]
 @mtkcompile sys_ude = System(eqs, t)
+
+# UDE-system via ReactionSystem
+using Catalyst
+
+# Scalar NN rate depending on Y.
+A(z) = NN([z], theta)
+rn_ude = @reaction_network begin
+    @species begin
+        X(t) = 2.0
+        Y(t) = 0.1
+    end
+    @parameters d
+
+    $A(Y)[1], 0 --> X
+    d, X --> 0
+    1.0, X --> X + Y
+    d, Y --> 0
+end
 
 # Parameters to estimate
 pest = [

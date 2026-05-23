@@ -2,13 +2,13 @@
 
 This tutorial shows how to set up an Universally Differential Equation (UDE) model as an
 `ODEProblem` for more fine-grained control over the problem setup. Defining the dynamics as
-an `ODEProblem` (instead of via ModelingToolkitNeuralNets) gives more control over the UDE
-right-hand side (e.g. ML models with multiple inputs) and is useful for cases not yet
-handled by ModelingToolkitNeuralNets.
+an `ODEProblem` instead of via ModelingToolkitNeuralNets gives more control over the UDE
+right-hand side (e.g. ML models with multiple input arguments) and is useful for cases not
+yet handled by ModelingToolkitNeuralNets.
 
-This tutorial assumes familiarity with the [SciML starter tutorial](@ref sciml_starter) and
-basic PEtab model setup from the [starting tutorial](@ref tutorial). As a working example,
-we use the same two-state model as in the [SciML starter tutorial](@ref sciml_starter):
+This tutorial assumes familiarity with the [SciML starter tutorial](@ref sciml_starter). As
+a working example, we use the same two-state model as in the [SciML starter tutorial](@ref
+sciml_starter):
 
 ```math
 \begin{align*}
@@ -65,8 +65,8 @@ end
 nothing # hide
 ```
 
-Regardless of how the Lux model is defined, in this case it must be wrapped as an `MLModel`
-and given a unique ID:
+Regardless of how the Lux model is defined, in the `ODEProblem` case it must be wrapped as
+an `MLModel` and given a unique ID:
 
 ```@example 1
 using PEtab
@@ -74,9 +74,8 @@ ml_model = MLModel(:net1, lux_model1, false)
 nothing # hide
 ```
 
-The third argument specifies whether the model is evaluated pre-simulation. In this
-tutorial, the ML model is evaluated during simulation (it enters the ODE dynamics), so
-`false` is used.
+The third argument specifies whether the model is evaluated pre-simulation. As the ML model
+is evaluated during simulation here (it enters the ODE dynamics), `false` is used.
 
 ### Defining the dynamic UDE model
 

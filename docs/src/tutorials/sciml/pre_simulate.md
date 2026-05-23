@@ -119,9 +119,7 @@ measurements = DataFrame(
 nothing # hide
 ```
 
-Note that when the ML-model is provided as a `MLModel`, the id should be used in
-`PEtabMLParameter`. Given this, the `PEtabModel` and associated `PEtabODEProblem` are
-created as usual:
+Given this, the `PEtabModel` and associated `PEtabODEProblem` are created as usual:
 
 ```@example 1
 petab_model = PEtabModel(
@@ -133,6 +131,14 @@ describe(petab_prob)
 
 As seen from the problem statistics, the `PEtabODEProblem` problem includes both mechanistic
 parameters and a ML model evaluated pre-simulation.
+
+::: tip `ml_models` must be provided to `PEtabModel`
+
+Any pre-simulation ML model must also be passed via the `ml_models` keyword to `PEtabModel`.
+For symbolically defined UDEs (as in the [SciML starter tutorial](@ref sciml_starter)), this
+is not required since PEtab.jl can infer the ML model structure from the model system.
+
+:::
 
 ## ML input data
 

@@ -10,19 +10,21 @@ efficient ones: curriculum learning, multiple shooting, and curriculum multiple 
 
 This tutorial shows how to apply these three strategies and compare them to plain Adam
 optimization. It assumes familiarity with the [SciML starter tutorial](@ref sciml_starter).
-As a running example, we fit a Neural ODE to time-series data generated from a
+As a running example, we fit a neural ODE to time-series data generated from a
 Lotka–Volterra system.
 
 ```@example 1
 using Lux, ModelingToolkitBase, ModelingToolkitNeuralNets, PEtab
 using ModelingToolkitBase: t_nounits as t, D_nounits as D
 
+# Neural network structure
 lux_model = Lux.Chain(
     Lux.Dense(2 => 5, Lux.swish),
     Lux.Dense(5 => 5, Lux.swish),
     Lux.Dense(5 => 2),
 )
 
+# Defining the neural ODE
 @SymbolicNeuralNetwork NN, theta = lux_model
 @variables prey(t)=0.44249296 predator(t)=4.6280594
 eqs = [

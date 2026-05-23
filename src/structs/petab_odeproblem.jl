@@ -497,7 +497,7 @@ For numerical stability, `PEtabODEProblem` works with the negative log-likelihoo
 -\\ell(\\mathbf{x}) = -\\sum_{i=1}^{N} \\ell_i(\\mathbf{x}),
 ```
 
-where ``\\ell_i`` is the log-likelihood contribution from measurement `i```. The
+where ``\\ell_i`` is the log-likelihood contribution from measurement ``i``. The
 `gradient_method` and `hessian_method` determine how ``-\\nabla \\ell(\\mathbf{x})`` and
 ``-\\nabla^2 \\ell(\\mathbf{x})`` are computed.
 
