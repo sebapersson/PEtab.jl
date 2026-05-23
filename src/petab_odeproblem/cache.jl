@@ -18,13 +18,7 @@ function PEtabODEProblemCache(
     end
     chunk_size = n_ps_chunk + n_ps_chunk^2
     chunk_size = chunk_size > 100 ? 100 : chunk_size
-    if hessian_method in [:ForwardDiff, :BlockForwardDiff, :GaussNewton]
-        level_cache = 2
-    elseif gradient_method in [:ForwardDiff, :ForwardEquations]
-        level_cache = 1
-    else
-        level_cache = 0
-    end
+    level_cache = 2
 
     # Pre-allocate cache for mechanistic parameters
     pre_xdynamic_mech = zeros(Float64, length(indices_est[:est_to_dynamic_mech]))

@@ -359,21 +359,6 @@ function _get_odeproblem(
     return oprob, u0map, psmap
 end
 
-function _reorder_parametermap(parametermap, parameter_order::Vector{Symbol})
-    parametermap_out = Vector{Pair{Symbolics.Num, Float64}}(undef, length(parametermap))
-    for (i, pname) in pairs(parameter_order)
-        imap = findfirst(x -> x == pname, Symbol.(first.(parametermap)))
-        if !(parametermap[imap].second isa Symbolics.Num)
-            parametermap_out[i] = parametermap[imap].first => parametermap[imap].second
-        elseif SBMLImporter.is_number(string(parametermap[imap].second))
-            parametermap_out[i] = parametermap[imap].first => parametermap[imap].second.val.val
-        else
-            parametermap_out[i] = parametermap[imap].first => 0.0
-        end
-    end
-    return parametermap_out
-end
-
 function _get_sbml_speciemap(model_SBML::SBMLImporter.ModelSBML)
     model_SBML_sys = SBMLImporter._to_system_syntax(model_SBML, false, false)
     modelstr = SBMLImporter.write_reactionsystem(

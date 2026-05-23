@@ -25,7 +25,7 @@ function solve_conditions!(
     # In case the model is first simulated to a steady state
     if simulation_info.has_pre_equilibration == true
         preeq_sols = simulation_info.odesols_preeq
-        preeq_ids = _get_preeq_ids(simulation_info, cids)
+        preeq_ids = _get_preeq_ids(simulation_info)
         # Arrays to store steady state (pre-eq) values
         u_ss = zeros(eltype(xdynamic), length(ode_problem.u0), length(preeq_ids))
         u_t0 = similar(u_ss)

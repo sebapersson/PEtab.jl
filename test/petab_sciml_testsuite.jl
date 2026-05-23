@@ -39,6 +39,8 @@ ode_solver = ODESolver(
         end
     end
 end
+# Input checking for standard format
+include(joinpath(@__DIR__, "petab_sciml_testsuite", "input_checking_standard_format.jl"))
 
 @testset "PEtab SciML initialization" begin
     for i in 1:3

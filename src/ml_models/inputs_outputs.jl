@@ -65,7 +65,7 @@ function _get_ml_model_input_values(
                 if _input_isfile(input_id, yaml_file, paths) == false
                     throw(PEtabInputError("ML model input variable '$(input_id)' is \
                         marked as an array-file input, but no matching input was found \
-                        among the array files in the PEtab problem. Check the \
+                        among the PEtab-SciML array files in the PEtab problem. Check the \
                         `array_files` entries in problem YAML-file"))
                 end
                 path = _get_input_path(input_id, yaml_file, paths)

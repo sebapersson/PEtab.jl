@@ -121,15 +121,8 @@ function _get_start(
     return model_info.simulation_info.tstarts[experiment_id]
 end
 
-function _get_preeq_ids(
-        simulation_info::SimulationInfo, cids::Vector{Symbol}
-    )::Vector{Symbol}
-    if cids[1] == :all
-        return unique(simulation_info.conditionids[:pre_equilibration])
-    else
-        which_id = findall(x -> x in simulation_info.conditionids[:experiment], cids)
-        return unique(simulation_info.conditionids[:pre_equilibration][which_id])
-    end
+function _get_preeq_ids(simulation_info::SimulationInfo)::Vector{Symbol}
+    return unique(simulation_info.conditionids[:pre_equilibration])
 end
 
 function _set_check_trigger_init!(cbs::SciMLBase.DECallback, value::Bool)::Nothing

@@ -153,7 +153,6 @@ function _get_get_ps_f(sys::ModelSystem)
     return SymbolicIndexingInterface.getp(sys, sys_ps_ids)
 end
 
-_get_ps_idx_to_sys(::ODEProblem)::Vector{Int64} = Int64[]
 function _get_mtk_ps_to_sys(sys::ModelSystem)::Vector{Int64}
     sys_ids = _flatten_parameters_sys(sys)
     idx = [SymbolicIndexingInterface.parameter_index(sys, x).idx for x in sys_ids]

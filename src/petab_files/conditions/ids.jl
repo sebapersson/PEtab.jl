@@ -377,17 +377,3 @@ function _order_id_sys!(ids_sys::T, ids_ml_in_ode::T)::Nothing where {T <: Vecto
     ids_sys[sort(ix)] .= ids_ml_in_ode
     return nothing
 end
-
-function _get_initial_condition_map(sys::ModelSystem, u0_map, parameter_map)
-    sys_bindings = ModelingToolkitBase.bindings(sys)
-    initial_condition_map = merge(Dict(u0_map), Dict(parameter_map))
-
-    # Any parameter with a binding is not allowed to be provided when specifying
-    # initial conditions for a ODEProblem with maps
-    for key in keys(initial_condition_map)
-        if haskey(sys_bindings, key)
-            delete!(initial_condition_map, key)
-        end
-    end
-    return initial_condition_map
-end

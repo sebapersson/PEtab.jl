@@ -164,8 +164,7 @@ function _get_sensealg(sensealg, ::Val{:ForwardEquations})::Symbol
         throw(
             PEtabInputError(
                 "For gradient method :ForwardEquations allowed sensealg \
-                arguments are $(allowed_methods). To use the latter two methods \
-                SciMLSensitivity must be loaded."
+                arguments are $(allowed_methods)."
             )
         )
     end

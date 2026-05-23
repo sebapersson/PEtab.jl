@@ -68,9 +68,17 @@ let
     p_parallel_coord.series_list[1].plotattributes[:y] == 1:length(xnames)
 end
 
+# Test single calibrate plotting
+@testset "PEtabOptimisationResult plotting" begin
+    petab_res = petab_ms_res.runs[1]
+    p_best_objective = plot(petab_res; plot_type = :best_objective)
+    p_objective = plot(petab_res; plot_type = :objective)
+    @test petab_res.ftrace == p_best_objective.series_list[1].plotattributes[:y]
+    @test petab_res.ftrace == p_objective.series_list[1].plotattributes[:y]
+end
+
 # Tests the plots comparing the fitted solution to the measurements. Bot model fit and
 # residuals
-# TODO: Fix it from here
 let
     # Declare model
     rn = @reaction_network begin

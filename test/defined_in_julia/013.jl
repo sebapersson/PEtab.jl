@@ -16,7 +16,8 @@ equations = [
     D(A) ~ -k1 * A + k2 * B
     D(B) ~ k1 * A - k2 * B
 ]
-@named sys_model = ODESystem(equations, t, sps, ps)
+@named _sys_model = System(equations, t, sps, ps)
+sys_model = mtkcompile(_sys_model)
 
 measurements = DataFrame(
     simulation_id = ["c0", "c0"],
