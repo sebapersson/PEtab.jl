@@ -39,7 +39,7 @@ Major features are:
   gradients via forward-mode automatic differentiation (small models) and adjoint
   sensitivity analysis (large models).
 - High performant, often faster than the state-of-the-art toolbox AMICI by ~2× for gradient
-  and parameter-estimation workloads [persson2025petab](@cite).
+  and parameter-estimation workloads.
 - Parameter estimation via high-level wrappers for Optim.jl, Ipopt.jl, Fides.jl, and
   Optimization.jl.
 - Practical identifiability analysis using profile likelihood via integration with
