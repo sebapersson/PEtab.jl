@@ -56,11 +56,11 @@ function PEtab.calibrate(
         res = nothing
     end
     alg_used = :Fides
-    xnames_ps = propertynames(prob.xnominal_transformed)
-    xstart = ComponentArray(; (xnames_ps .=> x)...)
-    xmin = ComponentArray(; (xnames_ps .=> xmin)...)
+    x0_out = PEtab._get_x_out(x, prob)
+    xmin_out = PEtab._get_x_out(xmin, prob)
     return PEtabOptimisationResult(
-        xmin, fmin, xstart, alg_used, niterations, runtime, xtrace, ftrace, converged, res
+        xmin_out, fmin, x0_out, alg_used, niterations, runtime, xtrace, ftrace, converged,
+        res
     )
 end
 

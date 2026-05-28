@@ -66,9 +66,8 @@ function PEtab.calibrate(
         runtime = NaN
         res = nothing
     end
-    xnames_ps = propertynames(prob.xnominal_transformed)
-    xstart = ComponentArray(; (xnames_ps .=> xstart)...)
-    xmin = ComponentArray(; (xnames_ps .=> _xmin)...)
+    x0_out = PEtab._get_x_out(xstart, prob)
+    xmin_out = PEtab._get_x_out(_xmin, prob)
 
     if alg isa Optim.IPNewton
         alg_used = :Optim_IPNewton
@@ -78,8 +77,8 @@ function PEtab.calibrate(
         alg_used = :Optim_LBFGS
     end
     return PEtabOptimisationResult(
-        xmin, fmin, xstart, alg_used, niterations, runtime,
-        xtrace, ftrace, converged, res
+        xmin_out, fmin, x0_out, alg_used, niterations, runtime, xtrace, ftrace, converged,
+        res
     )
 end
 

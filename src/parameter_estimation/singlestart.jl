@@ -19,20 +19,22 @@ documentation. Briefly, supported algorithms are from:
     (`alg = Fides.CustomHessian()`), or any of its built in Hessian approximations (e.g.
     `alg = Fides.BFGS()`). A full list of Hessian approximations can be found in the Fides
     [documentation](https://fides-dev.github.io/Fides.jl/stable/)
+- [`Optimisers.jl`](https://fluxml.ai/Optimisers.jl/stable/): Train using gradient-based
+    update rules from Optimisers, such as `Optimisers.Adam()` and `Optimisers.AdamW()`.
 
 Different ways to visualize the parameter estimation result can be found in the
 documentation.
 
-See also [`PEtabOptimisationResult`](@ref) and [`IpoptOptimizer`](@ref)
+See also [`PEtabOptimisationResult`](@ref), [`IpoptOptimizer`](@ref) and
+[`OptimisersOptions`](@ref)
 
 ## Keyword Arguments
 - `save_trace::Bool = false`: Whether to save the optimization trace of the objective
     function and parameter vector. Only applicable for some algorithms; see the
     documentation for details.
-- `options = DEFAULT_OPTIONS`: Configurable options for `alg`. The type and available
-    options depend on which package `alg` belongs to. For example, if `alg = IPNewton()`
-    from Optim.jl, `options` should be provided as an `Optim.Options()` struct. A list of
-    configurable options can be found in the documentation.
+- `options::OptimisersOptions = OptimisersOptions()`: Options for `Optimisers.jl`-based
+    calibration. Use `OptimisersOptions(n_epochs = ...)` to control the number of
+    optimizer update epochs.
 """
 function calibrate end
 
@@ -49,3 +51,9 @@ the bounds, which can negatively impact performance. More information on how to 
 [documentation](https://docs.sciml.ai/Optimization/stable/).
 """
 function OptimizationProblem end
+
+function _get_x_out(x::AbstractVector, prob::PEtabODEProblem)::ComponentArray
+    x_out = deepcopy(get_x(prob))
+    copy!(x_out, x)
+    return x_out
+end
