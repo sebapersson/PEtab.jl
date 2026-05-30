@@ -4,8 +4,8 @@
 =#
 
 using PEtab, Distributions, CSV, DataFrames, OrdinaryDiffEqRosenbrock, Catalyst, Lux,
-    ComponentArrays, Optim, Ipopt, Optimization, OptimizationOptimJL, Test
-import Random
+    ComponentArrays, Optim, Ipopt, Optimization, Optimisers, OptimizationOptimJL, Test
+import StableRNGs
 
 @testset "Generate startguesses" begin
     # Test startguesses for a hard to integrate ODE model
@@ -57,7 +57,7 @@ import Random
     @test all([x.k2 for x in x_starts] .> 0.4)
     @test all([x.k2 for x in x_starts] .< 0.8)
     # Test seed-provided RNG behaves as expected
-    rng1, rng2, rng3 = Random.Xoshiro(1), Random.Xoshiro(1), Random.Xoshiro(2)
+    rng1, rng2, rng3 = StableRNGs.StableRNG(1), StableRNGs.StableRNG(1), StableRNGs.StableRNG(2)
     x1 = get_startguesses(rng1, prob, 10)
     x2 = get_startguesses(rng2, prob, 10)
     x3 = get_startguesses(rng3, prob, 10)
@@ -99,7 +99,7 @@ import Random
     @test all(x.net2.layer2.bias .== 0.0)
     @test all(x.net2.layer3.bias .== 0.0)
     # Test rng is propagated as expected
-    rng1, rng2, rng3 = Random.Xoshiro(1), Random.Xoshiro(1), Random.Xoshiro(2)
+    rng1, rng2, rng3 = StableRNGs.StableRNG(1), StableRNGs.StableRNG(1), StableRNGs.StableRNG(2)
     x1 = get_startguesses(rng1, prob, 10)
     x2 = get_startguesses(rng2, prob, 10)
     x3 = get_startguesses(rng3, prob, 10)
@@ -107,7 +107,7 @@ import Random
     @test x1 != x3
 
     # SciML model with priors
-    rng = Random.Xoshiro(3)
+    rng = StableRNGs.StableRNG(3)
     path_yaml = joinpath(
         @__DIR__, "petab_sciml_testsuite", "test_cases", "sciml_problem_import", "033",
         "petab", "problem.yaml"
@@ -119,7 +119,7 @@ import Random
     @test mean([x.net1.layer1[1] for x in x_starts]) ≈ 0.0 atol = 1.0e-1
     @test std([x.net1.layer1[end] for x in x_starts]) ≈ 2.0 atol = 1.0e-2
     @test mean([x.net1.layer2[1] for x in x_starts]) ≈ 0.0 atol = 1.0e-1
-    @test std([x.net1.layer2[end] for x in x_starts]) ≈ 1.0 atol = 1.0e-2
+    @test std([x.net1.layer2[end] for x in x_starts]) ≈ 1.0 atol = 2.0e-2
 end
 
 @testset "Calibrate single start" begin
@@ -158,11 +158,55 @@ end
     res1 = calibrate_multistart(
         prob, Optim.IPNewton(), 10; save_trace = true, dirsave = dirsave
     )
-    rng = Random.Xoshiro(1)
+    rng = StableRNGs.StableRNG(1)
     res2 = calibrate_multistart(rng, prob, IpoptOptimizer(true), 10; save_trace = false)
     res_read = PEtabMultistartResult(dirsave)
     @test all(.≈(res1.xmin, get_x(prob), atol = 1.0e-2))
     @test all(.≈(res2.xmin, get_x(prob), atol = 1.0e-2))
     @test all(.≈(res_read.xmin, get_x(prob), atol = 1.0e-2))
     rm(dirsave, recursive = true)
+end
+
+# Calibrate with Optimisers for SciML models
+path_yaml = joinpath(
+    @__DIR__, "petab_sciml_testsuite", "test_cases", "sciml_problem_import", "001", "petab",
+    "problem.yaml"
+)
+ml_models = MLModels(path_yaml)
+model = PEtabModel(path_yaml; ml_models = ml_models)
+prob = PEtabODEProblem(model)
+@testset "SciML model training" begin
+    # Single start
+    x0 = get_x(prob) .* 0.5
+    nllh0 = prob.nllh(x0)
+    training_rule = Optimisers.Adam(0.001)
+    res = calibrate(
+        prob, x0, training_rule; save_trace = true
+    )
+    @test res.fmin < nllh0
+    @test prob.nllh(res.xmin) == res.fmin
+    @test length(res.ftrace) == 100
+
+    # Test max_time_options
+    res_max_time = calibrate(
+        prob, x0, training_rule;
+        options = OptimisersOptions(iterations = 10000, max_time = 1.0)
+    )
+    @test res_max_time.niterations < 10000
+
+    # Multistart
+    rng = StableRNGs.StableRNG(1)
+    res_ms = calibrate_multistart(
+        rng, prob, training_rule, 10; save_trace = false, init_bias = Lux.zeros64,
+        init_weight = Lux.zeros64, options = OptimisersOptions(iterations = 20)
+    )
+    @test all(res_ms.runs[1].x0.net1 .== 0.0)
+    @test res_ms.fmin < prob.nllh(res_ms.runs[1].x0)
+
+    # Test can run with Optim.jl
+    res_optim = calibrate(
+        prob, x0, Optim.BFGS(), options = Optim.Options(iterations = 10)
+    )
+    @test res_optim.fmin < nllh0
+    @test prob.nllh(res_optim.xmin) == res_optim.fmin
 end

@@ -1,5 +1,6 @@
 module PEtabOptimisersExtension
 
+import Dates
 import Optimisers
 import QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
 import Random
@@ -24,7 +25,7 @@ function PEtab.calibrate(
         alg::Optimisers.AbstractRule; save_trace::Bool = false,
         options::PEtab.OptimisersOptions = PEtab.OptimisersOptions()
     )::PEtab.PEtabOptimisationResult
-    n_epochs = options.n_epochs
+    iterations = options.iterations
 
     ftrace = Vector{Float64}(undef, 0)
     xtrace = Vector{Vector{Float64}}(undef, 0)
@@ -35,8 +36,9 @@ function PEtab.calibrate(
     x_prev = deepcopy(x)
     state = Optimisers.setup(alg, x)
 
+    start_time = Dates.now()
     runtime = @elapsed begin
-        for epoch in 1:n_epochs
+        for epoch in 1:iterations
             epoch_tracker[1] = epoch
 
             g = prob.grad(x)
@@ -44,6 +46,8 @@ function PEtab.calibrate(
 
             # Check if should terminate
             nllh = prob.nllh(x)
+            current_time = Dates.now() - start_time
+            @assert current_time isa Dates.Millisecond "Time diff. must be in milliseconds"
             if all(x .== x_prev)
                 @warn "In epoch $epoch parameter vector x was unchanged. This suggests \
                     gradient computation error; terminating early."
@@ -51,6 +55,11 @@ function PEtab.calibrate(
             end
             if isinf(nllh)
                 @warn "Objective is infinite in epoch $epoch; terminating early."
+                break
+            end
+            if current_time.value / 1e3 > options.max_time
+                @warn "Maximum time of $(options.max_time) seconds exceeded; terminating \
+                    early."
                 break
             end
 

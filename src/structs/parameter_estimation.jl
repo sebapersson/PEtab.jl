@@ -62,20 +62,24 @@ function IpoptOptions(;
 end
 
 """
-    OptimisersOptions(; n_epochs::Integer = 100)
+    OptimisersOptions(; iterations::Integer = 100, max_time = Inf)
 
 Create options for `PEtab.calibrate` when using an `Optimisers.jl` optimizer rule.
 
 # Keyword Arguments
-- `n_epochs::Integer = 100`: Maximum number of update steps to perform. Must be a
-  positive integer.
+- `iterations::Integer = 100`: Number of update steps to perform. Must be a positive
+   integer.
+- `max_time::AbstractFloat = Inf`: Maximum time in seconds that the optimization is
+   allowed to run.
 """
 struct OptimisersOptions
-    n_epochs::Int64
+    iterations::Int64
+    max_time::Float64
 end
-function OptimisersOptions(; n_epochs::Integer = 100)
-    @assert n_epochs > 0 "n_epochs must be a positive integer"
-    return OptimisersOptions(n_epochs)
+function OptimisersOptions(; iterations::Integer = 100, max_time::Real = Inf)
+    @assert iterations > 0 "iterations must be a positive integer"
+    @assert max_time > 0 "max_time must be a positive number"
+    return OptimisersOptions(iterations, max_time)
 end
 
 """

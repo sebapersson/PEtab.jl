@@ -32,9 +32,10 @@ See also [`PEtabOptimisationResult`](@ref), [`IpoptOptimizer`](@ref) and
 - `save_trace::Bool = false`: Whether to save the optimization trace of the objective
     function and parameter vector. Only applicable for some algorithms; see the
     documentation for details.
-- `options::OptimisersOptions = OptimisersOptions()`: Options for `Optimisers.jl`-based
-    calibration. Use `OptimisersOptions(n_epochs = ...)` to control the number of
-    optimizer update epochs.
+- `options = DEFAULT_OPTIONS`: Configurable options for `alg`. The type and available
+    options depend on which package `alg` belongs to. For example, if `alg = IPNewton()`
+    from Optim.jl, `options` should be provided as an `Optim.Options()` struct. A list of
+    configurable options can be found in the documentation.
 """
 function calibrate end
 
