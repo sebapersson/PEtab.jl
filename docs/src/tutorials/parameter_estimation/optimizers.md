@@ -5,16 +5,21 @@ CollapsedDocStrings=true
 # [Optimization algorithms and recommendations](@id options_optimizers)
 
 For [`calibrate`](@ref) and [`calibrate_multistart`](@ref), PEtab.jl supports optimizers
-from three popular packages: [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl),
-[Ipopt.jl](https://github.com/jump-dev/Ipopt.jl), and
-[Fides.jl](https://fides-dev.github.io/Fides.jl/stable/). This page summarizes the available
-algorithms and provides recommendations by model size.
+from four popular packages: [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl),
+[Ipopt.jl](https://github.com/jump-dev/Ipopt.jl),
+[Fides.jl](https://fides-dev.github.io/Fides.jl/stable/) and
+[Optimisers.jl](https://github.com/FluxML/Optimisers.jl). This page summarizes the available
+algorithms and provides recommendations by model size and model type.
 
 ## Recommended algorithm
 
-When choosing an optimization algorithm, the **no free lunch** principle applies:
-performance is problem-dependent and no method is universally best. Still, benchmark studies
-have identified methods that often work well for ODE models in biology (and likely beyond)
+When choosing an optimization algorithm, the **no-free-lunch** principle applies:
+performance is problem-dependent and no method is universally best. The choice also depends
+strongly on model type, purely mechanistic ODE models often favor different optimizers than
+SciML models that combine mechanistic and machine-learning (ML) components.
+
+For mechanistic ODE models, benchmarks have identified methods that often work well for
+models in biology (and likely beyond)
 [raue2013lessons, hass2019benchmark, villaverde2019benchmarking](@cite). In brief, the
 choice is driven by model size: for small models an accurate Hessian (or good approximation)
 is often feasible to compute, while for larger models it typically is not (see [gradient and
@@ -28,6 +33,11 @@ Hessian support](@ref gradient_support)). Thereby, we recommend:
   the (L)BFGS approximation in this regime [frohlich2022fides](@cite).
 - **Large models** (>20 ODEs or >75 estimated parameters): (L)BFGS methods such as Ipopt or
   `Fides.BFGS`.
+
+For SciML models, optimizers commonly used in machine learning (e.g. Adam from
+Optimisers.jl) are often a good starting point [kingma2014adam, philipps2025current](@cite).
+Training can also benefit from specialized strategies; see [SciML training strategies](@ref
+sciml_training) page for details.
 
 ## Fides
 
@@ -118,6 +128,32 @@ To use Ipopt, load [Ipopt.jl](https://github.com/jump-dev/Ipopt.jl) with `using 
 before running parameter estimation.
 
 :::
+
+## Optimisers
+
+[Optimisers.jl](https://github.com/FluxML/Optimisers.jl) provides gradient-based update
+rules commonly used for training machine-learning and SciML models. In PEtab.jl,
+[`calibrate`](@ref) and [`calibrate_multistart`](@ref) can run a chosen number of
+epochs/iterations with a given Optimisers.jl rule (e.g. `Optimisers.Adam()`). The number of
+epochs is configured via `OptimisersOptions`:
+
+```@docs; canonical=false
+OptimisersOptions
+```
+
+For example, to run Adam for 1000 epochs with learning rate `1e-3`:
+
+```julia
+using Optimisers
+learning_rate = 1e-3
+res = calibrate(
+    petab_prob, x0, Optimisers.Adam(learning_rate);
+    options = OptimisersOptions(max_iter = 1000),
+)
+```
+
+All available training rules are listed in the
+[Optimisers.jl API documentation](https://fluxml.ai/Optimisers.jl/stable/api/).
 
 ## References
 

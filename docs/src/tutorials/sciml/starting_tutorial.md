@@ -74,7 +74,7 @@ lux_model = Lux.Chain(
 )
 ```
 
-Here, `softplus` is used to keep the output positive.
+Here, `softplus` activation function is used to keep the output positive.
 
 ### Defining the dynamic UDE model
 
@@ -108,6 +108,7 @@ Alternatively, the UDE can be formulated as a Catalyst `ReactionSystem`:
 
 ```@example 1
 using Catalyst
+t = Catalyst.default_t()
 
 # Scalar NN rate depending on Y.
 A(z) = NN([z], theta)
@@ -117,7 +118,7 @@ rn_ude = @reaction_network begin
         Y(t) = 0.1
     end
     @parameters d
-
+    # Reactions
     $A(Y)[1], 0 --> X
     d, X --> 0
     1.0, X --> X + Y
@@ -222,25 +223,43 @@ options are supported as for mechanistic models.
 SciML problems can be trained using the same approaches as mechanistic models (e.g.
 multi-start local optimization with a BFGS-based method via [`calibrate`](@ref)). In
 practice, SciML training often benefits from optimizers commonly used for ML
-[philipps2025current](@cite), such as the `Adam` optimizer [kingma2014adam](@cite).
+[philipps2025current](@cite), such as the `Adam` optimizer [kingma2014adam](@cite). `Adam`,
+and other common ML optimizers are available in
+[Optimisers.jl](https://fluxml.ai/Optimisers.jl/stable/).
 
-Here, we will set up a training loop with `Adam` from
-[Optimisers.jl](https://fluxml.ai/Optimisers.jl/stable/). Like most optimizers, `Adam`
-requires a start guess, which can be generated with:
+Like most optimizers, `Adam` requires a start guess which can be generated with:
 
 ```@example 1
-rng = StableRNG(42) # for reproducibility
+using StableRNGs
+rng = StableRNGs.StableRNG(42) # for reproducibility
 x0 = get_startguesses(rng, petab_prob, 1)
 ```
 
 The start guess includes both mechanistic parameters (e.g. `x0.d`) and ML parameters (e.g.
-`x0.theta`). By default, `get_startguesses` initializes ML parameters with the initializers
-in the Lux model. While not needed here, SciML training often improve by initializing ML
+`x0.theta`). By default, `get_startguesses` initializes ML parameters using the initializers
+in the Lux model. While not needed here, training often improves by initializing ML
 parameters to smaller values [kidger2022neural](@cite).
 
-With a start guess available, a training loop can be written leveraging that the objective
-function and its gradient can be computed with `petab_prob.nllh(x)` and `petab_prob.grad(x)`
-respectively. For example, to train for 5000 epochs with `Adam`:
+With a start guess available, `calibrate` can train with any optimizer from Optimisers.jl.
+For example, to train for 7500 epochs/iterations with `Adam`:
+
+```@example 1
+using Optimisers
+learning_rate = 1e-3
+res = calibrate(
+    petab_prob, x0, Optimisers.Adam(learning_rate);
+    options = OptimisersOptions(iterations = 7500),
+)
+```
+
+Both [`calibrate`](@ref) and [`calibrate_multistart`](@ref) run the provided update rule for
+the number of iterations specified in `OptimisersOptions`. For more fine-grained control
+(e.g. learning rate schedules and early stopping), a custom training loop must be
+implemented.
+
+Such custom loop can be written leveraging that the objective and its gradient can be
+computed with `petab_prob.nllh(x)` and `petab_prob.grad(x)`, respectively. For example, to
+train for 7500 epochs/iterations with `Adam`:
 
 ```@example 1
 using Optimisers
@@ -291,11 +310,11 @@ plot(true_func, 0.0, 5.0; label = "True function")
 plot!(fitted_func, 0.0, 5.0; label = "Fitted function", linestyle = :dash)
 ```
 
-The training loop above is intentionally minimal. In practice, Optimisers.jl and related
-packages can be used to add learning-rate schedules, gradient clipping, early stopping, and
-logging. It is also worth noting that plain Adam is often inefficient for SciML problems,
-and to address this PEtab.jl supports more effective strategies such as curriculum training,
-multiple shooting, and combinations thereof (see below).
+The above training loop above is intentionally minimal. In practice, Optimisers.jl and
+related packages can be used to add learning-rate schedules, gradient clipping, early
+stopping, and logging. It is also worth noting that plain Adam is often inefficient for
+SciML problems, and to address this PEtab.jl supports more effective strategies such as
+curriculum training, multiple shooting, and combinations thereof (see below).
 
 ## Next steps
 
