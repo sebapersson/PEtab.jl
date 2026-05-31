@@ -57,7 +57,7 @@ function PEtab.calibrate(
                 @warn "Objective is infinite in epoch $epoch; terminating early."
                 break
             end
-            if current_time.value / 1e3 > options.max_time
+            if current_time.value / 1.0e3 > options.max_time
                 @warn "Maximum time of $(options.max_time) seconds exceeded; terminating \
                     early."
                 break
