@@ -50,18 +50,16 @@ function PEtab.calibrate(
         runtime = NaN
         sol_ipopt = nothing
     end
-    xnames_ps = propertynames(prob.xnominal_transformed)
-    xstart = ComponentArray(; (xnames_ps .=> xstart)...)
-    xmin = ComponentArray(; (xnames_ps .=> _xmin)...)
-
+    x0_out = PEtab._get_x_out(xstart, prob)
+    xmin_out = PEtab._get_x_out(_xmin, prob)
     if alg.LBFGS == true
         alg_used = :Ipopt_LBFGS
     else
         alg_used = :Ipopt_user_Hessian
     end
     return PEtabOptimisationResult(
-        xmin, fmin, xstart, alg_used, niterations, runtime,
-        xtrace, ftrace, converged, sol_ipopt
+        xmin_out, fmin, x0_out, alg_used, niterations, runtime, xtrace, ftrace, converged,
+        sol_ipopt
     )
 end
 

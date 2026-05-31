@@ -19,11 +19,14 @@ documentation. Briefly, supported algorithms are from:
     (`alg = Fides.CustomHessian()`), or any of its built in Hessian approximations (e.g.
     `alg = Fides.BFGS()`). A full list of Hessian approximations can be found in the Fides
     [documentation](https://fides-dev.github.io/Fides.jl/stable/)
+- [`Optimisers.jl`](https://fluxml.ai/Optimisers.jl/stable/): Train using gradient-based
+    update rules from Optimisers, such as `Optimisers.Adam()` and `Optimisers.AdamW()`.
 
 Different ways to visualize the parameter estimation result can be found in the
 documentation.
 
-See also [`PEtabOptimisationResult`](@ref) and [`IpoptOptimizer`](@ref)
+See also [`PEtabOptimisationResult`](@ref), [`IpoptOptimizer`](@ref) and
+[`OptimisersOptions`](@ref)
 
 ## Keyword Arguments
 - `save_trace::Bool = false`: Whether to save the optimization trace of the objective
@@ -49,3 +52,9 @@ the bounds, which can negatively impact performance. More information on how to 
 [documentation](https://docs.sciml.ai/Optimization/stable/).
 """
 function OptimizationProblem end
+
+function _get_x_out(x::AbstractVector, prob::PEtabODEProblem)::ComponentArray
+    x_out = deepcopy(get_x(prob))
+    copy!(x_out, x)
+    return x_out
+end

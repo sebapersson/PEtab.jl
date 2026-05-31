@@ -117,13 +117,15 @@ petab_select
 ```
 
 For calibration, optimizers from [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl),
-[Ipopt.jl](https://github.com/jump-dev/Ipopt.jl), and
-[Fides.jl](https://fides-dev.github.io/Fides.jl/stable/). Ipopt-specific configuration is
-available via:
+[Ipopt.jl](https://github.com/jump-dev/Ipopt.jl),
+[Fides.jl](https://fides-dev.github.io/Fides.jl/stable/) and
+[Optimisers](https://github.com/FluxML/Optimisers.jl) are available. Ipopt-specific and
+Optimisers configuration is available via:
 
 ```@docs
 IpoptOptimizer
 IpoptOptions
+OptimisersOptions
 ```
 
 Parameter-estimation results can be visualized using the plotting recipes described on

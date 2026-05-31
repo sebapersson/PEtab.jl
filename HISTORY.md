@@ -1,5 +1,11 @@
 # Breaking updates and feature summaries across releases
 
+## PEtab.jl 5.3.0
+
+- Added support for Optimisers.jl update rules in `calibrate` and `calibrate_multistart` via
+  a package extension. For example, it is now possible to do:
+  `calibrate(prob, x0, Optimisers.Adam(1e-3))`.
+
 ## PEtab.jl 5.2.0
 
 - Added support for ModelingToolkitNeuralNets via a package extension. This enables symbolic
