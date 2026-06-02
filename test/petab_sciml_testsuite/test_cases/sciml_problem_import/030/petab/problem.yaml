@@ -19,7 +19,7 @@ extensions:
       - "net5_ps.hdf5"
     hybridization_files:
       - "hybridization.tsv"
-    neural_nets:
+    neural_networks:
       net5:
         location: "net5.yaml"
         pre_initialization: true

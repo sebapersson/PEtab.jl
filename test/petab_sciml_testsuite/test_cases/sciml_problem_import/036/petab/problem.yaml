@@ -20,7 +20,7 @@ extensions:
       - "net6_input1.hdf5"
     hybridization_files:
       - "hybridization.tsv"
-    neural_nets:
+    neural_networks:
       net6:
         location: "net6.yaml"
         pre_initialization: false
