@@ -1,7 +1,7 @@
 function PEtab.MLModels(path_yaml::String)::PEtab.MLModels
     problem_yaml = YAML.load_file(path_yaml)
     dir_model = dirname(path_yaml)
-    yaml_models = problem_yaml["extensions"]["sciml"]["neural_nets"]
+    yaml_models = problem_yaml["extensions"]["sciml"]["neural_networks"]
 
     ml_models = PEtab.MLModel[]
     for (ml_id, model_info) in yaml_models

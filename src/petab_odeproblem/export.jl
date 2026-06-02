@@ -102,7 +102,7 @@ function _is_sciml_problem(yaml_file::Dict)::Bool
 end
 
 function _get_ml_paths(path_yaml::String, yaml_file::Dict)::Vector{String}
-    yaml_models = yaml_file["extensions"]["sciml"]["neural_nets"]
+    yaml_models = yaml_file["extensions"]["sciml"]["neural_networks"]
     ml_paths = String[]
     for ml_model_info in values(yaml_models)
         push!(ml_paths, joinpath(dirname(path_yaml), ml_model_info["location"]))
