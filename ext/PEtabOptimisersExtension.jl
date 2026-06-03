@@ -78,7 +78,7 @@ function PEtab.calibrate(
     fmin = isinf(nllh) ? NaN : nllh
 
     ix = findfirst(x -> x == '(', string(alg))
-    alg_used = Symbol(string(alg)[1:ix - 1])
+    alg_used = Symbol(string(alg)[1:(ix - 1)])
     niterations = epoch_tracker[1]
     res = state
     return PEtab.PEtabOptimisationResult(

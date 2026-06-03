@@ -198,7 +198,9 @@ Reconstruct a `ComponentArray` from a vector of dot-separated labels and corresp
 Scalar fields are inferred from bare labels (e.g. `"alpha"`), arrays from indexed labels
 (e.g. `"net1.layer1.weight[1,2]"`), and nested structures from dot-separated paths. Helper
 function to be able to read parameter estimation results from disk, where parameters are
-stored in a long format with labels
+stored in a long format with labels.
+
+Written with help of Claude.
 """
 function _labels_to_componentarray(labels, values)
     ca = _build_nested(labels, values) |> _to_componentarray
@@ -219,21 +221,23 @@ function _build_nested(labels, values)
         parts, idx = _parse_label(label)
         push!(get!(groups, String(parts[1]), []), (parts[2:end], idx, val))
     end
-    return Dict(key => begin
-        all_leaf   = all(isempty(e[1]) for e in entries)
-        all_scalar = all_leaf && isempty(entries[1][2])
-        if all_scalar
-            entries[1][3]
-        elseif all_leaf
-            shape = Tuple(maximum(e[2][i] for e in entries) for i in 1:length(entries[1][2]))
-            arr = zeros(Float64, shape...)
-            foreach(e -> (arr[e[2]...] = e[3]), entries)
-            length(shape) == 1 ? vec(arr) : arr
-        else
-            sub_labels = [join(e[1], ".") * (isempty(e[2]) ? "" : "[$(join(e[2], ","))]") for e in entries]
-            _build_nested(sub_labels, [e[3] for e in entries])
-        end
-    end for (key, entries) in groups)
+    return Dict(
+        key => begin
+                all_leaf = all(isempty(e[1]) for e in entries)
+                all_scalar = all_leaf && isempty(entries[1][2])
+                if all_scalar
+                    entries[1][3]
+            elseif all_leaf
+                    shape = Tuple(maximum(e[2][i] for e in entries) for i in 1:length(entries[1][2]))
+                    arr = zeros(Float64, shape...)
+                    foreach(e -> (arr[e[2]...] = e[3]), entries)
+                    length(shape) == 1 ? vec(arr) : arr
+            else
+                    sub_labels = [join(e[1], ".") * (isempty(e[2]) ? "" : "[$(join(e[2], ","))]") for e in entries]
+                    _build_nested(sub_labels, [e[3] for e in entries])
+            end
+            end for (key, entries) in groups
+    )
 end
 
 function _to_componentarray(d::Dict)
