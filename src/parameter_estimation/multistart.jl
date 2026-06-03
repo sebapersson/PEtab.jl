@@ -1,3 +1,5 @@
+const _SUPPORTED_PACKAGES = [:Fides, :Ipopt, :Optim, :Optimisers]
+
 """
     calibrate_multistart([rng::AbstractRng], prob::PEtabODEProblem, alg, nmultistarts::Integer;
                          nprocs = 1, dirsave=nothing, kwargs...)::PEtabMultistartResult
@@ -80,8 +82,8 @@ function _calibrate_multistart(
         sample_prior = sample_prior, init_weight = init_weight, init_bias = init_bias
     )
     if !isempty(paths_save)
-        xnames = propertynames(xstarts[1]) |> collect
-        xstarts_df = DataFrame(vcat(reduce(vcat, xstarts')), xnames)
+        x_names = ComponentArrays.labels(xstarts[1])
+        xstarts_df = DataFrame(vcat(reduce(vcat, xstarts')), x_names)
         xstarts_df[!, "startguess"] = 1:nrow(xstarts_df)
         CSV.write(paths_save[:x0], xstarts_df)
     end
@@ -95,7 +97,7 @@ function _calibrate_multistart(
     # on each relevant process
     _nprocs = nprocs == 1 ? nprocs - 1 : nprocs
     pids = _create_workers(_nprocs)
-    _load_packages_workers(pids, alg)
+    _load_packages_workers(pids)
     _xstarts = [(x.second, x.first) for x in pairs(xstarts)]
     _calibrate_procs = x -> _calibrate_startguess(
         x[1], x[2], prob, alg, save_trace,
@@ -148,18 +150,19 @@ end
 function _save_multistart_results(
         paths_save::Dict{Symbol, String}, res::PEtabOptimisationResult, i::Int64
     )::Nothing
-    xnames = propertynames(res.xmin) |> collect
+    x_names = ComponentArrays.labels(res.xmin)
+    x_min_vals = collect(res.xmin)
     res_df = DataFrame(
         fmin = res.fmin, alg = res.alg, runtime = res.runtime,
         niterations = res.niterations, converged = res.converged,
         startguess = i
     )
-    x_df = DataFrame(Matrix(res.xmin'), xnames)
+    x_df = DataFrame(Matrix(x_min_vals'), x_names)
     x_df[!, "startguess"] = [i]
     CSV.write(paths_save[:res], res_df, append = isfile(paths_save[:res]))
     CSV.write(paths_save[:xmin], x_df, append = isfile(paths_save[:xmin]))
     if haskey(paths_save, :trace) && !isnothing(res.ftrace) && !isempty(res.ftrace)
-        trace_df = DataFrame(Matrix(reduce(vcat, res.xtrace')), xnames)
+        trace_df = DataFrame(Matrix(reduce(vcat, res.xtrace')), x_names)
         trace_df[!, "ftrace"] = res.ftrace
         trace_df[!, "startguess"] = repeat([i], length(res.ftrace))
         CSV.write(paths_save[:trace], trace_df, append = isfile(paths_save[:trace]))
@@ -167,16 +170,13 @@ function _save_multistart_results(
     return nothing
 end
 
-function _load_packages_workers(workers::Vector{Int64}, alg)::Nothing
+function _load_packages_workers(workers::Vector{Int64})::Nothing
     isempty(workers) && return nothing
-    alg_str = string(alg)
+    loaded = Set(Symbol(k.name) for k in keys(Base.loaded_modules))
     @eval @everywhere $workers eval(:(using PEtab))
-    if alg_str[1:5] == "Fides"
-        @eval @everywhere $workers eval(:(using Fides))
-    elseif alg isa IpoptOptimizer
-        @eval @everywhere $workers eval(:(using Ipopt))
-    else
-        @eval @everywhere $workers eval(:(using Optim))
+    for pkg in _SUPPORTED_PACKAGES
+        pkg in loaded || continue
+        @eval @everywhere $workers eval(:(using $pkg))
     end
     return nothing
 end
@@ -188,4 +188,55 @@ end
 function _remove_workers(pids::Vector{Int64})::Nothing
     Distributed.rmprocs(pids)
     return nothing
+end
+
+"""
+    _labels_to_componentarray(labels::Vector{String}, values::Vector{Float64}) -> ComponentArray
+
+Reconstruct a `ComponentArray` from a vector of dot-separated labels and corresponding values.
+
+Scalar fields are inferred from bare labels (e.g. `"alpha"`), arrays from indexed labels
+(e.g. `"net1.layer1.weight[1,2]"`), and nested structures from dot-separated paths. Helper
+function to be able to read parameter estimation results from disk, where parameters are
+stored in a long format with labels
+"""
+function _labels_to_componentarray(labels, values)
+    ca = _build_nested(labels, values) |> _to_componentarray
+    key_order = Symbol.([first(split(_parse_label(l)[1][1], ".")) for l in labels]) |>
+        unique
+    return ca[key_order]
+end
+
+function _parse_label(label::String)
+    m = match(r"^(.*?)\[([0-9,]+)\]$", label)
+    isnothing(m) && return (split(label, "."), Int[])
+    return (split(m.captures[1], "."), parse.(Int, split(m.captures[2], ",")))
+end
+
+function _build_nested(labels, values)
+    groups = Dict{String, Vector}()
+    for (label, val) in zip(labels, values)
+        parts, idx = _parse_label(label)
+        push!(get!(groups, String(parts[1]), []), (parts[2:end], idx, val))
+    end
+    return Dict(key => begin
+        all_leaf   = all(isempty(e[1]) for e in entries)
+        all_scalar = all_leaf && isempty(entries[1][2])
+        if all_scalar
+            entries[1][3]
+        elseif all_leaf
+            shape = Tuple(maximum(e[2][i] for e in entries) for i in 1:length(entries[1][2]))
+            arr = zeros(Float64, shape...)
+            foreach(e -> (arr[e[2]...] = e[3]), entries)
+            length(shape) == 1 ? vec(arr) : arr
+        else
+            sub_labels = [join(e[1], ".") * (isempty(e[2]) ? "" : "[$(join(e[2], ","))]") for e in entries]
+            _build_nested(sub_labels, [e[3] for e in entries])
+        end
+    end for (key, entries) in groups)
+end
+
+function _to_componentarray(d::Dict)
+    nt = (Symbol(k) => (v isa Dict ? _to_componentarray(v) : v) for (k, v) in d)
+    return ComponentArray(; nt...)
 end

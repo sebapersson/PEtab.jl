@@ -195,13 +195,23 @@ prob = PEtabODEProblem(model)
     @test res_max_time.niterations < 10000
 
     # Multistart
+    dir_save = joinpath(@__DIR__, "calibrate_tmp")
+    !isdir(dir_save) && mkdir(dir_save)
     rng = StableRNGs.StableRNG(1)
     res_ms = calibrate_multistart(
         rng, prob, training_rule, 10; save_trace = false, init_bias = Lux.zeros64,
-        init_weight = Lux.zeros64, options = OptimisersOptions(iterations = 20)
+        options = OptimisersOptions(iterations = 20), dirsave = dir_save
     )
-    @test all(res_ms.runs[1].x0.net1 .== 0.0)
+    @test all(res_ms.runs[1].x0.net1.layer1.bias .== 0.0)
     @test res_ms.fmin < prob.nllh(res_ms.runs[1].x0)
+    # Verify we can read results from disk
+    res_read = PEtabMultistartResult(dir_save)
+    @test res_read.fmin == res_ms.fmin
+    @test res_read.xmin == res_ms.xmin
+    @test res_read.runs[1].x0 == res_ms.runs[1].x0
+    @test res_read.runs[1].xmin == res_ms.runs[1].xmin
+    @test res_read.runs[1].fmin == res_ms.runs[1].fmin
+    rm(dir_save, recursive = true)
 
     # Test can run with Optim.jl
     res_optim = calibrate(
