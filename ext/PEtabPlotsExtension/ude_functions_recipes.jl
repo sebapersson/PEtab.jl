@@ -1,9 +1,12 @@
-# Master function for handling the plotting of fitted UDE functions. Handles both the 
+# Master function for handling the plotting of fitted UDE functions. Handles both the
 # `:best_function` and `:function_ensemble` cases.
 function _plot_ude_function_fit(res::PEtab.EstimationResult, prob::PEtabODEProblem, plot_type,
         nn_idx, x_support, num_plotted_nn, loss_thres, plt_dens, plotted_dim, clustering_function)
     # Extract all the ML functional calls within the model.
     # Check that `nn_idx` is OK. Checks that the model have one input and one input.
+    if prob.model_info.model.sys isa ODEProblem
+        error("Plotting of neural network functions are only supported for models decalred using the MTK/Catalyst syntax.")
+    end
     full_ml_calls = PEtab._get_full_ml_calls(prob)
     grouped_calls = PEtab._group_full_ml_calls_by_signature(full_ml_calls)
     nn_idx > length(grouped_calls) && throw(ArgumentError(
@@ -18,7 +21,7 @@ function _plot_ude_function_fit(res::PEtab.EstimationResult, prob::PEtabODEProbl
     x_vals, y_vals, _color = if plot_type == :best_function
         _handle_best_function(res, prob, nn_sym, ps_sym, all_input_args, plt_dens, x_support, plotted_dim)
     elseif plot_type == :function_ensemble
-        _handle_function_ensemble(res, prob, nn_sym, ps_sym, all_input_args, plt_dens, 
+        _handle_function_ensemble(res, prob, nn_sym, ps_sym, all_input_args, plt_dens,
             x_support, num_plotted_nn, loss_thres, plotted_dim, clustering_function)
     else
         throw(ArgumentError("Unsupported fitted neural network plot type: $(plot_type)."))
@@ -28,7 +31,7 @@ function _plot_ude_function_fit(res::PEtab.EstimationResult, prob::PEtabODEProbl
     _x_label = String(ModelingToolkitBase.getname(all_input_args[1][1]))
     _y_label = "$(ModelingToolkitBase.getname(nn_sym))($(ModelingToolkitBase.getname(all_input_args[1][1])); $(ModelingToolkitBase.getname(ps_sym)))"
     return _x_label, "", (
-        x = x_vals, y = y_vals, color = _color, label = "", seriestype = :line, 
+        x = x_vals, y = y_vals, color = _color, label = "", seriestype = :line,
         y_label = _y_label,
     )
 end
@@ -42,7 +45,7 @@ end
 
 # Function for handling the `plot_type == :function_ensemble` (i.e. plotting the ensemble of fitted functions).
 # The color defaults to 1
-function _handle_function_ensemble(res, prob, nn_sym, ps_sym, all_input_args, plt_dens, 
+function _handle_function_ensemble(res, prob, nn_sym, ps_sym, all_input_args, plt_dens,
         x_support, num_plotted_nn, loss_thres, plotted_dim, clustering_function)
     (res isa PEtab.PEtabMultistartResult) || throw(ArgumentError(
         "The `:function_ensemble` plot type requires a multi-start calibration run having been performed."
@@ -55,7 +58,7 @@ function _handle_function_ensemble(res, prob, nn_sym, ps_sym, all_input_args, pl
     color_idxs = []
     for (run_idx, run) in enumerate(res.runs)
         run.fmin > loss_thres && continue
-        x_support_i = if isnothing(x_support) 
+        x_support_i = if isnothing(x_support)
             _get_x_support(nn_sym, all_input_args, run, prob)
         else
             (x_support isa Vector) ? x_support[run_idx] : x_support
@@ -84,7 +87,7 @@ function _handle_function_ensemble(res, prob, nn_sym, ps_sym, all_input_args, pl
 end
 
 # For a specific fitted function, and a specific run, returns the fitted function evaluated on a  grid of x-values.
-function _eval_fitted_function(res::PEtab.EstimationResult, prob::PEtabODEProblem, nn_sym, 
+function _eval_fitted_function(res::PEtab.EstimationResult, prob::PEtabODEProblem, nn_sym,
         ps_sym, all_input_args, plt_dens, x_support, plotted_dim)
     # Determines the x-value input that is supported and the x-axis value grid.
     isnothing(x_support) && (x_support = _get_x_support(nn_sym, all_input_args, res, prob))
@@ -110,41 +113,33 @@ function _get_x_support(nn_sym, all_input_args, res, prob)
         "The function `_get_x_support` currently only supports fitted functions with a single input. Encountered a function with $(length(first(all_input_args))) inputs."
     ))
 
-    return (0.1, 5.0) # Placeholder for now, until we have a working version of this function.
+    # Prepare for looping through simulations.
+    input_vars = vcat(all_input_args...)
+    x_support = Any[nothing, nothing]
 
-
-    for condition_id in prob.model_info.simulation_info.conditionids[:condition]
-        sys, _, p, _ = PEtab.get_system(res, prob; condition = condition_id)
-        sol = PEtab.get_odesol(res, prob; condition = condition_id)
-        state_syms = collect(ModelingToolkitBase.unknowns(sys))
-        state_expr = isempty(state_syms) ? nothing : Symbolics.unwrap(first(state_syms))
-        iv = (!isnothing(state_expr) && Symbolics.iscall(state_expr)) ?
-            first(Symbolics.arguments(state_expr)) : nothing
-
-        base_subs = Dict{Any, Any}(Dict(p))
-        for (time_idx, t) in pairs(sol.t)
-            subs = copy(base_subs)
-            for (state_sym, state_val) in zip(state_syms, sol[:, time_idx])
-                subs[state_sym] = state_val
+    # Loops through all simulations and finds maximum and minimum inputs.
+    conditions_ids = prob.model_info.simulation_info.conditionids
+    simulation_ids = string.(conditions_ids[:simulation])
+    for (i, simulation_id) in pairs(simulation_ids)
+        pre_equilibration_id = conditions_ids[:pre_equilibration][i]
+        if pre_equilibration_id == :None
+            condition = simulation_id
+            experiment_id = simulation_id
+        else
+            condition = Symbol(pre_equilibration_id) => Symbol(simulation_id)
+            experiment_id = "$(pre_equilibration_id)=>$(simulation_id)"
+        end
+        osol = PEtab.get_odesol(res, prob; condition = condition)
+        for v in input_vars
+            v_min, v_max = extrema(osol[v])
+            if x_support[1] === nothing || v_min < x_support[1]
+                x_support[1] = v_min
             end
-            !isnothing(iv) && (subs[iv] = t)
-
-            for input_args in all_input_args, (arg_idx, input_arg) in pairs(input_args)
-                value = Symbolics.substitute(Symbolics.unwrap(input_arg), subs) |> Symbolics.unwrap
-                value isa Number || (value = Symbolics.value(value))
-                if value isa Number && isfinite(value)
-                    value = float(value)
-                    mins[arg_idx] = min(mins[arg_idx], value)
-                    maxs[arg_idx] = max(maxs[arg_idx], value)
-                end
+            if x_support[2] === nothing || v_max > x_support[2]
+                x_support[2] = v_max
             end
         end
     end
 
-    any(isfinite, mins) || throw(ArgumentError(
-        "Cannot determine x-support for $(nn_sym): all evaluated inputs were non-finite."
-    ))
-
-    n_inputs == 1 && return range(mins[1], maxs[1]; length = 101)
-    return [range(min_val, max_val; length = 101) for (min_val, max_val) in zip(mins, maxs)]
+    return Tuple(x_support)
 end
