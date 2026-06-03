@@ -95,10 +95,9 @@ end
 
 # Takes into account that Neural network calls can occur like `U(X1, X2, ...; θ)` or `U([X1, X2, ...]; θ)`
 function _normalise_nn_args(args)
-    if length(args) == 1 && first(args) isa Union{Tuple, AbstractVector}
-        return collect(first(args))
-    end
-    return collect(args)
+    vars = Set{Symbolics.SymbolicT}()
+    SymbolicUtils.search_variables!(vars, args)
+    return collect(vars)
 end
 
 

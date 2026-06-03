@@ -327,22 +327,19 @@ plot(x, petab_prob_val, title = "Validation data fit")
 ```
 
 As one of many possible downstream analyses, we can compare the learned neural network to
-the true function it aims to approximate. In this example, the approximation is quite good:
-
+the true function it aims to approximate. Here, learned neural network functions can be 
+displayed using PEtab's [plotting interface](@ref pest_plotting) while using the `:best_function`
+and `:function_ensemble` options. I.e. to plot the learnt function we would use
 ```@example 1
-# True function to learn
-true_func(y) = 1.1 * (y^3) / (2^3 + y^3)
-
-# Extract the fitted neural network and parameters from the fitted ODEProblem
-ode_problem_fitted, _ = get_odeproblem(x, petab_prob_train)
-fitted_NN = ode_problem_fitted.ps[NN]
-fitted_theta = ode_problem_fitted.ps[theta]
-fitted_func(y) = fitted_NN([y], fitted_theta)[1]
-
-# Plot true vs fitted
-plot(true_func, 0.0, 5.0; label = "True function")
-plot!(fitted_func, 0.0, 5.0; label = "Fitted function", linestyle = :dash)
+plot(res, petab_prob_train; plot_type = :best_function, label = "Fitted function", linestyle = :dash, lw = 5)
 ```
+Next, we can overlay the true function, noting that in this example, the approximation is 
+quite good:
+```@example 1
+true_func(y) = 1.1 * (y^3) / (2^3 + y^3)
+plot!(true_func, 0.0, 3.5; label = "True function", lw = 3)
+```
+Options for plotting fitted functions are describe in more details in [here](@ref )
 
 The above training loop above is intentionally minimal. In practice, Optimisers.jl and
 related packages can be used to add learning-rate schedules, gradient clipping, early
@@ -513,16 +510,11 @@ plot(x, petab_prob_train, title = "Training data fit")
 # Plot validation fit
 plot(x, petab_prob_val, title = "Validation data fit")
 
-# True function to learn
+# Plot fitted function.
+plot(res, petab_prob_train; plot_type = :best_function, label = "Fitted function", linestyle = :dash, lw = 5)
+# Overlays the fitted function with the true function.
 true_func(y) = 1.1 * (y^3) / (2^3 + y^3)
-# Fitted neural network
-ode_problem_fitted, _ = get_odeproblem(x, petab_prob_train)
-fitted_NN = ode_problem_fitted.ps[NN]
-fitted_theta = ode_problem_fitted.ps[theta]
-fitted_func(y) = fitted_NN(y, fitted_theta)[1]
-# Plots the true and fitted functions
-plot(true_func, 0.0, 5.0; lw=8, label="True function")
-plot!(fitted_func, 0.0, 5.0; lw=6, label="Fitted function", linestyle=:dash)
+plot!(true_func, 0.0, 3.5; label = "True function", lw = 3)
 nothing # hide
 ```
 
