@@ -112,13 +112,17 @@ function _group_full_ml_calls_by_signature(full_ml_calls::AbstractVector)
     idx_by_sig = Dict{Tuple{Any, Any}, Int}()
 
     for call in full_ml_calls
-        length(call) == 3 || throw(ArgumentError(
-            "Each ML call must be a 3-tuple: (nn_sym, input_args, ps_sym). Got $(call)."
-        ))
+        length(call) == 3 || throw(
+            ArgumentError(
+                "Each ML call must be a 3-tuple: (nn_sym, input_args, ps_sym). Got $(call)."
+            )
+        )
         nn_sym, input_args, ps_sym = call
-        input_args isa AbstractVector || throw(ArgumentError(
-            "The second tuple entry (input_args) must be a vector. Got $(typeof(input_args))."
-        ))
+        input_args isa AbstractVector || throw(
+            ArgumentError(
+                "The second tuple entry (input_args) must be a vector. Got $(typeof(input_args))."
+            )
+        )
 
         sig = (nn_sym, ps_sym)
         if haskey(idx_by_sig, sig)
