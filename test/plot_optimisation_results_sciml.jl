@@ -8,9 +8,9 @@ rng = StableRNG(1)
 # Create model (an extended self-activation loop).
 using Catalyst
 rn = @reaction_network begin
-    hill(Y,v,K,n), 0 --> X
+    hill(Y, v, K, n), 0 --> X
     X, 0 --> Y
-    d, (X,Y) --> 0
+    d, (X, Y) --> 0
 end
 
 # Generate some (synthetic) data for the fitting procedure.
@@ -45,7 +45,7 @@ begin
     rn_ude = @reaction_network begin
         $A(Y), 0 --> X
         X, 0 --> Y
-        d, (X,Y) --> 0
+        d, (X, Y) --> 0
     end
 end
 
@@ -53,7 +53,7 @@ end
 begin
     using DataFrames, Optim, PEtab
     observables = [PEtabObservable(:obs_X, :X, σ), PEtabObservable(:obs_Y, :Y, σ)]
-    pest = [PEtabMLParameter(:θ),PEtabParameter(:d; scale = :log10)]
+    pest = [PEtabMLParameter(:θ), PEtabParameter(:d; scale = :log10)]
     mX = DataFrame(obs_id = "obs_X", time = t_measurement, measurement = X_observed)
     mY = DataFrame(obs_id = "obs_Y", time = t_measurement, measurement = Y_observed)
     petab_model = PEtabModel(rn_ude, observables, vcat(mX, mY), pest; speciemap = u0)
@@ -134,7 +134,7 @@ ic_true = @reaction_network begin
     1.0, 0 --> X
     hillr(X, v1, K1, n), 0 --> Y
     hill(X, v2, K2, n), Y --> Z
-    d, (X,Y,Z) --> ∅
+    d, (X, Y, Z) --> ∅
 end
 
 # Generate some (synthetic) data for the fitting procedure.
@@ -142,7 +142,7 @@ begin
     using Distributions, OrdinaryDiffEqTsit5, Plots
     t_measurement = 0.0:0.2:10.0
     u0 = [:X => 0.0, :Y => 0.0, :Z => 0.0]
-    ps_true = [:d => 0.5, :v1 => 5.0,:K1 => 0.8, :n => 5, :v2 => 1.0, :K2 => 0.6]
+    ps_true = [:d => 0.5, :v1 => 5.0, :K1 => 0.8, :n => 5, :v2 => 1.0, :K2 => 0.6]
     oprob_true = ODEProblem(ic_true, u0, t_measurement[end], ps_true)
     sol_true = solve(oprob_true, Tsit5())
     σ = 0.02
@@ -176,7 +176,7 @@ begin
         1.0, 0 --> X
         $R(X), 0 --> Y
         $A(X), Y --> Z
-        d, (X,Y,Z) --> ∅
+        d, (X, Y, Z) --> ∅
     end
 end
 
