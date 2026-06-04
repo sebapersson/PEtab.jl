@@ -1,65 +1,65 @@
-# generates a fit to carry the tests out on.
+# Generates a fit to carry the tests out on.
 # Long term, when UDE fits can be saved, we could move to a saved fit to reduce runtime by a bit (and also try on more types of fits).
-begin
-    # Sets an rng.
-    using StableRNGs
-    rng = StableRNG(1)
 
-    # Create model (an extended self-activation loop).
-    using Catalyst
-    rn = @reaction_network begin
-        hill(Y, v, K, n), 0 --> X
-        X, 0 --> Y
-        d, (X, Y) --> 0
-    end
+# Sets an rng.
+using StableRNGs
+rng = StableRNG(1)
 
-    # Generate some (synthetic) data for the fitting procedure.
-    using Distributions, OrdinaryDiffEqDefault, Plots
-    t_measurement = 0.0:2.5:50.0
-    u0 = [:X => 2.0, :Y => 0.1]
-    ps_true = [:v => 1.1, :K => 2.0, :n => 3.0, :d => 0.5]
-    oprob_true = ODEProblem(rn, u0, t_measurement[end], ps_true)
-    sol_true = solve(oprob_true)
-    σ = 0.02
-    X_true = sol_true(t_measurement; idxs = :X)
-    X_observed = [rand(rng, Normal(X, σ * X)) for X in X_true]
-    Y_true = sol_true(t_measurement; idxs = :Y)
-    Y_observed = [rand(rng, Normal(Y, σ * Y)) for Y in Y_true]
-    plot(sol_true; label = ["X (true)" "Y (true)"], color = [1 2])
-    plot!(t_measurement, X_observed; label = "X (measured)", color = 1, seriestype = :scatter)
-    plot!(t_measurement, Y_observed; label = "Y (measured)", color = 2, seriestype = :scatter)
-
-    # Create the UDE.
-    using ModelingToolkitNeuralNets, Lux
-    nn_arch = Lux.Chain(
-        Lux.Dense(1 => 3, Lux.softplus, use_bias = false),
-        Lux.Dense(3 => 3, Lux.softplus, use_bias = false),
-        Lux.Dense(3 => 1, Lux.softplus, use_bias = false)
-    )
-    @SymbolicNeuralNetwork U, θ = nn_arch
-    A(x) = U(x, θ)[1]
-    rn_ude = @reaction_network begin
-        $A(Y), 0 --> X
-        X, 0 --> Y
-        d, (X, Y) --> 0
-    end
-
-    # Create the UDE PEtabproblem.
-    using DataFrames, Optim, PEtab
-    observables = [PEtabObservable(:obs_X, :X, σ), PEtabObservable(:obs_Y, :Y, σ)]
-    pest = [PEtabMLParameter(:θ), PEtabParameter(:d; scale = :log10)]
-    mX = DataFrame(obs_id = "obs_X", time = t_measurement, measurement = X_observed)
-    mY = DataFrame(obs_id = "obs_Y", time = t_measurement, measurement = Y_observed)
-    petab_model = PEtabModel(rn_ude, observables, vcat(mX, mY), pest; speciemap = u0)
-    petab_prob = PEtabODEProblem(petab_model)
-
-    # Fit the UDE
-    using Optimisers
-    @time petab_sol = calibrate_multistart(
-        rng, petab_prob, Optimisers.Adam(1.0e-3), 5;
-        options = OptimisersOptions(iterations = 10000)
-    )
+# Create model (an extended self-activation loop).
+using Catalyst
+rn = @reaction_network begin
+    hill(Y, v, K, n), 0 --> X
+    X, 0 --> Y
+    d, (X, Y) --> 0
 end
+
+# Generate some (synthetic) data for the fitting procedure.
+using Distributions, OrdinaryDiffEqDefault, Plots
+t_measurement = 0.0:2.5:50.0
+u0 = [:X => 2.0, :Y => 0.1]
+ps_true = [:v => 1.1, :K => 2.0, :n => 3.0, :d => 0.5]
+oprob_true = ODEProblem(rn, u0, t_measurement[end], ps_true)
+sol_true = solve(oprob_true)
+σ = 0.02
+X_true = sol_true(t_measurement; idxs = :X)
+X_observed = [rand(rng, Normal(X, σ * X)) for X in X_true]
+Y_true = sol_true(t_measurement; idxs = :Y)
+Y_observed = [rand(rng, Normal(Y, σ * Y)) for Y in Y_true]
+plot(sol_true; label = ["X (true)" "Y (true)"], color = [1 2])
+plot!(t_measurement, X_observed; label = "X (measured)", color = 1, seriestype = :scatter)
+plot!(t_measurement, Y_observed; label = "Y (measured)", color = 2, seriestype = :scatter)
+
+# Create the UDE.
+using ModelingToolkitNeuralNets, Lux
+nn_arch = Lux.Chain(
+    Lux.Dense(1 => 3, Lux.softplus, use_bias = false),
+    Lux.Dense(3 => 3, Lux.softplus, use_bias = false),
+    Lux.Dense(3 => 1, Lux.softplus, use_bias = false)
+)
+@SymbolicNeuralNetwork U, θ = nn_arch
+A(x) = U(x, θ)[1]
+rn_ude = @reaction_network begin
+    $A(Y), 0 --> X
+    X, 0 --> Y
+    d, (X, Y) --> 0
+end
+
+# Create the UDE PEtabproblem.
+using DataFrames, Optim, PEtab
+observables = [PEtabObservable(:obs_X, :X, σ), PEtabObservable(:obs_Y, :Y, σ)]
+pest = [PEtabMLParameter(:θ), PEtabParameter(:d; scale = :log10)]
+mX = DataFrame(obs_id = "obs_X", time = t_measurement, measurement = X_observed)
+mY = DataFrame(obs_id = "obs_Y", time = t_measurement, measurement = Y_observed)
+petab_model = PEtabModel(rn_ude, observables, vcat(mX, mY), pest; speciemap = u0)
+petab_prob = PEtabODEProblem(petab_model)
+
+# Fit the UDE
+using Optimisers
+@time petab_sol = calibrate_multistart(
+    rng, petab_prob, Optimisers.Adam(1.0e-3), 5;
+    options = OptimisersOptions(iterations = 10000)
+)
+
 
 ### Test basic Plot Functionality ###
 
