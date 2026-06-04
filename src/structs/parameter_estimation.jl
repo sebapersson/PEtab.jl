@@ -185,17 +185,14 @@ function PEtabMultistartResult(
             _ftrace = Vector{Float64}(undef, 0)
             _xtrace = Vector{Vector{Float64}}(undef, 0)
         end
-        xnames = propertynames(x_df)[1:(end - 1)] |> collect
-        xmin = ComponentArray(;
-            (xnames .=> x_df[i, 1:(end - 1)] |> Vector{Float64})...
-        )
-        xstart = ComponentArray(;
-            (xnames .=> startguesses_df[i, 1:(end - 1)] |> Vector{Float64})...
+        x_labels = names(x_df)[1:(end - 1)]
+        xmin = _labels_to_componentarray(x_labels, x_df[i, 1:(end - 1)] |> Vector{Float64})
+        xstart = _labels_to_componentarray(
+            x_labels, startguesses_df[i, 1:(end - 1)] |> Vector{Float64}
         )
         runs[i] = PEtabOptimisationResult(
-            xmin, res_df[i, :fmin], xstart,
-            Symbol(res_df[i, :alg]), res_df[i, :niterations],
-            res_df[i, :runtime], _xtrace, _ftrace,
+            xmin, res_df[i, :fmin], xstart, Symbol(res_df[i, :alg]),
+            res_df[i, :niterations], res_df[i, :runtime], _xtrace, _ftrace,
             res_df[i, :converged], nothing
         )
     end
