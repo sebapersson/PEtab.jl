@@ -173,10 +173,10 @@ end
 function _load_packages_workers(workers::Vector{Int64})::Nothing
     isempty(workers) && return nothing
     loaded = Set(Symbol(k.name) for k in keys(Base.loaded_modules))
-    @eval @everywhere $workers eval(:(using PEtab))
-    for pkg in _SUPPORTED_PACKAGES
-        pkg in loaded || continue
-        @eval @everywhere $workers eval(:(using $pkg))
+    @eval @everywhere $workers Base.eval(Main, :(using PEtab))
+    for pkg in filter(in(loaded), _SUPPORTED_PACKAGES)
+        ex = :(using $(pkg))
+        @eval @everywhere $workers Base.eval(Main, $ex)
     end
     return nothing
 end
