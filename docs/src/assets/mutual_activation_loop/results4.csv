@@ -1,0 +1,11 @@
+fmin,alg,runtime,niterations,converged,startguess
+1385.8091548607256,Optimisers.Adam,14.639750717,1000,not_applicable,1
+3960.3712204527556,Optimisers.Adam,7.292247271,1000,not_applicable,2
+4030.1732742708587,Optimisers.Adam,8.145755688,1000,not_applicable,3
+4029.4704681833505,Optimisers.Adam,5.293282734,1000,not_applicable,4
+1688.1332242238311,Optimisers.Adam,6.158874392,1000,not_applicable,5
+3070.955163413972,Optimisers.Adam,5.396383645,1000,not_applicable,6
+8555.718474067105,Optimisers.Adam,29.329568114,1000,not_applicable,7
+8676.212527139289,Optimisers.Adam,29.433091076,1000,not_applicable,8
+5878.066384483895,Optimisers.Adam,8.195903615,1000,not_applicable,9
+4654.485892290024,Optimisers.Adam,7.512255372,1000,not_applicable,10

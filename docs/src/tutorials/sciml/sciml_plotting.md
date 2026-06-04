@@ -14,7 +14,7 @@ PEtab currently provides two fitted-function plot types:
 
 ## Plotting of single fitted functions
 
-We will first consider fitting a mutual activation loop model to synthetic data, and use this to demonstrate the plotting functionality. In the model, $X$ and $Y$ activate each other. The effect of $Y$ on $X$'s production follows a Hill function. Here, we will assume that the form of this activation function is unknown, and attempt to recover it using a UDE.
+For these examples we will use a mutual activation loop model to synthetic data, and use this to demonstrate the plotting functionality. In the model, $X$ and $Y$ activate each other. The effect of $Y$ on $X$'s production follows a Hill function. Here, we will assume that the form of this activation function is unknown, and attempt to recover it using a UDE. In the code below, we declare a model, generate synthetic data, and fit it. The resulting fitting problem (`petab_prob`) and calibration result (`petab_sol`) will be used throughout the remaining tutorial.
 ```@example 1
 # Create model (a mutual activation loop).
 using Catalyst
@@ -25,17 +25,17 @@ rn = @reaction_network begin
 end
 
 # Generate some (synthetic) data for the fitting procedure.
-using Distributions, OrdinaryDiffEqTsit, Plots
-t_measurement = 1.0:2.0:50.0
+using Distributions, OrdinaryDiffEqTsit5, Plots
+t_measurement = 0.0:1:50.0
 u0 = [:X => 2.0, :Y => 0.1]
 ps_true = [:v => 1.1, :K => 2.0, :n => 3.0, :d => 0.5]
 oprob_true = ODEProblem(rn, u0, t_measurement[end], ps_true)
 sol_true = solve(oprob_true, Tsit5())
-σ = 0.1
+σ = 0.2
 X_true = sol_true(t_measurement; idxs = :X)
-X_observed = [rand(Normal(X, σ*X)) for X in X_true]
+X_observed = [rand(Normal(X, σ)) for X in X_true]
 Y_true = sol_true(t_measurement; idxs = :Y)
-Y_observed = [rand(Normal(Y, σ*Y)) for Y in Y_true]
+Y_observed = [rand(Normal(Y, σ)) for Y in Y_true]
 plot(sol_true; label = ["X (true)" "Y (true)"], color = [1 2])
 plot!(t_measurement, X_observed; label = "X (measured)", color = 1, seriestype = :scatter)
 plot!(t_measurement, Y_observed; label = "Y (measured)", color = 2, seriestype = :scatter)
@@ -64,10 +64,9 @@ mY = DataFrame(obs_id = "obs_Y", time = t_measurement, measurement = Y_observed)
 petab_model = PEtabModel(rn_ude, observables, vcat(mX, mY), pest; speciemap = u0)
 petab_prob = PEtabODEProblem(petab_model)
 
-# Fit the UDE.
-using Optimisers
-@time petab_sol = calibrate_multistart(petab_prob, Optimisers.Adam(1e-3), 10;
-    options = OptimisersOptions(iterations = 10000))
+# Fit the UDE. Here, we just load a pre-calibrated result (however, we could compute it through `calibrate_multistart`)
+path_res = joinpath(@__DIR__, "..", "..", "assets", "optimization_results", "mutual_activation_loop") # hide
+petab_sol = PEtabMultistartResult(path_res)
 nothing # hide
 ```
 
@@ -100,11 +99,11 @@ plot(petab_sol, petab_prob; plot_type = :function_ensemble, xlimit = (0.0, 5.0),
 ```
 In practice, these *ensemble plots* can be used to perform *practical functional identifiability analysis*. That is, if the ensemble converges to the same functional form, this suggests that only a single functional form is compatible with the data, and that it is identifiable. By default, PEtab clusters the optimisation runs using the principle described [here](@ref pest_plotting_multirun_clustering). This clustering is then used to determine the colors of the fitted functional forms in the ensemble plot, with forms originating from the same cluster having the same color.
 
-Alternatively, the `loss_thres` option can be used to plot only functional forms with a sufficiently good loss value. That is, while in the above plot we see a wide range of fitted functions, by ensuring that only functions corresponding to a loss value no worse than twice that of the best fit are plotted, we see that all *good* optimisation runs recover the same functional form.
+Alternatively, the `loss_thres` option can be used to plot only functional forms with a sufficiently good loss value. That is, while in the above plot we see a wide range of fitted functions, here, we cap it so that plotted functions must achieve a likelihood vaguely in the vicinity of the optimal found likelihood (which might be negative). 
 ```@example 1
-plot(petab_sol, petab_prob; plot_type = :function_ensemble, loss_thres = 2 * petab_sol.fmin)
+plot(petab_sol, petab_prob; plot_type = :function_ensemble, loss_thres = petab_sol.fmin + abs(petab_sol.fmin)/2)
 ```
-By default, `loss_thres = Inf`; that is, all fitted functions are plotted.
+In this plot, all displayed functions are approxiamtely Hill functions (which is also the sought true function)
 
 The `:function_ensemble` plot type also supports the following options:
 - `num_plotted_nn`: Specifies how many functions to plot. Defaults to plotting all functions achieving the loss threshold.
