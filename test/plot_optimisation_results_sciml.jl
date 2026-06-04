@@ -14,12 +14,12 @@ rn = @reaction_network begin
 end
 
 # Generate some (synthetic) data for the fitting procedure.
-using Distributions, OrdinaryDiffEqDefault, Plots
+using Distributions, OrdinaryDiffEqTsit5, Plots
 t_measurement = 0.0:2.5:50.0
 u0 = [:X => 2.0, :Y => 0.1]
 ps_true = [:v => 1.1, :K => 2.0, :n => 3.0, :d => 0.5]
 oprob_true = ODEProblem(rn, u0, t_measurement[end], ps_true)
-sol_true = solve(oprob_true)
+sol_true = solve(oprob_true, Tsit5())
 σ = 0.02
 X_true = sol_true(t_measurement; idxs = :X)
 X_observed = [rand(rng, Normal(X, σ * X)) for X in X_true]
