@@ -20,7 +20,7 @@ extensions:
       - "net3_input1.hdf5"
     hybridization_files:
       - "hybridization.tsv"
-    neural_nets:
+    neural_networks:
       net3:
         location: "net3.yaml"
         pre_initialization: true
