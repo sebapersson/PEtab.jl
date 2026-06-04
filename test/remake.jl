@@ -1,7 +1,10 @@
-using CSV, DataFrames, LinearAlgebra, OrdinaryDiffEqRosenbrock, PEtab, Test
+using CSV, DataFrames, LinearAlgebra, OrdinaryDiffEqRosenbrock, PEtab, SciMLBase, Test
 
 function test_remake_parameters(model::PEtabModel, xchange, what_check; test_tol = 1.0e-3)
-    ode_solver = ODESolver(Rodas5P(autodiff = false), abstol = 1.0e-12, reltol = 1.0e-12)
+    ode_solver = ODESolver(
+        Rodas5P(autodiff = SciMLBase.ADTypes.AutoFiniteDiff()), abstol = 1.0e-12,
+        reltol = 1.0e-12
+    )
     if :GradientForwardDiff in what_check
         prob1 = PEtabODEProblem(model; odesolver = ode_solver)
         prob2 = remake(prob1; parameters = xchange)

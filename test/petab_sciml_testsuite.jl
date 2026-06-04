@@ -17,7 +17,8 @@ global lux_model
 end
 
 ode_solver = ODESolver(
-    Rodas5P(autodiff = false), abstol = 1.0e-10, reltol = 1.0e-10, maxiters = Int(1.0e6)
+    Rodas5P(autodiff = SciMLBase.ADTypes.AutoFiniteDiff()), abstol = 1.0e-10,
+    reltol = 1.0e-10, maxiters = Int(1.0e6)
 )
 @testset "PEtab SciML problem import" begin
     for i in 1:39
@@ -57,7 +58,8 @@ end
 
 # PEtab SciML Julia interface
 ode_solver = ODESolver(
-    Rodas5P(autodiff = false), abstol = 1.0e-10, reltol = 1.0e-10, maxiters = Int(1.0e6)
+    Rodas5P(autodiff = SciMLBase.ADTypes.AutoFiniteDiff()), abstol = 1.0e-10,
+    reltol = 1.0e-10, maxiters = Int(1.0e6)
 )
 @testset "SciML model in Julia" begin
     for i in 1:39

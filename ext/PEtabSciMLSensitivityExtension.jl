@@ -1,7 +1,7 @@
 module PEtabSciMLSensitivityExtension
 
 using Catalyst: @unpack
-using SciMLBase
+using SciMLBase: SciMLBase, AbstractSciMLAlgorithm
 using DiffEqCallbacks
 using OrdinaryDiffEqBDF
 using OrdinaryDiffEqSDIRK

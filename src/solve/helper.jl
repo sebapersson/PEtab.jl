@@ -73,7 +73,7 @@ function _get_cbs(
 end
 
 function _get_tspan(
-        ode_problem::ODEProblem, tstart::Float64, tmax::Float64, solver::SciMLAlgorithm,
+        ode_problem::ODEProblem, tstart::Float64, tmax::Float64, solver::AbstractSciMLAlgorithm,
         float_tspan::Bool
     )::ODEProblem
     # When tmax=Inf and a multistep BDF Julia method, e.g. QNDF, is used tmax must be inf,
@@ -98,7 +98,7 @@ end
 function _get_tmax(tmax::Float64, ::Union{CVODE_BDF, CVODE_Adams})::Float64
     return isinf(tmax) ? 1.0e8 : tmax
 end
-function _get_tmax(tmax::Float64, ::Union{Vector{Symbol}, SciMLAlgorithm})::Float64
+function _get_tmax(tmax::Float64, ::Union{Vector{Symbol}, AbstractSciMLAlgorithm})::Float64
     return tmax
 end
 function _get_tmax(

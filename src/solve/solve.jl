@@ -226,7 +226,7 @@ function solve_no_pre_equlibrium(
 end
 
 function _solve(
-        ode_problem::ODEProblem, solver::SciMLAlgorithm, tsave::Vector{Float64}, abstol::Float64,
+        ode_problem::ODEProblem, solver::AbstractSciMLAlgorithm, tsave::Vector{Float64}, abstol::Float64,
         reltol::Float64, dense::Bool, maxiters::Int64, force_dtmin::Bool,
         verbose::AllowedLogging, cbs::SciMLBase.DECallback
     )::ODESolution

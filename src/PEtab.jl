@@ -2,7 +2,7 @@ module PEtab
 
 import ModelingToolkitBase
 using CSV
-using SciMLBase
+using SciMLBase: SciMLBase, AbstractSciMLAlgorithm
 using OrdinaryDiffEqBDF
 using OrdinaryDiffEqRosenbrock
 using OrdinaryDiffEqSDIRK

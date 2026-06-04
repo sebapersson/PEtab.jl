@@ -229,8 +229,8 @@ online documentation.
   `gradient_method = :Adjoint`).
 """
 mutable struct ODESolver
-    solver::SciMLAlgorithm
-    solver_adj::SciMLAlgorithm
+    solver::AbstractSciMLAlgorithm
+    solver_adj::AbstractSciMLAlgorithm
     abstol::Float64
     reltol::Float64
     abstol_adj::Float64
@@ -241,10 +241,10 @@ mutable struct ODESolver
     verbose::AllowedLogging
 end
 function ODESolver(
-        solver::SciMLAlgorithm;
+        solver::AbstractSciMLAlgorithm;
         abstol::Float64 = 1.0e-8,
         reltol::Float64 = 1.0e-8,
-        solver_adj::Union{Nothing, SciMLAlgorithm} = nothing,
+        solver_adj::Union{Nothing, AbstractSciMLAlgorithm} = nothing,
         abstol_adj::Union{Nothing, Float64} = nothing,
         reltol_adj::Union{Nothing, Float64} = nothing,
         force_dtmin::Bool = false,
