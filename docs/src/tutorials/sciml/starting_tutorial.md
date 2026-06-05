@@ -339,7 +339,7 @@ quite good:
 true_func(y) = 1.1 * (y^3) / (2^3 + y^3)
 plot!(true_func, 0.0, 3.5; label = "True function", lw = 3)
 ```
-Options for plotting fitted functions are describe in more details in [here](@ref )
+Options for plotting fitted functions are describe in more details in [here](@ref sciml_plotting)
 
 The above training loop above is intentionally minimal. In practice, Optimisers.jl and
 related packages can be used to add learning-rate schedules, gradient clipping, early

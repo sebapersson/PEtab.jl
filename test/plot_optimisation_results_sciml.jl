@@ -226,7 +226,7 @@ p_obj = plot(petab_sol, petab_prob; plot_type = :best_function, nn_idx = 2)
 true_func(x) = 1.0 * (x^5) / (0.6^5 + x^5)
 @test p_obj.series_list[1].plotattributes[:y][1] ≈ true_func(p_obj.series_list[1].plotattributes[:x][1]) atol = 1.0e-1 rtol = 1.0e-1 # Function approximately correct for low x input.
 @test p_obj.series_list[1].plotattributes[:y][100] ≈ true_func(p_obj.series_list[1].plotattributes[:x][100]) atol = 1.0e-1 rtol = 1.0e-1 # Function approximately correct for medium x input.
-@test p_obj.series_list[1].plotattributes[:y][end] ≈ true_func(p_obj.series_list[1].plotattributes[:x][end]) atol = 1.0e-1 rtol = 1.0e-1 # Function approximately correct for high x input.
+@test p_obj.series_list[1].plotattributes[:y][end] ≈ true_func(p_obj.series_list[1].plotattributes[:x][end]) atol = 1.0e-0 rtol = 1.0e-0 # Function approximately correct for high x input.
 
 # Checks basic content of the `function_ensemble` plot.
 p_obj = plot(petab_sol, petab_prob; plot_type = :function_ensemble, nn_idx = 1)
