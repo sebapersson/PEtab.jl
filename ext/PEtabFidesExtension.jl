@@ -1,21 +1,21 @@
 module PEtabFidesExtension
 
-using Fides: HessianUpdate, CustomHessian, FidesOptions, FidesProblem, InputVector, solve
-using Catalyst: @unpack
-using ComponentArrays: ComponentArray
-using PEtab
-using QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
+import Catalyst: @unpack
+import ComponentArrays: ComponentVector
+import Fides: HessianUpdate, CustomHessian, FidesOptions, FidesProblem, InputVector, solve
+import PEtab: PEtab, PEtabODEProblem
+import QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
 import Random
 
-const DEFAULT_OPT = FidesOptions()
+const DEFAULT_OPTIONS = FidesOptions()
 
 function PEtab.calibrate_multistart(
         rng::Random.AbstractRNG, prob::PEtabODEProblem, alg::HessianUpdate,
-        nmultistarts; nprocs = 1, save_trace::Bool = false, dirsave = nothing,
+        nmultistarts::Integer; nprocs = 1, save_trace::Bool = false, dirsave = nothing,
         sample_prior = true, sampling_method = LatinHypercubeSample(), init_weight = nothing,
-        init_bias = nothing, options::Union{Nothing, FidesOptions} = DEFAULT_OPT
+        init_bias = nothing, options::Union{Nothing, FidesOptions} = DEFAULT_OPTIONS
     )::PEtab.PEtabMultistartResult
-    options = isnothing(options) ? DEFAULT_OPT : options
+    options = isnothing(options) ? DEFAULT_OPTIONS : options
 
     return PEtab._calibrate_multistart(
         rng, prob, alg, nmultistarts, dirsave, sampling_method, options, sample_prior,
@@ -58,7 +58,7 @@ function PEtab.calibrate(
     alg_used = :Fides
     x0_out = PEtab._get_x_out(x, prob)
     xmin_out = PEtab._get_x_out(xmin, prob)
-    return PEtabOptimisationResult(
+    return PEtab.PEtabOptimisationResult(
         xmin_out, fmin, x0_out, alg_used, niterations, runtime, xtrace, ftrace, converged,
         res
     )

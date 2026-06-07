@@ -7,8 +7,7 @@ function PEtab._get_grad(
     @unpack xdynamic_mech = cache
 
     _nllh_not_solve = PEtab._get_nllh_not_solveode(
-        probinfo, model_info;
-        grad_adjoint = true
+        probinfo, model_info; grad_adjoint = true
     )
     _grad_nllh! = let pinfo = probinfo, minfo = model_info,
             _nllh_not_solve = _nllh_not_solve
@@ -46,7 +45,7 @@ function PEtab._get_sensealg(sensealg, ::Val{:Adjoint})
             args $allowed_methods not $sensealg"
         return sensealg
     end
-    return InterpolatingAdjoint(autojacvec = ReverseDiffVJP())
+    return InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true))
 end
 
 function PEtab._get_sensealg_ss(

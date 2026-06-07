@@ -169,7 +169,7 @@ function _get_ml_pre_simulate_maps(
         petab_tables, [:mapping, :conditions, :hybridization]
     )
 
-    for i in 1:nrow(conditions_df)
+    for i in 1:DataFrames.nrow(conditions_df)
         condition_id = Symbol(conditions_df[i, :conditionId])
 
         maps_ml = Dict{Symbol, MLModelPreSimulateMap}()

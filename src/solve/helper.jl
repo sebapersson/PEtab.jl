@@ -1,6 +1,6 @@
 function _switch_condition(
         ode_problem::ODEProblem, experiment_id::Symbol, xdynamic_mech::AbstractVector,
-        x_ml_models::Dict{Symbol, ComponentArray}, model_info::ModelInfo,
+        x_ml_models::Dict{Symbol, ComponentVector}, model_info::ModelInfo,
         cache::PEtabODEProblemCache,
         ml_models_pre_simulate::Dict{Symbol, Dict{Symbol, MLModelPreSimulate}},
         posteq_simulation::Bool; simulation_id::Union{Nothing, Symbol} = nothing
@@ -136,7 +136,7 @@ end
 
 function _set_ml_pre_simulate_ps!(
         p::AbstractVector, xdynamic::AbstractVector,
-        x_ml_models::Dict{Symbol, ComponentArray}, simulation_id::Symbol,
+        x_ml_models::Dict{Symbol, ComponentVector}, simulation_id::Symbol,
         xindices::ParameterIndices,
         ml_models_pre_simulate::Dict{Symbol, Dict{Symbol, MLModelPreSimulate}}
     )::Nothing
@@ -169,7 +169,7 @@ function _set_ml_pre_simulate_ps!(
 end
 
 function _set_ode_problem_ml_ps!(
-        p::ComponentArray, x_ml_models::Dict{Symbol, ComponentArray}, model_info::ModelInfo
+        p::ComponentVector, x_ml_models::Dict{Symbol, ComponentVector}, model_info::ModelInfo
     )::Nothing
     for ml_id in model_info.xindices.ids[:ml_in_ode]
         !in(ml_id, model_info.xindices.ids[:ml_est]) && continue
@@ -178,7 +178,7 @@ function _set_ode_problem_ml_ps!(
     return nothing
 end
 function _set_ode_problem_ml_ps!(
-        p::AbstractVector{<:Real}, x_ml_models::Dict{Symbol, ComponentArray},
+        p::AbstractVector{<:Real}, x_ml_models::Dict{Symbol, ComponentVector},
         model_info::ModelInfo
     )::Nothing
     for ml_id in model_info.xindices.ids[:ml_in_ode]

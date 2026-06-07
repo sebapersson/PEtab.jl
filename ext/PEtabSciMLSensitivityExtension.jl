@@ -1,16 +1,13 @@
 module PEtabSciMLSensitivityExtension
 
-using Catalyst: @unpack
-using SciMLBase: SciMLBase, AbstractSciMLAlgorithm
-using DiffEqCallbacks
-using OrdinaryDiffEqBDF
-using OrdinaryDiffEqSDIRK
-using ForwardDiff
-using ReverseDiff
-using SciMLSensitivity
-using PEtab
 import ArrayInterface
-import DiffEqBase
+import Catalyst: @unpack
+import ForwardDiff
+import PEtab
+import SciMLBase: SciMLBase, AbstractSciMLAlgorithm, CallbackSet, ODEProblem, ODESolution,
+    ReturnCode, remake, solve
+import SciMLSensitivity: SciMLSensitivity, GaussAdjoint, InterpolatingAdjoint,
+    ODEAdjointProblem, QuadratureAdjoint, ReverseDiffVJP, SteadyStateAdjoint
 import SymbolicIndexingInterface: SymbolicIndexingInterface, state_values
 
 const AdjointAlg = Union{QuadratureAdjoint, InterpolatingAdjoint, GaussAdjoint}

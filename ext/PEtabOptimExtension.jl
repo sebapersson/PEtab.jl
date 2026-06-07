@@ -1,12 +1,12 @@
 module PEtabOptimExtension
 
-using Optim
+import Catalyst: @unpack
+import ComponentArrays: ComponentVector
+import Optim
+import PEtab: PEtab, PEtabODEProblem
 import QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
 import Random
-using Setfield
-using Catalyst: @unpack
-using ComponentArrays
-using PEtab
+import Setfield: @set
 
 const DEFAULT_OPT = Optim.Options(
     iterations = 1000, show_trace = false, allow_f_increases = true, successive_f_tol = 3,
@@ -31,14 +31,14 @@ function PEtab.calibrate_multistart(
 end
 
 function PEtab.calibrate(
-        prob::PEtabODEProblem, x::Union{Vector{<:AbstractFloat}, ComponentArray},
+        prob::PEtabODEProblem, x::Union{Vector{<:AbstractFloat}, ComponentVector},
         alg::Union{Optim.LBFGS, Optim.BFGS, Optim.IPNewton}; save_trace::Bool = false,
         options::Optim.Options = DEFAULT_OPT
     )::PEtab.PEtabOptimisationResult
     options = @set options.store_trace = save_trace
     options = @set options.extended_trace = save_trace
 
-    xstart = x |> collect
+    xstart = collect(x)
     optim_problem = _get_optim_problem(prob, alg, options)
 
     local niterations, fmin, _xmin, converged, runtime, ftrace, xtrace, res
@@ -76,14 +76,14 @@ function PEtab.calibrate(
     elseif alg isa Optim.LBFGS
         alg_used = :Optim_LBFGS
     end
-    return PEtabOptimisationResult(
+    return PEtab.PEtabOptimisationResult(
         xmin_out, fmin, x0_out, alg_used, niterations, runtime, xtrace, ftrace, converged,
         res
     )
 end
 
 function _get_optim_problem(prob::PEtabODEProblem, alg, options::Optim.Options)::Function
-    if alg isa IPNewton
+    if alg isa Optim.IPNewton
         return _optim_IPNewton(prob, alg, options)
     else
         return _optim_fminbox(prob, alg, options)
@@ -98,8 +98,8 @@ function _optim_IPNewton(
     ub = upper_bounds |> collect
     nparameters = length(lb)
     x0 = zeros(Float64, nparameters)
-    df = TwiceDifferentiable(prob.nllh, prob.grad!, prob.hess!, x0)
-    dfc = TwiceDifferentiableConstraints(lb, ub)
+    df = Optim.TwiceDifferentiable(prob.nllh, prob.grad!, prob.hess!, x0)
+    dfc = Optim.TwiceDifferentiableConstraints(lb, ub)
 
     _calibrate = (x) -> begin
         # Move points within bounds, and IPNewton does not accept points on the border
@@ -116,12 +116,11 @@ end
 
 function _optim_fminbox(prob::PEtabODEProblem, alg, options::Optim.Options)::Function
     @unpack lower_bounds, upper_bounds = prob
-    lb = lower_bounds |> collect
-    ub = upper_bounds |> collect
+    lb = collect(lower_bounds)
+    ub = collect(upper_bounds)
 
     _calibrate = (x) -> Optim.optimize(
-        prob.nllh, prob.grad!, lb, ub, x, Optim.Fminbox(alg),
-        options
+        prob.nllh, prob.grad!, lb, ub, x, Optim.Fminbox(alg), options
     )
     return _calibrate
 end

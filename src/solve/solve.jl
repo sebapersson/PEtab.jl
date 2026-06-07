@@ -1,6 +1,6 @@
 function solve_conditions!(
         model_info::ModelInfo, xdynamic::AbstractVector,
-        x_ml_models::Dict{Symbol, ComponentArray}, probinfo::PEtabODEProblemInfo;
+        x_ml_models::Dict{Symbol, ComponentVector}, probinfo::PEtabODEProblemInfo;
         cids::Vector{Symbol} = [:all], ntimepoints_save::Int64 = 0,
         save_observed_t::Bool = true, dense_sol::Bool = false, track_callback::Bool = false,
         derivative::Bool = false
@@ -238,11 +238,11 @@ function _solve(
 end
 
 function catch_ode_error(e)::Nothing
-    if e isa DomainError # BoundsError
+    if e isa BoundsError # BoundsError
         @warn "Bounds error ODE solve"
-    elseif e isa DomainError
+    elseif e isa LinearAlgebra.DomainError
         @warn "Domain error on ODE solve"
-    elseif e isa SingularException
+    elseif e isa LinearAlgebra.SingularException
         @warn "Singular exception on ODE solve"
     else
         rethrow(e)

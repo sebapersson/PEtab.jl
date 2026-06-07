@@ -32,7 +32,7 @@ function _has_ml_call(expr, NN, ml_ps_id)::Bool
         x = Symbolics.unwrap(x)
 
         Symbolics.iscall(x) || return false
-        _same_symbolic(operation(x), NN) || return false
+        _same_symbolic(Symbolics.operation(x), NN) || return false
 
         args = Symbolics.arguments(x)
         isempty(args) && return false

@@ -112,11 +112,11 @@ function _get_odeproblem(
         _set_ml_model_ps!((@view odeproblem.p[ml_id]), model.ml_models[ml_id], model.paths)
     end
 
-    # Ensure u0 and p are ComponentArrays if provided as NamedTuples (ComponentArray
+    # Ensure u0 and p are ComponentVectors if provided as NamedTuples (ComponentVector
     # needed for all downstream operations)
-    p = ComponentArray(odeproblem.p)
+    p = ComponentVector(odeproblem.p)
     if odeproblem.u0 isa NamedTuple
-        u0 = ComponentArray(NamedTuple(keys(odeproblem.u0) .=> 0.0))
+        u0 = ComponentVector(NamedTuple(keys(odeproblem.u0) .=> 0.0))
     else
         u0 = odeproblem.u0
     end
@@ -148,7 +148,7 @@ function _get_odeproblem(
 
     for ml_id in xindices.ids[:ml_in_ode]
         ml_id in xindices.ids[:ml_est] && continue
-        ps = _get_lux_ps(ComponentArray, model.ml_models[ml_id])
+        ps = _get_lux_ps(ComponentVector, model.ml_models[ml_id])
         _set_ml_model_ps!(ps, model.ml_models[ml_id], model.paths)
         odeproblem.ps[ml_id] .= ps
     end

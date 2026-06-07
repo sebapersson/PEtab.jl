@@ -1,14 +1,12 @@
 module PEtabOptimizationExtension
 
-using SciMLBase
-using QuasiMonteCarlo
-using Random
-using PEtab
-using Catalyst: @unpack
-using Optimization: OptimizationProblem, OptimizationFunction
+import Catalyst: @unpack
+import Optimization: OptimizationFunction, OptimizationProblem
+import PEtab
+import SciMLBase
 
 function SciMLBase.OptimizationProblem(
-        prob::PEtabODEProblem; box_constraints::Bool = true
+        prob::PEtab.PEtabODEProblem; box_constraints::Bool = true
     )::OptimizationProblem
     # OptimizationFunction with PEtab.jl objective, gradient and Hessian
     _f = (u, p) -> prob.nllh(u)

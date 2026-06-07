@@ -64,7 +64,7 @@ end
 function _template_ml_observable(
         ml_id::Symbol, petab_tables::PEtabTables, state_ids::Vector{String},
         sys_observable_ids::Vector{Symbol}, xindices::ParameterIndices,
-        model_SBML::SBMLImporter.ModelSBML, type::Symbol
+        model_SBML::ModelSBML, type::Symbol
     )::String
     mappings_df, hybridization_df = _get_petab_tables(
         petab_tables, [:mapping, :hybridization]

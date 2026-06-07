@@ -164,7 +164,7 @@ function _PEtabModel(
 end
 
 function add_u0_parameters!(
-        model_SBML::SBMLImporter.ModelSBML, petab_tables::PEtabTables, ml_models::MLModels
+        model_SBML::ModelSBML, petab_tables::PEtabTables, ml_models::MLModels
     )::Nothing
     conditions_df, parameters_df, mappings_df, hybridization_df, observables_df = _get_petab_tables(
         petab_tables, [:conditions, :parameters, :mapping, :hybridization, :observables]
@@ -257,7 +257,7 @@ function _reorder_speciemap(speciemap, sys_ode::ODESystem)
 end
 
 function _get_odesys(
-        model_SBML::SBMLImporter.ModelSBML, paths::Dict{Symbol, String}, exist::Bool,
+        model_SBML::ModelSBML, paths::Dict{Symbol, String}, exist::Bool,
         build_julia_files::Bool, write_to_file::Bool, verbose::Bool
     )
     _logging(:Build_SBML, verbose; buildfiles = build_julia_files, exist = exist)
@@ -284,7 +284,7 @@ function _get_odesys(
         # DAE functionality is not supported as long as it is under APGL license, to not
         # enforce the APGL restrictions on users
         if isempty(model_SBML.algebraic_rules)
-            sys_ode = mtkcompile(_sys_ode)
+            sys_ode = ModelingToolkitBase.mtkcompile(_sys_ode)
         else
             throw(PEtabSupportError("DAE models (SBML with algebraic rules) are not \
                 supported in PEtab.jl. At present the only way to handle DAEs in \
@@ -302,7 +302,7 @@ function _get_odesys(
 end
 
 function _get_odeproblem(
-        model_SBML::SBMLImporter.ModelSBML, ode_ml_models::MLModels,
+        model_SBML::ModelSBML, ode_ml_models::MLModels,
         petab_tables::PEtabTables, verbose::Bool
     )
     hybridization_df, mappings_df = _get_petab_tables(
@@ -342,13 +342,13 @@ function _get_odeproblem(
             ps_ml = _get_lux_ps(ml_model)
             ps_ode = merge(ps_ode, (; ml_model.ml_id => ps_ml))
         end
-        ps_ode = ComponentArray(ps_ode)
+        ps_ode = ComponentVector(ps_ode)
         ps_ode = ps_ode |>
-            ComponentArray{Float64}
+            ComponentVector{Float64}
 
-        # For internal mapping, initial values need to be provided as a ComponentArray
+        # For internal mapping, initial values need to be provided as a ComponentVector
         _u0tmp = zeros(Float64, length(model_SBML_prob.umodel))
-        u0 = ComponentArray(; (Symbol.(model_SBML_prob.umodel) .=> _u0tmp)...)
+        u0 = ComponentVector(; (Symbol.(model_SBML_prob.umodel) .=> _u0tmp)...)
         oprob = SciMLBase.ODEProblem(fode, u0, (0.0, 10.0), ps_ode)
     end
     _logging(:Build_SBML_prob, verbose; time = btime)
@@ -359,7 +359,7 @@ function _get_odeproblem(
     return oprob, u0map, psmap
 end
 
-function _get_sbml_speciemap(model_SBML::SBMLImporter.ModelSBML)
+function _get_sbml_speciemap(model_SBML::ModelSBML)
     model_SBML_sys = SBMLImporter._to_system_syntax(model_SBML, false, false)
     modelstr = SBMLImporter.write_reactionsystem(
         model_SBML_sys, "", model_SBML; write_to_file = false

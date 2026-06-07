@@ -19,8 +19,8 @@ function PEtabParameters(
     if !isempty(parameters_df) && parameters_df[1, :nominalValue] isa String
         parameters_df[!, :nominalValue] .= parse.(Float64, parameters_df[!, :nominalValue])
     end
-    nps = nrow(parameters_df)
-    parameter_ids = fill(Symbol(), nrow(parameters_df))
+    nps = DataFrames.nrow(parameters_df)
+    parameter_ids = fill(Symbol(), DataFrames.nrow(parameters_df))
     lower_bounds = fill(-Inf, nps)
     upper_bounds = fill(Inf, nps)
     nominal_values = zeros(Float64, nps)
@@ -71,9 +71,9 @@ function PEtabMLParameters(
 
     _check_values_column(parameters_df, [0, 1], :estimate, "parameters")
 
-    nps = nrow(parameters_df)
-    parameter_ids = fill(Symbol(), nrow(parameters_df))
-    ml_ids = fill(Symbol(), nrow(parameters_df))
+    nps = DataFrames.nrow(parameters_df)
+    parameter_ids = fill(Symbol(), DataFrames.nrow(parameters_df))
+    ml_ids = fill(Symbol(), DataFrames.nrow(parameters_df))
     lower_bounds = fill(-Inf, nps)
     upper_bounds = fill(Inf, nps)
     estimate = fill(false, nps)
@@ -158,7 +158,7 @@ function Priors(xindices::ParameterIndices, model::PEtabModel)::Priors
             ub = parameters_df[row_idx, :upperBound]
             prior_support = Distributions.support(prior)
             if petab_version == "2.0.0" && (lb > prior_support.lb || ub < prior_support.ub)
-                prior = truncated(prior, lb, ub)
+                prior = Distributions.truncated(prior, lb, ub)
             end
             push!(priors, prior)
             push!(priors_on_parameter_scale, PETAB_PRIORS[prior_id].x_scale)
@@ -183,7 +183,7 @@ function Priors(xindices::ParameterIndices, model::PEtabModel)::Priors
 
             else
                 i_start = xindices.indices_est[ml_id][1]
-                x_ml = _get_lux_ps(ComponentArray, model.ml_models[ml_id])
+                x_ml = _get_lux_ps(ComponentVector, model.ml_models[ml_id])
                 layer_id = _get_layer_id(model_parameter_id)
                 array_id = _get_array_id(model_parameter_id)
                 label = isempty(array_id) ? "$(layer_id)" : "$(layer_id).$(array_id)"
@@ -247,7 +247,7 @@ function _parse_julia_prior(_prior::String)::ContDistribution
     # In expressions like Normal{Float64}(μ=0.3, σ=3.0) remove variables to obtain
     # Normal{Float64}(0.3, 3.0). TODO: Update to support PEtab export
     _prior = replace(_prior, r"\b\w+\s*=\s*" => "")
-    _prior = replace(_prior, "Truncated" => "truncated")
+    _prior = replace(_prior, "Truncated" => "Distributions.truncated")
     _prior = replace(_prior, ";" => ",")
     return eval(Meta.parse(_prior))
 end
@@ -308,7 +308,7 @@ end
 
 function _get_logpdf(prior::ContDistribution)::Function
     _logpdf = let dist = prior
-        (x) -> logpdf(dist, x)
+        (x) -> Distributions.logpdf(dist, x)
     end
     return _logpdf
 end

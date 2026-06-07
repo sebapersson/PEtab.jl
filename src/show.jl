@@ -4,8 +4,6 @@
 =#
 import Base.show
 
-StyledStrings.addface!(:PURPLE => StyledStrings.Face(foreground = 0x008f4093))
-
 function _get_solver_show(solver::ODESolver)::Tuple{String, String}
     @unpack abstol, reltol, maxiters = solver
     options = @sprintf(
@@ -93,15 +91,15 @@ function show(io::IO, observable::PEtabObservable)
         noise_formula = "($(noise_formula))"
     end
 
-    if distribution == Normal
+    if distribution == Distributions.Normal
         opt = "data ~ Normal(μ=$(observable_formula), σ=$(noise_formula))"
-    elseif distribution == LogNormal
+    elseif distribution == Distributions.LogNormal
         opt = "log(data) ~ Normal(μ=log($(observable_formula)), σ=$(noise_formula))"
     elseif distribution == Log2Normal
         opt = "log2(data) ~ Normal(μ=log2($(observable_formula)), σ=$(noise_formula))"
     elseif distribution == Log10Normal
         opt = "log10(data) ~ Normal(μ=log10($(observable_formula)), σ=$(noise_formula))"
-    elseif distribution == Laplace
+    elseif distribution == Distributions.Laplace
         opt = "data ~ Laplace(μ=$(observable_formula), θ=$(noise_formula))"
     elseif distribution == LogLaplace
         opt = "log(data) ~ Laplace(μ=log($(observable_formula)), θ=$(noise_formula))"
@@ -228,7 +226,7 @@ end
 
 Print summary and configuration statistics for `prob`
 """
-function describe(prob::PEtabODEProblem)
+function StatsBase.describe(prob::PEtabODEProblem)
     return print(_describe(prob))
 end
 

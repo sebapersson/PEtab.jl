@@ -130,7 +130,7 @@ end
 
 function _PEtabModel(
         sys::ModelSystem, petab_tables::PEtabTables, name, speciemap, parametermap, events,
-        ml_models::MLModels, verbose::Bool; float_tspan::Union{Bool, Nothing} = nothing
+        ml_models::MLModels, verbose::Bool
     )::PEtabModel
     # Get initial value mappings
     sys_mutated = deepcopy(sys)
@@ -160,7 +160,7 @@ function _PEtabModel(
 
     _logging(:Build_u0_h_σ, verbose; exist = false)
     btime = @elapsed begin
-        model_SBML = SBMLImporter.ModelSBML(name)
+        model_SBML = ModelSBML(name)
         hstr, u0!str, u0str, σstr = parse_observables(
             name, paths, sys_mutated, petab_tables, xindices, speciemap_problem,
             speciemap_model, sys_observable_ids, model_SBML, ml_models, false
@@ -203,14 +203,14 @@ end
 
 _check_sys(::ModelSystem)::Nothing = nothing
 function _check_sys(sys::ODEProblem)::Nothing
-    if !(sys.u0 isa ComponentArray || sys.u0 isa NamedTuple)
+    if !(sys.u0 isa ComponentVector || sys.u0 isa NamedTuple)
         throw(PEtabInputError("For an ODEProblem model, the initial conditions `u0` must \
-            be a struct that supports `keys` (either a `ComponentArray` or `NamedTuple`). \
+            be a struct that supports `keys` (either a `ComponentVector` or `NamedTuple`). \
             For example: `u0 = (a = 3.0, b = 3.0)`."))
     end
-    if !(sys.p isa ComponentArray || sys.p isa NamedTuple)
+    if !(sys.p isa ComponentVector || sys.p isa NamedTuple)
         throw(PEtabInputError("For an ODEProblem model, the parameter vector `p` must be a \
-            struct that supports `keys` (either a `ComponentArray` or `NamedTuple`). \
+            struct that supports `keys` (either a `ComponentVector` or `NamedTuple`). \
             For example: `p = (k1 = 0.1, k2 = 0.2)`."))
     end
     return nothing

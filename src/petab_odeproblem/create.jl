@@ -250,12 +250,12 @@ function _get_bounds(
     transform_x!(bounds, xnames_mech, xindices, to_xscale = true)
     xmech_bounds = NamedTuple(xnames_ps[ix_mech] .=> bounds)
 
-    # Each network has its bounds as a ComponentArray
+    # Each network has its bounds as a ComponentVector
     xnames_ml = xnames[setdiff(1:length(xnames), ix_mech)]
-    bounds = Vector{ComponentArray}(undef, length(xnames_ml))
+    bounds = Vector{ComponentVector}(undef, length(xnames_ml))
     for (i, ml_id) in pairs(xnames_ml)
         ml_model = model_info.model.ml_models[ml_id]
-        bounds[i] = _get_lux_ps(ComponentArray, ml_model)
+        bounds[i] = _get_lux_ps(ComponentVector, ml_model)
         if which == :lower
             bounds[i] .= -Inf
         else
@@ -263,7 +263,7 @@ function _get_bounds(
         end
     end
     x_ml_bounds = (xnames_ml .=> bounds) |> NamedTuple
-    return merge(xmech_bounds, x_ml_bounds) |> ComponentArray
+    return merge(xmech_bounds, x_ml_bounds) |> ComponentVector
 end
 
 function _get_xnominal(
@@ -283,17 +283,17 @@ function _get_xnominal(
         xmech = (xnames[ix_mech] .=> xnominal_mech) |> NamedTuple
     end
 
-    # Each network has its parameters as a ComponentArray
+    # Each network has its parameters as a ComponentVector
     xnames_ml = xnames[setdiff(1:length(xnames), ix_mech)]
-    xnominal_ml = Vector{ComponentArray}(undef, length(xnames_ml))
+    xnominal_ml = Vector{ComponentVector}(undef, length(xnames_ml))
     for (i, ml_id) in pairs(xnames_ml)
         ml_model = model_info.model.ml_models[ml_id]
-        psnet = _get_lux_ps(ComponentArray, ml_model)
+        psnet = _get_lux_ps(ComponentVector, ml_model)
         _set_ml_model_ps!(psnet, ml_id, ml_models, paths, petab_tables)
         xnominal_ml[i] = psnet
     end
     x_ml_models = NamedTuple(xnames_ml .=> xnominal_ml)
-    return ComponentArray(merge(xmech, x_ml_models))
+    return ComponentVector(merge(xmech, x_ml_models))
 end
 
 function _get_ixnames_mech(
@@ -309,9 +309,9 @@ function _get_xnominal_mech(
     return petab_parameters.nominal_value[ix]
 end
 
-function _test_ordering(x::ComponentArray, xnames_ps::Vector{Symbol})::Nothing
+function _test_ordering(x::ComponentVector, xnames_ps::Vector{Symbol})::Nothing
     if !all(propertynames(x) .== xnames_ps)
-        throw(PEtabInputError("Input ComponentArray x to the PEtab nllh function \
+        throw(PEtabInputError("Input ComponentVector x to the PEtab nllh function \
             has wrong ordering or parameter names. In x the parameters must appear in the \
             order of $xnames_ps"))
     end

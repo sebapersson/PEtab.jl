@@ -1,10 +1,10 @@
 module PEtabSelectExtension
 
 import CSV
-using DataFrames: DataFrame
-import QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
-using PEtab
+import DataFrames: DataFrame
+import PEtab: PEtab, ODESolver, PEtabODEProblem, SteadyStateSolver
 import PEtabSelect
+import QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
 import YAML
 
 function PEtab.petab_select(
@@ -33,7 +33,9 @@ function PEtab.petab_select(
     model_space = CSV.read(path_model_space, DataFrame, stringtype = String)
     xchange = propertynames(model_space)[3:end]
     custom_values = Dict(xchange .=> "estimate")
-    petab_model = PEtabModel(joinpath(dirmodel, model_space[1, :model_subspace_petab_yaml]))
+    petab_model = PEtab.PEtabModel(
+        joinpath(dirmodel, model_space[1, :model_subspace_petab_yaml])
+    )
     petab_prob = PEtabODEProblem(
         petab_model; odesolver = odesolver, ss_solver = ss_solver,
         odesolver_gradient = odesolver_gradient, sensealg = sensealg,
@@ -58,24 +60,24 @@ function PEtab.petab_select(
         # Start the iterative model selection process
         if k == 1
             iteration = PEtabSelect.get_iteration_info(select_problem, nothing, true)
-            ncandidates = PEtabSelect.get_n_new_models(iteration)
-            @info "Round $k with $ncandidates candidates - as the code compiles this round \
+            n_candidates = PEtabSelect.get_n_new_models(iteration)
+            @info "Round $k with $n_candidates candidates - as the code compiles this round \
                    it takes extra long time https://xkcd.com/303/"
         else
             iteration = PEtabSelect.get_iteration_info(
                 select_problem, iteration_results, false
             )
-            ncandidates = PEtabSelect.get_n_new_models(iteration)
-            ncandidates != 0 && @info "Round $k with $ncandidates candidates"
+            n_candidates = PEtabSelect.get_n_new_models(iteration)
+            n_candidates != 0 && @info "Round $k with $n_candidates candidates"
         end
         _calibrate_candidates!(
             iteration, select_problem, petab_prob, alg, nmultistarts, options,
             sampling_method
         )
         iteration_results = PEtabSelect.get_iteration_results(select_problem, iteration)
-        ncandidates = PEtabSelect.get_n_new_models(iteration)
+        n_candidates = PEtabSelect.get_n_new_models(iteration)
         k += 1
-        if ncandidates == 0
+        if n_candidates == 0
             best_model = PEtabSelect.get_best_model(select_problem, iteration_results)
             break
         end

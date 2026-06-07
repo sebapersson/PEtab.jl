@@ -1,5 +1,5 @@
 function _parse_events(
-        model_SBML::SBMLImporter.ModelSBML, petab_events::Vector{PEtabEvent},
+        model_SBML::ModelSBML, petab_events::Vector{PEtabEvent},
         sys::ModelSystem, speciemap, parametermap, name, xindices::ParameterIndices,
         petab_tables::PEtabTables
     )::Tuple{Dict{Symbol, CallbackSet}, Bool}
@@ -37,7 +37,7 @@ function _parse_events(
         isempty(i_events) && continue
 
         _petab_events = parse_events(petab_events[i_events], sys)
-        _model_SBML = SBMLImporter.ModelSBML(name; events = _petab_events)
+        _model_SBML = ModelSBML(name; events = _petab_events)
         cbs_petab = SBMLImporter.create_callbacks(
             sys, _model_SBML, name; p_PEtab = p_sys, float_tspan = float_tspan
         )
@@ -78,7 +78,7 @@ function _parse_events(
 
     # Whether t-span should be float or not depends on all events
     sbml_events = parse_events(petab_events, sys)
-    model_SBML = SBMLImporter.ModelSBML(name; events = sbml_events)
+    model_SBML = ModelSBML(name; events = sbml_events)
     float_tspan = _xdynamic_in_event_cond(model_SBML, xindices, petab_tables) |> !
 
     for condition_id in Symbol.(conditions_df.conditionId)
@@ -92,7 +92,7 @@ function _parse_events(
         end
 
         _sbml_events = parse_events(_events_condition, sys)
-        _model_SBML = SBMLImporter.ModelSBML(name; events = _sbml_events)
+        _model_SBML = ModelSBML(name; events = _sbml_events)
         _cbs = SBMLImporter.create_callbacks(
             sys, _model_SBML, name; p_PEtab = p_sys, float_tspan = float_tspan,
             _specie_ids = state_ids

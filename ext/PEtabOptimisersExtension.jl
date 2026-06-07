@@ -1,11 +1,11 @@
 module PEtabOptimisersExtension
 
+import ComponentArrays: ComponentVector
 import Dates
 import Optimisers
+import PEtab
 import QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
 import Random
-using ComponentArrays: ComponentArray
-import PEtab
 
 function PEtab.calibrate_multistart(
         rng::Random.AbstractRNG, prob::PEtab.PEtabODEProblem, alg::Optimisers.AbstractRule,
@@ -21,7 +21,7 @@ function PEtab.calibrate_multistart(
 end
 
 function PEtab.calibrate(
-        prob::PEtab.PEtabODEProblem, x::Union{Vector{<:AbstractFloat}, ComponentArray},
+        prob::PEtab.PEtabODEProblem, x::Union{Vector{<:AbstractFloat}, ComponentVector},
         alg::Optimisers.AbstractRule; save_trace::Bool = false,
         options::PEtab.OptimisersOptions = PEtab.OptimisersOptions()
     )::PEtab.PEtabOptimisationResult

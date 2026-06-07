@@ -1,7 +1,7 @@
 function PEtab._set_ml_model_ps!(
-        ps::ComponentArray, path_h5::String, lux_model, ml_id::Symbol
+        ps::ComponentVector, path_h5::String, lux_model, ml_id::Symbol
     )::Nothing
-    file = h5open(path_h5, "r")
+    file = HDF5.h5open(path_h5, "r")
     PEtab._check_metadata(file, path_h5)
 
     net_parameters = file["parameters"]["$(ml_id)"]
@@ -18,14 +18,14 @@ function PEtab._set_ml_model_ps!(
 end
 
 function _set_ps_layer!(
-        ps::ComponentArray, layer::Lux.Experimental.FrozenLayer, st_layer::NamedTuple,
+        ps::ComponentVector, layer::Lux.Experimental.FrozenLayer, st_layer::NamedTuple,
         file_group
     )::Nothing
     _set_ps_layer!(ps, layer.layer, st_layer, file_group)
     return nothing
 end
 function _set_ps_layer!(
-        ps::ComponentArray, layer::Lux.Dense, st_layer::NamedTuple, file_group
+        ps::ComponentVector, layer::Lux.Dense, st_layer::NamedTuple, file_group
     )::Nothing
     @unpack in_dims, out_dims, use_bias = layer
     if _is_frozen(st_layer, :weight) == false
@@ -42,7 +42,7 @@ function _set_ps_layer!(
     return nothing
 end
 function _set_ps_layer!(
-        ps::ComponentArray, layer::Lux.Bilinear, st_layer::NamedTuple, file_group
+        ps::ComponentVector, layer::Lux.Bilinear, st_layer::NamedTuple, file_group
     )::Nothing
     @unpack in1_dims, in2_dims, out_dims, use_bias = layer
     if _is_frozen(st_layer, :weight) == false
@@ -59,7 +59,7 @@ function _set_ps_layer!(
     return nothing
 end
 function _set_ps_layer!(
-        ps::ComponentArray, layer::Lux.Conv, st_layer::NamedTuple, file_group
+        ps::ComponentVector, layer::Lux.Conv, st_layer::NamedTuple, file_group
     )::Nothing
     @unpack kernel_size, use_bias, in_chs, out_chs = layer
     if _is_frozen(st_layer, :weight) == false
@@ -84,7 +84,7 @@ function _set_ps_layer!(
     return nothing
 end
 function _set_ps_layer!(
-        ps::ComponentArray, layer::Lux.ConvTranspose, st_layer::NamedTuple, file_group
+        ps::ComponentVector, layer::Lux.ConvTranspose, st_layer::NamedTuple, file_group
     )::Nothing
     @unpack kernel_size, use_bias, in_chs, out_chs = layer
     if _is_frozen(st_layer, :weight) == false
@@ -110,7 +110,7 @@ function _set_ps_layer!(
     return nothing
 end
 function _set_ps_layer!(
-        ps::ComponentArray, layer::Union{Lux.BatchNorm, Lux.InstanceNorm},
+        ps::ComponentVector, layer::Union{Lux.BatchNorm, Lux.InstanceNorm},
         st_layer::NamedTuple, file_group
     )::Nothing
     @unpack affine, chs = layer
@@ -131,7 +131,7 @@ function _set_ps_layer!(
     return nothing
 end
 function _set_ps_layer!(
-        ps::ComponentArray, layer::Lux.LayerNorm, st_layer::NamedTuple, file_group
+        ps::ComponentVector, layer::Lux.LayerNorm, st_layer::NamedTuple, file_group
     )::Nothing
     @unpack shape, affine = layer
     affine == false && return nothing
@@ -182,7 +182,7 @@ function _get_ps_layer(file_group, which::Symbol)
 end
 
 function _set_ps_array!(
-        ps::ComponentArray, id::Symbol, value::Array{<:AbstractFloat}
+        ps::ComponentVector, id::Symbol, value::Array{<:AbstractFloat}
     )::Nothing
     # Happens when a layer if frozen
     isempty(ps[id]) && return nothing

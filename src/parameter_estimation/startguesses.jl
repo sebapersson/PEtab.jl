@@ -5,7 +5,7 @@ Generate `n` random parameter vectors for parameter estimation of `prob`.
 
 `rng` is optional and defaults to `Random.default_rng()`. If `n = 1`, a single parameter
 vector is returned. For `n > 1`, a vector of parameter vectors is returned. In both cases,
-parameters are returned as a [ComponentArray](https://github.com/jonniedie/ComponentArrays.jl).
+parameters are returned as a [ComponentVector](https://github.com/jonniedie/ComponentArrays.jl).
 
 For SciML problems (combining mechanistic and ML parameters), mechanistic parameters are
 sampled within bounds using `sampling_method`. ML parameters are sampled using
@@ -70,7 +70,7 @@ function get_startguesses(
 
     # Returning a vector of vector
     ix_mech = _get_ix_mech(prob)
-    out = Vector{ComponentArray{Float64}}(undef, 0)
+    out = Vector{ComponentVector{Float64}}(undef, 0)
     found_starts = 0
     for k in 1:1000
         # QuasiMonteCarlo is deterministic, so for sufficiently few start-guesses we can
@@ -116,7 +116,7 @@ end
 function _single_startguess(
         rng::Random.AbstractRNG, prob::PEtabODEProblem, sample_prior::Bool, allow_inf::Bool,
         init_weight, init_bias,
-    )::ComponentArray{Float64}
+    )::ComponentVector{Float64}
     @unpack xnominal_transformed, model_info = prob
     out = similar(xnominal_transformed)
 
@@ -165,7 +165,7 @@ function _ml_startguess(
         rng::Random.AbstractRNG, ml_model::MLModel, model_info::ModelInfo, init_weight,
         init_bias, sample_prior::Bool
     )
-    x_ml = _get_lux_ps(rng, ComponentArray, ml_model)
+    x_ml = _get_lux_ps(rng, ComponentVector, ml_model)
 
     if !isnothing(init_weight)
         for layer_id in keys(x_ml)
@@ -232,7 +232,7 @@ function _sample_prior(rng::Random.AbstractRNG, ix::Integer, model_info::ModelIn
 end
 
 function _init_array!(
-        rng::Random.AbstractRNG, x_ml::ComponentArray, init_f::Function, layer_id::Symbol,
+        rng::Random.AbstractRNG, x_ml::ComponentVector, init_f::Function, layer_id::Symbol,
         array_id::Symbol
     )::Nothing
     !haskey(x_ml[layer_id], array_id) && return nothing

@@ -96,7 +96,7 @@ function _conditions_to_table(
     for model_id in names(conditions_df)
         !(model_id in specie_ids) && continue
 
-        for row_idx in 1:nrow(conditions_df)
+        for row_idx in 1:DataFrames.nrow(conditions_df)
             !ismissing(conditions_df[row_idx, model_id]) && continue
             conditions_df[!, model_id] .= string.(conditions_df[!, model_id])
             conditions_df[row_idx, model_id] = "NaN"
@@ -112,25 +112,14 @@ function _measurements_to_table(
     )::DataFrame
     measurements_df = deepcopy(measurements)
     # Reformat column names to follow PEtab standard
-    if "pre_eq_id" in names(measurements_df)
-        rename!(measurements_df, "pre_eq_id" => "preequilibrationConditionId")
-    end
-    if "pre_equilibration_id" in names(measurements_df)
-        rename!(measurements_df, "pre_equilibration_id" => "preequilibrationConditionId")
-    end
-    if "obs_id" in names(measurements_df)
-        rename!(measurements_df, "obs_id" => "observableId")
-    end
-    if "observable_parameters" in names(measurements_df)
-        rename!(measurements_df, "observable_parameters" => "observableParameters")
-    end
-    if "noise_parameters" in names(measurements_df)
-        rename!(measurements_df, "noise_parameters" => "noiseParameters")
-    end
+    _rename_column!(measurements_df, "pre_eq_id", "preequilibrationConditionId")
+    _rename_column!(measurements_df, "pre_equilibration_id", "preequilibrationConditionId")
+    _rename_column!(measurements_df, "obs_id", "observableId")
+    _rename_column!(measurements_df, "observable_parameters", "observableParameters")
+    _rename_column!(measurements_df, "noise_parameters", "noiseParameters")
+    _rename_column!(measurements_df, "simulation_id", "simulationConditionId")
 
-    if "simulation_id" in names(measurements_df)
-        rename!(measurements_df, "simulation_id" => "simulationConditionId")
-    elseif !("simulationConditionId" in names(measurements_df))
+    if !("simulationConditionId" in names(measurements_df))
         measurements_df[!, "simulationConditionId"] .= "__c0__"
     end
 
@@ -303,7 +292,7 @@ function _hybridization_to_table(
 
     # In case any input is assigned array input, a correction is needed in the mapping
     # table
-    for i in 1:nrow(mappings_df)
+    for i in 1:DataFrames.nrow(mappings_df)
         isempty(hybridization_df) && continue
 
         idx = findfirst(x -> x == mappings_df.petabEntityId[i], hybridization_df.targetId)
@@ -320,11 +309,11 @@ function _hybridization_to_table(
     # as array assignments occur in hybridization table (and all internal mapping has
     # at this stage been done to properly deal with array input, as array inputs live in
     # MLModel
-    for row_idx in 1:nrow(hybridization_df)
+    for row_idx in 1:DataFrames.nrow(hybridization_df)
         hybridization_df.targetValue[row_idx] != "array" && continue
         if hybridization_df.targetId[row_idx] in names(conditions_df)
             DataFrames.select!(
-                conditions_df, Not(Symbol(hybridization_df.targetId[row_idx]))
+                conditions_df, DataFrames.Not(Symbol(hybridization_df.targetId[row_idx]))
             )
         end
     end
@@ -523,4 +512,11 @@ end
 function _is_array_input(io_id::Symbol, conditions_df::DataFrame)::Bool
     !in(io_id, propertynames(conditions_df)) && return false
     return conditions_df[1, io_id] == "array"
+end
+
+function _rename_column!(df::DataFrame, old_name::String, new_name::String)::Nothing
+    if old_name in names(df)
+        DataFrames.rename!(df, old_name => new_name)
+    end
+    return nothing
 end

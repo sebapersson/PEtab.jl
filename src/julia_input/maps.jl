@@ -99,7 +99,7 @@ function _get_parametermap(sys::ODEProblem, ::Any, ml_models::MLModels)
         (k => sys.p[k] for k in mech_ids)...,
         (k => sys.p[k] for k in ml_ode_ids)...,
     )
-    sys = remake(sys, p = ComponentArray(p_ode))
+    sys = remake(sys, p = ComponentVector(p_ode))
     return sys, nothing
 end
 function _get_parametermap(sys::ModelSystem, parametermap_input, ::MLModels)
@@ -196,7 +196,7 @@ function _add_parameter(sys::ReactionSystem, parameter)
     p = Symbol(parameter)
     p_new = vcat(parameters(sys), only(@parameters($p)))
     @named sys_new = Catalyst.ReactionSystem(
-        reactions(sys), Catalyst.default_t(), Catalyst.unknowns(sys), p_new
+        Catalyst.reactions(sys), Catalyst.default_t(), Catalyst.unknowns(sys), p_new
     )
     return Catalyst.complete(sys_new)
 end
@@ -208,15 +208,15 @@ function _add_parameter(sys::ODESystem, parameter)
     @named de = ODESystem(
         equations(sys), Catalyst.default_t(), ModelingToolkitBase.unknowns(sys), p_new
     )
-    return complete(de)
+    return ModelingToolkitBase.complete(de)
 end
 function _add_parameter(sys::ODEProblem, parameter)
-    # For an ODEProblem p can be arbitrary struct (we enforce ComponentArray though for
+    # For an ODEProblem p can be arbitrary struct (we enforce ComponentVector though for
     # parameter mapping)
-    @assert sys.p isa ComponentArray "p for ODEProblem must be a ComponentArray"
+    @assert sys.p isa ComponentVector "p for ODEProblem must be a ComponentVector"
     _p = sys.p |> NamedTuple
     _padd = NamedTuple{(Symbol(parameter),)}((0.0,))
-    p = ComponentArray(merge(_p, _padd))
+    p = ComponentVector(merge(_p, _padd))
     return remake(sys, p = p)
 end
 
@@ -224,7 +224,7 @@ function _keys_to_string(d::Union{Dict, NamedTuple})::Dict
     keysnew = replace.(keys(d) |> collect .|> string, "(t)" => "")
     return Dict(keysnew .=> values(d))
 end
-function _keys_to_string(d::ComponentArray)::Dict
+function _keys_to_string(d::ComponentVector)::Dict
     keysnew = replace.(keys(d) |> collect .|> string, "(t)" => "")
     return Dict(keysnew .=> collect(d))
 end
