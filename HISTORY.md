@@ -5,6 +5,7 @@
 - Added support for Optimisers.jl update rules in `calibrate` and `calibrate_multistart` via
   a package extension. For example, it is now possible to do:
   `calibrate(prob, x0, Optimisers.Adam(1e-3))`.
+- Updated SciMLBase and ODE-solver packages compat.
 
 ## PEtab.jl 5.2.0
 
