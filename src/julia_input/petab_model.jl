@@ -130,7 +130,7 @@ end
 
 function _PEtabModel(
         sys::ModelSystem, petab_tables::PEtabTables, name, speciemap, parametermap, events,
-        ml_models::MLModels, verbose::Bool
+        ml_models::MLModels, verbose::Bool; float_tspan::Union{Bool, Nothing} = nothing
     )::PEtabModel
     # Get initial value mappings
     sys_mutated = deepcopy(sys)
