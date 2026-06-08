@@ -102,7 +102,7 @@ right-hand side, the `ODEProblem` can be constructed using the [`UDEProblem`](@r
 function:
 
 ```@example 1
-using ComponentVectors
+using ComponentArrays
 p_mechanistic = ComponentVector(d = 1.0)
 u0 = ComponentVector(X = 2.0, Y = 0.1)
 ude_prob = UDEProblem(ude_f!, u0, (0.0, 10.0), p_mechanistic, ml_model)
