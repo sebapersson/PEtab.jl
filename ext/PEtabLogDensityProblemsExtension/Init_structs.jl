@@ -54,9 +54,9 @@ function PEtab.InferenceInfo(petab_problem::PEtabODEProblem)::PEtab.InferenceInf
             if abs(isinf(lower_bounds[ix])) || isinf(upper_bounds[ix])
                 @warn "Lower or upper bounds for parameter $(parameter_names[ix]) is \
                     -inf and/or inf. Assigning Uniform(1e-3, 1e3) prior"
-                priors_dist[ix] = Uniform(1.0e-3, 1.0e3)
+                priors_dist[ix] = Distributions.Uniform(1.0e-3, 1.0e3)
             else
-                priors_dist[ix] = Uniform(lower_bounds[ix], upper_bounds[ix])
+                priors_dist[ix] = Distributions.Uniform(lower_bounds[ix], upper_bounds[ix])
             end
             priors_scale[ix] = :lin
         else

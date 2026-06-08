@@ -2,7 +2,7 @@ function parse_observables(
         modelname::String, paths::Dict{Symbol, String}, sys::ModelSystem,
         petab_tables::PEtabTables, xindices::ParameterIndices, speciemap_problem,
         speciemap_model, sys_observable_ids::Vector{Symbol},
-        model_SBML::SBMLImporter.ModelSBML, ml_models::MLModels, write_to_file::Bool
+        model_SBML::ModelSBML, ml_models::MLModels, write_to_file::Bool
     )::NTuple{4, String}
     state_ids = _get_state_ids(sys)
 
@@ -32,7 +32,7 @@ end
 function _parse_h(
         state_ids::Vector{String}, sys_observable_ids::Vector{Symbol},
         xindices::ParameterIndices, petab_tables::PEtabTables,
-        model_SBML::SBMLImporter.ModelSBML, ml_models::MLModels
+        model_SBML::ModelSBML, ml_models::MLModels
     )::String
     hstr = "function compute_h(__u_model::AbstractVector, t::Real, \
            __p_model::AbstractVector, xobservable::AbstractVector, \
@@ -66,7 +66,7 @@ end
 function _parse_σ(
         state_ids::Vector{String}, sys_observable_ids::Vector{Symbol},
         xindices::ParameterIndices, observables_df::DataFrame,
-        model_SBML::SBMLImporter.ModelSBML
+        model_SBML::ModelSBML
     )::String
     σstr = "function compute_σ(__u_model::AbstractVector, t::Real, \
             __p_model::AbstractVector, xnoise::AbstractVector, \
@@ -94,7 +94,7 @@ end
 
 function _parse_u0(
         speciemap_problem, speciemap_model, state_ids::Vector{String},
-        xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, inplace::Bool
+        xindices::ParameterIndices, model_SBML::ModelSBML, inplace::Bool
     )
     # As commented in PEtabModel files, for correct gradient the model must be mutated
     # if initial values are assigned in the conditions table. This corresponds to adding
@@ -175,7 +175,7 @@ end
 
 function _parse_formula(
         formula::String, state_ids::Vector{String}, sys_observable_ids::Vector{Symbol},
-        xindices::ParameterIndices, model_SBML::SBMLImporter.ModelSBML, type::Symbol
+        xindices::ParameterIndices, model_SBML::ModelSBML, type::Symbol
     )::String
     # If the formula is defined as part of the observables in the system, the pre-built
     # symbolic funciton is the most efficient to use. This applies to SBML assignment
@@ -234,7 +234,7 @@ end
 function _get_ml_formulas(
         formula, petab_tables::PEtabTables, state_ids::Vector{String},
         sys_observable_ids::Vector{Symbol}, xindices::ParameterIndices,
-        model_SBML::SBMLImporter.ModelSBML, ml_models::MLModels, type::Symbol
+        model_SBML::ModelSBML, ml_models::MLModels, type::Symbol
     )::String
     formula_ml = ""
     mappings_df = petab_tables[:mapping]

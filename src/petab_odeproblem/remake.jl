@@ -33,7 +33,7 @@ prob_sub = remake(prob; conditions = [:cond1, :cond3])
 prob_sub = remake(prob; parameters = [:k1 => 3.0, :k2 => 4.0])
 ```
 """
-function remake(
+function SciMLBase.remake(
         prob::PEtabODEProblem; conditions::Union{Vector{<:Pair}, Vector{Symbol}} = Symbol[],
         experiments = Symbol[],
         parameters::Vector{<:Pair{Symbol, <:Real}} = Pair{Symbol, Real}[]
@@ -193,11 +193,10 @@ function _remake_parameters(
         return FIM
     end
     return PEtabODEProblem(
-        _nllh, _chi2, _grad!, _grad, _hess!, _hess, _FIM!, _FIM,
-        _nllh_grad, _prior, _grad_prior, _hess_prior, _simulated_values,
-        _residuals, prob.probinfo, prob.model_info, nestimate_new,
-        xnames_new, xnominal_new, xnominal_transformed_new, lb_new,
-        ub_new
+        _nllh, _chi2, _grad!, _grad, _hess!, _hess, _FIM!, _FIM, _nllh_grad, _prior,
+        _grad_prior, _hess_prior, _simulated_values, _residuals, prob.probinfo,
+        prob.model_info, nestimate_new, xnames_new, xnominal_new, xnominal_transformed_new,
+        lb_new, ub_new
     )
 end
 
@@ -272,9 +271,9 @@ function _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
     return xest_full
 end
 
-function _to_component_array(x)::ComponentArray{Float64}
+function _to_component_array(x)::ComponentVector{Float64}
     if isempty(x)
-        return ComponentArray{Float64}()
+        return ComponentVector{Float64}()
     else
         return x
     end

@@ -35,13 +35,12 @@ function grad_adjoint!(
 end
 
 function _grad_adjoint_xdynamic!(
-        grad::Vector{<:AbstractFloat},
-        probinfo::PEtab.PEtabODEProblemInfo,
-        model_info::PEtab.ModelInfo;
-        cids::Vector{Symbol} = [:all]
+        grad::Vector{<:AbstractFloat}, probinfo::PEtab.PEtabODEProblemInfo,
+        model_info::PEtab.ModelInfo; cids::Vector{Symbol} = [:all]
     )::Nothing
     @unpack cache, sensealg, sensealg_ss = probinfo
     @unpack xindices, simulation_info = model_info
+
     xnoise, xobservable, xnondynamic_mech, xdynamic = PEtab._get_x_not_ml(cache, 1.0)
     xnoise_ps = PEtab.transform_x(xnoise, xindices, :xnoise, cache)
     xobservable_ps = PEtab.transform_x(xobservable, xindices, :xobservable, cache)
@@ -126,7 +125,7 @@ end
 
 # TODO : Add interface for SteadyStateAdjoint
 function VJP_ss(
-        du::AbstractVector, _sol::ODESolution, solver::SciMLAlgorithm,
+        du::AbstractVector, _sol::ODESolution, solver::AbstractSciMLAlgorithm,
         sensealg::QuadratureAdjoint, reltol::Float64, abstol::Float64, force_dtmin::Bool,
         maxiters::Int64
     )::AbstractVector
@@ -139,14 +138,16 @@ function VJP_ss(
         adj_prob, solver; abstol = abstol, reltol = reltol, force_dtmin = force_dtmin,
         maxiters = maxiters, save_everystep = true, save_start = true
     )
-    integrand = AdjointSensitivityIntegrand(_sol, adj_sol, sensealg, nothing)
+    integrand = SciMLSensitivity.AdjointSensitivityIntegrand(
+        _sol, adj_sol, sensealg, nothing
+    )
     res, _ = SciMLSensitivity.quadgk(
         integrand, _sol.prob.tspan[1], _sol.t[end], atol = abstol, rtol = reltol
     )
     return res'
 end
 function VJP_ss(
-        du::AbstractVector, _sol::ODESolution, solver::SciMLAlgorithm,
+        du::AbstractVector, _sol::ODESolution, solver::AbstractSciMLAlgorithm,
         sensealg::InterpolatingAdjoint, reltol::Float64, abstol::Float64, force_dtmin::Bool,
         maxiters::Int64
     )::AbstractVector
@@ -267,7 +268,7 @@ end
 # ODEAdjointProblem. Under MIT Expat license at https://github.com/SciML/SciMLSensitivity.jl
 function __adjoint_sensitivities!(
         _du::AbstractVector, _dp::AbstractVector, sol::ODESolution,
-        sensealg::InterpolatingAdjoint, t::Vector{Float64}, solver::SciMLAlgorithm,
+        sensealg::InterpolatingAdjoint, t::Vector{Float64}, solver::AbstractSciMLAlgorithm,
         abstol::Float64, reltol::Float64, callback::SciMLBase.DECallback, compute_∂G∂u::F;
         kwargs...
     )::Bool where {F}
@@ -275,9 +276,8 @@ function __adjoint_sensitivities!(
     rcb = nothing
 
     adj_prob, rcb = ODEAdjointProblem(
-        sol, sensealg, solver, t, compute_∂G∂u,
-        nothing, nothing, nothing, nothing, Val(true);
-        abstol = abstol, reltol = reltol, callback = callback
+        sol, sensealg, solver, t, compute_∂G∂u, nothing, nothing, nothing, nothing,
+        Val(true); abstol = abstol, reltol = reltol, callback = callback
     )
 
     tstops = SciMLSensitivity.ischeckpointing(sensealg, sol) ? checkpoints : similar(sol.t, 0)
@@ -319,7 +319,7 @@ function __adjoint_sensitivities!(
 end
 function __adjoint_sensitivities!(
         _du::AbstractVector, _dp::AbstractVector, sol::ODESolution,
-        sensealg::QuadratureAdjoint, t::Vector{Float64}, solver::SciMLAlgorithm,
+        sensealg::QuadratureAdjoint, t::Vector{Float64}, solver::AbstractSciMLAlgorithm,
         abstol::Float64, reltol::Float64, callback::SciMLBase.DECallback, compute_∂G∂u::F;
         kwargs...
     )::Bool where {F}
@@ -340,11 +340,13 @@ function __adjoint_sensitivities!(
     end
 
     p = sol.prob.p
-    if p === nothing || p === DiffEqBase.NullParameters()
+    if p === nothing || p === SciMLBase.NullParameters()
         _du .= adj_sol[end]
         _dp .= 0.0
     else
-        integrand = AdjointSensitivityIntegrand(sol, adj_sol, sensealg, nothing)
+        integrand = SciMLSensitivity.AdjointSensitivityIntegrand(
+            sol, adj_sol, sensealg, nothing
+        )
         if t === nothing
             res, err = SciMLSensitivity.quadgk(
                 integrand, sol.prob.tspan[1], sol.prob.tspan[2], atol = abstol,
@@ -386,7 +388,7 @@ function __adjoint_sensitivities!(
                     )[1]
                 end
                 if t[i] == t[i + 1]
-                    integrand = update_integrand_and_dgrad(
+                    integrand = SciMLSensitivity.update_integrand_and_dgrad(
                         res, sensealg, callback, integrand, adj_prob, sol, compute_∂G∂u,
                         nothing, dλ, dgrad, t[i], cur_time
                     )
@@ -407,7 +409,7 @@ function __adjoint_sensitivities!(
 end
 function __adjoint_sensitivities!(
         _du::AbstractVector, _dp::AbstractVector, sol::ODESolution, sensealg::GaussAdjoint,
-        t::Vector{Float64}, solver::SciMLAlgorithm, abstol::Float64, reltol::Float64,
+        t::Vector{Float64}, solver::AbstractSciMLAlgorithm, abstol::Float64, reltol::Float64,
         callback::SciMLBase.DECallback, compute_∂G∂u::F; kwargs...
     )::Bool where {F}
     p = SymbolicIndexingInterface.parameter_values(sol)
@@ -428,10 +430,10 @@ function __adjoint_sensitivities!(
 
     checkpoints = sol.t
     integrand = SciMLSensitivity.GaussIntegrand(sol, sensealg, checkpoints, nothing)
-    integrand_values = DiffEqCallbacks.IntegrandValuesSum(
+    integrand_values = SciMLSensitivity.IntegrandValuesSum(
         SciMLSensitivity.allocate_zeros(tunables)
     )
-    cb = DiffEqCallbacks.IntegratingSumCallback(
+    cb = SciMLSensitivity.IntegratingSumCallback(
         (out, u, t, integrator) -> integrand(out, t, u),
         integrand_values, SciMLSensitivity.allocate_vjp(tunables)
     )

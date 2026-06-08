@@ -9,7 +9,7 @@ function _set_ml_models_ps!(ml_models::MLModels, parameters::Vector)::Nothing
     return nothing
 end
 function _set_ml_model_ps!(
-        ps::ComponentArray, ml_model::MLModel, paths::Dict{Symbol, String}
+        ps::ComponentVector, ml_model::MLModel, paths::Dict{Symbol, String}
     )::Nothing
     # Case when Julia provided parameter input
     if isempty(paths)
@@ -21,7 +21,7 @@ function _set_ml_model_ps!(
     return nothing
 end
 function _set_ml_model_ps!(
-        ps::ComponentArray, ml_id::Symbol, ml_models, paths::Dict{Symbol, String},
+        ps::ComponentVector, ml_id::Symbol, ml_models, paths::Dict{Symbol, String},
         petab_tables::PEtabTables
     )::Nothing
     # Case when Julia provided parameter input
@@ -60,7 +60,7 @@ end
 
 function _get_ml_model_pre_simulate_x(
         ml_model_pre_simulate::MLModelPreSimulate, xdynamic_mech::AbstractVector,
-        x_ml::ComponentArray, map_ml_model::MLModelPreSimulateMap
+        x_ml::ComponentVector, map_ml_model::MLModelPreSimulateMap
     )::AbstractVector
     x = get_tmp(ml_model_pre_simulate.x, xdynamic_mech)
     n_inputs = length(map_ml_model.ix_dynamic_mech)

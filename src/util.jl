@@ -91,7 +91,7 @@ function get_system(
     )
     @unpack sys, paths, callbacks = prob.model_info.model
     if haskey(paths, :SBML)
-        sys, _ = load_SBML(paths[:SBML])
+        sys, _ = SBMLImporter.load_SBML(paths[:SBML])
     end
 
     u0, p = _get_ps_u0(res, prob, condition, experiment, true, false)
@@ -234,7 +234,7 @@ function _get_ps_u0(
 end
 
 """
-    get_x(prob::PEtabODEProblem; linear_scale = false)::ComponentArray
+    get_x(prob::PEtabODEProblem; linear_scale = false)::ComponentVector
 
 Get the nominal parameter vector with parameters in the correct order expected by `prob` for
 parameter estimation/inference. Nominal values can optionally be specified when creating a
@@ -242,7 +242,7 @@ parameter estimation/inference. Nominal values can optionally be specified when 
 standard format.
 
 For ease of interaction (e.g., changing values), the parameter vector is returned as a
-`ComponentArray`.  For how to interact with a `ComponentArray`, see the documentation and
+`ComponentVector`.  For how to interact with a `ComponentVector`, see the documentation and
 the ComponentArrays.jl [documentation](https://github.com/jonniedie/ComponentArrays.jl).
 
 See also [`PEtabParameter`](@ref).
@@ -252,7 +252,7 @@ See also [`PEtabParameter`](@ref).
   are returned on the scale they are estimated, which by default is `log10` as this often
   improves parameter estimation performance.
 """
-function get_x(prob::PEtabODEProblem; linear_scale::Bool = false)::ComponentArray
+function get_x(prob::PEtabODEProblem; linear_scale::Bool = false)::ComponentVector
     return linear_scale ? prob.xnominal : prob.xnominal_transformed
 end
 
@@ -261,7 +261,7 @@ end
 
 Solve the ODE model in `prob` for all simulation conditions with the provided ODE-solver.
 
-`x` should be a `Vector` or `ComponentArray` with parameters in the order expected by
+`x` should be a `Vector` or `ComponentVector` with parameters in the order expected by
 `prob` (see [`get_x`](@ref)).
 
 # Keyword Arguments

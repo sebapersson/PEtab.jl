@@ -39,12 +39,12 @@ function PEtabODEProblemCache(
     # Pre-allocate ML model parameters. As x_ml is a Dict, during splitting the correct
     # type is moved to x_ml from the cache for estimated parameters
     x_ml_models_cache = Dict{Symbol, DiffCache}()
-    x_ml_models = Dict{Symbol, ComponentArray}()
-    x_ml_models_constant = Dict{Symbol, ComponentArray}()
+    x_ml_models = Dict{Symbol, ComponentVector}()
+    x_ml_models_constant = Dict{Symbol, ComponentVector}()
     if !isnothing(ml_models)
         for ml_model in ml_models.ml_models
             ml_id = ml_model.ml_id
-            ps = _get_lux_ps(ComponentArray, ml_model)
+            ps = _get_lux_ps(ComponentVector, ml_model)
             if ml_id in ids[:ml_est]
                 x_ml_models_cache[ml_id] = DiffCache(similar(ps); levels = level_cache)
                 x_ml_models[ml_id] = ps

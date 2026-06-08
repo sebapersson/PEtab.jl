@@ -8,7 +8,7 @@ and machine-learning components.
 constructs the full parameter vector by combining `p_mechanistic` with ML parameters for
 each `MLModel` in `ml_models`.
 
-Both `u0` and `p_mechanistic` must be a NamedTuple or ComponentArray such that model states
+Both `u0` and `p_mechanistic` must be a NamedTuple or ComponentVector such that model states
 and parameters can be indexed by id for PEtab.jl to correctly map parameters and initial
 values.
 
@@ -16,16 +16,16 @@ For examples, see the online package documentation.
 
 # Arguments
 - `f!`: In-place RHS function. Must support the signature `f!(du, u, p, t, ml_models)`.
-- `u0::Union{NamedTuple, ComponentArray}`: Initial condition. Must be named such that model
+- `u0::Union{NamedTuple, ComponentVector}`: Initial condition. Must be named such that model
   states can be indexed by id (e.g. `u[:prey]`).
 - `tspan`: Simulation time span `(t0, tf)`.
-- `p_mechanistic::Union{NamedTuple, ComponentArray}`: Mechanistic parameters. Must be named
+- `p_mechanistic::Union{NamedTuple, ComponentVector}`: Mechanistic parameters. Must be named
   such that parameters can be indexed by id (e.g. `p[:alpha]`).
 - `ml_models::Union{MLModel, MLModels}`: ML model(s) used by `f!`.
 """
 function UDEProblem(
-        f!::Function, u0::Union{NamedTuple, ComponentArray}, tspan,
-        p_mechanistic::Union{NamedTuple, ComponentArray},
+        f!::Function, u0::Union{NamedTuple, ComponentVector}, tspan,
+        p_mechanistic::Union{NamedTuple, ComponentVector},
         ml_models::Union{MLModel, MLModels}
     )::ODEProblem
     # Check `f!` has a 5-argument method: f!(du, u, p, t, ml_models)
@@ -36,15 +36,15 @@ function UDEProblem(
 
     ml_models = ml_models isa MLModel ? MLModels(ml_models) : ml_models
 
-    xnominal_ml_models = Vector{ComponentArray}(undef, length(ml_models.ml_ids))
+    xnominal_ml_models = Vector{ComponentVector}(undef, length(ml_models.ml_ids))
     for (i, ml_model) in pairs(ml_models.ml_models)
-        xnominal_ml_models[i] = _get_lux_ps(ComponentArray, ml_model)
+        xnominal_ml_models[i] = _get_lux_ps(ComponentVector, ml_model)
     end
     x_ml_models = NamedTuple(ml_models.ml_ids .=> xnominal_ml_models)
     p_ode = merge(NamedTuple(p_mechanistic), x_ml_models) |>
-        ComponentArray .|>
+        ComponentVector .|>
         Float64
-    u0 = ComponentArray(u0) .|>
+    u0 = ComponentVector(u0) .|>
         Float64
 
     f_ode! = let _ml_models = ml_models

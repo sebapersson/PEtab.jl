@@ -77,7 +77,7 @@ function _get_functions_as_str(
 end
 
 function _xdynamic_in_event_cond(
-        model_SBML::SBMLImporter.ModelSBML,
+        model_SBML::ModelSBML,
         xindices::ParameterIndices,
         petab_tables::PEtabTables
     )::Bool

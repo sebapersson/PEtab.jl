@@ -89,7 +89,7 @@ petab_prob.hess!(h_inplace, x)
 h_outplace = petab_prob.hess(x)
 ```
 
-The input `x` is typically a `ComponentArray`, but `Vector` inputs are also supported. More
+The input `x` is typically a `ComponentVector`, but `Vector` inputs are also supported. More
 details on what is available in a `PEtabODEProblem` can be found in the [API
 documentation](@ref API)
 
@@ -102,7 +102,7 @@ lb, ub = petab_prob.lower_bounds, petab_prob.upper_bounds
 nothing # hide
 ```
 
-`lb` and `ub` are `ComponentArray`s. If an optimizer does not support `ComponentArray`,
+`lb` and `ub` are `ComponentVector`s. If an optimizer does not support `ComponentVector`,
 convert them to `Vector`s with `collect` (see below).
 
 ## Wrapping Optim.jl `IPNewton`
@@ -123,7 +123,7 @@ dfc = TwiceDifferentiableConstraints(
 nothing # hide
 ```
 
-Here, `collect` converts `ComponentArray`s to `Vector`s for Optim.jl. The optimization can
+Here, `collect` converts `ComponentVector`s to `Vector`s for Optim.jl. The optimization can
 then be run from `x0`:
 
 ```@example 1

@@ -1,12 +1,12 @@
 function PEtab.ml_ps_to_hdf5(
-        path::String, ml_model::MLModel, ps::Union{ComponentArray, NamedTuple}
+        path::String, ml_model::MLModel, ps::Union{ComponentVector, NamedTuple}
     )::Nothing
     @unpack lux_model, ml_id = ml_model
     return PEtab.ml_ps_to_hdf5(path, lux_model, ml_id, ps)
 end
 
 function PEtab.ml_ps_to_hdf5(
-        path::String, lux_model, ml_id::Symbol, ps::Union{ComponentArray, NamedTuple}
+        path::String, lux_model, ml_id::Symbol, ps::Union{ComponentVector, NamedTuple}
     )::Nothing
     file = HDF5.h5open(path, "cw")
 
@@ -37,7 +37,7 @@ For `Dense` layer possible parameters that are saved to a DataFrame are:
 - `bias` of dimension `(out_features)`
 """
 function _ps_to_hdf5!(
-        file, layer::Lux.Dense, ps::Union{NamedTuple, ComponentArray}, layer_name::Symbol
+        file, layer::Lux.Dense, ps::Union{NamedTuple, ComponentVector}, layer_name::Symbol
     )::Nothing
     @unpack in_dims, out_dims, use_bias = layer
     g = _get_group(file, string(layer_name))
@@ -57,7 +57,7 @@ For `Conv` layer possible parameters that are saved to a DataFrame are:
     by the importer.
 """
 function _ps_to_hdf5!(
-        file, layer::Lux.Conv, ps::Union{NamedTuple, ComponentArray}, layer_name::Symbol
+        file, layer::Lux.Conv, ps::Union{NamedTuple, ComponentVector}, layer_name::Symbol
     )::Nothing
     @unpack kernel_size, use_bias, in_chs, out_chs = layer
     if length(kernel_size) == 1
@@ -67,7 +67,7 @@ function _ps_to_hdf5!(
     elseif length(kernel_size) == 3
         _psweigth = PEtab._reshape_array(ps.weight, CONV3D_MAP)
     end
-    _ps = ComponentArray(weight = _psweigth)
+    _ps = ComponentVector(weight = _psweigth)
     g = _get_group(file, string(layer_name))
     _ps_weight_to_hdf5!(g, _ps)
     _ps_bias_to_hdf5!(g, ps, use_bias)
@@ -85,7 +85,7 @@ For `ConvTranspose` layer possible parameters that are saved to a DataFrame are:
     by the importer.
 """
 function _ps_to_hdf5!(
-        file, layer::Lux.ConvTranspose, ps::Union{NamedTuple, ComponentArray},
+        file, layer::Lux.ConvTranspose, ps::Union{NamedTuple, ComponentVector},
         layer_name::Symbol
     )::Nothing
     @unpack kernel_size, use_bias, in_chs, out_chs = layer
@@ -96,7 +96,7 @@ function _ps_to_hdf5!(
     elseif length(kernel_size) == 3
         _psweigth = PEtab._reshape_array(ps.weight, CONV3D_MAP)
     end
-    _ps = ComponentArray(weight = _psweigth)
+    _ps = ComponentVector(weight = _psweigth)
     g = _get_group(file, string(layer_name))
     _ps_weight_to_hdf5!(g, _ps)
     _ps_bias_to_hdf5!(g, ps, use_bias)
@@ -110,7 +110,7 @@ For `Bilinear` layer possible parameters that are saved to a DataFrame are:
 - `bias` of dimension `(out_features)`
 """
 function _ps_to_hdf5!(
-        file, layer::Lux.Bilinear, ps::Union{NamedTuple, ComponentArray}, layer_name::Symbol
+        file, layer::Lux.Bilinear, ps::Union{NamedTuple, ComponentVector}, layer_name::Symbol
     )::Nothing
     @unpack in1_dims, in2_dims, out_dims, use_bias = layer
     g = _get_group(file, string(layer_name))
@@ -130,7 +130,7 @@ are:
 """
 function _ps_to_hdf5!(
         file, layer::Union{Lux.BatchNorm, Lux.InstanceNorm},
-        ps::Union{NamedTuple, ComponentArray, Vector{<:Real}}, layer_name::Symbol
+        ps::Union{NamedTuple, ComponentVector, Vector{<:Real}}, layer_name::Symbol
     )::Nothing
     @unpack affine, chs = layer
     affine == false && return nothing
@@ -152,7 +152,7 @@ For `LayerNorm` layer possible parameters that are saved to a DataFrame are:
     dimension the Lux.jl dimension is the PyTorch dimension reversed.
 """
 function _ps_to_hdf5!(
-        file, layer::LayerNorm, ps::Union{NamedTuple, ComponentArray}, layer_name::Symbol
+        file, layer::LayerNorm, ps::Union{NamedTuple, ComponentVector}, layer_name::Symbol
     )::Nothing
     @unpack shape, affine = layer
     affine == false && return DataFrame()
@@ -170,7 +170,7 @@ function _ps_to_hdf5!(
         _psweigth = ps.scale[:, 1]
         _psbias = ps.bias[:, 1]
     end
-    _ps = ComponentArray(weight = _psweigth, bias = _psbias)
+    _ps = ComponentVector(weight = _psweigth, bias = _psbias)
     g = _get_group(file, string(layer_name))
     _ps_weight_to_hdf5!(g, _ps)
     _ps_bias_to_hdf5!(g, _ps, true)
@@ -182,7 +182,7 @@ end
 Layers without parameters to estimate.
 """
 function _ps_to_hdf5!(
-        ::Any, ::PS_FREE_LAYERS, ::Union{NamedTuple, ComponentArray, Vector{<:Real}},
+        ::Any, ::PS_FREE_LAYERS, ::Union{NamedTuple, ComponentVector, Vector{<:Real}},
         ::Symbol
     )::Nothing
     return nothing
@@ -212,7 +212,7 @@ function _get_group(file, id::String)
     if haskey(file, id)
         return file[id]
     end
-    return create_group(file, id)
+    return HDF5.create_group(file, id)
 end
 
 function _set_dataset!(group, id::String, x::AbstractArray{<:Real})::Nothing

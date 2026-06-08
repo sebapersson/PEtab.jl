@@ -19,7 +19,7 @@ function PEtabMeasurements(
         )
     end
 
-    nmeasurements = nrow(measurements_df)
+    nmeasurements = DataFrames.nrow(measurements_df)
     measurements = zeros(Float64, nmeasurements)
     time = zeros(Float64, nmeasurements)
     observable_ids = fill(Symbol(), nmeasurements)

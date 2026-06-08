@@ -70,7 +70,7 @@ function PEtabParameter(
         ub = isnothing(ub) ? prior_support.ub : ub
 
         if lb > prior_support.lb || ub < prior_support.ub
-            prior = truncated(prior, lb, ub)
+            prior = Distributions.truncated(prior, lb, ub)
         end
     end
 
@@ -318,7 +318,7 @@ not supported for ML parameters (unlike mechanistic parameters declared via
   - `"layerId.arrayId"`: Applies to that specific array (e.g. `"layerId.weight"` applies to
     the weight parameters in the specified layer).
 - `value = nothing`: Value used when `estimate = false`, and the value returned by `get_x`.
-  Must be a `NamedTuple` or `ComponentArray` in the format expected by the `lux_model` in
+  Must be a `NamedTuple` or `ComponentVector` in the format expected by the `lux_model` in
   the corresponding `MLModel` (e.g. output from `ps, _ = Lux.setup(rng, lux_model)`). If
   `nothing` defaults to random initialization.
 - `estimate::Bool = true`: Whether ML parameters are estimated (`true`) or treated as
@@ -327,7 +327,7 @@ not supported for ML parameters (unlike mechanistic parameters declared via
 # Prior Precedence
 Priors have the following precedence: `"layerId.arrayId"` > `"layerId"` > `prior`.
 """
-struct PEtabMLParameter{T <: Union{Nothing, ComponentArray{<:AbstractFloat}}}
+struct PEtabMLParameter{T <: Union{Nothing, ComponentVector{<:AbstractFloat}}}
     ml_id::Symbol
     estimate::Bool
     value::T
@@ -338,10 +338,10 @@ function PEtabMLParameter(
         ml_id::UserFormula; estimate::Bool = true,
         prior::Union{Nothing, ContDistribution} = nothing,
         priors::Vector{<:Pair{String, <:ContDistribution}} = Pair{String, ContDistribution}[],
-        value::Union{Nothing, NamedTuple, ComponentArray} = nothing,
+        value::Union{Nothing, NamedTuple, ComponentVector} = nothing,
     )
     if value isa NamedTuple
-        value = ComponentArray(value)
+        value = ComponentVector(value)
     end
     return PEtabMLParameter(ml_id, estimate, value, prior, priors)
 end

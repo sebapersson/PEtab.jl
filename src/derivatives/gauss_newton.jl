@@ -106,7 +106,7 @@ end
 # To compute the gradient for non-dynamic parameters
 function residuals_not_solveode(
         residuals::T1, xnoise::T2, xobservable::T2, xnondynamic_mech::T2,
-        x_ml_models::Dict{Symbol, ComponentArray}, probinfo::PEtabODEProblemInfo,
+        x_ml_models::Dict{Symbol, ComponentVector}, probinfo::PEtabODEProblemInfo,
         model_info::ModelInfo; cids::Vector{Symbol} = [:all]
     )::T1 where {T1 <: AbstractVector, T2 <: AbstractVector}
     @unpack xindices, simulation_info = model_info
@@ -135,7 +135,7 @@ end
 # For an experimental condition compute residuals
 function _residuals_cond!(
         residuals::T1, xnoise::T2, xobservable::T2, xnondynamic_mech::T2,
-        x_ml_models::Dict{Symbol, ComponentArray}, x_ml_models_constant, cid::Symbol,
+        x_ml_models::Dict{Symbol, ComponentVector}, x_ml_models_constant, cid::Symbol,
         model_info::ModelInfo
     )::Bool where {T1 <: AbstractVector, T2 <: AbstractVector}
     @unpack xindices, simulation_info, petab_measurements, petab_parameters, model = model_info

@@ -14,7 +14,7 @@ end
 
 function nllh_solveode(
         xdynamic::T1, xnoise::T2, xobservable::T2, xnondynamic_mech::T2,
-        x_ml_models::Dict{Symbol, ComponentArray}, probinfo::PEtabODEProblemInfo,
+        x_ml_models::Dict{Symbol, ComponentVector}, probinfo::PEtabODEProblemInfo,
         model_info::ModelInfo; hess::Bool = false, residuals::Bool = false,
         cids = [:all], grad_xdynamic::Bool = false
     )::Real where {T1 <: AbstractVector, T2 <: AbstractVector}
@@ -52,7 +52,7 @@ end
 
 function nllh_not_solveode(
         xnoise::T1, xobservable::T1, xnondynamic_mech::T1,
-        x_ml_models::Dict{Symbol, ComponentArray}, probinfo::PEtabODEProblemInfo,
+        x_ml_models::Dict{Symbol, ComponentVector}, probinfo::PEtabODEProblemInfo,
         model_info::ModelInfo; grad_forward_AD::Bool = false, grad_adjoint::Bool = false,
         grad_forward_eqs::Bool = false, cids = [:all]
     )::Real where {T1 <: AbstractVector}
@@ -71,8 +71,8 @@ end
 
 function _nllh(
         xnoise::T, xobservable::T, xnondynamic_mech::T,
-        x_ml_models::Dict{Symbol, ComponentArray},
-        x_ml_models_constant::Dict{Symbol, ComponentArray}, model_info::ModelInfo,
+        x_ml_models::Dict{Symbol, ComponentVector},
+        x_ml_models_constant::Dict{Symbol, ComponentVector}, model_info::ModelInfo,
         cids::Vector{Symbol}; hess::Bool = false, grad_xdynamic::Bool = false,
         residuals::Bool = false, grad_forward_AD::Bool = false,
         grad_adjoint::Bool = false, grad_forward_eqs::Bool = false
@@ -107,8 +107,8 @@ end
 
 function _nllh_cond(
         sol::ODESolution, xnoise::T, xobservable::T, xnondynamic_mech::T,
-        x_ml_models::Dict{Symbol, ComponentArray},
-        x_ml_models_constant::Dict{Symbol, ComponentArray}, cid::Symbol,
+        x_ml_models::Dict{Symbol, ComponentVector},
+        x_ml_models_constant::Dict{Symbol, ComponentVector}, cid::Symbol,
         model_info::ModelInfo; residuals::Bool = false, grad_forward_AD::Bool = false,
         grad_adjoint::Bool = false, grad_forward_eqs::Bool = false
     )::Real where {T <: AbstractVector}
@@ -196,7 +196,7 @@ end
 function _nllh_obs(h::Real, σ::Real, y::Float64, distribution::Symbol)::Real
     @unpack dist, transform = NOISE_DISTRIBUTIONS[distribution]
     _dist = dist(transform(h), σ)
-    return logpdf(_dist, y) .* -1
+    return Distributions.logpdf(_dist, y) .* -1
 end
 
 function update_petab_measurements!(

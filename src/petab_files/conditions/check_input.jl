@@ -4,7 +4,7 @@ function _check_condition_table(
     conditions_df, hybridization_df = _get_petab_tables(
         petab_tables, [:conditions, :hybridization]
     )
-    ncol(conditions_df) == 1 && return nothing
+    DataFrames.ncol(conditions_df) == 1 && return nothing
 
     @unpack pre_equilibration_condition_id, simulation_condition_id = petab_measurements
     measurement_ids = unique(vcat(pre_equilibration_condition_id, simulation_condition_id))

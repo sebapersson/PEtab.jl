@@ -4,7 +4,7 @@
 From starting point `x0` using optimization algorithm `alg`, estimate unknown model
 parameters for `prob`, and get results as a `PEtabOptimisationResult`.
 
-`x0` can be a `Vector` or a `ComponentArray`, where the individual parameters must be in the
+`x0` can be a `Vector` or a `ComponentVector`, where the individual parameters must be in the
 order expected by `prob`. To get a vector in the correct order, see [`get_x`](@ref).
 
 A list of available and recommended optimization algorithms (`alg`) can be found in the
@@ -53,7 +53,7 @@ the bounds, which can negatively impact performance. More information on how to 
 """
 function OptimizationProblem end
 
-function _get_x_out(x::AbstractVector, prob::PEtabODEProblem)::ComponentArray
+function _get_x_out(x::AbstractVector, prob::PEtabODEProblem)::ComponentVector
     x_out = deepcopy(get_x(prob))
     copy!(x_out, x)
     return x_out

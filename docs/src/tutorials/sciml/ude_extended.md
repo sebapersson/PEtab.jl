@@ -103,8 +103,8 @@ function:
 
 ```@example 1
 using ComponentArrays
-p_mechanistic = ComponentArray(d = 1.0)
-u0 = ComponentArray(X = 2.0, Y = 0.1)
+p_mechanistic = ComponentVector(d = 1.0)
+u0 = ComponentVector(X = 2.0, Y = 0.1)
 ude_prob = UDEProblem(ude_f!, u0, (0.0, 10.0), p_mechanistic, ml_model)
 nothing # hide
 ```

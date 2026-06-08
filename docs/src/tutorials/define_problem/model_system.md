@@ -163,7 +163,7 @@ petab_prob = PEtabODEProblem(model)
 An `ODEProblem` is a valid dynamic model and is useful when, for example, it is not possible
 to define the model as a symbolic system. The main requirement is that PEtab.jl can identify
 state and parameter names. Therefore, `u0` and `p` must be provided as named containers
-(e.g. `ComponentArray` or `NamedTuple`). Moreover, since observable formulas cannot be
+(e.g. `ComponentVector` or `NamedTuple`). Moreover, since observable formulas cannot be
 encoded in an `ODEProblem`, they must be defined in `PEtabObservable`. For example:
 
 ```@example 1
@@ -179,7 +179,7 @@ function ode_f!(du, u, p, t)
     du[4] =  c3 * SE
 end
 
-p = ComponentArray(c1 = 1.0, c2 = 2.0, c3 = 3.0)
+p = ComponentVector(c1 = 1.0, c2 = 2.0, c3 = 3.0)
 u0 = (S = :S0, E = 50.0, SE = 0.0, P = 0.0)
 ode_prob = ODEProblem(ode_f!, u0, (0.0, 10.0), p)
 

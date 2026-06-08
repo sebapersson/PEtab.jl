@@ -1,18 +1,14 @@
 # The possible types of plots avaiable for PEtabOptimisationResult.
 const PLOT_TYPES = [:objective, :best_objective]
 const PLOT_TYPES_MS = [
-    :objective,
-    :best_objective,
-    :waterfall,
-    :runtime_eval,
-    :parallel_coordinates,
+    :objective, :best_objective, :waterfall, :runtime_eval, :parallel_coordinates,
 ]
 
 # Plots the objective function progression for a PEtabOptimisationResult.
 # I wanted to use `yaxis` and not `yaxis_scale`, but that seems prevents the user from
 # using `yaxis` to overwrite things (not sure why).
-@recipe function f(
-        res::PEtabOptimisationResult; plot_type = :best_objective,
+Plots.@recipe function f(
+        res::PEtab.PEtabOptimisationResult; plot_type = :best_objective,
         yaxis_scale = determine_yaxis([res], plot_type),
         obj_shift = objective_shift([res], plot_type, yaxis_scale)
     )
@@ -66,8 +62,8 @@ const PLOT_TYPES_MS = [
 end
 
 # Plots the objective function progressions for a PEtabMultistartResult.
-@recipe function f(
-        res_ms::PEtabMultistartResult; plot_type = :waterfall,
+Plots.@recipe function f(
+        res_ms::PEtab.PEtabMultistartResult; plot_type = :waterfall,
         best_idxs_n = (plot_type in [:waterfall, :runtime_eval] ? res_ms.nmultistarts : 10),
         idxs = best_runs(res_ms, best_idxs_n),
         clustering_function = objective_value_clustering,
@@ -220,7 +216,9 @@ end
 
 # For a multistart optimisation result, clusters the runs according to their bojective value
 # (and assign them a number, which corresponds to a colour).
-function objective_value_clustering(runs::Vector{PEtabOptimisationResult}; thres = 0.1)
+function objective_value_clustering(
+        runs::Vector{PEtab.PEtabOptimisationResult}; thres = 0.1
+    )
     vals = getfield.(runs, :fmin)
     n = length(vals)
     idxs_v = Pair.(1:n, vals)
