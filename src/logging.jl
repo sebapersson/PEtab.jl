@@ -1,5 +1,3 @@
-StyledStrings.addface!(:PURPLE => StyledStrings.Face(foreground = 0x008f4093))
-
 function _logging(
         whatlog::Symbol, verbose::Bool; time = nothing, name::String = "",
         buildfiles::Bool = false, exist::Bool = false, method::Union{Symbol, String} = ""

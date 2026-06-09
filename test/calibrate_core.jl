@@ -19,7 +19,7 @@ import StableRNGs
     )
     # Single start-guess
     x_start = get_startguesses(prob, 1)
-    @test x_start isa ComponentArray
+    @test x_start isa ComponentVector
     @test !isinf(prob.nllh(x_start))
     # Multiple start-guesses
     x_starts = get_startguesses(prob, 100)
@@ -74,7 +74,7 @@ import StableRNGs
     prob = PEtabODEProblem(model; odesolver = ODESolver(Rodas5P(), verbose = false))
     # Single start-guess
     x = get_startguesses(prob, 1)
-    @test x isa ComponentArray
+    @test x isa ComponentVector
     @test !isinf(prob.nllh(x))
     # Multiple start-guesses
     x = get_startguesses(prob, 20)

@@ -11,7 +11,7 @@ function _net!(
     return nothing
 end
 function _net!(
-        out, x, x_ml::ComponentArray, map_ml_model::MLModelPreSimulateMap,
+        out, x, x_ml::ComponentVector, map_ml_model::MLModelPreSimulateMap,
         ml_model::MLModel
     )::Nothing
     inputs = map_ml_model.get_input(x, map_ml_model)

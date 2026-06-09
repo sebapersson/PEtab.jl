@@ -84,7 +84,7 @@ function _calibrate_multistart(
     if !isempty(paths_save)
         x_names = ComponentArrays.labels(xstarts[1])
         xstarts_df = DataFrame(vcat(reduce(vcat, xstarts')), x_names)
-        xstarts_df[!, "startguess"] = 1:nrow(xstarts_df)
+        xstarts_df[!, "startguess"] = 1:DataFrames.nrow(xstarts_df)
         CSV.write(paths_save[:x0], xstarts_df)
     end
 
@@ -114,26 +114,23 @@ function _calibrate_multistart(
         1:findfirst(x -> x == '(', string(sampling_method)),
     ][1:(end - 1)]
     return PEtabMultistartResult(
-        xmin, fmin, bestrun.alg, nmultistarts, sampling_method_str,
-        dirsave, runs
+        xmin, fmin, bestrun.alg, nmultistarts, sampling_method_str, dirsave, runs
     )
 end
 
 function _calibrate_startguess(
-        xstart, i, prob::PEtabODEProblem, alg, save_trace::Bool,
-        options, paths_save, mutex
+        xstart, i, prob::PEtabODEProblem, alg, save_trace::Bool, options, paths_save, mutex
     )
     if !isempty(xstart)
         res = calibrate(prob, xstart, alg; save_trace = save_trace, options = options)
         # This happens when there are now parameter to estimate, edge case that can
         # appear in for example petab-select
     else
-        xstart, xmin = ComponentArray{Float64}(), ComponentArray{Float64}()
+        xstart, xmin = ComponentVector{Float64}(), ComponentVector{Float64}()
         xtrace, ftrace = Vector{Vector{Float64}}(undef, 0), Vector{Float64}(undef, 0)
         fmin = prob.nllh(xstart)
         res = PEtabOptimisationResult(
-            xmin, fmin, xstart, :alg, 0, 0.0, xtrace, ftrace,
-            true, nothing
+            xmin, fmin, xstart, :alg, 0, 0.0, xtrace, ftrace, true, nothing
         )
     end
     if !isempty(paths_save)
@@ -154,8 +151,7 @@ function _save_multistart_results(
     x_min_vals = collect(res.xmin)
     res_df = DataFrame(
         fmin = res.fmin, alg = res.alg, runtime = res.runtime,
-        niterations = res.niterations, converged = res.converged,
-        startguess = i
+        niterations = res.niterations, converged = res.converged, startguess = i
     )
     x_df = DataFrame(Matrix(x_min_vals'), x_names)
     x_df[!, "startguess"] = [i]
@@ -173,17 +169,15 @@ end
 function _load_packages_workers(workers::Vector{Int64})::Nothing
     isempty(workers) && return nothing
     loaded = Set(Symbol(k.name) for k in keys(Base.loaded_modules))
-    @eval @everywhere $workers Base.eval(Main, :(using PEtab))
+    @eval Distributed.@everywhere $workers Base.eval(Main, :(using PEtab))
     for pkg in filter(in(loaded), _SUPPORTED_PACKAGES)
         ex = :(using $(pkg))
-        @eval @everywhere $workers Base.eval(Main, $ex)
+        @eval Distributed.@everywhere $workers Base.eval(Main, $ex)
     end
     return nothing
 end
 
-function _create_workers(n::Int64)::Vector{Int64}
-    return Distributed.addprocs(n)
-end
+_create_workers(n::Int64)::Vector{Int64} = Distributed.addprocs(n)
 
 function _remove_workers(pids::Vector{Int64})::Nothing
     Distributed.rmprocs(pids)
@@ -191,14 +185,12 @@ function _remove_workers(pids::Vector{Int64})::Nothing
 end
 
 """
-    _labels_to_componentarray(labels::Vector{String}, values::Vector{Float64}) -> ComponentArray
+    _labels_to_componentarray(labels::Vector{String}, values::Vector{Float64})
 
-Reconstruct a `ComponentArray` from a vector of dot-separated labels and corresponding values.
+Reconstruct a `ComponentVector` from a vector of dot-separated labels and corresponding values.
 
 Scalar fields are inferred from bare labels (e.g. `"alpha"`), arrays from indexed labels
-(e.g. `"net1.layer1.weight[1,2]"`), and nested structures from dot-separated paths. Helper
-function to be able to read parameter estimation results from disk, where parameters are
-stored in a long format with labels.
+(e.g. `"net1.layer1.weight[1,2]"`), and nested structures from dot-separated paths.
 
 Written with help of Claude.
 """
@@ -242,5 +234,5 @@ end
 
 function _to_componentarray(d::Dict)
     nt = (Symbol(k) => (v isa Dict ? _to_componentarray(v) : v) for (k, v) in d)
-    return ComponentArray(; nt...)
+    return ComponentVector(; nt...)
 end

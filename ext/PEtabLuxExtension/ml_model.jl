@@ -35,7 +35,7 @@ function PEtab.MLModel(
 
     rng = Random.default_rng()
     st = (isnothing(st) ? Lux.initialstates(rng, lux_model) : st) |> f64
-    ps = ComponentArray(Lux.initialparameters(rng, lux_model)) |> f64
+    ps = ComponentVector(Lux.initialparameters(rng, lux_model)) |> f64
 
     # Potentially set values for frozen layers
     if !isnothing(freeze_info)

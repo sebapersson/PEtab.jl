@@ -105,9 +105,9 @@ See also: [`calibrate`](@ref)
     from Optim.jl, `original` is the Optim return struct.
 """
 struct PEtabOptimisationResult
-    xmin::ComponentArray{Float64}
+    xmin::ComponentVector{Float64}
     fmin::Float64
-    x0::ComponentArray{Float64}
+    x0::ComponentVector{Float64}
     alg::Symbol
     niterations::Int64
     runtime::Float64
@@ -145,7 +145,7 @@ endings. Results from a specific run can be retrieved by specifying the numerica
 with `which_run`.
 """
 struct PEtabMultistartResult
-    xmin::ComponentArray{Float64}
+    xmin::ComponentVector{Float64}
     fmin::Float64
     alg::Symbol
     nmultistarts::Int
@@ -173,7 +173,7 @@ function PEtabMultistartResult(
     if isfile(path_trace)
         trace_df = CSV.read(path_trace, DataFrame)
     end
-    runs = Vector{PEtab.PEtabOptimisationResult}(undef, nrow(res_df))
+    runs = Vector{PEtab.PEtabOptimisationResult}(undef, DataFrames.nrow(res_df))
     for i in eachindex(runs)
         if isfile(path_trace)
             trace_df_i = trace_df[findall(x -> x == i, trace_df[!, :startguess]), :]

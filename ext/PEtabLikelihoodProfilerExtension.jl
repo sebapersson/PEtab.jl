@@ -1,8 +1,8 @@
 module PEtabLikelihoodProfilerExtension
 
 import ComponentArrays
-import PEtab
 import LikelihoodProfiler: LikelihoodProfiler, OptimizationProblem
+import PEtab
 
 const FORBIDDEN_KWARGS = [:profile_lower, :profile_upper, :labels]
 

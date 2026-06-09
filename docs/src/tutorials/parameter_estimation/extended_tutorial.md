@@ -83,7 +83,7 @@ objective. The easiest way to construct a correctly ordered start vector is [`ge
 x0 = get_x(petab_prob)
 ```
 
-`x0` is a `ComponentArray`, so parameters can be accessed by name. Names are also prefixed
+`x0` is a `ComponentVector`, so parameters can be accessed by name. Names are also prefixed
 by parameter scale, and by default parameters are estimated on a `log10` scale as it often
 improves estimation performance [raue2013lessons, hass2019benchmark](@cite). Values should
 be modified on the estimation scale:

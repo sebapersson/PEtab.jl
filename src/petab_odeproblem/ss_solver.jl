@@ -26,7 +26,7 @@ function SteadyStateSolver(
     end
     return SteadyStateSolver(
         method, rootfinding_alg, termination_check, abstol, reltol,
-        maxiters, callback_ss, NonlinearProblem(oprob), pseudoinverse,
+        maxiters, callback_ss, NonlinearSolve.NonlinearProblem(oprob), pseudoinverse,
         tmin_simulate
     )
 end
@@ -41,8 +41,8 @@ function condition_ss(
         return false
     end
 
-    testval = first(get_tmp_cache(integrator))
-    DiffEqBase.get_du!(testval, integrator)
+    testval = first(SciMLBase.get_tmp_cache(integrator))
+    SciMLBase.get_du!(testval, integrator)
 
     success_newton = true
     local Δu

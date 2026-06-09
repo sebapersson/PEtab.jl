@@ -268,9 +268,9 @@ Numerical optimizers require a starting point `x0` in the parameter order expect
 x0 = get_x(petab_prob)
 ```
 
-`x0` is a `ComponentArray`, so parameters can be accessed by name. Parameters estimated on a
-log scale have a prefix such as `log10_`, and values must be set on that scale, e.g. to set
-`c1 = 10.0`:
+`x0` is a `ComponentVector`, so parameters can be accessed by name. Parameters estimated on
+a log scale have a prefix such as `log10_`, and values must be set on that scale, e.g. to
+set `c1 = 10.0`:
 
 ```@example 1
 x0.log10_c1 = log10(10.0)

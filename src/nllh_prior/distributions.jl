@@ -20,7 +20,7 @@ end
 function Base.convert(::Type{LogLaplace{T}}, d::LogLaplace) where {T <: Real}
     return LogLaplace{T}(T(d.μ), T(d.θ))
 end
-Base.convert(::Type{Laplace{T}}, d::LogLaplace{T}) where {T <: Real} = d
+Base.convert(::Type{LogLaplace{T}}, d::LogLaplace{T}) where {T <: Real} = d
 
 Distributions.params(d::LogLaplace) = (d.μ, d.θ)
 @inline Distributions.partype(::LogLaplace{T}) where {T <: Real} = T
@@ -51,7 +51,9 @@ function Distributions.logcdf(d::LogLaplace, x::Real)
     end
 end
 
-Distributions.rand(rng::AbstractRNG, d::LogLaplace) = exp(rand(rng, Laplace(d.μ, d.θ)))
+function Distributions.rand(rng::Random.AbstractRNG, d::LogLaplace)
+    return exp(rand(rng, Distributions.Laplace(d.μ, d.θ)))
+end
 
 #### Log2Normal
 function Distributions.logpdf(d::Log2Normal, x::Real)

@@ -302,7 +302,7 @@ end
 In the example above, `keys(x0)` maps between the original parameter vector (`x0`) and the
 multiple-shooting parameter vector (`x_ms`). Since multiple shooting also estimates window
 initial states, `x_ms` has additional entries and therefore a different dimension than `x0`.
-Because the vectors are `ComponentArray`s, shared parameters can be copied between them by
+Because the vectors are `ComponentVector`s, shared parameters can be copied between them by
 indexing by name, as above.
 
 Plotting the fit shows that, for this example, multiple shooting does improves over plain

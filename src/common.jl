@@ -157,7 +157,7 @@ end
 
 function _sd(
         u::AbstractVector, t::Float64, p::AbstractVector, xnoise::T, xnondynamic_mech::T,
-        x_ml_models::Dict{Symbol, ComponentArray}, x_ml_models_constant::Dict{Symbol, ComponentArray},
+        x_ml_models::Dict{Symbol, ComponentVector}, x_ml_models_constant::Dict{Symbol, ComponentVector},
         model::PEtabModel, xnoise_maps::ObservableNoiseMap, observable_id::Symbol,
         nominal_values::Vector{Float64}
     )::Real where {T <: AbstractVector}
@@ -174,8 +174,8 @@ end
 
 function _h(
         u::AbstractVector, t::Float64, p::AbstractVector, xobservable::T,
-        xnondynamic_mech::T, x_ml_models::Dict{Symbol, ComponentArray},
-        x_ml_models_constant::Dict{Symbol, ComponentArray}, model::PEtabModel,
+        xnondynamic_mech::T, x_ml_models::Dict{Symbol, ComponentVector},
+        x_ml_models_constant::Dict{Symbol, ComponentVector}, model::PEtabModel,
         xobservable_maps::ObservableNoiseMap, observable_id::Symbol,
         nominal_values::Vector{Float64},
     )::Real where {T <: AbstractVector}

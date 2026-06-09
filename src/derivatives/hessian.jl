@@ -9,7 +9,7 @@ function hess!(
     if _could_solveode_nllh(simulation_info)
         try
             ForwardDiff.hessian!(hess, _nllh, x, cfg)
-            @views hess .= Symmetric(hess)
+            @views hess .= LinearAlgebra.Symmetric(hess)
         catch
             fill!(hess, 0.0)
         end

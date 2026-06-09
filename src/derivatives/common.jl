@@ -1,8 +1,8 @@
 function _G(
         u::AbstractVector, p, t::T, i::Integer, imeasurements_t_cid::Vector{Vector{Int64}},
         model_info::ModelInfo, xnoise::Vector{T}, xobservable::Vector{T},
-        xnondynamic_mech::Vector{T}, x_ml_models::Dict{Symbol, ComponentArray},
-        x_ml_models_constant::Dict{Symbol, ComponentArray}, residuals::Bool
+        xnondynamic_mech::Vector{T}, x_ml_models::Dict{Symbol, ComponentVector},
+        x_ml_models_constant::Dict{Symbol, ComponentVector}, residuals::Bool
     ) where {T <: AbstractFloat}
     @unpack petab_measurements, xindices, petab_parameters, model = model_info
     @unpack measurements_transformed, measurements, noise_distributions, observable_id = petab_measurements
@@ -37,8 +37,8 @@ end
 
 function _get_∂G∂_!(
         model_info::ModelInfo, cid::Symbol, xnoise::Vector{T}, xobservable::Vector{T},
-        xnondynamic_mech::Vector{T}, x_ml_models::Dict{Symbol, ComponentArray},
-        x_ml_models_constant::Dict{Symbol, ComponentArray}; residuals::Bool = false
+        xnondynamic_mech::Vector{T}, x_ml_models::Dict{Symbol, ComponentVector},
+        x_ml_models_constant::Dict{Symbol, ComponentVector}; residuals::Bool = false
     )::NTuple{2, Function} where {T <: AbstractFloat}
     if residuals == false
         it = model_info.simulation_info.imeasurements_t[cid]

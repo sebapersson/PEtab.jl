@@ -59,12 +59,6 @@ From a `PEtabModel`, a `PEtabODEProblem` can be created with:
 PEtabODEProblem
 ```
 
-A detailed overview of problem size and configuration is available via:
-
-```@docs
-describe(::PEtabODEProblem)
-```
-
 A `PEtabODEProblem` has many configurable options. Two important options are the `ODESolver`
 and, for problems with steady-state simulations, the `SteadyStateSolver`:
 

@@ -61,13 +61,12 @@ function _parameters_v2_v1(parameters_v2_df::DataFrame)::DataFrame
             :priorDistribution in propertynames(parameters_v2_df) &&
                 any(.!ismissing.(parameters_v2_df.priorDistribution))
         )
-
-        rename!(parameters_v1_df, Dict(:priorDistribution => "objectivePriorType"))
-        rename!(parameters_v1_df, Dict(:priorParameters => "objectivePriorParameters"))
+        _rename_column!(parameters_v1_df, "priorDistribution", "objectivePriorType")
+        _rename_column!(parameters_v1_df, "priorParameters", "objectivePriorParameters")
 
         # In v2, if priors are provided for one parameters all parameters with missing
         # priors are assigned Uniform(lb, ub)
-        for row_idx in 1:nrow(parameters_v1_df)
+        for row_idx in 1:DataFrames.nrow(parameters_v1_df)
             !ismissing(parameters_v1_df[row_idx, :objectivePriorType]) && continue
             parameters_v1_df[row_idx, :estimate] == false && continue
 
@@ -103,7 +102,7 @@ function _observables_formulas_v2_to_v1!(
         return nothing
     end
 
-    for row_idx in 1:nrow(observables_v2_df)
+    for row_idx in 1:DataFrames.nrow(observables_v2_df)
         ismissing(observables_v2_df[row_idx, placeholder_col]) && continue
 
         observable_id = observables_v2_df.observableId[row_idx]
@@ -131,7 +130,7 @@ function _observables_distribution_v2_to_v1!(observables_v1_df::DataFrame)::Noth
         observables_v1_df[!, :observableTransformation] .= "lin"
     end
 
-    for row_idx in 1:nrow(observables_v1_df)
+    for row_idx in 1:DataFrames.nrow(observables_v1_df)
         noise_distribution = observables_v1_df.noiseDistribution[row_idx]
         noise_distribution == "normal" && continue
         @assert noise_distribution == "log-normal" "Currently only support normal and \
@@ -148,7 +147,7 @@ function _observables_into_noise_formulas!(observables_v1_df::DataFrame)::Nothin
         return nothing
     end
 
-    for row_idx in 1:nrow(observables_v1_df)
+    for row_idx in 1:DataFrames.nrow(observables_v1_df)
         noise_formula = observables_v1_df.noiseFormula[row_idx]
         ismissing(noise_formula) && continue
         noise_formula isa Real && continue
@@ -165,7 +164,7 @@ end
 
 function _conditions_v2_to_v1(
         experiments_df::DataFrame, conditions_v2_df::DataFrame,
-        model_SBML::SBMLImporter.ModelSBML
+        model_SBML::ModelSBML
     )::Tuple{DataFrame, Vector{PEtabEvent}}
     conditions_v1_df = DataFrame()
     petab_events = PEtabEvent[]
@@ -199,7 +198,7 @@ function _conditions_v2_to_v1(
             continue
         end
 
-        for row_idx in 1:nrow(conditions_v1_df)
+        for row_idx in 1:DataFrames.nrow(conditions_v1_df)
             !ismissing(conditions_v1_df[row_idx, model_id]) && continue
             conditions_v1_df[!, model_id] .= string.(conditions_v1_df[!, model_id])
             conditions_v1_df[row_idx, model_id] = "NaN"
@@ -235,7 +234,7 @@ function _get_v1_condition(
 
     conditions_v1_row = DataFrame(conditionId = condition_v1_id)
     condition_experiment_df = filter(r -> r.conditionId in condition_ids, conditions_v2_df)
-    for row_idx in 1:nrow(condition_experiment_df)
+    for row_idx in 1:DataFrames.nrow(condition_experiment_df)
         @unpack targetId, targetValue = condition_experiment_df
         conditions_v1_row[:, Symbol(targetId[row_idx])] = [targetValue[row_idx]]
     end
@@ -271,7 +270,7 @@ function _parse_petab_v2_events!(
 
         target_ids = String[]
         target_values = String[]
-        for row_idx in 1:nrow(experiments_event_t_df)
+        for row_idx in 1:DataFrames.nrow(experiments_event_t_df)
             condition_id = experiment_events_df.conditionId[row_idx]
             condition_event_df = filter(r -> r.conditionId == condition_id, conditions_v2_df)
 
@@ -294,9 +293,9 @@ function _measurements_v2_to_v1(
     )::DataFrame
     measurements_v1_df = deepcopy(measurements_v2_df)
     measurements_v1_df[!, :simulationStartTime] .= 0.0
-    rename!(measurements_v1_df, Dict(:experimentId => "simulationConditionId"))
+    _rename_column!(measurements_v1_df, "experimentId", "simulationConditionId")
     measurements_v1_df[!, :preequilibrationConditionId] .= ""
-    allowmissing!(measurements_v1_df, :preequilibrationConditionId)
+    DataFrames.allowmissing!(measurements_v1_df, :preequilibrationConditionId)
 
     if isempty(experiments_v2_df)
         measurements_v1_df[!, :preequilibrationConditionId] .= missing

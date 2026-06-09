@@ -11,7 +11,7 @@ const ALLOWED_SOLUTION_PLOTS = [
 
 # Plots the optimized solution, and compares it to the data. Either by directly plotting
 # the model fit, or by plotting the residuals
-@recipe function f(
+Plots.@recipe function f(
         res::PEtab.EstimationResult, prob::PEtabODEProblem; plot_type = :model_fit,
         observable_ids = nothing, condition = nothing, observable_id_label = false,
         experiment = nothing,
@@ -84,8 +84,7 @@ const ALLOWED_SOLUTION_PLOTS = [
 end
 
 function PEtab.get_obs_comparison_plots(
-        res::PEtab.EstimationResult, prob::PEtabODEProblem;
-        kwargs...
+        res::PEtab.EstimationResult, prob::PEtabODEProblem; kwargs...
     )
     comparison_dict = Dict()
     conditions_ids = prob.model_info.simulation_info.conditionids
@@ -102,9 +101,9 @@ function PEtab.get_obs_comparison_plots(
         end
         comparison_dict[experiment_id] = Dict()
         for observable_id in observable_ids
-            comparison_dict[experiment_id][observable_id] = plot(
-                res, prob; observable_ids = [observable_id],
-                condition = condition, kwargs...
+            comparison_dict[experiment_id][observable_id] = Plots.plot(
+                res, prob; observable_ids = [observable_id], condition = condition,
+                kwargs...
             )
         end
     end

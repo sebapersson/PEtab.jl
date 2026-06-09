@@ -1,17 +1,18 @@
 module PEtabIpoptExtension
 
-using Ipopt
+import Catalyst: @unpack
+import ComponentArrays: ComponentVector
+import Ipopt
+import PEtab: PEtab, IpoptOptions, IpoptOptimizer, PEtabODEProblem
 import QuasiMonteCarlo: LatinHypercubeSample, SamplingAlgorithm
 import Random
-using Catalyst: @unpack
-using ComponentArrays
-using PEtab
 
 function PEtab.calibrate_multistart(
-        rng::Random.AbstractRNG, prob::PEtabODEProblem, alg::IpoptOptimizer, nmultistarts;
-        nprocs = 1, save_trace = false, dirsave = nothing, sample_prior = true,
-        sampling_method = LatinHypercubeSample(), init_weight = nothing, init_bias = nothing,
-        options::Union{Nothing, IpoptOptions} = nothing,
+        rng::Random.AbstractRNG, prob::PEtabODEProblem, alg::IpoptOptimizer,
+        nmultistarts::Integer; nprocs = 1, save_trace = false, dirsave = nothing,
+        sample_prior = true, sampling_method = LatinHypercubeSample(),
+        init_weight = nothing, init_bias = nothing, options
+        ::Union{Nothing, IpoptOptions} = nothing,
     )::PEtab.PEtabMultistartResult
     options = isnothing(options) ? IpoptOptions() : options
 
@@ -22,7 +23,7 @@ function PEtab.calibrate_multistart(
 end
 
 function PEtab.calibrate(
-        prob::PEtabODEProblem, x::Union{Vector{<:AbstractFloat}, ComponentArray},
+        prob::PEtabODEProblem, x::Union{Vector{<:AbstractFloat}, ComponentVector},
         alg::IpoptOptimizer; save_trace::Bool = false, options::IpoptOptions = IpoptOptions()
     )::PEtab.PEtabOptimisationResult
     xstart = collect(x)
@@ -57,7 +58,7 @@ function PEtab.calibrate(
     else
         alg_used = :Ipopt_user_Hessian
     end
-    return PEtabOptimisationResult(
+    return PEtab.PEtabOptimisationResult(
         xmin_out, fmin, x0_out, alg_used, niterations, runtime, xtrace, ftrace, converged,
         sol_ipopt
     )

@@ -14,17 +14,17 @@ end
 function PEtab._get_lux_ps(ml_model::PEtab.MLModel)
     return PEtab._get_lux_ps(Random.default_rng(), ml_model)
 end
-function PEtab._get_lux_ps(::Type{ComponentArray}, ml_model::PEtab.MLModel)::ComponentArray
-    return PEtab._get_lux_ps(Random.default_rng(), ComponentArray, ml_model)
+function PEtab._get_lux_ps(::Type{ComponentVector}, ml_model::PEtab.MLModel)::ComponentVector
+    return PEtab._get_lux_ps(Random.default_rng(), ComponentVector, ml_model)
 end
 function PEtab._get_lux_ps(rng::Random.AbstractRNG, ml_model::PEtab.MLModel)
     return Lux.initialparameters(rng, ml_model.lux_model)
 end
 function PEtab._get_lux_ps(
-        rng::Random.AbstractRNG, ::Type{ComponentArray}, ml_model::PEtab.MLModel
-    )::ComponentArray
+        rng::Random.AbstractRNG, ::Type{ComponentVector}, ml_model::PEtab.MLModel
+    )::ComponentVector
     return PEtab._get_lux_ps(rng, ml_model) |>
-        ComponentArray |>
+        ComponentVector |>
         f64
 end
 

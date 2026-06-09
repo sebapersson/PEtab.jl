@@ -1,5 +1,5 @@
 using SciMLBase, Lux, ComponentArrays, PEtab, CSV, DataFrames, YAML, Distributions,
-    OrdinaryDiffEqRosenbrock, SciMLSensitivity, HDF5, ForwardDiff, Test,
+    OrdinaryDiffEqRosenbrock, SciMLSensitivity, HDF5, ForwardDiff, Test, SciMLBase,
     ModelingToolkitBase, ModelingToolkitNeuralNets, Catalyst
 using Catalyst: @unpack
 import Random
@@ -62,7 +62,10 @@ function test_hybrid(test_case, petab_prob::PEtabODEProblem)
 end
 
 function test_init(test_case, model::PEtabModel)::Nothing
-    osolver = ODESolver(Rodas5P(autodiff = false), abstol = 1.0e-10, reltol = 1.0e-10)
+    osolver = ODESolver(
+        Rodas5P(autodiff = SciMLBase.ADTypes.AutoFiniteDiff()), abstol = 1.0e-10,
+        reltol = 1.0e-10
+    )
     petab_prob = PEtabODEProblem(model; odesolver = osolver, gradient_method = :ForwardDiff)
     x = get_x(petab_prob)
 

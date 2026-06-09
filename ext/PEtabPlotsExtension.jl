@@ -1,16 +1,8 @@
 module PEtabPlotsExtension
 
 import Catalyst: @unpack
-using ComponentArrays
-using DataFrames
-using ModelingToolkitBase
-using PEtab
-using Plots
-using PreallocationTools
-using RuntimeGeneratedFunctions
-using Symbolics
-
-RuntimeGeneratedFunctions.init(@__MODULE__)
+import PEtab: PEtab, PEtabODEProblem
+import Plots
 
 # For Optimization and model selection
 include(joinpath(@__DIR__, "PEtabPlotsExtension", "optimisation_trajectory_recipes.jl"))

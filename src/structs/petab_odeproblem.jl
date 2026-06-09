@@ -141,8 +141,8 @@ struct PEtabODEProblemCache{
     pode::T5
     u0ode::T6
     x_ml_models_cache::T7
-    x_ml_models::Dict{Symbol, ComponentArray}
-    x_ml_models_constant::Dict{Symbol, ComponentArray}
+    x_ml_models::Dict{Symbol, ComponentVector}
+    x_ml_models_constant::Dict{Symbol, ComponentVector}
     xdynamic::T2
     grad_ml_pre_simulate_outputs::Vector{Float64}
 end
@@ -229,8 +229,8 @@ online documentation.
   `gradient_method = :Adjoint`).
 """
 mutable struct ODESolver
-    solver::SciMLAlgorithm
-    solver_adj::SciMLAlgorithm
+    solver::AbstractSciMLAlgorithm
+    solver_adj::AbstractSciMLAlgorithm
     abstol::Float64
     reltol::Float64
     abstol_adj::Float64
@@ -241,10 +241,10 @@ mutable struct ODESolver
     verbose::AllowedLogging
 end
 function ODESolver(
-        solver::SciMLAlgorithm;
+        solver::AbstractSciMLAlgorithm;
         abstol::Float64 = 1.0e-8,
         reltol::Float64 = 1.0e-8,
-        solver_adj::Union{Nothing, SciMLAlgorithm} = nothing,
+        solver_adj::Union{Nothing, AbstractSciMLAlgorithm} = nothing,
         abstol_adj::Union{Nothing, Float64} = nothing,
         reltol_adj::Union{Nothing, Float64} = nothing,
         force_dtmin::Bool = false,
@@ -337,7 +337,7 @@ struct SteadyStateSolver{
         T1 <:
         Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm},
         T2 <: Union{Nothing, AbstractFloat},
-        T3 <: Union{Nothing, NonlinearProblem},
+        T3 <: Union{Nothing, NonlinearSolve.NonlinearProblem},
         CA <: Union{Nothing, SciMLBase.DECallback},
         T4 <: Union{Nothing, Integer},
     }
@@ -480,7 +480,7 @@ key fields are:
   same order as the measurement table.
 - `lower_bounds`, `upper_bounds`: Parameter bounds used for optimization/inference.
 
-Unless otherwise noted, the input `x` can be a `Vector` or a `ComponentArray` (the output
+Unless otherwise noted, the input `x` can be a `Vector` or a `ComponentVector` (the output
 type matches the input type where applicable). `x` must be provided in the order expected
 by a `PEtabODEProblem`, see [`get_x`](@ref)
 
@@ -543,10 +543,10 @@ struct PEtabODEProblem{F1 <: Function, F2 <: Function, F3 <: Function}
     model_info::ModelInfo
     nparameters_estimate::Int64
     xnames::Vector{Symbol}
-    xnominal::ComponentArray{Float64}
-    xnominal_transformed::ComponentArray{Float64}
-    lower_bounds::ComponentArray{Float64}
-    upper_bounds::ComponentArray{Float64}
+    xnominal::ComponentVector{Float64}
+    xnominal_transformed::ComponentVector{Float64}
+    lower_bounds::ComponentVector{Float64}
+    upper_bounds::ComponentVector{Float64}
 end
 
 struct PEtabFileError <: Exception
