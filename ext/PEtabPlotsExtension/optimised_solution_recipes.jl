@@ -15,7 +15,7 @@ Plots.@recipe function f(
         res::PEtab.EstimationResult, prob::PEtabODEProblem; plot_type = :model_fit,
         observable_ids = nothing, condition = nothing, observable_id_label = false,
         experiment = nothing,
-        # Relevant for fitted neural network plotting onlu.
+        # Relevant for fitted neural network plotting only.
         nn_idx = 1, x_support = nothing, num_plotted_nn = nothing, loss_thres = Inf,
         plt_dens = 200, plotted_dim = 1, clustering_function = objective_value_clustering
     )
@@ -29,7 +29,8 @@ Plots.@recipe function f(
         # For plotting fitted function. Implemented in the "ude_functions_recipes.jl" file.
         xlabel, title, plot_info = _plot_ude_function_fit(
             res, prob, plot_type, nn_idx,
-            x_support, num_plotted_nn, loss_thres, plt_dens, plotted_dim, clustering_function
+            x_support, num_plotted_nn, loss_thres, plt_dens, plotted_dim,
+            clustering_function
         )
     else
         observables_df = prob.model_info.model.petab_tables[:observables]

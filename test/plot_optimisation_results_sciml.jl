@@ -1,5 +1,5 @@
 ### Generate Fitted Model ###
-# We must generate the PEtab problem (the fitted solution, however, we have pre-computed and can load).
+using Test
 
 # Sets an rng.
 using StableRNGs
@@ -26,10 +26,6 @@ begin
     X_observed = [rand(rng, Normal(X, σ)) for X in X_true]
     Y_true = sol_true(t_measurement; idxs = :Y)
     Y_observed = [rand(rng, Normal(Y, σ)) for Y in Y_true]
-    # If you want to visualise what is plotted.
-    # plot(sol_true; label = ["X (true)" "Y (true)"], color = [1 2])
-    # plot!(t_measurement, X_observed; label = "X (measured)", color = 1, seriestype = :scatter)
-    # plot!(t_measurement, Y_observed; label = "Y (measured)", color = 2, seriestype = :scatter)
 end
 
 # Create the UDE.
@@ -51,7 +47,7 @@ end
 
 # Create the UDE PEtabproblem.
 begin
-    using DataFrames, Optim, PEtab
+    using DataFrames, PEtab
     observables = [PEtabObservable(:obs_X, :X, σ), PEtabObservable(:obs_Y, :Y, σ)]
     pest = [PEtabMLParameter(:θ), PEtabParameter(:d; scale = :log10)]
     mX = DataFrame(obs_id = "obs_X", time = t_measurement, measurement = X_observed)
@@ -61,11 +57,18 @@ begin
 end
 
 # Find the fitted UDE.
-petab_sol = PEtabMultistartResult(joinpath(@__DIR__, "optimisation_results", "mutual_activation_loop"))
-# This is computed through.
-# using Optimisers
-# @time petab_sol = calibrate_multistart(rng, petab_prob, Optimisers.Adam(1e-3), 10;
-#     options = OptimisersOptions(iterations = 20000), dirsave = "mutual_activation_loop"
+petab_sol = PEtabMultistartResult(
+    joinpath(@__DIR__, "optimisation_results", "mutual_activation_loop")
+)
+#=
+Computed via:
+using Optimisers
+@time petab_sol = calibrate_multistart(
+    rng, petab_prob, Optimisers.Adam(1e-3), 10;
+    options = OptimisersOptions(iterations = 20000),
+    dirsave = "mutual_activation_loop
+)
+=#
 
 
 ### Test basic Plot Functionality ###
@@ -182,7 +185,7 @@ end
 
 # Create the UDE PEtabproblem.
 begin
-    using DataFrames, Optim, PEtab
+    using DataFrames, PEtab
     observables = [PEtabObservable(:obs_X, :X, σ), PEtabObservable(:obs_Y, :Y, σ), PEtabObservable(:obs_Z, :Z, σ)]
     pest = [PEtabMLParameter(:θ1), PEtabMLParameter(:θ2), PEtabParameter(:d; scale = :log10)]
     mX = DataFrame(obs_id = "obs_X", time = t_measurement, measurement = X_observed)
@@ -194,11 +197,17 @@ end
 
 # Fit the UDE.
 # Find the fitted UDE.
-petab_sol = PEtabMultistartResult(joinpath(@__DIR__, "optimisation_results", "ic_feedforward_loop"))
-# This is computed through.
-# using Optimisers
-# @time petab_sol = calibrate_multistart(rng, petab_prob, Optimisers.Adam(1e-3), 10;
-#     options = OptimisersOptions(iterations = 10000), dirsave = "ic_feedforward_loop")
+petab_sol = PEtabMultistartResult(
+    joinpath(@__DIR__, "optimisation_results", "ic_feedforward_loop")
+)
+#=
+Computed via:
+using Optimisers
+petab_sol = calibrate_multistart(
+    rng, petab_prob, Optimisers.Adam(1e-3), 10;
+    options = OptimisersOptions(iterations = 10000), dirsave = "ic_feedforward_loop"
+)
+=#
 
 
 p_obj = plot(petab_sol, petab_prob)

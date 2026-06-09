@@ -7,19 +7,24 @@ function _plot_ude_function_fit(
     # Extract all the ML functional calls within the model.
     # Check that `nn_idx` is OK. Checks that the model have one input and one input.
     if prob.model_info.model.sys isa ODEProblem
-        error("Plotting of neural network functions are only supported for models decalred using the MTK/Catalyst syntax.")
+        throw(ArgumentError(
+            "Plotting of neural network functions are only supported for models declared \
+             using the MTK/Catalyst syntax."
+        ))
     end
     full_ml_calls = PEtab._get_full_ml_calls(prob)
     grouped_calls = PEtab._group_full_ml_calls_by_signature(full_ml_calls)
     nn_idx > length(grouped_calls) && throw(
         ArgumentError(
-            "Requested nn_idx=$(nn_idx) but there are only $(length(grouped_calls)) unique fitted functions found."
+            "Requested nn_idx=$(nn_idx) but there are only $(length(grouped_calls)) unique \
+             fitted functions found."
         )
     )
     nn_sym, ps_sym, all_input_args = grouped_calls[nn_idx]
     length(all_input_args[1]) != 1 && throw(
         ArgumentError(
-            "The fitted function plotting recipe only supports fitted functions with a single input. Encountered a function with $(length(all_input_args[1])) inputs."
+            "The fitted function plotting recipe only supports fitted functions with a \
+             single input. Encountered a function with $(length(all_input_args[1])) inputs."
         )
     )
 
@@ -46,8 +51,12 @@ end
 
 # Function for handling the `plot_type == :best_function` (i.e. plotting the single best fitted function).
 # The color defaults to 1
-function _handle_best_function(res, prob, nn_sym, ps_sym, all_input_args, plt_dens, x_support, plotted_dim)
-    x_vals, y_vals = _eval_fitted_function(res, prob, nn_sym, ps_sym, all_input_args, plt_dens, x_support, plotted_dim)
+function _handle_best_function(
+        res, prob, nn_sym, ps_sym, all_input_args, plt_dens, x_support, plotted_dim
+    )
+    x_vals, y_vals = _eval_fitted_function(
+        res, prob, nn_sym, ps_sym, all_input_args, plt_dens, x_support, plotted_dim
+    )
     return x_vals, y_vals, 1
 end
 
@@ -59,7 +68,8 @@ function _handle_function_ensemble(
     )
     (res isa PEtab.PEtabMultistartResult) || throw(
         ArgumentError(
-            "The `:function_ensemble` plot type requires a multi-start calibration run having been performed."
+            "The `:function_ensemble` plot type requires a multi-start calibration run \
+             having been performed."
         )
     )
 
@@ -75,7 +85,9 @@ function _handle_function_ensemble(
         else
             (x_support isa Vector) ? x_support[run_idx] : x_support
         end
-        x_vals, y_vals = _eval_fitted_function(run, prob, nn_sym, ps_sym, all_input_args, plt_dens, x_support_i, plotted_dim)
+        x_vals, y_vals = _eval_fitted_function(
+            run, prob, nn_sym, ps_sym, all_input_args, plt_dens, x_support_i, plotted_dim
+        )
         push!(x_valss, x_vals)
         push!(y_valss, y_vals)
         push!(color_idxs, run_idx)
@@ -85,7 +97,9 @@ function _handle_function_ensemble(
     if !isnothing(num_plotted_nn)
         if length(x_valss) < num_plotted_nn
             num_plotted_nn = length(x_valss)
-            @warn "Requested num_plotted_nn=$(num_plotted_nn) but only $(length(x_valss)) runs were found with loss below the specified threshold. Plotting all $(length(x_valss)) runs."
+            @warn "Requested num_plotted_nn=$(num_plotted_nn) but only $(length(x_valss)) \
+                   runs were found with loss below the specified threshold. Plotting all \
+                   $(length(x_valss)) runs."
         end
         x_valss = x_valss[1:num_plotted_nn]
         y_valss = y_valss[1:num_plotted_nn]
@@ -100,7 +114,7 @@ end
 
 # For a specific fitted function, and a specific run, returns the fitted function evaluated on a  grid of x-values.
 function _eval_fitted_function(
-        res::PEtab.EstimationResult, prob::PEtabODEProblem, nn_sym,
+        res::PEtab.EstimationResult, prob::PEtab.PEtabODEProblem, nn_sym,
         ps_sym, all_input_args, plt_dens, x_support, plotted_dim
     )
     # Determines the x-value input that is supported and the x-axis value grid.
@@ -108,7 +122,7 @@ function _eval_fitted_function(
     x_vals = range(first(x_support), last(x_support); length = plt_dens)
 
     # Evaluates the fitted function on the input x-grid of values. Sets the default color = 1.
-    oprob, _ = get_odeproblem(res, prob)
+    oprob, _ = PEtab.get_odeproblem(res, prob)
     fitted_nn, fitted_ps = oprob.ps[[nn_sym, ps_sym]]
     f(x) = fitted_nn(x, fitted_ps)
     y_vals = [f(x)[plotted_dim] for x in x_vals]
@@ -127,7 +141,9 @@ function _get_x_support(nn_sym, all_input_args, res, prob)
     )
     length(first(all_input_args)) != 1 && throw(
         ArgumentError(
-            "The function `_get_x_support` currently only supports fitted functions with a single input. Encountered a function with $(length(first(all_input_args))) inputs."
+            "The function `_get_x_support` currently only supports fitted functions with \
+             a single input. Encountered a function with $(length(first(all_input_args))) \
+             inputs."
         )
     )
 

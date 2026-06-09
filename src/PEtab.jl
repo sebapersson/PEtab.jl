@@ -32,6 +32,7 @@ import StatsBase
 import StyledStrings: styled, @styled_str
 import Sundials: CVODE_Adams, CVODE_BDF
 import Symbolics
+import Symbolics.SymbolicUtils
 import SymbolicIndexingInterface
 import YAML
 

@@ -2,7 +2,9 @@ module PEtabPlotsExtension
 
 import Catalyst: @unpack
 import PEtab: PEtab, PEtabODEProblem
+import ModelingToolkitBase
 import Plots
+import SciMLBase: ODEProblem
 
 # For Optimization and model selection
 include(joinpath(@__DIR__, "PEtabPlotsExtension", "optimisation_trajectory_recipes.jl"))
