@@ -7,10 +7,12 @@ function _plot_ude_function_fit(
     # Extract all the ML functional calls within the model.
     # Check that `nn_idx` is OK. Checks that the model have one input and one input.
     if prob.model_info.model.sys isa ODEProblem
-        throw(ArgumentError(
-            "Plotting of neural network functions are only supported for models declared \
-             using the MTK/Catalyst syntax."
-        ))
+        throw(
+            ArgumentError(
+                "Plotting of neural network functions are only supported for models \
+                 declared using the MTK/Catalyst syntax."
+            )
+        )
     end
     full_ml_calls = PEtab._get_full_ml_calls(prob)
     grouped_calls = PEtab._group_full_ml_calls_by_signature(full_ml_calls)
