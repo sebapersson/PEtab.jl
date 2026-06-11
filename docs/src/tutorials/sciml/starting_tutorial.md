@@ -327,19 +327,22 @@ plot(x, petab_prob_val, title = "Validation data fit")
 ```
 
 As one of many possible downstream analyses, we can compare the learned neural network to
-the true function it aims to approximate. Here, learned neural network functions can be 
-displayed using PEtab's [plotting interface](@ref pest_plotting) while using the `:best_function`
-and `:function_ensemble` options. I.e. to plot the learnt function we would use
+the true function it aims to approximate. The learned function can be plotted using PEtab's
+plotting interface with the `:best_function` and `:function_ensemble` options:
+
 ```@example 1
-plot(res, petab_prob_train; plot_type = :best_function, label = "Fitted function", linestyle = :dash, lw = 5)
+plot(x, petab_prob_train; plot_type = :best_function, label = "Fitted function", linestyle = :dash, lw = 5)
 ```
-Next, we can overlay the true function, noting that in this example, the approximation is 
-quite good:
+
+We can then overlay the true function to assess the approximation quality:
+
 ```@example 1
 true_func(y) = 1.1 * (y^3) / (2^3 + y^3)
 plot!(true_func, 0.0, 3.5; label = "True function", lw = 3)
 ```
-Options for plotting fitted functions are describe in more details in [here](@ref sciml_plotting)
+
+In this example, the learned function closely matches the true function. For a full overview
+of plotting options for learned functions, see [here](@ref sciml_plotting).
 
 The above training loop above is intentionally minimal. In practice, Optimisers.jl and
 related packages can be used to add learning-rate schedules, gradient clipping, early
@@ -363,6 +366,8 @@ UDEs, see the following tutorials:
   simulation.
 - [Importing PEtab SciML](@ref import_petab_scimlproblem): import problems in the
   PEtab-SciML standard format.
+- [Plotting learned functions](@ref sciml_plotting): How to plot the learned neural network
+  function for UDE problems.
 
 In addition, this tutorial showed how to train a UDE via a simple Adam training loop. More
 efficient training strategies are supported via
