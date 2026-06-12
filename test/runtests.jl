@@ -42,6 +42,10 @@ end
     include("petab_sciml_testsuite.jl")
 end
 
+@safetestset "SciML plotting functionality" begin
+    include("plot_optimisation_results_sciml.jl")
+end
+
 if !core_only
     @safetestset "Model with analytic steady-state" begin
         include("analytic_ss.jl")

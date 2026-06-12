@@ -41,6 +41,8 @@ jobs:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
       - uses: julia-actions/cache@v3
+      - name: Force package instantiation
+        run: julia --project=. -e 'using Pkg; Pkg.instantiate(); Pkg.resolve()'
       - uses: julia-actions/julia-buildpkg@v1
         env:
           PYTHON : "${{ env.pythonLocation }}/bin/python"
@@ -59,18 +61,20 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        julia: ['1.12']
+        julia: ['1.11']
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v3
         with:
           version: ${{ matrix.julia }}
       - uses: julia-actions/cache@v3
+      - name: Force package instantiation
+        run: julia --project=. -e 'using Pkg; Pkg.instantiate(); Pkg.resolve()'
       - uses: julia-actions/julia-buildpkg@v1
       # ------ run only the core subset ------
       - name: Run core test-suite
         env:
-          CORE_ONLY: "true"      # picked up inside runtests.jl
+          CORE_ONLY: "true"
         run: julia --project=. -e 'using Pkg; Pkg.test()'
   docs:
     name: Documentation

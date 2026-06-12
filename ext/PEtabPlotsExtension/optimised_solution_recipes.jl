@@ -1,5 +1,12 @@
+const NN_FUNCTION_PLOTS = [
+    :best_function,
+    :function_ensemble,
+]
 const ALLOWED_SOLUTION_PLOTS = [
-    :model_fit, :residuals, :standardized_residuals,
+    :model_fit,
+    :residuals,
+    :standardized_residuals,
+    NN_FUNCTION_PLOTS...,
 ]
 
 # Plots the optimized solution, and compares it to the data. Either by directly plotting
@@ -7,59 +14,73 @@ const ALLOWED_SOLUTION_PLOTS = [
 Plots.@recipe function f(
         res::PEtab.EstimationResult, prob::PEtabODEProblem; plot_type = :model_fit,
         observable_ids = nothing, condition = nothing, observable_id_label = false,
-        experiment = nothing
+        experiment = nothing,
+        # Relevant for fitted neural network plotting only.
+        nn_idx = 1, x_support = nothing, num_plotted_nn = nothing, loss_thres = Inf,
+        plt_dens = 200, plotted_dim = 1, clustering_function = objective_value_clustering
     )
     model_info = prob.model_info
-
     if !in(plot_type, ALLOWED_SOLUTION_PLOTS)
         error("Argument plot_type have an unrecognized value ($(plot_type)). Allowed \
                values are: $(ALLOWED_SOLUTION_PLOTS).")
     end
 
-    observables_df = prob.model_info.model.petab_tables[:observables]
-    if isnothing(observable_ids)
-        observable_ids = observables_df[!, :observableId]
-    else
-        observable_ids = string.(observable_ids)
-    end
-
-    # Get plot options
-    PEtab._check_experiment_id(condition, experiment, model_info)
-    simulation_id = PEtab._get_simulation_id(condition, experiment, model_info)
-    pre_equilibration_id = PEtab._get_pre_equilibration_id(
-        condition, experiment, model_info
-    )
-    PEtab._check_condition_ids(simulation_id, pre_equilibration_id, model_info)
-    petab_version = PEtab._get_version(model_info)
-
-    if petab_version == "2.0.0" && isnothing(experiment)
-        experiment_id = first(split("$simulation_id", '_'))
-        title --> "Experiment: $(experiment_id)"
-    elseif petab_version == "2.0.0" && !isnothing(experiment)
-        title --> "Experiment: $(experiment)"
-    elseif isnothing(pre_equilibration_id)
-        title --> "Condition: $(simulation_id)"
-    else
-        title --> "Condition: $(pre_equilibration_id) => $(simulation_id)"
-    end
-
-    xmin = PEtab._get_x(res)
-    if plot_type == :model_fit
-        plot_info = _plot_model_fit(
-            xmin, prob, condition, experiment, observable_ids, observable_id_label
+    if plot_type in NN_FUNCTION_PLOTS
+        # For plotting fitted function. Implemented in the "ude_functions_recipes.jl" file.
+        xlabel, title, plot_info = _plot_ude_function_fit(
+            res, prob, plot_type, nn_idx,
+            x_support, num_plotted_nn, loss_thres, plt_dens, plotted_dim,
+            clustering_function
         )
     else
-        plot_info = _plot_residuals(
-            xmin, prob, condition, experiment, observable_ids, plot_type,
-            observable_id_label
+        observables_df = prob.model_info.model.petab_tables[:observables]
+        if isnothing(observable_ids)
+            observable_ids = observables_df[!, :observableId]
+        else
+            observable_ids = string.(observable_ids)
+        end
+
+        # Get plot options
+        PEtab._check_experiment_id(condition, experiment, model_info)
+        simulation_id = PEtab._get_simulation_id(condition, experiment, model_info)
+        pre_equilibration_id = PEtab._get_pre_equilibration_id(
+            condition, experiment, model_info
         )
+        PEtab._check_condition_ids(simulation_id, pre_equilibration_id, model_info)
+        petab_version = PEtab._get_version(model_info)
+
+        if petab_version == "2.0.0" && isnothing(experiment)
+            experiment_id = first(split("$simulation_id", '_'))
+            title = "Experiment: $(experiment_id)"
+        elseif petab_version == "2.0.0" && !isnothing(experiment)
+            title = "Experiment: $(experiment)"
+        elseif isnothing(pre_equilibration_id)
+            title = "Condition: $(simulation_id)"
+        else
+            title = "Condition: $(pre_equilibration_id) => $(simulation_id)"
+        end
+
+        xmin = PEtab._get_x(res)
+        if plot_type == :model_fit
+            plot_info = _plot_model_fit(
+                xmin, prob, condition, experiment, observable_ids, observable_id_label
+            )
+        else
+            plot_info = _plot_residuals(
+                xmin, prob, condition, experiment, observable_ids, plot_type,
+                observable_id_label
+            )
+        end
+
+        xlabel = "Time"
     end
 
     seriestype --> plot_info.seriestype
     color --> plot_info.color
     label --> plot_info.label
-    xlabel --> "Time"
+    xlabel --> xlabel
     ylabel --> plot_info.y_label
+    title --> title
     return plot_info.x, plot_info.y
 end
 

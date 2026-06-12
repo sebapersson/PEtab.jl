@@ -5,7 +5,11 @@
 - Added support for Optimisers.jl update rules in `calibrate` and `calibrate_multistart` via
   a package extension. For example, it is now possible to do:
   `calibrate(prob, x0, Optimisers.Adam(1e-3))`.
+- Added plotting support for fitted neural network functions in UDE problems via the
+  `plot_type = :best_function` and `plot_type = :function_ensemble` options.
 - Updated SciMLBase and ODE-solver packages compat.
+
+Thanks to @TorkelE for contributions to this release.
 
 ## PEtab.jl 5.2.0
 
