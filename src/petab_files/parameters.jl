@@ -243,7 +243,7 @@ function _parse_petab_prior(
 end
 
 function _parse_julia_prior(_prior::String)::ContDistribution
-    _prior = replace(_prior, "__Julia__" => "")
+    _prior = replace(_prior, "__Julia__" => "Distributions.")
     # In expressions like Normal{Float64}(μ=0.3, σ=3.0) remove variables to obtain
     # Normal{Float64}(0.3, 3.0). TODO: Update to support PEtab export
     _prior = replace(_prior, r"\b\w+\s*=\s*" => "")
