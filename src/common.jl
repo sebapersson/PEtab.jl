@@ -348,3 +348,134 @@ end
 _is_neural_network_mtk(id::Any, ::Any)::Bool = false
 _is_neural_network_mtk_ps(id::Any, ::Any)::Bool = false
 _get_nn_chain_mtk(::Any, ::Any) = nothing
+
+"""
+    _get_observable(
+        x, prob::PEtabODEProblem, condition, experiment, observable_id::String
+    )
+
+Return the model values for a given observable_id (observable id), and condition or
+experiment depending on PEtab version.
+
+This function is primarily used for plotting purposes, both by PEtab.jl and PEtabBayes
+
+# Returns
+- `t_observed::Vector{Float64}`: Time points for the observed data (x-axis).
+- `h_observed::Vector{Float64}`: Observed data values corresponding to these time points.
+- `t_model::Vector{Float64}`: Time points for the model data (x-axis).
+- `h_model::Vector{Float64}`: Model's predicted values corresponding to these time points.
+"""
+function _get_observable(
+        x, prob::PEtabODEProblem, condition, experiment, observable_id::String;
+        n_tsave::Union{Integer, Nothing} = nothing
+    )
+    @unpack model_info, probinfo = prob
+    measurements_df = model_info.model.petab_tables[:measurements]
+
+    idata = _get_index_data(condition, experiment, observable_id, model_info)
+    if isempty(idata)
+        return (t_obs = Float64[], h_obs = Float64[], t_mod = Float64[], h_mod = Float64[])
+    end
+    t_observed = measurements_df[idata, :time]
+    h_observed = measurements_df[idata, :measurement]
+
+    # If we have observable parameters that scale the observable functions it does not
+    # make sense to return a smooth ODESolution. If no such parameters are present, a
+    # smooth function can be returned
+    t_model = Float64[]
+    h_model = Float64[]
+
+    map_xobservables = model_info.xindices.xobservable_maps[idata]
+    smooth_sol = all([map.nparameters == 0 for map in map_xobservables])
+
+    if smooth_sol == true
+        # For smooth trajectory must solve ODE and compute the observable function
+        # Need to go via ODEProblem for two reasons, first to control t-save, but also to
+        # ensure correct saving of results with respect to potential model events.
+        @unpack solver, abstol, reltol, maxiters = prob.probinfo.solver
+        ode_problem, _cbs = get_odeproblem(
+            x, prob; condition = condition, experiment = experiment, mutated_sys = true
+        )
+        cbs = _with_save_positions(_cbs)
+        if isnothing(n_tsave)
+            t_save = nothing
+        else
+            t_save = range(ode_problem.tspan[1], ode_problem.tspan[end], n_tsave)
+        end
+        sol = solve(
+            ode_problem, solver, abstol = abstol, reltol = reltol, callback = cbs,
+            saveat = t_save, maxiters = maxiters
+        )
+        if sol.retcode != ReturnCode.Success
+            return (
+                t_obs = t_observed, h_obs = Float64[], t_mod = Float64[], h_mod = h_model,
+            )
+        end
+
+        _, xobservable, _, xnondynamic_mech, x_ml_models = split_x(
+            x, model_info.xindices, probinfo.cache
+        )
+        xobservable_ps = transform_x(
+            xobservable, model_info.xindices, :xobservable, probinfo.cache
+        )
+        xnondynamic_mech_ps = transform_x(
+            xnondynamic_mech, model_info.xindices, :xnondynamic_mech, probinfo.cache
+        )
+        p = _get_tunables(sol.prob.p, model_info.xindices.get_ps_mtk_parameters)
+        @unpack x_ml_models_constant = probinfo.cache
+        for (i, t) in pairs(sol.t)
+            u = sol[:, i]
+            h = _h(
+                u, t, p, xobservable_ps, xnondynamic_mech_ps, x_ml_models,
+                x_ml_models_constant, model_info.model, map_xobservables[1],
+                Symbol(observable_id), collect(prob.xnominal)
+            )
+            push!(h_model, h)
+        end
+        t_model = vcat(t_model, sol.t)
+        npoints = length(t_save)
+
+        # With observable parameters the simulated values must be used
+    else
+        t_model = vcat(t_model, measurements_df[idata, :time])
+        h_model = vcat(h_model, prob.simulated_values(x)[idata])
+        npoints = length(measurements_df[idata, :time])
+    end
+
+    return (t_obs = t_observed, h_obs = h_observed, t_mod = t_model, h_mod = h_model)
+end
+
+function _get_index_data(condition, experiment, observable_id, model_info)
+    simulation_id = _get_simulation_id(condition, experiment, model_info)
+    pre_equilibration_id = _get_pre_equilibration_id(
+        condition, experiment, model_info
+    )
+
+    measurements_df = model_info.model.petab_tables[:measurements]
+    simulation_ids = measurements_df[!, :simulationConditionId]
+    observable_ids = measurements_df[!, :observableId]
+
+    # Identify which data-points in measurement data to plot
+    if isnothing(pre_equilibration_id)
+        idata = findall(
+            simulation_ids .== string(simulation_id) .&&
+                observable_ids .== observable_id
+        )
+    else
+        pre_equilibration_ids = measurements_df[!, :preequilibrationConditionId]
+        idata = findall(
+            simulation_ids .== string(simulation_id) .&&
+                observable_ids .== observable_id .&&
+                string(pre_equilibration_id) .== pre_equilibration_ids
+        )
+    end
+    return idata
+end
+
+function _with_save_positions(cbs::CallbackSet)
+    cbs = deepcopy(cbs)
+    for cb in (cbs.continuous_callbacks..., cbs.discrete_callbacks...)
+        fill!(cb.save_positions, true)   # in-place; cb itself stays immutable
+    end
+    return cbs
+end

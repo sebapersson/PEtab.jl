@@ -243,11 +243,18 @@ function _parse_petab_prior(
 end
 
 function _parse_julia_prior(_prior::String)::ContDistribution
-    _prior = replace(_prior, "__Julia__" => "Distributions.")
     # In expressions like Normal{Float64}(μ=0.3, σ=3.0) remove variables to obtain
-    # Normal{Float64}(0.3, 3.0). TODO: Update to support PEtab export
+    # Distributions.Normal{Float64}(0.3, 3.0).
     _prior = replace(_prior, r"\b\w+\s*=\s*" => "")
-    _prior = replace(_prior, "Truncated" => "Distributions.truncated")
+    if occursin("Truncated", _prior)
+        _prior = replace(_prior, "__Julia__" => "")
+        _prior = replace(_prior, r"\b([A-Z]\w*)(?=[({])" => s"Distributions.\1")
+        _prior = replace(_prior, "Distributions.Truncated" => "Distributions.truncated")
+        _prior = replace(_prior, ";" => ",")
+        _prior = replace(_prior, "__Julia__" => "")
+    else
+        _prior = replace(_prior, "__Julia__" => "Distributions.")
+    end
     _prior = replace(_prior, ";" => ",")
     return eval(Meta.parse(_prior))
 end

@@ -153,6 +153,7 @@ struct PEtabMeasurements{T <: Vector{<:Union{<:String, <:AbstractFloat}}}
     simulated_values::Vector{Float64}
     chi2_values::Vector{Float64}
     residuals::Vector{Float64}
+    sigma_values::Vector{Float64}
     noise_distributions::Vector{Symbol}
     time::Vector{Float64}
     observable_id::Vector{Symbol}

@@ -125,7 +125,7 @@ function _plot_model_fit(
 
     # Loops through all observables, computing the required plot inputs.
     for (obs_idx, obs_id) in enumerate(observable_ids)
-        model_fits = _get_observable(xmin, prob, condition, experiment, obs_id)
+        model_fits = PEtab._get_observable(xmin, prob, condition, experiment, obs_id)
         # Plot args.
         append!(_seriestype, [:scatter, :line])
         append!(_color, [obs_idx, obs_idx])
@@ -177,7 +177,7 @@ function _plot_residuals(
 
     # Loops through all observables, computing the required plot inputs.
     for (obs_idx, obs_id) in enumerate(observable_ids)
-        idata = _get_index_data(condition, experiment, obs_id, prob.model_info)
+        idata = PEtab._get_index_data(condition, experiment, obs_id, prob.model_info)
         isempty(idata) && continue
 
         t_observed = petab_measurements.time[idata]
@@ -212,108 +212,4 @@ function _plot_residuals(
         x = x_vals, y = y_vals, color = _color, label = _label,
         seriestype = _seriestype, y_label = _y_label,
     )
-end
-
-"""
-    _get_observable(
-        x, prob::PEtabODEProblem, condition, experiment, observable_id::String
-    )
-
-Return the model values for a given observable_id (observable id), and condition or
-experiment depending on PEtab version.
-
-This function is primarily used for plotting purposes.
-
-# Returns
-- `t_observed::Vector{Float64}`: Time points for the observed data (x-axis).
-- `h_observed::Vector{Float64}`: Observed data values corresponding to these time points.
-- `t_model::Vector{Float64}`: Time points for the model data (x-axis).
-- `h_model::Vector{Float64}`: Model's predicted values corresponding to these time points.
-"""
-function _get_observable(
-        x, prob::PEtabODEProblem, condition, experiment, observable_id::String
-    )
-    @unpack model_info, probinfo = prob
-    measurements_df = model_info.model.petab_tables[:measurements]
-
-    idata = _get_index_data(condition, experiment, observable_id, model_info)
-    if isempty(idata)
-        return (t_obs = Float64[], h_obs = Float64[], t_mod = Float64[], h_mod = Float64[])
-    end
-    t_observed = measurements_df[idata, :time]
-    h_observed = measurements_df[idata, :measurement]
-
-    # If we have observable parameters that scale the observable functions it does not
-    # make sense to return a smooth ODESolution. If no such parameters are present, a
-    # smooth function can be returned
-    t_model = Float64[]
-    h_model = Float64[]
-
-    sol = PEtab.get_odesol(
-        x, prob; condition = condition, experiment = experiment, mutated_sys = true
-    )
-
-    map_xobservables = model_info.xindices.xobservable_maps[idata]
-    smooth_sol = all([map.nparameters == 0 for map in map_xobservables])
-
-    # For smooth trajectory must solve ODE and compute the observable function
-    p = PEtab._get_tunables(sol.prob.p, model_info.xindices.get_ps_mtk_parameters)
-    if smooth_sol == true
-        _, xobservable, _, xnondynamic_mech, x_ml_models = PEtab.split_x(
-            x, model_info.xindices, probinfo.cache
-        )
-        xobservable_ps = PEtab.transform_x(
-            xobservable, model_info.xindices, :xobservable, probinfo.cache
-        )
-        xnondynamic_mech_ps = PEtab.transform_x(
-            xnondynamic_mech, model_info.xindices, :xnondynamic_mech, probinfo.cache
-        )
-        @unpack x_ml_models_constant = probinfo.cache
-
-        for (i, t) in pairs(sol.t)
-            u = sol[:, i]
-            h = PEtab._h(
-                u, t, p, xobservable_ps, xnondynamic_mech_ps, x_ml_models,
-                x_ml_models_constant, model_info.model, map_xobservables[1],
-                Symbol(observable_id), collect(prob.xnominal)
-            )
-            push!(h_model, h)
-        end
-        t_model = vcat(t_model, sol.t)
-        npoints = length(sol.t)
-        # With observable parameters the simulated values can be used instead
-    else
-        t_model = vcat(t_model, measurements_df[idata, :time])
-        h_model = vcat(h_model, prob.simulated_values(x)[idata])
-        npoints = length(measurements_df[idata, :time])
-    end
-
-    return (t_obs = t_observed, h_obs = h_observed, t_mod = t_model, h_mod = h_model)
-end
-
-function _get_index_data(condition, experiment, observable_id, model_info)
-    simulation_id = PEtab._get_simulation_id(condition, experiment, model_info)
-    pre_equilibration_id = PEtab._get_pre_equilibration_id(
-        condition, experiment, model_info
-    )
-
-    measurements_df = model_info.model.petab_tables[:measurements]
-    simulation_ids = measurements_df[!, :simulationConditionId]
-    observable_ids = measurements_df[!, :observableId]
-
-    # Identify which data-points in measurement data to plot
-    if isnothing(pre_equilibration_id)
-        idata = findall(
-            simulation_ids .== string(simulation_id) .&&
-                observable_ids .== observable_id
-        )
-    else
-        pre_equilibration_ids = measurements_df[!, :preequilibrationConditionId]
-        idata = findall(
-            simulation_ids .== string(simulation_id) .&&
-                observable_ids .== observable_id .&&
-                string(pre_equilibration_id) .== pre_equilibration_ids
-        )
-    end
-    return idata
 end
