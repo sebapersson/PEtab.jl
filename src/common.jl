@@ -398,7 +398,7 @@ function _get_observable(
         )
         cbs = _with_save_positions(_cbs)
         if isnothing(n_tsave)
-            t_save = nothing
+            t_save = Float64[]
         else
             t_save = range(ode_problem.tspan[1], ode_problem.tspan[end], n_tsave)
         end
