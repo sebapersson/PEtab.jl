@@ -516,7 +516,10 @@ plot(x, petab_prob_train, title = "Training data fit")
 plot(x, petab_prob_val, title = "Validation data fit")
 
 # Plot fitted function.
-plot(res, petab_prob_train; plot_type = :best_function, label = "Fitted function", linestyle = :dash, lw = 5)
+plot(
+    res, petab_prob_train; plot_type = :best_function,
+    label = "Fitted function", linestyle = :dash, lw = 5
+)
 # Overlays the fitted function with the true function.
 true_func(y) = 1.1 * (y^3) / (2^3 + y^3)
 plot!(true_func, 0.0, 3.5; label = "True function", lw = 3)
