@@ -207,6 +207,7 @@ function update_petab_measurements!(
     mT = petab_measurements.measurements_transformed[imeasurement]
     petab_measurements.chi2_values[imeasurement] = (hT - mT)^2 / σ^2
     petab_measurements.residuals[imeasurement] = res
+    petab_measurements.sigma_values[imeasurement] = σ
     return nothing
 end
 function update_petab_measurements!(

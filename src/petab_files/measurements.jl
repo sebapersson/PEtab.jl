@@ -94,14 +94,14 @@ function PEtabMeasurements(
     end
 
     # Values associated with the measurement values
-    # TODO: These should be moved
     chi2_values = zeros(Float64, nmeasurements)
     simulated_values = zeros(Float64, nmeasurements)
     residuals = zeros(Float64, nmeasurements)
+    sigma_values = zeros(Float64, nmeasurements)
 
     return PEtabMeasurements(
-        measurements, measurements_t, simulated_values, chi2_values, residuals,
-        noise_distributions, time, observable_ids, pre_equilibration_ids, condition_ids,
-        noise_parameters, observable_parameters, simulation_start_time
+        measurements, measurements_t, simulated_values, chi2_values, sigma_values,
+        residuals, noise_distributions, time, observable_ids, pre_equilibration_ids,
+        condition_ids, noise_parameters, observable_parameters, simulation_start_time
     )
 end

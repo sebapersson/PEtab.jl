@@ -19,8 +19,10 @@ function get_odesol(
         res, prob; condition = condition, experiment = experiment, mutated_sys = mutated_sys
     )
 
-    @unpack solver, abstol, reltol = probinfo.solver
-    return solve(oprob, solver, abstol = abstol, reltol = reltol, callback = cbs)
+    @unpack solver, abstol, reltol, maxiters = probinfo.solver
+    return solve(
+        oprob, solver, abstol = abstol, reltol = reltol, callback = cbs, maxiters = maxiters
+    )
 end
 
 """
