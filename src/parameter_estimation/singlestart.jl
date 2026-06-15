@@ -11,7 +11,7 @@ A list of available and recommended optimization algorithms (`alg`) can be found
 documentation. Briefly, supported algorithms are from:
 
 - [Optim.jl](https://julianlsolvers.github.io/Optim.jl/stable/): `LBFGS()`, `BFGS()`,
-    or `IPNewton()` methods.
+   `LBFGSB()` or `IPNewton()` methods.
 - [Ipopt.jl](https://coin-or.github.io/Ipopt/): `IpoptOptimizer()` interior-point Newton
     method.
 - [Fides.jl](https://fides-dev.github.io/Fides.jl/stable/): Newton trust region for

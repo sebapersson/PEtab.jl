@@ -131,9 +131,11 @@ end
     res1 = calibrate(prob, x0, Optim.IPNewton())
     res2 = calibrate(prob, x0, Optim.BFGS())
     res3 = calibrate(prob, x0, Optim.LBFGS())
+    res4 = calibrate(prob, x0, Optim.LBFGSB())
     @test all(.≈(res1.xmin, get_x(prob), atol = 1.0e-2))
     @test all(.≈(res2.xmin, get_x(prob), atol = 1.0e-2))
     @test all(.≈(res3.xmin, get_x(prob), atol = 1.0e-2))
+    @test all(.≈(res4.xmin, get_x(prob), atol = 1.0e-2))
     # Testing Ipopt.jl
     res4 = calibrate(
         prob, x0, IpoptOptimizer(true), options = IpoptOptions(print_level = 0)

@@ -382,7 +382,8 @@ Given the `ProfileLikelihoodProblem`, we can compute the profiles as follows:
 ```@example 1
 using OptimizationLBFGSB
 meth_opt = OptimizationProfiler(
-    optimizer = LBFGSB(), stepper = FixedStep(; initial_step = 5e-3)
+    optimizer = OptimizationLBFGSB.LBFGSB(),
+    stepper = FixedStep(; initial_step = 5e-3)
 )
 pl_sol = LikelihoodProfiler.solve(pl_prob, meth_opt)
 ```
@@ -571,7 +572,8 @@ plot(ms_res, petab_prob; linewidth = 2.0)
 using ComponentArrays, LikelihoodProfiler, OptimizationLBFGSB
 pl_prob = ProfileLikelihoodProblem(ms_res, petab_prob)
 meth_opt = OptimizationProfiler(
-    optimizer = LBFGSB(), stepper = FixedStep(; initial_step = 0.01)
+    optimizer = OptimizationLBFGSB.LBFGSB(),
+    stepper = FixedStep(; initial_step = 5e-3)
 )
 pl_sol = LikelihoodProfiler.solve(pl_prob, meth_opt)
 xl = permutedims(labels(ms_res.xmin))
