@@ -4,6 +4,8 @@
 
 - Added support for the new Julia native `LBFGSB` in Optimn for `calibrate` and
   `calibrate_multistart`.
+- Added a `show_progress` keyword argument to `calibrate_multistart` for optionally
+  displaying a progress bar over the multistart runs.
 
 ## PEtab.jl 5.3.0
 

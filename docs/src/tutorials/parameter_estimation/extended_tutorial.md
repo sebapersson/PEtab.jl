@@ -170,14 +170,16 @@ calibrate_multistart
 ```
 
 Two important keyword arguments to `calibrate_multistart` are `nprocs` and `dirsave`.
-`nprocs` controls how many runs are executed in parallel (via `pmap` from Distributed.jl).
-Using `nprocs > 1` often reduces wall-clock time for problems taking >5 minutes. `dirsave`
-optionally saves results as runs finish and is **strongly recommended** to not loose
-intermediate results. For example, to run 50 multi-starts with Optim.jl’s `IPNewton`:
+`nprocs` controls how many runs are executed in parallel (via `pmap` from Distributed.jl);
+setting `nprocs > 1` often reduces wall-clock time for problems that take more than 5
+minutes on a single process. `dirsave` optionally saves results as runs finish and is
+**strongly recommended** to avoid losing intermediate results. Beyond these, you can set
+`show_progress = true` to display a progress bar tracking how many runs have completed. For
+example, to run 50 multi-starts with Optim.jl's `IPNewton`:
 
 ```@example 1
 ms_res = calibrate_multistart(
-  petab_prob, Optim.IPNewton(), 50; nprocs = 2,
+  petab_prob, Optim.IPNewton(), 50; nprocs = 2, show_progress = true,
   dirsave = "path_to_save_directory"
 )
 ```
