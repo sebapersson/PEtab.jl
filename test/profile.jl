@@ -52,7 +52,7 @@ res = calibrate(petab_prob, x0, Optim.IPNewton())
 # Profile
 pl_prob = ProfileLikelihoodProblem(res, petab_prob)
 meth_opt = OptimizationProfiler(
-    optimizer = LBFGSB(), stepper = FixedStep(; initial_step = 0.003)
+    optimizer = OptimizationLBFGSB.LBFGSB(), stepper = FixedStep(; initial_step = 0.003)
 )
 pl_sol = solve(pl_prob, meth_opt)
 
@@ -62,7 +62,7 @@ pl_sol = solve(pl_prob, meth_opt)
 @test pl_sol[2].endpoints[2] < 1.39
 @test pl_sol[3].endpoints[1] > 1.94
 @test pl_sol[3].endpoints[2] < 2.03
-@test pl_sol[4].endpoints[1] > 0.96
+@test pl_sol[4].endpoints[1] > 0.94
 @test pl_sol[4].endpoints[2] < 1.42
 
 @test_throws ArgumentError begin

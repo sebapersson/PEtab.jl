@@ -13,7 +13,9 @@ const DEFAULT_OPT = Optim.Options(
     f_reltol = 1.0e-8, g_tol = 1.0e-6, x_abstol = 0.0
 )
 
-const SUPPORTED_ALGS = Union{Optim.LBFGS, Optim.BFGS, Optim.IPNewton}
+const SUPPORTED_ALGS = Union{
+    Optim.LBFGS, Optim.BFGS, Optim.IPNewton, Optim.LBFGSB,
+}
 
 function PEtab.calibrate_multistart(
         rng::Random.AbstractRNG, prob::PEtabODEProblem, alg::SUPPORTED_ALGS,
@@ -32,8 +34,7 @@ end
 
 function PEtab.calibrate(
         prob::PEtabODEProblem, x::Union{Vector{<:AbstractFloat}, ComponentVector},
-        alg::Union{Optim.LBFGS, Optim.BFGS, Optim.IPNewton}; save_trace::Bool = false,
-        options::Optim.Options = DEFAULT_OPT
+        alg::SUPPORTED_ALGS; save_trace::Bool = false, options::Optim.Options = DEFAULT_OPT
     )::PEtab.PEtabOptimisationResult
     options = @set options.store_trace = save_trace
     options = @set options.extended_trace = save_trace
@@ -75,6 +76,8 @@ function PEtab.calibrate(
         alg_used = :Optim_BFGS
     elseif alg isa Optim.LBFGS
         alg_used = :Optim_LBFGS
+    elseif alg isa Optim.LBFGSB
+        alg_used = :Optim_LBFGSB
     end
     return PEtab.PEtabOptimisationResult(
         xmin_out, fmin, x0_out, alg_used, niterations, runtime, xtrace, ftrace, converged,
@@ -82,15 +85,7 @@ function PEtab.calibrate(
     )
 end
 
-function _get_optim_problem(prob::PEtabODEProblem, alg, options::Optim.Options)::Function
-    if alg isa Optim.IPNewton
-        return _optim_IPNewton(prob, alg, options)
-    else
-        return _optim_fminbox(prob, alg, options)
-    end
-end
-
-function _optim_IPNewton(
+function _get_optim_problem(
         prob::PEtabODEProblem, alg::Optim.IPNewton, options::Optim.Options
     )::Function
     @unpack lower_bounds, upper_bounds = prob
@@ -113,8 +108,9 @@ function _optim_IPNewton(
     end
     return _calibrate
 end
-
-function _optim_fminbox(prob::PEtabODEProblem, alg, options::Optim.Options)::Function
+function _get_optim_problem(
+        prob::PEtabODEProblem, alg::Union{Optim.LBFGS, Optim.BFGS}, options::Optim.Options
+    )::Function
     @unpack lower_bounds, upper_bounds = prob
     lb = collect(lower_bounds)
     ub = collect(upper_bounds)
@@ -122,6 +118,16 @@ function _optim_fminbox(prob::PEtabODEProblem, alg, options::Optim.Options)::Fun
     _calibrate = (x) -> Optim.optimize(
         prob.nllh, prob.grad!, lb, ub, x, Optim.Fminbox(alg), options
     )
+    return _calibrate
+end
+function _get_optim_problem(
+        prob::PEtabODEProblem, alg::Optim.LBFGSB, options::Optim.Options
+    )::Function
+    @unpack lower_bounds, upper_bounds = prob
+    lb = collect(lower_bounds)
+    ub = collect(upper_bounds)
+
+    _calibrate = (x) -> Optim.optimize(prob.nllh, prob.grad!, lb, ub, x, alg, options)
     return _calibrate
 end
 

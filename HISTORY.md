@@ -1,5 +1,10 @@
 # Breaking updates and feature summaries across releases
 
+## PEtab.jl 5.4.0
+
+- Added support for the new Julia native `LBFGSB` in Optimn for `calibrate` and
+  `calibrate_multistart`.
+
 ## PEtab.jl 5.3.0
 
 - Added support for Optimisers.jl update rules in `calibrate` and `calibrate_multistart` via

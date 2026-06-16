@@ -77,17 +77,17 @@ res = calibrate(petab_prob, x0, Fides.BFGS())
 ## [Optim.jl](@id Optim_alg)
 
 PEtab.jl supports three algorithms from
-[Optim.jl](https://julianlsolvers.github.io/Optim.jl/stable/): `LBFGS`, `BFGS`, and
+[Optim.jl](https://julianlsolvers.github.io/Optim.jl/stable/): `LBFGS`, `BFGS`, `LBFGSB` and
 `IPNewton` (interior-point Newton).
 
 Solver settings are passed via `options = Optim.Options(...)` (see the Optim.jl
 [documenation](https://julianlsolvers.github.io/Optim.jl/stable/user/config/#Solver-options)
-page). For example, to run `Optim.LBFGS()` for 10_000 iterations:
+page). For example, to run `Optim.LBFGSB()` for 10_000 iterations:
 
 ```julia
 using Optim
 res = calibrate(
-    petab_prob, x0, Optim.LBFGS();
+    petab_prob, x0, Optim.LBFGSB();
     options = Optim.Options(iterations = 10_000)
 )
 ```
