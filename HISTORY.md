@@ -6,6 +6,8 @@
   `calibrate_multistart`.
 - Added a `show_progress` keyword argument to `calibrate_multistart` for optionally
   displaying a progress bar over the multistart runs.
+- Added support for the `sensealg = BacksolveAdjoint` for `gradient_method = :Adjoint` in
+  `PEtabODEProblem` construction.
 
 ## PEtab.jl 5.3.0
 

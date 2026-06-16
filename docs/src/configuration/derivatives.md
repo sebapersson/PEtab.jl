@@ -23,8 +23,8 @@ a brief overview.
 - `:Adjoint`: Computes gradients via adjoint sensitivity analysis by solving an adjoint
   problem backward in time. Benchmarks often find adjoints most efficient for large models
   [frohlich2017scalable, ma2021comparison](@cite). The main option is `sensealg`, selecting
-  a SciMLSensitivity adjoint algorithm (`InterpolatingAdjoint`, `GaussAdjoint`, or
-  `QuadratureAdjoint`). See the SciMLSensitivity
+  a SciMLSensitivity adjoint algorithm (`InterpolatingAdjoint`, `GaussAdjoint`,
+  `QuadratureAdjoint` or `BacksolveAdjoint`). See the SciMLSensitivity
   [documentation](https://github.com/SciML/SciMLSensitivity.jl) for tunable options.
 
 ::: info Using SciMLSensitivity methods

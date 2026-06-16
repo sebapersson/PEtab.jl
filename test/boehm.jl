@@ -3,10 +3,8 @@
     pyPESTO computed values
 =#
 
-# TODO: Store ODESystem in PEtabModel to remove get_system calls
-
 using PEtab, OrdinaryDiffEqRosenbrock, SciMLSensitivity, CSV, DataFrames, LinearAlgebra,
-    Test
+    SciMLBase, Test
 
 include(joinpath(@__DIR__, "common.jl"))
 
