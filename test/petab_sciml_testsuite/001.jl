@@ -109,6 +109,12 @@ for config in PROB_CONFIGS
     )
     test_hybrid(test_case, petab_prob_sys)
 end
+# BacksolveAdjoint must be tested on non-stiff model
+petab_prob_sys = PEtabODEProblem(
+    model_sys; odesolver = ode_solver, gradient_method = :Adjoint,
+    sensealg = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true))
+)
+test_hybrid(test_case, petab_prob_sys)
 
 model_rn = PEtabModel(
     rn_ude, observables, measurements, pest; simulation_conditions = conditions

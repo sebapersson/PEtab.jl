@@ -210,9 +210,8 @@ function _grad_adjoint_cond!(
         only_obs_at_zero = true
     else
         status = __adjoint_sensitivities!(
-            du, dp, sol, sensealg, tsaves[cid], solver_adj,
-            abstol_adj, reltol_adj, callback, ∂G∂u!;
-            maxiters = maxiters, force_dtmin = force_dtmin
+            du, dp, sol, sensealg, tsaves[cid], solver_adj, abstol_adj, reltol_adj,
+            maxiters, callback, ∂G∂u!; force_dtmin = force_dtmin
         )
         status == false && return status
     end
@@ -268,22 +267,29 @@ end
 # ODEAdjointProblem. Under MIT Expat license at https://github.com/SciML/SciMLSensitivity.jl
 function __adjoint_sensitivities!(
         _du::AbstractVector, _dp::AbstractVector, sol::ODESolution,
-        sensealg::InterpolatingAdjoint, t::Vector{Float64}, solver::AbstractSciMLAlgorithm,
-        abstol::Float64, reltol::Float64, callback::SciMLBase.DECallback, compute_∂G∂u::F;
-        kwargs...
+        sensealg::Union{BacksolveAdjoint, InterpolatingAdjoint}, t::Vector{Float64},
+        solver::AbstractSciMLAlgorithm, abstol::Float64, reltol::Float64, maxiters::Integer,
+        callback::SciMLBase.DECallback, compute_∂G∂u::F; kwargs...
     )::Bool where {F}
     mtkp = SymbolicIndexingInterface.parameter_values(sol)
     rcb = nothing
 
+    checkpoints = SciMLSensitivity.current_time(sol)
     adj_prob, rcb = ODEAdjointProblem(
         sol, sensealg, solver, t, compute_∂G∂u, nothing, nothing, nothing, nothing,
-        Val(true); abstol = abstol, reltol = reltol, callback = callback
+        Val(true); checkpoints = checkpoints, abstol = abstol, reltol = reltol,
+        callback = callback
     )
 
-    tstops = SciMLSensitivity.ischeckpointing(sensealg, sol) ? checkpoints : similar(sol.t, 0)
+    tstops = if SciMLSensitivity.ischeckpointing(sensealg, sol)
+        checkpoints
+    else
+        similar(SciMLSensitivity.current_time(sol), 0)
+    end
     adj_sol = solve(
         adj_prob, solver; save_everystep = false, save_start = false,
-        saveat = eltype(sol.u[1])[], tstops = tstops, abstol = abstol, reltol = reltol
+        saveat = eltype(state_values(sol, 1))[], tstops = tstops, abstol = abstol,
+        reltol = reltol, maxiters = maxiters
     )
 
     if adj_sol.retcode != ReturnCode.Success
@@ -320,8 +326,8 @@ end
 function __adjoint_sensitivities!(
         _du::AbstractVector, _dp::AbstractVector, sol::ODESolution,
         sensealg::QuadratureAdjoint, t::Vector{Float64}, solver::AbstractSciMLAlgorithm,
-        abstol::Float64, reltol::Float64, callback::SciMLBase.DECallback, compute_∂G∂u::F;
-        kwargs...
+        abstol::Float64, reltol::Float64, maxiters::Integer, callback::SciMLBase.DECallback,
+        compute_∂G∂u::F; kwargs...
     )::Bool where {F}
     adj_prob, rcb = ODEAdjointProblem(
         sol, sensealg, solver, t, compute_∂G∂u, nothing, nothing, nothing, nothing,
@@ -330,7 +336,7 @@ function __adjoint_sensitivities!(
 
     adj_sol = solve(
         adj_prob, solver; abstol = abstol, reltol = reltol, save_everystep = true,
-        save_start = true, kwargs...
+        save_start = true, maxiters = maxiters, kwargs...
     )
 
     if adj_sol.retcode != ReturnCode.Success
@@ -410,7 +416,7 @@ end
 function __adjoint_sensitivities!(
         _du::AbstractVector, _dp::AbstractVector, sol::ODESolution, sensealg::GaussAdjoint,
         t::Vector{Float64}, solver::AbstractSciMLAlgorithm, abstol::Float64, reltol::Float64,
-        callback::SciMLBase.DECallback, compute_∂G∂u::F; kwargs...
+        maxiters::Integer, callback::SciMLBase.DECallback, compute_∂G∂u::F; kwargs...
     )::Bool where {F}
     p = SymbolicIndexingInterface.parameter_values(sol)
 
@@ -448,7 +454,7 @@ function __adjoint_sensitivities!(
     adj_sol = solve(
         adj_prob, solver; abstol = abstol, reltol = reltol, save_everystep = false,
         save_start = false, save_end = true, saveat = eltype(sol.u[1])[],
-        tstops = tstops, callback = CallbackSet(cb, cb2), kwargs...
+        tstops = tstops, callback = CallbackSet(cb, cb2), maxiters = maxiters, kwargs...
     )
     res = integrand_values.integrand
 
