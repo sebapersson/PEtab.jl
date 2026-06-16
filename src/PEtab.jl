@@ -23,6 +23,7 @@ import QuasiMonteCarlo: QuasiMonteCarlo, LatinHypercubeSample, SamplingAlgorithm
 import Random
 import ReverseDiff
 import RuntimeGeneratedFunctions: RuntimeGeneratedFunctions, @RuntimeGeneratedFunction
+import ProgressMeter
 import SBMLImporter: SBMLImporter, ModelSBML
 import SciMLBase: SciMLBase, AbstractSciMLAlgorithm, CallbackSet, ContinuousCallback,
     DiscreteCallback, ODEProblem, ODESolution, ReturnCode, remake, solve, terminate!

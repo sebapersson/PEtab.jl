@@ -38,25 +38,23 @@ See also [`PEtabMultistartResult`](@ref), [`get_startguesses`](@ref), and [`cali
 - `sample_prior::Bool = true`: See the documentation for [`get_startguesses`](@ref).
 - `options = DEFAULT_OPTIONS`: Configurable options for `alg`. See the documentation for
     [`calibrate`](@ref).
+- `show_progress::Bool = false`: Whether to display a progress bar tracking how many
+   multistart runs have completed.
 """
 function calibrate_multistart(
-        prob::PEtabODEProblem, alg, nmultistarts; nprocs = 1, save_trace = false,
-        dirsave = nothing, sample_prior = true, sampling_method = LatinHypercubeSample(),
-        init_weight = nothing, init_bias = nothing, options = nothing,
+        prob::PEtabODEProblem, alg, nmultistarts; kwargs...
     )::PEtab.PEtabMultistartResult
     rng = Random.default_rng()
 
     return calibrate_multistart(
-        rng, prob, alg, nmultistarts; nprocs = nprocs, save_trace = save_trace,
-        dirsave = dirsave, sample_prior = sample_prior, sampling_method = sampling_method,
-        init_weight = init_weight, init_bias = init_bias, options = options
+        rng, prob, alg, nmultistarts; kwargs...
     )
 end
 
 function _calibrate_multistart(
         rng::Random.AbstractRNG, prob::PEtabODEProblem, alg, nmultistarts::Signed,
         dirsave::Union{Nothing, AbstractString}, sampling_method::SamplingAlgorithm, options,
-        sample_prior::Bool, save_trace::Bool, nprocs::Signed,
+        sample_prior::Bool, save_trace::Bool, nprocs::Signed, show_progress::Bool,
         init_weight::Union{Nothing, Function}, init_bias::Union{Function, Nothing},
     )::PEtabMultistartResult
 
@@ -103,7 +101,12 @@ function _calibrate_multistart(
         x[1], x[2], prob, alg, save_trace,
         options, paths_save, mutex
     )
-    runs = Distributed.pmap(_calibrate_procs, _xstarts)
+    # Progress-meter logging
+    p = ProgressMeter.Progress(
+        length(_xstarts); enabled = show_progress, desc = "Multistart runs: ",
+        showspeed = true, dt = 1.0
+    )
+    runs = ProgressMeter.progress_pmap(_calibrate_procs, _xstarts; progress = p)
     _remove_workers(pids)
 
     bestrun = runs[argmin([isnan(r.fmin) ? Inf : r.fmin for r in runs])]

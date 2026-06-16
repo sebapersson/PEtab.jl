@@ -12,14 +12,15 @@ const DEFAULT_OPTIONS = FidesOptions()
 function PEtab.calibrate_multistart(
         rng::Random.AbstractRNG, prob::PEtabODEProblem, alg::HessianUpdate,
         nmultistarts::Integer; nprocs = 1, save_trace::Bool = false, dirsave = nothing,
-        sample_prior = true, sampling_method = LatinHypercubeSample(), init_weight = nothing,
-        init_bias = nothing, options::Union{Nothing, FidesOptions} = DEFAULT_OPTIONS
+        sample_prior = true, sampling_method = LatinHypercubeSample(),
+        show_progress = false, init_weight = nothing, init_bias = nothing,
+        options::Union{Nothing, FidesOptions} = DEFAULT_OPTIONS
     )::PEtab.PEtabMultistartResult
     options = isnothing(options) ? DEFAULT_OPTIONS : options
 
     return PEtab._calibrate_multistart(
         rng, prob, alg, nmultistarts, dirsave, sampling_method, options, sample_prior,
-        save_trace, nprocs, init_weight, init_bias
+        save_trace, nprocs, show_progress, init_weight, init_bias
     )
 end
 

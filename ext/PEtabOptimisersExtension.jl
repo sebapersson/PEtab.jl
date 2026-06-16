@@ -11,12 +11,12 @@ function PEtab.calibrate_multistart(
         rng::Random.AbstractRNG, prob::PEtab.PEtabODEProblem, alg::Optimisers.AbstractRule,
         nmultistarts; nprocs = 1, save_trace = false, dirsave = nothing,
         sample_prior = true, sampling_method = LatinHypercubeSample(),
-        init_weight = nothing, init_bias = nothing,
+        show_progress = false, init_weight = nothing, init_bias = nothing,
         options::PEtab.OptimisersOptions = PEtab.OptimisersOptions()
     )::PEtab.PEtabMultistartResult
     return PEtab._calibrate_multistart(
         rng, prob, alg, nmultistarts, dirsave, sampling_method, options, sample_prior,
-        save_trace, nprocs, init_weight, init_bias
+        save_trace, nprocs, show_progress, init_weight, init_bias
     )
 end
 
