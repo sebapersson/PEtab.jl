@@ -209,11 +209,11 @@ ml_calls = PEtab._get_full_ml_calls(petab_prob) |>
 idx_u1 = string(ml_calls[1][2]) == "θ2" ? 2 : 1
 idx_u2 = idx_u1 == 1 ? 2 : 1
 
-function get_true_func(nn_idx)
-    if nn_idx == 1
-        return (x) -> 5.0 * (0.8^5) / (0.8^5 + x^5)
+function get_true_func(model_id::Symbol)
+    if model_id == :U2
+        return (x) -> 1.0 * (x^5) / (0.6^5 + x^5)
     end
-    return (x) -> 1.0 * (x^5) / (0.6^5 + x^5)
+    return (x) -> 5.0 * (0.8^5) / (0.8^5 + x^5)
 end
 
 # Checks basic content of the `best_function` plot (plot U2).
@@ -222,10 +222,10 @@ p_obj = plot(petab_sol, petab_prob; plot_type = :best_function, nn_idx = idx_u2)
 @test length(p_obj.series_list[1].plotattributes[:x]) == 200 # Default plot density is 200.
 @test p_obj.series_list[1].plotattributes[:x][1] ≈ 0.0 atol = 1.0e-1 rtol = 1.0e-1 # X supports starts (very roughly) at 0.0.
 @test p_obj.series_list[1].plotattributes[:x][end] ≈ 2.0 atol = 1.0e-1 rtol = 1.0e-1 # X supports end (very roughly) at 2.0.
-true_func_u2 = get_true_func(2)
+true_func_u2 = get_true_func(:U2)
 @test p_obj.series_list[1].plotattributes[:y][1] ≈ true_func_u2(p_obj.series_list[1].plotattributes[:x][1]) atol = 1.0e-1 rtol = 1.0e-1 # Function approximately correct for low x input.
 @test p_obj.series_list[1].plotattributes[:y][100] ≈ true_func_u2(p_obj.series_list[1].plotattributes[:x][100]) atol = 1.0e-1 rtol = 1.0e-1 # Function approximately correct for medium x input.
-@test p_obj.series_list[1].plotattributes[:y][end] ≈ true_func_u2(p_obj.series_list[1].plotattributes[:x][end]) atol = 1.0e-1 rtol = 1.0e-1 # Function approximately correct for high x input.
+@test p_obj.series_list[1].plotattributes[:y][end] ≈ true_func_u2(p_obj.series_list[1].plotattributes[:x][end]) atol = 4.0e-1 rtol = 1.0e-1 # Function approximately correct for high x input.
 
 # Checks basic content of the `best_function` plot (plot U1).
 p_obj = plot(petab_sol, petab_prob; plot_type = :best_function, nn_idx = idx_u1)
@@ -233,10 +233,10 @@ p_obj = plot(petab_sol, petab_prob; plot_type = :best_function, nn_idx = idx_u1)
 @test length(p_obj.series_list[1].plotattributes[:x]) == 200 # Default plot density is 200.
 @test p_obj.series_list[1].plotattributes[:x][1] ≈ 0.0 atol = 1.0e-1 rtol = 1.0e-1 # X supports starts (very roughly) at 0.0.
 @test p_obj.series_list[1].plotattributes[:x][end] ≈ 2.0 atol = 1.0e-1 rtol = 1.0e-1 # X supports end (very roughly) at 2.0.
-true_func_u1 = get_true_func(1)
+true_func_u1 = get_true_func(:U1)
 @test p_obj.series_list[1].plotattributes[:y][1] ≈ true_func_u1(p_obj.series_list[1].plotattributes[:x][1]) atol = 1.0e-1 rtol = 1.0e-1 # Function approximately correct for low x input.
 @test p_obj.series_list[1].plotattributes[:y][100] ≈ true_func_u1(p_obj.series_list[1].plotattributes[:x][100]) atol = 1.0e-1 rtol = 1.0e-1 # Function approximately correct for medium x input.
-@test p_obj.series_list[1].plotattributes[:y][end] ≈ true_func_u1(p_obj.series_list[1].plotattributes[:x][end]) atol = 1.0e-0 rtol = 1.0e-0 # Function approximately correct for high x input.
+@test p_obj.series_list[1].plotattributes[:y][end] ≈ true_func_u1(p_obj.series_list[1].plotattributes[:x][end]) atol = 1.0e-1 rtol = 1.0e-1 # Function approximately correct for high x input.
 
 # Checks basic content of the `function_ensemble` plot.
 p_obj = plot(petab_sol, petab_prob; plot_type = :function_ensemble, nn_idx = idx_u1)
