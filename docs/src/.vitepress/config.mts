@@ -105,6 +105,7 @@ export default defineConfig({
 
   themeConfig: {
     outline: 'deep',
+    siteTitle: false,
     logo: {
       light: { src: "/assets/logo_light.svg", alt: "PEtab.jl" },
       dark:  { src: "/assets/logo_dark.svg",  alt: "PEtab.jl" }
