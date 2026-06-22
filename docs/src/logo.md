@@ -7,6 +7,6 @@ available in both SVG and PNG formats in the
 are welcome to use it in any presentation or publication featuring PEtab.jl.
 
 ```@raw html
-  <img class="logo-light" src="assets/logo_light.svg" alt="PEtab.jl" />
-  <img class="logo-dark"  src="assets/logo_dark.svg"  alt="PEtab.jl" />
+<img class="logo-light" src="/assets/logo_light.png" alt="PEtab.jl" />
+<img class="logo-dark"  src="/assets/logo_dark.png"  alt="PEtab.jl" />
 ```
