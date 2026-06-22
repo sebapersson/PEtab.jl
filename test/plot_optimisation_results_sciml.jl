@@ -155,12 +155,6 @@ begin
     Y_observed = [rand(rng, Normal(Y, σ)) for Y in Y_true]
     Z_true = sol_true(t_measurement; idxs = :Z)
     Z_observed = [rand(rng, Normal(Z, σ)) for Z in Z_true]
-
-    # If you want to visualise what is plotted.
-    # plot(sol_true; label = ["X (true)" "Y (true)" "Z (true)"], color = [1 2 3])
-    # plot!(t_measurement, X_observed; label = "X (measured)", color = 1, seriestype = :scatter)
-    # plot!(t_measurement, Y_observed; label = "Y (measured)", color = 2, seriestype = :scatter)
-    # plot!(t_measurement, Z_observed; label = "Z (measured)", color = 3, seriestype = :scatter)
 end
 
 # Create the UDE.
@@ -212,7 +206,7 @@ petab_sol = calibrate_multistart(
 # Get the NN order
 ml_calls = PEtab._get_full_ml_calls(petab_prob) |>
     PEtab._group_full_ml_calls_by_signature
-idx_u1 = string(ml_calls[1][2]) == "θ2" ? 1 : 2
+idx_u1 = string(ml_calls[1][2]) == "θ2" ? 2 : 1
 idx_u2 = idx_u1 == 1 ? 2 : 1
 
 # Checks basic content of the `best_function` plot (plot U2).
