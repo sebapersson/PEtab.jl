@@ -242,14 +242,14 @@ true_func_u1 = get_true_func(:U1)
 p_obj = plot(petab_sol, petab_prob; plot_type = :function_ensemble, nn_idx = idx_u1)
 @test length(p_obj.series_list) == length(petab_sol.runs) # One line is plotted for each run.
 for i in 1:length(petab_sol.runs) # Checks that the individual ensemble plots correspond to the best for specific runs.
-    p_obj_single = plot(petab_sol.runs[i], petab_prob; plot_type = :best_function, nn_idx = 1)
+    p_obj_single = plot(petab_sol.runs[i], petab_prob; plot_type = :best_function, nn_idx = idx_u1)
     @test p_obj.series_list[i].plotattributes[:x] == p_obj_single.series_list[1].plotattributes[:x]
     @test p_obj.series_list[i].plotattributes[:y] == p_obj_single.series_list[1].plotattributes[:y]
 end
 p_obj = plot(petab_sol, petab_prob; plot_type = :function_ensemble, nn_idx = idx_u2)
 @test length(p_obj.series_list) == length(petab_sol.runs) # One line is plotted for each run.
 for i in 1:length(petab_sol.runs) # Checks that the individual ensemble plots correspond to the best for specific runs.
-    p_obj_single = plot(petab_sol.runs[i], petab_prob; plot_type = :best_function, nn_idx = 2)
+    p_obj_single = plot(petab_sol.runs[i], petab_prob; plot_type = :best_function, nn_idx = idx_u2)
     @test p_obj.series_list[i].plotattributes[:x] == p_obj_single.series_list[1].plotattributes[:x]
     @test p_obj.series_list[i].plotattributes[:y] == p_obj_single.series_list[1].plotattributes[:y]
 end
