@@ -90,7 +90,6 @@ function _collect_full_ml_calls!(full_ml_calls, expr, sys)
         _collect_full_ml_calls!(full_ml_calls, arg, sys)
     end
     return full_ml_calls
-
 end
 
 # Takes into account that Neural network calls can occur like `U(X1, X2, ...; θ)` or `U([X1, X2, ...]; θ)`
@@ -99,7 +98,6 @@ function _normalise_nn_args(args)
     SymbolicUtils.search_variables!(vars, args)
     return collect(vars)
 end
-
 
 # Groups full ML calls by signature (NN model + NN parameterisation).
 # Input format: vector of tuples `(nn_sym, input_args, ps_sym)` as returned by `_get_full_ml_calls`.

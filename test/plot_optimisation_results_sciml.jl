@@ -155,12 +155,6 @@ begin
     Y_observed = [rand(rng, Normal(Y, σ)) for Y in Y_true]
     Z_true = sol_true(t_measurement; idxs = :Z)
     Z_observed = [rand(rng, Normal(Z, σ)) for Z in Z_true]
-
-    # If you want to visualise what is plotted.
-    # plot(sol_true; label = ["X (true)" "Y (true)" "Z (true)"], color = [1 2 3])
-    # plot!(t_measurement, X_observed; label = "X (measured)", color = 1, seriestype = :scatter)
-    # plot!(t_measurement, Y_observed; label = "Y (measured)", color = 2, seriestype = :scatter)
-    # plot!(t_measurement, Z_observed; label = "Z (measured)", color = 3, seriestype = :scatter)
 end
 
 # Create the UDE.
@@ -209,46 +203,53 @@ petab_sol = calibrate_multistart(
 )
 =#
 
+# Get the NN order
+ml_calls = PEtab._get_full_ml_calls(petab_prob) |>
+    PEtab._group_full_ml_calls_by_signature
+idx_u1 = string(ml_calls[1][2]) == "θ2" ? 2 : 1
+idx_u2 = idx_u1 == 1 ? 2 : 1
 
-p_obj = plot(petab_sol, petab_prob)
-p_obj = plot(petab_sol, petab_prob; plot_type = :best_function)
-p_obj = plot(petab_sol, petab_prob; plot_type = :best_function, nn_idx = 2)
-p_obj = plot(petab_sol, petab_prob; plot_type = :function_ensemble)
+function get_true_func(model_id::Symbol)
+    if model_id == :U2
+        return (x) -> 1.0 * (x^5) / (0.6^5 + x^5)
+    end
+    return (x) -> 5.0 * (0.8^5) / (0.8^5 + x^5)
+end
 
-# Checks basic content of the `best_function` plot (nn 1).
-p_obj = plot(petab_sol, petab_prob; plot_type = :best_function, nn_idx = 1)
+# Checks basic content of the `best_function` plot (plot U2).
+p_obj = plot(petab_sol, petab_prob; plot_type = :best_function, nn_idx = idx_u2)
 @test length(p_obj.series_list) == 1 # Only a single line is plotted.
 @test length(p_obj.series_list[1].plotattributes[:x]) == 200 # Default plot density is 200.
 @test p_obj.series_list[1].plotattributes[:x][1] ≈ 0.0 atol = 1.0e-1 rtol = 1.0e-1 # X supports starts (very roughly) at 0.0.
 @test p_obj.series_list[1].plotattributes[:x][end] ≈ 2.0 atol = 1.0e-1 rtol = 1.0e-1 # X supports end (very roughly) at 2.0.
-true_func(x) = 5.0 * (0.8^5) / (0.8^5 + x^5)
-@test p_obj.series_list[1].plotattributes[:y][1] ≈ true_func(p_obj.series_list[1].plotattributes[:x][1]) atol = 1.0e-1 rtol = 1.0e-1 # Function approximately correct for low x input.
-@test p_obj.series_list[1].plotattributes[:y][100] ≈ true_func(p_obj.series_list[1].plotattributes[:x][100]) atol = 1.0e-1 rtol = 1.0e-1 # Function approximately correct for medium x input.
-@test p_obj.series_list[1].plotattributes[:y][end] ≈ true_func(p_obj.series_list[1].plotattributes[:x][end]) atol = 1.0e-1 rtol = 1.0e-1 # Function approximately correct for high x input.
+true_func_u2 = get_true_func(:U2)
+@test p_obj.series_list[1].plotattributes[:y][1] ≈ true_func_u2(p_obj.series_list[1].plotattributes[:x][1]) atol = 1.0e-1 rtol = 1.0e-1 # Function approximately correct for low x input.
+@test p_obj.series_list[1].plotattributes[:y][100] ≈ true_func_u2(p_obj.series_list[1].plotattributes[:x][100]) atol = 1.0e-1 rtol = 1.0e-1 # Function approximately correct for medium x input.
+@test p_obj.series_list[1].plotattributes[:y][end] ≈ true_func_u2(p_obj.series_list[1].plotattributes[:x][end]) atol = 4.0e-1 rtol = 1.0e-1 # Function approximately correct for high x input.
 
-# Checks basic content of the `best_function` plot (nn 2).
-p_obj = plot(petab_sol, petab_prob; plot_type = :best_function, nn_idx = 2)
+# Checks basic content of the `best_function` plot (plot U1).
+p_obj = plot(petab_sol, petab_prob; plot_type = :best_function, nn_idx = idx_u1)
 @test length(p_obj.series_list) == 1 # Only a single line is plotted.
 @test length(p_obj.series_list[1].plotattributes[:x]) == 200 # Default plot density is 200.
 @test p_obj.series_list[1].plotattributes[:x][1] ≈ 0.0 atol = 1.0e-1 rtol = 1.0e-1 # X supports starts (very roughly) at 0.0.
 @test p_obj.series_list[1].plotattributes[:x][end] ≈ 2.0 atol = 1.0e-1 rtol = 1.0e-1 # X supports end (very roughly) at 2.0.
-true_func(x) = 1.0 * (x^5) / (0.6^5 + x^5)
-@test p_obj.series_list[1].plotattributes[:y][1] ≈ true_func(p_obj.series_list[1].plotattributes[:x][1]) atol = 1.0e-1 rtol = 1.0e-1 # Function approximately correct for low x input.
-@test p_obj.series_list[1].plotattributes[:y][100] ≈ true_func(p_obj.series_list[1].plotattributes[:x][100]) atol = 1.0e-1 rtol = 1.0e-1 # Function approximately correct for medium x input.
-@test p_obj.series_list[1].plotattributes[:y][end] ≈ true_func(p_obj.series_list[1].plotattributes[:x][end]) atol = 1.0e-0 rtol = 1.0e-0 # Function approximately correct for high x input.
+true_func_u1 = get_true_func(:U1)
+@test p_obj.series_list[1].plotattributes[:y][1] ≈ true_func_u1(p_obj.series_list[1].plotattributes[:x][1]) atol = 1.0e-1 rtol = 1.0e-1 # Function approximately correct for low x input.
+@test p_obj.series_list[1].plotattributes[:y][100] ≈ true_func_u1(p_obj.series_list[1].plotattributes[:x][100]) atol = 1.0e-1 rtol = 1.0e-1 # Function approximately correct for medium x input.
+@test p_obj.series_list[1].plotattributes[:y][end] ≈ true_func_u1(p_obj.series_list[1].plotattributes[:x][end]) atol = 1.0e-1 rtol = 1.0e-1 # Function approximately correct for high x input.
 
 # Checks basic content of the `function_ensemble` plot.
-p_obj = plot(petab_sol, petab_prob; plot_type = :function_ensemble, nn_idx = 1)
+p_obj = plot(petab_sol, petab_prob; plot_type = :function_ensemble, nn_idx = idx_u1)
 @test length(p_obj.series_list) == length(petab_sol.runs) # One line is plotted for each run.
 for i in 1:length(petab_sol.runs) # Checks that the individual ensemble plots correspond to the best for specific runs.
-    p_obj_single = plot(petab_sol.runs[i], petab_prob; plot_type = :best_function, nn_idx = 1)
+    p_obj_single = plot(petab_sol.runs[i], petab_prob; plot_type = :best_function, nn_idx = idx_u1)
     @test p_obj.series_list[i].plotattributes[:x] == p_obj_single.series_list[1].plotattributes[:x]
     @test p_obj.series_list[i].plotattributes[:y] == p_obj_single.series_list[1].plotattributes[:y]
 end
-p_obj = plot(petab_sol, petab_prob; plot_type = :function_ensemble, nn_idx = 2)
+p_obj = plot(petab_sol, petab_prob; plot_type = :function_ensemble, nn_idx = idx_u2)
 @test length(p_obj.series_list) == length(petab_sol.runs) # One line is plotted for each run.
 for i in 1:length(petab_sol.runs) # Checks that the individual ensemble plots correspond to the best for specific runs.
-    p_obj_single = plot(petab_sol.runs[i], petab_prob; plot_type = :best_function, nn_idx = 2)
+    p_obj_single = plot(petab_sol.runs[i], petab_prob; plot_type = :best_function, nn_idx = idx_u2)
     @test p_obj.series_list[i].plotattributes[:x] == p_obj_single.series_list[1].plotattributes[:x]
     @test p_obj.series_list[i].plotattributes[:y] == p_obj_single.series_list[1].plotattributes[:y]
 end
