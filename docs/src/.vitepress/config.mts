@@ -105,7 +105,10 @@ export default defineConfig({
 
   themeConfig: {
     outline: 'deep',
-    logo: 'REPLACE_ME_DOCUMENTER_VITEPRESS',
+    logo: {
+      light: { src: "/assets/logo_light.svg", alt: "PEtab.jl" },
+      dark:  { src: "/assets/logo_dark.svg",  alt: "PEtab.jl" }
+    },
     search: {
       provider: 'local',
       options: { detailedView: true }
