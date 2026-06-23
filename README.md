@@ -1,4 +1,10 @@
-# PEtab.jl
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)"  srcset="docs/src/assets/logo_dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/src/assets/logo_light.png">
+    <img alt="PEtab.jl" src="docs/src/assets/logo_light.png" width="420">
+  </picture>
+</p>
 
 _Create parameter estimation problems for dynamic models_
 

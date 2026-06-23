@@ -55,6 +55,7 @@ makedocs(
         ],
         "API" => "API.md",
         "Configuration" => Any[
+            "PEtab.jl logo license" => "logo.md",
             "Default options" => "configuration/default_options.md",
             "Derivative methods (gradients and Hessians)" => "configuration/derivatives.md",
             "Speeding up non-stiff models" => "performance/none_stiff.md",

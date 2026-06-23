@@ -173,3 +173,8 @@ mjx-container > svg {
   margin: auto;
   display: inline-block;
 }
+
+.logo-light { display: block; }
+.logo-dark  { display: none; }
+.dark .logo-light { display: none; }
+.dark .logo-dark  { display: block; }

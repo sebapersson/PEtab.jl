@@ -1,4 +1,7 @@
-# PEtab.jl
+```@raw html
+<img class="logo-light" src="/assets/logo_light.png" alt="PEtab.jl" />
+<img class="logo-dark"  src="/assets/logo_dark.png"  alt="PEtab.jl" />
+```
 
 PEtab.jl is a Julia package for creating parameter estimation problems to fit ordinary
 differential equation (ODE) and scientific machine learning (SciML) models to time-series
