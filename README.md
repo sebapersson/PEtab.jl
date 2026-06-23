@@ -2,7 +2,7 @@
   <picture>
     <source media="(prefers-color-scheme: dark)"  srcset="docs/src/assets/logo_dark.png">
     <source media="(prefers-color-scheme: light)" srcset="docs/src/assets/logo_light.png">
-    <img alt="PEtab.jl" src="docs/src/assets/logo_light.png" width="420">
+    <img alt="PEtab.jl" src="docs/src/assets/logo_light.png" width="470">
   </picture>
 </p>
 
