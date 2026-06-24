@@ -107,8 +107,8 @@ export default defineConfig({
     outline: 'deep',
     siteTitle: false,
     logo: {
-      light: { src: "/assets/logo_light.svg", alt: "PEtab.jl" },
-      dark:  { src: "/assets/logo_dark.svg",  alt: "PEtab.jl" }
+      light: { src: "/logo_light.svg", alt: "PEtab.jl" },
+      dark:  { src: "/logo_dark.svg",  alt: "PEtab.jl" }
     },
     search: {
       provider: 'local',
