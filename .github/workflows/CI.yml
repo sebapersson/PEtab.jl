@@ -4,6 +4,8 @@ on:
     branches: [main]
     tags: ['*']
   pull_request:
+  schedule:
+    - cron: '0 0 * * 2'
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
@@ -29,7 +31,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: ${{ matrix.python }} 
+          python-version: ${{ matrix.python }}
       - name: Set ENV Variables for Python
         run: echo ENV["PYTHON"] = "${{ env.pythonLocation }}/bin/python" >> $GITHUB_ENV
       - name: Install Python dependencies
