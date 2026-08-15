@@ -48,9 +48,14 @@ To reduce this overhead, `split_over_conditions = true` computes derivatives per
 noticeable:
 
 ```@example 1
-using Printf
-petab_prob1 = PEtabODEProblem(model; split_over_conditions = true)
-petab_prob2 = PEtabODEProblem(model; split_over_conditions = false)
+using Printf, OrdinaryDiffEqRosenbrock
+ode_solver = ODESolver(Rodas5P())
+petab_prob1 = PEtabODEProblem(
+    model; odesolver = ode_solver, split_over_conditions = true
+)
+petab_prob2 = PEtabODEProblem(
+    model; odesolver = ode_solver, split_over_conditions = false
+)
 x = get_x(petab_prob1)
 g1, g2 = similar(x), similar(x)
 petab_prob1.grad!(g1, x) # hide

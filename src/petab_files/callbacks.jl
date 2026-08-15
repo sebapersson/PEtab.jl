@@ -22,7 +22,15 @@ function _parse_events(
 
     if isempty(petab_events)
         for condition_id in Symbol.(conditions_df.conditionId)
-            cbs[condition_id] = deepcopy(cbs_sbml)
+            # Each condition needs its own callbacks, as the closures capture mutable
+            # per-simulation trigger state (e.g. whether an event has already fired).
+            # A fresh call to create_callbacks (rather than deepcopy(cbs_sbml)) is used
+            # to build these, since deepcopy-ing a CallbackSet holding
+            # RuntimeGeneratedFunctions breaks their cache:
+            cbs[condition_id] = SBMLImporter.create_callbacks(
+                sys, model_SBML, name; p_PEtab = p_sys, float_tspan = float_tspan,
+                _specie_ids = state_ids
+            )
         end
         return cbs, float_tspan
     end
