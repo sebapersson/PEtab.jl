@@ -6,6 +6,7 @@
 using PEtab, Distributions, CSV, DataFrames, OrdinaryDiffEqRosenbrock, Catalyst, Lux,
     ComponentArrays, Optim, Ipopt, Optimization, Optimisers, OptimizationOptimJL, Test
 import StableRNGs
+import SciMLLogging
 
 @testset "Generate startguesses" begin
     # Test startguesses for a hard to integrate ODE model
