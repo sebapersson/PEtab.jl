@@ -28,7 +28,16 @@ function PEtabODEProblem(
         reuse_sensitivities, sparse_jacobian, specialize_level, chunksize,
         split_over_conditions, verbose
     )
+    return _petab_odeproblem(probinfo, model_info; verbose = verbose)
+end
 
+# Builds the user-facing functions (nllh, grad, hess, ...) for a PEtabODEProblem from an
+# already assembled probinfo and model_info. Split out from the PEtabODEProblem constructor
+# so that `remake` can rebuild these functions against an updated model_info without
+# redoing the expensive setup in ModelInfo/PEtabODEProblemInfo
+function _petab_odeproblem(
+        probinfo::PEtabODEProblemInfo, model_info::ModelInfo; verbose::Bool = false
+    )::PEtabODEProblem
     # The prior enters into the nllh, grad, and hessian functions and is evaluated by
     # default (keyword user can toggle). Grad and hess are not inplace, in order to
     # to not overwrite the nllh hess/grad when evaluating total grad/hess

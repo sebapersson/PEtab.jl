@@ -548,6 +548,50 @@ struct PEtabODEProblem{F1 <: Function, F2 <: Function, F3 <: Function}
     xnominal_transformed::ComponentVector{Float64}
     lower_bounds::ComponentVector{Float64}
     upper_bounds::ComponentVector{Float64}
+
+    # The ComponentVector arguments are @nospecialize:d, as a ComponentVector encodes the
+    # parameter ids in its type. Without this, `remake` with a new set of fixed parameters
+    # hits a new argument type, and the constructor (which must infer through the large
+    # PEtabODEProblemInfo and ModelInfo types) is compiled from scratch for every such set
+    function PEtabODEProblem(
+            nllh::F1, chi2, grad!::F2, grad, hess!::F3, hess, FIM!, FIM, nllh_grad, prior,
+            grad_prior, hess_prior, simulated_values, residuals,
+            probinfo::PEtabODEProblemInfo, model_info::ModelInfo,
+            nparameters_estimate::Int64, xnames::Vector{Symbol},
+            @nospecialize(xnominal), @nospecialize(xnominal_transformed),
+            @nospecialize(lower_bounds), @nospecialize(upper_bounds)
+        ) where {F1 <: Function, F2 <: Function, F3 <: Function}
+        return new{F1, F2, F3}(
+            nllh, chi2, grad!, grad, hess!, hess, FIM!, FIM, nllh_grad, prior, grad_prior,
+            hess_prior, simulated_values, residuals, probinfo, model_info,
+            nparameters_estimate, xnames, xnominal, xnominal_transformed, lower_bounds,
+            upper_bounds
+        )
+    end
+end
+
+"""
+Holds the functions of the problem `remake` is called on.
+
+The fields are typed `Function` (abstract) on purpose. A `PEtabODEProblem` is parameterised
+by the concrete types of its nllh, grad! and hess! functions, so closures capturing the
+problem directly get a new type for every problem they are built from (every model, and
+every gradient/hessian method combination). Capturing this struct instead, which has the
+same type for every problem, means the functions below, and thus the remade problem, also
+have the same type for every problem.
+"""
+struct RemakeSource
+    prior::Function
+    grad_prior::Function
+    hess_prior::Function
+    nllh::Function
+    simulated_values::Function
+    chi2::Function
+    residuals::Function
+    grad!::Function
+    nllh_grad::Function
+    hess!::Function
+    FIM!::Function
 end
 
 struct PEtabFileError <: Exception
