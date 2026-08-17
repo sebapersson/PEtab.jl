@@ -34,12 +34,14 @@ prob_sub = remake(prob; parameters = [:k1 => 3.0, :k2 => 4.0])
 ```
 """
 function SciMLBase.remake(
-        prob::PEtabODEProblem; conditions::Union{Vector{<:Pair}, Vector{Symbol}} = Symbol[],
+        @nospecialize(prob::PEtabODEProblem);
+        conditions::Union{Vector{<:Pair}, Vector{Symbol}} = Symbol[],
         experiments = Symbol[],
         parameters::Vector{<:Pair{Symbol, <:Real}} = Pair{Symbol, Real}[]
     )::PEtabODEProblem
     if isempty(conditions) && isempty(parameters) && isempty(experiments)
-        return deepcopy(prob)
+        # Nothing to subset, but an independent copy of prob is still returned
+        return _remake_condition_ids(prob, Int64[])
     end
 
     petab_version = _get_version(prob.model_info)
@@ -67,7 +69,7 @@ end
 
 # TODO: For ML parameters? Disallow
 function _remake_parameters(
-        prob::PEtabODEProblem, parameters::Vector{<:Pair{Symbol, <:Real}}
+        @nospecialize(prob::PEtabODEProblem), parameters::Vector{<:Pair{Symbol, <:Real}}
     )::PEtabODEProblem
     # It only makes sense to remake (from compilation point if view) if parameters that
     # before were to be estimated are set to fixated.
@@ -114,49 +116,50 @@ function _remake_parameters(
     ix_fixed = [findfirst(x -> x == id, prob.xnames) for id in first.(parameters)]
     imap = [findfirst(x -> x == xnames_new[i], prob.xnames) for i in eachindex(xnames_new)]
 
-    # Priors should not be computed for fixed parameters
-    for ix in ix_fixed
-        !in(model_info.priors.ix_prior, ix) && continue
-        jx = findfirst(x -> x == ix, model_info.priors.ix_prior)
-        model_info.priors.skip[jx] = true
-    end
+    # Functions of prob are accessed via RemakeSource, so that the functions below (and
+    # thus the remade problem) get the same type regardless of which problem remake was
+    # called on, see the RemakeSource docstring
+    src = RemakeSource(
+        prob.prior, prob.grad_prior, prob.hess_prior, prob.nllh, prob.simulated_values,
+        prob.chi2, prob.residuals, prob.grad!, prob.nllh_grad, prob.hess!, prob.FIM!
+    )
 
     # PEtabODEProblem functions
     _prior = (x) -> begin
         xest_full = _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
-        return prob.prior(xest_full)
+        return src.prior(xest_full)
     end
     _grad_prior = (x) -> begin
         xest_full = _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
-        g = prob.grad_prior(xest_full)
+        g = src.grad_prior(xest_full)
         return g[imap]
     end
     _hess_prior = (x) -> begin
         xest_full = _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
-        _H = prob.grad_hess(xest_full)
-        H = zeros(eltype(H), length(x), length(x))
+        _H = src.hess_prior(xest_full)
+        H = zeros(eltype(_H), length(x), length(x))
         _map_matrix!(H, _H, imap)
         return H
     end
     _nllh = (x) -> begin
         xest_full = _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
-        return prob.nllh(xest_full)
+        return src.nllh(xest_full)
     end
     _simulated_values = (x; as_array = false) -> begin
-        xest_full = _set_xest(xest_full, x, ix_fixed, x_fixed, imap)
-        return prob.simulated_values(xest_full)
+        xest_full = _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
+        return src.simulated_values(xest_full)
     end
     _chi2 = (x) -> begin
         xest_full = _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
-        return prob.chi2(xest_full)
+        return src.chi2(xest_full)
     end
     _residuals = (x) -> begin
         xest_full = _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
-        return prob.residuals(xest_full)
+        return src.residuals(xest_full)
     end
     _grad! = (g, x) -> begin
         xest_full = _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
-        prob.grad!(_grad_full, xest_full)
+        src.grad!(_grad_full, xest_full)
         g .= _grad_full[imap]
         return nothing
     end
@@ -167,12 +170,12 @@ function _remake_parameters(
     end
     _nllh_grad = (x) -> begin
         xest_full = _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
-        nllh, _grad_full = prob.nllh_grad(xest_full)
+        nllh, _grad_full = src.nllh_grad(xest_full)
         return nllh, _grad_full[imap]
     end
     _hess! = (H, x) -> begin
         xest_full = _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
-        prob.hess!(_H_full, xest_full)
+        src.hess!(_H_full, xest_full)
         _map_matrix!(H, _H_full, imap)
         return nothing
     end
@@ -183,7 +186,7 @@ function _remake_parameters(
     end
     _FIM! = (FIM, x) -> begin
         xest_full = _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)
-        prob.FIM!(_FIM_full, xest_full)
+        src.FIM!(_FIM_full, xest_full)
         _map_matrix!(FIM, _FIM_full, imap)
         return nothing
     end
@@ -256,12 +259,55 @@ function _remake_conditions(
 end
 
 function _remake_condition_ids(prob::PEtabODEProblem, index_delete::Vector{Int64})
-    _prob = deepcopy(prob)
-    conditionids = _prob.model_info.simulation_info.conditionids
-    deleteat!(conditionids[:simulation], index_delete)
-    deleteat!(conditionids[:pre_equilibration], index_delete)
-    deleteat!(conditionids[:experiment], index_delete)
-    return _prob
+    @unpack model_info, probinfo = prob
+    @unpack simulation_info = model_info
+
+    # Only the set of simulated conditions differs between prob and the remade problem.
+    # Rather than a deepcopy of prob (which copies the ODEProblem, model, callbacks and
+    # every cache), only the state that must differ is rebuilt, and the remaining
+    # read-only template data is shared. Besides being much faster, this also avoids
+    # deepcopy-ing the RuntimeGeneratedFunctions held by the callbacks and the ODEProblem;
+    # a nested deepcopy clones their cached body expression, which breaks the function
+    # once the original prob is garbage collected (see _parse_events)
+    conditionids = Dict{Symbol, Vector{Symbol}}()
+    for (key, ids) in simulation_info.conditionids
+        conditionids[key] = copy(ids)
+    end
+    for key in (:simulation, :pre_equilibration, :experiment)
+        deleteat!(conditionids[key], index_delete)
+    end
+
+    # ODESolutions and could_solve are per-evaluation output. They start out empty, as for
+    # a newly created problem, so that the two problems do not share solution storage
+    _simulation_info = @set simulation_info.conditionids = conditionids
+    _simulation_info = @set _simulation_info.odesols = Dict{Symbol, ODESolution}()
+    _simulation_info = @set _simulation_info.odesols_derivatives = Dict{
+        Symbol, ODESolution,
+    }()
+    _simulation_info = @set _simulation_info.odesols_preeq = Dict{
+        Symbol, Union{ODESolution, SciMLBase.NonlinearSolution},
+    }()
+    _simulation_info = @set _simulation_info.could_solve = [true]
+
+    # petab_measurements holds the simulated values, chi2 and residuals written by each
+    # evaluation, and priors tracks which parameters to skip. Both are small, and are
+    # copied to keep the problems independent
+    _model_info = @set model_info.simulation_info = _simulation_info
+    _model_info = @set _model_info.petab_measurements = deepcopy(
+        model_info.petab_measurements
+    )
+    _model_info = @set _model_info.priors = deepcopy(model_info.priors)
+
+    # The cache is scratch space written during each evaluation, so the remade problem
+    # needs its own. Building a new cache is cheaper than deepcopy-ing the existing one
+    _cache = PEtabODEProblemCache(
+        probinfo.gradient_method, probinfo.hessian_method, probinfo.FIM_method,
+        probinfo.sensealg, _model_info, model_info.model.ml_models,
+        probinfo.split_over_conditions, probinfo.odeproblem
+    )
+    _probinfo = @set probinfo.cache = _cache
+
+    return _petab_odeproblem(_probinfo, _model_info)
 end
 
 function _set_xest(_xest_full, x, ix_fixed, x_fixed, imap)

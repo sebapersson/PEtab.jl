@@ -18,6 +18,12 @@ function test_remake_parameters(model::PEtabModel, xchange, what_check; test_tol
         g1 = prob1.grad(get_x(prob1))
         g2 = prob2.grad(get_x(prob2))
         @test all(.≈(g1[imatch], g2, atol = test_tol))
+
+        # The prior is part of the nllh above, but is also checked on its own, as for
+        # models with priors (e.g. Schwen) the fixated parameters are still included
+        x1, x2 = collect(get_x(prob1)), collect(get_x(prob2))
+        @test prob1.prior(x1) ≈ prob2.prior(x2)
+        @test all(.≈(prob1.grad_prior(x1)[imatch], prob2.grad_prior(x2), atol = test_tol))
     end
 
     if :GradientForwardEquations in what_check
@@ -211,6 +217,21 @@ xchange2 = [:k_exp_homo => 0.006170228086381]
     ]
     test_remake_parameters(model, xchange1, methods_test)
     test_remake_parameters(model, xchange2, methods_test)
+end
+
+@info "Remake parameters Schwen"
+path_yaml = joinpath(
+    @__DIR__, "published_models", "Schwen_PONE2014", "Schwen_PONE2014.yaml"
+)
+model = PEtabModel(path_yaml)
+@testset "PEtab remake : Schwen parameters" begin
+    # Schwen, unlike Boehm, has parameters with priors (ka1 has one, kon_unspec does not).
+    # Only the nllh and gradient are checked, as the Hessian is expensive for this model
+    test_remake_parameters(model, [:ka1 => 0.003799559577141], [:GradientForwardDiff])
+    test_remake_parameters(
+        model, [:ka1 => 0.003799559577141, :kon_unspec => 20.2497851212426],
+        [:GradientForwardDiff]
+    )
 end
 
 @info "Remake conditions Bruno"
