@@ -78,9 +78,9 @@ import{_ as i,o as a,c as n,an as t}from"./chunks/framework.hYVYEaX7.js";const g
 <span class="line"></span>
 <span class="line"><span style="--shiki-light:#24292e;--shiki-dark:#e1e4e8;"> * Work counters</span></span>
 <span class="line"><span style="--shiki-light:#24292e;--shiki-dark:#e1e4e8;">    Seconds run:   2  (vs limit Inf)</span></span>
-<span class="line"><span style="--shiki-light:#24292e;--shiki-dark:#e1e4e8;">    Iterations:    46</span></span>
-<span class="line"><span style="--shiki-light:#24292e;--shiki-dark:#e1e4e8;">    f(x) calls:    123</span></span>
-<span class="line"><span style="--shiki-light:#24292e;--shiki-dark:#e1e4e8;">    ∇f(x) calls:   123</span></span>
+<span class="line"><span style="--shiki-light:#24292e;--shiki-dark:#e1e4e8;">    Iterations:    45</span></span>
+<span class="line"><span style="--shiki-light:#24292e;--shiki-dark:#e1e4e8;">    f(x) calls:    92</span></span>
+<span class="line"><span style="--shiki-light:#24292e;--shiki-dark:#e1e4e8;">    ∇f(x) calls:   92</span></span>
 <span class="line"><span style="--shiki-light:#24292e;--shiki-dark:#e1e4e8;">    ∇f(x)ᵀv calls: 0</span></span>
-<span class="line"><span style="--shiki-light:#24292e;--shiki-dark:#e1e4e8;">    ∇²f(x) calls:  46</span></span>
+<span class="line"><span style="--shiki-light:#24292e;--shiki-dark:#e1e4e8;">    ∇²f(x) calls:  45</span></span>
 <span class="line"><span style="--shiki-light:#24292e;--shiki-dark:#e1e4e8;">    ∇²f(x)v calls: 0</span></span></code></pre></div><h2 id="References" tabindex="-1">References <a class="header-anchor" href="#References" aria-label="Permalink to &quot;References {#References}&quot;">​</a></h2><ol start="2"><li>F. Fröhlich and P. K. Sorger. <em>Fides: Reliable trust-region optimization for parameter estimation of ordinary differential equation models</em>. PLoS computational biology <strong>18</strong>, e1010322 (2022).</li></ol>`,27)])])}const o=i(e,[["render",h]]);export{g as __pageData,o as default};
