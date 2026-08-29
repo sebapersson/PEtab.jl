@@ -183,9 +183,9 @@ Plots.@recipe function f(
         ]
         x_vals = [
             [
-                    (p_val - p_min) / (p_max - p_min)
+                (p_val - p_min) / (p_max - p_min)
                     for (p_val, p_min, p_max) in zip(run.xmin, p_mins, p_maxs)
-                ]
+            ]
                 for run in res_ms.runs[idxs]
         ]
 
