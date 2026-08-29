@@ -23,7 +23,13 @@ function grad_forward_AD!(
         else
             _ = _nllh_solveode(xdynamic)
         end
-    catch
+    catch e
+        # A numerical failure (e.g. a diverging solve) is expected and yields a zero
+        # gradient, but any other error is a bug. Returning zeros for those hides it:
+        # a zero gradient is indistinguishable from a converged optimum, so an optimiser
+        # reports success without ever moving. catch_ode_error rethrows anything that is
+        # not a recognised numerical failure
+        catch_ode_error(e)
         fill!(grad, 0.0)
         return nothing
     end
@@ -83,7 +89,8 @@ function grad_forward_AD_split!(
             else
                 _nllh(xinput)
             end
-        catch
+        catch e
+            catch_ode_error(e)
             fill!(grad, 0.0)
         end
     end
