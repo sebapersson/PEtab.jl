@@ -210,7 +210,9 @@ end
     @test ode2.p == ps_e2
     @test ode_e1.p.tunable == ode1.p.tunable
     @test ode_e1.u0 == ode1.u0
-    @test ode_e1.p == sol_e1.prob.p
+    # `solve` wraps the parameters in `DespecializedParameters`, so compare the
+    # underlying parameter object rather than the wrapper.
+    @test ode_e1.p == PEtab.SciMLBase.unwrap_parameters(sol_e1.prob.p)
     @test ode_e1.u0 == sol_e1.prob.u0
     # Test error handling
     @test_throws ArgumentError get_ps(x, prob; condition = :e1)

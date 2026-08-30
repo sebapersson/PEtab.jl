@@ -68,7 +68,7 @@ end
         3000;
         n_adapts = 1000,
         initial_params = xinference,
-        drop_warmup = true,
+        discard_initial = 1000,
         progress = false,
         verbose = true
     )
