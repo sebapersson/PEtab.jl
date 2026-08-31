@@ -331,6 +331,15 @@ end
 function _get_tunables(ps::T)::T where {T <: AbstractVector}
     return ps
 end
+function _get_tunables(ps::SciMLBase.DespecializedParameters, get_ps)
+    # The solver stores parameters behind `DespecializedParameters` on `sol.prob`, so
+    # `sol.prob.p` is wrapped even when the parameters of the problem given to `solve` were
+    # not. Unwrap so the methods above dispatch on the underlying parameter container.
+    return _get_tunables(SciMLBase.unwrap_parameters(ps), get_ps)
+end
+function _get_tunables(ps::SciMLBase.DespecializedParameters)
+    return _get_tunables(SciMLBase.unwrap_parameters(ps))
+end
 
 function _get_ode_problem_ps(
         ode_problem::ODEProblem, ps::AbstractVector, ::ModelingToolkitBase.MTKParameters,

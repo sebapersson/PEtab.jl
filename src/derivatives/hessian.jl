@@ -10,7 +10,8 @@ function hess!(
         try
             ForwardDiff.hessian!(hess, _nllh, x, cfg)
             @views hess .= LinearAlgebra.Symmetric(hess)
-        catch
+        catch e
+            catch_ode_error(e)
             fill!(hess, 0.0)
         end
     else
@@ -46,8 +47,9 @@ function hess_split!(
         end
         try
             ForwardDiff.hessian!(hess_tmp, _nllh_cid, xinput)
-        catch
-            fill(hess, 0.0)
+        catch e
+            catch_ode_error(e)
+            fill!(hess, 0.0)
             return nothing
         end
         for i in eachindex(ix_simid)
@@ -87,7 +89,8 @@ function hess_block!(
         else
             _nllh_solveode(xdynamic_grad)
         end
-    catch
+    catch e
+        catch_ode_error(e)
         fill!(hess, 0.0)
         return nothing
     end
@@ -134,7 +137,8 @@ function hess_block_split!(
         end
         try
             ForwardDiff.hessian!(hess_tmp, _nllh_cid, xinput)
-        catch
+        catch e
+            catch_ode_error(e)
             fill!(hess, 0.0)
             return nothing
         end

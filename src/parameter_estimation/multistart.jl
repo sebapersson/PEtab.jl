@@ -218,20 +218,20 @@ function _build_nested(labels, values)
     end
     return Dict(
         key => begin
-                all_leaf = all(isempty(e[1]) for e in entries)
-                all_scalar = all_leaf && isempty(entries[1][2])
-                if all_scalar
-                    entries[1][3]
+            all_leaf = all(isempty(e[1]) for e in entries)
+            all_scalar = all_leaf && isempty(entries[1][2])
+            if all_scalar
+                entries[1][3]
             elseif all_leaf
-                    shape = Tuple(maximum(e[2][i] for e in entries) for i in 1:length(entries[1][2]))
-                    arr = zeros(Float64, shape...)
-                    foreach(e -> (arr[e[2]...] = e[3]), entries)
-                    length(shape) == 1 ? vec(arr) : arr
+                shape = Tuple(maximum(e[2][i] for e in entries) for i in 1:length(entries[1][2]))
+                arr = zeros(Float64, shape...)
+                foreach(e -> (arr[e[2]...] = e[3]), entries)
+                length(shape) == 1 ? vec(arr) : arr
             else
-                    sub_labels = [join(e[1], ".") * (isempty(e[2]) ? "" : "[$(join(e[2], ","))]") for e in entries]
-                    _build_nested(sub_labels, [e[3] for e in entries])
+                sub_labels = [join(e[1], ".") * (isempty(e[2]) ? "" : "[$(join(e[2], ","))]") for e in entries]
+                _build_nested(sub_labels, [e[3] for e in entries])
             end
-            end for (key, entries) in groups
+        end for (key, entries) in groups
     )
 end
 
