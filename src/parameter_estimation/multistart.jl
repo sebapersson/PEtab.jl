@@ -211,31 +211,41 @@ function _parse_label(label::String)
 end
 
 function _build_nested(labels, values)
+    # keys_order tracks the order keys appear among the labels. A Dict does not have a
+    # well defined iteration order (it can differ between Julia versions), and the order
+    # here decides the order of the components in the returned ComponentArray
     groups = Dict{String, Vector}()
+    keys_order = String[]
     for (label, val) in zip(labels, values)
         parts, idx = _parse_label(label)
-        push!(get!(groups, String(parts[1]), []), (parts[2:end], idx, val))
+        key = String(parts[1])
+        !haskey(groups, key) && push!(keys_order, key)
+        push!(get!(groups, key, []), (parts[2:end], idx, val))
     end
-    return Dict(
-        key => begin
-            all_leaf = all(isempty(e[1]) for e in entries)
-            all_scalar = all_leaf && isempty(entries[1][2])
-            if all_scalar
-                entries[1][3]
-            elseif all_leaf
-                shape = Tuple(maximum(e[2][i] for e in entries) for i in 1:length(entries[1][2]))
-                arr = zeros(Float64, shape...)
-                foreach(e -> (arr[e[2]...] = e[3]), entries)
-                length(shape) == 1 ? vec(arr) : arr
-            else
-                sub_labels = [join(e[1], ".") * (isempty(e[2]) ? "" : "[$(join(e[2], ","))]") for e in entries]
-                _build_nested(sub_labels, [e[3] for e in entries])
-            end
-        end for (key, entries) in groups
-    )
+    return Pair{String, Any}[key => _build_nested_value(groups[key]) for key in keys_order]
 end
 
-function _to_componentarray(d::Dict)
-    nt = (Symbol(k) => (v isa Dict ? _to_componentarray(v) : v) for (k, v) in d)
+function _build_nested_value(entries)
+    all_leaf = all(isempty(e[1]) for e in entries)
+    all_scalar = all_leaf && isempty(entries[1][2])
+    if all_scalar
+        return entries[1][3]
+    elseif all_leaf
+        shape = Tuple(maximum(e[2][i] for e in entries) for i in 1:length(entries[1][2]))
+        arr = zeros(Float64, shape...)
+        foreach(e -> (arr[e[2]...] = e[3]), entries)
+        return length(shape) == 1 ? vec(arr) : arr
+    end
+    sub_labels = [
+        join(e[1], ".") * (isempty(e[2]) ? "" : "[$(join(e[2], ","))]") for e in entries
+    ]
+    return _build_nested(sub_labels, [e[3] for e in entries])
+end
+
+function _to_componentarray(d::Vector{Pair{String, Any}})
+    nt = (
+        Symbol(k) => (v isa Vector{Pair{String, Any}} ? _to_componentarray(v) : v)
+            for (k, v) in d
+    )
     return ComponentVector(; nt...)
 end

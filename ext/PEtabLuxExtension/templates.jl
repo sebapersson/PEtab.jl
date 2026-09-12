@@ -7,7 +7,7 @@ function _template_ml_model(
             model_str *= "\t$(id) = " * string(layer) * ",\n"
             continue
         end
-        which_params = keys(freeze_info[Symbol(id)]) |> collect .|> string
+        which_params = keys(freeze_info[Symbol(id)]) |> collect .|> string |> sort
         which_params = '(' * prod(":" .* which_params .* ", ") * ')'
         model_str *= "\t$(id) = Lux.Experimental.freeze(" * string(layer) *
             ", $(which_params)),\n"

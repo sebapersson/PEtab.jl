@@ -4,8 +4,11 @@ function PEtab.MLModels(path_yaml::String)::PEtab.MLModels
     yaml_models = problem_yaml["extensions"]["sciml"]["neural_networks"]
 
     ml_models = PEtab.MLModel[]
-    for (ml_id, model_info) in yaml_models
-        ml_id = Symbol(ml_id)
+    # Sorted iteration as a Dict does not have a well defined iteration order (it can
+    # differ between Julia versions).
+    for _ml_id in sort(collect(keys(yaml_models)))
+        model_info = yaml_models[_ml_id]
+        ml_id = Symbol(_ml_id)
         path_model = joinpath(dirname(path_yaml), model_info["location"])
         pre_initialization = model_info["pre_initialization"]
         lux_model, _ = PEtab.parse_to_lux(path_model)

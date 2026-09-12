@@ -5,6 +5,15 @@
 using Catalyst, DataFrames, FiniteDifferences, ForwardDiff, OrdinaryDiffEqRosenbrock,
     OrdinaryDiffEqTsit5, Lux, ModelingToolkitBase, PEtab, Test
 
+# Event-triggered variables (__parameter_ifelse...) switch value during the simulation,
+# so the stored solution and get_ps disagree for them by design. Their position in the
+# parameter vector is not fixed (it follows a Dict in SBMLImporter, whose iteration order
+# can differ between Julia versions), hence they must be located by name and not by index
+function __ps_not_event(odeprob, ntunable::Integer)::Vector{Bool}
+    pids = string.(ModelingToolkitBase.parameter_symbols(odeprob))[1:ntunable]
+    return .!startswith.(pids, "__parameter_ifelse")
+end
+
 function __sum_ps(x, prob)
     ps = get_ps(x, prob; retmap = false)
     return sum(ps.tunable)
@@ -85,7 +94,9 @@ end
     u0_test = get_u0(res, prob; condition = :typeIDT1_ExpID1, retmap = false)
     p_test = get_ps(res, prob; condition = :typeIDT1_ExpID1, retmap = false)
     @test all(u0_test .== u0)
-    to_test = Bool[1, 1, 1, 1, 0, 1, 1, 1, 1] # To account for Event variable
+    to_test = __ps_not_event(
+        prob.model_info.simulation_info.odesols[:typeIDT1_ExpID1].prob, length(p.tunable)
+    )
     @test all(p.tunable[to_test] == p_test.tunable[to_test])
 
     # Model with pre-eq simulation
@@ -106,7 +117,9 @@ end
     @test all(u0_test .== u0)
     # Event triggered variables which switch during simulation must be accounted for with
     # to_test
-    to_test = Bool[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1]
+    to_test = __ps_not_event(
+        prob.model_info.simulation_info.odesols[:Dose_0Dose_01].prob, length(p.tunable)
+    )
     @test all(p.tunable[to_test] == p_test.tunable[to_test])
     ode_sol = get_odesol(res, prob; condition = :Dose_0 => :Dose_01)
     @test all(ode_sol.prob.u0 .== u0)

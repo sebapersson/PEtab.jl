@@ -3,13 +3,18 @@
     vector input. This file tests that both vector and ComponentArray input works.
 =#
 
-using PEtab, Test
+using PEtab, OrdinaryDiffEqRosenbrock, SciMLBase, Test
 
 path_yaml = joinpath(
     @__DIR__, "published_models", "Boehm_JProteomeRes2014", "Boehm_JProteomeRes2014.yaml"
 )
 model = PEtabModel(path_yaml)
-prob = PEtabODEProblem(model)
+# AutoFiniteDiff as the ODE right-hand side is not compatible with nested ForwardDiff
+# duals when the Rosenbrock time-gradient is computed via autodiff
+prob = PEtabODEProblem(
+    model;
+    odesolver = ODESolver(Rodas5P(autodiff = SciMLBase.ADTypes.AutoFiniteDiff()))
+)
 xnames_ps = prob.model_info.xindices.ids[:estimate_ps]
 xnames_ps_rev = reverse(propertynames(prob.xnominal_transformed))
 

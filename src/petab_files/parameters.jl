@@ -224,7 +224,7 @@ function _parse_petab_prior(
 
     prior_id = parameters_df[row_idx, :objectivePriorType]
     if !haskey(PETAB_PRIORS, prior_id)
-        supported_priors = join(collect(keys(PETAB_PRIORS)), ", ")
+        supported_priors = join(sort(collect(keys(PETAB_PRIORS))), ", ")
         throw(PEtabFileError("Unsupported prior $(prior_id) for parameter $(id) in \
             the PEtab parameter table. Supported priors are: $(supported_priors). \
             See the PEtab standard documentation for details."))

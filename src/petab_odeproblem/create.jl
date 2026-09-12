@@ -137,6 +137,19 @@ function _get_nllh(
     return _nllh
 end
 
+function _warn_nested_autodiff(probinfo::PEtabODEProblemInfo, which::String)::Nothing
+    alg = probinfo.solver.solver
+    !hasproperty(alg, :autodiff) && return nothing
+    !(alg.autodiff isa SciMLBase.ADTypes.AutoForwardDiff) && return nothing
+    algname = nameof(typeof(alg))
+    @warn "$(which) computation failed with an ODE solver ($(algname)) that uses \
+        ForwardDiff for the Jacobian and time-gradient. Together with a ForwardDiff \
+        based $(which) this nests dual numbers, which the model equations do not always \
+        support. Solving the ODE with finite differences often fixes this: \
+        ODESolver($(algname)(autodiff = AutoFiniteDiff()))" maxlog = 1
+    return nothing
+end
+
 function _get_grad(
         method, probinfo::PEtabODEProblemInfo, model_info::ModelInfo, grad_prior::Function
     )::Tuple{Function, Function}
@@ -147,11 +160,16 @@ function _get_grad(
         _grad_nllh! = _get_grad_forward_eqs(probinfo, model_info)
     end
 
-    _grad! = let _grad_nllh! = _grad_nllh!, grad_prior = grad_prior
+    _grad! = let _grad_nllh! = _grad_nllh!, grad_prior = grad_prior, probinfo = probinfo
         (g, x; prior = true) -> begin
             _x = x |> collect
             _g = similar(_x)
-            _grad_nllh!(_g, _x)
+            try
+                _grad_nllh!(_g, _x)
+            catch
+                _warn_nested_autodiff(probinfo, "Gradient")
+                rethrow()
+            end
             if prior
                 # nllh -> negative prior
                 _g .+= grad_prior(_x) .* -1
@@ -189,11 +207,16 @@ function _get_hess(
         _hess_nllh! = _get_hess_gaussnewton(probinfo, model_info, ret_jacobian)
     end
 
-    _hess! = let _hess_nllh! = _hess_nllh!, hess_prior = hess_prior
+    _hess! = let _hess_nllh! = _hess_nllh!, hess_prior = hess_prior, probinfo = probinfo
         (H, x; prior = true) -> begin
             _x = x |> collect
             _H = H |> collect
-            _hess_nllh!(_H, _x)
+            try
+                _hess_nllh!(_H, _x)
+            catch
+                _warn_nested_autodiff(probinfo, "Hessian")
+                rethrow()
+            end
             if prior && ret_jacobian == false
                 # nllh -> negative prior
                 _H .+= hess_prior(_x) .* -1

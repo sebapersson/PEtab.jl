@@ -104,8 +104,9 @@ end
 function _get_ml_paths(path_yaml::String, yaml_file::Dict)::Vector{String}
     yaml_models = yaml_file["extensions"]["sciml"]["neural_networks"]
     ml_paths = String[]
-    for ml_model_info in values(yaml_models)
-        push!(ml_paths, joinpath(dirname(path_yaml), ml_model_info["location"]))
+    # Sorted iteration as a Dict does not have a well defined iteration order
+    for ml_id in sort(collect(keys(yaml_models)))
+        push!(ml_paths, joinpath(dirname(path_yaml), yaml_models[ml_id]["location"]))
     end
     return ml_paths
 end

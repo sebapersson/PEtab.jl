@@ -21,6 +21,7 @@ jobs:
       matrix:
         version:
           - '1.10'
+          - '1.13'
         python: [3.10.13]
         os:
           - ubuntu-latest
@@ -62,8 +63,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        julia: ['1.11']
+        os: [macos-latest, windows-latest]
+        julia: ['1.13']
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3

@@ -1,8 +1,12 @@
 function PEtab.parse_to_lux(path_yaml::String; freeze_info::Union{Nothing, Dict} = nothing)
     network_yaml = YAML.load_file(path_yaml)
-    layers = Dict([_parse_layer(l) for l in network_yaml["layers"]])
+    # layer_pairs preserves the order layers are declared in the YAML file.
+    layer_pairs = [_parse_layer(l) for l in network_yaml["layers"]]
+    layers = Dict(layer_pairs)
     inputs, outputs, forward_steps = _parse_forward_pass(network_yaml, layers)
-    model_str = _template_ml_model(layers, inputs, outputs, forward_steps, freeze_info)
+    model_str = _template_ml_model(
+        layer_pairs, inputs, outputs, forward_steps, freeze_info
+    )
     lux_model = eval(Meta.parse(model_str)) |> f64
     return lux_model, network_yaml["nn_model_id"]
 end
