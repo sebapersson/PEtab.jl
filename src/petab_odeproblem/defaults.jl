@@ -60,7 +60,11 @@ end
 function _get_n_xdynamic_sys(model_info::ModelInfo)::Int64
     n_constant = 0
     n_xdynamic_sys = 0
-    for (i, condition_map) in pairs(collect(values(model_info.xindices.condition_maps)))
+    # Sorted iteration as a Dict does not have a well defined iteration order, and the
+    # first condition-map is used to set the number of constant parameters
+    condition_maps = model_info.xindices.condition_maps
+    for (i, cid) in pairs(sort(collect(keys(condition_maps))))
+        condition_map = condition_maps[cid]
         if i == 1
             n_constant = length(condition_map.isys_all_conditions)
         end

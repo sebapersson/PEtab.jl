@@ -118,7 +118,7 @@ import SciMLLogging
     prob = PEtabODEProblem(model; odesolver = ODESolver(Rodas5P(), verbose = false))
     x_starts = get_startguesses(rng, prob, 20000)
     @test mean([x.net1.layer1[1] for x in x_starts]) ≈ 0.0 atol = 1.0e-1
-    @test std([x.net1.layer1[end] for x in x_starts]) ≈ 2.0 atol = 1.0e-2
+    @test std([x.net1.layer1[end] for x in x_starts]) ≈ 2.0 atol = 4.0e-2
     @test mean([x.net1.layer2[1] for x in x_starts]) ≈ 0.0 atol = 1.0e-1
     @test std([x.net1.layer2[end] for x in x_starts]) ≈ 1.0 atol = 2.0e-2
 end

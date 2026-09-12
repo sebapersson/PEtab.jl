@@ -20,7 +20,11 @@ function solve_algebraic_ss(
     )
     set_ps = SymbolicIndexingInterface.setp_oop(oprob, [:a, :b, :c, :d])
     ps = set_ps(oprob, [a, b, c, d])
-    u0_ss = [a / b + (a * c) / (b * d), a / d]
+    # Steady-state values are assigned by name, as the order of the unknowns in the
+    # system is not fixed (it can differ between Julia versions)
+    u0_ss = zeros(eltype(a), 2)
+    u0_ss[SymbolicIndexingInterface.variable_index(oprob, :x)] = a / b + (a * c) / (b * d)
+    u0_ss[SymbolicIndexingInterface.variable_index(oprob, :y)] = a / d
     oprob = remake(oprob, p = ps)
     oprob = remake(oprob, u0 = convert.(eltype(a), u0_ss))
     sols = Array{ODESolution, 1}(undef, 2)
@@ -39,14 +43,19 @@ function nllh_algebraic_ss(x, model::PEtabModel, solver, tol)
     )
 
     sols = solve_algebraic_ss(model, solver, tol, a, b, c, d)
+    # Observable x1 is the specie x (condition double) and x2 is y (condition half). The
+    # order of the unknowns is not fixed (it can differ between Julia versions), hence
+    # the indices are looked up by name
+    ix = SymbolicIndexingInterface.variable_index(sols[1], :x)
+    iy = SymbolicIndexingInterface.variable_index(sols[2], :y)
     nllh = 0.0
     for i in eachindex(petab_measurements.time)
         y_obs = petab_measurements.measurements[i]
         t = petab_measurements.time[i]
         if petab_measurements.simulation_condition_id[i] == :double
-            y_model = sols[1](t)[1]
+            y_model = sols[1](t)[ix]
         else
-            y_model = sols[2](t)[2]
+            y_model = sols[2](t)[iy]
         end
         nllh += log(0.04) + 0.5 * log(2 * pi) + 0.5 * ((y_obs - y_model) / 0.04)^2
     end

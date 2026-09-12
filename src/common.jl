@@ -241,8 +241,11 @@ function _get_ixdynamic_simid(
     # Include parameters that potentially appear as only input to a neural-net. These
     # parameters are by default included in xdynamic (as they gouvern model dynamics)
     if !isempty(xindices.maps_ml_pre_simulate)
-        for map_ml_model in values(xindices.maps_ml_pre_simulate[simid])
-            ixdynamic = vcat(ixdynamic, map_ml_model.ix_dynamic_mech)
+        # Sorted iteration as a Dict does not have a well defined iteration order, and
+        # the order here decides the order of the returned indices
+        maps_ml_model = xindices.maps_ml_pre_simulate[simid]
+        for ml_id in sort(collect(keys(maps_ml_model)))
+            ixdynamic = vcat(ixdynamic, maps_ml_model[ml_id].ix_dynamic_mech)
         end
     end
     if ml_pre_simulate == true || full_x == true

@@ -164,7 +164,8 @@ Check that a PEtab table has the required columns, and each column has correct t
 function _check_table(df, table::Symbol)::Nothing
     colsinfo = COLUMN_INFO[table]
 
-    for (name, colinfo) in colsinfo
+    for name in sort(collect(keys(colsinfo)))
+        colinfo = colsinfo[name]
         if colinfo[:required] == true
             _check_has_column(df, name, table)
         end

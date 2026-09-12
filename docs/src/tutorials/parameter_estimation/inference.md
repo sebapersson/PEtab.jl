@@ -145,7 +145,7 @@ sampler = NUTS(0.8)
 Random.seed!(1234) # hide
 res = sample(
     target, sampler, 2000; n_adapts = 1000, initial_params = x_inference,
-    drop_warmup = true, progress = false,
+    discard_initial = 1000, progress = false,
 )
 nothing # hide
 ```

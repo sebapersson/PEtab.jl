@@ -295,7 +295,7 @@ let
         p = plot(x, petab_prob; linewidth = 2.0, condition = :cond2 => :cond1)
     end
     plots = get_obs_comparison_plots(x, petab_prob)
-    @test all(collect(keys(plots)) .== ["cond_preeq=>cond2", "cond_preeq=>cond1"])
+    @test issetequal(keys(plots), ["cond_preeq=>cond1", "cond_preeq=>cond2"])
 
     model_residuals = petab_prob.simulated_values(x) - measurements.measurement
     model_residuals_stand = petab_prob.residuals(x)

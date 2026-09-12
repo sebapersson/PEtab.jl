@@ -121,10 +121,12 @@ function test_grad(modelid::Symbol)::Nothing
     return nothing
 end
 
-for model in keys(NLLH_MODELS)
+# Sorted iteration as a Dict does not have a well defined iteration order, which would
+# make the order tests are run in depend on the Julia version
+for model in sort(collect(keys(NLLH_MODELS)))
     test_nllh(model)
 end
 
-for model in keys(GRAD_MODELS)
+for model in sort(collect(keys(GRAD_MODELS)))
     test_grad(model)
 end

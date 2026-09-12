@@ -66,7 +66,14 @@ path_yaml = joinpath(
 )
 model = PEtabModel(path_yaml)
 @testset "Compare against pyPESTO" begin
+    # AutoFiniteDiff as the ODE right-hand side is not compatible with nested
+    # ForwardDiff duals when the Rosenbrock time-gradient is computed via autodiff
+    # for subset of SciML versions
     boehm_pyPESTO(
-        model, ODESolver(Rodas5P(), abstol = 1.0e-12, reltol = 1.0e-12)
+        model,
+        ODESolver(
+            Rodas5P(autodiff = SciMLBase.ADTypes.AutoFiniteDiff()),
+            abstol = 1.0e-12, reltol = 1.0e-12
+        )
     )
 end
