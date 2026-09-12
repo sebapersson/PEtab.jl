@@ -143,13 +143,13 @@ function test_ml_import(testcase, lux_model)::Nothing
             output = zeros(size(output_ref))
             nsamples = yaml_test["dropout"]
             for i in 1:nsamples
-                _output, st = lux_model(input, ps, st)
+                _output, st = Base.invokelatest(lux_model, input, ps, st)
                 output .+= _output
             end
             output ./= nsamples
         else
             testtol = 1.0e-3
-            output, st = lux_model(input, ps, st)
+            output, st = Base.invokelatest(lux_model, input, ps, st)
         end
         @test all(.≈(output, output_ref; atol = testtol))
     end
