@@ -83,6 +83,7 @@ get_u0
 get_system
 get_odeproblem
 get_odesol
+get_observable
 solve_all_conditions
 ```
 

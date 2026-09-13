@@ -153,6 +153,77 @@ function get_ps(
     return p
 end
 
+"""
+    get_observable(res, prob::PEtabODEProblem, observable_id; kwargs...)
+
+Return the measured and the model (simulated) values for `observable_id`.
+
+# Keyword arguments
+
+- `n_tsave = nothing`: Number of equidistant time-points to save the model trajectory at.
+  Defaults to the time-points chosen by the ODE solver. Only applies when a smooth model
+  trajectory is returned (see note below).
+
+For information on additional keyword arguments, see [`get_ps`](@ref).
+
+# Returns
+
+A `NamedTuple` with the fields:
+- `t_measured`: Time-points for the measured data.
+- `measurements`: Measured values at `t_measured`.
+- `t_simulated`: Time-points for the model values.
+- `simulated_values`: Model values at `t_simulated`.
+
+If `observable_id` has no measurements for the given condition, all returned vectors are
+empty.
+
+!!! note
+    If any measurement for `observable_id` has observable parameters (e.g. a
+    measurement-specific scale or offset), the observable is only defined at the
+    measurement time-points. Model values are then returned at those time-points, and
+    `n_tsave` has no effect.
+
+See also: [`get_odesol`](@ref) and [`get_ps`](@ref).
+"""
+function get_observable(
+        res::EstimationResult, prob::PEtabODEProblem, observable_id::Union{String, Symbol};
+        condition::Union{ConditionExp, Nothing} = nothing,
+        experiment::Union{ConditionExp, Nothing} = nothing,
+        n_tsave::Union{Integer, Nothing} = nothing
+    )
+    @unpack model_info = prob
+
+    _check_experiment_id(condition, experiment, model_info)
+    _check_observable_id(observable_id, model_info)
+    simulation_id = _get_simulation_id(condition, experiment, model_info)
+    pre_equilibration_id = _get_pre_equilibration_id(condition, experiment, model_info)
+    _check_condition_ids(simulation_id, pre_equilibration_id, model_info)
+
+    if !isnothing(n_tsave) && n_tsave < 2
+        throw(PEtabInputError("n_tsave must be at least 2 to define a trajectory, not \
+            $(n_tsave)"))
+    end
+
+    out = _get_observable(
+        _get_x(res), prob, condition, experiment, string(observable_id); n_tsave = n_tsave
+    )
+    return (
+        t_measured = out.t_obs, measurements = out.h_obs,
+        t_simulated = out.t_mod, simulated_values = out.h_mod,
+    )
+end
+
+function _check_observable_id(
+        observable_id::Union{String, Symbol}, model_info::ModelInfo
+    )::Nothing
+    observable_ids = model_info.model.petab_tables[:observables][!, :observableId]
+    if string(observable_id) in observable_ids
+        return nothing
+    end
+    throw(PEtabInputError("Observable id `$(observable_id)` not found in the PEtab \
+        problem. Valid ids: $(observable_ids)."))
+end
+
 function _get_ps_u0(
         res::EstimationResult, prob::PEtabODEProblem, condition::Union{ConditionExp, Nothing},
         experiment::Union{ConditionExp, Nothing}, retmap::Bool, mutated_sys::Bool

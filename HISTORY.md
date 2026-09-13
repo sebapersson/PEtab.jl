@@ -1,5 +1,12 @@
 # Breaking updates and feature summaries across releases
 
+## PEtab.jl 5.5.0
+
+- Added a `get_observable` function for retrieving the measured and the model (simulated)
+  values for a given observable. For example, `get_observable(res, prob, :obs1)` returns a
+  `NamedTuple` with the fields `t_measured`, `measurements`, `t_simulated` and
+  `simulated_values`.
+
 ## PEtab.jl 5.4.0
 
 - Added support for the new Julia native `LBFGSB` in Optimn for `calibrate` and

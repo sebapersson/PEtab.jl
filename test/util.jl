@@ -297,3 +297,84 @@ end
     @test ode_prob_ref.u0 == ode_problem_test.u0
     @test sol_ref == sol_test
 end
+
+@testset "get_observable" begin
+    # Model without observable parameters, hence a smooth model trajectory is returned
+    path_yaml = joinpath(
+        @__DIR__, "published_models", "Boehm_JProteomeRes2014",
+        "Boehm_JProteomeRes2014.yaml"
+    )
+    prob = PEtabODEProblem(PEtabModel(path_yaml))
+    x = get_x(prob)
+    measurements_df = prob.model_info.model.petab_tables[:measurements]
+    obs_id = "pSTAT5A_rel"
+
+    out = get_observable(x, prob, obs_id)
+    @test keys(out) == (:t_measured, :measurements, :t_simulated, :simulated_values)
+    # Measured values must match the measurement table
+    idata = findall(measurements_df[!, :observableId] .== obs_id)
+    @test out.t_measured == measurements_df[idata, :time]
+    @test out.measurements == measurements_df[idata, :measurement]
+    # Without observable parameters the trajectory is smooth
+    @test length(out.t_simulated) == length(out.simulated_values)
+    @test length(out.t_simulated) > length(out.t_measured)
+    @test issorted(out.t_simulated)
+    # n_tsave controls the number of saved time-points
+    @test length(get_observable(x, prob, obs_id; n_tsave = 50).t_simulated) == 50
+
+    # The model values must equal the observable formula evaluated on the ODE solution.
+    # Species are accessed by name, as their order in the system is not fixed
+    out_tsave = get_observable(x, prob, obs_id; n_tsave = 20)
+    sol = get_odesol(x, prob)
+    specC17 = sol.prob.ps[:specC17]
+    # pSTAT5A_rel = (100pApB + 200pApA*specC17) / (pApB + STAT5A*specC17 + 2pApA*specC17)
+    href = map(out_tsave.t_simulated) do t
+        pApB = sol(t, idxs = :pApB)
+        pApA = sol(t, idxs = :pApA)
+        STAT5A = sol(t, idxs = :STAT5A)
+        (100pApB + 200pApA * specC17) / (pApB + STAT5A * specC17 + 2pApA * specC17)
+    end
+    @test all(href .≈ out_tsave.simulated_values)
+    # A Symbol id gives the same result as a String id
+    @test get_observable(x, prob, Symbol(obs_id)).simulated_values == out.simulated_values
+    # A result also works as input, not only a parameter vector
+    res = PEtabOptimisationResult(
+        x, 10.0, x, :Fides, 10, 10.0, Vector{Vector{Float64}}(undef, 0), Float64[],
+        true, nothing
+    )
+    @test get_observable(res, prob, obs_id).simulated_values == out.simulated_values
+
+    @test_throws PEtab.PEtabInputError get_observable(x, prob, "not_an_observable")
+    @test_throws PEtab.PEtabInputError get_observable(x, prob, obs_id; n_tsave = 1)
+    @test_throws PEtab.PEtabInputError get_observable(x, prob, obs_id; condition = :nope)
+
+    # Model with observable parameters and pre-equilibration. Here the observable is only
+    # defined at the measurement time-points, so no smooth trajectory is returned
+    path_yaml = joinpath(
+        @__DIR__, "published_models", "Brannmark_JBC2010", "Brannmark_JBC2010.yaml"
+    )
+    prob = PEtabODEProblem(PEtabModel(path_yaml))
+    x = get_x(prob)
+    measurements_df = prob.model_info.model.petab_tables[:measurements]
+    # IRS1_P at Dose_100 has 12 measurements, so the comparison is not trivial
+    condition = :Dose_0 => :Dose_100
+    obs_id = "IRS1_P"
+
+    out = get_observable(x, prob, obs_id; condition = condition)
+    @test length(out.t_measured) == 12
+    @test out.t_simulated == out.t_measured
+    @test length(out.simulated_values) == length(out.measurements)
+    # n_tsave does not apply when the observable has observable parameters
+    @test get_observable(x, prob, obs_id; condition = condition, n_tsave = 500).t_simulated ==
+        out.t_simulated
+    # The simulated values must match those from the problem
+    idata = findall(
+        measurements_df[!, :observableId] .== obs_id .&&
+            measurements_df[!, :simulationConditionId] .== "Dose_100" .&&
+            measurements_df[!, :preequilibrationConditionId] .== "Dose_0"
+    )
+    @test out.simulated_values == prob.simulated_values(x)[idata]
+    # An observable without measurements for the condition gives empty output
+    out_empty = get_observable(x, prob, "IR1_P"; condition = :Dose_0 => :Dose_01)
+    @test isempty(out_empty.t_measured) && isempty(out_empty.t_simulated)
+end
