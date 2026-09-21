@@ -322,9 +322,10 @@ limitations by combining multiple shooting with a curriculum schedule.
 
 ## Curriculum multiple shooting
 
-Curriculum multiple shooting combines multiple shooting with a curriculum schedule. Training
-starts from a multiple-shooting formulation and progressively reduces the number of windows
-by merging adjacent windows until the original single-window problem is recovered.
+Curriculum multiple shooting [persson2026curriculum](@cite) combines multiple shooting with
+a curriculum schedule. Training starts from a multiple-shooting formulation and
+progressively reduces the number of windows by merging adjacent windows until the original
+single-window problem is recovered.
 
 With [PEtabTraining.jl](https://github.com/sebapersson/PEtabTraining.jl), as an example, a
 5-stage curriculum multiple-shooting problem can be created as:
@@ -429,7 +430,10 @@ xlabel!("Epoch"); ylabel!("NLLH")
 ```
 
 It should be kept in mind that this comparison is based on a single run for a single model.
-An extensive benchmark study to evaluate these approaches is in progress.
+For an extensive evaluation of these approaches across twelve benchmark problems, covering
+neural ODEs, UDEs and mechanistic ODE models, see [persson2026curriculum](@cite). In
+general, benchmarks finds that curriculum multiple shooting performs strongly across
+different settings.
 
 ## Next steps
 
@@ -441,3 +445,10 @@ curriculum training can be combined with the
 [Fides.jl](https://github.com/fides-dev/Fides.jl) optimizer via [`calibrate`](@ref) to
 optimize a mechanistic model in stages, which can be highly effective. More tutorials on
 this are coming, so stay tuned!
+
+## References
+
+```@bibliography
+Pages = ["strategies.md"]
+Canonical = false
+```
