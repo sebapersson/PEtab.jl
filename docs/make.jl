@@ -6,8 +6,7 @@ using PEtab
 DocMeta.setdocmeta!(PEtab, :DocTestSetup, :(using PEtab); recursive = false)
 
 bib = CitationBibliography(
-    joinpath(@__DIR__, "src", "refs.bib"),
-    style = :numeric
+    joinpath(@__DIR__, "src", "refs.bib"), style = :numeric, show_backlinks = false
 )
 
 makedocs(
