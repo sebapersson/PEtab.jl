@@ -8,6 +8,9 @@ using ModelingToolkitBase: t_nounits as t, D_nounits as D
 
 rng = Random.default_rng()
 
+# Needed as subset of computed and tested gradients have very large magnitudes
+const RTOL_GRAD = 1.0e-3
+
 PROB_CONFIGS = [
     (grad = :ForwardDiff, split = false, sensealg = :ForwardDiff),
     (grad = :ForwardDiff, split = true, sensealg = :ForwardDiff),
@@ -46,7 +49,7 @@ function test_hybrid(test_case, petab_prob::PEtabODEProblem)
     mechids = get_mechanistic_ids(petab_prob.model_info)
     for id in mechids
         iref = findfirst(x -> string(x) == "$id", gradmech_ref[!, :parameterId])
-        @test grad_petab[id] ≈ gradmech_ref[iref, :value] atol = tol_grad
+        @test grad_petab[id] ≈ gradmech_ref[iref, :value] atol = tol_grad rtol = RTOL_GRAD
     end
     # Neural-net parameters
     for ml_model in petab_prob.model_info.model.ml_models.ml_models
@@ -56,7 +59,7 @@ function test_hybrid(test_case, petab_prob::PEtabODEProblem)
         path_ref = joinpath(dirtest, yamlfile["grad_files"][string(ml_id)])
         grad_ref = deepcopy(grad_test)
         PEtab._set_ml_model_ps!(grad_ref, path_ref, ml_model.lux_model, ml_id)
-        @test all(.≈(grad_test, grad_ref; atol = tol_grad))
+        @test all(.≈(grad_test, grad_ref; atol = tol_grad, rtol = RTOL_GRAD))
     end
     return nothing
 end
