@@ -5,7 +5,9 @@ import SciMLLogging
 # model (from test case 0031) has k1 = k2 = 0, so A and B only change at the period starts:
 # A + 5 at t = 10 and B + 3 at t = 20.
 @testset "V2 experiment with several periods" begin
-    path_yaml = joinpath(@__DIR__, "petab_v2_regression", "multiple_periods", "problem.yaml")
+    path_yaml = joinpath(
+        @__DIR__, "petab_v2_regression", "multiple_periods", "problem.yaml"
+    )
     model = PEtabModel(path_yaml)
     osolver = ODESolver(
         Rodas5P(), abstol = 1.0e-10, reltol = 1.0e-10, verbose = SciMLLogging.None()
