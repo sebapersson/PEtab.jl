@@ -1,0 +1,7 @@
+observableId	experimentId	time	measurement
+obs_a	experiment1	5.0	0.0
+obs_a	experiment1	15.0	0.0
+obs_a	experiment1	25.0	0.0
+obs_b	experiment1	5.0	0.0
+obs_b	experiment1	15.0	0.0
+obs_b	experiment1	25.0	0.0

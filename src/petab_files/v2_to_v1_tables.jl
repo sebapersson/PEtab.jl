@@ -271,7 +271,7 @@ function _parse_petab_v2_events!(
         target_ids = String[]
         target_values = String[]
         for row_idx in 1:DataFrames.nrow(experiments_event_t_df)
-            condition_id = experiment_events_df.conditionId[row_idx]
+            condition_id = experiments_event_t_df.conditionId[row_idx]
             condition_event_df = filter(r -> r.conditionId == condition_id, conditions_v2_df)
 
             target_values = vcat(target_values, string.(condition_event_df.targetValue))
