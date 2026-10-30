@@ -18,6 +18,10 @@ end
     include("petab_v2_testsuite.jl")
 end
 
+@safetestset "PEtab v2 regression tests" begin
+    include("petab_v2_regression.jl")
+end
+
 @safetestset "Define models in Julia" begin
     include("defined_in_julia.jl")
 end
