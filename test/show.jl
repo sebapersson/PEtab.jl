@@ -23,8 +23,8 @@ p5 = PEtabParameter(:k5; value = 3.0, estimate = false)
 p6 = PEtabMLParameter(:net1)
 @test "$p1" == "PEtabParameter k1: estimate (scale = log10, bounds = [1.0e-03, 1.0e+03])"
 @test "$p2" == "PEtabParameter k2: estimate (scale = lin, bounds = [1.0e-03, 1.0e+03])"
-@test "$p3" == "PEtabParameter k3: estimate (scale = log, prior(k3) = Truncated(LogNormal(μ=1.0, σ=1.0); lower=0.01, upper=1000.0))"
-@test "$p4" == "PEtabParameter k4: estimate (scale = lin, prior(k4) = LogNormal(μ=1.0, σ=1.0))"
+@test "$p3" == "PEtabParameter k3: estimate (scale = log, prior(k3) = truncated(LogNormal(1.0, 1.0), 0.01, 1000.0))"
+@test "$p4" == "PEtabParameter k4: estimate (scale = lin, prior(k4) = LogNormal(1.0, 1.0))"
 @test "$p5" == "PEtabParameter k5: fixed = 3.00e+00"
 @test "$p6" == "PEtabMLParameter net1: estimate"
 
