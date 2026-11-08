@@ -73,3 +73,27 @@ supported_tests = [
         test_v2(test_case)
     end
 end
+
+# An experiment whose periods after t0 apply different conditions, at different times. The
+# model (from test case 0031) has k1 = k2 = 0, so A and B only change at the period starts:
+# A + 5 at t = 10 and B + 3 at t = 20. Currently not covered by the test-suite, so
+# included here as extra test
+@testset "V2 experiment with several periods" begin
+    path_yaml = joinpath(
+        @__DIR__, "petab_v2_testsuite", "multiple_periods", "problem.yaml"
+    )
+    model = PEtabModel(path_yaml)
+    osolver = ODESolver(
+        Rodas5P(), abstol = 1.0e-10, reltol = 1.0e-10, verbose = SciMLLogging.None()
+    )
+    prob = PEtabODEProblem(model; odesolver = osolver)
+    x = get_x(prob)
+
+    simvals = prob.simulated_values(x)
+    # Measurement order: obs_a at t = 5, 15, 25, then obs_b at the same times
+    @test all(.≈(simvals, [1.0, 6.0, 6.0, 1.0, 1.0, 4.0]; atol = 1.0e-6))
+
+    grad_ref = FiniteDifferences.grad(central_fdm(5, 1), prob.nllh, x)[1]
+    grad1 = prob.grad(x)
+    @test all(.≈(grad1, grad_ref, atol = 1.0e-3))
+end
