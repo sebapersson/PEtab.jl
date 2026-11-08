@@ -173,15 +173,21 @@ function _conditions_v2_to_v1(
 
         conditions_v1_pre_eq_row = _get_v1_condition(experiment_df, conditions_v2_df, true)
         conditions_v1_row = _get_v1_condition(experiment_df, conditions_v2_df, false)
-        conditions_v1_df = DataFrames.vcat(conditions_v1_df, conditions_v1_pre_eq_row, cols = :union)
-        conditions_v1_df = DataFrames.vcat(conditions_v1_df, conditions_v1_row, cols = :union)
+        conditions_v1_df = DataFrames.vcat(
+            conditions_v1_df, conditions_v1_pre_eq_row, cols = :union
+        )
+        conditions_v1_df = DataFrames.vcat(
+            conditions_v1_df, conditions_v1_row, cols = :union
+        )
 
         if !isempty(conditions_v1_pre_eq_row) && isempty(conditions_v1_row)
             simulation_condition_id = conditions_v1_pre_eq_row.conditionId[1]
         else
             simulation_condition_id = conditions_v1_row.conditionId[1]
         end
-        _parse_petab_v2_events!(petab_events, experiment_df, conditions_v2_df, simulation_condition_id)
+        _parse_petab_v2_events!(
+            petab_events, experiment_df, conditions_v2_df, simulation_condition_id
+        )
     end
 
     # Conditions and experiment tables are optional in v2, but not in v1. Therefore, must
@@ -251,7 +257,8 @@ function _get_t0_experiment(experiment_df::DataFrame)::Float64
 end
 
 function _parse_petab_v2_events!(
-        petab_events::Vector{PEtabEvent}, experiment_df::DataFrame, conditions_v2_df::DataFrame, simulation_condition_id::String
+        petab_events::Vector{PEtabEvent}, experiment_df::DataFrame,
+        conditions_v2_df::DataFrame, simulation_condition_id::String
     )::Nothing
     t0 = _get_t0_experiment(experiment_df)
     experiment_events_df = filter(r -> r.time ∉ [-Inf, t0], experiment_df)
@@ -271,8 +278,10 @@ function _parse_petab_v2_events!(
         target_ids = String[]
         target_values = String[]
         for row_idx in 1:DataFrames.nrow(experiments_event_t_df)
-            condition_id = experiment_events_df.conditionId[row_idx]
-            condition_event_df = filter(r -> r.conditionId == condition_id, conditions_v2_df)
+            condition_id = experiments_event_t_df.conditionId[row_idx]
+            condition_event_df = filter(
+                r -> r.conditionId == condition_id, conditions_v2_df
+            )
 
             target_values = vcat(target_values, string.(condition_event_df.targetValue))
             target_ids = vcat(target_ids, condition_event_df.targetId)
