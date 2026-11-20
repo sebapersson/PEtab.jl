@@ -95,19 +95,26 @@ function _calibrate_multistart(
     # on each relevant process
     _nprocs = nprocs == 1 ? nprocs - 1 : nprocs
     pids = _create_workers(_nprocs)
-    _load_packages_workers(pids)
-    _xstarts = [(x.second, x.first) for x in pairs(xstarts)]
-    _calibrate_procs = x -> _calibrate_startguess(
-        x[1], x[2], prob, alg, save_trace,
-        options, paths_save, mutex
-    )
-    # Progress-meter logging
-    p = ProgressMeter.Progress(
-        length(_xstarts); enabled = show_progress, desc = "Multistart runs: ",
-        showspeed = true, dt = 1.0
-    )
-    runs = ProgressMeter.progress_pmap(_calibrate_procs, _xstarts; progress = p)
-    _remove_workers(pids)
+    # The workers must be removed even if anything below throws (loading PEtab on a worker
+    # included). Otherwise they stay alive, and if they were created while output is
+    # captured (e.g. inside a Documenter @example block) they keep the capture pipe open,
+    # which hangs the capturing process forever.
+    runs = try
+        _load_packages_workers(pids)
+        _xstarts = [(x.second, x.first) for x in pairs(xstarts)]
+        _calibrate_procs = x -> _calibrate_startguess(
+            x[1], x[2], prob, alg, save_trace,
+            options, paths_save, mutex
+        )
+        # Progress-meter logging
+        p = ProgressMeter.Progress(
+            length(_xstarts); enabled = show_progress, desc = "Multistart runs: ",
+            showspeed = true, dt = 1.0
+        )
+        ProgressMeter.progress_pmap(_calibrate_procs, _xstarts; progress = p)
+    finally
+        _remove_workers(pids)
+    end
 
     bestrun = runs[argmin([isnan(r.fmin) ? Inf : r.fmin for r in runs])]
     fmin = bestrun.fmin

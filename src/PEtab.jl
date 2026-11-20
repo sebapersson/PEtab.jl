@@ -28,6 +28,7 @@ import SBMLImporter: SBMLImporter, ModelSBML
 import SciMLBase: SciMLBase, AbstractSciMLAlgorithm, CallbackSet, ContinuousCallback,
     DiscreteCallback, ODEProblem, ODESolution, ReturnCode, remake, solve, terminate!
 import SciMLLogging
+import Serialization
 import Setfield: @set
 import StatsBase
 import StyledStrings: styled, @styled_str

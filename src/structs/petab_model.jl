@@ -443,3 +443,26 @@ struct PEtabModel
     sys_observables::Dict{Symbol, Function}
     ml_models::MLModels
 end
+
+# ModelingToolkitBase keeps per-task caches (`PerTaskValue`, backed by a
+# `WeakKeyDict{Task, ...}`) in system metadata. Its `Serialization.serialize` and
+# `Base.deepcopy_internal` hooks that swap in fresh caches are defined for
+# `ModelingToolkitBase.System` only, so a `Catalyst.ReactionSystem` still holds a live
+# `Task` and fails to serialize with "cannot serialize a running Task". This breaks
+# `calibrate_multistart` with `nprocs > 1`, where `pmap` must send the problem to the
+# worker processes. The system fields are only read when a `PEtabODEProblem` is built,
+# never during calibration, so they are dropped when a model is serialized.
+function Serialization.serialize(
+        s::Serialization.AbstractSerializer, model::PEtabModel
+    )
+    stripped = PEtabModel(
+        model.name, model.h, model.u0!, model.u0, model.sd, model.float_tspan,
+        model.paths, nothing, nothing, nothing, model.parametermap, model.speciemap,
+        model.petab_tables, model.callbacks, model.defined_in_julia, model.petab_events,
+        model.sys_observables, model.ml_models
+    )
+    return invoke(
+        Serialization.serialize,
+        Tuple{Serialization.AbstractSerializer, Any}, s, stripped
+    )
+end
