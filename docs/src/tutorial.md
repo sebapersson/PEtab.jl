@@ -203,6 +203,8 @@ tspan = (0.0, 10.0)
 oprob = ODEProblem(rn, u0, tspan, ps)
 sol = solve(oprob, Rodas5P(); saveat = 0:0.5:10.0)
 
+import Random # hide
+Random.seed!(1) # hide
 obs1 = (sol[:S] + sol[:E]) .+ randn(length(sol[:E]))
 obs2   = sol[:P] .+ randn(length(sol[:P]))
 
@@ -544,6 +546,8 @@ u0 = [:E => 50.0, :SE => 0.0, :P => 0.0]
 tspan = (0.0, 10.0)
 oprob = ODEProblem(rn, u0, tspan, ps)
 sol = solve(oprob, Rodas5P(); saveat = 0:0.5:10.0)
+import Random # hide
+Random.seed!(1) # hide
 obs1 = (sol[:S] + sol[:E]) .+ randn(length(sol[:E]))
 obs2   = sol[:P] .+ randn(length(sol[:P]))
 df1 = DataFrame(obs_id = "petab_obs1", time = sol.t, measurement = obs1)

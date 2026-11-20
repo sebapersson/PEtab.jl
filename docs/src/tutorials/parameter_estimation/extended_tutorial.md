@@ -177,11 +177,16 @@ minutes on a single process. `dirsave` optionally saves results as runs finish a
 `show_progress = true` to display a progress bar tracking how many runs have completed. For
 example, to run 50 multi-starts with Optim.jl's `IPNewton`:
 
-```@example 1
+```julia
 ms_res = calibrate_multistart(
   petab_prob, Optim.IPNewton(), 50; nprocs = 2, show_progress = true,
   dirsave = "path_to_save_directory"
 )
+```
+
+```@example 1
+ms_res = calibrate_multistart(petab_prob, Optim.IPNewton(), 50) # hide
+nothing # hide
 ```
 
 Results are returned as a `PEtabMultistartResult`, which contains per-run statistics and the
